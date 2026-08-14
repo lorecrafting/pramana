@@ -1,0 +1,30 @@
+{
+  "bake_schema": 1,
+  "sources": [
+    {
+      "file_count": 1,
+      "files": [
+        {
+          "bytes": 1123303,
+          "path": "T/T09/T09n0262.xml",
+          "sha256": "015033c68f37e6da7068c9bf15c8e55bca21e4ca71d387505e2123e16debe716"
+        }
+      ],
+      "files_sha256": "df1ac01e6bb08407a992aba66fbbfbe04c07268b558d40bfa7ef852bbd35ef13",
+      "id": "cbeta",
+      "license": {
+        "class": "nc",
+        "commercial_use": false,
+        "redistributable": false,
+        "spdx": "LicenseRef-CBETA-NC"
+      },
+      "name": "CBETA Chinese Buddhist Electronic Tripitaka (XML P5)",
+      "pin": {
+        "commit": "2b8ab8d5e4fe957a9b94f2cde01cb0d2e2dcd2b9",
+        "type": "git"
+      },
+      "retrieved_at": "2026-08-14T03:20:00.810862Z",
+      "upstream": "https://github.com/cbeta-org/xml-p5"
+    }
+  ]
+}
