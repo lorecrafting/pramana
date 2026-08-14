@@ -45,6 +45,12 @@ defmodule Pramana.MixProject do
       # CJK segmentation NIF — see docs/ELIXIR.md exception #1
       {:pramana_native, in_umbrella: true},
 
+      # Embeddings. The Phase 0 spike established that BGE-M3's XLM-RoBERTa backbone
+      # loads in Bumblebee for DENSE vectors; its sparse/ColBERT heads do not.
+      {:bumblebee, "~> 0.6"},
+      {:nx, "~> 0.9"},
+      {:exla, "~> 0.9"},
+
       # Corpus pipeline
       {:pgvector, "~> 0.3"},
       {:saxy, "~> 1.6"},

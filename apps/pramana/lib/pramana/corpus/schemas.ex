@@ -178,6 +178,10 @@ defmodule Pramana.Corpus.Chunk do
     field :byte_start, :integer
     field :byte_end, :integer
 
+    field :embedding, Pgvector.Ecto.Vector
+    field :embedding_model, :string
+    field :embedded_at, :utc_datetime_usec
+
     timestamps(type: :utc_datetime_usec)
   end
 end
