@@ -72,23 +72,30 @@ defmodule Pramana.Acquire.CBETA do
   def fetch(sha, paths, opts \\ []) when is_binary(sha) and is_list(paths) do
     {:ok, source} = Sources.fetch(@source_id)
 
-    if up_to_date?(sha, paths) do
-      {:ok, entry} = Lockfile.get_source(@source_id)
-      {:ok, %{pin: sha, files: entry["files"], refetched: false}}
-    else
-      with {:ok, files} <- download_all(source, sha, paths, opts) do
-        entry =
-          Lockfile.build_entry(source,
-            files: files,
-            pin: %{"type" => "git", "commit" => sha},
-            retrieved_at: Keyword.get(opts, :retrieved_at, DateTime.utc_now())
-          )
+    if up_to_date?(sha, paths),
+      do: cached_result(sha),
+      else: download_and_lock(source, sha, paths, opts)
+  end
 
-        with :ok <- Lockfile.put_source(entry) do
-          {:ok, %{pin: sha, files: files, refetched: true}}
-        end
-      end
+  defp cached_result(sha) do
+    {:ok, entry} = Lockfile.get_source(@source_id)
+    {:ok, %{pin: sha, files: entry["files"], refetched: false}}
+  end
+
+  defp download_and_lock(source, sha, paths, opts) do
+    with {:ok, files} <- download_all(source, sha, paths, opts),
+         entry = lock_entry(source, sha, files, opts),
+         :ok <- Lockfile.put_source(entry) do
+      {:ok, %{pin: sha, files: files, refetched: true}}
     end
+  end
+
+  defp lock_entry(source, sha, files, opts) do
+    Lockfile.build_entry(source,
+      files: files,
+      pin: %{"type" => "git", "commit" => sha},
+      retrieved_at: Keyword.get(opts, :retrieved_at, DateTime.utc_now())
+    )
   end
 
   defp up_to_date?(sha, paths) do

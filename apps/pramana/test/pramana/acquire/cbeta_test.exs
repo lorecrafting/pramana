@@ -19,13 +19,15 @@ defmodule Pramana.Acquire.CBETATest do
   end
 
   # A stub fetcher: no test in this project touches the network.
-  defp stub(responses) do
-    fn url ->
-      case Enum.find(responses, fn {pattern, _} -> String.contains?(url, pattern) end) do
-        {_, {:error, reason}} -> {:error, reason}
-        {_, body} -> {:ok, body}
-        nil -> {:error, {:unexpected_url, url}}
-      end
+  defp stub(responses), do: fn url -> respond(responses, url) end
+
+  defp respond(responses, url) do
+    responses
+    |> Enum.find(fn {pattern, _} -> String.contains?(url, pattern) end)
+    |> case do
+      {_, {:error, reason}} -> {:error, reason}
+      {_, body} -> {:ok, body}
+      nil -> {:error, {:unexpected_url, url}}
     end
   end
 
