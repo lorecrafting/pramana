@@ -1,0 +1,8 @@
+# Project-pinned toolchain. Exact versions, not "latest" — the reproducibility
+# discipline that applies to the corpus bake applies to the build too.
+[tools]
+erlang = "29.0.5"
+elixir = "1.20.3-otp-29"
+
+[env]
+MIX_ENV = "dev"

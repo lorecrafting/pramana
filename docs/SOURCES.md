@@ -1,0 +1,82 @@
+# Sources
+
+All four traditions land in v1. Ordered by ingest difficulty — do them in this order,
+because each one's tooling makes the next cheaper.
+
+## Tier 1 — Clean structured text, no OCR
+
+### CBETA (Chinese)
+- `https://github.com/cbeta-org/xml-p5` — TEI P5, git-pinnable
+- Taishō vols **1–55 and 85**, plus 卍續藏 (X) and ~20 other collections
+- ~250M characters; the backbone of the corpus
+- **License: non-commercial, header must remain intact**
+- Watch: ~30k gaiji glyphs; editorial punctuation; full `<app>` variant apparatus
+  (Song/Yuan/Ming/Koryŏ) — that apparatus is a feature, not noise
+
+### SAT Daizōkyō (Japanese)
+- `https://21dzk.l.u-tokyo.ac.jp/SAT/` — all 85 Taishō volumes
+- **License: CC BY-SA 4.0** — the most permissive major Chinese-script canon source
+- **Its unique value is vols 56–84**: the Japanese-composed sectarian commentaries
+  (Shingon, Tendai, Nichiren, Zen) that CBETA deliberately excludes. This is the
+  delta that makes the provenance model necessary.
+- Overlaps CBETA on vols 1–55/85 — dedupe by work ID, keep both as separate
+  witnesses rather than discarding one
+
+### SuttaCentral `bilara-data` (Pali)
+- `https://github.com/suttacentral/bilara-data` — **CC0, public domain**
+- ~444k segments, already segment-aligned root ↔ translation
+- Also grab `sc-data`: thousands of **hand-curated Āgama↔Nikāya parallels**. This is
+  curated scholarship, free — ingest it instead of rediscovering it with embeddings.
+- Segment IDs (`mn1:1.1`) are the field standard. Adopt them verbatim.
+
+## Tier 2 — Structured but partial
+
+### 84000 (Tibetan → English)
+- `https://github.com/84000` — TEI, plus an API
+- Kangyur/Tengyur translations, Toh numbers, Derge folio references
+- Ships a **Skt–Tib–Eng glossary** — a direct cross-lingual anchor for alignment
+- Coverage is partial and growing; treat completeness as a moving target
+
+### OpenPecha / Adarsha / Esukhia (Tibetan)
+- The actual Tibetan-language **etext**, openly licensed
+- This — not BDRC — is where retrievable Tibetan text comes from
+
+## Tier 3 — Images, needs OCR
+
+### BDRC / BUDA (the "Digital Tibetan Buddhist Treasury")
+- `https://library.bdrc.io/` — 30M+ pages, the largest Tibetan collection anywhere
+- **Overwhelmingly scanned page images, not searchable text**, and restrictively
+  licensed. Plan this as an OCR program, not an ingest task.
+- v1 use: catalog metadata, RIDs as authority identifiers, and IIIF image links so a
+  reader can show the manuscript page beside the text. Full-text OCR is post-v1.
+
+## Supporting data
+
+- **DILA authority databases** — person/place/time authority records, ~22k
+  teacher–student lineage chains. The backbone of any knowledge graph.
+- **DDB** (Digital Dictionary of Buddhism) — Chinese Buddhist terminology
+- **Mahāvyutpatti** — the canonical Sanskrit–Tibetan term correspondence table;
+  exact, citable cross-lingual anchors
+- **Digital Pali Dictionary**, **Monier-Williams** (Sanskrit)
+- **GRETIL** — Sanskrit etexts, for surviving Indic originals
+- **Wikidata** — Q-IDs for people/places, for external linking
+
+## Later expansion: East Asian medical texts
+
+The architecture generalizes without change, because the provenance shape is
+*identical*: a base text, layered commentary, and a Japanese reception layer.
+
+- **Kanripo / Kanseki Repository** — Chinese classics in TEI, same tooling as CBETA
+- **CTEXT** — Chinese Text Project
+- Core works: 黃帝內經, 傷寒論, 神農本草經, 本草綱目
+- Japanese Kampo (漢方) commentary sits in exactly the same relation to Chinese
+  medical classics as Taishō 56–84 does to the Chinese canon. The
+  `composition_origin` / `text_role` axes carry over unmodified — which is a good
+  sign the model is right.
+
+## License handling
+
+Every source row carries `license_class`. The API can be configured to exclude
+classes, so a deployment can serve only CC0/CC-BY content. We publish the **pipeline,
+not the corpus** — each user bakes their own from upstream, which keeps CBETA's
+non-commercial clause and BDRC's restrictions out of our distribution entirely.
