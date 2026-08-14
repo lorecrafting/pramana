@@ -39,8 +39,11 @@ alteration and refusing a fabricated URN.
 
 ## Phase 1 — Chinese corpus (weeks 2–5)
 
-- Full CBETA normalize: gaiji mapping, `<lb/>` preservation, `<app>` apparatus,
-  juan boundaries — Saxy streaming, Broadway for concurrency, Oban for resumability
+- Full CBETA normalize (done): gaiji mapping, `<lb/>` preservation, `<app>` apparatus,
+  juan boundaries — Saxy streaming, **Oban** for concurrency and resumability. Broadway
+  was dropped here: it earns its place when a slow stage must backpressure an upstream
+  *stream*, and the input is a static list of 5,005 files. It may return for the
+  embedding stage, where a slow sidecar genuinely needs to throttle producers.
 - Chinese word segmentation via the `jieba-rs` Rustler NIF; `pg_bigm` lexical index
 - BGE-M3 embeddings, HNSW index, RRF hybrid search
 - Provenance axes populated; apocrypha (疑偽部) flagged

@@ -9,6 +9,7 @@ defmodule Pramana.Application do
   def start(_type, _args) do
     children = [
       Pramana.Repo,
+      {Oban, Application.fetch_env!(:pramana, Oban)},
       {DNSCluster, query: Application.get_env(:pramana, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Pramana.PubSub}
       # Start a worker by calling: Pramana.Worker.start_link(arg)

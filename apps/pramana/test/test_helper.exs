@@ -14,5 +14,6 @@ unless corpus_available? do
   """)
 end
 
+# perform_job/2 for Oban worker tests
 ExUnit.start(exclude: if(corpus_available?, do: [], else: [:corpus]))
 Ecto.Adapters.SQL.Sandbox.mode(Pramana.Repo, :manual)

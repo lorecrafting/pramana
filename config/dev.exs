@@ -11,7 +11,15 @@ config :pramana, Pramana.Repo,
   log: System.get_env("PRAMANA_SQL_LOG") == "1" and :debug,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+  # Sized for the bake, not for a web request. Loading one work is a single
+  # transaction that can insert 26,000+ rows (T1912 is the largest in the Taisho), and
+  # the default 15s checkout timeout kills exactly those — 26 of 2,471 works failed
+  # this way, every one of them large. Timeouts here are a capacity problem, never a
+  # data problem, so raise capacity rather than shrink the transaction.
+  pool_size: 25,
+  timeout: 120_000,
+  queue_target: 5_000,
+  queue_interval: 30_000
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

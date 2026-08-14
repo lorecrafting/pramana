@@ -102,12 +102,16 @@ defmodule Mix.Tasks.Pramana.Bake do
 
   # Taishō vols 56-84 are mechanically Japanese-composed commentary; 1-55 and 85 need
   # catalogue data, and the rule returns nil rather than guessing.
-  defp provenance_for(%{provenance_rule: nil}, _volume), do: %{}
+  defp provenance_for(pipeline, volume) do
+    case Map.get(pipeline, :provenance_rule) do
+      nil ->
+        %{}
 
-  defp provenance_for(%{provenance_rule: rule}, volume) do
-    case rule.provenance_for_volume(volume) do
-      {:ok, provenance} -> provenance
-      {:error, _} -> %{}
+      rule ->
+        case rule.provenance_for_volume(volume) do
+          {:ok, provenance} -> provenance
+          {:error, _} -> %{}
+        end
     end
   end
 

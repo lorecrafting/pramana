@@ -57,12 +57,17 @@ defmodule Pramana.Segment.Taisho do
     source = Keyword.fetch!(opts, :source)
     witness = Keyword.fetch!(opts, :witness)
 
-    {segments, _char, _byte} =
-      Enum.reduce(ir.lines, {[], 0, 0}, fn line, {acc, char_off, byte_off} ->
+    # The ordinal is CARRIED, not recomputed. Using `length(acc)` here made this
+    # quadratic and it only showed up at scale: T0220a (大般若波羅蜜多經, 600 fascicles)
+    # has 92,192 segments, so that was ~4.2 billion list traversals — 89 seconds of
+    # segmenting against 1.4 seconds of parsing. It looked like a database timeout.
+    {segments, _char, _byte, _ordinal} =
+      Enum.reduce(ir.lines, {[], 0, 0, 0}, fn line, {acc, char_off, byte_off, ordinal} ->
         char_len = String.length(line.text)
         byte_len = byte_size(line.text)
         # +1 for the "\n" that IR.body/1 joins lines with.
-        next = {char_off + char_len + 1, byte_off + byte_len + 1}
+        next_char = char_off + char_len + 1
+        next_byte = byte_off + byte_len + 1
 
         span = %{
           char_start: char_off,
@@ -71,9 +76,9 @@ defmodule Pramana.Segment.Taisho do
           byte_end: byte_off + byte_len
         }
 
-        case build(line, ir, source, witness, span, length(acc)) do
-          nil -> {acc, elem(next, 0), elem(next, 1)}
-          segment -> {[segment | acc], elem(next, 0), elem(next, 1)}
+        case build(line, ir, source, witness, span, ordinal) do
+          nil -> {acc, next_char, next_byte, ordinal}
+          segment -> {[segment | acc], next_char, next_byte, ordinal + 1}
         end
       end)
 

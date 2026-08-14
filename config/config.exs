@@ -21,6 +21,15 @@ config :pramana,
 # encode/decode natively. See docs/ARCHITECTURE.md stage 4.
 config :pramana, Pramana.Repo, types: Pramana.PostgrexTypes
 
+# The bake runs as Oban jobs: durable, resumable, and fault-isolated per file.
+# Concurrency is bounded because normalization is CPU-bound and the DB is the real
+# constraint -- more workers past core count just lengthens transactions.
+config :pramana, Oban,
+  repo: Pramana.Repo,
+  engine: Oban.Engines.Basic,
+  queues: [bake: 8],
+  plugins: [{Oban.Plugins.Pruner, max_age: 60 * 60 * 24}]
+
 config :pramana_web,
   ecto_repos: [Pramana.Repo],
   generators: [context_app: :pramana]

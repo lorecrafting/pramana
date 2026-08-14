@@ -43,6 +43,9 @@ defmodule Pramana.PipelineTest do
 
     test "acquirers export the whole callback set" do
       {:ok, c} = Pipeline.for_source("cbeta")
+      # function_exported?/3 answers false for a module that simply is not loaded yet,
+      # which would make this test pass or fail by load order rather than by fact.
+      Code.ensure_loaded!(c.acquirer)
 
       assert function_exported?(c.acquirer, :pin, 1)
       assert function_exported?(c.acquirer, :fetch, 3)

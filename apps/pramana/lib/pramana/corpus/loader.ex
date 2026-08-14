@@ -147,10 +147,11 @@ defmodule Pramana.Corpus.Loader do
         |> Map.put(:updated_at, now)
       end)
 
-    # Chunked because Postgres caps bound parameters per statement, and a full text
-    # can run to tens of thousands of segments.
+    # Chunked because Postgres caps bound parameters at 65535 per statement. Segments
+    # have 17 columns, so 2,000 rows is ~34k parameters — comfortably under, and half
+    # as many round trips inside the transaction as 1,000 was.
     rows
-    |> Enum.chunk_every(1_000)
+    |> Enum.chunk_every(2_000)
     |> Enum.each(&Repo.insert_all(Segment, &1))
 
     length(rows)

@@ -8,8 +8,13 @@ then run `TaskList`.
 
 ## Where we are
 
-**Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** task #10
-(lexical search) done; #9, #11, #12 remain.
+**Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** #9, #10, #31
+and #35 done; #11, #12, #32, #33 remain.
+
+**The full Taishō is baked.** 2,471 works, **4,729,656 segments**, 90.6M characters,
+zero failures, 190 s. `mix pramana.verify`: all 2,471 texts re-normalize from `raw/`
+byte-identically. Lexical search runs in **26–63 ms** across 4.7M segments. Database
+3.7 GB (segments 3.5 GB, bigram index 1.3 GB).
 
 Lexical search works: `pg_bigm` bigram index, phrase-then-n-gram fallback, provenance
 filters composing as SQL, and a `search` MCP tool returning results **grouped by origin
@@ -135,6 +140,18 @@ Each of these cost real time; they are recorded so they cost it only once.
   default PLT (`plt_add_apps: [:mix, :ex_unit]`).
 - **`phx_new` is 1.8.9 while `phoenix` is 1.8.11** — they version separately.
 - **Homebrew Postgres uses your OS username**, not `postgres/postgres`.
+- **`length(acc)` inside a reduce is quadratic, and only scale reveals it.** The
+  segmenter recomputed each ordinal that way. On T0220a (大般若波羅蜜多經, 600 fascicles,
+  92,192 segments) that meant ~4.2 billion traversals: 89 s of segmenting against 1.4 s
+  of parsing. It presented as a *database* timeout, and no amount of pool tuning would
+  have fixed it. Carrying the counter: 89.4 s → 2.3 s. **Measure before tuning.**
+- **Oban 2.23 needs migration v14** (v12 errors at boot), and its
+  `Oban.Testing.perform_job/2` signature changed — call the worker directly instead.
+- **`function_exported?/3` is false for a module that is merely not loaded**, so a test
+  using it passes or fails by load order unless you `Code.ensure_loaded!` first.
+- **A scripted patch that errors leaves docs untouched while the commit still runs.**
+  This bit three times. Always verify the file, and never trust an unconditional
+  "patched" message.
 - **`mix format` rewrites `field :x, opts` to `field(:x, opts)`.** A scripted patch
   matching the unparenthesised form silently no-ops afterwards. This bit once: the MCP
   input schema kept its old shape while `execute/2` gained new params, so the tool
@@ -148,3 +165,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | phase-0 | 148 | — | — | 62 ms (T0262 normalize) | 5,341 |
 | task-10 | 175 | — | — | lexical query 5–40 ms | 5,341 |
 | task-31 | 190 | — | — | outline 40 entries | 5,341 |
+| **#9 full Taishō** | **227** | — | — | **190 s / 2,471 works** | **4,729,656** |
