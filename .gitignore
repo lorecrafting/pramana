@@ -41,3 +41,7 @@ sources.lock.local.json
 
 # Dialyzer
 /priv/plts/
+
+# Rust build artifacts (path differs from the pattern added earlier)
+/apps/pramana_native/native/pramana_native/target/
+/apps/pramana_native/priv/native/

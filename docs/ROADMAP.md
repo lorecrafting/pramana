@@ -13,7 +13,7 @@ the provenance model or the eval harness.
 
 ---
 
-## Phase 0 — Skeleton (week 1)
+## Phase 0 — Skeleton ✅ COMPLETE (tag `phase-0`)
 
 Prove the whole pipeline end-to-end on **one sūtra** before scaling anything.
 
@@ -25,16 +25,17 @@ Prove the whole pipeline end-to-end on **one sūtra** before scaling anything.
   on it. Binary pattern matching makes the Taishō page/register/line grammar clean.
 - One MCP tool: `get_passage(urn)`, served from Phoenix
 
-**Two spikes that must happen now, because they shape Phases 1 and 6:**
-- **BGE-M3 through Bumblebee** — if dense-only works, query embedding runs in-process
-  and the Python sidecar becomes bake-time-only
-- **Rustler build setup** — get one trivial NIF compiling in CI before Phase 1 needs
-  `jieba-rs`
-- Decide the MCP path: `hermes_mcp` vs. the `anubis-mcp` fork vs. implementing
-  JSON-RPC directly in a Phoenix controller (check maintenance status of both)
+**Spikes, all resolved** (see `docs/STATUS.md` for the evidence):
+- **BGE-M3 through Bumblebee** — viable for dense: BGE-M3 declares
+  `architectures: ["XLMRobertaModel"]`, which Bumblebee supports. Its sparse/ColBERT
+  heads are two loose `.pt` linear layers, portable to Nx.
+- **Rustler** — `apps/pramana_native` builds `jieba-rs` on Rust 1.97.1, with FFI
+  byte-preservation tests for Han variants and plane-2 glyphs.
+- **MCP** — `anubis_mcp` (the maintained fork; `hermes_mcp` is a year stale).
 
-**Exit:** Claude fetches an exact Lotus Sūtra passage by URN and the guard verifies
-the quote byte-for-byte.
+**Exit: MET.** A model fetches an exact Lotus Sūtra passage by URN and the guard
+verifies the quote byte-for-byte — including catching a single-character 譯→說
+alteration and refusing a fabricated URN.
 
 ## Phase 1 — Chinese corpus (weeks 2–5)
 

@@ -33,7 +33,9 @@ defmodule Pramana.URN do
           work: String.t(),
           locator: String.t() | nil,
           locator_end: String.t() | nil,
-          raw: String.t()
+          # nil when the URN was CONSTRUCTED rather than parsed — the segmenter builds
+          # URNs from anchors and never has an original string to preserve.
+          raw: String.t() | nil
         }
 
   @enforce_keys [:source, :witness, :work]

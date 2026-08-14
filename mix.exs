@@ -6,6 +6,13 @@ defmodule Pramana.Umbrella.MixProject do
       apps_path: "apps",
       version: "0.1.0",
       start_permanent: Mix.env() == :prod,
+      dialyzer: [
+        plt_local_path: "priv/plts",
+        plt_core_path: "priv/plts",
+        # Mix and ExUnit are build/test tools, absent from the runtime PLT by default,
+        # so mix tasks would otherwise report every Mix.* call as unknown.
+        plt_add_apps: [:mix, :ex_unit]
+      ],
       deps: deps(),
       aliases: aliases(),
       listeners: [Phoenix.CodeReloader]

@@ -15,6 +15,10 @@ defmodule Pramana.Corpus do
   alias Pramana.Repo
   alias Pramana.URN
 
+  # NOTE: Elixir map types are EXACT — `%{a: t}` means those keys and no others. An
+  # undeclared key here does not merely under-document, it makes the spec unsatisfiable,
+  # and dialyzer then narrows `resolve/1` to its error branch and reports every
+  # downstream `verdict == :ok` as impossible. Keep this in step with `to_span/1`.
   @type span :: %{
           urn: String.t(),
           content: String.t(),
@@ -25,6 +29,7 @@ defmodule Pramana.Corpus do
           sha256: String.t(),
           kind: String.t(),
           juan: pos_integer() | nil,
+          meta: map(),
           provenance: map()
         }
 

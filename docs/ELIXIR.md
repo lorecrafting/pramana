@@ -89,12 +89,31 @@ cost nothing.
 
 ### 3. Embeddings + Tibetan tokenization → Python sidecar (`priv/embed`)
 
-The honest one.
+The honest one — and now measured rather than assumed. **Phase 0 spike, resolved:**
 
-BGE-M3 is an XLM-RoBERTa-large backbone with custom sparse and ColBERT output heads.
-Bumblebee has text-embedding servings via `Nx.Serving`, but **BGE-M3's multi-vector
-heads are not confirmed supported** — dense-only might work, the multi-vector output
-almost certainly needs porting. Multi-vector is precisely why we chose BGE-M3.
+- Bumblebee's model registry maps `"XLMRobertaModel" => Bumblebee.Text.Roberta`, and
+  BGE-M3's `config.json` declares exactly `architectures: ["XLMRobertaModel"]`,
+  `model_type: xlm-roberta`, hidden size 1024, 8194 max positions. **So the backbone
+  loads in Bumblebee, and dense embeddings can run in-process via `Nx.Serving`.**
+- The multi-vector heads are *not* in the HF model. They ship as two loose PyTorch
+  pickles alongside it: `sparse_linear.pt` and `colbert_linear.pt`. Bumblebee will
+  not load them.
+
+That second point is better news than it sounds. Those files are **two ordinary linear
+layers** (1024→1 for sparse, 1024→1024 for ColBERT). Converting them once, offline,
+into a format `Nx` can read reduces multi-vector inference to a matmul on top of the
+dense output — which would remove Python from the pipeline **entirely**, at serve time
+and bake time both.
+
+So the ladder is:
+
+1. **Dense in-process via Bumblebee** — viable today, use it for query embedding.
+2. **Multi-vector via the Python sidecar** — the safe default for Phase 1 bakes.
+3. **Multi-vector in Nx by porting two linear layers** — the goal; a one-off weight
+   conversion, then no sidecar at all. Attempt in Phase 1 once dense is working.
+
+Tibetan `botok` has no such escape hatch and keeps the sidecar alive regardless until
+Phase 5 — but bake-time only.
 
 Similarly, Tibetan segmentation depends on `botok`, which is Python-only with no Rust
 or Elixir equivalent.

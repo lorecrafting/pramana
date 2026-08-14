@@ -2,6 +2,8 @@ defmodule Pramana.Corpus.Source do
   @moduledoc "A pinned upstream corpus source and its license class."
   use Ecto.Schema
 
+  @type t :: %__MODULE__{}
+
   @primary_key {:id, :string, autogenerate: false}
   schema "sources" do
     field :name, :string
@@ -24,6 +26,8 @@ defmodule Pramana.Corpus.Witness do
   @moduledoc "A physical or printed edition (Taishō, Koryŏ, Derge, ...)."
   use Ecto.Schema
 
+  @type t :: %__MODULE__{}
+
   @primary_key {:id, :string, autogenerate: false}
   schema "witnesses" do
     field :name, :string
@@ -41,6 +45,8 @@ defmodule Pramana.Corpus.Work do
   heuristic. See `docs/ARCHITECTURE.md`, "The provenance model".
   """
   use Ecto.Schema
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :string, autogenerate: false}
   schema "works" do
@@ -62,6 +68,8 @@ end
 defmodule Pramana.Corpus.Text do
   @moduledoc "A work as it appears in one witness, from one source."
   use Ecto.Schema
+
+  @type t :: %__MODULE__{}
 
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Witness
@@ -94,6 +102,8 @@ defmodule Pramana.Corpus.Segment do
   """
   use Ecto.Schema
 
+  @type t :: %__MODULE__{}
+
   alias Pramana.Corpus.Text
 
   schema "segments" do
@@ -121,6 +131,8 @@ end
 defmodule Pramana.Corpus.Bake do
   @moduledoc "An immutable corpus snapshot: sha256(lockfile + pipeline version + config)."
   use Ecto.Schema
+
+  @type t :: %__MODULE__{}
 
   @primary_key {:id, :string, autogenerate: false}
   schema "bakes" do
