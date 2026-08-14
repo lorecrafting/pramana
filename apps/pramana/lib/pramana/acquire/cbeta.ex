@@ -13,6 +13,8 @@ defmodule Pramana.Acquire.CBETA do
   Network access is injected via the `:fetcher` option so tests never touch the wire.
   """
 
+  @behaviour Pramana.Pipeline.Acquirer
+
   alias Pramana.Acquire.Lockfile
   alias Pramana.Sources
 
@@ -44,6 +46,42 @@ defmodule Pramana.Acquire.CBETA do
   end
 
   @doc """
+  Resolves the upstream pin. Behaviour wrapper around `resolve_pin/1`.
+  """
+  @impl Pramana.Pipeline.Acquirer
+  @spec pin(keyword()) :: {:ok, map()} | {:error, term()}
+  def pin(opts \\ []) do
+    with {:ok, sha} <- resolve_pin(opts) do
+      {:ok, %{"type" => "git", "commit" => sha}}
+    end
+  end
+
+  @doc """
+  Where a target's bytes live under `raw/cbeta/`.
+
+  A CBETA target is `%{canon:, volume:, number:}`. The volume is catalogue data and is
+  not derivable from the work number, so it must be supplied — guessing it would
+  produce a confidently wrong citation.
+  """
+  @impl Pramana.Pipeline.Acquirer
+  @spec raw_path(map()) :: String.t()
+  def raw_path(%{canon: canon, volume: volume, number: number}),
+    do: work_path(canon, volume, number)
+
+  @doc """
+  Fetches targets at a pin, per the Acquirer behaviour.
+
+  Distinct from `fetch_paths/3`: this takes a pin map and source-specific *targets*,
+  which is the shape the pipeline speaks. `fetch_paths/3` is the CBETA-specific layer
+  underneath that deals in repository paths.
+  """
+  @impl Pramana.Pipeline.Acquirer
+  @spec fetch(map(), [map()], keyword()) :: {:ok, map()} | {:error, term()}
+  def fetch(%{"commit" => sha}, targets, opts) do
+    fetch_paths(sha, Enum.map(targets, &raw_path/1), opts)
+  end
+
+  @doc """
   Builds the repository path for a Taishō work.
 
       iex> Pramana.Acquire.CBETA.work_path("T", 9, "0262")
@@ -66,10 +104,10 @@ defmodule Pramana.Acquire.CBETA do
   Idempotent: if the lockfile already covers the same pin and the files on disk still
   hash correctly, nothing is refetched.
   """
-  @spec fetch(String.t(), [String.t()], keyword()) ::
+  @spec fetch_paths(String.t(), [String.t()], keyword()) ::
           {:ok, %{pin: String.t(), files: [file_result()], refetched: boolean()}}
           | {:error, term()}
-  def fetch(sha, paths, opts \\ []) when is_binary(sha) and is_list(paths) do
+  def fetch_paths(sha, paths, opts \\ []) when is_binary(sha) and is_list(paths) do
     {:ok, source} = Sources.fetch(@source_id)
 
     if up_to_date?(sha, paths),

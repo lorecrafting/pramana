@@ -83,6 +83,9 @@ defmodule PramanaWeb.MCP.Tools.Search do
   defp payload(found) do
     %{
       query: found.query,
+      # Which corpus these hits came from. An answer that cannot name its corpus is
+      # not reproducible — see docs/ARCHITECTURE.md, Stage 5.
+      bake_id: Pramana.Bake.current_id(),
       # Which strategy actually produced these hits. A caller should weigh an :ngram
       # result less than a :phrase one — saying so is more useful than hiding it.
       mode: found.mode,

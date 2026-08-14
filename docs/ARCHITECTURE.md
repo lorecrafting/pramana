@@ -168,9 +168,21 @@ why we don't.
 bake_id = sha256(sources.lock.json + pipeline_version + bake_config)
 ```
 
-The bake is immutable and versioned. Every API response and every answer carries its
-`bake_id`. Two people with the same `bake_id` have byte-identical corpora, so a
-citation is reproducible years later — this is the real meaning of "decoupled."
+`Pramana.Bake` implements this, and `bake_id` is stamped on API and MCP responses.
+Two people with the same id hold byte-identical corpora, so a citation is reproducible
+years later — the real meaning of "decoupled."
+
+Bump `pipeline_version` whenever a change alters normalization or segmentation
+**output**; not for refactors or new query paths, which leave the corpus identical.
+Erring lax is the dangerous direction: two different corpora sharing an id means a
+citation that verified yesterday can fail today with nothing to point at.
+
+**Current limit, stated plainly.** `segments` carries no `bake_id` and the loader
+replaces rows in place, so there is exactly **one current bake** at a time. Bakes do
+not coexist, and re-baking does not leave old citations resolvable against the older
+bake. Acceptable while a single corpus is being built, and cheap to change later (a
+nullable column is not a table rewrite) — but the docs must not claim more than the
+code does.
 
 ---
 

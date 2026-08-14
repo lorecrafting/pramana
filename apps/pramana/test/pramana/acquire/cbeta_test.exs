@@ -59,14 +59,14 @@ defmodule Pramana.Acquire.CBETATest do
     end
   end
 
-  describe "fetch/3" do
+  describe "fetch_paths/3" do
     @xml "<TEI xml:id=\"T09n0262\">妙法蓮華經</TEI>"
 
     test "writes raw/ and records the pin and hashes", %{root: root} do
       fetcher = stub([{"T09n0262.xml", @xml}])
 
       assert {:ok, %{pin: "sha1", refetched: true, files: [file]}} =
-               CBETA.fetch("sha1", ["T/T09/T09n0262.xml"], fetcher: fetcher)
+               CBETA.fetch_paths("sha1", ["T/T09/T09n0262.xml"], fetcher: fetcher)
 
       assert file.path == "T/T09/T09n0262.xml"
       assert file.sha256 == Lockfile.sha256(@xml)
@@ -81,33 +81,33 @@ defmodule Pramana.Acquire.CBETATest do
       fetcher = stub([{"T09n0262.xml", @xml}])
       paths = ["T/T09/T09n0262.xml"]
 
-      assert {:ok, %{refetched: true}} = CBETA.fetch("sha1", paths, fetcher: fetcher)
+      assert {:ok, %{refetched: true}} = CBETA.fetch_paths("sha1", paths, fetcher: fetcher)
 
       # A fetcher that would fail if called proves nothing was refetched.
       exploding = fn url -> {:error, {:should_not_have_fetched, url}} end
-      assert {:ok, %{refetched: false}} = CBETA.fetch("sha1", paths, fetcher: exploding)
+      assert {:ok, %{refetched: false}} = CBETA.fetch_paths("sha1", paths, fetcher: exploding)
     end
 
     test "refetches when the pin changes" do
       paths = ["T/T09/T09n0262.xml"]
 
       assert {:ok, %{refetched: true}} =
-               CBETA.fetch("sha1", paths, fetcher: stub([{"T09", @xml}]))
+               CBETA.fetch_paths("sha1", paths, fetcher: stub([{"T09", @xml}]))
 
       assert {:ok, %{refetched: true, pin: "sha2"}} =
-               CBETA.fetch("sha2", paths, fetcher: stub([{"T09", @xml}]))
+               CBETA.fetch_paths("sha2", paths, fetcher: stub([{"T09", @xml}]))
     end
 
     test "refetches when raw/ was tampered with", %{root: root} do
       paths = ["T/T09/T09n0262.xml"]
 
       assert {:ok, %{refetched: true}} =
-               CBETA.fetch("sha1", paths, fetcher: stub([{"T09", @xml}]))
+               CBETA.fetch_paths("sha1", paths, fetcher: stub([{"T09", @xml}]))
 
       File.write!(Path.join([root, "raw", "cbeta", "T/T09/T09n0262.xml"]), "tampered")
 
       assert {:ok, %{refetched: true}} =
-               CBETA.fetch("sha1", paths, fetcher: stub([{"T09", @xml}]))
+               CBETA.fetch_paths("sha1", paths, fetcher: stub([{"T09", @xml}]))
 
       assert File.read!(Path.join([root, "raw", "cbeta", "T/T09/T09n0262.xml"])) == @xml
     end
@@ -116,7 +116,9 @@ defmodule Pramana.Acquire.CBETATest do
       fetcher = stub([{"T09n0262.xml", @xml}, {"T09n0263.xml", {:error, :enoent}}])
 
       assert {:error, {:fetch_failed, "T/T09/T09n0263.xml", :enoent}} =
-               CBETA.fetch("sha1", ["T/T09/T09n0262.xml", "T/T09/T09n0263.xml"], fetcher: fetcher)
+               CBETA.fetch_paths("sha1", ["T/T09/T09n0262.xml", "T/T09/T09n0263.xml"],
+                 fetcher: fetcher
+               )
     end
   end
 end

@@ -21,6 +21,8 @@ defmodule Pramana.Segment.Taisho do
   codepoints, and the citation guard resolves spans on every answer.
   """
 
+  @behaviour Pramana.Pipeline.Segmenter
+
   alias Pramana.Normalize.IR
   alias Pramana.URN
   alias Pramana.URN.Taisho
@@ -49,6 +51,7 @@ defmodule Pramana.Segment.Taisho do
   they carry no citable content, but they still occupy a position in `IR.body/1`, so
   offsets account for them.
   """
+  @impl Pramana.Pipeline.Segmenter
   @spec segments(IR.t(), keyword()) :: {:ok, [segment()]} | {:error, term()}
   def segments(%IR{} = ir, opts) do
     source = Keyword.fetch!(opts, :source)

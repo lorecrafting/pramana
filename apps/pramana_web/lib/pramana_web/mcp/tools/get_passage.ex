@@ -86,6 +86,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
   defp payload(span) do
     %{
       urn: span.urn,
+      bake_id: Pramana.Bake.current_id(),
       text: span.content,
       sha256: span.sha256,
       offsets: %{

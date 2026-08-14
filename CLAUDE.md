@@ -70,7 +70,9 @@ apps/
       index/               embedding + FTS loading
       retrieval/           hybrid search, RRF, provenance filtering
       guard/               post-generation citation verification
-      bake/                Oban/Broadway orchestration; emits bake_id
+      pipeline.ex          Acquirer/Normalizer/Segmenter behaviours + source registry
+      bake.ex              pipeline_version, bake_id, recording
+      bake/                Oban/Broadway orchestration
   pramana_web/              Phoenix — HTTP API, MCP endpoint, LiveView reader (later)
   pramana_native/           Rustler NIFs: CJK segmentation, suffix-array reuse
 priv/embed/                Python sidecar — embeddings + Tibetan botok ONLY
@@ -145,6 +147,12 @@ serves the CC0/CC-BY subset only.
   normalization — line breaks are load-bearing for citation, and the apparatus is a
   feature we ship.
 - Prefer adding a source-specific normalizer over branching inside a shared one.
+- **Adding a source means implementing three `Pramana.Pipeline` behaviours plus one
+  registry entry — nothing else.** If you find yourself editing `mix pramana.bake` or an
+  existing source in order to add a new one, the contract is wrong; fix the contract.
+- **Bump `Pramana.Bake.pipeline_version` when normalization or segmentation output
+  changes**, not for refactors. When in doubt, bump: two different corpora sharing a
+  `bake_id` is far worse than a spurious new one.
 
 ## Commands
 

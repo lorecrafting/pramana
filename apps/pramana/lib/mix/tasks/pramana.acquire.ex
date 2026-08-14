@@ -65,7 +65,7 @@ defmodule Mix.Tasks.Pramana.Acquire do
     {:ok, sha} = CBETA.resolve_pin()
     Mix.shell().info("pinned to #{sha}")
 
-    case CBETA.fetch(sha, [path]) do
+    case CBETA.fetch_paths(sha, [path]) do
       {:ok, %{refetched: false, files: files}} ->
         Mix.shell().info("already up to date (#{length(files)} file(s) verified)")
 

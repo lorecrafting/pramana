@@ -41,6 +41,7 @@ defmodule Pramana.Normalize.CBETA do
     retained but flagged per line, so nobody cites it as original.
   """
 
+  @behaviour Pramana.Pipeline.Normalizer
   @behaviour Saxy.Handler
 
   alias Pramana.Normalize.IR
@@ -60,6 +61,7 @@ defmodule Pramana.Normalize.CBETA do
   `number` are supplied by the caller because they come from the acquire step's
   catalogue knowledge, not from guessing.
   """
+  @impl Pramana.Pipeline.Normalizer
   @spec normalize(binary() | Enumerable.t(), keyword()) :: {:ok, IR.t()} | {:error, term()}
   def normalize(xml, opts) do
     state = initial_state()
