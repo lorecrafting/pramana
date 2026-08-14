@@ -31,9 +31,17 @@ defmodule Mix.Tasks.Pramana.Provenance do
     {opts, _, _} = OptionParser.parse(argv, switches: @switches)
 
     cond do
-      opts[:report] -> report()
-      opts[:check] -> check!()
-      true -> check!() && backfill()
+      opts[:report] ->
+        report()
+
+      opts[:check] ->
+        check!()
+
+      true ->
+        # Sequencing, not a boolean test: check!/0 either raises or returns. Writing
+        # this as `check!() && backfill()` implies a falsy branch that cannot happen.
+        check!()
+        backfill()
     end
   end
 
@@ -54,7 +62,7 @@ defmodule Mix.Tasks.Pramana.Provenance do
     case Divisions.check_against(observed) do
       {:ok, n} ->
         Mix.shell().info("division table checks out against #{n} works")
-        true
+        :ok
 
       {:error, problems} ->
         for p <- Enum.take(problems, 12), do: Mix.shell().error("  #{inspect(p)}")

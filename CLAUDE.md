@@ -62,14 +62,18 @@ apps/
   pramana/                  CORE DOMAIN — no Phoenix dependency
     lib/pramana/
       urn/                 URN parse, resolve, verify — the foundation
-      corpus/              Ecto schemas: works, witnesses, segments, provenance
-      acquire/             Req-based fetchers, one module per source
+      corpus.ex            resolve, context windows, outlines, range URNs
+      corpus/              Ecto schemas + Loader
+      acquire/             fetchers (cbeta.ex), catalog, bulk archive, lockfile
       normalize/           Saxy streaming TEI/XML -> canonical IR
       segment/             IR -> citable units via native citation grammars
-      enrich/              entity/term linking, alignment, quotation graph
-      index/               embedding + FTS loading
-      retrieval/           hybrid search, RRF, provenance filtering
-      guard/               post-generation citation verification
+      taisho/divisions.ex  the 部 table: provenance for the Chinese canon
+      retrieval/lexical.ex bigram search, phrase/ngram modes, provenance filters
+      retrieval/survey.ex  exhaustive counts, not a ranked sample
+      guard.ex             post-generation citation verification
+      bake/worker.ex       one Oban job per work
+      enrich/              (Phase 6) alignment, quotation graph
+      index/               (Phase 1 #11) embeddings
       pipeline.ex          Acquirer/Normalizer/Segmenter behaviours + source registry
       bake.ex              pipeline_version, bake_id, recording
       bake/                Oban/Broadway orchestration

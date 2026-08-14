@@ -194,9 +194,11 @@ makes the Taishō problem tractable.
 | Axis | Values | Example |
 |---|---|---|
 | `witness` | Taishō, Koryŏ, Song, Derge, Dunhuang ms. | Which printed/physical edition |
+| — | — | *(`text_role` says what a text IS; `composition_origin` says where it came from. A Chinese translation of an Indian sūtra is `indic` + `root`, not "translation" — how it arrived is already answered by origin.)* |
 | `work` | stable work ID (FRBR-style) | The abstract text, across all its versions |
 | `composition_origin` | indic, chinese, japanese, tibetan, korean | Where it was *composed* |
-| `text_role` | root, translation, commentary, subcommentary, apocryphon | Its function |
+| `text_role` | root, treatise, commentary, subcommentary, apocryphon, catalogue, history, translation, conflation | What the text **is** |
+| `division` | 阿含部, 般若部, 經疏部, 疑似部 … | The Taishō's own 部 classification |
 | `attributed_author` | + `attribution_confidence` | Much of the canon is pseudepigraphic |
 | `date_range` | earliest/latest | Composition or translation date |
 | `license_class` | cc0, cc-by-sa, nc, restricted | Drives redistribution gating |
@@ -210,6 +212,15 @@ Tendai, Nichiren, Zen). So there is a **mechanical rule**, not a heuristic:
 ```
 volume 56..84  →  composition_origin = japanese, text_role = commentary
 ```
+
+In practice this is now applied at finer resolution through the **division table**
+(`Pramana.Taisho.Divisions`), which maps Taishō *text numbers* to 部 and derives origin
+and role from them — 續經疏部 (2185–2700) and 悉曇部 (2701–2731) are precisely the works
+in vols 56–84. CBETA ships no classification markup, so the table was assembled from
+two independent published contents listings and is **validated against the corpus**:
+every division's numbers must fall inside its stated volumes, checked over all 2,471
+works before any write. Populated result: 1,781 indic, 555 chinese, 57 apocrypha, and
+135 left deliberately unattributed.
 
 Same axis cleanly handles the 疑偽部 (apocrypha, T2865–2920): Chinese-composed texts
 that *present themselves* as Indian translations —
