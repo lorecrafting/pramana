@@ -15,6 +15,12 @@ Lexical search works: `pg_bigm` bigram index, phrase-then-n-gram fallback, prove
 filters composing as SQL, and a `search` MCP tool returning results **grouped by origin
 and role**. Queries run in 5–40 ms over 5,341 segments.
 
+Reading affordances work too (task #31): context windows, outlines from `<cb:mulu>`, and
+range-URN resolution. Adopted after reviewing tripitaka-mcp.com — see
+`docs/COMPETITIVE.md` for what was taken and what was rejected. Tasks **#32** (variant
+characters), **#33** (MCP resources + reader links) and **#34** (ingest the
+huangnianzu-translation glossary) came out of the same review.
+
 The end-to-end path works: acquire → normalize → segment → load → resolve → verify,
 with an MCP server on top. A model can fetch an exact Lotus Sūtra passage by URN and
 the guard byte-compares its quote.
@@ -129,6 +135,11 @@ Each of these cost real time; they are recorded so they cost it only once.
   default PLT (`plt_add_apps: [:mix, :ex_unit]`).
 - **`phx_new` is 1.8.9 while `phoenix` is 1.8.11** — they version separately.
 - **Homebrew Postgres uses your OS username**, not `postgres/postgres`.
+- **`mix format` rewrites `field :x, opts` to `field(:x, opts)`.** A scripted patch
+  matching the unparenthesised form silently no-ops afterwards. This bit once: the MCP
+  input schema kept its old shape while `execute/2` gained new params, so the tool
+  accepted the arguments in a direct call and **silently ignored them over MCP**. If a
+  patch script prints success unconditionally, it is lying — verify the file.
 
 ## Metrics
 
@@ -136,3 +147,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 |---|---|---|---|---|---|
 | phase-0 | 148 | — | — | 62 ms (T0262 normalize) | 5,341 |
 | task-10 | 175 | — | — | lexical query 5–40 ms | 5,341 |
+| task-31 | 190 | — | — | outline 40 entries | 5,341 |

@@ -111,12 +111,26 @@ defmodule Pramana.Corpus.Loader do
           "license_notice" => ir.license_notice,
           "gaiji_declared" => map_size(ir.gaiji),
           "unanchored_apparatus" => length(ir.unanchored_apparatus)
-        }
+        },
+        outline: %{"entries" => Enum.map(ir.outline, &stringify_entry/1)}
       },
-      on_conflict: {:replace, [:body, :body_sha256, :urn_prefix, :volume, :meta, :updated_at]},
+      on_conflict:
+        {:replace, [:body, :body_sha256, :urn_prefix, :volume, :meta, :outline, :updated_at]},
       conflict_target: [:work_id, :witness_id, :source_id],
       returning: true
     )
+  end
+
+  # jsonb wants string keys; doing it here keeps the IR clean of storage concerns.
+  defp stringify_entry(entry) do
+    %{
+      "level" => entry.level,
+      "n" => entry.n,
+      "type" => entry.type,
+      "title" => entry.title,
+      "anchor" => entry.anchor,
+      "juan" => entry.juan
+    }
   end
 
   defp replace_segments!(ir, text, source_id, witness_id) do

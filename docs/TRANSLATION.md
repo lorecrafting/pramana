@@ -172,6 +172,22 @@ and models — including the ones doing the translating — are commodities.
 
 ---
 
+## Prior art we already own
+
+`~/dev/huangnianzu-translation` is a mature hand-built translation of the Huang Nianzu
+commentary, and it independently arrived at much of the above. It has a
+`Chinese | Pinyin | Canonical English | Notes` glossary with the rule that *every batch
+must be checked against it before being marked complete*, plus `scripts_check.py` that
+automates exactly the compliance check described here as the cheapest promotion signal.
+
+Read it before implementing this section — it encodes lessons from a long manual
+project, and its glossary is directly ingestible as seed data. **Task #34.**
+
+Its reading rules are also the Phase 6 reading-exception table in embryo (道隱 →
+*Dōin*, not *Daoyin*; 元曉 → *Wŏnhyo*, Korean not Japanese), including one entry that
+states a reading is **unverified** and keeps pinyin rather than inventing one — the
+same refuse-to-guess discipline as `provenance_for_volume/1` returning `nil`.
+
 ## Roadmap placement
 
 - **Phase 3** — pool schema (`translations`), tiers, selection policy. Comes free with

@@ -47,7 +47,9 @@ defmodule Pramana.Normalize.CBETA do
   alias Pramana.Normalize.IR.Line
 
   # Text inside these never belongs to the running body text.
-  @suppressed ~w(cb:mulu cb:docNumber teiHeader)
+  # cb:mulu is excluded from BODY text but captured as the outline — it is the
+  # table of contents, not noise. See start_element("cb:mulu", ...).
+  @suppressed ~w(cb:docNumber teiHeader)
   # Editorial punctuation CBETA inserts; not present in the printed witness.
   @editorial_punctuation ~w(， 。 、 ； ： ？ ！ 「 」 『 』 （ ）)
 
@@ -79,6 +81,8 @@ defmodule Pramana.Normalize.CBETA do
       in_back: false,
       anchors: %{},
       back_apparatus: [],
+      outline: [],
+      mulu: nil,
       char_id: nil,
       char_prop: nil,
       char_props: %{},
@@ -190,6 +194,22 @@ defmodule Pramana.Normalize.CBETA do
   defp start_element("note", attrs, state),
     do: %{state | note: %{n: attr(attrs, "n"), type: attr(attrs, "type"), acc: []}}
 
+  # <cb:mulu level="1" n="1" type="品">1 序品</cb:mulu> — a TOC entry. Its text must not
+  # reach the body, but the entry itself is structure worth keeping, anchored to the
+  # line it sits on.
+  defp start_element("cb:mulu", attrs, state) do
+    entry = %{
+      level: attrs |> attr("level") |> to_int(),
+      n: attr(attrs, "n"),
+      type: attr(attrs, "type"),
+      anchor: state.anchor,
+      juan: state.juan,
+      acc: []
+    }
+
+    %{suppress(state) | mulu: entry}
+  end
+
   defp start_element("g", attrs, state) do
     ref = attrs |> attr("ref") |> strip_hash()
     %{state | gaiji_seen: [ref | state.gaiji_seen]}
@@ -282,6 +302,19 @@ defmodule Pramana.Normalize.CBETA do
   defp end_element("app", %{app_stack: [app | rest]} = state),
     do: %{state | app_stack: rest, apparatus: [app | state.apparatus]}
 
+  defp end_element("cb:mulu", %{mulu: nil} = state), do: unsuppress(state)
+
+  defp end_element("cb:mulu", state) do
+    title = state.mulu.acc |> Enum.reverse() |> IO.iodata_to_binary() |> String.trim()
+
+    entry =
+      state.mulu
+      |> Map.delete(:acc)
+      |> Map.put(:title, title)
+
+    %{unsuppress(state) | outline: [entry | state.outline], mulu: nil}
+  end
+
   defp end_element("note", %{note: nil} = state), do: state
 
   defp end_element("note", state) do
@@ -309,6 +342,9 @@ defmodule Pramana.Normalize.CBETA do
 
   defp characters(chars, %{rdg: rdg} = state) when rdg != nil,
     do: %{state | rdg: %{rdg | acc: [chars | rdg.acc]}}
+
+  defp characters(chars, %{mulu: mulu} = state) when mulu != nil,
+    do: %{state | mulu: %{mulu | acc: [chars | mulu.acc]}}
 
   defp characters(chars, %{in_body: false, header_field: field} = state) when field != nil,
     do: %{state | header: Map.update(state.header, field, chars, &(&1 <> chars))}
@@ -403,7 +439,8 @@ defmodule Pramana.Normalize.CBETA do
       lines: lines,
       # Apparatus whose `from` anchor is absent from the body. Kept and counted, never
       # dropped: an entry we cannot place is a defect to surface, not to hide.
-      unanchored_apparatus: Map.get(by_line, nil, [])
+      unanchored_apparatus: Map.get(by_line, nil, []),
+      outline: Enum.reverse(state.outline)
     }
   end
 

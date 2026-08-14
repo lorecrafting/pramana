@@ -51,6 +51,28 @@ citation with reader deep-links.
 it doesn't need with a single canon); cross-canon parallels; language-appropriate
 embeddings and lexical indexes; local mode that keeps semantic search.
 
+### Taken from it, after reviewing tripitaka-mcp.com
+
+Reviewed 2026-08-14. Four things adopted, one rejected.
+
+1. **Context-window discipline** — *"Even the longest sutta (DN 16, 1,664 segments)
+   stays usable without flooding the context window."* This was a genuine gap: our
+   `get_passage` returned one printed Taishō line, and Taishō lines are typographic,
+   so results cut mid-sentence. **Built:** `Corpus.context/2`, `Corpus.outline/1`, and
+   range-URN resolution.
+2. **Outline mode** — which exposed a mistake of ours. CBETA ships a table of contents
+   in `<cb:mulu>` and we were discarding it as navigation apparatus. Correct for body
+   text, wrong overall. **Built:** captured as `texts.outline`.
+3. **Inflected-form lookup** → variant Han characters (異體字) for us. *(Task #32.)*
+4. **MCP resources, not only tools** — they expose 3; we exposed none, ignoring half
+   the protocol. *(Task #33.)*
+5. **Reader deep-links** (`/read/{id}#{segment}`, scroll-centred and highlighted),
+   designed now so citations don't need reshaping in Phase 8. *(Task #33.)*
+
+**Rejected:** their trigram keyword index. Trigrams cannot serve the two-character
+queries that dominate Chinese; we use `pg_bigm`. They also concede their embeddings are
+not language-specific, which is precisely the mistake we are avoiding.
+
 ---
 
 ## Features neither project has

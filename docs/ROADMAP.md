@@ -45,6 +45,13 @@ alteration and refusing a fabricated URN.
 - BGE-M3 embeddings, HNSW index, RRF hybrid search
 - Provenance axes populated; apocrypha (疑偽部) flagged
 - Tools: `search_hybrid`, `get_passage`, `get_work`, `survey_corpus`
+- **Reading affordances** (done): context windows, outline mode from `<cb:mulu>`, and
+  range-URN resolution — a single Taishō line is typographic, not syntactic, so it
+  usually cuts mid-sentence and is unreadable alone
+- **Variant-character (異體字) query expansion** — searching 說 must be able to find 説.
+  Query-side only: stored text stays byte-identical to the witness
+- **MCP resources** — corpus guidance and inventory, so the model uses provenance
+  filters rather than guessing
 
 **Exit:** hybrid search across the full Chinese canon with verifiable citations.
 Gaiji test suite green.

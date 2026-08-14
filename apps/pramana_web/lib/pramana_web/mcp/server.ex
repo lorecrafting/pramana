@@ -17,6 +17,7 @@ defmodule PramanaWeb.MCP.Server do
 
   component(PramanaWeb.MCP.Tools.Search)
   component(PramanaWeb.MCP.Tools.GetPassage)
+  component(PramanaWeb.MCP.Tools.GetOutline)
   component(PramanaWeb.MCP.Tools.VerifyCitation)
 
   @impl true

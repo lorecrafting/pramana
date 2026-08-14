@@ -85,6 +85,7 @@ defmodule Pramana.Corpus.Text do
     field :body, :string
     field :body_sha256, :string
     field :meta, :map, default: %{}
+    field :outline, :map, default: %{}
 
     has_many :segments, Pramana.Corpus.Segment
 

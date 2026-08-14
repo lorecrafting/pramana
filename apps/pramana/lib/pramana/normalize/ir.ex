@@ -47,7 +47,8 @@ defmodule Pramana.Normalize.IR do
           juan_count: non_neg_integer(),
           gaiji: %{String.t() => map()},
           lines: [Line.t()],
-          unanchored_apparatus: [map()]
+          unanchored_apparatus: [map()],
+          outline: [map()]
         }
 
   @enforce_keys [:work_id, :canon]
@@ -62,7 +63,8 @@ defmodule Pramana.Normalize.IR do
             juan_count: 0,
             gaiji: %{},
             lines: [],
-            unanchored_apparatus: []
+            unanchored_apparatus: [],
+            outline: []
 
   @doc """
   The full body text, lines joined by newline.

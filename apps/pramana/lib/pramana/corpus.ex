@@ -37,16 +37,195 @@ defmodule Pramana.Corpus do
   Resolves a URN string to a span.
 
   Accepts untrusted input — an LLM's cited URN, a user's paste — and never raises.
+
+  Handles both point URNs (`…@p0001c17`) and **ranges** (`…@p0001c17-p0001c21`). The
+  URN grammar has always allowed ranges, but until ranges resolved here a model citing
+  one got `:not_found` — safe, since the guard rejected it, but wrong: a range is a
+  legitimate citation and a passage worth quoting is usually longer than one printed
+  line.
   """
   @spec resolve(String.t()) :: {:ok, span()} | {:error, :bad_urn | :not_found}
   def resolve(urn_string) when is_binary(urn_string) do
     case URN.parse(urn_string) do
-      {:ok, _urn} -> fetch_span(urn_string)
+      {:ok, %URN{locator_end: nil}} -> fetch_span(urn_string)
+      {:ok, %URN{} = urn} -> fetch_range(urn)
       {:error, _} -> {:error, :bad_urn}
     end
   end
 
   def resolve(_), do: {:error, :bad_urn}
+
+  @doc """
+  A passage with its neighbours, so it can be read rather than merely located.
+
+  Taishō lines are typographic, not syntactic — they break mid-sentence — so a single
+  segment is often unreadable on its own. Every returned neighbour is a full span and
+  independently verifiable; `text` is a reading convenience, and `urn` is the range URN
+  covering the whole window, which `resolve/1` can verify as a unit.
+  """
+  @spec context(String.t(), keyword()) :: {:ok, map()} | {:error, :bad_urn | :not_found}
+  def context(urn_string, opts \\ []) do
+    before_n = opts |> Keyword.get(:before, 2) |> clamp(0, 50)
+    after_n = opts |> Keyword.get(:after, 2) |> clamp(0, 50)
+
+    with {:ok, focus} <- resolve(urn_string),
+         {:ok, segment} <- fetch_segment(urn_string) do
+      neighbours =
+        Repo.all(
+          from s in Segment,
+            join: t in Text,
+            on: t.id == s.text_id,
+            where:
+              s.text_id == ^segment.text_id and
+                s.ordinal >= ^(segment.ordinal - before_n) and
+                s.ordinal <= ^(segment.ordinal + after_n),
+            order_by: s.ordinal,
+            preload: [text: {t, [:work, :witness, :source]}]
+        )
+
+      spans = Enum.map(neighbours, &to_span/1)
+      {before, rest} = Enum.split_while(spans, &(&1.urn != focus.urn))
+      after_spans = Enum.drop(rest, 1)
+
+      {:ok,
+       %{
+         focus: focus,
+         before: before,
+         after: after_spans,
+         text: Enum.map_join(spans, "", & &1.content),
+         urn: range_urn(spans),
+         segment_count: length(spans)
+       }}
+    end
+  end
+
+  @doc """
+  A work's table of contents, each entry resolvable to a URN.
+
+  Lets a caller survey structure without pulling text — necessary because the canon has
+  millions of segments and no context window holds a whole work.
+  """
+  @spec outline(String.t()) :: {:ok, map()} | {:error, :not_found}
+  def outline(work_id) when is_binary(work_id) do
+    query =
+      from t in Text,
+        where: t.work_id == ^work_id,
+        preload: [:work],
+        limit: 1
+
+    case Repo.one(query) do
+      nil ->
+        {:error, :not_found}
+
+      text ->
+        entries =
+          text.outline
+          |> Map.get("entries", [])
+          |> Enum.map(fn e ->
+            %{
+              type: e["type"],
+              n: e["n"],
+              level: e["level"],
+              title: e["title"],
+              juan: e["juan"],
+              urn: entry_urn(text, e)
+            }
+          end)
+
+        {:ok,
+         %{
+           work_id: work_id,
+           title: text.work.title,
+           urn_prefix: text.urn_prefix,
+           juan_count: get_in(text.work.meta, ["juan_count"]),
+           entries: entries
+         }}
+    end
+  end
+
+  defp entry_urn(_text, %{"anchor" => nil}), do: nil
+
+  defp entry_urn(text, %{"anchor" => anchor} = entry) do
+    juan = entry["juan"]
+    work = if juan, do: "#{text.work_id}_#{pad(juan)}", else: text.work_id
+    "#{text.urn_prefix |> String.replace_suffix(text.work_id, work)}@p#{anchor}"
+  end
+
+  defp pad(n), do: n |> Integer.to_string() |> String.pad_leading(3, "0")
+
+  defp range_urn([]), do: nil
+  defp range_urn([only]), do: only.urn
+
+  defp range_urn(spans) do
+    first = List.first(spans)
+    last = List.last(spans)
+
+    with {:ok, a} <- URN.parse(first.urn),
+         {:ok, b} <- URN.parse(last.urn) do
+      URN.to_string(%{a | locator_end: b.locator})
+    else
+      _ -> first.urn
+    end
+  end
+
+  defp clamp(n, lo, hi) when is_integer(n), do: n |> max(lo) |> min(hi)
+  defp clamp(_, lo, _hi), do: lo
+
+  # A range covers every segment between its endpoints, in reading order.
+  defp fetch_range(%URN{} = urn) do
+    start_urn = URN.to_string(%{urn | locator_end: nil})
+    end_urn = URN.to_string(%{urn | locator: urn.locator_end, locator_end: nil})
+
+    with {:ok, first} <- fetch_segment(start_urn),
+         {:ok, last} <- fetch_segment(end_urn) do
+      segments =
+        Repo.all(
+          from s in Segment,
+            join: t in Text,
+            on: t.id == s.text_id,
+            where:
+              s.text_id == ^first.text_id and
+                s.ordinal >= ^first.ordinal and s.ordinal <= ^last.ordinal,
+            order_by: s.ordinal,
+            preload: [text: {t, [:work, :witness, :source]}]
+        )
+
+      case segments do
+        [] -> {:error, :not_found}
+        list -> {:ok, merge_spans(URN.to_string(urn), list)}
+      end
+    end
+  end
+
+  # A range span's content is the concatenation of its members, and its offsets run
+  # from the first member's start to the last member's end — so the range is still
+  # byte-verifiable against texts.body exactly like a point span.
+  defp merge_spans(range_urn, segments) do
+    first = List.first(segments)
+    last = List.last(segments)
+    content = Enum.map_join(segments, "", & &1.content)
+
+    %{
+      urn: range_urn,
+      content: content,
+      char_start: first.char_start,
+      char_end: last.char_end,
+      byte_start: first.byte_start,
+      byte_end: last.byte_end,
+      sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+      kind: first.kind,
+      juan: first.juan,
+      meta: %{"range_of" => length(segments)},
+      provenance: provenance(first)
+    }
+  end
+
+  defp fetch_segment(urn_string) do
+    case Repo.one(from s in Segment, where: s.urn == ^urn_string) do
+      nil -> {:error, :not_found}
+      segment -> {:ok, segment}
+    end
+  end
 
   @doc """
   Resolves several URNs at once, preserving order and reporting each failure.
