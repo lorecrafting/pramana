@@ -137,6 +137,15 @@ defmodule Pramana.Embed do
   @spec pending_count(keyword()) :: non_neg_integer()
   def pending_count(opts \\ []), do: Repo.aggregate(pending_query(opts), :count)
 
+  @doc """
+  The outstanding-chunk query, for `Pramana.Embed.Transfer` to export.
+
+  Exposed rather than duplicated: two definitions of "outstanding" would drift, and the
+  drift would show up as chunks silently never embedded.
+  """
+  @spec pending_query_for_export(keyword()) :: Ecto.Query.t()
+  def pending_query_for_export(opts \\ []), do: pending_query(opts)
+
   defp cap_batch(batch, taken, nil), do: {[batch], taken}
   defp cap_batch(_batch, taken, cap) when taken >= cap, do: {:halt, taken}
   defp cap_batch(batch, taken, cap), do: {[Enum.take(batch, cap - taken)], taken + length(batch)}
