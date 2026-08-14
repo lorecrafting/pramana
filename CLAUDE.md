@@ -45,7 +45,12 @@ Violating any of these is a bug, not a tradeoff.
    only the residual, and its output is labeled with lower confidence.
 6. **Every retrieval change runs against `evals/`.** Recall@k and citation accuracy
    are published numbers, not vibes.
-7. **A machine translation is never citable as source.** Generated text is a layer
+7. **The MCP surface is read-only. Tools read; the CLI writes.** Never add an ingest
+   or mutation tool. If a model could write to the corpus, reproducibility from
+   `sources.lock.json` is gone, `bake_id` stops determining contents, and prompt
+   injection becomes corpus poisoning — local-source text is already untrusted input.
+   See `docs/ADDING_TEXTS.md`.
+8. **A machine translation is never citable as source.** Generated text is a layer
    over a source anchor, never a top-level URN, and the citation guard rejects any
    quote resolving to `method != human` presented as canonical. Once the corpus holds
    generated translations of everything, this is the invariant that keeps our own

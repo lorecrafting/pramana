@@ -169,6 +169,11 @@ It stresses the provenance model in exactly the ways a canonical text can't:
    Phase 6 commentary parser aligns it to its root text deterministically, so
    "what does Huang Nianzu say about this passage?" works without any manual mapping.
 
+### How you actually add one
+
+The end-to-end workflow — commands, manifest, conservative defaults, and why this is
+CLI rather than MCP — is in **`docs/ADDING_TEXTS.md`**.
+
 ### Citation grammar for local texts
 
 One-offs usually arrive as plain text, Markdown, or a PDF — with no canonical
