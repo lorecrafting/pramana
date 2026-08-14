@@ -61,6 +61,24 @@ defmodule Pramana.Retrieval.Lexical do
   @default_limit 20
   @max_limit 200
 
+  # Every option this module understands. An unknown key is a BUG, not a no-op: a
+  # `division:` filter silently dropped here (while Semantic honoured it) contaminated
+  # hybrid results with works from outside the requested division, and the results
+  # still looked filtered because half the pipeline had applied it.
+  @known_opts [
+    :limit,
+    :mode,
+    :origin,
+    :role,
+    :division,
+    :work_id,
+    :juan,
+    :exclude_origin,
+    :serving,
+    :lexical_only,
+    :semantic_only
+  ]
+
   @type result :: %{
           span: Corpus.span(),
           score: %{terms_matched: non_neg_integer(), occurrences: non_neg_integer()},
@@ -90,6 +108,8 @@ defmodule Pramana.Retrieval.Lexical do
   def search(query, opts \\ [])
 
   def search(query, opts) when is_binary(query) do
+    validate_opts!(opts)
+
     case String.trim(query) do
       "" -> {:error, :empty_query}
       trimmed -> do_search(trimmed, opts)
@@ -223,9 +243,18 @@ defmodule Pramana.Retrieval.Lexical do
     query
     |> filter_in(opts[:origin], :composition_origin)
     |> filter_in(opts[:role], :text_role)
+    |> filter_in(opts[:division], :division)
     |> filter_not_in(opts[:exclude_origin], :composition_origin)
     |> filter_work(opts[:work_id])
     |> filter_juan(opts[:juan])
+  end
+
+  @doc false
+  def validate_opts!(opts) do
+    case Keyword.keys(opts) -- @known_opts do
+      [] -> :ok
+      unknown -> raise ArgumentError, "unknown search option(s): #{inspect(unknown)}"
+    end
   end
 
   defp filter_in(query, nil, _field), do: query

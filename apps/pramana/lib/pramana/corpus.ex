@@ -296,6 +296,8 @@ defmodule Pramana.Corpus do
       title: work.title,
       composition_origin: work.composition_origin,
       text_role: work.text_role,
+      division: work.division,
+      division_en: work.division_en,
       attributed_author: work.attributed_author,
       attribution_confidence: work.attribution_confidence,
       witness: text.witness_id,

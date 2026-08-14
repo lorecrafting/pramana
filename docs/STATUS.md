@@ -11,6 +11,11 @@ then run `TaskList`.
 **Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** #9, #10, #12,
 #31 and #35 done; #11, #32, #33 remain.
 
+**Semantic search works, proven on 阿含部** (10,138 chunks, 100% embedded). BGE-M3
+dense vectors + HNSW, fused with lexical by Reciprocal Rank Fusion. Query latency
+**0.3–0.5 s**. Asking 苦的原因是什麼 in modern Chinese returns the Second Noble Truth in
+Classical Chinese — something the bigram index structurally cannot do.
+
 **Retrieval chunks are built**: 299,317 chunks over the 4.7M segments (15.8× fewer
 rows, 287 chars average, 79 s). This is the unit that gets embedded — see the decision
 below on why segments are the wrong one. Chunk URNs are ranges of real anchors, so a
@@ -111,6 +116,9 @@ are tested against fixtures, but the real corpus needs catalogue data.
 | **Segments carry char AND byte offsets** | Char offsets are for clients (multi-byte CJK); byte offsets are for the server (`binary_part/3` is O(1) vs `String.slice/3` O(n)). Verifying T0262 went 18.5s → 1.7s, and the guard resolves spans on every answer. |
 | **Embeddings: dense in Bumblebee is viable** | BGE-M3 declares `architectures: ["XLMRobertaModel"]` and Bumblebee maps `XLMRobertaModel => Bumblebee.Text.Roberta`. Its sparse/ColBERT heads are two loose `.pt` linear layers, not part of the HF model — so they are portable to Nx, which could remove Python entirely. Ladder in `docs/ELIXIR.md`. |
 | **Lexical fallback: character n-grams, not jieba tokens** | jieba is trained on modern Chinese and shatters Buddhist transliterations into single characters (耆闍崛山 → 4 tokens; 般若波羅蜜多心經 → `["般若","波","羅","蜜","多心","經"]`, inventing "多心"). OR-matching those returns noise. n-grams need no dictionary. jieba is kept for the Phase 6 reading layer (多音字 disambiguation is context-dependent) and the later modern-Chinese corpus. |
+| **RRF, not score blending** | Lexical scores are occurrence counts; semantic scores are cosine similarities. They share no scale, and normalising them means picking a weighting that is a guess dressed as arithmetic. RRF uses only *rank*, so it is robust precisely because it discards the incomparable part. |
+| **A query serving is separate from the indexing serving** | A serving compiled for batch 16 pads a single query to 16 rows and does 16× the work — measured at 10.6 s per query, versus 0.3–0.5 s at batch 1. Throughput config and latency config are not the same config. |
+| **Unknown search options RAISE** | `division:` was silently dropped by the lexical retriever while the semantic one honoured it, so hybrid results were contaminated with works from outside the requested division *and still looked filtered*. Silently ignoring an unknown option is how that happened. |
 | **Embed CHUNKS, never segments** | A segment is one printed line averaging **18.2 characters**, broken typographically: in T0262 the name 阿若憍陳如 splits across lines as `…阿若憍`/`陳如…`, so embedding it embeds half a name. Chunks are ~300-char windows — semantically coherent, and 15.8× fewer rows, which is the difference between embedding the corpus in an afternoon and in a week. |
 | **`text_role` means FUNCTION, not arrival** | A Chinese translation of an Indian sūtra was `translation`, which describes how it arrived — and `composition_origin` already answers that. `root` (scripture), `treatise` (論), `catalogue`, `history` describe what a text *is*. This makes `origin = 'indic' AND role = 'root'` say what it means. |
 | **Provenance is assigned during the BAKE, not by a later pass** | The loader replaces work attributes on conflict, so a bake computing weaker provenance than a backfill would silently erase it on the next re-bake. One source of truth (the division table), applied in the pipeline, makes a re-bake converge. There is a test. |
@@ -181,3 +189,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | task-31 | 190 | — | — | outline 40 entries | 5,341 |
 | **#9 full Taishō** | **227** | — | — | **190 s / 2,471 works** | **4,729,656** |
 | #12 provenance | 257 | — | — | survey 88 ms exhaustive | 4,729,656 |
+| #11 semantic (阿含部) | 284 | — | — | query 0.3–0.5 s; embed 1.29 chunks/s | 10,138 embedded |

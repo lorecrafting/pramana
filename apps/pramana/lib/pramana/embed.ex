@@ -73,6 +73,24 @@ defmodule Pramana.Embed do
   end
 
   @doc """
+  A serving tuned for embedding ONE query at a time.
+
+  A serving compiled for batch 16 pads a single query to 16 rows and does 16× the work:
+  measured at 10.6 s for one short query, which is unusable interactively. Batch 1 with
+  a shorter sequence length is the query-time configuration; the batch-16 serving stays
+  for bulk indexing, where throughput is what matters.
+  """
+  @spec build_query_serving(keyword()) :: Nx.Serving.t()
+  def build_query_serving(opts \\ []) do
+    build_serving(
+      Keyword.merge(
+        [batch_size: 1, sequence_length: Keyword.get(opts, :sequence_length, 128)],
+        opts
+      )
+    )
+  end
+
+  @doc """
   Embeds outstanding chunks.
 
   Options:
