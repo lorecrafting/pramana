@@ -17,6 +17,14 @@ If you remember nothing else: **the model is not trusted to cite correctly. The
 citation guard re-resolves every URN and byte-compares the quoted span.** That check
 is deterministic and model-independent.
 
+## Resuming work (new session, no context)
+
+Read **`docs/STATUS.md`** first — it says where we are, what was decided and why, and
+what surprised us. Then this file's invariants, then `docs/ROADMAP.md`. Then run
+`TaskList`; tasks carry their own context and point back to the relevant docs.
+
+Checkpoint tasks are marked ⛔ and are real stops — see `docs/CHECKS.md`.
+
 ## Non-negotiable invariants
 
 Violating any of these is a bug, not a tradeoff.
