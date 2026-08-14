@@ -6,6 +6,9 @@ config :pramana, Pramana.Repo,
   password: System.get_env("PGPASSWORD") || "",
   hostname: System.get_env("PGHOST") || "localhost",
   database: "pramana_dev",
+  # Bake tasks insert tens of thousands of rows; per-query logging buries the
+  # actual output. Set PRAMANA_SQL_LOG=1 to get it back when debugging.
+  log: System.get_env("PRAMANA_SQL_LOG") == "1" and :debug,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10

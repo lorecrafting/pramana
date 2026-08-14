@@ -1,0 +1,227 @@
+defmodule Pramana.GuardTest do
+  @moduledoc """
+  The guard is the keystone: it is what makes a citation trustworthy regardless of
+  which model produced it. These tests are the proof of `CLAUDE.md`'s central claim.
+  """
+  use Pramana.DataCase, async: true
+
+  alias Pramana.Corpus
+  alias Pramana.Corpus.Loader
+  alias Pramana.Guard
+  alias Pramana.Normalize.CBETA
+
+  @xml """
+  <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+  <teiHeader><fileDesc><titleStmt>
+    <title level="m" xml:lang="zh-Hant">妙法蓮華經</title>
+    <author>姚秦 鳩摩羅什譯</author>
+  </titleStmt></fileDesc></teiHeader>
+  <text><body>
+  <milestone n="1" unit="juan"/>
+  <lb n="0001a05"/>如是我聞：一時佛住王舍城
+  <lb n="0001a06"/>耆闍崛山中，與大比丘眾萬二千人俱
+  </body></text></TEI>
+  """
+
+  setup do
+    {:ok, ir} = CBETA.normalize(@xml, work_id: "T0262", canon: "T", volume: 9, number: "0262")
+
+    {:ok, _} =
+      Loader.load(ir,
+        source: "cbeta",
+        witness: "T",
+        provenance: %{composition_origin: "indic", text_role: "translation"}
+      )
+
+    %{
+      urn: "pramana:cbeta.T:T0262_001@p0001a05",
+      content: "如是我聞：一時佛住王舍城"
+    }
+  end
+
+  describe "resolve/1" do
+    test "returns a span with everything needed to verify it", ctx do
+      assert {:ok, span} = Corpus.resolve(ctx.urn)
+
+      assert span.urn == ctx.urn
+      assert span.content == ctx.content
+      assert span.sha256 == :crypto.hash(:sha256, ctx.content) |> Base.encode16(case: :lower)
+      assert is_integer(span.char_start) and is_integer(span.byte_start)
+    end
+
+    test "carries multi-axis provenance, not a source string", ctx do
+      {:ok, span} = Corpus.resolve(ctx.urn)
+
+      assert span.provenance.composition_origin == "indic"
+      assert span.provenance.text_role == "translation"
+      assert span.provenance.attributed_author == "姚秦 鳩摩羅什譯"
+      assert span.provenance.witness == "T"
+      assert span.provenance.source == "cbeta"
+      assert span.provenance.license_class == "nc"
+      assert span.provenance.juan == 1
+      assert span.provenance.page == "0001"
+    end
+
+    test "marks canonical addressing, distinguishable from derived", ctx do
+      {:ok, span} = Corpus.resolve(ctx.urn)
+      assert span.provenance.addressing == "canonical"
+    end
+
+    test "rejects a malformed URN without raising" do
+      assert {:error, :bad_urn} = Corpus.resolve("not-a-urn")
+      assert {:error, :bad_urn} = Corpus.resolve("")
+      assert {:error, :bad_urn} = Corpus.resolve(nil)
+    end
+
+    test "reports a well-formed but nonexistent URN as not_found" do
+      assert {:error, :not_found} = Corpus.resolve("pramana:cbeta.T:T9999_001@p0001a01")
+    end
+  end
+
+  describe "verify/2 — the central guarantee" do
+    test "accepts a genuine quotation", ctx do
+      assert Guard.verify(ctx.urn, "如是我聞")
+      assert Guard.verify(ctx.urn, ctx.content)
+    end
+
+    test "tolerates surrounding whitespace but not altered characters", ctx do
+      assert Guard.verify(ctx.urn, "  如是我聞  ")
+      refute Guard.verify(ctx.urn, "如是我闻"), "simplified 闻 is a different character"
+    end
+
+    test "rejects a quotation that is not in the span", ctx do
+      refute Guard.verify(ctx.urn, "舍利弗白佛言")
+    end
+
+    test "rejects a plausible-looking fabricated URN" do
+      refute Guard.verify("pramana:cbeta.T:T0262_001@p9999a01", "如是我聞")
+    end
+
+    test "rejects a real quote attached to the wrong URN", ctx do
+      # The subtlest failure: both the text and the citation exist, but not together.
+      other = "pramana:cbeta.T:T0262_001@p0001a06"
+      assert Guard.verify(ctx.urn, "如是我聞")
+      refute Guard.verify(other, "如是我聞")
+    end
+
+    test "rejects a quote with one character silently changed", ctx do
+      # This is the damaging case: it reads correctly to anyone not checking.
+      refute Guard.verify(ctx.urn, "如是我聞：一時佛住王舍國")
+    end
+  end
+
+  describe "check/2" do
+    test "reports the actual text alongside the verdict", ctx do
+      finding = Guard.check(ctx.urn, "如是我闻")
+
+      assert finding.verdict == :quote_mismatch
+      assert finding.actual == ctx.content
+      assert finding.quoted == "如是我闻"
+    end
+
+    test "a URN with no quotation is checked for existence only", ctx do
+      assert %{verdict: :ok, quoted: nil} = Guard.check(ctx.urn)
+    end
+
+    test "invariant #7: generated text is not citable as source" do
+      # Translation layers arrive in Phase 3. Proving the rule now with a synthetic
+      # span keeps the guard from being retrofitted around existing content later.
+      span = %{content: "Thus have I heard", provenance: %{method: "llm"}}
+      assert Guard.check_span(span, "Thus have I heard").verdict == :not_citable_as_source
+
+      human = %{content: "Thus have I heard", provenance: %{method: "human"}}
+      assert Guard.check_span(human, "Thus have I heard").verdict == :ok
+    end
+  end
+
+  describe "extract_urns/1" do
+    test "finds URNs in the forms a model actually emits" do
+      text = """
+      The sūtra opens 「如是我聞」【pramana:cbeta.T:T0262_001@p0001a05】, and see also
+      pramana:cbeta.T:T0262_001@p0001a06 as well as (pramana:sc.pali:mn1@1.1).
+      """
+
+      assert Guard.extract_urns(text) == [
+               "pramana:cbeta.T:T0262_001@p0001a05",
+               "pramana:cbeta.T:T0262_001@p0001a06",
+               "pramana:sc.pali:mn1@1.1"
+             ]
+    end
+
+    test "de-duplicates while preserving order" do
+      text = "pramana:a.b:c@1 then pramana:x.y:z@2 then pramana:a.b:c@1"
+      assert Guard.extract_urns(text) == ["pramana:a.b:c@1", "pramana:x.y:z@2"]
+    end
+
+    test "returns nothing for text without citations" do
+      assert Guard.extract_urns("A paragraph with no citations at all.") == []
+    end
+  end
+
+  describe "check_output/1 — post-generation verification" do
+    test "passes output whose citations are all genuine", ctx do
+      output = "The sūtra opens 「如是我聞」【#{ctx.urn}】."
+      result = Guard.check_output(output)
+
+      assert result.ok?
+      assert result.checked == 1
+      assert result.failed == 0
+      # Asserting the quote was actually PAIRED and byte-compared. Without this the
+      # test passes even when pairing is broken and the guard silently degrades to
+      # existence-checking, which is precisely the bug this suite once missed.
+      assert result.verified_quotes == 1
+      assert result.existence_only == 0
+      assert [%{quoted: "如是我聞"}] = result.findings
+    end
+
+    test "a bare URN with no quotation is reported as existence-only, not verified", ctx do
+      result = Guard.check_output("See #{ctx.urn} for the opening.")
+
+      assert result.ok?
+      assert result.verified_quotes == 0
+      assert result.existence_only == 1
+    end
+
+    test "catches a fabricated citation in otherwise plausible prose" do
+      output = """
+      As the Lotus Sūtra states, 「一切眾生皆有佛性」【pramana:cbeta.T:T0262_003@p0012b07】,
+      which established the doctrine.
+      """
+
+      result = Guard.check_output(output)
+
+      refute result.ok?
+      assert result.failed == 1
+      assert [%{verdict: :not_found}] = result.findings
+    end
+
+    test "catches a real citation whose quotation was altered", ctx do
+      output = "The sūtra opens 「如是我聞：一時佛住舍衛國」【#{ctx.urn}】."
+      result = Guard.check_output(output)
+
+      refute result.ok?
+      assert [%{verdict: :quote_mismatch, actual: actual}] = result.findings
+      assert actual == ctx.content
+    end
+
+    test "reports each citation separately in mixed output", ctx do
+      output = """
+      First 「如是我聞」【#{ctx.urn}】 is genuine.
+      Second 「捏造的經文」【pramana:cbeta.T:T0262_001@p9999a99】 is not.
+      """
+
+      result = Guard.check_output(output)
+
+      assert result.checked == 2
+      assert result.failed == 1
+      assert Enum.map(result.findings, & &1.verdict) == [:ok, :not_found]
+    end
+
+    test "output with no citations passes but reports nothing checked" do
+      result = Guard.check_output("A confident paragraph citing nothing.")
+
+      assert result.ok?
+      assert result.checked == 0
+    end
+  end
+end

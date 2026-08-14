@@ -1,0 +1,144 @@
+defmodule Pramana.Corpus.Loader do
+  @moduledoc """
+  Persists a normalized `IR` into the corpus tables.
+
+  Idempotent by design: loading the same text twice replaces its segments rather than
+  duplicating them, so a partially-failed bake can simply be re-run
+  (`CLAUDE.md`, working conventions).
+  """
+
+  import Ecto.Query
+
+  alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Source
+  alias Pramana.Corpus.Text
+  alias Pramana.Corpus.Witness
+  alias Pramana.Corpus.Work
+  alias Pramana.Normalize.IR
+  alias Pramana.Repo
+  alias Pramana.Segment.Taisho
+  alias Pramana.Sources
+
+  @doc """
+  Loads one normalized text and its segments.
+
+  `provenance` supplies the work-level axes. They are passed in rather than inferred
+  because for Taishō vols 1–55 and 85 the origin and role are catalogue data, and
+  guessing them would be worse than leaving them null — a wrong provenance label is
+  the failure this project exists to prevent.
+  """
+  @spec load(IR.t(), keyword()) :: {:ok, %{text: Text.t(), segments: non_neg_integer()}}
+  def load(%IR{} = ir, opts) do
+    source_id = Keyword.fetch!(opts, :source)
+    witness_id = Keyword.fetch!(opts, :witness)
+    provenance = Keyword.get(opts, :provenance, %{})
+
+    Repo.transaction(fn ->
+      ensure_source!(source_id)
+      ensure_witness!(witness_id)
+      work = upsert_work!(ir, provenance)
+      text = upsert_text!(ir, work, witness_id, source_id)
+      count = replace_segments!(ir, text, source_id, witness_id)
+
+      %{text: text, segments: count}
+    end)
+  end
+
+  defp ensure_source!(source_id) do
+    {:ok, definition} = Sources.fetch(source_id)
+
+    Repo.insert!(
+      %Source{
+        id: definition.id,
+        name: definition.name,
+        upstream_url: definition.upstream_url,
+        license_spdx: definition.license.spdx,
+        license_class: definition.license.class,
+        commercial_use: definition.license.commercial_use,
+        redistributable: definition.license.redistributable
+      },
+      on_conflict: :nothing,
+      conflict_target: :id
+    )
+  end
+
+  defp ensure_witness!("T" = id) do
+    Repo.insert!(
+      %Witness{id: id, name: "Taishō Shinshū Daizōkyō 大正新脩大藏經"},
+      on_conflict: :nothing,
+      conflict_target: :id
+    )
+  end
+
+  defp ensure_witness!(id) do
+    Repo.insert!(%Witness{id: id, name: id}, on_conflict: :nothing, conflict_target: :id)
+  end
+
+  defp upsert_work!(ir, provenance) do
+    attrs = %{
+      id: ir.work_id,
+      title: ir.title,
+      title_original: ir.title_original,
+      attributed_author: ir.author,
+      composition_origin: provenance[:composition_origin],
+      text_role: provenance[:text_role],
+      attribution_confidence: provenance[:attribution_confidence],
+      date_start: provenance[:date_start],
+      date_end: provenance[:date_end],
+      meta: %{"juan_count" => ir.juan_count, "canon" => ir.canon}
+    }
+
+    Repo.insert!(struct(Work, attrs),
+      on_conflict: {:replace, [:title, :title_original, :attributed_author, :meta, :updated_at]},
+      conflict_target: :id
+    )
+  end
+
+  defp upsert_text!(ir, work, witness_id, source_id) do
+    body = IR.body(ir)
+    prefix = Taisho.urn_prefix(source_id, witness_id, ir.work_id)
+
+    Repo.insert!(
+      %Text{
+        work_id: work.id,
+        witness_id: witness_id,
+        source_id: source_id,
+        urn_prefix: prefix,
+        volume: ir.volume && Integer.to_string(ir.volume),
+        body: body,
+        body_sha256: :crypto.hash(:sha256, body) |> Base.encode16(case: :lower),
+        meta: %{
+          "license_notice" => ir.license_notice,
+          "gaiji_declared" => map_size(ir.gaiji),
+          "unanchored_apparatus" => length(ir.unanchored_apparatus)
+        }
+      },
+      on_conflict: {:replace, [:body, :body_sha256, :urn_prefix, :volume, :meta, :updated_at]},
+      conflict_target: [:work_id, :witness_id, :source_id],
+      returning: true
+    )
+  end
+
+  defp replace_segments!(ir, text, source_id, witness_id) do
+    Repo.delete_all(from s in Segment, where: s.text_id == ^text.id)
+
+    {:ok, segments} = Taisho.segments(ir, source: source_id, witness: witness_id)
+    now = DateTime.utc_now()
+
+    rows =
+      Enum.map(segments, fn seg ->
+        seg
+        |> Map.put(:text_id, text.id)
+        |> Map.put(:inserted_at, now)
+        |> Map.put(:updated_at, now)
+      end)
+
+    # Chunked because Postgres caps bound parameters per statement, and a full text
+    # can run to tens of thousands of segments.
+    rows
+    |> Enum.chunk_every(1_000)
+    |> Enum.each(&Repo.insert_all(Segment, &1))
+
+    length(rows)
+  end
+end
