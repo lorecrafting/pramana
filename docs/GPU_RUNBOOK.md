@@ -29,7 +29,28 @@ lets import prove the vector still describes the chunk it claims to.
 gzip -k /tmp/pramana_chunks.jsonl     # 103 MB, worth it on a metered link
 ```
 
-## 1. Rent the box
+## 1a. Recommended: Modal (free within the monthly credit)
+
+Per-second billing, a $30/month free credit that covers this job several times over, and
+**nothing to forget to destroy** — which is the most expensive failure mode of renting by
+the hour. See `docs/CLOUD.md` for why this beats AWS/GCP and instance rental.
+
+```bash
+pip install modal && modal setup
+
+modal volume create pramana-embed
+modal volume put pramana-embed /tmp/pramana_chunks.jsonl /chunks.jsonl
+
+modal run priv/embed/modal_embed.py          # streams progress back
+
+modal volume get pramana-embed /vectors.jsonl /tmp/pramana_vectors.jsonl
+mix pramana.embed.import --in /tmp/pramana_vectors.jsonl
+```
+
+Skip to step 4 to verify. The rest of this runbook is the SSH-to-a-rented-box
+alternative, if you would rather have a plain machine.
+
+## 1b. Alternative: rent the box
 
 Prices as of writing — **check before booking, these move weekly and Vast.ai spot moves
 by the minute**:
