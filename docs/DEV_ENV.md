@@ -22,10 +22,20 @@ avoids that entirely. Containerize the parts that don't touch `raw/`.
 
 ## Where containers do become necessary
 
-1. **`pg_bigm`** (Phase 1) — the bigram index for Chinese. Not in Homebrew. Either
-   compile from source against the brew Postgres (`make && make install` with
-   `pg_config` on PATH — a few minutes), or use a prebuilt image. Try compiling first;
-   it avoids putting the database in a container.
+1. **`pg_bigm`** — the bigram index for Chinese. Not in Homebrew, but it builds
+   cleanly from source against Homebrew Postgres 18.4 in under a minute, so the
+   database stays native:
+
+   ```bash
+   git clone --depth 1 --branch v1.2-20250903 https://github.com/pgbigm/pg_bigm.git
+   cd pg_bigm
+   export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"   # for pg_config
+   make USE_PGXS=1 && make USE_PGXS=1 install
+   psql -d pramana_dev -c "CREATE EXTENSION pg_bigm;"
+   ```
+
+   Verify it tokenizes CJK: `SELECT show_bigm('如是我聞');` should return
+   `{如是,我聞,是我,"聞 "," 如"}`. No `shared_preload_libraries` change is needed.
 2. **The Python embed sidecar** (Phase 1+) — BGE-M3 and Tibetan `botok`. This is the
    real container use case: an isolated Python/Torch environment we don't want
    polluting the host.

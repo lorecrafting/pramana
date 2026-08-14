@@ -42,6 +42,9 @@ defmodule Pramana.MixProject do
       {:postgrex, ">= 0.0.0"},
       {:jason, "~> 1.2"},
 
+      # CJK segmentation NIF — see docs/ELIXIR.md exception #1
+      {:pramana_native, in_umbrella: true},
+
       # Corpus pipeline
       {:pgvector, "~> 0.3"},
       {:saxy, "~> 1.6"},

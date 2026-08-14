@@ -15,6 +15,7 @@ defmodule PramanaWeb.MCP.Server do
     version: "0.1.0",
     capabilities: [:tools]
 
+  component(PramanaWeb.MCP.Tools.Search)
   component(PramanaWeb.MCP.Tools.GetPassage)
   component(PramanaWeb.MCP.Tools.VerifyCitation)
 

@@ -74,6 +74,16 @@ defmodule Pramana.Corpus do
     end
   end
 
+  @doc """
+  Builds a span from a loaded segment.
+
+  Public so retrieval returns the identical shape `resolve/1` does — one span shape
+  means the guard needs one code path, and a search result is verifiable by exactly
+  the same arithmetic as a direct lookup.
+  """
+  @spec span_from_segment(Segment.t()) :: span()
+  def span_from_segment(%Segment{} = segment), do: to_span(segment)
+
   defp to_span(%Segment{} = segment) do
     %{
       urn: segment.urn,

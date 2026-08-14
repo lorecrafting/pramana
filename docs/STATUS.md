@@ -8,7 +8,12 @@ then run `TaskList`.
 
 ## Where we are
 
-**Phase 0 COMPLETE and gated.** Tagged `phase-0`.
+**Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** task #10
+(lexical search) done; #9, #11, #12 remain.
+
+Lexical search works: `pg_bigm` bigram index, phrase-then-n-gram fallback, provenance
+filters composing as SQL, and a `search` MCP tool returning results **grouped by origin
+and role**. Queries run in 5–40 ms over 5,341 segments.
 
 The end-to-end path works: acquire → normalize → segment → load → resolve → verify,
 with an MCP server on top. A model can fetch an exact Lotus Sūtra passage by URN and
@@ -73,11 +78,12 @@ the Phase 1 gate (#13).
 | **MCP library: `anubis_mcp`** | `hermes_mcp`'s last release was 2025-08-14 (a year stale); `anubis_mcp` 2.0.0 shipped 2026-08-07 with ~7× the daily downloads. The fork is maintained; hand-rolling JSON-RPC is no longer warranted. |
 | **Segments carry char AND byte offsets** | Char offsets are for clients (multi-byte CJK); byte offsets are for the server (`binary_part/3` is O(1) vs `String.slice/3` O(n)). Verifying T0262 went 18.5s → 1.7s, and the guard resolves spans on every answer. |
 | **Embeddings: dense in Bumblebee is viable** | BGE-M3 declares `architectures: ["XLMRobertaModel"]` and Bumblebee maps `XLMRobertaModel => Bumblebee.Text.Roberta`. Its sparse/ColBERT heads are two loose `.pt` linear layers, not part of the HF model — so they are portable to Nx, which could remove Python entirely. Ladder in `docs/ELIXIR.md`. |
+| **Lexical fallback: character n-grams, not jieba tokens** | jieba is trained on modern Chinese and shatters Buddhist transliterations into single characters (耆闍崛山 → 4 tokens; 般若波羅蜜多心經 → `["般若","波","羅","蜜","多心","經"]`, inventing "多心"). OR-matching those returns noise. n-grams need no dictionary. jieba is kept for the Phase 6 reading layer (多音字 disambiguation is context-dependent) and the later modern-Chinese corpus. |
+| **`pg_bigm` over `pg_trgm`/tsvector** | `pg_trgm` indexes trigrams, so the two-character queries that dominate Chinese cannot use the index at all. tsvector needs a tokenizer Postgres lacks. Bigrams accelerate `LIKE '%…%'` and are vocabulary-independent — they find 阿㝹樓馱 that no lexicon knows. Builds from source against Homebrew PG 18.4 in under a minute. |
 | `.credo.exs` from `gen.config`, patched | A hand-written config silently **replaced** the default check set (3 checks instead of 69). Never hand-roll it. |
 
 ## Open questions
 
-- **pg_bigm** — not in Homebrew; compile from source against brew Postgres 18. *(Task #10)*
 - **BGE-M3 multi-vector in Nx** — port the two linear heads and drop the sidecar, or
   keep a bake-time sidecar? Decide in Phase 1 once dense works. *(Task #11)*
 - **Tibetan `botok`** has no Elixir/Rust equivalent, so the sidecar survives until at
@@ -119,3 +125,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | Gate | Tests | Recall@10 | Citation accuracy | Bake time | Segments |
 |---|---|---|---|---|---|
 | phase-0 | 148 | — | — | 62 ms (T0262 normalize) | 5,341 |
+| task-10 | 175 | — | — | lexical query 5–40 ms | 5,341 |

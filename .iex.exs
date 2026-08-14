@@ -33,7 +33,9 @@ defmodule P do
     ------------------
       P.works()               list baked works
       P.stats()               corpus counts
-      P.find("空")            naive substring search (dev only, not retrieval)
+      P.s("如是我聞")         SEARCH — real lexical retrieval (bigram index)
+      P.s("空", origin: "indic")   ...with provenance filters
+      P.find("空")            naive substring scan (dev only, bypasses ranking)
       P.get(urn)              resolve a URN to a span
       P.show(urn)             pretty-print a passage with provenance
       P.verify(urn, quote)    byte-compare a quotation
@@ -69,6 +71,25 @@ defmodule P do
         select: {s.urn, s.content}
     )
     |> Enum.each(fn {urn, content} -> IO.puts("#{urn}\n  #{content}\n") end)
+  end
+
+  @doc "Lexical search. The real thing: bigram index, ranking, provenance filters."
+  def s(query, opts \\ []) do
+    case Pramana.Retrieval.Lexical.search(query, Keyword.put_new(opts, :limit, 5)) do
+      {:ok, r} ->
+        IO.puts("\n[#{r.mode}] #{r.total} hits  terms: #{inspect(Enum.take(r.terms, 6))}")
+
+        for res <- r.results do
+          sc = res.score
+          IO.puts("  #{res.span.urn}  (#{sc.terms_matched} matched / #{sc.occurrences}x)")
+          IO.puts("    #{res.span.content}")
+        end
+
+        :ok
+
+      {:error, reason} ->
+        IO.puts("error: #{reason}")
+    end
   end
 
   def get(urn), do: Corpus.resolve(urn)

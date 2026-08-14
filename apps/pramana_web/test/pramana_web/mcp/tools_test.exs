@@ -10,6 +10,7 @@ defmodule PramanaWeb.MCP.ToolsTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Normalize.CBETA
   alias PramanaWeb.MCP.Tools.GetPassage
+  alias PramanaWeb.MCP.Tools.Search
   alias PramanaWeb.MCP.Tools.VerifyCitation
 
   @xml """
@@ -89,6 +90,56 @@ defmodule PramanaWeb.MCP.ToolsTest do
 
     test "refuses a malformed URN" do
       {:reply, response, _frame} = GetPassage.execute(%{urn: "not-a-urn"}, %{})
+      assert response.isError
+    end
+  end
+
+  describe "search" do
+    test "returns hits GROUPED by origin and role, never a flat list" do
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什"}, %{})
+      data = payload(response)
+
+      assert data["mode"] == "phrase"
+      assert data["total"] == 1
+      # The grouping is the enforcement mechanism for invariant #4, so it is asserted
+      # as a SHAPE. A flat list here would be a regression even if the content is right.
+      assert [group] = data["groups"]
+      assert group["composition_origin"] == "indic"
+      assert group["text_role"] == "translation"
+      assert group["count"] == 1
+    end
+
+    test "every hit carries a URN and sha256 so it can be verified" do
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什"}, %{})
+      hit = payload(response)["groups"] |> hd() |> Map.fetch!("results") |> hd()
+
+      assert hit["urn"] == @urn
+      assert hit["sha256"] == :crypto.hash(:sha256, hit["text"]) |> Base.encode16(case: :lower)
+      assert hit["provenance"]["composition_origin"] == "indic"
+    end
+
+    test "reports which strategy produced the hits" do
+      # An :ngram hit is weaker evidence than a :phrase hit; saying so is more useful
+      # than hiding it behind a uniform result shape.
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什奉詔譯經"}, %{})
+      assert payload(response)["mode"] == "ngram"
+    end
+
+    test "provenance filters are honoured" do
+      {:reply, hit, _} = Search.execute(%{query: "鳩摩羅什", origin: "indic"}, %{})
+      assert payload(hit)["total"] == 1
+
+      {:reply, miss, _} = Search.execute(%{query: "鳩摩羅什", origin: "japanese"}, %{})
+      assert payload(miss)["total"] == 0
+    end
+
+    test "an unknown mode falls back to auto rather than erroring" do
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什", mode: "nonsense"}, %{})
+      assert payload(response)["mode"] == "phrase"
+    end
+
+    test "rejects an empty query" do
+      {:reply, response, _frame} = Search.execute(%{query: "   "}, %{})
       assert response.isError
     end
   end

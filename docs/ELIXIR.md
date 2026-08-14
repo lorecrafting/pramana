@@ -44,14 +44,17 @@ is the single most important query in this system. No gap here.
 ### The API and MCP server
 
 Phoenix is an excellent API layer, and **MCP is just JSON-RPC over Streamable HTTP** —
-Phoenix serves that natively. This matters because the Elixir MCP library situation is
-unsettled: `hermes_mcp` (v0.14.x, client + server) was forked and rebranded to
-`anubis-mcp` after the original maintainer left CloudWalk.
+Phoenix serves that natively.
 
-**Decision: use a library if one is healthy at build time, but treat the MCP protocol
-as something we can implement directly in a Phoenix controller.** The spec is small,
-and owning ~300 lines of JSON-RPC dispatch is far preferable to being blocked on an
-unmaintained dependency. Check the maintenance status of both before adopting either.
+**Decision, resolved in Phase 0: `anubis_mcp`.** `hermes_mcp` was forked and rebranded
+after the original maintainer left CloudWalk, and the fork is clearly the live one:
+`hermes_mcp`'s last release was 2025-08-14 (a year stale) against `anubis_mcp` 2.0.0 on
+2026-08-07, with roughly 7× the daily downloads. Hand-rolling JSON-RPC is no longer
+warranted.
+
+The fallback remains available if that ever changes — the MCP spec's core is small, and
+the tool layer (`PramanaWeb.MCP.Tools.*`) is library-independent by construction, so
+swapping transports would not touch the corpus or the guard.
 
 ### The web reader (Phase 8)
 
@@ -69,9 +72,22 @@ are narrow, and all three are replaceable.
 
 ### 1. CJK word segmentation → Rustler NIF
 
-Chinese has no whitespace; segmentation is required for decent lexical recall.
-`jieba-rs` is mature and fast, and via Rustler it runs in-process with no sidecar.
-Needed at both bake time and query time, so in-process matters.
+Chinese has no whitespace, so `jieba-rs` runs in-process via Rustler — no sidecar, and
+available at both bake and query time.
+
+**Measured caveat, and it changed the retrieval design.** jieba is trained on modern
+Chinese and does not know Buddhist vocabulary:
+
+    般若波羅蜜多心經  ->  ["般若", "波", "羅", "蜜", "多心", "經"]
+    耆闍崛山          ->  ["耆", "闍", "崛", "山"]
+    摩訶迦旃延        ->  ["摩", "訶", "迦", "旃", "延"]
+
+It shatters transliterated Sanskrit into single characters and invents "多心". So
+lexical retrieval does **not** fall back to jieba tokens; it falls back to character
+n-grams, which need no dictionary (`Pramana.Retrieval.Lexical`). jieba is kept because
+word boundaries genuinely matter elsewhere — 多音字 disambiguation in the Phase 6
+reading layer is context-dependent, and the later modern-Chinese medical corpus is
+much closer to jieba's training domain.
 
 *Guard:* keep individual calls short or use a dirty CPU scheduler — a long-running NIF
 blocks a BEAM scheduler thread.
@@ -112,11 +128,9 @@ So the ladder is:
 3. **Multi-vector in Nx by porting two linear layers** — the goal; a one-off weight
    conversion, then no sidecar at all. Attempt in Phase 1 once dense is working.
 
-Tibetan `botok` has no such escape hatch and keeps the sidecar alive regardless until
-Phase 5 — but bake-time only.
-
-Similarly, Tibetan segmentation depends on `botok`, which is Python-only with no Rust
-or Elixir equivalent.
+Tibetan segmentation depends on `botok`, which is Python-only with no Rust or Elixir
+equivalent, so it keeps the sidecar alive regardless until at least Phase 5 — but
+bake-time only.
 
 **Decision:** one small Python service behind a tiny interface:
 
@@ -130,11 +144,8 @@ does tensor math and Tibetan tokenization, and nothing else. **Do not let this s
 accumulate domain logic** — if business rules start appearing in it, they're in the
 wrong place.
 
-*Phase 0 spike:* try BGE-M3 dense-only through Bumblebee. If it works, the sidecar
-becomes bake-time-only and query embedding runs in-process via `Nx.Serving` — a
-meaningful simplification of the serving path. Alternative escape hatch: use a hosted
-embedding API and drop the sidecar entirely, at the cost of a network dependency in
-the bake.
+*Escape hatch, if both Bumblebee routes disappoint:* use a hosted embedding API and
+drop the sidecar, at the cost of a network dependency inside the bake.
 
 ---
 
@@ -144,6 +155,9 @@ Nothing architectural. Every invariant in `CLAUDE.md` and every stage in
 `ARCHITECTURE.md` is language-independent — the URN scheme, the provenance axes, the
 citation guard, and the bake are all design, not implementation.
 
-The one schedule note: **Phase 0 must include the Bumblebee/BGE-M3 spike and the
-Rustler build setup**, because both affect how Phases 1 and 6 are written. Don't defer
+Both Phase 0 spikes are done: the Bumblebee/BGE-M3 assessment and the Rustler build
+setup. What they changed was implementation, not design — except for one thing worth
+noting, which is that jieba's failure on Buddhist vocabulary moved lexical retrieval's
+fallback from word tokens to character n-grams. That was a measurement overturning an
+assumption, and it is the kind of thing this doc exists to record. Don't defer
 either.

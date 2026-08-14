@@ -127,7 +127,10 @@ serves the CC0/CC-BY subset only.
 ## Working conventions
 
 - Classical Chinese has no whitespace — never use whitespace tokenization or
-  `pg_trgm` on it. Use `pg_bigm`. CJK bugs from Latin-script assumptions are the
+  `pg_trgm` on it (trigrams cannot serve the two-character queries that dominate).
+  Use `pg_bigm`. And do **not** reach for jieba tokens as a retrieval fallback: it
+  shatters Buddhist transliterations into single characters. Character n-grams are the
+  fallback. See `docs/ELIXIR.md`. CJK bugs from Latin-script assumptions are the
   most common failure mode in this codebase. `String.split/1` on a Chinese passage is
   always a bug; so is `String.length/1` used as a proxy for word count.
 - Parse TEI with **Saxy in streaming mode**, never by loading a whole document. Some
