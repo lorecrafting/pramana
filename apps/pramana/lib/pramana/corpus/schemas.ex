@@ -147,3 +147,37 @@ defmodule Pramana.Corpus.Bake do
     timestamps(type: :utc_datetime_usec)
   end
 end
+
+defmodule Pramana.Corpus.Chunk do
+  @moduledoc """
+  A retrieval chunk: a window over consecutive segments, and the unit that gets
+  embedded.
+
+  Segments are printed lines averaging 18 characters, which is too small and too
+  typographic to embed meaningfully. A chunk's `urn` is a RANGE of real citation
+  anchors, so a semantic hit stays verifiable by the same guard as a direct lookup.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  alias Pramana.Corpus.Text
+
+  schema "chunks" do
+    belongs_to :text, Text
+
+    field :urn, :string
+    field :first_ordinal, :integer
+    field :last_ordinal, :integer
+    field :segment_count, :integer
+    field :juan, :integer
+    field :content, :string
+    field :content_sha256, :string
+    field :char_start, :integer
+    field :char_end, :integer
+    field :byte_start, :integer
+    field :byte_end, :integer
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end

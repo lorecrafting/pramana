@@ -45,7 +45,9 @@ alteration and refusing a fabricated URN.
   *stream*, and the input is a static list of 5,005 files. It may return for the
   embedding stage, where a slow sidecar genuinely needs to throttle producers.
 - Chinese word segmentation via the `jieba-rs` Rustler NIF; `pg_bigm` lexical index
-- BGE-M3 embeddings, HNSW index, RRF hybrid search
+- **Retrieval chunks** (done): ~300-char windows over segments, since a printed line
+  is far too small and too typographic to embed. 299,317 chunks from 4.7M segments.
+- BGE-M3 embeddings, HNSW index, RRF hybrid search — over CHUNKS, not segments
 - Provenance axes populated; apocrypha (疑偽部) flagged
 - Tools: `search_hybrid`, `get_passage`, `get_work`, `survey_corpus`
 - **Reading affordances** (done): context windows, outline mode from `<cb:mulu>`, and
