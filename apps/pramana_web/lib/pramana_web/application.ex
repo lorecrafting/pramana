@@ -12,7 +12,8 @@ defmodule PramanaWeb.Application do
       # Start a worker by calling: PramanaWeb.Worker.start_link(arg)
       # {PramanaWeb.Worker, arg},
       # Start to serve requests, typically the last entry
-      PramanaWeb.Endpoint
+      PramanaWeb.Endpoint,
+      {PramanaWeb.MCP.Server, transport: :streamable_http}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

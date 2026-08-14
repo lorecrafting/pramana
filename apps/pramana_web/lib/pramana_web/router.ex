@@ -14,6 +14,10 @@ defmodule PramanaWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # The MCP surface. Not under a browser pipeline: it is JSON-RPC over Streamable
+  # HTTP, consumed by agents rather than browsers.
+  forward "/mcp", Anubis.Server.Transport.StreamableHTTP.Plug, server: PramanaWeb.MCP.Server
+
   scope "/", PramanaWeb do
     pipe_through :browser
 

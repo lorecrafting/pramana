@@ -57,6 +57,7 @@ defmodule PramanaWeb.MixProject do
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"},
       {:pramana, in_umbrella: true},
+      {:anubis_mcp, "~> 2.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"}
     ]
