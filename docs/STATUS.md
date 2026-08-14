@@ -29,11 +29,11 @@ the guard byte-compares its quote.
 | The bake is reproducible | `mix pramana.verify --all`: body re-normalized from `raw/` is **byte-identical** to stored |
 | The guard actually catches things | fabricated URN refused; 譯→說 single-character alteration caught, over the wire |
 
-### Gate results
+### Gate results (at tag `phase-0`; test count has grown since)
 
 - `mix format --check-formatted` clean
 - `mix compile --warnings-as-errors` clean
-- **148 tests** passing (128 domain / 13 web / 7 native)
+- **148 tests** passing (128 domain / 13 web / 7 native). Now **175**.
 - `mix credo --strict` — 69 checks, 0 issues
 - **`mix dialyzer` — 0 errors**
 - `mix deps.audit` — no vulnerabilities
@@ -59,8 +59,18 @@ the guard byte-compares its quote.
 
 ## Next
 
-Phase 1, task #9 (full CBETA ingest via Broadway + Oban). Tasks #10–#12 follow, then
-the Phase 1 gate (#13).
+Task **#9** — full CBETA ingest via Broadway + Oban. This is the big one: ~1.18 GB
+upstream, thousands of TEI files, real concurrency and resumability.
+
+Note the deliberate reordering: #10 (lexical search) was done **before** #9, so
+segmentation and ranking could be shaken out against one fast text rather than
+debugged during hours-long full bakes. Then #11 (embeddings) and #12 (provenance
+population + survey_corpus), then the Phase 1 gate (#13).
+
+**#12 matters more than its position suggests.** Provenance is currently NULL for
+T0262, so every search result groups as `uncatalogued` and the origin/role filters —
+the project's differentiator — cannot be positively demonstrated on real data. They
+are tested against fixtures, but the real corpus needs catalogue data.
 
 ---
 
