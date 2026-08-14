@@ -82,6 +82,8 @@ defmodule Pramana.Corpus.Loader do
       attributed_author: ir.author,
       composition_origin: provenance[:composition_origin],
       text_role: provenance[:text_role],
+      division: provenance[:division],
+      division_en: provenance[:division_en],
       attribution_confidence: provenance[:attribution_confidence],
       date_start: provenance[:date_start],
       date_end: provenance[:date_end],
@@ -89,7 +91,19 @@ defmodule Pramana.Corpus.Loader do
     }
 
     Repo.insert!(struct(Work, attrs),
-      on_conflict: {:replace, [:title, :title_original, :attributed_author, :meta, :updated_at]},
+      on_conflict:
+        {:replace,
+         [
+           :title,
+           :title_original,
+           :attributed_author,
+           :composition_origin,
+           :text_role,
+           :division,
+           :division_en,
+           :meta,
+           :updated_at
+         ]},
       conflict_target: :id
     )
   end

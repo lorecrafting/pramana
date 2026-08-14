@@ -8,8 +8,14 @@ then run `TaskList`.
 
 ## Where we are
 
-**Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** #9, #10, #31
-and #35 done; #11, #12, #32, #33 remain.
+**Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** #9, #10, #12,
+#31 and #35 done; #11, #32, #33 remain.
+
+**Provenance is populated across the whole Taishō** from the division (部) table:
+1,781 Indic works, 555 Chinese, 135 deliberately unattributed (古逸部 Dunhuang), and
+**57 apocrypha** flagged. The differentiating query now works on real data — searching
+一切眾生皆有佛性 returns Indic root scripture, Chinese commentary, or the apocryphal
+T2883 法王經 depending on the filter.
 
 **The full Taishō is baked.** 2,471 works, **4,729,656 segments**, 90.6M characters,
 zero failures, 190 s. `mix pramana.verify`: all 2,471 texts re-normalize from `raw/`
@@ -100,6 +106,8 @@ are tested against fixtures, but the real corpus needs catalogue data.
 | **Segments carry char AND byte offsets** | Char offsets are for clients (multi-byte CJK); byte offsets are for the server (`binary_part/3` is O(1) vs `String.slice/3` O(n)). Verifying T0262 went 18.5s → 1.7s, and the guard resolves spans on every answer. |
 | **Embeddings: dense in Bumblebee is viable** | BGE-M3 declares `architectures: ["XLMRobertaModel"]` and Bumblebee maps `XLMRobertaModel => Bumblebee.Text.Roberta`. Its sparse/ColBERT heads are two loose `.pt` linear layers, not part of the HF model — so they are portable to Nx, which could remove Python entirely. Ladder in `docs/ELIXIR.md`. |
 | **Lexical fallback: character n-grams, not jieba tokens** | jieba is trained on modern Chinese and shatters Buddhist transliterations into single characters (耆闍崛山 → 4 tokens; 般若波羅蜜多心經 → `["般若","波","羅","蜜","多心","經"]`, inventing "多心"). OR-matching those returns noise. n-grams need no dictionary. jieba is kept for the Phase 6 reading layer (多音字 disambiguation is context-dependent) and the later modern-Chinese corpus. |
+| **`text_role` means FUNCTION, not arrival** | A Chinese translation of an Indian sūtra was `translation`, which describes how it arrived — and `composition_origin` already answers that. `root` (scripture), `treatise` (論), `catalogue`, `history` describe what a text *is*. This makes `origin = 'indic' AND role = 'root'` say what it means. |
+| **Provenance is assigned during the BAKE, not by a later pass** | The loader replaces work attributes on conflict, so a bake computing weaker provenance than a backfill would silently erase it on the next re-bake. One source of truth (the division table), applied in the pipeline, makes a re-bake converge. There is a test. |
 | **`pg_bigm` over `pg_trgm`/tsvector** | `pg_trgm` indexes trigrams, so the two-character queries that dominate Chinese cannot use the index at all. tsvector needs a tokenizer Postgres lacks. Bigrams accelerate `LIKE '%…%'` and are vocabulary-independent — they find 阿㝹樓馱 that no lexicon knows. Builds from source against Homebrew PG 18.4 in under a minute. |
 | `.credo.exs` from `gen.config`, patched | A hand-written config silently **replaced** the default check set (3 checks instead of 69). Never hand-roll it. |
 
@@ -166,3 +174,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | task-10 | 175 | — | — | lexical query 5–40 ms | 5,341 |
 | task-31 | 190 | — | — | outline 40 entries | 5,341 |
 | **#9 full Taishō** | **227** | — | — | **190 s / 2,471 works** | **4,729,656** |
+| #12 provenance | 257 | — | — | survey 88 ms exhaustive | 4,729,656 |

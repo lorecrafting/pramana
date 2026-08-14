@@ -44,7 +44,14 @@ defmodule Mix.Tasks.Pramana.Bake do
     verify_raw!(source)
 
     ir = normalize!(pipeline, source, config)
-    provenance = provenance_for(pipeline, config["volume"])
+    number = String.replace_prefix(config["work"], config["canon"], "")
+
+    provenance =
+      provenance_for(pipeline, %{
+        canon: config["canon"],
+        volume: config["volume"],
+        number: number
+      })
 
     {:ok, %{text: text, segments: count}} =
       Loader.load(ir,
@@ -100,18 +107,10 @@ defmodule Mix.Tasks.Pramana.Bake do
     ir
   end
 
-  # Taishō vols 56-84 are mechanically Japanese-composed commentary; 1-55 and 85 need
-  # catalogue data, and the rule returns nil rather than guessing.
-  defp provenance_for(pipeline, volume) do
+  defp provenance_for(pipeline, target) do
     case Map.get(pipeline, :provenance_rule) do
-      nil ->
-        %{}
-
-      rule ->
-        case rule.provenance_for_volume(volume) do
-          {:ok, provenance} -> provenance
-          {:error, _} -> %{}
-        end
+      nil -> %{}
+      rule -> rule.provenance_for_target(target)
     end
   end
 

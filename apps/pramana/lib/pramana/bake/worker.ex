@@ -37,7 +37,8 @@ defmodule Pramana.Bake.Worker do
     with {:ok, pipeline} <- Pipeline.for_source(source),
          {:ok, xml} <- read_raw(source, pipeline, canon, volume, number),
          {:ok, ir} <- normalize(pipeline, xml, work_id, canon, volume, number) do
-      provenance = provenance_for(pipeline, volume)
+      provenance =
+        provenance_for(pipeline, %{canon: canon, volume: volume, number: number})
 
       {:ok, %{segments: count}} =
         Loader.load(ir, source: source, witness: canon, provenance: provenance)
@@ -76,18 +77,13 @@ defmodule Pramana.Bake.Worker do
     error -> {:error, {:normalize_crashed, Exception.message(error)}}
   end
 
-  # provenance_rule is OPTIONAL: it encodes a witness-specific rule (Taisho volume ->
-  # composition origin) that Pali and Tibetan sources will not have.
-  defp provenance_for(pipeline, volume) do
+  # provenance_rule is OPTIONAL: it encodes a witness-specific rule that Pali and
+  # Tibetan sources will not have. Assigning provenance HERE, during the bake, rather
+  # than in a later pass is what makes a re-bake converge instead of undoing it.
+  defp provenance_for(pipeline, target) do
     case Map.get(pipeline, :provenance_rule) do
-      nil ->
-        %{}
-
-      rule ->
-        case rule.provenance_for_volume(volume) do
-          {:ok, provenance} -> provenance
-          {:error, _} -> %{}
-        end
+      nil -> %{}
+      rule -> rule.provenance_for_target(target)
     end
   end
 

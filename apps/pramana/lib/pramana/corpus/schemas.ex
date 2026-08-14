@@ -55,6 +55,8 @@ defmodule Pramana.Corpus.Work do
 
     field :composition_origin, :string
     field :text_role, :string
+    field :division, :string
+    field :division_en, :string
     field :attributed_author, :string
     field :attribution_confidence, :string
     field :date_start, :integer

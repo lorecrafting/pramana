@@ -78,7 +78,7 @@ defmodule Pramana.Pipeline do
       normalizer: Pramana.Normalize.CBETA,
       segmenter: Pramana.Segment.Taisho,
       witness: "T",
-      provenance_rule: Pramana.URN.Taisho
+      provenance_rule: Pramana.Taisho.Divisions
     }
   }
 

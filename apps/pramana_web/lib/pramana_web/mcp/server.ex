@@ -16,6 +16,7 @@ defmodule PramanaWeb.MCP.Server do
     capabilities: [:tools]
 
   component(PramanaWeb.MCP.Tools.Search)
+  component(PramanaWeb.MCP.Tools.SurveyCorpus)
   component(PramanaWeb.MCP.Tools.GetPassage)
   component(PramanaWeb.MCP.Tools.GetOutline)
   component(PramanaWeb.MCP.Tools.VerifyCitation)

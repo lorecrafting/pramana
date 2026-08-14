@@ -70,7 +70,8 @@ defmodule Pramana.Bake.WorkerTest do
     end
 
     test "applies the Taishō volume provenance rule", %{write_raw: write_raw} do
-      # Vols 56-84 are mechanically Japanese-composed commentary.
+      # T2688 is 續經疏部 (2185-2700): Japanese sub-commentary. The division table and
+      # the vols 56-84 volume rule agree here; the division is simply finer-grained.
       write_raw.("T/T84/T84n2688.xml", @xml)
 
       assert {:ok, _} =
@@ -81,13 +82,31 @@ defmodule Pramana.Bake.WorkerTest do
       assert work.text_role == "commentary"
     end
 
-    test "leaves provenance null for volumes needing catalogue data" do
+    test "assigns division-based provenance during the bake" do
       assert {:ok, _} = run(args())
       work = Repo.get!(Pramana.Corpus.Work, "T0262")
 
-      # Vol 9 is Indic translations AND Chinese compositions; guessing would be worse
-      # than a gap, so the rule declines.
-      assert work.composition_origin == nil
+      # T0262 is 法華部. Provenance comes from the DIVISION table, applied during the
+      # bake rather than by a later pass — see the convergence test below for why.
+      assert work.division == "法華部"
+      assert work.composition_origin == "indic"
+      assert work.text_role == "root"
+    end
+
+    test "re-baking CONVERGES on provenance rather than undoing it" do
+      # The loader replaces work attributes on conflict, so if the bake computed weaker
+      # provenance than some later backfill, a routine re-bake would silently erase it.
+      # One source of truth (the division table), applied in the bake, prevents that.
+      {:ok, _} = run(args())
+      before = Repo.get!(Pramana.Corpus.Work, "T0262")
+
+      {:ok, _} = run(args())
+      after_rebake = Repo.get!(Pramana.Corpus.Work, "T0262")
+
+      assert after_rebake.composition_origin == before.composition_origin
+      assert after_rebake.text_role == before.text_role
+      assert after_rebake.division == before.division
+      refute is_nil(after_rebake.composition_origin)
     end
 
     test "is idempotent — re-running converges rather than duplicating" do
