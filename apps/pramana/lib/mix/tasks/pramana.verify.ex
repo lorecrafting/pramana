@@ -44,6 +44,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   alias Pramana.Local.Manifest, as: LocalManifest
   alias Pramana.Local.Normalizer, as: LocalNormalizer
   alias Pramana.Normalize
+  alias Pramana.Normalize.Bilara
   alias Pramana.Normalize.IR
   alias Pramana.Repo
   alias Pramana.Sources
@@ -116,11 +117,31 @@ defmodule Mix.Tasks.Pramana.Verify do
   # from pinned TEI in `raw/`; a locally-added text comes from its own `text/` directory,
   # which the lockfile hashes the same way. Assuming every text was CBETA made this
   # check fail on a legitimately added local source.
+  defp reproduce(%{source_id: "sc"} = text), do: reproduce_bilara(text)
+
   defp reproduce(text) do
     if Sources.local?(text.source_id) do
       reproduce_local(text)
     else
       with {:ok, xml} <- read_raw(text), do: renormalize(text, xml)
+    end
+  end
+
+  # One bilara file holds several works, so the work id alone cannot find its source.
+  # The path is recorded at ingest for exactly this reason.
+  defp reproduce_bilara(%{meta: %{"source_file" => path}} = text) when is_binary(path) do
+    with {:ok, json} <- File.read(path),
+         {:ok, irs} <- Bilara.normalize_file(json, witness: text.witness_id) do
+      pick_work(irs, text.work_id, path)
+    end
+  end
+
+  defp reproduce_bilara(text), do: {:error, {:no_source_file, text.work_id}}
+
+  defp pick_work(irs, work_id, path) do
+    case Enum.find(irs, &(&1.work_id == work_id)) do
+      nil -> {:error, {:work_absent_from_file, work_id, path}}
+      ir -> {:ok, ir}
     end
   end
 

@@ -38,7 +38,17 @@ defmodule Pramana.Corpus.Loader do
       ensure_witness!(witness_id)
       segmenter = Keyword.get(opts, :segmenter, Taisho)
       work = upsert_work!(ir, provenance)
-      text = upsert_text!(ir, work, witness_id, source_id, Keyword.get(opts, :addressing))
+
+      text =
+        upsert_text!(
+          ir,
+          work,
+          witness_id,
+          source_id,
+          Keyword.get(opts, :addressing),
+          Keyword.get(opts, :source_file)
+        )
+
       count = replace_segments!(ir, text, source_id, witness_id, segmenter)
 
       %{text: text, segments: count}
@@ -65,7 +75,22 @@ defmodule Pramana.Corpus.Loader do
         commercial_use: definition.license.commercial_use,
         redistributable: definition.license.redistributable
       },
-      on_conflict: :nothing,
+      # `Pramana.Sources` (or a local manifest) is the authority on licensing, so the row
+      # must follow it. With `:nothing`, correcting bilara-data's licence from CC0 to
+      # Public Domain Mark in code left the database still saying `cc0` through a full
+      # re-ingest — the licence a query would have filtered on was the one we had already
+      # established was wrong.
+      on_conflict:
+        {:replace,
+         [
+           :name,
+           :upstream_url,
+           :license_spdx,
+           :license_class,
+           :commercial_use,
+           :redistributable,
+           :updated_at
+         ]},
       conflict_target: :id
     )
   end
@@ -73,6 +98,14 @@ defmodule Pramana.Corpus.Loader do
   defp ensure_witness!("T" = id) do
     Repo.insert!(
       %Witness{id: id, name: "Taishō Shinshū Daizōkyō 大正新脩大藏經"},
+      on_conflict: :nothing,
+      conflict_target: :id
+    )
+  end
+
+  defp ensure_witness!("ms" = id) do
+    Repo.insert!(
+      %Witness{id: id, name: "Mahāsaṅgīti Tipiṭaka Buddhavasse 2500"},
       on_conflict: :nothing,
       conflict_target: :id
     )
@@ -116,7 +149,7 @@ defmodule Pramana.Corpus.Loader do
     )
   end
 
-  defp upsert_text!(ir, work, witness_id, source_id, addressing) do
+  defp upsert_text!(ir, work, witness_id, source_id, addressing, source_file) do
     body = IR.body(ir)
     prefix = Taisho.urn_prefix(source_id, witness_id, ir.work_id)
 
@@ -136,7 +169,12 @@ defmodule Pramana.Corpus.Loader do
           # DECLARED by the source, not inferred from its id. Inferring it threw away
           # the distinction between a text anchored to printed page numbers and one
           # with no intrinsic anchor at all, reporting the weaker claim for both.
-          "addressing" => addressing
+          "addressing" => addressing,
+          # Which upstream file this text came from. A source whose works do not map
+          # one-to-one onto files (bilara packs several suttas per file) cannot be
+          # re-derived without it, and `mix pramana.verify` must be able to re-derive
+          # every text or it is not checking anything.
+          "source_file" => source_file
         },
         outline: %{"entries" => Enum.map(ir.outline, &stringify_entry/1)}
       },

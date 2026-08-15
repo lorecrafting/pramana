@@ -44,6 +44,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
   alias Pramana.Local.Manifest, as: LocalManifest
   alias Pramana.Local.Normalizer, as: LocalNormalizer
   alias Pramana.Normalize
+  alias Pramana.Normalize.Bilara
   alias Pramana.Repo
 
   @switches [limit: :integer]
@@ -74,6 +75,32 @@ defmodule Mix.Tasks.Pramana.Integrity do
   # `text/` become a line, and did every line with content get an addressable segment?
   # Pretending the TEI checks apply would produce a green tick for a check that never
   # ran.
+  # bilara gives segment ids directly, so there is no `<lb/>` to lose and no gaiji. The
+  # equivalent question is whether every id in the file became an addressable segment.
+  defp check_text(%{source_id: "sc"} = text, totals) do
+    {:ok, json} = File.read(text.meta["source_file"])
+    {:ok, irs} = Bilara.normalize_file(json, witness: text.witness_id)
+    ir = Enum.find(irs, &(&1.work_id == text.work_id))
+
+    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    blank = Enum.count(ir.lines, &(&1.text == ""))
+    printed = length(ir.lines) - blank
+
+    bad =
+      if printed != segments,
+        do: [{text.work_id, :line_unaddressable, printed, segments}],
+        else: []
+
+    %{
+      totals
+      | lb: totals.lb + length(ir.lines),
+        ir_lines: totals.ir_lines + length(ir.lines),
+        segments: totals.segments + segments,
+        blank: totals.blank + blank,
+        bad: totals.bad ++ bad
+    }
+  end
+
   defp check_text(%{source_id: "local-" <> id} = text, totals) do
     dir = Path.join(["sources", "local", id])
     {:ok, manifest} = LocalManifest.load(dir)

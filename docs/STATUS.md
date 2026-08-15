@@ -257,6 +257,32 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
 8. **A scripted patch that reports success may have done nothing.** This has now bitten
    five times. Always grep for the new text afterwards; never trust an unconditional
    "patched" message. Prefer a real edit over a Python string replace.
+9. **`on_conflict: :nothing` on a reference row makes it write-once.** Correcting
+   bilara-data's licence from CC0 to Public Domain Mark in `Pramana.Sources` and
+   re-ingesting all 8,442 works left the `sources` row still saying `cc0`, because the
+   row already existed. `redistributable_only` filters by joining that row, so the
+   registry was right and the thing making decisions was wrong. Any table that mirrors a
+   declaration in code must replace on conflict, and a test must assert the row equals
+   the registry after a load.
+10. **A source's own LICENSE file is not the licence.** bilara-data's LICENSE.md says
+    CC0 throughout; its `_publication.json` records Public Domain Mark for the Pāli root
+    text and CC BY-SA 3.0 for the Patna Dhammapada. Licence belongs to the publication,
+    never to the repository — check per publication before ingesting.
+11. **A check constraint on an enumerated column is a contract with the registry.**
+    Adding `public-domain` to `Pramana.Sources` without adding it to
+    `license_class_known` made every insert fail. That is the constraint working: a
+    licence class nothing enumerates is one no query can reason about. Extend the
+    constraint in the same change as the registry.
+12. **A test that hardcodes a value the registry owns will fight the registry.** Three
+    licence-filter tests asserted `"cc0"` for a source and broke when the licence was
+    corrected — inviting a "fix" that restores the wrong licence. Derive such values
+    from the source of truth (`Sources.fetch!/1`) so the test checks the *behaviour*.
+13. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
+    holds ten suttas. Taking the work id from the filename collapsed ten distinct `1.0`
+    segments onto one address — caught only by a unique constraint. Derive the work id
+    from what the source *cites*, and where works do not map one-to-one onto files,
+    record the file on the text (`meta["source_file"]`): without it `mix pramana.verify`
+    cannot find the bytes to re-derive from, and a check that cannot run is not a check.
 
 ---
 
@@ -428,3 +454,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#32 variant characters** | **465** | — | 众生 0 → 5 hits when expanded | — | 6,447 variant classes |
 | **#34 glossary seed** | **483** | — | 10 rejected renderings, 1 unverified reading | — | 376 pinned terms |
 | **#18a parallels** | **511** | — | sa1 → sn22.51 from curated data | import 29 s | 407,176 parallels, 3,064 anchors |
+| **#38 Pāli root text** | **539** | — | verify --all + integrity green on 10,914 texts | ingest 53 s / 8,442 works | **10,914 texts, 5,185,767 segments** |

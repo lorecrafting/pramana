@@ -143,12 +143,25 @@ defmodule Pramana.Parallels do
 
   defp strip(uid), do: uid |> String.trim_leading("~") |> String.split("#") |> hd()
 
-  @doc "Stores parallel pairs, resolving each side against the anchor table."
+  @doc """
+  Stores parallel pairs, resolving each side into this corpus.
+
+  Two routes, because the two traditions are addressed differently:
+
+  - **Taishō**: via the anchor table, since SuttaCentral's `volpage` gives the exact
+    page/register/line and the URN has to be looked up from it.
+  - **Pāli**: directly, because we ingested bilara-data under SuttaCentral's own ids —
+    the uid `mn1` *is* the work id. Missing this left 17,274 parallels with a null Pāli
+    end even after the Pāli text was loaded, which reads as "we do not have it" when we
+    do.
+  """
   @spec store([map()]) :: {:ok, map()}
   def store(pairs) do
     anchors =
       Repo.all(from a in TextAnchor, select: {a.uid, {a.urn, a.work_id}})
       |> Map.new()
+
+    anchors = Map.merge(direct_works(pairs), anchors)
 
     now = DateTime.utc_now()
 
@@ -188,6 +201,30 @@ defmodule Pramana.Parallels do
     {:ok, %{written: written, total: length(rows)}}
   end
 
+  # A uid that is itself a work in the corpus resolves to that work's FIRST segment: the
+  # parallel is stated at text level, so pointing at the opening line is the most precise
+  # claim the data supports. Pretending to a finer anchor would invent precision.
+  defp direct_works(pairs) do
+    uids =
+      pairs
+      |> Enum.flat_map(&[&1.source_uid, &1.target_uid])
+      |> Enum.uniq()
+
+    # NOT ordinal 0: bilara's `0.x` segments are the collection name and sutta title, so
+    # anchoring there points a reader at "Saṁyutta Nikāya 22.51" rather than at the text.
+    # The first segment outside that block is the opening line proper.
+    from(t in Text,
+      join: s in Segment,
+      on: s.text_id == t.id,
+      where: t.work_id in ^uids and not like(s.urn, "%@0.%"),
+      distinct: t.work_id,
+      order_by: [asc: t.work_id, asc: s.ordinal],
+      select: {t.work_id, {s.urn, t.work_id}}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
   @doc """
   Parallels for a work or a SuttaCentral uid.
 
@@ -224,8 +261,12 @@ defmodule Pramana.Parallels do
           from_urn: p.target_urn
         }
 
-    Repo.all(forward) ++ Repo.all(backward)
+    dedupe(Repo.all(forward) ++ Repo.all(backward))
   end
+
+  # The source records some pairs in BOTH directions, so querying both would show the
+  # same parallel twice under the same relation.
+  defp dedupe(parallels), do: Enum.uniq_by(parallels, &{&1.uid, &1.relation})
 
   @doc "Parallels for one SuttaCentral uid, both directions."
   @spec for_uid(String.t()) :: [map()]
@@ -252,7 +293,7 @@ defmodule Pramana.Parallels do
           partial: p.partial
         }
 
-    Repo.all(forward) ++ Repo.all(backward)
+    dedupe(Repo.all(forward) ++ Repo.all(backward))
   end
 
   @doc "The anchor for a uid, if we resolved one."

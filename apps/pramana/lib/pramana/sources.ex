@@ -54,17 +54,30 @@ defmodule Pramana.Sources do
         notice: nil
       }
     },
+    # bilara-data's LICENSE.md says everything is CC0. Its own `_publication.json`
+    # disagrees in two places, and the difference is not cosmetic:
+    #
+    #   scpub64  the Mahāsaṅgīti Pāli root text  -> Public Domain Mark
+    #   scpub69  the Patna Dhammapada            -> CC BY-SA 3.0
+    #
+    # CC BY-SA carries attribution and share-alike obligations CC0 does not, so
+    # republishing it under a blanket CC0 assumption would be a licence violation. This
+    # entry covers the ROOT TEXT, which is what `mix pramana.sc.ingest` loads; a
+    # per-publication licence belongs on any translation ingested later (#39).
     "sc" => %{
       id: "sc",
-      name: "SuttaCentral bilara-data",
+      name: "SuttaCentral bilara-data — Mahāsaṅgīti Pāli Tipiṭaka (root)",
       upstream_url: "https://github.com/suttacentral/bilara-data",
       repo: "suttacentral/bilara-data",
       license: %{
-        spdx: "CC0-1.0",
-        class: "cc0",
+        spdx: "CC-PDM-1.0",
+        class: "public-domain",
         commercial_use: true,
         redistributable: true,
-        notice: nil
+        notice:
+          "Public Domain Mark per bilara-data _publication.json (scpub64): free of " <>
+            "known restrictions under copyright law. SuttaCentral asks that use accord " <>
+            "with the values of the Buddhist tradition."
       }
     }
   }
@@ -75,6 +88,20 @@ defmodule Pramana.Sources do
     case Map.fetch(@sources, id) do
       {:ok, source} -> {:ok, source}
       :error -> {:error, :unknown_source}
+    end
+  end
+
+  @doc """
+  Fetches a source definition, raising when the id is not registered.
+
+  For callers that are naming a source they know exists — an ingest task, a test — where
+  an unregistered id is a bug rather than a condition to handle.
+  """
+  @spec fetch!(String.t()) :: t()
+  def fetch!(id) when is_binary(id) do
+    case fetch(id) do
+      {:ok, source} -> source
+      {:error, :unknown_source} -> raise ArgumentError, "unknown source #{inspect(id)}"
     end
   end
 

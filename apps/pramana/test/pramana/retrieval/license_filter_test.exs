@@ -22,6 +22,14 @@ defmodule Pramana.Retrieval.LicenseFilterTest do
   alias Pramana.Repo
   alias Pramana.Retrieval.Lexical
   alias Pramana.Retrieval.Survey
+  alias Pramana.Sources
+
+  # Read from the registry rather than written out. `sc` was recorded as CC0 and later
+  # corrected to Public Domain Mark after checking bilara-data's own `_publication.json`;
+  # a hardcoded "cc0" here turns that correction into three unrelated test failures and
+  # invites someone to "fix" the test by restoring the wrong licence.
+  @public Sources.fetch!("sc").license.class
+  @restricted Sources.fetch!("cbeta").license.class
 
   defp load!(work_id, source, line) do
     xml = """
@@ -44,8 +52,8 @@ defmodule Pramana.Retrieval.LicenseFilterTest do
   end
 
   setup do
-    # `cbeta` is nc / not redistributable; `sc` (SuttaCentral) is CC0 / redistributable.
-    # Both contain the same phrase, so only the licence separates them.
+    # `cbeta` is nc / not redistributable; `sc` (SuttaCentral) is public-domain /
+    # redistributable. Both contain the same phrase, so only the licence separates them.
     load!("T0001", "cbeta", "一切眾生皆有佛性")
     load!("SC001", "sc", "一切眾生皆有佛性")
     :ok
@@ -58,7 +66,7 @@ defmodule Pramana.Retrieval.LicenseFilterTest do
 
       assert all.total == 2
       assert public.total == 1
-      assert hd(public.results).span.provenance.license_class == "cc0"
+      assert hd(public.results).span.provenance.license_class == @public
     end
 
     test "excludes a restricted local text even though it matches" do
@@ -78,16 +86,16 @@ defmodule Pramana.Retrieval.LicenseFilterTest do
 
   describe "license_class" do
     test "restricts to the named classes" do
-      {:ok, cc0} = Lexical.search("一切眾生皆有佛性", limit: 20, license_class: "cc0")
-      {:ok, nc} = Lexical.search("一切眾生皆有佛性", limit: 20, license_class: "nc")
+      {:ok, public} = Lexical.search("一切眾生皆有佛性", limit: 20, license_class: @public)
+      {:ok, nc} = Lexical.search("一切眾生皆有佛性", limit: 20, license_class: @restricted)
 
-      assert cc0.total == 1
+      assert public.total == 1
       assert nc.total == 1
-      refute hd(cc0.results).span.urn == hd(nc.results).span.urn
+      refute hd(public.results).span.urn == hd(nc.results).span.urn
     end
 
     test "accepts a list" do
-      {:ok, both} = Lexical.search("一切眾生皆有佛性", limit: 20, license_class: ["cc0", "nc"])
+      {:ok, both} = Lexical.search("一切眾生皆有佛性", limit: 20, license_class: [@public, @restricted])
       assert both.total == 2
     end
 
