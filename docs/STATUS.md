@@ -175,9 +175,45 @@ and citation accuracy remain unmeasured) and the full-corpus embedding run.
 - **Tibetan `botok`** has no Elixir/Rust equivalent, so the sidecar survives until at
   least Phase 5 regardless — bake-time only.
 
-## Surprises and gotchas
+## Rules that generalize
 
-Each of these cost real time; they are recorded so they cost it only once.
+**Read this section before writing a new source pipeline.** Everything here was learned
+from a specific bug, but each one states a rule that will apply again — most of them to
+Phase 2's SAT normalizer, which is the next thing anyone writes.
+
+1. **Any buffered element that can span a line boundary must be split at that
+   boundary.** The line is the citable unit, not the element. This bug has now been
+   fixed *twice* in the same file — `<lem>` spanning `<lb/>`, then `<note>` spanning
+   `<lb/>` — and the second cost 10,590 uncitable printed lines. When adding an element
+   that accumulates text, the question is not "does it usually fit on one line" but
+   "what happens when it does not".
+2. **Reproducibility is not fidelity.** A check that re-runs the pipeline and compares
+   proves determinism only: content dropped on every run is absent from both sides and
+   the check passes. Fidelity has to be measured against the *source*. Hence
+   `mix pramana.integrity` alongside `mix pramana.verify`.
+3. **A line is only droppable if nothing was printed on it.** Text, an interlinear note,
+   a variant reading and a rare character are all printed content, and each needs an
+   address.
+4. **Never silently ignore an unknown option** — raise. A filter that is accepted and
+   dropped produces results that look filtered and are not.
+5. **Every declared filter must have a test proving it changes the result set.** Both
+   filter bugs so far passed their existing tests.
+6. **Filtering an ANN index post-hoc truncates silently.** Any query combining a vector
+   ordering with a selective `WHERE` needs pgvector's iterative scan, or it returns too
+   few rows with no error. Expect this to recur every time the corpus grows.
+7. **Defects that only appear at scale will not appear in the proof run.** The quadratic
+   ordinal, the ANN truncation, and the note-splitting loss were all invisible on one
+   text or one division. Re-run the integrity and filter checks after every corpus
+   growth, not just after code changes.
+8. **A scripted patch that reports success may have done nothing.** This has now bitten
+   five times. Always grep for the new text afterwards; never trust an unconditional
+   "patched" message. Prefer a real edit over a Python string replace.
+
+---
+
+## One-off gotchas
+
+Environment and tooling quirks. Each cost real time; recorded so they cost it only once.
 
 - **`mise trust` is path-keyed.** An early `mise install` silently no-op'd because the
   project config was untrusted, and the global config won. Renaming the project

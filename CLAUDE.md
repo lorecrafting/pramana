@@ -23,6 +23,12 @@ Read **`docs/STATUS.md`** first — it says where we are, what was decided and w
 what surprised us. Then this file's invariants, then `docs/ROADMAP.md`. Then run
 `TaskList`; tasks carry their own context and point back to the relevant docs.
 
+**Before writing a new source pipeline, read `docs/STATUS.md` § "Rules that
+generalize".** Eight rules, each learned from a real defect, and most of them apply
+directly to the next normalizer. Two have already been rediscovered the hard way — the
+same buffered-element-spans-a-line bug was fixed twice, and the second time it left
+10,590 printed lines with no citation.
+
 Checkpoint tasks are marked ⛔ and are real stops — see `docs/CHECKS.md`.
 
 ## Non-negotiable invariants
