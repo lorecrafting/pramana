@@ -58,6 +58,7 @@ defmodule Pramana.Retrieval.Lexical do
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Repo
+  alias Pramana.Retrieval.Variants
 
   @default_limit 20
   @max_limit 200
@@ -67,6 +68,7 @@ defmodule Pramana.Retrieval.Lexical do
   # hybrid results with works from outside the requested division, and the results
   # still looked filtered because half the pipeline had applied it.
   @known_opts [
+    :normalize_variants,
     :redistributable_only,
     :license_class,
     :limit,
@@ -208,6 +210,7 @@ defmodule Pramana.Retrieval.Lexical do
 
   defp run(query, terms, opts, mode) do
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
+    {terms, variants} = maybe_expand_variants(terms, opts)
 
     rows =
       Segment
@@ -227,8 +230,33 @@ defmodule Pramana.Retrieval.Lexical do
     |> Enum.take(limit)
     |> Enum.map(&Map.delete(&1, :ordinal))
     |> then(fn results ->
-      %{results: results, mode: mode, query: query, terms: terms, total: length(results)}
+      %{
+        results: results,
+        mode: mode,
+        query: query,
+        terms: terms,
+        total: length(results),
+        # Reported so a hit on a DIFFERENT orthographic form is visible rather than
+        # surprising: a reader who searched 众生 and got 眾生 should be told why.
+        variants: variants
+      }
     end)
+  end
+
+  # Query-side only. The index is never normalised — which Han form an edition prints is
+  # scholarly data, not noise. See `Pramana.Retrieval.Variants`.
+  defp maybe_expand_variants(terms, opts) do
+    if opts[:normalize_variants] do
+      {expanded, metas} =
+        Enum.map_reduce(terms, %{}, fn term, acc ->
+          {forms, meta} = Variants.expand(term)
+          {forms, Map.merge(acc, meta.expanded)}
+        end)
+
+      {expanded |> List.flatten() |> Enum.uniq(), %{expanded: metas, applied: true}}
+    else
+      {terms, %{expanded: %{}, applied: false}}
+    end
   end
 
   # Any-term match. Each LIKE '%term%' is accelerated by the gin_bigm_ops index.

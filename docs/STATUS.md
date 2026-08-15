@@ -92,9 +92,8 @@ until #14 resolves.
 Taishō 56–84 starts with an email to `sat at l.u-tokyo.ac.jp` — a draft is in
 `docs/sat-request-email.md`, not sent.
 
-Unblocked and worth doing any time: **#36** work relations (the Huang Nianzu manifest's
-`comments_on: xia-lianju-conflation` is inert until this lands), **#32** 異體字
-variant-character expansion, **#34** the Huang Nianzu glossary.
+**#36** (work relations) and **#32** (異體字 variant expansion) are done. Still unblocked:
+**#34** the Huang Nianzu glossary.
 
 **Phase 3 matters more than its number suggests:** SuttaCentral `bilara-data` is CC0 and
 would be the **first redistributable content in the corpus**. Until then the public
@@ -278,6 +277,17 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
   heredoc was a separate command. The commit message described a doc section that did not
   exist. **Use the Edit tool for docs.** If a script must be used, grep for the new text
   afterwards and treat a missing match as a failed step.
+- **The variant-character problem was not where the task assumed.** #32 was written
+  expecting the *corpus* to mix orthographic forms. It does not: CBETA writes 說 412,524
+  times and 説 zero, 眾生 132,626 times and 众生 zero. The gap is between the **reader's
+  keyboard and the corpus** — someone typing simplified or Japanese forms gets *zero*
+  results, silently. Same fix, completely different framing, and worth measuring before
+  building next time.
+- **Unihan's `kSemanticVariant` is not an orthographic-variant field.** It means
+  "characters sharing a meaning" and includes genuinely different words, so expanding a
+  search across its 2,151 pairs would return passages using another word. Use
+  `kSimplifiedVariant` / `kTraditionalVariant` / `kZVariant`. The cost is that 眞/真 is
+  filed under the excluded field and is not expanded — documented, not overlooked.
 - **`mise trust` is path-keyed.** An early `mise install` silently no-op'd because the
   project config was untrusted, and the global config won. Renaming the project
   directory invalidated the trust again.
@@ -400,3 +410,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#15 provenance shape** | **377** | — | 3 origins in 3 labelled buckets | — | 299,317 chunks |
 | **#17 Phase 2 gate** | **420** | — | licence filter now enforceable | import 88 → 38.7 min | 2,472 texts, 4,741,094 |
 | **#36 work relations** | **444** | — | 89 commentary→root links | — | 2,472 texts |
+| **#32 variant characters** | **465** | — | 众生 0 → 5 hits when expanded | — | 6,447 variant classes |

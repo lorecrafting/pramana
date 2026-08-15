@@ -55,6 +55,15 @@ defmodule PramanaWeb.MCP.Tools.Search do
           "經疏部 (Chinese sūtra exegesis), 疑似部 (apocrypha), and so on."
     )
 
+    field(:normalize_variants, :boolean,
+      description:
+        "Expand the query across variant Han forms (異體字). CBETA writes 眾生 and 說法; " <>
+          "searching the simplified 众生 or the Japanese 説法 otherwise returns NOTHING. " <>
+          "Turn this on if a query in one orthographic tradition finds nothing. The " <>
+          "stored text is never normalised — this expands the QUERY only, and the " <>
+          "response reports what was expanded."
+    )
+
     field(:exclude_origin, :string, description: "Exclude a composition origin.")
     field(:work_id, :string, description: "Restrict to one work, e.g. T0262.")
     field(:juan, :integer, description: "Restrict to one fascicle.")
@@ -70,6 +79,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
         role: params[:role],
         division: params[:division],
         exclude_origin: params[:exclude_origin],
+        normalize_variants: params[:normalize_variants],
         work_id: params[:work_id],
         juan: params[:juan]
       ]
@@ -140,6 +150,9 @@ defmodule PramanaWeb.MCP.Tools.Search do
       mode: Map.get(found, :mode, "hybrid"),
       retrievers: Map.get(found, :retrievers),
       search_terms: Map.get(found, :terms),
+      # Which characters were expanded, so a hit on a different orthographic form is
+      # visible rather than surprising.
+      variants: Map.get(found, :variants),
       embedding_coverage: Map.get(found, :coverage),
       total: found.total,
       groups: group_by_provenance(found.results)

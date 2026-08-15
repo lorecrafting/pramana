@@ -101,6 +101,12 @@ defmodule PramanaWeb.MCP.Resources.Guide do
     ## Things that are true and easy to get wrong
 
     - Classical Chinese has no spaces. Do not split queries on whitespace.
+    - **A query in the wrong orthographic tradition returns NOTHING, silently.** This
+      corpus is CBETA, which writes 眾生 and 說法. Searching the simplified 众生 or the
+      Japanese 説法 finds **zero** results — not few, zero. If a query you expect to
+      match finds nothing, retry with `normalize_variants: true`, which expands the
+      query across variant Han forms and reports which characters it expanded. The
+      stored text is never normalised; only the query is.
     - A machine translation is never citable as source; cite the source anchor.
     - `has_variants: true` means the passage carries variant readings from other
       witnesses (Song, Yuan, Ming, Koryŏ) — worth mentioning when the wording is the
