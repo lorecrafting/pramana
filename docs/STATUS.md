@@ -86,20 +86,63 @@ the guard byte-compares its quote.
 
 ## Next
 
-Task **#9** — full CBETA ingest via Broadway + Oban. This is the big one: ~1.18 GB
-upstream, thousands of TEI files, real concurrency and resumability.
+Phase 1 is complete and gated (**#13**). Tasks #9, #10, #12, #31, #33 and #35 are done;
+#11 is code-complete but its full-corpus embedding run is **blocked on a cloud account**
+— see `docs/GPU_RUNBOOK.md`, roughly $0.50 or free inside Modal's monthly credit.
 
-Note the deliberate reordering: #10 (lexical search) was done **before** #9, so
-segmentation and ranking could be shaken out against one fast text rather than
-debugged during hours-long full bakes. Then #11 (embeddings) and #12 (provenance
-population + survey_corpus), then the Phase 1 gate (#13).
+Then Phase 2: **#14** SAT ingest and the Taishō 56–84 Japanese delta, **#15** structural
+provenance enforcement, **#16** the local-source manifest path.
 
-**#12 matters more than its position suggests.** Provenance is currently NULL for
-T0262, so every search result groups as `uncatalogued` and the origin/role filters —
-the project's differentiator — cannot be positively demonstrated on real data. They
-are tested against fixtures, but the real corpus needs catalogue data.
+Still open in Phase 1, neither blocking: **#32** 異體字 variant-character expansion,
+**#34** the Huang Nianzu glossary, **#36** work relations (commentary → source).
+
+### Phase 1 gate findings (#13)
+
+The gate did its job — it found more than it confirmed.
+
+| check | result |
+|---|---|
+| format / compile --warnings-as-errors / credo --strict | clean |
+| dialyzer | 0 errors |
+| `mix deps.audit` | no known vulnerabilities |
+| `mix hex.outdated` | 2 pinned back: `phoenix_live_view` 1.1.33→1.2.9, `phoenix_live_dashboard` 0.8.7→0.9.0. Both LiveView, unused until Phase 8; upgrade deliberately there |
+| `mix pramana.verify --all` | 2,471 texts, 4,740,246 segments, byte-identical from `raw/`, 2m37s |
+| `mix pramana.integrity` | every `<lb/>`, every printed line, every gaiji accounted for |
+| `mix test --cover` | **failed at first** — see below |
+
+**Fidelity (the big one).** `verify` proved reproducibility and could not prove
+completeness: 10,590 printed lines had no URN, including 473 rare characters and
+266,547 characters of interlinear note text. Two defects, both fixed, pipeline v1 → v3.
+`mix pramana.integrity` now guards it. This is recorded at length under *Surprises*
+because the general lesson — a deterministic pipeline drops the same thing every run,
+so self-comparison cannot detect loss — applies to every source added from here on.
+
+**Architecture review**, against `CLAUDE.md`'s seven invariants:
+
+- **One violation, introduced in this phase and fixed:** the `pramana://inventory` MCP
+  resource built its own Ecto queries, so `pramana_web` was reading the database
+  directly. Moved to `Pramana.Inventory`. `docs/CHECKS.md`'s wording for this audit was
+  also inverted and has been corrected.
+- Tools returning quotable text all carry `urn` + offsets + `sha256`. `get_outline` and
+  `survey_corpus` return structure and counts only, so the rule does not bind them —
+  but `get_outline` was not naming its `bake_id` and now does.
+- No generated translation is reachable as a top-level URN (no translation layer exists
+  yet — Phase 3).
+- No network access anywhere in the bake path outside `Pramana.Acquire`.
+- MCP surface is read-only; no ingest or mutation tool exists.
+
+**Coverage.** Failed against Mix's default 90%. The uncovered modules were CLI shells
+over already-covered domain functions (`pramana.embed.import` 0% / `Embed.Transfer`
+100%), OTP callbacks, and Phoenix scaffolding unused until Phase 8. Configured
+deliberate exclusions, then wrote the tests the exclusions did *not* excuse —
+`Pramana.Inventory`, `survey_corpus` and `get_outline` had almost none. Now a ratchet:
+**pramana 79%, pramana_web 82%**, never to be lowered to make a run pass.
+
+**Not done at this gate:** evals (#19, Phase 4 — there is no gold set yet, so recall@k
+and citation accuracy remain unmeasured) and the full-corpus embedding run.
 
 ---
+
 
 ## Decisions taken
 
@@ -181,6 +224,27 @@ Each of these cost real time; they are recorded so they cost it only once.
   payload — a link checker here would be theatre. Formats are confirmed against
   indexed pages instead, and the CBETA linehead is cross-checked against CBETA's own
   TEI file naming for all 2,471 works.
+- **Reproducibility is not fidelity, and `verify` only proved the first.**
+  `mix pramana.verify` re-normalizes from `raw/` and byte-compares, so content the
+  pipeline drops on *every* run is absent from both sides and the check passes. 10,590
+  printed lines, 473 gaiji and 266,547 characters of note text were unreachable in a
+  corpus that verified clean. `mix pramana.integrity` counts the bake against the raw
+  XML instead; run both at a gate.
+- **A `<note>` spanning `<lb/>` was attributed to the line where it CLOSES**, leaving
+  intermediate lines with no text and no note — so they looked blank and were dropped.
+  Identical in shape to the `<lem>`-spans-`<lb/>` defect fixed earlier. **Any buffered
+  element that can cross a line boundary must be split at that boundary**, because the
+  line is the citable unit. Check this for every new element that accumulates text.
+- **`verify --sample N` is per TEXT, not a corpus total** — `--sample 1000` over 2,471
+  texts checks ~1.2M segments, not 1,000.
+- **Oban retains finished jobs, so `bake_all`'s counter summed every previous run** and
+  reported "works baked: 4941" for a 2,471-work corpus. A wrong number that looks
+  plausible. Finished bake jobs are cleared at enqueue now.
+- **Coverage `threshold` nests under `summary:`.** `test_coverage: [threshold: n]` is
+  silently ignored and Mix keeps applying its own default of 90 — the config appears to
+  work because `ignore_modules` at the same level *is* honoured.
+- **Excluding a project's only module from coverage crashes `mix test --cover`**
+  (`Enum.EmptyError` in `Enum.max/1`). Use `summary: [threshold: 0]` instead.
 - **`reference` is a built-in Elixir type and cannot be redefined**, so `@type
   reference :: …` is a compile error, not a warning.
 - **`use Anubis.Server.Component` GENERATES `name/0` from its options**, and unlike
@@ -217,3 +281,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | #12 provenance | 257 | — | — | survey 88 ms exhaustive | 4,729,656 |
 | #11 semantic (阿含部) | 284 | — | — | query 0.3–0.5 s; embed 1.29 chunks/s | 10,138 embedded |
 | **#33 MCP resources + reader links** | **318** | — | — | hybrid search is now the MCP default | 10,138 embedded |
+| **#13 Phase 1 gate** | **342** | — | verify --all + integrity green | **150 s / 2,471 works** | **4,740,246** |

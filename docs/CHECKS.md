@@ -34,7 +34,10 @@ mix hex.outdated            # note drift; upgrade deliberately
 ### 2. Architecture review
 Re-read `CLAUDE.md`'s invariants and confirm the phase's code honors all seven.
 Specifically audit:
-- Does anything outside `apps/pramana_web` read the DB directly? (It must not.)
+- Does anything **in** `apps/pramana_web` read the DB directly — `Repo.`, `import
+  Ecto.Query`, a handwritten query? (It must not: the web app is transport, the domain
+  app owns the data.) This one has drifted once already, via an MCP resource that built
+  its own aggregation.
 - Did any domain logic leak into `priv/embed`? (It must not.)
 - Can any tool return text without `urn` + offsets + `sha256`? (It must not.)
 - Is any generated translation reachable as a top-level URN? (It must not.)

@@ -27,7 +27,10 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
   def execute(%{work_id: work_id}, frame) do
     case Corpus.outline(work_id) do
       {:ok, outline} ->
-        {:reply, Response.json(Response.tool(), outline), frame}
+        # Every tool names the corpus it answered from; an outline is as
+        # bake-dependent as a passage, since a re-bake can change the structure.
+        payload = Map.put(outline, :bake_id, Pramana.Bake.current_id())
+        {:reply, Response.json(Response.tool(), payload), frame}
 
       {:error, :not_found} ->
         {:reply,

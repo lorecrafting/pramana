@@ -11,6 +11,27 @@ defmodule Pramana.MixProject do
       lockfile: "../../mix.lock",
       elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
+      test_coverage: [
+        # 90% is Mix's default and this project cannot honestly hold it umbrella-wide:
+        # the uncovered modules are CLI shells over already-covered domain functions
+        # (`pramana.embed.import` is 0%, `Pramana.Embed.Transfer` behind it is 100%),
+        # OTP application callbacks, and generated Phoenix scaffolding unused until
+        # Phase 8. Excluding those and holding a real number beats a threshold nobody
+        # can meet, which just gets ignored.
+        #
+        # The threshold is a RATCHET: raise it when coverage rises, never lower it to
+        # make a run pass. `docs/CHECKS.md` treats a regression as a gate failure.
+        #
+        # It nests under `summary:` — `test_coverage: [threshold: n]` is silently
+        # ignored and Mix keeps applying its own default of 90.
+        summary: [threshold: 79],
+        ignore_modules: [
+          ~r/^Mix\.Tasks\./,
+          ~r/^Pramana\.Corpus\.[A-Z]/,
+          Pramana.Application,
+          Pramana.Repo
+        ]
+      ],
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps()
