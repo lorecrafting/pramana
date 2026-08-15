@@ -10,7 +10,7 @@ defmodule Pramana.URN do
 
   ## Grammar
 
-      pramana:<source>.<witness>:<work>[@<locator>[-<locator_end>]]
+      pramana:<source>.<witness>:<work>[@<locator>[-<locator_end>]][#tr:<lang>/<translator>]
 
   ## Examples
 
@@ -20,12 +20,27 @@ defmodule Pramana.URN do
       pramana:84000.kangyur:toh113@F.1.b.1           Derge Kangyur, folio 1b line 1
       pramana:local.huang-nianzu-wlsj:jie@sec12.p3   locally added commentary
 
+  ## The rendering fragment
+
+  A trailing `#tr:<lang>/<translator>` addresses a **translation of** the anchor, never a
+  text in its own right:
+
+      pramana:sc.ms:mn1@1.1#tr:en/sujato          Sujato's English for that segment
+      pramana:cbeta.T:T0262_009@p0037a13#tr:en/model:claude-opus-5@prompt-v3
+
+  This is deliberately a fragment rather than a first-class URN. A translation cannot be
+  addressed without naming the source anchor it renders, which is what makes
+  `CLAUDE.md` invariant #7 — *a machine translation is never citable as source* —
+  structural rather than a rule someone has to remember. Strip the fragment and you are
+  holding the source citation; there is no way to hold a rendering alone.
+
   Note the components are the traditions' own: `T0262_009` and `p0037a13` are exactly
   what a Taishō citation looks like in print; `mn1` and `1.1` are SuttaCentral's
   segment IDs verbatim. Only the `@` envelope is ours.
   """
 
   @scheme "pramana"
+  @rendering_prefix "tr:"
 
   @type t :: %__MODULE__{
           source: String.t(),
@@ -33,13 +48,16 @@ defmodule Pramana.URN do
           work: String.t(),
           locator: String.t() | nil,
           locator_end: String.t() | nil,
+          # `{lang, translator_id}` when this addresses a rendering rather than the
+          # source itself. See "The rendering fragment" above.
+          rendering: {String.t(), String.t()} | nil,
           # nil when the URN was CONSTRUCTED rather than parsed — the segmenter builds
           # URNs from anchors and never has an original string to preserve.
           raw: String.t() | nil
         }
 
   @enforce_keys [:source, :witness, :work]
-  defstruct [:source, :witness, :work, :locator, :locator_end, :raw]
+  defstruct [:source, :witness, :work, :locator, :locator_end, :rendering, :raw]
 
   @doc """
   Parses a URN string.
@@ -49,7 +67,8 @@ defmodule Pramana.URN do
   """
   @spec parse(String.t()) :: {:ok, t()} | {:error, atom()}
   def parse(string) when is_binary(string) do
-    with {:ok, rest} <- strip_scheme(string),
+    with {:ok, base, rendering} <- split_rendering(string),
+         {:ok, rest} <- strip_scheme(base),
          {:ok, namespace, work_and_locator} <- split_once(rest, ":", :missing_work),
          {:ok, source, witness} <- split_once(namespace, ".", :missing_witness),
          {:ok, work, locator, locator_end} <- parse_work_and_locator(work_and_locator),
@@ -61,6 +80,7 @@ defmodule Pramana.URN do
          work: work,
          locator: locator,
          locator_end: locator_end,
+         rendering: rendering,
          raw: string
        }}
     end
@@ -82,12 +102,34 @@ defmodule Pramana.URN do
   def to_string(%__MODULE__{} = urn) do
     base = "#{@scheme}:#{urn.source}.#{urn.witness}:#{urn.work}"
 
-    case {urn.locator, urn.locator_end} do
-      {nil, _} -> base
-      {loc, nil} -> "#{base}@#{loc}"
-      {loc, loc_end} -> "#{base}@#{loc}-#{loc_end}"
+    anchored =
+      case {urn.locator, urn.locator_end} do
+        {nil, _} -> base
+        {loc, nil} -> "#{base}@#{loc}"
+        {loc, loc_end} -> "#{base}@#{loc}-#{loc_end}"
+      end
+
+    case urn.rendering do
+      nil -> anchored
+      {lang, translator} -> "#{anchored}##{@rendering_prefix}#{lang}/#{translator}"
     end
   end
+
+  @doc """
+  True when the URN addresses a translation layer rather than the source text.
+  """
+  @spec rendering?(t()) :: boolean()
+  def rendering?(%__MODULE__{rendering: nil}), do: false
+  def rendering?(%__MODULE__{}), do: true
+
+  @doc """
+  The source anchor a rendering URN hangs off — the URN with its fragment removed.
+
+  Every rendering reduces to a citable source anchor. That is the whole point of making
+  it a fragment.
+  """
+  @spec anchor(t()) :: t()
+  def anchor(%__MODULE__{} = urn), do: %{urn | rendering: nil, raw: nil}
 
   @doc """
   True when the URN addresses a range of anchors rather than a single point.
@@ -103,6 +145,28 @@ defmodule Pramana.URN do
   def namespace(%__MODULE__{source: s, witness: w}), do: "#{s}.#{w}"
 
   # ---- internals ----
+
+  # A `#` fragment is split off BEFORE anything else, so the locator grammar never has
+  # to know renderings exist. `mn1@1.1#tr:en/sujato` and `mn1@1.1` parse to the same
+  # anchor by construction rather than by two code paths agreeing.
+  defp split_rendering(string) do
+    case String.split(string, "#", parts: 2) do
+      [base] ->
+        {:ok, base, nil}
+
+      [base, @rendering_prefix <> rest] ->
+        case String.split(rest, "/", parts: 2) do
+          [lang, translator] when lang != "" and translator != "" ->
+            {:ok, base, {lang, translator}}
+
+          _ ->
+            {:error, :bad_rendering}
+        end
+
+      [_base, _other] ->
+        {:error, :unknown_fragment}
+    end
+  end
 
   defp strip_scheme(@scheme <> ":" <> rest), do: {:ok, rest}
   defp strip_scheme(_), do: {:error, :bad_scheme}

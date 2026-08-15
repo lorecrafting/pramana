@@ -38,7 +38,14 @@ defmodule Pramana.Guard do
   # "pramana:cbeta.T" and never matched a real URN. The guard silently degraded to
   # existence-checking and reported :ok for altered quotations — the exact failure it
   # exists to prevent. Never write a second URN pattern.
-  @urn_source "pramana:[a-zA-Z0-9_.\\-]+:[a-zA-Z0-9_.\\-]+(?:@[a-zA-Z0-9_.\\-]+)?"
+  # The optional `#tr:<lang>/<translator>` tail must be part of THIS pattern, not a
+  # second one. Without it a quoted rendering URN is captured truncated to its anchor,
+  # the English quote is compared against Chinese source text, and the guard reports
+  # `:quote_mismatch` — a true failure for a false reason, which is the kind of finding
+  # that gets dismissed. Translator ids include `:`, `@` and `+`
+  # (`model:claude-opus-5@prompt-v3+glossary-ddb2`).
+  @urn_source "pramana:[a-zA-Z0-9_.\\-]+:[a-zA-Z0-9_.\\-]+(?:@[a-zA-Z0-9_.\\-]+)?" <>
+                "(?:#tr:[a-zA-Z0-9_.\\-]+/[a-zA-Z0-9_.\\-@+:]+)?"
   @urn_pattern Regex.compile!(@urn_source)
   @quoted_citation Regex.compile!(
                      "[\u300c\u300e\"\u201c]([^\u300d\u300f\"\u201d]{1,400})" <>
@@ -58,7 +65,11 @@ defmodule Pramana.Guard do
           verdict: verdict(),
           quoted: String.t() | nil,
           actual: String.t() | nil,
-          provenance: map() | nil
+          provenance: map() | nil,
+          # `"source"` or `"translation"`. A caller that requires scripture rather than
+          # a rendering can reject on this without re-parsing the URN, and a verified
+          # quote of a translation never reads as a verified quote of the text.
+          layer: String.t()
         }
 
   @doc """
@@ -88,7 +99,14 @@ defmodule Pramana.Guard do
   def check(urn, quoted_text \\ nil) do
     case Corpus.resolve(urn) do
       {:error, reason} ->
-        %{urn: urn, verdict: reason, quoted: quoted_text, actual: nil, provenance: nil}
+        %{
+          urn: urn,
+          verdict: reason,
+          quoted: quoted_text,
+          actual: nil,
+          provenance: nil,
+          layer: "source"
+        }
 
       {:ok, span} ->
         check_span(span, quoted_text, urn)
@@ -135,12 +153,15 @@ defmodule Pramana.Guard do
   end
 
   defp finding(urn, span, quoted, verdict) do
+    provenance = Map.get(span, :provenance)
+
     %{
       urn: urn,
       verdict: verdict,
       quoted: quoted,
       actual: span.content,
-      provenance: Map.get(span, :provenance)
+      provenance: provenance,
+      layer: Map.get(provenance || %{}, :layer, "source")
     }
   end
 
@@ -174,7 +195,8 @@ defmodule Pramana.Guard do
           checked: non_neg_integer(),
           failed: non_neg_integer(),
           verified_quotes: non_neg_integer(),
-          existence_only: non_neg_integer()
+          existence_only: non_neg_integer(),
+          translations: non_neg_integer()
         }
   def check_output(text) when is_binary(text) do
     findings =
@@ -196,7 +218,12 @@ defmodule Pramana.Guard do
       checked: length(findings),
       failed: failed,
       verified_quotes: verified_quotes,
-      existence_only: length(findings) - failed - verified_quotes
+      existence_only: length(findings) - failed - verified_quotes,
+      # Verified quotes that were of a TRANSLATION, not of the text. Counted separately
+      # because "3 citations verified" over three renderings of one Pāli line is a very
+      # different claim from three verified quotes of scripture, and a summary that does
+      # not distinguish them overstates what was checked.
+      translations: Enum.count(findings, &(&1.layer == "translation"))
     }
   end
 

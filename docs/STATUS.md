@@ -37,9 +37,25 @@ download (#14). Until that is resolved `Pramana.Coverage` states the gap in ever
 response, because otherwise an absence of Japanese results reads as the tradition being
 silent.
 
+**The Pāli canon is in, and with it the first redistributable content** (#38): 8,442
+works, 444,673 segments under SuttaCentral's own segment ids. The corpus is now 10,914
+texts and 5,185,767 segments across two traditions, and 24,717 curated parallels resolve
+at both ends, so SA 1 (Chinese) and SN 22.12 (Pāli) are quotable side by side.
+
+**Translations are a pool, not a winner** (#39). 210,756 English renderings by 8
+translators, keyed onto source anchors; 4,601 anchors carry more than one. Callers supply
+a selection policy — prefer a tier, pin a translator, or `compare` for the whole pool —
+and are always told how many renderings were withheld. A rendering has no top-level URN:
+it is addressed as `<anchor>#tr:en/sujato`, so stripping the fragment always leaves a
+citable source, and the guard rejects any non-human rendering quoted as scripture.
+The reading layer (pinyin and friends) stores **only exceptions**, seeded from the
+glossary: 元曉 → *Wŏnhyo*, 道隱 → *Dōin*, and 12 forms recorded as "not read the ordinary
+way" with no reading invented for them.
+
 The end-to-end path works: acquire → normalize → segment → chunk → embed → resolve →
-verify, with an MCP server on top exposing five tools and two resources. A model can
-fetch an exact passage by URN and the guard byte-compares its quote.
+verify, with an MCP server on top exposing seven tools and two resources. A model can
+fetch an exact passage by URN, ask for translations alongside it, and the guard
+byte-compares its quote.
 
 ### Verified, not just built
 
@@ -277,7 +293,29 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     licence-filter tests asserted `"cc0"` for a source and broke when the licence was
     corrected — inviting a "fix" that restores the wrong licence. Derive such values
     from the source of truth (`Sources.fetch!/1`) so the test checks the *behaviour*.
-13. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
+13. **When a column mirrors a claim someone else made, carry how confident you are
+    separately from the claim.** bilara-data's publication ids do not always map onto
+    the works they cover — `pli-tv-vi` is the whole Vinaya, not a prefix of
+    `pli-tv-bu-vb-pj1` — so 66,199 renderings had no directly matching publication.
+    `license_class` (what we believe) and `redistributable` (what we will act on) being
+    two columns is what let those be held and searched under an inferred CC0 while
+    staying unpublishable until confirmed. One column would have forced a choice between
+    losing them and overclaiming.
+14. **`insert_all` binds one parameter per column per row, so batch size is a function
+    of row width.** A fixed 5,000 worked at 13 columns and exceeded Postgres's 65,535
+    limit at 18. Derive the batch from `map_size(row)`; a constant reintroduces the
+    failure the next time a column is added.
+15. **A grouped query is not an aggregate.** `Repo.one` over `group_by … having count > 1`
+    works while every group is unique and raises the moment a second row appears — which
+    is exactly when the number becomes interesting. Count over a subquery.
+16. **A convention can be the opposite of what it looks like — check before projecting
+    it.** The glossary populates `pinyin` precisely when the target-language reading
+    could *not* be established, and leaves it empty when it could (the reading then being
+    in `canonical_english`). Reading it the obvious way recorded 元曉 as *Yuánxiǎo* under
+    McCune-Reischauer, marked verified: the exact error the glossary exists to prevent,
+    laundered into structured data. When importing from a curated source, verify what its
+    empty fields mean.
+17. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
     holds ten suttas. Taking the work id from the filename collapsed ten distinct `1.0`
     segments onto one address — caught only by a unique constraint. Derive the work id
     from what the source *cites*, and where works do not map one-to-one onto files,
@@ -455,3 +493,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#34 glossary seed** | **483** | — | 10 rejected renderings, 1 unverified reading | — | 376 pinned terms |
 | **#18a parallels** | **511** | — | sa1 → sn22.51 from curated data | import 29 s | 407,176 parallels, 3,064 anchors |
 | **#38 Pāli root text** | **539** | — | verify --all + integrity green on 10,914 texts | ingest 53 s / 8,442 works | **10,914 texts, 5,185,767 segments** |
+| **#39 translation pool + readings** | **582** | — | a generated rendering is rejected as source | translations ingest 4,996 files | **210,756 renderings, 8 translators, 4,601 shared anchors; 22 reading exceptions** |

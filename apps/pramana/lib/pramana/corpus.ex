@@ -48,6 +48,11 @@ defmodule Pramana.Corpus do
   @spec resolve(String.t()) :: {:ok, span()} | {:error, :bad_urn | :not_found}
   def resolve(urn_string) when is_binary(urn_string) do
     case URN.parse(urn_string) do
+      # A rendering URN resolves to a translation layer, which carries `method` — so a
+      # generated rendering quoted as scripture reaches the guard's invariant-#7 check
+      # through the ordinary resolve path rather than a separate one someone has to
+      # remember to call.
+      {:ok, %URN{rendering: r}} when not is_nil(r) -> Pramana.Translations.resolve(urn_string)
       {:ok, %URN{locator_end: nil}} -> fetch_span(urn_string)
       {:ok, %URN{} = urn} -> fetch_range(urn)
       {:error, _} -> {:error, :bad_urn}

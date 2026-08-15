@@ -187,9 +187,14 @@ scheme is that a citation can be verified against a physical page — and here i
 
 ## Roadmap placement
 
-- **Schema for translation + reading layers: Phase 3**, alongside `bilara-data`
-  ingest. The tables are needed then anyway; getting them right costs nothing extra
-  and retrofitting them later costs a full-corpus migration.
+- **Schema for translation + reading layers: Phase 3 — BUILT (#39).** `translations` and
+  `reading_exceptions` both exist, with content in each. See `Pramana.Translations` and
+  `Pramana.Readings`.
+
+  The reading layer holds exceptions only, as argued above, and it holds **rows that
+  decline to give a reading**: 12 of the 22 seeded forms record that the ordinary reading
+  is wrong without asserting what is right. That is the shape #24 fills in, and the count
+  is the backlog.
 - **Local-source manifest path: Phase 2**, when provenance enforcement is built. It's
   the best available test of whether the provenance axes actually work.
 - **Buddhist reading-exception dictionary: Phase 6**, with the other enrichment assets.

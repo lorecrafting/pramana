@@ -190,8 +190,18 @@ same refuse-to-guess discipline as `provenance_for_volume/1` returning `nil`.
 
 ## Roadmap placement
 
-- **Phase 3** — pool schema (`translations`), tiers, selection policy. Comes free with
-  `bilara-data`, which is already multi-translator.
+- **Phase 3 — BUILT (#39).** `translations` with tiers, methods and review states;
+  `Pramana.Translations` holds the selection policy; rendering URNs
+  (`<anchor>#tr:<lang>/<translator>`) resolve through `Pramana.Corpus.resolve/1` so the
+  guard checks them on the ordinary path. Seeded with 210,756 English renderings by 8
+  translators from bilara-data, 4,601 anchors carrying more than one.
+
+  Two things landed differently from the sketch above. **Licence is per rendering**, not
+  per source: bilara-data is CC0 except one CC BY-SA 3.0 publication, and a publication
+  cannot always be matched to the works it covers, so `license_class` (what we believe)
+  and `redistributable` (what we will act on) are separate columns. And
+  `translation_candidates` is deliberately *not* built — it has a different lifecycle,
+  outside the bake, and belongs with the generation engine in Phase 7.
 - **Phase 6** — divergence scoring, unified with 異譯本 translator fingerprinting.
 - **Phase 7** — ephemeral generation, candidate cache, promotion pipeline, full-corpus
   baked translation.

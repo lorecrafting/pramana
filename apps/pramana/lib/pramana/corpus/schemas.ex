@@ -316,3 +316,82 @@ defmodule Pramana.Corpus.TextParallel do
     timestamps(type: :utc_datetime_usec)
   end
 end
+
+defmodule Pramana.Corpus.Translation do
+  @moduledoc """
+  One rendering of one source anchor, by one translator, in one language.
+
+  A human translator and a model are the same kind of row here — `docs/TRANSLATION.md`
+  makes multiplicity first-class rather than picking a winner, and the Chinese canon
+  already forced that decision by carrying 2–6 translations of the same work.
+
+  `anchor_urn` points at a segment: a translation is a layer, never a document, and is
+  addressed as `<anchor>#tr:<lang>/<translator_id>`. See `Pramana.Translations`.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  schema "translations" do
+    field :anchor_urn, :string
+    field :work_id, :string
+    field :lang, :string
+
+    field :translator_id, :string
+    field :translator_name, :string
+    field :tier, :string
+    field :method, :string
+
+    field :text, :string
+    field :text_sha256, :string
+
+    field :model_id, :string
+    field :prompt_version, :string
+    field :glossary_id, :string
+    field :bake_id, :string
+
+    field :review_state, :string, default: "raw"
+    field :glossary_compliance, :float
+    field :consensus_score, :float
+    field :confidence, :float
+
+    field :license_spdx, :string
+    field :license_class, :string
+    field :redistributable, :boolean, default: false
+    field :attribution, :string
+
+    field :source_file, :string
+    field :meta, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
+defmodule Pramana.Corpus.ReadingException do
+  @moduledoc """
+  A form whose Buddhist reading differs from its ordinary one.
+
+  Readings are computed at render time, not stored per character; only the exceptions
+  live here. 般若 is *bōrě* rather than *bānruò*, and a general pinyin library will get
+  it confidently wrong in exactly the passages a reader most wants help with.
+
+  A row with `status: "unverified"` and a null `reading` is meaningful: it records that
+  the ordinary reading is wrong without inventing a replacement.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  schema "reading_exceptions" do
+    field :form, :string
+    field :lang, :string
+    field :scheme, :string
+    field :reading, :string
+    field :note, :string
+    field :status, :string, default: "unverified"
+    field :authority, :string
+    field :source_id, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end

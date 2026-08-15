@@ -13,6 +13,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
   alias Anubis.Server.Response
   alias Pramana.Corpus
   alias Pramana.Reader
+  alias Pramana.Translations
 
   schema do
     field(:urn, :string,
@@ -30,6 +31,26 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
     )
 
     field(:context_after, :integer, description: "Include this many following lines. Max 50.")
+
+    field(:translation, :string,
+      description:
+        "Attach translations of the passage in this language, e.g. `en`. The source " <>
+          "text is always returned unchanged; translations arrive in a separate " <>
+          "`translations` key, never merged into `text`."
+    )
+
+    field(:translator, :string,
+      description:
+        "Pin one translator by id, e.g. `sujato` or `brahmali`. Without it the pool is " <>
+          "returned in preference order and `alternatives` says how many were not shown."
+    )
+
+    field(:compare_translations, :boolean,
+      description:
+        "Return EVERY rendering rather than the preferred one. There is no single " <>
+          "English translation of this material; comparing is the honest default when " <>
+          "a passage is contested."
+    )
   end
 
   @impl true
@@ -38,13 +59,42 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
     after_n = params[:context_after] || 0
 
     if before_n > 0 or after_n > 0 do
-      with_context(urn, before_n, after_n, frame)
+      with_context(urn, before_n, after_n, params, frame)
     else
-      single(urn, frame)
+      single(urn, params, frame)
     end
   end
 
-  defp with_context(urn, before_n, after_n, frame) do
+  # Translations are attached under their own key and never folded into `text`. A model
+  # that receives Sujato's English in the field where the Pāli belongs will quote it as
+  # the Pāli — which is `CLAUDE.md` invariant #7 failing at the presentation layer rather
+  # than in the guard, where nothing would catch it.
+  defp translations(span_urn, params) do
+    case params[:translation] do
+      nil ->
+        nil
+
+      lang ->
+        policy = [
+          lang: lang,
+          translator: params[:translator],
+          mode: if(params[:compare_translations], do: :compare, else: :single)
+        ]
+
+        selection = Translations.select(span_urn, policy)
+
+        %{
+          lang: lang,
+          rendering: selection.rendering,
+          alternatives: selection.alternatives,
+          pool: selection.pool,
+          # Stated in every response rather than left to the caller to remember.
+          citable_as_source: false
+        }
+    end
+  end
+
+  defp with_context(urn, before_n, after_n, params, frame) do
     case Corpus.context(urn, before: before_n, after: after_n) do
       {:ok, ctx} ->
         payload = %{
@@ -52,11 +102,11 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
           urn: ctx.urn,
           text: ctx.text,
           segment_count: ctx.segment_count,
-          focus: payload(ctx.focus),
+          focus: payload(ctx.focus, params),
           # Neighbours are full spans, each independently verifiable — the readable
           # `text` above is a convenience, not a substitute for attribution.
-          before: Enum.map(ctx.before, &payload/1),
-          after: Enum.map(ctx.after, &payload/1)
+          before: Enum.map(ctx.before, &payload(&1, params)),
+          after: Enum.map(ctx.after, &payload(&1, params))
         }
 
         {:reply, Response.json(Response.tool(), payload), frame}
@@ -66,10 +116,10 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
     end
   end
 
-  defp single(urn, frame) do
+  defp single(urn, params, frame) do
     case Corpus.resolve(urn) do
       {:ok, span} ->
-        {:reply, Response.json(Response.tool(), payload(span)), frame}
+        {:reply, Response.json(Response.tool(), payload(span, params)), frame}
 
       {:error, reason} ->
         {:reply, Response.error(Response.tool(), error_message(urn, reason)), frame}
@@ -84,7 +134,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       "No passage exists at #{urn}. This URN is well-formed but addresses nothing " <>
         "in the current bake — do not cite it."
 
-  defp payload(span) do
+  defp payload(span, params) do
     %{
       urn: span.urn,
       bake_id: Pramana.Bake.current_id(),
@@ -103,7 +153,8 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       reader: Reader.reference(span.urn, span.provenance),
       apparatus: span.meta["apparatus"],
       notes: span.meta["notes"],
-      editorial_punctuation: span.meta["editorial_punctuation"] == true
+      editorial_punctuation: span.meta["editorial_punctuation"] == true,
+      translations: translations(span.urn, params)
     }
   end
 end

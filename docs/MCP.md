@@ -13,9 +13,22 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 |---|---|
 | `search` | **Hybrid by default** — lexical fused with semantic by RRF. The normal entry point. |
 | `survey_corpus` | Exhaustive counts, not a ranked sample. The tool that supports claims about *how often* or *where*. |
-| `get_passage` | One URN, optionally with `context_before` / `context_after`. |
+| `get_passage` | One URN, optionally with `context_before` / `context_after`, and optionally with translations (`translation`, `translator`, `compare_translations`). |
 | `get_outline` | A work's structure without its text. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
+
+### Translations never arrive in `text`
+
+`get_passage` returns the source in `text` and any renderings under a separate
+`translations` key, each labelled `citable_as_source: false`. Merging them would defeat
+the guard rather than trip it: a model handed Sujato's English where the Pāli belongs
+quotes it as the Pāli, attributes it to a URN that really does address the Pāli, and the
+guard verifies the source quote against the source. Nothing would catch it, because
+nothing was wrong at the point the guard looks.
+
+Without `translation`, no rendering is attached at all. With it, the caller is told how
+many renderings were **withheld** (`alternatives`), because a passage with four English
+translations shown as one reads as a passage with one.
 
 Every filter a tool *declares* must actually filter. `division:` was once declared,
 accepted, and silently ignored by the lexical retriever while the semantic one honoured
