@@ -70,7 +70,12 @@ defmodule Pramana.Retrieval.Survey do
       by_role: group_count(base, :text_role),
       by_division: division_count(base),
       top_works: top_works(base, top_n),
-      bake_id: Pramana.Bake.current_id()
+      bake_id: Pramana.Bake.current_id(),
+      # Survey is the tool whose whole purpose is supporting claims about how often and
+      # WHERE something occurs, so it is the one place a missing part of the canon turns
+      # directly into a false claim — "no Japanese-composed hits" read as "the Japanese
+      # tradition is silent". Absent when nothing is missing.
+      coverage_caveat: Pramana.Coverage.caveat()
     }
   end
 

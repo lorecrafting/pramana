@@ -22,6 +22,26 @@ because each one's tooling makes the next cheaper.
 - Overlaps CBETA on vols 1–55/85 — dedupe by work ID, keep both as separate
   witnesses rather than discarding one
 
+**⛔ BLOCKED: there is no bulk download.** Checked 2026-08-15. The data is CC BY-SA 4.0,
+but SAT publishes no dump, no archive and no documented API; the site directs bulk
+enquiries to `sat at l.u-tokyo.ac.jp`. Nor is there a usable mirror — the candidate
+GitHub repositories are metadata only (`daizokyo/Taisho_shinshu_daizokyo`, 103 KB), a
+handful of sample works (`..._txt`, four works), or a research pipeline rather than the
+canon (`dangerzig/taisho-canon`), and **none carries a licence**.
+
+Scraping the reader is not an option: it is the acquisition path this project's own
+rules forbid (no pinned upstream, no `files_sha256`, nothing reproducible), quite apart
+from being rude to a university service.
+
+**Next step is an email**, asking for a bulk copy of vols 56–84 under the CC BY-SA 4.0
+terms already granted, and stating the use. Until then:
+
+- The 56–84 provenance rule is implemented and tested
+  (`Pramana.URN.Taisho.provenance_for_volume/1`), so the material classifies itself
+  correctly the moment it arrives.
+- `Pramana.Coverage` states the gap in every survey response, so the absence cannot be
+  mistaken for the Japanese tradition being silent.
+
 ### SuttaCentral `bilara-data` (Pali)
 - `https://github.com/suttacentral/bilara-data` — **CC0, public domain**
 - ~444k segments, already segment-aligned root ↔ translation

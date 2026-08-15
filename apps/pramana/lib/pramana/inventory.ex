@@ -16,6 +16,7 @@ defmodule Pramana.Inventory do
 
   alias Pramana.Bake
   alias Pramana.Corpus.Work
+  alias Pramana.Coverage
   alias Pramana.Repo
   alias Pramana.Retrieval.Semantic
 
@@ -33,6 +34,9 @@ defmodule Pramana.Inventory do
       by_composition_origin: count_by(:composition_origin),
       by_text_role: count_by(:text_role),
       divisions: divisions(),
+      # What is NOT here. The provenance breakdown above says the corpus holds no
+      # Japanese-composed works, which is true and, without this, badly misleading.
+      taisho_coverage: Coverage.taisho(),
       note: @note
     }
   end
