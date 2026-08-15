@@ -41,6 +41,8 @@ defmodule Mix.Tasks.Pramana.Verify do
   alias Pramana.Acquire.Lockfile
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.Local.Manifest, as: LocalManifest
+  alias Pramana.Local.Normalizer, as: LocalNormalizer
   alias Pramana.Normalize
   alias Pramana.Normalize.IR
   alias Pramana.Repo
@@ -95,17 +97,18 @@ defmodule Mix.Tasks.Pramana.Verify do
   # normalizer again, and require an identical body. This is what makes the bake
   # reproducible rather than merely persisted.
   defp renormalize_check(text) do
-    with {:ok, ir} <- reproduce(text) do
-      rebuilt = IR.body(ir)
-
-      if rebuilt == text.body do
-        :ok
-      else
-        {:renormalize_mismatch, text.urn_prefix,
-         stored_chars: String.length(text.body), rebuilt_chars: String.length(rebuilt)}
-      end
-    else
+    case reproduce(text) do
+      {:ok, ir} -> compare_body(text, IR.body(ir))
       {:error, reason} -> {:renormalize_failed, text.urn_prefix, reason}
+    end
+  end
+
+  defp compare_body(text, rebuilt) do
+    if rebuilt == text.body do
+      :ok
+    else
+      {:renormalize_mismatch, text.urn_prefix,
+       stored_chars: String.length(text.body), rebuilt_chars: String.length(rebuilt)}
     end
   end
 
@@ -125,12 +128,12 @@ defmodule Mix.Tasks.Pramana.Verify do
     dir = Path.join(["sources", "local", String.replace_prefix(text.source_id, "local-", "")])
 
     with {:ok, manifest} <- load_manifest(dir) do
-      Pramana.Local.Normalizer.normalize(dir, manifest: manifest)
+      LocalNormalizer.normalize(dir, manifest: manifest)
     end
   end
 
   defp load_manifest(dir) do
-    case Pramana.Local.Manifest.load(dir) do
+    case LocalManifest.load(dir) do
       {:ok, manifest} -> {:ok, manifest}
       {:error, errors} -> {:error, {:manifest_invalid, dir, errors}}
     end

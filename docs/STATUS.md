@@ -8,8 +8,9 @@ then run `TaskList`.
 
 ## Where we are
 
-**Phase 0 and Phase 1 complete and gated** (tags `phase-0`, `phase-1`). **Phase 2 in
-progress:** #15 done, #14 blocked on acquisition, #16 remaining.
+**Phase 0 and Phase 1 complete and gated** (tags `phase-0`, `phase-1`). **Phase 2: #15
+and #16 done, #14 blocked on acquisition, gate (#17) run but deliberately NOT tagged**
+— see the gate findings below.
 
 **The whole Chinese canon is baked, verified, and embedded.** 2,471 works, **4,740,246
 segments**, 90.6M characters, pipeline v3, 150 s, zero failures. Both integrity checks
@@ -82,15 +83,22 @@ fetch an exact passage by URN and the guard byte-compares its quote.
 
 Phase 1 is complete and gated (**#13**), and the full-corpus embedding run has landed.
 
-**Phase 2:** #15 (structural provenance) is done. **#14 is blocked and needs a human** —
-SAT publishes no bulk download, so obtaining Taishō 56–84 starts with an email to
-`sat at l.u-tokyo.ac.jp`; see `docs/SOURCES.md` and the task. **#16** (local-source
-manifest path) is the next unblocked Phase 2 task.
+**Phase 2:** #15 (structural provenance) and #16 (local-source manifest path) are done —
+the Huang Nianzu commentary is in the corpus, page-anchored and licence-gated. #37
+(batched embedding import) is done. The gate (#17) has been run; the tag is withheld
+until #14 resolves.
 
-Unblocked and worth doing any time: **#37** batch the embedding import (storing the
-vectors took 88 min against 34 min to compute them), **#32** 異體字 variant-character
-expansion, **#34** the Huang Nianzu glossary, **#36** work relations (commentary →
-source).
+**#14 is blocked and needs a human.** SAT publishes no bulk download, so obtaining
+Taishō 56–84 starts with an email to `sat at l.u-tokyo.ac.jp` — a draft is in
+`docs/sat-request-email.md`, not sent.
+
+Unblocked and worth doing any time: **#36** work relations (the Huang Nianzu manifest's
+`comments_on: xia-lianju-conflation` is inert until this lands), **#32** 異體字
+variant-character expansion, **#34** the Huang Nianzu glossary.
+
+**Phase 3 matters more than its number suggests:** SuttaCentral `bilara-data` is CC0 and
+would be the **first redistributable content in the corpus**. Until then the public
+surface has nothing to serve — see gate finding 2.
 
 **Still unmeasured:** recall@k and citation accuracy. There is no gold set until #19
 (Phase 4), so every claim about retrieval quality here rests on spot-checks, not a
@@ -140,6 +148,47 @@ deliberate exclusions, then wrote the tests the exclusions did *not* excuse —
 
 **Not done at this gate:** evals (#19, Phase 4 — there is no gold set yet, so recall@k
 and citation accuracy remain unmeasured) and the full-corpus embedding run.
+
+### Phase 2 gate findings (#17) — **NOT TAGGED**
+
+**The tag is deliberately withheld.** #14 (SAT ingest) is blocked on acquisition, so
+Phase 2 has an open task by definition, and stamping a gate green over a known gap is
+how gates stop meaning anything. **Condition to tag `phase-2`:** #14 resolves, or it is
+formally moved to a later phase.
+
+Everything else was run, and it found three real things.
+
+| check | result |
+|---|---|
+| format / compile --warnings-as-errors | clean |
+| credo --strict | **5 issues**, all from the #16 verify/integrity changes — fixed |
+| dialyzer | 0 errors |
+| deps.audit | no known vulnerabilities |
+| hex.outdated | 2 pinned back (both LiveView, unused until Phase 8) |
+| test --cover | 357 + 56 + 7, ratchet held |
+| verify --all / integrity | green over 2,472 texts |
+
+**1. The licence filter did not exist.** #16's exit criterion required the local text to
+be "excluded under a CC0-only licence filter". `license_class` was recorded on every
+source and displayed in every result, which made it *look* enforced — but **no retriever
+could filter on it**, so "we publish the pipeline, not the corpus" was a promise kept by
+hand. Now `redistributable_only:` and `license_class:` filter in Lexical, Semantic and
+Survey, with tests. #16 had been marked complete against a criterion no code met.
+
+**2. The public corpus is currently EMPTY.** With the filter in place,
+`redistributable_only: true` returns **0 hits across all 4.7M segments** — CBETA is
+`nc`/not-redistributable, the Huang Nianzu commentary is `restricted`. The Phase 8
+public demo has nothing it could serve today. First redistributable content is
+SuttaCentral `bilara-data` (CC0) in Phase 3. Worth knowing now, not at Phase 8.
+
+**3. `credo` was not clean at the #16 commit**, which claimed it was — the
+verify/integrity changes landed after the credo run. Run the checks *last*, not
+mid-change.
+
+**Architecture review** — all seven invariants hold. `pramana_web` touches `Repo` in 0
+files; no MCP tool mutates; **0 corpus files tracked by git** (`raw/` and
+`sources/local/*/text/` both ignored); no generated translation exists yet; the bake
+reads only from pinned sources.
 
 ---
 
@@ -223,6 +272,12 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
   test passed because something always ran hybrid first. The atom table is global
   mutable state; map string→atom explicitly instead. (Same family as the
   `function_exported?/3` entry below.)
+- **A scripted patch that fails still lets the commit run — SIXTH occurrence.** The
+  Phase 2 gate findings were written by a Python `str.replace`, the anchor did not match,
+  the script raised, and `git commit` in the same `&&` chain still succeeded because the
+  heredoc was a separate command. The commit message described a doc section that did not
+  exist. **Use the Edit tool for docs.** If a script must be used, grep for the new text
+  afterwards and treat a missing match as a failed step.
 - **`mise trust` is path-keyed.** An early `mise install` silently no-op'd because the
   project config was untrusted, and the global config won. Renaming the project
   directory invalidated the trust again.
@@ -343,3 +398,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#13 Phase 1 gate** | **342** | — | verify --all + integrity green | **150 s / 2,471 works** | **4,740,246** |
 | **#11 embeddings, full corpus** | **354** | — | — | embed 34 min / import 88 min | **299,317 chunks, 100% embedded** |
 | **#15 provenance shape** | **377** | — | 3 origins in 3 labelled buckets | — | 299,317 chunks |
+| **#17 Phase 2 gate** | **420** | — | licence filter now enforceable | import 88 min → ~3 min | 2,472 texts, 4,741,094 |

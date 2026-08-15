@@ -41,6 +41,8 @@ defmodule Mix.Tasks.Pramana.Integrity do
   alias Pramana.Acquire.Lockfile
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.Local.Manifest, as: LocalManifest
+  alias Pramana.Local.Normalizer, as: LocalNormalizer
   alias Pramana.Normalize
   alias Pramana.Repo
 
@@ -74,8 +76,8 @@ defmodule Mix.Tasks.Pramana.Integrity do
   # ran.
   defp check_text(%{source_id: "local-" <> id} = text, totals) do
     dir = Path.join(["sources", "local", id])
-    {:ok, manifest} = Pramana.Local.Manifest.load(dir)
-    {:ok, ir} = Pramana.Local.Normalizer.normalize(dir, manifest: manifest)
+    {:ok, manifest} = LocalManifest.load(dir)
+    {:ok, ir} = LocalNormalizer.normalize(dir, manifest: manifest)
 
     segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
     blank = Enum.count(ir.lines, &blank?/1)

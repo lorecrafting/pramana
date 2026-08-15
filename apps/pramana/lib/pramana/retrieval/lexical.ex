@@ -55,6 +55,7 @@ defmodule Pramana.Retrieval.Lexical do
 
   alias Pramana.Corpus
   alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Repo
 
@@ -66,6 +67,8 @@ defmodule Pramana.Retrieval.Lexical do
   # hybrid results with works from outside the requested division, and the results
   # still looked filtered because half the pipeline had applied it.
   @known_opts [
+    :redistributable_only,
+    :license_class,
     :limit,
     :mode,
     :origin,
@@ -254,6 +257,35 @@ defmodule Pramana.Retrieval.Lexical do
     |> filter_not_in(opts[:exclude_origin], :composition_origin)
     |> filter_work(opts[:work_id])
     |> filter_juan(opts[:juan])
+    |> filter_license(opts)
+  end
+
+  # THE FILTER THAT MAKES THE LICENCE POSTURE ENFORCEABLE.
+  #
+  # `license_class` was recorded and displayed from the start, but nothing could filter
+  # on it — so "we publish the pipeline, not the corpus" was a promise kept by hand.
+  # A public surface sets `redistributable_only: true` once and cannot then serve
+  # CBETA (nc, not redistributable) or a restricted local text by accident.
+  defp filter_license(query, opts) do
+    query
+    |> filter_redistributable(opts[:redistributable_only])
+    |> filter_license_class(opts[:license_class])
+  end
+
+  defp filter_redistributable(query, true) do
+    join(query, :inner, [s, t], src in Source, on: src.id == t.source_id and src.redistributable)
+  end
+
+  defp filter_redistributable(query, _), do: query
+
+  defp filter_license_class(query, nil), do: query
+
+  defp filter_license_class(query, value) do
+    values = List.wrap(value)
+
+    join(query, :inner, [s, t], src in Source,
+      on: src.id == t.source_id and src.license_class in ^values
+    )
   end
 
   @doc false

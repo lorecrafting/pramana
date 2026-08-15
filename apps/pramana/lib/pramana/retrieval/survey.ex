@@ -17,6 +17,7 @@ defmodule Pramana.Retrieval.Survey do
   import Ecto.Query
 
   alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Repo
@@ -84,6 +85,32 @@ defmodule Pramana.Retrieval.Survey do
     |> filter_in(opts[:origin], :composition_origin)
     |> filter_in(opts[:role], :text_role)
     |> filter_division(opts[:division])
+    |> filter_license(opts)
+  end
+
+  # See `Pramana.Retrieval.Lexical.filter_license/2`. A survey is a claim about how much
+  # the corpus contains, so it must be able to answer that question for a PUBLIC corpus
+  # too, not only the full one.
+  defp filter_license(query, opts) do
+    query
+    |> filter_redistributable(opts[:redistributable_only])
+    |> filter_license_class(opts[:license_class])
+  end
+
+  defp filter_redistributable(query, true) do
+    join(query, :inner, [s, t], src in Source, on: src.id == t.source_id and src.redistributable)
+  end
+
+  defp filter_redistributable(query, _), do: query
+
+  defp filter_license_class(query, nil), do: query
+
+  defp filter_license_class(query, value) do
+    values = List.wrap(value)
+
+    join(query, :inner, [s, t], src in Source,
+      on: src.id == t.source_id and src.license_class in ^values
+    )
   end
 
   defp filter_in(query, nil, _field), do: query

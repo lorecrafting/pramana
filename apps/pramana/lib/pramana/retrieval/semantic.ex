@@ -27,6 +27,7 @@ defmodule Pramana.Retrieval.Semantic do
 
   alias Pramana.Corpus
   alias Pramana.Corpus.Chunk
+  alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Embed
@@ -38,7 +39,16 @@ defmodule Pramana.Retrieval.Semantic do
   # The options that narrow the candidate set, and therefore the ones that make a plain
   # HNSW scan return short. Keep in step with `apply_filters/2` — an omission here is a
   # filter that silently under-returns.
-  @filter_keys [:origin, :role, :division, :work_id, :juan, :exclude_origin]
+  @filter_keys [
+    :origin,
+    :role,
+    :division,
+    :work_id,
+    :juan,
+    :exclude_origin,
+    :redistributable_only,
+    :license_class
+  ]
 
   # Ceiling on how far an iterative scan will walk before giving up. Generous enough for
   # a division holding a few percent of the corpus, bounded so a filter matching almost
@@ -47,6 +57,8 @@ defmodule Pramana.Retrieval.Semantic do
 
   @known_opts [
     :limit,
+    :redistributable_only,
+    :license_class,
     :mode,
     :origin,
     :role,
@@ -221,6 +233,7 @@ defmodule Pramana.Retrieval.Semantic do
     |> filter_in(opts[:role], :text_role)
     |> filter_not_in(opts[:exclude_origin], :composition_origin)
     |> filter_eq(opts[:division], :division)
+    |> filter_license(opts)
     |> filter_work(opts[:work_id])
   end
 
@@ -241,6 +254,32 @@ defmodule Pramana.Retrieval.Semantic do
 
   defp filter_work(query, nil), do: query
   defp filter_work(query, work_id), do: where(query, [_c, t], t.work_id == ^work_id)
+
+  # See `Pramana.Retrieval.Lexical.filter_license/2` — this is what makes the licence
+  # posture enforceable rather than a promise kept by hand.
+  defp filter_license(query, opts) do
+    query
+    |> filter_redistributable(opts[:redistributable_only])
+    |> filter_license_class(opts[:license_class])
+  end
+
+  defp filter_redistributable(query, true),
+    do:
+      join(query, :inner, [c, t], src in Source,
+        on: src.id == t.source_id and src.redistributable
+      )
+
+  defp filter_redistributable(query, _), do: query
+
+  defp filter_license_class(query, nil), do: query
+
+  defp filter_license_class(query, value) do
+    values = List.wrap(value)
+
+    join(query, :inner, [c, t], src in Source,
+      on: src.id == t.source_id and src.license_class in ^values
+    )
+  end
 
   defp to_result(%{chunk: chunk, score: score}) do
     %{

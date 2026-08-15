@@ -173,6 +173,77 @@ defmodule Pramana.Embed.TransferTest do
     end
   end
 
+  describe "batched writes" do
+    # Writing is batched (one UPDATE ... FROM (VALUES ...) per 1,000 rows) because a
+    # statement per row made importing the corpus slower than computing it. These pin
+    # the properties batching could plausibly break.
+
+    test "a rejected row does not poison the rest of its batch", ctx do
+      # Under batching the danger is an all-or-nothing statement: one bad row taking
+      # its 999 neighbours with it, or worse, being written along with them.
+      [good, bad | _] = ctx.chunks
+
+      rows = [vector_line(good), vector_line(bad, sha256: "stale"), vector_line(good)]
+      path = write_vectors(Path.join(ctx.tmp, "v.jsonl"), rows)
+
+      {:ok, result} = Transfer.import(path)
+
+      assert result.written == 2
+      assert result.hash_mismatch == [bad.id]
+      assert Repo.get(Chunk, good.id).embedding
+      refute Repo.get(Chunk, bad.id).embedding
+    end
+
+    test "rows spanning a batch boundary all land", ctx do
+      # The batch size is 1,000, so a corpus-sized import crosses the boundary hundreds
+      # of times. Repeating one chunk past the boundary exercises the seam without
+      # needing 1,000 fixtures.
+      chunk = hd(ctx.chunks)
+      rows = List.duplicate(vector_line(chunk), 1_100)
+      path = write_vectors(Path.join(ctx.tmp, "v.jsonl"), rows)
+
+      {:ok, result} = Transfer.import(path)
+
+      assert result.written == 1_100
+      assert Repo.get(Chunk, chunk.id).embedding
+    end
+
+    test "an empty batch writes nothing rather than issuing a malformed statement", ctx do
+      # Every row rejected means the write list is empty; a naive VALUES builder would
+      # emit `VALUES ()` and raise.
+      chunk = hd(ctx.chunks)
+      rows = [vector_line(chunk, sha256: "stale"), vector_line(chunk, id: 999_999)]
+      path = write_vectors(Path.join(ctx.tmp, "v.jsonl"), rows)
+
+      {:ok, result} = Transfer.import(path)
+
+      assert result.written == 0
+      refute Repo.get(Chunk, chunk.id).embedding
+    end
+
+    test "vectors survive the text round trip exactly", ctx do
+      # The vector crosses as a pgvector text literal rather than 1,024 parameters, so
+      # the encoding has to be lossless.
+      chunk = hd(ctx.chunks)
+      vector = Enum.map(1..Embed.dims(), fn i -> Float.round(:math.sin(i), 6) end)
+
+      row = %{"id" => chunk.id, "sha256" => chunk.content_sha256, "embedding" => vector}
+      path = write_vectors(Path.join(ctx.tmp, "v.jsonl"), [row])
+
+      {:ok, %{written: 1}} = Transfer.import(path)
+
+      stored = Repo.get(Chunk, chunk.id).embedding |> Pgvector.to_list()
+
+      assert length(stored) == Embed.dims()
+
+      # pgvector stores float4, so the round trip is exact only to single precision.
+      # Asserting equality would be asserting something the storage never promised.
+      for {a, b} <- Enum.zip(stored, vector) do
+        assert_in_delta a, b, 1.0e-6
+      end
+    end
+  end
+
   describe "round trip" do
     test "export then import leaves every chunk embedded", ctx do
       export_path = Path.join(ctx.tmp, "chunks.jsonl")

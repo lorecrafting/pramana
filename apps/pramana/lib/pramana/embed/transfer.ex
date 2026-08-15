@@ -93,35 +93,70 @@ defmodule Pramana.Embed.Transfer do
     {:ok, Map.update!(result, :hash_mismatch, &Enum.take(&1, 20))}
   end
 
+  # Validation and writing are separated deliberately. Every row is checked first, and
+  # only the survivors are written — in ONE statement per batch.
+  #
+  # The previous version issued a `Repo.update_all` per row: 299,317 separate UPDATEs for
+  # a full corpus, each triggering incremental HNSW index maintenance. Measured
+  # 2026-08-14, that made storing the vectors slower than computing them — 88 minutes of
+  # import against 34 minutes of GPU. The batching cost nothing in safety: the hash check
+  # that rejects a vector whose text has changed happens before any row is written, and
+  # rejected rows never reach the statement.
   defp apply_batch(batch, hashes, dims, model, now, acc) do
-    Enum.reduce(batch, acc, fn row, acc ->
-      id = row["id"]
-      vector = row["embedding"]
+    {acc, writable} =
+      Enum.reduce(batch, {acc, []}, fn row, {acc, writable} ->
+        id = row["id"]
+        vector = row["embedding"]
 
-      cond do
-        not Map.has_key?(hashes, id) ->
-          %{acc | unknown: [id | acc.unknown]}
+        cond do
+          not Map.has_key?(hashes, id) ->
+            {%{acc | unknown: [id | acc.unknown]}, writable}
 
-        length(vector) != dims ->
-          %{acc | bad_dims: [id | acc.bad_dims]}
+          length(vector) != dims ->
+            {%{acc | bad_dims: [id | acc.bad_dims]}, writable}
 
-        # The vector describes text that no longer exists at this chunk. Writing it
-        # would attach a plausible-looking vector to the wrong passage.
-        Map.get(hashes, id) != row["sha256"] ->
-          %{acc | hash_mismatch: [id | acc.hash_mismatch]}
+          # The vector describes text that no longer exists at this chunk. Writing it
+          # would attach a plausible-looking vector to the wrong passage, and nothing
+          # about the result would look wrong — it is still 1024 valid floats.
+          Map.get(hashes, id) != row["sha256"] ->
+            {%{acc | hash_mismatch: [id | acc.hash_mismatch]}, writable}
 
-        true ->
-          from(c in Chunk, where: c.id == ^id)
-          |> Repo.update_all(
-            set: [
-              embedding: Pgvector.new(vector),
-              embedding_model: model,
-              embedded_at: now
-            ]
-          )
+          true ->
+            {acc, [{id, vector} | writable]}
+        end
+      end)
 
-          %{acc | written: acc.written + 1}
-      end
-    end)
+    write!(writable, model, now)
+    %{acc | written: acc.written + length(writable)}
   end
+
+  defp write!([], _model, _now), do: :ok
+
+  defp write!(rows, model, now) do
+    # `$1`/`$2` are the model and timestamp; each row then contributes an id and a vector
+    # literal. 1,000 rows is 2,002 parameters, well inside Postgres's 65,535 limit.
+    {placeholders, params} =
+      rows
+      |> Enum.with_index()
+      |> Enum.map_reduce([], fn {{id, vector}, i}, params ->
+        n = 3 + i * 2
+        {"($#{n}::bigint, $#{n + 1}::text)", [vector_literal(vector), id | params]}
+      end)
+
+    sql = """
+    UPDATE chunks AS c
+    SET embedding = v.embedding::vector,
+        embedding_model = $1,
+        embedded_at = $2
+    FROM (VALUES #{Enum.join(placeholders, ", ")}) AS v(id, embedding)
+    WHERE c.id = v.id
+    """
+
+    Repo.query!(sql, [model, now | Enum.reverse(params)])
+    :ok
+  end
+
+  # pgvector parses its own text form, so the vector crosses as one parameter rather
+  # than 1,024.
+  defp vector_literal(vector), do: "[" <> Enum.map_join(vector, ",", &to_string/1) <> "]"
 end
