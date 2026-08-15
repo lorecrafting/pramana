@@ -15,18 +15,25 @@ visible failure.
 mix pramana.embed.export --out /tmp/pramana_chunks.jsonl
 ```
 
-Measured on the current bake:
+Measured on the current bake (pipeline v3):
 
 ```
-289,179 chunks   266 MB   (103 MB gzipped)
+299,317 chunks   288.5 MB
 ```
 
-That is everything outstanding — 阿含部's 10,138 are already embedded locally and are
-excluded automatically. The export carries each chunk's `content_sha256`, which is what
-lets import prove the vector still describes the chunk it claims to.
+That is the whole corpus. The 阿含部 proof embeddings are gone: the Phase 1 gate's
+fidelity fix changed segmentation, and re-chunking replaces chunk rows, so their
+vectors went with them. Nothing expensive was lost — this run was always going to
+cover everything — but it is why the count is 299,317 rather than the outstanding
+289,179 quoted before.
+
+Export is a fresh dump each time and only ever emits chunks that still need a vector,
+so re-running after a partial import is safe. Each row carries `content_sha256`, which
+is what lets import prove the vector still describes the chunk it claims to.
 
 ```bash
-gzip -k /tmp/pramana_chunks.jsonl     # 103 MB, worth it on a metered link
+gzip -k /tmp/pramana_chunks.jsonl     # ~110 MB, worth it on a metered link
+                                      # (the Modal path uploads the plain file)
 ```
 
 ## 1a. Recommended: Modal (free within the monthly credit)
@@ -35,15 +42,36 @@ Per-second billing, a $30/month free credit that covers this job several times o
 **nothing to forget to destroy** — which is the most expensive failure mode of renting by
 the hour. See `docs/CLOUD.md` for why this beats AWS/GCP and instance rental.
 
+### One-time: install the CLI in the project's own venv
+
+Do **not** `pip install modal` globally. `python3` on macOS is Apple's 3.9 from the
+Command Line Tools, Homebrew's Python refuses installs outside a venv
+(`externally-managed-environment`), and a global install breaks on the next
+`brew upgrade`. `priv/embed/.venv/` is already gitignored.
+
 ```bash
-pip install modal && modal setup
+/opt/homebrew/bin/python3 -m venv priv/embed/.venv
+priv/embed/.venv/bin/pip install modal
+```
 
-modal volume create pramana-embed
-modal volume put pramana-embed /tmp/pramana_chunks.jsonl /chunks.jsonl
+`bin/pramana-modal` wraps that venv, so the path is not something to remember.
 
-modal run priv/embed/modal_embed.py          # streams progress back
+```bash
+bin/pramana-modal setup      # opens a browser; interactive, run it yourself
+```
 
-modal volume get pramana-embed /vectors.jsonl /tmp/pramana_vectors.jsonl
+Verified working: **modal 1.5.4 on Python 3.14.6**. `priv/embed/modal_embed.py` loads
+against that client with no deprecation warnings.
+
+### Run it
+
+```bash
+bin/pramana-modal volume create pramana-embed
+bin/pramana-modal volume put pramana-embed /tmp/pramana_chunks.jsonl /chunks.jsonl
+
+bin/pramana-modal run priv/embed/modal_embed.py    # streams progress back
+
+bin/pramana-modal volume get pramana-embed /vectors.jsonl /tmp/pramana_vectors.jsonl
 mix pramana.embed.import --in /tmp/pramana_vectors.jsonl
 ```
 
@@ -85,7 +113,7 @@ python embed_gpu.py \
   --batch-size 64
 ```
 
-It prints throughput and an ETA. Expect **hundreds of chunks/sec**, so 289k chunks is
+It prints throughput and an ETA. Expect **hundreds of chunks/sec**, so 299k chunks is
 roughly 15–35 minutes. Compare with **1.29/s** on the M1 — this is the entire reason to
 rent.
 
@@ -111,7 +139,7 @@ Import re-checks every row's `content_sha256` and reports rejections by category
 clean run reads:
 
 ```
-imported 289179 vector(s)
+imported 299317 vector(s)
   hash mismatches (rejected): 0
   wrong dimensions (rejected): 0
   unknown chunk ids (rejected): 0
