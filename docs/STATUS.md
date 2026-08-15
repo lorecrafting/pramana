@@ -224,6 +224,21 @@ Each of these cost real time; they are recorded so they cost it only once.
   payload — a link checker here would be theatre. Formats are confirmed against
   indexed pages instead, and the CBETA linehead is cross-checked against CBETA's own
   TEI file naming for all 2,471 works.
+- **Filtering an ANN index post-hoc silently returns too few rows, or none.** Postgres
+  plans a filtered vector query as an HNSW index scan *followed by* the join and the
+  provenance filter. HNSW yields only `ef_search` candidates (40 by default), so
+  narrowing them to a division holding 3.4% of the corpus discards nearly all: a request
+  for 10 results in 阿含部 returned **5**, tighter filters returned **none** — with the
+  matching text present, embedded and correct. An empty result reads as *"the canon does
+  not say this"* when the truth is *"the index never looked there"*, and it strikes
+  exactly the provenance filters that are this project's differentiator. Fixed with
+  pgvector 0.8's `hnsw.iterative_scan = relaxed_order` on filtered queries only (~3×
+  latency, correct answers). **This only appears at scale** — it was invisible across the
+  entire 10,138-chunk 阿含部 proof and surfaced within minutes of the corpus reaching
+  299,317.
+- **Storing the vectors cost more than computing them.** `Transfer.import/2` issues one
+  UPDATE per row, each triggering incremental HNSW maintenance: 34 min on an L4 to embed
+  299,317 chunks, **88 min** to write them. Task #37.
 - **Reproducibility is not fidelity, and `verify` only proved the first.**
   `mix pramana.verify` re-normalizes from `raw/` and byte-compares, so content the
   pipeline drops on *every* run is absent from both sides and the check passes. 10,590
@@ -282,3 +297,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | #11 semantic (阿含部) | 284 | — | — | query 0.3–0.5 s; embed 1.29 chunks/s | 10,138 embedded |
 | **#33 MCP resources + reader links** | **318** | — | — | hybrid search is now the MCP default | 10,138 embedded |
 | **#13 Phase 1 gate** | **342** | — | verify --all + integrity green | **150 s / 2,471 works** | **4,740,246** |
+| **#11 embeddings, full corpus** | **354** | — | — | embed 34 min / import 88 min | **299,317 chunks, 100% embedded** |

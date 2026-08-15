@@ -75,6 +75,24 @@ bin/pramana-modal volume get pramana-embed /vectors.jsonl /tmp/pramana_vectors.j
 mix pramana.embed.import --in /tmp/pramana_vectors.jsonl
 ```
 
+### Measured, full corpus, 2026-08-14
+
+| stage | |
+|---|---|
+| image build (pip + baking the weights in) | 86 s, once |
+| embed 299,317 chunks on an L4 | **34.1 min at 147.4 chunks/s** |
+| upload 288.5 MB / download 3.0 GB | 67 s / 82 s |
+| **GPU cost** | **~$0.45**, inside the free credit |
+
+**147 chunks/s is the honest number**, and it is below the "hundreds of chunks/sec" this
+runbook used to promise. BGE-M3 is 568M parameters at `max_length=320`, so an L4 is
+compute-bound here rather than starved — a bigger card would help, more batching would
+not. It is still **114× the 1.29 chunks/s** measured on the M1, which is the whole
+argument for renting.
+
+**The import is the slow step, not the embedding.** Each row writes a 1024-dim vector
+with HNSW index maintenance, so budget roughly an hour and run it in the background.
+
 Skip to step 4 to verify. The rest of this runbook is the SSH-to-a-rented-box
 alternative, if you would rather have a plain machine.
 
@@ -113,9 +131,8 @@ python embed_gpu.py \
   --batch-size 64
 ```
 
-It prints throughput and an ETA. Expect **hundreds of chunks/sec**, so 299k chunks is
-roughly 15–35 minutes. Compare with **1.29/s** on the M1 — this is the entire reason to
-rent.
+It prints throughput and an ETA. Compare with **1.29/s** on the M1 — this is the entire
+reason to rent.
 
 If VRAM is tight, drop `--batch-size` to 32. The script picks CUDA automatically and
 warns loudly if it lands on CPU, which would be as slow as the laptop.

@@ -39,11 +39,27 @@ DIMS = 1024
 # buys memory that goes unused. Swap to "A10G" or "A100" if you want it finished sooner.
 GPU = "L4"
 
+# PINNED, and for the same reason `docs/EMBEDDING.md` rejects hosted embedding APIs:
+# a stable name that silently resolves to different code is how an index quietly stops
+# being comparable with itself. The model weights are safe either way (content-addressed
+# by the Hub), but tokenisation and pooling live in `transformers`, and those decide what
+# a vector means. Unpinned, the first run here resolved to transformers 5.x — a major
+# version the script was not written against.
+#
+# These are the versions the full-corpus run of 2026-08-14 actually used. Change them
+# deliberately, and re-embed everything when you do: mixing two versions in one index
+# corrupts ranking without failing.
+TORCH = "torch==2.13.0"
+TRANSFORMERS = "transformers==5.15.0"
+
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install("torch", "transformers", "hf_transfer")
+    .pip_install(TORCH, TRANSFORMERS)
+    # Xet is the Hub's current fast-transfer path. `HF_HUB_ENABLE_HF_TRANSFER` is
+    # deprecated — huggingface_hub warns that hf_transfer "is not used anymore" — so
+    # setting it bought nothing.
+    .env({"HF_XET_HIGH_PERFORMANCE": "1"})
     # Bake the weights into the image so every run does not re-download 2.2 GB.
-    .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .run_commands(
         f"python -c \"from transformers import AutoModel, AutoTokenizer; "
         f"AutoModel.from_pretrained('{MODEL}'); AutoTokenizer.from_pretrained('{MODEL}')\""

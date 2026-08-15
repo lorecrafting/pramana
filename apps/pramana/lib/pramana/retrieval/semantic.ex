@@ -35,6 +35,16 @@ defmodule Pramana.Retrieval.Semantic do
   @default_limit 20
   @max_limit 200
 
+  # The options that narrow the candidate set, and therefore the ones that make a plain
+  # HNSW scan return short. Keep in step with `apply_filters/2` — an omission here is a
+  # filter that silently under-returns.
+  @filter_keys [:origin, :role, :division, :work_id, :juan, :exclude_origin]
+
+  # Ceiling on how far an iterative scan will walk before giving up. Generous enough for
+  # a division holding a few percent of the corpus, bounded so a filter matching almost
+  # nothing degrades to a slow query rather than a full scan of 299k vectors.
+  @max_scan_tuples 200_000
+
   @known_opts [
     :limit,
     :mode,
@@ -99,7 +109,7 @@ defmodule Pramana.Retrieval.Semantic do
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
     embedding = Pgvector.new(vector)
 
-    results =
+    query =
       Chunk
       |> where([c], not is_nil(c.embedding) and c.embedding_model == ^Embed.model())
       |> join(:inner, [c], t in Text, on: t.id == c.text_id)
@@ -115,10 +125,49 @@ defmodule Pramana.Retrieval.Semantic do
         text: t,
         score: max_inner_product(c.embedding, ^embedding)
       })
-      |> Repo.all()
+
+    results =
+      query
+      |> fetch(filtered?(opts))
       |> Enum.map(&to_result/1)
+      # `relaxed_order` may return rows slightly out of distance order, so ranking is
+      # re-established here rather than trusted from the scan.
+      |> Enum.sort_by(& &1.similarity, :desc)
 
     %{results: results, total: length(results), model: Embed.model()}
+  end
+
+  # Unfiltered: the plain index scan is correct and ~3x faster, so leave it alone.
+  defp fetch(query, false), do: Repo.all(query)
+
+  # Filtered: THIS IS A CORRECTNESS FIX, not a tuning knob.
+  #
+  # Postgres plans these as an HNSW index scan FOLLOWED BY the join and the provenance
+  # filter. HNSW yields only `ef_search` candidates (40 by default), so filtering those
+  # to a division holding 3.4% of the corpus discards nearly all of them: a request for
+  # 10 results returned 5, and narrower filters returned NONE — while the matching text
+  # sat in the table, embedded and correct.
+  #
+  # That failure is invisible. An empty result set reads as "the canon does not say
+  # this" when the truth is "the index never looked there", and it strikes precisely the
+  # provenance filters this project exists to provide.
+  #
+  # pgvector 0.8's iterative scan keeps pulling candidates until the limit is satisfied
+  # or `max_scan_tuples` is exhausted. `SET LOCAL` needs a transaction, and it is worth
+  # the ~3x latency because the alternative is silently wrong answers.
+  defp fetch(query, true) do
+    Repo.transaction(fn ->
+      Repo.query!("SET LOCAL hnsw.iterative_scan = relaxed_order")
+      Repo.query!("SET LOCAL hnsw.max_scan_tuples = #{@max_scan_tuples}")
+      Repo.all(query)
+    end)
+    |> case do
+      {:ok, rows} -> rows
+    end
+  end
+
+  defp filtered?(opts) do
+    Enum.any?(@filter_keys, &(not is_nil(opts[&1])))
   end
 
   @doc """
