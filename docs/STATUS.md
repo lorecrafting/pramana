@@ -8,43 +8,37 @@ then run `TaskList`.
 
 ## Where we are
 
-**Phase 0 complete and gated** (tag `phase-0`). **Phase 1 in progress:** #9, #10, #12,
-#31 and #35 done; #11, #32, #33 remain.
+**Phase 0 and Phase 1 complete and gated** (tags `phase-0`, `phase-1`). **Phase 2 in
+progress:** #15 done, #14 blocked on acquisition, #16 remaining.
 
-**Semantic search works, proven on 阿含部** (10,138 chunks, 100% embedded). BGE-M3
-dense vectors + HNSW, fused with lexical by Reciprocal Rank Fusion. Query latency
-**0.3–0.5 s**. Asking 苦的原因是什麼 in modern Chinese returns the Second Noble Truth in
-Classical Chinese — something the bigram index structurally cannot do.
+**The whole Chinese canon is baked, verified, and embedded.** 2,471 works, **4,740,246
+segments**, 90.6M characters, pipeline v3, 150 s, zero failures. Both integrity checks
+are green over every text: `mix pramana.verify --all` (byte-identical re-normalization
+from `raw/`) and `mix pramana.integrity` (nothing printed in the source is missing from
+the bake — a different question, see the rules section).
 
-**Retrieval chunks are built**: 299,317 chunks over the 4.7M segments (15.8× fewer
-rows, 287 chars average, 79 s). This is the unit that gets embedded — see the decision
-below on why segments are the wrong one. Chunk URNs are ranges of real anchors, so a
-semantic hit stays guard-verifiable.
+**Semantic search covers 100% of the corpus.** 299,317 chunks embedded with BGE-M3 on a
+rented L4: 34 min, ~$0.45, 0 rejected vectors. Hybrid retrieval fuses lexical and
+semantic by Reciprocal Rank Fusion. Querying 眾生皆能成佛 — a paraphrase that appears
+nowhere as a literal string — returns 故眾生無不成佛 at 0.817 similarity, which the bigram
+index structurally cannot do. Lexical alone runs in 26–63 ms; filtered semantic in
+0.5–3 s.
 
-**Provenance is populated across the whole Taishō** from the division (部) table:
-1,781 Indic works, 555 Chinese, 135 deliberately unattributed (古逸部 Dunhuang), and
-**57 apocrypha** flagged. The differentiating query now works on real data — searching
-一切眾生皆有佛性 returns Indic root scripture, Chinese commentary, or the apocryphal
-T2883 法王經 depending on the filter.
+**Provenance is populated across the whole Taishō** from the division (部) table: 1,781
+Indic works, 555 Chinese, 135 deliberately unattributed (古逸部 Dunhuang), and **57
+apocrypha** flagged. Search results arrive in buckets keyed by composition origin and
+text role, each labelled in plain language ("Japanese-composed commentary"), so the
+distinction cannot be flattened away by a caller.
 
-**The full Taishō is baked.** 2,471 works, **4,729,656 segments**, 90.6M characters,
-zero failures, 190 s. `mix pramana.verify`: all 2,471 texts re-normalize from `raw/`
-byte-identically. Lexical search runs in **26–63 ms** across 4.7M segments. Database
-3.7 GB (segments 3.5 GB, bigram index 1.3 GB).
+**What is NOT here, and says so:** Taishō volumes 56–84 — the Japanese-composed
+sectarian corpus. CBETA excludes them and only SAT publishes them, and SAT has no bulk
+download (#14). Until that is resolved `Pramana.Coverage` states the gap in every survey
+response, because otherwise an absence of Japanese results reads as the tradition being
+silent.
 
-Lexical search works: `pg_bigm` bigram index, phrase-then-n-gram fallback, provenance
-filters composing as SQL, and a `search` MCP tool returning results **grouped by origin
-and role**. Queries run in 5–40 ms over 5,341 segments.
-
-Reading affordances work too (task #31): context windows, outlines from `<cb:mulu>`, and
-range-URN resolution. Adopted after reviewing tripitaka-mcp.com — see
-`docs/COMPETITIVE.md` for what was taken and what was rejected. Tasks **#32** (variant
-characters), **#33** (MCP resources + reader links) and **#34** (ingest the
-huangnianzu-translation glossary) came out of the same review.
-
-The end-to-end path works: acquire → normalize → segment → load → resolve → verify,
-with an MCP server on top. A model can fetch an exact Lotus Sūtra passage by URN and
-the guard byte-compares its quote.
+The end-to-end path works: acquire → normalize → segment → chunk → embed → resolve →
+verify, with an MCP server on top exposing five tools and two resources. A model can
+fetch an exact passage by URN and the guard byte-compares its quote.
 
 ### Verified, not just built
 
@@ -86,15 +80,21 @@ the guard byte-compares its quote.
 
 ## Next
 
-Phase 1 is complete and gated (**#13**). Tasks #9, #10, #12, #31, #33 and #35 are done;
-#11 is code-complete but its full-corpus embedding run is **blocked on a cloud account**
-— see `docs/GPU_RUNBOOK.md`, roughly $0.50 or free inside Modal's monthly credit.
+Phase 1 is complete and gated (**#13**), and the full-corpus embedding run has landed.
 
-Then Phase 2: **#14** SAT ingest and the Taishō 56–84 Japanese delta, **#15** structural
-provenance enforcement, **#16** the local-source manifest path.
+**Phase 2:** #15 (structural provenance) is done. **#14 is blocked and needs a human** —
+SAT publishes no bulk download, so obtaining Taishō 56–84 starts with an email to
+`sat at l.u-tokyo.ac.jp`; see `docs/SOURCES.md` and the task. **#16** (local-source
+manifest path) is the next unblocked Phase 2 task.
 
-Still open in Phase 1, neither blocking: **#32** 異體字 variant-character expansion,
-**#34** the Huang Nianzu glossary, **#36** work relations (commentary → source).
+Unblocked and worth doing any time: **#37** batch the embedding import (storing the
+vectors took 88 min against 34 min to compute them), **#32** 異體字 variant-character
+expansion, **#34** the Huang Nianzu glossary, **#36** work relations (commentary →
+source).
+
+**Still unmeasured:** recall@k and citation accuracy. There is no gold set until #19
+(Phase 4), so every claim about retrieval quality here rests on spot-checks, not a
+metric.
 
 ### Phase 1 gate findings (#13)
 
