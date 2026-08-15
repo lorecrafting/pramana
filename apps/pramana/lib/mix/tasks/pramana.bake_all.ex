@@ -47,6 +47,15 @@ defmodule Mix.Tasks.Pramana.BakeAll do
   defp enqueue(source, canon, limit) do
     {:ok, entry} = Lockfile.get_source(source)
 
+    # Oban retains finished jobs, and the progress counters read the queue rather than
+    # this run. Without this the second full bake reported "works baked: 4941" for a
+    # 2,471-work corpus — both runs summed, a wrong number that looks plausible. The
+    # queue is a work list; `bakes` is the audit log. `--resume` skips this, because
+    # there the earlier run's jobs ARE the run being counted.
+    Repo.delete_all(
+      from j in "oban_jobs", where: j.queue == "bake" and j.state in ["completed", "discarded"]
+    )
+
     jobs =
       entry["files"]
       |> Enum.flat_map(&entry_from_path/1)

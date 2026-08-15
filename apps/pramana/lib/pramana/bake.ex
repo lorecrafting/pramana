@@ -35,7 +35,14 @@ defmodule Pramana.Bake do
 
   # Bump when normalization or segmentation OUTPUT changes. History:
   #   1 — initial: CBETA TEI -> IR -> Taisho line segments
-  @pipeline_version "1"
+  #   2 — segment note-only lines instead of dropping them. A line whose printed
+  #       content is entirely an inline note now gets a URN (empty content, note in
+  #       meta); only genuinely blank lines are skipped. Recovers 5,213 printed lines
+  #       and 266,547 characters that had been unreachable.
+  #   3 — split a <note> that spans <lb/> across the lines it covers, instead of
+  #       attributing all of it to the line where it closes. Intermediate lines were
+  #       left with no text and no note, so v2 still dropped them.
+  @pipeline_version "3"
 
   @doc "The current pipeline version."
   @spec pipeline_version() :: String.t()

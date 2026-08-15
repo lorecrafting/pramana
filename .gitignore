@@ -1,8 +1,11 @@
 # The directory Mix will write compiled artifacts to.
 /_build/
 
-# If you run "mix test --cover", coverage assets end up here.
+# If you run "mix test --cover", coverage assets end up here. The leading slash
+# anchors to the repo root, which in an umbrella misses where the apps actually
+# write it, so both patterns are needed.
 /cover/
+apps/*/cover/
 
 # The directory Mix downloads your dependencies sources to.
 /deps/

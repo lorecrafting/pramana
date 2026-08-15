@@ -389,6 +389,7 @@ defmodule Pramana.Normalize.CBETA do
   defp flush_line(%{anchor: nil} = state), do: reset_line(state)
 
   defp flush_line(state) do
+    {partial_note, state} = split_open_note(state)
     text = state.buf |> Enum.reverse() |> IO.iodata_to_binary() |> String.trim()
 
     line = %Line{
@@ -396,13 +397,30 @@ defmodule Pramana.Normalize.CBETA do
       juan: state.line_juan,
       kind: state.line_kind,
       text: text,
-      notes: Enum.reverse(state.notes),
+      notes: Enum.reverse(state.notes) ++ partial_note,
       apparatus: Enum.reverse(state.apparatus),
       gaiji: state.gaiji_seen |> Enum.reverse() |> Enum.uniq(),
       editorial_punctuation: String.contains?(text, @editorial_punctuation)
     }
 
     reset_line(%{state | lines: [line | state.lines]})
+  end
+
+  # A <note> can span <lb/>, and attributing the whole note to the line where it CLOSES
+  # leaves every intermediate line with no text and no note — so the segmenter dropped
+  # it and those printed lines had no URN at all. Exactly the defect already fixed for
+  # <lem>: buffered content must be split at line boundaries, because the line, not the
+  # element, is the citable unit.
+  #
+  # Take what has accumulated so far, leave the note open, and let the remainder land on
+  # the following lines.
+  defp split_open_note(%{note: nil} = state), do: {[], state}
+
+  defp split_open_note(%{note: note} = state) do
+    case note.acc |> Enum.reverse() |> IO.iodata_to_binary() do
+      "" -> {[], state}
+      text -> {[text], %{state | note: %{note | acc: []}}}
+    end
   end
 
   defp reset_line(state),

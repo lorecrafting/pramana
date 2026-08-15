@@ -45,14 +45,28 @@ violated, fix it before the gate passes — invariant drift is what makes long p
 collapse, and it is much cheaper to fix inside the phase that introduced it.
 
 ### 3. Data integrity (from Phase 1 on)
-```bash
-mix pramana.verify --sample 1000
-```
-Randomly re-resolves URNs and byte-compares against `raw/`. Catches silent
-normalization corruption — the highest-consequence bug class in this project.
 
-Also confirm: gaiji round-trip test green, no dropped `<lb/>`, CJK codepoints
-unchanged from source.
+**Two checks, and they answer different questions.** Running only the first is how a
+real defect survived a passing gate.
+
+```bash
+mix pramana.verify --all        # reproducibility: is the pipeline deterministic?
+mix pramana.integrity           # fidelity: did the pipeline LOSE anything?
+```
+
+`verify` re-normalizes every text from `raw/` and byte-compares against the stored
+body. That catches silent corruption — the highest-consequence bug class here.
+
+`integrity` counts the bake against the **raw XML**: every `<lb/>` produced a line,
+every line with printed content got a segment, every `<g/>` is reachable. This is the
+check `verify` structurally cannot do, because **a pipeline that drops the same content
+every run drops it identically on both sides of a re-normalization comparison**, and
+the check passes. That is not hypothetical — 10,590 printed lines, 473 rare characters
+and 266,547 characters of interlinear note text were unreachable in a corpus that
+verified clean. **Reproducibility is not fidelity.**
+
+Note `--sample N` on `verify` is **per text**, not a corpus-wide total. Use `--all` at
+a gate; it takes ~2m30s for the full Taishō.
 
 ### 4. Evals (from Phase 4 on)
 ```bash

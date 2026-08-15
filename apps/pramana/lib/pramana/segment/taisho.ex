@@ -47,9 +47,21 @@ defmodule Pramana.Segment.Taisho do
   @doc """
   Builds segments for a text.
 
-  `source` and `witness` form the URN namespace (`cbeta.T`). Empty lines are skipped:
-  they carry no citable content, but they still occupy a position in `IR.body/1`, so
-  offsets account for them.
+  `source` and `witness` form the URN namespace (`cbeta.T`).
+
+  A line is skipped only when it is **genuinely blank** — no body text, no inline note,
+  no apparatus. A line whose printed content is entirely an inline note still gets a
+  segment, with empty `content` and the note in `meta`.
+
+  That distinction is not pedantry. Dropping every text-less line cost the corpus 5,213
+  printed lines carrying 266,547 characters of note text, concentrated in the
+  catalogues (T2154, T2157) and commentaries where interlinear notes carry much of the
+  substance. Those lines exist in the printed edition and had no URN, so the content
+  was unreachable and the line uncitable.
+
+  It is also invisible to `mix pramana.verify`: that re-normalizes from `raw/` and
+  compares, and both sides lose the same content, so the check passes. **Reproducibility
+  is not fidelity** — a deterministic pipeline can drop the same thing every time.
   """
   @impl Pramana.Pipeline.Segmenter
   @spec segments(IR.t(), keyword()) :: {:ok, [segment()]} | {:error, term()}
@@ -91,7 +103,11 @@ defmodule Pramana.Segment.Taisho do
   @spec urn_prefix(String.t(), String.t(), String.t()) :: String.t()
   def urn_prefix(source, witness, work_id), do: "pramana:#{source}.#{witness}:#{work_id}"
 
-  defp build(%{text: ""}, _ir, _source, _witness, _span, _ordinal), do: nil
+  # Genuinely blank: nothing was printed on this line but the line number. Everything
+  # else — including a line that is nothing but an inline note — is real printed
+  # content and must stay addressable.
+  defp build(%{text: "", notes: [], apparatus: []}, _ir, _source, _witness, _span, _ordinal),
+    do: nil
 
   defp build(line, ir, source, witness, span, ordinal) do
     anchor = parse_anchor(line.anchor)

@@ -126,6 +126,43 @@ defmodule Pramana.Normalize.CBETATest do
       assert line.notes == ["校勘註"]
     end
 
+    test "a note spanning <lb/> is split across the lines it covers" do
+      # Attributing the whole note to the line where it CLOSES leaves every intermediate
+      # line with no text and no note, so the segmenter drops it and those printed lines
+      # get no URN. Same defect class as <lem> spanning <lb/>. Corpus-wide this stranded
+      # 473 gaiji on lines that looked blank and were not.
+      ir =
+        normalize!(
+          doc(
+            ~s(<lb n="0001a05" ed="T"/><note place="inline">前段\n<lb n="0001a06" ed="T"/>中段\n<lb n="0001a07" ed="T"/>後段</note>)
+          )
+        )
+
+      assert length(ir.lines) == 3
+      assert Enum.map(ir.lines, & &1.anchor) == ~w(0001a05 0001a06 0001a07)
+
+      # Each line carries the portion of the note printed on it, so no line is empty.
+      for line <- ir.lines do
+        assert line.notes != [], "line #{line.anchor} lost its share of the note"
+      end
+
+      assert ir.lines |> Enum.flat_map(& &1.notes) |> Enum.join() =~ "前段"
+      assert ir.lines |> Enum.flat_map(& &1.notes) |> Enum.join() =~ "後段"
+    end
+
+    test "a note that does not span a line boundary is still one note" do
+      ir =
+        normalize!(
+          doc(
+            ~s(<lb n="0001a05" ed="T"/>甲<note place="inline">整段註</note>乙<lb n="0001a06" ed="T"/>丙)
+          )
+        )
+
+      [first, second] = ir.lines
+      assert first.notes == ["整段註"]
+      assert second.notes == []
+    end
+
     test "navigation apparatus is excluded" do
       ir =
         normalize!(

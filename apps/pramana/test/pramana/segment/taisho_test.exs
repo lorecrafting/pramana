@@ -112,6 +112,53 @@ defmodule Pramana.Segment.TaishoTest do
     end
   end
 
+  describe "lines whose only printed content is an inline note" do
+    # Dropping these cost the corpus 5,213 printed lines and 266,547 characters,
+    # concentrated in the catalogues and commentaries where interlinear notes carry
+    # much of the substance. The line exists in the printed edition; it needs a URN.
+    test "still get a segment, so the note is reachable and the line is citable" do
+      {_ir, segs} =
+        segments!(~s(<lb n="0001a01"/>甲<lb n="0001a02"/><note place="inline">乙丙</note>))
+
+      assert length(segs) == 2
+
+      note_only = List.last(segs)
+      assert note_only.urn == "pramana:cbeta.T:T0262@p0001a02"
+      assert note_only.content == ""
+      assert note_only.meta["notes"] == ["乙丙"]
+    end
+
+    test "a line carrying only apparatus keeps its anchor too" do
+      {_ir, segs} =
+        segments!("""
+        <lb n="0001a01"/>甲<lb n="0001a02"/><app><lem wit="\#{T}"></lem><rdg wit="\#{S}">丙</rdg></app>
+        """)
+
+      assert length(segs) == 2
+      assert List.last(segs).content == ""
+      assert List.last(segs).meta["apparatus"] != nil
+    end
+
+    test "a genuinely blank line is still skipped" do
+      # No text, no note, no apparatus: nothing was printed but the line number.
+      {_ir, segs} = segments!(~s(<lb n="0001a01"/>甲<lb n="0001a02"/><lb n="0001a03"/>乙))
+
+      assert length(segs) == 2
+      refute Enum.any?(segs, &(&1.content == ""))
+    end
+
+    test "an empty segment's offsets still slice its (empty) content out of the body" do
+      {ir, segs} =
+        segments!(~s(<lb n="0001a01"/>甲<lb n="0001a02"/><note place="inline">乙</note>))
+
+      body = IR.body(ir)
+
+      for seg <- segs do
+        assert String.slice(body, seg.char_start, seg.char_end - seg.char_start) == seg.content
+      end
+    end
+  end
+
   describe "content hashes" do
     test "cover the segment content exactly" do
       {_ir, [seg]} = segments!(~s(<lb n="0001a05"/>如是我聞))

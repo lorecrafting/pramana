@@ -4,14 +4,25 @@ defmodule Mix.Tasks.Pramana.Verify do
   @moduledoc """
   Data-integrity check for the phase gates (`docs/CHECKS.md`, section 3).
 
-      mix pramana.verify              # sample 1000 segments
-      mix pramana.verify --all        # check every segment
-      mix pramana.verify --sample 50
+      mix pramana.verify              # sample 1000 segments PER TEXT
+      mix pramana.verify --all        # check every segment; ~2m30s for the full Taisho
+      mix pramana.verify --sample 50  # 50 per text
+
+  `--sample N` is **per text**, not a corpus-wide total, so `--sample 1000` over 2,471
+  texts checks about 1.2M segments rather than 1,000. Use `--all` at a phase gate.
+
+  The whole-text checks (1 and 2 below) always run for EVERY text regardless of the
+  sample; only the per-segment checks are sampled.
 
   Silent normalization corruption is the highest-consequence bug class in this
   project: a text that loads without error but has lost a `<lb/>`, mangled a gaiji, or
   had its CJK codepoints rewritten produces citations that look right and are wrong.
   Tests catch it for fixtures; this catches it for the actual bake.
+
+  **This proves reproducibility, not fidelity.** It re-runs the same pipeline and
+  compares, so content the pipeline drops deterministically is absent from both sides
+  and the check still passes. `mix pramana.integrity` counts against the raw XML and is
+  the one that catches loss. Run both at a gate.
 
   Checks, per text:
 
