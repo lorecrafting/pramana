@@ -12,6 +12,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
 
   alias Anubis.Server.Response
   alias Pramana.Corpus
+  alias Pramana.Reader
 
   schema do
     field(:urn, :string,
@@ -97,6 +98,9 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       },
       kind: span.kind,
       provenance: span.provenance,
+      # Where a human goes to check this against the published edition. Absent rather
+      # than guessed when no confirmed template exists for the source.
+      reader: Reader.reference(span.urn, span.provenance),
       apparatus: span.meta["apparatus"],
       notes: span.meta["notes"],
       editorial_punctuation: span.meta["editorial_punctuation"] == true

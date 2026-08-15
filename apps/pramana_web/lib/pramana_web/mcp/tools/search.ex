@@ -16,6 +16,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
 
   alias Anubis.Server.Response
   alias Pramana.Embed
+  alias Pramana.Reader
   alias Pramana.Retrieval.Hybrid
   alias Pramana.Retrieval.Lexical
 
@@ -158,6 +159,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
       score: Map.get(r, :score) || Map.get(r, :rrf_score),
       kind: r.span.kind,
       provenance: r.span.provenance,
+      reader: Reader.reference(r.span.urn, r.span.provenance),
       has_variants: is_map(r.span.meta) and Map.has_key?(r.span.meta, "apparatus")
     }
   end

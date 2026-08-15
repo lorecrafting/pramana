@@ -91,6 +91,12 @@ defmodule PramanaWeb.MCP.Resources.Guide do
     - `addressing` — `canonical` can be checked against a printed edition; `derived`
       cannot, because that source has no printed page and line.
     - `bake_id` — which corpus snapshot produced this. Cite it for reproducibility.
+    - `reader` — a link into the published edition, for a human who wants to check the
+      passage. It opens the **fascicle, not the line**, and `verified: false` is
+      literal: these readers are single-page apps that return HTTP 200 for any path,
+      so the link cannot be checked by fetching it. `reader.linehead` is CBETA's own
+      citation string (`T09n0262_p0001a05`) and pastes into the reader's Goto box.
+      **Cite the URN, never the URL.**
 
     ## Things that are true and easy to get wrong
 

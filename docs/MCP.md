@@ -53,6 +53,41 @@ Retrieval degrades rather than failing, so every response says what it actually 
   not, because that source has no printed page and line.
 - **`bake_id`** — which corpus snapshot answered.
 
+## Reader deep-links
+
+`search` hits and `get_passage` responses carry a `reader` block pointing into the
+published edition, so checking a citation is one click rather than a trip to a library.
+
+```json
+"reader": {
+  "edition": "CBETA Online",
+  "url": "https://cbetaonline.dila.edu.tw/en/T0262_001",
+  "granularity": "juan",
+  "linehead": "T09n0262_p0001a05",
+  "verified": false
+}
+```
+
+Three deliberate limits, all of them in the payload rather than only in this file:
+
+- **`granularity: "juan"`** — the link opens the fascicle. CBETA Online has no
+  line-addressable URL, so `linehead` carries the exact line in CBETA's own citation
+  string, which pastes into the reader's Goto box.
+- **`verified: false` is literal, not modesty.** CBETA Online and SAT are SPAs that
+  resolve content in the browser: both return HTTP 200 with a **byte-identical body**
+  for a real path and for nonsense. There is no server-side signal, so a link checker
+  would be theatre. Measured, not assumed.
+- **No template, no link.** `reader` is absent for any source whose format has not been
+  confirmed against real pages — SAT included, until task #14 ingests it and the format
+  can be checked against real identifiers. A plausible link to the wrong passage is
+  worse than none, because nothing about it looks wrong.
+
+The `linehead` construction is cross-checked against CBETA's own TEI file naming
+(`T09n0262.xml` encodes the same volume and number) for **all 2,471 works**.
+
+**The URN is the citation; the URL is a convenience.** The corpus is reproducible from
+`sources.lock.json`; a third-party website is not.
+
 ## Transports
 
 **stdio**, for Claude Code and other local clients — `.mcp.json` points at

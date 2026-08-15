@@ -59,6 +59,19 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert is_map(data["provenance"])
     end
 
+    test "carries a reader deep-link that never poses as the citation" do
+      {:reply, response, _frame} = GetPassage.execute(%{urn: @urn}, %{})
+      reader = payload(response)["reader"]
+
+      assert reader["url"] == "https://cbetaonline.dila.edu.tw/en/T0262_001"
+      assert reader["linehead"] == "T09n0262_p0001c17"
+
+      # The one unverifiable thing this project emits must say so at the boundary, not
+      # only in its own module doc.
+      assert reader["verified"] == false
+      assert reader["granularity"] == "juan"
+    end
+
     test "every response carries a sha256 the caller can verify independently" do
       {:reply, response, _frame} = GetPassage.execute(%{urn: @urn}, %{})
       data = payload(response)

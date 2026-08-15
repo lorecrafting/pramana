@@ -174,6 +174,15 @@ Each of these cost real time; they are recorded so they cost it only once.
 - **A scripted patch that errors leaves docs untouched while the commit still runs.**
   This bit three times. Always verify the file, and never trust an unconditional
   "patched" message.
+- **A deep link into CBETA Online or SAT cannot be validated by fetching it.** Both are
+  single-page apps that resolve content in the browser: a real path and complete
+  nonsense both return HTTP 200 with a **byte-identical body** (1,018,537 bytes for
+  SAT, either way). So `reader.verified` is permanently `false` and stated in the
+  payload — a link checker here would be theatre. Formats are confirmed against
+  indexed pages instead, and the CBETA linehead is cross-checked against CBETA's own
+  TEI file naming for all 2,471 works.
+- **`reference` is a built-in Elixir type and cannot be redefined**, so `@type
+  reference :: …` is a compile error, not a warning.
 - **`use Anubis.Server.Component` GENERATES `name/0` from its options**, and unlike
   `uri`/`mime_type` it is **not** `defoverridable`. A hand-written `def name` in the
   module body compiles clean and loses to the option default (`nil` when `:uri` is also
@@ -207,4 +216,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | **#9 full Taishō** | **227** | — | — | **190 s / 2,471 works** | **4,729,656** |
 | #12 provenance | 257 | — | — | survey 88 ms exhaustive | 4,729,656 |
 | #11 semantic (阿含部) | 284 | — | — | query 0.3–0.5 s; embed 1.29 chunks/s | 10,138 embedded |
-| **#33 MCP resources** | **305** | — | — | hybrid search is now the MCP default | 10,138 embedded |
+| **#33 MCP resources + reader links** | **318** | — | — | hybrid search is now the MCP default | 10,138 embedded |
