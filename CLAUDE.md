@@ -49,7 +49,7 @@ Violating any of these is a bug, not a tradeoff.
    or mutation tool. If a model could write to the corpus, reproducibility from
    `sources.lock.json` is gone, `bake_id` stops determining contents, and prompt
    injection becomes corpus poisoning — local-source text is already untrusted input.
-   See `docs/ADDING_TEXTS.md`.
+   See `docs/ADDING_TEXTS.md` for the write path and `docs/MCP.md` for the read one.
 8. **A machine translation is never citable as source.** Generated text is a layer
    over a source anchor, never a top-level URN, and the citation guard rejects any
    quote resolving to `method != human` presented as canonical. Once the corpus holds
@@ -86,7 +86,7 @@ apps/
   pramana_native/           Rustler NIFs: CJK segmentation, suffix-array reuse
 priv/embed/                Python sidecar — embeddings + Tibetan botok ONLY
 evals/                     gold question sets + scoring harness
-docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR
+docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR, MCP
 ```
 
 ## Stack

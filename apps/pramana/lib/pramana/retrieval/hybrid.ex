@@ -116,7 +116,12 @@ defmodule Pramana.Retrieval.Hybrid do
   # Lexical hits are segments; map each to the chunk that contains it so both
   # retrievers speak in the same units.
   defp lexical_ranking(query, opts, depth) do
-    case Lexical.search(query, Keyword.merge(opts, limit: depth)) do
+    # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the
+    # lexical retriever. Passing it through crashed with a raw CaseClauseError. The
+    # lexical stage always runs its own :auto strategy.
+    lexical_opts = opts |> Keyword.merge(limit: depth) |> Keyword.put(:mode, :auto)
+
+    case Lexical.search(query, lexical_opts) do
       {:ok, %{results: results}} ->
         results
         |> Enum.map(& &1.span.urn)
@@ -138,7 +143,7 @@ defmodule Pramana.Retrieval.Hybrid do
         []
 
       true ->
-        case Semantic.search(query, Keyword.merge(opts, limit: depth)) do
+        case Semantic.search(query, opts |> Keyword.merge(limit: depth) |> Keyword.delete(:mode)) do
           {:ok, %{results: results}} -> Enum.map(results, & &1.urn)
           {:error, _} -> []
         end
@@ -160,12 +165,15 @@ defmodule Pramana.Retrieval.Hybrid do
       )
       |> Map.new()
 
-    # Preserve the lexical ordering; drop segments with no chunk (possible only if
-    # chunking has not been run for that text) and de-duplicate, since several hits
-    # can land in one chunk.
+    # Preserve the lexical ordering and de-duplicate, since several hits can land in
+    # one chunk.
+    #
+    # A segment with no containing chunk falls back to its OWN urn rather than being
+    # dropped. Dropping it meant that on a corpus where chunking had not been run,
+    # hybrid returned nothing at all while lexical alone returned results — silently
+    # worse than not fusing. Both forms are real, citable, guard-verifiable URNs.
     segment_urns
-    |> Enum.map(&Map.get(rows, &1))
-    |> Enum.reject(&is_nil/1)
+    |> Enum.map(fn urn -> Map.get(rows, urn, urn) end)
     |> Enum.uniq()
   end
 

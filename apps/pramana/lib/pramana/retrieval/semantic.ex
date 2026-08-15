@@ -149,13 +149,22 @@ defmodule Pramana.Retrieval.Semantic do
 
   defp run(query, opts) do
     serving = Keyword.get_lazy(opts, :serving, fn -> Embed.build_serving(opts) end)
-    %{embedding: vector} = Nx.Serving.run(serving, query)
+    %{embedding: vector} = embed_query(serving, query)
 
     vector
     |> Nx.to_flat_list()
     |> search_vector(opts)
     |> Map.put(:query, query)
   end
+
+  # A supervised serving is referenced by NAME and driven with batched_run/2, which
+  # shares one loaded model across callers. An inline serving struct is run directly.
+  # Accepting both means a caller can pass Pramana.Embed.Serving.name() without caring
+  # which it got.
+  defp embed_query(serving, query) when is_atom(serving),
+    do: Nx.Serving.batched_run(serving, query)
+
+  defp embed_query(serving, query), do: Nx.Serving.run(serving, query)
 
   defp apply_filters(query, opts) do
     query

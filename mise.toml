@@ -4,5 +4,6 @@
 erlang = "29.0.5"
 elixir = "1.20.3-otp-29"
 
-[env]
-MIX_ENV = "dev"
+# No [env] MIX_ENV here, deliberately. `mix test` sets MIX_ENV=test only when it is not
+# already set, so pinning it to "dev" — even to the value that is already the default —
+# silently runs the whole suite against the dev repo, which has no SQL sandbox pool.

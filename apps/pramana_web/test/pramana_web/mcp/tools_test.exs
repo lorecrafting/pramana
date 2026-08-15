@@ -99,7 +99,7 @@ defmodule PramanaWeb.MCP.ToolsTest do
       {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什"}, %{})
       data = payload(response)
 
-      assert data["mode"] == "phrase"
+      assert data["mode"] == "hybrid"
       assert data["total"] == 1
       # The grouping is the enforcement mechanism for invariant #4, so it is asserted
       # as a SHAPE. A flat list here would be a regression even if the content is right.
@@ -118,11 +118,49 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert hit["provenance"]["composition_origin"] == "indic"
     end
 
-    test "reports which strategy produced the hits" do
-      # An :ngram hit is weaker evidence than a :phrase hit; saying so is more useful
-      # than hiding it behind a uniform result shape.
-      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什奉詔譯經"}, %{})
+    test "defaults to hybrid and reports which retrievers contributed" do
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什"}, %{})
+      data = payload(response)
+
+      assert data["mode"] == "hybrid"
+      # No embedding serving is running in tests, so hybrid degrades to lexical — and
+      # says so rather than presenting half the evidence as if it were all of it.
+      assert data["retrievers"] == ["lexical"]
+      assert is_map(data["embedding_coverage"])
+    end
+
+    test "an explicit lexical mode still works" do
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什奉詔譯經", mode: "ngram"}, %{})
       assert payload(response)["mode"] == "ngram"
+    end
+
+    test "hybrid does not leak its own mode into the lexical retriever" do
+      # `mode: :hybrid` means nothing to the lexical stage; passing it through crashed
+      # the tool with a raw CaseClauseError.
+      {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什", mode: "hybrid"}, %{})
+      refute response.isError
+    end
+
+    test "EVERY declared filter actually filters" do
+      # A declared-but-unwired parameter is invisible to the unknown-option validator:
+      # it is not an unknown key, it is a known key nobody reads. `division` shipped
+      # that way and silently returned works from other divisions.
+      {:reply, all, _} = Search.execute(%{query: "鳩摩羅什"}, %{})
+      assert payload(all)["total"] == 1
+
+      for {param, miss} <- [
+            {:origin, "japanese"},
+            {:role, "apocryphon"},
+            {:division, "疑似部"},
+            {:work_id, "T9999"},
+            {:juan, 99}
+          ] do
+        args = Map.merge(%{query: "鳩摩羅什"}, %{param => miss})
+        {:reply, response, _} = Search.execute(args, %{})
+
+        assert payload(response)["total"] == 0,
+               "#{param} did not filter — it is declared but not wired through"
+      end
     end
 
     test "provenance filters are honoured" do
@@ -133,9 +171,9 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert payload(miss)["total"] == 0
     end
 
-    test "an unknown mode falls back to auto rather than erroring" do
+    test "an unknown mode falls back to the default rather than erroring" do
       {:reply, response, _frame} = Search.execute(%{query: "鳩摩羅什", mode: "nonsense"}, %{})
-      assert payload(response)["mode"] == "phrase"
+      assert payload(response)["mode"] == "hybrid"
     end
 
     test "rejects an empty query" do

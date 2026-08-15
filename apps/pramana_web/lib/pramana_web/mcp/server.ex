@@ -13,13 +13,19 @@ defmodule PramanaWeb.MCP.Server do
   use Anubis.Server,
     name: "pramana",
     version: "0.1.0",
-    capabilities: [:tools]
+    capabilities: [:tools, :resources]
 
   component(PramanaWeb.MCP.Tools.Search)
   component(PramanaWeb.MCP.Tools.SurveyCorpus)
   component(PramanaWeb.MCP.Tools.GetPassage)
   component(PramanaWeb.MCP.Tools.GetOutline)
   component(PramanaWeb.MCP.Tools.VerifyCitation)
+
+  # Resources, not tools: guidance and inventory are things to READ about the corpus,
+  # not operations to perform on it. Exposing them teaches a model to use the
+  # provenance filters that distinguish this project, rather than defaulting past them.
+  component(PramanaWeb.MCP.Resources.Guide)
+  component(PramanaWeb.MCP.Resources.Inventory)
 
   @impl true
   def init(_client_info, frame), do: {:ok, frame}

@@ -118,8 +118,15 @@ defmodule Pramana.Retrieval.Lexical do
 
   def search(_, _), do: {:error, :bad_query}
 
+  @modes [:auto, :phrase, :ngram, :terms]
+
   defp do_search(query, opts) do
     mode = Keyword.get(opts, :mode, :auto)
+
+    unless mode in @modes do
+      raise ArgumentError,
+            "unknown lexical mode #{inspect(mode)}; expected one of #{inspect(@modes)}"
+    end
 
     case mode do
       :phrase ->

@@ -15,6 +15,8 @@ defmodule PramanaWeb.MCP.Tools.Search do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias Pramana.Embed
+  alias Pramana.Retrieval.Hybrid
   alias Pramana.Retrieval.Lexical
 
   schema do
@@ -29,9 +31,10 @@ defmodule PramanaWeb.MCP.Tools.Search do
 
     field(:mode, :string,
       description:
-        "phrase = exact substring only; ngram = character windows; " <>
-          "terms = jieba segmentation (unreliable for Buddhist vocabulary); " <>
-          "auto (default) = phrase then ngram."
+        "hybrid (default) = lexical + semantic fused by rank, the best option; " <>
+          "phrase = exact substring only; ngram = character windows; " <>
+          "semantic = meaning only; " <>
+          "terms = jieba segmentation (unreliable for Buddhist vocabulary)."
     )
 
     field(:origin, :string,
@@ -42,6 +45,12 @@ defmodule PramanaWeb.MCP.Tools.Search do
 
     field(:role, :string,
       description: "Restrict by role: root, translation, commentary, subcommentary, apocryphon."
+    )
+
+    field(:division, :string,
+      description:
+        "Restrict to one Taishō division (部): 阿含部 (Āgama), 般若部 (Prajñāpāramitā), " <>
+          "經疏部 (Chinese sūtra exegesis), 疑似部 (apocrypha), and so on."
     )
 
     field(:exclude_origin, :string, description: "Exclude a composition origin.")
@@ -57,13 +66,14 @@ defmodule PramanaWeb.MCP.Tools.Search do
         mode: mode(params[:mode]),
         origin: params[:origin],
         role: params[:role],
+        division: params[:division],
         exclude_origin: params[:exclude_origin],
         work_id: params[:work_id],
         juan: params[:juan]
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
-    case Lexical.search(params.query, opts) do
+    case dispatch(params, opts) do
       {:ok, found} ->
         {:reply, Response.json(Response.tool(), payload(found)), frame}
 
@@ -75,10 +85,31 @@ defmodule PramanaWeb.MCP.Tools.Search do
     end
   end
 
-  defp mode(nil), do: :auto
+  # Hybrid by default: it is the only mode that finds BOTH the characters you typed and
+  # passages that mean the same thing in different words. It degrades to lexical, and
+  # says so, when no embedding serving is running.
+  defp dispatch(params, opts) do
+    case mode(params[:mode]) do
+      :hybrid ->
+        Hybrid.search(params.query, Keyword.put(opts, :serving, Embed.Serving.name()))
 
-  defp mode(m) when m in ~w(auto phrase ngram terms), do: String.to_existing_atom(m)
-  defp mode(_), do: :auto
+      :semantic ->
+        Hybrid.search(
+          params.query,
+          opts |> Keyword.put(:serving, Embed.Serving.name()) |> Keyword.put(:semantic_only, true)
+        )
+
+      lexical_mode ->
+        Lexical.search(params.query, Keyword.put(opts, :mode, lexical_mode))
+    end
+  end
+
+  defp mode(nil), do: :hybrid
+
+  defp mode(m) when m in ~w(hybrid semantic auto phrase ngram terms),
+    do: String.to_existing_atom(m)
+
+  defp mode(_), do: :hybrid
 
   defp payload(found) do
     %{
@@ -86,10 +117,13 @@ defmodule PramanaWeb.MCP.Tools.Search do
       # Which corpus these hits came from. An answer that cannot name its corpus is
       # not reproducible — see docs/ARCHITECTURE.md, Stage 5.
       bake_id: Pramana.Bake.current_id(),
-      # Which strategy actually produced these hits. A caller should weigh an :ngram
-      # result less than a :phrase one — saying so is more useful than hiding it.
-      mode: found.mode,
-      search_terms: found.terms,
+      # Which strategy actually produced these hits. An :ngram result is weaker
+      # evidence than a :phrase one, and a lexical-only hybrid run is weaker than a
+      # fused one — saying so is more useful than hiding it.
+      mode: Map.get(found, :mode, "hybrid"),
+      retrievers: Map.get(found, :retrievers),
+      search_terms: Map.get(found, :terms),
+      embedding_coverage: Map.get(found, :coverage),
       total: found.total,
       groups: group_by_provenance(found.results)
     }
@@ -113,13 +147,15 @@ defmodule PramanaWeb.MCP.Tools.Search do
     |> Enum.sort_by(& &1.composition_origin)
   end
 
+  # Lexical and hybrid results have different score shapes; both carry a span, which is
+  # the part that must always be present because it is what the guard verifies.
   defp hit(r) do
     %{
       urn: r.span.urn,
       text: r.span.content,
       sha256: r.span.sha256,
-      matched: r.matched_terms,
-      score: r.score,
+      matched: Map.get(r, :matched_terms),
+      score: Map.get(r, :score) || Map.get(r, :rrf_score),
       kind: r.span.kind,
       provenance: r.span.provenance,
       has_variants: is_map(r.span.meta) and Map.has_key?(r.span.meta, "apparatus")

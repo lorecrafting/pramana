@@ -174,6 +174,23 @@ Each of these cost real time; they are recorded so they cost it only once.
 - **A scripted patch that errors leaves docs untouched while the commit still runs.**
   This bit three times. Always verify the file, and never trust an unconditional
   "patched" message.
+- **`use Anubis.Server.Component` GENERATES `name/0` from its options**, and unlike
+  `uri`/`mime_type` it is **not** `defoverridable`. A hand-written `def name` in the
+  module body compiles clean and loses to the option default (`nil` when `:uri` is also
+  omitted), so the resource lists as a nameless entry. Pass `uri:` and `name:` as
+  options. `description/0` is the opposite — optional, never generated, define it.
+- **Registering an MCP component does not advertise it.** `capabilities: [:tools]` left
+  both resources registered and unreachable: no client calls `resources/list`, so
+  nothing errors and nothing is served. Capabilities and `component/1` are two lists
+  that must agree.
+- **`[env] MIX_ENV = "dev"` in `mise.toml` broke `mix test`.** `mix test` sets
+  `MIX_ENV=test` only when it is *not already set*, so pinning it — even to the value
+  that is already the default — ran the suite against the dev repo, which has no SQL
+  sandbox pool. Removed; do not put `MIX_ENV` there.
+- **`mise` shims are not on PATH in non-interactive shells.** `mise current` reported
+  the pinned 1.20.3 while `elixir --version` was 1.19.5, so a session's builds and PLT
+  drifted off the pinned toolchain without any warning. Prefix with `mise exec --`, and
+  check `elixir --version` rather than `mise current`.
 - **`mix format` rewrites `field :x, opts` to `field(:x, opts)`.** A scripted patch
   matching the unparenthesised form silently no-ops afterwards. This bit once: the MCP
   input schema kept its old shape while `execute/2` gained new params, so the tool
@@ -190,3 +207,4 @@ Each of these cost real time; they are recorded so they cost it only once.
 | **#9 full Taishō** | **227** | — | — | **190 s / 2,471 works** | **4,729,656** |
 | #12 provenance | 257 | — | — | survey 88 ms exhaustive | 4,729,656 |
 | #11 semantic (阿含部) | 284 | — | — | query 0.3–0.5 s; embed 1.29 chunks/s | 10,138 embedded |
+| **#33 MCP resources** | **305** | — | — | hybrid search is now the MCP default | 10,138 embedded |

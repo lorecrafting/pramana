@@ -74,3 +74,32 @@ instead if staying strictly OSS matters more than filesystem speed.
 `latest` — the reproducibility discipline that governs the corpus bake should govern
 the build too. Note that mise requires `mise trust` before a project config takes
 effect; without it, the global config silently wins.
+
+### Verify the pin is actually in effect
+
+A pin that is not applied looks exactly like a pin that is, which is the whole problem.
+
+```bash
+elixir --version        # must read 1.20.3, not whatever is on PATH
+```
+
+**Check the compiler, not `mise current`.** `mise current` reports what the config
+*says*; it happily prints `1.20.3-otp-29` while a shell without the shims on `PATH`
+builds with something else. That drift is silent — the build succeeds, and only the PLT
+filename (`dialyxir_erlang-29.0.5_elixir-1.19.5.plt`) gives it away.
+
+Shims are typically absent in non-interactive shells (scripts, CI steps, tool-driven
+sessions), because activation happens in an interactive shell profile. There, prefix
+explicitly:
+
+```bash
+mise exec -- mix test
+```
+
+### Do not put `MIX_ENV` in `mise.toml`
+
+`mix test` sets `MIX_ENV=test` only when it is not *already* set. An `[env]` entry
+pinning `MIX_ENV = "dev"` — even though dev is Mix's own default, so it looks like a
+no-op — makes the whole suite run against the dev repo, which has no
+`Ecto.Adapters.SQL.Sandbox` pool. The failure surfaces as a confusing sandbox error in
+`test_helper.exs`, far from its cause.
