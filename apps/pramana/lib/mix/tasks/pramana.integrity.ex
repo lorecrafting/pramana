@@ -67,6 +67,38 @@ defmodule Mix.Tasks.Pramana.Integrity do
     %{lb: 0, ir_lines: 0, segments: 0, blank: 0, g_raw: 0, ir_gaiji: 0, meta_gaiji: 0, bad: []}
   end
 
+  # A local page-anchored text has no `<lb/>` and no `<g/>` — those are TEI concepts.
+  # Its equivalent question is the same one in different terms: did every file in
+  # `text/` become a line, and did every line with content get an addressable segment?
+  # Pretending the TEI checks apply would produce a green tick for a check that never
+  # ran.
+  defp check_text(%{source_id: "local-" <> id} = text, totals) do
+    dir = Path.join(["sources", "local", id])
+    {:ok, manifest} = Pramana.Local.Manifest.load(dir)
+    {:ok, ir} = Pramana.Local.Normalizer.normalize(dir, manifest: manifest)
+
+    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    blank = Enum.count(ir.lines, &blank?/1)
+    printed = length(ir.lines) - blank
+
+    bad =
+      [
+        length(manifest.files) != length(ir.lines) &&
+          {text.work_id, :file_lost, length(manifest.files), length(ir.lines)},
+        printed != segments && {text.work_id, :line_unaddressable, printed, segments}
+      ]
+      |> Enum.filter(& &1)
+
+    %{
+      totals
+      | lb: totals.lb + length(manifest.files),
+        ir_lines: totals.ir_lines + length(ir.lines),
+        segments: totals.segments + segments,
+        blank: totals.blank + blank,
+        bad: totals.bad ++ bad
+    }
+  end
+
   defp check_text(text, totals) do
     xml = File.read!(raw_path(text))
     {:ok, ir} = renormalize(text, xml)
@@ -153,8 +185,8 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
     integrity OK — #{text_count} text(s)
 
-      <lb/> in raw body:        #{t.lb}
-      IR lines:                 #{t.ir_lines}   (every <lb/> produced a line)
+      source anchors:           #{t.lb}   (<lb/> in TEI, page files in a local text)
+      IR lines:                 #{t.ir_lines}   (every anchor produced a line)
 
       lines with printed content: #{t.ir_lines - t.blank}
       segments in the bake:       #{t.segments}   (every one is addressable)

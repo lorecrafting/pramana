@@ -34,19 +34,27 @@ defmodule Pramana.Corpus.Loader do
     provenance = Keyword.get(opts, :provenance, %{})
 
     Repo.transaction(fn ->
-      ensure_source!(source_id)
+      ensure_source!(source_id, Keyword.get(opts, :source_definition))
       ensure_witness!(witness_id)
+      segmenter = Keyword.get(opts, :segmenter, Taisho)
       work = upsert_work!(ir, provenance)
-      text = upsert_text!(ir, work, witness_id, source_id)
-      count = replace_segments!(ir, text, source_id, witness_id)
+      text = upsert_text!(ir, work, witness_id, source_id, Keyword.get(opts, :addressing))
+      count = replace_segments!(ir, text, source_id, witness_id, segmenter)
 
       %{text: text, segments: count}
     end)
   end
 
-  defp ensure_source!(source_id) do
+  # A local text's definition comes from its manifest: local sources are open-ended by
+  # design and cannot live in the static registry.
+  defp ensure_source!(source_id, nil) do
     {:ok, definition} = Sources.fetch(source_id)
+    insert_source!(definition)
+  end
 
+  defp ensure_source!(_source_id, definition), do: insert_source!(definition)
+
+  defp insert_source!(definition) do
     Repo.insert!(
       %Source{
         id: definition.id,
@@ -108,7 +116,7 @@ defmodule Pramana.Corpus.Loader do
     )
   end
 
-  defp upsert_text!(ir, work, witness_id, source_id) do
+  defp upsert_text!(ir, work, witness_id, source_id, addressing) do
     body = IR.body(ir)
     prefix = Taisho.urn_prefix(source_id, witness_id, ir.work_id)
 
@@ -124,7 +132,11 @@ defmodule Pramana.Corpus.Loader do
         meta: %{
           "license_notice" => ir.license_notice,
           "gaiji_declared" => map_size(ir.gaiji),
-          "unanchored_apparatus" => length(ir.unanchored_apparatus)
+          "unanchored_apparatus" => length(ir.unanchored_apparatus),
+          # DECLARED by the source, not inferred from its id. Inferring it threw away
+          # the distinction between a text anchored to printed page numbers and one
+          # with no intrinsic anchor at all, reporting the weaker claim for both.
+          "addressing" => addressing
         },
         outline: %{"entries" => Enum.map(ir.outline, &stringify_entry/1)}
       },
@@ -147,10 +159,10 @@ defmodule Pramana.Corpus.Loader do
     }
   end
 
-  defp replace_segments!(ir, text, source_id, witness_id) do
+  defp replace_segments!(ir, text, source_id, witness_id, segmenter) do
     Repo.delete_all(from s in Segment, where: s.text_id == ^text.id)
 
-    {:ok, segments} = Taisho.segments(ir, source: source_id, witness: witness_id)
+    {:ok, segments} = segmenter.segments(ir, source: source_id, witness: witness_id)
     now = DateTime.utc_now()
 
     rows =

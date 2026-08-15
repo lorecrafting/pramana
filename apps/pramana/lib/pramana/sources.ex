@@ -19,7 +19,10 @@ defmodule Pramana.Sources do
   @type t :: %{
           id: String.t(),
           name: String.t(),
-          upstream_url: String.t(),
+          # nil for a locally-added text: there is no upstream to point at, and the
+          # content hash IS the pin. Map typespecs are exact, so declaring this
+          # String.t() made every caller's return type unsatisfiable.
+          upstream_url: String.t() | nil,
           repo: String.t() | nil,
           license: license()
         }
@@ -74,6 +77,46 @@ defmodule Pramana.Sources do
       :error -> {:error, :unknown_source}
     end
   end
+
+  @doc """
+  A source definition built from a local manifest rather than this registry.
+
+  Locally-added texts are open-ended by design — one per folder someone drops in — so
+  they cannot be enumerated here. The licence still has to be structured, because
+  `license_class` is what excludes a text from public surfaces, and a modern in-copyright
+  commentary is exactly the case that must be excluded.
+
+  Ids are namespaced `local-<manifest id>` so a local text can never collide with, or be
+  mistaken for, a pinned upstream source. The separator is a HYPHEN, not a colon: this id
+  becomes the source component of every URN the text produces, and a colon there is the
+  URN's own field separator — it would make every citation unparseable.
+  """
+  @spec from_manifest(Pramana.Local.Manifest.t()) :: t()
+  def from_manifest(manifest) do
+    license = manifest.license
+
+    %{
+      id: local_id(manifest.id),
+      name: manifest.title_en || manifest.title,
+      upstream_url: nil,
+      repo: nil,
+      license: %{
+        spdx: license["spdx"] || "LicenseRef-Local-Restricted",
+        class: license["class"] || "restricted",
+        commercial_use: license["commercial_use"] == true,
+        redistributable: license["redistributable"] == true,
+        notice: license["note"]
+      }
+    }
+  end
+
+  @doc "The namespaced source id for a local manifest id."
+  @spec local_id(String.t()) :: String.t()
+  def local_id(manifest_id), do: "local-" <> manifest_id
+
+  @doc "Whether a source id refers to a locally-added text."
+  @spec local?(String.t()) :: boolean()
+  def local?(id), do: String.starts_with?(id, "local-")
 
   @doc "All known source ids."
   @spec ids() :: [String.t()]

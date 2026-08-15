@@ -102,6 +102,28 @@ format: markdown
 
 ---
 
+## Addressing: three levels, not two
+
+This document originally offered `canonical` or `derived`. The first real text needed a
+middle term, and using `derived` for it would have understated what a reader can check.
+
+| value | meaning |
+|---|---|
+| `canonical` | anchored to a published digital critical edition (CBETA/Taishō) |
+| `edition_page` | anchored to a page number **printed in the physical book**, recovered by our extraction. A reader with the book can turn to it; the risk is our extraction, not the anchor |
+| `derived` | no intrinsic anchor; positions come from file structure and shift when the file changes |
+
+**Use the highest level the source actually supports.** The Huang Nianzu commentary
+prints its page numbers, so its URNs are `…@p0100`, not `…@sec12.p3`. That is the same
+rule as adopting Taishō page/register/line rather than inventing ids — invariant #2
+applies to local texts too.
+
+`edition_page` requires `citation.anchor_source`, because "a reader can turn to this
+page" is only checkable if the manifest says what the numbers are.
+
+Addressing is **declared and stored**, not inferred from the source id. Inferring it
+collapsed `edition_page` into `derived` and reported the weaker claim for both.
+
 ## The honest problem: derived URNs are only as stable as your file
 
 A Taishō citation is stable because the printed page exists and will not change.
@@ -159,7 +181,7 @@ for anyone who is not the author of this document. Two rules if it happens:
 
 ## Summary
 
-- **Now:** not possible without Elixir. Task #16 is the work.
+- **Now:** implemented. `mix pramana.local.validate` then `mix pramana.local.add`.
 - **Then:** a folder plus a manifest, `validate` then `add`.
 - **MCP: read-only, permanently.** Agents query the corpus; humans build it.
 - **GUI: eventually, to author manifests** — never to mutate the corpus directly.

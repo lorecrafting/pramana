@@ -48,3 +48,13 @@ sources.lock.local.json
 # Rust build artifacts (path differs from the pattern added earlier)
 /apps/pramana_native/native/pramana_native/target/
 /apps/pramana_native/priv/native/
+
+# Locally-added source TEXT is never committed — same rule as raw/. Most texts added
+# this way are modern and in copyright (the default licence class is `restricted`), and
+# this project publishes the pipeline, not the corpus.
+#
+# Manifests ARE committed: they are bibliographic metadata, they are what makes a bake
+# reproducible for someone who has their own copy of the text, and they contain no
+# licensed content.
+sources/local/*/text/
+sources/local/*/raw/

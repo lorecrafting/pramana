@@ -320,14 +320,16 @@ defmodule Pramana.Corpus do
       page: segment.page,
       register: segment.register,
       line: segment.line,
-      addressing: addressing(text.source_id)
+      addressing: addressing(text)
     }
   end
 
-  # Locally-added sources have no canonical page/line grammar, so their URNs cannot be
-  # checked against a printed edition. Retrieval must surface that difference rather
-  # than let a derived reference pass as a canonical one.
-  defp addressing("local" <> _), do: "derived"
+  # A source DECLARES how checkable its anchors are; only the fallback is inferred.
+  # See `Pramana.Local.Manifest` for the three levels. Inferring this from the source id
+  # collapsed `edition_page` (a page number printed in the book, which a reader can turn
+  # to) into `derived` (no intrinsic anchor at all), understating what can be verified.
+  defp addressing(%{meta: %{"addressing" => declared}}) when is_binary(declared), do: declared
+  defp addressing(%{source_id: "local" <> _}), do: "derived"
   defp addressing(_), do: "canonical"
 
   @doc "Loads a text's full body, used for offset verification."

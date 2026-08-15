@@ -44,6 +44,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   alias Pramana.Normalize
   alias Pramana.Normalize.IR
   alias Pramana.Repo
+  alias Pramana.Sources
   alias Pramana.URN
 
   @switches [sample: :integer, all: :boolean]
@@ -94,8 +95,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   # normalizer again, and require an identical body. This is what makes the bake
   # reproducible rather than merely persisted.
   defp renormalize_check(text) do
-    with {:ok, xml} <- read_raw(text),
-         {:ok, ir} <- renormalize(text, xml) do
+    with {:ok, ir} <- reproduce(text) do
       rebuilt = IR.body(ir)
 
       if rebuilt == text.body do
@@ -106,6 +106,33 @@ defmodule Mix.Tasks.Pramana.Verify do
       end
     else
       {:error, reason} -> {:renormalize_failed, text.urn_prefix, reason}
+    end
+  end
+
+  # Re-derives a text's IR from whatever its source of truth is. A CBETA text comes
+  # from pinned TEI in `raw/`; a locally-added text comes from its own `text/` directory,
+  # which the lockfile hashes the same way. Assuming every text was CBETA made this
+  # check fail on a legitimately added local source.
+  defp reproduce(text) do
+    if Sources.local?(text.source_id) do
+      reproduce_local(text)
+    else
+      with {:ok, xml} <- read_raw(text), do: renormalize(text, xml)
+    end
+  end
+
+  defp reproduce_local(text) do
+    dir = Path.join(["sources", "local", String.replace_prefix(text.source_id, "local-", "")])
+
+    with {:ok, manifest} <- load_manifest(dir) do
+      Pramana.Local.Normalizer.normalize(dir, manifest: manifest)
+    end
+  end
+
+  defp load_manifest(dir) do
+    case Pramana.Local.Manifest.load(dir) do
+      {:ok, manifest} -> {:ok, manifest}
+      {:error, errors} -> {:error, {:manifest_invalid, dir, errors}}
     end
   end
 
