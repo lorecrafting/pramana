@@ -16640,6 +16640,36 @@
       },
       "retrieved_at": "2026-08-15T18:56:42.148134Z",
       "upstream": null
+    },
+    {
+      "file_count": 2,
+      "files": [
+        {
+          "bytes": 24500846,
+          "path": "relationship/new_parallels.json",
+          "sha256": "05ec3ebdd6a493986d6cc7c0d3ceefef3f6cb23d955a2adf05de41f657de8000"
+        },
+        {
+          "bytes": 2946345,
+          "path": "structure/text_extra_info.json",
+          "sha256": "1e7e8a5eeb7aea397a609b4f54d44d29720a4f7412aef224892fc5d37d24facb"
+        }
+      ],
+      "files_sha256": "e8b58f03fe041890578192dac01b84ccf9bee5ecdb8caa40251aa0a18d6a49da",
+      "id": "sc-data",
+      "license": {
+        "class": "unknown",
+        "commercial_use": false,
+        "redistributable": false,
+        "spdx": "NOASSERTION"
+      },
+      "name": "SuttaCentral sc-data (parallels and text metadata)",
+      "pin": {
+        "files_sha256": "e8b58f03fe041890578192dac01b84ccf9bee5ecdb8caa40251aa0a18d6a49da",
+        "type": "content"
+      },
+      "retrieved_at": "2026-08-15T20:56:47.267012Z",
+      "upstream": "https://github.com/suttacentral/sc-data"
     }
   ]
 }

@@ -427,3 +427,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#36 work relations** | **444** | — | 89 commentary→root links | — | 2,472 texts |
 | **#32 variant characters** | **465** | — | 众生 0 → 5 hits when expanded | — | 6,447 variant classes |
 | **#34 glossary seed** | **483** | — | 10 rejected renderings, 1 unverified reading | — | 376 pinned terms |
+| **#18a parallels** | **511** | — | sa1 → sn22.51 from curated data | import 29 s | 407,176 parallels, 3,064 anchors |

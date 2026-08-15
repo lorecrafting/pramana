@@ -269,3 +269,50 @@ defmodule Pramana.Corpus.GlossaryTerm do
     timestamps(type: :utc_datetime_usec)
   end
 end
+
+defmodule Pramana.Corpus.TextAnchor do
+  @moduledoc """
+  A SuttaCentral text id resolved to the Taishō passage it names.
+
+  Their `volpage` — "T ii 001a06" — is the same coordinate system our URNs use, so
+  `sa1` is not merely related to something in our corpus, it *is* a passage in it.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  @primary_key {:uid, :string, autogenerate: false}
+  schema "text_anchors" do
+    field :work_id, :string
+    field :urn, :string
+    field :acronym, :string
+    field :volpage, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
+defmodule Pramana.Corpus.TextParallel do
+  @moduledoc """
+  One hand-curated parallel between two texts, at SuttaCentral's own ids.
+
+  `relation` is a claim about strength — a `full` parallel and a passing `mentions` are
+  not the same evidence — and is never flattened into "related". See `Pramana.Parallels`.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  schema "text_parallels" do
+    field :source_uid, :string
+    field :target_uid, :string
+    field :relation, :string
+    field :partial, :boolean, default: false
+    field :source_urn, :string
+    field :target_urn, :string
+    field :source_work_id, :string
+    field :target_work_id, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
