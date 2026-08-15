@@ -238,3 +238,34 @@ defmodule Pramana.Corpus.WorkRelation do
     |> check_constraint(:source_work_id, name: :work_relations_no_self_reference)
   end
 end
+
+defmodule Pramana.Corpus.GlossaryTerm do
+  @moduledoc """
+  One pinned term rendering.
+
+  `notes` is verbatim because the reasoning is the valuable part, `rejected_forms`
+  because a decision recorded is not a decision applied, and `reading_status` because a
+  reading that could not be verified must be representable rather than silently absent.
+  See `Pramana.Glossary`.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  alias Pramana.Corpus.Source
+
+  schema "glossary_terms" do
+    belongs_to :source, Source, type: :string
+
+    field :term, :string
+    field :pinyin, :string
+    field :canonical_english, :string
+    field :notes, :string
+    field :category, :string
+    field :rejected_forms, {:array, :string}, default: []
+    field :reading_status, :string, default: "not_applicable"
+    field :language_origin, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end

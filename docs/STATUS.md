@@ -92,8 +92,9 @@ until #14 resolves.
 Taishō 56–84 starts with an email to `sat at l.u-tokyo.ac.jp` — a draft is in
 `docs/sat-request-email.md`, not sent.
 
-**#36** (work relations) and **#32** (異體字 variant expansion) are done. Still unblocked:
-**#34** the Huang Nianzu glossary.
+**#32**, **#34**, **#36** and **#37** are all done. Nothing in Phase 2 remains except
+**#14**, which is waiting on SAT's reply. **Phase 3** (#18, SuttaCentral Pāli) is the
+next substantial work and brings the first redistributable content.
 
 **Phase 3 matters more than its number suggests:** SuttaCentral `bilara-data` is CC0 and
 would be the **first redistributable content in the corpus**. Until then the public
@@ -288,6 +289,20 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
   search across its 2,151 pairs would return passages using another word. Use
   `kSimplifiedVariant` / `kTraditionalVariant` / `kZVariant`. The cost is that 眞/真 is
   filed under the excluded field and is not expanded — documented, not overlooked.
+- **A keyword match inside a negation classified 元曉 as Japanese.** Its glossary note
+  reads *"Korean (Silla), **not Japanese**"*, and matching the bare word "Japanese"
+  found it inside the phrase saying it is not. Two names were misclassified in the real
+  import. Negations are now stripped before matching — but the general point is that a
+  note saying what something is **not** is evidence about what it is not, and naive
+  keyword matching reads it backwards. The source project made the identical mistake
+  with the identical name before correcting it.
+- **"A decision recorded is not a decision applied."** Borrowed verbatim from
+  `scripts_check.py` in `~/dev/huangnianzu-translation`, which found a rule sitting in
+  its glossary for *months* asserting a rendering that had already been swept out of
+  the prose — invisible because the checker only inspected the translations, never the
+  file every batch is told to treat as canonical. The same shape as this project's
+  "every declared filter must actually filter", and worth checking for wherever a rule
+  is written in one place and enforced in another.
 - **`mise trust` is path-keyed.** An early `mise install` silently no-op'd because the
   project config was untrusted, and the global config won. Renaming the project
   directory invalidated the trust again.
@@ -411,3 +426,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#17 Phase 2 gate** | **420** | — | licence filter now enforceable | import 88 → 38.7 min | 2,472 texts, 4,741,094 |
 | **#36 work relations** | **444** | — | 89 commentary→root links | — | 2,472 texts |
 | **#32 variant characters** | **465** | — | 众生 0 → 5 hits when expanded | — | 6,447 variant classes |
+| **#34 glossary seed** | **483** | — | 10 rejected renderings, 1 unverified reading | — | 376 pinned terms |
