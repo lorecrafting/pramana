@@ -12,6 +12,7 @@ defmodule Pramana.Corpus do
 
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.Provenance
   alias Pramana.Repo
   alias Pramana.URN
 
@@ -138,6 +139,17 @@ defmodule Pramana.Corpus do
            title: text.work.title,
            urn_prefix: text.urn_prefix,
            juan_count: get_in(text.work.meta, ["juan_count"]),
+           # An outline is often the FIRST thing a caller fetches about a work, so it is
+           # the moment the reader decides what kind of text this is. Without these a
+           # Japanese sectarian commentary and a Kumārajīva translation look identical
+           # here — invariant #4 applies to structure as much as to a quoted passage.
+           composition_origin: text.work.composition_origin,
+           text_role: text.work.text_role,
+           division: text.work.division,
+           division_en: text.work.division_en,
+           attributed_author: text.work.attributed_author,
+           witness: text.witness_id,
+           provenance_label: Provenance.label(text.work.composition_origin, text.work.text_role),
            entries: entries
          }}
     end

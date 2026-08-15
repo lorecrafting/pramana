@@ -16,6 +16,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
 
   alias Anubis.Server.Response
   alias Pramana.Embed
+  alias Pramana.Provenance
   alias Pramana.Reader
   alias Pramana.Retrieval.Hybrid
   alias Pramana.Retrieval.Lexical
@@ -105,12 +106,27 @@ defmodule PramanaWeb.MCP.Tools.Search do
     end
   end
 
+  # Mapped explicitly, NOT via String.to_existing_atom/1.
+  #
+  # `to_existing_atom` here made the tool crash depending on module load order: the
+  # guard admitted "phrase", and the conversion then raised because `:phrase` only
+  # enters the atom table once `Pramana.Retrieval.Lexical` is loaded — which happens in
+  # `dispatch/2`, i.e. AFTER this runs. So `mode: "phrase"` as the first search in a
+  # fresh VM raised ArgumentError, while the same call after any hybrid search
+  # succeeded. Every test passed because something always ran hybrid first.
+  #
+  # The atom table is global mutable state; a literal map is not.
+  @modes %{
+    "hybrid" => :hybrid,
+    "semantic" => :semantic,
+    "auto" => :auto,
+    "phrase" => :phrase,
+    "ngram" => :ngram,
+    "terms" => :terms
+  }
+
   defp mode(nil), do: :hybrid
-
-  defp mode(m) when m in ~w(hybrid semantic auto phrase ngram terms),
-    do: String.to_existing_atom(m)
-
-  defp mode(_), do: :hybrid
+  defp mode(m), do: Map.get(@modes, m, :hybrid)
 
   defp payload(found) do
     %{
@@ -139,13 +155,20 @@ defmodule PramanaWeb.MCP.Tools.Search do
     end)
     |> Enum.map(fn {{origin, role}, group} ->
       %{
-        composition_origin: origin || "uncatalogued",
-        text_role: role || "uncatalogued",
+        composition_origin: origin || Provenance.unattributed(),
+        text_role: role || Provenance.unattributed(),
+        # The axis values are only unmissable to a reader who already knows the
+        # vocabulary, and the reader most likely to mis-attribute is the one who does
+        # not. Saying what the bucket IS costs one line and removes the ambiguity.
+        label: Provenance.label(origin, role),
         count: length(group),
         results: Enum.map(group, &hit/1)
       }
     end)
-    |> Enum.sort_by(& &1.composition_origin)
+    # Largest bucket first, and deterministic when two tie. Alphabetical order would put
+    # "chinese" ahead of "indic" always, which quietly implies a precedence the corpus
+    # does not have.
+    |> Enum.sort_by(&{-&1.count, &1.composition_origin, &1.text_role})
   end
 
   # Lexical and hybrid results have different score shapes; both carry a span, which is

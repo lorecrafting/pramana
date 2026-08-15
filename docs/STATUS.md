@@ -215,6 +215,14 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
 
 Environment and tooling quirks. Each cost real time; recorded so they cost it only once.
 
+- **`String.to_existing_atom/1` made a tool crash by load order.** The search tool's
+  guard admitted `"phrase"`, then the conversion raised because `:phrase` enters the
+  atom table only when `Pramana.Retrieval.Lexical` loads — which happens *later* in the
+  same function. So `mode: "phrase"` as the **first** search in a fresh VM raised
+  ArgumentError while the identical call after any hybrid search succeeded, and every
+  test passed because something always ran hybrid first. The atom table is global
+  mutable state; map string→atom explicitly instead. (Same family as the
+  `function_exported?/3` entry below.)
 - **`mise trust` is path-keyed.** An early `mise install` silently no-op'd because the
   project config was untrusted, and the global config won. Renaming the project
   directory invalidated the trust again.
@@ -334,3 +342,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#33 MCP resources + reader links** | **318** | — | — | hybrid search is now the MCP default | 10,138 embedded |
 | **#13 Phase 1 gate** | **342** | — | verify --all + integrity green | **150 s / 2,471 works** | **4,740,246** |
 | **#11 embeddings, full corpus** | **354** | — | — | embed 34 min / import 88 min | **299,317 chunks, 100% embedded** |
+| **#15 provenance shape** | **377** | — | 3 origins in 3 labelled buckets | — | 299,317 chunks |
