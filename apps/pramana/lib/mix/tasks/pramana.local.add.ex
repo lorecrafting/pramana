@@ -35,12 +35,17 @@ defmodule Mix.Tasks.Pramana.Local.Add do
 
   use Mix.Task
 
+  import Ecto.Query
+
   alias Pramana.Acquire.Lockfile
   alias Pramana.Bake
   alias Pramana.Corpus.Loader
+  alias Pramana.Corpus.Work
   alias Pramana.Local.Manifest
   alias Pramana.Local.Normalizer
   alias Pramana.Normalize.IR
+  alias Pramana.Relations
+  alias Pramana.Repo
   alias Pramana.Segment.Page
   alias Pramana.Sources
 
@@ -78,9 +83,41 @@ defmodule Mix.Tasks.Pramana.Local.Add do
         segmenter: Page
       )
 
+    relation = record_relation(manifest, ir)
+
     {:ok, bake} = Bake.record(%{"source" => Sources.local_id(manifest.id), "mode" => "local_add"})
 
-    report(manifest, ir, count, bake, dir)
+    report(manifest, ir, count, bake, dir, relation)
+  end
+
+  # The manifest's `comments_on` was inert metadata until work_relations existed. The
+  # target may not be in the corpus — 夏蓮居's conflation is not ingested — so it is
+  # recorded as a reference rather than dropped: the assertion is real information even
+  # when the thing it points at has not arrived.
+  defp record_relation(%{comments_on: nil}, _ir), do: nil
+
+  defp record_relation(%{comments_on: rel} = manifest, ir) do
+    target = rel["work"]
+
+    attrs = %{
+      source_work_id: ir.work_id,
+      relation: rel["relation"] || "comments_on",
+      confidence: rel["confidence"] || "asserted",
+      method: rel["method"] || "manifest",
+      evidence: %{"note" => rel["note"], "declared_by" => "sources/local/#{manifest.id}"}
+    }
+
+    attrs =
+      if Repo.exists?(from w in Work, where: w.id == ^target) do
+        Map.put(attrs, :target_work_id, target)
+      else
+        Map.put(attrs, :target_work_ref, target)
+      end
+
+    case Relations.assert(attrs) do
+      {:ok, stored} -> stored
+      {:error, reason} -> Mix.raise("could not record comments_on: #{inspect(reason)}")
+    end
   end
 
   # Segmentation happens through the pipeline registry for upstream sources; a local
@@ -161,7 +198,7 @@ defmodule Mix.Tasks.Pramana.Local.Add do
     for f <- Enum.take(changed, 10), do: Mix.shell().info("    modified: #{f}")
   end
 
-  defp report(manifest, ir, count, bake, dir) do
+  defp report(manifest, ir, count, bake, dir, relation) do
     blank = Enum.count(ir.lines, &(&1.text == ""))
     heads = Normalizer.stripped_running_heads(dir, manifest)
 
@@ -180,6 +217,21 @@ defmodule Mix.Tasks.Pramana.Local.Add do
 
       bake_id:    #{bake.id}
       corpus:     #{bake.stats["texts"]} text(s), #{bake.stats["segments"]} segments
+    """)
+
+    report_relation(relation)
+  end
+
+  defp report_relation(nil), do: :ok
+
+  defp report_relation(relation) do
+    target = relation.target_work_id || relation.target_work_ref
+    in_corpus? = not is_nil(relation.target_work_id)
+
+    Mix.shell().info("""
+      RELATION: #{relation.relation} → #{target}
+        method #{relation.method}, confidence #{relation.confidence}
+        #{if in_corpus?, do: "target is in the corpus", else: "target NOT in the corpus yet — recorded as a reference"}
     """)
   end
 

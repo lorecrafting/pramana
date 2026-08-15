@@ -90,8 +90,28 @@ compute-bound here rather than starved — a bigger card would help, more batchi
 not. It is still **114× the 1.29 chunks/s** measured on the M1, which is the whole
 argument for renting.
 
-**The import is the slow step, not the embedding.** Each row writes a 1024-dim vector
-with HNSW index maintenance, so budget roughly an hour and run it in the background.
+**The import is the slow step, not the embedding**, and the HNSW index is why. Measured
+on the same corpus:
+
+| import path | total |
+|---|---|
+| per-row UPDATE, index maintained incrementally (original) | **88 min** |
+| batched UPDATE + `--rebuild-index` | **38.7 min** — 3 min loading, **35.8 min rebuilding the index** |
+
+So storing 299,317 vectors still costs more than computing them (34 min on the GPU), and
+`--rebuild-index` buys **2.3×**, not the order of magnitude the row-write rate suggests:
+batched writes run at ~1,800 rows/s against ~66/s, but that speedup is almost entirely
+eaten by the one-off rebuild.
+
+Two honest caveats:
+
+- **The contributions of batching and of dropping the index were not isolated.** They
+  shipped together; 2.3× is the combined, end-to-end figure, which is what you actually
+  get.
+- **`--rebuild-index` costs ~36 min regardless of how many rows you import.** It wins for
+  a full-corpus load and loses badly for a small top-up. That is why it is opt-in.
+
+Budget **~40 minutes** for a full-corpus import and run it in the background.
 
 Skip to step 4 to verify. The rest of this runbook is the SSH-to-a-rented-box
 alternative, if you would rather have a plain machine.

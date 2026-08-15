@@ -185,3 +185,56 @@ defmodule Pramana.Corpus.Chunk do
     timestamps(type: :utc_datetime_usec)
   end
 end
+
+defmodule Pramana.Corpus.WorkRelation do
+  @moduledoc """
+  A typed, directional claim that one work explains, translates or quotes another.
+
+  `method` and `confidence` are part of the claim, not metadata about it: a catalogue
+  assertion and an LLM inference are different evidence and must stay distinguishable all
+  the way into an answer (`CLAUDE.md` invariant #5). See `Pramana.Relations`.
+  """
+  use Ecto.Schema
+
+  import Ecto.Changeset
+
+  @type t :: %__MODULE__{}
+
+  alias Pramana.Corpus.Work
+
+  schema "work_relations" do
+    belongs_to :source_work, Work, type: :string
+    belongs_to :target_work, Work, type: :string
+
+    # A target that is not (yet) in the corpus. A manifest may assert that a commentary
+    # explains a work we have not ingested, and dropping the assertion until then would
+    # lose real information.
+    field :target_work_ref, :string
+
+    field :relation, :string
+    field :scope, :string, default: "whole_work"
+    field :target_urn, :string
+    field :confidence, :string, default: "asserted"
+    field :method, :string
+    field :evidence, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+
+  @fields ~w(source_work_id target_work_id target_work_ref relation scope target_urn
+             confidence method evidence)a
+
+  @doc false
+  def changeset(relation, attrs) do
+    relation
+    |> cast(attrs, @fields)
+    |> validate_required([:source_work_id, :relation, :method])
+    |> check_constraint(:relation, name: :work_relations_relation_known)
+    |> check_constraint(:scope, name: :work_relations_scope_known)
+    |> check_constraint(:confidence, name: :work_relations_confidence_known)
+    |> check_constraint(:method, name: :work_relations_method_known)
+    |> check_constraint(:target_work_id, name: :work_relations_has_target)
+    |> check_constraint(:target_urn, name: :work_relations_passage_needs_urn)
+    |> check_constraint(:source_work_id, name: :work_relations_no_self_reference)
+  end
+end

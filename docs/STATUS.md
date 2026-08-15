@@ -398,4 +398,5 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#13 Phase 1 gate** | **342** | — | verify --all + integrity green | **150 s / 2,471 works** | **4,740,246** |
 | **#11 embeddings, full corpus** | **354** | — | — | embed 34 min / import 88 min | **299,317 chunks, 100% embedded** |
 | **#15 provenance shape** | **377** | — | 3 origins in 3 labelled buckets | — | 299,317 chunks |
-| **#17 Phase 2 gate** | **420** | — | licence filter now enforceable | import 88 min → ~3 min | 2,472 texts, 4,741,094 |
+| **#17 Phase 2 gate** | **420** | — | licence filter now enforceable | import 88 → 38.7 min | 2,472 texts, 4,741,094 |
+| **#36 work relations** | **444** | — | 89 commentary→root links | — | 2,472 texts |
