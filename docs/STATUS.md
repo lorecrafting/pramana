@@ -263,6 +263,32 @@ The other four audits were clean:
 - **The bake is still reproducible from `sources.lock.json` alone** — which is what
   `verify --all` proves over all three traditions.
 
+### Is 37.5% acceptable? (recorded at the #20 gate)
+
+**No, and it is also not yet a number worth optimising against.** Both halves matter.
+
+The retrieval cases measure *pinpoint the exact anchor whose translation I just quoted*.
+Users do not do that; they type a topical question. Those are different tasks, and the
+harness measures the harder, less representative one — so the figure understates the
+experience while still being the only measurement we have.
+
+Evidence the gap is real: an ad-hoc topical query during #40 — "the cessation of
+suffering through the eightfold path" — returned SN 45.5, SN 45.139 and Dhp 275 at ranks
+1–5, all correct. The harness would score that family of query far lower, because it
+demands one specific anchor out of many near-identical formulaic ones.
+
+Note also that **Chinese 98.7% is nearly meaningless as a quality signal**: the query is
+`云何為X`, the exact string in the target passage, so the bigram index wins by
+construction. A high number is not automatically a good measurement.
+
+So the order of work is **#42 then #43**: make the metric measure the real journey, and
+only then tune. Optimising against a confounded metric is how a number climbs while the
+product gets worse.
+
+What this does *not* threaten: resolution, the citation guard, provenance labelling and
+the curated parallels are all deterministic and all at 100%. The embedding is the
+fallback path for discovery, not the spine of the system.
+
 ### Bake cost review (#20)
 
 What a full rebuild costs now, with three traditions and 5.19M segments:
