@@ -103,6 +103,19 @@ defmodule Pramana.TranslationsTest do
                ["sabbamitta"]
     end
 
+    test "a pooled rendering carries the same hash as one resolved by URN" do
+      put(%{translator_id: "sujato", text: "So I have heard."})
+
+      [pooled] = Translations.pool(@anchor)
+      {:ok, resolved} = Pramana.Corpus.resolve("#{@anchor}#tr:en/sujato")
+
+      # Verifiability must not depend on which call the caller happened to make.
+      assert pooled.sha256 == resolved.content_sha256
+
+      assert pooled.sha256 ==
+               :crypto.hash(:sha256, "So I have heard.") |> Base.encode16(case: :lower)
+    end
+
     test "computes the sha256 itself, so a stored hash always covers its text" do
       put(%{translator_id: "sujato", text: "So I have heard."})
 

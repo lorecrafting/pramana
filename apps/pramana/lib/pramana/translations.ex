@@ -468,6 +468,11 @@ defmodule Pramana.Translations do
       translator_id: t.translator_id,
       translator: t.translator_name,
       text: t.text,
+      # The SAME hash `resolve/1` returns for this rendering. Without it a caller could
+      # verify a rendering fetched by URN and not the identical one listed in a pool,
+      # which makes verifiability depend on which call you happened to make — and
+      # `CLAUDE.md` invariant #1 is that no unattributed text leaves the API.
+      sha256: t.text_sha256,
       review_state: t.review_state,
       license_class: t.license_class,
       redistributable: t.redistributable,

@@ -8,9 +8,10 @@ then run `TaskList`.
 
 ## Where we are
 
-**Phase 0 and Phase 1 complete and gated** (tags `phase-0`, `phase-1`). **Phase 2: #15
-and #16 done, #14 blocked on acquisition, gate (#17) run but deliberately NOT tagged**
-— see the gate findings below.
+**Phases 0, 1, 3 and 4 complete and gated** (tags `phase-0`, `phase-1`, `phase-4`).
+**Phase 2: #15 and #16 done, #14 blocked on acquisition, gate (#17) run but deliberately
+NOT tagged** — see the gate findings below. Phase 2 is the only unfinished phase behind
+us, and it is waiting on an email, not on code.
 
 **The whole Chinese canon is baked, verified, and embedded.** 2,471 works, **4,740,246
 segments**, 90.6M characters, pipeline v3, 150 s, zero failures. Both integrity checks
@@ -228,6 +229,69 @@ reads only from pinned sources.
 
 ---
 
+
+### Phase 3+4 gate findings (#20) — tagged `phase-4`
+
+Everything passed, and the review found one real invariant drift.
+
+| check | result |
+|---|---|
+| format / compile --warnings-as-errors / credo --strict | clean |
+| dialyzer, whole umbrella | **0 errors, and no ignore file exists** — none has ever been needed |
+| `mix deps.audit` | no known vulnerabilities |
+| `mix hex.outdated` | 2 behind, both LiveView, both blocked by constraints and deliberately deferred to Phase 8 |
+| `mix test --cover` | **662 tests**; 84.1% / 92.7% / 25% |
+| `mix pramana.verify --all` | 10,914 texts, 5,185,767 segments, byte-identical, **242s** |
+| `mix pramana.integrity` | every `<lb/>`, printed line and gaiji accounted for, **159s** |
+| `mix pramana.evals` | 200 cases, 0 stale, **87.0%** overall |
+
+**Invariant drift found and fixed: a pooled translation carried no hash.** The same
+rendering returned `content_sha256` when resolved by URN and no hash at all when listed
+in a `compare_versions` pool — so whether a caller could verify the text depended on
+which call it happened to make. Invariant #1 says no unattributed text leaves the API;
+`sha256` is now on both paths, with a test asserting they agree.
+
+The other four audits were clean:
+
+- **`pramana_web` touches the database in 0 files.** The boundary that drifted once, via
+  an MCP resource building its own aggregation, has held since.
+- **No domain logic in `priv/embed`.** The sidecar knows ids, text and hashes; it has
+  never seen a URN.
+- **No rendering is reachable as a top-level URN.** `pramana:sc.ms:mn1@1.1` resolves to
+  the Pāli; only `…#tr:en/sujato` resolves to the English, and 0 text rows are
+  addressable as renderings.
+- **The bake is still reproducible from `sources.lock.json` alone** — which is what
+  `verify --all` proves over all three traditions.
+
+### Bake cost review (#20)
+
+What a full rebuild costs now, with three traditions and 5.19M segments:
+
+| stage | time |
+|---|---|
+| CBETA normalize + segment (2,471 works) | 150 s |
+| Pāli ingest (8,442 works) | 53 s |
+| Translations into the pool (4,996 files) | ~60 s |
+| Parallels import (407,176 relations) | 29 s |
+| Chunking, whole corpus | 84 s |
+| Vector rows (source + translation) | 70 s |
+| **Embedding, 342,535 vectors on an L4** | **~40 min, ~$0.50** |
+| Vector import (no index present) | 29 s |
+| HNSW build, 342,535 vectors @ 6 GB | 395 s |
+| `verify --all` | 242 s |
+| `integrity` | 159 s |
+| **Total wall clock** | **~55 min**, of which 40 is GPU |
+
+Database: **26 GB**.
+
+**Token cost of a bake: zero.** Nothing in the pipeline calls a language model —
+normalization, segmentation, chunking, alignment and provenance are all deterministic,
+and the only model involved computes embeddings. That is not frugality, it is the
+architecture: a bake whose contents depended on a model's output could not be
+reproduced from `sources.lock.json`, and `bake_id` would be a fiction.
+
+The first LLM tokens enter at Phase 7, and they enter as a **layer** — generated
+translations in the pool, marked, never citable as source.
 
 ## Decisions taken
 

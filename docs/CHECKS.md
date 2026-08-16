@@ -73,10 +73,28 @@ a gate; it takes ~2m30s for the full Taishō.
 
 ### 4. Evals (from Phase 4 on)
 ```bash
-mix pramana.evals
+PRAMANA_EMBEDDING=1 mix pramana.evals --gate
 ```
-Recall@k and citation accuracy must not regress against the previous gate. Record
-the numbers in `docs/STATUS.md`.
+Scores the committed gold set in `evals/gold/` and fails if any case type regressed
+against `evals/baseline.json`. A ratchet, like the coverage threshold: a number that
+rises becomes the new floor; one that falls fails the gate. Record the numbers in
+`docs/STATUS.md` and the README.
+
+Three things to know before reading the output.
+
+**Run it with the embedding serving.** Without `PRAMANA_EMBEDDING=1` the harness scores
+the lexical path alone and says so. That is a real number for a smaller system and is
+not the one the README publishes. The harness found this the hard way: `Hybrid` silently
+skipped semantic retrieval for any caller that omitted `:serving`, and the first run
+scored 0/40 on cross-lingual retrieval that works.
+
+**Stale is not failure.** A case whose expected URN no longer resolves, or whose quoted
+text has changed, is reported as `stale` and excluded from the rate. After a re-bake that
+is the honest signal — *the gold set is out of date* — and counting it as a miss would
+bury it in a number that went down.
+
+**Regenerate the gold set after a re-bake** with `mix pramana.evals.derive`, and re-read
+the cases before committing. The derivation is seeded, so it is reproducible.
 
 ### 5. Docs sync
 - Does `docs/ROADMAP.md` still describe what we actually built? Amend if not.
@@ -118,29 +136,3 @@ The invariants in `CLAUDE.md` are the definition. Tests prove behavior; the chec
 architecture review proves the *shape* is still right. Both are required — a codebase
 can be fully green and still have quietly stopped being the thing it was designed to
 be.
-
-## 6. Retrieval evals
-
-```bash
-PRAMANA_EMBEDDING=1 mix pramana.evals --gate
-```
-
-Scores the committed gold set in `evals/gold/` and fails if any case type has regressed
-against `evals/baseline.json`. A ratchet, like the coverage threshold: a number that rises
-is recorded as the new floor; one that falls fails the gate.
-
-Three things to know before reading the output.
-
-**Run it with the embedding serving.** Without `PRAMANA_EMBEDDING=1` the harness scores
-the lexical path alone and says so. It is a real number for a smaller system, and it is
-not the one the README publishes. The eval harness found this the hard way: `Hybrid`
-silently skipped semantic retrieval for any caller that omitted `:serving`, and the first
-run scored 0/40 on cross-lingual retrieval that works.
-
-**Stale is not failure.** A case whose expected URN no longer resolves, or whose quoted
-text has changed, is reported as `stale` and excluded from the rate. After a re-bake that
-is the honest signal — *the gold set is out of date* — and counting it as a miss would
-bury it in a number that went down.
-
-**Regenerate the gold set after a re-bake**, with `mix pramana.evals.derive`, and re-read
-the cases before committing them. The derivation is seeded, so it is reproducible.

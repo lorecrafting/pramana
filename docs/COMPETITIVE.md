@@ -17,12 +17,34 @@ validation of the approach, not as things to differentiate from.
 
 | Gap | What we do |
 |---|---|
-| **Cross-canon alignment is only ~3,000 LLM-verified chunk pairs** — small, and embedding-derived alignment across Classical Chinese and Pāli is exactly where general multilingual models are least reliable | Deterministic alignment first: SuttaCentral's hand-curated parallels, Mahāvyutpatti, the 84000 glossary, and commentary lemma-matching. LLM only for the residual, labeled as such. Should reach an order of magnitude more pairs at higher confidence. |
-| **No public eval set.** "~98% of served answers are trustworthy" is self-asserted with no reproducible benchmark | Ship `evals/` with gold citation questions and publish recall@k and citation accuracy. Nobody in this field does this. It is the cheapest credibility available. |
+| **Cross-canon alignment is only ~3,000 LLM-verified chunk pairs** — small, and embedding-derived alignment across Classical Chinese and Pāli is exactly where general multilingual models are least reliable | **SHIPPED (#18).** 407,176 hand-curated relations imported from SuttaCentral, **24,717 resolvable at both ends** — 8× their count, from decades of comparative scholarship rather than model inference, and typed by strength (`full` / `resembling` / `sections` / `mentions` / `retells`) so a passing mention is never presented as a parallel. |
+| **No public eval set.** "~98% of served answers are trustworthy" is self-asserted with no reproducible benchmark | **SHIPPED (#19).** `evals/` holds 200 gold cases; `mix pramana.evals` scores them and the README publishes the result — including retrieval at 65.3%@10 and cross-lingual Pāli at 37.5%. Publishing the weak number is the point: it is what makes the strong ones credible. |
 | **No variant readings.** CBETA's TEI carries a full `<app>/<lem>/<rdg>` apparatus across Song/Yuan/Ming/Koryŏ witnesses; fojin appears to flatten it | Ship the apparatus. "This character differs in the Song edition" is genuinely novel in an AI tool and is what actual philologists need. |
 | **No composition-origin modeling** — 613 sources flattened into one `source` field | The multi-axis provenance model. Your Taishō 56–84 requirement isn't a feature here; it's the schema. |
 | **Master personas are a gimmick and a hallucination vector** — "answer in the voice of Nāgārjuna" invites the model to generate plausible-sounding doctrine | Replace with **doctrinal position tracking**: "how does *śūnyatā* differ across Madhyamaka, Yogācāra, and Tiantai sources?" — same appeal, grounded in retrieved passages, no voice mimicry. |
 | **Translation is underused** — generic "translate this sutra" | Terminology-consistent translation: pin a glossary (DDB / Mahāvyutpatti / 84000) per request, enforce it, and *show the chain*: 空 ← śūnyatā ← stong pa nyid. Translation with a visible, auditable term map is a different product. |
+
+### Re-checked at the Phase 3+4 gate — 2026-08-16
+
+Their public repository: **331★** (was 329), no public evaluation set, no variant
+readings, no composition-origin modelling. The positioning above still holds.
+
+Two fairness notes, because a competitive doc that flatters you is useless:
+
+- Their claim is **not** "we did nothing". The README now also cites alignment pairs at
+  `confidence ≥ 0.75` with hand-verification showing 100% precision on samples. A hand
+  check of a sample is real evidence. The difference is that a third party cannot rerun
+  it — ours is a committed gold set and a command.
+- **They still have more corpus and a shipped UI.** Nothing in this gate changes that.
+
+And what we claim here that is **not yet true**:
+
+| claim | actual state |
+|---|---|
+| Variant readings shipped | Partly. The apparatus is captured and reaches `get_passage` as `apparatus`, but there is no tool that answers "how does this line differ across witnesses". |
+| Doctrinal position tracking | Not built. Phase 7 (#27). |
+| Terminology-consistent translation with a visible term chain | Not built. The glossary is seeded (376 terms) and the pool exists; the engine is Phase 7 (#26). |
+| Quotation graph | Not built. Phase 6 (#22). |
 
 ## tripitaka-mcp (`dhamma-seeker/tripitaka-mcp`)
 
