@@ -24,7 +24,7 @@ defmodule Pramana.MixProject do
         #
         # It nests under `summary:` — `test_coverage: [threshold: n]` is silently
         # ignored and Mix keeps applying its own default of 90.
-        summary: [threshold: 83],
+        summary: [threshold: 84],
         ignore_modules: [
           ~r/^Mix\.Tasks\./,
           ~r/^Pramana\.Corpus\.[A-Z]/,

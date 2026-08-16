@@ -37,6 +37,7 @@ defmodule Pramana.Retrieval.Hybrid do
   alias Pramana.Corpus
   alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Segment
+  alias Pramana.Embed.Serving
   alias Pramana.Repo
   alias Pramana.Retrieval.Lexical
   alias Pramana.Retrieval.Semantic
@@ -133,7 +134,15 @@ defmodule Pramana.Retrieval.Hybrid do
   end
 
   defp semantic_ranking(query, opts, depth) do
-    serving = opts[:serving]
+    # Default to the serving that is actually RUNNING, rather than requiring every
+    # caller to remember to pass it. Previously a caller who omitted `:serving` got
+    # lexical-only results with a model loaded and idle in the same VM — and the only
+    # symptom was a worse answer. The eval harness (#19) found this by scoring 0/40 on
+    # English-to-Pāli retrieval that works perfectly when semantic runs.
+    #
+    # `Keyword.get/3` rather than `opts[:serving] ||`: a caller passing `serving: nil`
+    # explicitly is asking for lexical, and must keep getting it.
+    serving = Keyword.get(opts, :serving, Serving.name())
 
     cond do
       opts[:lexical_only] ->
@@ -143,7 +152,12 @@ defmodule Pramana.Retrieval.Hybrid do
         []
 
       true ->
-        case Semantic.search(query, opts |> Keyword.merge(limit: depth) |> Keyword.delete(:mode)) do
+        search_opts =
+          opts
+          |> Keyword.merge(limit: depth, serving: serving)
+          |> Keyword.delete(:mode)
+
+        case Semantic.search(query, search_opts) do
           {:ok, %{results: results}} -> Enum.map(results, & &1.urn)
           {:error, _} -> []
         end

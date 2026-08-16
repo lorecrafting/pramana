@@ -1,0 +1,41 @@
+{
+  "adversarial": {
+    "hits": 45,
+    "rate": 100.0,
+    "scored": 45
+  },
+  "by_type": {
+    "absence": {
+      "hits": 4,
+      "rate": 100.0,
+      "scored": 4
+    },
+    "provenance": {
+      "hits": 40,
+      "rate": 100.0,
+      "scored": 40
+    },
+    "quote_reject": {
+      "hits": 41,
+      "rate": 100.0,
+      "scored": 41
+    },
+    "quote_verify": {
+      "hits": 40,
+      "rate": 100.0,
+      "scored": 40
+    },
+    "retrieval": {
+      "hits": 49,
+      "rate": 65.3,
+      "scored": 75
+    }
+  },
+  "overall": {
+    "hits": 174,
+    "rate": 87.0,
+    "scored": 200
+  },
+  "stale": 0,
+  "total": 200
+}

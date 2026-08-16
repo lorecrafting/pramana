@@ -129,9 +129,16 @@ next substantial work and brings the first redistributable content.
 would be the **first redistributable content in the corpus**. Until then the public
 surface has nothing to serve — see gate finding 2.
 
-**Still unmeasured:** recall@k and citation accuracy. There is no gold set until #19
-(Phase 4), so every claim about retrieval quality here rests on spot-checks, not a
-metric.
+**Now measured** (#19). `mix pramana.evals` scores a 200-case gold set whose expected
+answers come from curated parallels, published translation anchors, the Taishō division
+table and the canon's own definitional formulae — never from a model. Published in the
+README: **overall 87.0%**, quote verification and rejection **100%**, provenance **100%**,
+retrieval@10 **65.3%** (Chinese 98.7%, Pāli cross-lingual **37.5%**).
+
+The Pāli figure is the weak axis and is published as such. Two things it taught:
+**semantic search was silently not running** for any caller that omitted `:serving`
+(fixed — the running serving now decides), and **over half the Pāli gold cases quote text
+that occurs in several places**, because this literature is formulaic by design.
 
 ### Phase 1 gate findings (#13)
 
@@ -328,31 +335,41 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     McCune-Reischauer, marked verified: the exact error the glossary exists to prevent,
     laundered into structured data. When importing from a curated source, verify what its
     empty fields mean.
-17. **A session-level `SET` does not survive a connection pool.** `Repo.query!("SET
+17. **An optional dependency that silently halves a system is worse than a required
+    one.** `Hybrid.search/2` ran semantic retrieval only when the caller passed
+    `:serving`, so any caller that forgot got lexical-only results with the model loaded
+    and idle in the same VM — no error, just worse answers. The MCP tool remembered; the
+    eval harness did not, and scored 0/40 on retrieval that works. If a component can be
+    absent, the presence of the thing itself should decide, not a caller's memory.
+18. **A benchmark's first job is to be wrong in ways you can see.** Half the Pāli gold
+    cases quoted text occurring in up to 15 places, and scoring against one arbitrary
+    copy measured luck rather than retrieval — it would have published 27.5% where 37.5%
+    was true. When ground truth might not be unique, expect the whole equivalence class.
+19. **A session-level `SET` does not survive a connection pool.** `Repo.query!("SET
     maintenance_work_mem …")` followed by `Repo.query!("CREATE INDEX …")` checks out two
     connections: the setting applies to one that then goes idle, and the build runs at
     the default. Nothing errors — the index is built correctly, just an order of
     magnitude slower, which reads as "HNSW is slow" rather than as a bug. Measured on
     342,535 vectors: **~62k tuples/min inside one transaction, ~1.6k across two
     connections — 38×.** Any setting a statement depends on must share its transaction.
-18. **A cascading delete can destroy work that cost money to produce.** `chunk_vectors`
+20. **A cascading delete can destroy work that cost money to produce.** `chunk_vectors`
     cascades from `chunks`, and re-chunking deletes a text's chunks before rebuilding
     them — so `mix pramana.chunk` would have thrown away 299,317 GPU-computed embeddings
     and reported success. The builder now refuses to rebuild a text whose chunks carry
     embedded vectors unless forced, and reports what it left alone. Before adding
     `ON DELETE CASCADE`, ask what the child rows cost to recreate.
-19. **Positional query bindings break silently when a join is added in front of them.**
+21. **Positional query bindings break silently when a join is added in front of them.**
     The provenance filters read `[_c, _t, w]` — correct while the query was
     chunk-text-work, and pointing at the wrong table the moment a vector join went first.
     A filter reading the wrong column returns a plausible result set and raises nothing.
     Named bindings (`[work: w]`) cannot drift; use them anywhere a query is composed.
-20. **A coverage figure's denominator is a claim about the corpus, not about the table
+22. **A coverage figure's denominator is a claim about the corpus, not about the table
     you happen to be counting.** Moving vectors into their own table quietly changed
     "how much of the corpus is searchable" into "how many vector rows exist", so a
     chunked-but-unembedded corpus reported `total: 0` — "nothing to search" rather than
     "nothing embedded yet" — and a corpus with translation vectors for 2% of its chunks
     would have reported 100%. The denominator stays the corpus.
-21. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
+23. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
     holds ten suttas. Taking the work id from the filename collapsed ten distinct `1.0`
     segments onto one address — caught only by a unique constraint. Derive the work id
     from what the source *cites*, and where works do not map one-to-one onto files,
@@ -532,3 +549,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#38 Pāli root text** | **539** | — | verify --all + integrity green on 10,914 texts | ingest 53 s / 8,442 works | **10,914 texts, 5,185,767 segments** |
 | **#39 translation pool + readings** | **582** | — | a generated rendering is rejected as source | translations ingest 4,996 files | **210,756 renderings, 8 translators, 4,601 shared anchors; 22 reading exceptions** |
 | **#40 multi-vector + comparison tools** | **629** | — | an English query reaches a Pāli passage and cites the Pāli | chunk 84 s; embed 43,218 in ~5 min | **342,535 vectors: 300,165 source/lzh, 27,589 source/pli, 14,781 translation/en** |
+| **#19 eval harness** | **651** | **65.3% @10** (zh 98.7 / pa 37.5) | **100%** verify + reject + provenance | evals 200 cases in 12 min | overall **87.0%**, 0 stale |
