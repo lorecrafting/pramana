@@ -428,6 +428,39 @@ reproduced from `sources.lock.json`, and `bake_id` would be a fiction.
 The first LLM tokens enter at Phase 7, and they enter as a **layer** — generated
 translations in the pool, marked, never citable as source.
 
+### Task audit, 2026-08-16
+
+Re-read every open task against what Phases 3-4 actually measured. Five changes.
+
+**#44 created, and it blocks three things.** Tradition balancing: English vectors from
+every tradition compete in one vector space with nothing keeping each reachable. Measured,
+not suspected — 1,665 gloss vectors displaced Pāli answers. It now blocks **#21**
+(Tibetan), **#26** (translation engine) and **#43 stage B**, because each of them adds
+English vectors for another tradition and would compound a known defect.
+
+**#21 Tibetan moved behind #44.** This is a reordering of the roadmap. Adding a third
+tradition before the balancing mechanism exists means debugging interference across three
+corpora instead of two, and the eval harness would report a decline it could not
+attribute. #44 is small next to a canon ingest.
+
+**#23 has an unmet prerequisite.** Translator fingerprinting is built on 異譯本 — alternate
+Chinese translations of the same Indic original — and *nothing populates them*. The
+relation vocabulary has a `parallel_of` slot and the corpus holds 90 `comments_on` and
+nothing else. `Pramana.Compare` already documents this. Step 0 is asserting those
+relations from catalogue metadata; the task now says so.
+
+**#45 created: ship the apparatus as a tool.** `docs/COMPETITIVE.md` claims variant
+readings as a differentiator, and **572,701 segments carry apparatus data** — but no tool
+answers "how does this line differ across witnesses". A reader can only receive an
+apparatus blob attached to a passage they already fetched. The claim was half-true and the
+competitive doc now says so. This is deterministic, needs no acquisition, no tokens and no
+vector space, so it is unaffected by #44 and can proceed in parallel — which makes it the
+best thing to do while the balancing question is open.
+
+**#41 dissolves into #14.** Three tasks are blocked on the same SAT reply. #41 (the
+catalogue) has no separate source and would arrive with the text if access is granted;
+#17 is a gate, not work. #14 is the only actionable item, and it is an email.
+
 ## Decisions taken
 
 | Decision | Rationale |
