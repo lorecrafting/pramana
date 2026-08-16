@@ -134,4 +134,47 @@ defmodule Pramana.CoverageTest do
       refute coverage.note =~ "Shingon"
     end
   end
+
+  describe "missing divisions" do
+    test "names the absent work-number ranges, not only the volumes" do
+      # "volumes 56-84" requires a reader to already know which volumes those are.
+      # T2185-T2731 is the thing they can act on, and the division table settles it
+      # without a catalogue of texts we do not hold.
+      divisions = Coverage.taisho().missing_divisions
+
+      assert Enum.any?(divisions, &(&1.work_numbers == "T2185\u2013T2700"))
+      assert Enum.any?(divisions, &(&1.work_numbers == "T2701\u2013T2731"))
+    end
+
+    test "classifies them, because origin is what makes the gap matter" do
+      # An absence of JAPANESE-composed material is the specific thing a reader must not
+      # mistake for the tradition being silent, so the classification travels with the
+      # range. Asserted on the two Japanese divisions by name rather than over the whole
+      # list: in an EMPTY test corpus every division is missing, which is correct
+      # behaviour and would make a blanket assertion pass for the wrong reason.
+      japanese =
+        Coverage.taisho().missing_divisions
+        |> Enum.filter(&(&1.work_numbers in ["T2185\u2013T2700", "T2701\u2013T2731"]))
+
+      assert length(japanese) == 2
+      assert Enum.all?(japanese, &(&1.composition_origin == "japanese"))
+      assert Enum.sum(Enum.map(japanese, & &1.work_number_count)) == 547
+    end
+
+    test "a division whose volumes are all present is not reported missing" do
+      # Seed a text in volume 1 and the Āgama division stops being missing, while the
+      # Japanese ones stay — the report is computed, not asserted.
+      load!("T0001", 1, "0001")
+      load!("T0150", 2, "0150")
+
+      divisions = Coverage.taisho().missing_divisions
+
+      refute Enum.any?(divisions, &(&1.volumes == "1-2"))
+      assert Enum.any?(divisions, &(&1.work_numbers == "T2185\u2013T2700"))
+    end
+
+    test "the caveat names the work numbers a reader would search for" do
+      assert Coverage.caveat() =~ "T2185\u2013T2731"
+    end
+  end
 end

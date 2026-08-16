@@ -28,6 +28,7 @@ defmodule Pramana.Coverage do
 
   alias Pramana.Corpus.Text
   alias Pramana.Repo
+  alias Pramana.Taisho.Divisions
 
   @taisho_volumes 1..85
   @japanese_delta 56..84
@@ -56,9 +57,69 @@ defmodule Pramana.Coverage do
       missing: missing,
       missing_ranges: format_ranges(missing),
       japanese_delta_missing: japanese_delta_missing?(missing),
+      # What is missing stated in WORK NUMBERS, not only volumes. A reader asking "do you
+      # have Nichiren's writings" is asking about texts, and "volumes 56–84" requires them
+      # to already know which volumes those are. The division table settles this without
+      # any new acquisition: it records which Taishō number ranges fall in the Japanese
+      # sections and how each is classified.
+      missing_divisions: missing_divisions(missing),
       note: note(missing)
     }
   end
+
+  # The divisions whose entire work-number range sits in volumes we do not hold.
+  #
+  # This is the honest half of what a catalogue would give us. We can say *which
+  # divisions* are absent, their number ranges, and how the edition classifies them —
+  # because the Taishō's own division table is data we already have. What we cannot say
+  # is which individual works exist, or their titles and authors: that needs a catalogue
+  # of volumes 56–84, and no openly-licensed machine-readable one exists (checked at the
+  # #20 gate — CBETA's own catalogue stops at 55, and SAT publishes no bulk metadata).
+  #
+  # Stating the range without the works is not a half-measure; it is the difference
+  # between "something is missing" and "T2185–T2731, the Japanese sub-commentaries, are
+  # missing", which is a question a reader can act on.
+  defp missing_divisions(missing_volumes) do
+    volumes = MapSet.new(missing_volumes)
+
+    Divisions.all()
+    |> Enum.filter(fn division ->
+      division.volumes
+      |> volume_numbers()
+      |> case do
+        [] -> false
+        vols -> Enum.all?(vols, &MapSet.member?(volumes, &1))
+      end
+    end)
+    |> Enum.map(fn division ->
+      %{
+        division: division.name,
+        division_en: division.name_en,
+        volumes: division.volumes,
+        work_numbers: "T#{pad(division.first)}–T#{pad(division.last)}",
+        work_number_count: division.last - division.first + 1,
+        composition_origin: division.composition_origin,
+        text_role: division.text_role
+      }
+    end)
+  end
+
+  # "56-83" or "84" -> the integers it covers.
+  defp volume_numbers(spec) when is_binary(spec) do
+    case String.split(spec, "-") do
+      [one] ->
+        one |> Integer.parse() |> then(fn {n, _} -> [n] end)
+
+      [from, to] ->
+        with {a, _} <- Integer.parse(from), {b, _} <- Integer.parse(to), do: Enum.to_list(a..b)
+    end
+  rescue
+    _ -> []
+  end
+
+  defp volume_numbers(_), do: []
+
+  defp pad(n), do: String.pad_leading(Integer.to_string(n), 4, "0")
 
   @doc """
   A one-line warning for callers that must not mistake absence for silence, or `nil`.
@@ -89,7 +150,8 @@ defmodule Pramana.Coverage do
   end
 
   defp japanese_caveat do
-    "Taishō volumes 56–84 are NOT loaded. Those volumes are the Japanese-composed " <>
+    "Taishō volumes 56–84 (work numbers T2185–T2731, 547 of them) are NOT loaded. " <>
+      "Those volumes are the Japanese-composed " <>
       "sectarian corpus (Shingon, Tendai, Nichiren, Zen); CBETA excludes them and only " <>
       "SAT publishes them. An absence of Japanese-composed results therefore means the " <>
       "material is not in this bake — it does NOT mean the tradition is silent."

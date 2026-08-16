@@ -263,6 +263,33 @@ The other four audits were clean:
 - **The bake is still reproducible from `sources.lock.json` alone** — which is what
   `verify --all` proves over all three traditions.
 
+### The T56–84 catalogue is blocked too (#41)
+
+The plan was to ingest the *catalogue* for Taishō 56–84 — work numbers, titles, authors —
+since bibliographic facts are not the text and carry none of the licensing risk that
+blocks #14. **There is no source for it.** Checked at this gate:
+
+- SAT publishes no bulk metadata, API or downloadable index — only a browse interface.
+- **CBETA's own catalogue stops at volume 55** as well, for the same reason its texts do.
+- No openly-licensed machine-readable Taishō catalogue covering 56–84 was findable.
+
+Two things were deliberately **not** done. Scraping SAT's browse interface, because we
+have an access request pending with them and going around it is both discourteous and
+pointless if they say yes. And hand-transcribing ~547 entries from a printed catalogue,
+because a mistyped title is a fabricated bibliographic fact, which is the category of
+error this project exists to refuse.
+
+**What was delivered instead**, from data already held: `Pramana.Coverage` now reports
+the gap in **work numbers** rather than only volumes, using the Taishō's own division
+table —
+
+    T2185–T2700  續經疏部 (Japanese sub-commentaries)  516 work numbers  japanese/commentary
+    T2701–T2731  悉曇部 (Siddhaṃ script)                31 work numbers  japanese/treatise
+
+"Volumes 56–84 are missing" requires a reader to already know which volumes those are.
+"T2185–T2731, 547 Japanese-composed works, not held" is a statement they can act on, and
+it needed no acquisition and no guessing.
+
 ### Is 37.5% acceptable? (recorded at the #20 gate)
 
 **No, and it is also not yet a number worth optimising against.** Both halves matter.
