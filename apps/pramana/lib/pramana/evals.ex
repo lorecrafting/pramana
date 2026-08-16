@@ -39,11 +39,15 @@ defmodule Pramana.Evals do
   buried in a number that went down.
   """
 
+  import Ecto.Query
+
   alias Pramana.Corpus
+  alias Pramana.Corpus.Segment
   alias Pramana.Embed.Serving
   alias Pramana.Evals.Case
   alias Pramana.Evals.Score
   alias Pramana.Guard
+  alias Pramana.Repo
   alias Pramana.Retrieval.Hybrid
   alias Pramana.URN
 
@@ -110,6 +114,15 @@ defmodule Pramana.Evals do
   # there. Checked against the corpus, not against the harness's memory of it.
   defp stale_reason(%Case{type: :absence}), do: nil
 
+  # A topical case is stale when its locator term has left the corpus entirely — then it
+  # is not a question this bake can be asked, and scoring it as a miss would blame the
+  # retriever for an ingest change.
+  defp stale_reason(%Case{type: :topical} = kase) do
+    if Enum.any?(kase.expect_contains, &term_present?/1),
+      do: nil,
+      else: {:no_locator_term_in_corpus, kase.expect_contains}
+  end
+
   defp stale_reason(%Case{expect_urns: []} = kase) do
     if kase.type in [:quote_reject], do: nil, else: {:no_expected_urns, kase.id}
   end
@@ -134,6 +147,10 @@ defmodule Pramana.Evals do
     end
   end
 
+  defp term_present?(term) do
+    Repo.exists?(from s in Segment, where: like(s.content, ^"%#{term}%"))
+  end
+
   defp quote_present(%Case{quote: nil}, _span, _urn), do: nil
 
   defp quote_present(%Case{quote: quoted}, span, urn) do
@@ -151,6 +168,28 @@ defmodule Pramana.Evals do
 
     cond do
       rank == nil -> {:miss, %{retrieved: Enum.take(hits, 3)}}
+      rank <= kase.k -> {:hit, %{rank: rank, matched_via: matched_via(hits, rank)}}
+      true -> {:miss, %{rank: rank, beyond_k: kase.k}}
+    end
+  end
+
+  # Did a topical question return a passage that genuinely discusses the topic?
+  #
+  # This is the question users actually ask, and it is scored differently on purpose. A
+  # derived `retrieval` case asks "did you find the one anchor whose translation I
+  # quoted"; this asks "did you find something that talks about this". The second is
+  # easier — which is the point. Measuring the harder task and calling the result a
+  # user-experience number is how a benchmark misleads.
+  defp evaluate(%Case{type: :topical} = kase, opts) do
+    hits = search(kase, opts)
+
+    rank =
+      hits
+      |> Enum.with_index(1)
+      |> Enum.find_value(fn {hit, i} -> if mentions?(hit, kase.expect_contains), do: i end)
+
+    cond do
+      rank == nil -> {:miss, %{retrieved: hits |> Enum.take(3) |> Enum.map(& &1.urn)}}
       rank <= kase.k -> {:hit, %{rank: rank, matched_via: matched_via(hits, rank)}}
       true -> {:miss, %{rank: rank, beyond_k: kase.k}}
     end
@@ -205,6 +244,20 @@ defmodule Pramana.Evals do
       forbidden != [] -> {:miss, %{returned_forbidden: Enum.map(forbidden, & &1.urn)}}
       kase.expect_empty and hits != [] -> {:miss, %{expected_empty: length(hits)}}
       true -> {:hit, %{returned: length(hits)}}
+    end
+  end
+
+  defp mentions?(hit, terms) do
+    text = hit_text(hit)
+    Enum.any?(terms, &String.contains?(text, &1))
+  end
+
+  # A hybrid hit carries its span; a chunk hit carries content directly.
+  defp hit_text(hit) do
+    cond do
+      is_binary(Map.get(hit, :content)) -> hit.content
+      is_map(Map.get(hit, :span)) and is_binary(hit.span[:content]) -> hit.span.content
+      true -> ""
     end
   end
 

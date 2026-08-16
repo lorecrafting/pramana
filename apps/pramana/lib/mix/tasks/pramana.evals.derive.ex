@@ -70,6 +70,7 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
       {"retrieval_definition.jsonl", definition_cases(per_type)},
       {"citation_guard.jsonl", guard_cases(per_type)},
       {"provenance.jsonl", provenance_cases(per_type)},
+      {"topical.jsonl", topical_cases()},
       {"absence.jsonl", absence_cases()}
     ]
 
@@ -151,6 +152,102 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
     |> case do
       [] -> [urn]
       urns -> urns
+    end
+  end
+
+  # ---- topical questions, hand-written and term-verified ----
+  #
+  # The questions come from `priv/evals/topical_questions.exs` because a person has to
+  # write them: the whole point is to measure what someone actually types, and a derived
+  # query is by construction not that. What is NOT hand-written is whether a question is
+  # answerable — each names a term in the canon's own vocabulary, and that term is checked
+  # against the corpus here.
+  #
+  # A term is rejected on either side of a range. Absent, and the question cannot be
+  # answered by this bake. Too common, and accepting any passage containing it measures
+  # nothing: 涅槃 occurs in 49,397 segments, so a case built on it would pass on almost
+  # any retrieval at all. Rejected terms are reported, never silently dropped.
+  @max_term_segments 2_500
+
+  defp topical_cases do
+    questions =
+      :pramana
+      |> Application.app_dir("priv/evals/topical_questions.exs")
+      |> Code.eval_file()
+      |> elem(0)
+
+    groups = [
+      {questions[:pali], "pali", "pli", "English question, Pāli passage"},
+      {questions[:chinese], "chinese", "lzh", "English question, Chinese passage"},
+      {questions[:chinese_native], "chinese-native", "lzh", "Chinese question, Chinese passage"}
+    ]
+
+    {cases, rejected} =
+      for {list, tradition, lang, description} <- groups,
+          {question, term} <- list,
+          reduce: {[], []} do
+        {kept, rejected} ->
+          case classify_term(term, lang) do
+            {:ok, count} ->
+              {[topical_case(question, term, tradition, lang, description, count) | kept],
+               rejected}
+
+            {:rejected, reason, count} ->
+              {kept, [{term, reason, count} | rejected]}
+          end
+      end
+
+    report_rejected(rejected)
+
+    cases
+    |> Enum.reverse()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {kase, i} -> %{kase | id: "top-#{pad(i)}"} end)
+  end
+
+  defp classify_term(term, lang) do
+    source = if lang == "pli", do: "sc", else: "cbeta"
+
+    count =
+      Repo.aggregate(
+        from(s in Segment,
+          join: t in Text,
+          on: t.id == s.text_id,
+          where: t.source_id == ^source and like(s.content, ^"%#{term}%")
+        ),
+        :count
+      )
+
+    cond do
+      count == 0 -> {:rejected, :absent_from_corpus, count}
+      count > @max_term_segments -> {:rejected, :too_common_to_measure, count}
+      true -> {:ok, count}
+    end
+  end
+
+  defp topical_case(question, term, tradition, _lang, description, count) do
+    %{
+      id: nil,
+      type: "topical",
+      query: question,
+      expect_contains: [term],
+      k: 10,
+      tradition: tradition,
+      search_opts: %{},
+      source:
+        "hand-written question; ground truth is the canon's own term #{term}, which " <>
+          "occurs in #{count} segment(s). Correct means: a returned passage contains it.",
+      note: description
+    }
+  end
+
+  defp report_rejected([]), do: :ok
+
+  defp report_rejected(rejected) do
+    Mix.shell().info("\n  topical terms rejected (not committed as cases):")
+
+    for {term, reason, count} <- Enum.reverse(rejected) do
+      Mix.shell().info("    #{term}: #{reason} (#{count} segments)")
     end
   end
 

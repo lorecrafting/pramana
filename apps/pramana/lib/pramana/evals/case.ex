@@ -12,7 +12,8 @@ defmodule Pramana.Evals.Case do
   parallels.
   """
 
-  @type type :: :retrieval | :quote_verify | :quote_reject | :provenance | :absence
+  @type type ::
+          :retrieval | :topical | :quote_verify | :quote_reject | :provenance | :absence
 
   @type t :: %__MODULE__{
           id: String.t(),
@@ -21,6 +22,7 @@ defmodule Pramana.Evals.Case do
           urn: String.t() | nil,
           quote: String.t() | nil,
           expect_urns: [String.t()],
+          expect_contains: [String.t()],
           expect_provenance: map(),
           forbid_works: [String.t()],
           expect_empty: boolean(),
@@ -44,6 +46,7 @@ defmodule Pramana.Evals.Case do
     :note,
     :origin,
     expect_urns: [],
+    expect_contains: [],
     expect_provenance: %{},
     forbid_works: [],
     expect_empty: false,
@@ -57,6 +60,7 @@ defmodule Pramana.Evals.Case do
   # happen rather than a validation.
   @type_map %{
     "retrieval" => :retrieval,
+    "topical" => :topical,
     "quote_verify" => :quote_verify,
     "quote_reject" => :quote_reject,
     "provenance" => :provenance,
@@ -101,6 +105,12 @@ defmodule Pramana.Evals.Case do
       urn: data["urn"],
       quote: data["quote"],
       expect_urns: List.wrap(data["expect_urns"] || data["expect_urn"]),
+      # A topical case asserts that a returned passage CONTAINS this term, rather than
+      # naming anchors. "Where does the canon discuss the four noble truths" has hundreds
+      # of correct answers; listing them all would be unwieldy and listing one would be
+      # arbitrary. The term is the ground truth, and a reader can check it by searching
+      # for the same string.
+      expect_contains: List.wrap(data["expect_contains"]),
       expect_provenance: atomize(data["expect_provenance"] || %{}),
       forbid_works: List.wrap(data["forbid_works"] || []),
       expect_empty: data["expect_empty"] == true,

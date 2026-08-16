@@ -39,7 +39,7 @@ Nobody in this field publishes retrieval numbers. The nearest comparable project
 "~98% of served answers are trustworthy" with no reproducible benchmark. So here is ours,
 produced by `mix pramana.evals` over a 200-case gold set committed in [`evals/`](evals/).
 
-**200 cases · 0 stale · overall 87.0%**
+**240 cases · 0 stale · overall 81.7%**
 
 | what is measured | cases | result |
 |---|---|---|
@@ -47,10 +47,14 @@ produced by `mix pramana.evals` over a 200-case gold set committed in [`evals/`]
 | **Quote rejection** — the guard refuses altered text and fabricated URNs | 41 | **100%** |
 | **Provenance labelling** — origin and role match the Taishō's own catalogue | 40 | **100%** |
 | **Absence** — the system returns nothing where it holds nothing | 4 | **100%** |
-| **Retrieval @10** — a query returns the passage scholarship points at | 75 | **65.3%** (mean rank 2.8) |
-| ↳ Chinese | 75 | 98.7% (mean rank 2.18) |
-| ↳ Pāli, cross-lingual | 40 | **37.5%** (mean rank 4.3) |
 | **Adversarial subset** | 45 | **100%** |
+| **Retrieval @10** — find the one anchor whose text was quoted | 75 | **65.3%** (mean rank 2.8) |
+| ↳ Chinese | 35 | 97.1% |
+| ↳ Pāli, English query | 40 | 37.5% |
+| **Topical @10** — a natural question returns a passage that discusses it | 40 | **55.0%** (mean rank 2.0) |
+| ↳ Chinese question → Chinese passage | 12 | **100%** (mean rank 1.25) |
+| ↳ English question → Pāli passage | 16 | 62.5% |
+| ↳ English question → Chinese passage | 12 | **0%** |
 
 Reproduce with:
 
@@ -58,32 +62,51 @@ Reproduce with:
 PRAMANA_EMBEDDING=1 mix pramana.evals
 ```
 
+### The finding that matters
+
+The last three rows are the same kind of question asked three ways, and they isolate a
+single failure. **Chinese retrieval is not broken — cross-lingual retrieval into Chinese
+is.** Ask in Chinese and the corpus answers perfectly; ask the identical question in
+English and it answers not at all.
+
+The reason is structural, not a tuning problem. Phase 3 built a second vector per chunk
+holding an English rendering, which is why an English question reaches Pāli at 62.5%.
+**The Chinese canon has no such layer** — no English translation exists for it in this
+corpus — so an English query must cross into Literary Chinese inside BGE-M3's own
+multilingual space, which `Pramana.Retrieval.Semantic` has said from the start is
+unproven on this material. Now it is measured: it does not work.
+
+That makes generating an English gloss layer for Chinese chunks the highest-value
+retrieval work available, ahead of any parameter tuning.
+
 ### What these numbers do not say
 
 Publishing a benchmark obliges you to publish its limits.
 
-- **The retrieval queries are not paraphrases.** They are a translator's own English, or
-  the canon's own definitional formula (`云何為X`). That tests whether the pipeline
-  connects known text to the right anchor among 327,754 chunks — a real test, and an
-  easier one than a question a person would actually type. Hand-written questions belong
-  alongside these; they are not here yet.
-- **Cross-lingual retrieval into Pāli is the weak axis, at 37.5%.** It is published
-  because it is true. The likely cause is chunk granularity: a query quoting one sentence
-  is matched against a vector covering a ~20-sentence window, and the signal dilutes.
-  Related: 23.6% of English translation vectors exceed the model's 320-token window and
-  are truncated (`docs/EMBEDDING.md`).
+- **The two retrieval rows measure different tasks.** `retrieval` asks the system to find
+  the one anchor whose exact text was quoted; `topical` asks whether a natural question
+  returns a passage that genuinely discusses the topic. The second is easier and is what
+  users actually do. Reporting only the first would understate the experience; reporting
+  only the second would flatter it.
+- **Topical ground truth is a term, not an anchor.** A case passes when a returned passage
+  contains the canon's own term for the topic — `satipaṭṭhān`, `四念處`. Terms occurring
+  in more than 2,500 segments are rejected at derivation as too common to measure
+  anything; `涅槃` at 49,397 would have passed on almost any retrieval at all.
+- **The derived retrieval queries are not paraphrases.** They are a translator's own
+  English, or the canon's own definitional formula. Hand-written paraphrase questions are
+  the topical set; the two are scored separately and never averaged.
 - **Mean ranks vary slightly between runs.** Approximate nearest-neighbour search with
-  `relaxed_order` does not return results in a fixed order, so mean rank moves by ~0.05
-  run to run. The pass rates have been stable across runs; the ranks are quoted to one
-  decimal for that reason.
+  `relaxed_order` does not return a fixed order, so mean rank moves by ~0.05 run to run.
+  Pass rates have been stable.
 - **No single headline figure is meaningful.** Guard pass rate and retrieval recall
-  measure different things; averaging them produces a number that sounds like an accuracy
-  and is not one. The scorecard reports per type, always.
-- **Over half the Pāli gold cases (21 of 40) quote text that occurs in more than one
-  place.** This literature was composed to be memorised, so stock passages recur verbatim —
-  `sn12.1@3.1` appears 15 times. Scoring against a single arbitrary copy measured luck, so
-  a case expects **every** byte-identical location. Fixing that moved Pāli from 27.5% to
-  37.5%; the earlier figure was a flaw in the gold set, not in the retriever.
+  measure different things. The scorecard reports per type, and crossed with tradition,
+  because that cross-tab is where the 100%/0% split above became visible at all — both
+  margins hide it.
+- **Over half the Pāli `retrieval` cases (21 of 40) quote text that occurs in more than
+  one place.** This literature was composed to be memorised, so stock passages recur
+  verbatim — `sn12.1@3.1` appears 15 times. A case therefore expects **every**
+  byte-identical location; scoring against one arbitrary copy measured luck and would
+  have published 27.5% where 37.5% is true.
 
 ### The gate
 

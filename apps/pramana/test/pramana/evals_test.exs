@@ -9,6 +9,8 @@ defmodule Pramana.EvalsTest do
   """
   use Pramana.DataCase, async: false
 
+  import Ecto.Query
+
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
@@ -66,6 +68,23 @@ defmodule Pramana.EvalsTest do
     })
 
     :ok
+  end
+
+  defp seed_segment!(urn, content, ordinal) do
+    text_id = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+
+    Repo.insert!(%Segment{
+      text_id: text_id,
+      urn: urn,
+      ordinal: ordinal,
+      content: content,
+      content_sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+      char_start: 0,
+      char_end: String.length(content),
+      byte_start: 0,
+      byte_end: byte_size(content),
+      meta: %{}
+    })
   end
 
   defp gold(attrs) do
@@ -466,6 +485,98 @@ defmodule Pramana.EvalsTest do
     test "an empty directory is an error, not an empty pass", %{tmp_dir: dir} do
       # A scorecard over zero cases would report 100% of nothing.
       assert {:error, {:no_gold_set, _}} = Evals.load(dir)
+    end
+  end
+
+  describe "topical cases" do
+    test "a passage containing the term is a hit, whatever its URN" do
+      # Topical ground truth is a TERM, not an anchor: "where does the canon discuss X"
+      # has hundreds of correct answers, and naming one would be arbitrary.
+      kase =
+        gold(%{
+          id: "t-1",
+          type: "topical",
+          query: @content,
+          expect_contains: ["世尊"],
+          k: 10,
+          search_opts: %{"lexical_only" => true}
+        })
+
+      assert Evals.run([kase]).overall.hits == 1
+    end
+
+    test "a passage that does not mention the term is a miss" do
+      # The term must EXIST in the corpus, or the case is stale rather than failed — so
+      # a second passage carries it, and the query steers retrieval to the first.
+      seed_segment!("pramana:cbeta.T:T0001_001@p0001a02", "涅槃寂靜甚深微妙", 1)
+
+      kase =
+        gold(%{
+          id: "t-2",
+          type: "topical",
+          query: @content,
+          expect_contains: ["涅槃"],
+          k: 1,
+          search_opts: %{"lexical_only" => true}
+        })
+
+      assert Evals.run([kase]).overall.misses == 1
+    end
+
+    test "a term absent from the corpus is stale, not a retrieval failure" do
+      # The question is unanswerable by this bake; blaming the retriever would hide an
+      # ingest change behind a number that went down.
+      kase =
+        gold(%{
+          id: "t-3",
+          type: "topical",
+          query: "anything",
+          expect_contains: ["量子力學"],
+          search_opts: %{"lexical_only" => true}
+        })
+
+      scorecard = Evals.run([kase])
+
+      assert scorecard.overall.stale == 1
+      assert scorecard.overall.misses == 0
+    end
+
+    test "the scorecard crosses type with tradition, where the interesting cells live" do
+      cases = [
+        gold(%{
+          id: "t-4",
+          type: "topical",
+          query: @content,
+          expect_contains: ["世尊"],
+          tradition: "chinese-native",
+          search_opts: %{"lexical_only" => true}
+        }),
+        gold(%{
+          id: "t-5",
+          type: "topical",
+          query: "a question in English about a Chinese passage",
+          expect_contains: ["世尊"],
+          tradition: "chinese",
+          search_opts: %{"lexical_only" => true}
+        })
+      ]
+
+      scorecard = Evals.run(cases)
+      cross = scorecard.by_type_tradition
+
+      # The cross-tab must survive into both the human report and the machine map, or a
+      # published number and a gated number could disagree.
+      report = Score.render(scorecard)
+      assert report =~ "BY CASE TYPE x TRADITION"
+      assert report =~ "topical / chinese-native"
+
+      assert Score.to_map(scorecard)["by_type_tradition"]["topical/chinese-native"]["rate"] ==
+               100.0
+
+      # Both margins would average these together and hide the difference — which is
+      # exactly how a 100%/0% split stayed invisible until the cross-tab existed.
+      assert cross[{:topical, "chinese-native"}].rate == 100.0
+      assert cross[{:topical, "chinese"}].scored == 1
     end
   end
 end

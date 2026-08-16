@@ -134,7 +134,8 @@ surface has nothing to serve — see gate finding 2.
 answers come from curated parallels, published translation anchors, the Taishō division
 table and the canon's own definitional formulae — never from a model. Published in the
 README: **overall 87.0%**, quote verification and rejection **100%**, provenance **100%**,
-retrieval@10 **65.3%** (Chinese 98.7%, Pāli cross-lingual **37.5%**).
+retrieval@10 **65.3%** (Chinese 97.1%, Pāli cross-lingual **37.5%**), and topical
+**55.0%** — which #42 then split into the finding that matters, below.
 
 The Pāli figure is the weak axis and is published as such. Two things it taught:
 **semantic search was silently not running** for any caller that omitted `:serving`
@@ -290,31 +291,40 @@ table —
 "T2185–T2731, 547 Japanese-composed works, not held" is a statement they can act on, and
 it needed no acquisition and no guessing.
 
-### Is 37.5% acceptable? (recorded at the #20 gate)
+### What the topical questions found (#42) — cross-lingual into Chinese is 0%
 
-**No, and it is also not yet a number worth optimising against.** Both halves matter.
+The #20 gate asked whether 37.5% was acceptable and answered: not yet a number worth
+optimising, because the harness measured *pinpoint the anchor whose translation I quoted*
+while users ask topical questions. #42 added 40 hand-written topical questions with
+term-verified ground truth, and the answer turned out to be more specific than expected.
 
-The retrieval cases measure *pinpoint the exact anchor whose translation I just quoted*.
-Users do not do that; they type a topical question. Those are different tasks, and the
-harness measures the harder, less representative one — so the figure understates the
-experience while still being the only measurement we have.
+    topical / chinese-native   100.0%  (12/12)  mean rank 1.25
+    topical / pali              62.5%  (10/16)  English query, has translation vectors
+    topical / chinese            0.0%  (0/12)   English query, NO translation vectors
 
-Evidence the gap is real: an ad-hoc topical query during #40 — "the cessation of
-suffering through the eightfold path" — returned SN 45.5, SN 45.139 and Dhp 275 at ranks
-1–5, all correct. The harness would score that family of query far lower, because it
-demands one specific anchor out of many near-identical formulaic ones.
+**Same twelve questions, same corpus; only the query language differs.** Chinese
+retrieval is not broken — cross-lingual retrieval *into* Chinese is. Ask in Chinese and
+the corpus answers perfectly at rank 1.25; ask the identical question in English and it
+answers not at all.
 
-Note also that **Chinese 98.7% is nearly meaningless as a quality signal**: the query is
-`云何為X`, the exact string in the target passage, so the bigram index wins by
-construction. A high number is not automatically a good measurement.
+This is a missing-layer problem rather than a tuning problem, and the contrast proves it:
+Phase 3 gave Pāli chunks an English rendering to match against, which is exactly why the
+English→Pāli row works. The Chinese canon has no English translation in this corpus, so
+an English query has to cross inside BGE-M3's own multilingual space —
+`Pramana.Retrieval.Semantic` has carried the admission that this was unproven on Literary
+Chinese since Phase 1. It is now measured, and it does not work.
 
-So the order of work is **#42 then #43**: make the metric measure the real journey, and
-only then tune. Optimising against a confounded metric is how a number climbs while the
-product gets worse.
+So the highest-value retrieval work is **an English gloss layer for Chinese chunks**
+(#43), ahead of any parameter tuning. The two earlier hypotheses — chunk granularity and
+the 320-token truncation — are demoted to secondary; they may not be the binding
+constraint at all.
 
-What this does *not* threaten: resolution, the citation guard, provenance labelling and
-the curated parallels are all deterministic and all at 100%. The embedding is the
-fallback path for discovery, not the spine of the system.
+**Two errors in the previously published table, corrected here.** The README's
+"↳ Chinese 98.7% (75 cases)" under *Retrieval* was a by-tradition row that silently
+included the 40 provenance cases, so its sub-rows did not sum to their parent; the real
+figure is 97.1% over 35 Chinese retrieval cases. And the 100%/0% split above was
+invisible in both margins of the report — it only appeared once case type was crossed
+with tradition, which the scorecard now always does.
 
 ### Bake cost review (#20)
 

@@ -37,6 +37,16 @@ defmodule Pramana.Evals.Score do
         |> Enum.reject(&(&1.case.tradition == nil))
         |> Enum.group_by(& &1.case.tradition)
         |> Map.new(fn {tradition, rs} -> {tradition, tally(rs)} end),
+      # Type CROSSED with tradition, because the interesting comparisons live in the
+      # cells and vanish in either margin. Topical cases scored 55% overall, which hides
+      # that the same twelve questions score 100% asked in Chinese and 0% asked in
+      # English — a difference the by-tradition row alone cannot show, since it mixes
+      # case types, and the by-type row cannot show either.
+      by_type_tradition:
+        results
+        |> Enum.reject(&(&1.case.tradition == nil))
+        |> Enum.group_by(&{&1.case.type, &1.case.tradition})
+        |> Map.new(fn {key, rs} -> {key, tally(rs)} end),
       overall: tally(results),
       failures: Enum.filter(results, &match?({:miss, _}, &1.outcome)),
       stale: Enum.filter(results, &match?({:stale, _}, &1.outcome))
@@ -88,6 +98,7 @@ defmodule Pramana.Evals.Score do
 
     #{section("BY CASE TYPE", scorecard.by_type)}
     #{section("BY TRADITION", scorecard.by_tradition)}
+    #{cross_section(scorecard.by_type_tradition)}
     #{adversarial(scorecard.adversarial)}
     #{stale(scorecard.stale)}
     #{failures(scorecard.failures)}
@@ -115,6 +126,22 @@ defmodule Pramana.Evals.Score do
       end)
 
     "    #{title}\n#{rows}\n"
+  end
+
+  defp cross_section(map) when map == %{}, do: ""
+
+  defp cross_section(map) do
+    rows =
+      map
+      |> Enum.sort_by(fn {{type, tradition}, _} -> {to_string(type), tradition} end)
+      |> Enum.map_join("\n", fn {{type, tradition}, t} ->
+        label = "#{type} / #{tradition}"
+
+        "      #{String.pad_trailing(label, 28)} #{rate(t)}" <>
+          "  (#{t.hits}/#{t.scored})#{rank_suffix(t)}"
+      end)
+
+    "    BY CASE TYPE x TRADITION\n#{rows}\n"
   end
 
   defp rank_suffix(%{mean_rank: nil}), do: ""
@@ -175,6 +202,10 @@ defmodule Pramana.Evals.Score do
       "overall" => rate_of(scorecard.overall),
       "stale" => scorecard.overall.stale,
       "by_type" => Map.new(scorecard.by_type, fn {k, v} -> {to_string(k), rate_of(v)} end),
+      "by_type_tradition" =>
+        Map.new(scorecard.by_type_tradition, fn {{type, tradition}, v} ->
+          {"#{type}/#{tradition}", rate_of(v)}
+        end),
       "adversarial" => rate_of(scorecard.adversarial)
     }
   end
