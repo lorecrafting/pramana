@@ -21,6 +21,8 @@ defmodule PramanaWeb.MCP.Server do
   component(PramanaWeb.MCP.Tools.GetOutline)
   component(PramanaWeb.MCP.Tools.GetCommentaries)
   component(PramanaWeb.MCP.Tools.GetParallels)
+  component(PramanaWeb.MCP.Tools.CompareVersions)
+  component(PramanaWeb.MCP.Tools.DefineFromCanon)
   component(PramanaWeb.MCP.Tools.VerifyCitation)
 
   # Resources, not tools: guidance and inventory are things to READ about the corpus,

@@ -1,6 +1,6 @@
 # The MCP Surface
 
-The product boundary. A model never touches Postgres — it sees these five tools and two
+The product boundary. A model never touches Postgres — it sees these nine tools and two
 resources, and everything they return is URN-addressed so it can be independently
 re-checked.
 
@@ -15,6 +15,8 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 | `survey_corpus` | Exhaustive counts, not a ranked sample. The tool that supports claims about *how often* or *where*. |
 | `get_passage` | One URN, optionally with `context_before` / `context_after`, and optionally with translations (`translation`, `translator`, `compare_translations`). |
 | `get_outline` | A work's structure without its text. |
+| `compare_versions` | One passage beside its renderings and its curated parallels. |
+| `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
 
 ### Translations never arrive in `text`
@@ -29,6 +31,25 @@ nothing was wrong at the point the guard looks.
 Without `translation`, no rendering is attached at all. With it, the caller is told how
 many renderings were **withheld** (`alternatives`), because a passage with four English
 translations shown as one reads as a passage with one.
+
+### Comparison keeps its two kinds apart
+
+`compare_versions` returns `renderings` and `parallels` under separate keys. A rendering
+is someone's English *for this passage*; a parallel is a **different text** that
+scholarship judges to transmit the same discourse. Merged into one list, a Pāli sutta
+reads as a translation of a Chinese Āgama, when neither derives from the other. Each
+parallel keeps its relation strength, and the response counts what is
+`referenced_but_not_held` — texts the scholarship links that this corpus does not have —
+so a partial comparison is never presented as a complete one.
+
+### Definitions are quoted, not composed
+
+`define_from_canon` searches for the tradition's own definitional formulae — 云何為X in
+Chinese, Katamañca X in Pāli — immediately followed by the term. It finds the handful of
+places the canon stops to say what something *is*, out of the thousands where it merely
+uses the word, and returns those passages with citations. A term the canon does not
+define returns nothing, along with the formulae that were tried: "we looked, in these
+ways, and found nothing" is a different claim from "we did not look".
 
 Every filter a tool *declares* must actually filter. `division:` was once declared,
 accepted, and silently ignored by the lexical retriever while the semantic one honoured

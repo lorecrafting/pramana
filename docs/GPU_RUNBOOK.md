@@ -113,6 +113,38 @@ Two honest caveats:
 
 Budget **~40 minutes** for a full-corpus import and run it in the background.
 
+## 1c. The index is built by a task, not by a migration
+
+`mix pramana.embed.index` creates the HNSW index; `--rebuild` drops and recreates it,
+`--drop` removes it before a large import. It is a task rather than a migration because
+drop-and-rebuild is an operational sequence: a migration would build the index once on
+every restore, and then it would be rebuilt again after the next import for no benefit.
+
+**Size `maintenance_work_mem` to the graph.** This is not a tuning knob. An HNSW build
+that does not fit falls back to building *on disk*, and it does not merely run slower —
+it **degrades as the graph grows**. Measured while building over 299,317 vectors at
+PostgreSQL's 64 MB default:
+
+| elapsed | tuples done | rate |
+|---|---|---|
+| 17 min | 187,211 | ~11k/min average |
+| 20 min | 193,264 | **~2k/min and falling** |
+
+Extrapolating, that build was heading past an hour and getting worse. The task defaults
+to `4GB`; roughly `rows × dimensions × 4 bytes` plus links is the figure to beat, so
+~1.5 GB per 300k vectors at 1024 dimensions.
+
+## 1d. Re-chunking discards vectors — the builder now refuses
+
+`chunk_vectors` cascades from `chunks`, and `mix pramana.chunk` deletes a text's chunks
+before rebuilding them. So a plain re-chunk **throws away every embedding for that text**,
+reports success, and leaves nothing to indicate what happened.
+
+`Pramana.Chunk.Builder` therefore refuses to rebuild a text whose chunks carry embedded
+vectors unless `force: true` is passed, and `mix pramana.chunk` reports how many texts it
+left alone. Chunking the newly-ingested Pāli now leaves the 2,471 embedded Chinese works
+untouched instead of silently costing 34 minutes of GPU time.
+
 Skip to step 4 to verify. The rest of this runbook is the SSH-to-a-rented-box
 alternative, if you would rather have a plain machine.
 

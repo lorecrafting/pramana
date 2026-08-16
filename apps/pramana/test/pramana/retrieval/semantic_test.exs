@@ -25,6 +25,7 @@ defmodule Pramana.Retrieval.SemanticTest do
 
   alias Pramana.Chunk.Builder
   alias Pramana.Corpus.Chunk
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text
   alias Pramana.Embed
@@ -64,13 +65,37 @@ defmodule Pramana.Retrieval.SemanticTest do
     for i <- 0..(@dims - 1), do: if(i == axis, do: 1.0, else: 0.0)
   end
 
-  defp embed_chunks!(text_id, axis) do
-    vector = Pgvector.new(unit_vector(axis))
+  # Vectors live on `chunk_vectors`, not on the chunk, so a chunk can carry its own text
+  # AND a translation of it.
+  defp embed_chunks!(text_id, axis, opts \\ []) do
+    kind = Keyword.get(opts, :kind, "source")
+    lang = Keyword.get(opts, :lang, "lzh")
+    translator = Keyword.get(opts, :translator)
+    now = DateTime.utc_now()
 
-    from(c in Chunk, where: c.text_id == ^text_id)
-    |> Repo.update_all(
-      set: [embedding: vector, embedding_model: Embed.model(), embedded_at: DateTime.utc_now()]
-    )
+    rows =
+      Repo.all(
+        from c in Chunk, where: c.text_id == ^text_id, select: %{id: c.id, content: c.content}
+      )
+      |> Enum.map(fn chunk ->
+        content = Keyword.get(opts, :content, chunk.content)
+
+        %{
+          chunk_id: chunk.id,
+          kind: kind,
+          lang: lang,
+          translator_id: translator,
+          content: content,
+          content_sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+          embedding: Pgvector.new(unit_vector(axis)),
+          embedding_model: Embed.model(),
+          embedded_at: now,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    Repo.insert_all(ChunkVector, rows)
   end
 
   setup do
@@ -178,14 +203,14 @@ defmodule Pramana.Retrieval.SemanticTest do
 
   describe "chunks without a vector" do
     test "are never returned", %{probe: probe} do
-      Repo.update_all(Chunk, set: [embedding: nil, embedding_model: nil])
+      Repo.update_all(ChunkVector, set: [embedding: nil, embedding_model: nil])
 
       assert %{results: []} = Semantic.search_vector(probe, limit: 10)
     end
 
     test "vectors from another model are excluded, since mixing them corrupts ranking",
          %{probe: probe} do
-      Repo.update_all(Chunk, set: [embedding_model: "some/other-model"])
+      Repo.update_all(ChunkVector, set: [embedding_model: "some/other-model"])
 
       assert %{results: []} = Semantic.search_vector(probe, limit: 10)
     end
@@ -198,10 +223,85 @@ defmodule Pramana.Retrieval.SemanticTest do
 
     test "counts partial coverage honestly" do
       text_id = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
-      Repo.update_all(from(c in Chunk, where: c.text_id == ^text_id), set: [embedding: nil])
+
+      Repo.update_all(
+        from(v in ChunkVector,
+          join: c in Chunk,
+          on: c.id == v.chunk_id,
+          where: c.text_id == ^text_id
+        ),
+        set: [embedding: nil]
+      )
 
       # T0001 owns 2 of the 3 chunks, so clearing it leaves 1 of 3.
       assert %{total: 3, embedded: 1, percent: 33.3} = Semantic.coverage()
+    end
+  end
+
+  describe "multi-vector retrieval" do
+    setup %{} do
+      # An English rendering of the Āgama text, embedded on a THIRD axis. An English
+      # query lands nowhere near the Chinese source vector; it lands on this.
+      agama = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+
+      embed_chunks!(agama, 2,
+        kind: "translation",
+        lang: "en",
+        translator: "model:test",
+        content: "Thus have I heard, at one time the Buddha was staying near Rajagaha."
+      )
+
+      {:ok, english_probe: unit_vector(2), agama: agama}
+    end
+
+    test "an English query reaches a Chinese passage through its rendering", %{
+      english_probe: probe
+    } do
+      %{results: [result | _]} = Semantic.search_vector(probe, limit: 5)
+
+      # Found via English — and what comes back is the CHINESE passage, addressed by the
+      # Chinese anchor. The rendering changed what could be found, not what is cited.
+      assert result.urn =~ "T0001"
+      assert result.content =~ "如是我聞"
+      assert Enum.any?(result.matched_via, &(&1.kind == "translation" and &1.lang == "en"))
+    end
+
+    test "the result says which vector matched, so a caller can tell them apart", %{
+      english_probe: probe
+    } do
+      %{results: [result | _]} = Semantic.search_vector(probe, limit: 5)
+      [via | _] = result.matched_via
+
+      assert via.kind == "translation"
+      assert via.translator_id == "model:test"
+    end
+
+    test "restricting to source vectors excludes the translation route", %{
+      english_probe: probe
+    } do
+      %{results: results} = Semantic.search_vector(probe, limit: 5, vector_kinds: ["source"])
+
+      refute Enum.any?(results, fn r ->
+               Enum.any?(r.matched_via, &(&1.kind == "translation"))
+             end)
+    end
+
+    test "a chunk matched by two of its vectors is returned once", %{agama: agama} do
+      # Both the source and translation vectors of these chunks are in the index; a
+      # search that reaches both must not report the passage twice.
+      probe = unit_vector(1)
+      %{results: results} = Semantic.search_vector(probe, limit: 20)
+
+      urns = Enum.map(results, & &1.urn)
+      assert length(urns) == length(Enum.uniq(urns))
+      assert agama
+    end
+
+    test "coverage reports vectors by kind, not just a single total" do
+      coverage = Semantic.coverage([])
+
+      kinds = Enum.map(coverage.by_kind, & &1.kind) |> Enum.uniq() |> Enum.sort()
+      assert kinds == ["source", "translation"]
     end
   end
 end

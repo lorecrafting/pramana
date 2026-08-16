@@ -21,7 +21,7 @@ defmodule Pramana.Embed.Transfer do
 
   import Ecto.Query
 
-  alias Pramana.Corpus.Chunk
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Embed
   alias Pramana.Repo
 
@@ -79,7 +79,7 @@ defmodule Pramana.Embed.Transfer do
     now = DateTime.utc_now()
 
     expected_hashes =
-      Repo.all(from c in Chunk, select: {c.id, c.content_sha256}) |> Map.new()
+      Repo.all(from v in ChunkVector, select: {v.id, v.content_sha256}) |> Map.new()
 
     result =
       path
@@ -144,12 +144,12 @@ defmodule Pramana.Embed.Transfer do
       end)
 
     sql = """
-    UPDATE chunks AS c
+    UPDATE chunk_vectors AS cv
     SET embedding = v.embedding::vector,
         embedding_model = $1,
         embedded_at = $2
     FROM (VALUES #{Enum.join(placeholders, ", ")}) AS v(id, embedding)
-    WHERE c.id = v.id
+    WHERE cv.id = v.id
     """
 
     Repo.query!(sql, [model, now | Enum.reverse(params)])

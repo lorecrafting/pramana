@@ -178,6 +178,46 @@ defmodule Pramana.Corpus.Chunk do
     field :byte_start, :integer
     field :byte_end, :integer
 
+    has_many :vectors, Pramana.Corpus.ChunkVector
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
+defmodule Pramana.Corpus.ChunkVector do
+  @moduledoc """
+  One embedding of one chunk — of the passage itself, or of a rendering of it.
+
+  A chunk carries several, because cross-lingual retrieval **into** Literary Chinese is
+  the weakest axis of this system and a second vector in the query's own language is the
+  main available mitigation. Vectors live in one table rather than one column per kind so
+  that every filter, coverage count and ANN scan has a single implementation; the two
+  filter bugs this project has already had both came from two paths that were supposed to
+  agree and quietly did not.
+
+  Each row carries **its own** `content` and `content_sha256`, not the chunk's. A
+  translation vector's text is not in `chunks` at all, and a self-describing row is what
+  lets the export/import round trip prove a vector still matches the words it was computed
+  from.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  alias Pramana.Corpus.Chunk
+
+  schema "chunk_vectors" do
+    belongs_to :chunk, Chunk
+
+    field :kind, :string
+    # The language of the EMBEDDED TEXT, which for a translation is not the language of
+    # the passage.
+    field :lang, :string
+    field :translator_id, :string
+
+    field :content, :string
+    field :content_sha256, :string
+
     field :embedding, Pgvector.Ecto.Vector
     field :embedding_model, :string
     field :embedded_at, :utc_datetime_usec

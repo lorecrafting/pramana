@@ -10,7 +10,8 @@ defmodule Pramana.Embed.TransferTest do
   import Ecto.Query
 
   alias Pramana.Chunk.Builder
-  alias Pramana.Corpus.Chunk
+  alias Pramana.Chunk.Vectors
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text
   alias Pramana.Embed
@@ -41,8 +42,12 @@ defmodule Pramana.Embed.TransferTest do
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T", provenance: %{})
     text_id = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
     {:ok, _} = Builder.build_for_text(text_id, max_chars: 30)
+    # The embeddable unit is a VECTOR ROW, not a chunk: a chunk can carry several. The
+    # rows are created before they have vectors, holding the text to embed and its hash,
+    # which is what makes the round trip checkable at import.
+    {:ok, _} = Vectors.build_source(text_id)
 
-    %{tmp: tmp, chunks: Repo.all(from c in Chunk, order_by: c.id)}
+    %{tmp: tmp, chunks: Repo.all(from v in ChunkVector, order_by: v.id)}
   end
 
   defp vector_line(chunk, opts \\ []) do
@@ -102,7 +107,7 @@ defmodule Pramana.Embed.TransferTest do
       {:ok, r} = Transfer.import(path)
 
       assert r.written == length(ctx.chunks)
-      reloaded = Repo.one!(from c in Chunk, where: c.id == ^hd(ctx.chunks).id)
+      reloaded = Repo.one!(from v in ChunkVector, where: v.id == ^hd(ctx.chunks).id)
       assert reloaded.embedding_model == Embed.model()
       assert length(Pgvector.to_list(reloaded.embedding)) == Embed.dims()
     end
@@ -118,11 +123,11 @@ defmodule Pramana.Embed.TransferTest do
 
       assert r.written == 0
       assert r.hash_mismatch == [chunk.id]
-      assert Repo.one!(from c in Chunk, where: c.id == ^chunk.id).embedding == nil
+      assert Repo.one!(from v in ChunkVector, where: v.id == ^chunk.id).embedding == nil
     end
 
     test "rejects wrong dimensionality" do
-      chunk = Repo.one!(from c in Chunk, limit: 1)
+      chunk = Repo.one!(from v in ChunkVector, limit: 1)
       tmp = Path.join(System.tmp_dir!(), "wrongdims-#{System.unique_integer([:positive])}.jsonl")
       on_exit(fn -> File.rm(tmp) end)
       write_vectors(tmp, [vector_line(chunk, dims: 768)])
@@ -168,7 +173,7 @@ defmodule Pramana.Embed.TransferTest do
 
       assert first.written == second.written
 
-      assert Repo.aggregate(from(c in Chunk, where: not is_nil(c.embedding)), :count) ==
+      assert Repo.aggregate(from(v in ChunkVector, where: not is_nil(v.embedding)), :count) ==
                length(ctx.chunks)
     end
   end
@@ -190,8 +195,8 @@ defmodule Pramana.Embed.TransferTest do
 
       assert result.written == 2
       assert result.hash_mismatch == [bad.id]
-      assert Repo.get(Chunk, good.id).embedding
-      refute Repo.get(Chunk, bad.id).embedding
+      assert Repo.get(ChunkVector, good.id).embedding
+      refute Repo.get(ChunkVector, bad.id).embedding
     end
 
     test "rows spanning a batch boundary all land", ctx do
@@ -205,7 +210,7 @@ defmodule Pramana.Embed.TransferTest do
       {:ok, result} = Transfer.import(path)
 
       assert result.written == 1_100
-      assert Repo.get(Chunk, chunk.id).embedding
+      assert Repo.get(ChunkVector, chunk.id).embedding
     end
 
     test "an empty batch writes nothing rather than issuing a malformed statement", ctx do
@@ -218,7 +223,7 @@ defmodule Pramana.Embed.TransferTest do
       {:ok, result} = Transfer.import(path)
 
       assert result.written == 0
-      refute Repo.get(Chunk, chunk.id).embedding
+      refute Repo.get(ChunkVector, chunk.id).embedding
     end
 
     test "vectors survive the text round trip exactly", ctx do
@@ -232,7 +237,7 @@ defmodule Pramana.Embed.TransferTest do
 
       {:ok, %{written: 1}} = Transfer.import(path)
 
-      stored = Repo.get(Chunk, chunk.id).embedding |> Pgvector.to_list()
+      stored = Repo.get(ChunkVector, chunk.id).embedding |> Pgvector.to_list()
 
       assert length(stored) == Embed.dims()
 

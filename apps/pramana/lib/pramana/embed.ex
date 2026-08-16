@@ -31,6 +31,7 @@ defmodule Pramana.Embed do
   import Ecto.Query
 
   alias Pramana.Corpus.Chunk
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Repo
 
   @model "BAAI/bge-m3"
@@ -155,9 +156,9 @@ defmodule Pramana.Embed do
 
   defp pending_batch(batch_size, opts) do
     pending_query(opts)
-    |> order_by([c], c.id)
+    |> order_by([v], v.id)
     |> limit(^batch_size)
-    |> select([c], %{id: c.id, content: c.content})
+    |> select([v], %{id: v.id, content: v.content})
     |> Repo.all()
   end
 
@@ -166,20 +167,30 @@ defmodule Pramana.Embed do
   # float, so nothing would fail loudly.
   defp pending_query(opts) do
     query =
-      from c in Chunk,
-        where: is_nil(c.embedding) or c.embedding_model != ^@model
+      from v in ChunkVector,
+        where: is_nil(v.embedding) or v.embedding_model != ^@model
 
-    case opts[:division] do
-      nil ->
-        query
+    query
+    |> filter_kind(opts[:kind])
+    |> filter_division(opts[:division])
+  end
 
-      division ->
-        from c in query,
-          join: t in assoc(c, :text),
-          join: w in Pramana.Corpus.Work,
-          on: w.id == t.work_id,
-          where: w.division == ^division
-    end
+  # A vector kind is worth embedding separately: `source` vectors are the corpus, and a
+  # run that meant to fill in only the new translation vectors should not silently
+  # re-embed 299,317 Chinese passages.
+  defp filter_kind(query, nil), do: query
+  defp filter_kind(query, kind), do: from(v in query, where: v.kind == ^kind)
+
+  defp filter_division(query, nil), do: query
+
+  defp filter_division(query, division) do
+    from v in query,
+      join: c in Chunk,
+      on: c.id == v.chunk_id,
+      join: t in assoc(c, :text),
+      join: w in Pramana.Corpus.Work,
+      on: w.id == t.work_id,
+      where: w.division == ^division
   end
 
   defp embed_batch(serving, batch) do
@@ -190,7 +201,7 @@ defmodule Pramana.Embed do
       batch
       |> Enum.zip(results)
       |> Enum.each(fn {chunk, %{embedding: vector}} ->
-        from(c in Chunk, where: c.id == ^chunk.id)
+        from(v in ChunkVector, where: v.id == ^chunk.id)
         |> Repo.update_all(
           set: [
             embedding: Pgvector.new(Nx.to_flat_list(vector)),

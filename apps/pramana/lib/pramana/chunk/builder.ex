@@ -27,14 +27,54 @@ defmodule Pramana.Chunk.Builder do
 
   @default_max_chars 300
 
+  # Chunk size belongs to the SCRIPT, not to the system. 300 characters of Literary
+  # Chinese is a substantial passage — a dense, largely one-character-per-morpheme text.
+  # 300 characters of romanised Pāli is a sentence fragment. Applying one number to both
+  # silently under-chunks the alphabetic corpus into pieces too small to carry meaning,
+  # which is the same defect chunking exists to fix at the segment level.
+  #
+  # 1,200 for Pāli is roughly information-equivalent: Pāli segments average 58
+  # characters, so a window holds ~20 of them, against ~16 printed lines for the Taishō.
+  @max_chars_by_source %{"sc" => 1_200}
+
   @doc """
   Builds and stores chunks for one text, replacing any it already has.
 
   Idempotent, like the segment loader: re-running converges rather than duplicating.
   """
-  @spec build_for_text(integer(), keyword()) :: {:ok, non_neg_integer()}
+  @spec build_for_text(integer(), keyword()) :: {:ok, non_neg_integer()} | {:error, term()}
   def build_for_text(text_id, opts \\ []) do
-    max_chars = Keyword.get(opts, :max_chars, @default_max_chars)
+    case embedded_vector_count(text_id) do
+      0 -> do_build(text_id, opts)
+      n -> guard_rebuild(text_id, n, opts)
+    end
+  end
+
+  # Re-chunking DELETES the text's chunks, and `chunk_vectors` cascades from them — so a
+  # rebuild silently throws away GPU work. A full corpus pass is 34 minutes of L4 time,
+  # and the loss is invisible: chunking reports success while the embeddings it destroyed
+  # are simply gone. Refusing by default is the only version of this that fails loudly.
+  defp guard_rebuild(text_id, count, opts) do
+    if Keyword.get(opts, :force, false) do
+      do_build(text_id, opts)
+    else
+      {:error, {:would_discard_embeddings, text_id, count}}
+    end
+  end
+
+  defp embedded_vector_count(text_id) do
+    Repo.aggregate(
+      from(v in Pramana.Corpus.ChunkVector,
+        join: c in Chunk,
+        on: c.id == v.chunk_id,
+        where: c.text_id == ^text_id and not is_nil(v.embedding)
+      ),
+      :count
+    )
+  end
+
+  defp do_build(text_id, opts) do
+    max_chars = Keyword.get_lazy(opts, :max_chars, fn -> max_chars_for(text_id) end)
 
     segments =
       Repo.all(from s in Segment, where: s.text_id == ^text_id, order_by: s.ordinal)
@@ -51,6 +91,20 @@ defmodule Pramana.Chunk.Builder do
     |> Enum.each(&Repo.insert_all(Chunk, &1))
 
     {:ok, length(rows)}
+  end
+
+  @doc """
+  The chunk size for a text, from its source's script.
+
+  Looked up rather than passed, so a caller cannot chunk the Pāli at the Chinese size by
+  forgetting an option — the failure would be invisible in the output.
+  """
+  @spec max_chars_for(integer()) :: pos_integer()
+  def max_chars_for(text_id) do
+    source_id =
+      Repo.one(from t in Pramana.Corpus.Text, where: t.id == ^text_id, select: t.source_id)
+
+    Map.get(@max_chars_by_source, source_id, @default_max_chars)
   end
 
   @doc """

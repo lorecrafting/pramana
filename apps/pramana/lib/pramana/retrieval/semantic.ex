@@ -27,6 +27,7 @@ defmodule Pramana.Retrieval.Semantic do
 
   alias Pramana.Corpus
   alias Pramana.Corpus.Chunk
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
@@ -55,8 +56,15 @@ defmodule Pramana.Retrieval.Semantic do
   # nothing degrades to a slow query rather than a full scan of 299k vectors.
   @max_scan_tuples 200_000
 
+  # A chunk may carry a source vector and one translation vector per translator, so the
+  # ANN scan must return more rows than the caller asked for chunks. Four is comfortably
+  # above the current maximum (source + 2 translators on any shared anchor).
+  @vector_overfetch 4
+
   @known_opts [
     :limit,
+    :vector_kinds,
+    :vector_lang,
     :redistributable_only,
     :license_class,
     :mode,
@@ -122,20 +130,31 @@ defmodule Pramana.Retrieval.Semantic do
     embedding = Pgvector.new(vector)
 
     query =
-      Chunk
-      |> where([c], not is_nil(c.embedding) and c.embedding_model == ^Embed.model())
-      |> join(:inner, [c], t in Text, on: t.id == c.text_id)
-      |> join(:inner, [c, t], w in Work, on: w.id == t.work_id)
+      ChunkVector
+      |> where([v], not is_nil(v.embedding) and v.embedding_model == ^Embed.model())
+      |> filter_vector_kinds(opts[:vector_kinds])
+      |> filter_vector_lang(opts[:vector_lang])
+      |> join(:inner, [v], c in Chunk, as: :chunk, on: c.id == v.chunk_id)
+      |> join(:inner, [v, c], t in Text, as: :text, on: t.id == c.text_id)
+      |> join(:inner, [v, c, t], w in Work, as: :work, on: w.id == t.work_id)
       |> apply_filters(opts)
       # <#> is negative inner product in pgvector; on unit vectors that orders
       # identically to cosine similarity, and it is what the HNSW index was built for.
-      |> order_by([c], max_inner_product(c.embedding, ^embedding))
-      |> limit(^limit)
-      |> select([c, t, w], %{
+      |> order_by([v], max_inner_product(v.embedding, ^embedding))
+      # Over-fetch, because several vectors of the SAME chunk can match — a passage and
+      # its English rendering are both in the index — and collapsing them afterwards
+      # would otherwise return fewer chunks than asked for.
+      |> limit(^(limit * @vector_overfetch))
+      |> select([v, c, t, w], %{
+        vector: %{
+          kind: v.kind,
+          lang: v.lang,
+          translator_id: v.translator_id
+        },
         chunk: c,
         work: w,
         text: t,
-        score: max_inner_product(c.embedding, ^embedding)
+        score: max_inner_product(v.embedding, ^embedding)
       })
 
     results =
@@ -145,8 +164,46 @@ defmodule Pramana.Retrieval.Semantic do
       # `relaxed_order` may return rows slightly out of distance order, so ranking is
       # re-established here rather than trusted from the scan.
       |> Enum.sort_by(& &1.similarity, :desc)
+      |> collapse_by_chunk()
+      |> Enum.take(limit)
 
     %{results: results, total: length(results), model: Embed.model()}
+  end
+
+  # Which vector kinds may answer. Defaults to all of them: a reader asking in English
+  # should reach a Pāli passage through its English rendering, and refusing that by
+  # default would leave the mitigation built and unused.
+  defp filter_vector_kinds(query, nil), do: query
+
+  defp filter_vector_kinds(query, kinds) do
+    if has_named_binding?(query, :vector) do
+      where(query, [vector: v], v.kind in ^List.wrap(kinds))
+    else
+      where(query, [v], v.kind in ^List.wrap(kinds))
+    end
+  end
+
+  defp filter_vector_lang(query, nil), do: query
+
+  defp filter_vector_lang(query, lang) do
+    if has_named_binding?(query, :vector) do
+      where(query, [vector: v], v.lang in ^List.wrap(lang))
+    else
+      where(query, [v], v.lang in ^List.wrap(lang))
+    end
+  end
+
+  # One chunk, one result — but keep a record of EVERY vector that matched it. A hit that
+  # came through Sujato's English is a different kind of evidence from one that came
+  # through the Pāli, and a caller that cannot tell them apart will present the first as
+  # the second.
+  defp collapse_by_chunk(results) do
+    results
+    |> Enum.group_by(& &1.urn)
+    |> Enum.map(fn {_urn, [best | _] = all} ->
+      Map.put(best, :matched_via, Enum.map(all, & &1.matched_via) |> List.flatten())
+    end)
+    |> Enum.sort_by(& &1.similarity, :desc)
   end
 
   # Unfiltered: the plain index scan is correct and ~3x faster, so leave it alone.
@@ -189,23 +246,58 @@ defmodule Pramana.Retrieval.Semantic do
   """
   @spec coverage(keyword()) :: map()
   def coverage(opts \\ []) do
-    base =
+    # The DENOMINATOR is the corpus — chunks — not the vector rows. Counting vectors
+    # would make a corpus that has been chunked but not yet vectorised report `total: 0`,
+    # which reads as "there is nothing to search" rather than "nothing is embedded yet",
+    # and would let a corpus with translation vectors for 2% of its chunks report 100%
+    # coverage. The number exists to stop partial data being mistaken for a small canon;
+    # that only works if the whole canon is the denominator.
+    chunks =
       from c in Chunk,
+        as: :chunk,
         join: t in Text,
+        as: :text,
         on: t.id == c.text_id,
         join: w in Work,
+        as: :work,
         on: w.id == t.work_id
 
-    base = apply_filters(base, opts)
+    chunks = apply_filters(chunks, opts)
 
-    total = Repo.aggregate(base, :count)
-    embedded = Repo.aggregate(where(base, [c], not is_nil(c.embedding)), :count)
+    total = Repo.aggregate(chunks, :count)
+
+    embedded =
+      chunks
+      |> join(:inner, [chunk: c], v in ChunkVector, as: :vector, on: v.chunk_id == c.id)
+      |> filter_vector_kinds(opts[:vector_kinds])
+      |> filter_vector_lang(opts[:vector_lang])
+      |> where([vector: v], not is_nil(v.embedding))
+      |> distinct([chunk: c], c.id)
+      |> Repo.aggregate(:count)
 
     %{
       embedded: embedded,
       total: total,
-      percent: if(total > 0, do: Float.round(100 * embedded / total, 1), else: 0.0)
+      percent: if(total > 0, do: Float.round(100 * embedded / total, 1), else: 0.0),
+      by_kind: vectors_by_kind()
     }
+  end
+
+  # How many vectors of each kind exist, alongside the chunk-level coverage above. A
+  # chunk with a source vector and two translation vectors is one covered chunk and
+  # three vectors; reporting only one of those numbers hides what the index contains.
+  defp vectors_by_kind do
+    Repo.all(
+      from v in ChunkVector,
+        group_by: [v.kind, v.lang],
+        select: %{
+          kind: v.kind,
+          lang: v.lang,
+          vectors: count(v.id),
+          embedded: count(v.embedding)
+        },
+        order_by: [desc: count(v.id)]
+    )
   end
 
   defp run(query, opts) do
@@ -237,23 +329,27 @@ defmodule Pramana.Retrieval.Semantic do
     |> filter_work(opts[:work_id])
   end
 
+  # NAMED bindings, not positional. These filters used `[_c, _t, w]`, which was correct
+  # while the query was chunk-text-work and silently pointed at the wrong table the
+  # moment a vector join went in front of it — a filter reading the wrong column returns
+  # a plausible result set and reports no error. `[work: w]` cannot drift.
   defp filter_in(query, nil, _field), do: query
 
   defp filter_in(query, value, field),
-    do: where(query, [_c, _t, w], field(w, ^field) in ^List.wrap(value))
+    do: where(query, [work: w], field(w, ^field) in ^List.wrap(value))
 
   defp filter_not_in(query, nil, _field), do: query
 
   defp filter_not_in(query, value, field) do
     values = List.wrap(value)
-    where(query, [_c, _t, w], field(w, ^field) not in ^values or is_nil(field(w, ^field)))
+    where(query, [work: w], field(w, ^field) not in ^values or is_nil(field(w, ^field)))
   end
 
   defp filter_eq(query, nil, _field), do: query
-  defp filter_eq(query, value, field), do: where(query, [_c, _t, w], field(w, ^field) == ^value)
+  defp filter_eq(query, value, field), do: where(query, [work: w], field(w, ^field) == ^value)
 
   defp filter_work(query, nil), do: query
-  defp filter_work(query, work_id), do: where(query, [_c, t], t.work_id == ^work_id)
+  defp filter_work(query, work_id), do: where(query, [text: t], t.work_id == ^work_id)
 
   # See `Pramana.Retrieval.Lexical.filter_license/2` — this is what makes the licence
   # posture enforceable rather than a promise kept by hand.
@@ -265,7 +361,7 @@ defmodule Pramana.Retrieval.Semantic do
 
   defp filter_redistributable(query, true),
     do:
-      join(query, :inner, [c, t], src in Source,
+      join(query, :inner, [text: t], src in Source,
         on: src.id == t.source_id and src.redistributable
       )
 
@@ -276,15 +372,26 @@ defmodule Pramana.Retrieval.Semantic do
   defp filter_license_class(query, value) do
     values = List.wrap(value)
 
-    join(query, :inner, [c, t], src in Source,
+    join(query, :inner, [text: t], src in Source,
       on: src.id == t.source_id and src.license_class in ^values
     )
   end
 
-  defp to_result(%{chunk: chunk, score: score}) do
+  defp to_result(%{chunk: chunk, score: score, vector: vector}) do
     %{
       urn: chunk.urn,
       content: chunk.content,
+      # How this chunk was found. `kind: "translation"` means the QUERY matched an
+      # English rendering; `content` above is still the source, and the URN still
+      # addresses the source, which is the only thing citable.
+      matched_via: [
+        %{
+          kind: vector.kind,
+          lang: vector.lang,
+          translator_id: vector.translator_id,
+          similarity: -score
+        }
+      ],
       # pgvector's <#> returns NEGATIVE inner product, so flip it back to a similarity
       # where larger means closer. Reporting the raw value would invert the ranking to
       # anyone reading it.

@@ -99,3 +99,33 @@ model such as `bge-base-zh` (102M params) would be roughly 5× faster and might 
 retrieve better *within* Chinese — but the project needs Pāli, Tibetan and Sanskrit
 later, and cross-canon retrieval is the differentiator. Revisit after the Phase 4 eval
 harness exists, since that is what turns this from an opinion into a measurement.
+
+## Measured: what the 320-token window truncates
+
+`MAX_LENGTH = 320` was chosen for Literary Chinese, where a 300-character chunk is close
+to 300 tokens. It is not neutral across the corpus, and the multi-vector work (#40) made
+that measurable rather than theoretical:
+
+| vector kind | rows | avg chars | over ~1,280 chars (≈320 tokens) |
+|---|---|---|---|
+| `source` / lzh | 300,165 | 287 | 5 |
+| `source` / pli | 27,589 | 932 | 38 |
+| **`translation` / en** | **14,781** | **922** | **3,489 — 23.6%** |
+
+Nearly a quarter of English translation vectors lose their tail. The cause is
+straightforward: a chunk's span is fixed by the **source** text, and an English rendering
+of a Pāli passage runs longer than the Pāli. Sizing the chunk to the Pāli therefore
+undersizes it for the translation.
+
+Three ways out, none taken yet, deliberately:
+
+1. **Shrink Pāli chunks** so their renderings fit — costs a re-chunk and a re-embed.
+2. **Raise `MAX_LENGTH` for translation vectors** — BGE-M3 accepts 8,192 tokens; compute
+   scales with length, and the run is already compute-bound on an L4.
+3. **Leave it.** The first ~1,280 characters is most of any passage, and a truncated
+   vector is still a usable one.
+
+Which is right depends on whether truncation measurably hurts retrieval, and that is a
+question for the Phase 4 eval harness (#19) rather than for taste. It is recorded here so
+the choice is made with the number in front of it — the same reason
+`Pramana.Retrieval.Semantic` states plainly that BGE-M3 is unproven on Literary Chinese.

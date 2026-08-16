@@ -52,8 +52,21 @@ The reading layer (pinyin and friends) stores **only exceptions**, seeded from t
 glossary: 元曉 → *Wŏnhyo*, 道隱 → *Dōin*, and 12 forms recorded as "not read the ordinary
 way" with no reading invented for them.
 
+**Semantic search is multi-vector** (#40). Vectors moved out of `chunks` into
+`chunk_vectors`, so a chunk carries several: the passage itself, and the same span in a
+translator's English. 342,535 vectors — 300,165 Chinese, 27,589 Pāli, 14,781 English
+renderings. An English query can now reach a Pāli passage **through its rendering** while
+the result still resolves to, and cites, the Pāli; every hit reports `matched_via`, so a
+caller can tell a hit found through English from one found in the original. Chunk size is
+per-script — 300 characters of Literary Chinese, 1,200 of romanised Pāli — because one
+number silently under-chunks the alphabetic corpus.
+
+`compare_versions` and `define_from_canon` ship with it: the same passage beside its
+renderings and curated parallels, and the canon's own definitional formulae (云何為X,
+Katamañca X) so a definition can be quoted rather than composed.
+
 The end-to-end path works: acquire → normalize → segment → chunk → embed → resolve →
-verify, with an MCP server on top exposing seven tools and two resources. A model can
+verify, with an MCP server on top exposing nine tools and two resources. A model can
 fetch an exact passage by URN, ask for translations alongside it, and the guard
 byte-compares its quote.
 
@@ -315,7 +328,31 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     McCune-Reischauer, marked verified: the exact error the glossary exists to prevent,
     laundered into structured data. When importing from a curated source, verify what its
     empty fields mean.
-17. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
+17. **A session-level `SET` does not survive a connection pool.** `Repo.query!("SET
+    maintenance_work_mem …")` followed by `Repo.query!("CREATE INDEX …")` checks out two
+    connections: the setting applies to one that then goes idle, and the build runs at
+    the default. Nothing errors — the index is built correctly, just an order of
+    magnitude slower, which reads as "HNSW is slow" rather than as a bug. Measured on
+    342,535 vectors: **~62k tuples/min inside one transaction, ~1.6k across two
+    connections — 38×.** Any setting a statement depends on must share its transaction.
+18. **A cascading delete can destroy work that cost money to produce.** `chunk_vectors`
+    cascades from `chunks`, and re-chunking deletes a text's chunks before rebuilding
+    them — so `mix pramana.chunk` would have thrown away 299,317 GPU-computed embeddings
+    and reported success. The builder now refuses to rebuild a text whose chunks carry
+    embedded vectors unless forced, and reports what it left alone. Before adding
+    `ON DELETE CASCADE`, ask what the child rows cost to recreate.
+19. **Positional query bindings break silently when a join is added in front of them.**
+    The provenance filters read `[_c, _t, w]` — correct while the query was
+    chunk-text-work, and pointing at the wrong table the moment a vector join went first.
+    A filter reading the wrong column returns a plausible result set and raises nothing.
+    Named bindings (`[work: w]`) cannot drift; use them anywhere a query is composed.
+20. **A coverage figure's denominator is a claim about the corpus, not about the table
+    you happen to be counting.** Moving vectors into their own table quietly changed
+    "how much of the corpus is searchable" into "how many vector rows exist", so a
+    chunked-but-unembedded corpus reported `total: 0` — "nothing to search" rather than
+    "nothing embedded yet" — and a corpus with translation vectors for 2% of its chunks
+    would have reported 100%. The denominator stays the corpus.
+21. **A file is a packaging unit; the work is a citation unit.** `an1.1-10_root-pli-ms.json`
     holds ten suttas. Taking the work id from the filename collapsed ten distinct `1.0`
     segments onto one address — caught only by a unique constraint. Derive the work id
     from what the source *cites*, and where works do not map one-to-one onto files,
@@ -494,3 +531,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#18a parallels** | **511** | — | sa1 → sn22.51 from curated data | import 29 s | 407,176 parallels, 3,064 anchors |
 | **#38 Pāli root text** | **539** | — | verify --all + integrity green on 10,914 texts | ingest 53 s / 8,442 works | **10,914 texts, 5,185,767 segments** |
 | **#39 translation pool + readings** | **582** | — | a generated rendering is rejected as source | translations ingest 4,996 files | **210,756 renderings, 8 translators, 4,601 shared anchors; 22 reading exceptions** |
+| **#40 multi-vector + comparison tools** | **629** | — | an English query reaches a Pāli passage and cites the Pāli | chunk 84 s; embed 43,218 in ~5 min | **342,535 vectors: 300,165 source/lzh, 27,589 source/pli, 14,781 translation/en** |
