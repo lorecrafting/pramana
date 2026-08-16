@@ -37,20 +37,6 @@ defmodule Pramana.Retrieval.Semantic do
   @default_limit 20
   @max_limit 200
 
-  # The options that narrow the candidate set, and therefore the ones that make a plain
-  # HNSW scan return short. Keep in step with `apply_filters/2` — an omission here is a
-  # filter that silently under-returns.
-  @filter_keys [
-    :origin,
-    :role,
-    :division,
-    :work_id,
-    :juan,
-    :exclude_origin,
-    :redistributable_only,
-    :license_class
-  ]
-
   # Ceiling on how far an iterative scan will walk before giving up. Generous enough for
   # a division holding a few percent of the corpus, bounded so a filter matching almost
   # nothing degrades to a slow query rather than a full scan of 299k vectors.
@@ -159,7 +145,7 @@ defmodule Pramana.Retrieval.Semantic do
 
     results =
       query
-      |> fetch(filtered?(opts))
+      |> fetch()
       |> Enum.map(&to_result/1)
       # `relaxed_order` may return rows slightly out of distance order, so ranking is
       # re-established here rather than trusted from the scan.
@@ -170,10 +156,25 @@ defmodule Pramana.Retrieval.Semantic do
     %{results: results, total: length(results), model: Embed.model()}
   end
 
-  # Which vector kinds may answer. Defaults to all of them: a reader asking in English
-  # should reach a Pāli passage through its English rendering, and refusing that by
-  # default would leave the mitigation built and unused.
-  defp filter_vector_kinds(query, nil), do: query
+  # Which vector kinds may answer.
+  #
+  # `source` and `translation` by default. A `translation` vector renders THIS passage,
+  # so letting an English query reach it is simply the passage answering in another
+  # language. A `parallel_gloss` renders a DIFFERENT text, and including it by default is
+  # measurably not free: adding 1,665 of them for one division moved English-into-Chinese
+  # from 0% to 33.3% and cost Pāli pinpoint retrieval 37.5% -> 27.5%, because English
+  # vectors from every tradition compete in one space. Overall fell 81.7% -> 80.8%.
+  #
+  # So it is opt-in until there is a balancing story — per-tradition quotas, a diversity
+  # term in fusion, something measured rather than guessed. The capability exists and can
+  # be asked for; it does not silently tax the default path. See #43.
+  @default_vector_kinds ~w(source translation)
+
+  # Delegates rather than duplicating the binding logic: the coverage query names its
+  # vector binding and the search query does not, and a second positional `[v]` here
+  # would silently filter the wrong table in one of them.
+  defp filter_vector_kinds(query, nil),
+    do: filter_vector_kinds(query, @default_vector_kinds)
 
   defp filter_vector_kinds(query, kinds) do
     if has_named_binding?(query, :vector) do
@@ -206,10 +207,19 @@ defmodule Pramana.Retrieval.Semantic do
     |> Enum.sort_by(& &1.similarity, :desc)
   end
 
-  # Unfiltered: the plain index scan is correct and ~3x faster, so leave it alone.
-  defp fetch(query, false), do: Repo.all(query)
-
-  # Filtered: THIS IS A CORRECTNESS FIX, not a tuning knob.
+  # THIS IS A CORRECTNESS FIX, not a tuning knob.
+  #
+  # Every query goes through the iterative scan, so there is no longer a list of
+  # "options that narrow the candidate set" to keep in step with `apply_filters/2` — an
+  # omission from that list used to mean a filter that silently under-returned, and the
+  # list itself was the thing that had to be remembered. Now nothing does.
+  #
+  # There used to be a second clause taking a plain index scan when no filter was
+  # present, ~3x faster and correct precisely because nothing narrowed the candidates.
+  # It is gone: every query now carries a vector-kind filter, since the default kinds
+  # exclude `parallel_gloss`, so the plain scan would post-filter and under-return on
+  # every single search. It cost Pāli pinpoint retrieval 37.5% -> 30.0% in the one run
+  # where both were true at once.
   #
   # Postgres plans these as an HNSW index scan FOLLOWED BY the join and the provenance
   # filter. HNSW yields only `ef_search` candidates (40 by default), so filtering those
@@ -224,7 +234,7 @@ defmodule Pramana.Retrieval.Semantic do
   # pgvector 0.8's iterative scan keeps pulling candidates until the limit is satisfied
   # or `max_scan_tuples` is exhausted. `SET LOCAL` needs a transaction, and it is worth
   # the ~3x latency because the alternative is silently wrong answers.
-  defp fetch(query, true) do
+  defp fetch(query) do
     Repo.transaction(fn ->
       Repo.query!("SET LOCAL hnsw.iterative_scan = relaxed_order")
       Repo.query!("SET LOCAL hnsw.max_scan_tuples = #{@max_scan_tuples}")
@@ -233,10 +243,6 @@ defmodule Pramana.Retrieval.Semantic do
     |> case do
       {:ok, rows} -> rows
     end
-  end
-
-  defp filtered?(opts) do
-    Enum.any?(@filter_keys, &(not is_nil(opts[&1])))
   end
 
   @doc """

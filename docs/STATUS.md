@@ -326,6 +326,78 @@ figure is 97.1% over 35 Chinese retrieval cases. And the 100%/0% split above was
 invisible in both margins of the report — it only appeared once case type was crossed
 with tradition, which the scorecard now always does.
 
+### The free gloss experiment (#43, stage A) — and why stage B should not proceed as planned
+
+Before spending tokens, invariant #5 says use the deterministic data. We hold 24,717
+curated Chinese↔Pāli parallels and 210,756 human English renderings of the Pāli, which
+covers **1,616 of 10,138 阿含部 chunks** with English a person actually wrote. Attached as
+a fourth vector kind — `parallel_gloss`, never `translation`, because it renders a
+*parallel text* and not the passage — for **zero token cost** and about a cent of GPU.
+
+    topical / chinese         0.0%  ->  33.3%    English query into the Chinese canon
+    topical / chinese-native  100%  ->  100%     rank improved 1.25 -> 1.08
+    topical / pali           62.5%  ->  50.0%    regressed
+    topical overall          55.0%  ->  60.0%
+
+**A third of the Chinese cross-lingual failures were fixed for free.** The English layer
+was the missing piece, as #42 predicted.
+
+**The Pāli drop is mostly a gold-set artifact, and the residue is real interference.**
+Inspected directly: "What are the four noble truths?" now returns T0099 — the Saṁyukta
+Āgama, the Chinese parallel of exactly the right Pāli material — interleaved with the
+Pāli. Those Chinese hits are *correct answers to the question*. The case scores them as
+misses only because it demands a Pāli term, so the system got better and the metric
+punished it.
+
+But the mechanism underneath is real: **English vectors from different traditions compete
+in one space.** 1,665 gloss vectors were enough to displace Pāli answers. Stage B would
+add ~300,000 of them against 14,781 Pāli translation vectors — a 20:1 imbalance that
+would likely bury the Pāli entirely.
+
+So **stage B does not proceed as scoped.** Two things must come first:
+
+1. **A tradition-agnostic topical score.** A user asking "what are the four noble truths"
+   is well served by either canon; the gold set currently measures per-tradition
+   reachability and calls the other tradition wrong. Both numbers are worth having, but
+   they must be labelled as the different questions they are.
+2. **A balancing story for retrieval.** Whether that is per-tradition quotas, a diversity
+   term in fusion, or simply surfacing both — undecided, and it needs measurement rather
+   than a guess.
+
+Cost estimate for stage B, kept for when it is unblocked: 10,138 阿含部 chunks, 2,896,481
+Chinese characters, ~3.0M input and ~1.1M output tokens, **~$9 on Haiku, ~$26 on Sonnet**;
+the whole canon is 29.6x that (~$260 / ~$770). Embedding is negligible beside generation.
+The char-to-token ratio for Literary Chinese is an assumption that should be measured on a
+sample before committing.
+
+### The plain HNSW scan was returning worse answers, not wrong ones (#43)
+
+Found while fixing a bug I introduced. Making `vector_kinds` default to a list meant every
+query carried a `WHERE kind IN (...)`, but `filtered?/1` did not know about it — so
+searches took the plain index scan and post-filtered, the exact truncation rule 6 warns
+about. Pāli pinpoint retrieval fell 37.5% -> 30.0%.
+
+The fix was to route **every** query through the iterative scan, which removed the
+`@filter_keys` list entirely: there is no longer a set of "options that narrow the
+candidates" to keep in step with `apply_filters/2`, so the thing that had to be remembered
+is gone.
+
+And it turned out the plain scan had been costing recall all along:
+
+    overall            81.7%  ->  83.3%
+    retrieval / pali   37.5%  ->  42.5%
+    topical / pali     62.5%  ->  75.0%
+
+The old comment said "unfiltered: the plain index scan is correct and ~3x faster, so leave
+it alone". It was right about correctness and wrong about quality — with `ef_search` at
+its default the plain scan explores less of the graph and returns *worse* neighbours, not
+invalid ones. Nothing failed; the answers were just further down. Cost of the change: 252s
+-> 890s for 240 eval cases, about 3.5x.
+
+**The general lesson: a fast path justified by "there is no filter here" is still a
+quality decision, and quality decisions need a measurement.** This one sat unmeasured
+from Phase 1 until an eval harness existed to catch it.
+
 ### Bake cost review (#20)
 
 What a full rebuild costs now, with three traditions and 5.19M segments:

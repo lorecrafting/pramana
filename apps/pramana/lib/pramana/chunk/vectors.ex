@@ -189,6 +189,102 @@ defmodule Pramana.Chunk.Vectors do
     Repo.one(from t in Text, where: t.id == ^text_id, select: t.source_id)
   end
 
+  @doc """
+  Attaches the English of a chunk's **parallel** text as a retrieval vector.
+
+  The eval harness measured that an English question retrieves nothing from the Chinese
+  canon — 0 of 12, against 100% for the same questions asked in Chinese — because there
+  is no English layer to match against. Generating one costs real money, so the
+  deterministic data goes first (`CLAUDE.md` invariant #5): 24,717 curated Chinese↔Pāli
+  parallels, and 210,756 human English renderings of the Pāli side, already licensed and
+  already here.
+
+  **This is not a translation of the passage, and is never stored as one.** It is a
+  translation of a different text that scholarship judges to transmit the same discourse.
+  A search that lands on a Chinese line through its Pāli parallel's English says exactly
+  that in `matched_via`, so a reader can weigh it accordingly — the two texts differ, and
+  where they differ is itself the interesting part.
+
+  Only `full` and `resembling` parallels are used. A `mentions` is a passing reference,
+  and glossing a passage with the English of something that merely mentions it would
+  attach words that are about a different subject.
+  """
+  @spec build_parallel_glosses(String.t(), keyword()) :: {:ok, non_neg_integer()}
+  def build_parallel_glosses(division, opts \\ []) do
+    lang = Keyword.get(opts, :lang, "en")
+    relations = Keyword.get(opts, :relations, ["full", "resembling"])
+    now = DateTime.utc_now()
+
+    division
+    |> gloss_candidates(lang, relations)
+    |> Enum.group_by(& &1.chunk_id)
+    |> Enum.flat_map(fn {chunk_id, rows} -> gloss_rows(chunk_id, rows, lang, now) end)
+    |> insert()
+  end
+
+  # One query: for every chunk in the division, the English renderings of whatever the
+  # curated parallels point at. Per-chunk queries over 10,138 chunks would be tens of
+  # thousands of round trips for data that arrives at once.
+  defp gloss_candidates(division, lang, relations) do
+    Repo.all(
+      from c in Chunk,
+        join: t in Text,
+        on: t.id == c.text_id,
+        join: w in Pramana.Corpus.Work,
+        on: w.id == t.work_id,
+        join: s in Segment,
+        on:
+          s.text_id == c.text_id and s.ordinal >= c.first_ordinal and s.ordinal <= c.last_ordinal,
+        join: p in Pramana.Corpus.TextParallel,
+        on: p.source_urn == s.urn,
+        join: tr in Translation,
+        on: tr.anchor_urn == p.target_urn,
+        where: w.division == ^division and tr.lang == ^lang and p.relation in ^relations,
+        select: %{
+          chunk_id: c.id,
+          text: tr.text,
+          translator_id: tr.translator_id,
+          source_uid: p.source_uid,
+          target_uid: p.target_uid,
+          target_urn: p.target_urn,
+          relation: p.relation
+        }
+    )
+  end
+
+  # One row per translator per chunk, mirroring how the translation pool keeps
+  # renderings separate rather than merging them into a consensus that nobody wrote.
+  defp gloss_rows(chunk_id, rows, lang, now) do
+    rows
+    |> Enum.group_by(& &1.translator_id)
+    |> Enum.map(fn {translator_id, group} ->
+      content = group |> Enum.map(& &1.text) |> Enum.uniq() |> Enum.join(" ") |> String.trim()
+
+      %{
+        chunk_id: chunk_id,
+        kind: "parallel_gloss",
+        lang: lang,
+        translator_id: translator_id,
+        content: content,
+        content_sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+        meta: %{
+          "from_parallels" =>
+            group
+            |> Enum.map(
+              &%{"uid" => &1.target_uid, "urn" => &1.target_urn, "relation" => &1.relation}
+            )
+            |> Enum.uniq(),
+          "note" =>
+            "English of a PARALLEL text, not a translation of this passage. Retrieval " <>
+              "aid only; never citable as a rendering of the Chinese."
+        },
+        inserted_at: now,
+        updated_at: now
+      }
+    end)
+    |> Enum.reject(&(&1.content == ""))
+  end
+
   @doc "Counts, for the gate and the runbook."
   @spec stats() :: map()
   def stats do

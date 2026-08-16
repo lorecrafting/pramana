@@ -26,13 +26,13 @@
       "scored": 40
     },
     "retrieval": {
-      "hits": 49,
-      "rate": 65.3,
+      "hits": 51,
+      "rate": 68.0,
       "scored": 75
     },
     "topical": {
-      "hits": 22,
-      "rate": 55.0,
+      "hits": 24,
+      "rate": 60.0,
       "scored": 40
     }
   },
@@ -48,8 +48,8 @@
       "scored": 35
     },
     "retrieval/pali": {
-      "hits": 15,
-      "rate": 37.5,
+      "hits": 17,
+      "rate": 42.5,
       "scored": 40
     },
     "topical/chinese": {
@@ -63,14 +63,14 @@
       "scored": 12
     },
     "topical/pali": {
-      "hits": 10,
-      "rate": 62.5,
+      "hits": 12,
+      "rate": 75.0,
       "scored": 16
     }
   },
   "overall": {
-    "hits": 196,
-    "rate": 81.7,
+    "hits": 200,
+    "rate": 83.3,
     "scored": 240
   },
   "stale": 0,

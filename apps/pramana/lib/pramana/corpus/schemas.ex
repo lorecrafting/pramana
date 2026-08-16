@@ -222,6 +222,12 @@ defmodule Pramana.Corpus.ChunkVector do
     field :embedding_model, :string
     field :embedded_at, :utc_datetime_usec
 
+    # Where this vector's text came from: the parallel a gloss was taken from, or the
+    # model and prompt a generated one was produced by. Without it a gloss is
+    # unauditable — and a gloss whose provenance cannot be checked is exactly the kind
+    # of derived content this project refuses to serve.
+    field :meta, :map, default: %{}
+
     timestamps(type: :utc_datetime_usec)
   end
 end

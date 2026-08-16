@@ -213,4 +213,130 @@ defmodule Pramana.Chunk.VectorsTest do
       assert Enum.all?(Vectors.stats(), &(&1.embedded == 0))
     end
   end
+
+  describe "parallel glosses" do
+    setup do
+      # A Chinese passage, a Pāli parallel of it, and a human English rendering of the
+      # Pāli. This is the deterministic data the gloss layer is built from.
+      Repo.insert!(%Pramana.Corpus.Source{
+        id: "cbeta",
+        name: "CBETA",
+        license_spdx: "LicenseRef-CBETA-NC",
+        license_class: "nc",
+        commercial_use: false,
+        redistributable: false
+      })
+
+      Repo.insert!(%Pramana.Corpus.Witness{id: "T", name: "Taishō"})
+
+      Repo.insert!(%Pramana.Corpus.Work{
+        id: "T0099",
+        title: "雜阿含經",
+        division: "阿含部",
+        composition_origin: "indic",
+        text_role: "root"
+      })
+
+      chinese =
+        Repo.insert!(%Text{
+          work_id: "T0099",
+          source_id: "cbeta",
+          witness_id: "T",
+          urn_prefix: "pramana:cbeta.T:T0099",
+          body: "如是我聞",
+          body_sha256: "x",
+          meta: %{}
+        })
+
+      Repo.insert!(%Segment{
+        text_id: chinese.id,
+        urn: "pramana:cbeta.T:T0099_001@p0001a06",
+        ordinal: 0,
+        content: "如是我聞一時佛住",
+        content_sha256: "y",
+        char_start: 0,
+        char_end: 8,
+        byte_start: 0,
+        byte_end: 24,
+        meta: %{}
+      })
+
+      {:ok, _} = Builder.build_for_text(chinese.id, max_chars: 300)
+
+      {:ok, _} =
+        Pramana.Parallels.store([
+          %{source_uid: "sa1", target_uid: "sn22.12", relation: "full", partial: false}
+        ])
+
+      Repo.update_all(Pramana.Corpus.TextParallel,
+        set: [
+          source_urn: "pramana:cbeta.T:T0099_001@p0001a06",
+          target_urn: "pramana:sc.ms:mn1@1.1",
+          source_work_id: "T0099",
+          target_work_id: "mn1"
+        ]
+      )
+
+      {:ok, _} =
+        Translations.store([
+          %{
+            anchor_urn: "pramana:sc.ms:mn1@1.1",
+            work_id: "mn1",
+            lang: "en",
+            translator_id: "sujato",
+            tier: "t0",
+            method: "human",
+            text: "So I have heard.",
+            redistributable: true,
+            license_class: "cc0"
+          }
+        ])
+
+      :ok
+    end
+
+    test "attach the English of a parallel text to a Chinese chunk" do
+      {:ok, n} = Vectors.build_parallel_glosses("阿含部")
+
+      assert n == 1
+      [gloss] = Repo.all(from v in ChunkVector, where: v.kind == "parallel_gloss")
+      assert gloss.content == "So I have heard."
+      assert gloss.lang == "en"
+    end
+
+    test "are never stored as a translation of the passage" do
+      {:ok, _} = Vectors.build_parallel_glosses("阿含部")
+
+      [gloss] = Repo.all(from v in ChunkVector, where: v.kind == "parallel_gloss")
+
+      # Sujato did not translate a Chinese Āgama line. Recording this as `translation`
+      # would assert he did, and `matched_via` would then tell a caller something false
+      # about why the passage was found.
+      assert gloss.kind == "parallel_gloss"
+      assert gloss.translator_id == "sujato"
+      assert gloss.meta["note"] =~ "not a translation of this passage"
+    end
+
+    test "record which parallel they came from, or the gloss is unauditable" do
+      {:ok, _} = Vectors.build_parallel_glosses("阿含部")
+
+      [gloss] = Repo.all(from v in ChunkVector, where: v.kind == "parallel_gloss")
+      [parallel] = gloss.meta["from_parallels"]
+
+      assert parallel["urn"] == "pramana:sc.ms:mn1@1.1"
+      assert parallel["relation"] == "full"
+    end
+
+    test "a passing mention is not glossed" do
+      Repo.update_all(Pramana.Corpus.TextParallel, set: [relation: "mentions"])
+
+      # Glossing a passage with the English of something that merely mentions it would
+      # attach words about a different subject.
+      assert {:ok, 0} = Vectors.build_parallel_glosses("阿含部")
+    end
+
+    test "a division with no parallels produces nothing" do
+      assert {:ok, 0} = Vectors.build_parallel_glosses("諸宗部")
+    end
+  end
 end

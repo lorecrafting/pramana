@@ -39,7 +39,7 @@ Nobody in this field publishes retrieval numbers. The nearest comparable project
 "~98% of served answers are trustworthy" with no reproducible benchmark. So here is ours,
 produced by `mix pramana.evals` over a 200-case gold set committed in [`evals/`](evals/).
 
-**240 cases · 0 stale · overall 81.7%**
+**240 cases · 0 stale · overall 83.3%**
 
 | what is measured | cases | result |
 |---|---|---|
@@ -48,12 +48,12 @@ produced by `mix pramana.evals` over a 200-case gold set committed in [`evals/`]
 | **Provenance labelling** — origin and role match the Taishō's own catalogue | 40 | **100%** |
 | **Absence** — the system returns nothing where it holds nothing | 4 | **100%** |
 | **Adversarial subset** | 45 | **100%** |
-| **Retrieval @10** — find the one anchor whose text was quoted | 75 | **65.3%** (mean rank 2.8) |
+| **Retrieval @10** — find the one anchor whose text was quoted | 75 | **68.0%** (mean rank 2.9) |
 | ↳ Chinese | 35 | 97.1% |
-| ↳ Pāli, English query | 40 | 37.5% |
-| **Topical @10** — a natural question returns a passage that discusses it | 40 | **55.0%** (mean rank 2.0) |
-| ↳ Chinese question → Chinese passage | 12 | **100%** (mean rank 1.25) |
-| ↳ English question → Pāli passage | 16 | 62.5% |
+| ↳ Pāli, English query | 40 | 42.5% |
+| **Topical @10** — a natural question returns a passage that discusses it | 40 | **60.0%** (mean rank 2.3) |
+| ↳ Chinese question → Chinese passage | 12 | **100%** (mean rank 1.17) |
+| ↳ English question → Pāli passage | 16 | 75.0% |
 | ↳ English question → Chinese passage | 12 | **0%** |
 
 Reproduce with:
@@ -76,8 +76,14 @@ corpus — so an English query must cross into Literary Chinese inside BGE-M3's 
 multilingual space, which `Pramana.Retrieval.Semantic` has said from the start is
 unproven on this material. Now it is measured: it does not work.
 
-That makes generating an English gloss layer for Chinese chunks the highest-value
-retrieval work available, ahead of any parameter tuning.
+That makes an English gloss layer for Chinese chunks the highest-value retrieval work
+available, ahead of any parameter tuning — with a caveat measured the hard way. A free
+pilot attached human English from curated Chinese↔Pāli parallels to 1,616 Āgama chunks
+and moved English→Chinese from 0% to 33.3%. It also cost Pāli recall, because English
+vectors from every tradition compete in one space: 1,665 gloss vectors were enough to
+displace Pāli answers, and a full canon pass would add ~300,000 against 14,781 Pāli ones.
+The layer is therefore built and **opt-in** (`vector_kinds: ["source", "translation",
+"parallel_gloss"]`) until there is a tradition-balancing story. See `docs/STATUS.md`.
 
 ### What these numbers do not say
 
