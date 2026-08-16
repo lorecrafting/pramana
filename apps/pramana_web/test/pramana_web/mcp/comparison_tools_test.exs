@@ -18,6 +18,7 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
   alias Pramana.Repo
   alias Pramana.Translations
   alias PramanaWeb.MCP.Tools.CompareVersions
+  alias PramanaWeb.MCP.Tools.CompareWitnesses
   alias PramanaWeb.MCP.Tools.DefineFromCanon
 
   defp load!(work_id, lines, provenance) do
@@ -148,6 +149,71 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
 
       assert response.isError
       assert hd(response.content)["text"] =~ "Expected pramana:"
+    end
+  end
+
+  describe "compare_witnesses" do
+    setup do
+      text = Repo.one!(from(t in Pramana.Corpus.Text, where: t.work_id == "T0001"))
+
+      Repo.update_all(
+        from(t in Pramana.Corpus.Text, where: t.id == ^text.id),
+        set: [meta: Map.put(text.meta || %{}, "witnesses", %{"wit1" => "【宋】", "wit2" => "【元】"})]
+      )
+
+      segment =
+        Repo.one!(from(s in Pramana.Corpus.Segment, where: s.text_id == ^text.id, limit: 1))
+
+      Repo.update_all(
+        from(s in Pramana.Corpus.Segment, where: s.id == ^segment.id),
+        set: [
+          meta: %{
+            "apparatus" => [
+              %{"lem" => "世尊", "rdgs" => [%{"wit" => "#wit1 #wit2", "text" => "佛"}]}
+            ]
+          }
+        ]
+      )
+
+      {:ok, urn: segment.urn}
+    end
+
+    test "names the witness in the edition's own sigla", %{urn: urn} do
+      data = call!(CompareWitnesses, %{urn: urn})
+
+      assert Enum.map(data["variants"], & &1["witness"]) == ["【宋】", "【元】"]
+      assert hd(data["variants"])["lemma"] == "世尊"
+      assert hd(data["variants"])["reading"] == "佛"
+    end
+
+    test "a line with no recorded variants says the witnesses agree" do
+      other =
+        Repo.one!(
+          from(s in Pramana.Corpus.Segment,
+            where: fragment("? = '{}'::jsonb", s.meta),
+            limit: 1
+          )
+        )
+
+      data = call!(CompareWitnesses, %{urn: other.urn})
+
+      assert data["variants"] == []
+      assert data["note"] =~ "agree here"
+    end
+
+    test "a range is refused, because variants are recorded per line" do
+      {:reply, response, _} =
+        CompareWitnesses.execute(%{urn: "pramana:cbeta.T:T0001_001@p0001a01-p0001a03"}, %{})
+
+      assert response.isError
+      assert hd(response.content)["text"] =~ "range"
+    end
+
+    test "a URN addressing nothing is refused" do
+      {:reply, response, _} =
+        CompareWitnesses.execute(%{urn: "pramana:cbeta.T:T9999_001@p0001a01"}, %{})
+
+      assert response.isError
     end
   end
 end

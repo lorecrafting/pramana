@@ -428,6 +428,35 @@ reproduced from `sources.lock.json`, and `bake_id` would be a fiction.
 The first LLM tokens enter at Phase 7, and they enter as a **layer** — generated
 translations in the pool, marked, never citable as source.
 
+### The apparatus shipped, and witness ids are not what they look like (#45)
+
+`compare_witnesses` now answers "how does this line differ across the witnesses" over the
+**572,701 segments** that carry an apparatus — 消 → 銷 in 【宋】【元】【明】, 至 → 志 in
+【宋】. The data had been captured since Phase 0 and reachable only as an opaque blob.
+
+**The attribution was the hard part, and assuming would have been badly wrong.** A
+`<rdg wit="#wit1">` names a witness declared in *that file's own header*. Measured across
+all 2,471 CBETA files:
+
+    wit1   38 distinct meanings — 宋 in 832 files, 明 in 375, 甲 in 322, 原 in 149
+    wit2   33 distinct meanings
+    only 4 of 23 ids mean one thing everywhere
+
+A global lookup table — the obvious implementation, and the one a quick sample of four
+files would have supported, since `wit1` was 宋 in all four — would have reported Ming
+variants as Song ones in roughly a thousand works, in the tradition's own sigla, with
+nothing about the output looking wrong.
+
+So each text carries its own map, imported by `mix pramana.witnesses.import` from its own
+pinned file. That task deliberately does **not** re-bake: re-normalizing would delete and
+rebuild segments, cascading to 344,200 embeddings and 40 minutes of GPU, so it updates
+`texts.meta` in place and stays checkable against `raw/`.
+
+Two distinctions kept that a simpler shape would have lost: an unresolvable id returns
+`witness: nil` with the raw id preserved rather than a guess, and an **omission** ("this
+witness has nothing here") stays distinct from a **substitution** ("reads something
+else") — different claims about a manuscript.
+
 ### Task audit, 2026-08-16
 
 Re-read every open task against what Phases 3-4 actually measured. Five changes.

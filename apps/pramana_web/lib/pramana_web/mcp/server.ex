@@ -22,6 +22,7 @@ defmodule PramanaWeb.MCP.Server do
   component(PramanaWeb.MCP.Tools.GetCommentaries)
   component(PramanaWeb.MCP.Tools.GetParallels)
   component(PramanaWeb.MCP.Tools.CompareVersions)
+  component(PramanaWeb.MCP.Tools.CompareWitnesses)
   component(PramanaWeb.MCP.Tools.DefineFromCanon)
   component(PramanaWeb.MCP.Tools.VerifyCitation)
 

@@ -152,6 +152,12 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       # than guessed when no confirmed template exists for the source.
       reader: Reader.reference(span.urn, span.provenance),
       apparatus: span.meta["apparatus"],
+      # A count, not the resolved variants: resolving witness ids needs the text's own
+      # sigla (they are per file — `wit1` means 38 different things across the canon), and
+      # doing it here would duplicate `Pramana.Apparatus` in a second response shape where
+      # the two could drift. This tells a reader there is something to look at;
+      # `compare_witnesses` tells them what.
+      variant_count: length(span.meta["apparatus"] || []),
       notes: span.meta["notes"],
       editorial_punctuation: span.meta["editorial_punctuation"] == true,
       translations: translations(span.urn, params)

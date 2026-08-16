@@ -1,6 +1,6 @@
 # The MCP Surface
 
-The product boundary. A model never touches Postgres — it sees these nine tools and two
+The product boundary. A model never touches Postgres — it sees these ten tools and two
 resources, and everything they return is URN-addressed so it can be independently
 re-checked.
 
@@ -16,6 +16,7 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 | `get_passage` | One URN, optionally with `context_before` / `context_after`, and optionally with translations (`translation`, `translator`, `compare_translations`). |
 | `get_outline` | A work's structure without its text. |
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
+| `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |
 | `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
 
@@ -41,6 +42,24 @@ reads as a translation of a Chinese Āgama, when neither derives from the other.
 parallel keeps its relation strength, and the response counts what is
 `referenced_but_not_held` — texts the scholarship links that this corpus does not have —
 so a partial comparison is never presented as a complete one.
+
+### Variants name the witness, and the witness is per text
+
+`compare_witnesses` returns the Taishō's own critical apparatus — 572,701 segments carry
+one — with each reading attributed: 消 → 銷 in 【宋】【元】【明】, 至 → 志 in 【宋】.
+
+The attribution is the hard part. A `<rdg wit="#wit1">` refers to a witness declared in
+**that file's header**, and the ids are not stable: across the 2,471 CBETA files `wit1`
+means 38 different things — 宋 in 832, 明 in 375, 甲 in 322. A global lookup table would
+report a Ming variant as a Song one, in the tradition's own sigla, in about a thousand
+works, and nothing about the output would look wrong. So each text carries its own map,
+imported from its own pinned file, and an id that cannot be resolved is returned as
+unidentified rather than guessed.
+
+An omission is also kept distinct from a substitution: "this witness has nothing here" and
+"this witness reads something else" are different claims about a manuscript.
+
+`get_passage` reports `variant_count` so a reader knows there is something to look at.
 
 ### Definitions are quoted, not composed
 
