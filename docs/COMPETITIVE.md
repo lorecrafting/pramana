@@ -44,7 +44,7 @@ And what we claim here that is **not yet true**:
 | Variant readings shipped | **Now true (#45).** `compare_witnesses` answers it, witness-attributed. |
 | Doctrinal position tracking | Not built. Phase 7 (#27). |
 | Terminology-consistent translation with a visible term chain | Not built. The glossary is seeded (376 terms) and the pool exists; the engine is Phase 7 (#26). |
-| Quotation graph | Not built. Phase 6 (#22). |
+| Quotation graph | **Built (#22).** `get_quotations` over verbatim reuse found by a standalone Rust scanner. |
 
 ## tripitaka-mcp (`dhamma-seeker/tripitaka-mcp`)
 

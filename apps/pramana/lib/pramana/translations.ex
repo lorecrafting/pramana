@@ -285,7 +285,7 @@ defmodule Pramana.Translations do
 
     written =
       prepared
-      |> Enum.chunk_every(batch_size(prepared))
+      |> Pramana.Batch.chunk()
       |> Enum.reduce(0, fn batch, acc ->
         {n, _} =
           Repo.insert_all(Translation, batch,
@@ -318,15 +318,6 @@ defmodule Pramana.Translations do
 
     {:ok, written}
   end
-
-  # Postgres binds at most 65,535 parameters per statement, and `insert_all` sends one
-  # per column per row — so the safe batch size is a function of how WIDE the row is,
-  # not a constant. A fixed 5,000 worked at 13 columns and blew up at 18. Deriving it
-  # means adding a column can never reintroduce the failure.
-  @max_bind_params 65_535
-  defp batch_size([]), do: 1
-
-  defp batch_size([row | _]), do: max(div(@max_bind_params, map_size(row)), 1)
 
   defp prepare(row, now) do
     text = Map.fetch!(row, :text)

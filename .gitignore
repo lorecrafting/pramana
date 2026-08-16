@@ -58,3 +58,4 @@ sources.lock.local.json
 # licensed content.
 sources/local/*/text/
 sources/local/*/raw/
+native/quotations/target/

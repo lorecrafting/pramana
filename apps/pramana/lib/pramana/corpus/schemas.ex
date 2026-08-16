@@ -441,3 +441,41 @@ defmodule Pramana.Corpus.ReadingException do
     timestamps(type: :utc_datetime_usec)
   end
 end
+
+defmodule Pramana.Corpus.Quotation do
+  @moduledoc """
+  One verbatim reuse: the same run of characters in two different works.
+
+  Deliberately two ends rather than a source and a target. Identical characters say
+  nothing about who quoted whom — that is a judgement about dates and transmission, and
+  the scan cannot make it. See `Pramana.Quotations`.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  alias Pramana.Corpus.Text
+
+  schema "quotations" do
+    field :text, :string
+    field :text_sha256, :string
+    field :length, :integer
+
+    belongs_to :a_text, Text
+    field :a_work_id, :string
+    field :a_urn, :string
+    field :a_char_start, :integer
+    field :a_char_end, :integer
+
+    belongs_to :b_text, Text
+    field :b_work_id, :string
+    field :b_urn, :string
+    field :b_char_start, :integer
+    field :b_char_end, :integer
+
+    field :bake_id, :string
+    field :meta, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end

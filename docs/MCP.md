@@ -1,6 +1,6 @@
 # The MCP Surface
 
-The product boundary. A model never touches Postgres — it sees these ten tools and two
+The product boundary. A model never touches Postgres — it sees these eleven tools and two
 resources, and everything they return is URN-addressed so it can be independently
 re-checked.
 
@@ -17,6 +17,7 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 | `get_outline` | A work's structure without its text. |
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
 | `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |
+| `get_quotations` | Every other text that reproduces this passage word for word. |
 | `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
 
@@ -42,6 +43,21 @@ reads as a translation of a Chinese Āgama, when neither derives from the other.
 parallel keeps its relation strength, and the response counts what is
 `referenced_but_not_held` — texts the scholarship links that this corpus does not have —
 so a partial comparison is never presented as a complete one.
+
+### Quotations are found, not judged
+
+`get_quotations` returns verbatim text reuse — a commentary reproducing its root text, a
+sūtra circulating both inside a collection and standalone. It is found by scanning for
+**character identity**, so a result is either true or a bug, never a threshold someone
+picked.
+
+**Neither end is marked as the origin.** Identical characters say nothing about who
+quoted whom; that is a conclusion about dates and transmission which the scan cannot
+reach, and a response labelling one end "source" would be adding a claim the evidence
+does not carry. Every response says so.
+
+Overlap counts, not only containment: a commentary lifting a clause of a line is still
+quoting it, and requiring the whole line would hide the commonest case.
 
 ### Variants name the witness, and the witness is per text
 

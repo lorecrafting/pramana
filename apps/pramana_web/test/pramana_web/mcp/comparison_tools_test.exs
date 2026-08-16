@@ -20,6 +20,7 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
   alias PramanaWeb.MCP.Tools.CompareVersions
   alias PramanaWeb.MCP.Tools.CompareWitnesses
   alias PramanaWeb.MCP.Tools.DefineFromCanon
+  alias PramanaWeb.MCP.Tools.GetQuotations
 
   defp load!(work_id, lines, provenance) do
     body =
@@ -213,6 +214,82 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
       {:reply, response, _} =
         CompareWitnesses.execute(%{urn: "pramana:cbeta.T:T9999_001@p0001a01"}, %{})
 
+      assert response.isError
+    end
+  end
+
+  describe "get_quotations" do
+    setup do
+      other = Repo.insert!(%Pramana.Corpus.Work{id: "T1579", title: "瑜伽師地論"})
+
+      quoted =
+        Repo.insert!(%Pramana.Corpus.Text{
+          work_id: other.id,
+          source_id: "cbeta",
+          witness_id: "T",
+          urn_prefix: "pramana:cbeta.T:T1579",
+          body: "云何為正見謂正見有二",
+          body_sha256: "x",
+          meta: %{}
+        })
+
+      Repo.insert!(%Pramana.Corpus.Segment{
+        text_id: quoted.id,
+        urn: "pramana:cbeta.T:T1579_001@p0001a01",
+        ordinal: 0,
+        content: "云何為正見謂正見有二",
+        content_sha256: "y",
+        char_start: 0,
+        char_end: 10,
+        byte_start: 0,
+        byte_end: 30,
+        meta: %{}
+      })
+
+      root = Repo.one!(from(t in Pramana.Corpus.Text, where: t.work_id == "T0001"))
+
+      segment =
+        Repo.one!(from(s in Pramana.Corpus.Segment, where: s.text_id == ^root.id, limit: 1))
+
+      {:ok, _} =
+        Pramana.Quotations.store([
+          %{
+            "text" => "云何為正見謂正見有二",
+            "length" => 10,
+            "occurrences" => [
+              %{
+                "work" => Integer.to_string(root.id),
+                "start" => segment.char_start,
+                "end" => segment.char_end
+              },
+              %{"work" => Integer.to_string(quoted.id), "start" => 0, "end" => 10}
+            ]
+          }
+        ])
+
+      {:ok, urn: segment.urn}
+    end
+
+    test "returns every work reproducing the passage", %{urn: urn} do
+      data = call!(GetQuotations, %{urn: urn})
+
+      assert data["total"] == 1
+      assert hd(data["quotations"])["other_work_id"] == "T1579"
+    end
+
+    test "every response says direction is not established", %{urn: urn} do
+      assert call!(GetQuotations, %{urn: urn})["note"] =~ "Neither end is marked as the origin"
+    end
+
+    test "a URN addressing nothing is refused" do
+      {:reply, response, _} =
+        GetQuotations.execute(%{urn: "pramana:cbeta.T:T9999_001@p0001a01"}, %{})
+
+      assert response.isError
+    end
+
+    test "a malformed URN is refused" do
+      {:reply, response, _} = GetQuotations.execute(%{urn: "nonsense"}, %{})
       assert response.isError
     end
   end

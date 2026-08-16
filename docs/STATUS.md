@@ -521,6 +521,45 @@ a gate exists to catch a system getting worse.
 **The README claimed "pass rates have been stable"** across runs. That was wrong and is
 corrected there. It was written after two runs that happened to agree.
 
+### The quotation graph (#22) — 141,073 verbatim reuses
+
+A standalone Rust binary scans `texts.body` for runs of identical characters occurring in
+two different works. **85.9M characters in about a minute**, 1.5 GB resident, and the
+graph now holds **141,073 reuses across 1,301 works** — median 38 characters, longest
+**746**.
+
+The top results are exactly what a philologist would predict, which is the point: T2157
+(貞元新定釋教目錄, 800 CE) reproducing T2154 (開元釋教錄, 730 CE) at 746 characters, and the
+眾經目錄 catalogues sharing long blocks. Later Buddhist catalogues were compiled from
+earlier ones, and the scan finds it without being told.
+
+**Neither end is marked as the source.** Identical characters say nothing about who quoted
+whom — that is a conclusion about dates and transmission — so the schema has an `a` end
+and a `b` end, and every response says so. A tool that labelled one "source" would be
+adding a claim the evidence cannot carry.
+
+Two design decisions worth keeping:
+
+- **Seed-and-extend, not a suffix array.** A suffix array would fit (2-3 GB) and give
+  maximal matches directly. Seeds were chosen because they make the two decisions that
+  actually matter explicit and tunable: the minimum length worth calling a quotation, and
+  the frequency above which a string is boilerplate. That second knob is not optional
+  here — 如是我聞 opens nearly every sūtra, and a method that cannot dismiss it drowns.
+- **Emit only from the left edge of a match.** Every seed inside a shared passage would
+  otherwise rediscover it, reporting one 200-character quotation as 189 of them.
+
+**And a rule that was written down and then broken anyway.** `Pramana.Batch` now exists
+because the Postgres 65,535-parameter limit was hit twice: a fixed 5,000 rows worked at
+13 columns and failed at 18 in `Translations`, the lesson was recorded as rule 14, and
+then a fresh 5,000 was written into `Quotations` for a 17-column table and failed
+identically. A rule in a document does not survive being reimplemented; a shared function
+does. Both call sites now derive the batch from the row width.
+
+The full scan also exposed a resolver that loaded all 4.74M segments into memory to map
+offsets — fine on a 155-work division, killed on the canon, *after* the scanner had
+already done its job correctly, which made it look as though the scan had failed. It is
+batched now.
+
 ### Task audit, 2026-08-16
 
 Re-read every open task against what Phases 3-4 actually measured. Five changes.
