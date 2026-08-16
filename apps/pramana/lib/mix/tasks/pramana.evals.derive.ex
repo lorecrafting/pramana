@@ -184,12 +184,12 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
 
     {cases, rejected} =
       for {list, tradition, lang, description} <- groups,
-          {question, term} <- list,
+          {question, term, topic} <- list,
           reduce: {[], []} do
         {kept, rejected} ->
           case classify_term(term, lang) do
             {:ok, count} ->
-              {[topical_case(question, term, tradition, lang, description, count) | kept],
+              {[topical_case(question, term, topic, tradition, description, count) | kept],
                rejected}
 
             {:rejected, reason, count} ->
@@ -225,7 +225,7 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
     end
   end
 
-  defp topical_case(question, term, tradition, _lang, description, count) do
+  defp topical_case(question, term, topic, tradition, description, count) do
     %{
       id: nil,
       type: "topical",
@@ -233,6 +233,7 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
       expect_contains: [term],
       k: 10,
       tradition: tradition,
+      topic: topic,
       search_opts: %{},
       source:
         "hand-written question; ground truth is the canon's own term #{term}, which " <>

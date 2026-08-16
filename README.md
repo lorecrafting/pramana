@@ -55,12 +55,28 @@ produced by `mix pramana.evals` over a 200-case gold set committed in [`evals/`]
 | ↳ Chinese question → Chinese passage | 12 | **100%** (mean rank 1.17) |
 | ↳ English question → Pāli passage | 16 | 75.0% |
 | ↳ English question → Chinese passage | 12 | **0%** |
+| **Answered from any tradition** — the reader got a good answer from *some* canon | 11 topics | **81.8%** |
 
 Reproduce with:
 
 ```bash
 PRAMANA_EMBEDDING=1 mix pramana.evals
 ```
+
+### Two questions, not one
+
+The last two blocks measure different things and both are reported, because reporting
+either alone misleads.
+
+**Per-tradition reachability** asks "can an English query reach the *Pāli* witness of
+this topic?" A correct answer from the Chinese canon counts as a miss, because the
+question was whether that canon is reachable. This is the number that tells you a corpus
+has gone dark.
+
+**Answered from any tradition** asks "did the reader get a good answer from anywhere?"
+Either canon counts. This is what someone using the system cares about, and at **81.8%**
+it is a very different picture from the 0% and 68.8% above it. Until the two were
+separated (#44), answering correctly from the other canon was scored as a failure.
 
 ### The finding that matters
 
@@ -101,9 +117,12 @@ Publishing a benchmark obliges you to publish its limits.
 - **The derived retrieval queries are not paraphrases.** They are a translator's own
   English, or the canon's own definitional formula. Hand-written paraphrase questions are
   the topical set; the two are scored separately and never averaged.
-- **Mean ranks vary slightly between runs.** Approximate nearest-neighbour search with
-  `relaxed_order` does not return a fixed order, so mean rank moves by ~0.05 run to run.
-  Pass rates have been stable.
+- **Results vary slightly between runs, pass rates included.** Approximate nearest-neighbour
+  search with `relaxed_order` does not return a fixed ordering. Two runs of an identical
+  build differed by one case in each of `retrieval` (68.0% / 66.7%) and `topical`
+  (60.0% / 57.5%), and mean ranks move by ~0.05. An earlier version of this file claimed
+  pass rates were stable; that was wrong, and the gate now tolerates a one-case drop
+  rather than treating noise as a regression.
 - **No single headline figure is meaningful.** Guard pass rate and retrieval recall
   measure different things. The scorecard reports per type, and crossed with tradition,
   because that cross-tab is where the 100%/0% split above became visible at all — both

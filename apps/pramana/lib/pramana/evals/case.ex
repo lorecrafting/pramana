@@ -29,6 +29,9 @@ defmodule Pramana.Evals.Case do
           k: pos_integer(),
           search_opts: keyword(),
           tradition: String.t() | nil,
+          # Links cases that ask the SAME question of different canons, so "was the user
+          # answered at all" can be computed without losing "is this canon reachable".
+          topic: String.t() | nil,
           adversarial: boolean(),
           source: String.t() | nil,
           note: String.t() | nil,
@@ -42,6 +45,7 @@ defmodule Pramana.Evals.Case do
     :urn,
     :quote,
     :tradition,
+    :topic,
     :source,
     :note,
     :origin,
@@ -117,6 +121,7 @@ defmodule Pramana.Evals.Case do
       k: data["k"] || 10,
       search_opts: search_opts(data["search_opts"] || %{}),
       tradition: data["tradition"],
+      topic: data["topic"],
       adversarial: data["adversarial"] == true,
       source: data["source"],
       note: data["note"],

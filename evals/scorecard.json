@@ -4,6 +4,11 @@
     "rate": 100.0,
     "scored": 45
   },
+  "answered_any_tradition": {
+    "answered": 9,
+    "rate": 81.8,
+    "topics": 11
+  },
   "by_type": {
     "absence": {
       "hits": 4,
@@ -26,13 +31,13 @@
       "scored": 40
     },
     "retrieval": {
-      "hits": 51,
-      "rate": 68.0,
+      "hits": 50,
+      "rate": 66.7,
       "scored": 75
     },
     "topical": {
-      "hits": 24,
-      "rate": 60.0,
+      "hits": 23,
+      "rate": 57.5,
       "scored": 40
     }
   },
@@ -48,8 +53,8 @@
       "scored": 35
     },
     "retrieval/pali": {
-      "hits": 17,
-      "rate": 42.5,
+      "hits": 16,
+      "rate": 40.0,
       "scored": 40
     },
     "topical/chinese": {
@@ -63,14 +68,14 @@
       "scored": 12
     },
     "topical/pali": {
-      "hits": 12,
-      "rate": 75.0,
+      "hits": 11,
+      "rate": 68.8,
       "scored": 16
     }
   },
   "overall": {
-    "hits": 200,
-    "rate": 83.3,
+    "hits": 198,
+    "rate": 82.5,
     "scored": 240
   },
   "stale": 0,

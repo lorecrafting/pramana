@@ -457,6 +457,70 @@ Two distinctions kept that a simpler shape would have lost: an unresolvable id r
 witness has nothing here") stays distinct from a **substitution** ("reads something
 else") — different claims about a manuscript.
 
+### Tradition balancing: the measurement is the deliverable, round-robin is not (#44)
+
+Two halves. The measurement half worked and changes how this project reports itself; the
+retrieval half was tried and **rejected on evidence**.
+
+**Measurement.** Topical cases now carry a `topic` slug linking the same question asked of
+different canons, so two genuinely different questions can both be answered:
+
+    per-tradition reachability   "can an English query reach the PĀLI witness of this?"
+    answered from any tradition  "did the reader get a good answer from anywhere?"
+
+The second is what a reader cares about, and it was not computable before. It is
+**81.8% (9 of 11 topics)** at the shipped default — against per-tradition figures of
+0% (Chinese) and 68.8% (Pāli). Reporting only the per-tradition numbers understated the
+system badly, because answering correctly from the other canon counted as a failure.
+
+**Retrieval.** Round-robin interleaving by tradition was implemented and measured:
+
+    default                   chinese 0.0%   pali 68.8%   answered 81.8%
+    + parallel glosses        chinese 33.3%  pali 50.0%   —
+    + glosses + balancing     chinese 33.3%  pali 50.0%   answered 63.6%
+
+It moved neither tradition's rate and made the user-facing number **worse**. Pāli mean
+rank went 3.18 -> 5.13: interleaving inserts the other tradition between correct answers,
+so a hit at rank 3 lands at rank 5 and some fall out of the top ten entirely. Guaranteeing
+representation costs ranking, and for a question whose answer genuinely lives in one canon
+that is pure loss.
+
+The option survives (`balance: :tradition`, default off) because it is measured and might
+suit a caller who explicitly wants breadth. It is not the mechanism.
+
+**What this actually resolves.** The blocking worry was "we cannot add English layers for
+another tradition without silently hurting the ones we have". True, and the fix is not a
+ranking trick:
+
+- **the layers stay opt-in**, so nothing taxes the default path
+- **the caller says what it wants** — a reader after the Chinese witness asks for it, and
+  `compare_versions` already shows several traditions side by side rather than making them
+  fight for ten slots
+- **`answered from any tradition` is the number to optimise**, and it now exists
+
+On that basis #21 (Tibetan) and #26 (translation engine) are unblocked, with a documented
+constraint rather than a solved problem: any new English layer must be measured against
+answered-from-any-tradition before it becomes a default, and the parallel-gloss layer is
+evidence that "it helps one tradition" is not sufficient.
+
+### The eval gate was going to cry wolf (#44)
+
+Two runs of an identical build differed by **one case** in each of `retrieval`
+(68.0% / 66.7%) and `topical` (60.0% / 57.5%). Nothing between them touched retrieval.
+Approximate nearest-neighbour search with `relaxed_order` simply does not return a fixed
+ordering, and at 40-75 cases per type one flip is 1.3-2.5 percentage points.
+
+The gate compared rates and failed on any decrease, so it would have reported a
+regression on roughly every other clean run. A benchmark gate that cries wolf gets
+ignored, and an ignored gate is worse than none — so the threshold is now in **cases**,
+not percentage points: one may flip, two is real.
+
+The cost is that a genuine one-case improvement will not ratchet. That is the right trade:
+a gate exists to catch a system getting worse.
+
+**The README claimed "pass rates have been stable"** across runs. That was wrong and is
+corrected there. It was written after two runs that happened to agree.
+
 ### Task audit, 2026-08-16
 
 Re-read every open task against what Phases 3-4 actually measured. Five changes.

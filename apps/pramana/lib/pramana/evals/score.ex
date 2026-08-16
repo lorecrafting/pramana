@@ -47,9 +47,38 @@ defmodule Pramana.Evals.Score do
         |> Enum.reject(&(&1.case.tradition == nil))
         |> Enum.group_by(&{&1.case.type, &1.case.tradition})
         |> Map.new(fn {key, rs} -> {key, tally(rs)} end),
+      # "Was the user answered at all", as distinct from "is this canon reachable".
+      # A topic is satisfied when ANY of the cases asking it hit, because a reader who
+      # asks about the four noble truths is well served by the Pāli or by the Chinese
+      # Āgama. Kept ALONGSIDE the per-tradition rates rather than replacing them: the two
+      # answer different questions and only one of them tells you a canon has gone dark.
+      by_topic: topic_tally(results),
       overall: tally(results),
       failures: Enum.filter(results, &match?({:miss, _}, &1.outcome)),
       stale: Enum.filter(results, &match?({:stale, _}, &1.outcome))
+    }
+  end
+
+  defp topic_tally(results) do
+    grouped =
+      results
+      |> Enum.reject(&(&1.case.topic == nil))
+      |> Enum.group_by(& &1.case.topic)
+
+    answered =
+      Enum.count(grouped, fn {_topic, rs} ->
+        Enum.any?(rs, &match?({:hit, _}, &1.outcome))
+      end)
+
+    %{
+      topics: map_size(grouped),
+      answered: answered,
+      rate: if(map_size(grouped) > 0, do: Float.round(100 * answered / map_size(grouped), 1)),
+      unanswered:
+        grouped
+        |> Enum.reject(fn {_topic, rs} -> Enum.any?(rs, &match?({:hit, _}, &1.outcome)) end)
+        |> Enum.map(&elem(&1, 0))
+        |> Enum.sort()
     }
   end
 
@@ -99,6 +128,7 @@ defmodule Pramana.Evals.Score do
     #{section("BY CASE TYPE", scorecard.by_type)}
     #{section("BY TRADITION", scorecard.by_tradition)}
     #{cross_section(scorecard.by_type_tradition)}
+    #{topics(scorecard.by_topic)}
     #{adversarial(scorecard.adversarial)}
     #{stale(scorecard.stale)}
     #{failures(scorecard.failures)}
@@ -153,6 +183,19 @@ defmodule Pramana.Evals.Score do
   defp rate(%{rate: nil}), do: "no cases scored"
   defp rate(%{rate: rate}), do: "#{rate}%"
 
+  defp topics(%{topics: 0}), do: ""
+
+  defp topics(t) do
+    unanswered =
+      case t.unanswered do
+        [] -> ""
+        list -> "\n      unanswered: #{Enum.join(list, ", ")}"
+      end
+
+    "    ANSWERED FROM ANY TRADITION   #{t.rate}%  (#{t.answered}/#{t.topics} topics)" <>
+      unanswered <> "\n"
+  end
+
   defp adversarial(%{scored: 0}), do: ""
 
   defp adversarial(t) do
@@ -206,7 +249,12 @@ defmodule Pramana.Evals.Score do
         Map.new(scorecard.by_type_tradition, fn {{type, tradition}, v} ->
           {"#{type}/#{tradition}", rate_of(v)}
         end),
-      "adversarial" => rate_of(scorecard.adversarial)
+      "adversarial" => rate_of(scorecard.adversarial),
+      "answered_any_tradition" => %{
+        "rate" => scorecard.by_topic.rate,
+        "answered" => scorecard.by_topic.answered,
+        "topics" => scorecard.by_topic.topics
+      }
     }
   end
 

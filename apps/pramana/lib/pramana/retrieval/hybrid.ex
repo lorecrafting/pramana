@@ -116,11 +116,23 @@ defmodule Pramana.Retrieval.Hybrid do
 
   # Lexical hits are segments; map each to the chunk that contains it so both
   # retrievers speak in the same units.
+  # Options that mean something only to the vector stage. Kept next to the code that
+  # drops them so a new one is added in one place.
+  @semantic_only_opts [:vector_kinds, :vector_lang, :balance, :serving]
+
   defp lexical_ranking(query, opts, depth) do
     # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the
     # lexical retriever. Passing it through crashed with a raw CaseClauseError. The
     # lexical stage always runs its own :auto strategy.
-    lexical_opts = opts |> Keyword.merge(limit: depth) |> Keyword.put(:mode, :auto)
+    # Semantic-only options are DROPPED rather than passed through. The lexical retriever
+    # rejects options it does not know — correctly, since a silently-ignored filter is the
+    # bug it was hardened against — so handing it `vector_kinds` crashes the whole search.
+    # Hybrid is the layer that knows which stage each option belongs to.
+    lexical_opts =
+      opts
+      |> Keyword.drop(@semantic_only_opts)
+      |> Keyword.merge(limit: depth)
+      |> Keyword.put(:mode, :auto)
 
     case Lexical.search(query, lexical_opts) do
       {:ok, %{results: results}} ->

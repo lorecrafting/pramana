@@ -579,4 +579,80 @@ defmodule Pramana.EvalsTest do
       assert cross[{:topical, "chinese"}].scored == 1
     end
   end
+
+  describe "answered from any tradition" do
+    test "a topic counts as answered when EITHER canon's case hits" do
+      # The second case must genuinely MISS, not be stale, so its term has to exist
+      # somewhere in the corpus while not being what the query retrieves.
+      seed_segment!("pramana:cbeta.T:T0001_001@p0001a09", "涅槃寂靜", 9)
+
+      cases = [
+        gold(%{
+          id: "any-1",
+          type: "topical",
+          query: @content,
+          expect_contains: ["世尊"],
+          tradition: "chinese-native",
+          topic: "four-noble-truths",
+          search_opts: %{"lexical_only" => true}
+        }),
+        gold(%{
+          id: "any-2",
+          type: "topical",
+          query: @content,
+          expect_contains: ["涅槃"],
+          tradition: "pali",
+          topic: "four-noble-truths",
+          k: 1,
+          search_opts: %{"lexical_only" => true}
+        })
+      ]
+
+      scorecard = Evals.run(cases)
+
+      # One case hit and one missed, so per-tradition reachability is 50% — but the
+      # reader asking about the four noble truths WAS answered, and that is a different
+      # question. Reporting only the first understated the system badly (#43).
+      assert scorecard.by_topic.answered == 1
+      assert scorecard.by_topic.topics == 1
+      assert scorecard.by_topic.rate == 100.0
+      assert scorecard.overall.hits == 1
+      assert scorecard.overall.misses == 1
+    end
+
+    test "a topic nobody answered is named, not just counted" do
+      kase =
+        gold(%{
+          id: "any-3",
+          type: "topical",
+          query: @content,
+          expect_contains: ["世尊"],
+          topic: "unanswerable",
+          k: 0,
+          search_opts: %{"lexical_only" => true}
+        })
+
+      scorecard = Evals.run([kase])
+
+      assert scorecard.by_topic.answered == 0
+      assert scorecard.by_topic.unanswered == ["unanswerable"]
+    end
+
+    test "cases with no topic are excluded, so a control group cannot inflate it" do
+      # The Chinese-native group is asked in Chinese and scores 100% for reasons that
+      # have nothing to do with cross-lingual retrieval. Folding it in would flatter the
+      # figure.
+      kase =
+        gold(%{
+          id: "any-4",
+          type: "topical",
+          query: @content,
+          expect_contains: ["世尊"],
+          tradition: "chinese-native",
+          search_opts: %{"lexical_only" => true}
+        })
+
+      assert Evals.run([kase]).by_topic.topics == 0
+    end
+  end
 end

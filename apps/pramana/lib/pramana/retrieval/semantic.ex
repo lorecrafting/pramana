@@ -51,6 +51,7 @@ defmodule Pramana.Retrieval.Semantic do
     :limit,
     :vector_kinds,
     :vector_lang,
+    :balance,
     :redistributable_only,
     :license_class,
     :mode,
@@ -151,6 +152,7 @@ defmodule Pramana.Retrieval.Semantic do
       # re-established here rather than trusted from the scan.
       |> Enum.sort_by(& &1.similarity, :desc)
       |> collapse_by_chunk()
+      |> balance(opts[:balance])
       |> Enum.take(limit)
 
     %{results: results, total: length(results), model: Embed.model()}
@@ -192,6 +194,48 @@ defmodule Pramana.Retrieval.Semantic do
     else
       where(query, [v], v.lang in ^List.wrap(lang))
     end
+  end
+
+  # Interleave the traditions so one cannot monopolise the head of the list.
+  #
+  # English vectors from every tradition compete in a single space, and there is nothing
+  # in a similarity ranking that keeps any of them reachable — #43 measured 1,665 gloss
+  # vectors displacing Pāli answers, and a whole-canon gloss layer would be ~300,000
+  # against 14,781. Round-robin by source, preserving each tradition's internal order, so
+  # a caller asking one question of a multi-tradition corpus sees more than one canon.
+  #
+  # Opt-in, and deliberately so: it is the right behaviour for a topical question and the
+  # wrong one for "find the passage I just quoted", where the tradition is not in doubt
+  # and interleaving only pushes the answer down. The caller knows which it is asking.
+  defp balance(results, :tradition) do
+    results
+    |> Enum.group_by(&tradition_of/1)
+    |> Enum.map(fn {_source, group} -> group end)
+    |> interleave()
+  end
+
+  defp balance(results, _), do: results
+
+  # The URN's source component IS the tradition here: cbeta and local commentary are
+  # Chinese, sc is Pāli. Read from the URN rather than the provenance map so a result
+  # whose span failed to resolve still balances rather than silently clustering.
+  defp tradition_of(result) do
+    case String.split(result.urn, [":", "."], parts: 3) do
+      ["pramana", source | _] -> source
+      _ -> "unknown"
+    end
+  end
+
+  defp interleave([]), do: []
+
+  defp interleave(groups) do
+    {heads, rests} =
+      groups
+      |> Enum.reject(&(&1 == []))
+      |> Enum.map(fn [head | rest] -> {head, rest} end)
+      |> Enum.unzip()
+
+    heads ++ interleave(rests)
   end
 
   # One chunk, one result — but keep a record of EVERY vector that matched it. A hit that

@@ -269,6 +269,9 @@ defmodule Pramana.Evals do
       # that publishes a number must not depend on an implicit default for whether half
       # the retrieval stack ran.
       |> Keyword.put(:serving, opts[:serving] || Serving.name())
+      # An experiment override wins over the case's own options, so a whole run can be
+      # scored under one configuration.
+      |> Keyword.merge(opts[:search_override] || [])
 
     case Hybrid.search(kase.query, search_opts) do
       {:ok, %{results: results}} -> results

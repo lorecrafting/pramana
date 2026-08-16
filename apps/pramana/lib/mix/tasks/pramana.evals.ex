@@ -27,7 +27,18 @@ defmodule Mix.Tasks.Pramana.Evals do
   alias Pramana.Evals.Case, as: GoldCase
   alias Pramana.Evals.Score
 
-  @switches [only: :string, json: :string, gate: :boolean, dir: :string, baseline: :string]
+  @switches [
+    only: :string,
+    json: :string,
+    gate: :boolean,
+    dir: :string,
+    baseline: :string,
+    # Experiment flags. They OVERRIDE every case's own search options, so a run that
+    # uses them is measuring a configuration rather than the shipped default — which is
+    # the point, and why the header says so.
+    vector_kinds: :string,
+    balance: :string
+  ]
 
   @default_baseline "evals/baseline.json"
 
@@ -57,6 +68,32 @@ defmodule Mix.Tasks.Pramana.Evals do
   end
 
   defp run_opts(opts) do
+    only(opts) ++ overrides(opts)
+  end
+
+  defp overrides(opts) do
+    kinds = opts[:vector_kinds] && String.split(opts[:vector_kinds], ",", trim: true)
+    balance = opts[:balance] && String.to_existing_atom(opts[:balance])
+
+    override =
+      [vector_kinds: kinds, balance: balance]
+      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+
+    if override == [] do
+      []
+    else
+      Mix.shell().info([
+        :yellow,
+        "  CONFIGURATION OVERRIDE: #{inspect(override)}\n" <>
+          "  This is an experiment, not the shipped default.\n",
+        :reset
+      ])
+
+      [search_override: override]
+    end
+  end
+
+  defp only(opts) do
     case opts[:only] do
       nil ->
         []
@@ -101,14 +138,26 @@ defmodule Mix.Tasks.Pramana.Evals do
     end
   end
 
+  # A gate that trips on one case flipping gets ignored, and an ignored gate is worse
+  # than none. Approximate nearest-neighbour search with `relaxed_order` does not return
+  # a fixed ordering, and two runs of the identical build differed by exactly one case in
+  # each of `retrieval` (68.0 -> 66.7) and `topical` (60.0 -> 57.5). So the threshold is
+  # in CASES, not percentage points: one may flip, two is a real regression.
+  #
+  # This also means a genuine one-case improvement will not be caught by the ratchet.
+  # That is the right trade — a benchmark's job is to catch a system getting worse, and
+  # crying wolf costs more than missing a small win.
+  @tolerated_case_drop 1
+
   defp compare(current, baseline) do
     regressions =
-      for {type, %{"rate" => was}} <- baseline["by_type"] || %{},
-          is_number(was),
-          now = get_in(current, ["by_type", type, "rate"]),
-          is_number(now),
-          now < was do
-        "  #{type}: #{was}% -> #{now}%"
+      for {type, %{"hits" => was_hits, "rate" => was}} <- baseline["by_type"] || %{},
+          is_number(was_hits),
+          now_hits = get_in(current, ["by_type", type, "hits"]),
+          is_number(now_hits),
+          was_hits - now_hits > @tolerated_case_drop do
+        now = get_in(current, ["by_type", type, "rate"])
+        "  #{type}: #{was}% -> #{now}%  (#{was_hits} -> #{now_hits} cases)"
       end
 
     if regressions == [] do
