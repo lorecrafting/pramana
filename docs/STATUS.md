@@ -521,6 +521,44 @@ a gate exists to catch a system getting worse.
 **The README claimed "pass rates have been stable"** across runs. That was wrong and is
 corrected there. It was written after two runs that happened to agree.
 
+### The Derge normalizer (#21) — a third of the edition, silently
+
+103 volume files in, 1,196 Tōhoku works out: **461,414 citable lines, 77.5M characters
+of Tibetan**, in 15 seconds. The citation anchor comes straight from the markup, as it
+should — `data-orig-n="1b"` is the folio and `<milestone unit="line" n="3"/>` the line —
+so a passage is addressed `1b.3`, which is how Tibetanists cite.
+
+**The first version dropped 146,962 lines and looked fine.** A work is delimited by a
+`<milestone unit="text" toh="N"/>` marker, and I treated text before the first marker as
+front matter, which is true of volume 1 and false everywhere else: the Vinaya runs to
+volume 13 and the Prajñāpāramitā across a dozen more, and **26 of the 103 files contain
+no marker at all**. Their entire contents vanished. Nothing errored, the work count was
+plausible, and the only visible symptom was a mean line length of 169.7 characters where
+a Derge line is nearer 80 — two lines' worth of text under one anchor.
+
+The number that exposed it was one I already had: 460,539 line milestones counted
+straight out of the XML, against 313,577 lines emitted. **A count taken from the source
+before parsing is worth more than any number the parser reports about itself**, because
+the parser's numbers are all downstream of the same wrong assumption.
+
+`normalize_file/2` now takes the work in progress and returns the work still open, and
+volumes must be fed in order. 461,414 lines, matching the milestone count.
+
+Three more things the edition itself made necessary:
+
+- **Folio numbers restart at `1a` in every volume**, so the anchor is
+  `volume.folio.line` — `2.5b.3`. Without the volume, a work spanning one addresses two
+  different lines as `1b.1`, and 26 works span volumes.
+- **Volume 103 is the dkar chag**, the catalogue. Eight `toh` markers sit there on titles
+  in a running list — Toh 539 is `ཕྱག་དང་།`, "homage, and" — and splitting on them yields
+  eight works a few words long that collide with the real text. Median characters between
+  markers: **24 in volume 103, 7,804 everywhere else.** It is normalized as one work,
+  which it genuinely is.
+- **Three anchors in 461,414 lines are printed twice.** Dropping the second loses text;
+  merging makes two passages one. They keep the printed anchor with `+2` appended, which
+  is visibly not a folio reference — a reader who sees it learns the edition is ambiguous
+  there rather than receiving a citation that looks clean and resolves wrongly.
+
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 
 The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
