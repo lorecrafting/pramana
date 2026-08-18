@@ -25,6 +25,8 @@ no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
 | Embedding vectors | **342,535** (100% embedded) |
 | English renderings | 210,756 by 8 translators |
 | Curated cross-tradition parallels | 407,176 (24,717 resolvable at both ends) |
+| Verbatim quotations between works | 141,073 across 1,301 works |
+| Buddhist reading exceptions | 9,543 over a 44,348-character base |
 
 Both integrity checks are green over every text: `mix pramana.verify --all` proves the
 bake is a **reproducible** function of pinned inputs, and `mix pramana.integrity` proves
@@ -164,7 +166,7 @@ recorded, numbers that fall fail the build.
 ## Stack
 
 Elixir/Phoenix umbrella · PostgreSQL 18 with pgvector and pg_bigm · BGE-M3 embeddings on a
-rented L4 via Modal · MCP server exposing nine read-only tools.
+rented L4 via Modal · MCP server exposing twelve read-only tools.
 
 ---
 

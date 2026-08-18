@@ -442,6 +442,30 @@ defmodule Pramana.Corpus.ReadingException do
   end
 end
 
+defmodule Pramana.Corpus.CharacterReading do
+  @moduledoc """
+  What a character is read as on its own, and what it is ever read as.
+
+  `reading` is Unihan's commonest reading — for 佛 that is *fú*, which is why a
+  per-character renderer calls the Buddha *fú* through half a million occurrences.
+  `attested` is every reading Unihan records for the character anywhere, and a reading
+  asserted for any form must appear in it. The Buddhist readings are already in Unicode;
+  what needs saying is which one applies where.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  @primary_key {:character, :string, []}
+  schema "character_readings" do
+    field :reading, :string
+    field :attested, {:array, :string}, default: []
+    field :authority, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
 defmodule Pramana.Corpus.Quotation do
   @moduledoc """
   One verbatim reuse: the same run of characters in two different works.

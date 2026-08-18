@@ -92,7 +92,7 @@ defmodule Pramana.Parallels do
     rows = Enum.map(anchors, &Map.merge(&1, %{inserted_at: now, updated_at: now}))
 
     {count, _} =
-      Repo.insert_all(TextAnchor, rows,
+      Pramana.Batch.insert_all(TextAnchor, rows,
         on_conflict: {:replace, [:work_id, :urn, :acronym, :volpage, :updated_at]},
         conflict_target: [:uid]
       )
@@ -183,20 +183,13 @@ defmodule Pramana.Parallels do
         })
       end)
 
-    written =
-      rows
-      |> Enum.chunk_every(5_000)
-      |> Enum.reduce(0, fn batch, acc ->
-        {n, _} =
-          Repo.insert_all(TextParallel, batch,
-            on_conflict:
-              {:replace,
-               [:partial, :source_urn, :target_urn, :source_work_id, :target_work_id, :updated_at]},
-            conflict_target: [:source_uid, :target_uid, :relation]
-          )
-
-        acc + n
-      end)
+    {written, _} =
+      Pramana.Batch.insert_all(TextParallel, rows,
+        on_conflict:
+          {:replace,
+           [:partial, :source_urn, :target_urn, :source_work_id, :target_work_id, :updated_at]},
+        conflict_target: [:source_uid, :target_uid, :relation]
+      )
 
     {:ok, %{written: written, total: length(rows)}}
   end

@@ -162,7 +162,7 @@ defmodule Pramana.Glossary do
       end)
 
     {count, _} =
-      Repo.insert_all(GlossaryTerm, rows,
+      Pramana.Batch.insert_all(GlossaryTerm, rows,
         on_conflict:
           {:replace,
            [

@@ -12377,6 +12377,32 @@
       "upstream": "https://github.com/cbeta-org/xml-p5"
     },
     {
+      "file_count": 1,
+      "files": [
+        {
+          "bytes": 9833697,
+          "path": "cedict_1_0_ts_utf-8_mdbg.txt",
+          "sha256": "50a64277d8a5b3bc1dd35d505a95a7978621c11d2df9b74fe66b32b4a9f12168"
+        }
+      ],
+      "files_sha256": "1b14134c3fae33315475ccb8d174d3851efa804f958f20ed22633eb9f81302ef",
+      "id": "cc-cedict",
+      "license": {
+        "class": "cc-by-sa",
+        "commercial_use": true,
+        "note": "CC-BY-SA-4.0. Derived readings in priv/readings/exceptions.tsv carry the share-alike obligation; the entries record authority=cc-cedict so it is traceable.",
+        "redistributable": true,
+        "spdx": "CC-BY-SA-4.0"
+      },
+      "name": "CC-CEDICT Chinese-English dictionary",
+      "pin": {
+        "files_sha256": "1b14134c3fae33315475ccb8d174d3851efa804f958f20ed22633eb9f81302ef",
+        "type": "content"
+      },
+      "retrieved_at": "2026-08-18T05:21:27.801760Z",
+      "upstream": "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
+    },
+    {
       "file_count": 849,
       "files": [
         {
@@ -78132,6 +78158,32 @@
       },
       "retrieved_at": "2026-08-15T22:45:34.488658Z",
       "upstream": "https://github.com/suttacentral/bilara-data"
+    },
+    {
+      "file_count": 1,
+      "files": [
+        {
+          "bytes": 8843048,
+          "path": "Unihan_Readings.txt",
+          "sha256": "575e69c9ad85a4737a889a4f94cbd987042a90a1a6cc16dd3f4ed995c715b17c"
+        }
+      ],
+      "files_sha256": "cf9f41b1c1c783bd96145092f59a055806c5e144e8b12a3aa2019c212a7688ae",
+      "id": "unihan",
+      "license": {
+        "class": "cc-by",
+        "commercial_use": true,
+        "note": "Unicode-3.0 is permissive: redistribution allowed with the copyright notice retained. Classed cc-by because that is how it GATES — attribution required, commercial use and redistribution permitted — and license_class is a coarse gate, not a licence identifier. The identifier is spdx.",
+        "redistributable": true,
+        "spdx": "Unicode-3.0"
+      },
+      "name": "Unicode Han Database (Unihan) — reading fields",
+      "pin": {
+        "files_sha256": "cf9f41b1c1c783bd96145092f59a055806c5e144e8b12a3aa2019c212a7688ae",
+        "type": "content"
+      },
+      "retrieved_at": "2026-08-18T05:21:27.791155Z",
+      "upstream": "https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip"
     }
   ]
 }

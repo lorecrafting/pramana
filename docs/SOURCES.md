@@ -72,6 +72,22 @@ terms already granted, and stating the use. Until then:
 
 ## Supporting data
 
+### Reading dictionaries — INGESTED (#24)
+
+- **Unihan** (`Unicode-3.0`, redistributable with notice) —
+  `https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip`. `Unihan_Readings.txt` only.
+  `kMandarin` supplies the ordinary reading of a character; `kHanyuPinyin`, `kXHC1983`,
+  `kTGHZ2013` and `kHanyuPinlu` together supply the **attested set** — every reading
+  anybody records for that character. The Buddhist readings are in there: 葉 is listed
+  `yè, shè`, 般 is `bān, bō`. What is missing is which one applies where.
+- **CC-CEDICT** (`CC-BY-SA-4.0`) —
+  `https://www.mdbg.net/chinese/export/cedict/`. Supplies compound readings. Share-alike
+  propagates to `priv/readings/exceptions.tsv`, whose rows record `authority=cc-cedict`.
+
+Neither is corpus text, so neither gets a row in `sources`: that table gates what can be
+*served*, and a dictionary is a build input. Both are pinned in `sources.lock.json` by
+content hash, because the derived artifact is only reproducible against the exact input.
+
 - **DILA authority databases** — person/place/time authority records, ~22k
   teacher–student lineage chains. The backbone of any knowledge graph.
 - **DDB** (Digital Dictionary of Buddhism) — Chinese Buddhist terminology

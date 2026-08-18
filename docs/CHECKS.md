@@ -96,6 +96,20 @@ bury it in a number that went down.
 **Regenerate the gold set after a re-bake** with `mix pramana.evals.derive`, and re-read
 the cases before committing. The derivation is seeded, so it is reproducible.
 
+**Readings are scored separately**, because the claim is comparative rather than
+absolute:
+
+```bash
+mix pramana.readings.check          # --verbose for the per-form table
+```
+
+It runs the Buddhist test set through both the reading dictionary and the per-character
+baseline, and raises if any form is read wrongly. Scoring the baseline *in the same run*
+is deliberate: "a generic library fails on this vocabulary" is a measurement, and if that
+number ever rises the claim needs revisiting rather than defending. Half the set is
+controls the baseline already gets right — a dictionary that fixes hard cases by breaking
+easy ones is not an improvement, and `broken` counts exactly that.
+
 ### 5. Docs sync
 - Does `docs/ROADMAP.md` still describe what we actually built? Amend if not.
 - Do `ARCHITECTURE.md` / `LAYERS.md` / `TRANSLATION.md` match the implemented schema?

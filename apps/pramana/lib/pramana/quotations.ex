@@ -202,21 +202,13 @@ defmodule Pramana.Quotations do
         end
       end)
 
-    # Chunked by ROW WIDTH, not by a constant: 5,000 quotation rows is 85,000 bound
-    # parameters and Postgres accepts 65,535. See `Pramana.Batch`, which exists because
-    # this went wrong twice.
-    n =
-      rows
-      |> Pramana.Batch.chunk()
-      |> Enum.reduce(0, fn statement, acc ->
-        {written, _} =
-          Repo.insert_all(Quotation, statement,
-            on_conflict: :nothing,
-            conflict_target: [:a_text_id, :a_char_start, :b_text_id, :b_char_start]
-          )
-
-        acc + written
-      end)
+    # Batched by ROW WIDTH, not by a constant: 5,000 quotation rows is 85,000 bound
+    # parameters and Postgres accepts 65,535. See `Pramana.Batch`.
+    {n, _} =
+      Pramana.Batch.insert_all(Quotation, rows,
+        on_conflict: :nothing,
+        conflict_target: [:a_text_id, :a_char_start, :b_text_id, :b_char_start]
+      )
 
     {written + n, unresolved + missed, total + length(batch)}
   end

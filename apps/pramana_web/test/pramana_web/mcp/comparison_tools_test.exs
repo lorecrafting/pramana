@@ -21,6 +21,7 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
   alias PramanaWeb.MCP.Tools.CompareWitnesses
   alias PramanaWeb.MCP.Tools.DefineFromCanon
   alias PramanaWeb.MCP.Tools.GetQuotations
+  alias PramanaWeb.MCP.Tools.GetReadings
 
   defp load!(work_id, lines, provenance) do
     body =
@@ -291,6 +292,146 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
     test "a malformed URN is refused" do
       {:reply, response, _} = GetQuotations.execute(%{urn: "nonsense"}, %{})
       assert response.isError
+    end
+  end
+
+  describe "get_readings" do
+    setup do
+      text_id =
+        load!("T0251", ["觀自在菩薩行深般若波羅蜜多時"],
+          title: "般若波羅蜜多心經",
+          division: "般若部",
+          composition_origin: "indic",
+          text_role: "root"
+        )
+
+      now = DateTime.utc_now()
+
+      Repo.insert_all(
+        Pramana.Corpus.CharacterReading,
+        Enum.map(
+          [
+            {"觀", "guān", ~w(guān guàn)},
+            {"自", "zì", ~w(zì)},
+            {"在", "zài", ~w(zài)},
+            {"菩", "pú", ~w(pú)},
+            {"薩", "sà", ~w(sà)},
+            {"行", "xíng", ~w(xíng háng)},
+            {"深", "shēn", ~w(shēn)},
+            {"般", "bān", ~w(bān bō)},
+            {"若", "ruò", ~w(ruò rě)},
+            {"波", "bō", ~w(bō)},
+            {"羅", "luó", ~w(luó)},
+            {"蜜", "mì", ~w(mì)},
+            {"多", "duō", ~w(duō)},
+            {"時", "shí", ~w(shí)}
+          ],
+          fn {character, reading, attested} ->
+            %{
+              character: character,
+              reading: reading,
+              attested: attested,
+              authority: "unihan",
+              inserted_at: now,
+              updated_at: now
+            }
+          end
+        )
+      )
+
+      {:ok, _} =
+        Pramana.Readings.store([
+          %{
+            form: "般若波羅蜜",
+            lang: "lzh",
+            scheme: "pinyin",
+            reading: "bō rě bō luó mì",
+            status: "verified"
+          }
+        ])
+
+      urn =
+        Repo.one!(from(s in Pramana.Corpus.Segment, where: s.text_id == ^text_id, select: s.urn))
+
+      {:ok, urn: urn}
+    end
+
+    test "reads the passage, applying the Buddhist reading", %{urn: urn} do
+      data = call!(GetReadings, %{urn: urn})
+
+      assert data["reading"] =~ "bō rě bō luó mì"
+      refute data["reading"] =~ "bān ruò"
+    end
+
+    test "each token says where its reading came from", %{urn: urn} do
+      tokens = call!(GetReadings, %{urn: urn})["tokens"]
+
+      # The distinction has to survive to the caller. A response that flattened
+      # dictionary readings and ordinary ones into one string would let a reader treat
+      # an unchecked default as a Buddhist convention.
+      assert Enum.any?(tokens, &(&1["form"] == "般若波羅蜜" and &1["source"] == "exception"))
+      assert Enum.any?(tokens, &(&1["form"] == "菩" and &1["source"] == "base"))
+    end
+
+    test "counts how much of the line the dictionary spoke to", %{urn: urn} do
+      assert call!(GetReadings, %{urn: urn})["counts"]["from_dictionary"] == 1
+    end
+
+    test "every response says a reading is not what is citable", %{urn: urn} do
+      assert call!(GetReadings, %{urn: urn})["note"] =~ "citable"
+    end
+
+    test "a URN addressing nothing is refused, not rendered" do
+      {:reply, response, _} =
+        GetReadings.execute(%{urn: "pramana:cbeta.T:T9999_001@p0001a01"}, %{})
+
+      assert response.isError
+    end
+
+    test "a malformed URN is refused with a different message than a missing one" do
+      {:reply, response, _} = GetReadings.execute(%{urn: "not-a-urn"}, %{})
+
+      assert response.isError
+      assert hd(response.content)["text"] =~ "Malformed"
+    end
+
+    test "each scheme carries its own reading language", %{urn: urn} do
+      # A Chinese sūtra chanted in a Japanese temple is read with 呉音, and in a Korean
+      # one with Sino-Korean. The scheme selects the convention; the text does not
+      # change, and neither does what is citable.
+      for {scheme, _} <- [{"on-yomi", "ja"}, {"kun-yomi", "ja"}, {"mccune-reischauer", "ko"}] do
+        data = call!(GetReadings, %{urn: urn, scheme: scheme})
+        assert data["scheme"] == scheme
+        assert data["text"] != ""
+      end
+    end
+
+    test "a character with no recorded reading comes back null, never guessed" do
+      text_id =
+        load!("T9001", ["龘"],
+          title: "x",
+          division: "阿含部",
+          composition_origin: "indic",
+          text_role: "root"
+        )
+
+      urn =
+        Repo.one!(from(s in Pramana.Corpus.Segment, where: s.text_id == ^text_id, select: s.urn))
+
+      data = call!(GetReadings, %{urn: urn})
+
+      assert [%{"reading" => nil, "source" => "unknown"}] = data["tokens"]
+      assert data["counts"]["without_reading"] == 1
+    end
+
+    test "a scheme with no entries returns base readings, not an error", %{urn: urn} do
+      # The 呉音 layer is not populated for Chinese yet. Asking for it must degrade to
+      # the ordinary readings rather than failing, and the per-token `source` is what
+      # tells the caller nothing Buddhist was applied.
+      data = call!(GetReadings, %{urn: urn, scheme: "on-yomi"})
+
+      assert data["scheme"] == "on-yomi"
+      assert data["counts"]["from_dictionary"] == 0
     end
   end
 end

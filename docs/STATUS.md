@@ -521,6 +521,65 @@ a gate exists to catch a system getting worse.
 **The README claimed "pass rates have been stable"** across runs. That was wrong and is
 corrected there. It was written after two runs that happened to agree.
 
+### The reading dictionary (#24) — the Buddhist readings were already in Unicode
+
+The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
+a dictionary of the exceptions." That framing turned out to be half right in a way worth
+recording.
+
+Unihan's `kMandarin` — the field a per-character library reads — gives **佛 as *fú***.
+佛 occurs 533,670 times in the canon and is *fó*; the *fú* reading exists because 佛 is
+common in 仿佛 *fǎngfú*, and kMandarin records the commonest reading, not the right one.
+So the single most frequent character in Buddhist Chinese is misread half a million times
+by any method that reads characters one at a time.
+
+But `kHanyuPinyin` lists 葉 as `yè, shè`. `kXHC1983` lists 若 as `rě`. 般 is `bān, bō`.
+**The Buddhist readings are in Unicode already** — spread across four fields nobody
+consults. Nothing needed inventing. What needed recording is *which attested reading
+applies to which form*, which is exactly what an exception table is, and it turned the
+integrity rule into something checkable: **every syllable of every asserted reading must
+appear in that character's attested set**, or it does not ship. The hand-curated file is
+checked the same way, and an unattested syllable fails the build rather than entering the
+corpus as a fact.
+
+Result: 9,543 exceptions over a 44,348-character base, from two independent sources that
+agree on 96.8% of compounds. On a 46-form test set covering 1,751,507 corpus occurrences,
+per-character scores **50%**, the dictionary **100%**, breaking none of the 23 controls.
+
+**Half the test set is forms the naive method gets right.** A set of only hard cases
+would show that the dictionary fires, not that it fires in the right places — and a
+dictionary that "corrected" 菩薩 or 涅槃 would be worse than none.
+
+Four filters, each added because the unfiltered output contained that mistake:
+
+1. **Polyphone ambiguity** (1,168 characters skipped). 說 is *shuō*, *shuì* and *yuè*;
+   picking one without context is the guessing this table replaces. 佛 survives only
+   because its other reading is glossed "used in 仿佛" — a fact about one word, not about
+   the character.
+2. **Neutral-tone erosion** (2,957 rejected). CC-CEDICT records modern *spoken* Mandarin,
+   where 知識 is *zhī shi*. Twentieth-century speech is not evidence about a
+   seventh-century text.
+3. **Cross-source attestation** (401 rejected). The filter that makes the result
+   trustworthy rather than merely sourced: two independent authorities have to agree.
+4. **Corpus occurrence** — measured, not enforced. 3,172 of 9,543 forms occur in CBETA,
+   covering 1,927,240 occurrences. Scoping the artifact to today's corpus would make it
+   wrong the moment a corpus is added.
+
+**And the parameter limit for the fourth time.** `Pramana.Batch` was extracted after the
+second and documented after the third, and `Readings.store/1` still blew up — because it
+had no batching at all and had simply never been handed enough rows to notice. Offering
+`chunk/1` leaves every call site free to forget. `Batch.insert_all/4` takes the same
+arguments as `Repo.insert_all/3` and cannot be called without batching; every unbounded
+write path now goes through it, including two that were latent (`Parallels.store_anchors`
+unbatched, `Parallels.store` with a hardcoded 5,000). **A shared helper only helps if
+using it is easier than not.**
+
+One more, on shape of work rather than data: the corpus-occurrence check was first
+written as `LIKE '%form%'` per form against the pg_bigm index. It measured **1.3 seconds
+each** — because proving a form is *absent* is the expensive case — which is 3.6 hours for
+13,000 forms. One streaming pass over the corpus answers the same question in 2m11s.
+Index-per-item beats a scan only when the items are few.
+
 ### The quotation graph (#22) — 141,073 verbatim reuses
 
 A standalone Rust binary scans `texts.body` for runs of identical characters occurring in
@@ -739,6 +798,23 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     from what the source *cites*, and where works do not map one-to-one onto files,
     record the file on the text (`meta["source_file"]`): without it `mix pramana.verify`
     cannot find the bytes to re-derive from, and a check that cannot run is not a check.
+24. **A shared helper only helps if using it is easier than not.** The Postgres
+    parameter limit was hit a fourth time after `Pramana.Batch` existed and after the
+    lesson was written down twice, because `Batch.chunk/1` still left every call site
+    free to forget — and an unbatched write path looks fine until the data grows.
+    `Batch.insert_all/4` takes the same arguments as `Repo.insert_all/3` and cannot be
+    called without batching. Wrap the dangerous call; do not offer a helper beside it.
+25. **Proving absence is the expensive case for an index.** Checking 13,000 dictionary
+    forms against the corpus with `LIKE '%form%'` measured 1.3 seconds *each* — the
+    pg_bigm index is fast when a form is common and slow when it is missing, which is
+    most of them. One streaming pass answered the same question in 2m11s. Index-per-item
+    beats a scan only when the items are few.
+26. **A `with` whose `else` discards everything turns a shape bug into an empty
+    result.** A CC-CEDICT line matcher destructured four elements from a five-element
+    `Regex.run` result; the catch-all clause swallowed every line and the build reported
+    "0 entries" rather than raising. Where a fall-through means "skip this row", make the
+    skip conditions explicit enough that a malformed *pattern* cannot masquerade as
+    malformed *data*.
 
 ---
 

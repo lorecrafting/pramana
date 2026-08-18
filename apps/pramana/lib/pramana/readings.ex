@@ -35,9 +35,15 @@ defmodule Pramana.Readings do
 
   import Ecto.Query
 
+  alias Pramana.Corpus.CharacterReading
   alias Pramana.Corpus.GlossaryTerm
   alias Pramana.Corpus.ReadingException
+  alias Pramana.Readings.Build
   alias Pramana.Repo
+
+  # The longest form the exception table is allowed to hold, and so the longest window
+  # `render/2` has to try at each position. 般若波羅蜜 is five; 摩訶般若波羅蜜多 is eight.
+  @max_form_length 8
 
   @schemes ~w(pinyin wade-giles zhuyin middle-chinese on-yomi kun-yomi
               mccune-reischauer wylie thl iast)
@@ -97,7 +103,7 @@ defmodule Pramana.Readings do
       end)
 
     {count, _} =
-      Repo.insert_all(ReadingException, entries,
+      Pramana.Batch.insert_all(ReadingException, entries,
         on_conflict: {:replace, [:reading, :note, :status, :authority, :source_id, :updated_at]},
         conflict_target: [:form, :lang, :scheme]
       )
@@ -209,6 +215,265 @@ defmodule Pramana.Readings do
   end
 
   defp note_for(term), do: term.notes
+
+  @doc """
+  Renders a string as a list of `%{form, reading, source}` tokens.
+
+  **Longest match wins.** 般若波羅蜜 is one token read *bō rě bō luó mì*, not 般若 followed
+  by 波羅蜜 and certainly not five characters read separately; applying the shortest match
+  first would split compounds that have their own conventional reading, which is the
+  whole failure this layer exists to prevent.
+
+  `source` says where each reading came from, and callers are expected to show it:
+
+    * `:exception` — the reading dictionary overrode the ordinary one
+    * `:base` — Unihan's commonest reading for the character, applied unchanged
+    * `:unknown` — no reading recorded; the character is rendered with `nil` rather than
+      a guess
+
+  Two queries, no cache. Every substring of the input up to #{@max_form_length}
+  characters is offered to the exception table at once, and the characters to the base
+  table — for a printed line of twenty characters that is about 150 candidate forms in
+  one `IN` clause. A process-level cache would be faster and would go stale silently the
+  first time the dictionary is rebuilt, which is a bad trade for a layer whose only job
+  is to be right.
+  """
+  @spec render(String.t(), keyword()) :: [map()]
+  def render(text, opts \\ []) do
+    lang = Keyword.get(opts, :lang, "lzh")
+    scheme = Keyword.get(opts, :scheme, "pinyin")
+    chars = String.graphemes(text)
+
+    exceptions = lookup_exceptions(chars, lang, scheme)
+    base = lookup_base(chars)
+
+    walk(chars, exceptions, base, [])
+  end
+
+  defp walk([], _exceptions, _base, acc), do: Enum.reverse(acc)
+
+  defp walk([char | rest] = chars, exceptions, base, acc) do
+    case longest_match(chars, exceptions) do
+      {form, reading, length} ->
+        token = %{form: form, reading: reading, source: :exception}
+        walk(Enum.drop(chars, length), exceptions, base, [token | acc])
+
+      nil ->
+        token =
+          case Map.fetch(base, char) do
+            {:ok, reading} -> %{form: char, reading: reading, source: :base}
+            :error -> %{form: char, reading: nil, source: :unknown}
+          end
+
+        walk(rest, exceptions, base, [token | acc])
+    end
+  end
+
+  defp longest_match(chars, exceptions) do
+    max = min(@max_form_length, length(chars))
+
+    Enum.find_value(max..1//-1, fn length ->
+      form = chars |> Enum.take(length) |> Enum.join()
+
+      case Map.fetch(exceptions, form) do
+        # A row that records "the ordinary reading is wrong" without saying what is right
+        # must not be treated as a match — falling through to the base reading would
+        # apply exactly the reading the row rejects. It is a gap, and gaps stay visible.
+        {:ok, nil} -> nil
+        {:ok, reading} -> {form, reading, length}
+        :error -> nil
+      end
+    end)
+  end
+
+  defp lookup_exceptions(chars, lang, scheme) do
+    candidates = windows(chars)
+
+    Repo.all(
+      from r in ReadingException,
+        where: r.lang == ^lang and r.scheme == ^scheme and r.form in ^candidates,
+        select: {r.form, r.reading}
+    )
+    |> Map.new()
+  end
+
+  defp lookup_base(chars) do
+    Repo.all(
+      from c in CharacterReading,
+        where: c.character in ^Enum.uniq(chars),
+        select: {c.character, c.reading}
+    )
+    |> Map.new()
+  end
+
+  # Every substring up to the cap — the set of forms that could possibly match, asked for
+  # in one round trip instead of one per position.
+  defp windows(chars) do
+    total = length(chars)
+
+    for start <- 0..max(total - 1, 0),
+        len <- 1..@max_form_length,
+        start + len <= total,
+        uniq: true,
+        do: chars |> Enum.slice(start, len) |> Enum.join()
+  end
+
+  @doc """
+  Loads `priv/readings/*.tsv` into the database.
+
+  Character readings first, then exceptions, because the exception check needs the
+  attested sets to be present. Both are replace-on-conflict: a rebuilt dictionary must
+  actually reach the database, which `on_conflict: :nothing` would quietly prevent.
+  """
+  @spec import_dictionary(keyword()) :: {:ok, map()}
+  def import_dictionary(opts \\ []) do
+    dir = Keyword.get(opts, :dir, Path.join(:code.priv_dir(:pramana), "readings"))
+    now = DateTime.utc_now()
+
+    characters =
+      dir
+      |> tsv("character_readings.tsv")
+      |> Enum.map(fn [character, reading, attested] ->
+        %{
+          character: character,
+          reading: reading,
+          attested: String.split(attested, "|"),
+          authority: "unihan",
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    exceptions =
+      dir
+      |> tsv("exceptions.tsv")
+      |> Enum.map(fn [form, reading, _naive, authority, note] ->
+        %{
+          form: form,
+          lang: "lzh",
+          scheme: "pinyin",
+          reading: reading,
+          note: note,
+          # Derived rows are `unverified`: CC-CEDICT is a real authority and the
+          # cross-check against Unihan is real evidence, but nobody has read this entry.
+          # The curated rows were checked by hand against the attested set, one at a time.
+          status: if(authority == "curated", do: "verified", else: "unverified"),
+          authority: authority,
+          source_id: nil,
+          inserted_at: now,
+          updated_at: now
+        }
+      end)
+
+    {characters_written, _} =
+      Pramana.Batch.insert_all(CharacterReading, characters,
+        on_conflict: {:replace, [:reading, :attested, :authority, :updated_at]},
+        conflict_target: [:character]
+      )
+
+    # Postgres refuses an ON CONFLICT statement that proposes the same key twice, so the
+    # last-wins rule cannot be left to the database. Curated rows are written last in the
+    # file precisely so they win here: a form checked by hand beats the derivation.
+    deduped =
+      exceptions
+      |> Enum.reduce(%{}, &Map.put(&2, {&1.form, &1.lang, &1.scheme}, &1))
+      |> Map.values()
+
+    {:ok, exceptions_written} = store(deduped)
+
+    {:ok, %{characters: characters_written, exceptions: exceptions_written}}
+  end
+
+  defp tsv(dir, name) do
+    Path.join(dir, name)
+    |> File.stream!()
+    |> Stream.map(&String.trim_trailing(&1, "\n"))
+    |> Stream.reject(&(&1 == "" or String.starts_with?(&1, "#")))
+    |> Enum.map(&String.split(&1, "\t"))
+  end
+
+  @doc """
+  Every reading Unihan attests for a character.
+
+  The check that keeps invented readings out: a form's reading must be assembled from
+  readings somebody has recorded for its characters. See `Pramana.Readings.Build`.
+  """
+  @spec attested(String.t()) :: [String.t()]
+  def attested(character) do
+    case Repo.get(CharacterReading, character) do
+      %CharacterReading{attested: attested} -> attested
+      nil -> []
+    end
+  end
+
+  @doc """
+  Checks a proposed reading against the attested sets, character by character.
+
+  Returns `:ok`, or the offending `{character, syllable}` pairs. This is the same rule
+  `mix pramana.readings.build` enforces on the curated file, exposed so a caller adding
+  an entry at runtime meets the standard the build does.
+  """
+  @spec check(String.t(), String.t()) :: :ok | {:error, [{String.t(), String.t()}]}
+  def check(form, reading) do
+    chars = String.graphemes(form)
+    sylls = String.split(reading)
+
+    if length(chars) != length(sylls) do
+      {:error, Enum.map(chars, &{&1, nil})}
+    else
+      unihan =
+        Repo.all(from c in CharacterReading, where: c.character in ^chars)
+        |> Map.new(&{&1.character, %{preferred: &1.reading, attested: MapSet.new(&1.attested)}})
+
+      chars
+      |> Enum.zip(sylls)
+      |> Enum.reject(fn {char, syl} -> Build.attested?(unihan, char, syl) end)
+      |> unattested()
+    end
+  end
+
+  @doc """
+  Scores the reading layer and the per-character baseline on the Buddhist test set.
+
+  Both methods are run here rather than one being run and the other asserted, because
+  the claim "a generic library fails on this vocabulary" is a measurement and has to
+  keep being one. `broken` is the number the baseline got right and the dictionary got
+  wrong — the regression that matters most, since a dictionary that damages the easy
+  cases to fix the hard ones is not an improvement.
+  """
+  @spec score_test_set(keyword()) :: map()
+  def score_test_set(opts \\ []) do
+    dir = Keyword.get(opts, :dir, Path.join(:code.priv_dir(:pramana), "readings"))
+
+    rows =
+      dir
+      |> tsv("buddhist_test_set.tsv")
+      |> Enum.map(fn [form, expected, naive, occurrences] ->
+        actual = form |> render() |> Enum.map_join(" ", & &1.reading)
+
+        %{
+          form: form,
+          expected: expected,
+          naive: naive,
+          actual: actual,
+          correct?: actual == expected,
+          naive_correct?: naive == expected,
+          occurrences: String.to_integer(occurrences)
+        }
+      end)
+
+    %{
+      rows: rows,
+      correct: Enum.count(rows, & &1.correct?),
+      naive_correct: Enum.count(rows, & &1.naive_correct?),
+      fixed: Enum.count(rows, &(&1.correct? and not &1.naive_correct?)),
+      broken: Enum.count(rows, &(not &1.correct? and &1.naive_correct?)),
+      occurrences: rows |> Enum.map(& &1.occurrences) |> Enum.sum()
+    }
+  end
+
+  defp unattested([]), do: :ok
+  defp unattested(bad), do: {:error, bad}
 
   @doc "Counts, for the inventory and the gate."
   @spec stats() :: map()

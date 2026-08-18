@@ -283,38 +283,31 @@ defmodule Pramana.Translations do
 
     prepared = Enum.map(rows, &prepare(&1, now))
 
-    written =
-      prepared
-      |> Pramana.Batch.chunk()
-      |> Enum.reduce(0, fn batch, acc ->
-        {n, _} =
-          Repo.insert_all(Translation, batch,
-            on_conflict:
-              {:replace,
-               [
-                 :text,
-                 :text_sha256,
-                 :translator_name,
-                 :tier,
-                 :method,
-                 :model_id,
-                 :prompt_version,
-                 :glossary_id,
-                 :bake_id,
-                 :review_state,
-                 :license_spdx,
-                 :license_class,
-                 :redistributable,
-                 :attribution,
-                 :source_file,
-                 :meta,
-                 :updated_at
-               ]},
-            conflict_target: [:anchor_urn, :lang, :translator_id]
-          )
-
-        acc + n
-      end)
+    {written, _} =
+      Pramana.Batch.insert_all(Translation, prepared,
+        on_conflict:
+          {:replace,
+           [
+             :text,
+             :text_sha256,
+             :translator_name,
+             :tier,
+             :method,
+             :model_id,
+             :prompt_version,
+             :glossary_id,
+             :bake_id,
+             :review_state,
+             :license_spdx,
+             :license_class,
+             :redistributable,
+             :attribution,
+             :source_file,
+             :meta,
+             :updated_at
+           ]},
+        conflict_target: [:anchor_urn, :lang, :translator_id]
+      )
 
     {:ok, written}
   end

@@ -18,6 +18,7 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
 | `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |
 | `get_quotations` | Every other text that reproduces this passage word for word. |
+| `get_readings` | How a passage is pronounced, where the ordinary answer is wrong. |
 | `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
 
@@ -58,6 +59,22 @@ does not carry. Every response says so.
 
 Overlap counts, not only containment: a commentary lifting a clause of a line is still
 quoting it, and requiring the whole line would hide the commonest case.
+
+### Readings say where each one came from
+
+`get_readings` romanises a passage, and every token carries a `source`: `exception` where
+the Buddhist reading dictionary overrode the ordinary reading, `base` where the ordinary
+reading was applied unchanged, `unknown` where none is recorded and none was guessed.
+
+The distinction has to survive to the caller. Transliterated Sanskrit follows conventions
+that ignore the characters' ordinary values — 般若 is *bōrě*, 迦葉 is *jiāshè*, and 佛 is
+*fó* where Unicode's per-character field says *fú* — so a response that flattened the
+three kinds into one string would let a reader take an unchecked default for a Buddhist
+convention. On a 46-form test set the per-character method scores 50% and the dictionary
+100%; `mix pramana.readings.check` re-runs both, so the comparison stays a measurement.
+
+A reading is a rendering aid. **The text is what is citable**, not its pronunciation, and
+every response says so.
 
 ### Variants name the witness, and the witness is per text
 

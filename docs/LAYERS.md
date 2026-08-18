@@ -192,10 +192,28 @@ scheme is that a citation can be verified against a physical page — and here i
   `Pramana.Readings`.
 
   The reading layer holds exceptions only, as argued above, and it holds **rows that
-  decline to give a reading**: 12 of the 22 seeded forms record that the ordinary reading
-  is wrong without asserting what is right. That is the shape #24 fills in, and the count
-  is the backlog.
+  decline to give a reading**: 12 of the 22 originally seeded forms record that the
+  ordinary reading is wrong without asserting what is right. #24 filled the layer out
+  around them; those 12 remain, and `render/2` is careful with them — a form recorded as
+  wrong-without-a-reading does NOT fall through to the ordinary reading, because falling
+  through would apply exactly the reading the row rejects.
 - **Local-source manifest path: Phase 2**, when provenance enforcement is built. It's
   the best available test of whether the provenance axes actually work.
-- **Buddhist reading-exception dictionary: Phase 6**, with the other enrichment assets.
+- **Buddhist reading-exception dictionary: BUILT (#24).** 9,543 pinyin exceptions and a
+  44,348-character base dictionary, derived from Unihan and CC-CEDICT and cross-checked
+  against each other. On a 46-form Buddhist test set covering 1,751,507 corpus
+  occurrences, the per-character method scores **50%** and the dictionary **100%**,
+  breaking none of the controls it already had right. `Pramana.Readings.render/2`,
+  `mix pramana.readings.build`, and the `get_readings` MCP tool.
+
+  The finding that shaped it: **the Buddhist readings are already in Unicode.** Unihan's
+  `kMandarin` — the one field a generic library reads — gives 佛 as *fú*, so a
+  per-character renderer calls the Buddha *fú* through 533,670 occurrences. But
+  `kHanyuPinyin` lists 葉 as `yè, shè` and 般 as `bān, bō`. Nothing needs inventing; what
+  needs recording is which attested reading applies to which form, and that is exactly
+  what an exception table is.
+
+  Authority linking (DILA, BDRC, Wikidata) was split out of this task: it is entity
+  resolution against external identifier systems, shares nothing with a rendering asset
+  but a task number, and needs BDRC anyway, which arrives with Tibetan (#21).
 - **Full-corpus machine translation: Phase 7**, with glossary-pinned translation.
