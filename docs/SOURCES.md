@@ -76,6 +76,34 @@ one of them is freely redistributable and the other is not.
 - **The first ND source in this corpus.** `sources.derivatives` exists because of it —
   see below.
 
+#### How the Derge text is structured, and the one trap in it
+
+103 volume files, 298 MB, **65,983 folio pages and 460,539 line milestones** — and
+**1,125 Toh works**, which do not correspond to files at all. A work is delimited by
+`<milestone unit="text" toh="N"/>` markers *inside* a volume, so one file holds dozens
+of works. That is rule 23 again from the other direction: there, ten suttas shared one
+file; here, one file holds a hundred texts.
+
+The citation anchor falls straight out of the markup: `<p data-orig-n="1b">` is the
+folio, `<milestone unit="line" n="3"/>` the line within it, so the locator is `1b.3` —
+folio side and line, exactly how Tibetanists cite, and exactly parallel to Taishō
+page-register-line.
+
+**The trap: volume 103 is the dkar chag**, the edition's own catalogue. Eight Toh
+markers appear there as well as in the text volumes, and a normalizer that treats every
+marker as the start of a work would emit eight extra works whose content is a fragment
+of a list of titles — short, plausible-looking, and colliding on the URN with the real
+text. The numbers are not subtle once measured:
+
+| | median characters between markers |
+|---|---|
+| volume 103 (dkar chag) | **24** |
+| every other volume | **7,804** |
+
+`ཕྱག་དང་།` — "homage, and" — is what Toh 539 looks like in the catalogue. It is a title in
+a running list, not a text. Folio numbers also restart at `1a` in every volume, so those
+eight would have collided on the anchor too.
+
 The two join on **Toh number and Derge folio**, which both sides carry. That is the same
 shape as the Pāli pair (bilara root text plus translations keyed by segment id), and it
 is why a Tibetan passage can be shown beside its English without either being mistaken
