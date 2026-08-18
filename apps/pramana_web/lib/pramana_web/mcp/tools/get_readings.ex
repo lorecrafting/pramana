@@ -67,6 +67,7 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
 
   # The reading conventions that apply, which is not the same as the language of the
   # text: a Chinese sūtra chanted in a Japanese temple is read with 呉音.
+  defp lang_for("wylie"), do: "bo"
   defp lang_for("on-yomi"), do: "ja"
   defp lang_for("kun-yomi"), do: "ja"
   defp lang_for("mccune-reischauer"), do: "ko"
@@ -91,7 +92,9 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
       note:
         "`source` is per token: `exception` means the Buddhist reading dictionary " <>
           "overrode the ordinary reading, `base` means the ordinary reading was used " <>
-          "unchanged, `unknown` means no reading is recorded and none was guessed. " <>
+          "unchanged, `computed` means it was derived by a deterministic transliteration " <>
+          "with no dictionary involved, `unknown` means no reading is recorded and none " <>
+          "was guessed. " <>
           "Readings are a rendering aid — the text, not its pronunciation, is what is " <>
           "citable."
     }

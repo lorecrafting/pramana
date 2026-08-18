@@ -424,6 +424,27 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
       assert data["counts"]["without_reading"] == 1
     end
 
+    test "wylie transliterates Tibetan without consulting any dictionary" do
+      text_id =
+        load!("Toh21", ["བྱང་ཆུབ་སེམས་དཔའ"],
+          title: "x",
+          division: "shes phyin",
+          composition_origin: "indic",
+          text_role: "root"
+        )
+
+      urn =
+        Repo.one!(from(s in Pramana.Corpus.Segment, where: s.text_id == ^text_id, select: s.urn))
+
+      data = call!(GetReadings, %{urn: urn, scheme: "wylie"})
+
+      assert data["reading"] == "byang chub sems dpa'"
+      # `computed`, not `base`: there is no ordinary reading here for an exception to
+      # override, and calling it `base` would imply a lookup that never happened.
+      assert Enum.all?(data["tokens"], &(&1["source"] == "computed"))
+      assert data["counts"]["from_dictionary"] == 0
+    end
+
     test "a scheme with no entries returns base readings, not an error", %{urn: urn} do
       # The 呉音 layer is not populated for Chinese yet. Asking for it must degrade to
       # the ordinary readings rather than failing, and the per-token `source` is what

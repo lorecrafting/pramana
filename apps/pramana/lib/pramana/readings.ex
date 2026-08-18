@@ -39,6 +39,7 @@ defmodule Pramana.Readings do
   alias Pramana.Corpus.GlossaryTerm
   alias Pramana.Corpus.ReadingException
   alias Pramana.Readings.Build
+  alias Pramana.Readings.Wylie
   alias Pramana.Repo
 
   # The longest form the exception table is allowed to hold, and so the longest window
@@ -242,6 +243,27 @@ defmodule Pramana.Readings do
   def render(text, opts \\ []) do
     lang = Keyword.get(opts, :lang, "lzh")
     scheme = Keyword.get(opts, :scheme, "pinyin")
+
+    if scheme == "wylie", do: render_wylie(text), else: render_lookup(text, lang, scheme)
+  end
+
+  # Tibetan is the one script here whose romanisation is COMPUTED. There is no dictionary
+  # to consult and nothing to look up, so these tokens are marked `:computed` rather than
+  # `:base` — `:base` means "the ordinary reading, which an exception could override",
+  # and for Wylie there is no such thing to override.
+  defp render_wylie(text) do
+    text
+    |> String.split(~r/[\x{0F0B}\x{0F0C}]/u, trim: true)
+    |> Enum.map(fn syllable ->
+      %{
+        form: syllable,
+        reading: Wylie.transliterate(syllable) |> String.trim(),
+        source: :computed
+      }
+    end)
+  end
+
+  defp render_lookup(text, lang, scheme) do
     chars = String.graphemes(text)
 
     exceptions = lookup_exceptions(chars, lang, scheme)

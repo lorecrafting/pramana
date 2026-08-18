@@ -250,6 +250,25 @@ defmodule Pramana.ReadingsTest do
       assert [%{form: "龘", reading: nil, source: :unknown}] = Readings.render("龘")
     end
 
+    test "wylie is computed, and says so" do
+      # Tibetan needs no dictionary, so its tokens are `:computed` rather than `:base`.
+      # `:base` means "the ordinary reading, which an exception could override"; Wylie
+      # has no such thing to override, and labelling it `:base` would imply a lookup
+      # that never happened.
+      tokens = Readings.render("བྱང་ཆུབ", scheme: "wylie")
+
+      assert [
+               %{form: "བྱང", reading: "byang", source: :computed},
+               %{form: "ཆུབ", reading: "chub", source: :computed}
+             ] = tokens
+    end
+
+    test "wylie consults no table, so an exception row cannot alter it" do
+      {:ok, _} = Readings.store([%{form: "བྱང", lang: "bo", scheme: "wylie", reading: "WRONG"}])
+
+      assert [%{reading: "byang"} | _] = Readings.render("བྱང་ཆུབ", scheme: "wylie")
+    end
+
     test "a row that records wrongness without a reading does NOT fall back" do
       # The whole point of such a row is that the ordinary reading is wrong. Falling
       # through to the base would apply exactly the reading the row rejects, which is
