@@ -17,6 +17,10 @@ defmodule Pramana.Corpus.Source do
     field :license_class, :string, default: "unknown"
     field :commercial_use, :boolean, default: false
     field :redistributable, :boolean, default: false
+    # CC's fourth switch. `commercial_use` and `redistributable` govern who may RECEIVE
+    # the text; this governs what may be MADE from it, which is a different question and
+    # the one a pipeline that segments, embeds and translates has to be able to ask.
+    field :derivatives, :boolean, default: true
 
     timestamps(type: :utc_datetime_usec)
   end

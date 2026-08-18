@@ -51,15 +51,51 @@ terms already granted, and stating the use. Until then:
 
 ## Tier 2 — Structured but partial
 
-### 84000 (Tibetan → English)
-- `https://github.com/84000` — TEI, plus an API
-- Kangyur/Tengyur translations, Toh numbers, Derge folio references
+### The Tibetan pair — TWO sources, not one (#21)
+
+The source text and its English translation come from different projects under
+different licences, and they are registered separately. Merging them would put a
+rendering under the same terms as the words it renders, and would lose the fact that
+one of them is freely redistributable and the other is not.
+
+**`derge` — Digital Derge Kangyur** (`CC-PDM-1.0`, public domain)
+- `https://github.com/Esukhia/derge-kangyur`, TEI release `UT4CZ5369`; archived and
+  continued at `OpenPecha/P000001`
+- The Tibetan-language **source text**: the Esukhia–Barom proofread edition of the
+  UVA–SOAS 2013 eKangyur, itself diff-proofread against BDRC, ACIP and Adarsha etexts
+- "A mechanical reproduction of a Public Domain work, and as such is also in the Public
+  Domain" — the project's own statement. The proofreading annotations are the editors'
+  work; the text is not.
+
+**`84000` — Translating the Words of the Buddha** (`CC-BY-NC-ND-3.0`)
+- `https://github.com/84000/data-tei` — TEI, plus an API and an RDF metadata export
+- Kangyur/Tengyur **English translations**, Toh numbers, Derge folio references. A
+  `translation` layer, never a source: `CLAUDE.md` invariant #7.
 - Ships a **Skt–Tib–Eng glossary** — a direct cross-lingual anchor for alignment
 - Coverage is partial and growing; treat completeness as a moving target
+- **The first ND source in this corpus.** `sources.derivatives` exists because of it —
+  see below.
 
-### OpenPecha / Adarsha / Esukhia (Tibetan)
-- The actual Tibetan-language **etext**, openly licensed
-- This — not BDRC — is where retrievable Tibetan text comes from
+The two join on **Toh number and Derge folio**, which both sides carry. That is the same
+shape as the Pāli pair (bilara root text plus translations keyed by segment id), and it
+is why a Tibetan passage can be shown beside its English without either being mistaken
+for the other.
+
+### Licences have four axes, not three
+
+`sources` recorded `commercial_use`, `redistributable` and a coarse `license_class`.
+Creative Commons has a fourth switch — **no-derivatives** — and nothing in the corpus
+needed it until 84000.
+
+ND is not a stronger NC. They constrain different acts: `commercial_use` and
+`redistributable` govern who may **receive** the text; `derivatives` governs what may be
+**made** from it. This pipeline makes things constantly — it segments, chunks, embeds,
+and Phase 7 will translate. Whether any of those is a derivative work is a judgement for
+the deployment, but the schema has to be able to record the constraint so the judgement
+has something to attach to. Folding ND into `nc` would delete the question.
+
+Recorded **per source**, defaulting to permitted, because a column added later must not
+silently restrict every source that predates it.
 
 ## Tier 3 — Images, needs OCR
 

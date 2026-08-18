@@ -73,7 +73,8 @@ defmodule Pramana.Corpus.Loader do
         license_spdx: definition.license.spdx,
         license_class: definition.license.class,
         commercial_use: definition.license.commercial_use,
-        redistributable: definition.license.redistributable
+        redistributable: definition.license.redistributable,
+        derivatives: Map.get(definition.license, :derivatives, true)
       },
       # `Pramana.Sources` (or a local manifest) is the authority on licensing, so the row
       # must follow it. With `:nothing`, correcting bilara-data's licence from CC0 to
@@ -89,6 +90,7 @@ defmodule Pramana.Corpus.Loader do
            :license_class,
            :commercial_use,
            :redistributable,
+           :derivatives,
            :updated_at
          ]},
       conflict_target: :id

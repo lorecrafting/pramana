@@ -13,6 +13,9 @@ defmodule Pramana.Sources do
           class: String.t(),
           commercial_use: boolean(),
           redistributable: boolean(),
+          # Optional: absent means "permitted", which is true of every source that
+          # predates 84000 and is the only safe default for a column added later.
+          derivatives: boolean(),
           notice: String.t() | nil
         }
 
@@ -79,6 +82,50 @@ defmodule Pramana.Sources do
             "known restrictions under copyright law. SuttaCentral asks that use accord " <>
             "with the values of the Buddhist tradition."
       }
+    },
+    # The Tibetan pair. They are deliberately two sources rather than one, because the
+    # source text and its English translation have different licences and different
+    # roles, and merging them would put a rendering under the same terms as the words it
+    # renders.
+    "derge" => %{
+      id: "derge",
+      name: "Digital Derge Kangyur (Esukhia–Barom, from the UVA–SOAS 2013 eKangyur)",
+      upstream_url: "https://github.com/Esukhia/derge-kangyur",
+      repo: "Esukhia/derge-kangyur",
+      license: %{
+        spdx: "CC-PDM-1.0",
+        class: "public-domain",
+        commercial_use: true,
+        redistributable: true,
+        derivatives: true,
+        notice:
+          "A mechanical reproduction of a public-domain woodblock edition, and so " <>
+            "itself public domain, per the project's own README. The proofreading " <>
+            "annotations are the editors' work; the text is not."
+      }
+    },
+    "84000" => %{
+      id: "84000",
+      name: "84000: Translating the Words of the Buddha",
+      upstream_url: "https://github.com/84000/data-tei",
+      repo: "84000/data-tei",
+      license: %{
+        spdx: "CC-BY-NC-ND-3.0",
+        class: "nc",
+        commercial_use: false,
+        redistributable: false,
+        # The first ND source in this corpus, and the reason `derivatives` exists as a
+        # column. NC and ND are not degrees of the same restriction: NC says who may
+        # receive the text, ND says what may be made from it. A pipeline that segments,
+        # chunks, embeds and (Phase 7) translates does the second thing constantly, so
+        # the constraint has to be recordable even though whether any given step counts
+        # as a derivative work is a judgement for the deployment, not for this table.
+        derivatives: false,
+        notice:
+          "CC BY-NC-ND 3.0. May be copied or printed for fair use with full " <>
+            "attribution, not for commercial advantage. See " <>
+            "https://github.com/84000/all-data/blob/master/Terms_of_Use.md"
+      }
     }
   }
 
@@ -132,6 +179,7 @@ defmodule Pramana.Sources do
         class: license["class"] || "restricted",
         commercial_use: license["commercial_use"] == true,
         redistributable: license["redistributable"] == true,
+        derivatives: license["derivatives"] != false,
         notice: license["note"]
       }
     }
