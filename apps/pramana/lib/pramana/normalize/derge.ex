@@ -66,6 +66,31 @@ defmodule Pramana.Normalize.Derge do
   alias Pramana.Normalize.IR
   alias Pramana.Normalize.IR.Line
 
+  # ༄༅། །འདུལ་བ་ཀ་བཞུགས་སོ། ། [1] — the volume names itself on its own title page.
+  @volume_in_title ~r/<(?:\w+:)?title[^>]*>[^<]*\[(\d+)\]/
+
+  @doc """
+  The printed volume number, read off the volume's own title page.
+
+  The volume is not otherwise in the markup in a form worth trusting, and it is required
+  for every anchor, because folio numbering restarts at `1a` in each one. The alternative
+  is to take it from the file's position in a directory listing — but the filenames are
+  BDRC image-group ids (`UT4CZ5369-I1KG9127`), not volume numbers, and they sort into the
+  right order by coincidence of issue date. Feeding the volumes out of order does not
+  error: it silently mislabels every anchor in the edition, and the works that span
+  volumes come out interleaved.
+
+  All 103 volumes of the Digital Derge Kangyur carry it, and it agrees with their sort
+  order in every case — which is worth knowing, and is not worth assuming.
+  """
+  @spec volume_number(binary()) :: {:ok, pos_integer()} | :error
+  def volume_number(xml) when is_binary(xml) do
+    case Regex.run(@volume_in_title, xml) do
+      [_, number] -> {:ok, String.to_integer(number)}
+      nil -> :error
+    end
+  end
+
   @doc """
   Normalizes one Derge volume into **one IR per Tōhoku work**.
 
@@ -97,6 +122,8 @@ defmodule Pramana.Normalize.Derge do
       lines: [],
       title: nil,
       in_title?: false,
+      # Everything outside <text> is the library's description of the book, not the book.
+      in_text?: false,
       rid: nil,
       mode: mode
     }
@@ -161,6 +188,14 @@ defmodule Pramana.Normalize.Derge do
   def handle_event(:characters, text, %{in_title?: true} = state),
     do: {:ok, %{state | title: (state.title || "") <> text}}
 
+  # The teiHeader describes the book; it is not the book. Every volume's
+  # `<publicationStmt>` carries a 416-byte distributor note, and buffering it made that
+  # note the first citable line of whatever work was open when the volume began — 102 of
+  # the 103 volumes, a line of Esukhia's provenance blurb addressed as canon under a URN
+  # that resolves. Nothing errored: it is text, in a text, with an anchor. The anchor was
+  # the only tell, `2..`, because no folio had been read yet.
+  def handle_event(:characters, _text, %{in_text?: false} = state), do: {:ok, state}
+
   def handle_event(:characters, text, state),
     do: {:ok, %{state | buffer: [text | state.buffer]}}
 
@@ -188,6 +223,7 @@ defmodule Pramana.Normalize.Derge do
 
   defp start("milestone", %{"unit" => "text"}, state), do: state
   defp start("title", _attrs, state), do: %{state | in_title?: true}
+  defp start("text", _attrs, state), do: %{state | in_text?: true}
   defp start(_name, _attrs, state), do: state
 
   defp finish("title", state), do: %{state | in_title?: false}

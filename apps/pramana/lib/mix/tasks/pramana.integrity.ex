@@ -45,9 +45,13 @@ defmodule Mix.Tasks.Pramana.Integrity do
   alias Pramana.Local.Normalizer, as: LocalNormalizer
   alias Pramana.Normalize
   alias Pramana.Normalize.Bilara
+  alias Pramana.Normalize.Derge
+  alias Pramana.Normalize.Derge.Edition
   alias Pramana.Repo
 
   @switches [limit: :integer]
+
+  @derge_root "raw/derge/UT4CZ5369-200106"
 
   @impl Mix.Task
   def run(argv) do
@@ -58,16 +62,51 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
     if texts == [], do: Mix.raise("nothing baked yet — run `mix pramana.bake_all` first")
 
-    totals = Enum.reduce(texts, empty_totals(), &check_text/2)
+    totals =
+      texts
+      |> Enum.reduce(empty_totals(), &check_text/2)
+      |> reconcile_derge(texts, opts[:limit])
 
     report(length(texts), totals)
+  end
+
+  # The per-text checks cannot ask whether the walk dropped anything the edition prints:
+  # a Derge volume holds dozens of works and one work holds parts of many volumes, so the
+  # question only has an answer for the edition as a whole. A `--limit` run has not seen
+  # the whole edition and must not claim to have checked it.
+  defp reconcile_derge(totals, _texts, limit) when not is_nil(limit), do: totals
+
+  defp reconcile_derge(totals, texts, _limit) do
+    if Enum.any?(texts, &(&1.source_id == "derge")) do
+      {:ok, volumes} = Edition.volumes_at(@derge_root)
+      {:ok, reconciliation} = Edition.reconcile(volumes)
+
+      unexplained =
+        for %{dropped: dropped, allowed: allowed} = v <- reconciliation, dropped != allowed do
+          {"derge volume #{v.volume}", :bytes_dropped, v.source_bytes, v.walked_bytes}
+        end
+
+      %{totals | derge: reconciliation, bad: totals.bad ++ unexplained}
+    else
+      totals
+    end
   end
 
   defp maybe_limit(texts, nil), do: texts
   defp maybe_limit(texts, n), do: Enum.take(texts, n)
 
   defp empty_totals do
-    %{lb: 0, ir_lines: 0, segments: 0, blank: 0, g_raw: 0, ir_gaiji: 0, meta_gaiji: 0, bad: []}
+    %{
+      lb: 0,
+      ir_lines: 0,
+      segments: 0,
+      blank: 0,
+      g_raw: 0,
+      ir_gaiji: 0,
+      meta_gaiji: 0,
+      derge: [],
+      bad: []
+    }
   end
 
   # A local page-anchored text has no `<lb/>` and no `<g/>` — those are TEI concepts.
@@ -84,6 +123,33 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
     segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
     blank = Enum.count(ir.lines, &(&1.text == ""))
+    printed = length(ir.lines) - blank
+
+    bad =
+      if printed != segments,
+        do: [{text.work_id, :line_unaddressable, printed, segments}],
+        else: []
+
+    %{
+      totals
+      | lb: totals.lb + length(ir.lines),
+        ir_lines: totals.ir_lines + length(ir.lines),
+        segments: totals.segments + segments,
+        blank: totals.blank + blank,
+        bad: totals.bad ++ bad
+    }
+  end
+
+  # A Derge work has no `<lb/>` and no gaiji: its anchor is a folio and a line milestone,
+  # and it can run across thirteen volumes. The per-text question is the same one as
+  # everywhere else — did every line with printed content get an addressable segment —
+  # and the question this cannot answer per text, whether the walk dropped anything the
+  # edition prints, is answered for the whole edition by `reconcile_derge/3` above.
+  defp check_text(%{source_id: "derge"} = text, totals) do
+    {:ok, ir} = rederive_derge(text)
+
+    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    blank = Enum.count(ir.lines, &blank?/1)
     printed = length(ir.lines) - blank
 
     bad =
@@ -171,6 +237,18 @@ defmodule Mix.Tasks.Pramana.Integrity do
     }
   end
 
+  defp rederive_derge(text) do
+    text.meta["source_file"]
+    |> String.split(" ", trim: true)
+    |> Enum.map(fn path ->
+      xml = File.read!(path)
+      {:ok, volume} = Derge.volume_number(xml)
+      {volume, xml}
+    end)
+    |> Enum.sort_by(&elem(&1, 0))
+    |> Edition.reproduce(text.work_id)
+  end
+
   # A line may be dropped only when NOTHING was printed on it. Text, an interlinear
   # note, a variant reading and a rare character are all printed content.
   defp blank?(line),
@@ -225,6 +303,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
       gaiji on IR lines:          #{t.ir_gaiji}   (repeats collapsed per line)
       gaiji reachable in segments: #{t.meta_gaiji}
       stranded on dropped lines:   0
+    #{derge_section(t.derge)}
     """)
   end
 
@@ -241,5 +320,22 @@ defmodule Mix.Tasks.Pramana.Integrity do
     a re-run of the same pipeline, so anything dropped deterministically is dropped on
     both sides. Reproducibility is not fidelity. See docs/CHECKS.md.
     """)
+  end
+
+  defp derge_section([]), do: ""
+
+  defp derge_section(reconciliation) do
+    source = Enum.sum(Enum.map(reconciliation, & &1.source_bytes))
+    walked = Enum.sum(Enum.map(reconciliation, & &1.walked_bytes))
+    dropped = for v <- reconciliation, v.dropped != 0, do: v
+
+    """
+
+      Derge, counted independently of the parser (non-whitespace bytes inside <text>):
+
+        in the edition:  #{source}
+        in the bake:     #{walked}
+        difference:      #{source - walked}#{Enum.map(dropped, &"\n          volume #{&1.volume}: #{&1.dropped} bytes before its first toh marker, which belong to no work")}\
+    """
   end
 end

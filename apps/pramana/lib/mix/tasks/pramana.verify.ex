@@ -4,9 +4,10 @@ defmodule Mix.Tasks.Pramana.Verify do
   @moduledoc """
   Data-integrity check for the phase gates (`docs/CHECKS.md`, section 3).
 
-      mix pramana.verify              # sample 1000 segments PER TEXT
-      mix pramana.verify --all        # check every segment; ~2m30s for the full Taisho
-      mix pramana.verify --sample 50  # 50 per text
+      mix pramana.verify                 # sample 1000 segments PER TEXT
+      mix pramana.verify --all           # check every segment; ~2m30s for the full Taisho
+      mix pramana.verify --sample 50     # 50 per text
+      mix pramana.verify --source derge  # one source, while iterating on its pipeline
 
   `--sample N` is **per text**, not a corpus-wide total, so `--sample 1000` over 2,471
   texts checks about 1.2M segments rather than 1,000. Use `--all` at a phase gate.
@@ -45,12 +46,14 @@ defmodule Mix.Tasks.Pramana.Verify do
   alias Pramana.Local.Normalizer, as: LocalNormalizer
   alias Pramana.Normalize
   alias Pramana.Normalize.Bilara
+  alias Pramana.Normalize.Derge
+  alias Pramana.Normalize.Derge.Edition, as: DergeEdition
   alias Pramana.Normalize.IR
   alias Pramana.Repo
   alias Pramana.Sources
   alias Pramana.URN
 
-  @switches [sample: :integer, all: :boolean]
+  @switches [sample: :integer, all: :boolean, source: :string]
 
   @impl Mix.Task
   def run(argv) do
@@ -58,7 +61,7 @@ defmodule Mix.Tasks.Pramana.Verify do
     {opts, _, _} = OptionParser.parse(argv, switches: @switches)
     sample = if opts[:all], do: :all, else: Keyword.get(opts, :sample, 1000)
 
-    texts = Repo.all(from t in Text, preload: [:work])
+    texts = Repo.all(scope(opts[:source]))
 
     if texts == [] do
       Mix.raise("nothing baked yet — run `mix pramana.bake` first")
@@ -69,6 +72,10 @@ defmodule Mix.Tasks.Pramana.Verify do
 
     report(results, failures)
   end
+
+  # `--source` is for iterating on one pipeline; a gate runs the whole corpus.
+  defp scope(nil), do: from(t in Text, preload: [:work])
+  defp scope(source), do: from(t in Text, where: t.source_id == ^source, preload: [:work])
 
   defp verify_text(text, sample) do
     checks = [
@@ -119,6 +126,8 @@ defmodule Mix.Tasks.Pramana.Verify do
   # check fail on a legitimately added local source.
   defp reproduce(%{source_id: "sc"} = text), do: reproduce_bilara(text)
 
+  defp reproduce(%{source_id: "derge"} = text), do: reproduce_derge(text)
+
   defp reproduce(text) do
     if Sources.local?(text.source_id) do
       reproduce_local(text)
@@ -137,6 +146,49 @@ defmodule Mix.Tasks.Pramana.Verify do
   end
 
   defp reproduce_bilara(text), do: {:error, {:no_source_file, text.work_id}}
+
+  # A Derge work can run across thirteen volumes and only the first one names it, so
+  # re-deriving one means re-walking every volume it was drawn from, in printed order.
+  # The ingest records all of them for this reason; one path would re-derive a fragment
+  # and the comparison would fail without saying why.
+  defp reproduce_derge(%{meta: %{"source_file" => paths}} = text) when is_binary(paths) do
+    with {:ok, volumes} <- read_volumes(String.split(paths, " ", trim: true)) do
+      DergeEdition.reproduce(volumes, text.work_id)
+    end
+  end
+
+  defp reproduce_derge(text), do: {:error, {:no_source_file, text.work_id}}
+
+  # The volume number comes from each file's own title page, exactly as it did at ingest.
+  # Deriving it from the order of the recorded paths instead would reproduce the text
+  # with anchors that agree with themselves and with nothing printed.
+  defp read_volumes(paths) do
+    paths
+    |> Enum.reduce_while({:ok, []}, fn path, {:ok, acc} ->
+      case read_volume(path) do
+        {:ok, volume} -> {:cont, {:ok, [volume | acc]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, volumes} -> {:ok, Enum.sort_by(volumes, &elem(&1, 0))}
+      error -> error
+    end
+  end
+
+  defp read_volume(path) do
+    case File.read(path) do
+      {:ok, xml} -> named(xml, path)
+      {:error, reason} -> {:error, {:raw_unreadable, path, reason}}
+    end
+  end
+
+  defp named(xml, path) do
+    case Derge.volume_number(xml) do
+      {:ok, volume} -> {:ok, {volume, xml}}
+      :error -> {:error, {:volume_unnamed, path}}
+    end
+  end
 
   defp pick_work(irs, work_id, path) do
     case Enum.find(irs, &(&1.work_id == work_id)) do

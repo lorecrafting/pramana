@@ -43,6 +43,16 @@ works, 444,673 segments under SuttaCentral's own segment ids. The corpus is now 
 texts and 5,185,767 segments across two traditions, and 24,717 curated parallels resolve
 at both ends, so SA 1 (Chinese) and SN 22.12 (Pāli) are quotable side by side.
 
+**The Derge Kangyur is in** (#21): 1,195 Tibetan works, 461,302 lines, addressed by the
+edition's own reference system — `pramana:derge.D:toh8@14.1b.1` is volume 14, folio 1
+verso, line 1. The corpus is now **12,109 texts and 5,647,069 segments across three
+traditions**. 75 works run across more than one volume and are assembled before loading,
+because the loader replaces a text's segments rather than appending to them. Every text
+re-derives from `raw/` byte-identically, and the whole edition reconciles against an
+independent byte count to 69 bytes — volume 1's title page, which belongs to no Tōhoku
+number. What is NOT here yet: work titles and the English translations. Both come from
+84000, whose 396 published Kangyur translations are downloaded and not yet ingested.
+
 **Translations are a pool, not a winner** (#39). 210,756 English renderings by 8
 translators, keyed onto source anchors; 4,601 anchors carry more than one. Callers supply
 a selection policy — prefer a tier, pin a translator, or `compare` for the whole pool —
@@ -559,6 +569,51 @@ Three more things the edition itself made necessary:
   is visibly not a folio reference — a reader who sees it learns the edition is ambiguous
   there rather than receiving a citation that looks clean and resolves wrongly.
 
+### The Derge ingest (#21) — the edition is the unit, and the header is not the book
+
+**The Kangyur is in: 1,195 works, 461,302 lines, 12,109 texts and 5,647,069 segments
+across three traditions.** `mix pramana.derge.ingest` walks the 103 volumes in printed
+order in 4m35s; `mix pramana.verify --source derge` re-derives every one of the 1,195
+texts from `raw/` byte-identically in 75s. URNs read `pramana:derge.D:toh8@14.1b.1`.
+
+**The numbers in the section above were wrong, and this section's are checked.** The
+normalizer's own report said 1,196 works and 461,414 lines. Ingest says 1,195 and
+461,302, and the difference is not a regression — it is 102 lines of Esukhia's
+distributor note (see below) plus one work that only ever existed as a double count.
+
+Four things this stage settled:
+
+- **A volume is not the unit of loading, and the loader will not tell you.**
+  `Loader.load/2` is idempotent by replacing a text's segments, so a work loaded once per
+  volume keeps its **last** volume and silently discards the rest — twelve volumes of
+  Vinaya, in a text that reports a plausible length and resolves every URN it contains.
+  Works are assembled across volumes in `Derge.Edition` and loaded once. 75 of the 1,195
+  span more than one volume; Toh 8 spans thirteen.
+- **`<teiHeader>` was being read as scripture.** Every volume's `<publicationStmt>`
+  carries a 416-byte distributor note, and the normalizer buffered all character data
+  regardless of where it sat. In a volume that opens with a work already running — 102 of
+  the 103 — that note flushed into the work as its first line, with a URN that resolves.
+  Nothing errored: it is text, in a text, with an anchor. The only tell was the anchor
+  itself, `2..`, because no folio had been read when it was emitted.
+- **What found it was a count that shares none of the parser's assumptions.** Not line
+  counts — those agreed. `Derge.Audit` adds up the non-whitespace bytes of character data
+  inside `<text>` and knows nothing about folios, markers or works: **290,863,399 in the
+  edition against 290,863,330 in the bake, and the 69-byte difference is volume 1's title
+  page**, which belongs to no Tōhoku number and is dropped on purpose. That reconciliation
+  now runs in `mix pramana.integrity`, per volume, and the rule it enforces is that **only
+  the first volume may drop anything** — a later volume dropping its preamble is the exact
+  shape of the 146,962-line bug.
+- **Four leaves in the edition are inserted rather than numbered** and are labelled
+  `33xa`, `93xb`, `354xa`, `355xb`. 65,975 folios take the regular form and exactly 8 do
+  not, which is the kind of thing worth counting before writing the pattern that parses it.
+
+Provenance is `indic` / `root` / **`probable`**, not `certain`: the Kangyur's claim to
+Indic origin is a claim about where the collection places a text, and it is wrong for a
+few (the *mdzangs blun* was assembled from Chinese). Per-work correction is what the 84000
+catalogue join is for. The dkar chag is loaded as what it is — `tibetan` / `catalogue` /
+`certain`. Titles are absent by design: this etext titles volumes, not works, and 84000
+publishes a title for every Toh number in four languages.
+
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 
 The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
@@ -853,6 +908,25 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     "0 entries" rather than raising. Where a fall-through means "skip this row", make the
     skip conditions explicit enough that a malformed *pattern* cannot masquerade as
     malformed *data*.
+27. **Character data outside the text element is the library talking, not the book.** The
+    Derge normalizer buffered every character event, so each volume's 416-byte
+    `<publicationStmt>` distributor note became the first citable line of whatever work
+    was running into that volume — 102 of 103 volumes, addressed by a URN that resolves.
+    A normalizer's default should be to ignore text, and to buffer only where it has
+    established it is inside the body.
+28. **An idempotent loader makes assembly the caller's problem.** `Loader.load/2`
+    replaces a text's segments rather than appending, which is what makes a re-run safe —
+    and what makes loading a multi-file work once per file keep only the last file. The
+    failure is silent in both directions: no error, and a text whose length looks
+    plausible. Whenever the source's packaging unit is smaller than the citation unit,
+    assemble first and load once.
+29. **The closing check counts bytes, not units the parser defined.** Line counts,
+    work counts and character counts are all downstream of how the parser decided to
+    split things, so they agree with a wrong split. Non-whitespace bytes of character
+    data inside `<text>`, counted by something that knows nothing else, closed the Derge
+    edition to 69 bytes out of 290,863,399 — and named the 69 as the one thing dropped on
+    purpose. If a fidelity check cannot state the difference exactly and explain it, it is
+    not closed.
 
 ---
 
@@ -1028,3 +1102,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#39 translation pool + readings** | **582** | — | a generated rendering is rejected as source | translations ingest 4,996 files | **210,756 renderings, 8 translators, 4,601 shared anchors; 22 reading exceptions** |
 | **#40 multi-vector + comparison tools** | **629** | — | an English query reaches a Pāli passage and cites the Pāli | chunk 84 s; embed 43,218 in ~5 min | **342,535 vectors: 300,165 source/lzh, 27,589 source/pli, 14,781 translation/en** |
 | **#19 eval harness** | **651** | **65.3% @10** (zh 98.7 / pa 37.5) | **100%** verify + reject + provenance | evals 200 cases in 12 min | overall **87.0%**, 0 stale |
+| **#21 Derge Kangyur ingest** | **870** | — | verify --source derge green on 1,195 texts; integrity closes to 69 bytes | ingest 4m35s / 103 volumes; verify 75 s | **12,109 texts, 5,647,069 segments; 1,195 Tibetan works, 75 spanning volumes** |

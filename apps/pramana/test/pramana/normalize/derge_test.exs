@@ -11,13 +11,20 @@ defmodule Pramana.Normalize.DergeTest do
 
   alias Pramana.Normalize.Derge
 
+  # The distributor note is in the fixture on purpose: it is in the header of all 103
+  # volumes, and it is the thing that must not come out the other end as scripture.
   defp tei(body) do
     """
     <?xml version="1.0" encoding="UTF-8"?>
     <tei:TEI xmlns:tei="http://www.tei-c.org/ns/1.0">
-      <tei:teiHeader><tei:fileDesc><tei:titleStmt>
-        <tei:title>༄༅། །འདུལ་བ་ཀ་བཞུགས་སོ། ། [1]</tei:title>
-      </tei:titleStmt></tei:fileDesc></tei:teiHeader>
+      <tei:teiHeader><tei:fileDesc>
+        <tei:titleStmt>
+          <tei:title>༄༅། །འདུལ་བ་ཀ་བཞུགས་སོ། ། [1]</tei:title>
+        </tei:titleStmt>
+        <tei:publicationStmt><tei:distributor>Etexts from UVA, BDRC OCR, ACIP, and
+          Adarsha combined and further proofread by Esukhia, 2012-2018.</tei:distributor>
+        </tei:publicationStmt>
+      </tei:fileDesc></tei:teiHeader>
       <tei:text><tei:body><tei:div>#{body}</tei:div></tei:body></tei:text>
     </tei:TEI>
     """
@@ -111,6 +118,33 @@ defmodule Pramana.Normalize.DergeTest do
     end
   end
 
+  describe "the teiHeader is not the text" do
+    test "the distributor note does not become a line of the work in progress" do
+      # It did, in 102 of the 103 volumes. A volume that continues a work opens with that
+      # work already set, so the header text flushed into it and Esukhia's provenance
+      # blurb became the first citable line of a sūtra — under a URN that resolves. The
+      # only visible tell was the anchor `2..`: no folio had been read yet.
+      xml = tei(folio("1a", "#{line(1)}མུ་སྟེགས"))
+
+      {:ok, [ir], _} = Derge.normalize_file(xml, volume: 2, continuing: "toh1")
+
+      assert Enum.map(ir.lines, & &1.text) == ["མུ་སྟེགས"]
+      refute Enum.any?(ir.lines, &String.contains?(&1.text, "Esukhia"))
+    end
+
+    test "nor a line of the catalogue, which keeps every line it has" do
+      xml = tei(folio("1b", "#{line(1)}#{toh(538)}མཆོད་པའི་སྤྲིན"))
+
+      {:ok, [ir], _} = Derge.normalize_file(xml, volume: 103, mode: :catalogue)
+
+      refute Enum.any?(ir.lines, &String.contains?(&1.text, "Esukhia"))
+    end
+
+    test "but the volume title is still read, because that is where the number is" do
+      assert Derge.volume_number(tei("")) == {:ok, 1}
+    end
+  end
+
   describe "anchors that repeat in the source" do
     test "a repeated line number keeps both lines, visibly marked" do
       # Three anchors in the whole edition are printed twice. Dropping the second loses
@@ -145,6 +179,29 @@ defmodule Pramana.Normalize.DergeTest do
       {:ok, irs, _} = Derge.normalize_file(xml, volume: 103)
 
       assert Enum.map(irs, & &1.work_id) == ["toh538", "toh539"]
+    end
+  end
+
+  describe "volume_number/1" do
+    test "is read off the volume's own title page" do
+      # The filenames are BDRC image-group ids, so the alternative is trusting a
+      # directory listing to be in printed order. Out-of-order volumes do not error —
+      # they mislabel every anchor in the edition.
+      assert Derge.volume_number(tei("")) == {:ok, 1}
+    end
+
+    test "handles the volumes whose title has no space before the bracket" do
+      xml = """
+      <tei:TEI xmlns:tei="http://www.tei-c.org/ns/1.0"><tei:teiHeader><tei:fileDesc>
+      <tei:titleStmt><tei:title>༄༅། །གཟུངས་འདུས་ཝོཾ་བཞུགས་སོ། ། [102]</tei:title>
+      </tei:titleStmt></tei:fileDesc></tei:teiHeader></tei:TEI>
+      """
+
+      assert Derge.volume_number(xml) == {:ok, 102}
+    end
+
+    test "says so when the title does not carry one" do
+      assert Derge.volume_number("<tei:title>no number here</tei:title>") == :error
     end
   end
 

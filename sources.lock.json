@@ -12403,6 +12403,542 @@
       "upstream": "https://www.mdbg.net/chinese/export/cedict/cedict_1_0_ts_utf-8_mdbg.txt.gz"
     },
     {
+      "file_count": 103,
+      "files": [
+        {
+          "bytes": 2933715,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9127/UT4CZ5369-I1KG9127-0000.xml",
+          "sha256": "eb0315915eb6ebad89c2ae89e51ee5bddd7efd3771b4aa0f9f5d1f39227907f9"
+        },
+        {
+          "bytes": 3049425,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9128/UT4CZ5369-I1KG9128-0000.xml",
+          "sha256": "75a4fbf6aef2cb36169c12cfd3f40a11a35be1cfabe0b549d44697e0af226da2"
+        },
+        {
+          "bytes": 2842804,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9129/UT4CZ5369-I1KG9129-0000.xml",
+          "sha256": "d2101901522155cf4f37edae8b5014f1f4bb203541bbc20e4cd9b6a6ccb9d8f4"
+        },
+        {
+          "bytes": 2927450,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9130/UT4CZ5369-I1KG9130-0000.xml",
+          "sha256": "d3dcc03ceb2e48720657a004526e6a3f13f6e8a84784398bdd8097c419e268ab"
+        },
+        {
+          "bytes": 2836375,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9131/UT4CZ5369-I1KG9131-0000.xml",
+          "sha256": "f7d4141650bea443dfa08d000d3b868b47633e808a64c77c3584501163eb117d"
+        },
+        {
+          "bytes": 2738992,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9132/UT4CZ5369-I1KG9132-0000.xml",
+          "sha256": "2d980edf002df601eea629a5a3dfd3ca7a1a8d2d685189802c1d7924eb85439d"
+        },
+        {
+          "bytes": 2773319,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9133/UT4CZ5369-I1KG9133-0000.xml",
+          "sha256": "cdb3e1cfe8d2acb145b660f958c9c1fad6d73f8c398bd73ffabd9ba5f761a808"
+        },
+        {
+          "bytes": 2582080,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9134/UT4CZ5369-I1KG9134-0000.xml",
+          "sha256": "1d6d92eef1ea37f3dc359a10067d0bad0d12efd2c01bf19aa3951f2d6043549f"
+        },
+        {
+          "bytes": 3090963,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9135/UT4CZ5369-I1KG9135-0000.xml",
+          "sha256": "b736acbcb6c8e89563d62b1a98089b58c1709a9870e2100b00a47e0c2152042b"
+        },
+        {
+          "bytes": 3032518,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9136/UT4CZ5369-I1KG9136-0000.xml",
+          "sha256": "842d37f24b19fe3153a27df3386b310853769b4e0d976f949b51e640e69d23e6"
+        },
+        {
+          "bytes": 3255746,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9137/UT4CZ5369-I1KG9137-0000.xml",
+          "sha256": "7c344f92684d731f01fb422a798b005bf87006b5de1806b7e6b827a87b119cac"
+        },
+        {
+          "bytes": 2856935,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9138/UT4CZ5369-I1KG9138-0000.xml",
+          "sha256": "6ab6d79b2283401e5dc718346c1543a0e4910739f19b9387e571931cfff6aa71"
+        },
+        {
+          "bytes": 2928701,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9139/UT4CZ5369-I1KG9139-0000.xml",
+          "sha256": "421a6955c1cdb26f21264f0af29639101ade5dd54ff4309ef69bd42631c96b75"
+        },
+        {
+          "bytes": 3526473,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9140/UT4CZ5369-I1KG9140-0000.xml",
+          "sha256": "66401f2f828c0d7126ef73f2ef30fb6775a55ff3a79b3de931f4118168f8d8d2"
+        },
+        {
+          "bytes": 3617311,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9141/UT4CZ5369-I1KG9141-0000.xml",
+          "sha256": "512619957db742fbd82b15e5bc46cd861bce15d57acbb0025f125f9690fac4e3"
+        },
+        {
+          "bytes": 3506939,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9142/UT4CZ5369-I1KG9142-0000.xml",
+          "sha256": "d7c9aede443f35d76d0ef6dee2254a047da407174dfa0c477adad7e35b3b99b4"
+        },
+        {
+          "bytes": 3549990,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9143/UT4CZ5369-I1KG9143-0000.xml",
+          "sha256": "a8fbd9e5277a2d69758984e64a98b92cb61e9b2eae1c69e080a4fb0c75e6632e"
+        },
+        {
+          "bytes": 3526144,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9144/UT4CZ5369-I1KG9144-0000.xml",
+          "sha256": "af32299cefdf1137e979f74712823cceed5932ec2a7936b3cb8f3b7fd3fba472"
+        },
+        {
+          "bytes": 3568079,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9145/UT4CZ5369-I1KG9145-0000.xml",
+          "sha256": "1dd4c7b9bc95d655a45c074567859bdeb7f44b7bbd2ec6466cdfc6e3c23a566b"
+        },
+        {
+          "bytes": 3468274,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9146/UT4CZ5369-I1KG9146-0000.xml",
+          "sha256": "de53234d603e94f4b2789248e2a0d9f243ed0846b3e19c197c0825e724aebdd2"
+        },
+        {
+          "bytes": 3560939,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9147/UT4CZ5369-I1KG9147-0000.xml",
+          "sha256": "697d8152a20f0008c84cc643efa17959089f2271d5bb3e0eed3ae9f687a5093b"
+        },
+        {
+          "bytes": 3287983,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9148/UT4CZ5369-I1KG9148-0000.xml",
+          "sha256": "714ed42bd35e8d740f8226d600422248143e10c45f64cc5c63d6850e1b764245"
+        },
+        {
+          "bytes": 3328680,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9149/UT4CZ5369-I1KG9149-0000.xml",
+          "sha256": "5b87681a8f7b17f888e1b48e082b9a117017698cfcfc580da5e3d3d63926dfe6"
+        },
+        {
+          "bytes": 3545058,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9150/UT4CZ5369-I1KG9150-0000.xml",
+          "sha256": "23f381f665b6c3e4698b6b77bdfd199aca4be19994abfdad1e8a52d890a65906"
+        },
+        {
+          "bytes": 3322744,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9151/UT4CZ5369-I1KG9151-0000.xml",
+          "sha256": "5df8c8f81e284e6e22fc16e47387ea011085f1d55cd4e37eede7a93e63d50c6f"
+        },
+        {
+          "bytes": 3484025,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9152/UT4CZ5369-I1KG9152-0000.xml",
+          "sha256": "cc1d242bff1830faa062c65e1f16d73d120a117253b80110246014568a64cab2"
+        },
+        {
+          "bytes": 3633204,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9153/UT4CZ5369-I1KG9153-0000.xml",
+          "sha256": "e2e77693962cc0d60387a0ee89598f9f42f9c78ea733fd622084333ee3c6d97e"
+        },
+        {
+          "bytes": 3402743,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9154/UT4CZ5369-I1KG9154-0000.xml",
+          "sha256": "e556ec0cc2f35e375f96adb33369d25044074bcfacab35c9beb9d29b5873045b"
+        },
+        {
+          "bytes": 2892435,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9155/UT4CZ5369-I1KG9155-0000.xml",
+          "sha256": "eb35a440594ad3137e19ceafdb0050d718fb8eaca27e7b87c58612ce826a38f2"
+        },
+        {
+          "bytes": 2923177,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9156/UT4CZ5369-I1KG9156-0000.xml",
+          "sha256": "74c8bfbe592b05f73afb12c335e7b1deaaad34ad22084b490cfb7d8e4bcb2f83"
+        },
+        {
+          "bytes": 2870405,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9157/UT4CZ5369-I1KG9157-0000.xml",
+          "sha256": "8972ae19ab14566d928c9ea95230a348eaffe1f359179c16ec4360b92468bf0d"
+        },
+        {
+          "bytes": 2922893,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9158/UT4CZ5369-I1KG9158-0000.xml",
+          "sha256": "d545f3af19c9ce64d45bc537b02e5860fe08e308cc77e58158fd27336eda3a08"
+        },
+        {
+          "bytes": 2855603,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9159/UT4CZ5369-I1KG9159-0000.xml",
+          "sha256": "df3c24acc12797be491949aaab33de5dc54ccad99c64b4b2dbad14a8c3dc6d86"
+        },
+        {
+          "bytes": 2790086,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9160/UT4CZ5369-I1KG9160-0000.xml",
+          "sha256": "c31872d3fd1ce80627512d68c699cbb6f62f821f486e21eff0508b261e81d580"
+        },
+        {
+          "bytes": 3593487,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9161/UT4CZ5369-I1KG9161-0000.xml",
+          "sha256": "667bf7ee159244852443c73e98d382d6e0e3f3535e05e410f0ed3ea608d92eb3"
+        },
+        {
+          "bytes": 3406954,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9162/UT4CZ5369-I1KG9162-0000.xml",
+          "sha256": "b4f6ccc44239dadf00bf5dbe4e02be58faa6171150022f9dae3dad4990ac3b6f"
+        },
+        {
+          "bytes": 3542105,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9163/UT4CZ5369-I1KG9163-0000.xml",
+          "sha256": "82b6aef783513dae87702ce88f325a01f692be8a7079d6d31ad13bddbb6002af"
+        },
+        {
+          "bytes": 3332077,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9164/UT4CZ5369-I1KG9164-0000.xml",
+          "sha256": "98e7a084302f9de563973f06f31ae076a0a77308d569d5c6bfc97932210d386a"
+        },
+        {
+          "bytes": 2640730,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9165/UT4CZ5369-I1KG9165-0000.xml",
+          "sha256": "b4b31710e4c52ddf3435f2eefabbd4d442cee93812c711dbb485b988fbfc6ff3"
+        },
+        {
+          "bytes": 2856946,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9166/UT4CZ5369-I1KG9166-0000.xml",
+          "sha256": "3e52a1f3b38da770f4d66b29acc4609c8b220f092c1a89f04df6a3757ebe2b40"
+        },
+        {
+          "bytes": 2941591,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9167/UT4CZ5369-I1KG9167-0000.xml",
+          "sha256": "618c1b059c3786a8a075b02fb1014894fc3d78103abf6e12f1d2232420fe4c5e"
+        },
+        {
+          "bytes": 2817391,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9168/UT4CZ5369-I1KG9168-0000.xml",
+          "sha256": "0a5a3666ddc38a33d85f82b2b0267687af4a472ae18b63996ce5bfcb0f5ca190"
+        },
+        {
+          "bytes": 2958274,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9169/UT4CZ5369-I1KG9169-0000.xml",
+          "sha256": "9bbc9ae3af0011f33b04f236beb20d0563f849ebe4f804ede5dc9fa1686aaa38"
+        },
+        {
+          "bytes": 2884210,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9170/UT4CZ5369-I1KG9170-0000.xml",
+          "sha256": "9c075f6ab4d3192701f0961baca6cc72127f2d7cbfa05a9e31179980189dcc24"
+        },
+        {
+          "bytes": 3332888,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9171/UT4CZ5369-I1KG9171-0000.xml",
+          "sha256": "5937194744f1246c9f78f4815b6513645079b1aed4c646c9b6773f0e8c6bd680"
+        },
+        {
+          "bytes": 2743646,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9172/UT4CZ5369-I1KG9172-0000.xml",
+          "sha256": "ce14396070717b83df4f8e848b3c747929159a488443f030a2797bbc71377107"
+        },
+        {
+          "bytes": 3046069,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9173/UT4CZ5369-I1KG9173-0000.xml",
+          "sha256": "25cd7e1042be769ddf0beedb2359093773bebace443b6e9ac40484812905815c"
+        },
+        {
+          "bytes": 2797099,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9174/UT4CZ5369-I1KG9174-0000.xml",
+          "sha256": "b679463246a0ac4d6cb500ffd92a4fe13a1eec9a2f4b88ce44bf31229e2510e0"
+        },
+        {
+          "bytes": 2855018,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9175/UT4CZ5369-I1KG9175-0000.xml",
+          "sha256": "a0523bc3ae61094974b51bc1e094c785e206e2ee859c22c337d92f789f26ff9a"
+        },
+        {
+          "bytes": 2860595,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9176/UT4CZ5369-I1KG9176-0000.xml",
+          "sha256": "2742e13b482d0a177bcefaad1a90ac47132b2b788cd231395b040f6a07ee9fad"
+        },
+        {
+          "bytes": 2852924,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9177/UT4CZ5369-I1KG9177-0000.xml",
+          "sha256": "e29c0d8d3212cbaad5addf8b55694f6780258c8d75ed83bde038ee3dc271bd75"
+        },
+        {
+          "bytes": 3255266,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9178/UT4CZ5369-I1KG9178-0000.xml",
+          "sha256": "4af2e887de84ae825bc33e227b7e3a9754d770c4ff4e55c3542f6e1e0729feee"
+        },
+        {
+          "bytes": 3286289,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9179/UT4CZ5369-I1KG9179-0000.xml",
+          "sha256": "b978b5fbc766d8930413ac8209eb1d29cb81c6a8b7d31f98ffa9780a74fafb21"
+        },
+        {
+          "bytes": 2837157,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9180/UT4CZ5369-I1KG9180-0000.xml",
+          "sha256": "44603ce1878b6e062452eccf398b23dfeab72c6823debf3f4a27e2ce1bcd8e6c"
+        },
+        {
+          "bytes": 3108495,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9181/UT4CZ5369-I1KG9181-0000.xml",
+          "sha256": "bb82b730c9b9b78b1687dc16a70d890eada7e4b6fa65b5708c3e8e0721fb0b7b"
+        },
+        {
+          "bytes": 2941365,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9182/UT4CZ5369-I1KG9182-0000.xml",
+          "sha256": "3e6b03a89266d58a7cdba305fe6d12d55beafc79b7dbf73a45192840ab0d32b4"
+        },
+        {
+          "bytes": 3308048,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9183/UT4CZ5369-I1KG9183-0000.xml",
+          "sha256": "a7014b76c0ccd0c277bb92625d0484b824b926b160e7fcde9e4c393166c2455f"
+        },
+        {
+          "bytes": 3011782,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9184/UT4CZ5369-I1KG9184-0000.xml",
+          "sha256": "fde10a2986f2db524d9a6113dbd2b899b9d84fb7dc33837178eca0106c68d4a6"
+        },
+        {
+          "bytes": 3029146,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9185/UT4CZ5369-I1KG9185-0000.xml",
+          "sha256": "fb96c036422e354c939444f2c63145a06ff8cc73bd0f8c601126b1ee58d21b05"
+        },
+        {
+          "bytes": 2882710,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9186/UT4CZ5369-I1KG9186-0000.xml",
+          "sha256": "c955361c2da2bfc64f9b07d2f7ee3a49f84e0244d22c6035225c019af952ce63"
+        },
+        {
+          "bytes": 2935627,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9187/UT4CZ5369-I1KG9187-0000.xml",
+          "sha256": "f33d7bf24e93c40da1ab0a8b7348d38696440e64332a0245e43a2242c47a46e7"
+        },
+        {
+          "bytes": 2952279,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9188/UT4CZ5369-I1KG9188-0000.xml",
+          "sha256": "fbb78e69769adcae042c34639dd74a83774009d26268ad4e42508abb55a7718e"
+        },
+        {
+          "bytes": 2911141,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9189/UT4CZ5369-I1KG9189-0000.xml",
+          "sha256": "d318ae00b27cefdda2c7236055e4e527e7be26a17a0595138c28131c59151533"
+        },
+        {
+          "bytes": 3006934,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9190/UT4CZ5369-I1KG9190-0000.xml",
+          "sha256": "2f36a4fc26c9e810631dd280ef6e395f609120695ad2fa0edb82b9b26cb1bd7d"
+        },
+        {
+          "bytes": 2936295,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9191/UT4CZ5369-I1KG9191-0000.xml",
+          "sha256": "5f15f35211dd3ba6019f5c3c5548c1b99119470a9d389a267a0287ee2ca3d361"
+        },
+        {
+          "bytes": 2932977,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9192/UT4CZ5369-I1KG9192-0000.xml",
+          "sha256": "2348770a3910b563220316129861cab4815743e4e1a409ffa853cf4e798c3722"
+        },
+        {
+          "bytes": 3075176,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9193/UT4CZ5369-I1KG9193-0000.xml",
+          "sha256": "bdefd391820474fcf3cf97420404d715110b24f113084843cbfe438557158a77"
+        },
+        {
+          "bytes": 2962117,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9194/UT4CZ5369-I1KG9194-0000.xml",
+          "sha256": "3b2008ed1db66663bd3b679326eced652735e89f7fdba6691d86945841c7ac6e"
+        },
+        {
+          "bytes": 3032496,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9195/UT4CZ5369-I1KG9195-0000.xml",
+          "sha256": "0cd12d3ededd403ef22b7da11ca33d38d129789206e364be40be2eae265edcf5"
+        },
+        {
+          "bytes": 3077123,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9196/UT4CZ5369-I1KG9196-0000.xml",
+          "sha256": "a89a212b24c801682c9a1412192fa99022c80d5b54192aa9c91e8cc7b8246b37"
+        },
+        {
+          "bytes": 2993459,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9197/UT4CZ5369-I1KG9197-0000.xml",
+          "sha256": "277cbe396fb072d2a2e7d3c9c5481fef9205ddeed3329b9a852ec6855e4b482c"
+        },
+        {
+          "bytes": 2923183,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9198/UT4CZ5369-I1KG9198-0000.xml",
+          "sha256": "1560473068109ed351b4312c1df5d0e97bad20e0a071cced0709eec705238a75"
+        },
+        {
+          "bytes": 3008967,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9199/UT4CZ5369-I1KG9199-0000.xml",
+          "sha256": "45733a99bc042adc711c0ee2dc6ca20f1eb378349386bd2f838fd26d508b34b9"
+        },
+        {
+          "bytes": 2874908,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9200/UT4CZ5369-I1KG9200-0000.xml",
+          "sha256": "01427b517a0520268cf0bf2c0c9eb465bf792364e6039f504503f970442744e5"
+        },
+        {
+          "bytes": 2872757,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9201/UT4CZ5369-I1KG9201-0000.xml",
+          "sha256": "ca4cdab258b522f9e3fc4cbbc606b65eed8a4adf8fa241152535f0285a8f3de5"
+        },
+        {
+          "bytes": 2803113,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9202/UT4CZ5369-I1KG9202-0000.xml",
+          "sha256": "2adce09b3f9794df35662d79b2971af8e6eeabd6116970d8c48dca19635e1a52"
+        },
+        {
+          "bytes": 3574779,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9203/UT4CZ5369-I1KG9203-0000.xml",
+          "sha256": "05f754e85930ba14ae18d0c83e52044dc7317f70e63ce88998bba99d0457102d"
+        },
+        {
+          "bytes": 2961003,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9204/UT4CZ5369-I1KG9204-0000.xml",
+          "sha256": "1dd6185c98b56c8b3c1d32fb2e5958976018e964edd838243d5d43780daa81f9"
+        },
+        {
+          "bytes": 2742115,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9205/UT4CZ5369-I1KG9205-0000.xml",
+          "sha256": "7229c2a23a494295d715ce14fa46a03c3e83d576e2064bc499383309099904e7"
+        },
+        {
+          "bytes": 3240812,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9206/UT4CZ5369-I1KG9206-0000.xml",
+          "sha256": "fadbcb509bb6eb7304a81ef00c4fc5f69dfa96214180030bee7ea0aa2102ba08"
+        },
+        {
+          "bytes": 2929121,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9207/UT4CZ5369-I1KG9207-0000.xml",
+          "sha256": "617172b404c0b839b980e170dcfa62b9d6a634728064b503ca6cfacf9acd248a"
+        },
+        {
+          "bytes": 3065688,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9208/UT4CZ5369-I1KG9208-0000.xml",
+          "sha256": "aff18fab1e1a696d9badef500f4c1f076b5b52274b57211c495bcf323e4b437f"
+        },
+        {
+          "bytes": 3209032,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9209/UT4CZ5369-I1KG9209-0000.xml",
+          "sha256": "5364718b4048ac39e03c48c80b91cf6b3415e79e27d48e8f0267c7aa758b7e6a"
+        },
+        {
+          "bytes": 2689812,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9210/UT4CZ5369-I1KG9210-0000.xml",
+          "sha256": "f18aa531e50de0e03759fad480af23b9c74b106df8af43eccdb42e163beaf7cb"
+        },
+        {
+          "bytes": 2675506,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9211/UT4CZ5369-I1KG9211-0000.xml",
+          "sha256": "771f7213c64f2e93bef6e248e305f0d437ccfbc233a5462ff604730964a8b62a"
+        },
+        {
+          "bytes": 3074172,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9212/UT4CZ5369-I1KG9212-0000.xml",
+          "sha256": "84f3cac27a6b51d9adea968d0d45c73eb1a603bcc567a3e5e0ce25c4a1437c39"
+        },
+        {
+          "bytes": 3008808,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9213/UT4CZ5369-I1KG9213-0000.xml",
+          "sha256": "e0bed398d021f44e418e483d6762c31a75ed58dd3c9fcc5b56f4d4cf94c45358"
+        },
+        {
+          "bytes": 3383288,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9214/UT4CZ5369-I1KG9214-0000.xml",
+          "sha256": "f96fd589826cfcb7aad20c4240b218c808854affd5d176d2199d582e746a9b23"
+        },
+        {
+          "bytes": 2571379,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9215/UT4CZ5369-I1KG9215-0000.xml",
+          "sha256": "a840580fe38f49aae34af7368ae8466378aa7e86d105e29e39891da098f22e57"
+        },
+        {
+          "bytes": 2764933,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9216/UT4CZ5369-I1KG9216-0000.xml",
+          "sha256": "a1532790beff41c40e7020e4ef27a5602aead06de3675faf99177b2b7abb0845"
+        },
+        {
+          "bytes": 2745222,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9217/UT4CZ5369-I1KG9217-0000.xml",
+          "sha256": "95684420bc925da4461c6de794ca0842d274a2f566079e7da1027b58d31408c9"
+        },
+        {
+          "bytes": 3034755,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9218/UT4CZ5369-I1KG9218-0000.xml",
+          "sha256": "5d788b545f7c35f0665abfcdfcf1cc28c0e932caf438417203e1152d3520ac7d"
+        },
+        {
+          "bytes": 2959054,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9219/UT4CZ5369-I1KG9219-0000.xml",
+          "sha256": "b285cd283048bd904094aa6222450783760e8ae6d881bed73b6b0bde0807281e"
+        },
+        {
+          "bytes": 2597766,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9220/UT4CZ5369-I1KG9220-0000.xml",
+          "sha256": "b39662b5c40e60c18b3c97dbd0d36d89e3d42fae39db4f4d5f392acd98b71a77"
+        },
+        {
+          "bytes": 2867136,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9221/UT4CZ5369-I1KG9221-0000.xml",
+          "sha256": "7fa0f067726d4b0a5a67bf2fcc1e48fdeb1bcfdbd833450cb185129bb09c3a7e"
+        },
+        {
+          "bytes": 2437726,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9222/UT4CZ5369-I1KG9222-0000.xml",
+          "sha256": "9a46ce3eda47c2d9b94e8d184e0b92effbd8a674856da9f7521faa75e8d81aa6"
+        },
+        {
+          "bytes": 3175934,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9223/UT4CZ5369-I1KG9223-0000.xml",
+          "sha256": "64f1311b214a1d1498353536c1c06d89f0eefa96d10549fa5534080ccfc10b28"
+        },
+        {
+          "bytes": 2857706,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9224/UT4CZ5369-I1KG9224-0000.xml",
+          "sha256": "10606317840a06a07ef520f9114fa292e61de0536027ff90dd3e927fd8e692fc"
+        },
+        {
+          "bytes": 2642740,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9225/UT4CZ5369-I1KG9225-0000.xml",
+          "sha256": "ad1257ac979b9d0e7ae612d2713582cc85bf7826b28cc5aabf47b60b38b898fb"
+        },
+        {
+          "bytes": 4685968,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9226/UT4CZ5369-I1KG9226-0000.xml",
+          "sha256": "6b0852d15a055e7f38f5cf482a8601849cf6a96f23bd462bb6afa42aa8d2be6e"
+        },
+        {
+          "bytes": 2544003,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9227/UT4CZ5369-I1KG9227-0000.xml",
+          "sha256": "01a4c339f806f7367fa875bc2056ef41b58419c35e85b40e7e296fc793bdb830"
+        },
+        {
+          "bytes": 2534054,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9228/UT4CZ5369-I1KG9228-0000.xml",
+          "sha256": "ea059e8fa9dbdaf71bb9dfb9b40ce74cdc783337d0879281ff9b6b564a060229"
+        },
+        {
+          "bytes": 1516492,
+          "path": "UT4CZ5369-200106/UT4CZ5369-I1KG9229/UT4CZ5369-I1KG9229-0000.xml",
+          "sha256": "8b67fe1c8fc6d53b57607dff2cd8c94bc468b491a27e8957e05654045228bcf2"
+        }
+      ],
+      "files_sha256": "56a6bbf515eda5b1932ccf3e179cd41e7569f6c6fddf9a2f8a64e9f01b6d1329",
+      "id": "derge",
+      "license": {
+        "class": "public-domain",
+        "commercial_use": true,
+        "redistributable": true,
+        "spdx": "CC-PDM-1.0"
+      },
+      "name": "Digital Derge Kangyur (Esukhia–Barom, from the UVA–SOAS 2013 eKangyur)",
+      "pin": {
+        "edition": "UT4CZ5369-200106",
+        "files_sha256": "56a6bbf515eda5b1932ccf3e179cd41e7569f6c6fddf9a2f8a64e9f01b6d1329",
+        "type": "content"
+      },
+      "retrieved_at": "2026-08-18T18:39:23.419405Z",
+      "upstream": "https://github.com/Esukhia/derge-kangyur"
+    },
+    {
       "file_count": 849,
       "files": [
         {

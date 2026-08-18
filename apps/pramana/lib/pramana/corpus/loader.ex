@@ -113,6 +113,16 @@ defmodule Pramana.Corpus.Loader do
     )
   end
 
+  # `D` is the sigil the field already uses — "D 113, vol. 51, f. 1b" — so the witness in
+  # the URN reads the way the citation does.
+  defp ensure_witness!("D" = id) do
+    Repo.insert!(
+      %Witness{id: id, name: "Derge (sde dge) Kangyur, par phud printing"},
+      on_conflict: :nothing,
+      conflict_target: :id
+    )
+  end
+
   defp ensure_witness!(id) do
     Repo.insert!(%Witness{id: id, name: id}, on_conflict: :nothing, conflict_target: :id)
   end
