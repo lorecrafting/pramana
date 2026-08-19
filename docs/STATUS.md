@@ -182,8 +182,8 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
-- **Mahāvyutpatti** as Skt–Tib–Chi glossary anchors, and **BDRC metadata + IIIF image
-  links** (catalogue only, no OCR), both untouched.
+- **Mahāvyutpatti** as Skt–Tib–Chi glossary anchors — untouched. BDRC metadata and IIIF
+  image links are **done**: see the page-image section below.
 
 ### Phase 1 gate findings (#13)
 
@@ -873,6 +873,44 @@ and one lettered variant, where the etext divides more finely than the catalogue
 Each record also carries the BDRC id of the Degé printing (`MW22084_0113`) — the handle a
 IIIF manifest is addressed by, which is the catalogue half of the Phase 5 BDRC item, with
 no OCR involved.
+
+### The woodblock page, linked (#21) — and why the arithmetic had to go
+
+A Derge passage now comes back with the photograph of the leaf it was printed on.
+**64,828 of the corpus's 65,778 folio anchors — 98.6% — resolve to a BDRC page image**,
+served over IIIF, attributed, and never copied or read. `get_passage` carries it as
+`page_image`; a folio with no scan gets nothing rather than a neighbour.
+
+**The mapping is BDRC's, and reading it replaced an inference that looked right.** The
+obvious construction is arithmetic: two cataloguing cards, then folio *n* recto at leaf-side
+2n−1, image name `<group><NNNN>.jpg`. It was built that way first, and the audit that
+checked it against all 103 volumes said: 74 fit, **29 claim more leaf-sides than the scan
+contains**. Volume 7 settles it — the etext prints folios 1a–287b, BDRC's canvas labels run
+1a–287b, and there are **536 canvases where contiguous sides would need 574**. Sides are
+missing from the middle of the scan, and nothing computable from a filename could know
+which. A single omitted leaf silently shifts every page after it, so the reader is shown a
+leaf that is *almost* the right one — the failure this project exists to prevent, arriving
+as a photograph.
+
+BDRC publishes the answer: every canvas is labelled with its folio (`1a`, `img. 3`, `1na/`,
+`par grangs _3`). So the manifests are fetched and the labels read, which is invariant #2
+applied to pictures — adopt the edition's own reference system, never invent one. The
+proof it mattered is one line: `51.100a` is image **202**, and the arithmetic said 201.
+
+Also settled here:
+
+- **The volume-to-image-group mapping is derived, not assumed.** The group is in the
+  etext's own directory name (`UT4CZ5369-I1KG9127`) and BDRC's record for that group
+  confirms it says *"Volume 1 of bka' 'gyur (sde dge)"*. The ids do run consecutively from
+  9127, and that is a coincidence of issue order rather than a fact to rely on.
+- **The Degé restarts foliation inside a volume.** Volume 31 holds two texts numbered
+  1–206 and 1–91, so `31.1b` names two different leaves and is disambiguated only by the
+  work in the URN. Two volumes are like this. It does not affect the image lookup now that
+  labels are read rather than counted, but it means a bare "D vol 31, f. 1b" is ambiguous
+  in this edition.
+- **The licence is the scan's, not the metadata's.** What is stored is BDRC's manifest —
+  what exists and what it is called. The images stay at BDRC, are linked with attribution,
+  and are never redistributed or read.
 
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 

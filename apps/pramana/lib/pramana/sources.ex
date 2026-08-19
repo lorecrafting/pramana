@@ -104,6 +104,24 @@ defmodule Pramana.Sources do
             "annotations are the editors' work; the text is not."
       }
     },
+    "bdrc-derge" => %{
+      id: "bdrc-derge",
+      name: "BDRC scan of the Degé Kangyur (W4CZ5369), image lists only",
+      upstream_url: "https://library.bdrc.io/show/bdr:W4CZ5369",
+      repo: nil,
+      license: %{
+        spdx: "CC-BY-NC-4.0",
+        class: "nc",
+        commercial_use: false,
+        redistributable: false,
+        derivatives: false,
+        notice:
+          "What is stored here is BDRC's list of what it scanned — filenames and " <>
+            "dimensions — not the scans. The images are served by BDRC over IIIF and " <>
+            "are linked, never copied, so this corpus makes no claim to redistribute " <>
+            "them and never reads them."
+      }
+    },
     # 84000 publishes twice over, under two licences, and the distinction is real: the
     # prose of a translation is restricted, the fact that Toh 113 is called
     # *Saddharmapuṇḍarīka* is not.

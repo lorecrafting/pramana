@@ -12,6 +12,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
 
   alias Anubis.Server.Response
   alias Pramana.Corpus
+  alias Pramana.Derge.Images
   alias Pramana.Reader
   alias Pramana.Translations
 
@@ -151,6 +152,10 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       # Where a human goes to check this against the published edition. Absent rather
       # than guessed when no confirmed template exists for the source.
       reader: Reader.reference(span.urn, span.provenance),
+      # The photograph of the leaf this was printed on, where one exists. The strongest
+      # form of "check us against the print" this corpus can offer, and it is a LINK:
+      # BDRC serves the image, the attribution says so, and nothing here has read it.
+      page_image: page_image(span.urn),
       apparatus: span.meta["apparatus"],
       # A count, not the resolved variants: resolving witness ids needs the text's own
       # sigla (they are per file — `wit1` means 38 different things across the canon), and
@@ -162,5 +167,12 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       editorial_punctuation: span.meta["editorial_punctuation"] == true,
       translations: translations(span.urn, params)
     }
+  end
+
+  defp page_image(urn) do
+    case Images.for_urn(urn) do
+      {:ok, image} -> image
+      :error -> nil
+    end
   end
 end
