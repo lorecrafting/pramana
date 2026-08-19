@@ -53,6 +53,12 @@ independent byte count to 69 bytes — volume 1's title page, which belongs to n
 number. What is NOT here yet: work titles and the English translations. Both come from
 84000, whose 396 published Kangyur translations are downloaded and not yet ingested.
 
+**Semantic search covers three traditions** (#21). 471,844 vectors: 300,165 Literary
+Chinese, 70,160 Tibetan, 44,719 Pāli, 55,135 English renderings and 1,665 parallel
+glosses. The Tibetan has an English layer for the same reason the Pāli does — 84000's
+renderings become `translation/en` vectors on Derge chunks — so an English question can
+reach a Tibetan passage and still cite the Tibetan.
+
 **84000's English is attached to the Tibetan** (#21): 30,653 folio-level renderings
 across 472 works, and 478 of the 1,195 Kangyur works now carry titles in English,
 Sanskrit, Tibetan and Wylie. `pramana:derge.D:toh113@51.100a.1-51.100a.7#tr:en/84000` is
