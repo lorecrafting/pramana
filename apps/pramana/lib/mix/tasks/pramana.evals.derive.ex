@@ -90,22 +90,20 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
   # anchor is the answer. Cross-lingual by construction: the query is English and the
   # expected citation is Pāli.
   defp translation_cases(n) do
-    Repo.all(
-      from t in Translation,
-        join: s in Segment,
-        on: s.urn == t.anchor_urn,
-        where:
-          t.lang == "en" and t.tier == "t0" and
-            fragment("length(?)", t.text) > 60 and
-            fragment("length(?)", t.text) < 220 and
-            fragment("length(?)", s.content) > 40,
-        select: %{urn: t.anchor_urn, text: t.text, translator: t.translator_id},
-        order_by: fragment("md5(?)", t.anchor_urn),
-        limit: ^n
-    )
+    # Sampled per tradition rather than from the pool as a whole. The Pāli renderings
+    # outnumber the Tibetan seven to one, so a flat sample would produce a Tibetan case
+    # or two and a per-tradition rate computed from almost nothing — and the
+    # per-tradition rate is what this benchmark is FOR.
+    traditions = renderable_traditions()
+    per = max(div(n, max(length(traditions), 1)), 1)
+
+    traditions
+    |> Enum.flat_map(fn {source, tradition} ->
+      source |> renderings(per) |> Enum.map(&Map.put(&1, :tradition, tradition))
+    end)
     |> Enum.with_index(1)
     |> Enum.map(fn {row, i} ->
-      urns = identical_anchors(row.urn)
+      urns = Enum.uniq(identical_anchors(row.urn) ++ identically_rendered(row.text))
 
       %{
         id: "tr-#{pad(i)}",
@@ -113,18 +111,76 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
         query: String.trim(row.text),
         expect_urns: urns,
         k: 10,
-        tradition: "pali",
+        tradition: row.tradition,
         source:
-          "translation anchor: #{row.translator} rendered this segment. The query is " <>
-            "that rendering; the expected citation is the Pāli it renders.",
+          "translation anchor: #{row.translator} rendered this passage. The query is " <>
+            "that rendering; the expected citation is the source it renders.",
         note:
-          "cross-lingual: English query, Pāli citation" <>
+          "cross-lingual: English query, #{row.tradition} citation" <>
             if(length(urns) > 1,
               do: "; formulaic — #{length(urns)} identical locations",
               else: ""
             )
       }
     end)
+  end
+
+  # Which sources have published human English attached, and what to call the tradition.
+  defp renderable_traditions do
+    present =
+      Repo.all(
+        from t in Translation,
+          join: txt in Text,
+          on: txt.work_id == t.work_id,
+          where: t.lang == "en" and t.tier == "t0",
+          select: txt.source_id,
+          distinct: true
+      )
+
+    for source <- Enum.sort(present),
+        tradition = tradition_of(source),
+        not is_nil(tradition),
+        do: {source, tradition}
+  end
+
+  defp tradition_of("sc"), do: "pali"
+  defp tradition_of("derge"), do: "tibetan"
+  defp tradition_of("cbeta"), do: "chinese"
+  defp tradition_of(_source), do: nil
+
+  # A rendering is usable as a case when its anchor RESOLVES — which is the only property
+  # that matters and the only one worth testing for. 84000 anchors a folio of English to
+  # the range of Tibetan lines it covers, so joining `anchor_urn` to `segments.urn` by
+  # equality (as this did) finds none of the 30,653 of them and Tibetan silently has no
+  # cases at all. The rate would then be reported as "not measured" rather than measured
+  # and bad, which is the more dangerous of the two.
+  defp renderings(source, n) do
+    Repo.all(
+      from t in Translation,
+        join: txt in Text,
+        on: txt.work_id == t.work_id,
+        where:
+          t.lang == "en" and t.tier == "t0" and txt.source_id == ^source and
+            fragment("length(?)", t.text) > 60 and
+            fragment("length(?)", t.text) < 220,
+        select: %{urn: t.anchor_urn, text: t.text, translator: t.translator_id},
+        order_by: fragment("md5(?)", t.anchor_urn),
+        limit: ^(n * 3)
+    )
+    # A work held in two witnesses joins twice; the rendering is still one rendering.
+    |> Enum.uniq_by(& &1.urn)
+    |> Enum.filter(&substantial?/1)
+    |> Enum.take(n)
+  end
+
+  # The anchor has to RESOLVE, and to something worth asking about. This is also the only
+  # check the range-anchored renderings need: a folio anchor either names real lines or it
+  # does not, and `Pramana.Corpus` is the authority either way.
+  defp substantial?(%{urn: urn}) do
+    case Pramana.Corpus.resolve(urn) do
+      {:ok, %{content: content}} -> byte_size(content) > 40
+      _ -> false
+    end
   end
 
   # EVERY anchor whose text is byte-identical, not just the one the translation happens
@@ -155,6 +211,25 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
     end
   end
 
+  # And every anchor carrying the SAME English, which is a different equivalence class
+  # from the same source text.
+  #
+  # 84000's shortest folio renderings are openings and colophons — "Homage to all buddhas
+  # and bodhisattvas. Thus did I hear at one time." is the published English of 102
+  # separate anchors — and the Tibetan under them is NOT byte-identical, because each
+  # names its own sūtra. So `identical_anchors/1` sees one correct answer where the query
+  # cannot possibly distinguish 102, and the case measures which copy the retriever
+  # happened to rank first. That is the mistake rule 18 was written about, arriving from
+  # the other side: there the source repeated, here the translation does.
+  defp identically_rendered(text) do
+    Repo.all(
+      from t in Translation,
+        where: t.lang == "en" and t.text == ^text,
+        select: t.anchor_urn,
+        limit: 200
+    )
+  end
+
   # ---- topical questions, hand-written and term-verified ----
   #
   # The questions come from `priv/evals/topical_questions.exs` because a person has to
@@ -179,7 +254,8 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
     groups = [
       {questions[:pali], "pali", "pli", "English question, Pāli passage"},
       {questions[:chinese], "chinese", "lzh", "English question, Chinese passage"},
-      {questions[:chinese_native], "chinese-native", "lzh", "Chinese question, Chinese passage"}
+      {questions[:chinese_native], "chinese-native", "lzh", "Chinese question, Chinese passage"},
+      {questions[:tibetan], "tibetan", "bo", "English question, Tibetan passage"}
     ]
 
     {cases, rejected} =
@@ -206,7 +282,7 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
   end
 
   defp classify_term(term, lang) do
-    source = if lang == "pli", do: "sc", else: "cbeta"
+    source = source_for_lang(lang)
 
     count =
       Repo.aggregate(
@@ -224,6 +300,10 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
       true -> {:ok, count}
     end
   end
+
+  defp source_for_lang("pli"), do: "sc"
+  defp source_for_lang("bo"), do: "derge"
+  defp source_for_lang(_lzh), do: "cbeta"
 
   defp topical_case(question, term, topic, tradition, description, count) do
     %{

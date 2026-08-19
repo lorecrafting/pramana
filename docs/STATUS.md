@@ -751,6 +751,73 @@ Two more things the re-chunk forced:
   coverage is counted over the chunk's own segments so two overlapping folios cannot claim
   more of it than it has.
 
+### What the Tibetan measured (#21) — and the two hypotheses it refuted
+
+The Kangyur is embedded and the evals now cover three traditions. **The gold set could
+not see Tibetan at all until it was fixed**, and that is the finding worth keeping:
+
+- `mix pramana.evals.derive` joined `translations.anchor_urn` to `segments.urn` by
+  equality — the **third** place that join has been wrong — so it found none of the
+  30,653 range-anchored 84000 renderings and generated zero Tibetan cases, while
+  hardcoding `tradition: "pali"` on everything it did generate. Tibetan would have been
+  reported as *not measured* rather than measured and weak, which is the more dangerous
+  of the two.
+- Cases are now sampled **per tradition** (20 Pāli, 20 Tibetan, 35 Chinese), the tradition
+  comes from the data, and a case is admitted only if its anchor resolves.
+- Rule 18 arrived from the other side. Where the Pāli's SOURCE repeats verbatim, the
+  Tibetan's TRANSLATION does: "Homage to all buddhas and bodhisattvas. Thus did I hear at
+  one time." is the published English of **102 separate anchors**, over Tibetan that is not
+  byte-identical because each names its own sūtra. Identical renderings now count as one
+  equivalence class.
+- Nine Tibetan topical cases, with the terms adjudicated by the corpus rather than
+  asserted: of twelve proposed, three were rejected as too common to measure
+  (ཤེས་རབ་ཀྱི་ཕ་རོལ་ཏུ་ཕྱིན་པ at 19,099 segments, སྟོང་པ་ཉིད at 20,500,
+  མྱ་ངན་ལས་འདས་པ at 4,242) and **none as absent**.
+
+**The numbers**, 249 cases, overall 79.5% (the run written as the new baseline; a
+second run of the same build put topical/pali at 62.5%, which is the one-case wobble the
+README already documents):
+
+| | | |
+|---|---|---|
+| retrieval / chinese | 97.1% (34/35) | unchanged |
+| retrieval / pali | 55.0% (11/20) | new sample |
+| **retrieval / tibetan** | **35.0% (7/20)** | first measurement |
+| topical / chinese-native | 100% (12/12) | unchanged |
+| topical / pali | 56.3% (9/16) | was 75% |
+| topical / chinese | 0.0% (0/12) | unchanged — no English layer |
+| **topical / tibetan** | **0.0% (0/9)** | first measurement |
+| quote verify / reject / provenance / absence | 100% | unchanged |
+
+**Topical Tibetan is 0% for a structural reason, not a retrieval one.** 84000 has
+published 385 of ~1,169 Tōhoku numbers, so **95% of the Kangyur has no English vector at
+all** and an English topical question can only reach the twentieth of it that does. It is
+the same shape as the Chinese 0%, with a different cause: Chinese has no English layer,
+Tibetan has one over a twentieth of the text.
+
+**Two hypotheses for the Pāli topical drop, both refuted by measurement.**
+
+1. *The Tibetan English layer displaces Pāli.* This is what #44 predicted and what the
+   first English demonstration looked like. Measured over the 16 topical/pali queries:
+   **Tibetan occupies 1 of 160 result slots.** It is not displacing anything. (The same
+   experiment confirms the English layer is what makes English→Pāli work at all: with
+   `vector_kinds: ["source"]` the rate collapses to 1/16.)
+2. *The smaller Pāli chunk returns a window too narrow to contain the term.* Scoring
+   containment over the chunk **± 3 segments** — the passage a reader would actually see —
+   gives **10/16 either way**. The retriever is not landing near the term and being cut
+   off; it is not landing there.
+
+What remains is the chunk size itself: 700 characters covers less ground than 1,200, and a
+broad topical question is answered by breadth. That is a real trade — **anchor-precise
+retrieval up, topical recall down** — and it is not an argument for reverting, because
+1,200 was never honestly embedded: 76% of those vectors described two thirds of their
+chunk. The honest alternative is to raise the embedder's 320-token limit for the alphabetic
+scripts and keep the wider window, paying for it in GPU time. Untested.
+
+**Under #44's rule the Tibetan layer stays a default**: it was measured against
+answered-from-any-tradition before shipping, and the drop there (9/11 → 8/11 topics) is
+attributable to the Pāli chunk change, not to Tibetan taking slots.
+
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 
 The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
@@ -1070,7 +1137,20 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     vector describing a prefix. 76.2% of Pāli chunks were in that state for two phases.
     Measure the size against the actual tokenizer, per script, and pin the numbers in a
     test.
-31. **A partial match between two editions is more dangerous than none.** 84000 numbers
+31. **A benchmark that cannot see a tradition reports it as absent, not as bad.** The
+    eval deriver's translation-anchor join was equality on a segment URN, so Tibetan —
+    whose renderings are anchored to folio RANGES — produced zero cases, and the
+    scorecard simply had no Tibetan row. A missing row reads as "not built yet"; a bad
+    row reads as "built and weak". Before trusting a per-tradition number, check that
+    the instrument can produce a case for that tradition at all.
+32. **Refute the obvious explanation before acting on it.** Adding a third English layer
+    coincided with a Pāli topical drop, and #44 had predicted exactly that mechanism —
+    tradition competition. Measuring it took one script and refuted it: Tibetan held 1 of
+    160 result slots. The second hypothesis, that the smaller chunk cut the term out of
+    the returned window, died the same way — scoring over the chunk ± 3 segments gave the
+    same 10/16. Two plausible stories, both wrong, and the cost of believing either would
+    have been a redesign.
+33. **A partial match between two editions is more dangerous than none.** 84000 numbers
     Toh 11's folios from the work's own start in its second volume, and 428 of those 610
     numbers exist in that volume of that work — so they anchor, resolve, byte-verify, and
     attach English to a passage it does not translate. A total mismatch is visible; a
@@ -1254,3 +1334,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#19 eval harness** | **651** | **65.3% @10** (zh 98.7 / pa 37.5) | **100%** verify + reject + provenance | evals 200 cases in 12 min | overall **87.0%**, 0 stale |
 | **#21 Derge Kangyur ingest** | **870** | — | verify --source derge green on 1,195 texts; integrity closes to 69 bytes | ingest 4m35s / 103 volumes; verify 75 s | **12,109 texts, 5,647,069 segments; 1,195 Tibetan works, 75 spanning volumes** |
 | **#21 84000 join** | **882** | — | an English folio resolves to the seven Tibetan lines it renders | ingest 36 s / 385 files | **30,653 renderings, 472 works, 478 titled; 7 volume groups refused** |
+| **#21 Tibetan measured, three ways** | **909** | **retrieval@10 69.3%** (zh 97.1 / pa 55.0 / **bo 35.0**) | **100%** verify + reject + provenance | evals 249 cases in 15 min | overall **79.5%**, 0 stale; topical bo 0% — 95% of the Kangyur has no English layer |

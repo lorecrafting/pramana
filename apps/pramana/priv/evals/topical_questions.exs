@@ -89,5 +89,24 @@
     {"空三昧的意義", "空三昧", nil},
     {"十善業道", "十善業道", nil},
     {"慈悲喜捨四無量", "慈悲喜捨", nil}
+  ],
+  # The Tibetan group. Each term is the Kangyur's own vocabulary for the topic, and each
+  # is a PROPOSAL: `mix pramana.evals.derive` counts it in the corpus and refuses to
+  # write a case for a term that does not occur or that occurs so widely it would measure
+  # nothing. A term guessed wrong is therefore reported and dropped, never committed as
+  # ground truth — which is what makes it defensible to propose them at all.
+  tibetan: [
+    {"What are the four noble truths?", "འཕགས་པའི་བདེན་པ་བཞི", "four-noble-truths"},
+    {"What is the noble eightfold path?", "འཕགས་པའི་ལམ་ཡན་ལག་བརྒྱད", "eightfold-path"},
+    {"How is right view defined?", "ཡང་དག་པའི་ལྟ་བ", "right-view"},
+    {"How is dependent origination explained?", "རྟེན་ཅིང་འབྲེལ་བར་འབྱུང་བ", "dependent-origination"},
+    {"What are the five aggregates?", "ཕུང་པོ་ལྔ", "aggregates"},
+    {"What are the four establishments of mindfulness?", "དྲན་པ་ཉེ་བར་གཞག་པ", "satipatthana"},
+    {"What are the factors of awakening?", "བྱང་ཆུབ་ཀྱི་ཡན་ལག", "seven-factors"},
+    {"What are the divine abidings?", "ཚངས་པའི་གནས་པ", "divine-abidings"},
+    {"What is the perfection of wisdom?", "ཤེས་རབ་ཀྱི་ཕ་རོལ་ཏུ་ཕྱིན་པ", nil},
+    {"What is emptiness?", "སྟོང་པ་ཉིད", nil},
+    {"What is said about nirvāṇa?", "མྱ་ངན་ལས་འདས་པ", nil},
+    {"What is the awakening mind?", "བྱང་ཆུབ་ཀྱི་སེམས", nil}
   ]
 }
