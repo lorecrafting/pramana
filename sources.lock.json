@@ -2,6 +2,2056 @@
   "bake_schema": 1,
   "sources": [
     {
+      "file_count": 406,
+      "files": [
+        {
+          "bytes": 6234,
+          "path": "data-tei/translations/kangyur/placeholders/103-002_toh4568-1-chapter_1_how_the_wheel_of_dharma_was_turned_and_history_of_the_compilation_of_the_teachings.xml",
+          "sha256": "70c0e0e51289827377adf382c482c2739ccbd672c732c74b7df968f202785b16"
+        },
+        {
+          "bytes": 5431,
+          "path": "data-tei/translations/kangyur/placeholders/103-003_toh4568-2-chapter_2_overview_of_how_those_teachings_were_preserved_in_this_world.xml",
+          "sha256": "77345e4b9dad7aaecfb723734cb5be45973bfe31e7fe23b226498ab54ed190f6"
+        },
+        {
+          "bytes": 4186,
+          "path": "data-tei/translations/kangyur/placeholders/103-005_toh4568-4-chapter_4_main_catalogue_and_index.xml",
+          "sha256": "f28dc1dc48c3beaf43511e93103375f7889266ee64c6b0948d6d60c6cea9d61b"
+        },
+        {
+          "bytes": 5389,
+          "path": "data-tei/translations/kangyur/placeholders/103-006_toh4568-5-chapter_5_purpose_and_benefits_of_this_publication_together_with_dedication_prayers.xml",
+          "sha256": "c5c53fa8d3d506f9b347d477cf1c06a5695bf77e4b3698152b93917c9a166f9f"
+        },
+        {
+          "bytes": 1445440,
+          "path": "data-tei/translations/kangyur/translations/001-001_toh1-1_chapter_on_going_forth.xml",
+          "sha256": "20d1edb61a1cce7d5840821a98a41d575caf72eb9d3ae1ca5d978e742c083ca4"
+        },
+        {
+          "bytes": 1005216,
+          "path": "data-tei/translations/kangyur/translations/001-002_toh1-2-chapter_2_on_the_restoration_site.xml",
+          "sha256": "512c76e4901fa96b94c132330ac504bb31d2132e0e9057afb6712defdb3b0484"
+        },
+        {
+          "bytes": 386662,
+          "path": "data-tei/translations/kangyur/translations/001-003_toh1-3-chapter_3_on_lifting_restrictions.xml",
+          "sha256": "fa6d2c4d6897a58e33398ae68b2cade338e6584556747e25770074dd98f6d75e"
+        },
+        {
+          "bytes": 311074,
+          "path": "data-tei/translations/kangyur/translations/001-004_toh1-4-chapter_4_on_the_rains.xml",
+          "sha256": "01998b29d8cfcb0dbec61fc0547dd4a10273c987390b9f47c6f0b1f2535fdc49"
+        },
+        {
+          "bytes": 4444357,
+          "path": "data-tei/translations/kangyur/translations/001-006_toh1-6-chapter_6_on_medicinal_materials.xml",
+          "sha256": "5ca34b652e7530c7aeffb89cb52229c27b787db215e25a2f5721e20a90dd9652"
+        },
+        {
+          "bytes": 18109806,
+          "path": "data-tei/translations/kangyur/translations/014-001_toh8-the_perfection_of_wisdom_in_one_hundred_thousand_lines.xml",
+          "sha256": "beb79d0585e2aebf27fb0ba584a53ea9877d1ffbe3505cfbaaeddbbc0f12fd99"
+        },
+        {
+          "bytes": 7955643,
+          "path": "data-tei/translations/kangyur/translations/026-001_toh9-the_perfection_of_wisdom_in_twenty-five_thousand_lines.xml",
+          "sha256": "9b1027aeb2889a815ef16ec60ce1709ce372f48100a4b6682fadc0a0572fd831"
+        },
+        {
+          "bytes": 7579608,
+          "path": "data-tei/translations/kangyur/translations/029-001_toh10-the_perfection_of_wisdom_in_eighteen_thousand_lines.xml",
+          "sha256": "d3b70d4f3ce03ab0eaabb136ef1019a7fb6fe8e5853e27046b644782a5b3286e"
+        },
+        {
+          "bytes": 4405794,
+          "path": "data-tei/translations/kangyur/translations/031-002_toh11_perfection_of_wisdom_in_ten_thousand_lines.xml",
+          "sha256": "256ba623da3aa15d6df10e0a6f53a960e1914dd13ea328584bd911b3a462fced"
+        },
+        {
+          "bytes": 113983,
+          "path": "data-tei/translations/kangyur/translations/034-007_toh19,554-the_perfection_of_wisdom_for_kausika.xml",
+          "sha256": "c2754fe7470d5c330a60cbebff7f6d79b6b0895353556de55530cd15f885fb6c"
+        },
+        {
+          "bytes": 98357,
+          "path": "data-tei/translations/kangyur/translations/034-009_toh21,531-the_heart_of_the_perfection_of_wisdom_the_blessed_mother.xml",
+          "sha256": "92544d513d1519681414adda661c4fe52c62374a2976b6ddc4ede9406ae62582"
+        },
+        {
+          "bytes": 56642,
+          "path": "data-tei/translations/kangyur/translations/034-014_toh26-the_suryagarbha_perfection_of_wisdom.xml",
+          "sha256": "6d0d4396748a9efd3c69f11ae854c068785aeff69c278f3a6832f322a6bc7785"
+        },
+        {
+          "bytes": 57006,
+          "path": "data-tei/translations/kangyur/translations/034-015_toh27-the_candragarbha_perfection_of_wisdom.xml",
+          "sha256": "52d53d493f4bfbc03312e1eea80ac45b307ce3813ab7d2510c741368211081a0"
+        },
+        {
+          "bytes": 52919,
+          "path": "data-tei/translations/kangyur/translations/034-016_toh28-the_samantabhadra_perfection_of_wisdom.xml",
+          "sha256": "85b5e99eb05c37d067d03dad1b5cfe7923601e32a98858ebb5bb94904461c387"
+        },
+        {
+          "bytes": 228754,
+          "path": "data-tei/translations/kangyur/translations/034-025_toh37-the_benefits_of_the_five_precepts.xml",
+          "sha256": "0ed4f634a792407779581367d2f1d161fe3ce469c1aa9b495c2c42d4ced0dcce"
+        },
+        {
+          "bytes": 81763,
+          "path": "data-tei/translations/kangyur/translations/034-029_toh41-the_sutra_of_the_sun.xml",
+          "sha256": "f4f62cb212c9eccb7cf42ade7fe3ceef02b0977a895c606f09e2c41074c768d9"
+        },
+        {
+          "bytes": 66327,
+          "path": "data-tei/translations/kangyur/translations/034-030_toh42-the_sutra_of_the_moon.xml",
+          "sha256": "e1fd0cd1abf328d91242d08da5ada0b15f2d9c52288b067482adfe033b1f0d3a"
+        },
+        {
+          "bytes": 1119317,
+          "path": "data-tei/translations/kangyur/translations/036-002_toh44-31-chapter_31_the_ten_grounds.xml",
+          "sha256": "285c9eb65eb43e3e8632b117cd0ea575aaa9788ab0efcf290802c715705470c6"
+        },
+        {
+          "bytes": 60537,
+          "path": "data-tei/translations/kangyur/translations/036-008_toh44-37-chapter_37_lifespan.xml",
+          "sha256": "945633def0b7180693afd9586883e6a24d0d3c57aebc4d54749b411a8e01782c"
+        },
+        {
+          "bytes": 95656,
+          "path": "data-tei/translations/kangyur/translations/036-009_toh44-38-chapter_38_the_dwellings_of_bodhisattvas.xml",
+          "sha256": "117f95abdf121401f25cbf9426e30386612037c71ff3fd24ead42490ab38b27a"
+        },
+        {
+          "bytes": 5041176,
+          "path": "data-tei/translations/kangyur/translations/037-007_toh44-45-chapter_45_the_gandhavyuha_sutra.xml",
+          "sha256": "579cd7a3bff63cba10112b5c71113dabf5499459dde915d63b3cb27a747a7cc9"
+        },
+        {
+          "bytes": 5044652,
+          "path": "data-tei/translations/kangyur/translations/037-007_toh44-45-chapter_45_the_stem_array.xml",
+          "sha256": "7c48cacf928bcee397d0c3b3b0cdec794c3e429937da1c4af12a6527625b4cd7"
+        },
+        {
+          "bytes": 434648,
+          "path": "data-tei/translations/kangyur/translations/039-002_toh46-the_teaching_on_clearing_the_boundless_gates.xml",
+          "sha256": "9c0cbce9757277e10cf85c096eeaa7f18758defe96294e5ecbbd0eeba831c97d"
+        },
+        {
+          "bytes": 1395238,
+          "path": "data-tei/translations/kangyur/translations/039-003_toh47-the_secrets_of_the_realized_ones.xml",
+          "sha256": "ce7b25a0428e03ff0918e624e87a43a57b65cfcd102ba91b74a4f7e10ed4d898"
+        },
+        {
+          "bytes": 388881,
+          "path": "data-tei/translations/kangyur/translations/039-004_toh48-the_teaching_on_dreams.xml",
+          "sha256": "614f777a52ea2f7679a46c64fed79df8457cee41162444915e9e440dcfc6aa91"
+        },
+        {
+          "bytes": 606698,
+          "path": "data-tei/translations/kangyur/translations/040-002_toh51-the_teaching_on_the_armor_array.xml",
+          "sha256": "80702eddfe0c2a72378f576315f45154ca760476a631a7c179824d37a5c129c9"
+        },
+        {
+          "bytes": 195578,
+          "path": "data-tei/translations/kangyur/translations/040-003_toh52_indivisible_nature.xml",
+          "sha256": "11f4d14403c0fdf89626124cbf273f4ea4c580ff432ee784c762ba35e380fd4a"
+        },
+        {
+          "bytes": 157559,
+          "path": "data-tei/translations/kangyur/translations/040-005_toh54-the_exposition_on_the_universal_gateway.xml",
+          "sha256": "ef2f542889457da6e9d11eaa57dd90bc2b0e25865f11489a4622c3070ef020be"
+        },
+        {
+          "bytes": 784258,
+          "path": "data-tei/translations/kangyur/translations/040-006_toh55-the_complete_effulgence_of_light_teaching.xml",
+          "sha256": "feff18d03a9ebabfccdcc7801fdf352ee139914b1277e1571e246c81c3cd39bd"
+        },
+        {
+          "bytes": 1938603,
+          "path": "data-tei/translations/kangyur/translations/040-007_toh56-the_collected_teachings_on_the_Bodhisatva.xml",
+          "sha256": "319f64305f0039016497a44decee8a0ce9c22e851caf50d1c54692d7a5606c1e"
+        },
+        {
+          "bytes": 367599,
+          "path": "data-tei/translations/kangyur/translations/041-002_toh57-the_teaching_to_the_venerable_nanda_on_dwelling_in_the_womb.xml",
+          "sha256": "56bd581ae61ec9c1d754926411b50975500fd4fbd183aff0a979d13f144caa60"
+        },
+        {
+          "bytes": 256487,
+          "path": "data-tei/translations/kangyur/translations/041-003_toh58-the_teaching_to_venerable_nanda_on_entering_the_womb.xml",
+          "sha256": "f03ee493f056a3c80c84bc443ca129d3f88c5322cdd38255570f1518b06687d3"
+        },
+        {
+          "bytes": 396098,
+          "path": "data-tei/translations/kangyur/translations/041-004_toh59-the_array_of_virtues_of_the_manjusri_buddha_realm.xml",
+          "sha256": "5ba1db96e4f0ff3c73f92b90c82309962262bc2873ca0f2f7989c6097c20ed01"
+        },
+        {
+          "bytes": 572757,
+          "path": "data-tei/translations/kangyur/translations/042-002_toh61-questions_of_purna.xml",
+          "sha256": "9e0d3e1ad540dc80df0fd6e112757366fd45ddaebe2de506ecea04ef5acf65f6"
+        },
+        {
+          "bytes": 574275,
+          "path": "data-tei/translations/kangyur/translations/042-003_toh62-the_questions_of_rastrapala.xml",
+          "sha256": "b4be503d24d3f7a08b36cd153652f5ccff9ef60252a239a6cb3a83d5d90bd632"
+        },
+        {
+          "bytes": 299484,
+          "path": "data-tei/translations/kangyur/translations/043-001_toh64-the_sutra_of_vidyutpraptas_questions.xml",
+          "sha256": "7ced085eb55fef36d690fc4edc04ce851d3d2346b9a5a40879ae4fbff221e512"
+        },
+        {
+          "bytes": 296702,
+          "path": "data-tei/translations/kangyur/translations/043-002_toh65-the_prophecy_for_bhadra_the_illusionist.xml",
+          "sha256": "77b6d112d9b9cb869e4fe8b75fc0f5642fa133fd37fd4d22fb6ba35bf510bb46"
+        },
+        {
+          "bytes": 366394,
+          "path": "data-tei/translations/kangyur/translations/043-004_toh67_the_great_lions_roar.xml",
+          "sha256": "25afd7ae04d5d9ed5f9b75173042eeb7ecf672f390dbb0a8b85f268e1e3ba355"
+        },
+        {
+          "bytes": 286980,
+          "path": "data-tei/translations/kangyur/translations/043-005_toh68-ascertaining_the_discipline_the_sutra_of_upalis_questions.xml",
+          "sha256": "bae867ca37358fdc8772091e88267ab6514b6f5cd7be3918c6d241b402b831ba"
+        },
+        {
+          "bytes": 281738,
+          "path": "data-tei/translations/kangyur/translations/043-006_toh69-inspiring_determination.xml",
+          "sha256": "6dcdf0ef98ae31cce844bf13cc82b5dabdb3742f7130aa2150027ad28f2efcbb"
+        },
+        {
+          "bytes": 223094,
+          "path": "data-tei/translations/kangyur/translations/043-007_toh70-question_of_subahu.xml",
+          "sha256": "5843e1d770ea9919ab40c2e8446ee2df3c2c908714c9df8c29e88379a3842112"
+        },
+        {
+          "bytes": 183163,
+          "path": "data-tei/translations/kangyur/translations/043-008_toh71-suratas_questions.xml",
+          "sha256": "65d5f97698dbf3b61ba18a1bbad23dca14d49b43b013313355ec4f051e2c0e08"
+        },
+        {
+          "bytes": 189150,
+          "path": "data-tei/translations/kangyur/translations/043-009_toh72-sutra_of_viradattas_questions.xml",
+          "sha256": "1ab7bb55ce229ac436a079f561f44ba0fae1ca84b438ffd7c960d0de958b4406"
+        },
+        {
+          "bytes": 180338,
+          "path": "data-tei/translations/kangyur/translations/043-010_toh73-king_udayana_of_vatsas_questions.xml",
+          "sha256": "e19dc1387fb3fea70bec32fb27498bced1da43b41d1477c9de01e26e8a154dcc"
+        },
+        {
+          "bytes": 152697,
+          "path": "data-tei/translations/kangyur/translations/043-010_toh73-the_chapter_on_the_questions_of_king_udayana_of_vatsa.xml",
+          "sha256": "85fb0aaf4af99083001869b02c05c4f781ec1d343fcabf2bd6d2856ddc48bdc7"
+        },
+        {
+          "bytes": 117045,
+          "path": "data-tei/translations/kangyur/translations/043-011_toh74-the_inquiry_of_the_girl_sumati.xml",
+          "sha256": "ccf054fe499ede0b0dc3dd362846d1b6dcc047168505998b65601f9799f58cd3"
+        },
+        {
+          "bytes": 107410,
+          "path": "data-tei/translations/kangyur/translations/043-012_toh75-the_questions_of_gangottara.xml",
+          "sha256": "801d20d67081341b8e27623411601571402640cba3b0053299f0295a13f6b0fd"
+        },
+        {
+          "bytes": 254263,
+          "path": "data-tei/translations/kangyur/translations/043-013_toh76-asokadattas_prophecy.xml",
+          "sha256": "d87fd69ac9dd48d406374ab850cd0e0961b33b781e3671c1aa4e597f055aaba5"
+        },
+        {
+          "bytes": 87364,
+          "path": "data-tei/translations/kangyur/translations/043-015_toh78-the_sutra_of_gunaratnasankusumitas_questions.xml",
+          "sha256": "947df97a09baca7a379ac0617bb4f7b31dd133dbd410710370ba3e1497dafcbe"
+        },
+        {
+          "bytes": 361144,
+          "path": "data-tei/translations/kangyur/translations/043-016_toh79-the_sutra_teaching_the_unfathomable_sphere_of_a_buddha.xml",
+          "sha256": "74ad9bfb84facb8bbcc72f1124e53b1fdac7ae1e3225187dede25ad5e89fe7a2"
+        },
+        {
+          "bytes": 175126,
+          "path": "data-tei/translations/kangyur/translations/044-001_toh81-simhas_questions.xml",
+          "sha256": "e5a3f637f20d443a6f3fbf799203646de7b6a57bf27f34e77cdbf8b94361b8e7"
+        },
+        {
+          "bytes": 187318,
+          "path": "data-tei/translations/kangyur/translations/044-003_toh83_questions_of_bhadrapala.xml",
+          "sha256": "1dbc840350dd5dc878f3862650bad2fbcfa8f3bb71407c6751686ccced727170"
+        },
+        {
+          "bytes": 220152,
+          "path": "data-tei/translations/kangyur/translations/044-004_toh84-the_sutra_of_the_girl_vimalasraddhas_questions.xml",
+          "sha256": "d2c083604f533b2d53c78e74d4a08bbfa143110e3a4dfd3c72ee12a1fcbda02b"
+        },
+        {
+          "bytes": 158071,
+          "path": "data-tei/translations/kangyur/translations/044-005_toh85_question_of_maitreya.xml",
+          "sha256": "0149477694e5cccf3f0a38e7f22615ce532222637354c946fc15d9895fb3ad90"
+        },
+        {
+          "bytes": 37630,
+          "path": "data-tei/translations/kangyur/translations/044-006_toh86_question_of_maitreya_on_eight_qualities.xml",
+          "sha256": "894760f7412197cdb085ae2db9c53917e64138091364d79dcda748c3f4800910"
+        },
+        {
+          "bytes": 347032,
+          "path": "data-tei/translations/kangyur/translations/044-014_toh93-the_sutra_of_the_rsi_vyasas_questions.xml",
+          "sha256": "b463370f2e2f026ce3aced1b8e4de4e461ea37aa96b5a271bdb1d37d654cfd78"
+        },
+        {
+          "bytes": 10045011,
+          "path": "data-tei/translations/kangyur/translations/045-001_toh94-sutra_of_the_good_eon.xml",
+          "sha256": "04230429611ea18eb2bff308955fb87bafc5cad123fb61463c69340556a85fa1"
+        },
+        {
+          "bytes": 2209464,
+          "path": "data-tei/translations/kangyur/translations/046-001_toh95_play_in_full.xml",
+          "sha256": "0675eb92b3b6cbfee03ddfc346971be64918d0fadffe8415ba9e46dca7461559"
+        },
+        {
+          "bytes": 227278,
+          "path": "data-tei/translations/kangyur/translations/046-002_toh96-the_play_of_manjusri_sutra.xml",
+          "sha256": "433b92d2b01f1bfd63dafd3ea2b46129b444106f8f14144ba87ed164297483c4"
+        },
+        {
+          "bytes": 194750,
+          "path": "data-tei/translations/kangyur/translations/046-003_toh97-the_chapter_on_manjusris_magical_display.xml",
+          "sha256": "8985bd07ac4bcf14a67fd853e07eb6ac4c39abf887fe75dd6642a40b1516cf78"
+        },
+        {
+          "bytes": 2040410,
+          "path": "data-tei/translations/kangyur/translations/047-001_toh99_infinite_certainty.xml",
+          "sha256": "de2484166cc6e39a862fe752a26a6838ae89997212840f3da19694d278de6c40"
+        },
+        {
+          "bytes": 338900,
+          "path": "data-tei/translations/kangyur/translations/047-002_toh100_ornament_of_the_light_of_awareness.xml",
+          "sha256": "5f76155658315be9a4f0e33b05c74fcdb3b28f81444f189b23c383312c82830e"
+        },
+        {
+          "bytes": 2511573,
+          "path": "data-tei/translations/kangyur/translations/048-001_toh101-upholding_the_roots_of_virtue.xml",
+          "sha256": "786ca1d5b4c160ab2367323b77da5eac6adb22a8d7c555cca75ce02e7c2e3db2"
+        },
+        {
+          "bytes": 199889,
+          "path": "data-tei/translations/kangyur/translations/048-003_toh103-the_dharma_discourse_of_the_teaching_on_the_boy_acintyaprabhasa.xml",
+          "sha256": "ff709f43f7825ca56094ab12769ff6d616a4cf499f1116ab58561ec158fd0bcb"
+        },
+        {
+          "bytes": 68655,
+          "path": "data-tei/translations/kangyur/translations/048-004_toh104-describing_the_qualities_of_the_buddhafield_a_dharma_discourse.xml",
+          "sha256": "26c60b8f3f7dfdf5377fa28f988068cd64fb5e726da8f9dd4933a7f42e0ecdd0"
+        },
+        {
+          "bytes": 1064301,
+          "path": "data-tei/translations/kangyur/translations/049-001_toh106-unravelling_the_intent.xml",
+          "sha256": "550fec4d547343b3f93e5375537a8201e667216d4da39838e7fb88d103db8840"
+        },
+        {
+          "bytes": 220515,
+          "path": "data-tei/translations/kangyur/translations/049-004_toh109-gayasirsa_hill.xml",
+          "sha256": "0b51157ecf46a047f6999f90c76f592b0e4ead7f6bd6a56364026ce2d4ff40de"
+        },
+        {
+          "bytes": 1570658,
+          "path": "data-tei/translations/kangyur/translations/050-003_toh112-the_white_lotus_of_compassion.xml",
+          "sha256": "2e515b32430671f5df908c2395f129b6bd9d459b1575fe77379ca3902f4e9a99"
+        },
+        {
+          "bytes": 2095990,
+          "path": "data-tei/translations/kangyur/translations/051-001_toh113-sutra_of_the_white_lotus_of_true_dharma.xml",
+          "sha256": "a86c30bf4a124e3715194ad336f075698a775cdad67d9dac433cb03d4544a9fb"
+        },
+        {
+          "bytes": 187782,
+          "path": "data-tei/translations/kangyur/translations/051-002_toh114,527-king_of_array_of_all_dharma_qualities.xml",
+          "sha256": "0d649d475e32c1889baeb782ac3e165f33e70211d7fab1be8d5adc17f6f1eb34"
+        },
+        {
+          "bytes": 124118,
+          "path": "data-tei/translations/kangyur/translations/051-003_toh115_display_of_pure_land_of_sukhavati.xml",
+          "sha256": "be8f6157627d80631414b823002379e1d01448a4645d29e09904d201c29ccc7f"
+        },
+        {
+          "bytes": 663522,
+          "path": "data-tei/translations/kangyur/translations/051-004_toh116_baskets_display.xml",
+          "sha256": "b2bb51a72214ddf4f43c8e22135abdd21b13c8525c524a5c066c3009ddf81b1f"
+        },
+        {
+          "bytes": 116761,
+          "path": "data-tei/translations/kangyur/translations/051-006_toh118-the_infinite_jewels.xml",
+          "sha256": "7bda6c2b699b160b7ff92f9a90c9d9aee2da577cd7f3eea8b645c620337f033f"
+        },
+        {
+          "bytes": 60730,
+          "path": "data-tei/translations/kangyur/translations/054-003_toh122_wisdom_at_hour_of_death.xml",
+          "sha256": "25359150de576578b2908829440f8a9c252574d82de87df67c258a658eff0651"
+        },
+        {
+          "bytes": 642705,
+          "path": "data-tei/translations/kangyur/translations/054-005_toh124-the_mine_of_jewels.xml",
+          "sha256": "93dac68aaef8d919b1b40b4dfe90a20dcee08e450d5725afe29abe4af5cddf98"
+        },
+        {
+          "bytes": 31525,
+          "path": "data-tei/translations/kangyur/translations/054-006_toh125-the_golden_sutra.xml",
+          "sha256": "dd2873d128122efd6d12ca4144c0876c2fc1026dd9ba5d7d9da270e15f1fc823"
+        },
+        {
+          "bytes": 78497,
+          "path": "data-tei/translations/kangyur/translations/054-007_toh126-like_gold_dust.xml",
+          "sha256": "73be3c4d4a27dd186d5fe231373a01367c444d59342b0a0acd420b628875a67d"
+        },
+        {
+          "bytes": 2649524,
+          "path": "data-tei/translations/kangyur/translations/055-001_toh127_king_of_samadhis.xml",
+          "sha256": "e25ed3b54ca423b932798c6efa1bccf85cdc77cbeebf0fc60a88677a7b7b0d6a"
+        },
+        {
+          "bytes": 146715,
+          "path": "data-tei/translations/kangyur/translations/055-002_toh128-appearing_differently_to_all_while_not_departing_emptiness.xml",
+          "sha256": "283c70033bc2bccca09c39610db0ca273ad75eb8c77aa62022dbafe23adf1675"
+        },
+        {
+          "bytes": 463349,
+          "path": "data-tei/translations/kangyur/translations/055-003_toh129-the_absorption_of_the_miraculous_ascertainment_of_peace.xml",
+          "sha256": "7c23556a52ab91b8eabbbb8cc6c5cee1e994aac46f746b545848a0611560ef3b"
+        },
+        {
+          "bytes": 181750,
+          "path": "data-tei/translations/kangyur/translations/055-004_toh130_illusory_absorption.xml",
+          "sha256": "b0e824dfc9e5cff7165146886ba2a9e2725daa51bf246ed906ce3ed9df5a04aa"
+        },
+        {
+          "bytes": 261569,
+          "path": "data-tei/translations/kangyur/translations/055-005_toh131-absorption_of_the_thus-gone_ones_wisdom_seal.xml",
+          "sha256": "712c6096c965d80ac2ffad77b80589b0d20208b565b4f9e51b063462e1d0130d"
+        },
+        {
+          "bytes": 339352,
+          "path": "data-tei/translations/kangyur/translations/056-002_toh134_absorption_that_encapsulates_all_merit.xml",
+          "sha256": "e984221a771d722a7f862a72df0b15055eae7cdeba6ad47675acaf04021b8b95"
+        },
+        {
+          "bytes": 663944,
+          "path": "data-tei/translations/kangyur/translations/056-004_toh136-the_four_boys_absorption.xml",
+          "sha256": "6af38e204565cf52ded685229a01dee884819fe5d767e2d046f40b823984ac06"
+        },
+        {
+          "bytes": 940082,
+          "path": "data-tei/translations/kangyur/translations/056-006_toh138-the_great_collection_sutra_of_the_incantations_of_ratnaketu.xml",
+          "sha256": "05e4729920ca501b458389254727a2ae38cce0f9a98d19aeae62916a49a4a233"
+        },
+        {
+          "bytes": 180630,
+          "path": "data-tei/translations/kangyur/translations/056-007_toh139-the_dharani_of_the_vajra_quintessence.xml",
+          "sha256": "85c9ffd0d08a88f71c68a3b874e6109a1a9a60e22f68cfb0d78553a328a2e5e2"
+        },
+        {
+          "bytes": 91169,
+          "path": "data-tei/translations/kangyur/translations/056-009_toh141,526,916-the_incantation_of_the_six_gates.xml",
+          "sha256": "1a358e9ced120b2b94d0d94d7db949fe4e165a2f1aadfb5076833886ed46b071"
+        },
+        {
+          "bytes": 122501,
+          "path": "data-tei/translations/kangyur/translations/057-001_toh142-dharani_entering_into_non-conceptuality.xml",
+          "sha256": "40dab421df3433c055ae0f3771314340089e11a000f3ccc42c09779f50713812"
+        },
+        {
+          "bytes": 53490,
+          "path": "data-tei/translations/kangyur/translations/057-002_toh143,611,918-the_two_stanza_dharani.xml",
+          "sha256": "c1868fa4800f5c1ded23a945602f66d644bf245c118eacea7568cee50f97f374"
+        },
+        {
+          "bytes": 249894,
+          "path": "data-tei/translations/kangyur/translations/057-003_toh144-the_sutra_on_cultivating_faith_in_the_mahayana.xml",
+          "sha256": "8de73ba859635378e78105810ab857ae6eb7b46b171ae3f2f9463e807f77f1f5"
+        },
+        {
+          "bytes": 749063,
+          "path": "data-tei/translations/kangyur/translations/057-004_toh145,847-the_dharani_of_the_jewel_torch.xml",
+          "sha256": "d433704b76cb285996784a5c364adce5a7631584b256df31633d51161c5e687a"
+        },
+        {
+          "bytes": 977566,
+          "path": "data-tei/translations/kangyur/translations/057-006_toh147-the_sutra_teaching_the_great_compassion_of_the_tathagatas.xml",
+          "sha256": "a58da722b59e5a80d31dcddb3f90239dcc2604437442ba9d3400a9201bdc6fde"
+        },
+        {
+          "bytes": 52048,
+          "path": "data-tei/translations/kangyur/translations/057-008_toh149-the_question_of_maitreya_3.xml",
+          "sha256": "7e5fb2876a4adb0bfe9f5c48f8408392d6d9b7bfbc7b1f96e737279e84f77af8"
+        },
+        {
+          "bytes": 42726,
+          "path": "data-tei/translations/kangyur/translations/057-009_toh150_inquiry_of_avalokiteshvara_on_seven_qualities.xml",
+          "sha256": "69e27d8a5ac4aa1b536bd59c409b3f52df7209b025f4858aa180f2e7ae81fbc2"
+        },
+        {
+          "bytes": 141453,
+          "path": "data-tei/translations/kangyur/translations/057-010_toh151-the_sutra_of_the_questions_of_pratibhanamati.xml",
+          "sha256": "55ba6b22dcd16a21213c601f83b7b263386f50793241434a4cba3ed27a262ad5"
+        },
+        {
+          "bytes": 858591,
+          "path": "data-tei/translations/kangyur/translations/058-001_toh152-the_sutra_of_the_questions_of_sagaramati.xml",
+          "sha256": "c81c57a30ea09610d5f6ee88d6b7cde0afe1db34cce7711387d140165741c7ca"
+        },
+        {
+          "bytes": 809890,
+          "path": "data-tei/translations/kangyur/translations/058-002_toh153-the_sutra_of_the_questions_of_the_naga_king_sagara_1.xml",
+          "sha256": "7e7ceb4f9f83983946228b8338b4528c3fabb3bf7d2b2fd2de97e47245894442"
+        },
+        {
+          "bytes": 48798,
+          "path": "data-tei/translations/kangyur/translations/058-002_toh155_questions_of_naga_king_sagara_3.xml",
+          "sha256": "cdedef77cf37c28de5497831d827b6b70d73197647e90c8b51ab88b6ec1e3921"
+        },
+        {
+          "bytes": 77026,
+          "path": "data-tei/translations/kangyur/translations/058-003_toh154-the_sutra_of_the_questions_of_the_naga_king_sagara_2.xml",
+          "sha256": "64760a31c71d3d56c21c0361db402029f6f8d60a76cb3d334ea45e8965370576"
+        },
+        {
+          "bytes": 525918,
+          "path": "data-tei/translations/kangyur/translations/058-005_toh156-the_questions_of_the_naga_king_anavatapta.xml",
+          "sha256": "8ddf95b1b8a6687f6b79ec43ad473e3838bfb69e9bad24ad2be4652aed19e743"
+        },
+        {
+          "bytes": 587059,
+          "path": "data-tei/translations/kangyur/translations/058-006_toh157-questions_of_the_kinnara_king_druma.xml",
+          "sha256": "f188cdc973493bda123c75e32183d524e731528e805b85c841aac282f087e5ee"
+        },
+        {
+          "bytes": 168420,
+          "path": "data-tei/translations/kangyur/translations/059-001_toh158-the_noble_mahayana_sutra_brahmas_question.xml",
+          "sha256": "89495be376946413635473db17b3c287fba1bbc050c2d550670804fe80c03e61"
+        },
+        {
+          "bytes": 170990,
+          "path": "data-tei/translations/kangyur/translations/059-002_toh159-the_sutra_of_the_questions_of_brahmadatta.xml",
+          "sha256": "5aa7a9231473f634d2f563c436ff4cf11cceb1ac6f77468d8fc7b887fbef252b"
+        },
+        {
+          "bytes": 612900,
+          "path": "data-tei/translations/kangyur/translations/059-003_toh160-the_sutra_of_the_questions_of_brahmavisesacintin.xml",
+          "sha256": "6221c33a2086e8a5c87de3281e3995434083114fdb5d0efefed40a73fd2f78b0"
+        },
+        {
+          "bytes": 59614,
+          "path": "data-tei/translations/kangyur/translations/059-005_toh162-the_sutra_of_the_questions_of_srivasu.xml",
+          "sha256": "ad85a3a905864a03932aff4d6e064d684c01f0f2fe43cfe3038970c9e787e98c"
+        },
+        {
+          "bytes": 197926,
+          "path": "data-tei/translations/kangyur/translations/059-006_toh163-the_sutra_of_the_questions_of_ratnajalin.xml",
+          "sha256": "b164198179a76fbab9391f45d33c24981117e58031fa351f268f9e51eca18fa4"
+        },
+        {
+          "bytes": 113455,
+          "path": "data-tei/translations/kangyur/translations/059-007_toh164-the_sutra_of_the_questions_of_ratnacandra.xml",
+          "sha256": "64cd6e25ba2b233d42f6aa99e5a0d9a5c27cf0b93fb33726911e385ac084fbba"
+        },
+        {
+          "bytes": 68017,
+          "path": "data-tei/translations/kangyur/translations/059-008_toh165-question_of_ksemamkara.xml",
+          "sha256": "fe218953cb621893df2214459b0f951a372d0eae43f480bec8e7fbe58a7fe2a4"
+        },
+        {
+          "bytes": 130797,
+          "path": "data-tei/translations/kangyur/translations/059-009_toh166-the_sutra_of_the_questions_of_rastrapala.xml",
+          "sha256": "ab211bde4ed6a8c372abefe2ea1992217f87bb76b4db8c35d9b44222cf38110e"
+        },
+        {
+          "bytes": 83823,
+          "path": "data-tei/translations/kangyur/translations/059-013_toh170-the_questions_of_srimati_the_brahmin_woman.xml",
+          "sha256": "43d415feaf84bc73c6f8b3c6555254adca99856a0617ef64a372d399a46930eb"
+        },
+        {
+          "bytes": 73151,
+          "path": "data-tei/translations/kangyur/translations/059-014_toh171_questions_of_old_lady.xml",
+          "sha256": "29489ab48a469059ffe46c8a105299ccc0272d3de8435fde3575ee0ef5faba08"
+        },
+        {
+          "bytes": 198307,
+          "path": "data-tei/translations/kangyur/translations/060-001_toh172-the_question_of_manjusri.xml",
+          "sha256": "0eceb25ef2786a4b35a0bff021028c976e98b999a519dad8d6e7107f03ceb384"
+        },
+        {
+          "bytes": 95605,
+          "path": "data-tei/translations/kangyur/translations/060-002_toh173-the_sutra_of_the_questions_of_nairatma.xml",
+          "sha256": "4d914d10fc60e086b2b91ac94056824561eb12c26e7f70bf0eb62ec7d25fb584"
+        },
+        {
+          "bytes": 496604,
+          "path": "data-tei/translations/kangyur/translations/060-003_toh174-the_inquiry_of_lokadhara.xml",
+          "sha256": "ad6f78b7af949a85c479c13dafdbc87ee1f6a5f073de016ba0def73037a4c877"
+        },
+        {
+          "bytes": 610911,
+          "path": "data-tei/translations/kangyur/translations/060-004_toh175-the_sutra_of_the_teaching_of_aksayamati.xml",
+          "sha256": "65c4106fa0986f6e890016b5cf970e952f69fa885ec8d5d19f4f1b83d69ac3c2"
+        },
+        {
+          "bytes": 882570,
+          "path": "data-tei/translations/kangyur/translations/060-005_toh176_teaching_of_vimalakirti.xml",
+          "sha256": "0f2175e713d80ef69af5ac8580778998dd627cd0c248e4ee96a820e7d59a8123"
+        },
+        {
+          "bytes": 52847,
+          "path": "data-tei/translations/kangyur/translations/060-006_toh177-manjusris_teaching.xml",
+          "sha256": "4dea3a5eec6dda501fc938321f5470df668dd8318f4afe741f203f90d5573abc"
+        },
+        {
+          "bytes": 131353,
+          "path": "data-tei/translations/kangyur/translations/060-007_toh178-teaching_on_the_aids_to_enlightenment.xml",
+          "sha256": "5915cf0158a20a872598c8f08854619cad56491d689452b85cdd6411faf20f9b"
+        },
+        {
+          "bytes": 192480,
+          "path": "data-tei/translations/kangyur/translations/060-008_toh179_teaching_the_relative_and_ultimate_truths.xml",
+          "sha256": "04419c95ae8c767dd1d413eb1f115c93cbaf50c29a7a2ba577b3a07806bff02e"
+        },
+        {
+          "bytes": 349295,
+          "path": "data-tei/translations/kangyur/translations/060-009_toh180-the_sutra_teaching_how_all_phenomena_are_without_any_origin.xml",
+          "sha256": "2cf5c959cf2a3295074c032b4ff650a894ac9df60b32fdb2e54797aeb6ba030e"
+        },
+        {
+          "bytes": 503044,
+          "path": "data-tei/translations/kangyur/translations/061-001_toh181-teaching_the_five_perfections.xml",
+          "sha256": "e635bd9a2a81b9445dbf77b64d121cf49cb71c4ca74e419a10e78e3025e27ffc"
+        },
+        {
+          "bytes": 248678,
+          "path": "data-tei/translations/kangyur/translations/061-002_toh182-the_sutra_on_the_perfection_of_generosity.xml",
+          "sha256": "2908b60cf9856f1201cad25825d4a18b7ea6ef09f40b0b04f308d4f3cdccf7dd"
+        },
+        {
+          "bytes": 58006,
+          "path": "data-tei/translations/kangyur/translations/061-003_toh183-the_teaching_on_the_benefits_of_generosity.xml",
+          "sha256": "8c29acb1a17a57b316306ae9dd785807cf7daa0f04a2cf3fce9dba2eab945660"
+        },
+        {
+          "bytes": 174764,
+          "path": "data-tei/translations/kangyur/translations/061-004_toh184-the_sutra_teaching_the_conduct_of_a_bodhisattva.xml",
+          "sha256": "5ea8bbcc603201e65c5ad116f27c89a2ec8f15c20c782a61956263edb5fb4b5f"
+        },
+        {
+          "bytes": 491413,
+          "path": "data-tei/translations/kangyur/translations/061-005_toh185-the_sutra_teaching_the_deployment_of_the_inconceivable_qualities_and_gnosis_of_the_tathagatas_on_their_objects.xml",
+          "sha256": "5b0c62dd81a40c78ddfc704f9ab99a0ca81190eeb8f3479c03a15bd1a91c6a58"
+        },
+        {
+          "bytes": 221160,
+          "path": "data-tei/translations/kangyur/translations/061-006_toh186_miracle_of_attaining_the_buddhas_powers.xml",
+          "sha256": "40b1a2c689f47f4a004a85b2063c5e8e5564d6ccd5004605e3f6170b52eeb9a6"
+        },
+        {
+          "bytes": 160734,
+          "path": "data-tei/translations/kangyur/translations/061-008_toh188-the_sutra_of_the_prophecy_by_dipamkara.xml",
+          "sha256": "d68811aaf3d1e9a0e085ebe431ead571ccb9f6830bf010752347621fed04bd37"
+        },
+        {
+          "bytes": 84523,
+          "path": "data-tei/translations/kangyur/translations/061-009_toh189-the_prediction_for_brahmasri.xml",
+          "sha256": "b2b647b2eafed373f65771b591b866ab5c1b0a7a62f1cb65e2567a96dc4bbfe4"
+        },
+        {
+          "bytes": 212794,
+          "path": "data-tei/translations/kangyur/translations/061-010_toh190-the_sutra_of_the_prophecy_concerning_strivivarta.xml",
+          "sha256": "46712a4edf7f19ca94230827da78b7ebcc00e00d033f383bb6eddd929dcf379d"
+        },
+        {
+          "bytes": 272342,
+          "path": "data-tei/translations/kangyur/translations/061-011_toh191-the_prophecy_of_the_girl_candrottara.xml",
+          "sha256": "3193785b4f342b4ee32390ee89ce746fad7ba118ba71fcccc155c653eba58567"
+        },
+        {
+          "bytes": 80827,
+          "path": "data-tei/translations/kangyur/translations/061-012_toh192-the_prophecy_of_ksemavati.xml",
+          "sha256": "6af7846d613e681fa3e69e96e620798ba0a074abff5ba47a33fa89f4a79ad71e"
+        },
+        {
+          "bytes": 225806,
+          "path": "data-tei/translations/kangyur/translations/061-013_toh193,739_prophecy_of_shri_mahadevi.xml",
+          "sha256": "902fb37ad1f6fe854074a879463ff58cc066eeef359fb4dc771decc75b05a82c"
+        },
+        {
+          "bytes": 62368,
+          "path": "data-tei/translations/kangyur/translations/061-014_toh194_inquiry_of_jayamati.xml",
+          "sha256": "60f9197fcffa9ac2ce3d6a411d8e30259f07b4873b2a123c2686da99c492b3c6"
+        },
+        {
+          "bytes": 222012,
+          "path": "data-tei/translations/kangyur/translations/061-015_toh195-the_sutra_of_avalokini.xml",
+          "sha256": "d32ba2a06459e40a92574e8e62ab664e69cc3f49a040794de6945eddb8d2d44b"
+        },
+        {
+          "bytes": 176383,
+          "path": "data-tei/translations/kangyur/translations/061-016_toh196-the_dwelling_place_of_manjusri.xml",
+          "sha256": "f142127bb890141411eb7614ea46c46610bddf80807b62cba59379100d1018e1"
+        },
+        {
+          "bytes": 58828,
+          "path": "data-tei/translations/kangyur/translations/061-017_toh197-the_nectar_of_speech.xml",
+          "sha256": "65bcca3866364b3a066ca6d67ef940244b52883df3a9f3a6aedb5c2e626f8c9a"
+        },
+        {
+          "bytes": 240891,
+          "path": "data-tei/translations/kangyur/translations/061-018_toh198-maitreyas_setting_out.xml",
+          "sha256": "2a6087badbb3627750998180dbec6f3ff9ea1c94a7b35a1ece59701164076167"
+        },
+        {
+          "bytes": 157653,
+          "path": "data-tei/translations/kangyur/translations/061-019_toh199-the_sutra_on_the_bodhisattva_maitreya_taking_birth_in_tusita.xml",
+          "sha256": "f47fda900790adcd23a9e08d9165540d6739308911fd91c11222aa02901fb5d3"
+        },
+        {
+          "bytes": 481418,
+          "path": "data-tei/translations/kangyur/translations/062-001_toh201-the_seal_of_engagement_in_kindling_the_power_of_faith.xml",
+          "sha256": "b8b1e199c147878e7a6af68882d90413c3106bcb46ad561638eaaca151673328"
+        },
+        {
+          "bytes": 230643,
+          "path": "data-tei/translations/kangyur/translations/062-002_toh202-evaluating_whether_progress_is_certain_or_uncertain.xml",
+          "sha256": "ed2f4b5d4aa3fc66a2e35f25f298b9307f699f27e98bf0c80b0e80e09b9966a1"
+        },
+        {
+          "bytes": 70387,
+          "path": "data-tei/translations/kangyur/translations/062-003_toh203-the_seal_of_dharma.xml",
+          "sha256": "fe6f556ff97efd337e6a158bfeaa6c6db0e832ee3fb945087e08523b4622f33a"
+        },
+        {
+          "bytes": 91222,
+          "path": "data-tei/translations/kangyur/translations/062-005_toh205-the_city_beggar_woman.xml",
+          "sha256": "afa80eb0c42c0b257aeccae7f0101a1575cbdee1370b4e451de83ec2fce762bb"
+        },
+        {
+          "bytes": 36880,
+          "path": "data-tei/translations/kangyur/translations/062-006_toh206_pure_sustenance_of_food.xml",
+          "sha256": "b91aa7812b8f518e0d1bfba566adf0ac7108cf2ad09562f27706a5ec72908ed9"
+        },
+        {
+          "bytes": 198829,
+          "path": "data-tei/translations/kangyur/translations/062-007_toh207-the_strength_of_the_elephant.xml",
+          "sha256": "ca160a40da00630964ce37cd705be9ad426f332dae91d9ced8cbb6796dc4c351"
+        },
+        {
+          "bytes": 91276,
+          "path": "data-tei/translations/kangyur/translations/062-008_toh208-the_great_rumble.xml",
+          "sha256": "5dcde7c7577a47ecee16c7e38c4c229335f9a98ef5749e79c6c3d90b9a7a32a2"
+        },
+        {
+          "bytes": 129151,
+          "path": "data-tei/translations/kangyur/translations/062-010_toh210_rice_seedling.xml",
+          "sha256": "ae6af711abb0c9775ff92166e8af0feaca8e4be69fb0dafe12b659b7f569c2ba"
+        },
+        {
+          "bytes": 56325,
+          "path": "data-tei/translations/kangyur/translations/062-011_toh211-sutra_teaching_fundamental_exposition_and_detailed_analysis_of_dependent_arising.xml",
+          "sha256": "a08d6cabf36baeca4805357948796bb351e80caf83456b92295feb1d282b569b"
+        },
+        {
+          "bytes": 73741,
+          "path": "data-tei/translations/kangyur/translations/062-012_toh212,520,980_sutra_on_dependent_arising.xml",
+          "sha256": "27c15cad86356f5f86426089039a82a6a40db8b3fa4de2c8f45c4f97f15a4fc3"
+        },
+        {
+          "bytes": 75515,
+          "path": "data-tei/translations/kangyur/translations/062-014_toh214-advice_for_the_king_1.xml",
+          "sha256": "676c1648f3b8eed6c9222c3b3035fd87d9a03a5289ee28943f35dc692d0f725b"
+        },
+        {
+          "bytes": 68233,
+          "path": "data-tei/translations/kangyur/translations/062-015_toh215-advice_for_the_king_2.xml",
+          "sha256": "3798268488c00f745993fd238202e1d6fbce70408fcb0eb4b1ed75cb096e06d3"
+        },
+        {
+          "bytes": 671201,
+          "path": "data-tei/translations/kangyur/translations/062-016_toh216-eliminating_ajatasatrus_remorse.xml",
+          "sha256": "9ea89bc674b7a91bc456e3fc7c9d95381a78ca3476a9a4390c693f21541c2a18"
+        },
+        {
+          "bytes": 156094,
+          "path": "data-tei/translations/kangyur/translations/062-017_toh217-srigupta_sutra.xml",
+          "sha256": "8ab472fcd704ec6f53e6476a01a581d2f11dd85b3726233d41c63ed0142a201e"
+        },
+        {
+          "bytes": 140681,
+          "path": "data-tei/translations/kangyur/translations/062-018_toh218_purification_of_karmic_obscurations.xml",
+          "sha256": "049b674b244fb57a5c47a3ef48197f930587178ed6252e4d5d3f8723753c6347"
+        },
+        {
+          "bytes": 204799,
+          "path": "data-tei/translations/kangyur/translations/062-019_toh219-putting_an_end_to_karmic_obscurations.xml",
+          "sha256": "b42421fbbe4f2a0e74dcc7e2fa6f3ad3064a762ab6f59280900ce1d328b8ea07"
+        },
+        {
+          "bytes": 635710,
+          "path": "data-tei/translations/kangyur/translations/063-001_toh220-eliminating_those_with_corrupted_discipline.xml",
+          "sha256": "6a39f451d644c835bac2a30bdf4f2b10c8d374dcb647f551d8bc288605532393"
+        },
+        {
+          "bytes": 124593,
+          "path": "data-tei/translations/kangyur/translations/063-005_toh224-the_episode_of_drdhadhyasaya.xml",
+          "sha256": "31b78f3690188c7bd7cdeb086e53ff2614cedfebc99fe34c55799e3b0a43f9cd"
+        },
+        {
+          "bytes": 124374,
+          "path": "data-tei/translations/kangyur/translations/063-005_toh224-the_episode_of_firm_resovle.xml",
+          "sha256": "088938fad4a0e1c84e2b12dd967b0fd060e1b783dd34bc8c4fad9dad2026da88"
+        },
+        {
+          "bytes": 44901,
+          "path": "data-tei/translations/kangyur/translations/063-006_toh225-the_sutra_on_the_threefold_going_for_refuge.xml",
+          "sha256": "dddb584961b1b926772bce11d9eea73f2c4dbf3ae51e29c38a1b18f8ffefe093"
+        },
+        {
+          "bytes": 171334,
+          "path": "data-tei/translations/kangyur/translations/063-007_toh226-the_sutra_on_transmigration_through_existences.xml",
+          "sha256": "f4ee5c71232f6fe8e383ef74f5c98fa16c366ac3512b03ef9d64091586658867"
+        },
+        {
+          "bytes": 401020,
+          "path": "data-tei/translations/kangyur/translations/063-010_toh229-discussions_of_thus-gone_ones.xml",
+          "sha256": "ea8301d0b5c1c2c8c71e6218e1ef555fcd227c54beb3d6d1b2cd0601cf1e9ac5"
+        },
+        {
+          "bytes": 858239,
+          "path": "data-tei/translations/kangyur/translations/064-001_toh231-the_jewel_cloud_sutra.xml",
+          "sha256": "14bbb14c324695cb4b5d1496b202be341225ba18b7790e6a6a38b356a304a093"
+        },
+        {
+          "bytes": 1141504,
+          "path": "data-tei/translations/kangyur/translations/064-002_toh232-the_great_cloud_1.xml",
+          "sha256": "ffefbea096d0208e49a0900be25db031d324460ac26dc81935c4b98a54d6e83c"
+        },
+        {
+          "bytes": 381288,
+          "path": "data-tei/translations/kangyur/translations/064-005_toh235,657,1063-the_great_cloud_2.xml",
+          "sha256": "9334f975aaab3c55bc2d4cfef10a3ec9f2afdfb7c1299755871c533e80ceefb7"
+        },
+        {
+          "bytes": 1222476,
+          "path": "data-tei/translations/kangyur/translations/065-001_toh238-the_dharma_council.xml",
+          "sha256": "131f180c37e536bbe8ebd46a7b808ab197e4b6bf2f260ae6bea8d2be31bcd956"
+        },
+        {
+          "bytes": 65691,
+          "path": "data-tei/translations/kangyur/translations/065-004_toh241-the_sutra_of_the_wheel_of_meditative_concentration.xml",
+          "sha256": "6cf51ca35e6fe212f656ad65c3883198cfe56f19bc40a83d4b2c077c6296bb3c"
+        },
+        {
+          "bytes": 123403,
+          "path": "data-tei/translations/kangyur/translations/066-002_toh244-proper_dharma_conduct.xml",
+          "sha256": "61186be8e30669c75704c8c742dd838b86d75a824102fa38b0893d32c3e8ca4d"
+        },
+        {
+          "bytes": 104664,
+          "path": "data-tei/translations/kangyur/translations/066-003_toh245-the_sections_of_dharma.xml",
+          "sha256": "0a82fdd8cab6d77581dc03e5b869b7c9947da780bc030c79cb10342e6f0c0320"
+        },
+        {
+          "bytes": 170756,
+          "path": "data-tei/translations/kangyur/translations/066-004_toh246-the_sutra_of_the_victory_of_the_ultimate_dharma.xml",
+          "sha256": "92782a0f6880e206d88551c7cce9da4f3be2b737787bce7f0a84287790b25e0d"
+        },
+        {
+          "bytes": 64867,
+          "path": "data-tei/translations/kangyur/translations/066-005_toh247-distinguishing_phenomena_and_what_is_meaningful.xml",
+          "sha256": "65b1b7eb9cad860b8d4c3876da6f8eb824057085bb9bba577b99a92a678ed15b"
+        },
+        {
+          "bytes": 183038,
+          "path": "data-tei/translations/kangyur/translations/066-006_toh248-the_accomplishment_of-the-sets_of_four_qualities_the_bodhisattvas_pratimoksa.xml",
+          "sha256": "bcbe4c03887ee2f3e48dfaf7c6280ab395d0ea3df87a10a51828def91a3152d8"
+        },
+        {
+          "bytes": 51801,
+          "path": "data-tei/translations/kangyur/translations/066-007_toh249-the_sutra_teaching_four_factors.xml",
+          "sha256": "4eba423919693e2e5e9945d677d64ec183008995593ad1b82a7f71a994c87985"
+        },
+        {
+          "bytes": 39314,
+          "path": "data-tei/translations/kangyur/translations/066-008_toh250-the_four_factors.xml",
+          "sha256": "c54755998423c7dac5a25f9f5256fd57dff8008573bd55c3b9797625dffb5607"
+        },
+        {
+          "bytes": 64751,
+          "path": "data-tei/translations/kangyur/translations/066-009_toh251-the_noble_mahayana_sutra_on_the_four_factors.xml",
+          "sha256": "413452c14bda330cdba1e3553b5b6494b7e76b4d34f11b0dde97603be34c5e44"
+        },
+        {
+          "bytes": 134340,
+          "path": "data-tei/translations/kangyur/translations/066-010_toh252-the_fourfold_accomplishment.xml",
+          "sha256": "72485baed0893e3d1d9e451c2b8b3b851befcd7f72f894b81237c1096a6a9d2d"
+        },
+        {
+          "bytes": 53940,
+          "path": "data-tei/translations/kangyur/translations/066-012_toh254-the_sutra_of_dharmaketu.xml",
+          "sha256": "72f496d1e5f09ace1ad05e03ce1d1776c087882c0034f8c228374a6acec74804"
+        },
+        {
+          "bytes": 99556,
+          "path": "data-tei/translations/kangyur/translations/066-013_toh255-the_ocean_of_the_dharma.xml",
+          "sha256": "a2fac2a7ec08b7cef7c9318e325d7faa2736ee6867760f9d5fe29a06633b6790"
+        },
+        {
+          "bytes": 941448,
+          "path": "data-tei/translations/kangyur/translations/066-015_toh257-the_sutra_of_the_quintessence_of_the_sun.xml",
+          "sha256": "7084dfc672e1342c1ed2c8a5105da8c6916f596d60cf030c4d4ac376873a002f"
+        },
+        {
+          "bytes": 190547,
+          "path": "data-tei/translations/kangyur/translations/066-017_toh259-the_sutra_on_the_quintessence_that_illuminates_the_basket_without_words.xml",
+          "sha256": "4dd9149c005ca8e63f2f85222fc4665caa180096c3323cb1ae4f781078204372"
+        },
+        {
+          "bytes": 288183,
+          "path": "data-tei/translations/kangyur/translations/066-018_toh260_akashagarbha_sutra.xml",
+          "sha256": "d8b430bec8c6d806a56fc0874713971f5a00f22ef77a058dc090fd76eecffa9e"
+        },
+        {
+          "bytes": 857450,
+          "path": "data-tei/translations/kangyur/translations/067-002_toh263-the_acceptance_that_tames_beings_with_the_sky_colored_method_of_perfect_conduct.xml",
+          "sha256": "e3cdaf5c67e4ae77893f090990f0f271fa293364396fdcad56c4ce459105eb27"
+        },
+        {
+          "bytes": 531516,
+          "path": "data-tei/translations/kangyur/translations/067-005_toh266-bouquet_of_flowers.xml",
+          "sha256": "e22107fed477217530b0e15e0ed06bf8edb09ceb91f32fb7c9dbdb1e1d565c00"
+        },
+        {
+          "bytes": 133208,
+          "path": "data-tei/translations/kangyur/translations/068-001_toh267_calling_witness_with_hundred_prostrations.xml",
+          "sha256": "88fd2039cf64a71b3ff59872d099782da94543924c159411734aab837a867d1e"
+        },
+        {
+          "bytes": 55326,
+          "path": "data-tei/translations/kangyur/translations/068-002_toh268-the_sutra_of_king_of_the_inconceivable.xml",
+          "sha256": "263313af35abd51a66994e72e0b9ee862467a0e2b85a9cdbcacda93e59bc8649"
+        },
+        {
+          "bytes": 105437,
+          "path": "data-tei/translations/kangyur/translations/068-003_toh269-dispelling_the_darkness_of_the_ten_directions.xml",
+          "sha256": "95a8ab6f6b907869887df1a627c198e1a59f140e400bf9dc70b672edb56d3f0c"
+        },
+        {
+          "bytes": 142179,
+          "path": "data-tei/translations/kangyur/translations/068-004_toh270,512,852-the_seven_buddhas.xml",
+          "sha256": "808935eeaf36f41ab2fbb3b1dac062b35ab6d9f65ab3726ccbd119d298081210"
+        },
+        {
+          "bytes": 86532,
+          "path": "data-tei/translations/kangyur/translations/068-005_toh271-the_eight_buddhas.xml",
+          "sha256": "3e900f84fe9d18ff072d677f5d4e898411121c1963a9e7491243f2a9e97cabc4"
+        },
+        {
+          "bytes": 94147,
+          "path": "data-tei/translations/kangyur/translations/068-007_toh273,511,853-the_twelve_buddhas.xml",
+          "sha256": "844d16632bd5ee8a16fd913cd531e1eabba275db4d3c6c7a20f4850758308fea"
+        },
+        {
+          "bytes": 96897,
+          "path": "data-tei/translations/kangyur/translations/068-010_toh276-the_sutra_on_not_rejecting_the_buddha.xml",
+          "sha256": "c1741ef4f99a44e61ff33f7ec546c29a162cd90ff7f04f703e8b22dbc773424b"
+        },
+        {
+          "bytes": 102670,
+          "path": "data-tei/translations/kangyur/translations/068-012_toh278-the_eight_auspicious_ones.xml",
+          "sha256": "29b77f5ac45de1c7206bfe70cbd1647e4ab354e41b5f72aa9985a9222637717e"
+        },
+        {
+          "bytes": 26350,
+          "path": "data-tei/translations/kangyur/translations/068-016_toh282_sutra_on_threefold_training.xml",
+          "sha256": "72aa3e81e4aab8aac02c36c42a94d755ac8ac6250480282d55487798881b093d"
+        },
+        {
+          "bytes": 44170,
+          "path": "data-tei/translations/kangyur/translations/068-017_toh283_sutra_on_three_bodies.xml",
+          "sha256": "264e5da6f85337423e6f7c770c19022da7650fff5fb7d0c082cf5355ea06e340"
+        },
+        {
+          "bytes": 89612,
+          "path": "data-tei/translations/kangyur/translations/068-019_toh285-the_dedication_fulfilling_all_aspirations.xml",
+          "sha256": "eebf7f1dc84bba9f3861f807b2993f278e3f59d08d51b51f0155a19fc725cd65"
+        },
+        {
+          "bytes": 68084,
+          "path": "data-tei/translations/kangyur/translations/068-020_toh286-the_dedication_protecting_all_beings.xml",
+          "sha256": "b67daadaf5efb73da22557058eab83577a29b098a41c5c5c2b20558590c261fa"
+        },
+        {
+          "bytes": 7652332,
+          "path": "data-tei/translations/kangyur/translations/068-021_toh287-mindfulness_of_the_true_dharma.xml",
+          "sha256": "ac697a44b74af25ca8a91cad2e41574a5a1c27b475f388b9c421f17cece46e03"
+        },
+        {
+          "bytes": 146238,
+          "path": "data-tei/translations/kangyur/translations/071-002_toh288-the_mahasutra_illusions_net.xml",
+          "sha256": "48259ef18a871b16c6dc46249ac63859852e2eb24181317c484e16717a5ae0bd"
+        },
+        {
+          "bytes": 110563,
+          "path": "data-tei/translations/kangyur/translations/071-006_toh292-the_mahasutra_the_crest_insignia_1.xml",
+          "sha256": "ba10cc8ae6224ae71ff81d16a4b33279abdedd76de82f7047f692393afe823d6"
+        },
+        {
+          "bytes": 66975,
+          "path": "data-tei/translations/kangyur/translations/071-007_toh293-the_mahasutra_the_crest_insignia_(2).xml",
+          "sha256": "37dcfb7afc965b17985b5186ef3ce3447f4ea3be6fb0c6a54faba4da080db42b"
+        },
+        {
+          "bytes": 146371,
+          "path": "data-tei/translations/kangyur/translations/071-011_toh297-multitude_of_constituents.xml",
+          "sha256": "5aff5dd8835a115da9cd3a38732cbc0f5ba8705a009982cf10cafd495a2407b3"
+        },
+        {
+          "bytes": 66044,
+          "path": "data-tei/translations/kangyur/translations/071-012_toh298-gandi_sutra.xml",
+          "sha256": "cc6f773854646f87905b5d3d61fb4a6095030b563d90925d5a00005c86880c69"
+        },
+        {
+          "bytes": 52311,
+          "path": "data-tei/translations/kangyur/translations/071-013_toh299-the_sutra_on_timings_for_the_gandhi.xml",
+          "sha256": "33f5b9a8648c92e3246dd708aba54af4ca5c5fccb0b7dab9c004ae1da488bb29"
+        },
+        {
+          "bytes": 35994,
+          "path": "data-tei/translations/kangyur/translations/071-014_toh300_reliance_upon_virtuous_spiritual_friend.xml",
+          "sha256": "991454067a05c37ba629013b8df0dc2b82a3518ff724ff8a244489fc85453785"
+        },
+        {
+          "bytes": 88909,
+          "path": "data-tei/translations/kangyur/translations/072-002_toh302-what_medicants_hold_most_dear.xml",
+          "sha256": "55230357b97a9981c4249c403d6314c1fe45c7e17fe3970a768013195a3925f6"
+        },
+        {
+          "bytes": 61529,
+          "path": "data-tei/translations/kangyur/translations/072-003_toh303-the_sutra_on_having_moral_discipline.xml",
+          "sha256": "1eb1b198042cd8cbf7117d5daa9857d454c9b3f2d6b150277c50b19ea042fcd0"
+        },
+        {
+          "bytes": 60977,
+          "path": "data-tei/translations/kangyur/translations/072-005_toh305-sutra_of_the_highest_designation.xml",
+          "sha256": "2c73f251b4a44e8776d7c0dbe0ce8d72e0eba94e8aef7bd0209fdac38cb94838"
+        },
+        {
+          "bytes": 313076,
+          "path": "data-tei/translations/kangyur/translations/072-007_toh307-sutra_on_the_limits_of_lifes_duration.xml",
+          "sha256": "087b42d638408a02b42a52089c0dd3a556a8aeadb6e5d908058497582c3d3fbd"
+        },
+        {
+          "bytes": 183007,
+          "path": "data-tei/translations/kangyur/translations/072-008_toh308_questions_regarding_death_and_transmigration.xml",
+          "sha256": "6233e862dd75c947855ea498789e8f7990c8dec070b039ebe51162a3bfe2a158"
+        },
+        {
+          "bytes": 28533,
+          "path": "data-tei/translations/kangyur/translations/072-009_toh309_sutra_on_Impermanence.xml",
+          "sha256": "2300122d012ee17f420037a35cdb568f67f42f14509c6a1735459ff29197592d"
+        },
+        {
+          "bytes": 233680,
+          "path": "data-tei/translations/kangyur/translations/072-010_toh310-the_sutra_on_impermanence.xml",
+          "sha256": "ae8239be3e019134ee8a063aaa5fb0784975ef38716358f765c612986c98024a"
+        },
+        {
+          "bytes": 62536,
+          "path": "data-tei/translations/kangyur/translations/072-011_toh311-teaching_the_eleven_thoughts.xml",
+          "sha256": "7b64b5a86cc729e1f6602b1dfc0256f992b4f5b01328ebf6e239b0fbaca1a904"
+        },
+        {
+          "bytes": 138238,
+          "path": "data-tei/translations/kangyur/translations/072-012_toh312,628,1093-the_mahasutra_entering_the_city_of_vaisali.xml",
+          "sha256": "d178d42d051905ae59b81a0f89bf72912f283a54befb10e065d8834f9f2b9d7d"
+        },
+        {
+          "bytes": 192286,
+          "path": "data-tei/translations/kangyur/translations/072-013_toh313,617,974-auspicious_night.xml",
+          "sha256": "3a8551311d644a7ac2a9d0ad365234f77cc41aa491f2aa6689657e5662d73c01"
+        },
+        {
+          "bytes": 180455,
+          "path": "data-tei/translations/kangyur/translations/072-014_toh314-the_sutra_of_the_entry_into_the_gloomy_forest.xml",
+          "sha256": "96c733235a452c7c1a1dde6f5f3708c8bcffa1db83c6b43cbd7db28f197c0858"
+        },
+        {
+          "bytes": 33051,
+          "path": "data-tei/translations/kangyur/translations/072-015_toh315-the_sutra_on_ones_father_and_mother.xml",
+          "sha256": "353024d5be7e24937a1d869da142e7905911d837c40ded5b43b87de119a3abe0"
+        },
+        {
+          "bytes": 432627,
+          "path": "data-tei/translations/kangyur/translations/072-017_toh317-distinctly_ascertaining_the_meanings.xml",
+          "sha256": "b8da65c1bf407daa8edcc7e452671994ec8428bc821de0cbb7a0e15545c02676"
+        },
+        {
+          "bytes": 79918,
+          "path": "data-tei/translations/kangyur/translations/072-019_toh319-the_marvelous_dharma_discourse.xml",
+          "sha256": "f80f92b282793c785864d4a9a0f0acd88208bc684772f6510403d36ce23b27ea"
+        },
+        {
+          "bytes": 63723,
+          "path": "data-tei/translations/kangyur/translations/072-020_toh320-the_dharma_discourse_describing_the_benefits_of_establishing_representations_of_the_tathagatha.xml",
+          "sha256": "1cd0d9d83bc552acbfcded2a3cf3354ab2c1f91466d005842f2fcee6295ea61a"
+        },
+        {
+          "bytes": 117152,
+          "path": "data-tei/translations/kangyur/translations/072-021_toh321-the_verses_on_circumambulating_shrines.xml",
+          "sha256": "90eea8ed795aaa303cedefbaef5290f25f310d31e295a824a6ea00ad3e77531e"
+        },
+        {
+          "bytes": 125984,
+          "path": "data-tei/translations/kangyur/translations/072-022_toh322-verses_for_prasenajit.xml",
+          "sha256": "4e825cdc459d1eebbd763547c5912696aeead418fb82b0c026a40d54a906f6f1"
+        },
+        {
+          "bytes": 34287,
+          "path": "data-tei/translations/kangyur/translations/072-023_toh323-the_single_stanza.xml",
+          "sha256": "ae47a890df5686c509098de1239f06742408bc44f9ba4700ac64dfddd4841e7e"
+        },
+        {
+          "bytes": 38521,
+          "path": "data-tei/translations/kangyur/translations/072-024_toh324-the_four_stanzas.xml",
+          "sha256": "fc7dec3e9e644d403c00da30bb72a8e26e942705eb8370d404e3a359569a6f7a"
+        },
+        {
+          "bytes": 70123,
+          "path": "data-tei/translations/kangyur/translations/072-025_toh325-verses_of_naga_king_drum.xml",
+          "sha256": "b1aea9437fbeace8dca47f347b7b8f4deba97968622c9a3160833b748014d6a7"
+        },
+        {
+          "bytes": 45225,
+          "path": "data-tei/translations/kangyur/translations/072-027_toh327-the_good_person.xml",
+          "sha256": "8ab52bc3f13d3c84580a47fb5ba628ae9826ee920cd8ad7d70bf5b464bcd7c94"
+        },
+        {
+          "bytes": 105903,
+          "path": "data-tei/translations/kangyur/translations/072-028_toh328-the_sutra_of_nandas_going_forth.xml",
+          "sha256": "e60ec54f697475e364428e805326eb9843a88fdbd0c6617a60fcfbd3d8dde8dd"
+        },
+        {
+          "bytes": 98239,
+          "path": "data-tei/translations/kangyur/translations/072-029_toh329-the_devata_sutra.xml",
+          "sha256": "c1f4ff0f73a680114c0ae79e786cfca31f8c4b1c866a6ff8424f9916018ab32c"
+        },
+        {
+          "bytes": 107905,
+          "path": "data-tei/translations/kangyur/translations/072-030_toh330-the_shorter_devata_sutra.xml",
+          "sha256": "58d0cd97295a9de6759095701be256fe92b16eb028f9d0c83cef1fae266f7ac7"
+        },
+        {
+          "bytes": 90723,
+          "path": "data-tei/translations/kangyur/translations/072-031_toh331-the_sutra_of_the_moon.xml",
+          "sha256": "4104d2d4ccf98f7d1e356fb3a8bccf9069c4289020fe6f39edb894f1e68b0b00"
+        },
+        {
+          "bytes": 166977,
+          "path": "data-tei/translations/kangyur/translations/072-033_toh333-the_sutra_of_vasistha.xml",
+          "sha256": "0389560c0b5416cfdc8eb9c4c7570e4cff46e96b898bea4647609575772e40be"
+        },
+        {
+          "bytes": 133805,
+          "path": "data-tei/translations/kangyur/translations/072-034_toh334-the_sutra_of_nandika.xml",
+          "sha256": "06fb24973fb8132feb6c9e4dad86e10b9a6ae2eedb4e6ccb15aa38d22d6d82ec"
+        },
+        {
+          "bytes": 131809,
+          "path": "data-tei/translations/kangyur/translations/072-035_toh335-the_khakkhara_sutra.xml",
+          "sha256": "0efbf593034e828a7a59f225ead21ea1123503c0769fa8b6d9b48e0c2dba19c0"
+        },
+        {
+          "bytes": 53193,
+          "path": "data-tei/translations/kangyur/translations/072-036_toh336-the_rite_of_the_commitment_to_bear_the_mendicants_staff.xml",
+          "sha256": "4f557784d6a97a45e24ec46af59620d37c5adb64e07b2f447c4eb85631b95ae2"
+        },
+        {
+          "bytes": 57402,
+          "path": "data-tei/translations/kangyur/translations/072-037_toh337_wheel_of_dharma.xml",
+          "sha256": "a3bfb8dd4e110ff504e73fbc4a994f70c11672a3738ef88bfbb6fd05c0baf4ae"
+        },
+        {
+          "bytes": 721114,
+          "path": "data-tei/translations/kangyur/translations/072-038_toh338-the_exposition_of_karma.xml",
+          "sha256": "b0b6dfb66fcb6d2d5374d4e1491e82248d06343a081ca3a5257dd4fa3adcdc74"
+        },
+        {
+          "bytes": 496796,
+          "path": "data-tei/translations/kangyur/translations/072-039_toh339-dharma_scripture_exposition_of_karma.xml",
+          "sha256": "a725d99ff60a923bf8bb18206923dc7e6262d89c318c1b2ff7fa45ab2bf89a8a"
+        },
+        {
+          "bytes": 3566498,
+          "path": "data-tei/translations/kangyur/translations/073-001_toh340-the_hundred_deeds.xml",
+          "sha256": "49f6136113bee68c08b86c83a628a203cfbdc8c4f5957bf2dbf5c095b5b2797a"
+        },
+        {
+          "bytes": 108542,
+          "path": "data-tei/translations/kangyur/translations/074-003_toh342-the_questions_of_dirghanakha_the_wandering_mendicant.xml",
+          "sha256": "faea446ee579e5999f1255549d2e3f0f137fcbcc5d11dad417d342e86c442855"
+        },
+        {
+          "bytes": 62177,
+          "path": "data-tei/translations/kangyur/translations/075-002_toh344-the_sutra_of_jnanaka.xml",
+          "sha256": "d189446c0fd38eb37fef06025f0f365be911105eeb424726aca3923071d341f0"
+        },
+        {
+          "bytes": 124446,
+          "path": "data-tei/translations/kangyur/translations/075-003_toh345-the_exemplary_tale_about_a_sow.xml",
+          "sha256": "3986903665c0288b286eb956c02817d75abdf27a21e023a5fcb33275502536ae"
+        },
+        {
+          "bytes": 247092,
+          "path": "data-tei/translations/kangyur/translations/075-004_toh346-the_account_of_the_noble_deeds_of_sumagadha.xml",
+          "sha256": "1f9c0a3a53ce208994c112f3bc619b69b3b5be5b9328af0c1fdd6db38152f1c2"
+        },
+        {
+          "bytes": 288989,
+          "path": "data-tei/translations/kangyur/translations/076-001_toh347-the_exemplary_tale_of_punyabala.xml",
+          "sha256": "de6130d20e2bd9d8ecb858808011e9cbbdd8061b37be1d68cc3082ad1ec5f605"
+        },
+        {
+          "bytes": 199240,
+          "path": "data-tei/translations/kangyur/translations/076-003_toh349-the_exemplary_tale_of_srisena.xml",
+          "sha256": "b67d466139511a87f3e7060cc372ab84699f823dffdd162e495560a10df96a30"
+        },
+        {
+          "bytes": 176892,
+          "path": "data-tei/translations/kangyur/translations/076-004_toh350-the_past_endeavor_of_kanakavarna.xml",
+          "sha256": "28eb2ec4385af1a75a816d0ecbbcef0354142e818c142ea32e17670b28b41586"
+        },
+        {
+          "bytes": 165425,
+          "path": "data-tei/translations/kangyur/translations/076-008_toh354-teaching_the_causes_and_results_of_good_and_ill.xml",
+          "sha256": "49351eddca6b55335ab849b41eece20449f44ce35a8051c112261ce3752ab08c"
+        },
+        {
+          "bytes": 169847,
+          "path": "data-tei/translations/kangyur/translations/076-009_toh355-the_sutra_that_teaches_the_ripening_of_virtuous_and_nonvirtuous_actions.xml",
+          "sha256": "6a6829cee829b613ee92d873414df798ff800fa24286b059a80fbacf8890c5ab"
+        },
+        {
+          "bytes": 201802,
+          "path": "data-tei/translations/kangyur/translations/076-011_toh357-the_prophecy_of_gosrnga.xml",
+          "sha256": "4a76cfcfba3fefe431df78008941ab4170000041d43ace2c7b7bf047da5a4510"
+        },
+        {
+          "bytes": 1093793,
+          "path": "data-tei/translations/kangyur/translations/076-012_toh358-the_exemplary_tale_of_sardulakarna.xml",
+          "sha256": "5c5d06a3d553f80c12d720199b6958a479752ac578602c5ee797184c4687be1b"
+        },
+        {
+          "bytes": 356929,
+          "path": "data-tei/translations/kangyur/translations/077-002_toh361-summary_of_empowerment.xml",
+          "sha256": "9b4159eb81864f819f1fdf48ca9b65c918d459999335da1dcb531eb3076bc7d9"
+        },
+        {
+          "bytes": 2813555,
+          "path": "data-tei/translations/kangyur/translations/079-008_toh381-the_emergence_from_samputa.xml",
+          "sha256": "625d2ffbe8d1a899827c4fea74eca50322787d8cb56d79a38a84550bc4ed452c"
+        },
+        {
+          "bytes": 208271,
+          "path": "data-tei/translations/kangyur/translations/079-011_toh384_glorious_king_tantra_resolves_all_secrets.xml",
+          "sha256": "fffe93f32f0b109103d73afb4a7cc668d24723e7cf730935c0c2ee89fc87b991"
+        },
+        {
+          "bytes": 106632,
+          "path": "data-tei/translations/kangyur/translations/079-013_toh386-the_tantra_Equal_to_the_Sky.xml",
+          "sha256": "e3d16da3c29d52c8925144bdbd7b1bcaab70017c4bc83837d29c3ae75efb1f0d"
+        },
+        {
+          "bytes": 54029,
+          "path": "data-tei/translations/kangyur/translations/079-036_toh409-the_fearsome_vajra_of_destruction.xml",
+          "sha256": "c92dc09a86e844cfdc4424a809c169a52b2e8e8d5f81fa248bd94fc99dbbcb26"
+        },
+        {
+          "bytes": 150174,
+          "path": "data-tei/translations/kangyur/translations/080-009_toh425_mahamaya_tantra.xml",
+          "sha256": "44b470aec628a03c856e11595beb828cec7fd07a346a3398729b19f4dbe951b7"
+        },
+        {
+          "bytes": 1245155,
+          "path": "data-tei/translations/kangyur/translations/080-015_toh431-the_tantra_of_candamaharosana.xml",
+          "sha256": "cd57d395745397f2d604bf7a0c18a34136ba9355cb5e65eac471b0918dedaf06"
+        },
+        {
+          "bytes": 1238681,
+          "path": "data-tei/translations/kangyur/translations/080-015_toh431_candamaharosana_the_sole_hero.xml",
+          "sha256": "76de419661915718e9c9a95ea9b6d64103f75aa9a6963c2a071007074e5355c8"
+        },
+        {
+          "bytes": 455632,
+          "path": "data-tei/translations/kangyur/translations/081-006_toh437_practice_manual_of_kurukulla.xml",
+          "sha256": "3cbe37311c9ee547aa3bbbcf17944c0035420ae9920204b99117faab5dc1481b"
+        },
+        {
+          "bytes": 71956,
+          "path": "data-tei/translations/kangyur/translations/081-007_toh438-the_praise_of_tara_in_twentyone_homages.xml",
+          "sha256": "641f7438ad39b1485b71b0d07e3f27cd1c65e8029b06769eb0ca371b3babe58d"
+        },
+        {
+          "bytes": 946451,
+          "path": "data-tei/translations/kangyur/translations/081-009_toh440-the_tantra_of_mahakala.xml",
+          "sha256": "e87f6408f29044d036187e11a35628f988aaff239d513d95d1d88619e03cde12"
+        },
+        {
+          "bytes": 26701,
+          "path": "data-tei/translations/kangyur/translations/083-008_toh460a,952-the_incantation_for_seeing_vajrapani_in_dream.xml",
+          "sha256": "27845190dcacaf063a0e9b3e0985d8cb8e8c6ef0839185f85308c8602624e423"
+        },
+        {
+          "bytes": 535656,
+          "path": "data-tei/translations/kangyur/translations/083-015_toh467-the_tantra_of_black_yamari.xml",
+          "sha256": "5ea0b04588e50e6f0ecd8970dd88d6a85fc9efa3528d4ab2f00b86a91ba2cbd3"
+        },
+        {
+          "bytes": 49767,
+          "path": "data-tei/translations/kangyur/translations/083-019_toh471,2006-the_myth_chapter.xml",
+          "sha256": "cb95c785d094777041b512c5bd5e26eb6de9ac7216830ca0f9f620c832dffb14"
+        },
+        {
+          "bytes": 49755,
+          "path": "data-tei/translations/kangyur/translations/083-019_toh471,2006-the_practice_of_the_legend.xml",
+          "sha256": "1347e88f8dc44cee1cab2469028642553b4284f7eb66284208e780c4759b9d2c"
+        },
+        {
+          "bytes": 55522,
+          "path": "data-tei/translations/kangyur/translations/083-020_toh472,1996-the_ritual_practices_of_the_muskrat.xml",
+          "sha256": "57da057b62cfdebaa0afd2ffa39c0a7e45e2e5c64701f36fb7f8c610859dcc65"
+        },
+        {
+          "bytes": 54765,
+          "path": "data-tei/translations/kangyur/translations/087-002_toh497,999-the_dharani_of_the_eight_goddesses.xml",
+          "sha256": "19cd10c0fc92095f842e077f906f3d4281f59088e098b13a0af49f6e768c8654"
+        },
+        {
+          "bytes": 163480,
+          "path": "data-tei/translations/kangyur/translations/087-003_toh498_blue_clad_blessed_vajrapani.xml",
+          "sha256": "ff56f2ccbe594fa5da047d31f26d84071bdb4ead0ff8b18e95fe0e37cc607bc6"
+        },
+        {
+          "bytes": 323548,
+          "path": "data-tei/translations/kangyur/translations/087-008_toh503-the_sutra_describing_in_full_the_specific_previous_vows_of_the_seven_tathagatas.xml",
+          "sha256": "d8f79d8a663873c4a36b7c97fb325d900af9ea612337dd7fa81f39948d762b37"
+        },
+        {
+          "bytes": 210253,
+          "path": "data-tei/translations/kangyur/translations/087-009_toh504-the_sutra_describing_in_full_the_specific_previous_vows_of_bhaisajyaguruvaiduryaprabha.xml",
+          "sha256": "3061d58fc29bc9277fbb1b115d3a0658f2f1f98f8d8b97e579b4b20a95c3d035"
+        },
+        {
+          "bytes": 95725,
+          "path": "data-tei/translations/kangyur/translations/087-010_toh505-the_vaiduryaprabha_dharani.xml",
+          "sha256": "d3e07f3ca8dc8147a7ba83f427c0dedd0ec06f1f8a5240dc745b77847a8a3849"
+        },
+        {
+          "bytes": 46943,
+          "path": "data-tei/translations/kangyur/translations/087-011_toh505a,1059a-mantra_for_incanting_medicines.xml",
+          "sha256": "34d5ba1dc7d429048731e863496bc60fad6b8d7dfe1be41acca43f4f50248487"
+        },
+        {
+          "bytes": 200335,
+          "path": "data-tei/translations/kangyur/translations/088-001_toh507,883-the_dharani_for_secret_relics.xml",
+          "sha256": "cfec423c3e9f81217c0f2e61c79de86653bfc34002e8cbaccdb7fe72a6c26e21"
+        },
+        {
+          "bytes": 65236,
+          "path": "data-tei/translations/kangyur/translations/088-003_toh509,920-the_dharani_one_hundred_thousand_ornaments_of_the_essence_of_awakening.xml",
+          "sha256": "4b436ee8294a764d8d2f7eb61a3e79742d9ea98fc384f962590c3984fdbc56ca"
+        },
+        {
+          "bytes": 50701,
+          "path": "data-tei/translations/kangyur/translations/088-007_toh513,856-the_incantation_that_has_the_attributes_of_all_buddhas.xml",
+          "sha256": "6ec22d57135bcca9a1bd9b1cad48e8037877eeed71b1db23cdec78ca3618be38"
+        },
+        {
+          "bytes": 58364,
+          "path": "data-tei/translations/kangyur/translations/088-008_toh514,854-discourse_dharani_buddhas_essence.xml",
+          "sha256": "fa0a4d7690fb326807c633ec585db3a43f829c3a49dad240c689e98cf4a31317"
+        },
+        {
+          "bytes": 40014,
+          "path": "data-tei/translations/kangyur/translations/088-009_toh515,855-dharani_buddhas_essence.xml",
+          "sha256": "b57b00222640308b070f20552a63041a746eb4d316e1c533b97b662f4b9f1c76"
+        },
+        {
+          "bytes": 72382,
+          "path": "data-tei/translations/kangyur/translations/088-010_toh516,886-the_dharani_heap_of_flowers.xml",
+          "sha256": "f5afc54302980d24751b159109d4ee073fe62ebd0b2d7d6a25b0b737868cd01a"
+        },
+        {
+          "bytes": 49627,
+          "path": "data-tei/translations/kangyur/translations/088-015_toh521,981-the_essence_of_dependent_arising.xml",
+          "sha256": "f98d6fe989c304f1e18a23cf299a379c795b29851e6ffff558cc0a132372217a"
+        },
+        {
+          "bytes": 42522,
+          "path": "data-tei/translations/kangyur/translations/088-016_toh522,848-the_dharani_of_the_tathagata_jnanolka.xml",
+          "sha256": "1ad5050322da3e90f1d1d16e4c330d822ba86de87bfc6e885cb831a8cd1edcac"
+        },
+        {
+          "bytes": 94030,
+          "path": "data-tei/translations/kangyur/translations/088-022_toh528,858-the_dharani_of_agrapradipa.xml",
+          "sha256": "2333f0dc2bd5c830f434b3de03eb03b6f06318467f5e4094d2f1b5d607750c8e"
+        },
+        {
+          "bytes": 32507,
+          "path": "data-tei/translations/kangyur/translations/088-027_toh533,860-the_incantation_the_essence_of_sakyamuni.xml",
+          "sha256": "172d3eb774ba7087c93df4eb711bdd2756f3e3f4adab40c8b5c606ccd6c1f67f"
+        },
+        {
+          "bytes": 43077,
+          "path": "data-tei/translations/kangyur/translations/088-028_toh534,861-the_incantation_the_essence_of_vairocana.xml",
+          "sha256": "3f3e627c12fcc97282e01647ce6716c832789807ebf44b9ad5b528ad5e66607d"
+        },
+        {
+          "bytes": 39286,
+          "path": "data-tei/translations/kangyur/translations/088-029_toh535,868-recollecting_the_names_of_candraprabha.xml",
+          "sha256": "dcb1178c9acdea6847dba242f6fd9ecf2363a45100af9323a54bd201939391b4"
+        },
+        {
+          "bytes": 28058,
+          "path": "data-tei/translations/kangyur/translations/088-030_toh536,869-recollecting_the_common_essence_of_the_tathagatas.xml",
+          "sha256": "f606bdf943b065456503fe12d34966f1c4e45f7bfc2eb297e330b7f5022e0e4e"
+        },
+        {
+          "bytes": 35565,
+          "path": "data-tei/translations/kangyur/translations/088-031_toh537,870-recollecting_the_names_of_buddha_ratnasikhin.xml",
+          "sha256": "b9656403d5baeb5cd4d7033da811e549ca67713c9cbde566df6f6aff59c4bd65"
+        },
+        {
+          "bytes": 40313,
+          "path": "data-tei/translations/kangyur/translations/088-032_toh538,1068-the_cloud_of_offerings_dharani.xml",
+          "sha256": "acae0f36495447f1c5c732b134d889a0fdfdefe79ab968cf9bf99bf54fa96cd5"
+        },
+        {
+          "bytes": 23561,
+          "path": "data-tei/translations/kangyur/translations/088-034_toh539e,774,1074-the_dharani_for_polishing_a_gem.xml",
+          "sha256": "e0d6f36d48e4bf6406a13553ab9b992fb4af1436e888150ee90160792d365b76"
+        },
+        {
+          "bytes": 46151,
+          "path": "data-tei/translations/kangyur/translations/088-035_toh540,1078-the_dharani_surupa.xml",
+          "sha256": "6c71f6ef311d1f1ba1a598b9ec11d094e16bc72d581138444e72081abb94ef48"
+        },
+        {
+          "bytes": 7710009,
+          "path": "data-tei/translations/kangyur/translations/088-038_toh543-the_root_tantra_of_manjusri.xml",
+          "sha256": "abab41a38b867497c543753dbfedc9ff5821e3c59e802ab5e2b4143d0fe78c17"
+        },
+        {
+          "bytes": 248489,
+          "path": "data-tei/translations/kangyur/translations/089-001_toh544_tantra_of_siddhaikavira.xml",
+          "sha256": "d06bb682cdadca77905bd65480ec2b2894d9a8e5e63de0b5f1850239c8d0b312"
+        },
+        {
+          "bytes": 46002,
+          "path": "data-tei/translations/kangyur/translations/089-002_toh545,892-spoken_by_manjusri_himself.xml",
+          "sha256": "84e75115a0034d5cbbe5a5d994e601ce24491337f229758652fa594f8447a385"
+        },
+        {
+          "bytes": 47505,
+          "path": "data-tei/translations/kangyur/translations/089-003_toh546,893-the_incantation_the_curse_of_manjusri.xml",
+          "sha256": "916ef5c68903a9537d8550180e042485808d2bfabeead3b606ad11615bebf2f1"
+        },
+        {
+          "bytes": 24071,
+          "path": "data-tei/translations/kangyur/translations/089-004_toh547-the_incantation_the_promise_of_manjusri.xml",
+          "sha256": "85602cbd45793204963c3f45b16d03f22f03aeb184c6165e929792349ae66172"
+        },
+        {
+          "bytes": 35204,
+          "path": "data-tei/translations/kangyur/translations/089-005_toh548,894-the_epithets_of_manjusri.xml",
+          "sha256": "fccb56b51bdf352a76599de152487183277707bda2598888a03ed7c55cdcfd33"
+        },
+        {
+          "bytes": 39638,
+          "path": "data-tei/translations/kangyur/translations/089-006_toh549,895-the_incantation_manjusris_increasing_of_insight_and_intelligence.xml",
+          "sha256": "c744a8bd2a0d567987f96cf09406748d7f6f424c651eebc50e6aa7aa968f2103"
+        },
+        {
+          "bytes": 29652,
+          "path": "data-tei/translations/kangyur/translations/089-007_toh550,896-the_way_of_the_single_letter_mantra_of_manjusri.xml",
+          "sha256": "716fd10cf60a2f0dfe046adc3861221e37fcf86b429558f021b41b0f37bb6f0a"
+        },
+        {
+          "bytes": 36134,
+          "path": "data-tei/translations/kangyur/translations/089-008_toh551-in_praise_of_the_acuity_of_manjusri.xml",
+          "sha256": "28a399337111f2fae52b978c4ecfaeb6e766901bfc34506fc31fe3ea54aea31f"
+        },
+        {
+          "bytes": 36089,
+          "path": "data-tei/translations/kangyur/translations/089-009_toh552-the_eight_maidens_praise_of_manjusri.xml",
+          "sha256": "c649e3baf6d2287ddcb4638bc3a61e7ddd656107f022a70612d619d7577d550c"
+        },
+        {
+          "bytes": 1942361,
+          "path": "data-tei/translations/kangyur/translations/089-012_toh555-the_sutra_of_the_sublime_golden_light_1.xml",
+          "sha256": "8606f35cc32fb941b5392a0f5c7108931ef2fa3eff6f1f1025e94a1a2d495ccd"
+        },
+        {
+          "bytes": 1529499,
+          "path": "data-tei/translations/kangyur/translations/089-013_toh556-the_sutra_of_the_sublime_golden_light_2.xml",
+          "sha256": "e91153c6e12fe213fc4845d87489b1bb03e46be7520a2129b42dfcf56c66098c"
+        },
+        {
+          "bytes": 948695,
+          "path": "data-tei/translations/kangyur/translations/090-001_toh557-the_sutra_of_the_sublime_golden_light_3.xml",
+          "sha256": "9ec4bad094f75b39894932946c88650eb5f100f4feb6e5d3b072e1dd99a2086e"
+        },
+        {
+          "bytes": 430931,
+          "path": "data-tei/translations/kangyur/translations/090-002_toh558_destroyer_of_the_great_trichiliocosm.xml",
+          "sha256": "1f72c68518da840ceeff4a9c836b2035a3295762f1e8ebf3bdf594ff8cc51b69"
+        },
+        {
+          "bytes": 1117416,
+          "path": "data-tei/translations/kangyur/translations/090-003_toh559-the_queen_of_incantations_the_great_peahen.xml",
+          "sha256": "1be552250cc3e034f66f1d50e4d36bbf980e5f2b6e77185398318edb0574e4f6"
+        },
+        {
+          "bytes": 416364,
+          "path": "data-tei/translations/kangyur/translations/090-005_toh561-the_great_amulet.xml",
+          "sha256": "9773528f295fac7ac970c734baf9c2b6ea8110514d29c54ef0ae08f05c832506"
+        },
+        {
+          "bytes": 250327,
+          "path": "data-tei/translations/kangyur/translations/090-006_toh562-the_sutra_of_great_cool_grove.xml",
+          "sha256": "7cb71aa9d1488e12ca26fa64783e1d035484fb78046840873787effa8126d126"
+        },
+        {
+          "bytes": 130542,
+          "path": "data-tei/translations/kangyur/translations/090-007_toh563_upholding_the_great_secret_mantra.xml",
+          "sha256": "66572648004ca531b28aac172ad100e5ed5bc8eb3bcfaa99f957728fdf29b989"
+        },
+        {
+          "bytes": 74918,
+          "path": "data-tei/translations/kangyur/translations/090-008_toh564,988-the_marici_dharani.xml",
+          "sha256": "ee577e778caf6aa284fa36200fdd9df6b3b73163f38214f620c858ccffde7921"
+        },
+        {
+          "bytes": 177057,
+          "path": "data-tei/translations/kangyur/translations/090-009_toh565-the_king_of_ritual_manuals_from_the_tantra_of_maya_maricis_arising.xml",
+          "sha256": "7056ef1037f5ef4efa068a8aa61008296ed5db3ac36a0ae2d8e44816e8d5780a"
+        },
+        {
+          "bytes": 331289,
+          "path": "data-tei/translations/kangyur/translations/090-010_toh566-the_mandala_rites_of_marici.xml",
+          "sha256": "c9e019b1695b1c9a776163da51e6e6ee21aadaf64a18914e25a34b1999963e3d"
+        },
+        {
+          "bytes": 41652,
+          "path": "data-tei/translations/kangyur/translations/090-020_toh576,932-the_dharani_of_the_perfection_of_wisdom_in_one_hundred_thousand_lines.xml",
+          "sha256": "68ff3d08d88e7dab71a312c6aee1c9db077af3c695e934ab731ee3c138a04e10"
+        },
+        {
+          "bytes": 36132,
+          "path": "data-tei/translations/kangyur/translations/090-021_toh577,933-the_dharani_of_the_perfection_of_wisdom_in_one_twenty_five_thousand_lines.xml",
+          "sha256": "6068c20899afc6ee9db6edc45555bb56d4d3e7145b040352c087a2ba3a411852"
+        },
+        {
+          "bytes": 30464,
+          "path": "data-tei/translations/kangyur/translations/090-022_toh578,934-the_dharani_of_the_perfection_of_wisdom_in_one_eight_thousand_lines.xml",
+          "sha256": "0f87906b0701ceb3dd16f3442698261bc89898ca4149aa5ed856e7f61da68176"
+        },
+        {
+          "bytes": 29903,
+          "path": "data-tei/translations/kangyur/translations/090-023_toh579,935-the_dharani_of_the_essence_of_the_six_perfections.xml",
+          "sha256": "4e47c0452e0c01c914ab2fbe92ea39f80a165bb1a2ce9d478345809e218d2a62"
+        },
+        {
+          "bytes": 38464,
+          "path": "data-tei/translations/kangyur/translations/090-024_toh580,936-the_dharani_for_retaining_the_six_perfections.xml",
+          "sha256": "197ce9025fe5eac2cc20250993d0cf247abec47ee42559ca1bf191d8110d5ceb"
+        },
+        {
+          "bytes": 23862,
+          "path": "data-tei/translations/kangyur/translations/090-025_toh581,937-the_dharani_for_obtaining_the_ten_perfections.xml",
+          "sha256": "8e583f4a1b0d8c550b75098db6bf473f679635a2233420e05546041cdf132553"
+        },
+        {
+          "bytes": 25859,
+          "path": "data-tei/translations/kangyur/translations/090-027_toh583,939-the_dharani_for_retaining_the_perfection_of_wisdom_in_a_hundred_thousand_lines.xml",
+          "sha256": "63bf35f240b7918dfef12e263044f0f4612d55cf2c809a9ad10cef8af467c7f3"
+        },
+        {
+          "bytes": 23959,
+          "path": "data-tei/translations/kangyur/translations/090-028_toh584,940-the_dharani_for_retaining_the_noble_avatamsaka.xml",
+          "sha256": "6c67d4e86934178cb73b86b77e23a18e2c52d2fb82ecba80bc6be416b9650d96"
+        },
+        {
+          "bytes": 39366,
+          "path": "data-tei/translations/kangyur/translations/090-029_toh585,941-essence_of_the_gandavyuha.xml",
+          "sha256": "17289bb3f287fb27eaa991dedd80483eb58cb08f815557c96b926894c8a44970"
+        },
+        {
+          "bytes": 34895,
+          "path": "data-tei/translations/kangyur/translations/090-030_toh586,942-the_incantation_that_captures_the_samadhirajasutra.xml",
+          "sha256": "a37e5788cda1ed2764bb113b36713def9406775e8164ba991d32ba5ae26b4766"
+        },
+        {
+          "bytes": 30192,
+          "path": "data-tei/translations/kangyur/translations/090-031_toh587,943-essence_of_the_great_peahen.xml",
+          "sha256": "e66173254434ed3c2d67df92952766d0fb00ecf69a27d324b1874e2d7a0a8d5a"
+        },
+        {
+          "bytes": 35809,
+          "path": "data-tei/translations/kangyur/translations/090-032_toh588,944-the_incantation_that_captures_the_great_amulet.xml",
+          "sha256": "2d0c14cc6cbdfad798c52554c933ace514cbaa9e26e5c57e6e06948f57d4ff4a"
+        },
+        {
+          "bytes": 58013,
+          "path": "data-tei/translations/kangyur/translations/090-033_toh589,945-the_incantation_of_the_descent_to_lanka_sutra.xml",
+          "sha256": "8b3660359504ab41f6777941a0f9be2df76e7e7a699af419eb1fc55b4b93d206"
+        },
+        {
+          "bytes": 354901,
+          "path": "data-tei/translations/kangyur/translations/090-034_toh590,985-sitatapatra_born_from_the_usnisa_of_all_tathagatas.xml",
+          "sha256": "0a4645fa0d129e1db79670beae8ea088da93716aa3e9b98d0855dfc5dcdf2aa7"
+        },
+        {
+          "bytes": 298140,
+          "path": "data-tei/translations/kangyur/translations/090-035_toh591-the_supreme_accomplishment_of_invincible_averting_sitatapatra_born_from_the_usnisa_of_the_tathagata.xml",
+          "sha256": "dedccbcd56c097e34a63b44b71546008e844262c6eba1d778a6bcf4ad836927a"
+        },
+        {
+          "bytes": 250735,
+          "path": "data-tei/translations/kangyur/translations/090-036_toh592,986-the_invincible_sitatapatra_1.xml",
+          "sha256": "b8a0450154713eef82633ab7e7ba10ab253c8827d3dc26af53b3cb0cf081ca22"
+        },
+        {
+          "bytes": 271520,
+          "path": "data-tei/translations/kangyur/translations/090-037_toh593-the_invincible_sitatapatra_2.xml",
+          "sha256": "7d8961c90b2a3d6877b0024bc2839eb6651a2529f338d6a2ff1a056294b8013b"
+        },
+        {
+          "bytes": 174807,
+          "path": "data-tei/translations/kangyur/translations/090-038_toh594-the_usnisavijaya_dharani_with_its_ritual_manual.xml",
+          "sha256": "90fdbc741ff871073a5f2a30cf4eec0fabee21e23e194a56cef165d394409eb4"
+        },
+        {
+          "bytes": 132161,
+          "path": "data-tei/translations/kangyur/translations/090-039_toh595-the_usnisavijaya_dharani_with_its_ritual_manual.xml",
+          "sha256": "0a2933a80ddf8292e0f18551626a2151a369be7b9123b92c491171c6ef27920d"
+        },
+        {
+          "bytes": 86409,
+          "path": "data-tei/translations/kangyur/translations/090-040_toh596-the_incantation_and_practice_of_usnisavijaya.xml",
+          "sha256": "e6ada4acc8f644094f4ca238b7c963526acaa779eef158aaaa601bcc53ad305f"
+        },
+        {
+          "bytes": 195719,
+          "path": "data-tei/translations/kangyur/translations/090-041_toh597,984-the_usnisavijaya_dharani.xml",
+          "sha256": "29476df99b2c4b9090155d8150d6f1a0985f861c879b1b1312283105fe7e078f"
+        },
+        {
+          "bytes": 129803,
+          "path": "data-tei/translations/kangyur/translations/090-042_toh598-the_practice_of_the_incantation_of_usnisavijaya.xml",
+          "sha256": "71058bdc05408508c409c4c04cbf495e256ca87ace20adfd2627d5084d853dc2"
+        },
+        {
+          "bytes": 131144,
+          "path": "data-tei/translations/kangyur/translations/090-045_toh601,884-the_incantation_of_the_reliquary.xml",
+          "sha256": "e76a02414fbeb1ed7b5f56a54b81a308268db227940df5e2065de99b57d62513"
+        },
+        {
+          "bytes": 56684,
+          "path": "data-tei/translations/kangyur/translations/091-002_toh605,956-the_dharani_of_vajrabhairava.xml",
+          "sha256": "20a92c0e71f3da6c195649fab01d2e44f1e7fb455bd90bb2324ecee3a0616253"
+        },
+        {
+          "bytes": 63531,
+          "path": "data-tei/translations/kangyur/translations/091-006_toh609,925-the_incantation_that_confers_fearlessness.xml",
+          "sha256": "c2b7648fd507bf4bb6b4042e8cafa773a52a2433341d18fc52e5d5af4a2159da"
+        },
+        {
+          "bytes": 54233,
+          "path": "data-tei/translations/kangyur/translations/091-009_toh612,923-the_dharani_of_the_armlet_atop_the_standard.xml",
+          "sha256": "db637cad09eb999b18ce76cf83ea89854d754f397d9ba050238cc3745a962203"
+        },
+        {
+          "bytes": 67075,
+          "path": "data-tei/translations/kangyur/translations/091-010_toh613,989-the_dharani_of_the_goddess_cunda.xml",
+          "sha256": "c55e7be89f4e83bc68779ba892a5ce32faaa3efc20985060dd9f62cdcc24ecda"
+        },
+        {
+          "bytes": 131935,
+          "path": "data-tei/translations/kangyur/translations/091-036_toh639,879-one-hundred_and_eight_names_of_youthful_manjushri_accompanied_by_his_dharani.xml",
+          "sha256": "7609ee1bf4732eb6381e41d666899db408df5e78823f55ff74b5f896e8be32ec"
+        },
+        {
+          "bytes": 79705,
+          "path": "data-tei/translations/kangyur/translations/091-039_toh642-one_hundred_and_eight_names_of_manjusri.xml",
+          "sha256": "ffb17427b859fef3b66b67f2ff0db5d64902955fd7e6851510178aa167fc5875"
+        },
+        {
+          "bytes": 49897,
+          "path": "data-tei/translations/kangyur/translations/091-040_toh643,890-the_dharani_of_maitreyas_pledge.xml",
+          "sha256": "e9f6b7f8068e0c7b925c291eead5333f055a9b410a433396a57d74715912b319"
+        },
+        {
+          "bytes": 135408,
+          "path": "data-tei/translations/kangyur/translations/091-043_toh646,1080-the_dharani_of_refuge_for_the_preta_flaming_mouth.xml",
+          "sha256": "8114fd547bb40d7d79eec5a7ac109ce13eb6fe2bdfd28e370686f1ffec3adb7a"
+        },
+        {
+          "bytes": 126164,
+          "path": "data-tei/translations/kangyur/translations/091-044_toh647,1079-the_bali_ritual_to_relieve_the_female_preta_burning_mouth.xml",
+          "sha256": "622c562cdb0fc759d7614142ddd0ed176c4d772e32eb2f1c55b38661d5ae5d21"
+        },
+        {
+          "bytes": 124227,
+          "path": "data-tei/translations/kangyur/translations/091-057_toh660,997-the_noble_dharani_the_mother_of_the_grahas.xml",
+          "sha256": "7f9d802c84f67b6b928a426ebc235c0765d11a56d76110dfb14eb6e5bc120a25"
+        },
+        {
+          "bytes": 101909,
+          "path": "data-tei/translations/kangyur/translations/091-058_toh661,998-the_dharani_the_mother_of_the_grahas.xml",
+          "sha256": "c2a93652902877a92ea28c073f77526862320d66ea62cb12c21669a707b2e5b7"
+        },
+        {
+          "bytes": 75589,
+          "path": "data-tei/translations/kangyur/translations/091-062_toh665,1084-ganapatis_heart_mantra.xml",
+          "sha256": "de0a740b3b6943e8e432f6ce66ca04e4eb1841f1b88bce4bd90459fb90f66f6c"
+        },
+        {
+          "bytes": 166984,
+          "path": "data-tei/translations/kangyur/translations/091-063_toh666-the_ganapati_tantra.xml",
+          "sha256": "41629556a99d9476f786ce7bb45173224bd4106d912eded70f0732766d2f253e"
+        },
+        {
+          "bytes": 115800,
+          "path": "data-tei/translations/kangyur/translations/091-064_toh667-the_mahakala_tantra.xml",
+          "sha256": "c60a337cd004cd9eed738f2d665574873193aa1d6b1d770b14428dfad142c1cc"
+        },
+        {
+          "bytes": 52699,
+          "path": "data-tei/translations/kangyur/translations/091-065_toh668,1085-the_dharani_of_mahakala.xml",
+          "sha256": "5730d6c06d869a4e3f46cc8882131df600c3c37c5b49f299a5f361715e6b240e"
+        },
+        {
+          "bytes": 50022,
+          "path": "data-tei/translations/kangyur/translations/091-066_toh669,1086-the_mahakala_dharani_a_cure_for_all_diseases_and_illnesses.xml",
+          "sha256": "110f8caedf66c2d27e3922451fa2cf8c38e57b7724ca1ef44ac4943beb000679"
+        },
+        {
+          "bytes": 47271,
+          "path": "data-tei/translations/kangyur/translations/091-067_toh670,1087-the_dharani_of_devi_mahakali.xml",
+          "sha256": "84a76fcc5e9a8d094cd4065a2420b387badc604f18d4619f59729c97661039ac"
+        },
+        {
+          "bytes": 167897,
+          "path": "data-tei/translations/kangyur/translations/091-068_toh671-the_royal_tantra_praises_to_sridevi_kali.xml",
+          "sha256": "308988aa40d391aedd5d26b3b3c74e7d9e46f493e0954b605a81cab61f25810e"
+        },
+        {
+          "bytes": 168336,
+          "path": "data-tei/translations/kangyur/translations/091-068_toh671-the_sovereign_tantra_praises_to_sridevi_kali.xml",
+          "sha256": "f0836d5457940317a016b94c8dd1ac62a3f077995d310bb893d26056641236ff"
+        },
+        {
+          "bytes": 93401,
+          "path": "data-tei/translations/kangyur/translations/091-069_toh672,1088-sri_kalis_hundred_and_eight_names.xml",
+          "sha256": "92386d52f9b1882e83a734a6c3386e541ba264cc653a78b0c2de359a1360ff23"
+        },
+        {
+          "bytes": 93183,
+          "path": "data-tei/translations/kangyur/translations/091-069_toh672,1088-the_hundred_and_eight_names_of_the_goddess_kali.xml",
+          "sha256": "40d1a2b56713a341afb4b2f03fbcc6aae99c7549dfd7a12097a3e5da26aa0563"
+        },
+        {
+          "bytes": 30742,
+          "path": "data-tei/translations/kangyur/translations/091-071_toh673a-the_essence_of_amitayus.xml",
+          "sha256": "98c6ed9eb65f3f9b91091e4dc17653b940139e51dc742df48273276d7aa10347"
+        },
+        {
+          "bytes": 306189,
+          "path": "data-tei/translations/kangyur/translations/091-072_toh674,849-the_aparimitayurjnana_sutra_1.xml",
+          "sha256": "4d4861e2d16e32939f7562cf804d820685044febc293a5be291c761bb281c4e6"
+        },
+        {
+          "bytes": 293667,
+          "path": "data-tei/translations/kangyur/translations/091-073_toh675-the_aparimitayurjnana_sutra_2.xml",
+          "sha256": "1ce0d0b9f31534d99d08e8e136de28e2fcf08016ba00e37171d3e9598afc70bd"
+        },
+        {
+          "bytes": 87378,
+          "path": "data-tei/translations/kangyur/translations/091-074_toh676,850-dharani_the_essence_of_immeasurable_longevity_and_wisdom.xml",
+          "sha256": "1f5257b12c9b0a428ff9d8d9a895ae916154170fffc078fd05ae00c5ca7a9f01"
+        },
+        {
+          "bytes": 43145,
+          "path": "data-tei/translations/kangyur/translations/091-077_toh679,851-incantation_praising_qualities_of_immeasurable_one.xml",
+          "sha256": "12b70b301a76d6de449e5a5eb66bd5d1f0118458da72861964925f252a915761"
+        },
+        {
+          "bytes": 4714997,
+          "path": "data-tei/translations/kangyur/translations/092-001_toh686-the_sovereign_ritual_of_amoghapasa.xml",
+          "sha256": "709f9304f03a469327ab19477cb04150a628a607e63684c0690640c45a9568d7"
+        },
+        {
+          "bytes": 60761,
+          "path": "data-tei/translations/kangyur/translations/093-017_toh702-the_simhanada_tantra.xml",
+          "sha256": "c4aeedd0f6a63b44663b2b9d2421cf0ed845ec25eca6a3c1ab6c2ff372f8e064"
+        },
+        {
+          "bytes": 150493,
+          "path": "data-tei/translations/kangyur/translations/093-018_toh703-the_dharani_of_avalokitesvara_simhanada.xml",
+          "sha256": "172896e92632c909c6c5410ca6975df0eebff42205623361ff1ce11c84d1cbbf"
+        },
+        {
+          "bytes": 54988,
+          "path": "data-tei/translations/kangyur/translations/093-019_toh704,912-the_dharani_of_simhanada.xml",
+          "sha256": "acf216b54edfd99dc8cf323e1a93bebc89bdbb76abc1622e8f20242880363744"
+        },
+        {
+          "bytes": 79833,
+          "path": "data-tei/translations/kangyur/translations/093-020_toh705,900-the_hundred_and_eight_names_of_avalokitesvara.xml",
+          "sha256": "7f2789b12fe4ca73832536e3567c7ed1c9bde165f38251ee87b51af8e537aed3"
+        },
+        {
+          "bytes": 84672,
+          "path": "data-tei/translations/kangyur/translations/093-020_toh705,900-the_hundred_and_eight_names_of_avalokitesvara_1.xml",
+          "sha256": "879eca159598520a56ff51312795d7e601339a61ec7bcf076b304aeb6ad0b177"
+        },
+        {
+          "bytes": 67956,
+          "path": "data-tei/translations/kangyur/translations/093-021_toh706-the_hundred_and_eight_names_of_avalokitesvara.xml",
+          "sha256": "bd785e2946fd2bd4ab7a9d5113ca3f0bf1070f0945cf093156ad895c85ec18c1"
+        },
+        {
+          "bytes": 73241,
+          "path": "data-tei/translations/kangyur/translations/093-021_toh706-the_hundred_and_eight_names_of_avalokitesvara_2.xml",
+          "sha256": "a32db5196a20882d1c582f5bf93e498624be46e988d990b5dc79368d37a0d76f"
+        },
+        {
+          "bytes": 46140,
+          "path": "data-tei/translations/kangyur/translations/094-002_toh725,909-the_dharani_mother_of_avalokitesvara.xml",
+          "sha256": "e6fec68ac55ee79df8805b446515c85bd9ca256601ca2cad4c500e79e765a063"
+        },
+        {
+          "bytes": 296092,
+          "path": "data-tei/translations/kangyur/translations/094-003_toh726-the_tantra_on_the_origin_of_all_rites_of_tara_mother_of_all_the_tathagatas.xml",
+          "sha256": "16c4d3ec16f85ca95f0b49cb9b4bc2f58a23fbcc1f59408af907e91df9a631b4"
+        },
+        {
+          "bytes": 81730,
+          "path": "data-tei/translations/kangyur/translations/094-005_toh728-the_hundred_and_eight_names_of_the_goddess_tara.xml",
+          "sha256": "b3b46886a389d0fbfec02d53e4b07d4ff99c009df65c87dfb814582a91466577"
+        },
+        {
+          "bytes": 39615,
+          "path": "data-tei/translations/kangyur/translations/094-006_toh729,1001-the_dharani_of_tara.xml",
+          "sha256": "4544ecaaf5d2b4eea28da0b39894e3ea913e581aa80464c659771595e27dc2c7"
+        },
+        {
+          "bytes": 42704,
+          "path": "data-tei/translations/kangyur/translations/094-007_toh730,1002-the_dharani_taras_own_promise.xml",
+          "sha256": "5a3e572564500a20d1f5b6e67e5d34aa15d8e81ae2ecc470337f58efc4e49bf3"
+        },
+        {
+          "bytes": 67194,
+          "path": "data-tei/translations/kangyur/translations/094-008_toh731-the_sutra_of_tara_who_protects_from_the_eight_dangers.xml",
+          "sha256": "c02abe356c4e731e2b98be2d902f95dd503ec2562318f74ec64141b96b7863d0"
+        },
+        {
+          "bytes": 56919,
+          "path": "data-tei/translations/kangyur/translations/094-009_toh732,992-the_yasovati_dharani.xml",
+          "sha256": "7d2a482af5481e077b09f419304eb74485b6c9fb55f46d68d4004f2a6560f97a"
+        },
+        {
+          "bytes": 60575,
+          "path": "data-tei/translations/kangyur/translations/094-013_toh736,995-the_incantation_of_parnasavari.xml",
+          "sha256": "b63c735171686a1f03c9dfd955a6cdc85047ec9cda53577d8d07e29f2cfd373b"
+        },
+        {
+          "bytes": 50235,
+          "path": "data-tei/translations/kangyur/translations/094-015_toh738,1092-in_praise_of_the_glorious_goddess_sarasvati.xml",
+          "sha256": "9e2642ca19b14cf76eed61c2f0191e8bb1b46350f2289f874f70e80d2a8899a9"
+        },
+        {
+          "bytes": 55598,
+          "path": "data-tei/translations/kangyur/translations/094-017_toh740,1005-the_sutra_of_mahasri.xml",
+          "sha256": "52c1fd41dffdf7a9cc7c1a3e16483210984ae02750f221f9d897e36cc0202bff"
+        },
+        {
+          "bytes": 59606,
+          "path": "data-tei/translations/kangyur/translations/094-018_toh741,1006-the_twelve_names_of_the_goddess_sri.xml",
+          "sha256": "e2a5f03fa54716b15336cbc96ef263876537b5d8d26e63ff9c42c5e9668639a9"
+        },
+        {
+          "bytes": 56641,
+          "path": "data-tei/translations/kangyur/translations/094-020_toh743,1009-the_dharani_that_cleanses_all_the_obscurations_of_karma.xml",
+          "sha256": "4680cf97855a20b199912e654e41a8d19e5315e88e6edf96a8d7dd0c387b18fb"
+        },
+        {
+          "bytes": 878869,
+          "path": "data-tei/translations/kangyur/translations/095-002_toh747-the_tantra_of_vajrapani_bhutadamara.xml",
+          "sha256": "86414711f931d4444bae178dd18d18368e8fbf3f4cc9068ae3c1d11151003ec0"
+        },
+        {
+          "bytes": 77207,
+          "path": "data-tei/translations/kangyur/translations/095-005_toh750,949-vajra_conqueror.xml",
+          "sha256": "662fca44d264d3fae001090e45c9b7b6e439960d75ae257a554940bed67c6414"
+        },
+        {
+          "bytes": 62703,
+          "path": "data-tei/translations/kangyur/translations/096-010_toh761-the_dharani_of_the_iron_beak.xml",
+          "sha256": "17e84a9007a2921b38df33ce5f99a91fa5cd422c007c79d17d96e512c47fa7d8"
+        },
+        {
+          "bytes": 62842,
+          "path": "data-tei/translations/kangyur/translations/096-010_toh761-the_incantation_of_lohatunda.xml",
+          "sha256": "a8a5020e1168ffb421b414c43c4f6f24d01a1c7661e74915a1f2d70114269337"
+        },
+        {
+          "bytes": 50802,
+          "path": "data-tei/translations/kangyur/translations/096-011_toh762-the_dharani_of_the_iron_beak_ii.xml",
+          "sha256": "7ee8ab1058d878aa4f2b69c9e305f480c441ad19aed244d99e68b63b91e9bb62"
+        },
+        {
+          "bytes": 50941,
+          "path": "data-tei/translations/kangyur/translations/096-011_toh762-the_incantation_of_lohatunda.xml",
+          "sha256": "276fe83c9810cbc8cdf8b4367abfeb53bed587be834c02f38ae611e95aaa4e18"
+        },
+        {
+          "bytes": 604225,
+          "path": "data-tei/translations/kangyur/translations/096-054_toh805-the_tantra_the_questions_of_subahu.xml",
+          "sha256": "2a2d47800bfa4fa16b16e79efd5c32b1d47436ab0543f063cff3ccbafe32cedc"
+        },
+        {
+          "bytes": 118569,
+          "path": "data-tei/translations/kangyur/translations/096-062_toh813,1098-aspiration_prayer_from_destroyer_of_the_great_trichiliocosm_cf_toh_558.xml",
+          "sha256": "d08e507efb92e8dc6cff21af01af5c9051e9701991bf76975f1d184fe0663352"
+        },
+        {
+          "bytes": 121583,
+          "path": "data-tei/translations/kangyur/translations/100-001_toh846-the_threefold_invocation_ritual.xml",
+          "sha256": "d7cab5b2084f6e6c2825d3d96b98db2e534785f04391c9a83a50e53c8af229f5"
+        },
+        {
+          "bytes": 21286,
+          "path": "data-tei/translations/kangyur/translations/100-002_toh846a-the_threefold_ritual.xml",
+          "sha256": "fdd5f880029fcd3f632c822a9b9db2493350f95acd3610e0a5ba435b0da46abb"
+        },
+        {
+          "bytes": 32567,
+          "path": "data-tei/translations/kangyur/translations/100-018_toh862-the_essential_dharani_of_the_tathagata_bhaisajyaguru.xml",
+          "sha256": "234f8d325f92adaa001db2e9043acf2cee54b0be7199611322c70ecfc861e322"
+        },
+        {
+          "bytes": 39828,
+          "path": "data-tei/translations/kangyur/translations/100-022_toh865-untitled_dharani_of_buddhas_and_bodhisattvas.xml",
+          "sha256": "80d73e388bd41b4f7cab3e09deb983a15bbe78f8049d9a50b404f4d2115c64b6"
+        },
+        {
+          "bytes": 38502,
+          "path": "data-tei/translations/kangyur/translations/100-047_toh891-the_dharani_of_avaranaviskambhin.xml",
+          "sha256": "9f891857e905ba98ad6dfea93ba109297df032232c16e34b0db0c6c3c757d799"
+        },
+        {
+          "bytes": 51292,
+          "path": "data-tei/translations/kangyur/translations/101-008_toh953-the_dharani_of_vajrapani_the_yaksa%20_lord.xml",
+          "sha256": "fadb12af9752b125e67cf49c258955acc7a3d62afb8f8234c8762cecec63ef6b"
+        },
+        {
+          "bytes": 135703,
+          "path": "data-tei/translations/kangyur/translations/101-042_toh987-the_tantra_of_the_play_of_the_goddess_usnisavijaya.xml",
+          "sha256": "19222a0d3cdcc0ace23cd8f839936b0ad6906ff87cb7686a1045df85a9037dca"
+        },
+        {
+          "bytes": 37475,
+          "path": "data-tei/translations/kangyur/translations/101-079_toh1024-the_dharani_that_pacifies_all_suffering.xml",
+          "sha256": "6307bddfbb98efe24308ea244917b375510c12d471451216954e04cd1489f5ff"
+        },
+        {
+          "bytes": 39405,
+          "path": "data-tei/translations/kangyur/translations/101-114_toh1059-mantra_for_enchanting_medicines_extracted_from_destroyer_of_the_great_trichiliocosm.xml",
+          "sha256": "90f831b84e1288af95a651efd8b040c9a375c01c8a66d12440487828360eb959"
+        },
+        {
+          "bytes": 41484,
+          "path": "data-tei/translations/kangyur/translations/101-122_toh1066-the_dharani_of_the_supreme_stem_ornament.xml",
+          "sha256": "3b87d73398d06a637e93068cf657f0338cebbbca9e62e7f2fe60e33755ccf473"
+        },
+        {
+          "bytes": 107125,
+          "path": "data-tei/translations/kangyur/translations/101-146_toh1090,1777-praising_the_lady_who_rules_disease.xml",
+          "sha256": "9d3124bcf72fa7d4828f02bfae536f2f18e559698973886becb34ef718eb0e5e"
+        },
+        {
+          "bytes": 58009,
+          "path": "data-tei/translations/kangyur/translations/101-147_toh1091-in_praise_of_the_goddess_revati.xml",
+          "sha256": "d520b0e7430a15edc2bed34516bfb2c004bed4a9b4b8b9dee2357d45a46bfd15"
+        },
+        {
+          "bytes": 106753,
+          "path": "data-tei/translations/kangyur/translations/101-151_toh1095,4377-the_prayer_offor_good_conduct.xml",
+          "sha256": "fcecb10efd5ad7b2f89cae76bf433cb4bb6cb79afb17facedfa4b0e001051837"
+        },
+        {
+          "bytes": 501781,
+          "path": "data-tei/translations/kangyur/translations/103-004_toh4568-3-the_account_of_how_all_the_scriptures_of_the_victorious_one_extant_today_amidst_the_snow_mountains_were_put_into_print.xml",
+          "sha256": "fc4998c11f69b5562b9d8b872c725e5bf01cc4c857ac40d1b89cbb4f84aa861a"
+        },
+        {
+          "bytes": 3501,
+          "path": "data-tei/translations/tengyur/placeholders/103-001_toh3864-yuktisasthikavrtti.xml",
+          "sha256": "6b2a1e8b41931a9765aa06a2d49006544a78274721fa184611e95dd55809cfcf"
+        },
+        {
+          "bytes": 2696,
+          "path": "data-tei/translations/tengyur/placeholders/103-002_toh3865-bodhisattvayogacaracatuhsatakatika.xml",
+          "sha256": "58508545fb29ebbaf23e1731f8f9a15e6bd04d8d9a2f08a0364a28d9c281067c"
+        },
+        {
+          "bytes": 2398,
+          "path": "data-tei/translations/tengyur/placeholders/103-003_toh3866-pancaskandhaprakarana.xml",
+          "sha256": "3dd7b47aec51c9b0282ed50a7b09c363d25bd7ebc1c12be6cdfc8f7d3cb9d658"
+        },
+        {
+          "bytes": 2468,
+          "path": "data-tei/translations/tengyur/placeholders/103-004_toh3867-sunyatasaptativrtti.xml",
+          "sha256": "18ba28b7c5b08771e5c32314c0edd4edd0ec2d8da36f3b3fc45e67872777f932"
+        },
+        {
+          "bytes": 2505,
+          "path": "data-tei/translations/tengyur/placeholders/103-005_toh3868-sunyatasaptativivrtti.xml",
+          "sha256": "4778e96f9991f8d976a9a1fce37712a151cdc97715eff12dad8e903308c3794d"
+        },
+        {
+          "bytes": 2804,
+          "path": "data-tei/translations/tengyur/placeholders/103-006_toh3869-tarkamudgarakarika.xml",
+          "sha256": "53d0a8d6fc38a3b91c3e0cf180ba9341eb891b40a155e34e270505cb0fa34d32"
+        }
+      ],
+      "files_sha256": "74d8842549751024d9e51bc33ff6fea0771b055345b1224d4a204c160f8af67d",
+      "id": "84000",
+      "license": {
+        "class": "nc",
+        "commercial_use": false,
+        "redistributable": false,
+        "spdx": "CC-BY-NC-ND-3.0"
+      },
+      "name": "84000: Translating the Words of the Buddha",
+      "pin": {
+        "files_sha256": "74d8842549751024d9e51bc33ff6fea0771b055345b1224d4a204c160f8af67d",
+        "type": "content"
+      },
+      "retrieved_at": "2026-08-19T00:16:21.123328Z",
+      "upstream": "https://github.com/84000/data-tei"
+    },
+    {
       "file_count": 2471,
       "files": [
         {

@@ -53,6 +53,12 @@ independent byte count to 69 bytes — volume 1's title page, which belongs to n
 number. What is NOT here yet: work titles and the English translations. Both come from
 84000, whose 396 published Kangyur translations are downloaded and not yet ingested.
 
+**84000's English is attached to the Tibetan** (#21): 30,653 folio-level renderings
+across 472 works, and 478 of the 1,195 Kangyur works now carry titles in English,
+Sanskrit, Tibetan and Wylie. `pramana:derge.D:toh113@51.100a.1-51.100a.7#tr:en/84000` is
+a range anchor, because 84000 cites folios where we cite lines, and it resolves to the
+seven Tibetan lines that folio holds.
+
 **Translations are a pool, not a winner** (#39). 210,756 English renderings by 8
 translators, keyed onto source anchors; 4,601 anchors carry more than one. Callers supply
 a selection policy — prefer a tier, pin a translator, or `compare` for the whole pool —
@@ -614,6 +620,56 @@ catalogue join is for. The dkar chag is loaded as what it is — `tibetan` / `ca
 `certain`. Titles are absent by design: this etext titles volumes, not works, and 84000
 publishes a title for every Toh number in four languages.
 
+### The 84000 join (#21) — 30,653 English folios anchored to Tibetan lines
+
+84000's published Kangyur translations are in, keyed onto the Derge text they translate:
+**30,653 renderings across 472 works**, and **478 of the 1,195 Tibetan works now have
+titles** in English, Sanskrit, Tibetan and Wylie. An anchor reads
+`pramana:derge.D:toh113@51.100a.1-51.100a.7#tr:en/84000`, and it resolves: the English
+"His subtle body is adorned by the thirty-two signs" comes back beside
+`སུམ་ཅུ་རྩ་གཉིས་མཚན་རྣམས་ཀྱིས། །ཕྲ་བའི་སྐུ་ནི་ལེགས་པར་བརྒྱན།`, line for line.
+
+**The anchor is a range because the two editions cite at different grains.** Ours are
+lines, 84000's are folios, so a folio's English renders about seven of our lines and is
+stored against the range of exactly those. Anchoring it to the folio's first line would
+have been a smaller change and a false claim.
+
+Four things this cost, all of them the same lesson — *the file describes its own location
+three times and the three disagree*:
+
+- **`<biblScope>` is prose, `<location>` is arithmetic, and the folio reference in the
+  body is the folio.** For Toh 883 the prose says volume 100, the page arithmetic says
+  folio 122a, and the reference says 123a. Our Derge etext has it at volume 101, folio
+  123a — so the volume comes from `<location>` and the folio from the reference, and
+  nothing is computed. Only checking all three against the Tibetan we already had could
+  have told us that.
+- **A partial match is the dangerous case, not a total mismatch.** 84000 numbers Toh 11's
+  folios from the work's own beginning in its second volume — `F.92.b` where the Degé
+  prints `1a` — and **428 of those 610 numbers exist in that volume of that work**. They
+  anchor. They resolve, they byte-verify, and they attach English to a passage it does
+  not translate. So a volume's spans are accepted or refused **together**, on a 95%
+  threshold: 490 of the 503 volume-groups land completely, and the rest divide sharply
+  into 99.4%/99.6% (84000 citing one folio past the end of ours) and 70%/67%/0%.
+- **One translation can render two places in the canon at once.** A dhāraṇī printed twice
+  in the Kangyur is translated once, with both editions' folio boundaries marked in one
+  interleaved flow — `F.1.b`, `F.123.a`, `F.2.a`, `F.123.b`. Each `<bibl>` gets the whole
+  translation cut at its own boundaries, which is why 385 files produced 478 work-level
+  attachments.
+- **A mirror keeps renamed files.** 11 Tōhoku numbers arrived twice because 84000 renames
+  a file when a translation is revised (`the_gandhavyuha_sutra` → `the_stem_array`), and
+  7 of those pairs differ in the text. The `<edition>` version decides, compared as
+  numbers: `v 1.0.30` is newer than `v 1.0.7` and older than `v 1.1.1`, and string
+  ordering gets both comparisons wrong.
+
+Not stored, and counted rather than guessed at: 3 folio references that fit no location,
+3 folios absent from our text, 7 refused volume groups, and 4 Tōhoku numbers that are
+Tengyur texts this corpus does not hold.
+
+**The gap this leaves:** a rendering is found by asking for its own range URN. A caller
+holding a single line — `@51.100a.3` — will not find the folio rendering that contains
+it, because `Translations.pool/2` matches the anchor exactly. Closing that means a
+containment lookup, which wants the segment ordinals stored alongside the rendering.
+
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 
 The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
@@ -927,6 +983,13 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     edition to 69 bytes out of 290,863,399 — and named the 69 as the one thing dropped on
     purpose. If a fidelity check cannot state the difference exactly and explain it, it is
     not closed.
+30. **A partial match between two editions is more dangerous than none.** 84000 numbers
+    Toh 11's folios from the work's own start in its second volume, and 428 of those 610
+    numbers exist in that volume of that work — so they anchor, resolve, byte-verify, and
+    attach English to a passage it does not translate. A total mismatch is visible; a
+    70% match looks like data quality. Where two numbering systems are being joined,
+    accept or refuse a whole group, and pick the threshold from the measured distribution
+    rather than from taste.
 
 ---
 
@@ -1103,3 +1166,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#40 multi-vector + comparison tools** | **629** | — | an English query reaches a Pāli passage and cites the Pāli | chunk 84 s; embed 43,218 in ~5 min | **342,535 vectors: 300,165 source/lzh, 27,589 source/pli, 14,781 translation/en** |
 | **#19 eval harness** | **651** | **65.3% @10** (zh 98.7 / pa 37.5) | **100%** verify + reject + provenance | evals 200 cases in 12 min | overall **87.0%**, 0 stale |
 | **#21 Derge Kangyur ingest** | **870** | — | verify --source derge green on 1,195 texts; integrity closes to 69 bytes | ingest 4m35s / 103 volumes; verify 75 s | **12,109 texts, 5,647,069 segments; 1,195 Tibetan works, 75 spanning volumes** |
+| **#21 84000 join** | **882** | — | an English folio resolves to the seven Tibetan lines it renders | ingest 36 s / 385 files | **30,653 renderings, 472 works, 478 titled; 7 volume groups refused** |
