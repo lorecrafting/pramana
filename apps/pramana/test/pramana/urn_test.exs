@@ -84,14 +84,42 @@ defmodule Pramana.URNTest do
   end
 
   describe "locator grammars and the hyphen assumption" do
-    # split_range/1 treats "-" as the range separator. That is only safe while no
-    # source's locator grammar uses hyphens internally. If this test ever needs
-    # changing, Pramana.URN.split_range/1 needs a per-namespace dispatch first.
-    test "no in-use locator grammar contains an internal hyphen" do
+    # This test used to assert that no locator grammar contained a hyphen, which made
+    # range splitting unambiguous. **That assumption was already false when it was
+    # written**: SuttaCentral numbers a merged section `53-55.1`, and 749 Pāli segments
+    # are addressed that way. The test passed because its list of grammars was written by
+    # hand and did not include one.
+    test "most grammars have no internal hyphen, and one does" do
       for locator <- ["p0037a13", "F.1.b.1", "1.1", "sec12.p3", "p0783b12"] do
-        refute String.contains?(locator, "-"),
-               "#{locator} contains a hyphen; URN range splitting is now ambiguous"
+        refute String.contains?(locator, "-")
       end
+
+      assert String.contains?("53-55.1", "-")
+    end
+
+    test "a range is built from the locator text, not from parsed halves" do
+      # Parsing first and rejoining produced `mn12@53-53`: `53-55.1` reads as a range from
+      # `53` to `55.1`, so both endpoints collapsed to `53`. 412 chunks were addressed
+      # that way, none of them resolved, and two in one insert violated a unique index.
+      assert URN.range("pramana:sc.ms:mn12@53-55.1", "pramana:sc.ms:mn12@53-55.9") ==
+               "pramana:sc.ms:mn12@53-55.1-53-55.9"
+    end
+
+    test "an unambiguous grammar is unaffected" do
+      assert URN.range("pramana:derge.D:toh113@51.1b.1", "pramana:derge.D:toh113@51.1b.7") ==
+               "pramana:derge.D:toh113@51.1b.1-51.1b.7"
+    end
+
+    test "every division of an ambiguous range is offered, so a resolver can try them" do
+      assert URN.splits("53-55.1-53-55.9") == [
+               {"53", "55.1-53-55.9"},
+               {"53-55.1", "53-55.9"},
+               {"53-55.1-53", "55.9"}
+             ]
+    end
+
+    test "a locator with no hyphen has no division to try" do
+      assert URN.splits("1.1") == []
     end
   end
 

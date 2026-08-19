@@ -175,31 +175,32 @@ defmodule Pramana.Corpus do
   defp range_urn([only]), do: only.urn
 
   defp range_urn(spans) do
-    first = List.first(spans)
-    last = List.last(spans)
-
-    with {:ok, a} <- URN.parse(first.urn),
-         {:ok, b} <- URN.parse(last.urn) do
-      URN.to_string(%{a | locator_end: b.locator})
-    else
-      _ -> first.urn
-    end
+    URN.range(List.first(spans).urn, List.last(spans).urn)
   end
 
   defp clamp(n, lo, hi) when is_integer(n), do: n |> max(lo) |> min(hi)
   defp clamp(_, lo, _hi), do: lo
 
   # A range covers every segment between its endpoints, in reading order.
+  #
+  # Which hyphen separates the endpoints is not always knowable from the string:
+  # SuttaCentral's merged-section ids contain the same character, so
+  # `mn12@53-55.1-53-55.9` divides four ways and only one of them is right. Every division
+  # is tried and the corpus decides — the one whose halves are both real segments of one
+  # text, in order, is the range that was meant. `parse/1`'s division is simply the first
+  # candidate, so the ordinary case costs nothing extra.
   defp fetch_range(%URN{} = urn) do
-    start_urn = URN.to_string(%{urn | locator_end: nil})
-    end_urn = URN.to_string(%{urn | locator: urn.locator_end, locator_end: nil})
+    urn_string = URN.to_string(urn)
 
-    with {:ok, first} <- fetch_segment(start_urn),
-         {:ok, last} <- fetch_segment(end_urn) do
-      between(URN.to_string(urn), first.text_id, first.ordinal, last.ordinal)
-    else
-      _ -> stored_range(URN.to_string(urn))
-    end
+    Enum.find_value(URN.splits("#{urn.locator}-#{urn.locator_end}"), fn {from, to} ->
+      with {:ok, first} <- fetch_segment(URN.to_string(%{urn | locator: from, locator_end: nil})),
+           {:ok, last} <- fetch_segment(URN.to_string(%{urn | locator: to, locator_end: nil})),
+           true <- first.text_id == last.text_id and first.ordinal <= last.ordinal do
+        between(urn_string, first.text_id, first.ordinal, last.ordinal)
+      else
+        _ -> nil
+      end
+    end) || stored_range(urn_string)
   end
 
   # A range URN whose endpoints cannot be split back out of it is still a real address if

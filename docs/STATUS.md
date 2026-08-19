@@ -76,7 +76,8 @@ renderings. An English query can now reach a Pāli passage **through its renderi
 the result still resolves to, and cites, the Pāli; every hit reports `matched_via`, so a
 caller can tell a hit found through English from one found in the original. Chunk size is
 per-script — 300 characters of Literary Chinese, 1,200 of romanised Pāli — because one
-number silently under-chunks the alphabetic corpus.
+number silently under-chunks the alphabetic corpus. (The Pāli figure was later measured
+against the tokenizer and corrected to 700; see #21 below.)
 
 `compare_versions` and `define_from_canon` ship with it: the same passage beside its
 renderings and curated parallels, and the canon's own definitional formulae (云何為X,

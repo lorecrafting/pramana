@@ -295,14 +295,7 @@ defmodule Pramana.Quotations do
     end
   end
 
-  defp join_range(first, last) do
-    with {:ok, a} <- URN.parse(first),
-         {:ok, b} <- URN.parse(last) do
-      URN.to_string(%{a | locator_end: b.locator})
-    else
-      _ -> first
-    end
-  end
+  defp join_range(first, last), do: URN.range(first, last)
 
   # Segments for ONLY the texts a batch touches.
   #

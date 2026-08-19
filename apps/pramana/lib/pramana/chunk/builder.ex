@@ -23,6 +23,7 @@ defmodule Pramana.Chunk.Builder do
   alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Segment
   alias Pramana.Repo
+  alias Pramana.URN
 
   @default_max_chars 300
 
@@ -210,20 +211,5 @@ defmodule Pramana.Chunk.Builder do
   # It does not make the result splittable — `53-55.1-53-55.12` cannot be divided by any
   # rule — which is why `Pramana.Corpus` resolves a range it cannot split by looking the
   # URN up as a stored chunk.
-  defp range_urn(first, last) do
-    case {locator_of(first.urn), locator_of(last.urn)} do
-      {nil, _} -> first.urn
-      {_, nil} -> first.urn
-      {from, to} -> base_of(first.urn) <> "@" <> from <> "-" <> to
-    end
-  end
-
-  defp locator_of(urn) do
-    case String.split(urn, "@", parts: 2) do
-      [_base, locator] -> locator
-      _ -> nil
-    end
-  end
-
-  defp base_of(urn), do: urn |> String.split("@", parts: 2) |> hd()
+  defp range_urn(first, last), do: URN.range(first.urn, last.urn)
 end

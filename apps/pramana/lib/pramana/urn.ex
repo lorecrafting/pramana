@@ -123,6 +123,47 @@ defmodule Pramana.URN do
   def rendering?(%__MODULE__{}), do: true
 
   @doc """
+  A range URN spanning two addresses of the same text.
+
+  Built from the **locator text** of each endpoint rather than from a parsed locator,
+  because parsing loses locators that contain the range separator themselves.
+  SuttaCentral numbers a merged section `53-55.1`; `parse/1` reads that as a range from
+  `53` to `55.1`, so a caller that reassembled the endpoints from parsed halves produced
+  `mn12@53-53` — an address naming a segment that does not exist and colliding with every
+  other chunk in the section. That was the shape of a real defect in three places.
+
+      iex> Pramana.URN.range("pramana:sc.ms:mn12@53-55.1", "pramana:sc.ms:mn12@53-55.9")
+      "pramana:sc.ms:mn12@53-55.1-53-55.9"
+
+  The result is not always splittable back into its endpoints — `53-55.1-53-55.9` divides
+  at four places — which is `Pramana.Corpus`' problem to solve on the way in, not a reason
+  to write a wrong address on the way out.
+  """
+  @spec range(String.t(), String.t()) :: String.t()
+  def range(first_urn, last_urn) when is_binary(first_urn) and is_binary(last_urn) do
+    case {String.split(first_urn, "@", parts: 2), String.split(last_urn, "@", parts: 2)} do
+      {[base, from], [_, to]} -> base <> "@" <> from <> "-" <> to
+      _ -> first_urn
+    end
+  end
+
+  @doc """
+  Every way a range locator could divide into two locators, longest first.
+
+  `53-55.1-53-55.9` is unambiguous to a reader and ambiguous to a parser: four of its
+  hyphens could be the separator. Rather than guess, a resolver tries each division and
+  keeps the one whose halves are both real addresses — the corpus decides, not the string.
+  """
+  @spec splits(String.t()) :: [{String.t(), String.t()}]
+  def splits(locator) when is_binary(locator) do
+    parts = String.split(locator, "-")
+
+    for n <- 1..(length(parts) - 1)//1 do
+      {Enum.take(parts, n) |> Enum.join("-"), Enum.drop(parts, n) |> Enum.join("-")}
+    end
+  end
+
+  @doc """
   The source anchor a rendering URN hangs off — the URN with its fragment removed.
 
   Every rendering reduces to a citable source anchor. That is the whole point of making
