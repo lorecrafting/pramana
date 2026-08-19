@@ -29,30 +29,32 @@ defmodule Mix.Tasks.Pramana.Embed.Import do
   use Mix.Task
 
   alias Pramana.Embed.Transfer
-  alias Pramana.Repo
 
   @switches [in: :string, model: :string, rebuild_index: :boolean]
-
-  @index "chunks_embedding_hnsw_index"
 
   defp maybe_without_index(opts, fun) do
     if opts[:rebuild_index], do: without_index(fun), else: fun.()
   end
 
+  # Delegated to `mix pramana.embed.index` rather than repeating its DDL here.
+  #
+  # This task had its own copy, and #40 moved vectors out of `chunks` into
+  # `chunk_vectors` without updating it — so `--rebuild-index` dropped an index that no
+  # longer existed (a silent no-op, leaving the real one live and the import slow) and
+  # then rebuilt against `chunks.embedding`, a column that had been gone for two phases.
+  # The flag documented as buying 2.3× had been doing the opposite, and nothing said so.
+  #
+  # One place knows the index name, the table, and that the build has to hold
+  # `maintenance_work_mem` on its own connection.
   defp without_index(fun) do
-    Mix.shell().info("dropping #{@index} — semantic search is unindexed until it is rebuilt")
-    Repo.query!("DROP INDEX IF EXISTS #{@index}")
+    Mix.shell().info("dropping the vector index — semantic search is unindexed until rebuilt")
+    Mix.Task.rerun("pramana.embed.index", ["--drop"])
 
     result = fun.()
 
-    Mix.shell().info("rebuilding #{@index} (this takes a few minutes)...")
-    started = System.monotonic_time(:millisecond)
+    Mix.shell().info("rebuilding the vector index (this takes minutes)...")
+    Mix.Task.rerun("pramana.embed.index", [])
 
-    Repo.query!("CREATE INDEX #{@index} ON chunks USING hnsw (embedding vector_ip_ops)", [],
-      timeout: :infinity
-    )
-
-    Mix.shell().info("  rebuilt in #{div(System.monotonic_time(:millisecond) - started, 1000)}s")
     result
   end
 

@@ -159,6 +159,26 @@ The Pāli figure is the weak axis and is published as such. Two things it taught
 (fixed — the running serving now decides), and **over half the Pāli gold cases quote text
 that occurs in several places**, because this literature is formulaic by design.
 
+### What Phase 5 still needs
+
+The Kangyur is in, joined to its English, chunked and embedded. What the phase exit
+("three-way retrieval with correct provenance") still wants:
+
+- **The Tengyur is absent, and nothing says so.** `Pramana.Coverage` states the Taishō
+  56–84 gap because an empty result and an unloaded corpus are indistinguishable from the
+  result alone. The same is now true of Tibetan commentary: this corpus holds the Kangyur
+  (1,195 works) and none of the ~3,600-work Tengyur, so "no Tibetan commentary on this"
+  is a claim the system is not entitled to make. Coverage needs a Tibetan clause.
+- **Only a twentieth of the Kangyur is translated.** 84000 has published 385 of ~1,169
+  Tōhoku numbers; 717 of the 1,195 works here have no title and no English at all. The
+  84000 catalogue covers every Tōhoku number and would title them without inventing
+  anything — a separate acquisition.
+- **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
+  `botok` in the Python sidecar is the intended syllable/particle segmenter
+  (`CLAUDE.md`), and nothing uses it yet.
+- **Mahāvyutpatti** as Skt–Tib–Chi glossary anchors, and **BDRC metadata + IIIF image
+  links** (catalogue only, no OCR), both untouched.
+
 ### Phase 1 gate findings (#13)
 
 The gate did its job — it found more than it confirmed.

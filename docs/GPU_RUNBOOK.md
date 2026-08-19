@@ -69,8 +69,25 @@ against that client with no deprecation warnings.
 bin/pramana-modal volume create pramana-embed
 bin/pramana-modal volume put pramana-embed /tmp/pramana_chunks.jsonl /chunks.jsonl
 
-bin/pramana-modal run priv/embed/modal_embed.py    # streams progress back
+bin/pramana-modal run --detach priv/embed/modal_embed.py   # streams progress back
 
+```
+
+### `--detach`, and why it is not optional
+
+Without it the app is **ephemeral**: it lives only as long as the local client's
+heartbeat, and Modal stops it the moment that connection breaks. Measured 2026-08-18 — a
+19-minute run over a laptop link died at **121,600 of 170,014 chunks** with
+`ConflictError: App state is APP_STATE_STOPPED`, seventeen minutes of GPU time already
+spent.
+
+What made that cheap rather than expensive is that **the job streams its output to the
+volume as it goes**. 1.2 GiB of vectors were sitting there, the last line parsed cleanly,
+and the pipeline is resumable by construction: import what came back, re-export (which
+only ever emits chunks that still need a vector), and run the remainder. The loss was
+about twelve minutes, not a run.
+
+```bash
 bin/pramana-modal volume get pramana-embed /vectors.jsonl /tmp/pramana_vectors.jsonl
 mix pramana.embed.import --in /tmp/pramana_vectors.jsonl
 ```
@@ -112,6 +129,21 @@ Two honest caveats:
   a full-corpus load and loses badly for a small top-up. That is why it is opt-in.
 
 Budget **~40 minutes** for a full-corpus import and run it in the background.
+
+### `--rebuild-index` was broken for two phases
+
+`mix pramana.embed.import --rebuild-index` kept its own copy of the index DDL, and #40
+moved vectors out of `chunks` into `chunk_vectors` without updating it. So it dropped
+`chunks_embedding_hnsw_index` — which had not existed since that migration, a silent
+no-op that left the real index live and the import slow — and then rebuilt against
+`chunks.embedding`, a column that was equally gone. **The flag documented here as buying
+2.3× was buying nothing**, and the only symptom was an import that took as long as it had
+before.
+
+It now delegates to `mix pramana.embed.index`, which is the one place that knows the index
+name, its table, and that the build has to hold `maintenance_work_mem` on its own
+connection. Measured after the fix: **122,688 vectors imported in 1m42s** with the index
+dropped.
 
 ## 1c. The index is built by a task, not by a migration
 
