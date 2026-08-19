@@ -176,9 +176,9 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
   (1,195 works) and none of the ~3,600-work Tengyur, so "no Tibetan commentary on this"
   is a claim the system is not entitled to make. Coverage needs a Tibetan clause.
 - **Only a twentieth of the Kangyur is translated.** 84000 has published 385 of ~1,169
-  Tōhoku numbers; 717 of the 1,195 works here have no title and no English at all. The
-  84000 catalogue covers every Tōhoku number and would title them without inventing
-  anything — a separate acquisition.
+  Tōhoku numbers, so most works have no English. They now all have *titles* — see the
+  catalogue section below — but a title is not a translation, and topical retrieval into
+  Tibetan is 0% because of it.
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
@@ -817,6 +817,62 @@ scripts and keep the wider window, paying for it in GPU time. Untested.
 **Under #44's rule the Tibetan layer stays a default**: it was measured against
 answered-from-any-tradition before shipping, and the drop there (9/11 → 8/11 topics) is
 attributable to the Pāli chunk change, not to Tibetan taking slots.
+
+### The Kangyur has its names (#21) — and the metadata is CC0 where the text is not
+
+**1,189 of 1,195 Kangyur works now carry a title**, up from 478, in English, Sanskrit and
+Tibetan, with a Wylie transliteration and a BDRC identifier. From 84000's RDF export:
+1,254 records covering 1,160 Tōhoku numbers, translated or not.
+
+**The licence is not the one on the repository.** `data-rdf`'s README says CC BY-NC-ND —
+the terms for the translations — while every record's own `adm:license` says `LicenseCC0`
+with the label "Metadata related to the translations by 84000, provided under the CC0
+License". Both are true of different things: the prose of a translation is restricted, the
+fact that Toh 113 is called *Saddharmapuṇḍarīka* is not. Recorded as its own source,
+`84000-rdf`, because it is its own publication — the same rule bilara-data forced, where
+the repository claimed CC0 and the publication file said Public Domain Mark and CC BY-SA.
+**This is the first CC0 content in the corpus.**
+
+**Four descriptions of one text, each holding a different title.** A record describes the
+abstract Indic work, the Tibetan translation, the Degé printing of it, and 84000's
+English — so the Tibetan title is taken from the Degé printing, which is the edition this
+corpus holds, and the Sanskrit from the Indic work. Reading any `skos:prefLabel` with the
+right language tag would have attributed the printing's title to the Sanskrit original,
+and a translator's name — which is also a `prefLabel` — to the sūtra.
+
+A published title is never overwritten: where a translation exists, its own title page is
+the better authority and was already stored, so the catalogue fills only what was empty
+and records which source each title came from.
+
+**The Wylie is computed, and checking it against 84000's own found two bugs.** The RDF
+carries no transliteration, so `Pramana.Readings.Wylie` produces one from the Tibetan and
+it is stored under a separate key — a claim by this code must be distinguishable from a
+claim by the editors. 476 works have both, which makes an independent check possible:
+
+    before   452 / 476 agree   (94.9%)
+    after    454 / 476 agree   (95.4%)
+
+Two real defects, both in constructions that are everywhere in Tibetan:
+
+- **`བའི` came out `b'i`, not `ba'i`.** The rule "an explicit vowel sits on the root" is
+  right for བདེ → `bde` and wrong for an *a-chung* suffix carrying the genitive: the བ
+  keeps its implicit *a* and the འ takes the ི. That is most of the particles in the
+  language — པའི, མའི, པའོ — and it was wrong in every one.
+- **`ཤཱཀྱ` came out `shAkya` only after** recognising that a non-root stack carrying a
+  SUBJOINED letter is a syllable of its own rather than a suffix; a suffix is always a
+  single letter.
+
+The 22 remaining differences are characterised rather than chased: about half are
+genuinely different titles (the catalogue and the translation's title page name the text
+differently, e.g. `spyan ras gzigs yum` against `spyan ras gzigs dbang phyug gi yum`), one
+is 84000 storing Tibetan script in a Wylie field, and the rest are Sanskrit conjunct
+notation (`kul+le` against `kulle`) and the `dags`/`dgas` prefix-root ambiguity, which
+cannot be resolved without a lexicon. Six works stay untitled: five sub-parts of Toh 845
+and one lettered variant, where the etext divides more finely than the catalogue.
+
+Each record also carries the BDRC id of the Degé printing (`MW22084_0113`) — the handle a
+IIIF manifest is addressed by, which is the catalogue half of the Phase 5 BDRC item, with
+no OCR involved.
 
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 

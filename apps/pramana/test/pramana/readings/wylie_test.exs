@@ -119,6 +119,52 @@ defmodule Pramana.Readings.WylieTest do
     end
   end
 
+  describe "the a-chung suffix, which carries a vowel without being the root" do
+    # བའི is the genitive of བ. The འ takes the ི and the བ keeps its implicit *a*, so it
+    # is `ba'i` — and reading "the vowel sits on the root" literally gave `b'i`, which is
+    # wrong for most of the particles in Tibetan.
+    test "the genitive keeps the root's implicit vowel" do
+      assert Wylie.syllable(~c"བའི") == "ba'i"
+      assert Wylie.syllable(~c"པའི") == "pa'i"
+      assert Wylie.syllable(~c"མའི") == "ma'i"
+    end
+
+    test "and so does the agentive" do
+      assert Wylie.syllable(~c"པའོ") == "pa'o"
+    end
+
+    test "but an འ in FIRST position is a root and keeps its vowel" do
+      assert Wylie.syllable(~c"འོད") == "'od"
+      assert Wylie.syllable(~c"འགྲོ") == "'gro"
+    end
+
+    test "a vowel anywhere else still settles the root" do
+      # The rule it narrows is still the rule: བདེ is `bde` because the ེ is on ད.
+      assert Wylie.syllable(~c"བདེ") == "bde"
+    end
+  end
+
+  describe "a subjoined stack that is not the root" do
+    # Measured against 84000's published transliteration of 476 Kangyur titles: 452 agreed
+    # and these were among the differences.
+    test "still takes its own implicit vowel" do
+      # The ཱ puts the root on ཤ, so the ཀྱ after it is a syllable of its own, not a
+      # suffix — a suffix is always a single letter.
+      assert Wylie.syllable(~c"ཤཱཀྱ") == "shAkya"
+    end
+
+    test "a single-letter suffix still does not" do
+      assert Wylie.syllable(~c"གསལ") == "gsal"
+      assert Wylie.syllable(~c"སངས") == "sangs"
+    end
+
+    test "and a subjoined stack that IS the root is unaffected" do
+      assert Wylie.syllable(~c"གྲངས") == "grangs"
+      assert Wylie.syllable(~c"བརྒྱད") == "brgyad"
+      assert Wylie.syllable(~c"བསྒྲུབས") == "bsgrubs"
+    end
+  end
+
   describe "real titles" do
     test "the Prajñāpāramitā" do
       assert Wylie.transliterate("ཤེས་རབ་ཀྱི་ཕ་རོལ་ཏུ་ཕྱིན་པ") == "shes rab kyi pha rol tu phyin pa"

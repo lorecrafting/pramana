@@ -104,6 +104,27 @@ defmodule Pramana.Sources do
             "annotations are the editors' work; the text is not."
       }
     },
+    # 84000 publishes twice over, under two licences, and the distinction is real: the
+    # prose of a translation is restricted, the fact that Toh 113 is called
+    # *Saddharmapuṇḍarīka* is not.
+    "84000-rdf" => %{
+      id: "84000-rdf",
+      name: "84000 catalogue metadata (RDF/LOD export)",
+      upstream_url: "https://github.com/84000/data-rdf",
+      repo: "84000/data-rdf",
+      license: %{
+        spdx: "CC0-1.0",
+        class: "cc0",
+        commercial_use: true,
+        redistributable: true,
+        derivatives: true,
+        notice:
+          "Per each record's own `adm:license` — \"Metadata related to the " <>
+            "translations by 84000, provided under the CC0 License\". The repository " <>
+            "README states CC BY-NC-ND, which governs the translations themselves; the " <>
+            "more specific statement governs here, as it does for bilara-data."
+      }
+    },
     "84000" => %{
       id: "84000",
       name: "84000: Translating the Words of the Buddha",

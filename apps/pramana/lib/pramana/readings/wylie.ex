@@ -220,6 +220,13 @@ defmodule Pramana.Readings.Wylie do
   defp vowel_for(%{text: "a"}, true), do: ""
   defp vowel_for(_stack, true), do: "a"
   defp vowel_for(%{conjunct: true}, false), do: "a"
+  # A non-root stack that carries a SUBJOINED letter is a syllable of its own, not a
+  # suffix: a suffix is always a single letter. ཤཱཀྱ is `shAkya` — the ཱ puts the root on
+  # ཤ, and the ཀྱ that follows still needs its own *a*, where a plain ས there would not.
+  # Measured against 84000's published transliteration of 476 titles, this was one of the
+  # differences; `gsal`, `grangs` and `brgyad` are unaffected because their subjoined
+  # stack IS the root.
+  defp vowel_for(%{subjoined: true}, false), do: "a"
   defp vowel_for(_stack, false), do: ""
 
   # ག before ཡ or ཝ needs a dot AFTER it, because `gya` and `gwa` already mean the
@@ -303,10 +310,17 @@ defmodule Pramana.Readings.Wylie do
     #
     # Failing that, a NATIVE stack is the root: གྲངས is `grangs`, so ག carries the a even
     # though two consonants follow it.
-    Enum.find_index(stacks, &(&1.vowel && not &1.conjunct)) ||
+    # ...but an འ that follows another letter is a SUFFIX carrying that suffix's vowel,
+    # never a root. བའི is the genitive of བ and transliterates `ba'i`: the བ keeps its
+    # implicit *a* and the འ takes the ི. Reading the vowel as proof of roothood gave
+    # `b'i` and did it to every genitive and agentive in the canon — པའི, བའོ, མའི,
+    # ལགས་སོའི — which is most of the particles in Tibetan.
+    Enum.find_index(stacks, &vowel_root?/1) ||
       Enum.find_index(stacks, &(&1.subjoined and not &1.conjunct)) ||
       root_by_position(stacks)
   end
+
+  defp vowel_root?(stack), do: stack.vowel && not stack.conjunct && stack.text != "'"
 
   defp root_by_position([_only]), do: 0
 
