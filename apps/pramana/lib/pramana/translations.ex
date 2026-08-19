@@ -35,6 +35,7 @@ defmodule Pramana.Translations do
   import Ecto.Query
 
   alias Pramana.Corpus
+  alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Translation
   alias Pramana.Repo
   alias Pramana.URN
@@ -132,6 +133,52 @@ defmodule Pramana.Translations do
   end
 
   @doc """
+  Every rendering whose anchor **contains** this span, rather than equalling it.
+
+  A translator does not always work at the grain the source is addressed in. 84000 marks
+  the Degé Kangyur's folios, so its English is anchored to the seven-line range a folio
+  holds — and a caller asking for `@51.100a.3` is asking about a line inside that range.
+  Exact matching answers "no translation" there, which is false.
+
+  Containment is by segment ordinal, recorded on the rendering when it is stored, because
+  the alternative is comparing locators — and a locator grammar belongs to its edition,
+  so `51.100a.3` is only "inside" `51.100a.1-51.100a.7` if you know how Derge folios
+  work. Ordinals are the corpus's own ordering and mean the same thing in every source.
+
+  Renderings found this way carry `covers: :containing_range`, so a caller can tell a
+  translation OF this passage from one that includes it.
+  """
+  @spec covering(String.t(), keyword() | map()) :: [map()]
+  def covering(span_urn, opts \\ []) do
+    policy = policy(opts)
+
+    with {:ok, urn} <- URN.parse(span_urn),
+         {:ok, ordinal} <- ordinal_of(urn) do
+      from(t in Translation,
+        where: t.work_id == ^urn.work and t.lang == ^policy.lang,
+        where: fragment("(? -> 'ordinal_start')::int <= ?", t.meta, ^ordinal),
+        where: fragment("(? -> 'ordinal_end')::int >= ?", t.meta, ^ordinal)
+      )
+      |> apply_filters(policy)
+      |> Repo.all()
+      |> Enum.map(&Map.put(present(&1), :covers, :containing_range))
+      |> sort_by_policy(policy)
+    else
+      _ -> []
+    end
+  end
+
+  # The span's position in its text. A range URN is located by where it starts.
+  defp ordinal_of(%URN{} = urn) do
+    anchor = URN.to_string(%{urn | locator_end: nil, rendering: nil})
+
+    case Repo.one(from s in Segment, where: s.urn == ^anchor, select: s.ordinal) do
+      nil -> :error
+      ordinal -> {:ok, ordinal}
+    end
+  end
+
+  @doc """
   Applies a selection policy to an anchor.
 
   Returns `%{rendering: …, alternatives: n, pool: [...]}`, where `rendering` is nil when
@@ -139,11 +186,21 @@ defmodule Pramana.Translations do
   not chosen: a caller showing one translation of four should be able to say so.
 
   With `mode: :compare` the pool is returned in full and `rendering` is the first.
+
+  When nothing is anchored to exactly this span, renderings whose anchor **contains** it
+  are returned instead — see `covering/2`. That fallback is what makes a folio-anchored
+  translation reachable from a line, and it never silently substitutes: those renderings
+  carry `covers: :containing_range` and their own, wider, `anchor_urn`.
   """
   @spec select(String.t(), keyword() | map()) :: map()
   def select(anchor_urn, opts \\ []) do
     policy = policy(opts)
-    pool = pool(anchor_urn, policy)
+
+    pool =
+      case pool(anchor_urn, policy) do
+        [] -> covering(anchor_urn, policy)
+        exact -> exact
+      end
 
     %{
       anchor_urn: anchor_urn,

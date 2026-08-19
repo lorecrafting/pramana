@@ -665,10 +665,14 @@ Not stored, and counted rather than guessed at: 3 folio references that fit no l
 3 folios absent from our text, 7 refused volume groups, and 4 Tōhoku numbers that are
 Tengyur texts this corpus does not hold.
 
-**The gap this leaves:** a rendering is found by asking for its own range URN. A caller
-holding a single line — `@51.100a.3` — will not find the folio rendering that contains
-it, because `Translations.pool/2` matches the anchor exactly. Closing that means a
-containment lookup, which wants the segment ordinals stored alongside the rendering.
+**A folio-anchored rendering is reachable from a line.** `Translations.covering/2` finds
+renderings whose anchor *contains* a span, and `select/2` falls back to it when nothing
+matches exactly — so asking for `@51.100a.3` returns the folio's English, labelled
+`covers: :containing_range` and carrying its own wider `anchor_urn`. Containment is by
+**segment ordinal**, recorded on the rendering at ingest, because whether `51.100a.3` lies
+inside `51.100a.1-51.100a.7` is a fact about Derge folios while ordinals mean the same
+thing in every source. The exact-match path is unchanged: a Pāli rendering anchored to
+its own segment id still matches exactly and carries no `covers`.
 
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 

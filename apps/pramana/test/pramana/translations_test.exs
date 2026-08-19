@@ -126,6 +126,95 @@ defmodule Pramana.TranslationsTest do
     end
   end
 
+  describe "a rendering anchored to a range that contains the span" do
+    setup do
+      # A second and third line of the same text, so there is something for a folio-wide
+      # rendering to span. This is the Derge shape: the source is addressed by line and
+      # the translation by folio.
+      text = Repo.one!(Text)
+
+      for {ordinal, locator, content} <- [{1, "1.2", "dutiyaṁ"}, {2, "1.3", "tatiyaṁ"}] do
+        Repo.insert!(%Segment{
+          text_id: text.id,
+          urn: "pramana:sc.ms:mn1@#{locator}",
+          ordinal: ordinal,
+          content: content,
+          content_sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+          char_start: 0,
+          char_end: String.length(content),
+          byte_start: 0,
+          byte_end: byte_size(content),
+          meta: %{}
+        })
+      end
+
+      put(%{
+        anchor_urn: "pramana:sc.ms:mn1@1.1-1.3",
+        translator_id: "84000",
+        text: "All three lines, rendered together.",
+        meta: %{"ordinal_start" => 0, "ordinal_end" => 2}
+      })
+
+      :ok
+    end
+
+    test "is not returned by an exact lookup, which is what makes the fallback necessary" do
+      assert Translations.pool("pramana:sc.ms:mn1@1.2") == []
+    end
+
+    test "is found by asking for a line inside it" do
+      [rendering] = Translations.covering("pramana:sc.ms:mn1@1.2")
+
+      assert rendering.translator_id == "84000"
+      assert rendering.text == "All three lines, rendered together."
+    end
+
+    test "says that it covers the span rather than matching it" do
+      # A caller has to be able to tell a translation OF this line from one that includes
+      # it, and the rendering's own anchor says how much wider it is.
+      [rendering] = Translations.covering("pramana:sc.ms:mn1@1.2")
+
+      assert rendering.covers == :containing_range
+      assert rendering.anchor_urn == "pramana:sc.ms:mn1@1.1-1.3"
+    end
+
+    test "select/2 falls back to it only when nothing matches exactly" do
+      put(%{translator_id: "sujato", text: "So I have heard."})
+
+      exact = Translations.select(@anchor)
+      inside = Translations.select("pramana:sc.ms:mn1@1.2")
+
+      assert exact.rendering.translator_id == "sujato"
+      refute Map.has_key?(exact.rendering, :covers)
+      assert inside.rendering.covers == :containing_range
+    end
+
+    test "a line outside the range finds nothing" do
+      Repo.insert!(%Segment{
+        text_id: Repo.one!(Text).id,
+        urn: "pramana:sc.ms:mn1@1.4",
+        ordinal: 3,
+        content: "catutthaṁ",
+        content_sha256: "x",
+        char_start: 0,
+        char_end: 9,
+        byte_start: 0,
+        byte_end: 9,
+        meta: %{}
+      })
+
+      assert Translations.covering("pramana:sc.ms:mn1@1.4") == []
+    end
+
+    test "a span the corpus does not contain finds nothing rather than raising" do
+      assert Translations.covering("pramana:sc.ms:mn1@99.99") == []
+    end
+
+    test "the policy still applies to a covering rendering" do
+      assert Translations.covering("pramana:sc.ms:mn1@1.2", translator: "someone-else") == []
+    end
+  end
+
   describe "selection policy" do
     test "prefers a human rendering over a generated one" do
       put(%{translator_id: "sujato", tier: "t0", method: "human"})

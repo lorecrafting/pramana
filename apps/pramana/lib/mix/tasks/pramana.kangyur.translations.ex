@@ -286,12 +286,16 @@ defmodule Mix.Tasks.Pramana.Kangyur.Translations do
     |> Enum.group_by(fn {volume, page, _ordinal, _urn} -> {volume, page} end)
     |> Map.new(fn {key, rows} ->
       sorted = Enum.sort_by(rows, fn {_v, _p, ordinal, _urn} -> ordinal end)
-      {key, {locator(hd(sorted)), locator(List.last(sorted))}}
+      {key, {edge(hd(sorted)), edge(List.last(sorted))}}
     end)
   end
 
-  defp locator({_volume, _page, _ordinal, urn}) do
-    urn |> String.split("@", parts: 2) |> List.last()
+  # The locator is what a reader cites; the ordinal is what a containment query compares.
+  # `Pramana.Translations.covering/2` needs the second because a locator grammar belongs
+  # to its edition — whether `51.100a.3` lies inside `51.100a.1-51.100a.7` is a fact about
+  # Derge folios, while ordinals order every source the same way.
+  defp edge({_volume, _page, ordinal, urn}) do
+    %{locator: urn |> String.split("@", parts: 2) |> List.last(), ordinal: ordinal}
   end
 
   defp row(span, work_id, {first, last}, parsed, file) do
@@ -317,13 +321,15 @@ defmodule Mix.Tasks.Pramana.Kangyur.Translations do
         "volume" => span.volume,
         "toh" => span.toh,
         "edition" => parsed.edition,
-        "titles" => parsed.titles
+        "titles" => parsed.titles,
+        "ordinal_start" => first.ordinal,
+        "ordinal_end" => last.ordinal
       }
     }
   end
 
-  defp anchor(work_id, locator, locator), do: urn(work_id, locator, nil)
-  defp anchor(work_id, first, last), do: urn(work_id, first, last)
+  defp anchor(work_id, %{locator: locator}, %{locator: locator}), do: urn(work_id, locator, nil)
+  defp anchor(work_id, first, last), do: urn(work_id, first.locator, last.locator)
 
   defp urn(work_id, locator, locator_end) do
     URN.to_string(%URN{
