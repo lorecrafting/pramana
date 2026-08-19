@@ -33,6 +33,13 @@ defmodule Pramana.Coverage do
   @taisho_volumes 1..85
   @japanese_delta 56..84
 
+  # The Tōhoku catalogue numbers the Degé Kangyur 1–1108 and the Degé Tengyur 1109–4569.
+  # The division is not editorial: the Kangyur is what the tradition holds to be the
+  # Buddha's word, the Tengyur is the Indian commentarial literature on it, and a corpus
+  # holding one and not the other is silent about a whole genre rather than about a text.
+  @kangyur_toh 1..1108
+  @tengyur_toh 1109..4569
+
   @doc """
   Which Taishō volumes are in the bake and which are missing.
 
@@ -129,10 +136,71 @@ defmodule Pramana.Coverage do
   """
   @spec caveat() :: String.t() | nil
   def caveat do
+    [taisho_caveat(), tibetan_caveat()]
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      caveats -> Enum.join(caveats, " ")
+    end
+  end
+
+  defp taisho_caveat do
     case taisho() do
       %{japanese_delta_missing: true} -> japanese_caveat()
       _ -> nil
     end
+  end
+
+  @doc """
+  Which part of the Tibetan canon is in the bake.
+
+  The Tōhoku numbers say which: 1–1108 is the Kangyur, 1109–4569 the Tengyur. Holding
+  one and not the other is the same failure the Taishō 56–84 gap is — an absence that
+  reads as the tradition being silent — except that here the missing half is the entire
+  Indian commentarial literature. A caller asking what Vasubandhu says about a sūtra gets
+  nothing, and nothing is not an answer to that question.
+
+  Computed from the works actually loaded, so it stops saying this when the Tengyur lands.
+  """
+  @spec tibetan() :: map()
+  def tibetan do
+    numbers =
+      Repo.all(
+        from t in Text,
+          where: t.source_id == "derge" and fragment("? ~ '^toh[0-9]+'", t.work_id),
+          select: fragment("(regexp_replace(?, '^toh([0-9]+).*$', '\\1'))::int", t.work_id)
+      )
+
+    kangyur = Enum.count(numbers, &(&1 in @kangyur_toh))
+    tengyur = Enum.count(numbers, &(&1 in @tengyur_toh))
+
+    %{
+      kangyur_works: kangyur,
+      tengyur_works: tengyur,
+      tengyur_missing: kangyur > 0 and tengyur == 0,
+      note: tibetan_note(kangyur, tengyur)
+    }
+  end
+
+  defp tibetan_note(0, _tengyur), do: "No Tibetan material is loaded."
+
+  defp tibetan_note(_kangyur, 0), do: tengyur_caveat()
+
+  defp tibetan_note(kangyur, tengyur),
+    do: "#{kangyur} Kangyur and #{tengyur} Tengyur work(s) are loaded."
+
+  defp tibetan_caveat do
+    case tibetan() do
+      %{tengyur_missing: true} -> tengyur_caveat()
+      _ -> nil
+    end
+  end
+
+  defp tengyur_caveat do
+    "The Degé Tengyur (Tōhoku 1109–4569) is NOT loaded — only the Kangyur. The Tengyur " <>
+      "is the Indian commentarial literature, so an absence of Tibetan commentary means " <>
+      "that half of the canon is not in this bake; it does NOT mean the commentators " <>
+      "are silent."
   end
 
   defp japanese_delta_missing?(missing) do

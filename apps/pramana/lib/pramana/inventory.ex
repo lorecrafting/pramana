@@ -37,6 +37,7 @@ defmodule Pramana.Inventory do
       # What is NOT here. The provenance breakdown above says the corpus holds no
       # Japanese-composed works, which is true and, without this, badly misleading.
       taisho_coverage: Coverage.taisho(),
+      tibetan_coverage: Coverage.tibetan(),
       note: @note
     }
   end

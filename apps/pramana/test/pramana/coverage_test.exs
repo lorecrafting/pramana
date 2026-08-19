@@ -14,6 +14,7 @@ defmodule Pramana.CoverageTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Coverage
   alias Pramana.Normalize.CBETA
+  alias Pramana.Repo
 
   defp load!(work_id, volume, number) do
     xml = """
@@ -175,6 +176,75 @@ defmodule Pramana.CoverageTest do
 
     test "the caveat names the work numbers a reader would search for" do
       assert Coverage.caveat() =~ "T2185\u2013T2731"
+    end
+  end
+
+  describe "the Tibetan half that is not here" do
+    setup do
+      Repo.insert!(
+        %Pramana.Corpus.Source{
+          id: "derge",
+          name: "Derge",
+          license_spdx: "CC-PDM-1.0",
+          license_class: "public-domain",
+          commercial_use: true,
+          redistributable: true
+        },
+        on_conflict: :nothing
+      )
+
+      Repo.insert!(%Pramana.Corpus.Witness{id: "D", name: "Derge"}, on_conflict: :nothing)
+
+      for id <- ["toh1", "toh113", "toh1108"] do
+        Repo.insert!(%Pramana.Corpus.Work{id: id})
+
+        Repo.insert!(%Pramana.Corpus.Text{
+          work_id: id,
+          source_id: "derge",
+          witness_id: "D",
+          urn_prefix: "pramana:derge.D:" <> id,
+          body: "",
+          body_sha256: "x",
+          meta: %{}
+        })
+      end
+
+      :ok
+    end
+
+    test "the Kangyur is counted and the Tengyur is reported absent" do
+      coverage = Coverage.tibetan()
+
+      assert coverage.kangyur_works == 3
+      assert coverage.tengyur_works == 0
+      assert coverage.tengyur_missing
+    end
+
+    test "the caveat says the commentators are not silent, the corpus is incomplete" do
+      # Tohoku 1109-4569 is the Indian commentarial literature. A question about what
+      # Vasubandhu says returns nothing, and nothing is not an answer to that question.
+      assert Coverage.caveat() =~ "Tengyur"
+      assert Coverage.caveat() =~ "does NOT mean the commentators"
+    end
+
+    test "a Tengyur work stops the claim" do
+      Repo.insert!(%Pramana.Corpus.Work{id: "toh4090"})
+
+      Repo.insert!(%Pramana.Corpus.Text{
+        work_id: "toh4090",
+        source_id: "derge",
+        witness_id: "D",
+        urn_prefix: "pramana:derge.D:toh4090",
+        body: "",
+        body_sha256: "x",
+        meta: %{}
+      })
+
+      coverage = Coverage.tibetan()
+
+      assert coverage.tengyur_works == 1
+      refute coverage.tengyur_missing
+      refute Coverage.caveat() =~ "Tengyur"
     end
   end
 end
