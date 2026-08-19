@@ -23,7 +23,6 @@ defmodule Pramana.Chunk.Builder do
   alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Segment
   alias Pramana.Repo
-  alias Pramana.URN
 
   @default_max_chars 300
 
@@ -33,9 +32,30 @@ defmodule Pramana.Chunk.Builder do
   # silently under-chunks the alphabetic corpus into pieces too small to carry meaning,
   # which is the same defect chunking exists to fix at the segment level.
   #
-  # 1,200 for Pāli is roughly information-equivalent: Pāli segments average 58
-  # characters, so a window holds ~20 of them, against ~16 printed lines for the Taishō.
-  @max_chars_by_source %{"sc" => 1_200}
+  # **These numbers are measured against the tokenizer, not reasoned about.** The embedder
+  # runs BGE-M3 at `max_length=320` with `truncation=True` (`priv/embed/modal_embed.py`),
+  # so a chunk over 320 tokens is embedded from its opening only — the text stays whole in
+  # the database and the *vector* silently describes a prefix. Measured over real chunks
+  # of each script, tokens per chunk at the 95th percentile:
+  #
+  #     script            chars   tok p50   tok p95   over 320
+  #     Literary Chinese    300       277       291       0.0%
+  #     Pāli                700       258       307       0.5%
+  #     Pāli              1,200       461       535      76.2%   <- what this was
+  #     Tibetan           1,200       206       266       0.3%
+  #     Tibetan           1,400       242       309       3.2%
+  #
+  # Pāli at 1,200 was chosen for information-equivalence and got it: those chunks hold
+  # about as much *meaning* as a Chinese one. They also tokenize to 1.5× the window, so
+  # **three quarters of the Pāli vectors described roughly the first two thirds of their
+  # chunk** — a plausible mechanical contributor to Pāli recall@10 sitting at 37.5%
+  # against Chinese at 98.7% (`docs/STATUS.md`, #19).
+  #
+  # So each size is now the largest whose 95th percentile fits the window. Tibetan is
+  # 0.151 tokens per character — the lowest of the three, because the tokenizer handles
+  # Tibetan syllables efficiently — which is why 1,200 characters of it costs a quarter of
+  # what 1,200 characters of Pāli does.
+  @max_chars_by_source %{"sc" => 700, "derge" => 1_200}
 
   @doc """
   Builds and stores chunks for one text, replacing any it already has.
@@ -101,9 +121,18 @@ defmodule Pramana.Chunk.Builder do
   """
   @spec max_chars_for(integer()) :: pos_integer()
   def max_chars_for(text_id) do
-    source_id =
-      Repo.one(from t in Pramana.Corpus.Text, where: t.id == ^text_id, select: t.source_id)
+    Repo.one(from t in Pramana.Corpus.Text, where: t.id == ^text_id, select: t.source_id)
+    |> max_chars_for_source()
+  end
 
+  @doc """
+  The chunk size for a source id.
+
+  Split out from `max_chars_for/1` so the numbers can be checked without a database —
+  they are a claim about the tokenizer, and a claim worth pinning in a test.
+  """
+  @spec max_chars_for_source(String.t() | nil) :: pos_integer()
+  def max_chars_for_source(source_id) do
     Map.get(@max_chars_by_source, source_id, @default_max_chars)
   end
 
@@ -167,12 +196,34 @@ defmodule Pramana.Chunk.Builder do
   # A single-segment chunk keeps the point URN; only a real span becomes a range.
   defp range_urn(first, first), do: first.urn
 
+  # Built from the locator TEXT of each endpoint, not from a parsed locator.
+  #
+  # `URN.parse/1` splits a locator on "-" because that is the range separator, and
+  # SuttaCentral's merged-section ids use the same character internally: `mn12@53-55.1`
+  # parses to locator `53` with `55.1` read as the end of a range that is not there. A
+  # chunk built from those parsed halves came out as `mn12@53-53` — an address that names
+  # a segment which does not exist, is the same for every chunk in that section, and
+  # violated the unique index the moment two of them landed in one insert. 412 chunks in
+  # the corpus are already addressed that way.
+  #
+  # Taking the raw text keeps every chunk URN distinct and truthful about its endpoints.
+  # It does not make the result splittable — `53-55.1-53-55.12` cannot be divided by any
+  # rule — which is why `Pramana.Corpus` resolves a range it cannot split by looking the
+  # URN up as a stored chunk.
   defp range_urn(first, last) do
-    with {:ok, a} <- URN.parse(first.urn),
-         {:ok, b} <- URN.parse(last.urn) do
-      URN.to_string(%{a | locator_end: b.locator})
-    else
-      _ -> first.urn
+    case {locator_of(first.urn), locator_of(last.urn)} do
+      {nil, _} -> first.urn
+      {_, nil} -> first.urn
+      {from, to} -> base_of(first.urn) <> "@" <> from <> "-" <> to
     end
   end
+
+  defp locator_of(urn) do
+    case String.split(urn, "@", parts: 2) do
+      [_base, locator] -> locator
+      _ -> nil
+    end
+  end
+
+  defp base_of(urn), do: urn |> String.split("@", parts: 2) |> hd()
 end

@@ -10,6 +10,7 @@ defmodule Pramana.Corpus do
 
   import Ecto.Query
 
+  alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
   alias Pramana.Provenance
@@ -195,22 +196,44 @@ defmodule Pramana.Corpus do
 
     with {:ok, first} <- fetch_segment(start_urn),
          {:ok, last} <- fetch_segment(end_urn) do
-      segments =
-        Repo.all(
-          from s in Segment,
-            join: t in Text,
-            on: t.id == s.text_id,
-            where:
-              s.text_id == ^first.text_id and
-                s.ordinal >= ^first.ordinal and s.ordinal <= ^last.ordinal,
-            order_by: s.ordinal,
-            preload: [text: {t, [:work, :witness, :source]}]
-        )
+      between(URN.to_string(urn), first.text_id, first.ordinal, last.ordinal)
+    else
+      _ -> stored_range(URN.to_string(urn))
+    end
+  end
 
-      case segments do
-        [] -> {:error, :not_found}
-        list -> {:ok, merge_spans(URN.to_string(urn), list)}
-      end
+  # A range URN whose endpoints cannot be split back out of it is still a real address if
+  # something stored it. SuttaCentral's merged-section ids contain a hyphen — `53-55.1` —
+  # which is the character this grammar uses to join two locators, so a chunk spanning
+  # them has an unambiguous *identity* and an ambiguous *arithmetic*. 412 chunks are in
+  # that position and none of them resolved before this: the endpoints parsed into
+  # locators no segment has, and the answer was `:not_found` with nothing to indicate the
+  # citation was fine and the split was wrong.
+  #
+  # Chunks record the ordinals they span, so identity answers what arithmetic cannot.
+  defp stored_range(urn_string) do
+    case Repo.one(from c in Chunk, where: c.urn == ^urn_string) do
+      nil -> {:error, :not_found}
+      chunk -> between(urn_string, chunk.text_id, chunk.first_ordinal, chunk.last_ordinal)
+    end
+  end
+
+  defp between(urn_string, text_id, first_ordinal, last_ordinal) do
+    segments =
+      Repo.all(
+        from s in Segment,
+          join: t in Text,
+          on: t.id == s.text_id,
+          where:
+            s.text_id == ^text_id and
+              s.ordinal >= ^first_ordinal and s.ordinal <= ^last_ordinal,
+          order_by: s.ordinal,
+          preload: [text: {t, [:work, :witness, :source]}]
+      )
+
+    case segments do
+      [] -> {:error, :not_found}
+      list -> {:ok, merge_spans(urn_string, list)}
     end
   end
 

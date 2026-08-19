@@ -674,6 +674,56 @@ inside `51.100a.1-51.100a.7` is a fact about Derge folios while ordinals mean th
 thing in every source. The exact-match path is unchanged: a Pāli rendering anchored to
 its own segment id still matches exactly and carries no `covers`.
 
+### Chunk sizes are a tokenizer question (#21) — and the Pāli was answering it wrong
+
+Chunking the Tibetan meant choosing a chunk size for it, and the note in the last session
+said to measure rather than guess. Measuring found that **the Pāli size had been wrong
+since #40, and invisibly so**.
+
+The embedder runs BGE-M3 at `max_length=320` with `truncation=True`. A chunk over that is
+embedded **from its opening only**: the text stays whole in the database, the vector
+silently describes a prefix, and every count in the system still agrees. Measured over
+real chunks of each script with the actual tokenizer:
+
+| script | chars | tok p50 | tok p95 | over 320 |
+|---|---|---|---|---|
+| Literary Chinese | 300 | 277 | 291 | 0.0% |
+| Pāli | **1,200** | 461 | 535 | **76.2%** |
+| Pāli | 700 | 258 | 307 | 0.5% |
+| Tibetan | 1,200 | 206 | 266 | 0.3% |
+| Tibetan | 1,400 | 242 | 309 | 3.2% |
+
+**Three quarters of the Pāli vectors described about the first two thirds of their
+chunk.** Pāli recall@10 is 37.5% against Chinese at 98.7% (#19), and this is a plausible
+mechanical contributor — the vectors were built from truncated text while the eval scored
+against the whole. Sizes are now the largest whose 95th percentile fits the window: Pāli
+700, Tibetan 1,200. Tibetan costs 0.151 tokens per character against Pāli's 0.425, which
+is why the same window holds so much more of it.
+
+**Re-chunking the Pāli then hit a defect that had been there all along.** SuttaCentral
+numbers a merged section `53-55.1`, so the hyphen is inside the locator as well as being
+the character this grammar joins two locators with. `URN.parse/1` split it, and the chunk
+builder — which built its range URN from *parsed* locators — emitted `mn12@53-53`: an
+address naming a segment that does not exist, identical for every chunk in the section,
+and a unique-index violation the moment two landed in one insert. **412 chunks in the
+corpus were addressed that way and none of them resolved.** Range URNs are now built from
+the raw locator text, and `Pramana.Corpus` resolves a range it cannot split by looking the
+URN up as a stored chunk — identity answering what arithmetic cannot.
+
+Two more things the re-chunk forced:
+
+- **`mix pramana.chunk --source`.** `--force` discards the vectors of every text it
+  touches, and the corpus holds 299,317 Chinese vectors that cost GPU time. "Re-chunk the
+  Pāli" must be sayable without putting those in the blast radius; narrowing a destructive
+  operation is not a convenience. (Found the hard way: a `--force` run without it had
+  already discarded 527 Pāli vectors before failing.)
+- **Translation vectors could not see a range-anchored rendering.** The builder joined
+  `translations.anchor_urn` to `segments.urn` by equality, and all 30,653 84000 renderings
+  are anchored to folio ranges — so Tibetan would have had no English route into it at
+  all. The join now also accepts renderings carrying `ordinal_start`/`ordinal_end`, and
+  coverage is counted over the chunk's own segments so two overlapping folios cannot claim
+  more of it than it has.
+
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 
 The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
@@ -987,7 +1037,13 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     edition to 69 bytes out of 290,863,399 — and named the 69 as the one thing dropped on
     purpose. If a fidelity check cannot state the difference exactly and explain it, it is
     not closed.
-30. **A partial match between two editions is more dangerous than none.** 84000 numbers
+30. **A chunk size is a claim about a tokenizer, and an untested one fails silently.**
+    The embedder truncates at 320 tokens, so a chunk that tokenizes longer is embedded
+    from its opening while its text stays whole — no error, no count out of place, just a
+    vector describing a prefix. 76.2% of Pāli chunks were in that state for two phases.
+    Measure the size against the actual tokenizer, per script, and pin the numbers in a
+    test.
+31. **A partial match between two editions is more dangerous than none.** 84000 numbers
     Toh 11's folios from the work's own start in its second volume, and 428 of those 610
     numbers exist in that volume of that work — so they anchor, resolve, byte-verify, and
     attach English to a passage it does not translate. A total mismatch is visible; a

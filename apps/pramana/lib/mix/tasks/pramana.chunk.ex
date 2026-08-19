@@ -3,12 +3,15 @@ defmodule Mix.Tasks.Pramana.Chunk do
 
   @moduledoc """
   Groups segments into windows sized for their script — 300 characters of Literary
-  Chinese, 1,200 of romanised Pāli — for embedding.
+  Chinese, 700 of romanised Pāli, 1,200 of Tibetan — for embedding. Those sizes are
+  measured against the embedder's tokenizer rather than chosen; see
+  `Pramana.Chunk.Builder`.
 
       mix pramana.chunk                 # whole corpus
       mix pramana.chunk --work T0262
+      mix pramana.chunk --source derge    # one source only
       mix pramana.chunk --max-chars 400
-      mix pramana.chunk --force           # re-chunk even where that discards vectors
+      mix pramana.chunk --source sc --force   # re-chunk, discarding THAT source's vectors
 
   Segments are printed lines (18 characters on average, broken typographically), which
   is the wrong unit to embed. Chunking also cuts the row count roughly 16×, which is
@@ -24,7 +27,7 @@ defmodule Mix.Tasks.Pramana.Chunk do
   alias Pramana.Corpus.Text
   alias Pramana.Repo
 
-  @switches [work: :string, max_chars: :integer, force: :boolean]
+  @switches [work: :string, source: :string, max_chars: :integer, force: :boolean]
 
   @impl Mix.Task
   def run(argv) do
@@ -34,11 +37,7 @@ defmodule Mix.Tasks.Pramana.Chunk do
     # deliberately overrides it. See `Pramana.Chunk.Builder.max_chars_for/1`.
     max_chars = opts[:max_chars]
 
-    texts =
-      case opts[:work] do
-        nil -> Repo.all(from t in Text, select: {t.id, t.work_id}, order_by: t.work_id)
-        work -> Repo.all(from t in Text, where: t.work_id == ^work, select: {t.id, t.work_id})
-      end
+    texts = Repo.all(scope(opts))
 
     if texts == [], do: Mix.raise("nothing to chunk — run mix pramana.bake_all first")
 
@@ -72,6 +71,20 @@ defmodule Mix.Tasks.Pramana.Chunk do
       reduction:        #{Float.round(segments / max(total, 1), 1)}x fewer rows to embed
       avg chunk chars:  #{avg && Float.round(Decimal.to_float(avg), 1)}
     """)
+  end
+
+  # `--source` exists because `--force` does. Re-chunking discards the vectors of every
+  # text it touches, and the corpus holds 299,317 Chinese vectors that cost a GPU hour —
+  # so "re-chunk the Pāli at its corrected size" must be sayable without putting those in
+  # the blast radius. Narrowing a destructive operation is not a convenience.
+  defp scope(opts) do
+    query = from(t in Text, select: {t.id, t.work_id}, order_by: t.work_id)
+
+    query
+    |> then(fn q -> if opts[:work], do: where(q, [t], t.work_id == ^opts[:work]), else: q end)
+    |> then(fn q ->
+      if opts[:source], do: where(q, [t], t.source_id == ^opts[:source]), else: q
+    end)
   end
 
   defp chunk_opts(opts, max_chars) do

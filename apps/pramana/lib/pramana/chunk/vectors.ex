@@ -37,8 +37,11 @@ defmodule Pramana.Chunk.Vectors do
   alias Pramana.Repo
 
   # The language of the text itself, by source. Not a guess: `sc` is the Mahāsaṅgīti Pāli
-  # edition, CBETA and locally-added commentary are Literary Chinese.
-  @lang_by_source %{"sc" => "pli"}
+  # edition, `derge` is the Tibetan Kangyur, CBETA and locally-added commentary are
+  # Literary Chinese. A missing entry here does not fail — it silently labels a vector
+  # with the wrong language, and `Pramana.Retrieval.Semantic` reports `matched_via` from
+  # exactly this field.
+  @lang_by_source %{"sc" => "pli", "derge" => "bo"}
   @default_lang "lzh"
 
   # A translation vector built from a small fraction of a chunk's segments describes a
@@ -106,23 +109,10 @@ defmodule Pramana.Chunk.Vectors do
   end
 
   defp build_translation_rows(text_id, chunks, lang, now) do
-    # One query for the whole text rather than one per chunk: a per-chunk query over
-    # 8,442 works is tens of thousands of round trips for data that arrives in one.
-    renderings =
-      Repo.all(
-        from s in Segment,
-          join: tr in Translation,
-          on: tr.anchor_urn == s.urn,
-          where: s.text_id == ^text_id and tr.lang == ^lang,
-          select: %{
-            ordinal: s.ordinal,
-            translator_id: tr.translator_id,
-            text: tr.text
-          },
-          order_by: s.ordinal
-      )
-
-    by_translator = Enum.group_by(renderings, & &1.translator_id)
+    by_translator =
+      (point_renderings(text_id, lang) ++ range_renderings(text_id, lang))
+      |> Enum.sort_by(& &1.first)
+      |> Enum.group_by(& &1.translator_id)
 
     rows =
       for chunk <- chunks,
@@ -134,14 +124,70 @@ defmodule Pramana.Chunk.Vectors do
     insert(rows)
   end
 
+  # A rendering anchored to a single segment. One query for the whole text rather than one
+  # per chunk: a per-chunk query over 8,442 works is tens of thousands of round trips for
+  # data that arrives in one.
+  defp point_renderings(text_id, lang) do
+    Repo.all(
+      from s in Segment,
+        join: tr in Translation,
+        on: tr.anchor_urn == s.urn,
+        where: s.text_id == ^text_id and tr.lang == ^lang,
+        select: %{
+          first: s.ordinal,
+          last: s.ordinal,
+          translator_id: tr.translator_id,
+          text: tr.text
+        }
+    )
+  end
+
+  # A rendering anchored to a RANGE of segments, which is how a translator who works at a
+  # coarser grain than the edition's citation unit is stored. 84000 marks the Degé
+  # Kangyur's folios while this corpus addresses its lines, so every one of its 30,653
+  # renderings covers about seven segments and matches no segment URN at all — joining on
+  # equality found nothing, and Tibetan would have had no English route into it.
+  #
+  # The span comes from the ordinals recorded on the rendering rather than from parsing
+  # its anchor, for the same reason `Pramana.Translations.covering/2` uses them: a locator
+  # grammar belongs to its edition.
+  defp range_renderings(text_id, lang) do
+    # By `work_id`, which is indexed with `lang`, and not by a prefix match on the anchor:
+    # the anchor form is only known after a scan, and one scan of 241,409 renderings per
+    # text is 8,442 of them for the Pāli alone — ten minutes of doing nothing, since none
+    # of those renderings is range-anchored at all.
+    case Repo.one(from t in Text, where: t.id == ^text_id, select: {t.work_id, t.urn_prefix}) do
+      nil ->
+        []
+
+      {work_id, prefix} ->
+        Repo.all(
+          from tr in Translation,
+            where:
+              tr.work_id == ^work_id and tr.lang == ^lang and
+                fragment("? \\? 'ordinal_start'", tr.meta),
+            select: %{
+              anchor_urn: tr.anchor_urn,
+              first: fragment("(? -> 'ordinal_start')::int", tr.meta),
+              last: fragment("(? -> 'ordinal_end')::int", tr.meta),
+              translator_id: tr.translator_id,
+              text: tr.text
+            }
+        )
+        # Ordinals belong to a text, not to a work, so a work held in two witnesses must
+        # not borrow the other one's positions.
+        |> Enum.filter(&String.starts_with?(&1.anchor_urn, prefix <> "@"))
+    end
+  end
+
   defp translation_row(chunk, translator_id, translations, lang, now) do
     covered =
       translations
-      |> Enum.filter(&(&1.ordinal >= chunk.first and &1.ordinal <= chunk.last))
-      |> Enum.sort_by(& &1.ordinal)
+      |> Enum.filter(&(&1.last >= chunk.first and &1.first <= chunk.last))
+      |> Enum.sort_by(& &1.first)
 
     span = chunk.last - chunk.first + 1
-    coverage = if span > 0, do: length(covered) / span, else: 0.0
+    coverage = if span > 0, do: covered_ordinals(covered, chunk) / span, else: 0.0
 
     if covered == [] or coverage < @min_coverage do
       nil
@@ -159,6 +205,15 @@ defmodule Pramana.Chunk.Vectors do
         updated_at: now
       }
     end
+  end
+
+  # How much of the chunk any rendering speaks for, counted over the chunk's own segments
+  # so that two overlapping folio renderings cannot claim more than the chunk has.
+  defp covered_ordinals(covered, chunk) do
+    covered
+    |> Enum.flat_map(&Enum.to_list(max(&1.first, chunk.first)..min(&1.last, chunk.last)//1))
+    |> Enum.uniq()
+    |> length()
   end
 
   # `on_conflict: :nothing` rather than replace: a row whose content changed needs its
