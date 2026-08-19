@@ -182,8 +182,9 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
-- **Mahāvyutpatti** as Skt–Tib–Chi glossary anchors — untouched. BDRC metadata and IIIF
-  image links are **done**: see the page-image section below.
+- **Mahāvyutpatti** proper is still missing — it is Toh 4346, in the Tengyur. The 84000
+  half of that bullet is **done**: 865 three-way Skt–Tib–Chi anchors, below. BDRC metadata
+  and IIIF image links are **done** too.
 
 ### Phase 1 gate findings (#13)
 
@@ -912,6 +913,47 @@ Also settled here:
   what exists and what it is called. The images stay at BDRC, are linked with attribution,
   and are never redistributed or read.
 
+### The translators' own glossaries (#21) — Skt–Tib–Chi anchors, attested
+
+Phase 5's last bullet asked for Mahāvyutpatti and 84000 glossary entries as Skt–Tib–Chi
+anchors. The 84000 half was already in `raw/`: every translation ships with the
+translator's glossary, and there are **58,820 entries across the published Kangyur**.
+
+**56,382 stored: 41,253 with Sanskrit, 55,807 with Tibetan, 1,105 with Chinese, 41,480
+with a definition — 16,741 distinct Sanskrit terms and 25,524 Tibetan.** Of those, **865
+carry all three languages**: `dharma` / `ཆོས།` / `法`, `bodhisattva` / `བྱང་ཆུབ་སེམས་དཔའ།` /
+`菩薩摩訶薩`, made by the people who did the translating rather than assembled by matching
+strings.
+
+**They work as anchors.** Sampled 60 of the three-way entries against the corpus itself:
+the Chinese term occurs in the Taishō for 59 and the Tibetan in the Kangyur for 60 — **59
+reachable in both canons at once**. The miss was a proper name the Chinese transliterates
+differently, which is the expected shape of the failure.
+
+**Most of the Sanskrit is a reconstruction, and the table says so per term.** 84000 marks
+each form: Tibetan `attestedSource` 23,252, Sanskrit `sourceUnspecified` 22,442, Sanskrit
+`attestedSource` only 575 in the sampled files (2,783 across the whole ingest). `yūpa`
+beside `མཆོད་སྡོང་།` is a scholar's inference about a lost Indic original, not a quotation
+from one, and storing the two identically would flatten that into a claim the edition does
+not make — the same failure `composition_origin` prevents one layer up. `attested_only:
+true` narrows a query to what a witness says, and the attestation is on every row returned
+so a caller who never asks still cannot mistake one for the other.
+
+**2,756 Sanskrit terms are rendered by more than one Tibetan**, and nothing here picks a
+winner. `parivrājaka` appears as `ཀུན་ཏུ་རྒྱུ་བ།`, `ཀུན་དུ་རྒྱུ།` and — in one text —
+transliterated rather than translated, `པ་རི་པ་ར་ཙ་ཀ`. `TermAnchors.renderings/2` returns the
+set with how many texts chose each, which is the refusal `Pramana.Translations` makes about
+whole passages, one word down. It is also Phase 6's translator-divergence measurement
+arriving early and for free.
+
+Stored apart from `glossary_terms` on purpose: that table is a **policy** (376 hand-pinned
+renderings for one Chinese commentary, answering *what should this be called*), this one is
+**evidence** (*what did this translator call it, in this text*). Merging them would put a
+decision and an observation in one row and lose which was which.
+
+**What is still missing:** the Mahāvyutpatti proper. It is Toh 4346 — in the Tengyur, which
+this corpus does not hold — so the imperial lexicon itself waits on that acquisition.
+
 ### The reading dictionary (#24) — the Buddhist readings were already in Unicode
 
 The task was scoped as "a general pinyin library gets Buddhist vocabulary wrong, so build
@@ -1429,3 +1471,4 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#21 Derge Kangyur ingest** | **870** | — | verify --source derge green on 1,195 texts; integrity closes to 69 bytes | ingest 4m35s / 103 volumes; verify 75 s | **12,109 texts, 5,647,069 segments; 1,195 Tibetan works, 75 spanning volumes** |
 | **#21 84000 join** | **882** | — | an English folio resolves to the seven Tibetan lines it renders | ingest 36 s / 385 files | **30,653 renderings, 472 works, 478 titled; 7 volume groups refused** |
 | **#21 Tibetan measured, three ways** | **909** | **retrieval@10 69.3%** (zh 97.1 / pa 55.0 / **bo 35.0**) | **100%** verify + reject + provenance | evals 249 cases in 15 min | overall **79.5%**, 0 stale; topical bo 0% — 95% of the Kangyur has no English layer |
+| **#21 term anchors** | **952** | — | 59 of 60 three-way anchors reachable in both canons | glossary ingest 27 s / 396 files | **56,382 entries, 16,741 Skt / 25,524 Tib terms, 865 three-way; 2,756 divergent** |

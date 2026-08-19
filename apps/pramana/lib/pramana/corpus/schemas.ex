@@ -320,6 +320,47 @@ defmodule Pramana.Corpus.GlossaryTerm do
   end
 end
 
+defmodule Pramana.Corpus.GlossaryEntry do
+  @moduledoc """
+  One term as a named translator glossed it in a named text.
+
+  Evidence, not policy — `Pramana.Corpus.GlossaryTerm` is the other thing, a pinned
+  rendering decision for one commentary. Each language carries its own attestation
+  because most of the Sanskrit here is reconstructed rather than quoted; see the
+  migration.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  alias Pramana.Corpus.Source
+  alias Pramana.Corpus.Work
+
+  schema "glossary_entries" do
+    belongs_to :source, Source, type: :string
+    belongs_to :work, Work, type: :string
+
+    field :gloss_id, :string
+
+    field :english, :string
+    field :english_alternatives, {:array, :string}, default: []
+
+    field :sanskrit, :string
+    field :sanskrit_attestation, :string
+    field :tibetan, :string
+    field :wylie, :string
+    field :tibetan_attestation, :string
+    field :chinese, :string
+    field :chinese_attestation, :string
+    field :pali, :string
+
+    field :definition, :string
+    field :meta, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
 defmodule Pramana.Corpus.TextAnchor do
   @moduledoc """
   A SuttaCentral text id resolved to the Taishō passage it names.

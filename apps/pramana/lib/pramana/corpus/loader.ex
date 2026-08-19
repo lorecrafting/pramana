@@ -55,6 +55,17 @@ defmodule Pramana.Corpus.Loader do
     end)
   end
 
+  @doc """
+  Records a source's licence in the corpus, without loading any text.
+
+  `load/2` does this on the way to storing a text, which is enough while every source
+  arrives as text. The 84000 glossary does not: it is 58,820 rows that reference a source
+  whose translations live in another table entirely, so the licence has to be recordable
+  on its own.
+  """
+  @spec ensure_source!(String.t()) :: Source.t()
+  def ensure_source!(source_id) when is_binary(source_id), do: ensure_source!(source_id, nil)
+
   # A local text's definition comes from its manifest: local sources are open-ended by
   # design and cannot live in the static registry.
   defp ensure_source!(source_id, nil) do
