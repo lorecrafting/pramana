@@ -164,10 +164,15 @@ defmodule Pramana.Coverage do
   """
   @spec tibetan() :: map()
   def tibetan do
+    # Both halves of the edition, because the question is about the canon rather than
+    # about a source id: the Kangyur and Tengyur are published separately and are one
+    # print.
     numbers =
       Repo.all(
         from t in Text,
-          where: t.source_id == "derge" and fragment("? ~ '^toh[0-9]+'", t.work_id),
+          where:
+            t.source_id in ["derge", "derge-tengyur"] and
+              fragment("? ~ '^toh[0-9]+'", t.work_id),
           select: fragment("(regexp_replace(?, '^toh([0-9]+).*$', '\\1'))::int", t.work_id)
       )
 

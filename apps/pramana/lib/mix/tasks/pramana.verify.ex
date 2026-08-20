@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Pramana.Verify do
       mix pramana.verify --all           # check every segment; ~2m30s for the full Taisho
       mix pramana.verify --sample 50     # 50 per text
       mix pramana.verify --source derge  # one source, while iterating on its pipeline
+      mix pramana.verify --source derge-tengyur
 
   `--sample N` is **per text**, not a corpus-wide total, so `--sample 1000` over 2,471
   texts checks about 1.2M segments rather than 1,000. Use `--all` at a phase gate.
@@ -48,6 +49,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   alias Pramana.Normalize.Bilara
   alias Pramana.Normalize.Derge
   alias Pramana.Normalize.Derge.Edition, as: DergeEdition
+  alias Pramana.Normalize.DergeTengyur
   alias Pramana.Normalize.IR
   alias Pramana.Repo
   alias Pramana.Sources
@@ -126,7 +128,9 @@ defmodule Mix.Tasks.Pramana.Verify do
   # check fail on a legitimately added local source.
   defp reproduce(%{source_id: "sc"} = text), do: reproduce_bilara(text)
 
-  defp reproduce(%{source_id: "derge"} = text), do: reproduce_derge(text)
+  defp reproduce(%{source_id: "derge"} = text), do: reproduce_derge(text, Derge)
+
+  defp reproduce(%{source_id: "derge-tengyur"} = text), do: reproduce_derge(text, DergeTengyur)
 
   defp reproduce(text) do
     if Sources.local?(text.source_id) do
@@ -151,21 +155,22 @@ defmodule Mix.Tasks.Pramana.Verify do
   # re-deriving one means re-walking every volume it was drawn from, in printed order.
   # The ingest records all of them for this reason; one path would re-derive a fragment
   # and the comparison would fail without saying why.
-  defp reproduce_derge(%{meta: %{"source_file" => paths}} = text) when is_binary(paths) do
-    with {:ok, volumes} <- read_volumes(String.split(paths, " ", trim: true)) do
-      DergeEdition.reproduce(volumes, text.work_id)
+  defp reproduce_derge(%{meta: %{"source_file" => paths}} = text, normalizer)
+       when is_binary(paths) do
+    with {:ok, volumes} <- read_volumes(String.split(paths, " ", trim: true), normalizer) do
+      DergeEdition.reproduce(volumes, text.work_id, normalizer: normalizer)
     end
   end
 
-  defp reproduce_derge(text), do: {:error, {:no_source_file, text.work_id}}
+  defp reproduce_derge(text, _normalizer), do: {:error, {:no_source_file, text.work_id}}
 
   # The volume number comes from each file's own title page, exactly as it did at ingest.
   # Deriving it from the order of the recorded paths instead would reproduce the text
   # with anchors that agree with themselves and with nothing printed.
-  defp read_volumes(paths) do
+  defp read_volumes(paths, normalizer) do
     paths
     |> Enum.reduce_while({:ok, []}, fn path, {:ok, acc} ->
-      case read_volume(path) do
+      case read_volume(path, normalizer) do
         {:ok, volume} -> {:cont, {:ok, [volume | acc]}}
         error -> {:halt, error}
       end
@@ -176,17 +181,29 @@ defmodule Mix.Tasks.Pramana.Verify do
     end
   end
 
-  defp read_volume(path) do
+  defp read_volume(path, normalizer) do
     case File.read(path) do
-      {:ok, xml} -> named(xml, path)
+      {:ok, source} -> named(source, path, normalizer)
       {:error, reason} -> {:error, {:raw_unreadable, path, reason}}
     end
   end
 
-  defp named(xml, path) do
-    case Derge.volume_number(xml) do
-      {:ok, volume} -> {:ok, {volume, xml}}
+  # Where the volume number lives is a fact about the format. The Kangyur's TEI prints it
+  # on the volume's own title page; the Tengyur's plain text has no header at all and
+  # carries it in the filename — `079_རྒྱུད་འགྲེལ།_ཚུ.txt`. Deriving it from the ORDER of
+  # the recorded paths would reproduce a text whose anchors agree with themselves and with
+  # nothing printed.
+  defp named(source, path, Derge) do
+    case Derge.volume_number(source) do
+      {:ok, volume} -> {:ok, {volume, source}}
       :error -> {:error, {:volume_unnamed, path}}
+    end
+  end
+
+  defp named(source, path, DergeTengyur) do
+    case Regex.run(~r/^(\d+)_/, Path.basename(path)) do
+      [_, number] -> {:ok, {String.to_integer(number), source}}
+      nil -> {:error, {:volume_unnamed, path}}
     end
   end
 

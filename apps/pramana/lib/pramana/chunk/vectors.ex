@@ -41,7 +41,7 @@ defmodule Pramana.Chunk.Vectors do
   # Literary Chinese. A missing entry here does not fail — it silently labels a vector
   # with the wrong language, and `Pramana.Retrieval.Semantic` reports `matched_via` from
   # exactly this field.
-  @lang_by_source %{"sc" => "pli", "derge" => "bo"}
+  @lang_by_source %{"sc" => "pli", "derge" => "bo", "derge-tengyur" => "bo"}
   @default_lang "lzh"
 
   # A translation vector built from a small fraction of a chunk's segments describes a

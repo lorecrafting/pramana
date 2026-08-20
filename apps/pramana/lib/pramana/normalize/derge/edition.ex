@@ -47,7 +47,8 @@ defmodule Pramana.Normalize.Derge.Edition do
           volumes: non_neg_integer(),
           works: non_neg_integer(),
           lines: non_neg_integer(),
-          spanning: non_neg_integer()
+          spanning: non_neg_integer(),
+          empty: non_neg_integer()
         }
 
   @doc """
@@ -66,16 +67,24 @@ defmodule Pramana.Normalize.Derge.Edition do
     * `:catalogue_volumes` — volume numbers to normalize as a single work rather than
       splitting on `toh` markers. Defaults to `[103]`, the *dkar chag*. Which volume that
       is, is a fact about the edition, so it lives with the caller and not in the markup.
+    * `:normalizer` — the module that reads one volume. Defaults to
+      `Pramana.Normalize.Derge`, the Kangyur's TEI; the Tengyur is published as annotated
+      plain text and reads through `Pramana.Normalize.DergeTengyur`. Everything else here
+      — the continuation threading, the spanning works, the empty-volume guard — is about
+      how an EDITION is put together and is the same for both halves of the canon.
   """
   @spec reduce(Enumerable.t(), acc, (IR.t(), acc -> acc), keyword()) ::
           {:ok, acc, stats()} | {:error, term()}
         when acc: term()
   def reduce(volumes, acc, fun, opts \\ []) when is_function(fun, 2) do
     catalogue = Keyword.get(opts, :catalogue_volumes, [103])
-    state = {nil, nil, %{volumes: 0, works: 0, lines: 0, spanning: MapSet.new()}, acc}
+    normalizer = Keyword.get(opts, :normalizer, Derge)
+    state = {nil, nil, %{volumes: 0, works: 0, lines: 0, spanning: MapSet.new(), empty: 0}, acc}
 
     volumes
-    |> Enum.reduce_while(state, fn volume, state -> step(volume, state, fun, catalogue) end)
+    |> Enum.reduce_while(state, fn volume, state ->
+      step(volume, state, fun, {catalogue, normalizer})
+    end)
     |> finish(fun)
   end
 
@@ -160,15 +169,16 @@ defmodule Pramana.Normalize.Derge.Edition do
   volume after it is normalized *as* a continuation, because that is the only reason its
   lines belong to this work at all.
   """
-  @spec reproduce([volume()], String.t()) :: {:ok, IR.t()} | {:error, term()}
-  def reproduce(volumes, work_id) do
+  @spec reproduce([volume()], String.t(), keyword()) :: {:ok, IR.t()} | {:error, term()}
+  def reproduce(volumes, work_id, opts \\ []) do
+    normalizer = Keyword.get(opts, :normalizer, Derge)
     mode = if String.starts_with?(work_id, "dkar-chag-"), do: :catalogue, else: :texts
 
     volumes
     |> Enum.reduce_while({:ok, nil}, fn {volume, source}, {:ok, acc} ->
       opts = [volume: volume, mode: mode, continuing: acc && work_id]
 
-      case Derge.normalize_file(source, opts) do
+      case normalizer.normalize_file(source, opts) do
         {:ok, irs, _returned} -> select(irs, acc, work_id, volume)
         {:error, reason} -> {:halt, {:error, {volume, reason}}}
       end
@@ -261,13 +271,29 @@ defmodule Pramana.Normalize.Derge.Edition do
 
   defp bytes(text), do: byte_size(String.replace(text, ~r/\s/u, ""))
 
-  defp step({volume, source}, state, fun, catalogue) do
-    {continuing, _open, _stats, _acc} = state
+  defp step({volume, source}, state, fun, {catalogue, normalizer}) do
+    {continuing, open, stats, acc} = state
     mode = if volume in catalogue, do: :catalogue, else: :texts
 
     opts = [volume: volume, mode: mode, continuing: threaded(mode, continuing)]
 
-    case Derge.normalize_file(source, opts) do
+    # A volume whose FILE is empty is a fact about the release, not a parse that lost
+    # something: Esukhia ships the Tengyur's catalogue volume as a name with no
+    # transcription. Counted and skipped, while a volume that HAS bytes and yields nothing
+    # still halts — that was the signature of the bug this guard was built for, and an
+    # empty input cannot have that failure.
+    if empty_source?(source) do
+      {:cont, {continuing, open, %{stats | empty: stats.empty + 1}, acc}}
+    else
+      normalize(normalizer, source, opts, {volume, mode}, state, fun)
+    end
+  end
+
+  defp empty_source?(source) when is_binary(source), do: String.trim(source) == ""
+  defp empty_source?(_source), do: false
+
+  defp normalize(normalizer, source, opts, {volume, mode}, state, fun) do
+    case normalizer.normalize_file(source, opts) do
       {:ok, irs, returned} -> advance(irs, {volume, mode, returned}, state, fun)
       {:error, reason} -> {:halt, {:error, {volume, reason}}}
     end

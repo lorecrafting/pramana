@@ -68,7 +68,16 @@ defmodule Mix.Tasks.Pramana.Kangyur.Catalogue do
 
     Mix.shell().info("#{if opts[:dry_run], do: "DRY RUN — ", else: ""}#{length(files)} record(s)")
 
-    works = MapSet.new(Repo.all(from t in Text, where: t.source_id == "derge", select: t.work_id))
+    # Both halves of the edition: 84000's catalogue covers Tengyur numbers too, and 61 of
+    # its records had no work to attach to until the Tengyur was ingested.
+    works =
+      MapSet.new(
+        Repo.all(
+          from t in Text,
+            where: t.source_id in ["derge", "derge-tengyur"],
+            select: t.work_id
+        )
+      )
 
     tally = Enum.reduce(files, empty(), &apply_record(&1, &2, works, opts[:dry_run]))
 
@@ -85,11 +94,15 @@ defmodule Mix.Tasks.Pramana.Kangyur.Catalogue do
     {:ok, record} = path |> File.read!() |> Catalogue84000.parse()
 
     cond do
-      is_nil(record.toh) or not MapSet.member?(works, record.toh) ->
-        %{tally | absent: tally.absent + 1}
-
-      record.titles == %{} ->
+      # 84000 publishes a placeholder for a Tōhoku number it has not catalogued: the file
+      # exists and holds nothing but the licence boilerplate. That is a record with no
+      # content, not a work this corpus is missing, and reporting it as the latter sent me
+      # looking for texts that were already here.
+      is_nil(record.toh) or record.titles == %{} ->
         %{tally | no_title: tally.no_title + 1}
+
+      not MapSet.member?(works, record.toh) ->
+        %{tally | absent: tally.absent + 1}
 
       true ->
         apply_titles(record, tally, dry_run?)
@@ -176,14 +189,15 @@ defmodule Mix.Tasks.Pramana.Kangyur.Catalogue do
   end
 
   defp report(tally, files) do
-    total = Repo.aggregate(from(t in Text, where: t.source_id == "derge"), :count)
+    total =
+      Repo.aggregate(from(t in Text, where: t.source_id in ["derge", "derge-tengyur"]), :count)
 
     titled =
       Repo.aggregate(
         from(t in Text,
           join: w in Work,
           on: w.id == t.work_id,
-          where: t.source_id == "derge" and not is_nil(w.title)
+          where: t.source_id in ["derge", "derge-tengyur"] and not is_nil(w.title)
         ),
         :count
       )
@@ -196,10 +210,10 @@ defmodule Mix.Tasks.Pramana.Kangyur.Catalogue do
       already titled: #{tally.already}   (from the translations' own title pages, left alone)
       wylie computed: #{tally.wylie}
       bdrc linked:    #{tally.bdrc}
-      no work here:   #{tally.absent}   (Tengyur numbers, mostly)
-      no title in it: #{tally.no_title}
+      no work here:   #{tally.absent}
+      empty record:   #{tally.no_title}   (a placeholder for a number 84000 has not catalogued)
 
-      Kangyur works with a title: #{titled}/#{total}
+      Tibetan works with a title: #{titled}/#{total}
       licence:        CC0 — the metadata is redistributable even though the translations are not
     """)
   end

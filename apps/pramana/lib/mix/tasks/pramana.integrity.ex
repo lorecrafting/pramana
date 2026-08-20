@@ -77,6 +77,10 @@ defmodule Mix.Tasks.Pramana.Integrity do
   defp reconcile_derge(totals, _texts, limit) when not is_nil(limit), do: totals
 
   defp reconcile_derge(totals, texts, _limit) do
+    # The byte census is written for the Kangyur's TEI, where an independent counter can
+    # walk `<text>` without knowing anything about folios. The Tengyur's plain text has no
+    # such envelope — its markup IS its text — so it is checked by the per-work
+    # addressability check above and by `mix pramana.verify`, not here.
     if Enum.any?(texts, &(&1.source_id == "derge")) do
       {:ok, volumes} = Edition.volumes_at(@derge_root)
       {:ok, reconciliation} = Edition.reconcile(volumes)
@@ -145,27 +149,11 @@ defmodule Mix.Tasks.Pramana.Integrity do
   # everywhere else — did every line with printed content get an addressable segment —
   # and the question this cannot answer per text, whether the walk dropped anything the
   # edition prints, is answered for the whole edition by `reconcile_derge/3` above.
-  defp check_text(%{source_id: "derge"} = text, totals) do
-    {:ok, ir} = rederive_derge(text)
+  defp check_text(%{source_id: "derge-tengyur"} = text, totals),
+    do: check_derge(text, totals, Pramana.Normalize.DergeTengyur)
 
-    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
-    blank = Enum.count(ir.lines, &blank?/1)
-    printed = length(ir.lines) - blank
-
-    bad =
-      if printed != segments,
-        do: [{text.work_id, :line_unaddressable, printed, segments}],
-        else: []
-
-    %{
-      totals
-      | lb: totals.lb + length(ir.lines),
-        ir_lines: totals.ir_lines + length(ir.lines),
-        segments: totals.segments + segments,
-        blank: totals.blank + blank,
-        bad: totals.bad ++ bad
-    }
-  end
+  defp check_text(%{source_id: "derge"} = text, totals),
+    do: check_derge(text, totals, Pramana.Normalize.Derge)
 
   defp check_text(%{source_id: "local-" <> id} = text, totals) do
     dir = Path.join(["sources", "local", id])
@@ -237,16 +225,51 @@ defmodule Mix.Tasks.Pramana.Integrity do
     }
   end
 
-  defp rederive_derge(text) do
+  defp rederive_derge(text, normalizer) do
     text.meta["source_file"]
     |> String.split(" ", trim: true)
     |> Enum.map(fn path ->
-      xml = File.read!(path)
-      {:ok, volume} = Derge.volume_number(xml)
-      {volume, xml}
+      source = File.read!(path)
+      {volume_of(path, source, normalizer), source}
     end)
     |> Enum.sort_by(&elem(&1, 0))
-    |> Edition.reproduce(text.work_id)
+    |> Edition.reproduce(text.work_id, normalizer: normalizer)
+  end
+
+  # The Kangyur's TEI names its volume on its title page; the Tengyur's plain text names
+  # it in the filename, because that format has no header to put it in. Both are handed
+  # the bytes already read — a work spans up to thirteen volumes and this runs once per
+  # text, so reading each file twice is thousands of redundant reads of 2.5 MB.
+  defp volume_of(path, _source, Pramana.Normalize.DergeTengyur) do
+    [_, number] = Regex.run(~r/^(\d+)_/, Path.basename(path))
+    String.to_integer(number)
+  end
+
+  defp volume_of(_path, source, _normalizer) do
+    {:ok, volume} = Derge.volume_number(source)
+    volume
+  end
+
+  defp check_derge(text, totals, normalizer) do
+    {:ok, ir} = rederive_derge(text, normalizer)
+
+    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    blank = Enum.count(ir.lines, &blank?/1)
+    printed = length(ir.lines) - blank
+
+    bad =
+      if printed != segments,
+        do: [{text.work_id, :line_unaddressable, printed, segments}],
+        else: []
+
+    %{
+      totals
+      | lb: totals.lb + length(ir.lines),
+        ir_lines: totals.ir_lines + length(ir.lines),
+        segments: totals.segments + segments,
+        blank: totals.blank + blank,
+        bad: totals.bad ++ bad
+    }
   end
 
   # A line may be dropped only when NOTHING was printed on it. Text, an interlinear

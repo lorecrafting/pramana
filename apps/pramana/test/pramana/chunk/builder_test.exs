@@ -243,6 +243,9 @@ defmodule Pramana.Chunk.BuilderTest do
       # of each. See the table in `Pramana.Chunk.Builder`.
       assert Builder.max_chars_for_source("sc") == 700
       assert Builder.max_chars_for_source("derge") == 1_200
+      # Both halves of the Degé are the same script; a source missing here silently takes
+      # the Chinese 300, which for Tibetan is a fifth of the window.
+      assert Builder.max_chars_for_source("derge-tengyur") == 1_200
       assert Builder.max_chars_for_source("cbeta") == 300
     end
 

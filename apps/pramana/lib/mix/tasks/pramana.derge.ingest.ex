@@ -4,8 +4,9 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
   @moduledoc """
   Bakes the Derge (sde dge) Kangyur from the Esukhia–Barom etext.
 
-      mix pramana.derge.ingest                  # all 103 volumes
-      mix pramana.derge.ingest --limit 5        # the first five, for iterating
+      mix pramana.derge.ingest                     # the Kangyur, all 103 volumes
+      mix pramana.derge.ingest --collection tengyur  # the other half, 213 volumes
+      mix pramana.derge.ingest --limit 5           # a prefix, for iterating
       mix pramana.derge.ingest --dry-run
 
   Expects the unpacked edition at `raw/derge/UT4CZ5369-200106`, one directory per volume,
@@ -20,6 +21,19 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
   directory names are BDRC image-group ids. They happen to sort correctly. Out-of-order
   volumes would not error — they would mislabel every anchor in the edition — so the run
   refuses to start unless the numbers it read are exactly 1..N with nothing missing.
+
+  ## Two collections, one edition, two provenances
+
+  The Degé print is a Kangyur and a Tengyur, and they are not the same kind of text. The
+  Kangyur is what the tradition holds to be the Buddha's word; the Tengyur is the Indian
+  commentarial literature on it — Nāgārjuna, Vasubandhu, Candrakīrti. Loading the second
+  as `root` would present a treatise as scripture, which is invariant #4 failing at the
+  point of ingest, so the collection decides `text_role` and nothing else does.
+
+  They also arrive in different formats. Esukhia publishes the Kangyur as TEI with work
+  markers and the Tengyur as TEI **without** them — 212 files, not one `unit="text"`
+  milestone between them — so the Tengyur is read from its annotated plain text instead,
+  through `Pramana.Normalize.DergeTengyur`. The walk over volumes is the same for both.
 
   ## Provenance is `probable`, not `certain`
 
@@ -54,44 +68,79 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
   alias Pramana.Segment
   alias Pramana.Sources
 
-  @switches [limit: :integer, dry_run: :boolean, root: :string]
+  @switches [limit: :integer, dry_run: :boolean, root: :string, collection: :string]
 
-  @default_root "raw/derge/UT4CZ5369-200106"
-  @source_id "derge"
   @witness "D"
 
-  # Volume 103 is the dkar chag, the edition's own index. Which volume that is, is a fact
-  # about the edition and not about the markup: eight `toh` markers sit in its running
-  # list of titles, and splitting on them yields works a few words long that collide on
-  # the URN with the real text. Median characters between markers there: 24, against
-  # 7,804 in every other volume.
-  @catalogue_volume 103
+  # What differs between the two halves of the edition, in one place: where the files are,
+  # what reads them, which volume is a catalogue rather than a text, and what kind of text
+  # the collection holds.
+  @collections %{
+    "kangyur" => %{
+      source_id: "derge",
+      root: "raw/derge/UT4CZ5369-200106",
+      normalizer: Pramana.Normalize.Derge,
+      discovery: Pramana.Normalize.Derge.Edition,
+      catalogue_volumes: [103],
+      text_role: "root"
+    },
+    "tengyur" => %{
+      source_id: "derge-tengyur",
+      # Under `raw/<source_id>/` because `Pramana.Acquire.Lockfile.verify/1` resolves every
+      # recorded path against exactly that. Held at `raw/tengyur/` the lock recorded
+      # absolute paths — `Path.relative_to/2` returns the path unchanged when the prefix
+      # does not match — and all 213 entries failed to verify on this machine and could
+      # never have verified on another.
+      root: "raw/derge-tengyur/text",
+      normalizer: Pramana.Normalize.DergeTengyur,
+      discovery: Pramana.Normalize.DergeTengyur,
+      # Empty not because the Tengyur has no dkar chag — volume 213 is exactly that — but
+      # because this release ships it with no bytes, so it needs no exclusion. The
+      # empty-volume path in `Derge.Edition` counts and skips it.
+      catalogue_volumes: [],
+      text_role: "treatise"
+    }
+  }
+
+  # Volume 103 of the Kangyur is the dkar chag, the edition's own index. Which volume that
+  # is, is a fact about the edition and not about the markup: eight `toh` markers sit in
+  # its running list of titles, and splitting on them yields works a few words long that
+  # collide on the URN with the real text. Median characters between markers there: 24,
+  # against 7,804 in every other volume. The Tengyur has no such volume.
 
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
     {opts, _, _} = OptionParser.parse(argv, switches: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
-    volumes = root |> discover() |> limit(opts[:limit])
+    collection = collection(opts[:collection])
+    root = Keyword.get(opts, :root, collection.root)
+    volumes = root |> discover(collection) |> limit(opts[:limit])
 
     Mix.shell().info(
-      "#{if opts[:dry_run], do: "DRY RUN — ", else: ""}#{length(volumes)} volume(s), " <>
-        "#{@catalogue_volume} as catalogue"
+      "#{if opts[:dry_run], do: "DRY RUN — ", else: ""}#{collection.source_id}: " <>
+        "#{length(volumes)} volume(s)"
     )
 
     paths = Map.new(volumes)
 
-    case Edition.reduce(read_lazily(volumes), {0, []}, &store(&1, &2, paths, opts[:dry_run]),
-           catalogue_volumes: [@catalogue_volume]
+    case Edition.reduce(
+           read_lazily(volumes),
+           {0, []},
+           &store(&1, &2, paths, collection, opts[:dry_run]),
+           catalogue_volumes: collection.catalogue_volumes,
+           normalizer: collection.normalizer
          ) do
       {:ok, {segments, failed}, stats} ->
         if opts[:dry_run] do
-          report(stats, segments, failed, nil)
+          report(stats, segments, failed, nil, collection)
         else
-          maybe_lock(root, volumes, opts[:limit])
-          {:ok, bake} = Bake.record(%{"source" => @source_id, "mode" => "derge_ingest"})
-          report(stats, segments, failed, bake)
+          maybe_lock(root, volumes, opts[:limit], collection)
+
+          {:ok, bake} =
+            Bake.record(%{"source" => collection.source_id, "mode" => "derge_ingest"})
+
+          report(stats, segments, failed, bake, collection)
         end
 
       {:error, {:empty_volume, volume}} ->
@@ -109,8 +158,16 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
     Stream.map(volumes, fn {volume, path} -> {volume, File.read!(path)} end)
   end
 
-  defp discover(root) do
-    case Edition.volumes_at(root) do
+  defp collection(nil), do: @collections["kangyur"]
+
+  defp collection(name) do
+    Map.get_lazy(@collections, name, fn ->
+      Mix.raise("unknown collection #{inspect(name)}; expected kangyur or tengyur")
+    end)
+  end
+
+  defp discover(root, collection) do
+    case collection.discovery.volumes_at(root) do
       {:ok, volumes} ->
         volumes
 
@@ -135,23 +192,24 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
   defp limit(volumes, nil), do: volumes
   defp limit(volumes, n), do: Enum.take(volumes, n)
 
-  defp store(ir, {segments, failed}, _paths, true), do: {segments + length(ir.lines), failed}
+  defp store(ir, {segments, failed}, _paths, _collection, true),
+    do: {segments + length(ir.lines), failed}
 
-  defp store(ir, {segments, failed}, paths, _dry_run) do
+  defp store(ir, {segments, failed}, paths, collection, _dry_run) do
     # One malformed work fails its own row, not the run — the same isolation as
     # `pramana.bake_all`. `Loader.load/2` signals failure by raising.
-    {:ok, %{segments: count}} = load(ir, paths)
+    {:ok, %{segments: count}} = load(ir, paths, collection)
     {segments + count, failed}
   rescue
     error -> {segments, [{ir.work_id, Exception.message(error)} | failed]}
   end
 
-  defp load(ir, paths) do
+  defp load(ir, paths, collection) do
     Loader.load(ir,
-      source: @source_id,
+      source: collection.source_id,
       witness: @witness,
       segmenter: Segment.Derge,
-      provenance: provenance(ir),
+      provenance: provenance(ir, collection),
       # The anchor is a position on a printed leaf of one edition — folio, side, line —
       # not a scheme that survives being lifted out of it. That is `edition_page`, the
       # same claim the Taishō makes with page/register/line.
@@ -164,7 +222,7 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
 
   defp relative(path), do: Path.relative_to(path, File.cwd!())
 
-  defp provenance(%{work_id: "dkar-chag-" <> _}) do
+  defp provenance(%{work_id: "dkar-chag-" <> _}, _collection) do
     %{
       composition_origin: "tibetan",
       text_role: "catalogue",
@@ -172,10 +230,13 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
     }
   end
 
-  defp provenance(_ir) do
+  # The collection decides what kind of text this is. A Tengyur treatise loaded as `root`
+  # would present Nagarjuna as the Buddha, which is the mislabelling this project exists
+  # to prevent, arriving at the moment of ingest.
+  defp provenance(_ir, collection) do
     %{
       composition_origin: "indic",
-      text_role: "root",
+      text_role: collection.text_role,
       attribution_confidence: "probable"
     }
   end
@@ -183,19 +244,19 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
   # A `--limit` run must not write a lockfile: the lock is a claim about what the whole
   # source IS, and one describing less than what was ingested is worse than none, because
   # it would verify.
-  defp maybe_lock(root, volumes, nil), do: :ok = lock(root, volumes)
+  defp maybe_lock(root, volumes, nil, collection), do: :ok = lock(root, volumes, collection)
 
-  defp maybe_lock(_root, _volumes, _limit) do
+  defp maybe_lock(_root, _volumes, _limit, _collection) do
     Mix.shell().info("  (--limit run: sources.lock.json left alone)")
   end
 
-  defp lock(root, volumes) do
+  defp lock(root, volumes, collection) do
     # `Lockfile.verify/1` resolves each entry against `raw/<source_id>/`, so the path must
     # be relative to that and to nothing else. Both sides are expanded because the
     # discovered paths are relative to the cwd while `raw_dir/0` is absolute, and
     # `Path.relative_to/2` silently returns the path unchanged when the prefix does not
     # match — which produces a lockfile that looks right and verifies nothing.
-    source_root = Path.expand(Path.join(Lockfile.raw_dir(), @source_id))
+    source_root = Path.expand(Path.join(Lockfile.raw_dir(), collection.source_id))
 
     files =
       Enum.map(volumes, fn {_volume, path} ->
@@ -208,7 +269,7 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
         }
       end)
 
-    {:ok, definition} = Sources.fetch(@source_id)
+    {:ok, definition} = Sources.fetch(collection.source_id)
 
     entry =
       Lockfile.build_entry(definition,
@@ -225,10 +286,10 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
     Lockfile.put_source(entry)
   end
 
-  defp report(stats, segments, failed, bake) do
+  defp report(stats, segments, failed, bake, collection) do
     Mix.shell().info("""
 
-    ingested the Derge Kangyur
+    ingested #{collection.source_id}
       volumes:    #{stats.volumes}
       works:      #{stats.works}#{spanning(stats)}
       lines:      #{stats.lines}

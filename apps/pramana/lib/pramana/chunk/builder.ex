@@ -56,7 +56,10 @@ defmodule Pramana.Chunk.Builder do
   # 0.151 tokens per character — the lowest of the three, because the tokenizer handles
   # Tibetan syllables efficiently — which is why 1,200 characters of it costs a quarter of
   # what 1,200 characters of Pāli does.
-  @max_chars_by_source %{"sc" => 700, "derge" => 1_200}
+  # Both halves of the Degé are the same script and take the same size. A source missing
+  # from this map silently takes the Chinese 300, which for Tibetan is a fifth of the
+  # window and would have under-chunked 891,169 segments without erroring.
+  @max_chars_by_source %{"sc" => 700, "derge" => 1_200, "derge-tengyur" => 1_200}
 
   @doc """
   Builds and stores chunks for one text, replacing any it already has.

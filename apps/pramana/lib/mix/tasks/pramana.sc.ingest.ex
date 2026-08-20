@@ -141,12 +141,21 @@ defmodule Mix.Tasks.Pramana.Sc.Ingest do
   end
 
   defp lock(root, files) do
+    # Relative to `raw/<source_id>/`, which is what `Lockfile.verify/1` resolves against —
+    # NOT to the checkout root. Recorded against `raw/sc/bilara-data` instead, every one of
+    # the 7,288 paths was missing its `bilara-data/` prefix and the entire Pāli provenance
+    # record resolved to nothing, while `verify` and `integrity` stayed green because both
+    # work from paths recorded on the texts rather than from this file. Both sides are
+    # expanded because `Path.relative_to/2` returns the path unchanged when the prefix does
+    # not match, which is a lockfile that looks right and checks nothing.
+    source_root = Path.expand(Path.join(Lockfile.raw_dir(), @source_id))
+
     entries =
       Enum.map(files, fn file ->
         bytes = File.read!(file)
 
         %{
-          path: Path.relative_to(file, root),
+          path: Path.relative_to(Path.expand(file), source_root),
           sha256: Lockfile.sha256(bytes),
           bytes: byte_size(bytes)
         }

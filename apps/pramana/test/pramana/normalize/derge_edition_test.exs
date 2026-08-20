@@ -69,7 +69,7 @@ defmodule Pramana.Normalize.Derge.EditionTest do
     } do
       {:ok, _works, stats} = Edition.works(volumes)
 
-      assert stats == %{volumes: 3, works: 2, lines: 4, spanning: 1}
+      assert stats == %{volumes: 3, works: 2, lines: 4, spanning: 1, empty: 0}
     end
 
     test "each work is emitted exactly once", %{volumes: volumes} do
@@ -167,6 +167,29 @@ defmodule Pramana.Normalize.Derge.EditionTest do
       volumes = [{9, tei(folio("1a", "#{line(1)}#{toh(4)}unrelated"))}]
 
       assert {:error, {:work_absent_from_volume, "toh1", 9}} = Edition.reproduce(volumes, "toh1")
+    end
+  end
+
+  describe "a volume that is empty in the source" do
+    test "is counted and skipped, not treated as a loss" do
+      # Esukhia ships the Tengyur's catalogue volume as a filename with no transcription.
+      # A file with no bytes cannot have lost anything in parsing, which is what the
+      # empty-volume guard is for.
+      volumes = [
+        {1, tei(folio("1b", "#{line(1)}#{toh(1)}text"))},
+        {2, ""}
+      ]
+
+      assert {:ok, works, stats} = Edition.works(volumes)
+      assert stats.empty == 1
+      assert stats.volumes == 1
+      assert [%{work_id: "toh1"}] = works
+    end
+
+    test "but a volume WITH bytes that yields nothing still halts" do
+      volumes = [{2, tei(folio("1a", "#{line(1)}orphaned"))}]
+
+      assert {:error, {:empty_volume, 2}} = Edition.works(volumes)
     end
   end
 

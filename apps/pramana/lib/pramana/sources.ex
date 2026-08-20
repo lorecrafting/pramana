@@ -104,6 +104,24 @@ defmodule Pramana.Sources do
             "annotations are the editors' work; the text is not."
       }
     },
+    "derge-tengyur" => %{
+      id: "derge-tengyur",
+      name: "Digital Derge Tengyur (Esukhia–Barom Theksum Choling)",
+      upstream_url: "https://github.com/Esukhia/derge-tengyur",
+      repo: "Esukhia/derge-tengyur",
+      license: %{
+        spdx: "CC-PDM-1.0",
+        class: "public-domain",
+        commercial_use: true,
+        redistributable: true,
+        derivatives: true,
+        notice:
+          "\"This work is a mechanical reproduction of a Public domain work, and as " <>
+            "such is also in the Public domain\" — the repository's own statement, the " <>
+            "same one the Kangyur carries. The other half of the same edition, kept as " <>
+            "its own source because it is its own publication with its own release."
+      }
+    },
     "bdrc-derge" => %{
       id: "bdrc-derge",
       name: "BDRC scan of the Degé Kangyur (W4CZ5369), image lists only",

@@ -67,6 +67,22 @@ one of them is freely redistributable and the other is not.
   Domain" — the project's own statement. The proofreading annotations are the editors'
   work; the text is not.
 
+**`derge-tengyur` — Digital Derge Tengyur** (`CC-PDM-1.0`, public domain)
+- `https://github.com/Esukhia/derge-tengyur`, plain-text release `deten_vol_txt_v1905`
+  (2019-05), 213 volumes
+- The Indian **commentarial** literature, Tōhoku 1109–4569 — a separate print from the
+  Kangyur with its own editorial hand, which is why it is its own source id rather than
+  another witness of `derge`. It loads with `text_role: "treatise"`; inheriting the
+  Kangyur's `root` would call Vasubandhu the Buddha's word in every citation drawn from it.
+- **Use the plain text, not the TEI.** The official TEI release carries 888,576
+  milestones and every one is `unit="line"` — **zero** `unit="text"`, one `<tei:div>` per
+  file — so nothing in it says which of the 3,380 works a line belongs to. (The Kangyur's
+  TEI has 1,208 of them.) The plain text marks each work inline as `{D1109}`: 3,380
+  markers, 3,380 distinct.
+- The release is pinned at 2019-05 rather than tracking master, which has more editorial
+  annotation (71 vs 70 markers in volume 1). A moving upstream is not a citable edition.
+- Volume 213, the དཀར་ཆག catalogue volume, ships as a filename with **no bytes**.
+
 **`84000` — Translating the Words of the Buddha** (`CC-BY-NC-ND-3.0`)
 - `https://github.com/84000/data-tei` — TEI, plus an API and an RDF metadata export
 - Kangyur/Tengyur **English translations**, Toh numbers, Derge folio references. A

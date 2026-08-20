@@ -53,9 +53,21 @@ independent byte count to 69 bytes — volume 1's title page, which belongs to n
 number. What is NOT here yet: work titles and the English translations. Both come from
 84000, whose 396 published Kangyur translations are downloaded and not yet ingested.
 
-**Semantic search covers three traditions** (#21). 471,844 vectors: 300,165 Literary
-Chinese, 70,160 Tibetan, 44,719 Pāli, 55,135 English renderings and 1,665 parallel
-glosses. The Tibetan has an English layer for the same reason the Pāli does — 84000's
+**The Degé Tengyur is in** (#21): **3,380 works, 891,169 lines** across 213 volumes of
+Indian commentarial literature — Nāgārjuna, Vasubandhu, Dharmakīrti, Candrakīrti — under
+the same anchor grammar as the Kangyur: `pramana:derge-tengyur.D:toh4090@140.26b.1` is
+where Vasubandhu's Abhidharmakośabhāṣya opens, volume 140, folio 26 recto, line 1. The
+corpus is now **15,489 texts and 6,538,238 segments**. Every one of the 3,380 re-derives
+from `raw/` byte-identically. The two canons are separate sources because they are
+separately published prints with different licences and different editorial hands, and
+`Pramana.Coverage.tibetan/0` counts both: the caveat that said the commentators were
+absent is gone, and the only remaining coverage gap is Taishō 56–84.
+
+**Semantic search covers three traditions** (#21). **617,038 vectors, 100% embedded**:
+300,165 Literary Chinese, **215,354 Tibetan**, 44,719 Pāli, 55,135 English renderings and
+1,665 parallel glosses. Tibetan is now the largest non-Chinese layer, and every Tengyur
+vector is labelled `bo` rather than falling through to the `lzh` default.
+The Tibetan has an English layer for the same reason the Pāli does — 84000's
 renderings become `translation/en` vectors on Derge chunks — so an English question can
 reach a Tibetan passage and still cite the Tibetan.
 
@@ -170,11 +182,10 @@ that occurs in several places**, because this literature is formulaic by design.
 The Kangyur is in, joined to its English, chunked and embedded. What the phase exit
 ("three-way retrieval with correct provenance") still wants:
 
-- **The Tengyur is absent, and nothing says so.** `Pramana.Coverage` states the Taishō
-  56–84 gap because an empty result and an unloaded corpus are indistinguishable from the
-  result alone. The same is now true of Tibetan commentary: this corpus holds the Kangyur
-  (1,195 works) and none of the ~3,600-work Tengyur, so "no Tibetan commentary on this"
-  is a claim the system is not entitled to make. Coverage needs a Tibetan clause.
+- **The Tengyur is in** — see below. What it does not have is *titles*: 84000 has
+  catalogued the Kangyur and not the commentaries, so 3,380 of the 3,386 untitled Tibetan
+  works are Tengyur works addressable only by Tōhoku number. The text is citable; the
+  shelf list is not yet readable.
 - **Only a twentieth of the Kangyur is translated.** 84000 has published 385 of ~1,169
   Tōhoku numbers, so most works have no English. They now all have *titles* — see the
   catalogue section below — but a title is not a translation, and topical retrieval into
@@ -182,7 +193,9 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
-- **Mahāvyutpatti** proper is still missing — it is Toh 4346, in the Tengyur. The 84000
+- **Mahāvyutpatti** proper is now loaded as text — Toh 4346, 1,554 lines from volume 204,
+  ingested with the Tengyur — but as an untitled Tengyur work, not a parsed lexicon.
+  The 84000
   half of that bullet is **done**: 865 three-way Skt–Tib–Chi anchors, below. BDRC metadata
   and IIIF image links are **done** too.
 
@@ -1012,6 +1025,102 @@ written as `LIKE '%form%'` per form against the pg_bigm index. It measured **1.3
 each** — because proving a form is *absent* is the expensive case — which is 3.6 hours for
 13,000 forms. One streaming pass over the corpus answers the same question in 2m11s.
 Index-per-item beats a scan only when the items are few.
+
+### The Tengyur (#21) — the release that says nothing about works
+
+The Tengyur has an official TEI release and it is unusable for this. Counted across all
+212 files:
+
+| | line milestones | work milestones |
+|---|---|---|
+| Kangyur TEI | 460,539 | **1,208** (`unit="text"`) |
+| Tengyur TEI | 888,576 | **0** |
+
+Every Tengyur milestone is `unit="line"`, and each file holds exactly **one** `<tei:div>` —
+the whole volume as one undifferentiated block. The encoding knows where every line break
+falls and nothing at all about where one work ends and the next begins. Its own header says
+it was generated from the plain text by a script; the script did not carry the work markers
+across.
+
+That is not merely incomplete, it is unciteable. A URN here is
+`pramana:<source>.<witness>:<work>@<locator>` and the work is a required component, so a
+line-only encoding yields an address with no building: 891,169 lines of real Tibetan,
+every citation resolving, none of them able to name what it quotes. The plain text carries
+**3,380 `{D…}` markers, 3,380 distinct** — exactly one per work — so that is what
+`Pramana.Normalize.DergeTengyur` reads. Checked before writing a line of the normalizer,
+not after.
+
+Three things the format forced:
+
+- **The volume number is in the filename**, `079_རྒྱུད་འགྲེལ།_ཚུ.txt`, because the plain text
+  has no title page to print it on. `mix pramana.verify` therefore needs a per-format rule
+  for where a volume's number lives: the Kangyur's TEI is asked, the Tengyur's path is
+  parsed. Taking it from the *order* of the recorded paths would have reproduced a text
+  whose anchors agree with themselves and with nothing printed.
+- **What the woodblock prints is what enters the text.** The editors' modern spellings
+  `{མི་,མེ་}`, suggested corrections `(བཟད་,བཟང་)` and Pedurma note marks `#` are all
+  recorded as apparatus beside the printed reading, never in place of it. A normalizer
+  that silently accepted the corrections would produce a text no edition contains, and
+  every citation into it would still resolve — the exact failure mode this project exists
+  to prevent.
+- **Volume 213 is 0 bytes.** It is the དཀར་ཆག, the catalogue volume, published empty in
+  this release. The walk halted on it, correctly: a volume that yields no works is how a
+  broken normalizer looks. The fix distinguishes an empty *file* (counted as `empty`,
+  skipped) from a volume with bytes that yields nothing (still halts). Making the walk
+  tolerant of both would have hidden the failure it was written to catch.
+
+**The lockfile verified nothing, and said it was fine.** All 213 Tengyur entries recorded
+absolute paths on one machine — `/Users/…/raw/tengyur/text/001_….txt` — so
+`Lockfile.verify("derge-tengyur")` failed on every one of them while the Kangyur's 103
+passed. The ingest code was already right and even carries a comment predicting this:
+`Path.relative_to/2` returns the path **unchanged** when the prefix does not match, "which
+produces a lockfile that looks right and verifies nothing." The cause was the layout.
+`Lockfile.verify/1` resolves each recorded path against `raw/<source_id>/`, and this
+source alone sat at `raw/tengyur/` while its id is `derge-tengyur`, so the prefix never
+matched and every path passed through untouched. Moving the raw to `raw/derge-tengyur/`
+fixes it, but the recorded `source_file` on each text moves with it, so the re-ingest is
+required rather than cosmetic — and it is the re-ingest that proves the point: 3,380
+works and 891,169 segments again, and the 52,371 already-computed vectors re-imported
+with **0 hash mismatches**, which is independent evidence that the chunk content did not
+move when the files did.
+
+The general rule, now that it has cost two runs: a check that resolves paths by convention
+must have the convention enforced where the path is *written*, because the failure mode is
+a green checkmark. Nothing errored. `verify` passed, `integrity` passed, the bake was
+byte-identical — and the provenance record pointed at one laptop.
+
+**And it was not the only one.** The fix prompted a check that runs `Lockfile.verify/1`
+over *every* source rather than the one just touched — now step 3 of the data-integrity
+gate in `docs/CHECKS.md` — and it caught the **Pāli canon failing on all 7,288 files**.
+Different cause, identical consequence: `pramana.sc.ingest` recorded paths relative to the
+checkout root, `raw/sc/bilara-data`, so every path lost its `bilara-data/` prefix and
+resolved to `:enoent`. The provenance record for 8,442 works had verified nothing since
+#38 and nothing said so. Six of the eight sources were clean (`84000` 406, `84000-rdf`
+1254, `bdrc-derge` 103, `cbeta` 2471, `derge` 103, `derge-tengyur` 213); `sat` is
+correctly `:not_locked`, never having been acquired. **Check the sources you did not
+touch** — the defect lives in how a path was written, and it is invisible from the side
+that reads it back on the same machine.
+
+**`integrity` is weaker here than for the Kangyur, and says so.** The Kangyur gets an
+independent byte census: a separate counter walks the TEI `<text>` element and totals
+character data without knowing anything about folios, which is what catches content the
+normalizer drops silently. Plain text has no such envelope — its markup *is* its text — so
+no second, independent count of it exists. The Tengyur is covered by per-work
+addressability and by byte-identical re-derivation instead. Reproducibility and fidelity
+are different questions (`docs/CHECKS.md`), and for this half of the edition the second is
+answered less strongly. Documented rather than papered over.
+
+The Tengyur is loaded as `treatise`, not `root` — provenance is per collection, and
+calling Vasubandhu the Buddha's word by inheriting the Kangyur's text role would be a
+category error the citation would carry forever.
+
+Two per-source settings had to move with it, neither of which fails loudly. Chunk size is
+`1_200` for both halves because they are the same script; a source missing from
+`@max_chars_by_source` takes the **Chinese 300**, a fifth of the window, and would have
+under-chunked 891,169 segments without an error. Language is `"bo"`; a source missing from
+`@lang_by_source` takes the **`lzh` default**, and that field is what `matched_via`
+reports, so every Tibetan vector would have named the wrong language. Both are now
+asserted in tests, because the defect class here is silent correctness, not breakage.
 
 ### The quotation graph (#22) — 141,073 verbatim reuses
 

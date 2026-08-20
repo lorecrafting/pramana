@@ -71,6 +71,21 @@ verified clean. **Reproducibility is not fidelity.**
 Note `--sample N` on `verify` is **per text**, not a corpus-wide total. Use `--all` at
 a gate; it takes ~2m30s for the full Taishō.
 
+**Three checks, in fact.** Neither of the above asks whether the *provenance record*
+still resolves:
+
+```elixir
+for id <- Pramana.Sources.ids(), do: {id, Pramana.Acquire.Lockfile.verify(id)}
+```
+
+`verify` and `integrity` both work from paths recorded at ingest, so both stay green
+when the lockfile itself is wrong. The Tengyur landed with all 213 entries recorded as
+absolute paths on one laptop: `Lockfile.verify/1` failed on every one of them, and
+nothing else noticed, because a bake can be perfectly reproducible from files whose
+recorded location no other checkout can find. Check every source, not the one you just
+touched — the defect is in how a path was *written*, and it is invisible from the side
+that reads it back on the same machine.
+
 ### 4. Evals (from Phase 4 on)
 ```bash
 PRAMANA_EMBEDDING=1 mix pramana.evals --gate
