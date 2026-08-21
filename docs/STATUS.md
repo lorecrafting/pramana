@@ -1184,9 +1184,10 @@ for Tibetan the mistake already documented for Chinese.
 
 Run after the Tengyur landed and after the phantom-line fix (`ccee8c7`):
 
-1. **`mix pramana.verify --source derge-tengyur`** — OK. 3,380 texts, body re-normalized
-   from `raw/` and byte-identical for every one, from the relocated
-   `raw/derge-tengyur/` paths.
+1. **`mix pramana.verify`, whole corpus** — **OK, 15,489 texts, 30,723 segments**, body
+   re-normalized from `raw/` and byte-identical for every one — including the Tengyur from
+   its relocated `raw/derge-tengyur/` paths. A Tengyur-only run at `--sample 5` also
+   passed (3,380 texts, 16,544 segments).
 2. **`mix pramana.integrity`** — **OK, 15,489 texts.**
 
        source anchors:              6,573,295
@@ -1237,6 +1238,13 @@ only surviving caveat is Taishō 56–84.
    embedding clustering; and `topical/chinese` is 0% against `topical/chinese-native` at
    100%, which is the same fact the reranker probe hit as `lzh: no aligned pairs` — an
    English question into Chinese has no English target to land on.
+
+**No English->Chinese Buddhist term source exists in this repo**, checked three ways
+while sizing #12: `glossary_entries` (84000) recovers 2 of 12 gold doctrinal terms and is
+~97% harvested already (1,131 glosses carry Chinese, of 62,192; the database holds 1,105);
+`glossary_terms` is 376 rows of Pure Land bibliography from `local-huang-nianzu-jie` and
+holds 0 of 12; and only 165 of 2,471 Chinese works (6.7%) have a parallel to an
+English-translated Pāli work. That is an acquisition problem, not a code one.
 
 **Run these with the machine to themselves.** Four concurrent jobs exhausted the Postgres
 connection limit during this session and the Tengyur pair took over two hours each under
