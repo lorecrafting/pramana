@@ -182,8 +182,9 @@ that occurs in several places**, because this literature is formulaic by design.
 The Kangyur is in, joined to its English, chunked and embedded. What the phase exit
 ("three-way retrieval with correct provenance") still wants:
 
-- **The Tengyur has 2,675 of its 3,380 titles, read out of the works themselves** — see
-  below. The remaining 705 do not name themselves and are left unnamed. No English titles
+- **The Tengyur has 2,675 of its 3,380 names, read out of the works themselves** — 2,629
+  Tibetan titles and 46 Sanskrit-only; see below. The 705 that do not name themselves are
+  left unnamed. No English titles
   exist for any of them, because 84000 has not translated the Tengyur.
 - **Only a twentieth of the Kangyur is translated.** 84000 has published 385 of ~1,169
   Tōhoku numbers, so most works have no English. They now all have *titles* — see the
@@ -1190,8 +1191,12 @@ It was not needed. A translated Indian treatise opens by naming itself in both l
     ༄༅༅། །རྒྱ་གར་སྐད་དུ། བུདྡྷ་སྱ་སྟོ་ཏྲ་ནཱ་མ། བོད་སྐད་དུ། སངས་རྒྱས་ཀྱི་བསྟོད་པ་ཞེས་བྱ་བ།
 
 *"In the Indian language: Buddhastotra-nāma. In Tibetan: …"* `mix pramana.tengyur.titles`
-reads that formula and titled **2,675 of 3,380 works (79.1%)**, 2,593 of them with the
-Sanskrit as well, in 14 seconds. Spot-checks: toh4090 is
+reads that formula and named **2,675 of 3,380 works** in 14 seconds: 2,629 (77.8%) with a
+Tibetan title and 46 more — tantric works like toh1219, *Hevajra-maṇḍala-karma-krama-vidhi*
+— that print only the Sanskrit, whose `title_original` therefore stays nil while the
+Sanskrit is recorded in meta. 2,593 carry the Sanskrit alongside the Tibetan. The tally
+counts those two claims separately, because reporting them together would say a work has a
+Tibetan title when that field is empty. Spot-checks: toh4090 is
 `chos mngon pa'i mdzod kyi bshad pa` — the **Abhidharmakośabhāṣya**; toh3824 is
 `dbu ma rtsa ba'i tshig le'ur byas pa shes rab ces bya ba`, Nāgārjuna's
 **Mūlamadhyamakakārikā**.

@@ -109,10 +109,15 @@ defmodule Mix.Tasks.Pramana.Tengyur.Titles do
   defp write_titles(work, titles, tally, dry_run) do
     unless dry_run, do: write(work, titles)
 
+    # Counted apart because they are not the same claim. 46 works — tantric ones like
+    # toh1219, Hevajra-maṇḍala-karma-krama-vidhi — print only the Sanskrit name, so their
+    # `title_original` stays nil while the Sanskrit is recorded in meta. Reporting them
+    # together as "titled" would say a work has a Tibetan title when the field is empty.
     %{
       tally
-      | titled: tally.titled + 1,
-        sanskrit: tally.sanskrit + if(titles[:sa_bo], do: 1, else: 0)
+      | titled: tally.titled + if(titles[:bo], do: 1, else: 0),
+        sanskrit: tally.sanskrit + if(titles[:sa_bo], do: 1, else: 0),
+        sanskrit_only: tally.sanskrit_only + if(titles[:sa_bo] && !titles[:bo], do: 1, else: 0)
     }
   end
 
@@ -136,15 +141,16 @@ defmodule Mix.Tasks.Pramana.Tengyur.Titles do
   defp reject_nil(map), do: map |> Enum.reject(fn {_k, v} -> is_nil(v) end) |> Map.new()
 
   defp empty_tally,
-    do: %{titled: 0, sanskrit: 0, unnamed: 0, already: 0, absent: 0}
+    do: %{titled: 0, sanskrit: 0, sanskrit_only: 0, unnamed: 0, already: 0, absent: 0}
 
   defp report(tally, total, dry_run) do
     Mix.shell().info("""
 
     #{if dry_run, do: "would title", else: "titled"} the Tengyur from its own incipits
       works examined:   #{total}
-      titled:           #{tally.titled} (#{percent(tally.titled, total)}%)
+      Tibetan title:    #{tally.titled} (#{percent(tally.titled, total)}%)
       with Sanskrit:    #{tally.sanskrit}
+      Sanskrit only:    #{tally.sanskrit_only} — recorded in meta; title_original stays nil
       name themselves not: #{tally.unnamed} — no title written, and none invented
       already titled:   #{tally.already}
       work row absent:  #{tally.absent}
