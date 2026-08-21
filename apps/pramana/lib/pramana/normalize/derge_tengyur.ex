@@ -159,10 +159,18 @@ defmodule Pramana.Normalize.DergeTengyur do
     end
   end
 
+  # A line with no printed text is not a line of this work, even when the editors left a
+  # mark on it. Where one work ends and the next begins mid-line the page reads
+  # `[222b.1]#{D4101}#༄༅༅།…`, so splitting on the marker hands the ENDING work a fragment
+  # containing only the `#`. Emitting that produced a line with `text: ""` carrying one
+  # apparatus entry: the loader refused it (a segment with no content is not citable), the
+  # normalizer counted it, and `mix pramana.integrity` reported toh4100 and toh4150 each
+  # missing a line the bake never should have promised. The mark annotates the printed
+  # line, which belongs to the work that starts on it and records it there.
   defp emit(lines, text, folio, line, toh) do
     {clean, apparatus} = extract(text)
 
-    if clean == "" and apparatus == [] do
+    if clean == "" do
       lines
     else
       [%{toh: toh, folio: folio, line: line, text: clean, apparatus: apparatus} | lines]

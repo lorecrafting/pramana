@@ -190,6 +190,10 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
   Tōhoku numbers, so most works have no English. They now all have *titles* — see the
   catalogue section below — but a title is not a translation, and topical retrieval into
   Tibetan is 0% because of it.
+- **The embedder, not the corpus, now bounds Tibetan retrieval.** Measured below: BGE-M3's
+  mean pairwise cosine for Tibetan is 0.9727 against 0.84 for Pāli, so ranking within
+  Tibetan is weak by construction. A reranker first, then a Tibetan-fine-tuned embedder
+  trained on the aligned pairs already in this database.
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
@@ -1101,6 +1105,24 @@ correctly `:not_locked`, never having been acquired. **Check the sources you did
 touch** — the defect lives in how a path was written, and it is invisible from the side
 that reads it back on the same machine.
 
+**And `integrity` immediately earned it — it caught a defect `verify` could not.** The
+first Tengyur bake passed `verify` byte-identically and FAILED `integrity`: `toh4100`
+(raw 5583, bake 5582) and `toh4150` (raw 1873, bake 1872), each missing exactly one line.
+Where one work ends and the next begins mid-line the page reads `[222b.1]#{D4101}#༄༅༅།…`,
+so splitting on the marker hands the ENDING work a fragment containing only the `#`.
+`extract/1` strips that into an apparatus entry, leaving `text: ""`, and `emit/5` kept the
+line because its apparatus was not empty. Three components then disagreed about one
+boundary artifact: the normalizer promised a line, the loader refused it (a segment with
+no content is not citable), and `integrity` reported the difference. The mark annotates
+the printed line, which belongs to the work that STARTS on it and is recorded there, so a
+fragment with no printed text is no longer emitted at all. After the fix the ingest reports
+`lines: 891169, segments: 891169` — previously 891171 against 891169, exactly the two
+phantom lines.
+
+This is the whole argument for running both checks, made concrete: a pipeline that drops
+the same content every run drops it identically on both sides of a re-normalization
+comparison, and `verify` passes. Reproducibility is not fidelity.
+
 **`integrity` is weaker here than for the Kangyur, and says so.** The Kangyur gets an
 independent byte census: a separate counter walks the TEI `<text>` element and totals
 character data without knowing anything about folios, which is what catches content the
@@ -1121,6 +1143,32 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 `@lang_by_source` takes the **`lzh` default**, and that field is what `matched_via`
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
+
+### BGE-M3 barely discriminates Tibetan (#21) — measured, and it bounds retrieval
+
+The Tengyur is retrievable: a Tibetan query returns Tengyur and Kangyur works interleaved,
+correctly labelled `source/bo`. But the scores looked wrong — ten *different* works at
+0.97–1.0 — so the spread was measured directly, 20,000 random pairs per language:
+
+| language | mean pairwise cosine | min | max |
+|---|---|---|---|
+| **bo** | **0.9727** | 0.786 | 0.998 |
+| pli | 0.8397 | 0.689 | 0.944 |
+| lzh | 0.8039 | 0.687 | 0.927 |
+
+**A 0.98 between two random Tibetan chunks is normal.** The model packs Tibetan into a
+narrow cone, so a 0.98 "hit" in Tibetan carries far less information than the same number
+in Chinese, and ranking within Tibetan is weak even though recall is fine. This is not a
+chunking or indexing defect — it is what BGE-M3 knows, and it bounds how good Tibetan
+semantic search can get no matter how much of the canon is loaded.
+
+It also names the highest-value model work in the project, and it is **not** a generative
+model: fine-tuning the *embedder* on Tibetan. The training data already exists here —
+30,653 folio-level 84000 renderings are aligned bo↔en pairs, plus 865 three-way
+Skt–Tib–Chi anchors and the translators' glossaries. A better embedder changes what is
+*found* and touches nothing about what is *citable*, so it costs none of the guarantees.
+Cheaper first move: a cross-encoder reranker over the top 50, which needs no training at
+all.
 
 ### The quotation graph (#22) — 141,073 verbatim reuses
 

@@ -119,6 +119,24 @@ defmodule Pramana.Normalize.DergeTengyurTest do
       assert Enum.count(line.apparatus, &(&1["kind"] == "pedurma_note")) == 2
     end
 
+    test "a boundary fragment with only a mark is not a line of the ending work" do
+      # Where one work ends and the next begins mid-line the page reads
+      # `[222b.1]#{D4101}#…`, so the ending work's fragment is just the `#`. Emitting it
+      # made a line with no text, which the loader refuses and `mix pramana.integrity`
+      # then reports as content the bake lost — toh4100 and toh4150 both did.
+      {:ok, irs, _} =
+        # `\#{` is escaped: unescaped it is Elixir interpolation, and the marker silently
+        # becomes the text "Elixir.D1110" — a test that passes while testing nothing.
+        volume(["[1b.1]{D1109}first work", "[2b.1]\#{D1110}\#second work"])
+        |> Tengyur.normalize_file(volume: 1)
+
+      texts = Map.new(irs, &{&1.work_id, &1.lines})
+
+      assert Enum.map(texts["toh1109"], & &1.anchor) == ["1.1b.1"]
+      assert Enum.all?(texts["toh1110"], &(&1.text != ""))
+      refute Enum.any?(List.flatten(Map.values(texts)), &(&1.text == ""))
+    end
+
     test "extract/1 separates the page from what is said about it" do
       assert {"ཆོས", [%{"kind" => "pedurma_note"}]} = Tengyur.extract("ཆོས#")
       assert {"", []} = Tengyur.extract("   ")
