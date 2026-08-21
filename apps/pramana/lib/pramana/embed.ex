@@ -36,6 +36,14 @@ defmodule Pramana.Embed do
 
   @model "BAAI/bge-m3"
   @dims 1024
+
+  # The token window vectors are expected to carry. MUST match `MAX_LENGTH` in
+  # `priv/embed/modal_embed.py` and `priv/embed/embed_gpu.py` — those produce the vectors,
+  # and each now reports the window it used so a mismatch is recorded rather than assumed.
+  # Not a free parameter: `Pramana.Chunk.Builder`'s per-script chunk sizes are derived FROM
+  # this number, so changing it without re-deriving them re-opens the truncation defect
+  # that once left 76.2% of Pāli vectors describing a prefix.
+  @max_length 320
   # p99 of real chunk token lengths is 298; 320 covers everything with minimal padding.
   @sequence_length 320
   @batch_size 16
@@ -47,6 +55,10 @@ defmodule Pramana.Embed do
   @doc "Embedding dimensionality."
   @spec dims() :: pos_integer()
   def dims, do: @dims
+
+  @doc "The token window vectors are expected to carry."
+  @spec max_length() :: pos_integer()
+  def max_length, do: @max_length
 
   @doc """
   Builds an `Nx.Serving` for the embedding model.
@@ -162,13 +174,22 @@ defmodule Pramana.Embed do
     |> Repo.all()
   end
 
-  # Outstanding means: no vector, or a vector from a DIFFERENT model. Mixing vectors
-  # from two models in one index silently corrupts search — every value is a valid
-  # float, so nothing would fail loudly.
+  # Outstanding means: no vector, a vector from a DIFFERENT model, or one taken at a
+  # different token WINDOW. Mixing any of those in one index silently corrupts search —
+  # every value is a valid float, so nothing would fail loudly.
+  #
+  # The window matters for the same reason the model does: a chunk longer than
+  # `max_length` is embedded as a prefix, so the same chunk at 320 and at 512 yields two
+  # vectors describing different amounts of text. Measured 2026-08-20, 6.3% of Pāli
+  # chunks exceed 320. A NULL window is left alone rather than treated as stale: it means
+  # the producer did not report one, and re-embedding the corpus to learn a number nobody
+  # recorded would be expensive guesswork.
   defp pending_query(opts) do
     query =
       from v in ChunkVector,
-        where: is_nil(v.embedding) or v.embedding_model != ^@model
+        where:
+          is_nil(v.embedding) or v.embedding_model != ^@model or
+            (not is_nil(v.embedding_max_length) and v.embedding_max_length != ^@max_length)
 
     query
     |> filter_kind(opts[:kind])

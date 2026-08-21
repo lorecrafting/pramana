@@ -58,7 +58,11 @@ defmodule Pramana.Embed.TransferTest do
       "sha256" => Keyword.get(opts, :sha256, chunk.content_sha256),
       "embedding" => List.duplicate(0.1, dims)
     }
+    |> put_window(Keyword.get(opts, :max_length, :none))
   end
+
+  defp put_window(row, :none), do: row
+  defp put_window(row, window), do: Map.put(row, "max_length", window)
 
   defp write_vectors(path, rows) do
     File.write!(path, Enum.map_join(rows, "\n", &Jason.encode!/1) <> "\n")
@@ -124,6 +128,56 @@ defmodule Pramana.Embed.TransferTest do
       assert r.written == 0
       assert r.hash_mismatch == [chunk.id]
       assert Repo.one!(from v in ChunkVector, where: v.id == ^chunk.id).embedding == nil
+    end
+
+    test "records the window the producer reports, not one this side assumes", ctx do
+      # A chunk longer than the window was embedded as a PREFIX, so the same chunk at 320
+      # and at 512 gives two vectors describing different amounts of text. Taking the
+      # number from the producer means changing MAX_LENGTH in the GPU script can never
+      # leave the database describing a window that was not used.
+      chunk = hd(ctx.chunks)
+      path = write_vectors(Path.join(ctx.tmp, "v.jsonl"), [vector_line(chunk, max_length: 512)])
+
+      {:ok, r} = Transfer.import(path)
+
+      assert r.written == 1
+      assert r.max_length == 512
+
+      assert Repo.one!(from v in ChunkVector, where: v.id == ^chunk.id).embedding_max_length ==
+               512
+    end
+
+    test "REFUSES a file mixing two windows", ctx do
+      # Writing both would put vectors describing different amounts of text into one
+      # index with nothing able to separate them afterwards — the same silent corruption
+      # `embedding_model` already guards against.
+      [a, b] = Enum.take(ctx.chunks, 2)
+
+      path =
+        write_vectors(Path.join(ctx.tmp, "v.jsonl"), [
+          vector_line(a, max_length: 320),
+          vector_line(b, max_length: 512)
+        ])
+
+      assert {:error, {:mixed_max_length, windows}} = Transfer.import(path)
+      assert Enum.sort(windows) == [320, 512]
+
+      # Nothing was written — a refused file must not be half-applied.
+      assert Repo.one!(from v in ChunkVector, where: v.id == ^a.id).embedding == nil
+    end
+
+    test "a file with no window recorded stores nil, rather than guessing", ctx do
+      # Older exports carry no `max_length`. Unknown must stay unknown: re-embedding the
+      # corpus to learn a number nobody recorded would be expensive guesswork.
+      chunk = hd(ctx.chunks)
+      path = write_vectors(Path.join(ctx.tmp, "v.jsonl"), [vector_line(chunk)])
+
+      {:ok, r} = Transfer.import(path)
+
+      assert r.max_length == nil
+
+      assert Repo.one!(from v in ChunkVector, where: v.id == ^chunk.id).embedding_max_length ==
+               nil
     end
 
     test "rejects wrong dimensionality" do

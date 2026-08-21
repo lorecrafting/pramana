@@ -129,6 +129,10 @@ def embed(input_name: str = "chunks.jsonl", output_name: str = "vectors.jsonl", 
                         {
                             "id": row["id"],
                             "sha256": row["sha256"],
+                            # What this run ACTUALLY used. The importer records it rather
+                            # than assuming, so changing MAX_LENGTH here can never leave
+                            # the database describing a window that was not used.
+                            "max_length": MAX_LENGTH,
                             "embedding": [round(v, 6) for v in vector.tolist()],
                         }
                     )

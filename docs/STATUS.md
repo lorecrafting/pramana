@@ -1232,7 +1232,22 @@ vectors, 0 rejected — and the 6.3% truncation is now a **measured and accepted
 limitation rather than an unexamined one. Revisit only with an eval that can see it, and
 as a corpus-wide change rather than per-source.
 
-**A gap this opened, recorded deliberately.** `Pramana.Embed` treats a vector as
+**That gap is now closed.** `chunk_vectors.embedding_max_length` records the window each
+vector was produced with, and the number comes from the **producer** — the GPU script
+emits the `MAX_LENGTH` it actually used, and the importer stores that. Writing the Elixir
+constant instead would have meant that changing `MAX_LENGTH` in the Python without
+touching Elixir recorded a confident lie, which is worse than recording nothing. Three
+guards go with it: a file mixing two windows is **refused outright** rather than
+half-applied; a missing window stores `nil`, because unknown must stay unknown rather than
+be guessed; and `Embed.pending_query/1` now treats a window mismatch as outstanding
+exactly as it already treats a model mismatch. All 617,038 existing vectors backfilled to
+320, `pending_count` 0.
+
+The backfill itself demonstrated the runbook rule a third time: the migration exceeded
+**600 s without finishing** through a live HNSW index, and completed in **36.8 s** with the
+index dropped. Import, index build, backfill — same rule, three operation types.
+
+**The gap as it stood before that fix.** `Pramana.Embed` treats a vector as
 outstanding when its `embedding_model` differs, because "mixing vectors from two models in
 one index silently corrupts search — every value is a valid float, so nothing would fail
 loudly." The same is true of the **window**, and the schema does not record it: after this

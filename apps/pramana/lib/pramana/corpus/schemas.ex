@@ -224,6 +224,11 @@ defmodule Pramana.Corpus.ChunkVector do
 
     field :embedding, Pgvector.Ecto.Vector
     field :embedding_model, :string
+    # The token window the vector was produced with. A chunk longer than this was
+    # embedded as a PREFIX, so two vectors of the same chunk at different windows
+    # describe different amounts of text. Recorded from what the producer reports, not
+    # from what this side assumes.
+    field :embedding_max_length, :integer
     field :embedded_at, :utc_datetime_usec
 
     # Where this vector's text came from: the parallel a gloss was taken from, or the

@@ -75,6 +75,12 @@ defmodule Pramana.Embed.Transfer do
   Expects a JSONL file of `{id, sha256, embedding}` — the id and hash from the export,
   and a list of `dims` floats. Rows whose hash no longer matches the stored chunk are
   **rejected, not written**, and reported.
+
+  A record may also carry `max_length`, the token window the producer actually used. It
+  is stored per vector, because a chunk longer than the window was embedded as a *prefix*
+  and that is not the same vector as one taken whole. A file mixing two windows is
+  refused outright: it would put both in the index with no way to tell them apart, which
+  is the failure `embedding_model` already exists to prevent.
   """
   @spec import(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def import(path, opts \\ []) do
@@ -85,16 +91,42 @@ defmodule Pramana.Embed.Transfer do
     expected_hashes =
       Repo.all(from v in ChunkVector, select: {v.id, v.content_sha256}) |> Map.new()
 
-    result =
+    with {:ok, window} <- one_window(path) do
+      result =
+        path
+        |> File.stream!()
+        |> Stream.map(&Jason.decode!/1)
+        |> Stream.chunk_every(1_000)
+        |> Enum.reduce(%{written: 0, hash_mismatch: [], bad_dims: [], unknown: []}, fn batch,
+                                                                                       acc ->
+          apply_batch(batch, expected_hashes, dims, {model, window}, now, acc)
+        end)
+
+      {:ok,
+       result
+       |> Map.update!(:hash_mismatch, &Enum.take(&1, 20))
+       |> Map.put(:max_length, window)}
+    end
+  end
+
+  # One file, one window. A file carrying vectors from two runs at different `max_length`
+  # would write both into the index, and afterwards nothing could separate them — the same
+  # silent corruption `embedding_model` guards against. Older files carry no `max_length`
+  # at all, which is recorded as unknown rather than guessed.
+  defp one_window(path) do
+    windows =
       path
       |> File.stream!()
       |> Stream.map(&Jason.decode!/1)
-      |> Stream.chunk_every(1_000)
-      |> Enum.reduce(%{written: 0, hash_mismatch: [], bad_dims: [], unknown: []}, fn batch, acc ->
-        apply_batch(batch, expected_hashes, dims, model, now, acc)
-      end)
+      |> Stream.map(& &1["max_length"])
+      |> Stream.uniq()
+      |> Enum.take(2)
 
-    {:ok, Map.update!(result, :hash_mismatch, &Enum.take(&1, 20))}
+    case windows do
+      [] -> {:ok, nil}
+      [window] -> {:ok, window}
+      mixed -> {:error, {:mixed_max_length, mixed}}
+    end
   end
 
   # Validation and writing are separated deliberately. Every row is checked first, and
@@ -106,7 +138,7 @@ defmodule Pramana.Embed.Transfer do
   # import against 34 minutes of GPU. The batching cost nothing in safety: the hash check
   # that rejects a vector whose text has changed happens before any row is written, and
   # rejected rows never reach the statement.
-  defp apply_batch(batch, hashes, dims, model, now, acc) do
+  defp apply_batch(batch, hashes, dims, model_and_window, now, acc) do
     {acc, writable} =
       Enum.reduce(batch, {acc, []}, fn row, {acc, writable} ->
         id = row["id"]
@@ -130,20 +162,20 @@ defmodule Pramana.Embed.Transfer do
         end
       end)
 
-    write!(writable, model, now)
+    write!(writable, model_and_window, now)
     %{acc | written: acc.written + length(writable)}
   end
 
-  defp write!([], _model, _now), do: :ok
+  defp write!([], _model_and_window, _now), do: :ok
 
-  defp write!(rows, model, now) do
-    # `$1`/`$2` are the model and timestamp; each row then contributes an id and a vector
-    # literal. 1,000 rows is 2,002 parameters, well inside Postgres's 65,535 limit.
+  defp write!(rows, {model, window}, now) do
+    # `$1`/`$2`/`$3` are the model, timestamp and window; each row then contributes an id
+    # and a vector literal. 1,000 rows is 2,003 parameters, well inside Postgres's 65,535.
     {placeholders, params} =
       rows
       |> Enum.with_index()
       |> Enum.map_reduce([], fn {{id, vector}, i}, params ->
-        n = 3 + i * 2
+        n = 4 + i * 2
         {"($#{n}::bigint, $#{n + 1}::text)", [vector_literal(vector), id | params]}
       end)
 
@@ -151,12 +183,13 @@ defmodule Pramana.Embed.Transfer do
     UPDATE chunk_vectors AS cv
     SET embedding = v.embedding::vector,
         embedding_model = $1,
-        embedded_at = $2
+        embedded_at = $2,
+        embedding_max_length = $3
     FROM (VALUES #{Enum.join(placeholders, ", ")}) AS v(id, embedding)
     WHERE cv.id = v.id
     """
 
-    Repo.query!(sql, [model, now | Enum.reverse(params)])
+    Repo.query!(sql, [model, now, window | Enum.reverse(params)])
     :ok
   end
 
