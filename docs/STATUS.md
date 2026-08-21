@@ -1180,6 +1180,38 @@ clause break would fabricate a string the edition does not print.
 That supersedes the plan to run `botok` in the Python sidecar, which would have repeated
 for Tibetan the mistake already documented for Chinese.
 
+### Phase 5 data-integrity gate — all three checks green
+
+Run after the Tengyur landed and after the phantom-line fix (`ccee8c7`):
+
+1. **`mix pramana.verify --source derge-tengyur`** — OK. 3,380 texts, body re-normalized
+   from `raw/` and byte-identical for every one, from the relocated
+   `raw/derge-tengyur/` paths.
+2. **`mix pramana.integrity`** — **OK, 15,489 texts.**
+
+       source anchors:              6,573,295
+       IR lines:                    6,573,295   (every anchor produced a line)
+       lines with printed content:  6,538,238
+       segments in the bake:        6,538,238   (every one is addressable)
+       genuinely blank, skipped:       35,057
+       gaiji reachable in segments:   128,393
+       stranded on dropped lines:           0
+       Derge byte census: 290,863,399 in the edition, 290,863,330 in the bake,
+         difference 69 — volume 1's title page, which belongs to no Tōhoku number
+
+   `lines with printed content` now equals `segments in the bake` exactly. That equality
+   is what the phantom line was breaking.
+3. **`Lockfile.verify/1` over every source** — all seven acquired sources OK (`84000` 406,
+   `84000-rdf` 1254, `bdrc-derge` 103, `cbeta` 2471, `derge` 103, `derge-tengyur` 213,
+   `sc` 7288); `sat` correctly `:not_locked`, never having been acquired.
+
+Coverage reports 1,194 Kangyur and 3,380 Tengyur works, `tengyur_missing: false`, and the
+only surviving caveat is Taishō 56–84.
+
+**Run these with the machine to themselves.** Four concurrent jobs exhausted the Postgres
+connection limit during this session and the Tengyur pair took over two hours each under
+contention, against ~90 minutes alone.
+
 ### The Tengyur names itself (#21) — no catalogue acquired
 
 84000 catalogued the Kangyur and not the commentaries, so 3,380 works loaded addressable
