@@ -182,10 +182,9 @@ that occurs in several places**, because this literature is formulaic by design.
 The Kangyur is in, joined to its English, chunked and embedded. What the phase exit
 ("three-way retrieval with correct provenance") still wants:
 
-- **The Tengyur is in** — see below. What it does not have is *titles*: 84000 has
-  catalogued the Kangyur and not the commentaries, so 3,380 of the 3,386 untitled Tibetan
-  works are Tengyur works addressable only by Tōhoku number. The text is citable; the
-  shelf list is not yet readable.
+- **The Tengyur has 2,675 of its 3,380 titles, read out of the works themselves** — see
+  below. The remaining 705 do not name themselves and are left unnamed. No English titles
+  exist for any of them, because 84000 has not translated the Tengyur.
 - **Only a twentieth of the Kangyur is translated.** 84000 has published 385 of ~1,169
   Tōhoku numbers, so most works have no English. They now all have *titles* — see the
   catalogue section below — but a title is not a translation, and topical retrieval into
@@ -1179,6 +1178,37 @@ clause break would fabricate a string the edition does not print.
 
 That supersedes the plan to run `botok` in the Python sidecar, which would have repeated
 for Tibetan the mistake already documented for Chinese.
+
+### The Tengyur names itself (#21) — no catalogue acquired
+
+84000 catalogued the Kangyur and not the commentaries, so 3,380 works loaded addressable
+only by Tōhoku number. The obvious fix was to acquire a catalogue — rKTs, BDRC, Adarsha —
+with a new source, a new licence axis and a new lockfile entry behind it.
+
+It was not needed. A translated Indian treatise opens by naming itself in both languages:
+
+    ༄༅༅། །རྒྱ་གར་སྐད་དུ། བུདྡྷ་སྱ་སྟོ་ཏྲ་ནཱ་མ། བོད་སྐད་དུ། སངས་རྒྱས་ཀྱི་བསྟོད་པ་ཞེས་བྱ་བ།
+
+*"In the Indian language: Buddhastotra-nāma. In Tibetan: …"* `mix pramana.tengyur.titles`
+reads that formula and titled **2,675 of 3,380 works (79.1%)**, 2,593 of them with the
+Sanskrit as well, in 14 seconds. Spot-checks: toh4090 is
+`chos mngon pa'i mdzod kyi bshad pa` — the **Abhidharmakośabhāṣya**; toh3824 is
+`dbu ma rtsa ba'i tshig le'ur byas pa shes rab ces bya ba`, Nāgārjuna's
+**Mūlamadhyamakakārikā**.
+
+**This is better provenance than a catalogue, not merely cheaper.** A catalogue title is a
+modern editor's identification. This is the title the edition itself prints, in the
+translators' words, inside a public-domain corpus already byte-verified against `raw/` —
+`source` attestation, the strongest class this project recognises. It is recorded as
+`title_source: "derge-tengyur:incipit"` so it can never be confused with a catalogue's
+reading, and the Sanskrit is stored as `title_sa_bo_script` because what the page shows is
+Sanskrit *transliterated into Tibetan letters*, not Devanāgarī and not romanised Sanskrit.
+
+**The 705 that do not name themselves get no title.** Toh 4346, the Mahāvyutpatti, is one
+of them — it is a lexicon rather than a translated treatise, so it never uses the formula.
+Guessing a title from the opening words would name every work and misname hundreds. No
+English title is written for any Tengyur work either, because none is known; inventing one
+is the same failure as inventing a citation id.
 
 ### BGE-M3 barely discriminates Tibetan (#21) — measured, and it bounds retrieval
 
