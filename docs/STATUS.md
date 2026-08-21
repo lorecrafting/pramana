@@ -1208,6 +1208,36 @@ Run after the Tengyur landed and after the phantom-line fix (`ccee8c7`):
 Coverage reports 1,194 Kangyur and 3,380 Tengyur works, `tengyur_missing: false`, and the
 only surviving caveat is Taishō 56–84.
 
+4. **`mix pramana.evals`** — 79.5% (198/249), **identical to baseline in every category**.
+
+   | | now | baseline |
+   |---|---|---|
+   | provenance/chinese | 100.0% | 100.0% |
+   | retrieval/chinese | 97.1% | 97.1% |
+   | retrieval/pali | 55.0% | 55.0% |
+   | retrieval/tibetan | 35.0% | 35.0% |
+   | topical/chinese-native | 100.0% | 100.0% |
+   | topical/pali | 56.3% | 56.3% |
+   | topical/chinese | 0.0% | 0.0% |
+   | topical/tibetan | 0.0% | 0.0% |
+
+   **Adding a third of the corpus diluted nothing.** 3,380 works and 145,194 vectors
+   entered the index and no category moved — not guaranteed, given #43 measured 1,665
+   gloss vectors displacing Pāli answers.
+
+   **And the syllable n-gram change shows no end-to-end gain.** Its selectivity
+   improvement is real and measured, but `:ngram` is the fallback *after* `:phrase` and
+   these gold cases resolve or fail at the phrase stage, so the eval set never exercises
+   the path that changed. That is a gap in the gold set — there are no Tibetan cases that
+   reach the fallback — and not evidence the change was worthless. It is honestly an
+   improvement to a mechanism, not yet a demonstrated retrieval win.
+
+   The baseline independently corroborates two findings measured from scratch this
+   session: Tibetan is the weakest language in the corpus (35% / 0%), matching the 0.9727
+   embedding clustering; and `topical/chinese` is 0% against `topical/chinese-native` at
+   100%, which is the same fact the reranker probe hit as `lzh: no aligned pairs` — an
+   English question into Chinese has no English target to land on.
+
 **Run these with the machine to themselves.** Four concurrent jobs exhausted the Postgres
 connection limit during this session and the Tengyur pair took over two hours each under
 contention, against ~90 minutes alone.
