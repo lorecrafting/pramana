@@ -87,6 +87,52 @@ defmodule Pramana.Retrieval.LexicalTest do
     end
   end
 
+  describe "Tibetan windows syllables, not graphemes" do
+    test "the tsheg is the unit, because the edition prints it" do
+      # A Chinese character is a morpheme so a 3-character window means something. A
+      # Tibetan grapheme is a letter stack, and windowing by grapheme cuts across the
+      # tsheg into fragments of no linguistic standing.
+      assert Lexical.ngrams("སྟོང་པ་ཉིད") == ["སྟོང་པ", "པ་ཉིད"]
+    end
+
+    test "the particle window that matched 89.6% of the corpus is gone" do
+      # `་པ་` — the particle པ between two separators — occurred in 1,211,774 of the
+      # 1,352,471 Tibetan segments, against 2.63% for སྟོང་པ་ཉིད itself. `:ngram` ranks by
+      # how many distinct query terms a passage contains, so that one window outvoted
+      # every meaningful one.
+      grams = Lexical.ngrams("སྟོང་པ་ཉིད")
+
+      refute "་པ་" in grams
+      assert Enum.all?(grams, &(not String.starts_with?(&1, "་")))
+      assert Enum.all?(grams, &(not String.ends_with?(&1, "་")))
+    end
+
+    test "transliterated Sanskrit survives, which is why botok is not used" do
+      # The same reason jieba is not the Chinese fallback: a trained segmenter shatters
+      # names it was never taught. Splitting on a printed delimiter cannot.
+      assert Lexical.ngrams("པྲ་ཛྙཱ་ཝརྨ") == ["པྲ་ཛྙཱ", "ཛྙཱ་ཝརྨ"]
+    end
+
+    test "a query at or under the window is used whole" do
+      assert Lexical.ngrams("སྟོང་པ") == ["སྟོང་པ"]
+      assert Lexical.ngrams("ཆོས") == ["ཆོས"]
+    end
+
+    test "a window never crosses a shad" do
+      # The window is rejoined with a tsheg and searched as a substring, so spanning the
+      # clause break would fabricate `རྣམས་སྟོང` — a string the edition does not print,
+      # which cannot match and still takes a vote in the ranking.
+      grams = Lexical.ngrams("ཆོས་རྣམས། སྟོང་པ")
+
+      assert grams == ["ཆོས་རྣམས", "སྟོང་པ"]
+      refute "རྣམས་སྟོང" in grams
+    end
+
+    test "other scripts are untouched" do
+      assert Lexical.ngrams("般若波羅蜜") == ["般若波", "若波羅", "波羅蜜"]
+    end
+  end
+
   describe "auto mode falls back to ngrams" do
     test "finds a passage via a window when the whole phrase is absent" do
       # 般若波羅蜜多心經 is not in this text, but 般若波羅蜜 is.

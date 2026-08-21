@@ -190,6 +190,8 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
   Tōhoku numbers, so most works have no English. They now all have *titles* — see the
   catalogue section below — but a title is not a translation, and topical retrieval into
   Tibetan is 0% because of it.
+- **Tibetan lexical search now windows syllables** — see the section below. The old
+  grapheme windows were producing `་པ་`, which matches 89.6% of the corpus.
 - **The embedder, not the corpus, now bounds Tibetan retrieval.** Measured below: BGE-M3's
   mean pairwise cosine for Tibetan is 0.9727 against 0.84 for Pāli, so ranking within
   Tibetan is weak by construction. A reranker first, then a Tibetan-fine-tuned embedder
@@ -1143,6 +1145,40 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 `@lang_by_source` takes the **`lzh` default**, and that field is what `matched_via`
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
+
+### Tibetan n-grams were mostly one particle (#21) — the unit was wrong
+
+`:ngram` is the recall fallback when a phrase finds nothing, and it windows the query by
+**grapheme**, width 3. For Chinese that is right: a character is a morpheme, so `波羅蜜`
+is pāramitā. A Tibetan grapheme is a *letter stack*, so the same rule cuts across the
+tsheg. Windowing `སྟོང་པ་ཉིད` (śūnyatā) gave:
+
+| window | segments matched (of 1,352,471) |
+|---|---|
+| `སྟོང་` | 82,903 (6.1%) |
+| `ང་པ` | 267,757 (19.8%) |
+| **`་པ་`** | **1,211,774 (89.6%)** |
+| `པ་ཉི` | 149,136 (11.0%) |
+| `་ཉིད` | 414,497 (30.6%) |
+
+`་པ་` is the particle པ between two separators, and it is in **nine of every ten Tibetan
+lines** — while the term itself is in 2.63%. Ranking counts how many distinct query terms
+a passage contains, so the junk outvoted the signal.
+
+Now the window is the **syllable**, width 2: `["སྟོང་པ", "པ་ཉིད"]` — 3.7% and 10.8%. The
+worst window went from 89.6% to 10.8%, and the mean from 31.4% to 7.3%.
+
+**No dictionary, deliberately.** This module already refuses jieba as the Chinese fallback
+because it shatters transliterated Sanskrit and "a single common character appears on
+nearly every line". `botok` is the same class of tool and this corpus is full of Tibetan
+transliterations — `པྲ་ཛྙཱ་ཝརྨ` (Prajñāvarman) sits in a colophon. The tsheg is a
+delimiter *the edition prints*, so splitting on it cannot mis-segment a name it was never
+taught: `པྲ་ཛྙཱ་ཝརྨ` windows to `["པྲ་ཛྙཱ", "ཛྙཱ་ཝརྨ"]`. Windows also never cross a shad,
+because the window is rejoined with a tsheg and searched as a substring — spanning a
+clause break would fabricate a string the edition does not print.
+
+That supersedes the plan to run `botok` in the Python sidecar, which would have repeated
+for Tibetan the mistake already documented for Chinese.
 
 ### BGE-M3 barely discriminates Tibetan (#21) — measured, and it bounds retrieval
 
