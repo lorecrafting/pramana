@@ -175,6 +175,22 @@ defmodule Pramana.Embed do
     |> filter_division(opts[:division])
   end
 
+  # Re-embedding ONE source, whatever its vectors' current state. `pending_query/1` asks
+  # "what is missing"; this asks "what must be redone", which is a different question and
+  # the one a window-size or chunk-size experiment needs. Kept separate so a normal run
+  # can never widen into re-embedding a source that was already done.
+  @doc false
+  @spec redo_query_for_export(keyword()) :: Ecto.Query.t()
+  def redo_query_for_export(opts) do
+    source = Keyword.fetch!(opts, :source)
+
+    from v in ChunkVector,
+      join: c in Chunk,
+      on: c.id == v.chunk_id,
+      join: t in assoc(c, :text),
+      where: t.source_id == ^source
+  end
+
   # A vector kind is worth embedding separately: `source` vectors are the corpus, and a
   # run that meant to fill in only the new translation vectors should not silently
   # re-embed 299,317 Chinese passages.

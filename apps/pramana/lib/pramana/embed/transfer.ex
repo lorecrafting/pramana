@@ -33,7 +33,11 @@ defmodule Pramana.Embed.Transfer do
   """
   @spec export(String.t(), keyword()) :: {:ok, map()}
   def export(path, opts \\ []) do
-    query = Embed.pending_query_for_export(opts)
+    query =
+      if opts[:source],
+        do: Embed.redo_query_for_export(opts),
+        else: Embed.pending_query_for_export(opts)
+
     count = Repo.aggregate(query, :count)
 
     File.mkdir_p!(Path.dirname(path))

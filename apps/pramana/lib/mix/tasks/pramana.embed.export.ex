@@ -4,6 +4,11 @@ defmodule Mix.Tasks.Pramana.Embed.Export do
   @moduledoc """
       mix pramana.embed.export --out /tmp/pramana_chunks.jsonl
       mix pramana.embed.export --division 阿含部 --out /tmp/agama.jsonl
+      mix pramana.embed.export --source sc --out /tmp/pali.jsonl   # re-embed one source
+
+  `--source` exports every vector row of that source **regardless of whether it already
+  has an embedding**, which is what a re-embedding experiment needs. Without it, only
+  rows that are missing a vector or carry another model's are exported.
 
   Writes one `{id, content, sha256}` per line. Send this to the GPU box, run
   `priv/embed/embed_gpu.py`, and bring the vectors back with
@@ -17,7 +22,7 @@ defmodule Mix.Tasks.Pramana.Embed.Export do
 
   alias Pramana.Embed.Transfer
 
-  @switches [out: :string, division: :string]
+  @switches [out: :string, division: :string, source: :string]
 
   @impl Mix.Task
   def run(argv) do

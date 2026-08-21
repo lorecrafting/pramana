@@ -1180,6 +1180,66 @@ clause break would fabricate a string the edition does not print.
 That supersedes the plan to run `botok` in the Python sidecar, which would have repeated
 for Tibetan the mistake already documented for Chinese.
 
+### The Pāli chunk-size fix left 6.3% still truncated (#21)
+
+Embedding runs with `truncation=True, max_length=320`. Pāli chunks were once 1,200
+characters, at which **76.2%** exceeded the window — their vectors described a prefix
+while the full text sat in the database, invisible in every count — and that was fixed by
+shrinking Pāli to 700. Measured now with bge-m3's own tokenizer, 800 chunks per source:
+
+| source | median | p95 | max | over 320 |
+|---|---|---|---|---|
+| cbeta | 279 | 292 | 298 | 0 (0.0%) |
+| **sc (Pāli)** | 271 | **325** | **455** | **50 (6.3%)** |
+| derge | 195 | 237 | 306 | 0 (0.0%) |
+| derge-tengyur | 196 | 244 | 330 | 1 (0.1%) |
+
+**The fix reduced the defect; it did not close it.** Pāli's p95 sits *above* the window, so
+6.3% of its vectors still describe a prefix. Chinese and both Tibetan collections are
+clean, which makes this Pāli-specific and rules out a corpus-wide re-embed.
+
+Two remedies pull opposite ways: shrink Pāli chunks again (but the Pāli *topical* drop was
+attributed to chunks being too small), or raise the window. The window was the option
+never tested, so it was tested — `sc` only, 67,371 vectors at `max_length=512`, chunk
+sizes untouched, imported with 0 rejections. Truncation went **50/800 → 0/800**. The cost
+is measured too: **114.6 chunks/s at 512 against ~170 at 320, a 33% throughput loss**, and
+it applies at query time as well since the query passes through the same window.
+
+**Scored, and the answer is to keep 320.** With the index rebuilt over the 512 vectors:
+
+| | now | baseline |
+|---|---|---|
+| retrieval/pali | **11/20** | **11/20** |
+| topical/pali | **9/16** | **9/16** |
+| retrieval/tibetan | 8/20 | 7/20 |
+
+The window change moved the language it was meant to fix by **exactly nothing**. The one
+overall gain (198→199) came from **Tibetan, whose vectors were never touched** — either
+HNSW graph variation from the rebuild or Pāli vectors no longer displacing a Tibetan hit
+in the shared ranking. Attributing it to the window would be a false causal claim from a
+single flipped case in an approximate index.
+
+**But "no change" is not "no benefit", and the reason is arithmetic.** 6.3% of chunks
+truncated against **20 Pāli retrieval cases** is an expected effect of **~1.26 cases**.
+This eval set cannot resolve that. The experiment was underpowered by construction, which
+is a finding about the gold set — it needs Pāli cases that turn on the tail of a long
+chunk — not a verdict on the window.
+
+So the decision rests on principle, not the scorecard: two window configurations in one
+index, with nothing in the schema able to tell them apart, is the defect filed as the
+window/model gap below. Reverted to 320 — `sc` re-embedded and re-imported, 67,371
+vectors, 0 rejected — and the 6.3% truncation is now a **measured and accepted**
+limitation rather than an unexamined one. Revisit only with an eval that can see it, and
+as a corpus-wide change rather than per-source.
+
+**A gap this opened, recorded deliberately.** `Pramana.Embed` treats a vector as
+outstanding when its `embedding_model` differs, because "mixing vectors from two models in
+one index silently corrupts search — every value is a valid float, so nothing would fail
+loudly." The same is true of the **window**, and the schema does not record it: after this
+run Pāli is at 512 and everything else at 320, with nothing able to tell them apart. It is
+milder than mixing models (same model, same space) but it is the same class of silent
+inconsistency, so it is filed rather than left to be discovered.
+
 ### Phase 5 data-integrity gate — all three checks green
 
 Run after the Tengyur landed and after the phantom-line fix (`ccee8c7`):
@@ -1245,6 +1305,21 @@ while sizing #12: `glossary_entries` (84000) recovers 2 of 12 gold doctrinal ter
 `glossary_terms` is 376 rows of Pure Land bibliography from `local-huang-nianzu-jie` and
 holds 0 of 12; and only 165 of 2,471 Chinese works (6.7%) have a parallel to an
 English-translated Pāli work. That is an acquisition problem, not a code one.
+
+**Drop the HNSW index before any bulk vector import.** Measured twice on the same
+67,371-vector import: **69 seconds** with the index dropped, **over 40 minutes** with it
+live — and the rebuild afterwards took **2h44m** instead of ~23 minutes, because the mass
+update through a live index bloats the table and the rebuild then grinds through it
+alongside autovacuum. Correctness is never at risk; hours are.
+
+**Validate a downloaded vector file before importing it.** Count the records and parse the
+last line. A truncated download of this Pāli set had a perfectly valid last line, correct
+1024 dimensions and a plausible 725 MB size, and was **3,257 records short** — importing it
+would have left ~5% of Pāli stranded at the old window, invisibly, because the schema
+cannot record which window produced a vector. Never run two downloads against one path
+either: doing so produced line counts that *fell* between reads (64,114 → 37,578) and
+bytes-per-line at twice the true value. A clean single download of this file takes **21
+seconds**.
 
 **Run these with the machine to themselves.** Four concurrent jobs exhausted the Postgres
 connection limit during this session and the Tengyur pair took over two hours each under
