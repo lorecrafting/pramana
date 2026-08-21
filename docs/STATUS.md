@@ -1146,6 +1146,45 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
 
+### The Tibetan training set is built, from data already here (#21)
+
+BGE-M3 barely separates Tibetan (0.9727 mean pairwise cosine, below) and a cross-encoder
+reranker scored it at *exactly chance*, so the embedder itself has to learn the language.
+`mix pramana.tibetan.pairs` exports the training set — **30,607 pairs across 471 works**,
+46 rejected — with no acquisition and no GPU.
+
+**Folio-level, not chunk-level, and a measurement decided it.** 32,483 chunks carry both a
+`source/bo` and a `translation/en` vector and look like ready-made pairs. They are not
+used, because the English *overshoots*: a chunk's translation vector concatenates every
+rendering overlapping the chunk, so it describes Tibetan outside the chunk's own span.
+
+| pairing | bo median | en median | en/bo |
+|---|---|---|---|
+| chunk-level | 1,411 | 3,297 | **2.32** |
+| folio-level | 1,515 | 1,721 | **1.14** |
+
+That 2.32 is not English verbosity, it is over-inclusion. 84000 renders folio by folio, so
+a folio's rendering corresponds to exactly the lines on it; chunk pairs additionally admit
+up to half the Tibetan unrendered, since translation vectors are built at
+`@min_coverage 0.5`. Folios are uniform physical units too (bo p90 1,630 against median
+1,515), which is why the folio ratio band is so tight.
+
+**Provenance is checked, not asserted.** Every pair carries the anchor it came from. On a
+60-pair sample, **60/60 anchors resolve and 60/60 resolved spans contain the pair's own
+Tibetan** — a training set whose provenance cannot be audited is the same problem as a
+citation that cannot be verified. Spot-check of a pair at
+`pramana:derge.D:toh127@55.155a.1-55.155a.7`: རྫུ་འཕྲུལ / "miraculous powers",
+བྱང་ཆུབ་སེམས་དཔའ་སེམས་དཔའ་ཆེན་པོ / "bodhisattva mahāsattvas" — genuinely parallel.
+
+**Hard negatives are deliberately not mined into the file.** They belong with the training
+run, which knows its batch size and sampling strategy; baking them in fixes a choice that
+should stay tunable. `work_id` and `anchor` are emitted so the obvious source —
+same-work, nearby-folio Tibetan, the confusions that actually matter — is available.
+
+One gap noted while doing this: `Pramana.Chunk.Vectors` computes a translation vector's
+`coverage` and filters on it at 0.5, but does not persist it. Every existing pair is
+therefore ≥50% covered by construction, and a 0.5 pair cannot be told from a 1.0 one.
+
 ### Tibetan n-grams were mostly one particle (#21) — the unit was wrong
 
 `:ngram` is the recall fallback when a phrase finds nothing, and it windows the query by
