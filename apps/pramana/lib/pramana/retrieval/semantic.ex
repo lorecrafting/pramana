@@ -316,13 +316,29 @@ defmodule Pramana.Retrieval.Semantic do
 
     total = Repo.aggregate(chunks, :count)
 
-    embedded =
-      chunks
-      |> join(:inner, [chunk: c], v in ChunkVector, as: :vector, on: v.chunk_id == c.id)
+    # A SEMI-JOIN, not `distinct` over a join. The question is whether each chunk has at
+    # least one qualifying vector, and `exists` lets the planner stop at the first one;
+    # `distinct` made it build the whole 560,238 x 617,038 join and then deduplicate.
+    # Measured on the full corpus, same answer both ways (560,238): the SQL alone goes
+    # 1,778 ms -> 527 ms, but the honest figure is the whole call, **1,224 ms -> 921 ms**,
+    # about 300 ms saved per search. The rest is `total` plus Ecto overhead, and the
+    # remaining ~900 ms is largely inherent: 560,238 index probes cost what they cost.
+    #
+    # Every search pays it — `Hybrid.run/2` calls this once per query — and it is database
+    # time, so it shows up in no CPU profile. Caching is the obvious alternative and is the
+    # wrong one: this number exists so an empty result cannot be mistaken for a small
+    # canon, and a stale cache reports a corpus fuller than it is. Embedding state also
+    # changes WITHOUT a re-bake, so `bake_id` is not even a sound key.
+    qualifying_vectors =
+      from(v in ChunkVector,
+        where: v.chunk_id == parent_as(:chunk).id and not is_nil(v.embedding)
+      )
       |> filter_vector_kinds(opts[:vector_kinds])
       |> filter_vector_lang(opts[:vector_lang])
-      |> where([vector: v], not is_nil(v.embedding))
-      |> distinct([chunk: c], c.id)
+
+    embedded =
+      chunks
+      |> where([chunk: _c], exists(qualifying_vectors))
       |> Repo.aggregate(:count)
 
     %{
