@@ -42,15 +42,15 @@ Nobody in this field publishes retrieval numbers. The nearest comparable project
 "~98% of served answers are trustworthy" with no reproducible benchmark. So here is ours,
 produced by `mix pramana.evals` over the gold set committed in [`evals/`](evals/).
 
-**1,400 cases · 0 stale · overall 89.4%**
+**1,400 cases · 0 stale · overall 89.5%**
 
 | what is measured | cases | result |
 |---|---|---|
 | **Quote verification** — the guard confirms a quotation that is really there | 300 | **100%** |
-| **Quote rejection** — the guard refuses altered text and fabricated URNs | 301 | **99.7%** (1 miss) |
+| **Quote rejection** — the guard refuses altered text and fabricated URNs | 301 | **100%** |
 | **Provenance labelling** — origin and role match the Taishō's own catalogue | 300 | **100%** |
 | **Absence** — the system returns nothing where it holds nothing | 4 | **100%** |
-| **Adversarial subset** | 305 | **99.7%** |
+| **Adversarial subset** | 305 | **100%** |
 | **Retrieval @10** — find the one anchor whose text was quoted | 446 | **73.3%** |
 | ↳ Chinese | 232 | 97.8% |
 | ↳ Pāli, English query | 150 | 53.3% |
@@ -72,8 +72,10 @@ the case count.
 
 What widening actually revealed: the old per-language figures were noisy estimates.
 retrieval/Pāli is 53.3% (n=150), not 55.0% (n=20); retrieval/Tibetan is 31.3% (n=64), not
-35.0% (n=20). Both old numbers sat inside their own sampling error. And **one quote-rejection
-case now fails** — invisible at n=41, visible at n=301.
+35.0% (n=20). Both old numbers sat inside their own sampling error. And it exposed a defect in the gold set
+itself: one "altered quote" case had been altered into *itself*, so the guard verified it
+correctly and was scored as having failed. Invisible at n=41, surfaced at n=301, and fixed
+in the generator.
 
 The four topical rows did **not** widen and cannot: those cases come from a curated
 doctrinal-term list that rejects terms as too common to measure (སྟོང་པ་ཉིད occurs in 20,500

@@ -454,18 +454,30 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
     end
   end
 
-  defp alter_one_character(text) do
+  @doc false
+  # Returns nil rather than an unaltered string. A "reject" case whose text was never
+  # actually changed is not a weak test, it is a WRONG one: the guard verifies the quote —
+  # correctly, because it really is in the passage — and the harness scores the guard as
+  # having failed. Found at n=301, invisible at n=41: `substitute/1` mapped every Han
+  # character to 空, so a passage whose midpoint was already 空 was "altered" into itself.
+  def alter_one_character(text) do
     graphemes = String.graphemes(text)
     index = div(length(graphemes), 2)
 
-    case Enum.at(graphemes, index) do
-      nil -> nil
-      char -> graphemes |> List.replace_at(index, substitute(char)) |> Enum.join()
+    with char when not is_nil(char) <- Enum.at(graphemes, index),
+         replacement when replacement != char <- substitute(char) do
+      graphemes |> List.replace_at(index, replacement) |> Enum.join()
+    else
+      _ -> nil
     end
   end
 
   # A substitution that stays in the same script, so the alteration is a plausible
-  # misquotation rather than an obvious corruption.
+  # misquotation rather than an obvious corruption. The second choice exists only so the
+  # result is guaranteed to DIFFER from the character being replaced.
+  defp substitute("空"), do: "無"
+  defp substitute("x"), do: "y"
+
   defp substitute(char) do
     if String.match?(char, ~r/\p{Han}/u), do: "空", else: "x"
   end

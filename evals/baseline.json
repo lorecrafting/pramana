@@ -1,7 +1,7 @@
 {
   "adversarial": {
-    "hits": 304,
-    "rate": 99.7,
+    "hits": 305,
+    "rate": 100.0,
     "scored": 305
   },
   "answered_any_tradition": {
@@ -21,8 +21,8 @@
       "scored": 300
     },
     "quote_reject": {
-      "hits": 300,
-      "rate": 99.7,
+      "hits": 301,
+      "rate": 100.0,
       "scored": 301
     },
     "quote_verify": {
@@ -89,8 +89,8 @@
     }
   },
   "overall": {
-    "hits": 1252,
-    "rate": 89.4,
+    "hits": 1253,
+    "rate": 89.5,
     "scored": 1400
   },
   "stale": 0,
