@@ -65,7 +65,16 @@ Gaiji test suite green.
 
 The differentiator. Small phase, high value.
 
-- SAT ingest; dedupe vols 1–55/85 against CBETA by work ID, keeping both as
+- SAT ingest **if it ever arrives** — send the request once and sequence nothing behind
+  it (`docs/SOURCES.md`). The licence is settled (CC BY-SA 4.0); only the bulk copy is
+  missing. If it never comes, the announced gap is an acceptable end state.
+- **Instead, and first: CBETA's other collections.** This corpus holds witness `T` and
+  nothing else from CBETA — one of ~20. `X`, `J`, `B`, `K`, `L`, `N` are unacquired:
+  thousands of works, no permission needed, and the same pipeline already proven on
+  2,471. Revisit `Pramana.Coverage.taisho/0` when a second collection lands, since it
+  reasons about Taishō volume numbers and will not see works arriving under other
+  numbering.
+- When SAT does arrive: dedupe vols 1–55/85 against CBETA by work ID, keeping both as
   distinct witnesses
 - Vols **56–84 → `composition_origin: japanese, text_role: commentary`**
 - **Grouped tool responses** — results bucketed by origin and role so Japanese

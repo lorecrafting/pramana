@@ -34,13 +34,47 @@ rules forbid (no pinned upstream, no `files_sha256`, nothing reproducible), quit
 from being rude to a university service.
 
 **Next step is an email**, asking for a bulk copy of vols 56–84 under the CC BY-SA 4.0
-terms already granted, and stating the use. Until then:
+terms already granted, and stating the use. Note what that ask is and is not: **the
+licence is not in question**. SAT has already released this material under CC BY-SA 4.0,
+so the request is for a *copy of openly-licensed data*, not for permission. That is a far
+easier thing to grant than an exception.
+
+**Send it once, and sequence nothing behind it.** The odds are unknowable — an academic
+group that has run a public interface for years without offering a dump has usually taken
+a position rather than overlooked a feature, and academic email runs weeks to months. Treat
+this as opportunistic. Until then:
 
 - The 56–84 provenance rule is implemented and tested
   (`Pramana.URN.Taisho.provenance_for_volume/1`), so the material classifies itself
   correctly the moment it arrives.
 - `Pramana.Coverage` states the gap in every survey response, so the absence cannot be
   mistaken for the Japanese tradition being silent.
+
+**And if it never arrives, that is an acceptable end state.** A gap the system announces —
+by division, work-number range and classification — is not the failure this project exists
+to prevent. An unannounced one would be.
+
+#### The better use of that effort: CBETA's other collections
+
+This corpus holds witness `T` and nothing else from CBETA — **one of roughly twenty
+collections**. `X` (卍新纂續藏經, ~90 volumes), `J` (嘉興藏), `B` (大藏經補編), `K` (高麗),
+`L` (乾隆), `N` (南傳大藏經) and others are unacquired.
+
+| | SAT vols 56–84 | CBETA's other collections |
+|---|---|---|
+| works | 547 | thousands |
+| permission | must be asked for | **none needed** |
+| pipeline | new | **built and proven on 2,471 works** |
+| licence | CC BY-SA 4.0, settled | settled |
+
+Same acquisition path, same TEI normalizer, same lockfile machinery. Waiting on an
+uncertain reply for 547 works while thousands sit behind a pipeline that already works is
+the wrong sequencing.
+
+**One correctness note before doing it:** `Pramana.Coverage.taisho/0` reasons about Taishō
+*volume numbers*. If Japanese-composed works arrive through another collection under
+different numbering, coverage will not see them and the caveat will overstate the gap.
+Revisit `Coverage` when a second CBETA collection lands.
 
 ### SuttaCentral `bilara-data` (Pali)
 - `https://github.com/suttacentral/bilara-data` — **CC0, public domain**
