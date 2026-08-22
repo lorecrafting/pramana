@@ -69,10 +69,12 @@ defmodule Mix.Tasks.Pramana.Verify do
       Mix.raise("nothing baked yet — run `mix pramana.bake` first")
     end
 
+    started = System.monotonic_time(:millisecond)
     results = Enum.map(texts, &verify_text(&1, sample))
+    elapsed = System.monotonic_time(:millisecond) - started
     failures = Enum.flat_map(results, & &1.failures)
 
-    report(results, failures)
+    report(results, failures, elapsed)
   end
 
   # `--source` is for iterating on one pipeline; a gate runs the whole corpus.
@@ -292,7 +294,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   defp count_check(_label, []), do: :ok
   defp count_check(label, failures), do: {label, length(failures), Enum.take(failures, 3)}
 
-  defp report(results, []) do
+  defp report(results, [], elapsed) do
     total = Enum.sum(Enum.map(results, & &1.segment_count))
 
     Mix.shell().info("""
@@ -300,11 +302,12 @@ defmodule Mix.Tasks.Pramana.Verify do
     verify OK
       texts checked:    #{length(results)}
       segments checked: #{total}
+      elapsed:          #{Pramana.Elapsed.human(elapsed)} (#{Pramana.Elapsed.rate(length(results), elapsed)} texts/s)
       body re-normalized from raw/ and byte-identical for every text
     """)
   end
 
-  defp report(_results, failures) do
+  defp report(_results, failures, _elapsed) do
     for f <- failures, do: Mix.shell().error("  #{inspect(f)}")
 
     Mix.raise("""

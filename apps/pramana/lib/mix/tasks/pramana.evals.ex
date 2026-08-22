@@ -60,8 +60,21 @@ defmodule Mix.Tasks.Pramana.Evals do
 
     warn_if_no_embeddings()
 
+    started = System.monotonic_time(:millisecond)
     scorecard = Evals.run(cases, run_opts(opts))
+    elapsed = System.monotonic_time(:millisecond) - started
+
     Mix.shell().info(Score.render(scorecard))
+
+    # Printed even on a green run. Two runtimes were published as measurements in
+    # `docs/CHECKS.md` and both were wrong — one extrapolated from a case count, one read
+    # off a wall clock across a sleeping laptop. A task that times itself cannot produce
+    # either, and the RATE is what stays comparable when the gold set grows, which it did
+    # 5.6x in a day.
+    Mix.shell().info(
+      "  ran #{length(cases)} case(s) in #{Pramana.Elapsed.human(elapsed)} " <>
+        "(#{Pramana.Elapsed.rate(length(cases), elapsed)} cases/s)\n"
+    )
 
     if path = opts[:json], do: write_json(path, scorecard)
     if opts[:gate], do: gate(scorecard, Keyword.get(opts, :baseline, @default_baseline))

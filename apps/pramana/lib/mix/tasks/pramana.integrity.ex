@@ -62,12 +62,14 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
     if texts == [], do: Mix.raise("nothing baked yet — run `mix pramana.bake_all` first")
 
+    started = System.monotonic_time(:millisecond)
+
     totals =
       texts
       |> Enum.reduce(empty_totals(), &check_text/2)
       |> reconcile_derge(texts, opts[:limit])
 
-    report(length(texts), totals)
+    report(length(texts), totals, System.monotonic_time(:millisecond) - started)
   end
 
   # The per-text checks cannot ask whether the walk dropped anything the edition prints:
@@ -310,10 +312,10 @@ defmodule Mix.Tasks.Pramana.Integrity do
     )
   end
 
-  defp report(text_count, %{bad: []} = t) do
+  defp report(text_count, %{bad: []} = t, elapsed) do
     Mix.shell().info("""
 
-    integrity OK — #{text_count} text(s)
+    integrity OK — #{text_count} text(s) in #{Pramana.Elapsed.human(elapsed)} (#{Pramana.Elapsed.rate(text_count, elapsed)} texts/s)
 
       source anchors:           #{t.lb}   (<lb/> in TEI, page files in a local text)
       IR lines:                 #{t.ir_lines}   (every anchor produced a line)
@@ -330,7 +332,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     """)
   end
 
-  defp report(_text_count, t) do
+  defp report(_text_count, t, _elapsed) do
     for {work, kind, expected, actual} <- Enum.take(t.bad, 25) do
       Mix.shell().error("  #{work}: #{kind} — raw #{expected}, bake #{actual}")
     end
