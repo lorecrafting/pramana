@@ -1249,6 +1249,25 @@ running the eval against the real index.** That is now the rule: for a retrieval
 the gold set is not confirmation of a decision already made on proxies — it *is* the
 decision.
 
+**Rollback confirmed.** Re-embedded with the stock model and re-scored: **78.7%
+(196/249)** against the 79.5% baseline, with **seven of the eight categories
+bit-identical** — provenance/chinese 40/40, retrieval/chinese 34/35, retrieval/pali 11/20,
+topical/pali 9/16, topical/chinese-native 12/12, and both zero categories unchanged. Only
+`retrieval/tibetan` differs, 5/20 against 7/20.
+
+Two cases, and it is almost certainly **HNSW rebuild noise rather than an incomplete
+restore**. The index is approximate, so a rebuild produces a different graph, and there is
+a precedent from this same session: during the 512-window experiment `retrieval/tibetan`
+moved 7/20 → 8/20 from a rebuild alone, with no change that could touch Tibetan. It moved
+by one then and by two now.
+
+That instability is itself a finding, and it points back at the same defect: **Tibetan
+retrieval is unstable under index rebuild BECAUSE its vectors are the worst-separated in
+the corpus.** At 0.9727 mean pairwise cosine the candidates are near-ties, and near-ties
+resolve arbitrarily under approximate search. The 20-case gold set cannot distinguish a
+±2 swing from a real change, which is the same statistical thinness that made the
+320-vs-512 window question unresolvable.
+
 What is kept: the adapter, `modal_train_tibetan.py`, `modal_probe_adapter.py`, and the
 30,607-pair training set. What is discarded: the vectors. A future attempt should train
 against corpus-scale negatives — mined from the index rather than from the batch — and
