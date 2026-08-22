@@ -1,0 +1,57 @@
+defmodule Pramana.SourcesTest do
+  @moduledoc """
+  The tradition axis on the source registry.
+
+  This exists because `Pramana.Retrieval.Semantic` kept its own copy of the mapping and
+  it listed 4 of the 8 registered sources. A source in no group is not ranked lower under
+  `per_tradition: true` — it is never queried at all, so it returns nothing and says
+  nothing, which is the shape of absence this project refuses everywhere else.
+  """
+  use ExUnit.Case, async: true
+
+  alias Pramana.Sources
+
+  describe "every source declares which canon it belongs to" do
+    test "no registered source is left out of a tradition" do
+      grouped = Sources.by_tradition() |> Map.values() |> List.flatten() |> Enum.sort()
+
+      assert grouped == Enum.sort(Sources.ids()),
+             "a registered source belongs to no tradition, so per_tradition search " <>
+               "will never query it: #{inspect(Sources.ids() -- grouped)}"
+    end
+
+    test "the canons are the three the corpus holds" do
+      assert Sources.by_tradition() == %{
+               "chinese" => ["cbeta", "sat"],
+               "pali" => ["sc"],
+               "tibetan" => ["84000", "84000-rdf", "bdrc-derge", "derge", "derge-tengyur"]
+             }
+    end
+
+    # The case that motivated all of this: `sat` is registered, blocked on acquisition
+    # (#14), and was absent from the hand-written map. It has to be grouped BEFORE the
+    # text arrives, because the day it arrives nothing will fail to point this out.
+    test "sat is grouped with the Chinese canon before its text exists" do
+      assert Sources.tradition("sat") == "chinese"
+    end
+
+    # Origin is where a text was composed; tradition is which collection transmits it.
+    # Taishō 56–84 are Japanese-composed works in the Chinese canon, and the Pāli and
+    # Tibetan canons are both `indic` in origin, so neither direction of substitution
+    # works.
+    test "tradition is not composition_origin" do
+      assert Sources.tradition("sc") != Sources.tradition("derge")
+      assert Sources.tradition("sat") == Sources.tradition("cbeta")
+    end
+  end
+
+  describe "locally-added texts" do
+    test "an unregistered id becomes its own tradition rather than nil or a guess" do
+      assert Sources.tradition("local-huangnianzu") == "local-huangnianzu"
+    end
+
+    test "a local id is never folded into a canon it was not declared part of" do
+      refute Sources.tradition("local-anything") in Map.keys(Sources.by_tradition())
+    end
+  end
+end

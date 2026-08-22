@@ -33,6 +33,7 @@ defmodule Pramana.Retrieval.Semantic do
   alias Pramana.Corpus.Work
   alias Pramana.Embed
   alias Pramana.Repo
+  alias Pramana.Sources
 
   @default_limit 20
   @max_limit 200
@@ -142,11 +143,14 @@ defmodule Pramana.Retrieval.Semantic do
   # Equal slots per tradition. That is a CLAIM — that each canon deserves equal voice on a
   # doctrinal question — and not an inference from corpus size, which is 2,471 Chinese,
   # 8,442 Pāli and 4,575 Tibetan works. Stated here so it can be argued with.
-  @traditions %{
-    "chinese" => ["cbeta"],
-    "pali" => ["sc"],
-    "tibetan" => ["derge", "derge-tengyur"]
-  }
+  #
+  # DERIVED from the source registry rather than written out again here. The hand-written
+  # version listed 4 of the 8 registered sources, and a source in no group is not degraded
+  # but INVISIBLE: `sat` (Taishō 56–84) would have been unreachable under `per_tradition`
+  # the day #14 unblocks, silently, which is the failure `Pramana.Coverage` exists to
+  # prevent. `CLAUDE.md` says adding a source is three behaviours and one registry entry;
+  # a second mapping here made that false.
+  @traditions Sources.by_tradition()
 
   defp per_tradition_search(vector, opts) do
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)

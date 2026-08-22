@@ -22,6 +22,14 @@ defmodule Pramana.Sources do
   @type t :: %{
           id: String.t(),
           name: String.t(),
+          # Which canon this source belongs to. NOT the same axis as
+          # `composition_origin`, and the two disagree on real texts: a Pāli sutta and a
+          # Derge sūtra are both `indic` in origin while belonging to different canons,
+          # and SAT's Taishō 56–84 are `japanese` in origin while belonging to the
+          # Chinese canon. Origin is where a text was composed; this is which collection
+          # transmits it, which is the axis a reader means by "what does the Tibetan
+          # canon say".
+          tradition: String.t(),
           # nil for a locally-added text: there is no upstream to point at, and the
           # content hash IS the pin. Map typespecs are exact, so declaring this
           # String.t() made every caller's return type unsatisfiable.
@@ -33,6 +41,7 @@ defmodule Pramana.Sources do
   @sources %{
     "cbeta" => %{
       id: "cbeta",
+      tradition: "chinese",
       name: "CBETA Chinese Buddhist Electronic Tripitaka (XML P5)",
       upstream_url: "https://github.com/cbeta-org/xml-p5",
       repo: "cbeta-org/xml-p5",
@@ -46,6 +55,7 @@ defmodule Pramana.Sources do
     },
     "sat" => %{
       id: "sat",
+      tradition: "chinese",
       name: "SAT Daizōkyō Text Database",
       upstream_url: "https://21dzk.l.u-tokyo.ac.jp/SAT/",
       repo: nil,
@@ -69,6 +79,7 @@ defmodule Pramana.Sources do
     # per-publication licence belongs on any translation ingested later (#39).
     "sc" => %{
       id: "sc",
+      tradition: "pali",
       name: "SuttaCentral bilara-data — Mahāsaṅgīti Pāli Tipiṭaka (root)",
       upstream_url: "https://github.com/suttacentral/bilara-data",
       repo: "suttacentral/bilara-data",
@@ -89,6 +100,7 @@ defmodule Pramana.Sources do
     # renders.
     "derge" => %{
       id: "derge",
+      tradition: "tibetan",
       name: "Digital Derge Kangyur (Esukhia–Barom, from the UVA–SOAS 2013 eKangyur)",
       upstream_url: "https://github.com/Esukhia/derge-kangyur",
       repo: "Esukhia/derge-kangyur",
@@ -106,6 +118,7 @@ defmodule Pramana.Sources do
     },
     "derge-tengyur" => %{
       id: "derge-tengyur",
+      tradition: "tibetan",
       name: "Digital Derge Tengyur (Esukhia–Barom Theksum Choling)",
       upstream_url: "https://github.com/Esukhia/derge-tengyur",
       repo: "Esukhia/derge-tengyur",
@@ -124,6 +137,7 @@ defmodule Pramana.Sources do
     },
     "bdrc-derge" => %{
       id: "bdrc-derge",
+      tradition: "tibetan",
       name: "BDRC scan of the Degé Kangyur (W4CZ5369), image lists only",
       upstream_url: "https://library.bdrc.io/show/bdr:W4CZ5369",
       repo: nil,
@@ -145,6 +159,7 @@ defmodule Pramana.Sources do
     # *Saddharmapuṇḍarīka* is not.
     "84000-rdf" => %{
       id: "84000-rdf",
+      tradition: "tibetan",
       name: "84000 catalogue metadata (RDF/LOD export)",
       upstream_url: "https://github.com/84000/data-rdf",
       repo: "84000/data-rdf",
@@ -163,6 +178,7 @@ defmodule Pramana.Sources do
     },
     "84000" => %{
       id: "84000",
+      tradition: "tibetan",
       name: "84000: Translating the Words of the Buddha",
       upstream_url: "https://github.com/84000/data-tei",
       repo: "84000/data-tei",
@@ -253,6 +269,41 @@ defmodule Pramana.Sources do
   @doc "All known source ids."
   @spec ids() :: [String.t()]
   def ids, do: Map.keys(@sources)
+
+  @doc """
+  The canon a source belongs to.
+
+  An unregistered id — every `local-*` text, since those cannot be enumerated here —
+  gets **its own tradition, named after itself**, rather than a guess or a nil. That is
+  the conservative answer for a retrieval path that groups by tradition: a locally-added
+  text is never silently folded into a canon it may not belong to, and never silently
+  dropped for belonging to none. A local manifest that genuinely belongs to a canon can
+  say so; see `from_manifest/1`.
+  """
+  @spec tradition(String.t()) :: String.t()
+  def tradition(id) when is_binary(id) do
+    case Map.fetch(@sources, id) do
+      {:ok, %{tradition: tradition}} -> tradition
+      :error -> id
+    end
+  end
+
+  @doc """
+  Registered source ids grouped by canon.
+
+  `Pramana.Retrieval.Semantic` derives its per-tradition search groups from this, rather
+  than keeping a second copy of the mapping. The second copy is what this replaces: it
+  listed four of the eight registered sources, so `sat` — Taishō 56–84, the whole
+  Japanese-composed corpus — would have been unreachable under `per_tradition: true` on
+  the day #14 unblocks, with nothing failing to say so.
+  """
+  @spec by_tradition() :: %{String.t() => [String.t()]}
+  def by_tradition do
+    @sources
+    |> Map.values()
+    |> Enum.group_by(& &1.tradition, & &1.id)
+    |> Map.new(fn {tradition, ids} -> {tradition, Enum.sort(ids)} end)
+  end
 
   @doc """
   True when a source's content may be redistributed by us.
