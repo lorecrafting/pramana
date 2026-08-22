@@ -38,7 +38,14 @@ defmodule Pramana.Normalize.Catalogue84000 do
   @behaviour Saxy.Handler
 
   @type t :: %{
-          toh: String.t(),
+          # NIL when the file names no Tōhoku number, which 84000's placeholder records
+          # do — the file exists and holds nothing but licence boilerplate. The spec said
+          # `String.t()`, so dialyzer concluded the `is_nil(record.toh)` guard in
+          # `mix pramana.kangyur.catalogue` could never fire and reported it as dead code.
+          # The guard is right and the spec was wrong: deleting it, which is what a
+          # reader trusting the spec would do, brings back placeholders being counted as
+          # texts this corpus is missing.
+          toh: String.t() | nil,
           titles: %{String.t() => String.t()},
           bdrc: %{String.t() => String.t()},
           translators: [String.t()]

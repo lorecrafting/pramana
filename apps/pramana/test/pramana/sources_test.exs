@@ -20,10 +20,14 @@ defmodule Pramana.SourcesTest do
                "will never query it: #{inspect(Sources.ids() -- grouped)}"
     end
 
+    # Written out in full rather than counted, so ADDING a source has to be a deliberate
+    # edit here. `sc-data` and `sc-translations` are separate entries for the same
+    # repository, exactly as `84000` and `84000-rdf` are: same upstream, different
+    # licences, and one entry would have to state the weakest of them about all three.
     test "the canons are the three the corpus holds" do
       assert Sources.by_tradition() == %{
                "chinese" => ["cbeta", "sat"],
-               "pali" => ["sc"],
+               "pali" => ["sc", "sc-data", "sc-translations"],
                "tibetan" => ["84000", "84000-rdf", "bdrc-derge", "derge", "derge-tengyur"]
              }
     end

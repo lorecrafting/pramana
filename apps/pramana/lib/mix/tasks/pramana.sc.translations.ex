@@ -37,6 +37,7 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
   alias Pramana.Acquire.Lockfile
   alias Pramana.Corpus.Segment
   alias Pramana.Repo
+  alias Pramana.Sources
   alias Pramana.Translations
 
   import Ecto.Query
@@ -111,27 +112,10 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
         }
       end)
 
+    # From the registry: this publication has its own entry because it has its own
+    # licence, and stating it in two places is how they drift.
     Lockfile.build_entry(
-      %{
-        id: "sc-translations",
-        name: "SuttaCentral bilara-data — translations",
-        upstream_url: "https://github.com/suttacentral/bilara-data",
-        repo: "suttacentral/bilara-data",
-        license: %{
-          # The entry-level licence is the WEAKEST of the publications it covers, so a
-          # reader of the lockfile alone cannot conclude more than is true. The precise
-          # terms live per rendering in `translations.license_spdx`, because that is the
-          # granularity the data actually has.
-          spdx: "CC-BY-SA-3.0",
-          class: "cc-by-sa",
-          commercial_use: true,
-          redistributable: true,
-          notice:
-            "Mixed per publication: 139 CC0, 1 CC BY-SA 3.0 (scpub69, Patna " <>
-              "Dhammapada). See `translations.license_spdx` for the terms on any " <>
-              "individual rendering; this entry states the most restrictive."
-        }
-      },
+      Sources.fetch!("sc-translations"),
       files: entries,
       pin: %{"type" => "git", "commit" => commit(root), "sparse" => "translation"}
     )

@@ -160,10 +160,14 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
 
   defp collection(nil), do: @collections["kangyur"]
 
+  # `case` over `Map.get_lazy/3`: the fallback only raises, so as an anonymous function it
+  # has no local return and dialyzer flags it. Same behaviour, and the raise is now in a
+  # branch rather than in a function claiming to produce a collection.
   defp collection(name) do
-    Map.get_lazy(@collections, name, fn ->
-      Mix.raise("unknown collection #{inspect(name)}; expected kangyur or tengyur")
-    end)
+    case Map.fetch(@collections, name) do
+      {:ok, collection} -> collection
+      :error -> Mix.raise("unknown collection #{inspect(name)}; expected kangyur or tengyur")
+    end
   end
 
   defp discover(root, collection) do

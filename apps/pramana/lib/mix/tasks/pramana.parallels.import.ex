@@ -32,6 +32,7 @@ defmodule Mix.Tasks.Pramana.Parallels.Import do
 
   alias Pramana.Acquire.Lockfile
   alias Pramana.Parallels
+  alias Pramana.Sources
 
   @switches [dry_run: :boolean]
 
@@ -92,23 +93,7 @@ defmodule Mix.Tasks.Pramana.Parallels.Import do
 
     entry =
       Lockfile.build_entry(
-        %{
-          id: "sc-data",
-          name: "SuttaCentral sc-data (parallels and text metadata)",
-          upstream_url: "https://github.com/suttacentral/sc-data",
-          repo: "suttacentral/sc-data",
-          license: %{
-            # NO LICENCE FILE. sc-data ships none, so redistribution rights are NOT
-            # established — unlike bilara-data, which states CC0 explicitly. Recorded as
-            # unknown and non-redistributable rather than assumed, and the licence filter
-            # will keep it off any public surface until that is resolved.
-            spdx: "NOASSERTION",
-            class: "unknown",
-            commercial_use: false,
-            redistributable: false,
-            notice: "sc-data carries no LICENSE file; terms unconfirmed as of 2026-08-15."
-          }
-        },
+        Sources.fetch!("sc-data"),
         files: files,
         pin: %{"type" => "content", "files_sha256" => Lockfile.manifest_hash(files)}
       )

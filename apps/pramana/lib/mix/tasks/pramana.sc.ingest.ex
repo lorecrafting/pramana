@@ -36,6 +36,7 @@ defmodule Mix.Tasks.Pramana.Sc.Ingest do
   alias Pramana.Corpus.Loader
   alias Pramana.Normalize.Bilara
   alias Pramana.Segment.SegmentId
+  alias Pramana.Sources
 
   @switches [limit: :integer, dry_run: :boolean, root: :string]
 
@@ -161,26 +162,13 @@ defmodule Mix.Tasks.Pramana.Sc.Ingest do
         }
       end)
 
+    # From the registry, not written out again here. The inline copy this replaces stated
+    # the licence in DIFFERENT WORDS from `Pramana.Sources`, so the lockfile and the
+    # database disagreed about the terms of the same source — the #17 lesson in miniature,
+    # where the licence a query filters on was not the licence we had established.
     entry =
       Lockfile.build_entry(
-        %{
-          id: @source_id,
-          name: "SuttaCentral bilara-data — Mahāsaṅgīti Pāli Tipiṭaka (root)",
-          upstream_url: "https://github.com/suttacentral/bilara-data",
-          repo: "suttacentral/bilara-data",
-          license: %{
-            # Per `_publication.json` scpub64, NOT the repository-level CC0 claim. The
-            # root text is Public Domain Mark: free of known restrictions, redistributable.
-            spdx: "CC-PDM-1.0",
-            class: "public-domain",
-            commercial_use: true,
-            redistributable: true,
-            notice:
-              "Mahāsaṅgīti Tipiṭaka Buddhavasse 2500. Public Domain Mark per " <>
-                "bilara-data _publication.json (scpub64). SuttaCentral asks that use " <>
-                "accord with the values of the Buddhist tradition."
-          }
-        },
+        Sources.fetch!(@source_id),
         files: entries,
         pin: %{"type" => "git", "commit" => commit(root), "sparse" => @subpath}
       )

@@ -8,15 +8,22 @@ defmodule Pramana.Sources do
   **we publish the pipeline, not the corpus.**
   """
 
+  # `optional(:derivatives)` and not `derivatives: boolean()`. The comment below has said
+  # "optional" since 84000 arrived, and the SHORTHAND cannot express it: `key: type` in a
+  # map typespec means required and exact. `cbeta`, `sat` and `sc` omit the key, so
+  # `fetch!("sc")` returned a value that did not match `t()` — and every function typed
+  # to take a source broke its contract, which is where all nine of dialyzer's warnings
+  # came from. Mixing shorthand with `optional/1` is not allowed, so every key is written
+  # out.
   @type license :: %{
-          spdx: String.t(),
-          class: String.t(),
-          commercial_use: boolean(),
-          redistributable: boolean(),
-          # Optional: absent means "permitted", which is true of every source that
-          # predates 84000 and is the only safe default for a column added later.
-          derivatives: boolean(),
-          notice: String.t() | nil
+          :spdx => String.t(),
+          :class => String.t(),
+          :commercial_use => boolean(),
+          :redistributable => boolean(),
+          # Absent means "permitted", which is true of every source that predates 84000
+          # and is the only safe default for a column added later.
+          optional(:derivatives) => boolean(),
+          :notice => String.t() | nil
         }
 
   @type t :: %{
@@ -89,9 +96,53 @@ defmodule Pramana.Sources do
         commercial_use: true,
         redistributable: true,
         notice:
-          "Public Domain Mark per bilara-data _publication.json (scpub64): free of " <>
-            "known restrictions under copyright law. SuttaCentral asks that use accord " <>
-            "with the values of the Buddhist tradition."
+          "Mahāsaṅgīti Tipiṭaka Buddhavasse 2500. Public Domain Mark per bilara-data " <>
+            "_publication.json (scpub64): free of known restrictions under copyright " <>
+            "law. SuttaCentral asks that use accord with the values of the Buddhist " <>
+            "tradition."
+      }
+    },
+    # bilara-data publishes three things this corpus takes separately, exactly as 84000
+    # publishes translations and metadata under different terms. They are separate
+    # entries because they carry DIFFERENT LICENCES, and one entry would have to state
+    # the weakest of them about all three.
+    #
+    # These two were previously written inline in their mix tasks, which is how `sc`'s
+    # licence notice came to differ between the lockfile and the database — see the
+    # commit that moved them.
+    "sc-translations" => %{
+      id: "sc-translations",
+      tradition: "pali",
+      name: "SuttaCentral bilara-data — translations",
+      upstream_url: "https://github.com/suttacentral/bilara-data",
+      repo: "suttacentral/bilara-data",
+      license: %{
+        # The entry-level licence is the WEAKEST of the publications it covers, so a
+        # reader of the lockfile alone cannot conclude more than is true. The precise
+        # terms live per rendering in `translations.license_spdx`, because that is the
+        # granularity the data actually has.
+        spdx: "CC-BY-SA-3.0",
+        class: "cc-by-sa",
+        commercial_use: true,
+        redistributable: true,
+        notice:
+          "Mixed per publication: 139 CC0, 1 CC BY-SA 3.0 (scpub69, Patna " <>
+            "Dhammapada). See `translations.license_spdx` for the terms on any " <>
+            "individual rendering; this entry states the most restrictive."
+      }
+    },
+    "sc-data" => %{
+      id: "sc-data",
+      tradition: "pali",
+      name: "SuttaCentral sc-data (parallels and text metadata)",
+      upstream_url: "https://github.com/suttacentral/sc-data",
+      repo: "suttacentral/sc-data",
+      license: %{
+        spdx: "NOASSERTION",
+        class: "unknown",
+        commercial_use: false,
+        redistributable: false,
+        notice: "sc-data carries no LICENSE file; terms unconfirmed as of 2026-08-15."
       }
     },
     # The Tibetan pair. They are deliberately two sources rather than one, because the
