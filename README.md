@@ -17,13 +17,14 @@ no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
 
 | | |
 |---|---|
-| Texts | **10,914** |
-| Segments (citable units) | **5,185,767** |
+| Texts | **15,489** |
+| Segments (citable units) | **6,538,238** |
 | Chinese works (CBETA / Taishō) | 2,471 |
 | Pāli works (SuttaCentral) | 8,442 |
-| Retrieval chunks | 327,754 |
-| Embedding vectors | **342,535** (100% embedded) |
-| English renderings | 210,756 by 8 translators |
+| Tibetan works (Degé Kangyur / Tengyur) | 1,195 / 3,380 |
+| Retrieval chunks | 560,238 |
+| Embedding vectors | **617,038** (100% embedded) |
+| English renderings | 241,409 by 7 translators |
 | Curated cross-tradition parallels | 407,176 (24,717 resolvable at both ends) |
 | Verbatim quotations between works | 141,073 across 1,301 works |
 | Buddhist reading exceptions | 9,543 over a 44,348-character base |
