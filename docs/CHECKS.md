@@ -134,9 +134,13 @@ doctrinal-term list, and terms are rejected when they are *too common to measure
 `topical/tibetan` stays at 9 cases and `topical/chinese` at 12. They are the hardest and
 most valuable questions in the set, and they remain statistically undecidable.
 
-**Budget the runtime.** 1,400 cases with the embedding serving is **45+ minutes**, against
-~5 for the old 249. The semantic cases are what cost: 75 → 446, each a query embedding
-plus an HNSW search. Use `--only retrieval` when iterating; run the whole set at a gate.
+**Budget the runtime — it is hours, not minutes.** The 1,400-case set measured **8h20m
+wall** (62 min CPU, so it is overwhelmingly waiting, not computing), against ~5 minutes for
+the old 249. The semantic cases are what cost: 75 → 446, each a query embedding plus a
+filtered HNSW search over 617,038 vectors. That run shared the machine with other work, so
+treat 8h as an upper bound and anything under an hour as optimistic — but plan for a
+**long-running background job**, not a coffee break. Use `--only retrieval` when iterating
+and run the whole set at a gate, overnight.
 
 **Percentages are not comparable across a widening.** Every denominator changed, so the
 pre-widening 79.5% and any figure after it measure different sets. Re-baseline in the same

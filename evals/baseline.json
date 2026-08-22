@@ -1,8 +1,8 @@
 {
   "adversarial": {
-    "hits": 45,
-    "rate": 100.0,
-    "scored": 45
+    "hits": 304,
+    "rate": 99.7,
+    "scored": 305
   },
   "answered_any_tradition": {
     "answered": 8,
@@ -16,24 +16,24 @@
       "scored": 4
     },
     "provenance": {
-      "hits": 40,
+      "hits": 300,
       "rate": 100.0,
-      "scored": 40
+      "scored": 300
     },
     "quote_reject": {
-      "hits": 41,
-      "rate": 100.0,
-      "scored": 41
+      "hits": 300,
+      "rate": 99.7,
+      "scored": 301
     },
     "quote_verify": {
-      "hits": 40,
+      "hits": 300,
       "rate": 100.0,
-      "scored": 40
+      "scored": 300
     },
     "retrieval": {
-      "hits": 52,
-      "rate": 69.3,
-      "scored": 75
+      "hits": 327,
+      "rate": 73.3,
+      "scored": 446
     },
     "topical": {
       "hits": 21,
@@ -43,24 +43,29 @@
   },
   "by_type_tradition": {
     "provenance/chinese": {
-      "hits": 40,
+      "hits": 299,
       "rate": 100.0,
-      "scored": 40
+      "scored": 299
+    },
+    "provenance/tibetan": {
+      "hits": 1,
+      "rate": 100.0,
+      "scored": 1
     },
     "retrieval/chinese": {
-      "hits": 34,
-      "rate": 97.1,
-      "scored": 35
+      "hits": 227,
+      "rate": 97.8,
+      "scored": 232
     },
     "retrieval/pali": {
-      "hits": 11,
-      "rate": 55.0,
-      "scored": 20
+      "hits": 80,
+      "rate": 53.3,
+      "scored": 150
     },
     "retrieval/tibetan": {
-      "hits": 7,
-      "rate": 35.0,
-      "scored": 20
+      "hits": 20,
+      "rate": 31.3,
+      "scored": 64
     },
     "topical/chinese": {
       "hits": 0,
@@ -84,10 +89,10 @@
     }
   },
   "overall": {
-    "hits": 198,
-    "rate": 79.5,
-    "scored": 249
+    "hits": 1252,
+    "rate": 89.4,
+    "scored": 1400
   },
   "stale": 0,
-  "total": 249
+  "total": 1400
 }

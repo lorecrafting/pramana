@@ -1146,6 +1146,73 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
 
+### The gold set was too blunt to decide with (#14) — 249 → 1,400 cases
+
+Two questions in one session came out undecidable, both for the same reason:
+
+- **The 320-vs-512 window.** 6.3% of Pāli chunks were truncated. Against 20 Pāli cases
+  that is an expected effect of **~1.26 cases**. The eval could not resolve it, so the
+  question was settled on principle rather than measurement.
+- **The Tibetan LoRA.** `retrieval/tibetan` moved 7/20 → 8/20 on one index rebuild and
+  7/20 → 5/20 on another, **with nothing changed that could touch Tibetan**. HNSW is
+  approximate, and Tibetan sits at 0.9727 mean pairwise cosine, so its candidates are
+  near-ties that resolve arbitrarily. On 20 cases a ±2 swing is ±10%.
+
+And the LoRA established that for a retrieval change the gold set **is** the decision, not
+confirmation of one made on proxies. An instrument that decides has to be able to.
+
+`mix pramana.evals.derive --per-type 300` — the mechanism already existed, capped at 40:
+
+| type/tradition | before | after |
+|---|---|---|
+| retrieval/pali | 20 | **150** |
+| retrieval/tibetan | 20 | **64** |
+| retrieval/chinese | 35 | 232 |
+| citation_guard | 81 | 601 |
+| provenance | 40 | 300 |
+| **topical (all four)** | **49** | **49** |
+| **total** | **249** | **1,400** |
+
+That 6.3% effect now implies ~9.5 Pāli cases instead of 1.26, and the ±2 Tibetan rebuild
+swing falls from 10% of the metric to 3.1%. **Not padded**: the 64 Tibetan cases span
+**65 distinct works**, one case per work, so they measure the language rather than a
+handful of texts.
+
+**`topical/*` did not grow and cannot.** Its cases come from a curated doctrinal-term list
+that rejects terms as *too common to measure* — སྟོང་པ་ཉིད occurs in 20,500 segments, so
+"was it found" carries no information. `topical/tibetan` stays at 9 and `topical/chinese`
+at 12. Those are the hardest and most valuable questions in the set — a real question
+rather than a translator's own words — and they remain statistically undecidable. Growing
+them needs more curated terms that are specific enough to test, which is scholarship, not
+a parameter.
+
+**The new baseline, and what it shows.** 1,400 cases, **89.4% (1252/1400)**:
+
+| | old (n) | new (n) |
+|---|---|---|
+| retrieval/pali | 55.0% (20) | **53.3% (150)** |
+| retrieval/tibetan | 35.0% (20) | **31.3% (64)** |
+| retrieval/chinese | 97.1% (35) | 97.8% (232) |
+| provenance/chinese | 100% (40) | 100% (299) |
+| topical/* | unchanged | unchanged |
+
+The old figures were **noisy estimates**. Pāli's true rate is nearer 53% than 55%, and
+Tibetan's nearer 31% than 35% — both old numbers sat inside their own sampling error,
+which is exactly the condition that made #10 and #11 undecidable.
+
+**89.4% is NOT an improvement on 79.5%.** The mix changed: near-perfect categories
+(citation_guard, provenance) went from 121 of 249 cases (49%) to 901 of 1,400 (64%), so the
+average rose while nothing got better. The two numbers measure different sets and must
+never be compared. Any published figure needs the case count beside it.
+
+**The runtime is hours, not minutes.** Measured **8h20m wall** — 62 min CPU, so it is
+overwhelmingly waiting rather than computing — against ~5 minutes for the old 249. That run
+shared the machine, so treat 8h as an upper bound; but this is a long-running background
+job now, not a coffee break. `--only retrieval` when iterating, whole set at a gate,
+overnight. (An earlier note in `docs/CHECKS.md` estimated 45 minutes from the case-count
+ratio. That was wrong by an order of magnitude and is corrected — the semantic cases went
+75 → 446, and each is a filtered HNSW search over 617,038 vectors.)
+
 ### A Tibetan LoRA that every proxy said worked, and the eval said did not (#10)
 
 Trained on the 30,607 folio pairs below: LoRA on attention projections only, 2.36M of
