@@ -52,6 +52,8 @@ defmodule Pramana.Retrieval.Semantic do
     :vector_kinds,
     :vector_lang,
     :balance,
+    :per_tradition,
+    :source_id,
     :redistributable_only,
     :license_class,
     :mode,
@@ -112,7 +114,59 @@ defmodule Pramana.Retrieval.Semantic do
   Useful when the caller batches queries, and for tests that must not load a model.
   """
   @spec search_vector([float()], opts()) :: map()
-  def search_vector(vector, opts \\ []) do
+  def search_vector(vector, opts \\ [])
+
+  # RETRIEVE per tradition, rather than filtering a globally-ranked list afterwards.
+  #
+  # `balance: :tradition` interleaves the traditions PRESENT IN THE POOL, which cannot help
+  # when the pool has only one. Measured on "What are the four noble truths?": the top 30
+  # is 100% Pāli, the first Tibetan result is at **rank 142**, and Pāli holds **193 of 200**
+  # slots — while 250 Tibetan chunks contain the term and carry an English rendering. All
+  # 55,135 English rendering vectors compete in one space, and for a doctrinal question the
+  # Pāli canon's English is the most direct statement of that doctrine. Balancing is a
+  # ranking remedy applied to a retrieval problem; it operates one stage too late.
+  #
+  # So each tradition gets its own search and its own quota, and the results interleave.
+  # One query per tradition rather than one overall — affordable now that `coverage/1` is
+  # not adding ~1.1 s to each.
+  #
+  # Opt-in for the same reason `balance` is: right for "what does the canon say about X",
+  # wrong for "find the passage I just quoted", where the tradition is not in doubt and
+  # forcing three canons into the results only pushes the answer down.
+  def search_vector(vector, opts) when is_list(opts) do
+    if opts[:per_tradition],
+      do: per_tradition_search(vector, opts),
+      else: single_search(vector, opts)
+  end
+
+  # Equal slots per tradition. That is a CLAIM — that each canon deserves equal voice on a
+  # doctrinal question — and not an inference from corpus size, which is 2,471 Chinese,
+  # 8,442 Pāli and 4,575 Tibetan works. Stated here so it can be argued with.
+  @traditions %{
+    "chinese" => ["cbeta"],
+    "pali" => ["sc"],
+    "tibetan" => ["derge", "derge-tengyur"]
+  }
+
+  defp per_tradition_search(vector, opts) do
+    limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
+
+    per_group =
+      @traditions
+      |> Map.values()
+      |> Enum.map(fn sources ->
+        vector
+        |> single_search(Keyword.merge(opts, source_id: sources, limit: limit))
+        |> Map.get(:results)
+      end)
+      |> Enum.reject(&(&1 == []))
+
+    results = per_group |> interleave() |> Enum.take(limit)
+
+    %{results: results, total: length(results), model: Embed.model()}
+  end
+
+  defp single_search(vector, opts) do
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
     embedding = Pgvector.new(vector)
 
@@ -391,6 +445,7 @@ defmodule Pramana.Retrieval.Semantic do
     |> filter_in(opts[:role], :text_role)
     |> filter_not_in(opts[:exclude_origin], :composition_origin)
     |> filter_eq(opts[:division], :division)
+    |> filter_source(opts[:source_id])
     |> filter_license(opts)
     |> filter_work(opts[:work_id])
   end
@@ -416,6 +471,11 @@ defmodule Pramana.Retrieval.Semantic do
 
   defp filter_work(query, nil), do: query
   defp filter_work(query, work_id), do: where(query, [text: t], t.work_id == ^work_id)
+
+  defp filter_source(query, nil), do: query
+
+  defp filter_source(query, source_ids),
+    do: where(query, [text: t], t.source_id in ^List.wrap(source_ids))
 
   # See `Pramana.Retrieval.Lexical.filter_license/2` — this is what makes the licence
   # posture enforceable rather than a promise kept by hand.
