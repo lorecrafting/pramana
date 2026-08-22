@@ -1146,6 +1146,39 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
 
+### Pāli takes 193 of 200 slots, and that is why two topical rows are 0% (#19)
+
+`topical/chinese` and `topical/tibetan` both score **0%**, and the obvious reading — the
+corpus cannot answer — is wrong for Tibetan. Asked "What are the four noble truths?", the
+semantic arm returns:
+
+| depth | sources | first Tibetan |
+|---|---|---|
+| k=30 | `sc.ms` 30 | — |
+| k=200 | `sc.ms` **193**, `cbeta.T` 5, `derge.D` 2 | **rank 142** |
+
+The Tibetan passages exist and are eligible: **250 chunks** contain འཕགས་པའི་བདེན་པ་བཞི *and*
+carry an English rendering vector (276 for dependent origination, 229 for the five
+aggregates, 446 for bodhicitta). They are retrievable — just buried under a canon whose
+English is a more direct statement of the same doctrine. All 55,135 English rendering
+vectors compete in one space.
+
+That explains the topical picture as one mechanism rather than three problems:
+Pāli 56.3% wins its own cases; Tibetan 0% loses the same competition; Chinese 0% has no
+English layer and never competes (#12).
+
+**`balance: :tradition` does not fix it — measured.** With balancing the top 10 was one
+Chinese and nine Pāli, still zero Tibetan. `balance` interleaves the traditions *present in
+the retrieved pool*, and at `depth = limit * 3 = 30` that pool is 100% Pāli. It is a
+ranking remedy for a retrieval problem — **it operates one stage too late.** The module's
+own moduledoc calls balancing "the right behaviour for a topical question", which is true
+of the intent and not achieved by the implementation. The fix is to retrieve per tradition
+and merge, so every canon is represented *before* ranking.
+
+**A correction this produced.** An earlier probe reported "30 of 41 misses absent from top
+500". `Semantic` has `@max_limit 200`, so `limit: 500` silently returned 200 — the figure
+was absence from top **200**. The conclusion stands; the label was wrong.
+
 ### The gold set was too blunt to decide with (#14) — 249 → 1,400 cases
 
 Two questions in one session came out undecidable, both for the same reason:
