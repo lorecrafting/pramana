@@ -130,6 +130,70 @@ Two honest caveats:
 
 Budget **~40 minutes** for a full-corpus import and run it in the background.
 
+### Measured again, 2026-08-21, at 617,038 vectors
+
+The corpus doubled (the Tengyur landed) and a Tibetan LoRA adapter was adopted, which
+forces a full re-embed. The numbers held, and three of them are rules rather than trivia.
+
+| stage | |
+|---|---|
+| embed 617,038 chunks on an L4 | **70.0 min at 146.9 chunks/s** |
+| the same with the adapter merged in | **no measurable cost** — 144 vs a historical 147 |
+| download 6.65 GB | ~4 min |
+| import with the index **dropped** | **69 s** for 67,371 rows |
+| index rebuild, table not bloated | **15 min 47 s** |
+
+**Rule 1: drop the HNSW index before ANY bulk write.** Not just imports. Measured on
+three different operation types in one day:
+
+| operation | index live | index dropped |
+|---|---|---|
+| import 67,371 vectors | **over 40 min** | **69 s** |
+| rebuild afterwards | **2 h 44 min** | 15 min 47 s |
+| backfill migration over 617,038 rows | **>600 s, did not finish** | **36.8 s** |
+
+The rebuild figure is the trap: importing through a live index does not merely run slow,
+it **bloats the table**, so the rebuild you were going to do anyway then takes ten times
+longer. Correctness is never at risk. Hours are.
+
+**Rule 2: validate a downloaded vector file before importing it.** Count the records and
+parse the last line. A truncated download of 67,371 vectors had a perfectly valid last
+line, correct 1024 dimensions and a plausible 725 MB size — and was **3,257 records
+short**. Importing it would have left ~5% of Pāli under the previous configuration,
+invisibly. Every surface check said fine; only the count caught it.
+
+**Rule 3: never run two downloads against one path.** Doing so produced line counts that
+*fell* between reads (64,114 then 37,578) and bytes-per-line at twice the true value —
+readings that described no real file. A clean single download of that file took **21
+seconds**. If a download looks slow, check for a second writer before retrying.
+
+### Fine-tuning: `modal_train_tibetan.py`
+
+A LoRA run against `modal_embed.py`'s own configuration. Two things must not drift, and
+neither fails loudly if it does:
+
+- **Pooling, normalisation and `MAX_LENGTH`** are copied verbatim from `modal_embed.py`.
+  A vector's meaning comes from how token states are reduced, not only from the weights.
+- **`Pramana.Embed`'s `@model` must change in the same commit.** Adapted vectors are not
+  comparable with stock ones; the name is the only thing that separates them. Renaming it
+  flips every stored vector to outstanding, which is the correct and desired consequence —
+  adopting a different model means re-embedding the corpus, not mixing two in one index.
+
+The adapter is `merge_and_unload`-ed into the base weights at fp32 before the fp16 cast,
+so inference runs the same code path at the same speed as the stock model.
+
+**Evaluate before adopting.** `modal_probe_adapter.py` compares base against adapted on
+identical text. Use `disable_adapter()` for the "before" measurement:
+`PeftModel.from_pretrained` injects the adapter **in place**, so holding a before- and an
+after-reference compares one model with itself and prints identical numbers that look like
+a perfectly preserved model.
+
+And measure **discrimination, not dispersion**. Mean pairwise cosine falls for a model
+that has genuinely separated its space and equally for one that has scattered it — a
+random projection scores beautifully and retrieves nothing. The usable test needs no
+translations: adjacent chunks of one work are related, a chunk from elsewhere is not, and
+the **gap** between them is the quality signal.
+
 ### `--rebuild-index` was broken for two phases
 
 `mix pramana.embed.import --rebuild-index` kept its own copy of the index DDL, and #40
