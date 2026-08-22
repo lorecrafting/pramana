@@ -111,8 +111,8 @@ question was whether that canon is reachable. This is the number that tells you 
 has gone dark.
 
 **Answered from any tradition** asks "did the reader get a good answer from anywhere?"
-Either canon counts. This is what someone using the system cares about, and at **81.8%**
-it is a very different picture from the 0% and 68.8% above it. Until the two were
+Either canon counts. This is what someone using the system cares about, and at **72.7%**
+it is a very different picture from the 0% and 56.3% above it. Until the two were
 separated (#44), answering correctly from the other canon was scored as a failure.
 
 ### The finding that matters
@@ -123,7 +123,7 @@ is.** Ask in Chinese and the corpus answers perfectly; ask the identical questio
 English and it answers not at all.
 
 The reason is structural, not a tuning problem. Phase 3 built a second vector per chunk
-holding an English rendering, which is why an English question reaches Pāli at 62.5%.
+holding an English rendering, which is why an English question reaches Pāli at 56.3%.
 Phase 5 gave Tibetan the same layer, from 84000's published translations — and Tibetan
 topical retrieval is **0%** anyway, because 84000 has translated 385 of ~1,169 Tōhoku
 numbers and **95% of the Kangyur therefore has no English vector to cross on**. A layer
