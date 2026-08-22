@@ -1205,13 +1205,20 @@ which is exactly the condition that made #10 and #11 undecidable.
 average rose while nothing got better. The two numbers measure different sets and must
 never be compared. Any published figure needs the case count beside it.
 
-**The runtime is hours, not minutes.** Measured **8h20m wall** — 62 min CPU, so it is
-overwhelmingly waiting rather than computing — against ~5 minutes for the old 249. That run
-shared the machine, so treat 8h as an upper bound; but this is a long-running background
-job now, not a coffee break. `--only retrieval` when iterating, whole set at a gate,
-overnight. (An earlier note in `docs/CHECKS.md` estimated 45 minutes from the case-count
-ratio. That was wrong by an order of magnitude and is corrected — the semantic cases went
-75 → 446, and each is a filtered HNSW search over 617,038 vectors.)
+**The runtime is 62 minutes of CPU, and the wall clock is unknown.** The first run read
+8h20m wall, but **the laptop slept during it**, so that figure is an artifact rather than a
+measurement and is not a basis for planning. CPU time is the number that survives a
+suspend: 62 minutes, against ~5 minutes wall for the old 249 cases.
+
+Two costs sit outside that CPU figure. The semantic cases went 75 → 446, each a query
+embedding plus a filtered HNSW search over 617,038 vectors. And every search also runs
+`Semantic.coverage/1`, a `SELECT count(*) ... DISTINCT ON` measured at **~1.1 s**, which is
+database time and appears in neither the CPU total nor anyone's intuition — it lives inside
+a correctness feature, so nobody looks at it. Across 1,400 cases that alone is ~26 minutes.
+Worth caching: the figure depends on the corpus and the filters, not on the query text.
+
+(Two earlier estimates here were wrong and are corrected: 45 minutes, extrapolated from the
+case-count ratio, and 8h20m, taken from a wall clock across a sleeping machine.)
 
 ### A Tibetan LoRA that every proxy said worked, and the eval said did not (#10)
 
