@@ -59,3 +59,7 @@ sources.lock.local.json
 sources/local/*/text/
 sources/local/*/raw/
 native/quotations/target/
+
+# Fine-tuned embedding weights: 2.2 GB of tensors, reproducible from the LoRA adapter
+# and the pinned base model. See docs/GPU_RUNBOOK.md and mix pramana.embed.fetch_model.
+priv/models/

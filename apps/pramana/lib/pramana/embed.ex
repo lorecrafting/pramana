@@ -44,6 +44,27 @@ defmodule Pramana.Embed do
   # bo +0.0098 -> +0.1883 (19x), pli +0.0693 -> +0.1405, lzh +0.0845 -> +0.1903. The base
   # model rated an adjacent Tibetan chunk at 0.984 and an unrelated one at 0.974.
   @model "BAAI/bge-m3+pramana-tibetan-lora-v1"
+
+  # WHERE THE WEIGHTS COME FROM, which is a different question from what `@model` records.
+  #
+  # Conflating the two broke query embedding: `@model` is written into
+  # `chunk_vectors.embedding_model` to tell adapted vectors from stock ones, and it was
+  # ALSO the HuggingFace repo id Bumblebee loads — so renaming it for the first purpose
+  # sent Bumblebee looking for a repository that does not exist.
+  #
+  # The tempting fix is worse than the bug: keep loading `BAAI/bge-m3` and record the
+  # composite name. Then QUERIES are embedded with the stock model while the documents are
+  # adapted, which is precisely the mixing `embedding_model` exists to prevent — and it
+  # fails silently, because every value is still a valid float.
+  #
+  # So the local weights must BE the adapted model. `priv/models/<name>` is produced by
+  # `mix pramana.embed.fetch_model`, which merges the adapter into the base on the GPU and
+  # brings the result back.
+  @local_model_dir "priv/models/bge-m3-tibetan-lora-v1"
+
+  # The stock model, still the base for everything and the fallback when no adapted
+  # weights are present locally.
+  @base_model "BAAI/bge-m3"
   @dims 1024
 
   # The token window vectors are expected to carry. MUST match `MAX_LENGTH` in
@@ -70,6 +91,31 @@ defmodule Pramana.Embed do
   def max_length, do: @max_length
 
   @doc """
+  Where the weights are loaded from, and whether they match what `model/0` records.
+
+  Returns `{:ok, source}` or `{:error, :adapted_weights_missing}`. The error is the
+  important case: `@model` says these vectors are adapted, so embedding a query with the
+  stock model would compare a stock query against adapted documents and rank by noise
+  without failing.
+  """
+  @spec weights_source() :: {:ok, {:local, String.t()} | {:hf, String.t()}} | {:error, atom()}
+  def weights_source do
+    cond do
+      not adapted?() -> {:ok, {:hf, @base_model}}
+      File.dir?(@local_model_dir) -> {:ok, {:local, @local_model_dir}}
+      true -> {:error, :adapted_weights_missing}
+    end
+  end
+
+  @doc "Whether `model/0` names an adapted model rather than the stock one."
+  @spec adapted?() :: boolean()
+  def adapted?, do: @model != @base_model
+
+  @doc "Where adapted weights are expected on disk."
+  @spec local_model_dir() :: String.t()
+  def local_model_dir, do: @local_model_dir
+
+  @doc """
   Builds an `Nx.Serving` for the embedding model.
 
   Loading and XLA compilation cost roughly 80 seconds, so a caller should build this
@@ -80,8 +126,29 @@ defmodule Pramana.Embed do
     batch_size = Keyword.get(opts, :batch_size, @batch_size)
     sequence_length = Keyword.get(opts, :sequence_length, @sequence_length)
 
-    {:ok, model_info} = Bumblebee.load_model({:hf, @model})
-    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, @model})
+    # Raises rather than falling back to the stock model. A serving that quietly embeds
+    # queries with different weights from the documents returns confident nonsense, and no
+    # check downstream would catch it.
+    source =
+      case weights_source() do
+        {:ok, source} ->
+          source
+
+        {:error, :adapted_weights_missing} ->
+          raise """
+          #{@model} is the recorded model, but no adapted weights are present at
+          #{@local_model_dir}.
+
+          Embedding a query with the stock model against adapted document vectors ranks by
+          noise and fails silently. Run `mix pramana.embed.fetch_model` to bring the merged
+          weights back, or set `@model` to #{@base_model} and re-embed the corpus.
+          """
+      end
+
+    {:ok, model_info} = Bumblebee.load_model(source)
+    # The tokenizer is unchanged by LoRA — only the weights move — so it always comes from
+    # the base repository, which also keeps the merged directory to weights alone.
+    {:ok, tokenizer} = Bumblebee.load_tokenizer({:hf, @base_model})
 
     Bumblebee.Text.text_embedding(model_info, tokenizer,
       compile: [batch_size: batch_size, sequence_length: sequence_length],

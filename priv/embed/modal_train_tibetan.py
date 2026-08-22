@@ -209,6 +209,35 @@ def train(
     return {"top1": top1, "mrr": mrr, "margin": spread}
 
 
+@app.function(gpu=GPU, volumes={"/data": volume}, timeout=60 * 60)
+def export_merged():
+    """Fold the adapter into the base weights and write a loadable model to the volume.
+
+    The GPU embeds documents with the adapter, but QUERIES are embedded locally by
+    Bumblebee, and it cannot apply a PEFT adapter. If the two sides use different weights
+    the ranking is noise and nothing fails — so the merged model has to come back whole.
+
+    Merged rather than shipped as base + adapter for the same reason `modal_embed.py`
+    merges: one set of weights, one code path, no runtime adapter arithmetic.
+    """
+    from peft import PeftModel
+    from transformers import AutoModel, AutoTokenizer
+
+    model = AutoModel.from_pretrained(MODEL)
+    model = PeftModel.from_pretrained(model, "/data/tibetan_lora").merge_and_unload()
+    model.save_pretrained("/data/merged_model", safe_serialization=True)
+
+    # The tokenizer is untouched by LoRA, but shipping it with the weights keeps the
+    # directory self-contained and loadable without reaching for the Hub.
+    AutoTokenizer.from_pretrained(MODEL).save_pretrained("/data/merged_model")
+
+    volume.commit()
+    print("merged model written to /data/merged_model", flush=True)
+
+
 @app.local_entrypoint()
-def main(epochs: int = 2, batch_size: int = 24, lr: float = 1e-4):
-    print(train.remote(epochs=epochs, batch_size=batch_size, lr=lr))
+def main(epochs: int = 2, batch_size: int = 24, lr: float = 1e-4, merge_only: bool = False):
+    if merge_only:
+        export_merged.remote()
+    else:
+        print(train.remote(epochs=epochs, batch_size=batch_size, lr=lr))
