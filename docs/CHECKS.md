@@ -69,7 +69,27 @@ and 266,547 characters of interlinear note text were unreachable in a corpus tha
 verified clean. **Reproducibility is not fidelity.**
 
 Note `--sample N` on `verify` is **per text**, not a corpus-wide total. Use `--all` at
-a gate; it takes ~2m30s for the full Taishō.
+a gate.
+
+**The checks time themselves.** Every run prints elapsed and a rate, so a gate run is
+also a profile and a regression shows up as a number that moved. Rates rather than
+totals, because a total ages the moment the corpus grows — this one doubled in a day.
+
+Measured after the #18 optimisation, `--sample 2`:
+
+| | texts | elapsed | rate |
+|---|---|---|---|
+| sc (Pāli) | 8,442 | 10s | 835.8/s |
+| cbeta | 2,471 | 2m25s | 17.0/s |
+| derge (Kangyur) | 1,195 | 21s | 55.2/s |
+| derge-tengyur | 3,380 | 6m15s | 9.0/s |
+| **whole corpus** | **15,489** | **21m09s** | **12.2/s** |
+
+Two things that table teaches. The Tengyur was **~90 minutes on its own** before #18 —
+97% of the gate — and the per-source rows still sum to ~9 minutes against a whole-corpus
+run of 21, because a full run holds **both** Degé edition maps in memory at once and
+checks twice the segments. The optimisation trades memory for time, and at corpus scale
+that trade is not free.
 
 **Three checks, in fact.** Neither of the above asks whether the *provenance record*
 still resolves:
