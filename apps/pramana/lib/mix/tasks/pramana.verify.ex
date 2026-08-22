@@ -70,7 +70,8 @@ defmodule Mix.Tasks.Pramana.Verify do
     end
 
     started = System.monotonic_time(:millisecond)
-    results = Enum.map(texts, &verify_text(&1, sample))
+    edition = editions(texts)
+    results = Enum.map(texts, &verify_text(&1, sample, edition))
     elapsed = System.monotonic_time(:millisecond) - started
     failures = Enum.flat_map(results, & &1.failures)
 
@@ -81,10 +82,58 @@ defmodule Mix.Tasks.Pramana.Verify do
   defp scope(nil), do: from(t in Text, preload: [:work])
   defp scope(source), do: from(t in Text, where: t.source_id == ^source, preload: [:work])
 
-  defp verify_text(text, sample) do
+  # Every Degé work derived ONCE, by walking each volume a single time.
+  #
+  # `reproduce/3` re-reads and re-parses every volume a work appears in, so verifying
+  # work-by-work parses 212 Tengyur volumes about 16 times each — roughly 14M lines to
+  # check 891,169. Measured before this: Tengyur 3,380 texts at ~0.6 texts/s, ~90 minutes,
+  # **97% of the whole gate**, against Pāli's 835.8 texts/s. `works/1` is the ingest walk:
+  # each volume parsed once, works threaded across volumes in printed order.
+  #
+  # The guarantee is unchanged. Every work is still derived from `raw/` and byte-compared;
+  # only the number of times the same bytes are parsed changes. Weakening it to compare
+  # stored text against stored text would forfeit the check that caught the phantom lines
+  # in toh4100 and toh4150.
+  defp editions(texts) do
+    texts
+    |> Enum.map(& &1.source_id)
+    |> Enum.uniq()
+    |> Enum.filter(&(&1 in ["derge", "derge-tengyur"]))
+    |> Map.new(fn source_id -> {source_id, derive_edition(source_id)} end)
+  end
+
+  defp derive_edition(source_id) do
+    %{root: root, normalizer: normalizer} = edition_source(source_id)
+
+    with {:ok, volumes} <- volumes_for(root, normalizer),
+         {:ok, irs, _stats} <- DergeEdition.works(volumes, normalizer: normalizer) do
+      Map.new(irs, &{&1.work_id, &1})
+    else
+      # A failure here is reported per text by `renormalize_check/1`, which falls back to
+      # deriving that work on its own — slow, but it must still produce a real error rather
+      # than a silent pass.
+      _ -> %{}
+    end
+  end
+
+  defp edition_source("derge"),
+    do: %{root: "raw/derge/UT4CZ5369-200106", normalizer: Derge}
+
+  defp edition_source("derge-tengyur"),
+    do: %{root: "raw/derge-tengyur/text", normalizer: DergeTengyur}
+
+  defp volumes_for(root, Derge) do
+    with {:ok, numbered} <- DergeEdition.volumes_at(root) do
+      {:ok, Enum.map(numbered, fn {volume, path} -> {volume, File.read!(path)} end)}
+    end
+  end
+
+  defp volumes_for(root, DergeTengyur), do: DergeTengyur.volumes_at(root)
+
+  defp verify_text(text, sample, edition) do
     checks = [
       body_hash_check(text),
-      renormalize_check(text)
+      renormalize_check(text, edition)
     ]
 
     segments = load_segments(text, sample)
@@ -108,8 +157,8 @@ defmodule Mix.Tasks.Pramana.Verify do
   # The strongest check available: go back to the untouched upstream bytes, run the
   # normalizer again, and require an identical body. This is what makes the bake
   # reproducible rather than merely persisted.
-  defp renormalize_check(text) do
-    case reproduce(text) do
+  defp renormalize_check(text, edition) do
+    case reproduce(text, edition) do
       {:ok, ir} -> compare_body(text, IR.body(ir))
       {:error, reason} -> {:renormalize_failed, text.urn_prefix, reason}
     end
@@ -128,19 +177,26 @@ defmodule Mix.Tasks.Pramana.Verify do
   # from pinned TEI in `raw/`; a locally-added text comes from its own `text/` directory,
   # which the lockfile hashes the same way. Assuming every text was CBETA made this
   # check fail on a legitimately added local source.
-  defp reproduce(%{source_id: "sc"} = text), do: reproduce_bilara(text)
+  defp reproduce(%{source_id: "sc"} = text, _edition), do: reproduce_bilara(text)
 
-  defp reproduce(%{source_id: "derge"} = text), do: reproduce_derge(text, Derge)
+  defp reproduce(%{source_id: source_id} = text, edition)
+       when source_id in ["derge", "derge-tengyur"] do
+    case get_in(edition, [source_id, text.work_id]) do
+      nil -> reproduce_derge(text, normalizer_for(source_id))
+      ir -> {:ok, ir}
+    end
+  end
 
-  defp reproduce(%{source_id: "derge-tengyur"} = text), do: reproduce_derge(text, DergeTengyur)
-
-  defp reproduce(text) do
+  defp reproduce(text, _edition) do
     if Sources.local?(text.source_id) do
       reproduce_local(text)
     else
       with {:ok, xml} <- read_raw(text), do: renormalize(text, xml)
     end
   end
+
+  defp normalizer_for("derge"), do: Derge
+  defp normalizer_for("derge-tengyur"), do: DergeTengyur
 
   # One bilara file holds several works, so the work id alone cannot find its source.
   # The path is recorded at ingest for exactly this reason.
