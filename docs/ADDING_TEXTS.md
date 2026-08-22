@@ -4,7 +4,7 @@
 
 | what | how often | mechanism |
 |---|---|---|
-| **A new canonical source** (SAT, bilara, 84000) | rare | implement three `Pramana.Pipeline` behaviours + one registry entry |
+| **A new canonical source** (SAT, bilara, 84000) | rare | one file per work → three `Pramana.Pipeline` behaviours + a registry entry; otherwise a dedicated `mix pramana.<source>.ingest`. Both add a `Pramana.Sources` entry. See `CLAUDE.md` |
 | **A one-off text** (a modern commentary, a translation, a teacher's talks) | often | drop a folder with a manifest, run one command |
 | **A correction or annotation** to existing text | often | a *layer* over the bake, never an edit to it |
 

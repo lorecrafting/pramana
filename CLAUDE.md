@@ -162,9 +162,25 @@ serves the CC0/CC-BY subset only.
   normalization — line breaks are load-bearing for citation, and the apparatus is a
   feature we ship.
 - Prefer adding a source-specific normalizer over branching inside a shared one.
-- **Adding a source means implementing three `Pramana.Pipeline` behaviours plus one
-  registry entry — nothing else.** If you find yourself editing `mix pramana.bake` or an
-  existing source in order to add a new one, the contract is wrong; fix the contract.
+- **Adding a source takes one of two shapes, and the source's own file layout decides
+  which.** What holds either way: a new source **edits no existing source and adds
+  nothing to `mix pramana.bake`**, and it always adds a `Pramana.Sources` entry, because
+  that is where the licence and the tradition are declared.
+  - **One file per work** → implement the three `Pramana.Pipeline` behaviours and add a
+    `Pipeline.@sources` entry. `mix pramana.bake` then dispatches to it and runs one Oban
+    job per work. CBETA is this, and is currently the only member.
+  - **Anything else** → a dedicated `mix pramana.<source>.ingest` calling the normalizer
+    and `Corpus.Loader` directly. SuttaCentral, Derge and 84000 are all this, and the
+    behaviour could not express them: `Normalizer.normalize/2` returns `{:ok, IR.t()}`,
+    one work per input, while `Bilara.normalize_file/2` returns `{:ok, [IR.t()]}`
+    (`an1.1-10` is ten suttas) and `Derge.normalize_file/2` returns
+    `{:ok, [IR.t()], still_open}` — a Derge work spans volumes and must be assembled
+    across them in printed order, which per-work jobs cannot do.
+
+  This bullet used to say "three behaviours plus one registry entry — nothing else", and
+  `docs/ADDING_TEXTS.md` named bilara and 84000 as examples of it. Three of the four text
+  sources here have never worked that way. When SAT (#14) lands it is Taishō, one file per
+  work, so it is the first branch — and it is already registered in `Pramana.Sources`.
 - **Bump `Pramana.Bake.pipeline_version` when normalization or segmentation output
   changes**, not for refactors. When in doubt, bump: two different corpora sharing a
   `bake_id` is far worse than a spurious new one.
