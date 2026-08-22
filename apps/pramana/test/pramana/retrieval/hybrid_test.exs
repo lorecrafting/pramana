@@ -111,7 +111,8 @@ defmodule Pramana.Retrieval.HybridTest do
           [vector_kinds: ["source"]],
           [vector_lang: "en"],
           [balance: :tradition],
-          [per_tradition: true]
+          [per_tradition: true],
+          [coverage: false]
         ] do
       test "#{inspect(opt)} survives a hybrid search" do
         assert {:ok, %{retrievers: ["lexical"]}} =
@@ -164,6 +165,22 @@ defmodule Pramana.Retrieval.HybridTest do
       assert result.coverage.total > 0
       assert result.coverage.embedded == 0
       assert result.coverage.percent == 0.0
+    end
+
+    test "coverage is computed by DEFAULT — skipping it must be asked for" do
+      {:ok, result} = Hybrid.search("如是我聞")
+
+      refute result.coverage == :not_computed
+    end
+
+    test "coverage: false says :not_computed rather than reporting an empty corpus" do
+      {:ok, result} = Hybrid.search("如是我聞", coverage: false)
+
+      # NOT nil, and NOT a zeroed map. This field exists so an empty result cannot be
+      # read as a small canon; `%{embedded: 0}` here would tell the reader the precise
+      # falsehood the field was added to prevent.
+      assert result.coverage == :not_computed
+      assert result.total > 0
     end
 
     test "names the bake the results came from" do

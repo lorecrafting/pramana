@@ -56,6 +56,10 @@ defmodule Pramana.Retrieval.Hybrid do
           exclude_origin: String.t() | [String.t()],
           balance: :tradition | nil,
           per_tradition: boolean(),
+          # `false` skips the embedding-coverage count and reports `:not_computed`. For a
+          # caller that never reads it — the eval harness — not for an API surface, where
+          # the number is what stops partial embedding being read as a small canon.
+          coverage: boolean(),
           lexical_only: boolean(),
           semantic_only: boolean()
         ]
@@ -102,9 +106,25 @@ defmodule Pramana.Retrieval.Hybrid do
       # serving, or nothing embedded yet, this is lexical-only, and an answer built on
       # half the intended evidence should say so.
       retrievers: retrievers(lexical, semantic),
-      coverage: Semantic.coverage(Keyword.take(opts, [:origin, :role, :division, :work_id])),
+      coverage: coverage(opts),
       bake_id: Pramana.Bake.current_id()
     }
+  end
+
+  # `:not_computed`, never `nil` and never a zeroed map. The whole reason this field
+  # exists is that an empty result must not be mistaken for a small canon, and a caller
+  # that reads `%{embedded: 0}` or `nil` learns exactly the wrong thing. An atom the
+  # reader has to look at is the only safe way to say "we did not ask".
+  #
+  # Opt-out because it is not free: `Semantic.coverage/1` counts 560,238 chunks and probes
+  # each for a vector, measured at ~921 ms, and `run/2` pays it once per query. The eval
+  # harness runs ~500 searching cases and reads this field in none of them.
+  defp coverage(opts) do
+    if Keyword.get(opts, :coverage, true) do
+      Semantic.coverage(Keyword.take(opts, [:origin, :role, :division, :work_id]))
+    else
+      :not_computed
+    end
   end
 
   # -- retrieval ------------------------------------------------------------------
@@ -128,6 +148,11 @@ defmodule Pramana.Retrieval.Hybrid do
   # MCP tools, the eval harness — could use it. There is a test for exactly this now.
   @semantic_only_opts [:vector_kinds, :vector_lang, :balance, :per_tradition, :serving]
 
+  # Options that belong to THIS layer and mean nothing to either retriever, so they are
+  # dropped before both. Both retrievers reject an option they do not know — correctly —
+  # so a hybrid-level option that reaches either one crashes the search.
+  @hybrid_only_opts [:coverage]
+
   defp lexical_ranking(query, opts, depth) do
     # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the
     # lexical retriever. Passing it through crashed with a raw CaseClauseError. The
@@ -138,7 +163,7 @@ defmodule Pramana.Retrieval.Hybrid do
     # Hybrid is the layer that knows which stage each option belongs to.
     lexical_opts =
       opts
-      |> Keyword.drop(@semantic_only_opts)
+      |> Keyword.drop(@semantic_only_opts ++ @hybrid_only_opts)
       |> Keyword.merge(limit: depth)
       |> Keyword.put(:mode, :auto)
 
@@ -174,6 +199,7 @@ defmodule Pramana.Retrieval.Hybrid do
       true ->
         search_opts =
           opts
+          |> Keyword.drop(@hybrid_only_opts)
           |> Keyword.merge(limit: depth, serving: serving)
           |> Keyword.delete(:mode)
 

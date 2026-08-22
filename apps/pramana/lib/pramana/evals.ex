@@ -269,6 +269,13 @@ defmodule Pramana.Evals do
       # that publishes a number must not depend on an implicit default for whether half
       # the retrieval stack ran.
       |> Keyword.put(:serving, opts[:serving] || Serving.name())
+      # Nothing in `evaluate/2` reads `:coverage`, and computing it counts 560,238 chunks
+      # and probes each for a vector — ~921 ms of database time per case, on ~500 searching
+      # cases. It is database time, so it appears in no CPU profile and in nobody's
+      # intuition about why a run is slow. The number matters to a CALLER, who might
+      # otherwise read an empty result as a small canon; it cannot matter to a harness that
+      # scores URNs.
+      |> Keyword.put(:coverage, false)
       # An experiment override wins over the case's own options, so a whole run can be
       # scored under one configuration.
       |> Keyword.merge(opts[:search_override] || [])
