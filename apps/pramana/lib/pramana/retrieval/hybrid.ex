@@ -54,6 +54,8 @@ defmodule Pramana.Retrieval.Hybrid do
           division: String.t(),
           work_id: String.t(),
           exclude_origin: String.t() | [String.t()],
+          balance: :tradition | nil,
+          per_tradition: boolean(),
           lexical_only: boolean(),
           semantic_only: boolean()
         ]
@@ -118,7 +120,13 @@ defmodule Pramana.Retrieval.Hybrid do
   # retrievers speak in the same units.
   # Options that mean something only to the vector stage. Kept next to the code that
   # drops them so a new one is added in one place.
-  @semantic_only_opts [:vector_kinds, :vector_lang, :balance, :serving]
+  # `:per_tradition` belongs here for the same reason `:balance` does — it selects a
+  # retrieval STRATEGY inside the vector stage, and the lexical retriever has no notion of
+  # it. It was added to `Semantic` without being added here, which made
+  # `Hybrid.search(q, per_tradition: true)` raise from `Lexical.validate_opts!/1`: the
+  # option was reachable only by calling `Semantic` directly, so nothing that ships — the
+  # MCP tools, the eval harness — could use it. There is a test for exactly this now.
+  @semantic_only_opts [:vector_kinds, :vector_lang, :balance, :per_tradition, :serving]
 
   defp lexical_ranking(query, opts, depth) do
     # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the

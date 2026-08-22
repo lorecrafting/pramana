@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Pramana.Evals do
       mix pramana.evals --only retrieval
       mix pramana.evals --json evals/scorecard.json
       mix pramana.evals --gate            # non-zero exit on a regression
+      mix pramana.evals --per-tradition   # experiment: retrieve per canon, then merge
 
   Retrieval cases need the embedding model, so run with `PRAMANA_EMBEDDING=1`; without
   it the harness says so and scores the lexical path only, rather than reporting a
@@ -37,7 +38,8 @@ defmodule Mix.Tasks.Pramana.Evals do
     # uses them is measuring a configuration rather than the shipped default — which is
     # the point, and why the header says so.
     vector_kinds: :string,
-    balance: :string
+    balance: :string,
+    per_tradition: :boolean
   ]
 
   @default_baseline "evals/baseline.json"
@@ -71,9 +73,13 @@ defmodule Mix.Tasks.Pramana.Evals do
     # off a wall clock across a sleeping laptop. A task that times itself cannot produce
     # either, and the RATE is what stays comparable when the gold set grows, which it did
     # 5.6x in a day.
+    # `scorecard.total`, not `length(cases)`: with `--only` those differ by the whole gold
+    # set, and the run that motivated this reported "ran 1400 case(s) ... 3.5 cases/s" for
+    # a run that scored 49 — a rate 28x off. The same class of error as the two runtimes
+    # `docs/CHECKS.md` had to correct; a task that times itself must also count itself.
     Mix.shell().info(
-      "  ran #{length(cases)} case(s) in #{Pramana.Elapsed.human(elapsed)} " <>
-        "(#{Pramana.Elapsed.rate(length(cases), elapsed)} cases/s)\n"
+      "  ran #{scorecard.total} case(s) in #{Pramana.Elapsed.human(elapsed)} " <>
+        "(#{Pramana.Elapsed.rate(scorecard.total, elapsed)} cases/s)\n"
     )
 
     if path = opts[:json], do: write_json(path, scorecard)
@@ -89,7 +95,7 @@ defmodule Mix.Tasks.Pramana.Evals do
     balance = opts[:balance] && String.to_existing_atom(opts[:balance])
 
     override =
-      [vector_kinds: kinds, balance: balance]
+      [vector_kinds: kinds, balance: balance, per_tradition: opts[:per_tradition]]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     if override == [] do

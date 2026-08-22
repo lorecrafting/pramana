@@ -102,6 +102,24 @@ defmodule Pramana.Retrieval.HybridTest do
     end
   end
 
+  describe "vector-stage options do not reach the lexical retriever" do
+    # Each of these means something only to `Semantic`, and `Lexical` raises on an option
+    # it does not know. `:per_tradition` was added to `Semantic` and not to Hybrid's drop
+    # list, which made it unusable through the only path anything ships on: every caller
+    # — the MCP tools, the eval harness — goes through `Hybrid`.
+    for opt <- [
+          [vector_kinds: ["source"]],
+          [vector_lang: "en"],
+          [balance: :tradition],
+          [per_tradition: true]
+        ] do
+      test "#{inspect(opt)} survives a hybrid search" do
+        assert {:ok, %{retrievers: ["lexical"]}} =
+                 Hybrid.search("如是我聞", unquote(opt) ++ [division: "阿含部"])
+      end
+    end
+  end
+
   describe "fuse/2 — pure RRF" do
     test "a document ranked first by both retrievers wins" do
       lexical = ["a", "b", "c"]
