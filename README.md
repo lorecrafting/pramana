@@ -51,16 +51,28 @@ produced by `mix pramana.evals` over the gold set committed in [`evals/`](evals/
 | **Provenance labelling** — origin and role match the Taishō's own catalogue | 300 | **100%** |
 | **Absence** — the system returns nothing where it holds nothing | 4 | **100%** |
 | **Adversarial subset** | 305 | **100%** |
-| **Retrieval @10** — find the one anchor whose text was quoted | 446 | **73.3%** |
-| ↳ Chinese | 232 | 97.8% |
-| ↳ Pāli, English query | 150 | 53.3% |
-| ↳ Tibetan, English query | 64 | 31.3% |
+| **Retrieval @10** — two different tasks, see below | 446 | 73.3% |
+| ↳ *Same-language*: a Chinese definitional formula → its passage | 232 | 97.8% |
+| ↳ *Cross-lingual*: an English rendering → the Pāli it renders | 150 | 53.3% |
+| ↳ *Cross-lingual*: an English rendering → the Tibetan it renders | 64 | 31.3% |
 | **Topical @10** — a natural question returns a passage that discusses it | 49 | **42.9%** |
 | ↳ Chinese question → Chinese passage | 12 | **100%** |
 | ↳ English question → Pāli passage | 16 | 56.3% |
 | ↳ English question → Chinese passage | 12 | **0%** |
 | ↳ English question → Tibetan passage | 9 | **0%** |
 | **Answered from any tradition** — the reader got a good answer from *some* canon | 11 topics | **72.7%** |
+
+**The 73.3% retrieval aggregate mixes two tasks and should not be read as one number.**
+Every Chinese retrieval case is a *definitional formula* — `云何為十一者常為十`, a phrase
+that appears verbatim in the corpus, which the bigram index finds by substring. Every Pāli
+and Tibetan case is *cross-lingual*: a translator's English, matched back to the source
+passage it renders. Those are different difficulties, and 97.8% against 31.3% is not
+evidence that Chinese retrieval is three times better — it is evidence that exact-phrase
+lookup is an easier problem than cross-lingual matching.
+
+There are **no cross-lingual Chinese cases at all**, and that is not an oversight: all
+55,135 English rendering vectors sit on Tibetan and Pāli chunks, because CBETA material has
+no English translation layer in this corpus. The same gap is why `topical/chinese` is 0%.
 
 **These are not comparable with the previously published 79.5% over 249 cases**, and the
 difference is not an improvement. The gold set was widened 5.6× because 20 cases per
