@@ -244,6 +244,9 @@ defmodule Pramana.Sources do
 
     %{
       id: local_id(manifest.id),
+      # A manifest that names a canon joins it; one that does not becomes its own, via
+      # the same rule `tradition/1` applies to any unregistered id.
+      tradition: manifest.tradition || local_id(manifest.id),
       name: manifest.title_en || manifest.title,
       upstream_url: nil,
       repo: nil,

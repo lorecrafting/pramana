@@ -80,6 +80,10 @@ defmodule Pramana.Corpus.Loader do
       %Source{
         id: definition.id,
         name: definition.name,
+        # A local manifest may not declare one, and then the source is its own tradition:
+        # `Sources.tradition/1` is the single rule for that, so the fallback cannot drift
+        # from what per-tradition search assumes.
+        tradition: Map.get(definition, :tradition) || Sources.tradition(definition.id),
         upstream_url: definition.upstream_url,
         license_spdx: definition.license.spdx,
         license_class: definition.license.class,
@@ -96,6 +100,7 @@ defmodule Pramana.Corpus.Loader do
         {:replace,
          [
            :name,
+           :tradition,
            :upstream_url,
            :license_spdx,
            :license_class,

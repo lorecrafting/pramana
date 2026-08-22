@@ -33,7 +33,6 @@ defmodule Pramana.Retrieval.Semantic do
   alias Pramana.Corpus.Work
   alias Pramana.Embed
   alias Pramana.Repo
-  alias Pramana.Sources
 
   @default_limit 20
   @max_limit 200
@@ -144,19 +143,29 @@ defmodule Pramana.Retrieval.Semantic do
   # doctrinal question — and not an inference from corpus size, which is 2,471 Chinese,
   # 8,442 Pāli and 4,575 Tibetan works. Stated here so it can be argued with.
   #
-  # DERIVED from the source registry rather than written out again here. The hand-written
-  # version listed 4 of the 8 registered sources, and a source in no group is not degraded
-  # but INVISIBLE: `sat` (Taishō 56–84) would have been unreachable under `per_tradition`
-  # the day #14 unblocks, silently, which is the failure `Pramana.Coverage` exists to
-  # prevent. `CLAUDE.md` says adding a source is three behaviours and one registry entry;
-  # a second mapping here made that false.
-  @traditions Sources.by_tradition()
+  # Read from the CORPUS, not from a list in this module. The hand-written version named
+  # 4 of the 8 registered sources, and a source in no group is not ranked lower but
+  # INVISIBLE: it is never queried, so it returns nothing and says nothing. Two instances,
+  # one live and one waiting — `local-huang-nianzu-jie` holds 848 embedded chunks that
+  # per-tradition search could not reach, and `sat` (Taishō 56–84) would have been
+  # unreachable the day #14 unblocks. Both are the failure `Pramana.Coverage` exists to
+  # prevent, and neither would have raised.
+  #
+  # `sources` is six rows. Grouping them per search is a sub-millisecond lookup against a
+  # path already measured at ~36 s per eval case, and it is the only version that cannot
+  # drift: a source that exists is grouped BECAUSE it exists, rather than because someone
+  # remembered to add it here. That is the same move as #43's deletion of `@filter_keys` —
+  # the thing that had to be remembered is gone.
+  defp tradition_groups do
+    Repo.all(from s in Source, select: {s.tradition, s.id})
+    |> Enum.group_by(fn {tradition, _id} -> tradition end, fn {_t, id} -> id end)
+  end
 
   defp per_tradition_search(vector, opts) do
     limit = opts |> Keyword.get(:limit, @default_limit) |> min(@max_limit) |> max(1)
 
     per_group =
-      @traditions
+      tradition_groups()
       |> Map.values()
       |> Enum.map(fn sources ->
         vector

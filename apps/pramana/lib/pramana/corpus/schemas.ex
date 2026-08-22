@@ -7,6 +7,10 @@ defmodule Pramana.Corpus.Source do
   @primary_key {:id, :string, autogenerate: false}
   schema "sources" do
     field :name, :string
+    # Which canon transmits this source. It decides which searches `per_tradition` runs,
+    # so it is a column rather than a module attribute — the `license_class` rule from
+    # #17: a property that governs what a query returns has to be in the query.
+    field :tradition, :string, default: "unknown"
     field :upstream_url, :string
     field :pin_type, :string, default: "git"
     field :pin_ref, :string

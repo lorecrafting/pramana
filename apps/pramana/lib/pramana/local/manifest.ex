@@ -45,6 +45,8 @@ defmodule Pramana.Local.Manifest do
   (U+3007), and ~158 of 837 pages were mis-cut without any error.
   """
 
+  alias Pramana.Sources
+
   @enforce_keys [:id, :title, :provenance, :license, :citation, :format]
   defstruct [
     :id,
@@ -52,6 +54,7 @@ defmodule Pramana.Local.Manifest do
     :title_en,
     :author,
     :provenance,
+    :tradition,
     :license,
     :citation,
     :format,
@@ -116,6 +119,7 @@ defmodule Pramana.Local.Manifest do
       |> check_required(map)
       |> check_id(map)
       |> check_provenance(map)
+      |> check_tradition(map)
       |> check_citation(map)
       |> check_license(map)
       |> check_format(map)
@@ -164,6 +168,14 @@ defmodule Pramana.Local.Manifest do
       @confidences,
       "provenance.attribution_confidence"
     )
+  end
+
+  # Optional, but if given it must name a canon this corpus actually holds. A typo would
+  # otherwise create a tradition of one silently — the text would be searchable, would be
+  # its own group under `per_tradition`, and would look exactly like a text that declared
+  # nothing. `optional_member/4` refuses it instead.
+  defp check_tradition(errors, map) do
+    optional_member(errors, map["tradition"], Map.keys(Sources.by_tradition()), "tradition")
   end
 
   defp check_citation(errors, map) do
@@ -268,6 +280,12 @@ defmodule Pramana.Local.Manifest do
       # the code has not already mentioned — `date_range` did exactly that. Manifest
       # data is external input; it does not get to touch the atom table.
       provenance: map["provenance"] || %{},
+      # Optional, and absent means "its own tradition" rather than a guess — see
+      # `Pramana.Sources.tradition/1`. Declaring it is how a local text joins a canon for
+      # per-tradition retrieval: a modern commentary on a Taishō work belongs with the
+      # Chinese canon, and competing inside it is different from being given a quota
+      # equal to it.
+      tradition: map["tradition"],
       # Restricted unless the manifest says otherwise. See the module doc.
       license:
         Map.merge(%{"class" => "restricted", "redistributable" => false}, map["license"] || %{}),
