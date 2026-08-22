@@ -51,10 +51,20 @@ GPU = "L4"
 # corrupts ranking without failing.
 TORCH = "torch==2.13.0"
 TRANSFORMERS = "transformers==5.15.0"
+PEFT = "peft==0.19.0"
+
+# The Tibetan LoRA adapter, trained by `modal_train_tibetan.py` and living on the volume.
+# Set to None to embed with the stock model.
+#
+# This is NOT a free switch. Vectors from the adapted model are not comparable with stock
+# ones — that is the whole reason `chunk_vectors.embedding_model` exists — so flipping it
+# means re-embedding the entire corpus, and `Pramana.Embed`'s `@model` must be changed to
+# match in the same commit. The name recorded there is what tells the two apart forever.
+ADAPTER = "/data/tibetan_lora"
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install(TORCH, TRANSFORMERS)
+    .pip_install(TORCH, TRANSFORMERS, PEFT)
     # Xet is the Hub's current fast-transfer path. `HF_HUB_ENABLE_HF_TRANSFER` is
     # deprecated — huggingface_hub warns that hf_transfer "is not used anymore" — so
     # setting it bought nothing.
@@ -99,9 +109,22 @@ def embed(input_name: str = "chunks.jsonl", output_name: str = "vectors.jsonl", 
                 raise SystemExit(f"malformed JSON on line {line_no}: {exc}")
 
     print(f"{len(rows)} chunk(s) to embed on {GPU}", flush=True)
+    print(f"adapter: {ADAPTER or 'none — stock model'}", flush=True)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL)
-    model = AutoModel.from_pretrained(MODEL).cuda().half().eval()
+    model = AutoModel.from_pretrained(MODEL)
+
+    if ADAPTER:
+        from peft import PeftModel
+
+        # Merged into the base weights rather than left as live adapter layers. Two
+        # reasons: inference then runs through exactly the same code path as the stock
+        # model, with no PEFT wrapper to behave differently; and the LoRA weights are
+        # folded in at fp32 BEFORE the `.half()` below, so the cast happens once on
+        # merged weights instead of interacting with adapter arithmetic at fp16.
+        model = PeftModel.from_pretrained(model, ADAPTER).merge_and_unload()
+
+    model = model.cuda().half().eval()
 
     started = time.time()
     done = 0

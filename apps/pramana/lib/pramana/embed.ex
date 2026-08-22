@@ -34,7 +34,16 @@ defmodule Pramana.Embed do
   alias Pramana.Corpus.ChunkVector
   alias Pramana.Repo
 
-  @model "BAAI/bge-m3"
+  # Base model plus the Tibetan LoRA adapter trained by `priv/embed/modal_train_tibetan.py`.
+  # The suffix is not decoration: vectors from the adapted model are NOT comparable with
+  # stock bge-m3 vectors, and this string is the only thing that tells them apart. Changing
+  # it makes every existing vector outstanding, which is exactly right — adopting a
+  # different model means re-embedding the corpus, not mixing two in one index.
+  #
+  # Measured before adoption, related-vs-unrelated gap on adjacent chunks of one work:
+  # bo +0.0098 -> +0.1883 (19x), pli +0.0693 -> +0.1405, lzh +0.0845 -> +0.1903. The base
+  # model rated an adjacent Tibetan chunk at 0.984 and an unrelated one at 0.974.
+  @model "BAAI/bge-m3+pramana-tibetan-lora-v1"
   @dims 1024
 
   # The token window vectors are expected to carry. MUST match `MAX_LENGTH` in

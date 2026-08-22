@@ -1146,6 +1146,65 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
 
+### A Tibetan LoRA, and three probes to get one trustworthy number (#10)
+
+Trained on the 30,607 folio pairs below: LoRA on attention projections only, 2.36M of
+570M parameters (0.41%), InfoNCE over in-batch negatives, 2 epochs on an L4 for ~$0.80.
+Pooling, normalisation and `MAX_LENGTH` copied verbatim from `modal_embed.py` — a vector's
+meaning comes from how token states are reduced, so training with one and serving with
+another produces a worthless adapter and nothing fails.
+
+**The base model could not match a Tibetan folio to its own translation.** On 500 held-out
+pairs, at batch 24 where chance is 0.042:
+
+| | top-1 | MRR |
+|---|---|---|
+| base | **0.044** (= chance) | 0.162 |
+| adapted | **0.148** | 0.327 |
+
+**And the discriminative test says the same, harder.** Adjacent chunks of one work are
+related text; a chunk from elsewhere is not. The gap between them:
+
+| | base | adapted | |
+|---|---|---|---|
+| bo | **+0.0098** | **+0.1883** | 19× |
+| pli | +0.0693 | +0.1405 | 2.0× |
+| lzh | +0.0845 | +0.1903 | 2.3× |
+
+The base rated an adjacent Tibetan chunk at 0.984 and an unrelated one at 0.974 — a **1%
+gap**. That is the 0.9727 clustering finding in the terms that matter. Chinese and Pāli did
+not merely survive training on Tibetan; they roughly doubled, which is consistent with
+in-batch negatives teaching dispersion generally.
+
+**It took three probes to earn those numbers, and the first two were wrong.**
+
+1. **Mean pairwise cosine only** — every language "improved" (bo 0.974→0.556, pli
+   0.838→0.651, lzh 0.804→0.656). But that measures **dispersion, not discrimination**: a
+   random projection would score beautifully and retrieve nothing. That all three moved
+   nearly equally, when only Tibetan was trained, was the tell.
+2. **Discrimination, silently broken** — `PeftModel.from_pretrained` injects the adapter
+   into the base **in place**, so holding a "before" and an "after" reference compares one
+   model with itself. It printed three confident `KEPT` verdicts with `rel`, `unrel` and
+   gap identical **to four decimal places**. Only the impossible precision gave it away.
+3. **Fixed with `disable_adapter()`** — the table above.
+
+The margin metric reported during training (−0.0247 → −0.0479) moved the *wrong* way while
+top-1 tripled. Contrastive training at temperature 0.05 sharpens the model, so when it is
+wrong it is now more confidently wrong, and a **mean** margin conflates sharpening with
+correctness. Top-1 and MRR are the trustworthy figures; the margin was mis-specified and a
+median would have been the right choice.
+
+Adopting the adapter means re-embedding **everything** — a fine-tuned model is a different
+model, and mixing two in one index is what `embedding_model` exists to prevent. Renaming
+`@model` to `BAAI/bge-m3+pramana-tibetan-lora-v1` flipped all 617,038 vectors to
+outstanding automatically, which is the guard working unprompted. The adapter is
+`merge_and_unload`-ed into the base weights at fp32 before the fp16 cast, so inference runs
+the same code path as the stock model and costs the same: **144 chunks/s against a
+historical 147**.
+
+Eval results to follow — everything above is proxy measurement, and the gold set is the
+first test against real retrieval questions.
+
 ### The Tibetan training set is built, from data already here (#21)
 
 BGE-M3 barely separates Tibetan (0.9727 mean pairwise cosine, below) and a cross-encoder
