@@ -40,33 +40,45 @@ content on every run passes the first and fails the second.
 
 Nobody in this field publishes retrieval numbers. The nearest comparable project asserts
 "~98% of served answers are trustworthy" with no reproducible benchmark. So here is ours,
-produced by `mix pramana.evals` over a 200-case gold set committed in [`evals/`](evals/).
+produced by `mix pramana.evals` over the gold set committed in [`evals/`](evals/).
 
-**249 cases · 0 stale · overall 79.5%**
+**1,400 cases · 0 stale · overall 89.4%**
 
 | what is measured | cases | result |
 |---|---|---|
-| **Quote verification** — the guard confirms a quotation that is really there | 40 | **100%** |
-| **Quote rejection** — the guard refuses altered text and fabricated URNs | 41 | **100%** |
-| **Provenance labelling** — origin and role match the Taishō's own catalogue | 40 | **100%** |
+| **Quote verification** — the guard confirms a quotation that is really there | 300 | **100%** |
+| **Quote rejection** — the guard refuses altered text and fabricated URNs | 301 | **99.7%** (1 miss) |
+| **Provenance labelling** — origin and role match the Taishō's own catalogue | 300 | **100%** |
 | **Absence** — the system returns nothing where it holds nothing | 4 | **100%** |
-| **Adversarial subset** | 45 | **100%** |
-| **Retrieval @10** — find the one anchor whose text was quoted | 75 | **69.3%** (mean rank 2.4) |
-| ↳ Chinese | 35 | 97.1% |
-| ↳ Pāli, English query | 20 | 55.0% |
-| ↳ Tibetan, English query | 20 | 35.0% |
-| **Topical @10** — a natural question returns a passage that discusses it | 49 | **42.9%** (mean rank 2.4) |
-| ↳ Chinese question → Chinese passage | 12 | **100%** (mean rank 1.42) |
+| **Adversarial subset** | 305 | **99.7%** |
+| **Retrieval @10** — find the one anchor whose text was quoted | 446 | **73.3%** |
+| ↳ Chinese | 232 | 97.8% |
+| ↳ Pāli, English query | 150 | 53.3% |
+| ↳ Tibetan, English query | 64 | 31.3% |
+| **Topical @10** — a natural question returns a passage that discusses it | 49 | **42.9%** |
+| ↳ Chinese question → Chinese passage | 12 | **100%** |
 | ↳ English question → Pāli passage | 16 | 56.3% |
 | ↳ English question → Chinese passage | 12 | **0%** |
 | ↳ English question → Tibetan passage | 9 | **0%** |
 | **Answered from any tradition** — the reader got a good answer from *some* canon | 11 topics | **72.7%** |
 
-The Tibetan rows are new and the case set changed with them, so these are not the same
-240 cases as the previous published run: the gold set is derived from the corpus, and a
-corpus that gained a tradition gains cases. The comparable figures, on the old case set,
-were retrieval/Pāli 42.5% → 47.5% and topical/Pāli 75.0% → 56.3%; `docs/STATUS.md` has
-both, and the isolation experiments that explain them.
+**These are not comparable with the previously published 79.5% over 249 cases**, and the
+difference is not an improvement. The gold set was widened 5.6× because 20 cases per
+language could not decide anything: a fix touching 6.3% of Pāli chunks implied ~1.26
+affected cases, and `retrieval/tibetan` swung by ±2 across index rebuilds with nothing
+relevant changed. The overall rate rose only because the *mix* changed — near-perfect
+categories went from 49% of cases to 64%. Compare per-row, never overall, and always with
+the case count.
+
+What widening actually revealed: the old per-language figures were noisy estimates.
+retrieval/Pāli is 53.3% (n=150), not 55.0% (n=20); retrieval/Tibetan is 31.3% (n=64), not
+35.0% (n=20). Both old numbers sat inside their own sampling error. And **one quote-rejection
+case now fails** — invisible at n=41, visible at n=301.
+
+The four topical rows did **not** widen and cannot: those cases come from a curated
+doctrinal-term list that rejects terms as too common to measure (སྟོང་པ་ཉིད occurs in 20,500
+segments). They remain the hardest questions here and the least decidable.
+`docs/STATUS.md` has the isolation experiments behind the Pāli and Tibetan figures.
 
 Reproduce with:
 
