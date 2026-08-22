@@ -60,7 +60,7 @@ PEFT = "peft==0.19.0"
 # ones — that is the whole reason `chunk_vectors.embedding_model` exists — so flipping it
 # means re-embedding the entire corpus, and `Pramana.Embed`'s `@model` must be changed to
 # match in the same commit. The name recorded there is what tells the two apart forever.
-ADAPTER = "/data/tibetan_lora"
+ADAPTER = None
 
 image = (
     modal.Image.debian_slim(python_version="3.12")

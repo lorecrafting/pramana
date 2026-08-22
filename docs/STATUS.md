@@ -1146,7 +1146,7 @@ under-chunked 891,169 segments without an error. Language is `"bo"`; a source mi
 reports, so every Tibetan vector would have named the wrong language. Both are now
 asserted in tests, because the defect class here is silent correctness, not breakage.
 
-### A Tibetan LoRA, and three probes to get one trustworthy number (#10)
+### A Tibetan LoRA that every proxy said worked, and the eval said did not (#10)
 
 Trained on the 30,607 folio pairs below: LoRA on attention projections only, 2.36M of
 570M parameters (0.41%), InfoNCE over in-batch negatives, 2 epochs on an L4 for ~$0.80.
@@ -1202,8 +1202,63 @@ outstanding automatically, which is the guard working unprompted. The adapter is
 the same code path as the stock model and costs the same: **144 chunks/s against a
 historical 147**.
 
-Eval results to follow — everything above is proxy measurement, and the gold set is the
-first test against real retrieval questions.
+**And then it failed, completely.** On the gold set, against the real corpus:
+
+| | adapted | baseline |
+|---|---|---|
+| **overall** | **70.7%** (176/249) | 79.5% (198/249) |
+| **retrieval/tibetan** | **0.0%** (0/20) | 35.0% (7/20) |
+| **retrieval/pali** | **5.0%** (1/20) | 55.0% (11/20) |
+| topical/pali | 31.3% (5/16) | 56.3% (9/16) |
+| topical/chinese-native | 91.7% (11/12) | 100.0% (12/12) |
+| retrieval/chinese | 97.1% (34/35) | 97.1% (34/35) |
+
+**Tibetan went to zero.** The language the adapter was trained for lost every case it had
+been winning. Reverted to stock and the corpus re-embedded.
+
+## Why every proxy lied
+
+This is the finding worth keeping, and it cost ~$2.60 to buy:
+
+| measurement | verdict | scope |
+|---|---|---|
+| in-batch top-1 | 0.044 → 0.148 (3.4×) | 24 candidates |
+| held-out MRR | 0.162 → 0.327 (2×) | 24 candidates |
+| discrimination gap, `bo` | +0.0098 → **+0.1883 (19×)** | adjacent vs random chunk |
+| **gold-set retrieval** | **35% → 0%** | **617,038 competitors** |
+
+A **19× improvement in separating related from unrelated passages produced zero correct
+retrievals.** The proxies measured pair-matching among two dozen candidates and local
+geometry between neighbouring chunks. Retrieval ranks against six hundred thousand.
+Training with in-batch negatives at temperature 0.05 taught the model to separate small
+sets while destroying the global structure corpus-scale ranking depends on — the classic
+shape of optimising the training objective rather than the task.
+
+The damage was not uniform, and the pattern is diagnostic: `retrieval/chinese` held at
+97.1% while Tibetan and Pāli collapsed. Chinese eval cases lean on lexical and
+phrase-anchored matching; the languages that fell are the ones whose cases actually depend
+on the vector space.
+
+**Three probes were built to avoid exactly this, and none of them caught it.** The first
+measured dispersion rather than discrimination (a random projection scores well and
+retrieves nothing). The second compared the adapted model with itself, because
+`PeftModel.from_pretrained` injects in place — it printed identical numbers to four
+decimals and three confident `KEPT` verdicts. The third was correct, honest, and still
+predicted the opposite of what happened. **No proxy available here can substitute for
+running the eval against the real index.** That is now the rule: for a retrieval change,
+the gold set is not confirmation of a decision already made on proxies — it *is* the
+decision.
+
+What is kept: the adapter, `modal_train_tibetan.py`, `modal_probe_adapter.py`, and the
+30,607-pair training set. What is discarded: the vectors. A future attempt should train
+against corpus-scale negatives — mined from the index rather than from the batch — and
+should treat any proxy gain as a hypothesis until the gold set agrees.
+
+The architectural work the episode forced is kept too, and was worth having independently:
+`Pramana.Embed` now separates what a vector **records** from where its weights **load
+from**, and `build_serving/1` raises rather than embedding queries with weights that
+disagree with the documents. Without it the eval above would have run stock queries against
+adapted vectors and produced a number worth believing and entirely meaningless.
 
 ### The Tibetan training set is built, from data already here (#21)
 
