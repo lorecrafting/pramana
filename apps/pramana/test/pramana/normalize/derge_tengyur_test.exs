@@ -124,9 +124,9 @@ defmodule Pramana.Normalize.DergeTengyurTest do
       # `[222b.1]#{D4101}#…`, so the ending work's fragment is just the `#`. Emitting it
       # made a line with no text, which the loader refuses and `mix pramana.integrity`
       # then reports as content the bake lost — toh4100 and toh4150 both did.
+      # `\#{` is escaped: unescaped it is Elixir interpolation, and the marker silently
+      # becomes the text "Elixir.D1110" — a test that passes while testing nothing.
       {:ok, irs, _} =
-        # `\#{` is escaped: unescaped it is Elixir interpolation, and the marker silently
-        # becomes the text "Elixir.D1110" — a test that passes while testing nothing.
         volume(["[1b.1]{D1109}first work", "[2b.1]\#{D1110}\#second work"])
         |> Tengyur.normalize_file(volume: 1)
 
