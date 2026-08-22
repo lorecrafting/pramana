@@ -111,6 +111,37 @@ bury it in a number that went down.
 **Regenerate the gold set after a re-bake** with `mix pramana.evals.derive`, and re-read
 the cases before committing. The derivation is seeded, so it is reproducible.
 
+**For a retrieval change, this is not confirmation — it IS the decision.** A Tibetan LoRA
+adapter scored 3.4× on in-batch top-1, 2× on held-out MRR, and **19× on a
+related-vs-unrelated discrimination gap**, and then retrieved **0 of 20** Tibetan cases
+against the real index, down from 7. Three separate proxies endorsed a model that
+destroyed retrieval. They measured pair-matching among two dozen candidates and local
+geometry between neighbouring chunks; retrieval ranks against 617,038 competitors. Treat
+any proxy gain as a hypothesis until the gold set agrees, and never adopt on proxies alone.
+
+**Check the arithmetic before believing a null result.** The set must be large enough to
+show the effect you are looking for. Two questions in one session were undecidable for
+this reason: a fix touching 6.3% of Pāli chunks implied ~1.26 affected cases out of 20,
+and `retrieval/tibetan` swung 7→8 and 7→5 across index rebuilds **with nothing relevant
+changed**, because HNSW is approximate and Tibetan's vectors are the corpus's
+worst-separated (0.9727 mean pairwise cosine), so its candidates are near-ties. On 20
+cases a ±2 swing is ±10% and buries anything subtle. The set was widened to 1,400 cases
+for this reason — `retrieval/pali` 20→150, `retrieval/tibetan` 20→64.
+
+**`topical/*` did not widen and cannot, at present.** Those cases come from a curated
+doctrinal-term list, and terms are rejected when they are *too common to measure* —
+སྟོང་པ་ཉིད occurs in 20,500 segments, so "was it found" carries no information.
+`topical/tibetan` stays at 9 cases and `topical/chinese` at 12. They are the hardest and
+most valuable questions in the set, and they remain statistically undecidable.
+
+**Budget the runtime.** 1,400 cases with the embedding serving is **45+ minutes**, against
+~5 for the old 249. The semantic cases are what cost: 75 → 446, each a query embedding
+plus an HNSW search. Use `--only retrieval` when iterating; run the whole set at a gate.
+
+**Percentages are not comparable across a widening.** Every denominator changed, so the
+pre-widening 79.5% and any figure after it measure different sets. Re-baseline in the same
+commit that changes the gold set, and say so.
+
 **Readings are scored separately**, because the claim is comparative rather than
 absolute:
 
