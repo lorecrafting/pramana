@@ -1242,6 +1242,44 @@ Three defects found while getting to this number, all of which would have corrup
   run that scored 49 — it counted the loaded gold set, not the scored one. Every rate this
   project has published from that line was wrong by the ratio of the two.
 
+### Retrieval depth is worth +7 cases and costs 5.4x (#10) — measured, not adopted
+
+The probe above suggested fusion depth was worth real recall. It is, across every
+tradition, and the price is the reason it is not simply switched on. All 446 `retrieval`
+cases, depth 60 (the shipped default, `limit * 3`) against depth 200:
+
+| | depth 60 | depth 200 | |
+|---|---|---|---|
+| retrieval / chinese | 97.8% (227/232) | **98.3% (228/232)** | +1 |
+| retrieval / pali | 53.3% (80/150) | **54.7% (82/150)** | +2 |
+| retrieval / tibetan | 31.3% (20/64) | **37.5% (24/64)** | **+4** |
+| **overall** | 73.3% (327/446) | **74.9% (334/446)** | **+7** |
+| **wall clock** | **~50 min** | **4h25m** | **5.4x** |
+
+**Nothing regressed**, which is what the pre-registered rule required, and Tibetan's 24/64
+has now been produced three independent times — the depth-200 probe, an isolated Tibetan
+arm, and this full run. Read the per-row gains carefully though: **only Tibetan's +4 clears
+the one-case ANN wobble on its own.** Pāli's +2 and Chinese's +1 are inside it and should
+not be quoted as established; the aggregate +7 is what carries.
+
+**The cost is the finding.** 35.6 s per case against ~6.6 s, which is *more expensive than
+per-tradition retrieval* (22.7 s/case) despite running one scan instead of three. The
+lexical arm is why: at depth 200 it pulls 200 segments out of a 4.7M-segment bigram index
+and maps every one to its containing chunk, and the 232 Chinese definitional-formula cases
+hit that hardest. As a default it would take the 1,400-case gate from about an hour to
+about five, on a check meant to run at every phase gate.
+
+So depth ships as an **option**, not a new default, and the open question is the middle:
+depth 120 is unmeasured, and if most of the +7 arrives there at half the cost that is the
+change worth making.
+
+**A process note that cost hours.** This run produced no output for 4h25m, so "how far
+along is it" was unanswerable and three ETAs were wrong — all extrapolated from a Tibetan
+arm that turned out to be the *cheap* tradition. The gold files also load alphabetically,
+so the expensive Chinese cases run first, which makes any linear projection from early
+elapsed time wrong in the same direction. `mix pramana.evals` now prints a progress
+heartbeat for exactly this reason.
+
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
 The standing plan was "a reranker first, then a Tibetan-fine-tuned embedder". Before
