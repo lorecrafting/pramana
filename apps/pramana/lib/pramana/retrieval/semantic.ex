@@ -17,9 +17,24 @@ defmodule Pramana.Retrieval.Semantic do
     a small candidate pool for a small canon.
   - Vectors from a different model are excluded. Mixing models silently corrupts
     ranking, since every value is a valid float and nothing fails loudly.
-  - BGE-M3 is multilingual but not trained on Classical Chinese specifically. Whether
-    it is the right model here is an open question that the Phase 4 eval harness turns
-    from opinion into measurement.
+  - BGE-M3 is multilingual but not trained on Classical Chinese specifically. This was
+    written as an open question for the Phase 4 harness to settle. It is settled, and the
+    answer is split by direction rather than by language:
+
+        retrieval / chinese   97.8% (232 cases)   a Chinese query, Chinese passages
+        topical  / chinese     0.0% (12 cases)    the SAME questions asked in English
+
+    The model is entirely adequate *within* Literary Chinese and does not cross into it
+    from English at all. That is a missing-layer problem, not a model choice — the Pāli
+    row works precisely because those chunks carry an English rendering to match against
+    (#42, #43).
+
+  - **Tibetan is bounded by the embedder, and it is measured twice over.** Mean pairwise
+    cosine is 0.9727 against 0.84 for Pāli, so ranking within Tibetan is weak by
+    construction (#10). The second measurement is the sharper one: giving Tibetan a
+    guaranteed third of every result set made Tibetan pinpoint retrieval WORSE, 31.3% ->
+    21.9%, because the extra slots fill with near-ties. Retrieval room is not the
+    constraint.
   """
 
   import Ecto.Query

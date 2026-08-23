@@ -194,8 +194,9 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
   grapheme windows were producing `་པ་`, which matches 89.6% of the corpus.
 - **The embedder, not the corpus, now bounds Tibetan retrieval.** Measured below: BGE-M3's
   mean pairwise cosine for Tibetan is 0.9727 against 0.84 for Pāli, so ranking within
-  Tibetan is weak by construction. A reranker first, then a Tibetan-fine-tuned embedder
-  trained on the aligned pairs already in this database.
+  Tibetan is weak by construction. This bullet used to continue "a reranker first, then a
+  Tibetan-fine-tuned embedder" — **the reranker half is now measured and demoted**; see
+  *What a reranker could actually fix* below. Tibetan's problem is RECALL, not order.
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
@@ -1241,6 +1242,39 @@ Three defects found while getting to this number, all of which would have corrup
   run that scored 49 — it counted the loaded gold set, not the scored one. Every rate this
   project has published from that line was wrong by the ratio of the two.
 
+### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
+
+The standing plan was "a reranker first, then a Tibetan-fine-tuned embedder". Before
+building one, the cheap question: **a reranker reorders the candidate pool and cannot
+introduce a passage retrieval never returned — so is the right answer in the pool?**
+All 64 `retrieval/tibetan` cases, probed to depth 200:
+
+| | cases | |
+|---|---|---|
+| gold at rank ≤ 10 | 24 (37.5%) | already a hit |
+| gold at rank 11–200 | **9 (14.1%)** | **everything a reranker could fix** |
+| gold absent from 200 | **31 (48.4%)** | **recall failure — no reranker helps** |
+
+Mis-ranked gold sits at ranks 12, 14, 14, 17, 28, 30, 48, 177, 194 — median 28, and two
+of the nine are barely in the pool at all.
+
+**A perfect reranker takes `retrieval/tibetan` from 37.5% to at most 51.6% at this depth,
+and cannot touch the other half.** That is a real gain and a bounded one, and it is not
+where the constraint is: **nearly half of Tibetan retrieval never surfaces the right
+passage in two hundred candidates.** Recall is the problem, so the fine-tuned embedder —
+which changes what gets retrieved — is the higher-value work, and the order in the bullet
+above was backwards. #10 already established that a Tibetan LoRA must be judged on the
+gold set rather than on proxies; this says which metric it has to move.
+
+**An unexpected second reading, NOT yet a claim.** The eval scores these same 64 cases at
+**31.3% (20/64)** using `limit: 20`, which makes Hybrid's over-fetch depth 60. This probe's
+own top ten, at depth 200, holds **24**. Same cases, same `covers?/2` rule, +4 cases from
+retrieval depth alone. That is above the documented one-case ANN wobble but not far enough
+above it to bank, and it is consistent with #43's finding that a wider scan returns better
+neighbours rather than merely more of them. It needs a gold-set run at a configurable
+depth before anyone believes it — the #10 rule applies to encouraging probes too, and this
+is one.
+
 ### The gold set was too blunt to decide with (#14) — 249 → 1,400 cases
 
 Two questions in one session came out undecidable, both for the same reason:
@@ -2196,8 +2230,15 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#38 Pāli root text** | **539** | — | verify --all + integrity green on 10,914 texts | ingest 53 s / 8,442 works | **10,914 texts, 5,185,767 segments** |
 | **#39 translation pool + readings** | **582** | — | a generated rendering is rejected as source | translations ingest 4,996 files | **210,756 renderings, 8 translators, 4,601 shared anchors; 22 reading exceptions** |
 | **#40 multi-vector + comparison tools** | **629** | — | an English query reaches a Pāli passage and cites the Pāli | chunk 84 s; embed 43,218 in ~5 min | **342,535 vectors: 300,165 source/lzh, 27,589 source/pli, 14,781 translation/en** |
-| **#19 eval harness** | **651** | **65.3% @10** (zh 98.7 / pa 37.5) | **100%** verify + reject + provenance | evals 200 cases in 12 min | overall **87.0%**, 0 stale |
+| **#19 eval harness** | **651** | **65.3% @10** (zh **97.1** / pa 37.5) | **100%** verify + reject + provenance | evals 200 cases in 12 min | overall **87.0%**, 0 stale |
 | **#21 Derge Kangyur ingest** | **870** | — | verify --source derge green on 1,195 texts; integrity closes to 69 bytes | ingest 4m35s / 103 volumes; verify 75 s | **12,109 texts, 5,647,069 segments; 1,195 Tibetan works, 75 spanning volumes** |
 | **#21 84000 join** | **882** | — | an English folio resolves to the seven Tibetan lines it renders | ingest 36 s / 385 files | **30,653 renderings, 472 works, 478 titled; 7 volume groups refused** |
 | **#21 Tibetan measured, three ways** | **909** | **retrieval@10 69.3%** (zh 97.1 / pa 55.0 / **bo 35.0**) | **100%** verify + reject + provenance | evals 249 cases in 15 min | overall **79.5%**, 0 stale; topical bo 0% — 95% of the Kangyur has no English layer |
 | **#21 term anchors** | **952** | — | 59 of 60 three-way anchors reachable in both canons | glossary ingest 27 s / 396 files | **56,382 entries, 16,741 Skt / 25,524 Tib terms, 865 three-way; 2,756 divergent** |
+| **#19 per_tradition decided** | **995** | **68.4% @10** under per_tradition (zh 97.8 / pa 42.7 / bo 21.9) vs **73.3%** default | **100%** verify + reject + provenance | full set **3h09m**; `--only topical` 5m22s | 1,400 cases, 0 stale; **opt-in confirmed** — 22 pinpoint cases lost for 2 topical; answered-from-any-canon 72.7% → 54.5% |
+
+The `zh 98.7` in the `#19` row above was **corrected to 97.1** on 2026-08-22. It was a
+by-tradition figure that silently included the 40 provenance cases, so its sub-rows did
+not sum to their parent — the same error the README carried and had fixed in b22949a,
+left standing here. Recall@10 rows in this table mix case types by design; read them with
+the case counts in `evals/baseline.json` beside them.
