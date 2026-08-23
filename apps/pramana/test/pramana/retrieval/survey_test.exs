@@ -112,6 +112,36 @@ defmodule Pramana.Retrieval.SurveyTest do
     end
   end
 
+  describe "option validation — worse to skip here than in a ranked search" do
+    # A ranked search that ignores a filter returns the wrong ten passages. A SURVEY that
+    # ignores one returns a whole-corpus count presented as an exhaustive answer to a
+    # narrower question, and nothing in the output shows it. `Lexical` and `Semantic` have
+    # raised since a typo'd `divison:` silently disabled filtering there; this module went
+    # without the same guard.
+    test "a misspelled filter raises rather than counting the whole corpus" do
+      assert_raise ArgumentError, ~r/unknown survey option/, fn ->
+        Survey.survey("如是我聞", divison: "阿含部")
+      end
+    end
+
+    test "the error names the offending key" do
+      error = assert_raise ArgumentError, fn -> Survey.survey("如是我聞", nonsense: 1) end
+      assert Exception.message(error) =~ ":nonsense"
+    end
+
+    test "every option the module actually honours is accepted" do
+      assert {:ok, _} =
+               Survey.survey("如是我聞",
+                 top_works: 3,
+                 origin: "indic",
+                 role: "root",
+                 division: "阿含部",
+                 redistributable_only: false,
+                 license_class: "nc"
+               )
+    end
+  end
+
   describe "filters" do
     test "origin narrows the count" do
       assert {:ok, %{total_segments: 2}} = Survey.survey("佛性", origin: "indic")

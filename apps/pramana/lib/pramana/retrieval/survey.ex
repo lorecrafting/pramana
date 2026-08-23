@@ -41,6 +41,8 @@ defmodule Pramana.Retrieval.Survey do
   def survey(query, opts \\ [])
 
   def survey(query, opts) when is_binary(query) do
+    validate_opts!(opts)
+
     case String.trim(query) do
       "" -> {:error, :empty_query}
       phrase -> {:ok, run(phrase, opts)}
@@ -48,6 +50,30 @@ defmodule Pramana.Retrieval.Survey do
   end
 
   def survey(_, _), do: {:error, :bad_query}
+
+  # Every option this module honours. `Lexical` and `Semantic` have raised on an unknown
+  # key since a typo'd `divison:` silently disabled filtering there — and the consequence
+  # is WORSE here. A ranked search that ignores a filter returns the wrong ten passages,
+  # which a reader may notice; a survey that ignores one returns a whole-corpus count
+  # presented as an exhaustive answer to a narrower question, and there is nothing in the
+  # output to notice. This module exists precisely so a model cannot generalise from a
+  # sample, so its numbers have to mean what the caller asked for.
+  @known_opts [
+    :top_works,
+    :origin,
+    :role,
+    :division,
+    :redistributable_only,
+    :license_class
+  ]
+
+  @doc false
+  def validate_opts!(opts) do
+    case Keyword.keys(opts) -- @known_opts do
+      [] -> :ok
+      unknown -> raise ArgumentError, "unknown survey option(s): #{inspect(unknown)}"
+    end
+  end
 
   defp run(phrase, opts) do
     pattern = "%" <> escape_like(phrase) <> "%"
