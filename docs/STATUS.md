@@ -1314,8 +1314,16 @@ it. Three things follow, and the last two matter more than the depth question:
   the 232 Chinese definitional-formula cases dominated the 4h25m run. Tuning the vector
   side would have optimised the wrong half.
 - **A lexical query can take over two minutes**, which is a live risk on the MCP surface
-  and has nothing to do with evals. It is its own defect and its own task. **Both halves
-  are now fixed — see below.**
+  and has nothing to do with evals. It is its own defect and its own task.
+
+**This section previously ended "Both halves are now fixed". That was wrong**, and it was
+written the same morning the `texts.body` fix landed, on the assumption that the 32x
+speedup removed the timeout. It did not. A four-arm ABBA re-run afterwards timed out again
+on the same line, and the real cause turned out to be the n-gram fallback — see *The
+two-minute lexical query was 135 OR'd LIKEs* below. The claim is corrected rather than
+deleted because the mistake is the instructive part: **a speedup measured on one workload
+was assumed to fix a timeout observed on another**, and the two workloads were Chinese
+phrase queries and English n-gram fallbacks, which share a line number and nothing else.
 
 The same timeout is what killed the depth-200 arm hours earlier; that death was invisible
 because a `grep` in the pipeline swallowed the error while the loop still exited 0. The
@@ -1407,6 +1415,117 @@ The scoring rules follow from what an error actually is:
 The last point is the one worth generalizing: making a long run fault-tolerant is only
 half the job. The other half is making sure the shrunken denominator cannot be read as a
 result.
+
+### The two-minute lexical query was 135 OR'd LIKEs (#10)
+
+The `texts.body` fix was 32x and did **not** fix the timeout. A four-arm ABBA re-run after
+it died on the same line, so the cause was measured properly instead of assumed.
+
+It is not the phrase stage. `:auto` runs the phrase first and falls back to n-grams when
+the phrase returns nothing — which for a cross-lingual English query is *always*, since an
+English sentence never appears verbatim in Tibetan source text. `ngrams/2` then windowed by
+**grapheme at width 3** for anything not Tibetan, so a 145-character English sentence became
+**135 distinct trigrams**, OR'd into one `WHERE`. `EXPLAIN` on the full corpus:
+
+| stage | plan | est. cost |
+|---|---|---|
+| phrase — 1 pattern, 145 chars | Bitmap Index Scan on `segments_content_bigm_index` | 4,698 |
+| ngram — 135 trigram patterns | **Seq Scan on segments**, 6,538,238 rows | 3,043,842 |
+
+Past a tipping point the planner abandons pg_bigm and scans the whole table, testing one
+substring per predicate per row. `LIMIT depth * 5` with no `ORDER BY` is what made it
+*intermittent* rather than merely slow: the scan stops when it fills the limit, so runtime
+depends on where matches fall in heap order. Depth 60 filled 300 in time; depth 120
+sometimes failed to fill 600 inside the 120 s pool timeout.
+
+**The cliff is selectivity, not a predicate count** — measured, having first assumed
+otherwise. On one query the index survived 24 predicates; on another it was abandoned at
+**10**. The difference is short common words, which is why the fix is one rule and not two:
+
+- drop words under 3 characters — the exact analogue of the `@particles` list that already
+  drops 之, 於, 者 from Chinese as "grammatical particles, not content". `to`, `at`, `in`,
+  `on`, `by` are the same thing, and length says so without a dictionary.
+- keep the **longest 20**. Length is a dictionary-free proxy for rarity, and rarity is what
+  keeps the planner on the index. Longest-first held the index to 24 predicates on the
+  query where first-20-in-order flipped at 10.
+
+Verified over every alphabetic query in the gold set: **252 queries, 252 BitmapOr plans,
+zero sequential scans.**
+
+**This is the third instance of one defect.** The module already refuses jieba for Chinese
+because "a single common character appears on nearly every line", and refuses grapheme
+windows for Tibetan because `་པ་` matched 89.6% of segments. Latin script has the identical
+pathology and nothing caught it, because `tibetan?/1` was the only script test and
+everything else fell through to trigrams. The windows were simultaneously **useless** — a
+Latin trigram is a fragment of no linguistic standing, and can only match the Latin-script
+(Pāli) part of the corpus, so on a Tibetan question the whole lexical arm entered the
+fusion as noise — and **expensive**, because 135 of them defeat the index.
+
+**A known residue, left deliberately.** `the` is exactly at the length floor and survives.
+It is the same shape as `་པ་`: a predicate that votes for nearly every Latin-script line.
+Min-3 plus longest-20 is what was *measured* to keep all 252 gold queries on the index;
+whether also dropping function words improves recall is an eval question, and `@particles`
+is the precedent for fixing it if the eval says so.
+
+### What the fix did to the depth question (#10)
+
+The same four-arm ABBA, before and after. Two runs of four arms each, back to back, one
+session per run:
+
+| arm | depth | before | after |
+|---|---|---|---|
+| 1 | 60 | 20/64, 455 s | 20/64, 453 s |
+| 2 | 120 | 25/64, 682 s | 25/64, 675 s |
+| 3 | 120 | **24/62, 940 s, 2 ERRORED** | **25/64, 672 s, clean** |
+| 4 | 60 | 20/64, 456 s | 20/64, 388 s |
+
+**Arm 3 is the whole result.** It crashed the first session, lost 1 case the second, lost 2
+the third, and ran clean the fourth. The two depth-120 arms now agree to **0.4%** where the
+same pair previously differed by **38%** — the variance left with the timeout, which is
+what a fix to an intermittent early-exit scan should look like.
+
+Depth 120's recall gain is now reproduced a **fifth** time: +5 cases, 20 → 25, well clear
+of the documented one-case ANN wobble.
+
+**The cost ratio is 1.5–1.7x, and deliberately not quoted more precisely than that.** This
+run's own control loosened: the bracketing depth-60 arms came in at 453 s and 388 s, 15%
+apart, against 0.2% in the pre-fix run. Taking the depth-60 mean gives 1.60x; taking arm 1
+alone gives 1.48x. The ABBA exists to expose exactly this, and the honest reading is a
+range. Nothing above depends on it — both recall figures reproduced exactly, and arm 3
+running clean is categorical rather than a timing claim.
+
+**Depth 60 moved by nothing — same 20/64, same 453 s.** That is the right result twice
+over: depth 60 never hit the timeout, so its runtime should not change, and the trigram
+noise the fix removed was contributing no hits to lose.
+
+### The n-gram fix, validated outside the language that motivated it (#10)
+
+The fix changes the fallback for **every** alphabetic query, so validating it on Tibetan
+alone and shipping would have been rule 37 again — a fix measured on one workload and
+credited against another. Run at the shipped default depth, so the n-gram change is
+isolated from the depth question:
+
+| | baseline | after |
+|---|---|---|
+| retrieval / pali (150 cases) | 53.3% (80/150) | 54.0% (81/150) |
+| topical / pali | 56.3% (9/16) | 56.3% (9/16) |
+| topical / chinese | 0.0% (0/12) | 0.0% (0/12) |
+| topical / chinese-native | 100% (12/12) | 100% (12/12) |
+| topical / tibetan | 0.0% (0/9) | 0.0% (0/9) |
+| **answered from any tradition** | **72.7% (8/11)** | **72.7% (8/11)** |
+
+**Nothing moved.** The single Pāli case is inside the documented one-case wobble and is not
+claimed as an improvement; what it supports is the absence of a regression on the largest
+affected category. The word unit cost the Pāli nothing, so the morphological fuzziness the
+trigrams provided was not carrying those cases.
+
+`topical/chinese` staying at 0% was **predicted before the run**, and the prediction is
+worth as much as the number: those failures are a missing English layer over the Chinese
+canon (#43), not a lexical-fallback problem, and a fallback fix cannot create a layer. Had
+that row moved, the standing explanation for the 0% would have been wrong.
+
+Under #44's rule — any change must be measured against answered-from-any-tradition before
+becoming a default — the fix qualifies: 72.7%, unchanged.
 
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
@@ -1510,7 +1629,14 @@ embedding plus a filtered HNSW search over 617,038 vectors. And every search als
 `Semantic.coverage/1`, a `SELECT count(*) ... DISTINCT ON` measured at **~1.1 s**, which is
 database time and appears in neither the CPU total nor anyone's intuition — it lives inside
 a correctness feature, so nobody looks at it. Across 1,400 cases that alone is ~26 minutes.
-Worth caching: the figure depends on the corpus and the filters, not on the query text.
+This line used to end "Worth caching: the figure depends on the corpus and the filters, not
+on the query text." **`semantic.ex` argues the opposite at the call site, and it is right:**
+the number exists so an empty result cannot be mistaken for a small canon, and a stale
+cache reports a corpus fuller than it is — while embedding state changes *without* a
+re-bake, so `bake_id` is not even a sound cache key. The ~1.1 s is real and still worth
+attacking; the semi-join already took it from 1,224 ms to 921 ms. Caching is the wrong
+attack, and two documents disagreeing about it is how a correctness feature gets optimised
+away by whoever reads only one of them.
 
 (Two earlier estimates here were wrong and are corrected: 45 minutes, extrapolated from the
 case-count ratio, and 8h20m, taken from a wall clock across a sleeping machine.)
@@ -2240,6 +2366,34 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     the JSON, and `--gate` refuses to run at all when any case errored, because missing
     hits would either trip the ratchet or *install* an under-measured run as the baseline.
     Whenever a loop learns to survive a failure, ask what the summary now claims.
+36. **A tokenization rule is a rule about ONE script, and the `else` branch is where the
+    next script goes to die.** This defect has now appeared three times in one module:
+    jieba shattering Buddhist transliterations in Chinese, grapheme windows producing
+    `་པ་` in 89.6% of Tibetan segments, and grapheme trigrams turning a 145-character
+    English sentence into 135 predicates of `%the%` and `%er %`. Each time the unit was
+    right for the script it was designed for and meaningless for the one that fell through
+    to it. When a function branches on script, every branch must name the script it serves;
+    `if tibetan?(q), do: syllables, else: graphemes` silently claimed Latin, Devanāgarī and
+    everything else for a CJK tool.
+37. **A speedup measured on one workload does not fix a timeout observed on another, even
+    at the same line number.** `lexical.ex` was made 32x faster on Chinese phrase queries
+    and the depth-120 timeout was declared fixed on that basis. It was not: the timeout was
+    English n-gram fallbacks, which share the line and nothing else. The ABBA re-run that
+    caught it cost 45 minutes; the claim had already been committed and written into
+    STATUS. **Before crediting a fix with removing a failure, reproduce the failure.**
+38. **`LIMIT` without `ORDER BY` turns a bad plan into an intermittent one.** A sequential
+    scan under a limit stops as soon as it fills, so its runtime depends on where matches
+    happen to fall in heap order — the same query is fast, slow, or fatal depending on the
+    limit and the data layout. That is why this bug presented as "one arm in two dies" for
+    three sessions rather than as a query that is simply slow, and why it was attributed to
+    cache weather. An intermittent timeout under a limit is a plan problem until proven
+    otherwise.
+39. **When a planner abandons an index, the threshold is selectivity, not a count.** OR'd
+    `LIKE` predicates dropped off `pg_bigm` at 25 on one query and at 10 on another; what
+    differed was how common the terms were. A cap chosen from one query's cliff would have
+    been wrong for the next. Cap by *rarity* (length is a free proxy) and verify with
+    `EXPLAIN` across the whole gold set — 252 queries took seconds and turned a guess into
+    a measurement.
 
 ---
 

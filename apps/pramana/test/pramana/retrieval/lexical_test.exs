@@ -134,6 +134,85 @@ defmodule Pramana.Retrieval.LexicalTest do
     end
   end
 
+  describe "ngrams/2 on alphabetic script" do
+    @english "At her words, the whole assembly rejoiced and offered praise. " <>
+               "This completes the sūtra “Venerable Lady Tārā Who Protects from the Eight Dangers.”"
+
+    test "the word is the unit, not the grapheme window" do
+      # The same defect this module already refuses twice. A Latin trigram is a fragment
+      # of no linguistic standing: `%the%`, `%er %`, `%ass%` carry no signal and can only
+      # match the Latin-script part of the corpus, so on a Tibetan question the entire
+      # lexical arm was noise entering the fusion.
+      grams = Lexical.ngrams(@english)
+
+      assert "assembly" in grams
+      assert "Venerable" in grams
+      refute "ass" in grams
+      refute "er " in grams
+      refute Enum.any?(grams, &String.contains?(&1, " "))
+    end
+
+    test "a common 3-letter word still survives, and that is a KNOWN residue" do
+      # `the` is exactly at the length floor, so it passes. It is the same shape as the
+      # Tibetan `་པ་` that matched 89.6% of segments: a predicate that votes for nearly
+      # every Latin-script line. It is left in deliberately rather than fixed on a hunch —
+      # min-3 plus longest-20 is what was MEASURED to keep all 252 alphabetic gold queries
+      # on the pg_bigm index, and whether dropping function words also improves recall is
+      # an eval question, not a taste one. The `@particles` list is the precedent for
+      # fixing it if the eval says so.
+      assert "the" in Lexical.ngrams(@english)
+    end
+
+    test "short function words are dropped, exactly as Chinese particles are" do
+      # `to`, `at`, `in`, `on`, `by` are what `之`, `於`, `者` are to Classical Chinese.
+      # They are also what tips the planner off the index — dropping them is both a
+      # quality fix and the performance fix, which is why it is one rule and not two.
+      grams = Lexical.ngrams("Homage to all buddhas and bodhisattvas at one time")
+
+      assert "bodhisattvas" in grams
+      refute "to" in grams
+      refute "at" in grams
+      assert Enum.all?(grams, &(String.length(&1) >= 3))
+    end
+
+    test "the predicate count is capped, longest first" do
+      # The cliff is selectivity, not a count: the index survived 24 predicates on one
+      # query and was abandoned at 10 on another. Length is a dictionary-free proxy for
+      # rarity, and rarity is what keeps the planner on pg_bigm.
+      long = Enum.map_join(1..60, " ", &"word#{&1}longenough")
+      grams = Lexical.ngrams(long)
+
+      assert length(grams) <= 20
+    end
+
+    test "the longest words survive the cap, not the first ones" do
+      grams =
+        Lexical.ngrams(
+          "the cat sat upon extraordinarily magnificent thrones " <>
+            "and did rest and did wait and did sit and did stand"
+        )
+
+      assert "extraordinarily" in grams
+      assert "magnificent" in grams
+    end
+
+    test "a single alphabetic word keeps trigrams, because there the fuzziness is the point" do
+      # `:ngram` is the fallback AFTER `:phrase` failed. For a one-word query the word
+      # search would merely repeat that failure, whereas trigrams still reach a
+      # morphological variant — `sammādiṭṭhi` should be able to find `sammādiṭṭhiṃ`.
+      grams = Lexical.ngrams("sammādiṭṭhi")
+
+      assert length(grams) > 1
+      assert Enum.all?(grams, &(String.length(&1) == 3))
+    end
+
+    test "a mixed query containing Han keeps the CJK window" do
+      # Han is present, so the grapheme window is the right unit and the word rule must
+      # not claim the query.
+      assert Lexical.ngrams("the 般若波羅蜜 sutra") |> Enum.any?(&(&1 == "般若波"))
+    end
+  end
+
   describe "auto mode falls back to ngrams" do
     test "finds a passage via a window when the whole phrase is absent" do
       # 般若波羅蜜多心經 is not in this text, but 般若波羅蜜 is.

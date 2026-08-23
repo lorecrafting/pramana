@@ -189,7 +189,85 @@ defmodule Pramana.Retrieval.Lexical do
   """
   @spec ngrams(String.t(), pos_integer()) :: [String.t()]
   def ngrams(query, width \\ 3) do
-    if tibetan?(query), do: syllable_ngrams(query), else: grapheme_ngrams(query, width)
+    if tibetan?(query) do
+      syllable_ngrams(query)
+    else
+      case word_ngrams(query) do
+        [] -> grapheme_ngrams(query, width)
+        words -> words
+      end
+    end
+  end
+
+  # Below this a word is a function word in any alphabetic script — `to`, `at`, `in`, `by`.
+  @min_word_length 3
+
+  # The ceiling on OR'd LIKE predicates. See the note below: past the planner's tipping
+  # point pg_bigm is abandoned for a sequential scan of the whole segment table.
+  @max_predicates 20
+
+  # THE WORD IS THE UNIT FOR AN ALPHABETIC SCRIPT, AND THE GRAPHEME WINDOW IS A CJK TOOL.
+  #
+  # This is the third instance of one defect. The module already refuses jieba for Chinese
+  # because "a single common character appears on nearly every line", and refuses grapheme
+  # windows for Tibetan because `་པ་` matched 89.6% of segments. Latin script has the same
+  # pathology and nothing caught it, because `tibetan?/1` was the only script test and
+  # everything else fell through to trigrams: a 145-character English sentence became
+  # **135** windows of `%the%`, `%er %`, `%ass%` — fragments of no linguistic standing,
+  # which can only ever match the Latin-script (Pāli) part of the corpus and so enter the
+  # fusion as noise on a Tibetan or Chinese question.
+  #
+  # It was also what made a lexical query take over two minutes. Past a point the planner
+  # abandons the pg_bigm index for a sequential scan of all 6.5M segments, evaluating one
+  # substring test per predicate per row. Measured with EXPLAIN on the full corpus:
+  #
+  #     phrase, 1 pattern of 145 chars    Bitmap Index Scan      cost 4,698
+  #     ngram, 135 trigram patterns       Seq Scan on segments   cost 3,043,842
+  #
+  # `LIMIT depth * 5` and no ORDER BY is what made it *intermittent*: the scan stops when
+  # it fills the limit, so the runtime depends on where matches fall in heap order. Depth
+  # 60 filled 300 in time and depth 120 sometimes did not fill 600, which is the one-arm-
+  # in-two timeout that kept depth 120 from being the default.
+  #
+  # THE CLIFF IS SELECTIVITY, NOT A PREDICATE COUNT — measured, having first assumed
+  # otherwise. On one query the index survived 24 predicates; on another it was abandoned
+  # at 10. What differs is the short common words, so the two rules below are one rule:
+  #
+  # - drop words under 3 characters. This is the exact analogue of the `@particles` list
+  #   that already drops 之, 於, 者 from Chinese as "grammatical particles, not content" —
+  #   `to`, `at`, `in`, `on`, `by` are the same thing, and length is a dictionary-free way
+  #   to say so.
+  # - keep the LONGEST 20. Length is a dictionary-free proxy for rarity, and rarity is
+  #   what keeps the planner on the index. Longest-first held the index to 24 predicates
+  #   on the query where first-20-in-order flipped to a sequential scan at 10.
+  #
+  # Verified over every alphabetic query in the gold set — 252 of them, 252 BitmapOr
+  # plans, **zero sequential scans**.
+  #
+  # Returns `[]` when the rule does not apply, and the caller falls back to grapheme
+  # windows. Two cases: a query containing Han, where the window IS the right unit; and a
+  # query with fewer than two qualifying words, where the word search would merely repeat
+  # the `:phrase` attempt that already failed. A single alphabetic word keeps trigrams
+  # precisely because they are fuzzy there — `sammādiṭṭhi` should still reach
+  # `sammādiṭṭhiṃ`, and 9 windows is nowhere near the cliff.
+  defp word_ngrams(query) do
+    if String.match?(query, ~r/\p{Han}/u) do
+      []
+    else
+      words =
+        query
+        |> String.split(~r/[^\p{L}\p{N}]+/u, trim: true)
+        |> Enum.filter(&(String.length(&1) >= @min_word_length))
+        |> Enum.uniq()
+
+      if length(words) < 2 do
+        []
+      else
+        words
+        |> Enum.sort_by(&String.length/1, :desc)
+        |> Enum.take(@max_predicates)
+      end
+    end
   end
 
   defp grapheme_ngrams(query, width) do
