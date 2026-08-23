@@ -106,7 +106,32 @@ defmodule Pramana.Retrieval.Semantic do
       [] -> :ok
       unknown -> raise ArgumentError, "unknown search option(s): #{inspect(unknown)}"
     end
+
+    validate_limit!(opts[:limit])
   end
+
+  @doc "The largest number of results this retriever will return."
+  @spec max_limit() :: pos_integer()
+  def max_limit, do: @max_limit
+
+  # A limit above the maximum used to be clamped SILENTLY, and it cost a published claim:
+  # a probe asked for `limit: 500`, got 200, and the finding was written up as "absent
+  # from the top 500" when it meant the top 200. The conclusion happened to survive; the
+  # label did not. This is the same category as an unknown option being ignored, and it
+  # gets the same answer — the caller is told rather than quietly given something else.
+  #
+  # Callers that legitimately take user input clamp at their own boundary, where the cap
+  # is part of the published contract: `PramanaWeb.MCP.Tools.Search` documents "capped at
+  # 200" and enforces it before calling.
+  defp validate_limit!(nil), do: :ok
+
+  defp validate_limit!(limit) when is_integer(limit) and limit > @max_limit do
+    raise ArgumentError,
+          "limit #{limit} exceeds the maximum of #{@max_limit}; ask for at most " <>
+            "#{@max_limit}, and clamp at your own boundary if the value came from a user"
+  end
+
+  defp validate_limit!(_limit), do: :ok
 
   @doc """
   Searches with an already-computed query vector.

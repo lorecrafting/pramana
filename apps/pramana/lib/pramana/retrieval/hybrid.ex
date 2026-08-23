@@ -84,9 +84,17 @@ defmodule Pramana.Retrieval.Hybrid do
 
   defp run(query, opts) do
     limit = Keyword.get(opts, :limit, @default_limit)
+
     # Over-fetch from each retriever: fusion needs depth to work with, and a document
     # ranked 30th by one retriever can win once the other agrees.
-    depth = limit * 3
+    #
+    # CLAMPED, and deliberately so — unlike the caller's `limit`, which the retrievers now
+    # refuse rather than quietly shrink. `depth` is not a request, it is this layer's own
+    # over-fetch heuristic, and asking for three times a limit of 100 would otherwise
+    # exceed the retrievers' maximum and raise on a search the caller asked for correctly.
+    # Fusion simply gets less depth to work with at large limits, which is the honest
+    # consequence of a bounded retriever.
+    depth = min(limit * 3, Semantic.max_limit())
 
     lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, depth)
     semantic = semantic_ranking(query, opts, depth)

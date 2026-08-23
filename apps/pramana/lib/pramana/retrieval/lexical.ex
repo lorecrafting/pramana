@@ -393,7 +393,26 @@ defmodule Pramana.Retrieval.Lexical do
       [] -> :ok
       unknown -> raise ArgumentError, "unknown search option(s): #{inspect(unknown)}"
     end
+
+    validate_limit!(opts[:limit])
   end
+
+  @doc "The largest number of results this retriever will return."
+  @spec max_limit() :: pos_integer()
+  def max_limit, do: @max_limit
+
+  # Silently clamping a limit is the same bug as silently ignoring a filter — the caller
+  # is given something other than what they asked for, with nothing saying so. See the
+  # note in `Pramana.Retrieval.Semantic`, where it cost a published figure.
+  defp validate_limit!(nil), do: :ok
+
+  defp validate_limit!(limit) when is_integer(limit) and limit > @max_limit do
+    raise ArgumentError,
+          "limit #{limit} exceeds the maximum of #{@max_limit}; ask for at most " <>
+            "#{@max_limit}, and clamp at your own boundary if the value came from a user"
+  end
+
+  defp validate_limit!(_limit), do: :ok
 
   defp filter_in(query, nil, _field), do: query
 

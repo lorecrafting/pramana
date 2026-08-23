@@ -121,6 +121,42 @@ defmodule Pramana.Retrieval.HybridTest do
     end
   end
 
+  describe "a limit above the maximum is refused, not silently shrunk" do
+    # This cost a published claim. A probe asked `Semantic` for `limit: 500`, was given
+    # 200, and the finding was written up as "30 of 41 misses absent from the top 500"
+    # when it meant the top 200 — see docs/STATUS.md #19. Same category as a
+    # silently-ignored filter, same answer.
+    test "Semantic raises and names the maximum" do
+      error =
+        assert_raise ArgumentError, fn -> Semantic.search("如是我聞", limit: 500) end
+
+      assert Exception.message(error) =~ "500"
+      assert Exception.message(error) =~ "200"
+    end
+
+    test "Lexical raises too, so the rule does not depend on which retriever you reach" do
+      assert_raise ArgumentError, ~r/exceeds the maximum/, fn ->
+        Lexical.search("如是我聞", limit: 500)
+      end
+    end
+
+    test "a limit at the maximum is accepted" do
+      assert {:ok, _} = Lexical.search("如是我聞", limit: 200)
+    end
+
+    # The regression this guards: Hybrid over-fetches at `limit * 3`, so before `depth`
+    # was clamped, any limit above 66 asked the retrievers for more than they allow and
+    # the new check turned a correct caller's search into an ArgumentError.
+    test "Hybrid at the maximum limit still searches, because depth is its own heuristic" do
+      assert {:ok, %{total: total}} = Hybrid.search("如是我聞", limit: 200)
+      assert total > 0
+    end
+
+    test "Hybrid at a limit whose triple exceeds the maximum still searches" do
+      assert {:ok, _} = Hybrid.search("如是我聞", limit: 100)
+    end
+  end
+
   describe "fuse/2 — pure RRF" do
     test "a document ranked first by both retrievers wins" do
       lexical = ["a", "b", "c"]

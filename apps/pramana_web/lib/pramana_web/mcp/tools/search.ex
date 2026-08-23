@@ -20,6 +20,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
   alias Pramana.Reader
   alias Pramana.Retrieval.Hybrid
   alias Pramana.Retrieval.Lexical
+  alias Pramana.Retrieval.Semantic
 
   schema do
     field(:query, :string,
@@ -69,11 +70,20 @@ defmodule PramanaWeb.MCP.Tools.Search do
     field(:juan, :integer, description: "Restrict to one fascicle.")
   end
 
+  # The cap this tool's schema already advertises ("capped at 200"), now ENFORCED here
+  # rather than by the retriever clamping in silence. The domain refuses an over-limit
+  # outright, because a caller in code asking for more than exists should be told; a
+  # model filling in a tool parameter should not get an error for a number this tool
+  # documents as capped. The boundary is where user input becomes a request.
+  defp capped_limit(nil), do: nil
+  defp capped_limit(limit) when is_integer(limit), do: min(limit, Semantic.max_limit())
+  defp capped_limit(_limit), do: nil
+
   @impl true
   def execute(params, frame) do
     opts =
       [
-        limit: params[:limit],
+        limit: capped_limit(params[:limit]),
         mode: mode(params[:mode]),
         origin: params[:origin],
         role: params[:role],
