@@ -1281,14 +1281,46 @@ same 64 Tibetan cases:
 **The whole gain arrives at depth 120.** 25 against 24 is one case, inside the ANN wobble,
 so 120 and 200 are indistinguishable on recall and the extra 80 candidates buy nothing.
 
-**The wall clocks from these arms are NOT usable, and the ordering says so:** depth 120
-took 13m12s and depth 200 took 11m21s, which is backwards, because 120 does strictly less
-work. The two ran hours apart under different cache states — and this session already
-measured cache state moving a Postgres figure 5x (`coverage/1`: 520 ms warm, 2,700 ms
-cold). The recall comparison above is sound; any cost claim drawn from those timings is
-quoting cache weather rather than the parameter. Depth is the one decision here that turns
-entirely on cost, so it needs arms run **back to back in one session** before a default
-changes.
+**The first wall clocks were cache weather, and an ABBA run replaced them.** Depth 120 had
+timed at 13m12s against depth 200's 11m21s — backwards, since 120 does strictly less work.
+Those arms ran hours apart, and this session already measured cache state moving
+`coverage/1` by 5x. So the arms were re-run **back to back in one session, in ABBA order**
+(60, 120, 120, 60) to cancel drift:
+
+| arm | depth | recall | scoring time |
+|---|---|---|---|
+| 1 | 60 | 20/64 | 7m24s |
+| 2 | 120 | 25/64 | 11m01s |
+| 3 | 120 | **crashed** | — |
+| 4 | 60 | 20/64 | 7m32s |
+
+The two depth-60 arms agree to **1.8%**, which is what a usable cost baseline looks like
+and what the earlier 5m16s figure was not. **Depth 120 costs 1.47x**, nothing like depth
+200's 5.4x, and it carries the whole recall gain.
+
+**And it is still not the default, because one arm in two died:**
+
+    ** (DBConnection.ConnectionError) client timed out because it queued and checked out
+       the connection for longer than 120000ms
+       lib/pramana/retrieval/lexical.ex:296: Pramana.Retrieval.Lexical.run/4
+
+A single **lexical** query exceeded the 120-second pool timeout and took the whole run with
+it. Three things follow, and the last two matter more than the depth question:
+
+- **A default that occasionally kills a multi-hour gate is not a default.** Depth 120
+  sits on the edge of the timeout and which side it lands on depends on cache state.
+- **The cost of depth is in the BIGRAM index, not in HNSW.** Every intuition here had been
+  that depth buys vector-scan time; `lexical.ex:296` says otherwise, and it explains why
+  the 232 Chinese definitional-formula cases dominated the 4h25m run. Tuning the vector
+  side would have optimised the wrong half.
+- **A lexical query can take over two minutes**, which is a live risk on the MCP surface
+  and has nothing to do with evals. It is its own defect and its own task.
+
+The same timeout is what killed the depth-200 arm hours earlier; that death was invisible
+because a `grep` in the pipeline swallowed the error while the loop still exited 0. The
+progress heartbeat added the same day earned itself immediately — the log shows
+`10/64 · 1m12s` and `20/64 · 2m24s` before the crash, so the failure point is known rather
+than guessed.
 
 **A process note that cost hours.** This run produced no output for 4h25m, so "how far
 along is it" was unanswerable and three ETAs were wrong — all extrapolated from a Tibetan

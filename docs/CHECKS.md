@@ -171,6 +171,25 @@ part of it, so that number is an artifact and not a measurement.
 throughout, because it runs three `source_id`-filtered iterative scans per query instead
 of one unfiltered one. Budget hours, not minutes, before scoring a configuration with it.
 
+**`--depth` above the default can exceed the database connection timeout and kill the
+run.** Measured on 64 Tibetan retrieval cases, ABBA order to cancel cache drift:
+
+| depth | recall | scoring time |
+|---|---|---|
+| 60 (default) | 20/64 | 7m24s and 7m32s |
+| 120 | 25/64 | 11m01s, and **one arm in two crashed** |
+| 200 | 24/64 | 4h25m over the full 446-case set |
+
+The crash is a `DBConnection.ConnectionError` at `Lexical.run/4` — a single **bigram**
+query holding the connection past 120,000 ms. The cost of depth is in pg_bigm, not in
+HNSW, which is the opposite of what everyone assumed and means the vector side is the
+wrong place to tune it.
+
+**Time an eval configuration with arms run back to back in one session.** Two depth-60
+arms an hour apart differ by 40% (5m16s vs 7m24s); two run consecutively differ by 1.8%.
+A single timing taken today and compared against one taken this morning is measuring the
+page cache.
+
 The semantic cases are what cost: 75 → 446, each a query embedding plus a filtered HNSW
 search over 617,038 vectors. Plan for a long-running background job, use
 `--only retrieval` when iterating, and run the whole set at a gate.

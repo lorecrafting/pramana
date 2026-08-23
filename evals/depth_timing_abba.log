@@ -1,0 +1,280 @@
+=== ARM depth=60 start 21:39:50
+[info] Falling back to 1 / sqrt(x) for f32 false
+  CONFIGURATION OVERRIDE: [depth: 60]
+  This is an experiment, not the shipped default.
+
+  10/64 cases · 1m03s elapsed · ~5m46s left      20/64 cases · 1m57s elapsed · ~4m18s left      30/64 cases · 3m07s elapsed · ~3m32s left      40/64 cases · 3m52s elapsed · ~2m20s left      50/64 cases · 5m26s elapsed · ~1m31s left      60/64 cases · 6m34s elapsed · ~26s left      64/64 cases · 7m24s elapsed · ~0.0s left    
+pramana evals — 64 case(s) in 444.6s
+  scored:  64   hits 20   misses 44
+  stale:   0   (premises no longer hold; excluded from the rate)
+  overall: 31.3%
+
+
+    BY CASE TYPE
+      retrieval        31.3%  (20/64)  mean rank 3.15
+
+    BY TRADITION
+      tibetan          31.3%  (20/64)  mean rank 3.15
+
+    BY CASE TYPE x TRADITION
+      retrieval / tibetan          31.3%  (20/64)  mean rank 3.15
+
+
+
+
+
+    FAILURES
+      [retrieval] tr-002
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling on Vulture Peak Mountain, where he was delivering a teaching on correct names to all causal and resultant bodhisattvas.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-004
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-005
+        query: Colophon The Indian preceptor Prajñāvarman and the chief editor-translator, Bandé Yeshé Dé, translated, edited, and finalized this work.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-007
+        query: This completes “The Noble Hundred and Eight Names of Avalokiteśvara,” called “The Receptacle of the Relics of all Victors.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-008
+        query: Homage to Lokeśvara. Chapter 1: The Arising of Siddhi After one has paid homage to glorious great Gaṇapati And glorious Gaṇapati is pleased, one should Place the statue in
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-009
+        query: This concludes the noble dhāraṇī “Essence of Immeasurable Longevity and Wisdom.” Colophon Translated by the Indian preceptor Puṇya­sambhava and the translator Patsap Nyima Drak.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-010
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling at the Kūṭāgāraśālā in the forest outside Vaiśālī
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-011
+        query: rejoiced and praised what the Blessed One had said. This concludes the noble Great Vehicle sūtra “The Seal of Dharma.” Colophon This was translated and finalized by the translators Bandé Lui Wangpo and Lhai Dawa.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-012
+        query: Colophon This was translated by the Indian preceptors Sarvajñadeva, Vidyākaraprabha, and Dharmākara and the translator Bandé Zangkyong. It was then edited and finalized by the translator-editor Bandé Kawa Paltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-013
+        query: Homage to all buddhas and bodhisattvas! Thus did I hear at one time. The Blessed One was dwelling in the country of Magadha in a solitary place, the essence of Dharma,
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-015
+        query: Colophon This was translated by the paṇḍita Gayādhara and the translator-monk Śākya Yeshé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-017
+        query: Colophon This was translated, edited, and finalized by the Indian preceptor Prajñāvarman, the translator-editor Bandé Yeshé Dé, and others.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-018
+        query: This completes the “Mahāmāyātantra.” Colophon It was translated and edited by the Indian preceptor Jinavara and the great Tibetan translator Gö [515] Lhetsé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-019
+        query: Dānaśīla, together with the chief editor and translator Kawa Peltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-020
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling in Rājagṛha at Vulture Peak Mountain together with a great bodhisattva saṅgha of bodhisattva great beings
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+
+
+  ran 64 case(s) in 7m24s (0.1 cases/s)
+
+=== ARM depth=60 end 21:47:27
+=== ARM depth=120 start 21:47:27
+[info] Falling back to 1 / sqrt(x) for f32 false
+  CONFIGURATION OVERRIDE: [depth: 120]
+  This is an experiment, not the shipped default.
+
+  10/64 cases · 1m19s elapsed · ~7m10s left      20/64 cases · 2m34s elapsed · ~5m41s left      30/64 cases · 4m42s elapsed · ~5m20s left      40/64 cases · 6m01s elapsed · ~3m37s left      50/64 cases · 8m05s elapsed · ~2m16s left      60/64 cases · 9m50s elapsed · ~39s left      64/64 cases · 11m01s elapsed · ~0.0s left    
+pramana evals — 64 case(s) in 661.4s
+  scored:  64   hits 25   misses 39
+  stale:   0   (premises no longer hold; excluded from the rate)
+  overall: 39.1%
+
+
+    BY CASE TYPE
+      retrieval        39.1%  (25/64)  mean rank 3.32
+
+    BY TRADITION
+      tibetan          39.1%  (25/64)  mean rank 3.32
+
+    BY CASE TYPE x TRADITION
+      retrieval / tibetan          39.1%  (25/64)  mean rank 3.32
+
+
+
+
+
+    FAILURES
+      [retrieval] tr-004
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-005
+        query: Colophon The Indian preceptor Prajñāvarman and the chief editor-translator, Bandé Yeshé Dé, translated, edited, and finalized this work.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-007
+        query: This completes “The Noble Hundred and Eight Names of Avalokiteśvara,” called “The Receptacle of the Relics of all Victors.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-009
+        query: This concludes the noble dhāraṇī “Essence of Immeasurable Longevity and Wisdom.” Colophon Translated by the Indian preceptor Puṇya­sambhava and the translator Patsap Nyima Drak.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-010
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling at the Kūṭāgāraśālā in the forest outside Vaiśālī
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-011
+        query: rejoiced and praised what the Blessed One had said. This concludes the noble Great Vehicle sūtra “The Seal of Dharma.” Colophon This was translated and finalized by the translators Bandé Lui Wangpo and Lhai Dawa.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-012
+        query: Colophon This was translated by the Indian preceptors Sarvajñadeva, Vidyākaraprabha, and Dharmākara and the translator Bandé Zangkyong. It was then edited and finalized by the translator-editor Bandé Kawa Paltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-015
+        query: Colophon This was translated by the paṇḍita Gayādhara and the translator-monk Śākya Yeshé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-017
+        query: Colophon This was translated, edited, and finalized by the Indian preceptor Prajñāvarman, the translator-editor Bandé Yeshé Dé, and others.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-018
+        query: This completes the “Mahāmāyātantra.” Colophon It was translated and edited by the Indian preceptor Jinavara and the great Tibetan translator Gö [515] Lhetsé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-019
+        query: Dānaśīla, together with the chief editor and translator Kawa Peltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-020
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling in Rājagṛha at Vulture Peak Mountain together with a great bodhisattva saṅgha of bodhisattva great beings
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-021
+        query: edited it by comparing it with the Sanskrit edition that had been in the possession of Chojé Chaglo.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-022
+        query: At her words, the whole assembly rejoiced and offered praise. This completes the sūtra “Venerable Lady Tārā Who Protects from the Eight Dangers.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-023
+        query: We pray that the good fortune of this Dharma offering to the hosts of gods Shall ensure prosperity and cause the supreme Dharma to flourish. This concludes “The Threefold [Invocation] Ritual.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+
+
+  ran 64 case(s) in 11m01s (0.1 cases/s)
+
+=== ARM depth=120 end 21:58:38
+=== ARM depth=120 start 21:58:38
+[info] Falling back to 1 / sqrt(x) for f32 false
+  CONFIGURATION OVERRIDE: [depth: 120]
+  This is an experiment, not the shipped default.
+
+  10/64 cases · 1m12s elapsed · ~6m32s left      20/64 cases · 2m24s elapsed · ~5m19s left    [error] Postgrex.Protocol (#PID<0.392.0> ({Postgrex.Protocol, "pramana_dev"})) disconnected: ** (DBConnection.ConnectionError) client #PID<0.101.0> (:erlang) timed out because it queued and checked out the connection for longer than 120000ms
+
+#PID<0.101.0> (:erlang) was at location:
+
+    (erts 17.0.5) :prim_inet.recv0/3
+    (postgrex 0.22.4) lib/postgrex/protocol.ex:3345: Postgrex.Protocol.rows_recv/5
+    (postgrex 0.22.4) lib/postgrex/protocol.ex:2312: Postgrex.Protocol.recv_execute/5
+    (postgrex 0.22.4) lib/postgrex/protocol.ex:2186: Postgrex.Protocol.bind_execute/4
+    (db_connection 2.10.2) lib/db_connection/holder.ex:379: DBConnection.Holder.holder_apply/4
+    (db_connection 2.10.2) lib/db_connection.ex:1558: DBConnection.run_execute/5
+    (db_connection 2.10.2) lib/db_connection.ex:1606: DBConnection.run_with_retries/5
+    (db_connection 2.10.2) lib/db_connection.ex:810: DBConnection.parsed_prepare_execute/5
+    (db_connection 2.10.2) lib/db_connection.ex:802: DBConnection.prepare_execute/4
+    (ecto_sql 3.14.0) lib/ecto/adapters/postgres/connection.ex:108: Ecto.Adapters.Postgres.Connection.prepare_execute/5
+    (ecto_sql 3.14.0) lib/ecto/adapters/sql.ex:1027: Ecto.Adapters.SQL.execute!/5
+    (ecto_sql 3.14.0) lib/ecto/adapters/sql.ex:1019: Ecto.Adapters.SQL.execute/6
+    (ecto 3.14.1) lib/ecto/repo/queryable.ex:248: Ecto.Repo.Queryable.execute/4
+    (ecto 3.14.1) lib/ecto/repo/queryable.ex:19: Ecto.Repo.Queryable.all/3
+    (pramana 0.1.0) lib/pramana/retrieval/lexical.ex:296: Pramana.Retrieval.Lexical.run/4
+    (pramana 0.1.0) lib/pramana/retrieval/lexical.ex:151: Pramana.Retrieval.Lexical.do_search/2
+    (pramana 0.1.0) lib/pramana/retrieval/hybrid.ex:221: Pramana.Retrieval.Hybrid.lexical_ranking/3
+    (pramana 0.1.0) lib/pramana/retrieval/hybrid.ex:96: Pramana.Retrieval.Hybrid.run/2
+    (pramana 0.1.0) lib/pramana/retrieval/hybrid.ex:86: Pramana.Retrieval.Hybrid.search/2
+    (pramana 0.1.0) lib/pramana/evals.ex:311: Pramana.Evals.search/2
+
+** (DBConnection.ConnectionError) tcp recv: closed (the connection was closed by the pool, possibly due to a timeout or because the pool has been terminated)
+    (ecto_sql 3.14.0) lib/ecto/adapters/sql.ex:1121: Ecto.Adapters.SQL.raise_sql_call_error/1
+    (ecto_sql 3.14.0) lib/ecto/adapters/sql.ex:1019: Ecto.Adapters.SQL.execute/6
+    (ecto 3.14.1) lib/ecto/repo/queryable.ex:248: Ecto.Repo.Queryable.execute/4
+    (ecto 3.14.1) lib/ecto/repo/queryable.ex:19: Ecto.Repo.Queryable.all/3
+    (pramana 0.1.0) lib/pramana/retrieval/lexical.ex:296: Pramana.Retrieval.Lexical.run/4
+    (pramana 0.1.0) lib/pramana/retrieval/lexical.ex:151: Pramana.Retrieval.Lexical.do_search/2
+    (pramana 0.1.0) lib/pramana/retrieval/hybrid.ex:221: Pramana.Retrieval.Hybrid.lexical_ranking/3
+    (pramana 0.1.0) lib/pramana/retrieval/hybrid.ex:96: Pramana.Retrieval.Hybrid.run/2
+    (pramana 0.1.0) lib/pramana/retrieval/hybrid.ex:86: Pramana.Retrieval.Hybrid.search/2
+    (pramana 0.1.0) lib/pramana/evals.ex:311: Pramana.Evals.search/2
+    (pramana 0.1.0) lib/pramana/evals.ex:192: Pramana.Evals.evaluate/2
+    (pramana 0.1.0) lib/pramana/evals.ex:134: Pramana.Evals.score_case/2
+    (pramana 0.1.0) lib/pramana/evals.ex:122: anonymous fn/5 in Pramana.Evals.run/2
+    (elixir 1.19.5) lib/enum.ex:1688: Enum."-map/2-lists^map/1-1-"/2
+    (elixir 1.19.5) lib/enum.ex:1688: Enum."-map/2-lists^map/1-1-"/2
+    (pramana 0.1.0) lib/pramana/evals.ex:121: Pramana.Evals.run/2
+    (pramana 0.1.0) lib/mix/tasks/pramana.evals.ex:74: Mix.Tasks.Pramana.Evals.run/1
+    (mix 1.19.5) lib/mix/task.ex:499: anonymous fn/3 in Mix.Task.run_task/5
+    (mix 1.19.5) lib/mix/cli.ex:129: Mix.CLI.run_task/2
+    /Users/raymondluong/.local/share/mise/installs/elixir/1.19.5-otp-28/bin/mix:7: (file)
+=== ARM depth=120 end 22:05:05
+=== ARM depth=60 start 22:05:05
+[info] Falling back to 1 / sqrt(x) for f32 false
+  CONFIGURATION OVERRIDE: [depth: 60]
+  This is an experiment, not the shipped default.
+
+  10/64 cases · 1m18s elapsed · ~7m06s left      20/64 cases · 2m10s elapsed · ~4m48s left      30/64 cases · 3m20s elapsed · ~3m47s left      40/64 cases · 4m05s elapsed · ~2m27s left      50/64 cases · 5m37s elapsed · ~1m34s left      60/64 cases · 6m43s elapsed · ~27s left      64/64 cases · 7m32s elapsed · ~0.0s left    
+pramana evals — 64 case(s) in 452.5s
+  scored:  64   hits 20   misses 44
+  stale:   0   (premises no longer hold; excluded from the rate)
+  overall: 31.3%
+
+
+    BY CASE TYPE
+      retrieval        31.3%  (20/64)  mean rank 3.2
+
+    BY TRADITION
+      tibetan          31.3%  (20/64)  mean rank 3.2
+
+    BY CASE TYPE x TRADITION
+      retrieval / tibetan          31.3%  (20/64)  mean rank 3.2
+
+
+
+
+
+    FAILURES
+      [retrieval] tr-002
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling on Vulture Peak Mountain, where he was delivering a teaching on correct names to all causal and resultant bodhisattvas.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-004
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-005
+        query: Colophon The Indian preceptor Prajñāvarman and the chief editor-translator, Bandé Yeshé Dé, translated, edited, and finalized this work.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-007
+        query: This completes “The Noble Hundred and Eight Names of Avalokiteśvara,” called “The Receptacle of the Relics of all Victors.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-008
+        query: Homage to Lokeśvara. Chapter 1: The Arising of Siddhi After one has paid homage to glorious great Gaṇapati And glorious Gaṇapati is pleased, one should Place the statue in
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-009
+        query: This concludes the noble dhāraṇī “Essence of Immeasurable Longevity and Wisdom.” Colophon Translated by the Indian preceptor Puṇya­sambhava and the translator Patsap Nyima Drak.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-010
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling at the Kūṭāgāraśālā in the forest outside Vaiśālī
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-011
+        query: rejoiced and praised what the Blessed One had said. This concludes the noble Great Vehicle sūtra “The Seal of Dharma.” Colophon This was translated and finalized by the translators Bandé Lui Wangpo and Lhai Dawa.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-012
+        query: Colophon This was translated by the Indian preceptors Sarvajñadeva, Vidyākaraprabha, and Dharmākara and the translator Bandé Zangkyong. It was then edited and finalized by the translator-editor Bandé Kawa Paltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-013
+        query: Homage to all buddhas and bodhisattvas! Thus did I hear at one time. The Blessed One was dwelling in the country of Magadha in a solitary place, the essence of Dharma,
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-015
+        query: Colophon This was translated by the paṇḍita Gayādhara and the translator-monk Śākya Yeshé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-017
+        query: Colophon This was translated, edited, and finalized by the Indian preceptor Prajñāvarman, the translator-editor Bandé Yeshé Dé, and others.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-018
+        query: This completes the “Mahāmāyātantra.” Colophon It was translated and edited by the Indian preceptor Jinavara and the great Tibetan translator Gö [515] Lhetsé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-019
+        query: Dānaśīla, together with the chief editor and translator Kawa Peltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-020
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling in Rājagṛha at Vulture Peak Mountain together with a great bodhisattva saṅgha of bodhisattva great beings
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+
+
+  ran 64 case(s) in 7m32s (0.1 cases/s)
+
+=== ARM depth=60 end 22:12:48
