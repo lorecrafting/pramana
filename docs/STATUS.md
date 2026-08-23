@@ -1179,6 +1179,68 @@ and merge, so every canon is represented *before* ranking.
 500". `Semantic` has `@max_limit 200`, so `limit: 500` silently returned 200 — the figure
 was absence from top **200**. The conclusion stands; the label was wrong.
 
+### Per-tradition retrieval, decided on the full set (#19) — it stays opt-in
+
+The open question from the previous session: `per_tradition: true` was implemented and
+committed opt-in, and the decision — whether topical queries should default to it —
+needed the gold set. **1,400 cases, 3h09m, 0 stale**, against `evals/baseline.json`:
+
+| | baseline | per_tradition | |
+|---|---|---|---|
+| retrieval / chinese | 97.8% (227/232) | 97.8% (227/232) | unchanged |
+| **retrieval / pali** | 53.3% (80/150) | **42.7% (64/150)** | **−16 cases** |
+| **retrieval / tibetan** | 31.3% (20/64) | **21.9% (14/64)** | **−6 cases** |
+| topical / chinese | 0.0% (0/12) | 0.0% (0/12) | unchanged |
+| topical / chinese-native | 100% (12/12) | 100% (12/12) | unchanged |
+| topical / pali | 56.3% (9/16) | 37.5% (6/16) | −3 cases |
+| **topical / tibetan** | **0.0% (0/9)** | **22.2% (2/9)** | **+2 cases** |
+| **answered from any canon** | **72.7% (8/11)** | **54.5% (6/11)** | **−2 topics** |
+
+**It buys 2 topical cases for 22 pinpoint ones, and makes the user-facing number worse.**
+So it stays opt-in. The moduledoc had asserted it was "wrong for find-the-passage-I-quoted,
+where the tradition is not in doubt"; that is now a measurement rather than a claim, and
+the trade is about 11:1 against.
+
+**The row that teaches something new is `retrieval/tibetan`, 31.3% → 21.9%.** Per-tradition
+retrieval *guarantees* Tibetan a third of every result set, and Tibetan pinpoint retrieval
+got **worse**. Giving a canon more slots can only help if its internal ranking can use
+them — and #10 measured Tibetan's mean pairwise cosine at 0.9727, so within-Tibetan ranking
+is near-random. The slots get filled with near-ties, and correct answers that were scraping
+into the top ten on the strength of cross-tradition competition fall out. This is the
+embedder bound showing up from a new direction: not as a ceiling on what Tibetan can reach,
+but as a *cost* to giving Tibetan more room.
+
+**`retrieval/chinese` is unchanged to the case**, 227/232 both ways. Chinese never faced
+competition it could lose, so isolating it changes nothing — the same reason `topical/chinese`
+stays 0/12 with guaranteed slots. For Chinese the monopoly was never the binding constraint;
+the missing English layer is (#12, #43). The 0%/0% pair in the topical rows had two different
+causes all along, and this separates them.
+
+**Do not quote the overall 89.5% → 87.9%.** Both runs score the same 1,400 cases, so it is
+comparable — but it is dominated by the 901 guard and provenance cases at 100%, which this
+change cannot touch. The per-tradition rows are the measurement; the aggregate only dilutes
+them.
+
+**`evals/baseline.json` was NOT updated.** An experiment is not the ratchet, and writing a
+non-default configuration into the baseline would silently redefine what every future gate
+compares against.
+
+Three defects found while getting to this number, all of which would have corrupted it:
+
+- **`per_tradition` was unreachable from everything that ships.** `Semantic` accepted the
+  option and `Hybrid` did not know about it, so `Hybrid.search(q, per_tradition: true)`
+  raised from `Lexical.validate_opts!/1`. Every caller — the MCP tools, the eval harness —
+  goes through `Hybrid`. The feature was measurable only by a probe calling `Semantic`
+  directly, which is exactly how it had been measured.
+- **The first run I did returned topical numbers identical to baseline on all four rows,
+  and I nearly reported them.** They were baseline's numbers; the flag had not taken
+  effect. What caught it was the identicality being too clean for a change a probe had
+  already shown moves results. *A configuration flag that changes nothing is a claim about
+  the flag, and it should be checked against the mechanism before it is believed.*
+- **`mix pramana.evals --only topical` reported "ran 1400 case(s) ... 3.5 cases/s"** for a
+  run that scored 49 — it counted the loaded gold set, not the scored one. Every rate this
+  project has published from that line was wrong by the ratio of the two.
+
 ### The gold set was too blunt to decide with (#14) — 249 → 1,400 cases
 
 Two questions in one session came out undecidable, both for the same reason:

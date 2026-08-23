@@ -125,8 +125,18 @@ defmodule Pramana.Retrieval.Hybrid do
   # reader has to look at is the only safe way to say "we did not ask".
   #
   # Opt-out because it is not free: `Semantic.coverage/1` counts 560,238 chunks and probes
-  # each for a vector, measured at ~921 ms, and `run/2` pays it once per query. The eval
-  # harness runs ~500 searching cases and reads this field in none of them.
+  # each for a vector, and `run/2` pays it once per query. The eval harness runs ~500
+  # searching cases and reads this field in none of them.
+  #
+  # Measured, because the cost is not one number — it depends on whether Postgres still
+  # has those pages:
+  #
+  #     ~520 ms   warm, twelve consecutive calls
+  #     ~2,700 ms cold, immediately after a 3-hour eval evicted the chunk pages
+  #     ~1,650 ms per case as actually observed end-to-end (see docs/CHECKS.md)
+  #
+  # The older figure recorded here and in `Semantic` was ~921 ms, which is a warm-cache
+  # measurement of a smaller corpus and is no longer what a caller pays.
   defp coverage(opts) do
     if Keyword.get(opts, :coverage, true) do
       Semantic.coverage(Keyword.take(opts, [:origin, :role, :division, :work_id]))

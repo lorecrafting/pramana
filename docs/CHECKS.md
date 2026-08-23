@@ -157,14 +157,35 @@ most valuable questions in the set, and they remain statistically undecidable.
 **Budget the runtime, and measure it on a machine that stays awake.** The 1,400-case set
 used **62 minutes of CPU**, against ~5 minutes wall for the old 249. Treat the CPU figure
 as the reliable one: the wall clock on that run read 8h20m, but the laptop was asleep for
-part of it, so that number is an artifact and not a measurement. A clean wall-clock timing
-has not been taken.
+part of it, so that number is an artifact and not a measurement.
+
+**Clean wall-clock timings, finally taken** (2026-08-22, all with the embedding serving):
+
+| run | cases | wall | rate |
+|---|---|---|---|
+| full set, `--per-tradition` | 1,400 | **3h09m** | 0.1 cases/s |
+| `--only topical`, `--per-tradition` | 49 | 29m11s | ~36 s/case |
+| `--only topical`, default | 49 | 5m22s | ~6.6 s/case |
+
+**`--per-tradition` costs about 5.5x** and is DB-bound, not CPU-bound — ~35% CPU
+throughout, because it runs three `source_id`-filtered iterative scans per query instead
+of one unfiltered one. Budget hours, not minutes, before scoring a configuration with it.
 
 The semantic cases are what cost: 75 → 446, each a query embedding plus a filtered HNSW
-search over 617,038 vectors — **and a `Semantic.coverage/1` count that measured ~1.1 s per
-search**, which is database time and does not appear in the CPU figure at all. Plan for a
-long-running background job, use `--only retrieval` when iterating, and run the whole set
-at a gate.
+search over 617,038 vectors. Plan for a long-running background job, use
+`--only retrieval` when iterating, and run the whole set at a gate.
+
+**`Semantic.coverage/1` is no longer part of that bill.** It counted 560,238 chunks on
+every search for a number the harness never reads; the harness now passes
+`coverage: false` and the API surface still computes it. Measured end to end on
+`--only topical`, identical scores both ways: **6m43s → 5m22s, ~1.65 s per case**, so
+roughly **14 minutes** off a full run.
+
+Its cost is not one number, which is worth knowing before quoting it: **~520 ms warm**
+over twelve consecutive calls, **~2,700 ms cold** immediately after a long eval had
+evicted the chunk pages. The ~1.1 s figure previously recorded here sat between the two
+and matched neither. An estimate of ~8 minutes was written into a commit message before
+this was measured; the observed saving is nearly twice that, and the estimate was wrong.
 
 **Percentages are not comparable across a widening.** Every denominator changed, so the
 pre-widening 79.5% and any figure after it measure different sets. Re-baseline in the same
@@ -202,7 +223,16 @@ git tag phase-N
 
 ## Periodic (every ~3 phases)
 
-- `mix dialyzer` across the whole umbrella with no ignore file growth
+- `mix dialyzer` across the whole umbrella with no ignore file growth. **Run it more
+  often than this schedule says.** It was recorded as "0 errors, and no ignore file
+  exists — none has ever been needed" at the phase-4 gate and was found at **9** on
+  2026-08-22, all predating that session. Seven were one cause — three mix tasks built a
+  source map inline instead of reading `Pramana.Sources`, and the copies had already
+  drifted, so the lockfile and the database stated different licence terms for `sc`. The
+  other two were specs that lied: a `toh: String.t()` that is nil for 84000's placeholder
+  records, which made dialyzer call a live guard dead code. It runs in **22 seconds** once
+  the PLT is built, which is cheap enough that "phase-gate only" is the wrong cadence for
+  it.
 - Dependency upgrade pass — deliberate, one PR-sized change
 - Re-read `docs/COMPETITIVE.md`: has fojin shipped something that changes our
   positioning? Is our differentiation still real?

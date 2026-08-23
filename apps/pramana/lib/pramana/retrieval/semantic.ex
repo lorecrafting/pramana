@@ -158,6 +158,20 @@ defmodule Pramana.Retrieval.Semantic do
   # Opt-in for the same reason `balance` is: right for "what does the canon say about X",
   # wrong for "find the passage I just quoted", where the tradition is not in doubt and
   # forcing three canons into the results only pushes the answer down.
+  #
+  # That was an assertion when it was written. It is now measured over the full 1,400-case
+  # gold set (3h09m), and it holds — the trade is about 11:1 against:
+  #
+  #     retrieval / pali      53.3% -> 42.7%   -16 cases
+  #     retrieval / tibetan   31.3% -> 21.9%    -6 cases
+  #     topical  / tibetan     0.0% -> 22.2%    +2 cases
+  #     answered from any canon  72.7% -> 54.5%
+  #
+  # `retrieval/tibetan` is the surprising one and worth keeping in mind before trying this
+  # again: guaranteeing Tibetan a third of the slots made Tibetan pinpoint retrieval WORSE.
+  # More room only helps a canon whose internal ranking can use it, and Tibetan's mean
+  # pairwise cosine is 0.9727 (#10) — the extra slots fill with near-ties. See
+  # docs/STATUS.md.
   def search_vector(vector, opts) when is_list(opts) do
     if opts[:per_tradition],
       do: per_tradition_search(vector, opts),
