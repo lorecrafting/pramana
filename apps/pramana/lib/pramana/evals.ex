@@ -84,6 +84,11 @@ defmodule Pramana.Evals do
 
     * `:only` — run one case type
     * `:tradition` — run only cases from one tradition
+    * `:on_progress` — `fn done, total, elapsed_ms -> :ok end`, called after each case.
+      A run of the full set takes hours and printed NOTHING until it finished, which made
+      "how far along is it" unanswerable and made a run that had died look exactly like
+      one still working. The domain does no IO of its own; the caller decides what to
+      show.
     * `:serving` — a preloaded embedding serving, so a caller embedding many queries
       pays the model load once
   """
@@ -107,7 +112,17 @@ defmodule Pramana.Evals do
         tradition -> Enum.filter(cases, &(&1.tradition == tradition))
       end
 
-    results = Enum.map(cases, &score_case(&1, opts))
+    total = length(cases)
+    on_progress = Keyword.get(opts, :on_progress, fn _done, _total, _elapsed_ms -> :ok end)
+
+    results =
+      cases
+      |> Enum.with_index(1)
+      |> Enum.map(fn {kase, i} ->
+        result = score_case(kase, opts)
+        on_progress.(i, total, System.monotonic_time(:millisecond) - started)
+        result
+      end)
 
     Score.summarize(results, System.monotonic_time(:millisecond) - started)
   end

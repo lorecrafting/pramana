@@ -154,7 +154,31 @@ defmodule Mix.Tasks.Pramana.Evals do
   end
 
   defp run_opts(opts) do
-    only(opts) ++ tradition(opts) ++ overrides(opts)
+    only(opts) ++ tradition(opts) ++ overrides(opts) ++ [on_progress: &progress/3]
+  end
+
+  # A heartbeat on one line, rewritten in place. The full set takes hours and printed
+  # nothing at all until it finished — so "how far along is it" had no answer, and a run
+  # that had died was indistinguishable from one still working. Both happened today.
+  #
+  # Every 10 cases rather than every case: the point is to show liveness and a projection,
+  # not to compete with the scorecard for the terminal.
+  @progress_every 10
+
+  defp progress(done, total, elapsed_ms) do
+    if rem(done, @progress_every) == 0 or done == total do
+      rate = done * 1000 / max(elapsed_ms, 1)
+      remaining = if rate > 0, do: round((total - done) / rate), else: 0
+
+      IO.write(
+        :stderr,
+        "\r  #{done}/#{total} cases · #{Pramana.Elapsed.human(elapsed_ms)} elapsed · " <>
+          "~#{Pramana.Elapsed.human(remaining * 1000)} left    "
+      )
+    end
+
+    if done == total, do: IO.write(:stderr, "\n")
+    :ok
   end
 
   defp tradition(opts) do

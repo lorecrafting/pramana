@@ -92,6 +92,32 @@ defmodule Pramana.EvalsTest do
     GoldCase.parse!(line, "test.jsonl", 1)
   end
 
+  describe "progress reporting" do
+    # The full set takes hours and printed nothing until it finished, so "how far along is
+    # it" had no answer — and a run that had DIED looked exactly like one still working.
+    # Both happened in one day.
+    test "the callback fires once per case, with the running count and the total" do
+      cases =
+        for i <- 1..3 do
+          gold(%{id: "p#{i}", type: "quote_verify", quote: @content, expect_urns: [@urn]})
+        end
+
+      pid = self()
+
+      Evals.run(cases, on_progress: fn done, total, ms -> send(pid, {:tick, done, total, ms}) end)
+
+      assert_received {:tick, 1, 3, _}
+      assert_received {:tick, 2, 3, _}
+      assert_received {:tick, 3, 3, _}
+    end
+
+    test "a run with no callback still works" do
+      kase = gold(%{id: "p", type: "quote_verify", quote: @content, expect_urns: [@urn]})
+
+      assert Evals.run([kase]).overall.hits == 1
+    end
+  end
+
   describe "the tradition filter narrows the set" do
     test "it selects only that tradition's cases" do
       cases = [
