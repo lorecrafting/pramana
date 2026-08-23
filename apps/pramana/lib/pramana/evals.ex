@@ -129,11 +129,32 @@ defmodule Pramana.Evals do
 
   # Every case is first asked whether it is still a valid question, and only then whether
   # the system answers it.
+  #
+  # ONE CASE MAY NOT KILL THE RUN. A single lexical query that exceeded the 120s pool
+  # timeout took a 4h25m scoring run with it and lost every case already scored — twice,
+  # and the first time the error was swallowed by a `grep` while the loop still exited 0.
+  # A crashed case is a fact about the system, so it is recorded as its own outcome and
+  # the loop continues.
+  #
+  # `{:error, _}` is NOT a miss. A timeout is not the retriever failing to find the
+  # passage, and counting it as one would publish a recall regression that never
+  # happened; it is excluded from the denominator exactly as `:stale` is. The difference
+  # from stale is who is at fault — stale means the gold set aged, error means we broke —
+  # so `Score` prints them separately and the gate refuses to pass on any error.
   defp score_case(%Case{} = kase, opts) do
     case stale_reason(kase) do
       nil -> %{case: kase, outcome: evaluate(kase, opts)}
       reason -> %{case: kase, outcome: {:stale, reason}}
     end
+  rescue
+    e ->
+      %{
+        case: kase,
+        outcome: {:error, %{kind: inspect(e.__struct__), message: Exception.message(e)}}
+      }
+  catch
+    :exit, reason ->
+      %{case: kase, outcome: {:error, %{kind: "exit", message: Exception.format_exit(reason)}}}
   end
 
   # A case's premises: the URNs it expects must exist, and quoted text must really be

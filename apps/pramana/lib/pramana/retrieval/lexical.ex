@@ -286,7 +286,21 @@ defmodule Pramana.Retrieval.Lexical do
     rows =
       Segment
       |> join(:inner, [s], t in Text, on: t.id == s.text_id)
-      |> preload([_s, t], text: {t, [:work, :witness, :source]})
+      # Preloaded through a SEPARATE query, not through the join, and without `body`.
+      #
+      # The join-preload shipped `texts.body` — the entire normalized work — once per
+      # matched segment. Bodies average 27,218 characters and the largest is 13,279,028,
+      # so a search over-fetching `limit * 5` rows pulled tens of megabytes through
+      # shared buffers per query. Nothing reads it: `Corpus.span_from_segment/1` uses
+      # `work`, `witness_id`, `source_id`, `source.license_class` and `volume`, and
+      # `Corpus.body/1` fetches the body on its own when offsets need verifying.
+      #
+      # A separate preload also loads each DISTINCT text once rather than once per row,
+      # which is the difference between 600 bodies and a few dozen rows of metadata.
+      #
+      # Measured over the full corpus, five Chinese formulae, warmed and ABBA-verified:
+      # 1403 ms -> 44 ms, a 32x speedup. See docs/STATUS.md.
+      |> preload([_s, _t], text: ^text_preload())
       |> where(^match_filter(terms))
       |> apply_provenance_filters(opts)
       # Over-fetch, then rank in Elixir. Scoring needs occurrence counts per term,
@@ -312,6 +326,35 @@ defmodule Pramana.Retrieval.Lexical do
         variants: variants
       }
     end)
+  end
+
+  # Every `texts` column except `body`. Listed explicitly because a struct built by
+  # `select` gets exactly the fields named — a new column added to the schema and not
+  # added here would silently read as nil, so this list is the one place that has to be
+  # kept in step, and the test asserts every schema field except `body` is populated.
+  #
+  # `struct/2`, not a `%Text{}` literal: a struct literal loses the binding, and Ecto
+  # then refuses the query outright ("the binding used in `from` must be selected in
+  # `select` when using `preload`") because it can no longer attach `work`/`witness`/
+  # `source` to the rows it built.
+  defp text_preload do
+    from(t in Text,
+      preload: [:work, :witness, :source],
+      select:
+        struct(t, [
+          :id,
+          :work_id,
+          :witness_id,
+          :source_id,
+          :urn_prefix,
+          :volume,
+          :body_sha256,
+          :meta,
+          :outline,
+          :inserted_at,
+          :updated_at
+        ])
+    )
   end
 
   # Query-side only. The index is never normalised — which Han form an edition prints is

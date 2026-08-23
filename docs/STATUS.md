@@ -1314,7 +1314,8 @@ it. Three things follow, and the last two matter more than the depth question:
   the 232 Chinese definitional-formula cases dominated the 4h25m run. Tuning the vector
   side would have optimised the wrong half.
 - **A lexical query can take over two minutes**, which is a live risk on the MCP surface
-  and has nothing to do with evals. It is its own defect and its own task.
+  and has nothing to do with evals. It is its own defect and its own task. **Both halves
+  are now fixed — see below.**
 
 The same timeout is what killed the depth-200 arm hours earlier; that death was invisible
 because a `grep` in the pipeline swallowed the error while the loop still exited 0. The
@@ -1328,6 +1329,84 @@ arm that turned out to be the *cheap* tradition. The gold files also load alphab
 so the expensive Chinese cases run first, which makes any linear projection from early
 elapsed time wrong in the same direction. `mix pramana.evals` now prints a progress
 heartbeat for exactly this reason.
+
+### The slow lexical query was `texts.body`, and it was 32x (#10)
+
+`lexical.ex:296` in the crash stacktrace was `Repo.all`, and what it was fetching was the
+whole corpus body, repeatedly. The query joined `texts` and preloaded through the join:
+
+    |> join(:inner, [s], t in Text, on: t.id == s.text_id)
+    |> preload([_s, t], text: {t, [:work, :witness, :source]})
+
+A join-preload ships **every** column of the joined row, `texts.body` included — the
+entire normalized work — **once per matched segment**, and the query over-fetches
+`limit * 5` rows before ranking in Elixir. Bodies average **27,218 characters** and the
+largest is **13,279,028**, so a 20-result search pulled 100 bodies through shared
+buffers to read a title and a licence class off each. **Nothing in the result path reads
+`body`**: `Corpus.span_from_segment/1` wants `work`, `witness_id`, `source_id`,
+`source.license_class`, `volume` and `meta`, and `Corpus.body/1` fetches the body itself
+when offsets need verifying.
+
+The fix is a separate preload query selecting every `texts` column except `body`, which
+also loads each DISTINCT text once instead of once per row.
+
+Measured against the full dev corpus (15,489 texts, 6.5M segments), five Chinese
+formulae, each warmed then timed 5x, minimum taken — and run **ABBA** because this
+session had already been burned by cache weather:
+
+| query | join-preload | separate preload |
+|---|---|---|
+| 一切有為法 | 278 ms | 13 ms |
+| 四聖諦 | 542 ms | 7 ms |
+| 無明緣行 | 285 ms | 10 ms |
+| 如是我聞 | 147 ms | 10 ms |
+| 般若波羅蜜多 | 151 ms | 4 ms |
+| **total** | **1403 ms** | **44 ms** |
+
+The repeat arms landed at 1491 ms and 47 ms — 6% and 7% apart, so the 32x is real and not
+weather. This is warm-cache; the 120-second timeout was a cold one.
+
+Two things this teaches:
+
+- **`preload` through a join is not free, and its cost is invisible at the call site.**
+  The one-line idiomatic form is the expensive one, and it gets more expensive the
+  larger the widest column in the joined table is. `select: struct(t, [...])` in a
+  separate preload query is the cheap form — and it must be `struct/2`, not a `%Text{}`
+  literal, which loses the binding and makes Ecto refuse the query outright.
+- **A column list in a `select` is a drift surface.** A new `texts` column not added to
+  it reads as `nil` with no error anywhere. The test asserts the emitted SQL names every
+  `Text.__schema__(:fields)` entry except `body`, so adding a column and forgetting this
+  list fails a test instead of silently blanking a field.
+
+### One case may not kill the run (#10)
+
+The same crash exposed a second defect, and this one is a rule the project already holds
+everywhere else: *one malformed file fails one job, never the bake* (`CLAUDE.md`). The
+evals harness did not honour it. `score_case/2` had no rescue, so a single
+`DBConnection.ConnectionError` propagated out of `Enum.map` and took **4h25m of scoring
+with it**, discarding every case already completed. It happened twice, and the first time
+a `grep` in the pipeline swallowed the error while the loop still exited 0.
+
+A crashed case is now its own outcome, `{:error, detail}`, and the loop continues.
+The scoring rules follow from what an error actually is:
+
+- **Not a miss.** A query that timed out is not the retriever failing to find the
+  passage. Counting it as one publishes a recall regression that never happened.
+- **Not stale either.** Stale means the gold set aged; an error means *we* broke. They
+  are excluded from the denominator for the same reason and printed separately because
+  the reader needs to know which one it is.
+- **Never silent.** Errors get their own header line, their own section, a `[n ERRORED]`
+  suffix on every affected row, and an `"errors"` key in `Score.to_map/1` so a JSON
+  artefact carries the fact too. A rate over zero scored cases still prints as "no cases
+  scored", not 0.0%.
+- **`--gate` refuses to run at all** when any case errored. Errored cases are missing
+  hits, so the ratchet would either report a regression that did not happen or — with no
+  baseline on disk — *install* the under-measured run as the baseline every future run is
+  compared against.
+
+The last point is the one worth generalizing: making a long run fault-tolerant is only
+half the job. The other half is making sure the shrunken denominator cannot be read as a
+result.
 
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
@@ -2143,6 +2222,24 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     70% match looks like data quality. Where two numbering systems are being joined,
     accept or refuse a whole group, and pick the threshold from the measured distribution
     rather than from taste.
+34. **`preload` through a join ships every column of the joined row, once per row.**
+    Retrieval's `preload([_s, t], text: {t, [...]})` fetched `texts.body` — the entire
+    normalized work, up to 13.3M characters — once per matched segment, to read a title
+    and a licence class. Removing it made lexical search **32x faster** (1403 ms → 44 ms
+    over five formulae, ABBA-verified). The idiomatic one-line form is the expensive one,
+    it costs more the wider the joined table's widest column is, and the call site shows
+    nothing. Use a separate preload query with `select: struct(t, [...])` — `struct/2`,
+    not a `%Text{}` literal, which loses the binding and makes Ecto refuse the query — and
+    test that the emitted SQL still names every schema field, because a column added later
+    and not listed reads as `nil` with no error anywhere.
+35. **Making a long run fault-tolerant is half the job; the other half is making sure the
+    shrunken denominator cannot be read as a result.** One timed-out query took a 4h25m
+    eval run with it, so `score_case/2` now rescues. But a rescued case is not a miss (that
+    publishes a regression that did not happen) and not stale (that blames the gold set for
+    our outage) — it is its own outcome, out of the denominator, printed loudly, carried in
+    the JSON, and `--gate` refuses to run at all when any case errored, because missing
+    hits would either trip the ratchet or *install* an under-measured run as the baseline.
+    Whenever a loop learns to survive a failure, ask what the summary now claims.
 
 ---
 

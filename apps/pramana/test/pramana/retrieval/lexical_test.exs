@@ -2,6 +2,7 @@ defmodule Pramana.Retrieval.LexicalTest do
   use Pramana.DataCase, async: true
 
   alias Pramana.Corpus.Loader
+  alias Pramana.Corpus.Text
   alias Pramana.Guard
   alias Pramana.Normalize.CBETA
   alias Pramana.Retrieval.Lexical
@@ -208,6 +209,26 @@ defmodule Pramana.Retrieval.LexicalTest do
     end
   end
 
+  describe "the text preload" do
+    # The join-preload used to ship `texts.body` — the entire normalized work — once per
+    # matched segment, for a query that reads none of it. Asserted against the SQL and not
+    # against the results because the waste is invisible in the result: the spans were
+    # byte-identical before and after, only tens of megabytes cheaper.
+    test "loads every texts column except body" do
+      queries = capture_queries(fn -> Lexical.search("如是我聞") end)
+
+      preload_query = Enum.find(queries, &(&1 =~ ~s("texts" AS t0)))
+      assert preload_query, "expected a separate preload query against texts"
+
+      for field <- Text.__schema__(:fields), field != :body do
+        assert preload_query =~ ~s(t0."#{field}"),
+               "the preload dropped #{field}; it will silently read as nil"
+      end
+
+      refute preload_query =~ ~s(t0."body")
+    end
+  end
+
   describe "input handling" do
     test "rejects an empty query" do
       assert {:error, :empty_query} = Lexical.search("")
@@ -228,6 +249,38 @@ defmodule Pramana.Retrieval.LexicalTest do
     test "respects and caps limit" do
       assert {:ok, %{results: results}} = Lexical.search("，", limit: 2)
       assert length(results) <= 2
+    end
+  end
+
+  # Ecto emits query telemetry in the process that ran the query, so filtering on the
+  # test pid keeps a concurrent async test's queries out of this one's.
+  defp capture_queries(fun) do
+    test_pid = self()
+    handler = "capture-queries-#{inspect(test_pid)}"
+
+    :telemetry.attach(
+      handler,
+      [:pramana, :repo, :query],
+      fn _event, _measurements, %{query: query}, pid ->
+        if self() == pid, do: send(pid, {:captured_query, query})
+      end,
+      test_pid
+    )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+
+    drain_queries([])
+  end
+
+  defp drain_queries(acc) do
+    receive do
+      {:captured_query, query} -> drain_queries([query | acc])
+    after
+      0 -> Enum.reverse(acc)
     end
   end
 end

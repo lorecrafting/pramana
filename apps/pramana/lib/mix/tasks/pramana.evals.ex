@@ -250,6 +250,8 @@ defmodule Mix.Tasks.Pramana.Evals do
   end
 
   defp gate(scorecard, baseline_path) do
+    refuse_errored_gate!(scorecard)
+
     case File.read(baseline_path) do
       {:error, :enoent} ->
         Mix.shell().info("  no baseline at #{baseline_path} — writing this run as the baseline")
@@ -258,6 +260,25 @@ defmodule Mix.Tasks.Pramana.Evals do
       {:ok, contents} ->
         compare(Score.to_map(scorecard), Jason.decode!(contents))
     end
+  end
+
+  # An errored case is a hit the run never got to attempt, so the gate would read it as a
+  # retrieval regression that never happened — or, with no baseline on disk, WRITE the
+  # under-measured run as the thing every future run is ratcheted against. Neither is
+  # recoverable by squinting at the number afterwards, so the gate refuses to run at all.
+  defp refuse_errored_gate!(%{errors: []}), do: :ok
+
+  defp refuse_errored_gate!(%{errors: errors}) do
+    detail =
+      Enum.map_join(Enum.take(errors, 5), "\n", fn %{case: kase, outcome: {:error, d}} ->
+        "  #{kase.id}: #{d.kind} — #{String.slice(d.message, 0, 160)}"
+      end)
+
+    Mix.raise(
+      "--gate refuses a run with #{length(errors)} errored case(s). They are missing " <>
+        "hits, so the gate would report a regression that did not happen, or install an " <>
+        "under-measured run as the baseline. Fix the errors and re-run.\n" <> detail
+    )
   end
 
   # A gate that trips on one case flipping gets ignored, and an ignored gate is worse

@@ -199,6 +199,61 @@ defmodule Pramana.EvalsTest do
     end
   end
 
+  describe "a case that throws" do
+    # A single lexical query that blew the 120s connection pool timeout took a 4h25m
+    # scoring run with it, twice, and lost every case already scored. The crash is
+    # injected through the public surface — an over-limit search, which `Hybrid` raises
+    # on — rather than by mocking, so the test exercises the real path. `search_override`
+    # only reaches cases that actually search, so the `quote_verify` case beside it is
+    # unaffected and shows the run carried on.
+    @crash [search_override: [limit: 1_000_000]]
+
+    defp searching_case(id) do
+      gold(%{id: id, type: "retrieval", query: @content, expect_urns: [@urn]})
+    end
+
+    test "is recorded and survived, and the cases after it still run" do
+      good = gold(%{id: "after", type: "quote_verify", quote: @content, expect_urns: [@urn]})
+
+      scorecard = Evals.run([searching_case("boom"), good], @crash)
+
+      assert scorecard.overall.errors == 1
+      # The whole point: the run finished and the case behind the crash was scored.
+      assert scorecard.overall.hits == 1
+      assert [%{case: %{id: "boom"}, outcome: {:error, detail}}] = scorecard.errors
+      assert detail.kind == "ArgumentError"
+      assert detail.message =~ "exceeds the maximum"
+    end
+
+    test "is not a miss and not stale — it is excluded from the rate" do
+      good = gold(%{id: "ok", type: "quote_verify", quote: @content, expect_urns: [@urn]})
+
+      scorecard = Evals.run([searching_case("boom"), good], @crash)
+
+      # A timeout is not the retriever failing to find the passage. Counting it as one
+      # publishes a recall regression that did not happen.
+      assert scorecard.overall.misses == 0
+      # Nor is it the gold set going out of date; that is someone else's fault entirely.
+      assert scorecard.overall.stale == 0
+      assert scorecard.overall.scored == 1
+      assert scorecard.overall.rate == 100.0
+    end
+
+    test "says so in the report and in the machine-readable map" do
+      scorecard = Evals.run([searching_case("boom")], @crash)
+
+      report = Score.render(scorecard)
+      assert report =~ "ERRORS"
+      assert report =~ "boom"
+      # A rate over zero scored cases is the absence of a measurement, not a zero.
+      assert scorecard.overall.rate == nil
+
+      # Without this, a JSON artefact from an errored run looks like a clean one whose
+      # rates happen to be over fewer cases than `total`.
+      assert Score.to_map(scorecard)["errors"] == 1
+    end
+  end
+
   describe "stale cases" do
     test "a case whose expected URN no longer resolves is stale, not a failure" do
       kase =

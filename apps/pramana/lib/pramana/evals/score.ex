@@ -14,6 +14,13 @@ defmodule Pramana.Evals.Score do
   premises no longer hold is not evidence either way, and counting it as a failure would
   make an out-of-date gold set look like a broken retriever.
 
+  Errored cases — the harness threw and could not score them — are excluded from the
+  denominator too, and reported louder than anything else. The reason they are not
+  misses is the same reason stale cases are not: a query that timed out is not a
+  retriever that failed to find the passage. The reason they are not stale either is
+  that stale is the gold set's fault and an error is ours, and a run carrying errors has
+  not measured what its rate claims to measure.
+
   Adversarial cases are also broken out. A gold set of easy questions can score highly
   while telling you nothing about the failures that matter — a question whose only answer
   is in material we do not hold, or a quotation that has been altered by one character.
@@ -55,7 +62,12 @@ defmodule Pramana.Evals.Score do
       by_topic: topic_tally(results),
       overall: tally(results),
       failures: Enum.filter(results, &match?({:miss, _}, &1.outcome)),
-      stale: Enum.filter(results, &match?({:stale, _}, &1.outcome))
+      stale: Enum.filter(results, &match?({:stale, _}, &1.outcome)),
+      # Cases the harness could not score because something threw — a pool timeout, a
+      # dead sidecar. Reported apart from both hits and stale: a run with errors has not
+      # measured what it claims to have measured, and the gate treats any error as a
+      # failure rather than letting a shrunken denominator read as a pass.
+      errors: Enum.filter(results, &match?({:error, _}, &1.outcome))
     }
   end
 
@@ -86,12 +98,14 @@ defmodule Pramana.Evals.Score do
     hits = Enum.count(results, &match?({:hit, _}, &1.outcome))
     misses = Enum.count(results, &match?({:miss, _}, &1.outcome))
     stale = Enum.count(results, &match?({:stale, _}, &1.outcome))
+    errors = Enum.count(results, &match?({:error, _}, &1.outcome))
     scored = hits + misses
 
     %{
       hits: hits,
       misses: misses,
       stale: stale,
+      errors: errors,
       scored: scored,
       # nil, not 0.0, when nothing was scored. A rate over zero cases is not zero
       # percent; it is the absence of a measurement, and printing 0.0% would be a claim.
@@ -130,6 +144,7 @@ defmodule Pramana.Evals.Score do
     #{cross_section(scorecard.by_type_tradition)}
     #{topics(scorecard.by_topic)}
     #{adversarial(scorecard.adversarial)}
+    #{errors(scorecard.errors)}
     #{stale(scorecard.stale)}
     #{failures(scorecard.failures)}
     """
@@ -139,10 +154,15 @@ defmodule Pramana.Evals.Score do
     """
     pramana evals — #{s.total} case(s) in #{Float.round(s.elapsed_ms / 1000, 1)}s
       scored:  #{s.overall.scored}   hits #{s.overall.hits}   misses #{s.overall.misses}
-      stale:   #{s.overall.stale}   (premises no longer hold; excluded from the rate)
+      stale:   #{s.overall.stale}   (premises no longer hold; excluded from the rate)#{error_line(s.overall)}
       overall: #{rate(s.overall)}
     """
   end
+
+  defp error_line(%{errors: 0}), do: ""
+
+  defp error_line(%{errors: n}),
+    do: "\n      ERRORS:  #{n}   (the harness threw; NOT scored, NOT a miss)"
 
   defp section(_title, map) when map == %{}, do: ""
 
@@ -152,7 +172,7 @@ defmodule Pramana.Evals.Score do
       |> Enum.sort_by(fn {k, _} -> to_string(k) end)
       |> Enum.map_join("\n", fn {key, t} ->
         "      #{String.pad_trailing(to_string(key), 16)} #{rate(t)}" <>
-          "  (#{t.hits}/#{t.scored})#{rank_suffix(t)}#{stale_suffix(t)}"
+          "  (#{t.hits}/#{t.scored})#{rank_suffix(t)}#{stale_suffix(t)}#{error_suffix(t)}"
       end)
 
     "    #{title}\n#{rows}\n"
@@ -180,6 +200,9 @@ defmodule Pramana.Evals.Score do
   defp stale_suffix(%{stale: 0}), do: ""
   defp stale_suffix(%{stale: n}), do: "  [#{n} stale]"
 
+  defp error_suffix(%{errors: 0}), do: ""
+  defp error_suffix(%{errors: n}), do: "  [#{n} ERRORED]"
+
   defp rate(%{rate: nil}), do: "no cases scored"
   defp rate(%{rate: rate}), do: "#{rate}%"
 
@@ -200,6 +223,19 @@ defmodule Pramana.Evals.Score do
 
   defp adversarial(t) do
     "    ADVERSARIAL       #{rate(t)}  (#{t.hits}/#{t.scored})\n"
+  end
+
+  defp errors([]), do: ""
+
+  defp errors(results) do
+    lines =
+      Enum.map_join(Enum.take(results, 15), "\n", fn %{case: kase, outcome: {:error, detail}} ->
+        "      [#{kase.type}] #{kase.id}: #{detail.kind}\n" <>
+          "        #{String.slice(detail.message, 0, 300)}"
+      end)
+
+    "\n    ERRORS — these cases were NOT scored; the rate above is over a smaller set\n" <>
+      "#{lines}\n"
   end
 
   defp stale([]), do: ""
@@ -244,6 +280,9 @@ defmodule Pramana.Evals.Score do
       "total" => scorecard.total,
       "overall" => rate_of(scorecard.overall),
       "stale" => scorecard.overall.stale,
+      # In the machine-readable map too, so a JSON artefact from an errored run carries
+      # the fact that its rates are over a smaller set than `total` suggests.
+      "errors" => scorecard.overall.errors,
       "by_type" => Map.new(scorecard.by_type, fn {k, v} -> {to_string(k), rate_of(v)} end),
       "by_type_tradition" =>
         Map.new(scorecard.by_type_tradition, fn {{type, tradition}, v} ->
