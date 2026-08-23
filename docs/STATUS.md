@@ -1269,9 +1269,26 @@ and maps every one to its containing chunk, and the 232 Chinese definitional-for
 hit that hardest. As a default it would take the 1,400-case gate from about an hour to
 about five, on a check meant to run at every phase gate.
 
-So depth ships as an **option**, not a new default, and the open question is the middle:
-depth 120 is unmeasured, and if most of the +7 arrives there at half the cost that is the
-change worth making.
+So depth ships as an **option**, not a new default. The middle was then measured, over the
+same 64 Tibetan cases:
+
+| depth | retrieval / tibetan | mean rank |
+|---|---|---|
+| 60 (default) | 31.3% (20/64) | 3.1 |
+| **120** | **39.1% (25/64)** | 3.2 |
+| 200 | 37.5% (24/64) | 3.0 |
+
+**The whole gain arrives at depth 120.** 25 against 24 is one case, inside the ANN wobble,
+so 120 and 200 are indistinguishable on recall and the extra 80 candidates buy nothing.
+
+**The wall clocks from these arms are NOT usable, and the ordering says so:** depth 120
+took 13m12s and depth 200 took 11m21s, which is backwards, because 120 does strictly less
+work. The two ran hours apart under different cache states — and this session already
+measured cache state moving a Postgres figure 5x (`coverage/1`: 520 ms warm, 2,700 ms
+cold). The recall comparison above is sound; any cost claim drawn from those timings is
+quoting cache weather rather than the parameter. Depth is the one decision here that turns
+entirely on cost, so it needs arms run **back to back in one session** before a default
+changes.
 
 **A process note that cost hours.** This run produced no output for 4h25m, so "how far
 along is it" was unanswerable and three ETAs were wrong — all extrapolated from a Tibetan
