@@ -77,10 +77,27 @@ different numbering, coverage will not see them and the caveat will overstate th
 Revisit `Coverage` when a second CBETA collection lands.
 
 ### SuttaCentral `bilara-data` (Pali)
-- `https://github.com/suttacentral/bilara-data` — **CC0, public domain**
+- `https://github.com/suttacentral/bilara-data` — **not one licence, and not CC0.** The
+  repository's `LICENSE.md` says CC0; its own `_publication.json` disagrees in two places,
+  and the more specific statement governs. `Pramana.Sources` is the authority and records
+  three separate entries:
+
+  | id | licence | redistributable |
+  |---|---|---|
+  | `sc` — Mahāsaṅgīti Pāli root text | **CC-PDM-1.0** (Public Domain Mark, per scpub64) | yes |
+  | `sc-translations` | **CC-BY-SA-3.0** — the weakest of the publications it covers (139 CC0, 1 CC BY-SA 3.0: scpub69, the Patna Dhammapada) | yes, with attribution and share-alike |
+  | `sc-data` | **NOASSERTION** — no LICENSE file in the repository; terms unconfirmed as of 2026-08-15 | **no** |
+
+  This entry previously read "CC0, public domain" for the whole repository, which is the
+  repository-level claim the corpus already established is wrong — and it is the reason
+  licence is recorded per *publication* rather than per repository everywhere else in this
+  project. CC BY-SA carries attribution and share-alike obligations CC0 does not.
 - ~444k segments, already segment-aligned root ↔ translation
-- Also grab `sc-data`: thousands of **hand-curated Āgama↔Nikāya parallels**. This is
-  curated scholarship, free — ingest it instead of rediscovering it with embeddings.
+- Also grab `sc-data`: thousands of **hand-curated Āgama↔Nikāya parallels** — curated
+  scholarship worth ingesting rather than rediscovering with embeddings. It is *free to
+  fetch* and **not established as redistributable**; this entry used to call it "free",
+  which reads as a licence grant nobody has given. It is held as `redistributable: false`
+  until someone confirms terms with SuttaCentral.
 - Segment IDs (`mn1:1.1`) are the field standard. Adopt them verbatim.
 
 ## Tier 2 — Structured but partial

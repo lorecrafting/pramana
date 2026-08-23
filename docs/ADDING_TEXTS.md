@@ -70,6 +70,14 @@ provenance:
   date_range: [1980, 1995]
   attribution_confidence: certain
 
+# Which CANON this text belongs to. Optional, and NOT the same thing as
+# composition_origin above — a Pāli sutta and a Derge sūtra are both `indic` in origin
+# and belong to different canons. Declaring it means the text competes INSIDE that canon
+# when a caller asks for per-tradition retrieval; omitting it makes the text its own
+# tradition, which is the conservative default and never folds it into a canon nobody
+# said it belonged to. One of: chinese, pali, tibetan.
+tradition: chinese
+
 # What it explains. Feeds work_relations (task #36).
 comments_on:
   work: xia-lianju-conflation

@@ -92,6 +92,39 @@ defmodule Pramana.EvalsTest do
     GoldCase.parse!(line, "test.jsonl", 1)
   end
 
+  describe "the tradition filter narrows the set" do
+    test "it selects only that tradition's cases" do
+      cases = [
+        gold(%{id: "a", type: "topical", query: "x", tradition: "pali", expect_contains: ["x"]}),
+        gold(%{
+          id: "b",
+          type: "topical",
+          query: "y",
+          tradition: "tibetan",
+          expect_contains: ["y"]
+        })
+      ]
+
+      card = Evals.run(cases, tradition: "pali")
+
+      assert card.total == 1
+    end
+
+    # A filter selecting nothing must not produce a rate. `tally/1` returns nil rather
+    # than 0.0 for exactly this reason — a rate over zero cases is the absence of a
+    # measurement, and 0.0% would be a claim.
+    test "selecting nothing yields no rate rather than 0.0%" do
+      cases = [
+        gold(%{id: "a", type: "topical", query: "x", tradition: "pali", expect_contains: ["x"]})
+      ]
+
+      card = Evals.run(cases, tradition: "tibetan")
+
+      assert card.total == 0
+      assert card.by_type == %{}
+    end
+  end
+
   describe "loading" do
     test "a case records where it came from, so a published number is traceable" do
       kase =

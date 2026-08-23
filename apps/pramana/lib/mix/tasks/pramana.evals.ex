@@ -65,6 +65,9 @@ defmodule Mix.Tasks.Pramana.Evals do
           Mix.raise("no gold set in #{dir} — run mix pramana.evals.derive")
       end
 
+    validate_tradition!(opts, cases)
+    refuse_narrowed_gate!(opts)
+
     warn_if_no_embeddings()
 
     started = System.monotonic_time(:millisecond)
@@ -89,6 +92,65 @@ defmodule Mix.Tasks.Pramana.Evals do
 
     if path = opts[:json], do: write_json(path, scorecard)
     if opts[:gate], do: gate(scorecard, Keyword.get(opts, :baseline, @default_baseline))
+  end
+
+  # A misspelled tradition selects nothing, and "0 case(s)" is a weak signal next to a
+  # scorecard that otherwise looks normal. `--only` already raises on an unknown case
+  # type; this is the same rule for the same reason.
+  defp validate_tradition!(opts, cases) do
+    case opts[:tradition] do
+      nil ->
+        :ok
+
+      tradition ->
+        known = cases |> Enum.map(& &1.tradition) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+        unless tradition in known do
+          Mix.raise(
+            "unknown tradition #{inspect(tradition)}; the gold set has: " <>
+              Enum.join(Enum.sort(known), ", ")
+          )
+        end
+    end
+  end
+
+  # The gate is a RATCHET ON THE SHIPPED DEFAULT, and neither a narrowed run nor an
+  # experiment is that.
+  #
+  # `--tradition` narrows the set while leaving the by_type rows the gate compares, so
+  # `--tradition tibetan --gate` reads 20 hits against a baseline of 327 and reports a
+  # 307-case regression that did not happen. `--only` is safe by contrast: a type absent
+  # from the run is skipped rather than counted as zero.
+  #
+  # An override is worse than noisy. `gate/2` WRITES the current run as the baseline when
+  # none exists, so `--per-tradition --gate` on a fresh checkout would install an
+  # experiment as the thing every future run is measured against.
+  defp refuse_narrowed_gate!(opts) do
+    cond do
+      !opts[:gate] ->
+        :ok
+
+      opts[:tradition] ->
+        Mix.raise(
+          "--gate cannot be combined with --tradition: the gate compares by case TYPE " <>
+            "against a full-set baseline, so a narrowed run reports a regression that " <>
+            "did not happen. Run the gate on the whole set."
+        )
+
+      experiment?(opts) ->
+        Mix.raise(
+          "--gate cannot be combined with an experiment flag (--depth, --per-tradition, " <>
+            "--vector-kinds, --balance): the gate is a ratchet on the SHIPPED default, " <>
+            "and with no baseline present it would write this configuration as one."
+        )
+
+      true ->
+        :ok
+    end
+  end
+
+  defp experiment?(opts) do
+    Enum.any?([:depth, :per_tradition, :vector_kinds, :balance], &(opts[&1] != nil))
   end
 
   defp run_opts(opts) do
