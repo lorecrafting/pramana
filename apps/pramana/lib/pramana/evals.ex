@@ -83,6 +83,7 @@ defmodule Pramana.Evals do
   Options:
 
     * `:only` — run one case type
+    * `:tradition` — run only cases from one tradition
     * `:serving` — a preloaded embedding serving, so a caller embedding many queries
       pays the model load once
   """
@@ -94,6 +95,16 @@ defmodule Pramana.Evals do
       case opts[:only] do
         nil -> cases
         type -> Enum.filter(cases, &(&1.type == type))
+      end
+
+    # A tradition filter, so an experiment aimed at one canon does not have to score all
+    # 1,400 cases to see its effect. It NARROWS the set, so any figure from such a run is
+    # about that canon and nothing else — the scorecard still prints the case count, which
+    # is what stops a narrowed run being read as a full one.
+    cases =
+      case opts[:tradition] do
+        nil -> cases
+        tradition -> Enum.filter(cases, &(&1.tradition == tradition))
       end
 
     results = Enum.map(cases, &score_case(&1, opts))

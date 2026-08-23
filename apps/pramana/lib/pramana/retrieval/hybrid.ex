@@ -46,6 +46,10 @@ defmodule Pramana.Retrieval.Hybrid do
   @k 60
   @default_limit 20
 
+  # Mirrors the retrievers' own ceiling. Kept here because Hybrid bounds `depth` against
+  # it before either retriever sees a number.
+  @max_limit 200
+
   @type opts :: [
           limit: pos_integer(),
           serving: Nx.Serving.t(),
@@ -60,6 +64,9 @@ defmodule Pramana.Retrieval.Hybrid do
           # caller that never reads it — the eval harness — not for an API surface, where
           # the number is what stops partial embedding being read as a small canon.
           coverage: boolean(),
+          # Candidates fetched from each retriever before fusion. Defaults to `limit * 3`,
+          # bounded by the retrievers' maximum.
+          depth: pos_integer(),
           lexical_only: boolean(),
           semantic_only: boolean()
         ]
@@ -83,18 +90,8 @@ defmodule Pramana.Retrieval.Hybrid do
   def search(_, _), do: {:error, :bad_query}
 
   defp run(query, opts) do
-    limit = Keyword.get(opts, :limit, @default_limit)
-
-    # Over-fetch from each retriever: fusion needs depth to work with, and a document
-    # ranked 30th by one retriever can win once the other agrees.
-    #
-    # CLAMPED, and deliberately so — unlike the caller's `limit`, which the retrievers now
-    # refuse rather than quietly shrink. `depth` is not a request, it is this layer's own
-    # over-fetch heuristic, and asking for three times a limit of 100 would otherwise
-    # exceed the retrievers' maximum and raise on a search the caller asked for correctly.
-    # Fusion simply gets less depth to work with at large limits, which is the honest
-    # consequence of a bounded retriever.
-    depth = min(limit * 3, Semantic.max_limit())
+    limit = validated_limit(opts)
+    depth = depth(opts, limit)
 
     lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, depth)
     semantic = semantic_ranking(query, opts, depth)
@@ -117,6 +114,42 @@ defmodule Pramana.Retrieval.Hybrid do
       coverage: coverage(opts),
       bake_id: Pramana.Bake.current_id()
     }
+  end
+
+  # Hybrid never handed the caller's `limit` to a retriever — it hands them `depth` — so
+  # the over-limit check added to `Lexical` and `Semantic` did not cover this path at all:
+  # `Hybrid.search(q, limit: 500)` clamped `depth` to 200, returned at most 200, and said
+  # nothing. Exactly the silence that check exists to remove, one layer up.
+  defp validated_limit(opts) do
+    case Keyword.get(opts, :limit, @default_limit) do
+      limit when is_integer(limit) and limit > @max_limit ->
+        raise ArgumentError,
+              "limit #{limit} exceeds the maximum of #{@max_limit}; ask for at most " <>
+                "#{@max_limit}, and clamp at your own boundary if the value came from a user"
+
+      limit ->
+        limit
+    end
+  end
+
+  # How many candidates each retriever is asked for, before fusion picks `limit` of them.
+  # Fusion needs depth to work with: a document ranked 30th by one retriever can win once
+  # the other agrees.
+  #
+  # `limit * 3` by default, and CONFIGURABLE because it may be worth more than that. A
+  # probe over the 64 `retrieval/tibetan` gold cases scored 20 hits at depth 60 and 24 at
+  # depth 200 — same cases, same scoring rule, +4 from depth alone, consistent with #43
+  # finding that a wider scan returns better neighbours rather than merely more of them.
+  # That probe is not a decision (#10), so this exists to let the gold set settle it.
+  #
+  # Clamped rather than refused, unlike `limit`: depth is not a request from the caller,
+  # it is how hard this layer looks before answering one. Never below `limit`, because
+  # fusing fewer candidates than the caller wants returned is incoherent.
+  defp depth(opts, limit) do
+    opts
+    |> Keyword.get(:depth, limit * 3)
+    |> min(@max_limit)
+    |> max(limit)
   end
 
   # `:not_computed`, never `nil` and never a zeroed map. The whole reason this field
@@ -169,7 +202,7 @@ defmodule Pramana.Retrieval.Hybrid do
   # Options that belong to THIS layer and mean nothing to either retriever, so they are
   # dropped before both. Both retrievers reject an option they do not know — correctly —
   # so a hybrid-level option that reaches either one crashes the search.
-  @hybrid_only_opts [:coverage]
+  @hybrid_only_opts [:coverage, :depth]
 
   defp lexical_ranking(query, opts, depth) do
     # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the

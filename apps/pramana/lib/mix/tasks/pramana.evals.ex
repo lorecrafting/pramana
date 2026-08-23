@@ -9,6 +9,7 @@ defmodule Mix.Tasks.Pramana.Evals do
       mix pramana.evals --json evals/scorecard.json
       mix pramana.evals --gate            # non-zero exit on a regression
       mix pramana.evals --per-tradition   # experiment: retrieve per canon, then merge
+      mix pramana.evals --only retrieval --tradition tibetan --depth 200
 
   Retrieval cases need the embedding model, so run with `PRAMANA_EMBEDDING=1`; without
   it the harness says so and scores the lexical path only, rather than reporting a
@@ -39,7 +40,11 @@ defmodule Mix.Tasks.Pramana.Evals do
     # the point, and why the header says so.
     vector_kinds: :string,
     balance: :string,
-    per_tradition: :boolean
+    per_tradition: :boolean,
+    depth: :integer,
+    # Not an override — a FILTER. Scoring one tradition is how an experiment aimed at one
+    # canon stays affordable; the decision still needs the whole set.
+    tradition: :string
   ]
 
   @default_baseline "evals/baseline.json"
@@ -87,7 +92,14 @@ defmodule Mix.Tasks.Pramana.Evals do
   end
 
   defp run_opts(opts) do
-    only(opts) ++ overrides(opts)
+    only(opts) ++ tradition(opts) ++ overrides(opts)
+  end
+
+  defp tradition(opts) do
+    case opts[:tradition] do
+      nil -> []
+      tradition -> [tradition: tradition]
+    end
   end
 
   defp overrides(opts) do
@@ -95,7 +107,12 @@ defmodule Mix.Tasks.Pramana.Evals do
     balance = opts[:balance] && String.to_existing_atom(opts[:balance])
 
     override =
-      [vector_kinds: kinds, balance: balance, per_tradition: opts[:per_tradition]]
+      [
+        vector_kinds: kinds,
+        balance: balance,
+        per_tradition: opts[:per_tradition],
+        depth: opts[:depth]
+      ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     if override == [] do

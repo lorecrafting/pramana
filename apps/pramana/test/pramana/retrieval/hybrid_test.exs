@@ -155,6 +155,45 @@ defmodule Pramana.Retrieval.HybridTest do
     test "Hybrid at a limit whose triple exceeds the maximum still searches" do
       assert {:ok, _} = Hybrid.search("如是我聞", limit: 100)
     end
+
+    # Hybrid hands the retrievers `depth`, never the caller's `limit`, so the check added
+    # to Lexical and Semantic did not cover this path: `limit: 500` clamped depth to 200,
+    # returned at most 200, and said nothing.
+    test "Hybrid refuses an over-limit itself, rather than relying on the retrievers" do
+      assert_raise ArgumentError, ~r/exceeds the maximum/, fn ->
+        Hybrid.search("如是我聞", limit: 500)
+      end
+    end
+  end
+
+  describe "depth — how many candidates fusion sees" do
+    test "defaults to three times the limit" do
+      assert {:ok, %{total: total}} = Hybrid.search("如是我聞", limit: 2)
+      assert total <= 2
+    end
+
+    test "an explicit depth is accepted and still returns limit results" do
+      {:ok, shallow} = Hybrid.search("如是我聞", limit: 2, depth: 2)
+      {:ok, deep} = Hybrid.search("如是我聞", limit: 2, depth: 200)
+
+      assert shallow.total <= 2
+      assert deep.total <= 2
+    end
+
+    # Clamped rather than refused, unlike `limit`: depth is not the caller's request, it
+    # is how hard this layer looks before answering one.
+    test "a depth above the maximum is clamped, not refused" do
+      assert {:ok, _} = Hybrid.search("如是我聞", limit: 2, depth: 10_000)
+    end
+
+    test "a depth below the limit cannot starve fusion" do
+      {:ok, result} = Hybrid.search("如是我聞", limit: 2, depth: 1)
+
+      # depth is raised to `limit`; asking fusion for fewer candidates than the caller
+      # wants returned is incoherent, and silently returning one result would look like a
+      # corpus with one match.
+      assert result.total == 2
+    end
   end
 
   describe "fuse/2 — pure RRF" do
