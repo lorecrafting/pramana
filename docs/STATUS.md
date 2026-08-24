@@ -1,8 +1,11 @@
 # Status
 
 Living handoff document. **Update this at every checkpoint gate.** If you are a new
-session with no context, read this first, then `CLAUDE.md`, then `docs/ROADMAP.md`,
-then run `TaskList`.
+session with no context, read this first, then **`docs/PLAN.md`** (the living task list —
+what is next and what is blocked), then `CLAUDE.md`, then `docs/ROADMAP.md`.
+
+This file is the **evidence**; `PLAN.md` is the **intent**. Where they disagree, this one
+is what was measured — and `PLAN.md` should be corrected to match.
 
 ---
 

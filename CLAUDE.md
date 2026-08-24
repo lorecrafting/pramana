@@ -20,8 +20,15 @@ is deterministic and model-independent.
 ## Resuming work (new session, no context)
 
 Read **`docs/STATUS.md`** first — it says where we are, what was decided and why, and
-what surprised us. Then this file's invariants, then `docs/ROADMAP.md`. Then run
-`TaskList`; tasks carry their own context and point back to the relevant docs.
+what surprised us. Then **`docs/PLAN.md`**, which is the living task list: what is next,
+why, and what it is blocked on. Then this file's invariants, then `docs/ROADMAP.md`.
+
+**`docs/PLAN.md` must be updated in the same commit as the work it describes.** Finishing
+an item, discovering new work, or invalidating an estimate all require an edit. A plan
+carrying a stale number is worse than no plan, because the next session will act on it —
+and this project has now corrected published claims about its own state four separate
+times. It also records what has been **tried and rejected, with evidence**; check that list
+before proposing something.
 
 **Before writing a new source pipeline, read `docs/STATUS.md` § "Rules that
 generalize".** Eight rules, each learned from a real defect, and most of them apply
