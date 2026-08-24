@@ -1869,6 +1869,43 @@ a visible term-mapping chain. The measurements now say why neither half suffices
 model supplies paraphrase understanding, the glossary supplies term fidelity, and the
 glossary this corpus needs is one it has not got yet.
 
+### `hnsw.ef_search` tracking the row limit does nothing — tried, measured, reverted
+
+Looked like an obvious defect. `ef_search` was never set, so it sat at pgvector's default
+of **40**, while the ANN query's SQL limit is `limit * @vector_overfetch` — after the
+semantic arm moved to `limit * 6` that is **480 rows requested from a graph exploring 40**,
+a 12x mismatch against pgvector's own guidance that `ef_search` be at least the limit. And
+#43 had already recorded this exact class of failure: "the plain scan had been costing
+recall all along — nothing failed; the answers were just further down."
+
+A single-probe check seemed to support it: top-120 at `ef_search` 40 against 200 shared
+**112 of 120** candidates with an identical top 10, so the difference lay in the tail — and
+the depth work had just shown the tail is where Tibetan's +5 cases came from.
+
+**All 446 retrieval cases, and nothing moved at all:**
+
+| | baseline | ef_search = row limit |
+|---|---|---|
+| overall | 334/446 | **334/446** |
+| chinese | 227/232, mean rank 1.98 | **227/232, mean rank 1.98** |
+| pali | 82/150, mean rank 3.09 | **82/150, mean rank 3.09** |
+| tibetan | 25/64, mean rank 3.24 | **25/64, mean rank 3.24** |
+| wall clock | 17m22s | 18m17s (**+5.3%**) |
+
+Mean ranks identical to two decimals: not one scored case changed position.
+
+**Why, and it was reasonable to work out beforehand:** the iterative scan already
+compensates. `relaxed_order` with `max_scan_tuples = 200,000` keeps pulling candidates
+until the limit is satisfied, which is exactly what a larger `ef_search` would otherwise
+buy. The two knobs address the same shortfall, and this codebase already turned the other
+one on. The 112/120 overlap was evidence *for* that reading — the scan recovers the tail —
+and it was read instead as "the tail matters", which was true and beside the point.
+
+**Reverted.** No gain, 5% cost, and a knob with no measured motivation is a future
+maintainer's puzzle. Recorded here so the next person who notices `ef_search` at its
+default does not spend the afternoon on it: **it is not a bug, it is subsumed by the
+iterative scan.** If `iterative_scan` is ever turned off, this becomes live again.
+
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
 The standing plan was "a reranker first, then a Tibetan-fine-tuned embedder". Before
