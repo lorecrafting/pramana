@@ -41,6 +41,7 @@ defmodule Pramana.Retrieval.Hybrid do
   alias Pramana.Repo
   alias Pramana.Retrieval.Lexical
   alias Pramana.Retrieval.Semantic
+  alias Pramana.Retrieval.Terms
 
   # The conventional RRF constant. Larger flattens the contribution of top ranks.
   @k 60
@@ -128,9 +129,10 @@ defmodule Pramana.Retrieval.Hybrid do
 
     lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, lexical_depth)
     semantic = semantic_ranking(query, opts, semantic_depth)
+    {translated, expanded_terms} = translated_ranking(query, opts, lexical_depth)
 
     fused =
-      [lexical, semantic]
+      [lexical, semantic, translated]
       |> Enum.reject(&(&1 == []))
       |> fuse()
       |> Enum.take(limit)
@@ -143,7 +145,11 @@ defmodule Pramana.Retrieval.Hybrid do
       # Which retrievers actually contributed. Reported rather than assumed: with no
       # serving, or nothing embedded yet, this is lexical-only, and an answer built on
       # half the intended evidence should say so.
-      retrievers: retrievers(lexical, semantic),
+      retrievers: retrievers(lexical, semantic, translated),
+      # What the English query was expanded to, so a hit on a Chinese term the
+      # reader never typed is visible rather than surprising — the same reporting
+      # rule `Variants` follows for 異體字.
+      expanded_terms: expanded_terms,
       coverage: coverage(opts),
       bake_id: Pramana.Bake.current_id()
     }
@@ -210,9 +216,13 @@ defmodule Pramana.Retrieval.Hybrid do
 
   # -- retrieval ------------------------------------------------------------------
 
-  defp retrievers(lexical, semantic) do
+  defp retrievers(lexical, semantic, translated) do
     Enum.reject(
-      [if(lexical != [], do: "lexical"), if(semantic != [], do: "semantic")],
+      [
+        if(lexical != [], do: "lexical"),
+        if(semantic != [], do: "semantic"),
+        if(translated != [], do: "translated_terms")
+      ],
       &is_nil/1
     )
   end
@@ -232,7 +242,58 @@ defmodule Pramana.Retrieval.Hybrid do
   # Options that belong to THIS layer and mean nothing to either retriever, so they are
   # dropped before both. Both retrievers reject an option they do not know — correctly —
   # so a hybrid-level option that reaches either one crashes the search.
-  @hybrid_only_opts [:coverage, :depth, :lexical_depth, :semantic_depth]
+  @hybrid_only_opts [:coverage, :depth, :lexical_depth, :semantic_depth, :expand_terms]
+
+  # A THIRD ARM: the English query's doctrinal terms, searched in Chinese.
+  #
+  # `topical/chinese` is 0% while the same twelve questions asked in Chinese are 100% —
+  # the passages are indexed, and only the query is in the wrong language. Rewriting the
+  # query into Chinese scored 91.7% on those twelve. See `Retrieval.Terms` for why the
+  # mapping is a glossary rather than a translation model: the failure mode is term
+  # choice, worth ~50 points, and a glossary can expand to EVERY attested register
+  # (念住 *and* 念處) where a model must gamble on one.
+  #
+  # A separate arm rather than a rewritten query, for two reasons. The existing arms are
+  # untouched, so nothing that works today for Pāli or Tibetan can regress. And a mixed
+  # English-plus-Chinese string would be embedded as one vector by the semantic arm, which
+  # is not a thing either language's vectors look like.
+  #
+  # Opt-in. It has not yet been scored against `answered from any tradition`, which #44
+  # requires of any change before it becomes a default.
+  defp translated_ranking(query, opts, depth) do
+    with true <- !!opts[:expand_terms],
+         [_ | _] = terms <- Terms.expand(query) do
+      {rank_terms(terms, opts, depth), terms}
+    else
+      _ -> {[], []}
+    end
+  end
+
+  defp rank_terms(terms, opts, depth) do
+    lexical_opts =
+      opts
+      |> Keyword.drop(@semantic_only_opts ++ @hybrid_only_opts)
+      |> Keyword.merge(limit: depth)
+      |> Keyword.put(:mode, :phrase)
+
+    terms
+    |> Enum.map(&term_ranking(&1, lexical_opts))
+    |> Enum.reject(&(&1 == []))
+    # Each term is its own ranked list, fused so a passage carrying two of the query's
+    # terms outranks one carrying a single term.
+    |> fuse()
+    |> Enum.map(&elem(&1, 0))
+  end
+
+  defp term_ranking(term, lexical_opts) do
+    case Lexical.search(term, lexical_opts) do
+      {:ok, %{results: results}} ->
+        results |> Enum.map(& &1.span.urn) |> chunk_urns_for_segments()
+
+      {:error, _} ->
+        []
+    end
+  end
 
   defp lexical_ranking(query, opts, depth) do
     # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the

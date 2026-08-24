@@ -1806,6 +1806,69 @@ days — and it adds ~0.5–1 s to a search now running at 2.2 s. Neither touche
 reproducibility of the corpus, or what is citable. A translation cache keyed by query hash
 (ROADMAP anticipates one for Phase 7) makes the determinism objection largely go away.
 
+### The glossary arm: the mechanism works, the term source does not (#43)
+
+Built on the finding above — translate the query, and use a glossary rather than a model
+because a glossary can expand to *every* attested register where a model must gamble on
+one. `Pramana.Retrieval.Terms` maps English doctrinal vocabulary to Chinese from 84000's
+1,105 English↔Chinese glossary pairs, and `Hybrid` fuses it as a **third arm**, so the
+existing arms are untouched and nothing that works for Pāli or Tibetan can regress by
+construction.
+
+It works, on exactly the queries it can see. "What are the four noble truths?" expands to
+`["四聖諦"]` and goes from **miss to rank 3**. And then the gold set:
+
+| | before | with the arm |
+|---|---|---|
+| topical / chinese | 0.0% (0/12) | **16.7% (2/12)** |
+| topical / pali | 56.3% (9/16) | 50.0% (8/16) |
+| **answered from any tradition** | **72.7% (8/11)** | **63.6% (7/11)** |
+
+**Two of twelve — which is the number this document already recorded and I argued myself
+out of.** Sizing #12 established that "`glossary_entries` (84000) recovers 2 of 12 gold
+doctrinal terms". Reading the glossary dump directly, I saw 四聖諦 and 四念處 alongside many
+near-misses and called it "richer than 2 of 12 implied". It was not: the near-misses —
+八聖道分 for 八正道, 菩提分法 for 七覺支, 四念住 for 四念處 — are **the wrong register for this
+corpus**, which is precisely the 50-point failure mode measured in the arm B experiment an
+hour earlier. The evidence to predict 2/12 was already in hand and was not applied.
+
+**So it stays opt-in and off** (`expand_terms: true`). Under #44's standing rule a change
+must be measured against answered-from-any-tradition before becoming a default, and this
+one moves it the wrong way. The Pāli and topic losses are single cases, inside the
+documented wobble, so the honest reading is not "it regresses" but "**+2 of 12 does not
+justify a third arm diluting RRF**".
+
+**The bottleneck is the term source, not the design.** 84000's glossary is oriented to the
+Tibetan canon, and its Chinese equivalents come from translation traditions CBETA does not
+print. A term list built *from this corpus* — every attested rendering, with occurrence
+counts, adjudicated the way the topical gold terms already are — would plug into the same
+arm unchanged.
+
+**And a limit worth stating plainly, because it bounds the whole approach.** A glossary
+fires on vocabulary. Measured directly:
+
+    "What are the four noble truths?"                            -> ["四聖諦"], rank 3
+    "What are the 4 things the buddha said when he was
+     enlightened"                                                -> [], miss
+    "what did the buddha realise under the bodhi tree"           -> [], miss
+
+Both paraphrases return **8 of 8 Pāli results and no Chinese** — and the semantic arm
+answers them *correctly* from the Pāli, with `Cattāri ariyasaccāni` at rank 4 on the first.
+So a reader asking a paraphrase is not empty-handed today; they simply never receive the
+Chinese witness. That is what `answered from any tradition` measures, and it is why the
+three mechanisms are complementary rather than competing:
+
+| | paraphrase | reaches Chinese |
+|---|---|---|
+| semantic arm | yes | **no** (0%, no English layer) |
+| glossary arm | **no** (fires on vocabulary) | yes |
+| LLM query translation | yes | yes, if term-pinned |
+
+`docs/TRANSLATION.md` already specifies the combination — glossary-pinned translation with
+a visible term-mapping chain. The measurements now say why neither half suffices alone: the
+model supplies paraphrase understanding, the glossary supplies term fidelity, and the
+glossary this corpus needs is one it has not got yet.
+
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
 The standing plan was "a reranker first, then a Tibetan-fine-tuned embedder". Before

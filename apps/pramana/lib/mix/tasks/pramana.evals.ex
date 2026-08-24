@@ -44,6 +44,7 @@ defmodule Mix.Tasks.Pramana.Evals do
     depth: :integer,
     lexical_depth: :integer,
     semantic_depth: :integer,
+    expand_terms: :boolean,
     # Not an override — a FILTER. Scoring one tradition is how an experiment aimed at one
     # canon stays affordable; the decision still needs the whole set.
     tradition: :string
@@ -204,7 +205,8 @@ defmodule Mix.Tasks.Pramana.Evals do
         per_tradition: opts[:per_tradition],
         depth: opts[:depth],
         lexical_depth: opts[:lexical_depth],
-        semantic_depth: opts[:semantic_depth]
+        semantic_depth: opts[:semantic_depth],
+        expand_terms: opts[:expand_terms]
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
