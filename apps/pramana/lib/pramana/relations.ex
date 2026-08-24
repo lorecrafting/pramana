@@ -162,6 +162,50 @@ defmodule Pramana.Relations do
   end
 
   @doc """
+  Works asserted to transmit the same material as this one.
+
+  These are **siblings, not versions of one another**, and the distinction is load-bearing.
+  A pair here may be a genuine 異譯本 — T0099 雜阿含經 and T0100 別譯雜阿含經, whose name
+  says it is a separate translation, share 706 curated passages — or it may be two
+  different collections that transmit related discourses, like T0099 and T0125
+  (Saṃyukta and Ekottarika Āgama), where neither translates the other. **The parallel data
+  cannot tell them apart**, so nothing here claims it does; `evidence` carries the passage
+  counts a reader needs to judge, and `confidence` grades them.
+
+  Ordered by confidence then by weight of evidence, so the strongest pair for a work comes
+  first rather than whichever row the planner returned.
+  """
+  @spec parallels_of(String.t()) :: [map()]
+  def parallels_of(work_id) do
+    from(r in WorkRelation,
+      left_join: w in Work,
+      on: w.id == r.target_work_id,
+      where: r.source_work_id == ^work_id and r.relation == "parallel_of",
+      order_by: [
+        asc:
+          fragment(
+            "array_position(ARRAY['certain','probable','asserted','uncertain'], ?)",
+            r.confidence
+          ),
+        desc: fragment("COALESCE((? -> 'full_parallels')::int, 0)", r.evidence)
+      ],
+      select: %{
+        work_id: r.target_work_id,
+        work_ref: r.target_work_ref,
+        title: w.title,
+        composition_origin: w.composition_origin,
+        text_role: w.text_role,
+        attributed_author: w.attributed_author,
+        relation: r.relation,
+        confidence: r.confidence,
+        method: r.method,
+        evidence: r.evidence
+      }
+    )
+    |> Repo.all()
+  end
+
+  @doc """
   Walks the chain from a commentary back toward root scripture.
 
   Returns the **path**, not just the destination: a subcommentary on a commentary on a

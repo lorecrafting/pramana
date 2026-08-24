@@ -13,7 +13,7 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-08-24**.
+Last reviewed: **2026-08-24** — A shipped; `Compare.alternates` is the open step.
 
 ---
 
@@ -22,6 +22,7 @@ Last reviewed: **2026-08-24**.
 | | |
 |---|---|
 | corpus | 15,489 texts · 6,538,238 segments · 3 traditions · 617,038 vectors |
+| work relations | 90 `comments_on` · **82 `parallel_of`** (41 pairs) |
 | eval | **93.6%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
 | retrieval@10 | 380/446 — zh 97.8% · pa 81.3% · bo 48.4% |
 | answered from any tradition | 81.8% |
@@ -42,24 +43,39 @@ human can use** (no reader).
 
 ## Now
 
-### A. Assert 異譯本 relations — unblocks #23  ▸ IN PROGRESS
+### A. Work-level `parallel_of` — ▸ DONE 2026-08-24 (one step remains)
 
-**Goal.** Populate `work_relations` with `parallel_of` for alternate Chinese translations
-of the same Indic original, from catalogue metadata already held.
+**Shipped.** `mix pramana.relations.parallels` aggregates SuttaCentral's curated
+passage parallels to the work, and `Relations.parallels_of/1` reads them.
 
-**Why now.** It is the only item that is pure code over data already in the database — no
-acquisition, no GPU, no money — and it unblocks a differentiator `docs/COMPETITIVE.md`
-already claims. Measured 2026-08-24: `work_relations` holds **90 `comments_on` and zero
-`parallel_of`**. `Pramana.Compare` documents the gap; the relation vocabulary has the slot;
-nothing fills it.
+    41 work pairs at >= 3 full parallels -> 82 rows (both directions)
+    T0099 <-> T0100   706 full   雜阿含經 / 別譯雜阿含經
+    T0210 <-> T0212   284 full   法句經 / 出曜經
+    T0210 <-> T0213   278 full   法句經 / 法集要頌經
 
-**Exit.** `parallel_of` populated with a stated derivation and a count; `Pramana.Compare`
-returns alternate translations for a work that has them; a test proving the relation
-changes what the API returns.
+`work_relations` went from **90 rows, zero `parallel_of`** to 82 `parallel_of` rows
+(32 `probable`, 50 `uncertain`).
 
-**Then #23 becomes possible:** translator fingerprinting and divergence scoring — "how
-Kumārajīva and Xuanzang rendered this term" — which is a named differentiator and currently
-cannot run at all.
+**The claim was deliberately narrowed, and this matters for #23.** The item was written as
+"assert 異譯本". The data does not support that word. 異譯本 means *an alternate translation
+of the same Indic original*, and curated parallels cannot distinguish it from other
+parallelism: T0099/T0100 are a real 異譯本 (the second's name says "separately
+translated"), while T0099/T0125 are Saṃyukta and Ekottarika Āgama — **different
+collections**, neither translating the other. Both share hundreds of passages. So the
+relation asserted is `parallel_of`, never `translates`, and **#23 must treat these as
+candidates rather than settled versions.**
+
+**Threshold is a judgement, made visible.** Median pair shares **2** passages, p90 **4**,
+max **736**. Two shared discourses is evidence about passages, not works, so `--min-full`
+defaults to 3 and the count rides in `evidence` where it can be argued with.
+
+**Remaining step:** wire `alternates` into `Pramana.Compare`. It currently refuses to
+return the key because it would always be empty — that reason is now gone. This is the
+piece that makes the work reachable from the MCP surface rather than only from Elixir.
+
+**Unblocks #23** (translator fingerprinting): `parallels_of/1` returns
+`attributed_author` beside each pair, which is the join the feature needs — 求那跋陀羅
+against 竺佛念 against 玄奘 on the same material.
 
 ---
 
