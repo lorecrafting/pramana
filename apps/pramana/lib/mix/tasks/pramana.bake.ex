@@ -50,13 +50,23 @@ defmodule Mix.Tasks.Pramana.Bake do
       provenance_for(pipeline, %{
         canon: config["canon"],
         volume: config["volume"],
-        number: number
+        number: number,
+        # The work's own byline, for collections with no 部 table. See
+        # `Pramana.Cbeta.Byline`. Passed on both bake paths so a single-work bake and a
+        # bulk bake cannot assign different provenance to the same text.
+        author: ir.author
       })
 
     {:ok, %{text: text, segments: count}} =
       Loader.load(ir,
         source: source,
-        witness: pipeline.witness,
+        # THE CANON, not `pipeline.witness`. That registry field is a static "T", which was
+        # indistinguishable from correct while the Taishō was the only CBETA collection
+        # held. Baking a single X work through this path produced
+        # `pramana:cbeta.T:X1508` — an X work addressed as if it sat in the Taishō, with a
+        # URN that resolves and is wrong. `Bake.Worker` has always used the canon, so the
+        # two bake paths silently disagreed; a second collection is what made that visible.
+        witness: config["canon"],
         provenance: provenance
       )
 

@@ -130,9 +130,38 @@ will not see X; corpus growth invalidates `evals/baseline.json` and triggers rul
 **Sequence.** acquire X (676 MB) → bake with byline provenance → chunk → **embed (GPU,
 costs money)** → import + HNSW rebuild → verify + integrity → re-baseline.
 
-**THE OPEN DECISION IS GPU SPEND**, not feasibility. Everything before embedding is free
-and local; embedding ~1,236 works of new chunks is a rented-GPU run. Needs a human to say
-go.
+**▸ IN PROGRESS 2026-08-24.** X acquired (1,236 files, 647 MB) and baking, without
+embedding — the GPU spend stays a separate decision.
+
+**Two bugs found, both invisible while the Taishō was the only collection held:**
+
+1. **`pramana:cbeta.T:X1508`** — the single-work bake path used `pipeline.witness`, a
+   static `"T"` in the registry, while the bulk path used the actual canon. The paths had
+   always disagreed; with one collection, `"T"` was indistinguishable from correct. Fixed.
+2. **284 of 1,236 works died on `segments_urn_index`.** CBETA re-emits `<lb>` when an
+   element spans the line it opened on, so one printed line arrives as two fragments with
+   the same number *and* edition. The Taishō survived only because its repeats carry
+   nothing on the second occurrence, so the blank-line rule already dropped them; X's
+   carry an inline note, which rule 3 says must stay addressable.
+
+**Adjacent fragments are now merged** — one printed line, however often the markup
+re-announces it — with the joining newline kept inside the span, because `IR.body/1` joins
+lines with it and a span that omitted it would stop byte-verifying. Measured on 40 of the
+289 failures: **26 now clean, 14 still duplicated.**
+
+**~101 works still fail, and they are a DIFFERENT problem.** Their repeats are
+*non-adjacent* — the same anchor with other lines between — which is the edition printing
+an anchor twice, not markup splitting one line. Merging them would fuse distinct passages.
+Derge met this exactly and answered it: keep the printed anchor with `+2` appended, "visibly
+not a folio reference", so a reader learns the edition is ambiguous rather than receiving a
+citation that looks clean and resolves wrongly.
+
+**That fix needs a citation-grammar change and is NOT done.** `URN.parse/1` already tolerates
+`p0019a01+2`, but `Taisho.parse_locator/1` rejects it, so page/register/line would read nil.
+Changing Taishō locator grammar is invariant #2 territory and wants a deliberate decision,
+not the tail of a long session.
+
+**Still open:** the GPU spend for embedding X, unchanged and still needing a human.
 
 **Exit.** X baked, byte-verifiable from `raw/`, provenance assigned by a stated rule,
 integrity green, baseline regenerated.

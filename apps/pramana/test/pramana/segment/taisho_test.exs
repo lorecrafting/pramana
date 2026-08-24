@@ -159,6 +159,79 @@ defmodule Pramana.Segment.TaishoTest do
     end
   end
 
+  describe "an anchor the markup re-announces" do
+    # CBETA re-emits `<lb>` when an element spans the line it opened on, so one printed
+    # line arrives as two fragments with the SAME number and edition. Emitting both gives
+    # them one URN between them, and the insert dies on `segments_urn_index` — which
+    # killed 284 of 1,236 works when CBETA's X collection was first baked. The Taishō
+    # survived only because its repeats carry nothing on the second occurrence.
+    test "is one segment, not two" do
+      {_ir, segments} =
+        segments!(
+          ~s(<milestone n="1" unit="juan"/><lb n="0831b01"/>馬鳴菩薩<lb n="0831b01"/><note place="inline">吉備大臣</note>)
+        )
+
+      assert length(segments) == 1
+      assert hd(segments).urn =~ "p0831b01"
+    end
+
+    test "keeps the note, which is printed content and must stay addressable" do
+      {_ir, [seg]} =
+        segments!(
+          ~s(<milestone n="1" unit="juan"/><lb n="0831b01"/>馬鳴菩薩<lb n="0831b01"/><note place="inline">吉備大臣</note>)
+        )
+
+      # The note is not inline in `content` — the normalizer routes inline notes to
+      # `meta["notes"]` and leaves that fragment's text empty. So the merge has to carry
+      # META across, not only text: dropping the second fragment would lose the note, and
+      # rule 3 says an inline note is printed content that needs an address.
+      assert seg.content =~ "馬鳴菩薩"
+      assert inspect(seg.meta) =~ "吉備大臣"
+    end
+
+    test "stays byte-verifiable against the body, newline included" do
+      # THE ASSERTION THAT CONSTRAINS THE FIX. `IR.body/1` joins lines with "\n", so the
+      # bytes between the two fragments in the body ARE a newline. A merged span must
+      # contain it or the slice stops equalling the content and invariant #1 breaks
+      # silently for exactly these lines.
+      {ir, [seg]} =
+        segments!(
+          ~s(<milestone n="1" unit="juan"/><lb n="0831b01"/>馬鳴菩薩<lb n="0831b01"/><note place="inline">吉備大臣</note>)
+        )
+
+      body = IR.body(ir)
+
+      assert binary_part(body, seg.byte_start, seg.byte_end - seg.byte_start) == seg.content
+
+      assert :crypto.hash(:sha256, seg.content) |> Base.encode16(case: :lower) ==
+               seg.content_sha256
+    end
+
+    test "leaves ordinals contiguous" do
+      # `Corpus.between/4` selects by ordinal RANGE, so a gap left by merging would
+      # silently shorten every chunk and range URN crossing it.
+      {_ir, segments} =
+        segments!(
+          ~s(<milestone n="1" unit="juan"/><lb n="0001a01"/>甲<lb n="0001a01"/><note place="inline">乙</note><lb n="0001a02"/>丙<lb n="0001a03"/>丁)
+        )
+
+      assert Enum.map(segments, & &1.ordinal) == Enum.to_list(0..(length(segments) - 1))
+    end
+
+    test "an anchor repeated NON-adjacently is left alone" do
+      # Two fragments with a different line between them are not one printed line — they
+      # are the edition printing an anchor twice, which is a different problem with a
+      # different remedy (see the Derge `+2` precedent). Merging them would fuse distinct
+      # passages, so this deliberately still produces two segments.
+      {_ir, segments} =
+        segments!(
+          ~s(<milestone n="1" unit="juan"/><lb n="0019a01"/>甲<lb n="0019a02"/>乙<lb n="0019a01"/>丙)
+        )
+
+      assert length(segments) == 3
+    end
+  end
+
   describe "content hashes" do
     test "cover the segment content exactly" do
       {_ir, [seg]} = segments!(~s(<lb n="0001a05"/>如是我聞))

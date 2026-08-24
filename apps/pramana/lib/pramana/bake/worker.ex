@@ -38,7 +38,15 @@ defmodule Pramana.Bake.Worker do
          {:ok, xml} <- read_raw(source, pipeline, canon, volume, number),
          {:ok, ir} <- normalize(pipeline, xml, work_id, canon, volume, number) do
       provenance =
-        provenance_for(pipeline, %{canon: canon, volume: volume, number: number})
+        provenance_for(pipeline, %{
+          canon: canon,
+          volume: volume,
+          number: number,
+          # The work's own byline. Only a non-Taishō collection uses it — X has no 部
+          # table — but it is passed always, because a rule that receives different
+          # inputs depending on the canon is a rule nobody can reason about.
+          author: ir.author
+        })
 
       {:ok, %{segments: count}} =
         Loader.load(ir, source: source, witness: canon, provenance: provenance)

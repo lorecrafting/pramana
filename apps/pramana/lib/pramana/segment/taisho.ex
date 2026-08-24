@@ -94,7 +94,72 @@ defmodule Pramana.Segment.Taisho do
         end
       end)
 
-    {:ok, Enum.reverse(segments)}
+    {:ok, segments |> Enum.reverse() |> coalesce_repeated_anchors()}
+  end
+
+  # ONE PRINTED LINE, however many times the markup re-announces it.
+  #
+  # CBETA re-emits `<lb>` when an element spans the line it opened on:
+  #
+  #     <lb n="0831b01" ed="R003"/><cb:juan…><cb:jhead>馬鳴菩薩成就悉地念誦一卷
+  #     <lb n="0831b01" ed="R003"/><note place="inline">吉備大臣持來</note></cb:jhead>
+  #
+  # Same number, same edition, one printed line — split only because `<cb:jhead>` closes
+  # after it. Emitting two segments gives them one URN between them and the insert fails
+  # on `segments_urn_index`. **284 of 1,236 X works died this way**; the Taishō survived
+  # only because its repeats carry nothing on the second occurrence, so `build/6` already
+  # dropped them as blank.
+  #
+  # Dropping the repeat is not available: it holds an inline note, which rule 3 says is
+  # printed content and must stay addressable. So the line is reassembled.
+  #
+  # THE NEWLINE IS PART OF THE CONTENT, and that is not cosmetic. `IR.body/1` joins lines
+  # with "\n", so the bytes between these two fragments in the body ARE a newline. A
+  # merged span running from the first fragment's start to the second's end must therefore
+  # contain it, or `binary_part(body, byte_start, byte_end - byte_start)` stops equalling
+  # `content` and invariant #1 — every span byte-verifiable against the witness — breaks
+  # silently for exactly these lines.
+  #
+  # This is rule 1 read from the other side: there, a buffered element spanning a line
+  # break had to be SPLIT at the line; here an element boundary splits a line that has to
+  # be rejoined. The line is the citable unit either way, never the element.
+  defp coalesce_repeated_anchors(segments) do
+    segments
+    |> Enum.reduce([], fn segment, acc ->
+      case acc do
+        [%{urn: urn} = previous | rest] when urn == :erlang.map_get(:urn, segment) ->
+          [merge_fragment(previous, segment) | rest]
+
+        _ ->
+          [segment | acc]
+      end
+    end)
+    |> Enum.reverse()
+    # Ordinals are position in the text and must stay contiguous; merging removed rows
+    # from under them. `Corpus.between/4` selects by ordinal RANGE, so a gap here silently
+    # shortens every chunk and range URN that crosses it.
+    |> Enum.with_index()
+    |> Enum.map(fn {segment, ordinal} -> %{segment | ordinal: ordinal} end)
+  end
+
+  defp merge_fragment(previous, fragment) do
+    content = previous.content <> "\n" <> fragment.content
+
+    %{
+      previous
+      | content: content,
+        content_sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+        char_end: fragment.char_end,
+        byte_end: fragment.byte_end,
+        meta: merge_meta(previous.meta, fragment.meta)
+    }
+  end
+
+  defp merge_meta(a, b) do
+    Map.merge(a, b, fn
+      _key, va, vb when is_list(va) and is_list(vb) -> va ++ vb
+      _key, _va, vb -> vb
+    end)
   end
 
   @doc """
