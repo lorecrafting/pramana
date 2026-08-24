@@ -284,11 +284,24 @@ could filter on it**, so "we publish the pipeline, not the corpus" was a promise
 hand. Now `redistributable_only:` and `license_class:` filter in Lexical, Semantic and
 Survey, with tests. #16 had been marked complete against a criterion no code met.
 
-**2. The public corpus is currently EMPTY.** With the filter in place,
-`redistributable_only: true` returns **0 hits across all 4.7M segments** — CBETA is
-`nc`/not-redistributable, the Huang Nianzu commentary is `restricted`. The Phase 8
-public demo has nothing it could serve today. First redistributable content is
-SuttaCentral `bilara-data` (CC0) in Phase 3. Worth knowing now, not at Phase 8.
+**2. The public corpus was EMPTY at this gate — and is not any more.** With the filter in
+place, `redistributable_only: true` returned **0 hits across all 4.7M segments**: CBETA is
+`nc`/not-redistributable and the Huang Nianzu commentary is `restricted`, which was
+everything the corpus then held. The Phase 8 public demo had nothing it could serve.
+
+**Superseded, and by a wide margin.** Phases 3 and 5 landed three public-domain sources,
+and the filter now returns real results — measured 2026-08-24:
+
+| | |
+|---|---|
+| redistributable texts | **13,017** (`sc` 8,442 · `derge-tengyur` 3,380 · `derge` 1,195) |
+| redistributable segments | **1,797,144** — 27.5% of the corpus |
+| embedded vectors over them | **315,208** |
+
+A search under `redistributable_only: true` returns Pāli passages normally. So the Phase 8
+public demo has a fully-baked, fully-embedded, two-tradition corpus available to it, and
+the constraint recorded here — "nothing it could serve" — is no longer the blocker. What
+remains restricted is the Chinese canon (CBETA `nc`) and the one local commentary.
 
 **3. `credo` was not clean at the #16 commit**, which claimed it was — the
 verify/integrity changes landed after the credo run. Run the checks *last*, not
