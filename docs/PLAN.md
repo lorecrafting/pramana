@@ -90,20 +90,49 @@ against 竺佛念 against 玄奘 on the same material.
 collection out of ~20** — witness `T`, 2,471 texts. No permission is needed and the
 pipeline is proven on 2,471 works.
 
-**Not as cheap as it looks — spike first.** `mix pramana.acquire --canon X` already exists,
-so acquisition is likely config. But:
+**▸ SPIKE DONE 2026-08-24. The pipeline is ready; the decision is cost.**
 
-- **Provenance has no answer for X.** `Pramana.Taisho.Divisions` is the 部 table for the
-  *Taishō*; X has its own arrangement. A collection ingested without it arrives with no
-  composition-origin or text-role axis, which violates the spirit of invariant #4.
-- **`Pramana.Coverage.taisho/0` reasons about Taishō volume numbers** and will not see
-  works under other numbering (ROADMAP says this explicitly).
-- Corpus growth invalidates `evals/baseline.json` and triggers rule 7 (re-run integrity and
-  filter checks after growth, not just after code changes).
+Measured from the pinned catalogue (5,005 works across 26 collections):
 
-**Sequence.** spike acquisition on a handful of X works → decide the provenance story →
-normalize/segment/load → chunk → embed (GPU) → import + HNSW rebuild → verify + integrity →
-re-baseline.
+| canon | works | MB | |
+|---|---|---|---|
+| T | 2,471 | 855 | held |
+| **X** 卍續藏 | **1,236** | **676** | the prize — +50% on work count |
+| J 嘉興藏 | 287 | 105 | |
+| B | 204 | 125 | |
+| N 南傳大藏經 | 83 | 56 | a Japanese rendering of the Pāli canon |
+| 21 others | 259 | 137 | mostly tiny |
+
+**The normalizer handles X unchanged** — verified by acquiring one real X work and running
+it. The citation grammar is *identical* (`<lb n="0001a01"/>`, page/register/line, same juan
+milestones), and title, author and licence notice all extract correctly. No new normalizer,
+no new citation grammar. That was the main risk and it is gone.
+
+**Provenance has an answer, and it is better than a volume table.** `Taisho.Divisions` is
+the 部 table for the *Taishō* and cannot serve X — but X's own bylines carry the claim:
+
+    唐 王勃撰      Tang dynasty, Wang Bo, COMPOSED   -> chinese
+    後秦 佛陀耶舍…譯  Later Qin, Buddhayaśas, TRANSLATED -> indic
+
+The verb is the discriminator: 譯 (translated) against 撰/述/著/集/錄/記 (composed).
+**Validated against ground truth** on the Taishō, where division-derived provenance already
+exists — 2,020 of 2,077 works agree, **97.3%**. This is the same principle that let the
+Tengyur name itself from its own incipit rather than an acquired catalogue: the edition's
+own statement beats an external table, and here it is checkable against one.
+
+The 57 disagreements are not all the byline being wrong — the 部 table assigns by volume
+*range*, so a Chinese-composed work inside an Indic division is mislabelled by the table
+and correctly labelled by its byline. Worth inspecting before trusting either blindly.
+
+**Still true, and unchanged:** `Coverage.taisho/0` reasons about Taishō volume numbers and
+will not see X; corpus growth invalidates `evals/baseline.json` and triggers rule 7.
+
+**Sequence.** acquire X (676 MB) → bake with byline provenance → chunk → **embed (GPU,
+costs money)** → import + HNSW rebuild → verify + integrity → re-baseline.
+
+**THE OPEN DECISION IS GPU SPEND**, not feasibility. Everything before embedding is free
+and local; embedding ~1,236 works of new chunks is a rented-GPU run. Needs a human to say
+go.
 
 **Exit.** X baked, byte-verifiable from `raw/`, provenance assigned by a stated rule,
 integrity green, baseline regenerated.
