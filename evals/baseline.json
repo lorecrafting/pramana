@@ -5,8 +5,8 @@
     "scored": 305
   },
   "answered_any_tradition": {
-    "answered": 8,
-    "rate": 72.7,
+    "answered": 9,
+    "rate": 81.8,
     "topics": 11
   },
   "by_type": {
@@ -31,13 +31,13 @@
       "scored": 300
     },
     "retrieval": {
-      "hits": 334,
-      "rate": 74.9,
+      "hits": 380,
+      "rate": 85.2,
       "scored": 446
     },
     "topical": {
-      "hits": 21,
-      "rate": 42.9,
+      "hits": 26,
+      "rate": 53.1,
       "scored": 49
     }
   },
@@ -58,13 +58,13 @@
       "scored": 232
     },
     "retrieval/pali": {
-      "hits": 82,
-      "rate": 54.7,
+      "hits": 122,
+      "rate": 81.3,
       "scored": 150
     },
     "retrieval/tibetan": {
-      "hits": 25,
-      "rate": 39.1,
+      "hits": 31,
+      "rate": 48.4,
       "scored": 64
     },
     "topical/chinese": {
@@ -78,20 +78,20 @@
       "scored": 12
     },
     "topical/pali": {
-      "hits": 9,
-      "rate": 56.3,
+      "hits": 12,
+      "rate": 75.0,
       "scored": 16
     },
     "topical/tibetan": {
-      "hits": 0,
-      "rate": 0.0,
+      "hits": 2,
+      "rate": 22.2,
       "scored": 9
     }
   },
   "errors": 0,
   "overall": {
-    "hits": 1260,
-    "rate": 90.0,
+    "hits": 1311,
+    "rate": 93.6,
     "scored": 1400
   },
   "stale": 0,
