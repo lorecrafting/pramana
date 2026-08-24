@@ -31,8 +31,8 @@
       "scored": 300
     },
     "retrieval": {
-      "hits": 327,
-      "rate": 73.3,
+      "hits": 334,
+      "rate": 74.9,
       "scored": 446
     },
     "topical": {
@@ -58,13 +58,13 @@
       "scored": 232
     },
     "retrieval/pali": {
-      "hits": 80,
-      "rate": 53.3,
+      "hits": 82,
+      "rate": 54.7,
       "scored": 150
     },
     "retrieval/tibetan": {
-      "hits": 20,
-      "rate": 31.3,
+      "hits": 25,
+      "rate": 39.1,
       "scored": 64
     },
     "topical/chinese": {
@@ -88,9 +88,10 @@
       "scored": 9
     }
   },
+  "errors": 0,
   "overall": {
-    "hits": 1253,
-    "rate": 89.5,
+    "hits": 1260,
+    "rate": 90.0,
     "scored": 1400
   },
   "stale": 0,

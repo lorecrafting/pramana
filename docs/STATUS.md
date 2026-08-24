@@ -1609,17 +1609,47 @@ sessions of ABBA arms went into tuning one knob that turned out to be two.
 Shipped as `@lexical_multiplier 3` / `@semantic_multiplier 6` in `Hybrid`. An explicit
 `depth:` still sets both arms, so nothing that passes one number changes meaning.
 
-**Two consequences deliberately left open rather than quietly resolved:**
+**Both consequences are now resolved, by a full run rather than an extrapolation.**
 
-1. **`evals/baseline.json` is now stale.** It records 327/446 at the old equal default; the
-   shipped configuration scores 334/446. Regenerating it needs a full 1,400-case run at the
-   new default, and `--gate` compares against it, so until that run happens the ratchet is
-   measuring the old configuration. This is written here rather than fixed silently because
-   installing a new baseline is exactly the operation that should never be a side effect.
-2. **The gate now costs ~2.3x on its retrieval half.** The 446 retrieval cases go from ~50
-   min to ~1h50m; the other 954 cases are unaffected. A gate that runs at a cheaper depth
-   than the product is not measuring the product — so the choice is to accept the slower
-   gate or to accept a known divergence, and it should be made explicitly.
+**The baseline is regenerated: 1,400 cases, 90.0% (1260/1400), 0 errored, 0 stale.** Run at
+the shipped default with no experiment flags, so it measures what ships. The category diff
+against the old baseline is the cleanest possible result:
+
+| | old | new | |
+|---|---|---|---|
+| retrieval | 327/446 | **334/446** | **+7** |
+| provenance | 300/300 | 300/300 | — |
+| quote_verify | 300/300 | 300/300 | — |
+| quote_reject | 301/301 | 301/301 | — |
+| absence | 4/4 | 4/4 | — |
+| topical | 21/49 | 21/49 | — |
+| **overall** | **89.5%** | **90.0%** | |
+
+**Retrieval is the only category that moved**, which is what a retrieval-depth change should
+look like and is not guaranteed — #43 measured 1,665 gloss vectors displacing Pāli answers,
+so a change rippling into another category is a real failure mode. The per-tradition figures
+(chinese 227/232, pali 82/150, tibetan 25/64) reproduce the standalone 446-case run
+**exactly**, from a separate execution.
+
+**89.5% → 90.0% is a real +7 cases, unlike the last time this number rose.** When the set
+grew 249 → 1,400 the average went 79.5% → 89.4% while nothing improved, because the mix
+changed. Here the denominator is identical and only retrieval moved.
+
+**The gate cost, measured rather than projected — and the honest figure is a range.** The
+446 retrieval cases took **~2h23m** inside this run against **1h50m** for the same cases
+standalone two hours earlier, and ~50 min at the old default. So the multiplier is somewhere
+between **2.2x and 2.9x**, and the spread is not depth: the machine measurably slowed across
+a six-hour session of continuous eval runs, with the Chinese block drifting from 24.9 s/case
+to ~39 s/case. The full set now runs **3h08m** wall clock; the previously recorded "62
+minutes" was CPU time and is not comparable.
+
+That leaves the real question **unresolved and deliberately so**: a 3h gate is not something
+anyone runs at every checkpoint, and running the gate at a cheaper depth than the product
+means the gate stops measuring the product. Options, none yet chosen — accept the slow gate;
+run a fast subset per commit and the full set per phase; or make the gate's depth explicit in
+its output so a cheap run can never be mistaken for the real one. **Do not resolve this by
+quietly setting the gate to a shallower depth**, which is the tempting move and the one that
+makes the number meaningless.
 
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
