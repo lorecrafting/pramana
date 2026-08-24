@@ -1,0 +1,93 @@
+[info] Falling back to 1 / sqrt(x) for f32 false
+  10/1400 cases · 6.3s elapsed · ~14m30s left      20/1400 cases · 6.3s elapsed · ~7m14s left      30/1400 cases · 6.3s elapsed · ~4m48s left      40/1400 cases · 6.3s elapsed · ~3m35s left      50/1400 cases · 6.4s elapsed · ~2m52s left      60/1400 cases · 6.4s elapsed · ~2m22s left      70/1400 cases · 6.4s elapsed · ~2m02s left      80/1400 cases · 6.4s elapsed · ~1m46s left      90/1400 cases · 6.5s elapsed · ~1m34s left      100/1400 cases · 6.5s elapsed · ~1m24s left      110/1400 cases · 6.5s elapsed · ~1m16s left      120/1400 cases · 6.5s elapsed · ~1m10s left      130/1400 cases · 6.6s elapsed · ~1m04s left      140/1400 cases · 6.6s elapsed · ~59s left      150/1400 cases · 6.6s elapsed · ~55s left      160/1400 cases · 6.6s elapsed · ~51s left      170/1400 cases · 6.7s elapsed · ~48s left      180/1400 cases · 6.7s elapsed · ~45s left      190/1400 cases · 6.7s elapsed · ~43s left      200/1400 cases · 6.8s elapsed · ~41s left      210/1400 cases · 6.8s elapsed · ~38s left      220/1400 cases · 6.8s elapsed · ~37s left      230/1400 cases · 6.9s elapsed · ~35s left      240/1400 cases · 6.9s elapsed · ~33s left      250/1400 cases · 6.9s elapsed · ~32s left      260/1400 cases · 6.9s elapsed · ~30s left      270/1400 cases · 7.0s elapsed · ~29s left      280/1400 cases · 7.0s elapsed · ~28s left      290/1400 cases · 7.0s elapsed · ~27s left      300/1400 cases · 7.0s elapsed · ~26s left      310/1400 cases · 7.1s elapsed · ~25s left      320/1400 cases · 7.1s elapsed · ~24s left      330/1400 cases · 7.1s elapsed · ~23s left      340/1400 cases · 7.1s elapsed · ~22s left      350/1400 cases · 7.1s elapsed · ~21s left      360/1400 cases · 7.1s elapsed · ~21s left      370/1400 cases · 7.1s elapsed · ~20s left      380/1400 cases · 7.2s elapsed · ~19s left      390/1400 cases · 7.2s elapsed · ~19s left      400/1400 cases · 7.2s elapsed · ~18s left      410/1400 cases · 7.2s elapsed · ~17s left      420/1400 cases · 7.2s elapsed · ~17s left      430/1400 cases · 7.2s elapsed · ~16s left      440/1400 cases · 7.3s elapsed · ~16s left      450/1400 cases · 7.3s elapsed · ~15s left      460/1400 cases · 7.3s elapsed · ~15s left      470/1400 cases · 7.3s elapsed · ~14s left      480/1400 cases · 7.3s elapsed · ~14s left      490/1400 cases · 7.3s elapsed · ~14s left      500/1400 cases · 7.3s elapsed · ~13s left      510/1400 cases · 7.4s elapsed · ~13s left      520/1400 cases · 7.4s elapsed · ~12s left      530/1400 cases · 7.4s elapsed · ~12s left      540/1400 cases · 7.4s elapsed · ~12s left      550/1400 cases · 7.4s elapsed · ~11s left      560/1400 cases · 7.4s elapsed · ~11s left      570/1400 cases · 7.4s elapsed · ~11s left      580/1400 cases · 7.5s elapsed · ~11s left      590/1400 cases · 7.5s elapsed · ~10s left      600/1400 cases · 7.5s elapsed · ~10s left      610/1400 cases · 7.5s elapsed · ~10s left      620/1400 cases · 7.5s elapsed · ~9.0s left      630/1400 cases · 7.6s elapsed · ~9.0s left      640/1400 cases · 7.6s elapsed · ~9.0s left      650/1400 cases · 7.6s elapsed · ~9.0s left      660/1400 cases · 7.6s elapsed · ~9.0s left      670/1400 cases · 7.6s elapsed · ~8.0s left      680/1400 cases · 7.6s elapsed · ~8.0s left      690/1400 cases · 7.7s elapsed · ~8.0s left      700/1400 cases · 7.7s elapsed · ~8.0s left      710/1400 cases · 7.7s elapsed · ~7.0s left      720/1400 cases · 7.7s elapsed · ~7.0s left      730/1400 cases · 7.7s elapsed · ~7.0s left      740/1400 cases · 7.8s elapsed · ~7.0s left      750/1400 cases · 7.8s elapsed · ~7.0s left      760/1400 cases · 7.8s elapsed · ~7.0s left      770/1400 cases · 7.8s elapsed · ~6.0s left      780/1400 cases · 7.8s elapsed · ~6.0s left      790/1400 cases · 7.9s elapsed · ~6.0s left      800/1400 cases · 7.9s elapsed · ~6.0s left      810/1400 cases · 7.9s elapsed · ~6.0s left      820/1400 cases · 7.9s elapsed · ~6.0s left      830/1400 cases · 7.9s elapsed · ~5.0s left      840/1400 cases · 8.0s elapsed · ~5.0s left      850/1400 cases · 8.0s elapsed · ~5.0s left      860/1400 cases · 8.0s elapsed · ~5.0s left      870/1400 cases · 8.1s elapsed · ~5.0s left      880/1400 cases · 8.1s elapsed · ~5.0s left      890/1400 cases · 8.1s elapsed · ~5.0s left      900/1400 cases · 8.1s elapsed · ~5.0s left      910/1400 cases · 25s elapsed · ~14s left      920/1400 cases · 55s elapsed · ~29s left      930/1400 cases · 1m22s elapsed · ~42s left      940/1400 cases · 1m51s elapsed · ~55s left      950/1400 cases · 2m23s elapsed · ~1m08s left      960/1400 cases · 2m53s elapsed · ~1m19s left      970/1400 cases · 3m22s elapsed · ~1m30s left      980/1400 cases · 3m52s elapsed · ~1m40s left      990/1400 cases · 4m22s elapsed · ~1m49s left      1000/1400 cases · 4m50s elapsed · ~1m56s left      1010/1400 cases · 5m18s elapsed · ~2m03s left      1020/1400 cases · 5m45s elapsed · ~2m09s left      1030/1400 cases · 6m15s elapsed · ~2m15s left      1040/1400 cases · 6m42s elapsed · ~2m19s left      1050/1400 cases · 7m10s elapsed · ~2m23s left      1060/1400 cases · 7m37s elapsed · ~2m27s left      1070/1400 cases · 8m05s elapsed · ~2m30s left      1080/1400 cases · 8m33s elapsed · ~2m32s left      1090/1400 cases · 8m57s elapsed · ~2m33s left      1100/1400 cases · 9m26s elapsed · ~2m34s left      1110/1400 cases · 9m55s elapsed · ~2m36s left      1120/1400 cases · 10m22s elapsed · ~2m36s left      1130/1400 cases · 10m46s elapsed · ~2m35s left      1140/1400 cases · 11m12s elapsed · ~2m33s left      1150/1400 cases · 11m32s elapsed · ~2m31s left      1160/1400 cases · 11m54s elapsed · ~2m28s left      1170/1400 cases · 12m12s elapsed · ~2m24s left      1180/1400 cases · 12m31s elapsed · ~2m20s left      1190/1400 cases · 12m52s elapsed · ~2m16s left      1200/1400 cases · 13m12s elapsed · ~2m12s left      1210/1400 cases · 13m30s elapsed · ~2m07s left      1220/1400 cases · 13m43s elapsed · ~2m02s left      1230/1400 cases · 13m57s elapsed · ~1m56s left      1240/1400 cases · 14m09s elapsed · ~1m50s left      1250/1400 cases · 14m23s elapsed · ~1m44s left      1260/1400 cases · 14m34s elapsed · ~1m37s left      1270/1400 cases · 14m47s elapsed · ~1m31s left      1280/1400 cases · 15m00s elapsed · ~1m24s left      1290/1400 cases · 15m14s elapsed · ~1m18s left      1300/1400 cases · 15m25s elapsed · ~1m11s left      1310/1400 cases · 15m37s elapsed · ~1m04s left      1320/1400 cases · 15m51s elapsed · ~58s left      1330/1400 cases · 16m04s elapsed · ~51s left      1340/1400 cases · 16m20s elapsed · ~44s left      1350/1400 cases · 16m34s elapsed · ~37s left      1360/1400 cases · 16m50s elapsed · ~30s left      1370/1400 cases · 17m04s elapsed · ~22s left      1380/1400 cases · 17m22s elapsed · ~15s left      1390/1400 cases · 17m52s elapsed · ~8.0s left      1400/1400 cases · 18m13s elapsed · ~0.0s left    
+pramana evals — 1400 case(s) in 1093.5s
+  scored:  1400   hits 1260   misses 140
+  stale:   0   (premises no longer hold; excluded from the rate)
+  overall: 90.0%
+
+
+    BY CASE TYPE
+      absence          100.0%  (4/4)
+      provenance       100.0%  (300/300)
+      quote_reject     100.0%  (301/301)
+      quote_verify     100.0%  (300/300)
+      retrieval        74.9%  (334/446)  mean rank 2.34
+      topical          42.9%  (21/49)  mean rank 2.62
+
+    BY TRADITION
+      chinese          96.9%  (526/543)  mean rank 1.98
+      chinese-native   100.0%  (12/12)  mean rank 1.42
+      pali             54.8%  (91/166)  mean rank 3.2
+      tibetan          35.1%  (26/74)  mean rank 3.24
+
+    BY CASE TYPE x TRADITION
+      provenance / chinese         100.0%  (299/299)
+      provenance / tibetan         100.0%  (1/1)
+      retrieval / chinese          97.8%  (227/232)  mean rank 1.98
+      retrieval / pali             54.7%  (82/150)  mean rank 3.09
+      retrieval / tibetan          39.1%  (25/64)  mean rank 3.24
+      topical / chinese            0.0%  (0/12)
+      topical / chinese-native     100.0%  (12/12)  mean rank 1.42
+      topical / pali               56.3%  (9/16)  mean rank 4.22
+      topical / tibetan            0.0%  (0/9)
+
+    ANSWERED FROM ANY TRADITION   72.7%  (8/11 topics)
+      unanswered: divine-abidings, eightfold-path, loving-kindness
+
+    ADVERSARIAL       100.0%  (305/305)
+
+
+
+
+    FAILURES
+      [retrieval] def-017
+        query: 云何為二法
+        %{rank: 16, beyond_k: 10}
+      [retrieval] def-062
+        query: 云何為一法
+        %{rank: 17, beyond_k: 10}
+      [retrieval] def-082
+        query: 云何為十一
+        %{rank: 12, beyond_k: 10}
+      [retrieval] def-197
+        query: 云何為人演
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] def-213
+        query: 云何為二一者
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-004
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-005
+        query: Colophon The Indian preceptor Prajñāvarman and the chief editor-translator, Bandé Yeshé Dé, translated, edited, and finalized this work.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-007
+        query: This completes “The Noble Hundred and Eight Names of Avalokiteśvara,” called “The Receptacle of the Relics of all Victors.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-009
+        query: This concludes the noble dhāraṇī “Essence of Immeasurable Longevity and Wisdom.” Colophon Translated by the Indian preceptor Puṇya­sambhava and the translator Patsap Nyima Drak.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-010
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling at the Kūṭāgāraśālā in the forest outside Vaiśālī
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-011
+        query: rejoiced and praised what the Blessed One had said. This concludes the noble Great Vehicle sūtra “The Seal of Dharma.” Colophon This was translated and finalized by the translators Bandé Lui Wangpo and Lhai Dawa.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-012
+        query: Colophon This was translated by the Indian preceptors Sarvajñadeva, Vidyākaraprabha, and Dharmākara and the translator Bandé Zangkyong. It was then edited and finalized by the translator-editor Bandé Kawa Paltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-015
+        query: Colophon This was translated by the paṇḍita Gayādhara and the translator-monk Śākya Yeshé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-017
+        query: Colophon This was translated, edited, and finalized by the Indian preceptor Prajñāvarman, the translator-editor Bandé Yeshé Dé, and others.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-018
+        query: This completes the “Mahāmāyātantra.” Colophon It was translated and edited by the Indian preceptor Jinavara and the great Tibetan translator Gö [515] Lhetsé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+
+
+  ran 1400 case(s) in 18m13s (1.3 cases/s)
+
+  gate OK — no case type regressed against 1400 baseline cases
+exit=0

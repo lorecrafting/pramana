@@ -1649,10 +1649,11 @@ product.
 
 **It was not a policy choice. It was a bug**, found within the hour — 38 of every 41 seconds
 of a search were `texts.body` being shipped for nothing. See *A search took 41 seconds*
-below: the retrieval half is now ~17 min and the full set ~50 min, so the gate runs what
-ships and no divergence is needed. Recorded here because the instinct to solve a cost problem
-with a sampling policy was wrong, and would have permanently degraded the instrument to
-avoid profiling a query.
+below. **The full gate now runs in 18m13s against 3h08m, a 10.3x speedup**, verified by an
+actual `--gate` run: 1,400 cases, 90.0%, every row identical to baseline, `gate OK`.
+
+Recorded here because the instinct to solve a cost problem with a sampling policy was wrong,
+and would have permanently degraded the instrument to avoid profiling a query.
 
 ### A search took 41 seconds, and 38 of them were `texts.body` again (#10)
 
@@ -1717,12 +1718,27 @@ Mean ranks agreeing to two decimals is stronger evidence than the hit counts: no
 the same passages found, but in the same order. `evals/baseline.json` therefore stays valid
 — nothing it records moved.
 
-**This retires the gate tension recorded above.** The full 1,400-case gate was 3h08m and
-the open question was whether to run it shallower than the product and accept that it would
-stop measuring the product. At the new cost the retrieval half is ~17 min, so the whole set
-lands near **50 minutes** — back in the range it occupied historically. **The gate can run
-what ships.** The tension was never really depth against cost; it was 38 seconds per search
-of pure waste, and no policy would have been the right answer to it.
+**This retires the gate tension recorded above, by 10.3x.** Verified with a real `--gate`
+run rather than projected: **1,400 cases in 18m13s against 3h08m**, 90.0%, every row
+identical to baseline including mean ranks, `gate OK — no case type regressed`.
+
+| | before | after |
+|---|---|---|
+| the 901 non-retrieval cases | ~28 min | **8 s** |
+| the 446 retrieval cases | 2h23m | ~17 min |
+| **full gate** | **3h08m** | **18m13s** |
+
+**The non-retrieval half is the part nobody predicted, including twice by me.** I sized this
+first at "~50 minutes" and then at "~21 minutes", both too pessimistic, because both times I
+sized only the retrieval half I had been staring at. `provenance`, `citation_guard`,
+`quote_verify` and `quote_reject` all resolve URNs through `Corpus.fetch_span/1` — one of
+the four body sites — so 901 cases went from ~28 minutes to **8 seconds**. The same
+estimation error as every other one today, in the flattering direction for once: **size the
+whole thing, not the half you were looking at.**
+
+A gate at 18 minutes is a different instrument from a gate at three hours: it can run on
+every change rather than at phase boundaries. The tension was never depth against cost; it
+was 38 seconds per search of pure waste, and no policy would have been the right answer.
 
 **The lesson is about where the day went.** Every measurement was sound and every
 conclusion followed from its evidence — the ABBA arms, the arm-attribution probe, the
@@ -2799,6 +2815,7 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 | **#21 Tibetan measured, three ways** | **909** | **retrieval@10 69.3%** (zh 97.1 / pa 55.0 / **bo 35.0**) | **100%** verify + reject + provenance | evals 249 cases in 15 min | overall **79.5%**, 0 stale; topical bo 0% — 95% of the Kangyur has no English layer |
 | **#21 term anchors** | **952** | — | 59 of 60 three-way anchors reachable in both canons | glossary ingest 27 s / 396 files | **56,382 entries, 16,741 Skt / 25,524 Tib terms, 865 three-way; 2,756 divergent** |
 | **#19 per_tradition decided** | **995** | **68.4% @10** under per_tradition (zh 97.8 / pa 42.7 / bo 21.9) vs **73.3%** default | **100%** verify + reject + provenance | full set **3h09m**; `--only topical` 5m22s | 1,400 cases, 0 stale; **opt-in confirmed** — 22 pinpoint cases lost for 2 topical; answered-from-any-canon 72.7% → 54.5% |
+| **#10 the 41-second search** | **1042** | **retrieval@10 74.9%** (zh 97.8 / pa 54.7 / **bo 39.1**) | **100%** verify + reject + provenance | **full gate 3h08m -> 18m13s**; one search 41.1s -> 2.2s | 1,400 cases, **90.0%**, 0 stale, 0 errored; `texts.body` removed from 4 call sites |
 
 The `zh 98.7` in the `#19` row above was **corrected to 97.1** on 2026-08-22. It was a
 by-tradition figure that silently included the 40 provenance cases, so its sub-rows did
