@@ -159,76 +159,85 @@ defmodule Pramana.Segment.TaishoTest do
     end
   end
 
-  describe "an anchor the markup re-announces" do
-    # CBETA re-emits `<lb>` when an element spans the line it opened on, so one printed
-    # line arrives as two fragments with the SAME number and edition. Emitting both gives
-    # them one URN between them, and the insert dies on `segments_urn_index` — which
-    # killed 284 of 1,236 works when CBETA's X collection was first baked. The Taishō
-    # survived only because its repeats carry nothing on the second occurrence.
-    test "is one segment, not two" do
-      {_ir, segments} =
-        segments!(
-          ~s(<milestone n="1" unit="juan"/><lb n="0831b01"/>馬鳴菩薩<lb n="0831b01"/><note place="inline">吉備大臣</note>)
-        )
+  describe "a file carrying several editions' lineations" do
+    # CBETA's X collection prints TWO line numberings side by side:
+    #
+    #     <lb ed="X" n="0019a11"/><lb ed="R055" n="0019a01"/>
+    #     <lb ed="X" n="0019a12"/><lb ed="R055" n="0019a01"/>
+    #
+    # `ed="X"` is the 卍新纂 lineation the collection is cited by; `ed="R055"` is the
+    # earlier 卍續藏經 reprint's, and one R line spans many X lines. Treating every `<lb>`
+    # as a line boundary conflated them — `0019a01` arrived 56 times in one work, and 284
+    # of 1,236 X works died on `segments_urn_index`.
+    #
+    # Measured: T09n0262 has 5,409 `<lb>`, every one `ed="T"`. X35n0640 has 1,196 `ed="X"`
+    # beside 1,194 `ed="R055"`. A rule that was right for one collection stayed invisible
+    # until a second arrived.
+    defp x_segments!(body_xml) do
+      xml = """
+      <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+      <text><body>#{body_xml}</body></text></TEI>
+      """
 
-      assert length(segments) == 1
-      assert hd(segments).urn =~ "p0831b01"
+      {:ok, ir} = CBETA.normalize(xml, work_id: "X0640", canon: "X", volume: 35, number: "0640")
+      {:ok, segments} = Taisho.segments(ir, source: "cbeta", witness: "X")
+      {ir, segments}
     end
 
-    test "keeps the note, which is printed content and must stay addressable" do
-      {_ir, [seg]} =
-        segments!(
-          ~s(<milestone n="1" unit="juan"/><lb n="0831b01"/>馬鳴菩薩<lb n="0831b01"/><note place="inline">吉備大臣</note>)
+    test "only the collection's own lineation becomes a line" do
+      {_ir, segs} =
+        x_segments!(
+          ~s(<lb ed="X" n="0019a11"/><lb ed="R055" n="0019a01"/>甲) <>
+            ~s(<lb ed="X" n="0019a12"/><lb ed="R055" n="0019a01"/>乙)
         )
 
-      # The note is not inline in `content` — the normalizer routes inline notes to
-      # `meta["notes"]` and leaves that fragment's text empty. So the merge has to carry
-      # META across, not only text: dropping the second fragment would lose the note, and
-      # rule 3 says an inline note is printed content that needs an address.
-      assert seg.content =~ "馬鳴菩薩"
-      assert inspect(seg.meta) =~ "吉備大臣"
+      assert length(segs) == 2
+
+      assert Enum.map(segs, & &1.urn) == [
+               "pramana:cbeta.X:X0640@p0019a11",
+               "pramana:cbeta.X:X0640@p0019a12"
+             ]
     end
 
-    test "stays byte-verifiable against the body, newline included" do
-      # THE ASSERTION THAT CONSTRAINS THE FIX. `IR.body/1` joins lines with "\n", so the
-      # bytes between the two fragments in the body ARE a newline. A merged span must
-      # contain it or the slice stops equalling the content and invariant #1 breaks
-      # silently for exactly these lines.
-      {ir, [seg]} =
-        segments!(
-          ~s(<milestone n="1" unit="juan"/><lb n="0831b01"/>馬鳴菩薩<lb n="0831b01"/><note place="inline">吉備大臣</note>)
+    test "the other edition's repeated number cannot collide" do
+      # This is the failure it exists to prevent: one R line spanning three X lines used
+      # to emit three segments all claiming `p0019a01`.
+      {_ir, segs} =
+        x_segments!(
+          ~s(<lb ed="X" n="0019a11"/><lb ed="R055" n="0019a01"/>甲) <>
+            ~s(<lb ed="X" n="0019a12"/><lb ed="R055" n="0019a01"/>乙) <>
+            ~s(<lb ed="X" n="0019a13"/><lb ed="R055" n="0019a01"/>丙)
         )
 
-      body = IR.body(ir)
-
-      assert binary_part(body, seg.byte_start, seg.byte_end - seg.byte_start) == seg.content
-
-      assert :crypto.hash(:sha256, seg.content) |> Base.encode16(case: :lower) ==
-               seg.content_sha256
+      urns = Enum.map(segs, & &1.urn)
+      assert length(urns) == 3
+      assert urns == Enum.uniq(urns)
     end
 
-    test "leaves ordinals contiguous" do
-      # `Corpus.between/4` selects by ordinal RANGE, so a gap left by merging would
-      # silently shorten every chunk and range URN crossing it.
-      {_ir, segments} =
-        segments!(
-          ~s(<milestone n="1" unit="juan"/><lb n="0001a01"/>甲<lb n="0001a01"/><note place="inline">乙</note><lb n="0001a02"/>丙<lb n="0001a03"/>丁)
+    test "text is attributed to the line it was printed on, not the one before" do
+      # Dropping the foreign `<lb>` must not also drop the text following it. If the R tag
+      # ended the line, 乙 would be attributed to 0019a11.
+      {_ir, segs} =
+        x_segments!(
+          ~s(<lb ed="X" n="0019a11"/>甲<lb ed="R055" n="0019a01"/>) <>
+            ~s(<lb ed="X" n="0019a12"/>乙)
         )
 
-      assert Enum.map(segments, & &1.ordinal) == Enum.to_list(0..(length(segments) - 1))
+      assert Enum.map(segs, & &1.content) == ["甲", "乙"]
     end
 
-    test "an anchor repeated NON-adjacently is left alone" do
-      # Two fragments with a different line between them are not one printed line — they
-      # are the edition printing an anchor twice, which is a different problem with a
-      # different remedy (see the Derge `+2` precedent). Merging them would fuse distinct
-      # passages, so this deliberately still produces two segments.
-      {_ir, segments} =
-        segments!(
-          ~s(<milestone n="1" unit="juan"/><lb n="0019a01"/>甲<lb n="0019a02"/>乙<lb n="0019a01"/>丙)
-        )
+    test "an lb with no edition is still a line" do
+      # Older CBETA files omit `ed` entirely, and there the collection's own lineation is
+      # the only one present. Requiring the attribute would empty those texts silently.
+      {_ir, segs} = x_segments!(~s(<lb n="0019a11"/>甲<lb n="0019a12"/>乙))
 
-      assert length(segments) == 3
+      assert length(segs) == 2
+    end
+
+    test "the Taishō is unaffected, because its files carry one lineation" do
+      {_ir, segs} = segments!(~s(<lb ed="T" n="0001a01"/>甲<lb ed="T" n="0001a02"/>乙))
+
+      assert length(segs) == 2
     end
   end
 

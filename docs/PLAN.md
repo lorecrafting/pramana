@@ -144,22 +144,27 @@ embedding — the GPU spend stays a separate decision.
    nothing on the second occurrence, so the blank-line rule already dropped them; X's
    carry an inline note, which rule 3 says must stay addressable.
 
-**Adjacent fragments are now merged** — one printed line, however often the markup
-re-announces it — with the joining newline kept inside the span, because `IR.body/1` joins
-lines with it and a span that omitted it would stop byte-verifying. Measured on 40 of the
-289 failures: **26 now clean, 14 still duplicated.**
+   **The first fix for this was wrong and was reverted.** Diagnosed from one file as
+   "markup re-announces the line", it merged *adjacent* same-anchor fragments and cleared
+   26 of 40 sampled failures — which looked like progress and was papering over the real
+   cause. The truth, found by reading the raw XML instead of the parsed output:
 
-**~101 works still fail, and they are a DIFFERENT problem.** Their repeats are
-*non-adjacent* — the same anchor with other lines between — which is the edition printing
-an anchor twice, not markup splitting one line. Merging them would fuse distinct passages.
-Derge met this exactly and answered it: keep the printed anchor with `+2` appended, "visibly
-not a folio reference", so a reader learns the edition is ambiguous rather than receiving a
-citation that looks clean and resolves wrongly.
+       <lb ed="X" n="0019a11"/><lb ed="R055" n="0019a01"/>
+       <lb ed="X" n="0019a12"/><lb ed="R055" n="0019a01"/>
 
-**That fix needs a citation-grammar change and is NOT done.** `URN.parse/1` already tolerates
-`p0019a01+2`, but `Taisho.parse_locator/1` rejects it, so page/register/line would read nil.
-Changing Taishō locator grammar is invariant #2 territory and wants a deliberate decision,
-not the tail of a long session.
+   **X files carry TWO lineations.** `ed="X"` is the 卍新纂 numbering the collection is
+   cited by; `ed="R055"` is the earlier 卍續藏經 reprint's, and one R line spans many X
+   lines. The normalizer ignored `ed` and treated every `<lb>` as a line, conflating them —
+   so the merge was joining an X line to an R line, which is nonsense.
+
+   **The real fix is to keep only the collection's own lineation.** Measured across 60 X
+   files: all 60 carry `ed="X"`, all 60 also carry `ed="R<num>"`, and **no `<lb>` lacks an
+   `ed`**. Within `ed="X"` alone, **0 of 25 files have a repeated anchor** — filtering by
+   edition removes every duplicate, and the merge was never needed.
+
+   T is untouched: T09n0262 has 5,409 `<lb>`, every one `ed="T"`. `mix pramana.verify
+   --source cbeta` reports **978 mismatches, all X, zero T** — exactly the works baked with
+   the old normalizer, which the re-bake resolves.
 
 **Still open:** the GPU spend for embedding X, unchanged and still needing a human.
 

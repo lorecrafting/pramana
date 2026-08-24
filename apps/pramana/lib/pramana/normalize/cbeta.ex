@@ -64,7 +64,7 @@ defmodule Pramana.Normalize.CBETA do
   @impl Pramana.Pipeline.Normalizer
   @spec normalize(binary() | Enumerable.t(), keyword()) :: {:ok, IR.t()} | {:error, term()}
   def normalize(xml, opts) do
-    state = initial_state()
+    state = initial_state(opts)
 
     result =
       case xml do
@@ -75,8 +75,13 @@ defmodule Pramana.Normalize.CBETA do
     with {:ok, final} <- result, do: {:ok, build_ir(final, opts)}
   end
 
-  defp initial_state do
+  defp initial_state(opts) do
     %{
+      # Which edition's lineation counts as THE line. See `canonical_lineation?/2`.
+      canon: Keyword.fetch!(opts, :canon),
+      # `<lb>` tags belonging to another edition, counted so that filtering everything
+      # away is a loud failure rather than an empty text.
+      skipped_lb: 0,
       suppress: 0,
       in_char_decl: false,
       in_body: false,
@@ -136,14 +141,18 @@ defmodule Pramana.Normalize.CBETA do
   # <lb/> and all, so treating those as line boundaries invents ~35 phantom lines with
   # DUPLICATE anchors — which would mean non-unique URNs and apparatus attached twice.
   defp start_element("lb", attrs, %{in_body: true} = state) do
-    # A new physical line begins: close out the previous one first.
-    #
-    # `juan` and `kind` are captured HERE, not at flush time. Flushing happens when
-    # the *next* <lb/> arrives, by which point a </lg> or a new <milestone> may have
-    # already changed the running state — recording them then attributes each line's
-    # properties to its neighbour.
-    state = flush_line(state)
-    %{state | anchor: attr(attrs, "n"), line_juan: state.juan, line_kind: state.kind}
+    if canonical_lineation?(attrs, state.canon) do
+      # A new physical line begins: close out the previous one first.
+      #
+      # `juan` and `kind` are captured HERE, not at flush time. Flushing happens when
+      # the *next* <lb/> arrives, by which point a </lg> or a new <milestone> may have
+      # already changed the running state — recording them then attributes each line's
+      # properties to its neighbour.
+      state = flush_line(state)
+      %{state | anchor: attr(attrs, "n"), line_juan: state.juan, line_kind: state.kind}
+    else
+      %{state | skipped_lb: state.skipped_lb + 1}
+    end
   end
 
   defp start_element("lb", _attrs, state), do: state
@@ -506,6 +515,32 @@ defmodule Pramana.Normalize.CBETA do
     do: %{line | gaiji: Enum.map(line.gaiji, &%{ref: &1, mapping: Map.get(table, &1)})}
 
   # ---- small helpers ----
+
+  # A CBETA file may carry SEVERAL editions' lineations side by side, and only one of
+  # them is this text's own:
+  #
+  #     <lb ed="X" n="0019a11"/><lb ed="R055" n="0019a01"/>
+  #     <lb ed="X" n="0019a12"/><lb ed="R055" n="0019a01"/>
+  #
+  # `ed="X"` is the 卍新纂大日本續藏經 lineation this collection is cited by; `ed="R055"` is
+  # the earlier 卍續藏經 reprint's, and one R line spans many X lines. Treating every `<lb>`
+  # as a line boundary conflates the two, so `0019a01` arrived 56 times in one work and
+  # **284 of 1,236 X works died on `segments_urn_index`**.
+  #
+  # The Taishō never showed this because its files carry `ed="T"` and nothing else —
+  # measured: T09n0262 has 5,409 `<lb>` and all of them are `ed="T"`, while X35n0640 has
+  # 1,196 `ed="X"` beside 1,194 `ed="R055"`. A rule that was right for one collection was
+  # invisible until a second arrived, which is the same shape as the witness bug fixed
+  # alongside it.
+  #
+  # An `<lb>` with no `ed` is accepted: older CBETA files omit it, and the collection's own
+  # lineation is the only one present there.
+  defp canonical_lineation?(attrs, canon) do
+    case attr(attrs, "ed") do
+      nil -> true
+      ed -> ed == canon
+    end
+  end
 
   defp attr(attrs, name), do: Enum.find_value(attrs, fn {k, v} -> if k == name, do: v end)
 
