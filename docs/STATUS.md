@@ -194,9 +194,16 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
   grapheme windows were producing `་པ་`, which matches 89.6% of the corpus.
 - **The embedder, not the corpus, now bounds Tibetan retrieval.** Measured below: BGE-M3's
   mean pairwise cosine for Tibetan is 0.9727 against 0.84 for Pāli, so ranking within
-  Tibetan is weak by construction. This bullet used to continue "a reranker first, then a
-  Tibetan-fine-tuned embedder" — **the reranker half is now measured and demoted**; see
-  *What a reranker could actually fix* below. Tibetan's problem is RECALL, not order.
+  Tibetan is weak by construction. Tibetan's own problem is RECALL, not order — half its
+  gold never enters a 200-candidate pool — so a reranker cannot reach it and the
+  fine-tuned embedder is the lever *for Tibetan*.
+
+  **This bullet demoted the reranker for the whole system on that evidence, and that was
+  wrong.** Pāli is 150 of the retrieval cases against Tibetan's 64, and Pāli fails the
+  opposite way: its gold is retrieved 84% of the time and merely mis-ranked, so a
+  reranker is worth **+44 cases** there against +9 in Tibetan. See *The reranker verdict
+  was right about Tibetan and wrong about the system*. Rerank for Pāli, embed for
+  Tibetan.
 - **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
   `botok` in the Python sidecar is the intended syllable/particle segmenter
   (`CLAUDE.md`), and nothing uses it yet.
@@ -1905,6 +1912,41 @@ and it was read instead as "the tail matters", which was true and beside the poi
 maintainer's puzzle. Recorded here so the next person who notices `ef_search` at its
 default does not spend the afternoon on it: **it is not a bug, it is subsumed by the
 iterative scan.** If `iterative_scan` is ever turned off, this becomes live again.
+
+### The reranker verdict was right about Tibetan and wrong about the system (#10)
+
+The section below concluded "Tibetan's problem is RECALL, not order" and demoted the
+reranker on that basis. The measurement was sound and the generalisation was not: it was
+taken over 64 Tibetan cases and applied to a retrieval metric that is **150 Pāli cases**.
+Pāli had never been probed. It is now, and it fails the opposite way.
+
+| | **Pāli (150)** | Tibetan (64) |
+|---|---|---|
+| gold at rank ≤ 10 | 82 (54.7%) | 24 (37.5%) |
+| **gold at rank 11–200** | **44 (29.3%)** | 9 (14.1%) |
+| gold absent from 200 | **24 (16.0%)** | 31 (48.4%) |
+
+**Tibetan cannot be reranked and Pāli can.** Half of Tibetan's gold never enters a
+200-candidate pool, so no reordering reaches it. Pāli's gold is retrieved **84% of the
+time** and simply sits too low: mis-ranked gold sits at 11, 11, 12, 13, 13, 13, 14, 15,
+15, 16, 17, 20, 21, 24 … median **37**, and 30 of the 44 are at rank 62 or better.
+
+**A perfect reranker takes `retrieval/pali` from 82/150 to at most 126/150** — **+44
+cases**, against +9 for Tibetan. Overall retrieval would go 334/446 → up to 378/446. That
+is the largest single gain available anywhere in the system, and it needs **no training**:
+a cross-encoder over the top 50–100 is an off-the-shelf model.
+
+**Why the earlier conclusion inverted the priority.** Tibetan is the weakest language, so
+it drew the attention; but it is 64 cases against Pāli's 150, and the thing that helps it
+(a better embedder — recall) is the expensive, uncertain option that already failed once as
+a LoRA. The thing that helps Pāli (a reranker — ordering) is cheap and untried. The
+sentence "a reranker first, then a Tibetan-fine-tuned embedder" was reversed on Tibetan
+evidence, and reversing it back is correct for the corpus as a whole: **rerank for Pāli,
+embed for Tibetan, and they are different problems needing different tools.**
+
+This is the fourth instance today of a ratio or conclusion measured on one workload and
+applied to another (rule 37), and the first where the error was in a *published
+conclusion* rather than an estimate.
 
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
