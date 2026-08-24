@@ -1748,6 +1748,64 @@ because a *timeout stack trace pointed at `lexical.ex`*. The stack trace named t
 happened to hold the connection when the pool gave up, not the arm consuming the time.
 **Profile the whole operation before optimising the part an error message names.**
 
+### Translate the QUERY, not the canon (#43) — 0% to 91.7%, and term choice is worth 50 points
+
+Stage B was scoped as generating English for ~300,000 Chinese chunks (~$260–770, plus
+re-embedding, plus a 20:1 English-vector imbalance that #43 measured as likely to bury the
+Pāli). The cheaper question was never asked: **`topical/chinese` and
+`topical/chinese-native` are the same twelve questions in two languages**, scoring 0% and
+100%. The passages are indexed and findable. Only the query is in the wrong language.
+
+Two arms over those twelve, scored by the real harness with `expect_contains` **unchanged**
+— only the query rewritten:
+
+| arm | score | mean rank |
+|---|---|---|
+| English (shipped default) | **0.0%** (0/12) | — |
+| **A — the term a translator would pick** | **91.7%** (11/12) | **1.0** |
+| **B — a defensible synonym** | **41.7%** (5/12) | 2.8 |
+| hand-written Chinese (gold) | 100% (12/12) | 1.25 |
+
+**Translating the query recovers nearly everything, for no corpus change at all** — no
+generated text stored, no new vectors, so the imbalance that blocked stage B never arises
+and invariant #8 is not even engaged, because nothing generated is persisted. A
+well-termed Chinese query returns at **mean rank 1.0**, better than the curator's own.
+
+**And the whole risk is term choice, now quantified at ~50 points.** Arm B substituted
+equally legitimate renderings and lost seven cases: 八聖道分 for 八正道, 四念住 for 四念處,
+七菩提分 for 七覺支, 六處 for 六入處, 四等心 for 四無量心, 三十七菩提分法 for 三十七道品,
+空定 for 空三昧. Each is real Buddhist Chinese; each is a register the *corpus does not
+print here*, and lexical matching against a term the edition never uses returns nothing.
+
+Two things make this trustworthy rather than a lucky sample:
+
+- **The single Arm A miss was pre-registered.** Before scoring, the ambiguity note for
+  top-021 read "緣起 vs 十二因緣 — the gold term is the latter". 緣起 was the one term where
+  the natural translation and the canon's phrase diverge, and it is the one case that
+  failed. The failure mode was predicted, not discovered.
+- **Arm B's hit on top-021 is the inversion.** There the "alternative" happened to *be*
+  the gold term, and it passed. The arms are measuring term choice, not query phrasing.
+
+**This reverses the priority between the two candidate mechanisms.** Glossary term mapping
+was assessed as too weak to matter — 84000's `glossary_entries` recovers only 2 of 12 gold
+doctrinal terms as a *retrieval* method. But as a *constraint on translation* it is the
+difference between 91.7% and 41.7%. `docs/TRANSLATION.md` already specifies the shape:
+glossary-pinned translation with a visible term-mapping chain. It is not an enhancement to
+query translation; it is the part that works.
+
+**Caveats, because twelve cases is twelve cases.** One case is 8.3 points here, so Arm A
+against Arm B is decisive while 91.7% against the gold's 100% is not. `topical/*` cannot
+grow without more curated terms (it rejects terms too common to measure), so this axis
+stays statistically thin by construction — the finding to bank is the *ordering* of the
+arms, not their exact rates.
+
+**What it would cost architecturally**, and the reason this is a decision rather than a
+merge: it puts a model in the query path, which today has none. Search would stop being a
+pure function of `bake_id` — the same question could return different passages on different
+days — and it adds ~0.5–1 s to a search now running at 2.2 s. Neither touches the bake,
+reproducibility of the corpus, or what is citable. A translation cache keyed by query hash
+(ROADMAP anticipates one for Phase 7) makes the determinism objection largely go away.
+
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
 The standing plan was "a reranker first, then a Tibetan-fine-tuned embedder". Before
