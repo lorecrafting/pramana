@@ -101,6 +101,42 @@ defmodule Pramana.Corpus.Text do
 
     timestamps(type: :utc_datetime_usec)
   end
+
+  @doc """
+  Every field except `:body`.
+
+  `body` is the ENTIRE normalized work — 27,218 characters on average and 13,279,028 at
+  the largest — and almost nothing that displays a span needs it. Loading a text through
+  a join-preload ships it once per joined row, so a search returning 120 chunks moved
+  tens of megabytes through shared buffers to read a title and a licence class.
+
+  Derived from the schema rather than written out, because the hand-written list this
+  replaced was itself a drift surface: a column added to `texts` and not added to the
+  list would have read as `nil` with no error anywhere. Subtraction cannot go stale.
+  """
+  @spec fields_without_body() :: [atom()]
+  def fields_without_body, do: __schema__(:fields) -- [:body]
+
+  @doc """
+  A query loading a text and its provenance associations, without `body`.
+
+  Pass to `preload:` — as a SEPARATE query, never `preload([s, t], text: {t, ...})`
+  through a join. The join form ships every column of the joined row once per row; this
+  form loads each DISTINCT text once. It must use `struct/2` rather than a `%Text{}`
+  literal, which loses the binding and makes Ecto refuse the query outright.
+
+  This exists as a shared function rather than a rule in a document because the rule was
+  written down after fixing this in one retriever and was promptly re-broken in three
+  other places. `Pramana.Batch` exists for the same reason.
+  """
+  @spec preload_without_body() :: Ecto.Query.t()
+  def preload_without_body do
+    import Ecto.Query, only: [from: 2]
+
+    from t in __MODULE__,
+      preload: [:work, :witness, :source],
+      select: struct(t, ^fields_without_body())
+  end
 end
 
 defmodule Pramana.Corpus.Segment do

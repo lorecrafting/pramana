@@ -87,7 +87,7 @@ defmodule Pramana.Corpus do
                 s.ordinal >= ^(segment.ordinal - before_n) and
                 s.ordinal <= ^(segment.ordinal + after_n),
             order_by: s.ordinal,
-            preload: [text: {t, [:work, :witness, :source]}]
+            preload: [text: ^Text.preload_without_body()]
         )
 
       spans = Enum.map(neighbours, &to_span/1)
@@ -229,7 +229,7 @@ defmodule Pramana.Corpus do
             s.text_id == ^text_id and
               s.ordinal >= ^first_ordinal and s.ordinal <= ^last_ordinal,
           order_by: s.ordinal,
-          preload: [text: {t, [:work, :witness, :source]}]
+          preload: [text: ^Text.preload_without_body()]
       )
 
     case segments do
@@ -286,7 +286,7 @@ defmodule Pramana.Corpus do
         join: t in Text,
         on: t.id == s.text_id,
         where: s.urn == ^urn_string,
-        preload: [text: {t, [:work, :witness, :source]}]
+        preload: [text: ^Text.preload_without_body()]
 
     case Repo.one(query) do
       nil -> {:error, :not_found}

@@ -261,7 +261,11 @@ defmodule Pramana.Retrieval.Semantic do
         },
         chunk: c,
         work: w,
-        text: t,
+        # WITHOUT `body`. Selecting the whole Text struct shipped the entire normalized
+        # work — up to 13.3M characters — once per candidate row, and this query
+        # over-fetches `limit * @vector_overfetch`. Nothing downstream reads it:
+        # `Corpus.body/1` fetches the body on its own when offsets need verifying.
+        text: struct(t, ^Text.fields_without_body()),
         score: max_inner_product(v.embedding, ^embedding)
       })
 

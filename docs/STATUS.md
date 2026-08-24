@@ -1643,13 +1643,94 @@ a six-hour session of continuous eval runs, with the Chinese block drifting from
 to ~39 s/case. The full set now runs **3h08m** wall clock; the previously recorded "62
 minutes" was CPU time and is not comparable.
 
-That leaves the real question **unresolved and deliberately so**: a 3h gate is not something
-anyone runs at every checkpoint, and running the gate at a cheaper depth than the product
-means the gate stops measuring the product. Options, none yet chosen — accept the slow gate;
-run a fast subset per commit and the full set per phase; or make the gate's depth explicit in
-its output so a cheap run can never be mistaken for the real one. **Do not resolve this by
-quietly setting the gate to a shallower depth**, which is the tempting move and the one that
-makes the number meaningless.
+That left a question that looked like a policy choice: a 3h gate is not something anyone runs
+at every checkpoint, and running it shallower than the product means it stops measuring the
+product.
+
+**It was not a policy choice. It was a bug**, found within the hour — 38 of every 41 seconds
+of a search were `texts.body` being shipped for nothing. See *A search took 41 seconds*
+below: the retrieval half is now ~17 min and the full set ~50 min, so the gate runs what
+ships and no divergence is needed. Recorded here because the instinct to solve a cost problem
+with a sampling policy was wrong, and would have permanently degraded the instrument to
+avoid profiling a query.
+
+### A search took 41 seconds, and 38 of them were `texts.body` again (#10)
+
+The whole day's work on the lexical arm was optimising **0.03%** of the query. Profiled
+after the depth work, five Chinese gold queries, warmed:
+
+| | before |
+|---|---|
+| lexical arm | **14 ms** |
+| semantic arm | **41,142 ms** |
+
+A 41-second search is a product defect before it is a gate problem — an MCP caller waits
+that long for one `search` call. Splitting it further: the query embedding is **555 ms**
+and the database is **~38 s**, while the equivalent ANN query in `psql` runs in **357 ms**.
+So it was never HNSW, never `ef_search`, and never the iterative scan.
+
+**It was `texts.body`, in the three places the morning's fix did not touch.** Captured from
+Repo telemetry, the semantic path emitted:
+
+- **the ANN select**, which selected the whole `Text` struct — `body` included — for every
+  candidate row, and this query over-fetches `limit * @vector_overfetch`;
+- **an N+1 of ~120 queries**, one per result, each ~200–300 ms, each a
+  `preload([s, t], text: {t, ...})` through a join in `Corpus.between/4` — and each one
+  dragging a whole work to build a range span.
+
+120 × ~250 ms is the missing 30 seconds.
+
+**Four call sites, one defect, and the rule did not prevent it.** Rule 34 was written this
+morning after fixing exactly this in `Retrieval.Lexical`, and by the afternoon the same
+pattern was still live in `Corpus.between/4`, `Corpus.context/2`, `Corpus.fetch_span/1` and
+`Semantic.single_search/2`. Writing the rule down did not sweep for other instances, and
+nothing made the next author's `preload: [text: {t, ...}]` look wrong.
+
+So it is a **shared function** now — `Text.preload_without_body/0` and
+`Text.fields_without_body/0` — for the reason `Pramana.Batch` exists: the 65,535-parameter
+limit was hit, written up as rule 14, and then hit again in a fresh call site. A rule in a
+document does not survive being reimplemented; a function does.
+
+**And the field list is now derived, not written.** The morning's fix listed every `texts`
+column explicitly and its own comment admitted the list was "a drift surface" — a column
+added later and not listed would read as `nil` with no error. `__schema__(:fields) --
+[:body]` cannot go stale, so the drift surface is gone rather than merely tested.
+
+Measured after, same five queries:
+
+| | before | after | |
+|---|---|---|---|
+| semantic arm | 41,142 ms | **3,395 ms** | **12.1x** |
+| hybrid search | 41,169 ms | **2,242 ms** | **18.4x** |
+
+**And the gold set says it changed nothing but the clock.** All 446 retrieval cases:
+
+| | before | after |
+|---|---|---|
+| overall | 334/446 (74.9%) | **334/446 (74.9%)** |
+| chinese | 227/232, mean rank 1.98 | **227/232, mean rank 1.98** |
+| pali | 82/150, mean rank 3.09 | **82/150, mean rank 3.09** |
+| tibetan | 25/64, mean rank 3.24 | **25/64, mean rank 3.24** |
+| **wall clock** | **2h23m** | **17m22s** |
+
+Mean ranks agreeing to two decimals is stronger evidence than the hit counts: not merely
+the same passages found, but in the same order. `evals/baseline.json` therefore stays valid
+— nothing it records moved.
+
+**This retires the gate tension recorded above.** The full 1,400-case gate was 3h08m and
+the open question was whether to run it shallower than the product and accept that it would
+stop measuring the product. At the new cost the retrieval half is ~17 min, so the whole set
+lands near **50 minutes** — back in the range it occupied historically. **The gate can run
+what ships.** The tension was never really depth against cost; it was 38 seconds per search
+of pure waste, and no policy would have been the right answer to it.
+
+**The lesson is about where the day went.** Every measurement was sound and every
+conclusion followed from its evidence — the ABBA arms, the arm-attribution probe, the
+pre-registered criteria. But the whole investigation optimised the lexical arm, which was
+**0.03%** of the query, and the 41-second semantic arm sat unprofiled underneath all of it
+because a *timeout stack trace pointed at `lexical.ex`*. The stack trace named the arm that
+happened to hold the connection when the pool gave up, not the arm consuming the time.
+**Profile the whole operation before optimising the part an error message names.**
 
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
@@ -2518,6 +2599,26 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     been wrong for the next. Cap by *rarity* (length is a free proxy) and verify with
     `EXPLAIN` across the whole gold set — 252 queries took seconds and turned a guess into
     a measurement.
+40. **Profile the whole operation before optimising the part an error message names.** A
+    `DBConnection` timeout stack trace pointed at `lexical.ex`, and a full day went into
+    the lexical arm — a real 32x fix, a real n-gram defect, all of it sound. The lexical
+    arm was **14 ms of a 41,169 ms search**. The stack trace named whichever arm held the
+    connection when the pool gave up, not the one consuming the time; the semantic arm sat
+    unprofiled underneath the entire investigation. One `:timer.tc` around each arm would
+    have reordered the whole day, and it cost two minutes to run.
+41. **A rule written after a fix does not sweep for the other instances.** Rule 34 was
+    written the morning `texts.body` was removed from `Retrieval.Lexical`. By that
+    afternoon the identical `preload([s, t], text: {t, ...})` was still live in three other
+    call sites and a fourth as a `select`, one of them inside an N+1 running 120 times per
+    search — together 38 of a search's 41 seconds. **When a defect is found, grep for its
+    shape before writing the rule**, and prefer a shared function to a rule: `Pramana.Batch`
+    exists because rule 14 was re-broken the same way, and `Text.preload_without_body/0`
+    now exists for this one.
+42. **A hand-maintained column list is a defect with a test, not a fix.** The first version
+    of that preload listed every `texts` column explicitly, with a comment admitting the
+    list was a drift surface and a test to catch drift. `__schema__(:fields) -- [:body]`
+    needs neither: subtraction cannot go stale. When a test exists only to catch a list
+    going out of date, ask whether the list should be derived instead.
 
 ---
 
