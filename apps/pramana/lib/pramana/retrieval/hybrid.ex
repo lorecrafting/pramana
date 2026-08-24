@@ -40,6 +40,7 @@ defmodule Pramana.Retrieval.Hybrid do
   alias Pramana.Embed.Serving
   alias Pramana.Repo
   alias Pramana.Retrieval.Lexical
+  alias Pramana.Retrieval.Rerank
   alias Pramana.Retrieval.Semantic
   alias Pramana.Retrieval.Terms
 
@@ -101,7 +102,14 @@ defmodule Pramana.Retrieval.Hybrid do
           lexical_depth: pos_integer(),
           semantic_depth: pos_integer(),
           lexical_only: boolean(),
-          semantic_only: boolean()
+          semantic_only: boolean(),
+          # Reorder the fused candidates by how much of the query appears in each one's
+          # stored English rendering. ON by default; `false` opts out. See
+          # `Pramana.Retrieval.Rerank`.
+          rerank: boolean(),
+          # Expand English doctrinal terms to the Chinese the canon prints, as a third
+          # fused arm. OFF by default — measured at +2 of 12 and not worth the dilution.
+          expand_terms: boolean()
         ]
 
   @doc """
@@ -135,8 +143,13 @@ defmodule Pramana.Retrieval.Hybrid do
       [lexical, semantic, translated]
       |> Enum.reject(&(&1 == []))
       |> fuse()
-      |> Enum.take(limit)
+      # Rerank over a WIDER slice than the caller asked for, then cut. Reordering only
+      # the top `limit` cannot promote anything from below it, and the whole gain is
+      # candidates sitting at ranks 11-50 (median 37).
+      |> Enum.take(rerank_depth(opts, limit))
       |> Enum.map(&decorate/1)
+      |> maybe_rerank(query, opts)
+      |> Enum.take(limit)
 
     %{
       query: query,
@@ -180,6 +193,33 @@ defmodule Pramana.Retrieval.Hybrid do
   # than refused, as before: depth is not a request from the caller, it is how hard this
   # layer looks before answering. Never below `limit`, because fusing fewer candidates
   # than the caller wants returned is incoherent.
+  # How wide a slice the reranker sees. `limit * 5`, because the mis-ranked gold it exists
+  # to recover sits at a median rank of 37 and reordering only the top `limit` could never
+  # reach it. Bounded by the retrievers' ceiling like every other depth here.
+  @rerank_multiplier 5
+
+  defp rerank_depth(opts, limit) do
+    if rerank?(opts), do: min(limit * @rerank_multiplier, @max_limit), else: limit
+  end
+
+  # ON BY DEFAULT, measured over the whole gold set and every category:
+  #
+  #     retrieval overall   334/446 -> 380/446   +46
+  #       chinese           227/232 -> 227/232   flat (no English renderings to score)
+  #       pali               82/150 -> 122/150   +40, mean rank 3.09 -> 1.51
+  #       tibetan            25/64  ->  31/64    +6,  mean rank 3.24 -> 1.32
+  #     topical overall      21/49  ->  26/49    +5
+  #       topical/tibetan     0/9   ->   2/9     first non-zero ever recorded
+  #     answered from any tradition  72.7% -> 81.8%
+  #
+  # Nothing regressed, which is what #44 requires of a default. `rerank: false` opts out.
+
+  defp maybe_rerank(results, query, opts) do
+    if rerank?(opts), do: Rerank.by_rendering(query, results), else: results
+  end
+
+  defp rerank?(opts), do: Keyword.get(opts, :rerank, true)
+
   defp arm_depth(opts, key, limit, multiplier) do
     explicit = Keyword.get(opts, key) || Keyword.get(opts, :depth)
 
@@ -242,7 +282,7 @@ defmodule Pramana.Retrieval.Hybrid do
   # Options that belong to THIS layer and mean nothing to either retriever, so they are
   # dropped before both. Both retrievers reject an option they do not know — correctly —
   # so a hybrid-level option that reaches either one crashes the search.
-  @hybrid_only_opts [:coverage, :depth, :lexical_depth, :semantic_depth, :expand_terms]
+  @hybrid_only_opts [:coverage, :depth, :lexical_depth, :semantic_depth, :expand_terms, :rerank]
 
   # A THIRD ARM: the English query's doctrinal terms, searched in Chinese.
   #

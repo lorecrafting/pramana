@@ -1913,6 +1913,78 @@ maintainer's puzzle. Recorded here so the next person who notices `ef_search` at
 default does not spend the afternoon on it: **it is not a bug, it is subsumed by the
 iterative scan.** If `iterative_scan` is ever turned off, this becomes live again.
 
+### The reranker needs no model, and it is worth +46 cases (#10)
+
+Once the Pāli diagnosis said "ranking, not recall", the obvious next step was a
+cross-encoder. It was not needed. **The `retrieval` cases quote a published translation,
+and we store that translation** — so comparing the query directly against each candidate's
+rendering separates them far more sharply than a chunk embedding does, at zero inference
+cost. Invariant #5 again: deterministic before probabilistic, and here the deterministic
+answer is also the better one.
+
+`Pramana.Retrieval.Rerank` scores bag-of-words **containment** — how much of the query
+appears in the candidate's rendering — over `limit * 5` fused candidates, then cuts to
+`limit`. Reranking only the top `limit` could never reach the mis-ranked gold, which sits
+at a median rank of 37.
+
+| | baseline | **shipped** |
+|---|---|---|
+| retrieval overall | 334/446 (74.9%) | **380/446 (85.2%)** |
+| retrieval / chinese | 227/232, rank 1.98 | **227/232, rank 1.98** |
+| retrieval / pali | 82/150, rank 3.09 | **122/150, rank 1.51** |
+| retrieval / tibetan | 25/64, rank 3.24 | **31/64, rank 1.32** |
+| topical overall | 21/49 (42.9%) | **26/49 (53.1%)** |
+| topical / tibetan | 0/9 | **2/9** — first non-zero ever recorded |
+| **answered from any tradition** | **72.7%** | **81.8%** |
+
+Nothing regressed, so it ships as the default under #44's rule. `rerank: false` opts out.
+
+**Two predictions were registered before the run; one held and one was wrong in the
+useful direction.** Chinese flat was the falsifier — no English renderings exist over the
+Chinese canon, so every candidate scores 0 and the order must return untouched. It did,
+exactly. Topical was predicted flat-or-worse on the reasoning that a topical query matches
+no stored rendering; it rose by 5, because containment measures how much of the *query*
+appears in a rendering, and a doctrinal question's content words do appear there. **This is
+not only a quote-matcher — it is an English lexical signal over renderings**, which is why
+it helps real questions and not merely the anchor-pinpointing the gold set is built from.
+
+**The caveat that has to travel with the +40 Pāli.** Those gold cases are DERIVED from
+translation anchors: the query *is* the rendering of the expected passage. A
+query-to-rendering matcher therefore solves them close to the way they were constructed,
+and the metric flatters the mechanism. #20 already recorded that this case type measures
+"pinpoint the anchor whose translation I quoted" while users ask topical questions. The
+capability is real — *"I have this English quote, where is it from?"* is ordinary
+scholarship, and the citation guard's workflow begins there — but **+40 on `retrieval/pali`
+must never be quoted as a general retrieval improvement**. The honest general number is
+`answered from any tradition`, 72.7% → 81.8%.
+
+### The first version silently reordered the canons, and only the per-tradition rows caught it
+
+Shipped as an aggregate it looked clean: 370/446, **+36**. Per tradition it was
+`chinese 227/232, pali 122/150, tibetan 21/64` — Tibetan **down 4**, twice the documented
+ANN wobble.
+
+The cause was a join, and it is the fourth time this exact join has been written wrong
+here. Measured:
+
+    derge.D   30,653 range-anchored        0 exact-anchored
+    sc.ms          0 range-anchored  210,756 exact-anchored
+
+84000 anchors a rendering to a folio **range**; SuttaCentral anchors one to a **segment
+id**. A join written on `anchor_urn = segment.urn` therefore scores **100% of Pāli and 0%
+of Tibetan** — and it did not merely fail to help Tibetan. Tibetan queries retrieve Pāli
+candidates too, and only those were scorable, so **the reranker promoted the Pāli above the
+correct Tibetan answer**. Completing the join took Tibetan from 21 to **31** — past its
+25-case baseline, because now it is scored rather than displaced.
+
+**The lesson is about the scorecard, not the join.** A +36 aggregate would have shipped a
+mechanism that quietly ranked one canon above another as an artifact of which anchor form
+the author happened to have in mind. For a project whose fourth invariant is that a
+Japanese commentary must never be presentable as an Indian sūtra, silently reordering the
+traditions is the more serious defect, and the aggregate could not see it. **Cross every
+headline number with tradition before believing it** — which is exactly what #42 concluded
+when `topical/chinese` 0% and `chinese-native` 100% were invisible in both margins.
+
 ### The reranker verdict was right about Tibetan and wrong about the system (#10)
 
 The section below concluded "Tibetan's problem is RECALL, not order" and demoted the
