@@ -42,6 +42,8 @@ defmodule Mix.Tasks.Pramana.Evals do
     balance: :string,
     per_tradition: :boolean,
     depth: :integer,
+    lexical_depth: :integer,
+    semantic_depth: :integer,
     # Not an override — a FILTER. Scoring one tradition is how an experiment aimed at one
     # canon stays affordable; the decision still needs the whole set.
     tradition: :string
@@ -150,7 +152,10 @@ defmodule Mix.Tasks.Pramana.Evals do
   end
 
   defp experiment?(opts) do
-    Enum.any?([:depth, :per_tradition, :vector_kinds, :balance], &(opts[&1] != nil))
+    Enum.any?(
+      [:depth, :lexical_depth, :semantic_depth, :per_tradition, :vector_kinds, :balance],
+      &(opts[&1] != nil)
+    )
   end
 
   defp run_opts(opts) do
@@ -197,7 +202,9 @@ defmodule Mix.Tasks.Pramana.Evals do
         vector_kinds: kinds,
         balance: balance,
         per_tradition: opts[:per_tradition],
-        depth: opts[:depth]
+        depth: opts[:depth],
+        lexical_depth: opts[:lexical_depth],
+        semantic_depth: opts[:semantic_depth]
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 

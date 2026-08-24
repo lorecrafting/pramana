@@ -167,7 +167,13 @@ defmodule Pramana.Retrieval.HybridTest do
   end
 
   describe "depth — how many candidates fusion sees" do
-    test "defaults to three times the limit" do
+    # The name of this test used to say "defaults to three times the limit". That is no
+    # longer one number: lexical defaults to `limit * 3` and semantic to `limit * 6`,
+    # because the gold set measured the depth gain as entirely semantic and the cost as
+    # almost entirely lexical. The assertion never checked the multiplier — it checks that
+    # the caller still gets `limit` results — so the name was the only thing that was wrong,
+    # which is exactly how a stale name survives a green suite.
+    test "the caller still gets at most limit results at the default depths" do
       assert {:ok, %{total: total}} = Hybrid.search("如是我聞", limit: 2)
       assert total <= 2
     end
@@ -192,6 +198,41 @@ defmodule Pramana.Retrieval.HybridTest do
       # depth is raised to `limit`; asking fusion for fewer candidates than the caller
       # wants returned is incoherent, and silently returning one result would look like a
       # corpus with one match.
+      assert result.total == 2
+    end
+  end
+
+  describe "per-arm depth" do
+    # The multipliers themselves are pinned by the gold set, not here: 334/446 against 328
+    # at the old equal defaults. These tests pin the OPTION CONTRACT — that each arm can be
+    # steered independently and that both obey the same clamps as `depth` — so the eval is
+    # measuring a knob that behaves predictably.
+    test "each arm can be set independently" do
+      assert {:ok, a} = Hybrid.search("如是我聞", limit: 2, semantic_depth: 120)
+      assert {:ok, b} = Hybrid.search("如是我聞", limit: 2, lexical_depth: 120)
+
+      assert a.total <= 2
+      assert b.total <= 2
+    end
+
+    test "an explicit depth still sets both arms" do
+      # A caller that asks for one number gets one number; the split is a default, not a
+      # reinterpretation of what `depth:` means.
+      assert {:ok, result} = Hybrid.search("如是我聞", limit: 2, depth: 30)
+      assert result.total <= 2
+    end
+
+    test "a per-arm depth overrides depth for that arm only" do
+      assert {:ok, result} = Hybrid.search("如是我聞", limit: 2, depth: 30, semantic_depth: 120)
+      assert result.total <= 2
+    end
+
+    test "per-arm depths are clamped like depth, not refused" do
+      assert {:ok, _} = Hybrid.search("如是我聞", limit: 2, semantic_depth: 10_000)
+      assert {:ok, result} = Hybrid.search("如是我聞", limit: 2, lexical_depth: 1)
+
+      # Raised to `limit` for the same reason `depth` is: fusing fewer candidates than the
+      # caller wants returned is incoherent.
       assert result.total == 2
     end
   end

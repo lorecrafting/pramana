@@ -1,0 +1,79 @@
+[info] Falling back to 1 / sqrt(x) for f32 false
+  CONFIGURATION OVERRIDE: [lexical_depth: 60, semantic_depth: 120]
+  This is an experiment, not the shipped default.
+
+  10/446 cases · 4m22s elapsed · ~3h11m left      20/446 cases · 8m13s elapsed · ~2h55m left      30/446 cases · 12m51s elapsed · ~2h58m left      40/446 cases · 17m01s elapsed · ~2h52m left      50/446 cases · 21m25s elapsed · ~2h49m left      60/446 cases · 25m01s elapsed · ~2h41m left      70/446 cases · 28m59s elapsed · ~2h35m left      80/446 cases · 33m11s elapsed · ~2h31m left      90/446 cases · 37m04s elapsed · ~2h26m left      100/446 cases · 40m53s elapsed · ~2h21m left      110/446 cases · 45m13s elapsed · ~2h18m left      120/446 cases · 49m11s elapsed · ~2h13m left      130/446 cases · 53m53s elapsed · ~2h11m left      140/446 cases · 58m02s elapsed · ~2h06m left      150/446 cases · 1h01m elapsed · ~2h02m left      160/446 cases · 1h05m elapsed · ~1h57m left      170/446 cases · 1h09m elapsed · ~1h52m left      180/446 cases · 1h13m elapsed · ~1h48m left      190/446 cases · 1h17m elapsed · ~1h44m left      200/446 cases · 1h21m elapsed · ~1h40m left      210/446 cases · 1h25m elapsed · ~1h36m left      220/446 cases · 1h29m elapsed · ~1h31m left      230/446 cases · 1h33m elapsed · ~1h27m left      240/446 cases · 1h34m elapsed · ~1h21m left      250/446 cases · 1h35m elapsed · ~1h15m left      260/446 cases · 1h37m elapsed · ~1h09m left      270/446 cases · 1h38m elapsed · ~1h03m left      280/446 cases · 1h39m elapsed · ~58m59s left      290/446 cases · 1h41m elapsed · ~54m20s left      300/446 cases · 1h42m elapsed · ~49m54s left      310/446 cases · 1h42m elapsed · ~45m11s left      320/446 cases · 1h43m elapsed · ~40m44s left      330/446 cases · 1h43m elapsed · ~36m29s left      340/446 cases · 1h44m elapsed · ~32m33s left      350/446 cases · 1h44m elapsed · ~28m43s left      360/446 cases · 1h45m elapsed · ~25m08s left      370/446 cases · 1h45m elapsed · ~21m46s left      380/446 cases · 1h46m elapsed · ~18m30s left      390/446 cases · 1h46m elapsed · ~15m21s left      400/446 cases · 1h47m elapsed · ~12m21s left      410/446 cases · 1h48m elapsed · ~9m29s left      420/446 cases · 1h48m elapsed · ~6m44s left      430/446 cases · 1h49m elapsed · ~4m05s left      440/446 cases · 1h49m elapsed · ~1m30s left      446/446 cases · 1h50m elapsed · ~0.0s left    
+pramana evals — 446 case(s) in 6652.4s
+  scored:  446   hits 334   misses 112
+  stale:   0   (premises no longer hold; excluded from the rate)
+  overall: 74.9%
+
+
+    BY CASE TYPE
+      retrieval        74.9%  (334/446)  mean rank 2.34
+
+    BY TRADITION
+      chinese          97.8%  (227/232)  mean rank 1.98
+      pali             54.7%  (82/150)  mean rank 3.09
+      tibetan          39.1%  (25/64)  mean rank 3.24
+
+    BY CASE TYPE x TRADITION
+      retrieval / chinese          97.8%  (227/232)  mean rank 1.98
+      retrieval / pali             54.7%  (82/150)  mean rank 3.09
+      retrieval / tibetan          39.1%  (25/64)  mean rank 3.24
+
+
+
+
+
+
+    FAILURES
+      [retrieval] def-017
+        query: 云何為二法
+        %{rank: 16, beyond_k: 10}
+      [retrieval] def-062
+        query: 云何為一法
+        %{rank: 17, beyond_k: 10}
+      [retrieval] def-082
+        query: 云何為十一
+        %{rank: 12, beyond_k: 10}
+      [retrieval] def-197
+        query: 云何為人演
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] def-213
+        query: 云何為二一者
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-004
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-005
+        query: Colophon The Indian preceptor Prajñāvarman and the chief editor-translator, Bandé Yeshé Dé, translated, edited, and finalized this work.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-007
+        query: This completes “The Noble Hundred and Eight Names of Avalokiteśvara,” called “The Receptacle of the Relics of all Victors.”
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-009
+        query: This concludes the noble dhāraṇī “Essence of Immeasurable Longevity and Wisdom.” Colophon Translated by the Indian preceptor Puṇya­sambhava and the translator Patsap Nyima Drak.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-010
+        query: Homage to all buddhas and bodhisattvas. Thus did I hear at one time. The Blessed One was dwelling at the Kūṭāgāraśālā in the forest outside Vaiśālī
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-011
+        query: rejoiced and praised what the Blessed One had said. This concludes the noble Great Vehicle sūtra “The Seal of Dharma.” Colophon This was translated and finalized by the translators Bandé Lui Wangpo and Lhai Dawa.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-012
+        query: Colophon This was translated by the Indian preceptors Sarvajñadeva, Vidyākaraprabha, and Dharmākara and the translator Bandé Zangkyong. It was then edited and finalized by the translator-editor Bandé Kawa Paltsek.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-015
+        query: Colophon This was translated by the paṇḍita Gayādhara and the translator-monk Śākya Yeshé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-017
+        query: Colophon This was translated, edited, and finalized by the Indian preceptor Prajñāvarman, the translator-editor Bandé Yeshé Dé, and others.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+      [retrieval] tr-018
+        query: This completes the “Mahāmāyātantra.” Colophon It was translated and edited by the Indian preceptor Jinavara and the great Tibetan translator Gö [515] Lhetsé.
+        %{retrieved: [%{span: %{...}, ...}, ...]}
+
+
+  ran 446 case(s) in 1h50m (0.1 cases/s)
+

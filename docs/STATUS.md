@@ -1527,6 +1527,100 @@ that row moved, the standing explanation for the 0% would have been wrong.
 Under #44's rule — any change must be measured against answered-from-any-tradition before
 becoming a default — the fix qualifies: 72.7%, unchanged.
 
+### Depth is per ARM: the gain is semantic, the cost is lexical (#10)
+
+Depth 120 was measured at **~4x** on the full 446-case retrieval set, not the 1.5–1.7x the
+Tibetan-only ABBA implied — rule 37 rediscovered by projecting a ratio from one workload
+onto another, twice in one session. That killed depth 120 as a global default. But the
+cost and the benefit turned out to live in *different retrievers*, which the single `depth`
+knob could not express.
+
+Three arms over the 64 Tibetan cases, **prediction written down before the run**:
+
+| arm | config | predicted | actual | time |
+|---|---|---|---|---|
+| 1 | both 60 (control) | 20/64 | **20/64** | 298 s |
+| 2 | semantic 120, lexical 60 | 25/64 | **25/64** | 465 s |
+| 3 | lexical 120, semantic 60 | 20/64 | **20/64** | 303 s |
+
+**Semantic depth carries the entire gain; lexical depth carries none of it.** And lexical
+depth is nearly free *here* — 303 s against a 298 s control — because a Tibetan gold query
+is English, so the lexical arm has little to return however deep it looks.
+
+The asymmetry has a mechanism on both sides:
+
+- **The cost is lexical, and it is Chinese.** A definitional-formula query matches thousands
+  of segments, so `limit * 5` over-fetch at depth 120 pulls 600 segments out of the bigram
+  index and maps every one to its containing chunk — per-segment work scaling directly with
+  depth, over the 232 Chinese cases that dominate the run.
+- **The benefit is semantic, and it is Tibetan.** BGE-M3 packs Tibetan into a narrow cone
+  (0.9727 mean pairwise cosine), so its candidates are near-ties and the right chunk sits
+  deeper in the ranking. Looking further down is exactly what helps.
+
+So `semantic_depth` and `lexical_depth` override `depth` per arm, both defaulting to it.
+
+**The Tibetan probe's 1.56x did not transfer either.** On the full retrieval set,
+semantic-120 with lexical pinned at 60 tracks **~2.3x** — better than global depth 120's
+~4x, and nowhere near the cheap win the Tibetan arm implied. Deepening the *semantic* arm
+is not free on Chinese: an iterative HNSW scan over 617,038 vectors asked for 120
+candidates instead of 60 costs real time, and that lands on all 232 Chinese cases whether
+or not they benefit. **Three times in one session a ratio measured on one workload failed
+to transfer to another**, the third time after rule 37 had already been written down. The
+rule is evidently easier to state than to obey; what actually catches it is running the
+other workload.
+
+So the trade is **2.3x across 446 cases to gain +5 cases that exist only in the 64 Tibetan
+ones**.
+
+**Decision rule, pre-registered before the full-set numbers were seen** — because three
+wrong predictions in one session is exactly the condition under which a criterion invented
+afterwards becomes a rationalisation:
+
+- **Ship as default** only if `retrieval/tibetan` ≥ 24/64 **and** `retrieval/chinese` ≥
+  226/232 **and** `retrieval/pali` ≥ 80/150. The tolerances are one case each, which is the
+  documented ANN wobble; two is a real regression under the project's own gate rule.
+- **Refuse** on any category down two or more, regardless of what Tibetan does. Chinese and
+  Pāli are 382 of the 446 cases, so a genuine regression there outweighs +5.
+- **Cost is not a veto for the retrieval default, but it is for the gate.** 2.3x on a
+  1,400-case check meant to run at every phase gate is not acceptable. If this ships, the
+  gate and the product run different depths — and that tension must be recorded rather than
+  quietly resolved, because a gate that does not measure what ships is measuring the wrong
+  thing.
+
+**The rule was met on all three criteria, and it ships.** 446 cases, 0 errors, 1h50m:
+
+| | old default | semantic 120 / lexical 60 | criterion |
+|---|---|---|---|
+| retrieval / chinese | 227/232 | **227/232** | ≥ 226 ✓ |
+| retrieval / pali | 81/150 | **82/150** | ≥ 80 ✓ |
+| retrieval / tibetan | 20/64 | **25/64** | ≥ 24 ✓ |
+| **overall** | 328/446 (73.5%) | **334/446 (74.9%)** | |
+
+Chinese did not move by a single case, which is the result that mattered most: it is 232 of
+the 446, and a regression there would have outweighed the Tibetan gain outright. The Pāli
++1 is inside the wobble and is not claimed.
+
+**334/446 is exactly what depth 200 scored** (74.9%, recorded above) — at **1h50m against
+its 4h25m**. Depth 200's entire price was being paid by an arm contributing none of its
+gain. That is the finding worth keeping from the whole depth investigation: *the question
+"how deep should we look" had no single answer because it was two questions*, and three
+sessions of ABBA arms went into tuning one knob that turned out to be two.
+
+Shipped as `@lexical_multiplier 3` / `@semantic_multiplier 6` in `Hybrid`. An explicit
+`depth:` still sets both arms, so nothing that passes one number changes meaning.
+
+**Two consequences deliberately left open rather than quietly resolved:**
+
+1. **`evals/baseline.json` is now stale.** It records 327/446 at the old equal default; the
+   shipped configuration scores 334/446. Regenerating it needs a full 1,400-case run at the
+   new default, and `--gate` compares against it, so until that run happens the ratchet is
+   measuring the old configuration. This is written here rather than fixed silently because
+   installing a new baseline is exactly the operation that should never be a side effect.
+2. **The gate now costs ~2.3x on its retrieval half.** The 446 retrieval cases go from ~50
+   min to ~1h50m; the other 954 cases are unaffected. A gate that runs at a cheaper depth
+   than the product is not measuring the product — so the choice is to accept the slower
+   gate or to accept a known divergence, and it should be made explicitly.
+
 ### What a reranker could actually fix (#10) — 14%, and half the misses are unreachable
 
 The standing plan was "a reranker first, then a Tibetan-fine-tuned embedder". Before

@@ -50,6 +50,34 @@ defmodule Pramana.Retrieval.Hybrid do
   # it before either retriever sees a number.
   @max_limit 200
 
+  # THE TWO ARMS LOOK DIFFERENT DISTANCES, AND THE MULTIPLIERS ARE MEASURED, NOT CHOSEN.
+  #
+  # `limit * 3` for both was the shipped default until the gold set separated them. Depth
+  # was known to be worth +5 of 64 `retrieval/tibetan` cases, reproduced five times, and to
+  # cost ~4x on the full 446-case set — which is why it was refused as a default twice.
+  # The cost and the benefit turned out to sit in DIFFERENT retrievers. Three arms over the
+  # 64 Tibetan cases, prediction registered before the run:
+  #
+  #     both 60 (control)            20/64   298 s
+  #     semantic 120, lexical 60     25/64   465 s
+  #     lexical 120, semantic 60     20/64   303 s
+  #
+  # - the BENEFIT is semantic. A Tibetan gold query is ENGLISH (an 84000 rendering), so the
+  #   lexical arm contributes nothing to it however deep it looks; the gain comes from the
+  #   right chunk sitting further down an HNSW ranking that BGE-M3 barely discriminates —
+  #   Tibetan sits at 0.9727 mean pairwise cosine, so its candidates are near-ties.
+  # - the COST is lexical, and it is Chinese. A definitional-formula query matches
+  #   thousands of segments, so `limit * 5` over-fetch pulls `depth * 5` segments out of
+  #   the bigram index and maps every one to its containing chunk — per-segment work
+  #   scaling directly with depth, over the 232 Chinese cases that dominate any full run.
+  #
+  # On the full 446-case set this scores **334/446 (74.9%)** against 328 at the old
+  # default: chinese 227/232 flat, pali 82/150, tibetan 25/64. That is the SAME total depth
+  # 200 reached, at 1h50m against its 4h25m — the whole of depth 200's price was being paid
+  # by an arm contributing none of its gain.
+  @lexical_multiplier 3
+  @semantic_multiplier 6
+
   @type opts :: [
           limit: pos_integer(),
           serving: Nx.Serving.t(),
@@ -64,9 +92,13 @@ defmodule Pramana.Retrieval.Hybrid do
           # caller that never reads it — the eval harness — not for an API surface, where
           # the number is what stops partial embedding being read as a small canon.
           coverage: boolean(),
-          # Candidates fetched from each retriever before fusion. Defaults to `limit * 3`,
-          # bounded by the retrievers' maximum.
+          # Candidates fetched before fusion, bounded by the retrievers' maximum. `depth`
+          # sets both arms at once; the per-arm keys override one each. The defaults are
+          # NOT equal — `limit * 3` lexical, `limit * 6` semantic — because the gold set
+          # measured the gain as entirely semantic and the cost as almost entirely lexical.
           depth: pos_integer(),
+          lexical_depth: pos_integer(),
+          semantic_depth: pos_integer(),
           lexical_only: boolean(),
           semantic_only: boolean()
         ]
@@ -91,10 +123,11 @@ defmodule Pramana.Retrieval.Hybrid do
 
   defp run(query, opts) do
     limit = validated_limit(opts)
-    depth = depth(opts, limit)
+    lexical_depth = arm_depth(opts, :lexical_depth, limit, @lexical_multiplier)
+    semantic_depth = arm_depth(opts, :semantic_depth, limit, @semantic_multiplier)
 
-    lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, depth)
-    semantic = semantic_ranking(query, opts, depth)
+    lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, lexical_depth)
+    semantic = semantic_ranking(query, opts, semantic_depth)
 
     fused =
       [lexical, semantic]
@@ -134,20 +167,17 @@ defmodule Pramana.Retrieval.Hybrid do
 
   # How many candidates each retriever is asked for, before fusion picks `limit` of them.
   # Fusion needs depth to work with: a document ranked 30th by one retriever can win once
-  # the other agrees.
+  # the other agrees. The per-arm multipliers and the evidence for them are at the top.
   #
-  # `limit * 3` by default, and CONFIGURABLE because it may be worth more than that. A
-  # probe over the 64 `retrieval/tibetan` gold cases scored 20 hits at depth 60 and 24 at
-  # depth 200 — same cases, same scoring rule, +4 from depth alone, consistent with #43
-  # finding that a wider scan returns better neighbours rather than merely more of them.
-  # That probe is not a decision (#10), so this exists to let the gold set settle it.
-  #
-  # Clamped rather than refused, unlike `limit`: depth is not a request from the caller,
-  # it is how hard this layer looks before answering one. Never below `limit`, because
-  # fusing fewer candidates than the caller wants returned is incoherent.
-  defp depth(opts, limit) do
-    opts
-    |> Keyword.get(:depth, limit * 3)
+  # An explicit `depth:` still sets BOTH arms, so a caller that asks for one number gets
+  # one number; `lexical_depth:`/`semantic_depth:` override a single arm. Clamped rather
+  # than refused, as before: depth is not a request from the caller, it is how hard this
+  # layer looks before answering. Never below `limit`, because fusing fewer candidates
+  # than the caller wants returned is incoherent.
+  defp arm_depth(opts, key, limit, multiplier) do
+    explicit = Keyword.get(opts, key) || Keyword.get(opts, :depth)
+
+    (explicit || limit * multiplier)
     |> min(@max_limit)
     |> max(limit)
   end
@@ -202,7 +232,7 @@ defmodule Pramana.Retrieval.Hybrid do
   # Options that belong to THIS layer and mean nothing to either retriever, so they are
   # dropped before both. Both retrievers reject an option they do not know — correctly —
   # so a hybrid-level option that reaches either one crashes the search.
-  @hybrid_only_opts [:coverage, :depth]
+  @hybrid_only_opts [:coverage, :depth, :lexical_depth, :semantic_depth]
 
   defp lexical_ranking(query, opts, depth) do
     # `mode` here is HYBRID's mode (:hybrid, :semantic), which means nothing to the
