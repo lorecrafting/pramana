@@ -16,14 +16,23 @@ defmodule Pramana.Compare do
   together as "versions" would let a Pāli sutta be read as a translation of a Chinese
   one, when neither is a translation of the other — both descend from something earlier.
 
-  ## Not here yet: 異譯本
+  ## `alternates` — work-level siblings, and what they are not
 
-  The Chinese canon holds several independent translations of the same Indic original —
-  Kumārajīva's Lotus Sūtra beside Dharmarakṣa's. That is a third kind of version, and the
-  relation vocabulary already has a slot for it (`parallel_of` in `Pramana.Relations`),
-  but **nothing populates it**: the only asserted relations so far are 90 `comments_on`
-  links. Returning an always-empty `alternates` key would promise a comparison this
-  corpus cannot yet make. Populating it is part of translator fingerprinting (#23).
+  The Chinese canon holds several independent translations of the same Indic original.
+  `alternates` returns work-level `parallel_of` relations, derived from SuttaCentral's
+  curated passage parallels aggregated to the work — 41 Chinese pairs clear the evidence
+  threshold.
+
+  **They are candidates for 異譯本, not established alternate translations.** T0099
+  雜阿含經 and T0100 別譯雜阿含經 share 706 curated passages and the second's name says it
+  is a separate translation — a real 異譯本. T0099 and T0125 share 88 and are the Saṃyukta
+  and Ekottarika Āgama: **different collections**, neither translating the other. The
+  parallel data cannot tell those two situations apart, so `confidence` and `evidence`
+  travel with every entry and nothing here decides for the reader.
+
+  This section previously read "Not here yet: 異譯本" and said returning an always-empty
+  key would promise a comparison the corpus could not make. That was true until the
+  relations were derived (#23, 2026-08-24).
 
   ## Comparison is retrieval that has already been done
 
@@ -43,6 +52,7 @@ defmodule Pramana.Compare do
 
   alias Pramana.Corpus
   alias Pramana.Parallels
+  alias Pramana.Relations
   alias Pramana.Translations
   alias Pramana.URN
 
@@ -72,11 +82,14 @@ defmodule Pramana.Compare do
          passage: span,
          renderings: renderings(urn, opts),
          parallels: parallels(work_id(span), opts),
+         alternates: alternates(work_id(span)),
          # Said once, structurally, rather than left for a caller to infer: these are
          # different witnesses to a tradition, not editions of one another.
          note:
            "Renderings translate this passage. Parallels are DIFFERENT texts judged to " <>
-             "transmit the same material; neither is a translation of the other."
+             "transmit the same material; neither is a translation of the other. " <>
+             "Alternates are whole works transmitting the same material as this one — " <>
+             "candidates for 異譯本, NOT established alternate translations."
        }}
     end
   end
@@ -101,6 +114,28 @@ defmodule Pramana.Compare do
   # would silently find no parallels for every Chinese passage in the corpus — an empty
   # comparison that reads as "no parallels exist".
   defp work_id(span), do: get_in(span, [:provenance, :work_id])
+
+  # WORK-level siblings, where `parallels` above is PASSAGE-level. A reader asking "is
+  # there another version of this text" wants the work; a reader asking "what else says
+  # this" wants the passage. Both are real questions and the answers are different objects.
+  #
+  # `nil` rather than `[]` when there are none, matching every other section here: an empty
+  # list reads as "we looked and the tradition is silent", and only 41 Chinese work pairs
+  # clear the evidence threshold, so most passages genuinely have nothing to show.
+  #
+  # Each entry carries `confidence` and `evidence` untouched. These are **candidates for
+  # 異譯本, not established alternate translations** — T0099/T0100 is a genuine alternate
+  # translation and T0099/T0125 is two different Āgama collections, and the curated
+  # parallel data that produced both cannot tell them apart. Flattening that away would be
+  # the exact failure invariant #4 exists to prevent.
+  defp alternates(nil), do: nil
+
+  defp alternates(work_id) do
+    case Relations.parallels_of(work_id) do
+      [] -> nil
+      list -> %{count: length(list), works: list}
+    end
+  end
 
   defp parallels(nil, _opts), do: nil
 

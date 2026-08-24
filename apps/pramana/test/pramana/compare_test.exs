@@ -127,6 +127,50 @@ defmodule Pramana.CompareTest do
     end
   end
 
+  describe "alternates — work-level siblings" do
+    test "are nil rather than an empty shell when the work has none" do
+      # This key was absent entirely until #23, because returning an always-empty
+      # `alternates` promised a comparison the corpus could not make. It is present now,
+      # and the same rule applies: nothing to show is `nil`, never `[]`.
+      {:ok, result} = Compare.versions(@chinese)
+      assert result.alternates == nil
+    end
+
+    test "carry the confidence and evidence, so the reader can judge the claim" do
+      Repo.insert!(%Work{id: "T0100", title: "別譯雜阿含經", attributed_author: "失譯"})
+
+      {:ok, _} =
+        Pramana.Relations.assert(%{
+          source_work_id: "T0099",
+          target_work_id: "T0100",
+          relation: "parallel_of",
+          method: "catalogue",
+          confidence: "probable",
+          scope: "whole_work",
+          evidence: %{"full_parallels" => 706}
+        })
+
+      {:ok, result} = Compare.versions(@chinese)
+
+      assert result.alternates.count == 1
+      [alt] = result.alternates.works
+      assert alt.work_id == "T0100"
+      assert alt.confidence == "probable"
+      assert alt.evidence["full_parallels"] == 706
+      # The translator is what makes #23 possible at all.
+      assert alt.attributed_author == "失譯"
+    end
+
+    test "the note refuses to call them alternate translations" do
+      # T0099/T0100 is a real 異譯本; T0099/T0125 is two different Āgama collections. The
+      # curated parallel data cannot tell them apart, so the response must not imply it can.
+      {:ok, result} = Compare.versions(@chinese)
+
+      assert result.note =~ "candidates"
+      assert result.note =~ "NOT established alternate translations"
+    end
+  end
+
   describe "parallels" do
     test "are resolved to actual passages, not left as identifiers" do
       {:ok, result} = Compare.versions(@chinese)

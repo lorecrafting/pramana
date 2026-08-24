@@ -13,7 +13,7 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-08-24** — A shipped; `Compare.alternates` is the open step.
+Last reviewed: **2026-08-24** — A shipped end to end. **B (CBETA X) is next.**
 
 ---
 
@@ -43,7 +43,7 @@ human can use** (no reader).
 
 ## Now
 
-### A. Work-level `parallel_of` — ▸ DONE 2026-08-24 (one step remains)
+### A. Work-level `parallel_of` — ▸ DONE 2026-08-24
 
 **Shipped.** `mix pramana.relations.parallels` aggregates SuttaCentral's curated
 passage parallels to the work, and `Relations.parallels_of/1` reads them.
@@ -69,9 +69,10 @@ candidates rather than settled versions.**
 max **736**. Two shared discourses is evidence about passages, not works, so `--min-full`
 defaults to 3 and the count rides in `evidence` where it can be argued with.
 
-**Remaining step:** wire `alternates` into `Pramana.Compare`. It currently refuses to
-return the key because it would always be empty — that reason is now gone. This is the
-piece that makes the work reachable from the MCP surface rather than only from Elixir.
+**Reachable, not just stored.** `Compare.versions/2` now returns an `alternates` key —
+absent until now because it would always have been empty — carrying `confidence`,
+`evidence` and `attributed_author` per entry, and a `note` that refuses to call them
+alternate translations. A T0099 passage returns 12, led by T0100 at 706 shared passages.
 
 **Unblocks #23** (translator fingerprinting): `parallels_of/1` returns
 `attributed_author` beside each pair, which is the join the feature needs — 求那跋陀羅
