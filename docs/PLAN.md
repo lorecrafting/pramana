@@ -166,7 +166,32 @@ embedding — the GPU spend stays a separate decision.
    --source cbeta` reports **978 mismatches, all X, zero T** — exactly the works baked with
    the old normalizer, which the re-bake resolves.
 
-**Still open:** the GPU spend for embedding X, unchanged and still needing a human.
+**Landed: 1,230 X texts, `verify OK` over 3,701 CBETA texts / 2,089,631 segments,
+byte-identical.** The corpus is now **16,719 texts**.
+
+**KNOWN DEFECT, 6 works: volume-spanning texts keep only one volume.** Six X work numbers
+appear in two volume files each — X0240 (X08+X09), X0367 (X20+X21), X0714 (X39+X40),
+X0822 (X50+X51), X1568 (X80+X81), X1571 (X81+X82). `bake_all` runs one job per FILE and
+`Loader.load/2` replaces a work's segments, so the second volume overwrites the first and
+**one volume's text is silently lost**.
+
+This is the Derge bug exactly, recorded there as "a volume is not the unit of loading, and
+the loader will not tell you" — where 75 of 1,195 works spanned volumes and had to be
+assembled in `Derge.Edition` before loading. The Taishō never showed it because CBETA gives
+Taishō works split across volumes DISTINCT ids (`T0220a`, `T0220b`): 2,471 distinct numbers
+across 2,471 files. X reuses the number.
+
+**`verify` cannot catch it** — it re-normalizes the file the text records and compares, so
+a text holding one volume re-derives from that volume and passes. Rule 2 again:
+reproducibility is not fidelity. The check that would catch it is a count taken from the
+SOURCE before parsing: files on disk (1,236) against works loaded (1,230).
+
+**Fix:** assemble the two volumes before loading, as `Derge.Edition` does. That is a change
+to the bake flow — currently one Oban job per file — so it is its own task, not a patch.
+
+**Still open:** the GPU spend for embedding X, unchanged and still needing a human. And
+whether X's second lineation (`ed="R*"`) should be preserved as alternative citation
+metadata: scholars cite 卍續藏 by its original R page/line, and it is currently discarded.
 
 **Exit.** X baked, byte-verifiable from `raw/`, provenance assigned by a stated rule,
 integrity green, baseline regenerated.
