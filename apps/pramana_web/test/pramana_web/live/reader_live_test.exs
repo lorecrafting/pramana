@@ -261,6 +261,31 @@ defmodule PramanaWeb.ReaderLiveTest do
   end
 
   describe "the reader's own claims about a passage" do
+    # THREE levels, not two. `edition_page` is a page number printed in the physical book
+    # — a reader with the book can turn to it — and the first version of this badge said
+    # "not checkable against a printed page" for all 4,576 of them, the whole Degé Tengyur
+    # included. `Pramana.Corpus` records that collapsing `edition_page` into `derived`
+    # "understated what can be verified"; the reader was doing it again one layer up.
+    test "an edition-page anchor is not described as unverifiable", %{conn: conn} do
+      {:ok, ir} =
+        CBETA.normalize(@indic, work_id: "T0262", canon: "T", volume: 9, number: "0262")
+
+      {:ok, %{text: text}} =
+        Loader.load(ir,
+          source: "cbeta",
+          witness: "T",
+          addressing: "edition_page",
+          provenance: %{composition_origin: "indic"}
+        )
+
+      assert text.meta["addressing"] == "edition_page"
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
+
+      refute html =~ "not checkable against a printed page"
+      assert html =~ "anchored to the printed page"
+    end
+
     test "a non-canonical anchor is flagged as not checkable against a page", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
 

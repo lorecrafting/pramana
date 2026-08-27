@@ -57,12 +57,33 @@ defmodule PramanaWeb.ReaderComponents do
         · {@provenance[:division]}
       </span>
       <span class="text-base-content/60">· {printed_reference(@provenance)}</span>
-      <span :if={@provenance[:addressing] != "canonical"} class="badge badge-sm badge-warning">
-        {@provenance[:addressing]} anchor — not checkable against a printed page
+      <span :if={addressing_caveat(@provenance)} class="badge badge-sm badge-warning">
+        {addressing_caveat(@provenance)}
       </span>
     </div>
     """
   end
+
+  # THREE levels, not two, and the middle one is the whole reason the field exists.
+  #
+  # `canonical` is checkable against a published critical edition. `edition_page` is a
+  # page number PRINTED IN THE PHYSICAL BOOK, recovered by our extraction — a reader with
+  # the book can turn to it, and the risk sits in the extraction rather than in the anchor.
+  # `derived` has no intrinsic anchor at all: positions come from file structure and move
+  # when the file does.
+  #
+  # This rendered "edition_page anchor — not checkable against a printed page", which
+  # inverts the middle case: an edition page is exactly a printed page. `Pramana.Corpus`
+  # records that collapsing `edition_page` into `derived` "understated what can be
+  # verified", and this reader was doing it again one layer up — over 4,576 texts,
+  # including the whole Degé Tengyur.
+  defp addressing_caveat(%{addressing: "derived"}),
+    do: "derived anchor — no printed page to check against"
+
+  defp addressing_caveat(%{addressing: "edition_page"}),
+    do: "anchored to the printed page, not to a critical edition"
+
+  defp addressing_caveat(_), do: nil
 
   @doc """
   A passage's citation: the URN, and the hash that makes quoting it verifiable.
