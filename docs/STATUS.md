@@ -2834,6 +2834,27 @@ nothing to warn about"* asserted `caveat() == nil` for a corpus holding all 85 T
 volumes. That corpus still holds 1 of 26 collections, which IS something to warn about, so
 the assertion now says what it was actually claiming — no *Taishō* warning.
 
+### The work browser and the named apparatus (C) — 2026-08-27
+
+`/works/:work_id` renders `Corpus.outline/1` and leads with provenance. The reasoning is
+the one already written into that function: an outline is usually the FIRST thing anyone
+sees about a text, so it is where a text gets misjudged, and without origin and role a
+Japanese sectarian commentary and a Kumārajīva translation are indistinguishable — same
+shape, same 品 headings, same juan count. T0099 renders 50 juan, 1,455 sections, 3,500
+lines with variants, and its four candidate 異譯本 with shared-passage counts.
+
+**The apparatus is served through `Apparatus.at/1`, which names witnesses from the text's
+own header.** T0099_001@p0001a18 shows 【大】/【宋】/【元】. And the inline version on
+neighbouring lines was rendering `meta["apparatus"]` directly, raw `wit="#wit1"` included —
+caught in review, because `wit1` means 38 different things across the canon (宋 in 832
+files, 明 in 375, 甲 in 322) and that module's own docs say a caller "must never be handed
+`#wit1` as though it were a sigil". Neighbours now report that a variant exists; the named
+form belongs to the line in focus, where the header has been consulted.
+
+`Apparatus.count_for_work/1` was added to the domain rather than written as a query in the
+view — a surface counting `meta ? 'apparatus'` for itself is a second definition of what
+an apparatus is, and the fourth thing this reader has pushed back into the domain.
+
 ## Decisions taken
 
 | Decision | Rationale |

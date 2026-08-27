@@ -225,7 +225,7 @@ defmodule PramanaWeb.ReaderLiveTest do
         Loader.load(ir, source: "cbeta", witness: "T", provenance: %{composition_origin: "indic"})
 
       # Sigla come from the text's OWN header. `wit1` means 38 different things across the
-      # canon, so a global table would attribute this Song reading to whatever wit1 
+      # canon, so a global table would attribute this Song reading to whatever wit1
       # happens to mean elsewhere.
       text
       |> Ecto.Changeset.change(meta: Map.put(text.meta, "witnesses", %{"wit1" => "【宋】"}))

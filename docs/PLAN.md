@@ -350,8 +350,26 @@ name on purpose**: each CBETA file states its own collection in `<sourceDesc>` �
 is no such statement, so expanding `YP` into some canon would be a guess a reader could not
 tell from a fact.
 
-**Still to build:** a work browser (the outline as a first-class page), and the apparatus
-as its own view. Neither needs new domain logic.
+**▸ 2026-08-27 — the work browser and the apparatus shipped, and the reader's first pass
+is complete.**
+
+`/works/:work_id` is the outline as a first-class page, leading with provenance rather
+than contents: an outline is usually the first thing anyone sees about a text, which makes
+it the moment a text is misjudged. Without the axes, a Kamakura-period commentary and a
+Kumārajīva translation look identical here — same shape, same 品 headings, same juan count.
+T0099 shows 50 juan, 1,455 sections, 3,500 lines carrying a variant, and its four candidate
+異譯本 with the shared-passage counts that are the evidence for each.
+
+The apparatus now goes through `Apparatus.at/1`, so **witnesses are named from the text's
+own header** — 【大】/【宋】/【元】 rather than `#wit1`, which means 38 different things across
+the canon. A neighbouring line says a variant *exists* and does not print the raw id: a
+sigil-shaped string in front of a reader is the exact failure that module was written to
+prevent. `Apparatus.count_for_work/1` is new and in the domain, because a surface counting
+`meta ? 'apparatus'` for itself is a second definition of what an apparatus is.
+
+**Still to build:** a survey view over `Retrieval.Survey` (exhaustive counts rather than a
+ranked sample), and reader deep-links into the published editions. Neither is on the
+critical path.
 
 ### D. Public demo — newly unblocked
 
