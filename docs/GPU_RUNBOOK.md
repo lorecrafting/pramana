@@ -11,9 +11,22 @@ visible failure.
 
 ## 0. What you are shipping
 
+**Two steps, and the first one is easy to miss.** Chunking creates `chunks`; the thing
+that gets embedded is a `chunk_vectors` row, created empty and filled on import — that is
+what makes the sha256 round-trip possible at all, since the row has to exist before there
+is anything to re-check against.
+
 ```bash
+mix pramana.chunk --source cbeta      # segments -> chunks
+mix pramana.vectors --source cbeta    # chunks -> empty vector rows
 mix pramana.embed.export --out /tmp/pramana_chunks.jsonl
 ```
+
+Skip the middle step and the export succeeds and reports **`exported 0 chunk(s)`** —
+which is indistinguishable from "nothing is outstanding", and is what happened here after
+chunking CBETA X: 290,392 chunks existed, none of them had a vector row, and the pending
+query looks for vector rows lacking an embedding. `mix pramana.vectors --source cbeta`
+built all 290,392 in 29 s and the export then found them.
 
 Measured on the Taishō-only bake (pipeline v3):
 
@@ -39,6 +52,14 @@ is what lets import prove the vector still describes the chunk it claims to.
 gzip -k /tmp/pramana_chunks.jsonl     # ~110 MB, worth it on a metered link
                                       # (the Modal path uploads the plain file)
 ```
+
+**Watch a `volume put` rather than trusting it.** A 267 MB upload stalled at ~125 MB and
+sat there with no error, no timeout and no output — `modal volume put` prints its progress
+to a TTY, so a backgrounded run shows nothing at all and a stall is indistinguishable from
+slow. `nettop -P -l 1 -x | grep Python.<pid>` gives the byte counter; if it does not move
+for a minute, kill it and start again. The retry ran at ~700 KB/s and finished in about
+six minutes. Rule 3 below applies here too: make sure the first process is dead before
+starting the second.
 
 ## 1a. Recommended: Modal (free within the monthly credit)
 

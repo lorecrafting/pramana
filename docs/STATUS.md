@@ -2855,6 +2855,28 @@ form belongs to the line in focus, where the header has been consulted.
 view — a surface counting `meta ? 'apparatus'` for itself is a second definition of what
 an apparatus is, and the fourth thing this reader has pushed back into the domain.
 
+### `mix pramana.vectors` is the step between chunking and embedding — 2026-08-27
+
+Chunking CBETA X produced 290,392 chunks in 98 s, and `mix pramana.embed.export` then
+reported **`exported 0 chunk(s)`**.
+
+Not a bug — a missing step, and one the runbook did not name. Chunking creates `chunks`;
+the unit that gets embedded is a `chunk_vectors` row, created EMPTY and filled on import.
+That ordering is what makes the sha256 round-trip possible at all: the row has to exist
+before there is anything to re-check a returned vector against. `Embed.pending_query/1`
+therefore looks for vector rows lacking an embedding, and a chunk with no vector row is
+invisible to it.
+
+**The failure reads as success.** `exported 0 chunk(s)` is exactly what a fully-embedded
+corpus prints. `mix pramana.vectors --source cbeta` built all 290,392 rows in 29 s and the
+export found them immediately. `docs/GPU_RUNBOOK.md` now names all three steps.
+
+Also recorded there: **a `modal volume put` can stall silently.** 267 MB stopped at ~125 MB
+with no error, no timeout and no output — the CLI prints progress to a TTY, so a
+backgrounded run shows nothing and a stall looks exactly like a slow link. The byte counter
+in `nettop -P -l 1 -x` is what distinguished them; the retry ran at ~700 KB/s and finished
+in six minutes.
+
 ## Decisions taken
 
 | Decision | Rationale |
