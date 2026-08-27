@@ -460,8 +460,11 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   untouched, deterministic, a real differentiator.
 - **`retrieval/chinese` has 5 stubborn misses** out of 232 and has not moved all year.
   Cheap to diagnose now that a search is 2.2 s; nobody has looked.
-- **`priv/embed` sidecar** still owns Tibetan `botok`, which nothing uses — the lexical
-  layer windows syllables directly and supersedes it. Consider deleting the dependency.
+- ~~**`priv/embed` sidecar** still owns Tibetan `botok`, which nothing uses.~~ **▸ DONE
+  2026-08-27 — there was nothing to delete.** No Python file imports `botok` and no Elixir
+  calls it; the dependency was never taken. What existed was four documents describing it,
+  `CLAUDE.md` among them, which is the one a new session treats as binding. Corrected
+  there, in `docs/ELIXIR.md`, `docs/DEV_ENV.md` and STATUS's open questions.
 
 ## Rejected, with evidence — do not redo
 

@@ -36,9 +36,10 @@ avoids that entirely. Containerize the parts that don't touch `raw/`.
 
    Verify it tokenizes CJK: `SELECT show_bigm('如是我聞');` should return
    `{如是,我聞,是我,"聞 "," 如"}`. No `shared_preload_libraries` change is needed.
-2. **The Python embed sidecar** (Phase 1+) — BGE-M3 and Tibetan `botok`. This is the
+2. **The Python embed sidecar** (Phase 1+) — BGE-M3, and nothing else. This is the
    real container use case: an isolated Python/Torch environment we don't want
-   polluting the host.
+   polluting the host. (It was scoped to carry Tibetan `botok` too; that dependency was
+   never taken and the plan is withdrawn — see `docs/ELIXIR.md`.)
 3. **CI and deployment** — reproducible bakes elsewhere.
 
 ## Container runtimes on macOS, ranked for this project

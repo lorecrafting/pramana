@@ -97,7 +97,7 @@ apps/
       bake/                Oban/Broadway orchestration
   pramana_web/              Phoenix — MCP endpoint, LiveView reader (`docs/READER.md`)
   pramana_native/           Rustler NIFs: CJK segmentation, suffix-array reuse
-priv/embed/                Python sidecar — embeddings + Tibetan botok ONLY
+priv/embed/                Python sidecar — BGE-M3 inference ONLY (see docs/ELIXIR.md)
 evals/                     gold question sets + scoring harness
 docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR, MCP, READER
 ```
@@ -120,11 +120,15 @@ what BEAM is for, and Elixir binaries are UTF-8 native, which matters for CJK.
 1. **Rustler NIF** — CJK word segmentation (`jieba-rs`). In-process, no sidecar.
 2. **Rust port binary** — suffix-array text-reuse detection over 250M+ chars. Batch,
    memory-hungry, would block BEAM schedulers. Kept outside the VM entirely.
-3. **Python sidecar (`priv/embed`)** — BGE-M3 multi-vector inference and Tibetan
-   `botok` segmentation. Behind a deliberately tiny HTTP interface
-   (`POST /embed {texts, mode} -> vectors`) so it stays replaceable.
+3. **Python sidecar (`priv/embed`)** — BGE-M3 inference, and nothing else. Behind a
+   deliberately tiny interface (`{texts, mode} -> vectors`) so it stays replaceable.
+   It was scoped to include Tibetan `botok` segmentation and never needed to: the
+   lexical layer windows syllables on the tsheg the edition itself prints, which cannot
+   mis-segment a transliterated name the way a dictionary tokenizer does. That
+   dependency was never taken, and four documents went on describing it — including this
+   one, which is the file a new session treats as binding.
 
-Do not let the Python sidecar grow. It does tensor math and Tibetan tokenization.
+Do not let the Python sidecar grow. It does tensor math.
 Every other decision — orchestration, retries, normalization, provenance, retrieval —
 lives in Elixir. If you're tempted to add logic to the sidecar, that's a signal you're
 putting domain logic in the wrong place.

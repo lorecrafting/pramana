@@ -216,9 +216,11 @@ The Kangyur is in, joined to its English, chunked and embedded. What the phase e
   reranker is worth **+44 cases** there against +9 in Tibetan. See *The reranker verdict
   was right about Tibetan and wrong about the system*. Rerank for Pāli, embed for
   Tibetan.
-- **Tibetan word segmentation.** Lexical search over Tibetan works on substrings today.
-  `botok` in the Python sidecar is the intended syllable/particle segmenter
-  (`CLAUDE.md`), and nothing uses it yet.
+- **Tibetan word segmentation.** ~~`botok` in the Python sidecar is the intended
+  syllable/particle segmenter.~~ **Withdrawn.** The lexical layer windows syllables on the
+  tsheg the edition prints, which supersedes it for the same reason jieba was refused for
+  Chinese — see *Tibetan n-grams were mostly one particle*. `botok` was never added; only
+  the documentation kept it alive.
 - **Mahāvyutpatti** proper is now loaded as text — Toh 4346, 1,554 lines from volume 204,
   ingested with the Tengyur — but as an untitled Tengyur work, not a parsed lexicon.
   The 84000
@@ -2905,8 +2907,12 @@ in six minutes.
 
 - **BGE-M3 multi-vector in Nx** — port the two linear heads and drop the sidecar, or
   keep a bake-time sidecar? Decide in Phase 1 once dense works. *(Task #11)*
-- **Tibetan `botok`** has no Elixir/Rust equivalent, so the sidecar survives until at
-  least Phase 5 regardless — bake-time only.
+- ~~**Tibetan `botok`** has no Elixir/Rust equivalent, so the sidecar survives until at
+  least Phase 5 regardless.~~ **Closed 2026-08-27, and it was never open in code.** Nothing
+  imports `botok`; the syllable-window approach superseded it and four documents went on
+  describing the dependency anyway — including `CLAUDE.md`, which a new session treats as
+  binding and which was therefore standing invitation to add Python nobody needed. The
+  sidecar's only remaining justification is the multi-vector question above.
 
 ## Rules that generalize
 

@@ -128,16 +128,24 @@ So the ladder is:
 3. **Multi-vector in Nx by porting two linear layers** — the goal; a one-off weight
    conversion, then no sidecar at all. Attempt in Phase 1 once dense is working.
 
-Tibetan segmentation depends on `botok`, which is Python-only with no Rust or Elixir
-equivalent, so it keeps the sidecar alive regardless until at least Phase 5 — but
-bake-time only.
+~~Tibetan segmentation depends on `botok`, which is Python-only with no Rust or Elixir
+equivalent, so it keeps the sidecar alive regardless until at least Phase 5.~~
+**Withdrawn 2026-08-27, and it was never true in code.** The Tibetan lexical layer windows
+syllables on the tsheg the edition prints, which supersedes `botok` for the same reason
+jieba was refused for Chinese: a dictionary tokenizer shatters transliterated names, and
+this corpus has `པྲ་ཛྙཱ་ཝརྨ` sitting in a colophon. `botok` was never added to the sidecar,
+nothing imports it, and only the documentation kept it alive — so the sidecar is BGE-M3
+inference and nothing else, and the argument for keeping it is Phase 1's multi-vector
+question alone.
 
 **Decision:** one small Python service behind a tiny interface:
 
 ```
 POST /embed     {texts: [...], mode: "dense"|"multi"} -> vectors
-POST /tokenize  {text, lang: "bo"}                    -> tokens
 ```
+
+(`POST /tokenize {text, lang: "bo"}` was part of this decision and is withdrawn with the
+`botok` dependency above. The interface is one endpoint.)
 
 Elixir owns all orchestration, batching policy, caching, retries, and storage. Python
 does tensor math and Tibetan tokenization, and nothing else. **Do not let this service
