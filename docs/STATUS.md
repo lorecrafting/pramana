@@ -2958,10 +2958,26 @@ shape as `retrievers` and `embedding_coverage` — state the fact, let the calle
 `nil` when the semantic arm did not run, because "no model was loaded" and "the model
 found nothing close" are different facts and only the second is about the corpus.
 
-**abs-001 stays red, deliberately.** Reporting a band is not refusing, and the gold case
-asks for a refusal. Closing it needs a SECOND signal rather than a better threshold: the
-lexical arm returned 0 for 本門戒體 while the semantic arm returned 5, and the response does
-not yet combine that disagreement.
+**The second signal was then measured, and it is one-way.** `lexical_support` alone is
+useless — zero for every English→Tibetan query, so it detects the query's script rather
+than the corpus's ignorance. Combined with the band, over 56 queries through the shipped
+path: fires for **6 of 10 unanswerable** and **0 of 46 answerable**, paraphrases included.
+Reliable when it appears, silent otherwise. Four unanswerable queries escape — three by
+incidental n-gram overlap, and 如何申報所得稅 (*how do I file income tax*) because the
+semantic arm puts it in `strong` outright, which is the sharpest possible argument against
+ever promoting the band to a gate.
+
+**The first version of that measurement was wrong, and wrong in the flattering direction.**
+It called `Lexical.search/2` in phrase mode instead of going through `Retrieval.search/2`,
+and reported 8 of 8 rather than 6 of 10 — because the hybrid's lexical arm falls back to
+character n-grams and the component does not. 眾生皆能成佛 scores 0 phrase hits and 28
+n-gram ones. **Three separate proxies flattered a signal in a single day**: the gap
+statistic, the subset sweep's runtime, and this. Rule 47 is about registering predictions;
+this is its companion — measure the path that ships, not the piece you can call quickly.
+
+**abs-001 stays red, deliberately.** Reporting is not refusing. Closing it means
+suppressing results, and suppression costs ~45 retrieval cases at the only threshold that
+separates.
 
 ## Decisions taken
 

@@ -20,6 +20,11 @@ defmodule PramanaWeb.PassageLive do
   - **rare characters** with their mappings, since those are the content a reader cannot
     reconstruct from anything else;
   - **provenance**, in words, above the text rather than below it;
+  - a link into the **published edition**, and the **photograph of the woodblock leaf**
+    where BDRC has one. This is the strongest form of "check us against the print" the
+    corpus can offer, and it belongs on the human surface more than anywhere else — the
+    MCP tools have carried both for phases while the reader, the thing an actual scholar
+    opens, had neither;
   - the **translation pool**, all of it — a rendering is never presented as *the*
     translation, and a machine translation is never presented as source (`docs/LAYERS.md`
     and invariant #8);
@@ -36,6 +41,8 @@ defmodule PramanaWeb.PassageLive do
   alias Pramana.Apparatus
   alias Pramana.Compare
   alias Pramana.Corpus
+  alias Pramana.Derge.Images
+  alias Pramana.Reader
 
   @window 6
 
@@ -54,6 +61,10 @@ defmodule PramanaWeb.PassageLive do
          |> assign(outline: outline_for(context.focus))
          |> assign(versions: versions_for(urn))
          |> assign(apparatus: apparatus_for(urn))
+         |> assign(
+           edition_link: Reader.reference(urn, context.focus.provenance),
+           page_image: page_image(urn)
+         )
          |> assign(page_title: page_title(context.focus))}
 
       {:error, reason} ->
@@ -64,6 +75,8 @@ defmodule PramanaWeb.PassageLive do
            outline: nil,
            versions: nil,
            apparatus: nil,
+           edition_link: nil,
+           page_image: nil,
            error: reason
          )}
     end
@@ -77,8 +90,20 @@ defmodule PramanaWeb.PassageLive do
        outline: nil,
        versions: nil,
        apparatus: nil,
+       edition_link: nil,
+       page_image: nil,
        error: :bad_urn
      )}
+  end
+
+  # Absent rather than guessed. `Images.for_urn/1` returns `:error` for anything that is
+  # not a Degé folio and for folios the scan index does not cover, and a broken <img> is a
+  # worse claim than no image.
+  defp page_image(urn) do
+    case Images.for_urn(urn) do
+      {:ok, image} -> image
+      :error -> nil
+    end
   end
 
   # `Apparatus.at/1` rather than the raw `meta["apparatus"]` the line already carries,
@@ -169,6 +194,35 @@ defmodule PramanaWeb.PassageLive do
             The window URN covers {@context.segment_count} printed lines and resolves as a unit;
             the line URN is what a quotation of this line is verified against.
           </p>
+        </section>
+
+        <section :if={@edition_link || @page_image} class="space-y-2">
+          <h2 class="font-semibold">Check it against the edition</h2>
+          <div :if={@edition_link} class="text-sm">
+            <a href={@edition_link.url} target="_blank" rel="noopener" class="link">
+              {@edition_link.edition}
+            </a>
+            <span class="text-base-content/60">
+              — opens the {@edition_link.granularity}, not the line.
+              <span :if={@edition_link.linehead}>
+                Paste <code class="font-mono">{@edition_link.linehead}</code> into its Goto box.
+              </span>
+            </span>
+            <p class="mt-1 text-xs text-base-content/50">
+              The URN is the citation; this link is a convenience and is <strong>not verified</strong>
+              — these readers return HTTP 200 for any path, so it cannot be checked by
+              fetching it.
+            </p>
+          </div>
+
+          <div :if={@page_image} class="space-y-1 text-sm">
+            <a href={@page_image.image_url} target="_blank" rel="noopener" class="link">
+              Photograph of the woodblock leaf — volume {@page_image.volume}, folio {@page_image.folio}
+            </a>
+            <p class="text-xs text-base-content/50">
+              {@page_image.attribution}. Served by BDRC; nothing here has read it.
+            </p>
+          </div>
         </section>
 
         <section :if={@apparatus} class="space-y-2">

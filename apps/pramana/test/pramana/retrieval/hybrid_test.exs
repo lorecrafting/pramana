@@ -327,6 +327,31 @@ defmodule Pramana.Retrieval.HybridTest do
       assert Hybrid.confidence([]) == nil
     end
 
+    # The combination fired for 6 of 10 unanswerable queries and 0 of 46 answerable ones,
+    # measured through the shipped path. It is a one-way signal and the note says so.
+    test "no lexical support plus a non-strong band reads as probably absent" do
+      assert %{note: note, lexical_support: 0} = Hybrid.confidence([{"a", 0.71}], 0)
+
+      assert note =~ "Nothing matches the characters typed"
+      assert note =~ "one-way"
+    end
+
+    # A paraphrase has no literal match and IS answerable — 眾生皆能成佛 appears nowhere in
+    # the corpus as a string. It collects n-gram support in the hybrid arm and lands
+    # `strong`, so it must not be read as absent even at zero phrase matches.
+    test "a strong band is never read as absent, whatever the lexical support" do
+      assert %{note: note} = Hybrid.confidence([{"a", 0.82}], 0)
+
+      refute note =~ "Nothing matches the characters typed"
+      assert note =~ "as close as answerable queries usually are"
+    end
+
+    test "lexical support suppresses the combined reading" do
+      assert %{note: note} = Hybrid.confidence([{"a", 0.71}], 4)
+
+      refute note =~ "Nothing matches the characters typed"
+    end
+
     test "a lexical-only search carries no confidence signal" do
       {:ok, result} = Hybrid.search("如是我聞", lexical_only: true)
 

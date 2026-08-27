@@ -436,11 +436,32 @@ weigh it. Verified end to end:
 `nil` when the semantic arm did not run, because "no model was loaded" and "the model
 found nothing close" are different facts and only the second is about the corpus.
 
-**Still open, and honestly so:** abs-001 stays red. Reporting a band is not refusing, and
-the gold case asks for a refusal. That is the right trade at 45:1 and it is not a fix.
-What would close it is a **second signal**, not a better threshold — the lexical arm
-returned 0 for 本門戒體 while the semantic arm returned 5, and that disagreement is
-information the response does not yet combine. Cheap to try, and it needs its own probe.
+**▸ THE SECOND SIGNAL IS MEASURED AND SHIPPED, and it is one-way.** `lexical_support`
+now rides beside the band. Alone it is useless — it is zero for every English→Tibetan
+query, so it detects the query's SCRIPT, not the corpus's ignorance. Combined it
+separates, measured through `Retrieval.search/2` over 56 queries:
+
+    lexical_support == 0 AND band != strong
+      answerable, Chinese literal        0 of 20
+      answerable, English -> bo/pli      0 of 20
+      answerable, Chinese paraphrase     0 of 6
+      unanswerable                       6 of 10
+
+**When it fires it is reliable; when it is silent it means nothing.** Nothing in 46
+answerable queries triggered it, paraphrases included — and paraphrase is the case that
+would have killed it, since 眾生皆能成佛 appears nowhere as a literal string. Four
+unanswerable queries slip through: three collect incidental n-gram overlap, and one —
+如何申報所得稅, *how do I file income tax* — the semantic arm places in the `strong` band
+outright. **The band alone can be confidently wrong**, which is the strongest argument
+yet against ever making it a gate.
+
+**And the first measurement of this was wrong.** It was taken by calling `Lexical.search/2`
+in phrase mode rather than through the shipped path, which reported 8 of 8 rather than 6 of
+10 and 0 lexical support for paraphrases rather than 28. The hybrid arm falls back to
+character n-grams; the component does not. Third proxy to flatter a signal in one day.
+
+**abs-001 stays red, and should.** Reporting is not refusing. Closing it means suppressing
+results, and suppression costs ~45 retrieval cases at the only threshold that works.
 
 ### E. Public demo — newly unblocked### E. Public demo — newly unblocked
 

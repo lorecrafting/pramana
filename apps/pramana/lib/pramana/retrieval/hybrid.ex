@@ -176,7 +176,7 @@ defmodule Pramana.Retrieval.Hybrid do
       # How close the best semantic match was. `nil` when the semantic arm did not run,
       # which is a different statement from "nothing was close" and must stay
       # distinguishable — see `confidence/1`.
-      semantic_confidence: confidence(scored_semantic),
+      semantic_confidence: confidence(scored_semantic, length(lexical)),
       coverage: coverage(opts),
       bake_id: Pramana.Bake.current_id()
     }
@@ -450,15 +450,67 @@ defmodule Pramana.Retrieval.Hybrid do
   knows about its own answer and the caller decides. Note the scale is per-language —
   English queries sit a whole band above Chinese ones — which is a second reason no single
   cut-off could be right.
+
+  ## The two arms together — a one-way signal, measured through the shipped path
+
+  `lexical_support` is how many passages the lexical arm contributed. Alone it is
+  useless, and the first measurement of it was also **wrong**, because it was taken by
+  calling `Lexical.search/2` in `:phrase` mode rather than through this function. The
+  hybrid's lexical arm falls back to character n-grams, so a paraphrase that matches no
+  literal string still collects support: 眾生皆能成佛 scores 0 hits in phrase mode and
+  **28** here. Measuring the component gave a cleaner-looking answer than measuring the
+  thing that ships. That is the third time in one day a proxy has flattered a signal in
+  this project.
+
+  Re-measured through `Retrieval.search/2`, over 56 queries:
+
+      lexical_support == 0 AND band != strong
+        answerable, Chinese literal        0 of 20
+        answerable, English -> bo/pli      0 of 20
+        answerable, Chinese paraphrase     0 of 6
+        unanswerable                       6 of 10
+
+  **So it is one-way.** When it fires, nothing in 46 answerable queries fired with it —
+  including every paraphrase, which is the case that would have killed it. When it does
+  not fire, it says nothing at all: four unanswerable queries slipped through, three
+  because the n-gram fallback found incidental character overlap, and one — 如何申報所得稅,
+  *how do I file income tax* — because the semantic arm confidently placed it in the
+  `strong` band at all.
+
+  That last one is worth stating plainly: **the band alone can be confidently wrong.** It
+  is a reading aid, and the combination is a stronger reading aid, and neither is a proof.
+  Still reported, never enforced: no result is suppressed, so a caller who disagrees with
+  this reading keeps every passage.
   """
-  @spec confidence([{String.t(), float()}]) :: map() | nil
-  def confidence([]), do: nil
+  @spec confidence([{String.t(), float()}], non_neg_integer()) :: map() | nil
+  def confidence(scored, lexical_support \\ 0)
 
-  def confidence(scored) do
+  def confidence([], _lexical_support), do: nil
+
+  def confidence(scored, lexical_support) do
     top = scored |> Enum.map(&elem(&1, 1)) |> Enum.max()
+    band = band(top)
 
-    %{top_similarity: Float.round(top, 4), band: band(top), note: confidence_note(band(top))}
+    %{
+      top_similarity: Float.round(top, 4),
+      band: band,
+      lexical_support: lexical_support,
+      note: note_for(band, lexical_support)
+    }
   end
+
+  # The combination first, because it is the stronger reading and a caller who stops at
+  # the first sentence should get the more useful one.
+  defp note_for(band, 0) when band != "strong" do
+    "Nothing matches the characters typed, and the nearest passage by meaning is not as " <>
+      "close as answerable queries usually are. Over 56 measured queries this combination " <>
+      "occurred for 6 of 10 questions the corpus could NOT answer and 0 of 46 it could, " <>
+      "paraphrases included. It is one-way: when it appears the corpus probably does not " <>
+      "hold an answer, and when it is absent that means nothing either way. " <>
+      confidence_note(band)
+  end
+
+  defp note_for(band, _lexical_support), do: confidence_note(band)
 
   # Boundaries from the probe above: no unanswerable query reached 0.75, and none of the
   # answerable ones fell below 0.70.
