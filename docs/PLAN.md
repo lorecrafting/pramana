@@ -22,8 +22,9 @@ left of it is the GPU spend and a re-baseline.**
 
 | | |
 |---|---|
-| corpus | 16,719 texts · 10,702,843 segments · 3 traditions · **907,430 vectors** |
-| vector coverage | **100% on both axes** — 850,630 chunks, 0 unchunked texts |
+| corpus | **17,004 texts · 11,519,879 segments** · 3 traditions · 907,430 vectors |
+| CBETA | 3 collections of 26 — T 2,471 · X 1,230 · **J 285** — 3,994 files locked |
+| vector coverage | 100% of what is chunked; **J's 285 texts are not chunked yet** |
 | reader | LiveView search, passage and work browser at `/`, `/passage`, `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | eval | **93.1%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |

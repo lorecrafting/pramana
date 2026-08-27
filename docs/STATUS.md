@@ -22,6 +22,12 @@ are green over every text: `mix pramana.verify --all` (byte-identical re-normali
 from `raw/`) and `mix pramana.integrity` (nothing printed in the source is missing from
 the bake — a different question, see the rules section).
 
+**The 嘉興大藏經 (CBETA J) is baked** (B): 285 works, 17.8M characters, zero failures,
+provenance from the byline for 116 of them. Two works span volumes — JB271 (31+32) and
+JB277 (32+33) — and were assembled before loading, which is the fix made for X's six
+working on a collection it was not written against. The corpus is **17,004 texts and
+11,519,879 segments**, and CBETA is now 3 collections of 26.
+
 **The 卍續藏 (CBETA X) is baked, verified, and NOT embedded** (B). 1,230 works, 87.6M
 characters, provenance from each work's own byline, pipeline **v4**. Six of those works
 run across two printed volumes and are assembled before loading; the four defects that
