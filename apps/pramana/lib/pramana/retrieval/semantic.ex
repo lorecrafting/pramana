@@ -418,6 +418,23 @@ defmodule Pramana.Retrieval.Semantic do
   How much of the corpus is actually searchable by vector.
 
   Reported alongside results so partial coverage is never mistaken for a small canon.
+
+  ## Two numbers, because chunks alone cannot see the whole gap
+
+  `percent` is chunk-level: of the chunks that exist, how many carry a usable vector.
+  `reachable_percent` is text-level: of the texts that exist, how many have been chunked
+  at all.
+
+  The second was added because the first reported **100.0% while 1,230 texts and
+  4,068,303 segments — 38% of the corpus — could not be reached by vector search at
+  all**. The CBETA X collection was baked and never chunked, and a text with no chunks
+  is absent from the numerator *and* the denominator, so it cancels out of a chunk-level
+  ratio perfectly. The number that exists to stop partial data being mistaken for a
+  small canon was itself hiding a third of the canon.
+
+  This is the Coverage doctrine (`Pramana.Coverage`) applied to the index rather than to
+  the bake: an absence must never be reportable as completeness. `note` states the gap
+  in words for the same reason coverage caveats do — so a model cannot skim past it.
   """
   @spec coverage(keyword()) :: map()
   def coverage(opts \\ []) do
@@ -466,12 +483,65 @@ defmodule Pramana.Retrieval.Semantic do
       |> where([chunk: _c], exists(qualifying_vectors))
       |> Repo.aggregate(:count)
 
-    %{
+    reach = reachability(opts)
+
+    Map.merge(reach, %{
       embedded: embedded,
       total: total,
       percent: if(total > 0, do: Float.round(100 * embedded / total, 1), else: 0.0),
       by_kind: vectors_by_kind()
+    })
+  end
+
+  # Texts the vector index cannot see AT ALL, because they were never chunked.
+  #
+  # Counted over TEXTS rather than segments deliberately. The segment-level question —
+  # `select count(*) from segments where not exists (chunk on that text)` — is the truer
+  # measure of volume and takes **2.8 s** on the full corpus against **96 ms** here.
+  # `Hybrid.run/2` calls coverage once per search, so 2.8 s is not a cost this can carry;
+  # the text count answers the same question ("is anything unreachable, and how much")
+  # at a thirtieth of the price, and `mix pramana.integrity` is where the exhaustive
+  # number belongs.
+  defp reachability(opts) do
+    texts =
+      from(t in Text,
+        as: :text,
+        join: w in Work,
+        as: :work,
+        on: w.id == t.work_id
+      )
+      |> apply_filters(opts)
+
+    corpus_texts = Repo.aggregate(texts, :count)
+
+    unchunked =
+      texts
+      |> where(
+        [text: t],
+        not exists(from(c in Chunk, where: c.text_id == parent_as(:text).id))
+      )
+      |> Repo.aggregate(:count)
+
+    %{
+      corpus_texts: corpus_texts,
+      unchunked_texts: unchunked,
+      reachable_percent:
+        if(corpus_texts > 0,
+          do: Float.round(100 * (corpus_texts - unchunked) / corpus_texts, 1),
+          else: 0.0
+        ),
+      note: unchunked_note(unchunked, corpus_texts)
     }
+  end
+
+  defp unchunked_note(0, _corpus), do: nil
+
+  defp unchunked_note(unchunked, corpus) do
+    "#{unchunked} of #{corpus} text(s) have not been chunked and cannot be reached by " <>
+      "vector search at all. They are absent from the chunk counts above — including " <>
+      "`percent` — so that figure describes the part of the corpus that IS indexed, not " <>
+      "the corpus. Absence of a semantic hit from those texts is not evidence about what " <>
+      "they say."
   end
 
   # How many vectors of each kind exist, alongside the chunk-level coverage above. A

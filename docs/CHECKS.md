@@ -68,6 +68,22 @@ the check passes. That is not hypothetical — 10,590 printed lines, 473 rare ch
 and 266,547 characters of interlinear note text were unreachable in a corpus that
 verified clean. **Reproducibility is not fidelity.**
 
+Check 1 **reconciles** rather than compares: an X file carries its own `ed="X"` lineation
+beside the earlier 卍續藏經 reprint's `ed="R055"`, and only one of them is the text's, so
+every `<lb/>` in the body must be either a line or a counted skip (`IR.foreign_lb`).
+Comparing raw `<lb/>` against lines alone reported 1,228 correct X texts as `lb_lost —
+raw 46, bake 25`. **A check deriving a number from raw markup has to derive it by the
+same rule the pipeline uses**, and a check that cries wolf is worse than one that is
+missing: that failure sat unseen because the X ingest ran `verify` and never this.
+
+Its fourth check answers a question the other three cannot: **did every acquired file
+reach the corpus at all?** Counted from the lockfile before any parsing — files → works
+→ texts loaded — because checks 1–3 each begin at a text row, and from inside a row a
+work that lost half of itself looks perfect. Six CBETA X works were in exactly that
+state, each having been overwritten by its own second volume, and `mix pramana.verify`
+passed over all 3,701 CBETA texts: each survivor re-derived byte-identically from the
+one file it recorded. What found it was `1,236 files` against `1,230 works`.
+
 Note `--sample N` on `verify` is **per text**, not a corpus-wide total. Use `--all` at
 a gate.
 
@@ -99,7 +115,12 @@ for id <- Pramana.Sources.ids(), do: {id, Pramana.Acquire.Lockfile.verify(id)}
 ```
 
 `verify` and `integrity` both work from paths recorded at ingest, so both stay green
-when the lockfile itself is wrong. The Tengyur landed with all 213 entries recorded as
+when the lockfile itself is wrong — and "wrong" includes *incomplete*. Acquiring CBETA's
+X collection replaced the `cbeta` entry rather than merging into it, dropping the
+Taishō's 2,471 file records: a corpus of 3,701 CBETA texts with a lockfile that could
+reproduce 1,230, and `Lockfile.verify/1` green over every file it still listed, because
+it verifies what is recorded and cannot miss what is not. Check the **counts** as well as
+the hashes; `mix pramana.integrity`'s census does this for the bake. The Tengyur landed with all 213 entries recorded as
 absolute paths on one laptop: `Lockfile.verify/1` failed on every one of them, and
 nothing else noticed, because a bake can be perfectly reproducible from files whose
 recorded location no other checkout can find. Check every source, not the one you just

@@ -226,6 +226,66 @@ defmodule Pramana.Segment.TaishoTest do
       assert Enum.map(segs, & &1.content) == ["甲", "乙"]
     end
 
+    # A printed line whose entire content is one rare character. Gaiji are recorded as a
+    # MAPPING rather than substituted into the body, so such a line has empty `text` and
+    # matched the segmenter's "nothing was printed here" test exactly — and a gaiji is
+    # the one kind of content a reader cannot reconstruct from anything else. One line in
+    # the whole CBETA corpus was in this state: X0575 0966b12, 䦚 (CB12059).
+    test "a line that is nothing but a rare character still gets a URN" do
+      {_ir, segs} =
+        x_segments!(
+          ~s(<lb ed="X" n="0966b11"/>甲) <>
+            ~s(<lb ed="X" n="0966b12"/><g ref="#CB12059"/>) <>
+            ~s(<lb ed="X" n="0966b13"/>乙)
+        )
+
+      assert Enum.map(segs, & &1.urn) == [
+               "pramana:cbeta.X:X0640@p0966b11",
+               "pramana:cbeta.X:X0640@p0966b12",
+               "pramana:cbeta.X:X0640@p0966b13"
+             ]
+
+      gaiji_line = Enum.find(segs, &(&1.urn =~ "0966b12"))
+      assert gaiji_line.content == ""
+      assert [%{ref: "CB12059"}] = gaiji_line.meta["gaiji"]
+    end
+
+    test "a line with nothing printed on it at all is still skipped" do
+      {_ir, segs} =
+        x_segments!(
+          ~s(<lb ed="X" n="0966b11"/>甲<lb ed="X" n="0966b12"/><lb ed="X" n="0966b13"/>乙)
+        )
+
+      assert Enum.map(segs, & &1.urn) == [
+               "pramana:cbeta.X:X0640@p0966b11",
+               "pramana:cbeta.X:X0640@p0966b13"
+             ]
+    end
+
+    # `mix pramana.integrity` counts `<lb ` in the raw body and compares. Filtering a
+    # foreign lineation looks EXACTLY like losing half the lines unless the count is
+    # carried, and for 1,228 X texts it did: `raw 46, bake 25`, reported as `lb_lost`
+    # over a bake that was correct.
+    test "the skipped edition's lines are counted, so a fidelity check can reconcile" do
+      {ir, segs} =
+        x_segments!(
+          ~s(<lb ed="X" n="0019a11"/><lb ed="R055" n="0019a01"/>甲) <>
+            ~s(<lb ed="X" n="0019a12"/><lb ed="R055" n="0019a01"/>乙)
+        )
+
+      assert length(segs) == 2
+      assert ir.foreign_lb == 2
+      # The reconciliation the check performs: every raw <lb/> is a line or a skip.
+      assert length(ir.lines) + ir.foreign_lb == 4
+    end
+
+    test "a file with one lineation reports nothing skipped" do
+      {ir, _segs} = x_segments!(~s(<lb ed="X" n="0019a11"/>甲<lb ed="X" n="0019a12"/>乙))
+
+      assert ir.foreign_lb == 0
+      assert length(ir.lines) == 2
+    end
+
     test "an lb with no edition is still a line" do
       # Older CBETA files omit `ed` entirely, and there the collection's own lineation is
       # the only one present. Requiring the attribute would empty those texts silently.

@@ -13,6 +13,7 @@ defmodule Pramana.Segment.SegmentId do
   @behaviour Pramana.Pipeline.Segmenter
 
   alias Pramana.Normalize.IR
+  alias Pramana.Normalize.IR.Line
   alias Pramana.URN
 
   @impl Pramana.Pipeline.Segmenter
@@ -46,10 +47,17 @@ defmodule Pramana.Segment.SegmentId do
   end
 
   # An empty segment id carries nothing citable. Bilara does emit a few, usually
-  # structural placeholders.
-  defp build(%{text: ""}, _ir, _source, _witness, _span, _ordinal), do: nil
-
+  # structural placeholders. The blank test is `Line.blank?/1` everywhere, so no
+  # segmenter can hold a narrower idea of "nothing was printed" than the check that
+  # audits it — bilara never populates notes, apparatus or gaiji, so this is the same
+  # predicate it already had.
   defp build(line, ir, source, witness, span, ordinal) do
+    if Line.blank?(line),
+      do: nil,
+      else: build_segment(line, ir, source, witness, span, ordinal)
+  end
+
+  defp build_segment(line, ir, source, witness, span, ordinal) do
     Map.merge(span, %{
       urn:
         URN.to_string(%URN{

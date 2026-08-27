@@ -6,9 +6,12 @@ defmodule Pramana.Bake.WorkerTest do
   """
   use Pramana.DataCase, async: false
 
+  import Ecto.Query
+
   alias Pramana.Bake.Worker
   alias Pramana.Corpus
   alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Text
   alias Pramana.Repo
 
   @xml """
@@ -140,14 +143,102 @@ defmodule Pramana.Bake.WorkerTest do
     end
   end
 
+  # A volume is a unit of printing; a work is the unit of loading. CBETA's X collection
+  # reuses one work number across two volume files six times over, and because
+  # `Loader.load/2` REPLACES a work's segments, a job per file meant the second volume
+  # erased the first with nothing reported. These pin the assembled shape.
+  describe "a work that spans printed volumes" do
+    @vol_one """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+    <teiHeader><fileDesc><titleStmt>
+      <title level="m" xml:lang="zh-Hant">卍續藏之作</title><author>唐 某甲撰</author>
+    </titleStmt></fileDesc></teiHeader>
+    <text><body><milestone n="1" unit="juan"/>
+    <lb n="0402c01" ed="X"/>第一卷之文
+    </body></text></TEI>
+    """
+
+    # Page numbering RESTARTS at each volume, so this repeats an anchor the first volume
+    # already used — 22,616 of X1571's anchors do exactly this. The juan is what keeps
+    # the two URNs apart.
+    @vol_two """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+    <teiHeader><fileDesc><titleStmt>
+      <title level="m" xml:lang="zh-Hant">卍續藏之作</title><author>唐 某甲撰</author>
+    </titleStmt></fileDesc></teiHeader>
+    <text><body><milestone n="2" unit="juan"/>
+    <lb n="0402c01" ed="X"/>第二卷之文
+    </body></text></TEI>
+    """
+
+    setup %{write_raw: write_raw} do
+      write_raw.("X/X81/X81n1571.xml", @vol_one)
+      write_raw.("X/X82/X82n1571.xml", @vol_two)
+
+      %{
+        spanning:
+          args(%{
+            "canon" => "X",
+            "volumes" => [81, 82],
+            "number" => "1571",
+            "work_id" => "X1571"
+          })
+      }
+    end
+
+    test "keeps both volumes instead of the last one to finish", %{spanning: spanning} do
+      assert {:ok, %{work_id: "X1571", segments: 2}} = run(spanning)
+
+      assert {:ok, first} = Corpus.resolve("pramana:cbeta.X:X1571_001@p0402c01")
+      assert {:ok, second} = Corpus.resolve("pramana:cbeta.X:X1571_002@p0402c01")
+
+      assert first.content == "第一卷之文"
+      assert second.content == "第二卷之文"
+    end
+
+    test "records which volume each repeated anchor belongs to", %{spanning: spanning} do
+      {:ok, _} = run(spanning)
+
+      volumes =
+        Repo.all(from s in Segment, order_by: s.ordinal, select: s.meta["volume"])
+
+      # The URN is unique because it carries the juan, but `p0402c01` alone names two
+      # different printed lines and a reader checking against the print needs the volume.
+      assert volumes == [81, 82]
+    end
+
+    test "labels the text by its span, and records the files to re-derive it from",
+         %{spanning: spanning} do
+      {:ok, _} = run(spanning)
+
+      text = Repo.one!(from t in Text, where: t.work_id == "X1571")
+
+      assert text.volume == "81-82"
+      assert text.meta["volumes"] == [81, 82]
+      assert text.meta["source_file"] =~ "X81n1571.xml"
+      assert text.meta["source_file"] =~ "X82n1571.xml"
+    end
+
+    test "a single-volume work carries no volume on its lines" do
+      {:ok, _} = run(args())
+
+      assert Repo.all(from s in Segment, select: s.meta["volume"]) == [nil]
+      assert Repo.one!(from t in Text, where: t.work_id == "T0262").volume == "9"
+    end
+
+    test "a job enqueued by an older run, carrying one volume, still runs" do
+      assert {:ok, %{work_id: "T0262", segments: 1}} = run(args(%{"volume" => 9}))
+    end
+  end
+
   describe "args/2" do
     test "builds job args from a catalog entry" do
-      entry = %{canon: "T", volume: 9, number: "0262", work_id: "T0262"}
+      entry = %{canon: "T", volumes: [9], number: "0262", work_id: "T0262"}
 
       assert Worker.args("cbeta", entry) == %{
                "source" => "cbeta",
                "canon" => "T",
-               "volume" => 9,
+               "volumes" => [9],
                "number" => "0262",
                "work_id" => "T0262"
              }

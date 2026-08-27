@@ -54,17 +54,42 @@ defmodule Mix.Tasks.Pramana.AcquireAll do
         pin: %{"type" => "git", "commit" => sha}
       )
 
-    :ok = Lockfile.put_source(entry)
+    # MERGED into whatever the source already records, because a collection is not a
+    # source: `--canon X` acquires 1,236 of CBETA's files and must not be read as a
+    # statement that the other 3,769 are gone. Replacing the entry is how the Taishō
+    # fell out of the lockfile while its 2,471 texts stayed in the corpus.
+    :ok = merge!(entry)
+    {:ok, locked} = Lockfile.get_source(source)
 
     Mix.shell().info("""
 
     acquired #{length(files)} file(s) into raw/#{source}/
       pin:          #{sha}
-      manifest:     #{entry["files_sha256"]}
+      manifest:     #{locked["files_sha256"]}
+      in lockfile:  #{locked["file_count"]} file(s) for #{source}
       lockfile:     #{Lockfile.path()}
 
     Next: mix pramana.bake_all --source #{source}#{if canon, do: " --canon #{canon}", else: ""}
     """)
+  end
+
+  defp merge!(entry) do
+    case Lockfile.merge_source(entry) do
+      :ok ->
+        :ok
+
+      {:error, {:pin_conflict, locked, incoming}} ->
+        Mix.raise("""
+        #{entry["id"]} is already locked at a different upstream pin.
+
+          locked:   #{inspect(locked)}
+          incoming: #{inspect(incoming)}
+
+        One entry cannot honestly carry files fetched at two commits — the pin would be
+        wrong for half of them. Re-acquire the whole source at the new pin, and re-bake:
+        the corpus those older files produced is not reproducible from the new commit.
+        """)
+    end
   end
 
   defp maybe_limit(entries, nil), do: entries

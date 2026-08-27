@@ -177,6 +177,14 @@ defmodule Pramana.Corpus.Loader do
     )
   end
 
+  # A work spanning volumes is labelled by its span — "8-9" — because that is how the
+  # printed edition is cited and because a single number here is a claim the text does
+  # not support. `verify` reads `meta["volumes"]` rather than parsing this back.
+  defp volume_label(%IR{volumes: []} = ir), do: ir.volume && Integer.to_string(ir.volume)
+
+  defp volume_label(%IR{volumes: volumes}),
+    do: "#{Enum.min(volumes)}-#{Enum.max(volumes)}"
+
   defp upsert_text!(ir, work, witness_id, source_id, addressing, source_file) do
     body = IR.body(ir)
     prefix = Taisho.urn_prefix(source_id, witness_id, ir.work_id)
@@ -187,7 +195,7 @@ defmodule Pramana.Corpus.Loader do
         witness_id: witness_id,
         source_id: source_id,
         urn_prefix: prefix,
-        volume: ir.volume && Integer.to_string(ir.volume),
+        volume: volume_label(ir),
         body: body,
         body_sha256: :crypto.hash(:sha256, body) |> Base.encode16(case: :lower),
         meta: %{
@@ -202,7 +210,12 @@ defmodule Pramana.Corpus.Loader do
           # one-to-one onto files (bilara packs several suttas per file) cannot be
           # re-derived without it, and `mix pramana.verify` must be able to re-derive
           # every text or it is not checking anything.
-          "source_file" => source_file
+          "source_file" => source_file,
+          # Only for a work that runs across more than one printed volume. `volume`
+          # above then reads "8-9", which is what a citation says; this is the machine
+          # form, and `verify` needs it to re-derive the text from every file it was
+          # assembled from rather than from one of them.
+          "volumes" => (ir.volumes != [] && ir.volumes) || nil
         },
         outline: %{"entries" => Enum.map(ir.outline, &stringify_entry/1)}
       },

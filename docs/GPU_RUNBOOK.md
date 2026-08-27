@@ -15,13 +15,17 @@ visible failure.
 mix pramana.embed.export --out /tmp/pramana_chunks.jsonl
 ```
 
-Measured on the current bake (pipeline v3):
+Measured on the Taishō-only bake (pipeline v3):
 
 ```
 299,317 chunks   288.5 MB
 ```
 
-That is the whole corpus. The 阿含部 proof embeddings are gone: the Phase 1 gate's
+That was the whole corpus **then**. It is not now: CBETA X is baked and unchunked —
+1,230 texts, 87.6M characters, so roughly **285k more chunks** at the same 300-character
+Literary Chinese window, and by that precedent about **35 minutes and $0.45**. Chunk
+before exporting, or the export will faithfully ship a corpus that is missing a
+collection. The 阿含部 proof embeddings are gone: the Phase 1 gate's
 fidelity fix changed segmentation, and re-chunking replaces chunk rows, so their
 vectors went with them. Nothing expensive was lost — this run was always going to
 cover everything — but it is why the count is 299,317 rather than the outstanding

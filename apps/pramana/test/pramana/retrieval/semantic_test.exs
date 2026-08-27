@@ -236,6 +236,45 @@ defmodule Pramana.Retrieval.SemanticTest do
       # T0001 owns 2 of the 3 chunks, so clearing it leaves 1 of 3.
       assert %{total: 3, embedded: 1, percent: 33.3} = Semantic.coverage()
     end
+
+    # The chunk-level ratio CANNOT see a text that was never chunked: it is absent from
+    # the numerator and the denominator alike, so it cancels out and the index reports
+    # itself complete. That is not hypothetical — the real corpus reported `percent:
+    # 100.0` while 1,230 baked CBETA X texts and 4,068,303 segments had no chunks at all.
+    test "a text that was never chunked is reported, not cancelled out" do
+      before = Semantic.coverage()
+      assert before.percent == 100.0
+      assert before.unchunked_texts == 0
+      assert before.reachable_percent == 100.0
+      assert is_nil(before.note)
+
+      unchunked = load!("T9999", ["未分段之經文"], title: "未分段", composition_origin: "chinese")
+      Repo.delete_all(from c in Chunk, where: c.text_id == ^unchunked)
+
+      after_load = Semantic.coverage()
+
+      # Unchanged, and that is exactly the problem this field exists to expose.
+      assert after_load.percent == 100.0
+      assert after_load.total == before.total
+
+      assert after_load.unchunked_texts == 1
+      assert after_load.corpus_texts == before.corpus_texts + 1
+      assert after_load.reachable_percent < 100.0
+      assert after_load.note =~ "cannot be reached by vector search"
+    end
+
+    test "reachability honours the same filters as the chunk counts" do
+      unchunked = load!("T9999", ["未分段之經文"], title: "未分段", composition_origin: "chinese")
+      Repo.delete_all(from c in Chunk, where: c.text_id == ^unchunked)
+
+      assert %{unchunked_texts: 1} = Semantic.coverage()
+
+      # The unchunked text is Chinese-composed, so an Indic-only view must not inherit
+      # its gap — a caller filtering to Indic sources is told the truth about Indic
+      # sources.
+      assert %{unchunked_texts: 0, reachable_percent: 100.0, note: nil} =
+               Semantic.coverage(origin: "indic")
+    end
   end
 
   describe "multi-vector retrieval" do

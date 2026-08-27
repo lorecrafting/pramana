@@ -42,7 +42,19 @@ defmodule Pramana.Bake do
   #   3 — split a <note> that spans <lb/> across the lines it covers, instead of
   #       attributing all of it to the line where it closes. Intermediate lines were
   #       left with no text and no note, so v2 still dropped them.
-  @pipeline_version "3"
+  #   4 — a work that runs across several printed volumes is ASSEMBLED before loading
+  #       instead of baked once per file, and its lines carry the volume they were
+  #       printed in. Six CBETA X works were keeping one of their two volumes, with
+  #       which one decided by job scheduling — so v3 could not even promise that two
+  #       bakes of one lockfile agreed with each other. Changes the body of those six
+  #       and adds `meta["volume"]` to their segments; every other text is unchanged.
+  #       Also: a line whose entire printed content is one rare character now gets a
+  #       URN. Gaiji were missing from the segmenter's blank test, and a gaiji-only line
+  #       has empty text because gaiji are a mapping rather than a substitution, so it
+  #       matched "nothing was printed here" exactly. One line in the whole CBETA
+  #       corpus — X0575 0966b12, 䦚 — and it is the kind of content a reader cannot
+  #       reconstruct from anything else.
+  @pipeline_version "4"
 
   @doc "The current pipeline version."
   @spec pipeline_version() :: String.t()

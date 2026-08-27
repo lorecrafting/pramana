@@ -41,6 +41,7 @@ defmodule Pramana.Segment.Derge do
   @behaviour Pramana.Pipeline.Segmenter
 
   alias Pramana.Normalize.IR
+  alias Pramana.Normalize.IR.Line
   alias Pramana.URN
 
   # `33xa` and `355xb` are real: four leaves in the edition are inserted rather than
@@ -82,9 +83,19 @@ defmodule Pramana.Segment.Derge do
   # Nothing was printed here. The normalizer already drops whitespace-only buffers; this
   # is the same guarantee stated where the segment is built, so an empty URN cannot be
   # created by a future change upstream.
-  defp build(%{text: ""}, _ir, _source, _witness, _span, _ordinal), do: nil
-
+  #
+  # `Line.blank?/1` rather than `%{text: ""}`, because a Tengyur line carries apparatus
+  # and this dropped it on empty text alone — the same shape as the CBETA line whose only
+  # content was a rare character. No such line exists today (`mix pramana.integrity` is
+  # green over both Degé sources, and its definition of "printed" already included the
+  # apparatus), so this changes no output; it stops the next one being lost.
   defp build(line, ir, source, witness, span, ordinal) do
+    if Line.blank?(line),
+      do: nil,
+      else: build_segment(line, ir, source, witness, span, ordinal)
+  end
+
+  defp build_segment(line, ir, source, witness, span, ordinal) do
     printed = printed(line.anchor)
 
     Map.merge(span, %{

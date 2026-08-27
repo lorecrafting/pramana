@@ -133,7 +133,11 @@ Retrieval degrades rather than failing, so every response says what it actually 
 - **`retrievers`** — `["lexical"]` alone means semantic search was unavailable and
   meaning-based matches were never considered.
 - **`embedding_coverage`** — how much of the corpus is vector-searchable. Partial
-  coverage is not a small canon.
+  coverage is not a small canon. **Two numbers**: `percent` is the share of existing
+  chunks carrying a vector, `reachable_percent` the share of texts that were chunked at
+  all. A text with no chunks cancels out of `percent` entirely, so `percent: 100.0` with
+  `unchunked_texts: 1230` means the index is complete over the part of the corpus it
+  covers and blind to the rest; `note` says so in words when it applies.
 - **`mode`** — `phrase` is strong evidence; `ngram` is a character-window fallback.
 - **`addressing`** — `canonical` is checkable against a printed edition; `derived` is
   not, because that source has no printed page and line.

@@ -120,10 +120,14 @@ defmodule Pramana.Acquire.CBETA do
     {:ok, %{pin: sha, files: entry["files"], refetched: false}}
   end
 
+  # MERGE, never replace. CBETA is acquired one collection at a time, and each
+  # collection is a separate run of this: writing the entry whole meant acquiring X
+  # deleted the Taishō's 2,471 files from the lockfile, leaving a corpus that could not
+  # be reproduced from `sources.lock.json`. See `Lockfile.merge_source/1`.
   defp download_and_lock(source, sha, paths, opts) do
     with {:ok, files} <- download_all(source, sha, paths, opts),
          entry = lock_entry(source, sha, files, opts),
-         :ok <- Lockfile.put_source(entry) do
+         :ok <- Lockfile.merge_source(entry) do
       {:ok, %{pin: sha, files: files, refetched: true}}
     end
   end

@@ -26,6 +26,118 @@ defmodule Pramana.Acquire.LockfileTest do
     %{path: path, sha256: Lockfile.sha256(contents), bytes: byte_size(contents)}
   end
 
+  # A source acquired one collection at a time is written more than once, and
+  # `put_source/1` writes the entry WHOLE. Acquiring CBETA's X collection therefore
+  # deleted the Taishō's 2,471 files from the lockfile while their texts stayed in the
+  # corpus — nothing failed, and the corpus stopped being reproducible from
+  # `sources.lock.json`, which is invariant 3.
+  describe "merge_source/1" do
+    test "keeps files an earlier acquisition recorded", %{source: source} do
+      pin = %{"type" => "git", "commit" => "abc"}
+
+      taisho = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("a", 64), bytes: 1}
+      zoku = %{path: "X/X08/X08n0240.xml", sha256: String.duplicate("b", 64), bytes: 2}
+
+      :ok = Lockfile.put_source(Lockfile.build_entry(source, files: [taisho], pin: pin))
+      :ok = Lockfile.merge_source(Lockfile.build_entry(source, files: [zoku], pin: pin))
+
+      {:ok, entry} = Lockfile.get_source("cbeta")
+
+      assert Enum.map(entry["files"], & &1["path"]) == [
+               "T/T09/T09n0262.xml",
+               "X/X08/X08n0240.xml"
+             ]
+
+      assert entry["file_count"] == 2
+    end
+
+    test "recomputes the manifest hash over the union, so bake_id covers both",
+         %{source: source} do
+      pin = %{"type" => "git", "commit" => "abc"}
+      a = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("a", 64), bytes: 1}
+      b = %{path: "X/X08/X08n0240.xml", sha256: String.duplicate("b", 64), bytes: 2}
+
+      :ok = Lockfile.put_source(Lockfile.build_entry(source, files: [a], pin: pin))
+      :ok = Lockfile.merge_source(Lockfile.build_entry(source, files: [b], pin: pin))
+
+      {:ok, entry} = Lockfile.get_source("cbeta")
+      assert entry["files_sha256"] == Lockfile.manifest_hash([a, b])
+    end
+
+    test "a re-acquired file is replaced, not duplicated", %{source: source} do
+      pin = %{"type" => "git", "commit" => "abc"}
+      before = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("a", 64), bytes: 1}
+      again = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("c", 64), bytes: 3}
+
+      :ok = Lockfile.put_source(Lockfile.build_entry(source, files: [before], pin: pin))
+      :ok = Lockfile.merge_source(Lockfile.build_entry(source, files: [again], pin: pin))
+
+      {:ok, entry} = Lockfile.get_source("cbeta")
+
+      assert [%{"sha256" => sha, "bytes" => 3}] = entry["files"]
+      assert sha == String.duplicate("c", 64)
+    end
+
+    test "refuses to merge files fetched at a different pin", %{source: source} do
+      a = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("a", 64), bytes: 1}
+      b = %{path: "X/X08/X08n0240.xml", sha256: String.duplicate("b", 64), bytes: 2}
+
+      :ok =
+        Lockfile.put_source(
+          Lockfile.build_entry(source, files: [a], pin: %{"type" => "git", "commit" => "abc"})
+        )
+
+      assert {:error, {:pin_conflict, %{"commit" => "abc"}, %{"commit" => "def"}}} =
+               Lockfile.merge_source(
+                 Lockfile.build_entry(source,
+                   files: [b],
+                   pin: %{"type" => "git", "commit" => "def"}
+                 )
+               )
+
+      # And it left the lockfile alone rather than half-writing it.
+      {:ok, entry} = Lockfile.get_source("cbeta")
+      assert Enum.map(entry["files"], & &1["path"]) == ["T/T09/T09n0262.xml"]
+    end
+
+    # A pin that moved is not automatically a conflict. Re-acquiring the same paths at a
+    # newer commit is the ordinary case and must replace the entry; it is only a conflict
+    # when the new fetch leaves paths behind, because those would keep a commit label
+    # they never came from.
+    test "replaces the entry when the new fetch covers everything already locked",
+         %{source: source} do
+      a = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("a", 64), bytes: 1}
+      a2 = %{path: "T/T09/T09n0262.xml", sha256: String.duplicate("z", 64), bytes: 9}
+
+      :ok =
+        Lockfile.put_source(
+          Lockfile.build_entry(source, files: [a], pin: %{"type" => "git", "commit" => "abc"})
+        )
+
+      assert :ok =
+               Lockfile.merge_source(
+                 Lockfile.build_entry(source,
+                   files: [a2],
+                   pin: %{"type" => "git", "commit" => "def"}
+                 )
+               )
+
+      assert {:ok, %{"pin" => %{"commit" => "def"}, "file_count" => 1}} =
+               Lockfile.get_source("cbeta")
+    end
+
+    test "writes the entry outright when the source is not locked yet", %{source: source} do
+      entry =
+        Lockfile.build_entry(source,
+          files: [%{path: "T/T09/T09n0262.xml", sha256: String.duplicate("a", 64), bytes: 1}],
+          pin: %{"type" => "git", "commit" => "abc"}
+        )
+
+      assert :ok = Lockfile.merge_source(entry)
+      assert {:ok, %{"file_count" => 1}} = Lockfile.get_source("cbeta")
+    end
+  end
+
   describe "manifest_hash/1" do
     test "is independent of the order files were fetched in" do
       a = %{path: "T/T09/a.xml", sha256: "aaa", bytes: 1}

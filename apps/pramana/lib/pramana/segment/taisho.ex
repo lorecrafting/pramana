@@ -24,6 +24,7 @@ defmodule Pramana.Segment.Taisho do
   @behaviour Pramana.Pipeline.Segmenter
 
   alias Pramana.Normalize.IR
+  alias Pramana.Normalize.IR.Line
   alias Pramana.URN
   alias Pramana.URN.Taisho
 
@@ -104,12 +105,22 @@ defmodule Pramana.Segment.Taisho do
   def urn_prefix(source, witness, work_id), do: "pramana:#{source}.#{witness}:#{work_id}"
 
   # Genuinely blank: nothing was printed on this line but the line number. Everything
-  # else — including a line that is nothing but an inline note — is real printed
-  # content and must stay addressable.
-  defp build(%{text: "", notes: [], apparatus: []}, _ir, _source, _witness, _span, _ordinal),
-    do: nil
-
+  # else — a line that is nothing but an inline note, and a line that is nothing but a
+  # rare character — is real printed content and must stay addressable.
+  #
+  # `Line.blank?/1` rather than a pattern match written out here, because this list has
+  # been written by hand three times and been wrong every time: text only (v2 dropped
+  # 5,213 note-only lines), text and notes (v3 dropped 10,590), text/notes/apparatus —
+  # which dropped X0575 0966b12, a line whose entire printed content is the rare
+  # character 䦚. Gaiji have empty `text`, since they are a mapping rather than a
+  # substitution, so a gaiji-only line matched "blank" exactly.
   defp build(line, ir, source, witness, span, ordinal) do
+    if Line.blank?(line),
+      do: nil,
+      else: build_segment(line, ir, source, witness, span, ordinal)
+  end
+
+  defp build_segment(line, ir, source, witness, span, ordinal) do
     anchor = parse_anchor(line.anchor)
 
     Map.merge(span, %{
@@ -161,6 +172,11 @@ defmodule Pramana.Segment.Taisho do
     |> then(fn m ->
       if line.editorial_punctuation, do: Map.put(m, "editorial_punctuation", true), else: m
     end)
+    # Present only on a work assembled from several printed volumes, where the anchor
+    # alone stops naming one line: X1571's two volumes repeat 22,616 page/register/line
+    # anchors between them. The URN stays unique because it carries the juan, but a
+    # reader checking `p0402c01` against the print needs to be told which volume.
+    |> then(fn m -> if line.volume, do: Map.put(m, "volume", line.volume), else: m end)
   end
 
   defp normalize_app(app) do

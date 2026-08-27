@@ -16,8 +16,14 @@ config :pramana, Pramana.Repo,
   # the default 15s checkout timeout kills exactly those — 26 of 2,471 works failed
   # this way, every one of them large. Timeouts here are a capacity problem, never a
   # data problem, so raise capacity rather than shrink the transaction.
+  #
+  # 120s was enough until a work spanning volumes became ONE transaction: assembled
+  # X1571 is 74,570 lines against T1912's 26,000, and it timed out at 120s. Raising the
+  # ceiling is the fix the rule above prescribes — splitting the load would put half a
+  # work in the corpus if the second half failed, which is the defect that made the
+  # assembly necessary in the first place.
   pool_size: 25,
-  timeout: 120_000,
+  timeout: 300_000,
   queue_target: 5_000,
   queue_interval: 30_000
 

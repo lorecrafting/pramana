@@ -85,7 +85,12 @@ defmodule PramanaWeb.MCP.Resources.Guide do
     - `retrievers` — which retrievers contributed. `["lexical"]` alone means semantic
       search was unavailable, so meaning-based matches were not considered.
     - `embedding_coverage` — how much of the corpus is vector-searchable. Partial
-      coverage is not a small canon.
+      coverage is not a small canon. Read **two** numbers, not one: `percent` is the
+      share of existing chunks that carry a vector, while `reachable_percent` is the
+      share of texts that were chunked at all. A text with no chunks cancels out of
+      `percent` entirely, so `percent: 100.0` with `unchunked_texts: 1230` means the
+      index is complete over the part of the corpus it covers and blind to the rest.
+      When `note` is present, it says so in words.
     - `mode` — `phrase` is strong evidence; `ngram` is a character-window fallback and
       weaker; weigh accordingly.
     - `addressing` — `canonical` can be checked against a printed edition; `derived`

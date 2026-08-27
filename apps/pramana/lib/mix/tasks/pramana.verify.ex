@@ -191,9 +191,38 @@ defmodule Mix.Tasks.Pramana.Verify do
     if Sources.local?(text.source_id) do
       reproduce_local(text)
     else
-      with {:ok, xml} <- read_raw(text), do: renormalize(text, xml)
+      reproduce_cbeta(text, volumes(text))
     end
   end
+
+  # A CBETA work usually occupies one volume, and six X works occupy two. Re-deriving
+  # one of those from a single file rebuilds half the text and the comparison fails
+  # with a character count and no reason, so every volume it was assembled from is
+  # re-walked in printed order — the same shape as the Derge path above, for the same
+  # reason.
+  defp reproduce_cbeta(text, volumes) do
+    volumes
+    |> Enum.reduce_while({:ok, []}, fn volume, {:ok, acc} ->
+      with {:ok, xml} <- read_raw(text, volume),
+           {:ok, ir} <- renormalize(text, xml, volume) do
+        {:cont, {:ok, [ir | acc]}}
+      else
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, parts} -> {:ok, parts |> Enum.reverse() |> IR.concat()}
+      error -> error
+    end
+  end
+
+  # `meta["volumes"]` is written by the loader for an assembled work and is the only
+  # record of the span: `text.volume` reads "81-82" there, and parsing a range back out
+  # of a display string is how the two halves of a fact drift apart.
+  defp volumes(%{meta: %{"volumes" => volumes}}) when is_list(volumes) and volumes != [],
+    do: volumes
+
+  defp volumes(text), do: [text.volume && String.to_integer(text.volume)]
 
   defp normalizer_for("derge"), do: Derge
   defp normalizer_for("derge-tengyur"), do: DergeTengyur
@@ -287,11 +316,16 @@ defmodule Mix.Tasks.Pramana.Verify do
     end
   end
 
-  defp read_raw(text) do
+  defp read_raw(text, volume) do
     canon = text.witness_id
     number = String.replace_prefix(text.work_id, canon, "")
-    volume = String.to_integer(text.volume || "0")
-    path = Path.join([Lockfile.raw_dir(), text.source_id, CBETA.work_path(canon, volume, number)])
+
+    path =
+      Path.join([
+        Lockfile.raw_dir(),
+        text.source_id,
+        CBETA.work_path(canon, volume || 0, number)
+      ])
 
     case File.read(path) do
       {:ok, xml} -> {:ok, xml}
@@ -299,14 +333,14 @@ defmodule Mix.Tasks.Pramana.Verify do
     end
   end
 
-  defp renormalize(text, xml) do
+  defp renormalize(text, xml, volume) do
     canon = text.witness_id
     number = String.replace_prefix(text.work_id, canon, "")
 
     Normalize.CBETA.normalize(xml,
       work_id: text.work_id,
       canon: canon,
-      volume: text.volume && String.to_integer(text.volume),
+      volume: volume,
       number: number
     )
   end

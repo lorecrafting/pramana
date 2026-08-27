@@ -464,6 +464,11 @@ defmodule Pramana.Normalize.CBETA do
       author: trim_or_nil(state.header[:author]),
       license_notice: trim_or_nil(state.header[:license]),
       juan_count: state.juan_count,
+      # Carried out of the parser, not discarded with it: `mix pramana.integrity` counts
+      # `<lb ` in the raw body and must be able to tell a skipped foreign lineation from
+      # a lost line. Without it the check reported 1,228 X texts as having lost half
+      # their lines, when what they had lost was the 卍續藏經 reprint's numbering.
+      foreign_lb: state.skipped_lb,
       gaiji: gaiji,
       lines: lines,
       # Apparatus whose `from` anchor is absent from the body. Kept and counted, never

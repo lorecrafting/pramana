@@ -24,6 +24,7 @@ defmodule Pramana.Segment.Page do
   @behaviour Pramana.Pipeline.Segmenter
 
   alias Pramana.Normalize.IR
+  alias Pramana.Normalize.IR.Line
   alias Pramana.URN
 
   @impl Pramana.Pipeline.Segmenter
@@ -55,11 +56,15 @@ defmodule Pramana.Segment.Page do
   end
 
   # Nothing was printed on this page at all. Anything else — text, a note, an
-  # apparatus entry — is content and must keep its anchor.
-  defp build(%{text: "", notes: [], apparatus: []}, _ir, _source, _witness, _span, _ordinal),
-    do: nil
-
+  # apparatus entry, a rare character — is content and must keep its anchor, and
+  # `Line.blank?/1` is the single definition of that.
   defp build(line, ir, source, witness, span, ordinal) do
+    if Line.blank?(line),
+      do: nil,
+      else: build_segment(line, ir, source, witness, span, ordinal)
+  end
+
+  defp build_segment(line, ir, source, witness, span, ordinal) do
     Map.merge(span, %{
       urn: build_urn(source, witness, ir.work_id, line),
       juan: line.juan,

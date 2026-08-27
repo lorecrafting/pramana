@@ -13,7 +13,8 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-08-24** — A shipped end to end. **B (CBETA X) is next.**
+Last reviewed: **2026-08-26** — A shipped. **B (CBETA X) is baked and correct; what is
+left of it is the GPU spend and a re-baseline.**
 
 ---
 
@@ -21,7 +22,9 @@ Last reviewed: **2026-08-24** — A shipped end to end. **B (CBETA X) is next.**
 
 | | |
 |---|---|
-| corpus | 15,489 texts · 6,538,238 segments · 3 traditions · 617,038 vectors |
+| corpus | 16,719 texts · 10,702,843 segments · 3 traditions · 617,038 vectors |
+| chunks | 850,630 — **every text chunked**; X's 290,392 are **not embedded yet** (65.9%) |
+| reader | LiveView search + passage at `/` and `/passage` |
 | work relations | 90 `comments_on` · **82 `parallel_of`** (41 pairs) |
 | eval | **93.6%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
 | retrieval@10 | 380/446 — zh 97.8% · pa 81.3% · bo 48.4% |
@@ -35,7 +38,7 @@ against a print edition, see the provenance of each, and follow parallels and va
 between them — with published numbers saying how often that works.
 
 By that definition the *retrieval substrate* is close. What is thin is **coverage**
-(one CBETA collection of ~20), **the deterministic enrichment that differentiates this
+(two CBETA collections of ~20), **the deterministic enrichment that differentiates this
 project** (#22 done, #23 blocked, commentary alignment untouched), and **any surface a
 human can use** (no reader).
 
@@ -169,34 +172,161 @@ embedding — the GPU spend stays a separate decision.
 **Landed: 1,230 X texts, `verify OK` over 3,701 CBETA texts / 2,089,631 segments,
 byte-identical.** The corpus is now **16,719 texts**.
 
-**KNOWN DEFECT, 6 works: volume-spanning texts keep only one volume.** Six X work numbers
-appear in two volume files each — X0240 (X08+X09), X0367 (X20+X21), X0714 (X39+X40),
-X0822 (X50+X51), X1568 (X80+X81), X1571 (X81+X82). `bake_all` runs one job per FILE and
-`Loader.load/2` replaces a work's segments, so the second volume overwrites the first and
-**one volume's text is silently lost**.
+**▸ THE SIX DEFECTS THAT INGEST LEFT BEHIND ARE FIXED — 2026-08-26.** Four were
+invisible while the Taishō was the only collection held. The other two were what
+`mix pramana.integrity` had to say, and nobody had run it since X landed: it was crying
+wolf over 1,228 texts, and underneath that noise it was right about one.
 
-This is the Derge bug exactly, recorded there as "a volume is not the unit of loading, and
-the loader will not tell you" — where 75 of 1,195 works spanned volumes and had to be
-assembled in `Derge.Edition` before loading. The Taishō never showed it because CBETA gives
-Taishō works split across volumes DISTINCT ids (`T0220a`, `T0220b`): 2,471 distinct numbers
-across 2,471 files. X reuses the number.
+1. **`embedding_coverage` reported `100.0%` while 38% of the corpus was unreachable.**
+   The denominator was chunks, and X had never been chunked — so its 1,230 texts and
+   4,068,303 segments were absent from the numerator *and* the denominator and cancelled
+   out exactly. The field that exists to stop partial data being mistaken for a small
+   canon was hiding a third of the canon. `coverage/1` now also reports
+   `reachable_percent`, `unchunked_texts` and a `note`, and `docs/MCP.md`'s guide
+   resource tells a caller to read both numbers. **This is still true and still
+   unembedded** — it is now *stated* rather than hidden.
+2. **Six works kept one of their two volumes.** X0240, X0367, X0714, X0822, X1568 and
+   X1571 each reuse one work number across two volume files, and `bake_all` ran one job
+   per FILE while `Loader.load/2` REPLACES a work's segments. Fixed by making the work,
+   not the file, the unit of a job (`Pramana.Bake.WorkList`) and assembling the parts
+   before loading (`IR.concat/1`) — the same shape as `Derge.Edition`.
 
-**`verify` cannot catch it** — it re-normalizes the file the text records and compares, so
-a text holding one volume re-derives from that volume and passes. Rule 2 again:
-reproducibility is not fidelity. The check that would catch it is a count taken from the
-SOURCE before parsing: files on disk (1,236) against works loaded (1,230).
+   **The design question the last session left open is answered: no anchor rewriting is
+   needed.** Juan numbering runs continuously across the volume break (X08n0240 ends at
+   juan 44, X09n0240 opens at juan 45) and the URN already carries the juan, so the
+   assembled works have **zero duplicate URNs** — 216,041 segments, 216,041 distinct.
+   Only X1571 repeats page anchors between its volumes, and it repeats **22,616** of
+   them, so each line now carries `meta["volume"]`: the URN was always unique, the
+   *printed* locator was not.
 
-**Fix:** assemble the two volumes before loading, as `Derge.Edition` does. That is a change
-to the bake flow — currently one Oban job per file — so it is its own task, not a patch.
+       X0240    628,757 -> 1,111,576 chars       X0822   105,260 ->   340,494
+       X0367    193,061 ->   349,657             X1568   285,419 ->   824,278
+       X0714    312,279 ->   590,859             X1571 1,222,180 -> 1,763,147
 
-**Still open:** the GPU spend for embedding X, unchanged and still needing a human. And
-whether X's second lineation (`ed="R*"`) should be preserved as alternative citation
-metadata: scholars cite 卍續藏 by its original R page/line, and it is currently discarded.
+   **2,233,055 characters recovered**, `verify OK` over all 3,701 CBETA texts afterwards.
+3. **Acquiring X deleted the Taishō from `sources.lock.json`.** `put_source/1` writes a
+   source entry whole, and CBETA is acquired one collection at a time, so the X run
+   replaced 2,471 T file records with 1,236 X ones. **A corpus of 3,701 baked CBETA texts
+   had a lockfile that could reproduce 1,230 of them** — invariant 3, broken in silence:
+   `raw/` still held every byte, `verify` re-derives from the file a text names on disk,
+   and acquisition reported success. `Lockfile.merge_source/1` now merges by path; when the pin has
+   moved it replaces the entry only if the new fetch covers every path already locked,
+   and otherwise refuses, because the untouched paths would keep a commit label they
+   never came from. The entry is repaired to **3,707 files, every one re-hashed against
+   `raw/`** (`Lockfile.verify` → `{:ok, 3707}`). **`bake_id` changed, and correctly** —
+   the old one was computed over a lockfile that did not describe the corpus.
+4. **A killed bake left its queue behind.** `bake_all` purged only `completed` and
+   `discarded` jobs, so the next run enqueued a second copy of everything still
+   `available` — 1,468 jobs for 1,230 works, and the connection contention that produced
+   the nine statement timeouts blamed on a slow machine. It now purges the whole queue
+   unless `--resume`.
+5. **`mix pramana.integrity` had been failing on 1,228 X texts, and nobody had run it.**
+   The X ingest ran `verify` only. Integrity counts `<lb ` in the raw body and compares
+   against IR lines — and after the two-lineation fix, half of every X file's `<lb/>`
+   belong to the 卍續藏經 reprint and are correctly skipped, so the check read `raw 46,
+   bake 25` and called it `lb_lost`. **The bake was right and the check was wrong**, which
+   is the more dangerous way round: a fidelity check that cries wolf gets ignored.
+
+   The normalizer had counted the skips all along — `skipped_lb`, with a comment saying
+   it existed "so that filtering everything away is a loud failure rather than an empty
+   text" — and then dropped the number on the floor when it built the IR. It is now
+   `IR.foreign_lb`, and the check reconciles: **every `<lb/>` in a CBETA body is either a
+   line or a skip.** Measured over all 3,701 CBETA texts:
+
+       raw <lb>     13,156,723
+       IR lines      8,989,044
+       foreign lb    4,167,679
+       unaccounted           0    (0 texts mismatched)
+6. **One printed line in the corpus was a rare character and had no URN.** With the noise
+   gone, integrity had exactly one thing left to say: `X0575: line_unaddressable — raw
+   1756, bake 1755`. The segmenter's blank test was `text: "", notes: [], apparatus: []`
+   and **omitted gaiji** — and a line whose entire content is one rare glyph has empty
+   `text`, because gaiji are recorded as a mapping rather than substituted into the body.
+   So it matched "nothing was printed here" exactly. It is the third time this project
+   has dropped a line that was not blank, after note-only lines (v2) and `<note>` spanning
+   `<lb/>` (v3), and gaiji are the one kind of content a reader cannot reconstruct from
+   anything else.
+
+   Counted across all 3,701 CBETA texts: **one line, X0575 0966b12, the character 䦚
+   (CB12059)** — T has none, which is why the Taishō gate never saw it. It now resolves at
+   `pramana:cbeta.X:X0575_001@p0966b12` with the mapping in `meta`.
+
+**The check that would have caught #2 and #3 now exists.** `mix pramana.integrity` gained
+a fourth check: a census taken from the lockfile **before any parsing** — files → works →
+texts loaded. The first three checks all start from a text row, and from inside a row a
+work that lost half of itself looks perfect. cbeta now reads `3,707 file(s) -> 3,701
+work(s) -> 3,701 loaded`.
+
+`pipeline_version` is **4**. `config/dev.exs`'s pool timeout went 120s → 300s: assembling
+X1571 makes one transaction of 74,570 lines against T1912's 26,000, which is the capacity
+answer that file's own comment prescribes.
+
+**What is LEFT of B, and it needs a human for one line of it:**
+
+- **▸ CHUNKED 2026-08-26.** `mix pramana.chunk --source cbeta` built **290,392 chunks in
+  98 s**, leaving the Taishō's 2,471 embedded texts alone (the builder refuses to discard
+  vectors without `--force`). The corpus now holds 850,630 chunks, and coverage reports
+  **65.9%** — a number that would have read 100.0% both before and after this ran, under
+  the old denominator.
+- **Embed X — the one step that needs a human.** ~290k chunks; by the measured precedent
+  (T: 299,317 chunks, 34 min, ~$0.45 on a rented L4) that is **~35 minutes and ~$0.45**.
+  Then import + HNSW rebuild, dropping the index first (69 s against 40 min).
+- **Re-baseline.** `evals/baseline.json` is dated 2026-08-23 and predates X, so rule 6
+  says it is invalid. Run the gate ONCE, after embedding — running it now would measure a
+  half-indexed corpus and cost a second 20m52s.
+- **`Coverage` still knows only the Taishō.** `Coverage.taisho/0` reasons about Taishō
+  volume numbers and cannot see X, so with X in, the absence of J/B/K/L/N is unstated —
+  the same "absence reads as silence" failure the module exists to prevent, one level up.
+  Small, and it should land before J.
+- **X's second lineation (`ed="R*"`) is still discarded.** Scholars cite 卍續藏 by its
+  original 卍續藏經 page/line, and we keep only `ed="X"`. Worth preserving as alternative
+  citation metadata; not a defect, a missing affordance.
 
 **Exit.** X baked, byte-verifiable from `raw/`, provenance assigned by a stated rule,
-integrity green, baseline regenerated.
+integrity green, baseline regenerated. **Everything but the embedding and the baseline is
+done, and those are one sequence: chunk → embed → import → gate.**
 
-### C. Public demo — newly unblocked
+### C. The reader — ▸ FIRST TWO SCREENS SHIPPED 2026-08-26
+
+`mix phx.server` now serves a search page at `/` and a passage page at `/passage?urn=…`,
+both LiveView, both renderers over the same domain the MCP surface reads.
+
+**What it renders, and why each part is not decoration:**
+
+- **Results are bucketed by composition origin and role**, each bucket named in plain
+  language. Invariant #4 enforced by the shape of the page: mis-attributing a Japanese
+  commentary now requires ignoring a heading rather than merely missing a field.
+- **Every hit carries its URN and sha256 on screen.** The URN is the edition's own
+  grammar, so `T0262_001@p0001c19` reads as Taishō page/register/line to anyone checking
+  against print.
+- **Both silences are stated above the results** — what is not ingested
+  (`Coverage.caveat/0`) and what is ingested but not vector-indexed (`coverage.note`),
+  plus which retrievers actually ran. A phrase search says it never consulted meaning.
+- **The passage page shows the printed context** (Taishō lines break mid-sentence), the
+  variant apparatus, rare characters with their mappings, and the work's outline. The
+  line whose only content is 䦚 renders as *"a rare character, below"* rather than as an
+  empty row.
+
+**Three things moved into the domain rather than being written in the view**, which is
+the scope guard working as intended — if the reader needs corpus logic, the API was
+missing it:
+
+| moved | from | why |
+|---|---|---|
+| `Provenance.group/1` | the MCP search tool | two surfaces describing one bucket differently |
+| `Retrieval.search/2` + `mode/1` | the MCP search tool | two surfaces routing `"semantic"` differently |
+| `Lexical.known_opts/0` | private | so a dispatcher can drop `:coverage` before a phrase search, which RAISES on unknown options by design |
+
+**And the atom-table bug was walked into a second time.** `String.to_existing_atom("phrase")`
+in the LiveView raised on the first phrase search in a fresh VM and worked on every one
+after — the exact failure `docs/STATUS.md` records for the MCP tool. That is why the
+mapping is now a literal map in the domain, with a regression test.
+
+**Still to build:** a work browser (outline as a first-class page), the translation pool
+and parallels on the passage page (`Compare.versions/2` already returns them), and the
+apparatus as its own view. None of them need new domain logic.
+
+### D. Public demo — newly unblocked
 
 **Why it moved.** The Phase 2 gate recorded "the public corpus is currently EMPTY". That
 stopped being true two phases ago and nobody noticed until 2026-08-24: **13,017
@@ -208,7 +338,7 @@ lawful to serve.
 offsets. If it starts needing new domain logic, that is a signal the API is missing
 something — fix the API, not the view.
 
-### D. `topical/chinese` is still 0%
+### E. `topical/chinese` is still 0%
 
 The last zero on the scorecard. Measured options, in order of evidence:
 
@@ -231,7 +361,7 @@ already are), not from 84000's Tibetan-oriented glossary.
 grow** — its curated term list rejects terms too common to measure. One case is 8.3 points.
 Judge this axis by `answered from any tradition`, not by the row.
 
-### E. Tibetan recall — 24 cases unreachable
+### F. Tibetan recall — 24 cases unreachable
 
 `retrieval/tibetan` is 48.4%, close to the ~51.6% ceiling reranking can reach. The
 remaining misses are **absent from 200 candidates**: a recall failure no reordering fixes.

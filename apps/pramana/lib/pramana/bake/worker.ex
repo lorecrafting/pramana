@@ -14,12 +14,21 @@ defmodule Pramana.Bake.Worker do
 
   Idempotent: `Loader.load/2` replaces a work's segments rather than appending, so a
   retried or re-run job converges on the same state.
+
+  **The unit is the work, not the file.** Those coincide across the whole Taishō, which
+  is why the difference went unnoticed for two collections: CBETA gives a Taishō work
+  split across volumes a distinct id (`T0220a`, `T0220b`), so 2,471 works arrived as
+  2,471 files. The X collection reuses one number across both of its volume files, and
+  because the loader *replaces* a work's segments, a job per file meant the second
+  volume to finish silently erased the first — six works, each keeping about half of
+  itself, with which half decided by job scheduling. See `IR.concat/1`.
   """
 
   use Oban.Worker, queue: :bake, max_attempts: 3
 
   alias Pramana.Acquire.Lockfile
   alias Pramana.Corpus.Loader
+  alias Pramana.Normalize.IR
   alias Pramana.Pipeline
 
   require Logger
@@ -29,18 +38,24 @@ defmodule Pramana.Bake.Worker do
     %{
       "source" => source,
       "canon" => canon,
-      "volume" => volume,
       "number" => number,
       "work_id" => work_id
     } = args
 
+    volumes = volumes(args)
+
     with {:ok, pipeline} <- Pipeline.for_source(source),
-         {:ok, xml} <- read_raw(source, pipeline, canon, volume, number),
-         {:ok, ir} <- normalize(pipeline, xml, work_id, canon, volume, number) do
+         {:ok, parts} <- normalize_volumes(source, pipeline, canon, volumes, number, work_id) do
+      ir = IR.concat(parts)
+
       provenance =
         provenance_for(pipeline, %{
           canon: canon,
-          volume: volume,
+          # The FIRST volume, which is where the work begins. Provenance rules that key
+          # on a volume range (the Taishō 部 table) must be asked about the volume the
+          # work starts in; asking about the last one would put a work that opens in an
+          # Indic division and runs on into the next one on the wrong side of the line.
+          volume: hd(volumes),
           number: number,
           # The work's own byline. Only a non-Taishō collection uses it — X has no 部
           # table — but it is passed always, because a rule that receives different
@@ -49,7 +64,12 @@ defmodule Pramana.Bake.Worker do
         })
 
       {:ok, %{segments: count}} =
-        Loader.load(ir, source: source, witness: canon, provenance: provenance)
+        Loader.load(ir,
+          source: source,
+          witness: canon,
+          provenance: provenance,
+          source_file: Enum.map_join(volumes, " ", &raw_path(source, pipeline, canon, &1, number))
+        )
 
       {:ok, %{work_id: work_id, segments: count}}
     else
@@ -60,18 +80,46 @@ defmodule Pramana.Bake.Worker do
     end
   end
 
+  # `volumes` is the general form: a work is one or more printed volumes, in printed
+  # order. `volume` is still accepted because jobs enqueued by an earlier run may be
+  # sitting in the queue, and a deploy that made those unrunnable would strand them.
+  defp volumes(%{"volumes" => volumes}) when is_list(volumes) and volumes != [], do: volumes
+  defp volumes(%{"volume" => volume}), do: [volume]
+
+  # Each volume is normalized on its own and the parts are assembled afterwards. Doing
+  # it the other way — concatenating the XML — would produce a document with two TEI
+  # headers and two licence notices, and the parser would be reading something no
+  # edition ever published.
+  defp normalize_volumes(source, pipeline, canon, volumes, number, work_id) do
+    Enum.reduce_while(volumes, {:ok, []}, fn volume, {:ok, acc} ->
+      with {:ok, xml} <- read_raw(source, pipeline, canon, volume, number),
+           {:ok, ir} <- normalize(pipeline, xml, work_id, canon, volume, number) do
+        {:cont, {:ok, [ir | acc]}}
+      else
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, parts} -> {:ok, Enum.reverse(parts)}
+      error -> error
+    end
+  end
+
   defp read_raw(source, pipeline, canon, volume, number) do
-    path =
-      Path.join([
-        Lockfile.raw_dir(),
-        source,
-        pipeline.acquirer.raw_path(%{canon: canon, volume: volume, number: number})
-      ])
+    path = raw_path(source, pipeline, canon, volume, number)
 
     case File.read(path) do
       {:ok, xml} -> {:ok, xml}
       {:error, reason} -> {:error, {:raw_unreadable, path, reason}}
     end
+  end
+
+  defp raw_path(source, pipeline, canon, volume, number) do
+    Path.join([
+      Lockfile.raw_dir(),
+      source,
+      pipeline.acquirer.raw_path(%{canon: canon, volume: volume, number: number})
+    ])
   end
 
   defp normalize(pipeline, xml, work_id, canon, volume, number) do
@@ -97,13 +145,17 @@ defmodule Pramana.Bake.Worker do
 
   @doc """
   Builds job args for a catalog entry.
+
+  `entry.volumes` is a list in printed order, so the unit of a job is the **work** and
+  not the file. Those are the same thing for 5,015 of the 5,021 CBETA works and
+  different for six.
   """
   @spec args(String.t(), map()) :: map()
   def args(source, entry) do
     %{
       "source" => source,
       "canon" => entry.canon,
-      "volume" => entry.volume,
+      "volumes" => entry.volumes,
       "number" => entry.number,
       "work_id" => entry.work_id
     }

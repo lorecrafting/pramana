@@ -29,6 +29,10 @@ defmodule Mix.Tasks.Pramana.Integrity do
      if nothing at all was printed on it — no text, no note, no apparatus, no gaiji.
   3. **No gaiji is stranded.** Every `<g/>` in the raw body must be reachable from some
      segment. Rare characters are exactly the content a reader cannot reconstruct.
+  4. **Every acquired file reached the corpus.** Counted from the lockfile before any
+     parsing: files -> works -> texts loaded. The first three checks all start from a
+     text row, so none of them can see a work that never became one. Six CBETA X works
+     had been overwritten by their own second volume and passed every other check.
 
   Counts are reported even when they pass, because the numbers are the evidence.
   """
@@ -39,6 +43,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
   alias Pramana.Acquire.CBETA
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake.WorkList
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
   alias Pramana.Local.Manifest, as: LocalManifest
@@ -47,11 +52,18 @@ defmodule Mix.Tasks.Pramana.Integrity do
   alias Pramana.Normalize.Bilara
   alias Pramana.Normalize.Derge
   alias Pramana.Normalize.Derge.Edition
+  alias Pramana.Normalize.IR
+  alias Pramana.Normalize.IR.Line
   alias Pramana.Repo
 
   @switches [limit: :integer]
 
   @derge_root "raw/derge/UT4CZ5369-200106"
+
+  # Sources whose corpus works are enumerable from the lockfile's file list. bilara packs
+  # many works into one file and Derge spreads one work across many, so their file counts
+  # answer a different question and are checked by their own reconciliations instead.
+  @census_sources ["cbeta"]
 
   @impl Mix.Task
   def run(argv) do
@@ -68,6 +80,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
       texts
       |> Enum.reduce(empty_totals(), &check_text/2)
       |> reconcile_derge(texts, opts[:limit])
+      |> census_check(texts, opts[:limit])
 
     report(length(texts), totals, System.monotonic_time(:millisecond) - started)
   end
@@ -98,12 +111,50 @@ defmodule Mix.Tasks.Pramana.Integrity do
     end
   end
 
+  # Check 4: every acquired FILE reached the corpus.
+  #
+  # The per-text checks above all start from a text row and ask whether it is complete.
+  # None of them can see a work that never became a row, or one that became a row and
+  # then had half of itself overwritten by its own second volume — from inside that row,
+  # both look perfect. Six CBETA X works were in exactly that state and passed
+  # `mix pramana.verify` over 3,701 texts: the text re-derived byte-identically from the
+  # one file it recorded, because the file it recorded was the only half it kept.
+  #
+  # The count that found it was taken from the SOURCE, before any parsing: 1,236 files
+  # on disk against 1,230 works loaded. That is this check, and it is the general form —
+  # it will fail the same way for the next source whose works do not map one-to-one onto
+  # files, which is most of them.
+  #
+  # A `--limit` run has deliberately not loaded the whole corpus and cannot ask this.
+  defp census_check(totals, _texts, limit) when not is_nil(limit), do: totals
+
+  defp census_check(totals, texts, _limit) do
+    baked =
+      texts
+      |> Enum.filter(&(&1.source_id in @census_sources))
+      |> Enum.group_by(& &1.source_id)
+
+    census =
+      for {source_id, source_texts} <- baked do
+        census = WorkList.census(source_id, nil)
+        {source_id, census, length(source_texts)}
+      end
+
+    bad =
+      for {source_id, census, loaded} <- census, census.works != loaded do
+        {source_id, :work_missing, census.works, loaded}
+      end
+
+    %{totals | census: census, bad: totals.bad ++ bad}
+  end
+
   defp maybe_limit(texts, nil), do: texts
   defp maybe_limit(texts, n), do: Enum.take(texts, n)
 
   defp empty_totals do
     %{
       lb: 0,
+      foreign_lb: 0,
       ir_lines: 0,
       segments: 0,
       blank: 0,
@@ -111,6 +162,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
       ir_gaiji: 0,
       meta_gaiji: 0,
       derge: [],
+      census: [],
       bad: []
     }
   end
@@ -185,12 +237,22 @@ defmodule Mix.Tasks.Pramana.Integrity do
   end
 
   defp check_text(text, totals) do
-    xml = File.read!(raw_path(text))
-    {:ok, ir} = renormalize(text, xml)
+    # EVERY volume the work occupies, not one. Six X works run across two volume files,
+    # and counting one file's `<lb/>` against a two-file text would report thousands of
+    # lost lines for a text that is intact — or, before the bake assembled them, a clean
+    # pass over a text that had lost half of itself.
+    parts =
+      for volume <- volumes(text) do
+        xml = File.read!(raw_path(text, volume))
+        {:ok, ir} = renormalize(text, xml, volume)
+        {xml, ir}
+      end
 
-    body = body_region(xml)
-    lb = count(body, "<lb ")
-    g_raw = count(body, "<g ")
+    ir = parts |> Enum.map(&elem(&1, 1)) |> IR.concat()
+
+    bodies = Enum.map(parts, fn {xml, _ir} -> body_region(xml) end)
+    lb = bodies |> Enum.map(&count(&1, "<lb ")) |> Enum.sum()
+    g_raw = bodies |> Enum.map(&count(&1, "<g ")) |> Enum.sum()
 
     segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
 
@@ -206,9 +268,17 @@ defmodule Mix.Tasks.Pramana.Integrity do
     ir_gaiji = Enum.sum(Enum.map(ir.lines, &length(&1.gaiji)))
     stranded = ir.lines |> Enum.filter(&blank?/1) |> Enum.map(&length(&1.gaiji)) |> Enum.sum()
 
+    # Every `<lb/>` in the raw body is accounted for: it became a line, or it belongs to
+    # another edition's lineation and was deliberately skipped. An X file carries its own
+    # `ed="X"` numbering beside the earlier 卍續藏經 reprint's `ed="R055"`, so a raw count
+    # compared against lines alone reports every X text as having lost about half of
+    # itself — which is what this check did for 1,228 texts until `foreign_lb` was
+    # carried out of the normalizer.
+    accounted = length(ir.lines) + ir.foreign_lb
+
     bad =
       [
-        lb != length(ir.lines) && {text.work_id, :lb_lost, lb, length(ir.lines)},
+        lb != accounted && {text.work_id, :lb_lost, lb, accounted},
         printed != segments && {text.work_id, :line_unaddressable, printed, segments},
         stranded > 0 && {text.work_id, :gaiji_stranded, stranded, 0}
       ]
@@ -217,6 +287,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     %{
       totals
       | lb: totals.lb + lb,
+        foreign_lb: totals.foreign_lb + ir.foreign_lb,
         ir_lines: totals.ir_lines + length(ir.lines),
         segments: totals.segments + segments,
         blank: totals.blank + blank,
@@ -275,9 +346,10 @@ defmodule Mix.Tasks.Pramana.Integrity do
   end
 
   # A line may be dropped only when NOTHING was printed on it. Text, an interlinear
-  # note, a variant reading and a rare character are all printed content.
-  defp blank?(line),
-    do: line.text == "" and line.notes == [] and line.apparatus == [] and line.gaiji == []
+  # note, a variant reading and a rare character are all printed content. The definition
+  # lives on the struct, so this check and the segmenter cannot disagree about it —
+  # they did, and the gap was one line with no URN.
+  defp blank?(line), do: Line.blank?(line)
 
   # `<back>` reproduces body text in its apparatus lemmas, so counting the whole file
   # would double-count both <lb/> and <g/>.
@@ -290,24 +362,30 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
   defp count(haystack, needle), do: length(String.split(haystack, needle)) - 1
 
-  defp raw_path(text) do
+  defp raw_path(text, volume) do
     number = String.replace_prefix(text.work_id, text.witness_id, "")
-    volume = String.to_integer(text.volume || "0")
 
     Path.join([
       Lockfile.raw_dir(),
       text.source_id,
-      CBETA.work_path(text.witness_id, volume, number)
+      CBETA.work_path(text.witness_id, volume || 0, number)
     ])
   end
 
-  defp renormalize(text, xml) do
+  # An assembled work records its volumes in meta; `text.volume` reads "81-82" there and
+  # is a label for people, not a number to parse.
+  defp volumes(%{meta: %{"volumes" => volumes}}) when is_list(volumes) and volumes != [],
+    do: volumes
+
+  defp volumes(text), do: [text.volume && String.to_integer(text.volume)]
+
+  defp renormalize(text, xml, volume) do
     number = String.replace_prefix(text.work_id, text.witness_id, "")
 
     Normalize.CBETA.normalize(xml,
       work_id: text.work_id,
       canon: text.witness_id,
-      volume: text.volume && String.to_integer(text.volume),
+      volume: volume,
       number: number
     )
   end
@@ -319,6 +397,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
 
       source anchors:           #{t.lb}   (<lb/> in TEI, page files in a local text)
       IR lines:                 #{t.ir_lines}   (every anchor produced a line)
+      another edition's lines:  #{t.foreign_lb}   (skipped, not lost — see Normalize.CBETA)
 
       lines with printed content: #{t.ir_lines - t.blank}
       segments in the bake:       #{t.segments}   (every one is addressable)
@@ -328,7 +407,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
       gaiji on IR lines:          #{t.ir_gaiji}   (repeats collapsed per line)
       gaiji reachable in segments: #{t.meta_gaiji}
       stranded on dropped lines:   0
-    #{derge_section(t.derge)}
+    #{census_section(t.census)}#{derge_section(t.derge)}
     """)
   end
 
@@ -344,7 +423,53 @@ defmodule Mix.Tasks.Pramana.Integrity do
     `mix pramana.verify` can still pass while this fails: it compares the bake against
     a re-run of the same pipeline, so anything dropped deterministically is dropped on
     both sides. Reproducibility is not fidelity. See docs/CHECKS.md.
+    #{census_help(t.bad)}\
     """)
+  end
+
+  # `work_missing` has two readings and the data cannot tell them apart, so the message
+  # gives both rather than asserting the alarming one. Either way the corpus does not
+  # hold what has been acquired, which is the thing worth knowing.
+  defp census_help(bad) do
+    if Enum.any?(bad, fn {_, kind, _, _} -> kind == :work_missing end) do
+      """
+
+      `work_missing` means the lockfile records works the corpus does not hold. Either
+      a collection was acquired and never baked — run `mix pramana.bake_all` — or works
+      that share a number across volume files overwrote each other, which is the defect
+      this check exists for. `Pramana.Bake.WorkList.census/2` names the works that span
+      volumes.
+      """
+    else
+      ""
+    end
+  end
+
+  # Files against works, per source. Equal counts are the normal case and are printed
+  # anyway: the number only does its job if it is visible when it is right.
+  defp census_section([]), do: ""
+
+  defp census_section(census) do
+    rows =
+      for {source_id, c, loaded} <- census do
+        spanning =
+          case c.multi_volume do
+            [] ->
+              ""
+
+            works ->
+              "  (#{length(works)} work(s) span volumes: #{Enum.map_join(works, ", ", & &1.work_id)})"
+          end
+
+        "        #{source_id}: #{c.files} file(s) -> #{c.works} work(s) -> #{loaded} loaded#{spanning}"
+      end
+
+    """
+
+      Acquired files against works in the corpus, counted from the lockfile:
+
+    #{Enum.join(rows, "\n")}
+    """
   end
 
   defp derge_section([]), do: ""

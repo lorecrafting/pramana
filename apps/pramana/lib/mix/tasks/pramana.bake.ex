@@ -21,7 +21,9 @@ defmodule Mix.Tasks.Pramana.Bake do
 
   alias Pramana.Acquire.Lockfile
   alias Pramana.Bake
+  alias Pramana.Bake.WorkList
   alias Pramana.Corpus.Loader
+  alias Pramana.Normalize.IR
   alias Pramana.Pipeline
 
   @switches [source: :string, work: :string, volume: :integer, canon: :string]
@@ -43,13 +45,21 @@ defmodule Mix.Tasks.Pramana.Bake do
     pipeline = fetch_pipeline!(source)
     verify_raw!(source)
 
-    ir = normalize!(pipeline, source, config)
+    # The volumes come from the LOCKFILE, not from `--volume`, whenever the lockfile
+    # knows this work. A work that runs across two volumes baked from one of them is
+    # half a text that verifies clean, and requiring the operator to know which works
+    # those are is how the bulk path lost six of them. `--volume` still answers for a
+    # work the lockfile has never heard of.
+    config = with_work_list(source, config)
+    volumes = config["volumes"]
+
+    ir = normalize!(pipeline, source, config, volumes)
     number = String.replace_prefix(config["work"], config["canon"], "")
 
     provenance =
       provenance_for(pipeline, %{
         canon: config["canon"],
-        volume: config["volume"],
+        volume: hd(volumes),
         number: number,
         # The work's own byline, for collections with no 部 table. See
         # `Pramana.Cbeta.Byline`. Passed on both bake paths so a single-work bake and a
@@ -60,6 +70,7 @@ defmodule Mix.Tasks.Pramana.Bake do
     {:ok, %{text: text, segments: count}} =
       Loader.load(ir,
         source: source,
+        source_file: Enum.map_join(volumes, " ", &raw_path(pipeline, source, config, &1, number)),
         # THE CANON, not `pipeline.witness`. That registry field is a static "T", which was
         # indistinguishable from correct while the Taishō was the only CBETA collection
         # held. Baking a single X work through this path produced
@@ -98,23 +109,45 @@ defmodule Mix.Tasks.Pramana.Bake do
     end
   end
 
-  defp normalize!(pipeline, source, config) do
+  # Which printed volumes this work occupies, in printed order — and which collection
+  # it belongs to. `--canon` defaults to "T", so `--work X0240` alone would have baked
+  # an X work into the Taishō namespace: the same class of mistake as the static
+  # witness this task's `Loader.load/2` call already warns about. The lockfile knows,
+  # so it answers.
+  defp with_work_list(source, config) do
+    case WorkList.find(source, config["work"]) do
+      %{volumes: volumes, canon: canon} ->
+        Map.merge(config, %{"volumes" => volumes, "canon" => canon, "volume" => hd(volumes)})
+
+      nil ->
+        Map.put(config, "volumes", [config["volume"]])
+    end
+  end
+
+  defp normalize!(pipeline, source, config, volumes) do
     canon = config["canon"]
     work = config["work"]
     number = String.replace_prefix(work, canon, "")
 
-    target = %{canon: canon, volume: config["volume"], number: number}
-    path = Path.join([Lockfile.raw_dir(), source, pipeline.acquirer.raw_path(target)])
+    volumes
+    |> Enum.map(fn volume ->
+      {:ok, ir} =
+        pipeline.normalizer.normalize(
+          File.read!(raw_path(pipeline, source, config, volume, number)),
+          work_id: work,
+          canon: canon,
+          volume: volume,
+          number: number
+        )
 
-    {:ok, ir} =
-      pipeline.normalizer.normalize(File.read!(path),
-        work_id: work,
-        canon: canon,
-        volume: config["volume"],
-        number: number
-      )
+      ir
+    end)
+    |> IR.concat()
+  end
 
-    ir
+  defp raw_path(pipeline, source, config, volume, number) do
+    target = %{canon: config["canon"], volume: volume, number: number}
+    Path.join([Lockfile.raw_dir(), source, pipeline.acquirer.raw_path(target)])
   end
 
   defp provenance_for(pipeline, target) do

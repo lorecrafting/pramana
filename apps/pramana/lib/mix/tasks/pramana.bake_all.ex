@@ -19,9 +19,9 @@ defmodule Mix.Tasks.Pramana.BakeAll do
 
   import Ecto.Query
 
-  alias Pramana.Acquire.Lockfile
   alias Pramana.Bake
   alias Pramana.Bake.Worker
+  alias Pramana.Bake.WorkList
   alias Pramana.Repo
 
   @switches [source: :string, canon: :string, limit: :integer, resume: :boolean, quiet: :boolean]
@@ -45,24 +45,30 @@ defmodule Mix.Tasks.Pramana.BakeAll do
   # Entries come from the LOCKFILE, not a fresh network call: the bake must be
   # reproducible from sources.lock.json alone.
   defp enqueue(source, canon, limit) do
-    {:ok, entry} = Lockfile.get_source(source)
-
     # Oban retains finished jobs, and the progress counters read the queue rather than
     # this run. Without this the second full bake reported "works baked: 4941" for a
     # 2,471-work corpus — both runs summed, a wrong number that looks plausible. The
     # queue is a work list; `bakes` is the audit log. `--resume` skips this, because
     # there the earlier run's jobs ARE the run being counted.
-    Repo.delete_all(
-      from j in "oban_jobs", where: j.queue == "bake" and j.state in ["completed", "discarded"]
+    #
+    # EVERY state, not just the finished ones. Killing a bake mid-run leaves its
+    # unstarted jobs `available`, and the next run enqueued a second copy of each on top
+    # of them: 1,468 jobs for 1,230 works, every duplicate competing for the same
+    # Postgres connections. That is what produced the nine statement timeouts in the X
+    # bake, and it reads as a slow machine rather than as a bug. A run that is not
+    # `--resume` says what work there is to do; leftovers from a killed run are not it.
+    Repo.delete_all(from j in "oban_jobs", where: j.queue == "bake")
+
+    census = WorkList.census(source, canon)
+    jobs = maybe_limit(WorkList.from_lockfile(source, canon), limit)
+
+    # Files against works, stated every run. This is the count that found six X works
+    # keeping one of their two volumes, and it is cheap enough to print always: a bake
+    # that silently drops a file has nowhere left to hide it.
+    Mix.shell().info(
+      "enqueueing #{length(jobs)} work(s) from #{census.files} file(s)" <>
+        multi_volume_note(census)
     )
-
-    jobs =
-      entry["files"]
-      |> Enum.flat_map(&entry_from_path/1)
-      |> filter_canon(canon)
-      |> maybe_limit(limit)
-
-    Mix.shell().info("enqueueing #{length(jobs)} work(s)...")
 
     jobs
     |> Enum.map(&Worker.new(Worker.args(source, &1)))
@@ -70,27 +76,13 @@ defmodule Mix.Tasks.Pramana.BakeAll do
     |> Enum.each(&Oban.insert_all/1)
   end
 
-  @path_pattern ~r{^(?<canon>[A-Z]+)/\k<canon>(?<vol>\d+)/\k<canon>\k<vol>n(?<number>[A-Za-z0-9]+)\.xml$}
+  defp multi_volume_note(%{multi_volume: []}), do: ""
 
-  defp entry_from_path(%{"path" => path}) do
-    case Regex.named_captures(@path_pattern, path) do
-      nil ->
-        []
+  defp multi_volume_note(%{multi_volume: works}) do
+    listed = Enum.map_join(works, ", ", fn w -> "#{w.work_id} (#{Enum.join(w.volumes, "+")})" end)
 
-      %{"canon" => canon, "vol" => vol, "number" => number} ->
-        [
-          %{
-            canon: canon,
-            volume: String.to_integer(vol),
-            number: number,
-            work_id: "#{canon}#{number}"
-          }
-        ]
-    end
+    " — #{length(works)} work(s) span volumes and are assembled before loading: #{listed}"
   end
-
-  defp filter_canon(entries, nil), do: entries
-  defp filter_canon(entries, canon), do: Enum.filter(entries, &(&1.canon == canon))
 
   defp maybe_limit(entries, nil), do: entries
   defp maybe_limit(entries, n), do: Enum.take(entries, n)

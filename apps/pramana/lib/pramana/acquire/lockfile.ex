@@ -103,6 +103,68 @@ defmodule Pramana.Acquire.Lockfile do
     end
   end
 
+  @doc """
+  Adds files to what a source already records, instead of replacing them.
+
+  `put_source/1` writes a source entry whole, which is right for a source acquired in
+  one pass and **wrong for one acquired a collection at a time**. Acquiring CBETA's X
+  collection replaced the `cbeta` entry with X's 1,236 files and dropped the Taishō's
+  2,471 — so a corpus holding 3,701 baked CBETA texts had a lockfile that could
+  reproduce 1,230 of them. Nothing failed: `mix pramana.verify` re-derives from the
+  file a text names on disk, `raw/` still held every byte, and `mix pramana.acquire`
+  reported success. The one thing that broke is the invariant the lockfile exists for —
+  *if a bake cannot be reproduced from `sources.lock.json`, it is not a bake* — and it
+  broke silently.
+
+  Files are merged by path, the incoming copy winning, and `files_sha256`/`file_count`
+  are recomputed over the union so `bake_id` covers everything the source holds.
+
+  A pin that has MOVED is handled by what the new fetch covers, not by refusing outright.
+  The pin says which upstream commit these bytes came from, and one entry listing files
+  fetched at two commits states something untrue about every one of them — so:
+
+  - the incoming files cover every path already locked → the source really was
+    re-acquired at the new commit, and the entry is replaced;
+  - they do not → refused, because merging would leave the paths this fetch did not
+    touch labelled with a commit they never came from. Re-acquire the whole source.
+  """
+  @spec merge_source(map()) :: :ok | {:error, {:pin_conflict, map(), map()}}
+  def merge_source(entry) do
+    case get_source(entry["id"]) do
+      {:error, :not_locked} ->
+        put_source(entry)
+
+      {:ok, existing} ->
+        cond do
+          existing["files"] in [nil, []] -> put_source(entry)
+          existing["pin"] == entry["pin"] -> put_source(merge_entries(existing, entry))
+          supersedes?(existing, entry) -> put_source(entry)
+          true -> {:error, {:pin_conflict, existing["pin"], entry["pin"]}}
+        end
+    end
+  end
+
+  defp supersedes?(existing, entry) do
+    locked = MapSet.new(existing["files"], & &1["path"])
+    incoming = MapSet.new(entry["files"], & &1["path"])
+    MapSet.subset?(locked, incoming)
+  end
+
+  defp merge_entries(existing, entry) do
+    files =
+      (existing["files"] ++ entry["files"])
+      |> Map.new(&{&1["path"], &1})
+      |> Map.values()
+      |> Enum.sort_by(& &1["path"])
+
+    hashable = Enum.map(files, &%{path: &1["path"], sha256: &1["sha256"]})
+
+    entry
+    |> Map.put("files", files)
+    |> Map.put("file_count", length(files))
+    |> Map.put("files_sha256", manifest_hash(hashable))
+  end
+
   @doc "Fetches one source entry from the lockfile."
   @spec get_source(String.t()) :: {:ok, map()} | {:error, :not_locked}
   def get_source(source_id) do
