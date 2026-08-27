@@ -120,6 +120,28 @@ run of 21, because a full run holds **both** Degé edition maps in memory at onc
 checks twice the segments. The optimisation trades memory for time, and at corpus scale
 that trade is not free.
 
+## What CI can prove, and what it cannot
+
+`.github/workflows/ci.yml` runs the mechanical half on every push: `mix compile
+--warnings-as-errors`, `mix format --check-formatted`, `mix credo --strict`, and the full
+test suite, against Postgres 18 with pgvector and pg_bigm. About four minutes.
+
+**It cannot run `verify`, `integrity` or `evals`, and it never will.** Those check the
+baked corpus, and the corpus is not in the repository: `raw/` is gitignored, CBETA is
+non-commercial, and the licensing posture is that we publish the pipeline and each user
+bakes their own copy. A CI job that appeared to gate the corpus would need one, and
+putting a corpus in a public runner would break the licence this project is careful about.
+
+So the split is honest rather than incidental:
+
+| where | what | when |
+|---|---|---|
+| CI | compile, format, credo, 1,158 tests | every push |
+| a machine with the bake | `mix pramana.gate` — plus verify, integrity, evals, lockfile | before a phase tag |
+
+The toolchain versions in the workflow are pinned to `mise.toml` exactly. If they drift,
+CI is testing something the developer is not running.
+
 ## Run it as one command
 
 ```bash

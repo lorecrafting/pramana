@@ -96,6 +96,29 @@ against 竺佛念 against 玄奘 on the same material.
 
 ### B. CBETA's other collections — the largest coverage gap
 
+**▸ J (嘉興藏) ACQUIRED AND BAKING, 2026-08-27.** 287 files, 105 MB, network-only and run
+alongside code work — the one stage `docs/PLAN.md` says is safe to overlap, and it was.
+
+Three things this collection confirms, all of them fixes made this morning working on
+data they were not written against:
+
+- **`Lockfile.merge_source/1` held.** The cbeta entry went 3,707 → **3,994** files. X's
+  acquisition had deleted the Taishō's 2,471 records; J's added to them.
+- **Two works span volumes — JB271 (31+32) and JB277 (32+33).** Without the assembly fix
+  they would each have silently lost a volume, exactly as X's six did. The census caught
+  them **before** the bake rather than after, which is the whole point of counting from
+  the source.
+- **The lineation is single (`ed="J"` only) and the bylines follow the rule** — 明 時蔚說
+  普壽集, both 說 and 集 being composition verbs. No new normalizer, no new grammar.
+
+J also names itself: `<sourceDesc>嘉興大藏經（新文豐版）</sourceDesc>`, so
+`Pramana.Cbeta.Collections` gains a third **sourced** name. The rule that a collection's
+name is not written down until the files that state it are on disk is now three for
+three.
+
+**Note the work ids carry a letter**: `J40nB492` → `JB492`. The path pattern already
+allowed it.
+
 **Goal.** Ingest `X` (卍續藏), and then `J`, `B`, `K`, `L`, `N` as they prove out.
 
 **Why.** This is meant to be a substrate for the Buddhist canons and it holds **one CBETA

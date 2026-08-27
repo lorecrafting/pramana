@@ -1,0 +1,112 @@
+# Continuous integration for Pramāṇa.
+#
+# WHAT THIS CAN AND CANNOT CHECK, because the difference is the point.
+#
+# This runs the mechanical half of `mix pramana.gate --quick`: formatting, Credo, and the
+# full test suite. It CANNOT run `verify`, `integrity` or `evals`, and it never will:
+# those check the baked corpus, and the corpus is not here. `raw/` is gitignored and the
+# licensing posture is that we publish the pipeline, not the corpus — CBETA is
+# non-commercial and each user bakes their own copy. A CI job that pretended to gate the
+# corpus would need a corpus, and putting one in a public runner would break the licence
+# this project is careful about.
+#
+# So the split is honest rather than incidental:
+#
+#   here          format, credo, 1,158 tests            ~4 min, every push
+#   on a machine  mix pramana.gate                      verify, integrity, evals, lockfile
+#                 with the bake
+#
+# `docs/CHECKS.md` is the full gate. This is the part a pull request can prove.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run irrelevant. Cancelling it is not
+# just thrift: two runs of the same suite against one Postgres service is contention, and
+# this project has already learned that contention invalidates timings.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # pgvector's own image, because the alternative is building the extension inside a
+        # service container, which cannot be done from a workflow step. pg_bigm is
+        # installed into it below.
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Matches config/test.exs. Stated here rather than assumed, so a change to either
+      # fails loudly instead of connecting to the wrong database.
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      MIX_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # EXACT versions, from mise.toml. The toolchain is pinned for the same reason the
+      # corpus is: a build that cannot be reproduced is not a build. If these drift from
+      # mise.toml, CI is testing something the developer is not running.
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+
+      # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install pg_bigm
+        # NOT pg_trgm, which ships with Postgres. `pg_bigm` indexes BIGRAMS, and the
+        # two-character queries that dominate Classical Chinese cannot use a trigram index
+        # at all — see docs/ELIXIR.md. The migration creates the extension, so it has to
+        # exist in the server first.
+        run: |
+          docker exec $(docker ps --filter "ancestor=pgvector/pgvector:pg18" --format "{{.ID}}") \
+            bash -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+              build-essential postgresql-server-dev-18 wget ca-certificates && \
+              wget -q https://github.com/pgbigm/pg_bigm/archive/refs/tags/v1.2-20240606.tar.gz && \
+              tar zxf v1.2-20240606.tar.gz && cd pg_bigm-1.2-20240606 && \
+              make USE_PGXS=1 && make USE_PGXS=1 install"
+
+      - name: Restore deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+            ~/.cargo
+            apps/pramana_native/native/pramana_native/target
+          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - run: mix deps.get
+
+      # Warnings-as-errors on the project's own code. A warning that nobody has to fix is
+      # a warning everybody stops reading.
+      - run: mix compile --warnings-as-errors
+
+      - run: mix format --check-formatted
+
+      - run: mix credo --strict
+
+      - run: mix test

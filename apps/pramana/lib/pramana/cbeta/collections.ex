@@ -17,8 +17,10 @@ defmodule Pramana.Cbeta.Collections do
   in each path. Rerun it with `Pramana.Acquire.CBETA.Catalog.fetch/2` if the pin moves.
 
   **Most entries have no name, and that is on purpose.** Each CBETA file states its own
-  collection in `<sourceDesc>` — T's files say 大正新脩大藏經, X's say 卍新纂大日本續藏經 —
-  and that is where these two names come from. For the collections we have not acquired
+  collection in `<sourceDesc>` — T's files say 大正新脩大藏經, X's say 卍新纂大日本續藏經,
+  J's say 嘉興大藏經（新文豐版） — and that is where these names come from. Each arrived
+  with its collection, which is the rule working: the name is not written here until the
+  files that state it are on disk. For the collections we have not acquired
   there is no such statement on disk, and a plausible expansion of a two-letter code is
   exactly the kind of confident invention this project refuses: a reader told that `YP`
   is some canon cannot tell a sourced fact from a guess. A code and a work count are
@@ -31,7 +33,7 @@ defmodule Pramana.Cbeta.Collections do
   @collections [
     %{id: "T", works: 2471, name: "大正新脩大藏經"},
     %{id: "X", works: 1236, name: "卍新纂大日本續藏經"},
-    %{id: "J", works: 287, name: nil},
+    %{id: "J", works: 287, name: "嘉興大藏經（新文豐版）"},
     %{id: "B", works: 204, name: nil},
     %{id: "ZW", works: 202, name: nil},
     %{id: "I", works: 101, name: nil},
