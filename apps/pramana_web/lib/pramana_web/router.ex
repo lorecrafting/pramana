@@ -27,6 +27,7 @@ defmodule PramanaWeb.Router do
     live "/", SearchLive, :index
     live "/passage", PassageLive, :show
     live "/works/:work_id", WorkLive, :show
+    live "/survey", SurveyLive, :index
   end
 
   # Other scopes may use custom stacks.

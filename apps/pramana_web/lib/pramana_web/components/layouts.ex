@@ -47,6 +47,7 @@ defmodule PramanaWeb.Layouts do
       <div class="flex-none">
         <ul class="flex items-center gap-1 px-1">
           <li><a href={~p"/"} class="btn btn-ghost btn-sm">Search</a></li>
+          <li><a href={~p"/survey"} class="btn btn-ghost btn-sm">Survey</a></li>
           <li><.theme_toggle /></li>
         </ul>
       </div>

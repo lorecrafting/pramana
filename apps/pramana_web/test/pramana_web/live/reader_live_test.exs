@@ -260,6 +260,49 @@ defmodule PramanaWeb.ReaderLiveTest do
     end
   end
 
+  # Top-k retrieval cannot answer "how often, and where". Search was the only thing a
+  # human could do here for two phases, which means every claim a person formed from this
+  # corpus was formed from a ranked sample — while the MCP surface has had `survey_corpus`
+  # since Phase 3, with a note telling models to run it BEFORE claiming anything.
+  describe "the survey" do
+    test "counts every occurrence and says how concentrated they are", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/survey?#{[q: "如是我聞"]}")
+
+      assert html =~ "printed lines containing it"
+      assert html =~ "distinct works"
+      assert html =~ "lines per work on average"
+    end
+
+    # `label/2` names a BUCKET — a pair — so asking it about one axis yields
+    # "Indic-composed, role uncatalogued", which reads as a claim that the role is unknown
+    # when the caller simply did not ask about it.
+    test "a single-axis breakdown names one axis, not a pair", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/survey?#{[q: "如是我聞"]}")
+
+      assert html =~ "Indic-composed"
+      refute html =~ "Indic-composed, role uncatalogued"
+    end
+
+    test "carries the coverage caveat, because a count invites a claim", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/survey?#{[q: "如是我聞"]}")
+
+      assert html =~ "Taishō volumes 56–84"
+    end
+
+    test "a phrase the corpus does not hold says so rather than showing zeroes",
+         %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/survey?#{[q: "這句話不存在於藏經"]}")
+
+      assert html =~ "Nothing in the loaded corpus uses this"
+    end
+
+    test "renders the form before anything is counted", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/survey")
+
+      refute html =~ "printed lines containing it"
+    end
+  end
+
   describe "the reader's own claims about a passage" do
     # THREE levels, not two. `edition_page` is a page number printed in the physical book
     # — a reader with the book can turn to it — and the first version of this badge said

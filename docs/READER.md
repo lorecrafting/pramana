@@ -4,6 +4,7 @@ The human surface. `mix phx.server`, then `/`.
 
 ```
 /                          search — grouped by provenance
+/survey?q=<phrase>         every occurrence, counted rather than sampled
 /passage?urn=<urn>         one line in its printed context
 /works/<work_id>           a work's structure, without its text
 ```
@@ -95,10 +96,26 @@ The serving is opt-in because a developer running migrations should not pay 2.2 
 The consequence is visible rather than silent: without it every search reports
 `Searched by: lexical` and says what would turn the other arm on.
 
+## The survey exists because a search page invites a bad claim
+
+Top-k retrieval structurally cannot answer *how often, and where*. It returns the best
+twenty hits and says nothing about whether there are twenty-one or twenty thousand, or
+whether they cluster in one commentary or spread across the tradition. A reader given
+twenty results generalises from them.
+
+For two phases search was the only thing a person could do here, while the MCP surface
+has had `survey_corpus` since Phase 3 carrying a note that tells models to run it *before*
+claiming anything about frequency. The human surface had no equivalent, which means every
+claim a person formed from this corpus was formed from a ranked sample.
+
+`/survey` counts in SQL over the bigram index — 1.2 s over 10.7M segments — and reports
+the concentration alongside the total, because that is the number that decides what a
+count means: 一切眾生 appears in **36,775 lines across 1,904 works**, 40.8% Indic-composed
+and 35.0% Chinese-composed, with the heaviest single work holding 7%. A phrase in one work
+is that work's idiom; a phrase across nineteen hundred is the tradition's.
+
 ## Not built yet
 
-- A survey view over `Retrieval.Survey` — exhaustive counts rather than a ranked sample,
-  which is the thing `survey_corpus` gives a model and a person currently cannot get.
-- Reader deep-links into the published editions (`Pramana.Reader` already builds them).
 - Anything that writes. The MCP surface is read-only by invariant #7 and so is this; the
   CLI is the write path.
+- A commentary↔root alignment view. Phase 6, and the domain does not have it yet either.

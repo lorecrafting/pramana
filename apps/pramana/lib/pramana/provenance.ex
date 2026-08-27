@@ -69,6 +69,36 @@ defmodule Pramana.Provenance do
   end
 
   @doc """
+  One axis on its own, for a breakdown that shows a single axis.
+
+  `label/2` names a BUCKET — a pair — so asking it about one axis produces
+  "Indic-composed, role uncatalogued", which reads as a claim that the role is unknown
+  when the truth is that the caller did not ask about the role. A survey counting by
+  origin needs the origin's name and nothing else.
+
+  ## Examples
+
+      iex> Pramana.Provenance.origin_label("indic")
+      "Indic-composed"
+
+      iex> Pramana.Provenance.role_label("apocryphon")
+      "apocryphon — the canon itself marks it doubtful"
+
+      iex> Pramana.Provenance.origin_label("unattributed")
+      "origin unattributed"
+  """
+  @spec origin_label(String.t() | nil) :: String.t()
+  def origin_label(nil), do: "origin unattributed"
+  def origin_label(@unattributed), do: "origin unattributed"
+  def origin_label(origin), do: Map.get(@origins, origin, origin)
+
+  @doc "One text role on its own. See `origin_label/1`."
+  @spec role_label(String.t() | nil) :: String.t()
+  def role_label(nil), do: "role uncatalogued"
+  def role_label(@unattributed), do: "role uncatalogued"
+  def role_label(role), do: Map.get(@roles, role, role)
+
+  @doc """
   The value used in place of `nil` when grouping or counting.
 
   Grouping silently under a `nil` key hides works whose provenance is genuinely unknown,
