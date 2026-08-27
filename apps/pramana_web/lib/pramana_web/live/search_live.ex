@@ -19,6 +19,23 @@ defmodule PramanaWeb.SearchLive do
   rather than merely missing a field. That is `CLAUDE.md` invariant #4 — enforced by the
   shape of the page, not by hoping.
 
+  ## Index coverage is computed once per session, not once per search
+
+  `Semantic.coverage/1` counts, over the whole corpus, how much of it carries a vector.
+  It is honest and it is **expensive**: 2.7 s at 850k chunks, against 49–96 ms for the
+  lexical retrieval it sits beside. `Hybrid` recomputes it on every search because an MCP
+  caller makes one request and needs the number attached to it.
+
+  A person makes twenty searches in a session and the answer is the same every time —
+  coverage is a property of the corpus and the index, never of the query. So it is
+  computed at `mount/3` and shown as what it is, a **corpus-wide** figure. That is also
+  clearer than what it replaced: the per-search number silently reflected the origin and
+  role filters, and was labelled as though it described the whole corpus.
+
+  It refreshes on every mount, which includes a reconnect and any navigation back to this
+  page — so an import that lands mid-session is picked up the next time the page is
+  entered, and never goes stale in a way a reader could act on.
+
   ## Why the caveats are always on screen
 
   An empty result means either *the canon does not say this* or *that part of the canon
@@ -30,9 +47,12 @@ defmodule PramanaWeb.SearchLive do
 
   import PramanaWeb.ReaderComponents
 
+  alias Pramana.Cbeta.Collections
+  alias Pramana.Corpus
   alias Pramana.Coverage
   alias Pramana.Provenance
   alias Pramana.Retrieval
+  alias Pramana.Retrieval.Semantic
 
   # Every mode the retriever actually implements, with the sentence a reader needs to
   # weigh the evidence. `phrase` is strong evidence; `ngram` is a character-window
@@ -53,7 +73,10 @@ defmodule PramanaWeb.SearchLive do
        modes: @modes,
        origins: Provenance.origins(),
        roles: Provenance.roles(),
+       witnesses: witness_options(),
        caveat: Coverage.caveat(),
+       # Once, here — see the moduledoc. Not per search.
+       index_coverage: Semantic.coverage(),
        result: nil,
        searching?: false,
        error: nil
@@ -85,7 +108,23 @@ defmodule PramanaWeb.SearchLive do
   end
 
   defp default_params do
-    %{"q" => "", "mode" => "hybrid", "origin" => "", "role" => "", "limit" => "20"}
+    %{
+      "q" => "",
+      "mode" => "hybrid",
+      "origin" => "",
+      "role" => "",
+      "witness" => "",
+      "limit" => "20"
+    }
+  end
+
+  # The collections actually held, read from the corpus rather than listed here — a menu
+  # that offers a canon the bake does not contain is a promise of an empty result set.
+  # Labelled with CBETA's own names, so a reader chooses 大正新脩大藏經 rather than "T".
+  defp witness_options do
+    for %{id: id, name: name} <- Collections.all(),
+        id in Corpus.witnesses_held("cbeta"),
+        do: {id, "#{id} · #{name}"}
   end
 
   defp search_params(params, q) do
@@ -105,10 +144,13 @@ defmodule PramanaWeb.SearchLive do
       [
         limit: parse_limit(params["limit"]),
         mode: Retrieval.mode(params["mode"]),
-        coverage: true
+        # The banner carries the session's copy; recomputing it here would add ~2.7 s to
+        # every search for an answer that cannot have changed.
+        coverage: false
       ]
       |> put_unless_blank(:origin, params["origin"])
       |> put_unless_blank(:role, params["role"])
+      |> put_unless_blank(:witness_id, params["witness"])
 
     case Retrieval.search(query, opts) do
       {:ok, found} ->
@@ -135,20 +177,10 @@ defmodule PramanaWeb.SearchLive do
       total: found.total,
       mode: Map.get(found, :mode),
       retrievers: Map.get(found, :retrievers) || ["lexical"],
-      coverage: coverage_of(found),
       semantic_confidence: Map.get(found, :semantic_confidence),
       expanded_terms: Map.get(found, :expanded_terms) || Map.get(found, :terms),
       bake_id: Map.get(found, :bake_id) || Pramana.Bake.current_id()
     }
-  end
-
-  # `coverage: false` and a lexical search both report `:not_computed`, which is a
-  # different thing from "everything is indexed" and must not render as a note.
-  defp coverage_of(found) do
-    case Map.get(found, :coverage) do
-      coverage when is_map(coverage) -> coverage
-      _ -> nil
-    end
   end
 
   # A limit the caller cannot read back is a limit that silently truncated them; the
@@ -205,6 +237,17 @@ defmodule PramanaWeb.SearchLive do
             </option>
           </select>
 
+          <select name="witness" class="select select-bordered select-sm max-w-xs">
+            <option value="">any collection</option>
+            <option
+              :for={{id, label} <- @witnesses}
+              value={id}
+              selected={@form.params["witness"] == id}
+            >
+              {label}
+            </option>
+          </select>
+
           <select name="role" class="select select-bordered select-sm">
             <option value="">any role</option>
             <option :for={role <- @roles} value={role} selected={@form.params["role"] == role}>
@@ -230,7 +273,7 @@ defmodule PramanaWeb.SearchLive do
 
       <.coverage_note
         caveat={@caveat}
-        coverage={@result && @result.coverage}
+        coverage={@index_coverage}
         retrievers={@result && @result.retrievers}
         confidence={@result && @result.semantic_confidence}
       />

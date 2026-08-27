@@ -79,6 +79,8 @@ defmodule Pramana.Retrieval.Lexical do
     :work_id,
     :juan,
     :exclude_origin,
+    :source_id,
+    :witness_id,
     :serving,
     :lexical_only,
     :semantic_only
@@ -448,6 +450,8 @@ defmodule Pramana.Retrieval.Lexical do
     |> filter_not_in(opts[:exclude_origin], :composition_origin)
     |> filter_work(opts[:work_id])
     |> filter_juan(opts[:juan])
+    |> filter_text(opts[:source_id], :source_id)
+    |> filter_text(opts[:witness_id], :witness_id)
     |> filter_license(opts)
   end
 
@@ -542,6 +546,23 @@ defmodule Pramana.Retrieval.Lexical do
 
   defp filter_juan(query, nil), do: query
   defp filter_juan(query, juan), do: where(query, [s], s.juan == ^juan)
+
+  # WHICH PUBLICATION, and WHICH COLLECTION INSIDE IT. `source_id` separates CBETA from
+  # SuttaCentral from the Degé; `witness_id` separates the Taishō from the 卍續藏 from the
+  # 嘉興藏 inside CBETA, which became a real question the day the corpus held three of
+  # them.
+  #
+  # `Semantic` has had `source_id` since it was written and this retriever never did — so
+  # `Hybrid.search(q, source_id: "cbeta")` did not silently half-filter, it RAISED, which
+  # is the correct failure and still meant no caller could restrict a search to one
+  # collection at all. That asymmetry is exactly the shape of the `division:` bug this
+  # module's option validation exists to prevent; it was simply latent on the other side.
+  defp filter_text(query, nil, _field), do: query
+
+  defp filter_text(query, value, field) do
+    values = List.wrap(value)
+    where(query, [_s, t], field(t, ^field) in ^values)
+  end
 
   defp score(%Segment{} = segment, terms) do
     matched = Enum.filter(terms, &String.contains?(segment.content, &1))

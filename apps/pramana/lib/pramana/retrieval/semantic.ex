@@ -69,6 +69,7 @@ defmodule Pramana.Retrieval.Semantic do
     :balance,
     :per_tradition,
     :source_id,
+    :witness_id,
     :redistributable_only,
     :license_class,
     :mode,
@@ -91,6 +92,8 @@ defmodule Pramana.Retrieval.Semantic do
           role: String.t() | [String.t()],
           division: String.t(),
           work_id: String.t(),
+          source_id: String.t() | [String.t()],
+          witness_id: String.t() | [String.t()],
           exclude_origin: String.t() | [String.t()],
           serving: Nx.Serving.t()
         ]
@@ -587,6 +590,7 @@ defmodule Pramana.Retrieval.Semantic do
     |> filter_not_in(opts[:exclude_origin], :composition_origin)
     |> filter_eq(opts[:division], :division)
     |> filter_source(opts[:source_id])
+    |> filter_witness(opts[:witness_id])
     |> filter_license(opts)
     |> filter_work(opts[:work_id])
   end
@@ -617,6 +621,15 @@ defmodule Pramana.Retrieval.Semantic do
 
   defp filter_source(query, source_ids),
     do: where(query, [text: t], t.source_id in ^List.wrap(source_ids))
+
+  # Which COLLECTION within a source — the Taishō, the 卍續藏, the 嘉興藏. Added with the
+  # matching filter in `Lexical`: an option one retriever honours and the other does not
+  # is the `division:` bug, and the only reason that one was caught is that it produced
+  # contaminated results which still looked filtered.
+  defp filter_witness(query, nil), do: query
+
+  defp filter_witness(query, witness_ids),
+    do: where(query, [text: t], t.witness_id in ^List.wrap(witness_ids))
 
   # See `Pramana.Retrieval.Lexical.filter_license/2` — this is what makes the licence
   # posture enforceable rather than a promise kept by hand.

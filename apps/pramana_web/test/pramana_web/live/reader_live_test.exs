@@ -102,6 +102,29 @@ defmodule PramanaWeb.ReaderLiveTest do
       assert html =~ "passage(s)"
     end
 
+    # A menu built from a static list offers canons the bake does not hold, and each of
+    # those is a promise of an empty result set — the confusion `Coverage` exists to
+    # prevent, arriving through a dropdown instead of a search.
+    test "the collection menu offers only collections the bake holds", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/")
+
+      assert html =~ "any collection"
+      # T is loaded by this test's setup; nothing else is. Asserted on the OPTION VALUE,
+      # not on the name anywhere in the page — the coverage banner legitimately names
+      # 嘉興大藏經 as a collection that is NOT loaded, so a page-wide match would confuse
+      # "offered in the menu" with "mentioned on the page".
+      assert html =~ ~s(value="T")
+      refute html =~ ~s(value="J")
+      refute html =~ ~s(value="X")
+    end
+
+    test "a collection filter narrows the results", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase", witness: "T"]}")
+
+      assert html =~ "passage(s)"
+      assert html =~ "T0262"
+    end
+
     test "a provenance filter narrows the buckets", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase", origin: "indic"]}")
 

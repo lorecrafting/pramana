@@ -102,6 +102,47 @@ defmodule Pramana.Retrieval.HybridTest do
     end
   end
 
+  # `Semantic` has had `source_id` since it was written and `Lexical` never did, so
+  # `Hybrid.search(q, source_id: "cbeta")` RAISED — the correct failure, and still meant
+  # no caller could restrict a search to one publication at all. `witness_id` is new to
+  # both, and became a real question the day CBETA held three collections: the Taishō, the
+  # 卍續藏 and the 嘉興藏 are one source and three canons.
+  describe "source and collection filters reach BOTH retrievers" do
+    test "a witness filter narrows the results rather than being accepted and ignored" do
+      {:ok, all} = Hybrid.search("如是我聞", limit: 20)
+      {:ok, filtered} = Hybrid.search("如是我聞", limit: 20, witness_id: "T")
+
+      assert all.total > 0
+      assert filtered.total > 0
+
+      witnesses =
+        filtered.results |> Enum.map(& &1.span.provenance.witness) |> Enum.uniq()
+
+      assert witnesses == ["T"]
+    end
+
+    test "a source filter does the same" do
+      {:ok, result} = Hybrid.search("如是我聞", limit: 20, source_id: "cbeta")
+
+      sources = result.results |> Enum.map(& &1.span.provenance.source) |> Enum.uniq()
+      assert sources == ["cbeta"]
+    end
+
+    test "a filter matching nothing returns nothing, not everything" do
+      {:ok, result} = Hybrid.search("如是我聞", limit: 20, witness_id: "no-such-witness")
+
+      assert result.total == 0
+    end
+
+    test "both retrievers accept them, so neither can silently drop one" do
+      assert :source_id in Lexical.known_opts()
+      assert :witness_id in Lexical.known_opts()
+
+      assert {:ok, _} = Lexical.search("如是我聞", witness_id: "T", source_id: "cbeta")
+      assert %{results: _} = Semantic.search_vector(List.duplicate(0.0, 1024), witness_id: "T")
+    end
+  end
+
   describe "vector-stage options do not reach the lexical retriever" do
     # Each of these means something only to `Semantic`, and `Lexical` raises on an option
     # it does not know. `:per_tradition` was added to `Semantic` and not to Hybrid's drop

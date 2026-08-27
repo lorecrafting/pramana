@@ -361,6 +361,25 @@ defmodule Pramana.Corpus do
   defp addressing(%{source_id: "local" <> _}), do: "derived"
   defp addressing(_), do: "canonical"
 
+  @doc """
+  Which collections of a source the bake actually holds.
+
+  A menu built from a static list offers canons the corpus does not contain, and every
+  one of those is a promise of an empty result set — the exact confusion
+  `Pramana.Coverage` exists to prevent, arriving through a dropdown instead of a search.
+  Read from the corpus so it shrinks and grows with the bake.
+  """
+  @spec witnesses_held(String.t()) :: [String.t()]
+  def witnesses_held(source_id) when is_binary(source_id) do
+    Repo.all(
+      from t in Text,
+        where: t.source_id == ^source_id,
+        select: t.witness_id,
+        distinct: true,
+        order_by: t.witness_id
+    )
+  end
+
   @doc "Loads a text's full body, used for offset verification."
   @spec body(String.t()) :: {:ok, String.t()} | {:error, :not_found}
   def body(urn_prefix) when is_binary(urn_prefix) do
