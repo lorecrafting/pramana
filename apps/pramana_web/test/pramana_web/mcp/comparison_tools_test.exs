@@ -67,17 +67,43 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
   end
 
   describe "define_from_canon" do
+    defp definitions(data), do: Enum.flat_map(data["groups"], & &1["results"])
+
     test "returns the passage where the canon defines the term" do
       data = call!(DefineFromCanon, %{term: "正見"})
 
       assert data["total"] >= 1
-      assert Enum.any?(data["results"], &(&1["span"]["content"] =~ "云何為正見"))
+      assert Enum.any?(definitions(data), &(&1["text"] =~ "云何為正見"))
     end
 
     test "names the formula that matched, so the reader can judge it" do
       data = call!(DefineFromCanon, %{term: "正見"})
 
-      assert Enum.any?(data["results"], &(&1["formula"] == "云何為"))
+      assert Enum.any?(definitions(data), &(&1["formula"] == "云何為"))
+    end
+
+    # "The canon defines X" is a claim about WHO is defining it, and this tool's own
+    # `origin` field has always said a Japanese commentary's definition is a different
+    # kind of evidence from a translated sūtra's. It returned a flat list anyway. CBETA X
+    # made that expensive: a commentary quoting 云何為二法 is a genuine match for it, so a
+    # Ming gloss and an Āgama definition now land in the same result set.
+    test "definitions are bucketed by provenance, never flat" do
+      data = call!(DefineFromCanon, %{term: "正見"})
+
+      refute Map.has_key?(data, "results")
+      assert [bucket | _] = data["groups"]
+      assert bucket["label"] == "Indic-composed root scripture"
+      assert bucket["count"] >= 1
+    end
+
+    test "each definition carries its own provenance inside the bucket" do
+      data = call!(DefineFromCanon, %{term: "正見"})
+      definition = hd(definitions(data))
+
+      assert definition["provenance"]["composition_origin"] == "indic"
+      assert definition["provenance"]["work_id"] == "T0001"
+      assert definition["sha256"]
+      assert definition["urn"]
     end
 
     test "every response says these are quotations, not a synthesised gloss" do
@@ -90,7 +116,7 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
     test "a term the canon does not define returns nothing, and says what it tried" do
       data = call!(DefineFromCanon, %{term: "量子力學"})
 
-      assert data["results"] == []
+      assert data["groups"] == []
       assert data["formulae_tried"] != []
     end
 

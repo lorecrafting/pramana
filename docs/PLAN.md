@@ -22,15 +22,24 @@ left of it is the GPU spend and a re-baseline.**
 
 | | |
 |---|---|
-| corpus | 16,719 texts · 10,702,843 segments · 3 traditions · 617,038 vectors |
-| chunks | 850,630 — **every text chunked**; X's 290,392 are **not embedded yet** (65.9%) |
-| reader | LiveView search + passage at `/` and `/passage` |
-| work relations | 90 `comments_on` · **82 `parallel_of`** (41 pairs) |
-| eval | **93.6%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
-| retrieval@10 | 380/446 — zh 97.8% · pa 81.3% · bo 48.4% |
+| corpus | 16,719 texts · 10,702,843 segments · 3 traditions · **907,430 vectors** |
+| vector coverage | **100% on both axes** — 850,630 chunks, 0 unchunked texts |
+| reader | LiveView search, passage and work browser at `/`, `/passage`, `/works/:id` |
+| work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
+| eval | **93.1%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
+| retrieval@10 | 375/446 — zh 96.1% · pa 81.3% · bo 46.9% |
+| absence | **75%** — and the failing case is real; see item D |
 | answered from any tradition | 81.8% |
-| one search | 2.2 s · full gate 20m52s |
+| noise floor | **1 case**, 0.67pp on a tradition row — the identical config, run twice |
+| full gate | 26m53s at 0.9 cases/s |
 | redistributable subset | 13,017 texts · 1.8M segments · 315k vectors |
+
+**Every retrieval row went DOWN when X landed, and that is not a regression in the
+retrieval system.** 1,230 mostly-commentarial works joined the corpus, and a commentary
+that quotes a definitional formula is a legitimate match for it — 云何為二法 now ranks
+X0771 釋摩訶衍論疏 above the Āgama passage the gold set wants. The system is answering a
+harder question over a larger corpus. Published numbers, not vibes, means publishing this
+one too.
 
 **What "finished" means for v1**, restated so items can be judged against it: a scholar or
 an LLM can ask a question of three canons, receive passages that are byte-verifiable

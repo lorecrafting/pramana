@@ -103,6 +103,16 @@ uses the word, and returns those passages with citations. A term the canon does 
 define returns nothing, along with the formulae that were tried: "we looked, in these
 ways, and found nothing" is a different claim from "we did not look".
 
+**Results are bucketed by provenance, exactly as `search` is**, because "the canon defines
+X" is a claim about *who* is defining it. The tool's `origin` field always said that "a
+definition from a Japanese-composed commentary is a different kind of evidence from one in
+a translated sūtra" — and it returned a flat list in which they were indistinguishable
+without inspecting every element. That was survivable while the Taishō was the whole
+corpus and the formulae matched root scripture almost exclusively. CBETA X added 1,230
+mostly-commentarial works, and **a commentary quoting a formula is a genuine lexical match
+for it**: 云何為二法 now ranks X0771 釋摩訶衍論疏 above the Ekottarika Āgama passage. Both are
+real answers, and only the bucket tells them apart.
+
 Every filter a tool *declares* must actually filter. `division:` was once declared,
 accepted, and silently ignored by the lexical retriever while the semantic one honoured
 it — so hybrid results were contaminated **and still looked filtered**. There is now a
