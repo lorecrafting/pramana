@@ -130,10 +130,6 @@ defmodule Pramana.Cbeta.Collections do
   @spec total_works() :: pos_integer()
   def total_works, do: Enum.sum(Enum.map(@collections, & &1.works))
 
-  @doc "Every collection whose name is known, which is now all of them."
-  @spec named() :: [map()]
-  def named, do: Enum.filter(@collections, & &1.name)
-
   @doc "One collection by its id, or `nil`."
   @spec get(String.t()) :: map() | nil
   def get(id), do: Enum.find(@collections, &(&1.id == id))

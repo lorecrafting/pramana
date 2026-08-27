@@ -3025,6 +3025,35 @@ from explaining away a regression. The absence cases were corrected today for a 
 falsified by an ingest, which is a different thing from a case that is valid but narrow.
 This one is a judgement about what the eval should measure and it belongs to a human.
 
+### The gate over 17,004 texts — 2026-08-27
+
+`mix pramana.gate --from verify`, after J:
+
+    verify --all     17,004 texts, 11,519,879 segments, 26m05s
+                     body re-normalized from raw/ and byte-identical for every text
+
+    integrity        13m39s
+      source anchors            15,789,259
+      IR lines                  11,621,580
+      another edition's lines    4,167,679   (skipped, not lost)
+      lines with printed content 11,519,879
+      segments in the bake       11,519,879   (every one addressable)
+      gaiji in raw body            231,631
+      gaiji reachable in segments  222,763   (repeats collapsed per line)
+      stranded on dropped lines          0
+
+      cbeta: 3,994 file(s) -> 3,986 work(s) -> 3,986 loaded
+        8 works span volumes: JB271, JB277, X0240, X0367, X0714, X0822, X1568, X1571
+
+**That census line is the one worth reading.** This morning it read 1,236 files against
+1,230 works and six works had each silently lost a volume. It now reconciles across two
+collections and eight spanning works, and the two J works it names — JB271 and JB277 —
+were caught *before* the bake by a check that did not exist twelve hours ago.
+
+`verify --all` at this scale is 26 minutes, which is the expensive half of the gate and
+the half worth paying for: the sampled run checks 1,000 segments per text, and only the
+full one can prove the sentence it prints.
+
 ## Decisions taken
 
 | Decision | Rationale |
