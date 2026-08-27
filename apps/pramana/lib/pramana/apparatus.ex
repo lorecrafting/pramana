@@ -136,6 +136,26 @@ defmodule Pramana.Apparatus do
   end
 
   @doc """
+  How many lines of one work carry a variant apparatus.
+
+  A work-level question — *does this text have an apparatus at all, and how dense is it*
+  — which a reader asks before opening a work, and which `at/1` cannot answer because it
+  is per line. Lives here rather than in the view: a surface counting `meta ? 'apparatus'`
+  for itself is a second definition of what an apparatus is.
+  """
+  @spec count_for_work(String.t()) :: non_neg_integer()
+  def count_for_work(work_id) when is_binary(work_id) do
+    Repo.aggregate(
+      from(s in Segment,
+        join: t in Text,
+        on: t.id == s.text_id,
+        where: t.work_id == ^work_id and fragment("? \\? 'apparatus'", s.meta)
+      ),
+      :count
+    )
+  end
+
+  @doc """
   How much of the corpus carries an apparatus, and how much of it is legible.
 
   The second number is the one that matters: a variant whose witness cannot be named is

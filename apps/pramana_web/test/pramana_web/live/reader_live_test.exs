@@ -172,6 +172,83 @@ defmodule PramanaWeb.ReaderLiveTest do
     end
   end
 
+  describe "the work browser" do
+    test "leads with provenance, because an outline is where a text is misjudged",
+         %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      # Same shape as a sūtra, same headings, same juan count — the axes are the only
+      # thing that distinguishes them here.
+      assert html =~ "Japanese-composed commentary"
+      assert html =~ "法華義疏"
+      assert html =~ "pramana:cbeta.T:T2187"
+    end
+
+    test "a work with no recorded divisions says so rather than showing an empty list",
+         %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T0262")
+
+      assert html =~ "records no internal divisions"
+      assert html =~ "not a gap in the bake"
+    end
+
+    test "an unknown work id is refused", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T9999")
+
+      assert html =~ "No work with that id is in this bake"
+    end
+
+    test "a search hit links to its work", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
+
+      assert html =~ ~s(href="/works/T0262")
+    end
+  end
+
+  describe "the variant apparatus" do
+    @witnessed """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+    <teiHeader><fileDesc><titleStmt>
+      <title level="m" xml:lang="zh-Hant">雜阿含經</title><author>求那跋陀羅譯</author>
+    </titleStmt></fileDesc></teiHeader>
+    <text><body>
+    <milestone n="1" unit="juan"/>
+    <lb n="0001a18"/>如是我<app><lem>聞</lem><rdg wit="#wit1">問</rdg></app>一時
+    </body></text></TEI>
+    """
+
+    setup do
+      {:ok, ir} =
+        CBETA.normalize(@witnessed, work_id: "T0099", canon: "T", volume: 2, number: "0099")
+
+      {:ok, %{text: text}} =
+        Loader.load(ir, source: "cbeta", witness: "T", provenance: %{composition_origin: "indic"})
+
+      # Sigla come from the text's OWN header. `wit1` means 38 different things across the
+      # canon, so a global table would attribute this Song reading to whatever wit1 
+      # happens to mean elsewhere.
+      text
+      |> Ecto.Changeset.change(meta: Map.put(text.meta, "witnesses", %{"wit1" => "【宋】"}))
+      |> Pramana.Repo.update!()
+
+      :ok
+    end
+
+    test "names the witness from this text's own header", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0099_001@p0001a18"]}")
+
+      assert html =~ "Variant readings"
+      assert html =~ "【宋】"
+      assert html =~ "not stable across the canon"
+    end
+
+    test "counts the work's variant lines on its outline page", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T0099")
+
+      assert html =~ "lines with variants"
+    end
+  end
+
   describe "the reader's own claims about a passage" do
     test "a non-canonical anchor is flagged as not checkable against a page", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")

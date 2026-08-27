@@ -13,7 +13,10 @@ defmodule PramanaWeb.PassageLive do
   - the **URN and sha256** of the focused line, which is what a quotation is verified
     against;
   - the **variant apparatus**, when the witnesses disagree — this is a critical edition
-    and hiding the disagreement would make it a reading text;
+    and hiding the disagreement would make it a reading text. Witnesses are named from
+    **this text's own header**, never from a global table: `wit1` means 38 different
+    things across the canon, so a shared table would confidently misattribute a Ming
+    variant to the Song edition in about a thousand works;
   - **rare characters** with their mappings, since those are the content a reader cannot
     reconstruct from anything else;
   - **provenance**, in words, above the text rather than below it;
@@ -30,6 +33,7 @@ defmodule PramanaWeb.PassageLive do
 
   import PramanaWeb.ReaderComponents
 
+  alias Pramana.Apparatus
   alias Pramana.Compare
   alias Pramana.Corpus
 
@@ -49,17 +53,44 @@ defmodule PramanaWeb.PassageLive do
          |> assign(urn: urn, context: context, error: nil)
          |> assign(outline: outline_for(context.focus))
          |> assign(versions: versions_for(urn))
+         |> assign(apparatus: apparatus_for(urn))
          |> assign(page_title: page_title(context.focus))}
 
       {:error, reason} ->
         {:noreply,
-         assign(socket, urn: urn, context: nil, outline: nil, versions: nil, error: reason)}
+         assign(socket,
+           urn: urn,
+           context: nil,
+           outline: nil,
+           versions: nil,
+           apparatus: nil,
+           error: reason
+         )}
     end
   end
 
   def handle_params(_params, _uri, socket) do
     {:noreply,
-     assign(socket, urn: nil, context: nil, outline: nil, versions: nil, error: :bad_urn)}
+     assign(socket,
+       urn: nil,
+       context: nil,
+       outline: nil,
+       versions: nil,
+       apparatus: nil,
+       error: :bad_urn
+     )}
+  end
+
+  # `Apparatus.at/1` rather than the raw `meta["apparatus"]` the line already carries,
+  # because only this names the witnesses — and it names them from the text's OWN header.
+  # A range URN is refused rather than answered for one of its lines, which is why this
+  # can return an error for a passage that resolves perfectly well.
+  defp apparatus_for(urn) do
+    case Apparatus.at(urn) do
+      {:ok, %{variants: []}} -> nil
+      {:ok, apparatus} -> apparatus
+      {:error, _} -> nil
+    end
   end
 
   # `Compare.versions/2` returns `nil` for a section with nothing in it rather than an
@@ -138,6 +169,33 @@ defmodule PramanaWeb.PassageLive do
             The window URN covers {@context.segment_count} printed lines and resolves as a unit;
             the line URN is what a quotation of this line is verified against.
           </p>
+        </section>
+
+        <section :if={@apparatus} class="space-y-2">
+          <h2 class="flex items-baseline gap-2 font-semibold">
+            Variant readings
+            <span class="text-sm font-normal text-base-content/60">
+              {length(@apparatus.variants)} across {@apparatus.lemma_count} lemma(s)
+            </span>
+          </h2>
+          <p class="text-xs text-base-content/60">
+            Where the witnesses this edition collated read differently from the base text.
+            Sigla come from this text's own header — they are not stable across the canon.
+          </p>
+          <ul class="space-y-1 text-sm">
+            <li :for={variant <- @apparatus.variants} class="flex flex-wrap items-baseline gap-2">
+              <span class="font-medium">{variant.lemma}</span>
+              <span class="text-base-content/50">]</span>
+              <span :if={variant.omitted} class="italic text-base-content/60">omitted</span>
+              <span :if={!variant.omitted}>{variant.reading}</span>
+              <span :if={variant.witness} class="badge badge-sm badge-outline">
+                {variant.witness}
+              </span>
+              <span :if={is_nil(variant.witness)} class="badge badge-sm badge-ghost">
+                {variant.witness_id} — witness unidentified for this text
+              </span>
+            </li>
+          </ul>
         </section>
 
         <section :if={@versions && @versions.renderings} class="space-y-2">

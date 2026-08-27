@@ -39,7 +39,13 @@ defmodule PramanaWeb.ReaderComponents do
       <span class="badge badge-sm badge-outline">
         {Pramana.Provenance.label(@provenance[:composition_origin], @provenance[:text_role])}
       </span>
-      <span class="font-medium">{@provenance[:work_id]}</span>
+      <.link
+        :if={@provenance[:work_id]}
+        navigate={~p"/works/#{@provenance[:work_id]}"}
+        class="link link-hover font-medium"
+      >
+        {@provenance[:work_id]}
+      </.link>
       <span :if={@provenance[:title]} class="text-base-content/70">{@provenance[:title]}</span>
       <span :if={@provenance[:attributed_author]} class="text-base-content/60">
         · {@provenance[:attributed_author]}
