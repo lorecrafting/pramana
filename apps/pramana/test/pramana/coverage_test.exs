@@ -256,28 +256,44 @@ defmodule Pramana.CoverageTest do
       assert coverage.works_held == 3707
     end
 
+    # NAMED, not coded. A reader who knows this canon knows it as 嘉興大藏經; being told
+    # "J (287)" is missing asks them to decode an abbreviation before they can judge
+    # whether the gap matters. The names come from CBETA's own canons.json.
     test "names the largest absent collections and how to get them" do
       load!("T0262", 9, "0262")
 
       coverage = Coverage.cbeta()
 
       assert coverage.note =~ "25 collections"
-      assert coverage.note =~ "X (1236)"
-      assert coverage.note =~ "J (287)"
+      assert coverage.note =~ "卍新纂大日本續藏經"
+      assert coverage.note =~ "嘉興大藏經"
       assert coverage.note =~ "does NOT mean the canon is silent"
       assert coverage.note =~ "mix pramana.acquire_all"
     end
 
-    # A code is a fact and an expansion of it would be a guess. Each CBETA file states
-    # its own collection in <sourceDesc>; for a collection we have not acquired there is
-    # no such statement, so the name is absent rather than invented.
-    test "an unacquired collection is reported by code, with no invented name" do
+    test "every collection carries the publisher's own name, in both languages" do
+      for collection <- Pramana.Cbeta.Collections.all() do
+        assert is_binary(collection.name), "#{collection.id} has no Chinese name"
+        assert is_binary(collection.name_en), "#{collection.id} has no English name"
+      end
+    end
+
+    # The names were withheld until they could be sourced, and sourcing them proved the
+    # withholding right: `YP` reads as 永樂北藏 and is actually 演培法師全集, while 永樂北藏
+    # is `P`. Guessing would have swapped a 20th-century author's collected works for a
+    # 15th-century imperial canon.
+    test "an unacquired collection is reported with the publisher's name, not a guess" do
       load!("T0262", 9, "0262")
 
       jiaxing = Enum.find(Coverage.cbeta().missing, &(&1.id == "J"))
+      yen_pei = Pramana.Cbeta.Collections.get("YP")
+      yongle = Pramana.Cbeta.Collections.get("P")
 
       assert jiaxing.works == 287
-      assert jiaxing.name == nil
+      assert jiaxing.name == "嘉興大藏經（新文豐版）"
+
+      assert yen_pei.name == "演培法師全集"
+      assert yongle.name == "永樂北藏"
     end
 
     test "the caveat carries the collections gap alongside the Taishō one" do

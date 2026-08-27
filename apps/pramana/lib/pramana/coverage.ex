@@ -164,7 +164,7 @@ defmodule Pramana.Coverage do
       collections_held: length(present),
       collections_published: length(Collections.all()),
       held: Enum.map(present, & &1.id),
-      missing: Enum.map(missing, &Map.take(&1, [:id, :works, :name])),
+      missing: Enum.map(missing, &Map.take(&1, [:id, :works, :name, :name_en])),
       works_held: Enum.sum(Enum.map(present, & &1.works)),
       works_published: Collections.total_works(),
       catalogue_pin: Collections.pin(),
@@ -177,10 +177,13 @@ defmodule Pramana.Coverage do
   defp cbeta_note(present, missing) do
     absent_works = Enum.sum(Enum.map(missing, & &1.works))
 
+    # NAMED, not coded. A reader who knows this canon knows it as 嘉興大藏經, and being told
+    # that "J (287)" is missing asks them to decode an abbreviation before they can tell
+    # whether the gap matters to them.
     top =
       missing
       |> Enum.take(5)
-      |> Enum.map_join(", ", fn c -> "#{c.id} (#{c.works})" end)
+      |> Enum.map_join("; ", fn c -> "#{c.id} #{c.name} (#{c.works} works)" end)
 
     "CBETA publishes #{length(present) + length(missing)} collections and this bake holds " <>
       "#{length(present)}: #{Enum.map_join(present, ", ", & &1.id)}. " <>
