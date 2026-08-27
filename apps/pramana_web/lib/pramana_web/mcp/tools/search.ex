@@ -134,6 +134,10 @@ defmodule PramanaWeb.MCP.Tools.Search do
       # visible rather than surprising.
       variants: Map.get(found, :variants),
       embedding_coverage: Map.get(found, :coverage),
+      # How close the best semantic match was, and what that means. Reported rather than
+      # acted on: a hard cut-off would cost ~45 retrieval cases to gain 1 absence case.
+      # `no_close_match` is as near as this corpus comes to saying "I do not have this".
+      semantic_confidence: Map.get(found, :semantic_confidence),
       total: found.total,
       groups: group_by_provenance(found.results)
     }

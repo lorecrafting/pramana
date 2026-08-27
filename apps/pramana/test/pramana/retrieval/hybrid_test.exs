@@ -295,6 +295,46 @@ defmodule Pramana.Retrieval.HybridTest do
   # Both are hybrid-level options, so both must be dropped before either retriever sees
   # them — `Lexical` and `Semantic` RAISE on an unknown option, deliberately, and that is
   # how `per_tradition` once became reachable only by calling `Semantic` directly.
+  # The semantic arm returns its k nearest neighbours regardless of distance, so it cannot
+  # say "I have nothing". Two fixes were measured before either was built: the gap
+  # statistic does not separate (6 of 8 unanswerable queries have gaps inside the
+  # answerable range) and a hard threshold at 0.75 costs ~45 retrieval cases to gain 1
+  # absence case. So the number is REPORTED.
+  describe "confidence/1 — what the bands mean" do
+    test "a match as close as answerable queries usually are is strong" do
+      assert %{band: "strong", top_similarity: 0.81} = Hybrid.confidence([{"a", 0.81}])
+    end
+
+    test "the overlap band, where answerable and unanswerable queries both live, is weak" do
+      assert %{band: "weak"} = Hybrid.confidence([{"a", 0.72}])
+      assert %{band: "weak", note: note} = Hybrid.confidence([{"a", 0.7068}])
+      assert note =~ "suggestions, not answers"
+    end
+
+    test "below every answerable query measured, it says so plainly" do
+      assert %{band: "no_close_match", note: note} = Hybrid.confidence([{"a", 0.61}])
+      assert note =~ "nearest neighbours of a question with no answer here"
+    end
+
+    test "the best match decides, not the order the retriever returned" do
+      assert %{top_similarity: 0.9} = Hybrid.confidence([{"a", 0.4}, {"b", 0.9}])
+    end
+
+    # nil, not "no_close_match": the semantic arm not RUNNING is a different fact from it
+    # running and finding nothing close, and conflating them would report a corpus gap
+    # where the truth is that no model was loaded.
+    test "no semantic arm reports nothing rather than no confidence" do
+      assert Hybrid.confidence([]) == nil
+    end
+
+    test "a lexical-only search carries no confidence signal" do
+      {:ok, result} = Hybrid.search("如是我聞", lexical_only: true)
+
+      assert result.retrievers == ["lexical"]
+      assert result.semantic_confidence == nil
+    end
+  end
+
   describe "the swept knobs are hybrid-level options" do
     test "rrf_k does not reach the retrievers" do
       assert {:ok, %{total: total}} = Hybrid.search("如是我聞", rrf_k: 5)

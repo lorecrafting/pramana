@@ -398,21 +398,51 @@ the position of deciding whether five plausible near-misses constitute an answer
 model, handed five passages, will generally use them. This is the retrieval-side twin of
 the Coverage doctrine: *absence must be sayable.*
 
-**Options, none measured yet:**
+**▸ MEASURED AND RESOLVED 2026-08-27 — and the resolution is not the obvious one.**
 
-- **A similarity floor on the semantic arm.** Simple, and a knob that can suppress good
-  answers; it needs the gold set to size it, and `retrieval/*` is exactly the axis that
-  would pay for a bad threshold.
-- **Report the top similarity beside the results** and let the caller judge — cheaper,
-  weaker, and consistent with how `retrievers` and `embedding_coverage` already work.
-- **A gap statistic**: refuse when the best hit is not meaningfully closer than the tenth.
-  Discrimination rather than absolute distance, which is the same lesson the Tibetan probe
-  taught — *measure the gap, not the dispersion*.
+48 queries probed before anything was built: 40 with known answers (20 Chinese
+definitional, 20 English→Pāli/Tibetan) and 8 with none.
 
-**Do not fix this by tightening the gold case.** Three of the four absence cases were
-already corrected for a falsified premise; this one is correct and the system fails it.
+    top-1 similarity      min      max
+      answerable         0.7188   0.9223     Chinese 0.72–0.80, English 0.76–0.92
+      unanswerable       0.6042   0.7423
 
-### E. Public demo — newly unblocked
+    gap (top1 - top10)
+      answerable         0.0077   0.0957
+      unanswerable       0.0055   0.0358     6 of 8 INSIDE the answerable range
+
+**The gap statistic is dead, and it was my hypothesis.** The prediction registered before
+the run was that a scale-free discrimination measure would separate where an absolute one
+could not — the lesson the Tibetan adapter probe taught. It does not: `photosynthesis in
+C4 plants` has a wider top1–top10 spread than 13 of 20 answerable Chinese queries.
+Discrimination was the right lens there and the wrong one here.
+
+**A hard threshold is refused on cost.** 0.75 is the lowest cut admitting none of the
+unanswerable set, and it refuses **4 of 40 answerable queries — 10%, or ~45 of the 446
+retrieval cases, to gain 1 absence case.** No cut-off does better, and the scale is
+per-language anyway: English queries sit a whole band above Chinese ones, so one number
+is fighting two distributions.
+
+**Shipped: the system reports what it knows about its own answer.** `semantic_confidence`
+carries the top similarity and a band — `strong` / `weak` / `no_close_match` — on every
+hybrid response, through the MCP payload and above the reader's results. It is the same
+shape as `retrievers`, `mode` and `embedding_coverage`: state the fact, let the caller
+weigh it. Verified end to end:
+
+    云何為念力                                   strong          0.7809
+    本門戒體 (origin: japanese)                   weak            0.7068
+    how to configure a PostgreSQL connection pool no_close_match  0.6267
+
+`nil` when the semantic arm did not run, because "no model was loaded" and "the model
+found nothing close" are different facts and only the second is about the corpus.
+
+**Still open, and honestly so:** abs-001 stays red. Reporting a band is not refusing, and
+the gold case asks for a refusal. That is the right trade at 45:1 and it is not a fix.
+What would close it is a **second signal**, not a better threshold — the lexical arm
+returned 0 for 本門戒體 while the semantic arm returned 5, and that disagreement is
+information the response does not yet combine. Cheap to try, and it needs its own probe.
+
+### E. Public demo — newly unblocked### E. Public demo — newly unblocked
 
 **Why it moved.** The Phase 2 gate recorded "the public corpus is currently EMPTY". That
 stopped being true two phases ago and nobody noticed until 2026-08-24: **13,017
@@ -516,3 +546,5 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 | `balance: :tradition` round-robin | Moved neither tradition's rate and made answered-from-any-canon *worse*. Survives opt-in. |
 | Tibetan LoRA | Every proxy said it worked; the gold set said 0%. See *Why every proxy lied*. |
 | Doc-translation stage B (~$260–770) | Superseded by query translation, which is free and scored higher. |
+| **A gap statistic (top1 − top10) to detect "no answer"** | **No separation.** 6 of 8 unanswerable queries have gaps inside the answerable range; `photosynthesis in C4 plants` spreads wider than 13 of 20 answerable Chinese ones. Measured on 48 queries, 2026-08-27. |
+| **A hard similarity threshold for refusal** | **~45 retrieval cases to gain 1 absence case.** 0.75 is the lowest cut admitting no unanswerable query and it refuses 10% of answerable ones; the scale is per-language, so one cut-off fights two distributions. Reported instead. |

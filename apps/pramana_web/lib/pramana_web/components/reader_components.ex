@@ -123,6 +123,7 @@ defmodule PramanaWeb.ReaderComponents do
   attr :coverage, :map, default: nil
   attr :caveat, :string, default: nil
   attr :retrievers, :list, default: nil
+  attr :confidence, :map, default: nil
 
   def coverage_note(assigns) do
     ~H"""
@@ -134,6 +135,12 @@ defmodule PramanaWeb.ReaderComponents do
       <div class="space-y-1">
         <p :if={@caveat}>{@caveat}</p>
         <p :if={@coverage && @coverage[:note]}>{@coverage[:note]}</p>
+        <p :if={@confidence && @confidence[:band] != "strong"} class="font-medium">
+          {@confidence[:note]}
+          <span class="font-normal opacity-70">
+            (nearest match {@confidence[:top_similarity]})
+          </span>
+        </p>
         <p :if={@retrievers}>
           Searched by: {Enum.join(@retrievers, " + ")}.
           <span :if={"semantic" not in @retrievers}>

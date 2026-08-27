@@ -2923,6 +2923,46 @@ ignorance is the sharpest gap on the board — see `docs/PLAN.md` for the item.
 The baseline records `absence` at 75%, not 100%. That is the honest number, and the ratchet
 still catches a further drop.
 
+### What the ignorance probe measured, and the hypothesis it killed — 2026-08-27
+
+48 queries, before any code: 40 with known answers (20 Chinese definitional, 20
+English→Pāli/Tibetan) and 8 with none.
+
+    top-1 similarity      min      max
+      answerable         0.7188   0.9223     Chinese 0.72–0.80, English 0.76–0.92
+      unanswerable       0.6042   0.7423
+    gap (top1 - top10)
+      answerable         0.0077   0.0957
+      unanswerable       0.0055   0.0358     6 of 8 INSIDE the answerable range
+
+**The prediction registered before the run was wrong, and it was wrong in an instructive
+direction.** It said a global absolute threshold could not work (BGE-M3's scale is
+per-language — 0.9727 mean pairwise cosine in Tibetan against 0.84 in Pāli) and that the
+signal would live in the *shape* of the neighbourhood, since "measure discrimination, not
+dispersion" is what the Tibetan adapter probe taught.
+
+Half right. The scale IS per-language — English queries sit a whole band above Chinese
+ones, which is visible in the table. But the gap does not separate at all: `photosynthesis
+in C4 plants` spreads wider than 13 of 20 answerable Chinese queries. **A lesson that was
+correct for judging an embedder did not transfer to judging a query**, and the only way to
+find that out was to measure it rather than reason from the earlier finding.
+
+**The absolute number does separate, and is still not shippable as a gate.** 0.75 is the
+lowest cut admitting none of the unanswerable set, and it refuses 4 of 40 answerable
+queries — 10%, ~45 of 446 retrieval cases, to gain 1 absence case. Refused on cost, and
+recorded in the rejected table so nobody re-derives it.
+
+So the system REPORTS: `semantic_confidence` carries the top similarity and a band on
+every hybrid response, in the MCP payload and above the reader's results, in the same
+shape as `retrievers` and `embedding_coverage` — state the fact, let the caller weigh it.
+`nil` when the semantic arm did not run, because "no model was loaded" and "the model
+found nothing close" are different facts and only the second is about the corpus.
+
+**abs-001 stays red, deliberately.** Reporting a band is not refusing, and the gold case
+asks for a refusal. Closing it needs a SECOND signal rather than a better threshold: the
+lexical arm returned 0 for 本門戒體 while the semantic arm returned 5, and the response does
+not yet combine that disagreement.
+
 ## Decisions taken
 
 | Decision | Rationale |
@@ -3230,14 +3270,21 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     count**, or every downstream fidelity check has to re-implement the rule and will
     eventually re-implement it wrong. And a check that cries wolf is worse than a missing
     one: this failure sat unnoticed because the ingest ran `verify` and not `integrity`.
-47. **"Blank" must be defined once, as the ABSENCE of every kind of content, never as a
+47. **A lesson learned from one measurement does not transfer to a different one without
+    being re-measured.** "Measure discrimination, not dispersion" was correct and hard-won
+    for judging whether a fine-tuned embedder had improved. Applied to judging whether a
+    QUERY has an answer, the same statistic separates nothing — 6 of 8 unanswerable
+    queries sit inside the answerable range. The registered prediction was wrong and the
+    probe took twenty minutes; reasoning from the earlier finding would have shipped a
+    signal that does not work. **Register the prediction, then measure anyway.**
+48. **"Blank" must be defined once, as the ABSENCE of every kind of content, never as a
     list of the kinds someone remembered.** Three lines-dropped defects here, three
     versions of the same list: text-only (v2 dropped note-only lines), then text+notes
     (v3), then text+notes+apparatus — which dropped a line whose only content was a rare
     character. Each list was written by someone who knew about the kinds of content that
     existed *at the time*. `Pramana.Normalize.IR.Line` knows all of them; the predicate
     belongs there, derived, not restated at each call site (see rule 42).
-48. **A volume is not the unit of loading, and this is the second source it has bitten.**
+49. **A volume is not the unit of loading, and this is the second source it has bitten.**
     Recorded for Derge, where 75 of 1,195 works span volumes; found again in CBETA X,
     where six do. The Taishō hid it for two phases because CBETA gives its split works
     distinct ids (`T0220a`, `T0220b`) while X reuses the number. Before baking a new

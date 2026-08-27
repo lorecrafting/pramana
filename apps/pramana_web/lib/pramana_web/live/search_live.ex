@@ -136,6 +136,7 @@ defmodule PramanaWeb.SearchLive do
       mode: Map.get(found, :mode),
       retrievers: Map.get(found, :retrievers) || ["lexical"],
       coverage: coverage_of(found),
+      semantic_confidence: Map.get(found, :semantic_confidence),
       expanded_terms: Map.get(found, :expanded_terms) || Map.get(found, :terms),
       bake_id: Map.get(found, :bake_id) || Pramana.Bake.current_id()
     }
@@ -231,6 +232,7 @@ defmodule PramanaWeb.SearchLive do
         caveat={@caveat}
         coverage={@result && @result.coverage}
         retrievers={@result && @result.retrievers}
+        confidence={@result && @result.semantic_confidence}
       />
 
       <div :if={@error} class="alert alert-error text-sm">

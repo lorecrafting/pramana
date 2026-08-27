@@ -145,7 +145,8 @@ defmodule Pramana.Retrieval.Hybrid do
     semantic_depth = arm_depth(opts, :semantic_depth, limit, @semantic_multiplier)
 
     lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, lexical_depth)
-    semantic = semantic_ranking(query, opts, semantic_depth)
+    scored_semantic = semantic_ranking(query, opts, semantic_depth)
+    semantic = Enum.map(scored_semantic, &elem(&1, 0))
     {translated, expanded_terms} = translated_ranking(query, opts, lexical_depth)
 
     fused =
@@ -172,6 +173,10 @@ defmodule Pramana.Retrieval.Hybrid do
       # reader never typed is visible rather than surprising — the same reporting
       # rule `Variants` follows for 異體字.
       expanded_terms: expanded_terms,
+      # How close the best semantic match was. `nil` when the semantic arm did not run,
+      # which is a different statement from "nothing was close" and must stay
+      # distinguishable — see `confidence/1`.
+      semantic_confidence: confidence(scored_semantic),
       coverage: coverage(opts),
       bake_id: Pramana.Bake.current_id()
     }
@@ -406,11 +411,74 @@ defmodule Pramana.Retrieval.Hybrid do
           |> Keyword.delete(:mode)
 
         case Semantic.search(query, search_opts) do
-          {:ok, %{results: results}} -> Enum.map(results, & &1.urn)
+          {:ok, %{results: results}} -> Enum.map(results, &{&1.urn, &1.similarity})
           {:error, _} -> []
         end
     end
   end
+
+  @doc """
+  How close the best semantic match actually was, reported rather than acted on.
+
+  ## Measured, 2026-08-27, over 40 answerable and 8 unanswerable queries
+
+  The semantic arm returns its k nearest neighbours regardless of distance, so it cannot
+  say "I have nothing" — for 本門戒體, a doctrine no text in this bake discusses, the
+  lexical arm correctly returns 0 hits and the hybrid returns 5 semantic near-misses.
+  Two candidate fixes were measured before either was built.
+
+      top-1 similarity     min      max
+        answerable        0.7188   0.9223    (Chinese queries 0.72–0.80, English 0.76–0.92)
+        unanswerable      0.6042   0.7423
+
+      gap (top1 - top10)
+        answerable        0.0077   0.0957
+        unanswerable      0.0055   0.0358    6 of 8 INSIDE the answerable range
+
+  **The gap statistic does not separate**, which refutes the hypothesis this probe was
+  written to test. `photosynthesis in C4 plants` has a wider top1–top10 spread than 13 of
+  20 answerable Chinese queries. Discrimination was the right lens for the Tibetan adapter
+  and is the wrong one here.
+
+  **A hard threshold would cost about 45 retrieval cases to gain 1 absence case.** At 0.75
+  — the lowest cut that admits none of the unanswerable set — 4 of 40 answerable queries
+  are refused, 10%, which over 446 retrieval cases is ~45 lost. That is a catastrophic
+  trade and the threshold is not shipped.
+
+  So this REPORTS. The band is a reading aid calibrated on 48 queries, not a gate, and the
+  same shape as `retrievers`, `mode` and `embedding_coverage`: the system says what it
+  knows about its own answer and the caller decides. Note the scale is per-language —
+  English queries sit a whole band above Chinese ones — which is a second reason no single
+  cut-off could be right.
+  """
+  @spec confidence([{String.t(), float()}]) :: map() | nil
+  def confidence([]), do: nil
+
+  def confidence(scored) do
+    top = scored |> Enum.map(&elem(&1, 1)) |> Enum.max()
+
+    %{top_similarity: Float.round(top, 4), band: band(top), note: confidence_note(band(top))}
+  end
+
+  # Boundaries from the probe above: no unanswerable query reached 0.75, and none of the
+  # answerable ones fell below 0.70.
+  defp band(top) when top >= 0.75, do: "strong"
+  defp band(top) when top >= 0.70, do: "weak"
+  defp band(_top), do: "no_close_match"
+
+  defp confidence_note("strong"),
+    do: "The nearest passage is as close as answerable queries usually are."
+
+  defp confidence_note("weak"),
+    do:
+      "The nearest passage sits in the band where answerable and unanswerable queries " <>
+        "overlap. Weigh these results as suggestions, not answers."
+
+  defp confidence_note("no_close_match"),
+    do:
+      "Nothing in the corpus is close to this query. Every measured query in this range " <>
+        "was one the corpus could not answer — these results are the nearest neighbours " <>
+        "of a question with no answer here, not answers."
 
   defp chunk_urns_for_segments([]), do: []
 
