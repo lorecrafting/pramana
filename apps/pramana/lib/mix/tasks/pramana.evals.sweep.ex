@@ -12,6 +12,20 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
   a table of every configuration against the baseline at the end. Nothing is adopted
   automatically: this measures, a human decides, and the decision goes in `docs/PLAN.md`.
 
+  ## `--only`, and the rule that comes with it
+
+  `--only retrieval,topical` restricts the sweep to the case types a ranking knob can
+  actually move. The other 905 cases — `provenance`, `quote_verify`, `quote_reject`,
+  `adversarial`, `absence` — are all at 100% and test the guard and the provenance record
+  rather than the order of results, so paying 3x the wall time to re-confirm them at every
+  grid point buys nothing.
+
+  **That makes the sweep a proxy, and this project has a scar about proxies.** So the rule
+  is: the sweep PROPOSES and the full gate DISPOSES. A configuration that looks better
+  here is not adopted until `mix pramana.evals --gate` has run the whole set against it.
+  The task prints that rule with its results whenever `--only` was used, because the run
+  that skips it will be the one where somebody is in a hurry.
+
   ## Why a batch and not an agent loop
 
   The obvious way to do this is a ratchet — try a configuration, keep it if the number
@@ -84,7 +98,7 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
       :ok
     else
       results = Enum.map([[] | combos], &run_one(&1, cases, out))
-      report(results, out)
+      report(results, out, opts[:only] != nil)
     end
   end
 
@@ -113,7 +127,7 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
   # A configuration is a win only if it improves something and costs nothing anywhere.
   # `regressions` is the column that decides, and it is per tradition because the whole
   # point is that an overall number hides a canon.
-  defp report(results, out) do
+  defp report(results, out, subset?) do
     [control | _] = results
 
     rows =
@@ -149,9 +163,17 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
     NOTHING HAS BEEN ADOPTED. A configuration that gains overall while dropping a
     per-tradition row is not a win — see the reranker, which was right about Tibetan and
     wrong about the system. Record the decision, and the rejects with their evidence, in
-    docs/PLAN.md.
+    docs/PLAN.md.#{subset_warning(subset?)}
     """)
   end
+
+  defp subset_warning(false), do: ""
+
+  defp subset_warning(true),
+    do:
+      "\n\n    THIS SWEEP SCORED A SUBSET. It is a proxy, and every proxy this project has\n" <>
+        "    trusted has lied at least once — see \"Why every proxy lied\". Run\n" <>
+        "    `mix pramana.evals --gate` over the WHOLE set before adopting anything here."
 
   defp describe([], []), do: "identical"
   defp describe(gained, []), do: "+#{length(gained)} row(s) up, none down"
@@ -194,11 +216,16 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
   end
 
   defp filter_only(cases, nil), do: cases
-  defp filter_only(cases, only), do: Enum.filter(cases, &(to_string(&1.type) == only))
+
+  defp filter_only(cases, only) do
+    wanted = MapSet.new(String.split(only, ",", trim: true))
+    Enum.filter(cases, &MapSet.member?(wanted, to_string(&1.type)))
+  end
 
   # `--grid key=a,b,c`, repeatable. Values are integers because every sweepable knob is
   # one; a knob that is not gets rejected here rather than deep inside a retriever.
-  defp parse_grid!(specs) when specs != [], do: Map.new(specs, &parse_spec!/1)
+  defp parse_grid!([]), do: Mix.raise("nothing to sweep — pass at least one --grid key=v1,v2")
+  defp parse_grid!(specs), do: Map.new(specs, &parse_spec!/1)
 
   defp parse_spec!(spec) do
     case String.split(spec, "=", parts: 2) do
@@ -221,8 +248,6 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
 
     knob
   end
-
-  defp parse_grid!([]), do: Mix.raise("nothing to sweep — pass at least one --grid key=v1,v2")
 
   defp parse_int!(value, key) do
     case Integer.parse(value) do
