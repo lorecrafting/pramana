@@ -11,6 +11,7 @@ defmodule Pramana.CoverageTest do
   """
   use Pramana.DataCase, async: true
 
+  alias Pramana.Cbeta.Collections
   alias Pramana.Corpus.Loader
   alias Pramana.Coverage
   alias Pramana.Normalize.CBETA
@@ -272,7 +273,7 @@ defmodule Pramana.CoverageTest do
     end
 
     test "every collection carries the publisher's own name, in both languages" do
-      for collection <- Pramana.Cbeta.Collections.all() do
+      for collection <- Collections.all() do
         assert is_binary(collection.name), "#{collection.id} has no Chinese name"
         assert is_binary(collection.name_en), "#{collection.id} has no English name"
       end
@@ -286,8 +287,8 @@ defmodule Pramana.CoverageTest do
       load!("T0262", 9, "0262")
 
       jiaxing = Enum.find(Coverage.cbeta().missing, &(&1.id == "J"))
-      yen_pei = Pramana.Cbeta.Collections.get("YP")
-      yongle = Pramana.Cbeta.Collections.get("P")
+      yen_pei = Collections.get("YP")
+      yongle = Collections.get("P")
 
       assert jiaxing.works == 287
       assert jiaxing.name == "嘉興大藏經（新文豐版）"
