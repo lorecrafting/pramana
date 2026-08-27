@@ -3054,6 +3054,35 @@ were caught *before* the bake by a check that did not exist twelve hours ago.
 the half worth paying for: the sampled run checks 1,000 segments per text, and only the
 full one can prove the sentence it prints.
 
+### J changed nothing, and the prediction that it would was wrong — 2026-08-27
+
+Registered before the run: *"`retrieval/chinese` drops again, because J is almost entirely
+commentarial and definitional formulae now match still more commentaries quoting them."*
+
+    overall            93.1%   ->  93.1%
+    retrieval/chinese  96.1%   ->  96.1%   (223/232)
+    every other row    unchanged
+
+**Identical. The gate passed.** So the X displacement was not the general law it looked
+like — *more commentary makes Chinese retrieval worse* is not what happened.
+
+What actually happened with X is narrower and more interesting. X is **1,230 works of
+exegesis on the same sūtras**, quoting the same 云何為X formulae the definitional gold
+cases search for, so it competed directly for those slots. J is 285 works of Ming and Qing
+Chan material — a different genre asking different questions — and it barely touches those
+formulae. Volume was never the mechanism; **genre overlap with the gold set was.**
+
+That matters for what comes next. It means the answer to X's displacement is not "filter
+every definitional query by role" applied globally, and it means the next collection's
+effect on retrieval is predictable from what KIND of text it is rather than from how much
+of it there is. B (大藏經補編) and ZW (藏外佛教文獻) are next by size and are both
+miscellanies; N (漢譯南傳大藏經) is a Chinese rendering of the Pāli canon and would compete
+with the Āgama material directly.
+
+Caveat stated: J was baked and **not chunked or embedded** for this run, so it participated
+in the lexical arm only. The post-embedding run measures the semantic half separately,
+which is why the two were kept apart.
+
 ## Decisions taken
 
 | Decision | Rationale |

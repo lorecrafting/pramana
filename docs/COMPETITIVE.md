@@ -129,12 +129,27 @@ Ranked by (differentiation × feasibility).
    actually lands — not in a better chatbot, but in an agent that can run twenty
    retrievals and synthesize with verifiable citations.
 
-7. **Honest uncertainty.** When retrieval is weak, say so, with a measured number
-   from the eval harness rather than an asserted percentage.
+7. ~~**Honest uncertainty.** When retrieval is weak, say so, with a measured number
+   from the eval harness rather than an asserted percentage.~~ **▸ SHIPPED 2026-08-27.**
+   Every hybrid response carries `semantic_confidence` — the top similarity and a band,
+   `strong` / `weak` / `no_close_match` — calibrated on 56 queries with known and known-
+   absent answers, plus `lexical_support` so the two arms can be read together. The
+   combination fires for 6 of 10 unanswerable questions and **0 of 46 answerable ones**,
+   paraphrases included.
+
+   What makes this the differentiator rather than a feature: **a hard threshold was
+   measured and refused.** The lowest cut-off admitting no unanswerable query rejects 10%
+   of answerable ones — about 45 of 446 retrieval cases, to gain 1 absence case. The
+   honest move was to report the number and let the caller weigh it, and the reason is
+   published with the cost attached. `docs/PLAN.md` item D.
 
 ## The strategic read
 
-fojin has more corpus and a shipped UI; you will not out-scale it quickly on either.
+fojin has more corpus; you will not out-scale it quickly there. **The UI half of that
+sentence stopped being true on 2026-08-26**: `/`, `/survey`, `/passage` and `/works/:id`
+ship, and the survey page in particular is not a search box — it counts every occurrence
+and reports how concentrated they are, which is the question a ranked list cannot answer.
+See `docs/READER.md`.
 
 Compete on **verifiability and philological depth** instead. Provenance modeling,
 variant readings, deterministic alignment, the quotation graph, and a published eval
