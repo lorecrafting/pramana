@@ -18,10 +18,14 @@ defmodule PramanaWeb.Router do
   # HTTP, consumed by agents rather than browsers.
   forward "/mcp", Anubis.Server.Transport.StreamableHTTP.Plug, server: PramanaWeb.MCP.Server
 
+  # The reader. A renderer over the same domain the MCP surface reads — see
+  # `PramanaWeb.SearchLive`. Query state lives in the URL so a search, and the passage it
+  # found, are both linkable.
   scope "/", PramanaWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", SearchLive, :index
+    live "/passage", PassageLive, :show
   end
 
   # Other scopes may use custom stacks.

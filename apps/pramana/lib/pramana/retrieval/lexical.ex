@@ -479,6 +479,17 @@ defmodule Pramana.Retrieval.Lexical do
     )
   end
 
+  @doc """
+  The options this retriever accepts.
+
+  Public so a dispatcher can drop what does not apply before calling — `Pramana.Retrieval`
+  routes `:phrase` here from the same option list it would hand `Hybrid`, and `:coverage`
+  is meaningless to a lexical search. Filtering is only safe against the real list;
+  hard-coding "the hybrid-only ones" somewhere else is a list that goes stale silently.
+  """
+  @spec known_opts() :: [atom()]
+  def known_opts, do: @known_opts
+
   @doc false
   def validate_opts!(opts) do
     case Keyword.keys(opts) -- @known_opts do

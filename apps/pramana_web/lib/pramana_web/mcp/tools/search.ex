@@ -15,11 +15,9 @@ defmodule PramanaWeb.MCP.Tools.Search do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias Pramana.Embed
   alias Pramana.Provenance
   alias Pramana.Reader
-  alias Pramana.Retrieval.Hybrid
-  alias Pramana.Retrieval.Lexical
+  alias Pramana.Retrieval
   alias Pramana.Retrieval.Semantic
 
   schema do
@@ -110,43 +108,15 @@ defmodule PramanaWeb.MCP.Tools.Search do
   # Hybrid by default: it is the only mode that finds BOTH the characters you typed and
   # passages that mean the same thing in different words. It degrades to lexical, and
   # says so, when no embedding serving is running.
+  #
+  # `Pramana.Retrieval.search/2` does the routing, because the Phase 8 reader needs the
+  # identical routing and two surfaces resolving `"semantic"` differently would be one
+  # corpus answering a question two ways.
   defp dispatch(params, opts) do
-    case mode(params[:mode]) do
-      :hybrid ->
-        Hybrid.search(params.query, Keyword.put(opts, :serving, Embed.Serving.name()))
-
-      :semantic ->
-        Hybrid.search(
-          params.query,
-          opts |> Keyword.put(:serving, Embed.Serving.name()) |> Keyword.put(:semantic_only, true)
-        )
-
-      lexical_mode ->
-        Lexical.search(params.query, Keyword.put(opts, :mode, lexical_mode))
-    end
+    Retrieval.search(params.query, opts)
   end
 
-  # Mapped explicitly, NOT via String.to_existing_atom/1.
-  #
-  # `to_existing_atom` here made the tool crash depending on module load order: the
-  # guard admitted "phrase", and the conversion then raised because `:phrase` only
-  # enters the atom table once `Pramana.Retrieval.Lexical` is loaded — which happens in
-  # `dispatch/2`, i.e. AFTER this runs. So `mode: "phrase"` as the first search in a
-  # fresh VM raised ArgumentError, while the same call after any hybrid search
-  # succeeded. Every test passed because something always ran hybrid first.
-  #
-  # The atom table is global mutable state; a literal map is not.
-  @modes %{
-    "hybrid" => :hybrid,
-    "semantic" => :semantic,
-    "auto" => :auto,
-    "phrase" => :phrase,
-    "ngram" => :ngram,
-    "terms" => :terms
-  }
-
-  defp mode(nil), do: :hybrid
-  defp mode(m), do: Map.get(@modes, m, :hybrid)
+  defp mode(m), do: Retrieval.mode(m)
 
   defp payload(found) do
     %{
@@ -169,29 +139,13 @@ defmodule PramanaWeb.MCP.Tools.Search do
     }
   end
 
-  # Grouped, never flat. See the module doc.
+  # Grouped, never flat — `Pramana.Provenance.group/1`, which is where the rule lives so
+  # that the reader and this tool cannot describe the same bucket differently. This adds
+  # only the wire shape.
   defp group_by_provenance(results) do
     results
-    |> Enum.group_by(fn r ->
-      p = r.span.provenance
-      {p.composition_origin, p.text_role}
-    end)
-    |> Enum.map(fn {{origin, role}, group} ->
-      %{
-        composition_origin: origin || Provenance.unattributed(),
-        text_role: role || Provenance.unattributed(),
-        # The axis values are only unmissable to a reader who already knows the
-        # vocabulary, and the reader most likely to mis-attribute is the one who does
-        # not. Saying what the bucket IS costs one line and removes the ambiguity.
-        label: Provenance.label(origin, role),
-        count: length(group),
-        results: Enum.map(group, &hit/1)
-      }
-    end)
-    # Largest bucket first, and deterministic when two tie. Alphabetical order would put
-    # "chinese" ahead of "indic" always, which quietly implies a precedence the corpus
-    # does not have.
-    |> Enum.sort_by(&{-&1.count, &1.composition_origin, &1.text_role})
+    |> Provenance.group()
+    |> Enum.map(fn bucket -> %{bucket | results: Enum.map(bucket.results, &hit/1)} end)
   end
 
   # Lexical and hybrid results have different score shapes; both carry a span, which is

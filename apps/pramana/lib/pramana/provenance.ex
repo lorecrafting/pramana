@@ -84,4 +84,47 @@ defmodule Pramana.Provenance do
   @doc "Known text roles."
   @spec roles() :: [String.t()]
   def roles, do: Map.keys(@roles)
+
+  @doc """
+  Buckets retrieval results by composition origin and text role.
+
+  **Grouped, never flat**, and that is invariant #4 enforced by shape: a caller handed a
+  flat list can render a Kamakura-period Japanese commentary immediately below an Indian
+  sūtra with nothing between them, and nothing in the data stops it. A caller handed
+  buckets has to name the bucket to render it.
+
+  Lives here rather than in a surface. The MCP tool grouped its own results and the
+  Phase 8 reader would have grouped them again — two implementations of the one rule
+  invariant #4 rests on, drifting independently. `label/2` was already in the domain for
+  exactly this reason.
+
+  Each result must carry `span.provenance`; anything else is left in the
+  `unattributed` bucket rather than dropped, because a work whose origin nobody has
+  catalogued is a fact about the catalogue, not a reason to hide the work.
+  """
+  @spec group([map()]) :: [map()]
+  def group(results) when is_list(results) do
+    results
+    |> Enum.group_by(fn r ->
+      p = provenance_of(r)
+      {p[:composition_origin], p[:text_role]}
+    end)
+    |> Enum.map(fn {{origin, role}, bucket} ->
+      %{
+        composition_origin: origin || @unattributed,
+        text_role: role || @unattributed,
+        label: label(origin, role),
+        count: length(bucket),
+        results: bucket
+      }
+    end)
+    # Largest bucket first, and deterministic when two tie. Alphabetical order would put
+    # "chinese" ahead of "indic" always, which quietly implies a precedence the corpus
+    # does not have.
+    |> Enum.sort_by(&{-&1.count, &1.composition_origin, &1.text_role})
+  end
+
+  defp provenance_of(%{span: %{provenance: p}}) when is_map(p), do: p
+  defp provenance_of(%{provenance: p}) when is_map(p), do: p
+  defp provenance_of(_), do: %{}
 end
