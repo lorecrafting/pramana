@@ -169,14 +169,20 @@ defmodule PramanaWeb.ReaderComponents do
       <div :for={app <- Map.get(@meta, "apparatus", [])} class="text-base-content/70">
         <span class="badge badge-xs badge-accent mr-1">variant</span>
         <span class="font-medium">{app["lem"]}</span>
-        <span :for={rdg <- app["rdgs"] || []} class="ml-2">
-          ] {reading_text(rdg)}
-          <span class="text-base-content/50">{rdg["wit"]}</span>
-        </span>
+        <span :for={rdg <- app["rdgs"] || []} class="ml-2">] {reading_text(rdg)}</span>
       </div>
     </div>
     """
   end
+
+  # THE WITNESS ID IS NOT SHOWN HERE, and its absence is the point. `meta["apparatus"]`
+  # carries the raw `wit="#wit1"` from the file, and `wit1` means 38 different things
+  # across the canon — 宋 in 832 files, 明 in 375, 甲 in 322. Rendering it beside a reading
+  # would put a sigil-shaped string in front of a reader who has every reason to take it
+  # for one. Naming a witness requires that text's own header, which is what
+  # `Pramana.Apparatus.at/1` does, and the passage page shows the named version for the
+  # line in focus. Here — on neighbouring lines — a reader is told a variant EXISTS and
+  # can open that line to find out whose it is.
 
   # A witness that OMITS the lemma is not a witness with empty text: "omitted" is a
   # reading, and printing nothing for it would silently turn a real variant into a blank.

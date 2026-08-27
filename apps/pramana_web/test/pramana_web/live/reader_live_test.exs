@@ -247,6 +247,17 @@ defmodule PramanaWeb.ReaderLiveTest do
 
       assert html =~ "lines with variants"
     end
+
+    # `meta["apparatus"]` carries the raw `wit="#wit1"` from the file, and `wit1` means 38
+    # different things across the canon. A raw id rendered beside a reading is a
+    # sigil-shaped string in front of a reader with every reason to take it for one.
+    test "never shows a raw witness id, even on a neighbouring line", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0099_001@p0001a18"]}")
+
+      refute html =~ "#wit1"
+      # The named form, from this text's own header, is still there.
+      assert html =~ "【宋】"
+    end
   end
 
   describe "the reader's own claims about a passage" do
