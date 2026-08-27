@@ -1,7 +1,7 @@
 {
   "adversarial": {
-    "hits": 304,
-    "rate": 99.7,
+    "hits": 302,
+    "rate": 99.0,
     "scored": 305
   },
   "answered_any_tradition": {
@@ -11,8 +11,8 @@
   },
   "by_type": {
     "absence": {
-      "hits": 3,
-      "rate": 75.0,
+      "hits": 1,
+      "rate": 25.0,
       "scored": 4
     },
     "provenance": {
@@ -31,8 +31,8 @@
       "scored": 300
     },
     "retrieval": {
-      "hits": 375,
-      "rate": 84.1,
+      "hits": 376,
+      "rate": 84.3,
       "scored": 446
     },
     "topical": {
@@ -58,8 +58,8 @@
       "scored": 232
     },
     "retrieval/pali": {
-      "hits": 122,
-      "rate": 81.3,
+      "hits": 123,
+      "rate": 82.0,
       "scored": 150
     },
     "retrieval/tibetan": {
@@ -90,7 +90,7 @@
   },
   "errors": 0,
   "overall": {
-    "hits": 1304,
+    "hits": 1303,
     "rate": 93.1,
     "scored": 1400
   },

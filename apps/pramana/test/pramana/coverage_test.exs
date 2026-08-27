@@ -64,6 +64,43 @@ defmodule Pramana.CoverageTest do
       assert Coverage.taisho().missing_ranges == "2–45, 47–84"
     end
 
+    # The caveat said "an absence of Japanese-composed results means the material is not in
+    # this bake", which was true while the Taishō was the only collection held and became
+    # wrong when CBETA X arrived with 145 Japanese-composed works. A caveat that overstates
+    # a gap is the same defect as one that understates it.
+    test "says how many Japanese-composed works ARE held, rather than implying none" do
+      load!("T0262", 9, "0262")
+
+      assert Coverage.caveat() =~ "holds NO Japanese-composed work at all"
+
+      {:ok, ir} =
+        CBETA.normalize(
+          """
+          <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+          <teiHeader><fileDesc><titleStmt><title level="m">日本撰述</title></titleStmt></fileDesc></teiHeader>
+          <text><body><milestone n="1" unit="juan"/><lb n="0001a01" ed="X"/>文字</body></text></TEI>
+          """,
+          work_id: "X0967",
+          canon: "X",
+          volume: 57,
+          number: "0967"
+        )
+
+      {:ok, _} =
+        Loader.load(ir,
+          source: "cbeta",
+          witness: "X",
+          provenance: %{composition_origin: "japanese", text_role: "commentary"}
+        )
+
+      caveat = Coverage.caveat()
+
+      assert caveat =~ "does hold 1 Japanese-composed work"
+      assert caveat =~ "partially present, not absent"
+      # And it still says what is missing — the point was never to stop warning.
+      assert caveat =~ "Taishō volumes 56–84"
+    end
+
     test "warns that absence of Japanese results is not silence" do
       caveat = Coverage.caveat()
 

@@ -279,6 +279,13 @@ defmodule Pramana.Evals do
 
   # Does the system say it does not hold something, rather than returning a near-miss?
   # This is the case type that most projects have no answer for at all.
+  #
+  # `expect_origin` tests a provenance filter DIRECTLY: every hit must carry the origin
+  # the query asked for, and one that does not is a leak. It exists because the original
+  # form of these cases — `expect_empty` under `origin: ["japanese"]` — tested the filter
+  # through the CORPUS: it only worked while the corpus held no Japanese-composed work,
+  # and CBETA X brought 145 of them. Three cases flipped to failing on an ingest that made
+  # the corpus more complete, which is a test measuring the wrong thing, not a regression.
   defp evaluate(%Case{type: :absence} = kase, opts) do
     hits = search(kase, opts)
 
@@ -287,11 +294,22 @@ defmodule Pramana.Evals do
         Enum.any?(kase.forbid_works, &String.starts_with?(hit.urn, &1))
       end)
 
+    leaked = leaked_origins(hits, kase.expect_origin)
+
     cond do
       forbidden != [] -> {:miss, %{returned_forbidden: Enum.map(forbidden, & &1.urn)}}
+      leaked != [] -> {:miss, %{filter_leaked: Enum.take(leaked, 5)}}
       kase.expect_empty and hits != [] -> {:miss, %{expected_empty: length(hits)}}
       true -> {:hit, %{returned: length(hits)}}
     end
+  end
+
+  defp leaked_origins(_hits, []), do: []
+
+  defp leaked_origins(hits, wanted) do
+    hits
+    |> Enum.reject(fn hit -> get_in(hit, [:span, :provenance, :composition_origin]) in wanted end)
+    |> Enum.map(fn hit -> {hit.urn, get_in(hit, [:span, :provenance, :composition_origin])} end)
   end
 
   defp mentions?(hit, terms) do

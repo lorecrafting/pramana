@@ -26,6 +26,10 @@ defmodule Pramana.Evals.Case do
           expect_provenance: map(),
           forbid_works: [String.t()],
           expect_empty: boolean(),
+          # Every hit must carry this composition origin. Tests a provenance FILTER
+          # directly, rather than through whether the corpus happens to hold anything the
+          # filter admits — see the absence cases in `evals/gold/absence.jsonl`.
+          expect_origin: [String.t()],
           k: pos_integer(),
           search_opts: keyword(),
           tradition: String.t() | nil,
@@ -54,6 +58,7 @@ defmodule Pramana.Evals.Case do
     expect_provenance: %{},
     forbid_works: [],
     expect_empty: false,
+    expect_origin: [],
     k: 10,
     search_opts: [],
     adversarial: false
@@ -118,6 +123,7 @@ defmodule Pramana.Evals.Case do
       expect_provenance: atomize(data["expect_provenance"] || %{}),
       forbid_works: List.wrap(data["forbid_works"] || []),
       expect_empty: data["expect_empty"] == true,
+      expect_origin: List.wrap(data["expect_origin"] || []),
       k: data["k"] || 10,
       search_opts: search_opts(data["search_opts"] || %{}),
       tradition: data["tradition"],

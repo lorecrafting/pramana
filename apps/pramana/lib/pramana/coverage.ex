@@ -39,6 +39,7 @@ defmodule Pramana.Coverage do
 
   alias Pramana.Cbeta.Collections
   alias Pramana.Corpus.Text
+  alias Pramana.Corpus.Work
   alias Pramana.Repo
   alias Pramana.Taisho.Divisions
 
@@ -291,12 +292,35 @@ defmodule Pramana.Coverage do
     end
   end
 
+  # The count is READ, not asserted, because the sentence around it stopped being true.
+  #
+  # This said "an absence of Japanese-composed results means the material is not in this
+  # bake", which was correct while the Taishō was the only collection held and became
+  # wrong the moment CBETA X landed with 145 Japanese-composed works. A caveat that
+  # overstates a gap is the same defect as one that understates it: both leave a reader
+  # unable to tell what the corpus actually holds. Three gold cases were premised on the
+  # old sentence and flipped to failing on an ingest that made the corpus MORE complete.
   defp japanese_caveat do
-    "Taishō volumes 56–84 (work numbers T2185–T2731, 547 of them) are NOT loaded. " <>
-      "Those volumes are the Japanese-composed " <>
-      "sectarian corpus (Shingon, Tendai, Nichiren, Zen); CBETA excludes them and only " <>
-      "SAT publishes them. An absence of Japanese-composed results therefore means the " <>
-      "material is not in this bake — it does NOT mean the tradition is silent."
+    held = japanese_works_held()
+
+    "Taishō volumes 56–84 (work numbers T2185–T2731, 547 of them) are NOT loaded. Those " <>
+      "volumes are the Japanese-composed sectarian corpus (Shingon, Tendai, Nichiren, " <>
+      "Zen); CBETA excludes them and only SAT publishes them. " <>
+      japanese_held_clause(held) <>
+      " So an absence of Japanese-composed results may mean the material is not in this " <>
+      "bake, and does NOT mean the tradition is silent."
+  end
+
+  defp japanese_held_clause(0),
+    do: "This bake holds NO Japanese-composed work at all."
+
+  defp japanese_held_clause(n),
+    do:
+      "This bake does hold #{n} Japanese-composed work(s), from other CBETA collections — " <>
+        "so the Japanese tradition is partially present, not absent."
+
+  defp japanese_works_held do
+    Repo.aggregate(from(w in Work, where: w.composition_origin == "japanese"), :count)
   end
 
   # 56–84 reads better than 29 comma-separated integers, and the gap is contiguous.

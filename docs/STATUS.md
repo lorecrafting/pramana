@@ -2879,6 +2879,50 @@ backgrounded run shows nothing and a stall looks exactly like a slow link. The b
 in `nettop -P -l 1 -x` is what distinguished them; the retry ran at ~700 KB/s and finished
 in six minutes.
 
+### Semantic search cannot say "I have nothing" (#19) — 2026-08-27
+
+CBETA X embedded, the corpus re-gated, and `absence` fell from **100% to 25%**. Three of
+the four cases were stale rather than failing; the fourth found something real.
+
+**The three stale ones were testing a filter through the corpus's contents.** abs-001/2/3
+were written as `expect_empty: true` under `origin: ["japanese"]`, premised on a sentence
+that was true at the time — *this corpus holds no Japanese-composed work*. CBETA X brought
+**145 of them**, and 唱題 now correctly returns X0967 教觀撮要論. The cases flipped to
+failing on an ingest that made the corpus MORE complete, which is a test measuring the
+wrong thing.
+
+They now use `expect_origin: ["japanese"]`: every hit must carry the origin the query
+asked for. That keeps exactly the teeth the cases were written for — abs-003's note says
+"a filter that silently does nothing returns THOUSANDS of hits here" — and survives any
+future ingest, because it tests the filter rather than the inventory.
+
+**The fourth is a real limitation, and it had been invisible.** 本門戒體 is a Tendai
+doctrine no text in this bake discusses:
+
+    lexical (phrase, origin: japanese)   0 hits
+    hybrid                               5 hits, retrievers: ["semantic"]
+      X1164 淨土十要      將涉無生之龍津…
+      X0956 山家義苑      …今此戒體，初心便可發之…      (戒體, not 本門戒體)
+      X1244 百丈清規證義記  …當依佛語。以戒為師…
+
+The lexical arm refuses correctly. **The semantic arm cannot refuse at all** — it returns
+its k nearest neighbours regardless of how far away they are, and there is no distance at
+which it declines. Nothing here is an answer; they are the closest Japanese-composed chunks
+in the space.
+
+**This case passed for two phases for a reason unrelated to the system working.** The
+origin filter yielded an empty candidate pool because no Japanese-composed work existed, so
+there was nothing to rank and "empty" came for free. X gave the filter something to admit
+and the pretence ended.
+
+`Pramana.Evals`'s own comment on this case type reads "This is the case type that most
+projects have no answer for at all." Neither did this one; it looked like it did. For a
+project named after the study of valid knowledge, a retrieval layer that cannot express
+ignorance is the sharpest gap on the board — see `docs/PLAN.md` for the item.
+
+The baseline records `absence` at 75%, not 100%. That is the honest number, and the ratchet
+still catches a further drop.
+
 ## Decisions taken
 
 | Decision | Rationale |

@@ -371,7 +371,39 @@ prevent. `Apparatus.count_for_work/1` is new and in the domain, because a surfac
 ranked sample), and reader deep-links into the published editions. Neither is on the
 critical path.
 
-### D. Public demo — newly unblocked
+### D. The semantic arm cannot express ignorance — newly discovered, 2026-08-27
+
+**What was found.** `absence` fell 100% → 75% when X landed, and the surviving failure is
+real: for 本門戒體, a doctrine no text in this bake discusses, the lexical arm returns
+**0 hits** and the hybrid returns **5**, all semantic, none of them about it. The semantic
+retriever returns its k nearest neighbours regardless of distance, and there is no distance
+at which it says nothing.
+
+**Why nobody saw it.** The case passed for two phases because the `origin: ["japanese"]`
+filter had an empty pool to search — no Japanese-composed work existed, so "empty" was free
+and looked like refusal. X's 145 Japanese works gave the filter something to admit.
+
+**Why it matters more than the number.** Every other guarantee here is about not making a
+claim that cannot be checked. A retriever that always returns something puts a caller in
+the position of deciding whether five plausible near-misses constitute an answer — and a
+model, handed five passages, will generally use them. This is the retrieval-side twin of
+the Coverage doctrine: *absence must be sayable.*
+
+**Options, none measured yet:**
+
+- **A similarity floor on the semantic arm.** Simple, and a knob that can suppress good
+  answers; it needs the gold set to size it, and `retrieval/*` is exactly the axis that
+  would pay for a bad threshold.
+- **Report the top similarity beside the results** and let the caller judge — cheaper,
+  weaker, and consistent with how `retrievers` and `embedding_coverage` already work.
+- **A gap statistic**: refuse when the best hit is not meaningfully closer than the tenth.
+  Discrimination rather than absolute distance, which is the same lesson the Tibetan probe
+  taught — *measure the gap, not the dispersion*.
+
+**Do not fix this by tightening the gold case.** Three of the four absence cases were
+already corrected for a falsified premise; this one is correct and the system fails it.
+
+### E. Public demo — newly unblocked
 
 **Why it moved.** The Phase 2 gate recorded "the public corpus is currently EMPTY". That
 stopped being true two phases ago and nobody noticed until 2026-08-24: **13,017
@@ -383,7 +415,7 @@ lawful to serve.
 offsets. If it starts needing new domain logic, that is a signal the API is missing
 something — fix the API, not the view.
 
-### E. `topical/chinese` is still 0%
+### F. `topical/chinese` is still 0%
 
 The last zero on the scorecard. Measured options, in order of evidence:
 
@@ -406,7 +438,7 @@ already are), not from 84000's Tibetan-oriented glossary.
 grow** — its curated term list rejects terms too common to measure. One case is 8.3 points.
 Judge this axis by `answered from any tradition`, not by the row.
 
-### F. Tibetan recall — 24 cases unreachable
+### G. Tibetan recall — 24 cases unreachable
 
 `retrieval/tibetan` is 48.4%, close to the ~51.6% ceiling reranking can reach. The
 remaining misses are **absent from 200 candidates**: a recall failure no reordering fixes.
