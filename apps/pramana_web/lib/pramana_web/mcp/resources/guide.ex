@@ -93,8 +93,15 @@ defmodule PramanaWeb.MCP.Resources.Guide do
       When `note` is present, it says so in words.
     - `mode` — `phrase` is strong evidence; `ngram` is a character-window fallback and
       weaker; weigh accordingly.
-    - `addressing` — `canonical` can be checked against a printed edition; `derived`
-      cannot, because that source has no printed page and line.
+    - `addressing` — THREE levels, and the middle one is most of the corpus.
+      `canonical` is checkable against a published digital critical edition (CBETA).
+      `edition_page` is a page number **printed in the physical book**, recovered by our
+      extraction — a reader holding the book can turn to it, and the risk sits in the
+      extraction rather than in the anchor; the whole Degé Kangyur and Tengyur are this,
+      4,576 texts. `derived` has no intrinsic anchor at all: positions come from file
+      structure and shift if the file changes. Reading this as a two-way split
+      understates what can be verified, which is the mistake `Pramana.Corpus` records
+      having already been made once by inferring addressing from the source id.
     - `bake_id` — which corpus snapshot produced this. Cite it for reproducibility.
     - `reader` — a link into the published edition, for a human who wants to check the
       passage. It opens the **fascicle, not the line**, and `verified: false` is
@@ -116,6 +123,13 @@ defmodule PramanaWeb.MCP.Resources.Guide do
     - `has_variants: true` means the passage carries variant readings from other
       witnesses (Song, Yuan, Ming, Koryŏ) — worth mentioning when the wording is the
       point of the question.
+    - **Never name a witness from the raw `apparatus` blob.** The `wit` ids in it are
+      declared by each file's own header, and they are not stable: `wit1` means 38
+      different things across the canon — 宋 in 832 files, 明 in 375, 甲 in 322. Reading
+      `wit1` as 宋 would attribute a Ming variant to the Song edition in roughly a
+      thousand works, stated confidently and in the tradition's own vocabulary. Call
+      `compare_witnesses`, which resolves the sigla against that text's declarations and
+      returns `witness: nil` rather than a guess when it cannot.
     """
   end
 end

@@ -1121,6 +1121,7 @@ In roughly this order:
 | `docs/LAYERS.md` | translations, readings, and locally-added texts |
 | `docs/TRANSLATION.md` | the pool, tiers, selection policy, and the promotion pipeline |
 | `docs/MCP.md` | the tool surface a model actually sees |
+| `docs/READER.md` | the same corpus for a person — and the four things the view had to push back into the domain |
 | `docs/CHECKS.md` | what must pass at a gate |
 | `docs/STATUS.md` | where the project is, plus **"Rules that generalize"** — every hard-won lesson, each stated as a rule that will apply again |
 | `docs/GPU_RUNBOOK.md` | the embedding round trip, step by step |

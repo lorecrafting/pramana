@@ -91,7 +91,7 @@ a gate.
 also a profile and a regression shows up as a number that moved. Rates rather than
 totals, because a total ages the moment the corpus grows — this one doubled in a day.
 
-Measured after the #18 optimisation, `--sample 2`:
+Measured after the #18 optimisation, `--sample 2`, on the 15,489-text corpus:
 
 | | texts | elapsed | rate |
 |---|---|---|---|
@@ -100,6 +100,19 @@ Measured after the #18 optimisation, `--sample 2`:
 | derge (Kangyur) | 1,195 | 21s | 55.2/s |
 | derge-tengyur | 3,380 | 6m15s | 9.0/s |
 | **whole corpus** | **15,489** | **21m09s** | **12.2/s** |
+
+Re-measured 2026-08-27, after CBETA X (16,719 texts, 10.7M segments):
+
+| | texts | elapsed | rate |
+|---|---|---|---|
+| `verify --source cbeta` (default sample) | 3,701 | 4m41s | 13.1/s |
+| `integrity`, whole corpus | **16,719** | **13m18s** | **20.9/s** |
+
+The whole-corpus `integrity` run got *faster in rate* while the corpus grew by 1,230
+texts, which looks wrong until you notice what those texts are: X works are small, and the
+rate is per TEXT. This is why the table records rates and the paragraph above says a total
+ages the moment the corpus grows — but a rate ages too, quietly, whenever the mix of what
+is being counted changes.
 
 Two things that table teaches. The Tengyur was **~90 minutes on its own** before #18 —
 97% of the gate — and the per-source rows still sum to ~9 minutes against a whole-corpus

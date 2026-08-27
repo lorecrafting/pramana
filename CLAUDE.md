@@ -95,11 +95,11 @@ apps/
       pipeline.ex          Acquirer/Normalizer/Segmenter behaviours + source registry
       bake.ex              pipeline_version, bake_id, recording
       bake/                Oban/Broadway orchestration
-  pramana_web/              Phoenix — HTTP API, MCP endpoint, LiveView reader (later)
+  pramana_web/              Phoenix — MCP endpoint, LiveView reader (`docs/READER.md`)
   pramana_native/           Rustler NIFs: CJK segmentation, suffix-array reuse
 priv/embed/                Python sidecar — embeddings + Tibetan botok ONLY
 evals/                     gold question sets + scoring harness
-docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR, MCP
+docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR, MCP, READER
 ```
 
 ## Stack
