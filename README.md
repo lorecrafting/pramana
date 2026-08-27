@@ -17,13 +17,13 @@ no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
 
 | | |
 |---|---|
-| Texts | **15,489** |
-| Segments (citable units) | **6,538,238** |
-| Chinese works (CBETA / Taishō) | 2,471 |
+| Texts | **17,004** |
+| Segments (citable units) | **11,519,879** |
+| Chinese works (CBETA) | 3,986 — Taishō 2,471 · 卍續藏 1,230 · 嘉興藏 285 |
 | Pāli works (SuttaCentral) | 8,442 |
 | Tibetan works (Degé Kangyur / Tengyur) | 1,195 / 3,380 |
-| Retrieval chunks | 560,238 |
-| Embedding vectors | **617,038** (100% embedded) |
+| Retrieval chunks | 850,630 |
+| Embedding vectors | **907,430** (100% of chunked text; J is baked and not yet chunked) |
 | English renderings | 241,409 by 7 translators |
 | Curated cross-tradition parallels | 407,176 (24,717 resolvable at both ends) |
 | Verbatim quotations between works | 141,073 across 1,301 works |
@@ -32,7 +32,13 @@ no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
 Both integrity checks are green over every text: `mix pramana.verify --all` proves the
 bake is a **reproducible** function of pinned inputs, and `mix pramana.integrity` proves
 it is a **complete** one. Those are different questions — a pipeline that drops the same
-content on every run passes the first and fails the second.
+content on every run passes the first and fails the second. `mix pramana.gate` runs both,
+plus formatting, Credo, the test suite, a lockfile census and the eval ratchet, cheapest
+first, and stops at the first failure.
+
+**CBETA is 26 collections and this holds 3.** `Pramana.Coverage` says which are absent, by
+name, in every survey response — 23 collections and 1,013 works — because an empty result
+otherwise reads as the canon being silent rather than as the shelf being short.
 
 ---
 
@@ -197,15 +203,40 @@ recorded, numbers that fall fail the build.
   renderings were withheld. A rendering has no top-level URN — it is addressed as a
   fragment of the source it renders, so it cannot be cited as scripture.
 - **States what it does not have.** Taishō volumes 56–84 (the Japanese-composed sectarian
-  corpus) are absent, and every survey response says so, because silence would read as the
-  tradition having nothing to say.
+  corpus) are absent, as are 23 of CBETA's 26 collections, and every survey response names
+  them — because silence would read as the tradition having nothing to say.
+- **Says how close its best answer was.** Semantic search returns its nearest neighbours
+  whatever the distance, so it cannot fall silent on a question the corpus cannot answer.
+  Every hybrid response therefore reports the top similarity and a band; a hard cut-off
+  was measured and refused, because the only threshold that admits no unanswerable query
+  also rejects 10% of answerable ones.
+
+---
+
+## Reading it as a person
+
+```bash
+mix phx.server                        # http://localhost:4000
+PRAMANA_EMBEDDING=1 mix phx.server    # loads BGE-M3 (~80 s, ~2.2 GB) for hybrid search
+```
+
+| | |
+|---|---|
+| `/` | search, **bucketed by composition origin and text role** — never a flat ranked list |
+| `/survey?q=…` | every occurrence counted, not the best twenty, with how concentrated they are |
+| `/passage?urn=…` | a line in its printed context, with variants, rare characters, translations, parallels, a link to the published edition and the photograph of the woodblock leaf |
+| `/works/:id` | a work's structure, leading with provenance |
+
+See [`docs/READER.md`](docs/READER.md). The reader is a *renderer*: it computes nothing
+about the corpus, and five times so far a screen that needed corpus logic meant the domain
+was missing a function.
 
 ---
 
 ## Stack
 
 Elixir/Phoenix umbrella · PostgreSQL 18 with pgvector and pg_bigm · BGE-M3 embeddings on a
-rented L4 via Modal · MCP server exposing twelve read-only tools.
+rented L4 via Modal · MCP server exposing twelve read-only tools · Phoenix LiveView reader.
 
 ---
 
@@ -218,6 +249,8 @@ rented L4 via Modal · MCP server exposing twelve read-only tools.
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Pipeline stages in technical detail |
 | [`docs/STATUS.md`](docs/STATUS.md) | Current state, and **"Rules that generalize"** — every hard-won lesson |
 | [`docs/MCP.md`](docs/MCP.md) | The tool surface a model actually sees |
+| [`docs/READER.md`](docs/READER.md) | The same corpus for a person, and what each screen insists on |
+| [`docs/CHECKS.md`](docs/CHECKS.md) | `mix pramana.gate`, and what CI can and cannot prove |
 | [`docs/SOURCES.md`](docs/SOURCES.md) | Each source, its licence, its citation grammar |
 | [`docs/EMBEDDING.md`](docs/EMBEDDING.md) · [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md) | Model choice, cost, and the embedding round trip |
 
