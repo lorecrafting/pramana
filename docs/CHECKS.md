@@ -108,6 +108,18 @@ Re-measured 2026-08-27, after CBETA X (16,719 texts, 10.7M segments):
 | `verify --source cbeta` (default sample) | 3,701 | 4m41s | 13.1/s |
 | `integrity`, whole corpus | **16,719** | **13m18s** | **20.9/s** |
 
+And after J, at `--all` — every segment, which is what a gate runs:
+
+| | texts | segments | elapsed | rate |
+|---|---|---|---|---|
+| `verify --all`, whole corpus | **17,004** | **11,519,879** | **26m05s** | 10.9/s |
+
+**`--all` is the expensive half of the gate and it is the half worth paying for.** The
+sampled run checks 1,000 segments per text; this checks all 11.5M, and it is the only
+form that can prove the sentence it claims — *body re-normalized from `raw/` and
+byte-identical for every text*. Budget half an hour, and run `mix pramana.gate` in the
+background rather than waiting on it.
+
 The whole-corpus `integrity` run got *faster in rate* while the corpus grew by 1,230
 texts, which looks wrong until you notice what those texts are: X works are small, and the
 rate is per TEXT. This is why the table records rates and the paragraph above says a total
