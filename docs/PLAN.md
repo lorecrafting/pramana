@@ -319,6 +319,63 @@ answer that file's own comment prescribes.
 integrity green, baseline regenerated. **Everything but the embedding and the baseline is
 done, and those are one sequence: chunk → embed → import → gate.**
 
+### B2. Which collection next — ordered by KIND, not by size
+
+**J refuted the size heuristic on 2026-08-27.** 285 works of Ming/Qing Chan material moved
+no retrieval number at all, while X's 1,230 works of sūtra exegesis cost four Chinese
+cases. The mechanism is **genre overlap with the gold set**, not volume, so the remaining
+23 collections sort into three groups that behave differently and should be taken in this
+order:
+
+**1. Alternative EDITIONS of works already held — the apparatus payload.**
+
+    K   高麗大藏經    10    the Koreana, which the Taishō itself is based on
+    A   趙城金藏      12    the Jin canon
+    P   永樂北藏      20    Ming imperial
+    L   乾隆大藏經    26    Qing imperial
+    U   洪武南藏       3
+    S   宋藏遺珍       2
+    M   卍正藏經       1                                       74 works total
+
+These are *other witnesses to the same texts*, which is exactly what
+`Pramana.Apparatus` and the witness machinery exist for — and 572,701 segments already
+carry a variant apparatus that names the Song, Yuan, Ming and Koryŏ readings **without
+holding those editions**. Acquiring them turns a recorded variant into a passage a reader
+can open. Predicted retrieval disruption: **near zero**, because they duplicate works
+rather than compete for slots, and `Compare.witnesses` is the surface that benefits.
+Seventy-four works is a day's work for the largest single gain on the differentiator list.
+
+**2. Genres the corpus does not contain at all — additive, non-competing.**
+
+    I   北朝佛教石刻拓片百品  101   stone-inscription rubbings, Northern Dynasties
+    F   房山石經           27   the Fangshan stone canon, carved 7th–12th c.
+    GA  中國佛寺史志彙刊     58   temple gazetteers
+    GB  中國佛寺志叢刊       2
+    ZS  正史佛教資料類編      1   Buddhist passages from the official histories
+
+Epigraphy and gazetteers are not scripture and will not answer a doctrinal query, so they
+cannot displace one. They extend what the corpus **is** rather than how much of it there
+is — and F in particular is a stone witness to texts held in print, so it belongs to group
+1 as well.
+
+**3. The one that will move numbers, and is worth it anyway.**
+
+    N   漢譯南傳大藏經（元亨寺版）  83   a Chinese rendering of the Pāli canon
+
+**This is the collection to take deliberately, not casually.** It competes with the Āgama
+material head-on — the same discourses in Chinese, which is precisely the overlap that
+cost X four cases — so it should land with a gate run of its own rather than folded into a
+batch. The payoff is a three-way comparison nothing else offers: the Pāli, the Chinese
+Āgama translated from a different Indic lineage, and a modern Chinese rendering of the
+Pāli itself. `Compare.versions/2` and the parallel data are already shaped for it.
+
+**Deliberately last:** B (204) and ZW (202) are miscellanies, G (60) and D (64) are
+selections, and Y/TX/YP/LC (117 works between them) are **modern authors' collected
+works** — Yin Shun, Taixu, Yen Pei, Lü Cheng. Those four are 20th-century scholarship
+about the canon rather than canon, and loading them without a `text_role` that says so
+would put a living author's essay in the same bucket as a sūtra. That is a provenance
+question to answer before an acquisition question.
+
 ### C. The reader — ▸ FIRST TWO SCREENS SHIPPED 2026-08-26
 
 `mix phx.server` now serves a search page at `/` and a passage page at `/passage?urn=…`,
