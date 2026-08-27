@@ -120,12 +120,37 @@ run of 21, because a full run holds **both** Degé edition maps in memory at onc
 checks twice the segments. The optimisation trades memory for time, and at corpus scale
 that trade is not free.
 
+## Run it as one command
+
+```bash
+mix pramana.gate            # everything, cheapest first, stops at the first failure
+mix pramana.gate --quick    # format, credo, tests, lockfile — about 15 s
+mix pramana.gate --from integrity     # resume after fixing one step
+```
+
+Everything below is what that runs, and why. It exists because runnable-in-principle is
+not the same as run: the CBETA X ingest shipped with `verify` green and `integrity` never
+executed, and integrity had been failing on 1,228 texts the whole time. Nobody skipped it
+on purpose — it was one more command at the end of a long day.
+
+It does **not** replace §2, the architecture review, and says so when it passes.
+
 **Three checks, in fact.** Neither of the above asks whether the *provenance record*
-still resolves:
+still resolves. This used to live here as a snippet to paste into IEx, which meant it ran
+when someone remembered to paste it; it is now step 4 of the gate:
 
 ```elixir
 for id <- Pramana.Sources.ids(), do: {id, Pramana.Acquire.Lockfile.verify(id)}
 ```
+
+**Its first automated run found two sources broken and one merely unacquired**, all three
+invisible for phases:
+
+| source | what was wrong |
+|---|---|
+| `sc-translations` | 4,996 files recorded at `raw/sc-translations/` while the bytes sat in `raw/sc/bilara-data/` — one sparse checkout, three publications, three licences. The hashes were right; the base was inferred from the id. Entries now DECLARE a `raw_root`. |
+| `sc-data` | 2 files recorded and **never written to disk at all** — the import fetched them into memory, hashed them, and dropped the bytes. That is invariant 3 inverted: `raw/` is the record a bake is reproduced from. Now persisted; the re-fetched hashes matched what had been recorded, so the claim was true and only the storage was missing. |
+| `sat` | declared in the registry, never acquired, because #14 is blocked on an email. **Not a failure** — a permanently red check is one nobody reads. |
 
 `verify` and `integrity` both work from paths recorded at ingest, so both stay green
 when the lockfile itself is wrong — and "wrong" includes *incomplete*. Acquiring CBETA's

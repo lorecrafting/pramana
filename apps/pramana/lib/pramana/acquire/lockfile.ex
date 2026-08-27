@@ -45,6 +45,14 @@ defmodule Pramana.Acquire.Lockfile do
 
     %{
       "id" => source.id,
+      # WHERE these paths are rooted, under `raw/`. Declared rather than inferred from the
+      # id, because a source id names a PUBLICATION and a directory holds a CHECKOUT, and
+      # those are not one-to-one: `sc`, `sc-data` and `sc-translations` are three sources
+      # — three licences, three pins — extracted from one sparse checkout of bilara-data.
+      # Inferring `raw/<id>/` left 4,998 files recorded at a path nothing was ever written
+      # to, so `verify/1` reported them all missing and stayed permanently red. A check
+      # that is always red is a check nobody reads.
+      "raw_root" => Keyword.get(opts, :raw_root, source.id),
       "name" => source.name,
       "upstream" => source.upstream_url,
       "pin" => pin,
@@ -184,12 +192,15 @@ defmodule Pramana.Acquire.Lockfile do
   `raw/` is detected. `raw/` being append-only is an invariant, not a convention.
 
   Returns `{:ok, count}` or `{:error, {:mismatches, [...]}}`.
+
+  Files are resolved under `raw/<raw_root>/`, which the entry declares. Older entries
+  without one fall back to the source id, which is what it always was.
   """
   @spec verify(String.t()) ::
           {:ok, non_neg_integer()} | {:error, :not_locked | {:mismatches, [map()]}}
   def verify(source_id) do
     with {:ok, entry} <- get_source(source_id) do
-      base = Path.join(raw_dir(), source_id)
+      base = Path.join(raw_dir(), entry["raw_root"] || source_id)
 
       mismatches =
         entry["files"]

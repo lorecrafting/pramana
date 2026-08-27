@@ -117,6 +117,10 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
     Lockfile.build_entry(
       Sources.fetch!("sc-translations"),
       files: entries,
+      # These bytes live inside the `sc` checkout — one sparse clone of bilara-data,
+      # three sources with three licences. Without this, `Lockfile.verify/1` looks in
+      # `raw/sc-translations/`, which nothing ever writes to.
+      raw_root: "sc/bilara-data",
       pin: %{"type" => "git", "commit" => commit(root), "sparse" => "translation"}
     )
     |> Lockfile.put_source()

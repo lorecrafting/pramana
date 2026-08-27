@@ -138,6 +138,68 @@ defmodule Pramana.Acquire.LockfileTest do
     end
   end
 
+  # A source id names a PUBLICATION; a directory holds a CHECKOUT, and they are not
+  # one-to-one. `sc`, `sc-data` and `sc-translations` are three sources with three licences
+  # extracted from one sparse clone of bilara-data. Inferring `raw/<id>/` left 4,996 files
+  # recorded at a path nothing was ever written to, so `verify/1` reported every one of
+  # them missing and could never be green.
+  describe "raw_root — where a source's files actually are" do
+    test "defaults to the source id, which is what it always was", %{source: source} do
+      entry =
+        Lockfile.build_entry(source,
+          files: [%{path: "a.xml", sha256: String.duplicate("a", 64), bytes: 1}],
+          pin: "test"
+        )
+
+      assert entry["raw_root"] == "cbeta"
+    end
+
+    test "verifies against a declared root rather than the id", %{root: root, source: source} do
+      contents = "<TEI/>"
+
+      target = Path.join([root, "raw", "shared", "nested", "a.xml"])
+      File.mkdir_p!(Path.dirname(target))
+      File.write!(target, contents)
+
+      :ok =
+        Lockfile.put_source(
+          Lockfile.build_entry(source,
+            files: [
+              %{
+                path: "nested/a.xml",
+                sha256: Lockfile.sha256(contents),
+                bytes: byte_size(contents)
+              }
+            ],
+            raw_root: "shared",
+            pin: "test"
+          )
+        )
+
+      assert {:ok, 1} = Lockfile.verify("cbeta")
+    end
+
+    # An entry written before `raw_root` existed must keep verifying exactly as it did.
+    test "an entry with no raw_root falls back to the id", %{root: root, source: source} do
+      contents = "<TEI/>"
+      write_raw!(root, "cbeta", "a.xml", contents)
+
+      entry =
+        source
+        |> Lockfile.build_entry(
+          files: [
+            %{path: "a.xml", sha256: Lockfile.sha256(contents), bytes: byte_size(contents)}
+          ],
+          pin: "test"
+        )
+        |> Map.delete("raw_root")
+
+      :ok = Lockfile.put_source(entry)
+
+      assert {:ok, 1} = Lockfile.verify("cbeta")
+    end
+  end
+
   describe "manifest_hash/1" do
     test "is independent of the order files were fetched in" do
       a = %{path: "T/T09/a.xml", sha256: "aaa", bytes: 1}

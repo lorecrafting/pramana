@@ -69,7 +69,25 @@ defmodule Mix.Tasks.Pramana.Parallels.Import do
 
   defp fetch do
     Mix.shell().info("fetching sc-data (two files, ~24 MB)...")
-    {Req.get!(@parallels_url).body |> encode(), Req.get!(@info_url).body |> encode()}
+
+    parallels = Req.get!(@parallels_url).body |> encode()
+    info = Req.get!(@info_url).body |> encode()
+
+    # PERSISTED, not just hashed. This task used to fetch into memory, record the hashes
+    # in `sources.lock.json`, import, and drop the bytes — so `raw/sc-data/` never existed
+    # and `Lockfile.verify("sc-data")` reported both files missing forever. The lockfile
+    # was making a claim about files nothing had stored, which is invariant 3 inverted:
+    # `raw/` is meant to be the append-only record a bake can be reproduced from.
+    store!("relationship/new_parallels.json", parallels)
+    store!("structure/text_extra_info.json", info)
+
+    {parallels, info}
+  end
+
+  defp store!(path, bytes) do
+    target = Path.join([Lockfile.raw_dir(), "sc-data", path])
+    File.mkdir_p!(Path.dirname(target))
+    File.write!(target, bytes)
   end
 
   # Req decodes JSON by content type; we want the bytes, both to hash them and to decode
