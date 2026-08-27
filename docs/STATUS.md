@@ -2979,6 +2979,46 @@ this is its companion — measure the path that ships, not the piece you can cal
 suppressing results, and suppression costs ~45 retrieval cases at the only threshold that
 separates.
 
+### The stubborn `retrieval/chinese` misses are a gold-set problem — 2026-08-27
+
+The backlog carried "`retrieval/chinese` has 5 stubborn misses out of 232 and has not
+moved all year. Cheap to diagnose now that a search is 2.2 s; nobody has looked." Looked.
+After X the count is 9, and they split into two unrelated groups.
+
+**Seven are X displacement**, which is expected and legitimate: X is overwhelmingly
+commentarial and a commentary quoting a definitional formula is a genuine lexical match
+for it. Of the top ten hits, X holds 6, 7, 8, 6, 6, 4 and 2 respectively.
+
+**Two have no X in their top ten at all** — def-062 and def-082, and these are the
+original stubborn ones. Both return a **correct answer the gold set did not ask for**:
+
+    def-062  云何為一法   expects T0765_001@p0667a27
+      rank 3  T0125_001@p0552c20   「云何為一法？所謂念法，當善修行…」
+
+    def-082  云何為十一   expects T0125_046@p0794a18
+      rank 3  T0125_046@p0795a26   「云何為十一？所謂阿練若：乞食，一處坐…」
+
+def-062 finds the Ekottarika Āgama defining 一法 in the canon's own formula, at rank 3,
+and is scored a miss because the case pins the 本事經 instead. def-082 finds the same
+formula defining 十一 **in the same work and the same fascicle**, about a page from the
+pinned line, and is scored a miss for that.
+
+**These are enumerative formulae.** 云何為一法 and 云何為十一 recur throughout the Āgamas by
+construction — the texts are lists — so there is no single correct answer to pin, and no
+ranking change can make the system prefer one occurrence of a recurring formula over
+another equally correct one.
+
+**So `retrieval/chinese` has a ceiling below 100% that is not the system's fault**, and
+tuning aimed at those cases is chasing something unwinnable. That is a second, independent
+reason the configuration sweep was the wrong thing to spend five hours on.
+
+**Deliberately not fixed here.** The harness already supports several accepted answers —
+`expect_urns` is a list — so widening these cases is a one-line change. It is not made,
+because widening a gold case makes a number go up, and that is indistinguishable in shape
+from explaining away a regression. The absence cases were corrected today for a premise
+falsified by an ingest, which is a different thing from a case that is valid but narrow.
+This one is a judgement about what the eval should measure and it belongs to a human.
+
 ## Decisions taken
 
 | Decision | Rationale |

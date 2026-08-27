@@ -550,8 +550,21 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   the number meaningless.
 - **Commentary lemma-and-gloss (科文) parsing** → root↔commentary alignment. Phase 6,
   untouched, deterministic, a real differentiator.
-- **`retrieval/chinese` has 5 stubborn misses** out of 232 and has not moved all year.
-  Cheap to diagnose now that a search is 2.2 s; nobody has looked.
+- **▸ DIAGNOSED 2026-08-27 — `retrieval/chinese`'s stubborn misses.** Now 9 after X, and
+  two unrelated causes. Seven are X displacement (commentaries quoting a formula, X holds
+  6–8 of the top ten). **Two are the original stubborn ones and both return a CORRECT
+  answer the gold set did not ask for**: def-062 finds 「云何為一法？所謂念法」 in the
+  Ekottarika Āgama at rank 3 while the case pins 本事經; def-082 finds 「云何為十一？所謂
+  阿練若」 in the same work and fascicle, a page from the pinned line. These are
+  enumerative formulae that recur by construction, so there is no single passage to pin
+  and **no ranking change can win them**. `retrieval/chinese` therefore has a ceiling
+  below 100% that is not the system's fault.
+
+  **A decision is needed and it is not mine.** `expect_urns` is a list, so widening the
+  two cases is one line — but widening a gold case makes a number go up, which is
+  shape-identical to explaining away a regression. Today's absence cases were corrected
+  because an ingest falsified their stated premise; these are valid but narrow, which is a
+  judgement about what the eval should measure.
 - ~~**`priv/embed` sidecar** still owns Tibetan `botok`, which nothing uses.~~ **▸ DONE
   2026-08-27 — there was nothing to delete.** No Python file imports `botok` and no Elixir
   calls it; the dependency was never taken. What existed was four documents describing it,
