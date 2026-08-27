@@ -44,9 +44,10 @@ defmodule PramanaWeb.SurveyLive do
 
     socket = assign(socket, query: query)
 
-    cond do
-      query == "" -> {:noreply, assign(socket, result: nil, error: nil)}
-      true -> {:noreply, run(socket, query)}
+    if query == "" do
+      {:noreply, assign(socket, result: nil, error: nil)}
+    else
+      {:noreply, run(socket, query)}
     end
   end
 
