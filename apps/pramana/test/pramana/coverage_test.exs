@@ -114,9 +114,15 @@ defmodule Pramana.CoverageTest do
       assert coverage.note =~ "All 85"
     end
 
-    test "issues no caveat, because there is nothing to warn about" do
-      # A warning that never turns off is one nobody reads.
-      assert Coverage.caveat() == nil
+    test "stops warning about the Taishō, because there is nothing left to warn about" do
+      # A warning that never turns off is one nobody reads. This asserted a nil caveat
+      # until the CBETA collections gap became reportable: a bake holding all 85 Taishō
+      # volumes still holds 1 of 26 collections, and that IS something to warn about. The
+      # assertion narrowed to the claim it was actually making.
+      caveat = Coverage.caveat()
+
+      refute caveat =~ "Taishō volumes 56–84"
+      assert caveat =~ "CBETA publishes 26 collections"
     end
   end
 
@@ -176,6 +182,80 @@ defmodule Pramana.CoverageTest do
 
     test "the caveat names the work numbers a reader would search for" do
       assert Coverage.caveat() =~ "T2185\u2013T2731"
+    end
+  end
+
+  # CBETA is 26 collections, not one canon. Holding two of them and calling it "the
+  # Chinese canon" is the same lie by omission as the Taishō 56–84 gap, one level up: a
+  # reader searching for a 嘉興藏 text gets nothing, and nothing reads as silence.
+  describe "the CBETA collections that are not here" do
+    defp load_x!(work_id) do
+      xml = """
+      <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+      <teiHeader><fileDesc><titleStmt><title level="m">測試</title></titleStmt></fileDesc></teiHeader>
+      <text><body><milestone n="1" unit="juan"/><lb n="0001a01" ed="X"/>文字</body></text></TEI>
+      """
+
+      {:ok, ir} = CBETA.normalize(xml, work_id: work_id, canon: "X", volume: 8, number: "0240")
+      {:ok, _} = Loader.load(ir, source: "cbeta", witness: "X", provenance: %{})
+    end
+
+    test "an empty corpus claims no collection" do
+      coverage = Coverage.cbeta()
+
+      assert coverage.collections_held == 0
+      assert coverage.works_held == 0
+      assert coverage.collections_published == 26
+    end
+
+    test "counts the collections actually loaded, not the ones acquired" do
+      load!("T0262", 9, "0262")
+      load_x!("X0240")
+
+      coverage = Coverage.cbeta()
+
+      assert coverage.collections_held == 2
+      assert Enum.sort(coverage.held) == ["T", "X"]
+      assert coverage.works_held == 3707
+    end
+
+    test "names the largest absent collections and how to get them" do
+      load!("T0262", 9, "0262")
+
+      coverage = Coverage.cbeta()
+
+      assert coverage.note =~ "25 collections"
+      assert coverage.note =~ "X (1236)"
+      assert coverage.note =~ "J (287)"
+      assert coverage.note =~ "does NOT mean the canon is silent"
+      assert coverage.note =~ "mix pramana.acquire_all"
+    end
+
+    # A code is a fact and an expansion of it would be a guess. Each CBETA file states
+    # its own collection in <sourceDesc>; for a collection we have not acquired there is
+    # no such statement, so the name is absent rather than invented.
+    test "an unacquired collection is reported by code, with no invented name" do
+      load!("T0262", 9, "0262")
+
+      jiaxing = Enum.find(Coverage.cbeta().missing, &(&1.id == "J"))
+
+      assert jiaxing.works == 287
+      assert jiaxing.name == nil
+    end
+
+    test "the caveat carries the collections gap alongside the Taishō one" do
+      load!("T0262", 9, "0262")
+
+      caveat = Coverage.caveat()
+
+      assert caveat =~ "Taishō volumes 56–84"
+      assert caveat =~ "CBETA publishes 26 collections"
+    end
+
+    # Nothing loaded at all is a different statement from a partial corpus, and pretending
+    # otherwise would put a collections warning on a bake that has not started.
+    test "says nothing about collections when no CBETA text is loaded" do
+      refute Coverage.caveat() =~ "CBETA publishes"
     end
   end
 

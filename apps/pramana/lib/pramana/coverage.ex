@@ -22,10 +22,22 @@ defmodule Pramana.Coverage do
   `Pramana.URN.Taisho.provenance_for_volume/1` already implements the 56–84 rule, so
   when SAT is acquired the material lands with correct provenance automatically. The
   blocker is acquisition, not classification — see `docs/SOURCES.md`.
+
+  ## The CBETA collections gap
+
+  The same failure, one level up. CBETA publishes **26 collections** and this holds two:
+  the Taishō and the 卍續藏. While the Taishō was the only one loaded, "the Chinese canon"
+  and "what we have" were close enough to the same sentence that nobody wrote the
+  difference down. They are not the same sentence — 1,304 works across 24 further
+  collections are not here, and a reader searching for a 嘉興藏 text gets an empty result
+  with nothing to distinguish *not in the canon* from *not in this bake*.
+
+  See `cbeta/0` and `Pramana.Cbeta.Collections`.
   """
 
   import Ecto.Query
 
+  alias Pramana.Cbeta.Collections
   alias Pramana.Corpus.Text
   alias Pramana.Repo
   alias Pramana.Taisho.Divisions
@@ -129,6 +141,55 @@ defmodule Pramana.Coverage do
   defp pad(n), do: String.pad_leading(Integer.to_string(n), 4, "0")
 
   @doc """
+  Which CBETA collections are in the bake, and which are not.
+
+  Computed from the witnesses actually loaded against the pinned catalogue, so it stops
+  saying this as collections land. A collection with no name here has not been acquired:
+  each CBETA file states its own collection in `<sourceDesc>`, and rather than guess what
+  a two-letter code expands to, the name arrives with the files. See
+  `Pramana.Cbeta.Collections`.
+  """
+  @spec cbeta() :: map()
+  def cbeta do
+    held =
+      Repo.all(
+        from t in Text, where: t.source_id == "cbeta", select: t.witness_id, distinct: true
+      )
+      |> MapSet.new()
+
+    {present, missing} = Enum.split_with(Collections.all(), &MapSet.member?(held, &1.id))
+
+    %{
+      collections_held: length(present),
+      collections_published: length(Collections.all()),
+      held: Enum.map(present, & &1.id),
+      missing: Enum.map(missing, &Map.take(&1, [:id, :works, :name])),
+      works_held: Enum.sum(Enum.map(present, & &1.works)),
+      works_published: Collections.total_works(),
+      catalogue_pin: Collections.pin(),
+      note: cbeta_note(present, missing)
+    }
+  end
+
+  defp cbeta_note(_present, []), do: "Every CBETA collection is loaded."
+
+  defp cbeta_note(present, missing) do
+    absent_works = Enum.sum(Enum.map(missing, & &1.works))
+
+    top =
+      missing
+      |> Enum.take(5)
+      |> Enum.map_join(", ", fn c -> "#{c.id} (#{c.works})" end)
+
+    "CBETA publishes #{length(present) + length(missing)} collections and this bake holds " <>
+      "#{length(present)}: #{Enum.map_join(present, ", ", & &1.id)}. " <>
+      "#{length(missing)} collections and #{absent_works} works are NOT loaded — largest first: " <>
+      "#{top}. An absence of results from those collections means they are not in this " <>
+      "bake; it does NOT mean the canon is silent. Acquire one with " <>
+      "`mix pramana.acquire_all --source cbeta --canon <ID>`."
+  end
+
+  @doc """
   A one-line warning for callers that must not mistake absence for silence, or `nil`.
 
   Returned as its own field rather than folded into prose so a tool response can carry
@@ -136,7 +197,7 @@ defmodule Pramana.Coverage do
   """
   @spec caveat() :: String.t() | nil
   def caveat do
-    [taisho_caveat(), tibetan_caveat()]
+    [taisho_caveat(), cbeta_caveat(), tibetan_caveat()]
     |> Enum.reject(&is_nil/1)
     |> case do
       [] -> nil
@@ -148,6 +209,14 @@ defmodule Pramana.Coverage do
     case taisho() do
       %{japanese_delta_missing: true} -> japanese_caveat()
       _ -> nil
+    end
+  end
+
+  defp cbeta_caveat do
+    case cbeta() do
+      %{missing: [], collections_held: n} when n > 0 -> nil
+      %{collections_held: 0} -> nil
+      %{note: note} -> note
     end
   end
 

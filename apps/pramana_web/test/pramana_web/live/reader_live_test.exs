@@ -159,5 +159,33 @@ defmodule PramanaWeb.ReaderLiveTest do
 
       assert html =~ "not a URN"
     end
+
+    # A section with nothing in it is not rendered at all. `Compare.versions/2` returns
+    # `nil` rather than an empty structure for exactly this reason: a "Parallels" heading
+    # over an empty list reads as "we looked and there are none", which is a claim.
+    test "shows no translation or parallel headings for a passage that has neither",
+         %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
+
+      refute html =~ "Translations"
+      refute html =~ "Parallels"
+    end
+  end
+
+  describe "the reader's own claims about a passage" do
+    test "a non-canonical anchor is flagged as not checkable against a page", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
+
+      # Every text here IS canonically anchored, so the warning must be absent — a badge
+      # that shows up unconditionally tells a reader nothing.
+      refute html =~ "not checkable against a printed page"
+    end
+
+    test "the coverage banner names what is not loaded", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
+
+      assert html =~ "Taishō volumes 56–84"
+      assert html =~ "CBETA publishes 26 collections"
+    end
   end
 end

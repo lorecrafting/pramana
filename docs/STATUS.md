@@ -2799,6 +2799,41 @@ against a printed page`, and `pramana:cbeta.X:X0575_001@p0966b12` renders in con
 where the line two below it, `䦚通顯道甚深功德寶卷上`, shows what that recovered rare
 character was doing: it is the first character of the work's own title.
 
+### Versions on the page, and the collections gap (C) — 2026-08-27
+
+The passage page renders `Compare.versions/2`: the whole translation pool, parallels, and
+work-level alternates. SN 6.4 shows Sujato's English beside three parallels that reach
+into the Chinese canon from one Pāli line — `T0100_006@p0412b07`, `T0099_044@p0324b03`,
+`ja405@1.1` — which is the cross-canon claim this project exists to make, made visible.
+
+Two things the page had to be taught **not** to say. A section with nothing in it is not
+rendered at all, because a "Parallels" heading over an empty list asserts *we looked and
+there are none*; `Compare.versions/2` returns `nil` rather than an empty structure for
+exactly this reason, and the first version of this page rendered the explanatory note
+under passages with no versions at all. And parallels pointing at texts not in the bake
+are counted rather than dropped — T0099 has 1,958 recorded, 1,661 resolvable, and the 297
+unopenable ones are stated, because a parallel we cannot show still tells a reader it
+exists.
+
+**`Coverage.cbeta/0`** closes the gap the X ingest opened. CBETA publishes **26
+collections**; this bake holds two, and 24 collections / 1,298 works were absent with
+nothing saying so — the Taishō 56–84 failure one level up, and invisible for two phases
+because while the Taishō was the only collection loaded, "the Chinese canon" and "what we
+have" were near enough the same sentence.
+
+Counts are measured, from one git-tree call over the pinned repository at `2b8ab8d5` —
+5,005 works, the same call `acquire_all` makes. **Most entries carry no name, deliberately.**
+Each CBETA file states its own collection in `<sourceDesc>` (T: 大正新脩大藏經, X:
+卍新纂大日本續藏經), and for a collection we have not acquired there is no such statement on
+disk. Expanding `YP` or `GA` into a plausible canon name would produce exactly what this
+project refuses: a reader unable to tell a sourced fact from a guess. A code and a work
+count are facts; the name arrives with the files.
+
+One existing test had to narrow rather than pass: *"issues no caveat, because there is
+nothing to warn about"* asserted `caveat() == nil` for a corpus holding all 85 Taishō
+volumes. That corpus still holds 1 of 26 collections, which IS something to warn about, so
+the assertion now says what it was actually claiming — no *Taishō* warning.
+
 ## Decisions taken
 
 | Decision | Rationale |

@@ -322,9 +322,36 @@ in the LiveView raised on the first phrase search in a fresh VM and worked on ev
 after — the exact failure `docs/STATUS.md` records for the MCP tool. That is why the
 mapping is now a literal map in the domain, with a regression test.
 
-**Still to build:** a work browser (outline as a first-class page), the translation pool
-and parallels on the passage page (`Compare.versions/2` already returns them), and the
-apparatus as its own view. None of them need new domain logic.
+**▸ 2026-08-27 — the passage page now carries versions, and Coverage knows the
+collections.**
+
+`Compare.versions/2` is rendered on the passage page: the whole translation pool (never a
+winner, and a non-human rendering wears a badge saying it is not citable as source),
+parallels with their strength, and work-level alternates labelled as *candidates for
+異譯本, not established alternate translations*. Verified on SN 6.4, which shows Sujato's
+English beside three parallels reaching into the Chinese canon — `T0100_006@p0412b07`,
+`T0099_044@p0324b03` — from one Pāli line.
+
+Two things the page had to be taught not to claim:
+
+- **A section with nothing in it is not rendered.** `Compare.versions/2` returns `nil`
+  rather than an empty structure precisely so this is possible; a "Parallels" heading over
+  an empty list is the assertion *we looked and there are none*.
+- **Parallels pointing at texts we do not hold are counted, not dropped.** T0099 has 1,958
+  recorded and 1,661 resolvable — the other 297 are stated as unopenable, because a
+  parallel we cannot show still tells a reader it exists.
+
+**`Coverage.cbeta/0` closes the collections gap.** CBETA publishes **26 collections** and
+this holds two; 24 collections and 1,298 works were absent with nothing saying so, which is
+the Taishō 56–84 failure one level up. The counts are measured from the pinned catalogue
+(`Pramana.Cbeta.Collections`, one git-tree call at `2b8ab8d5`), and **most entries have no
+name on purpose**: each CBETA file states its own collection in `<sourceDesc>` — T's say
+大正新脩大藏經, X's say 卍新纂大日本續藏經 — and for a collection we have not acquired there
+is no such statement, so expanding `YP` into some canon would be a guess a reader could not
+tell from a fact.
+
+**Still to build:** a work browser (the outline as a first-class page), and the apparatus
+as its own view. Neither needs new domain logic.
 
 ### D. Public demo — newly unblocked
 

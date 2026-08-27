@@ -200,17 +200,31 @@ defmodule PramanaWeb.ReaderComponents do
 
   defp empty_line_reason(_), do: "printed, but carrying no body text"
 
-  defp locator(%{provenance: p}) when is_map(p) do
-    [p[:juan] && "j#{p[:juan]}", p[:page] && "#{p[:page]}#{p[:register]}#{pad_line(p[:line])}"]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" ")
-    |> case do
-      "" -> "—"
-      text -> text
+  # A page/register/line for the Chinese canons, and the edition's own anchor for the
+  # traditions that do not have one — SuttaCentral segment ids, Derge folio/side/line.
+  # Falling through to a dash would tell a Pāli reader their passage has no citation,
+  # when in fact `sn6.4:1.1` IS the citation and is printed in the URN two lines below.
+  defp locator(%{provenance: p} = span) when is_map(p) do
+    case [
+           p[:juan] && "j#{p[:juan]}",
+           p[:page] && "#{p[:page]}#{p[:register]}#{pad_line(p[:line])}"
+         ]
+         |> Enum.reject(&is_nil/1) do
+      [] -> urn_locator(span)
+      parts -> Enum.join(parts, " ")
     end
   end
 
-  defp locator(_), do: "—"
+  defp locator(span), do: urn_locator(span)
+
+  defp urn_locator(%{urn: urn}) when is_binary(urn) do
+    case String.split(urn, "@", parts: 2) do
+      [_, locator] -> locator
+      _ -> "—"
+    end
+  end
+
+  defp urn_locator(_), do: "—"
 
   defp pad_line(nil), do: ""
   defp pad_line(n), do: String.pad_leading(Integer.to_string(n), 2, "0")

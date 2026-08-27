@@ -16,12 +16,21 @@ defmodule PramanaWeb.PassageLive do
     and hiding the disagreement would make it a reading text;
   - **rare characters** with their mappings, since those are the content a reader cannot
     reconstruct from anything else;
-  - **provenance**, in words, above the text rather than below it.
+  - **provenance**, in words, above the text rather than below it;
+  - the **translation pool**, all of it — a rendering is never presented as *the*
+    translation, and a machine translation is never presented as source (`docs/LAYERS.md`
+    and invariant #8);
+  - **parallels and alternates**, labelled as what they are. A parallel is a different
+    text judged to transmit the same material, not a translation of this one, and an
+    alternate is a candidate for 異譯本 rather than an established alternate translation —
+    the curated data cannot tell T0099/T0100 (a real one) from T0099/T0125 (two different
+    Āgama collections) and this page must not either.
   """
   use PramanaWeb, :live_view
 
   import PramanaWeb.ReaderComponents
 
+  alias Pramana.Compare
   alias Pramana.Corpus
 
   @window 6
@@ -39,16 +48,37 @@ defmodule PramanaWeb.PassageLive do
          socket
          |> assign(urn: urn, context: context, error: nil)
          |> assign(outline: outline_for(context.focus))
+         |> assign(versions: versions_for(urn))
          |> assign(page_title: page_title(context.focus))}
 
       {:error, reason} ->
-        {:noreply, assign(socket, urn: urn, context: nil, outline: nil, error: reason)}
+        {:noreply,
+         assign(socket, urn: urn, context: nil, outline: nil, versions: nil, error: reason)}
     end
   end
 
   def handle_params(_params, _uri, socket) do
-    {:noreply, assign(socket, urn: nil, context: nil, outline: nil, error: :bad_urn)}
+    {:noreply,
+     assign(socket, urn: nil, context: nil, outline: nil, versions: nil, error: :bad_urn)}
   end
+
+  # `Compare.versions/2` returns `nil` for a section with nothing in it rather than an
+  # empty structure pretending to be an answer, and this page renders that distinction:
+  # a passage with no recorded parallel shows no parallels heading at all, instead of a
+  # heading over an empty list that reads as "we looked and the tradition is silent".
+  defp versions_for(urn) do
+    case Compare.versions(urn, include_text: false) do
+      {:ok, versions} -> versions
+      {:error, _} -> nil
+    end
+  end
+
+  # The note explains the three sections above it and is noise without them — and worse
+  # than noise, since a reader who sees "Parallels are DIFFERENT texts…" under a passage
+  # showing no parallels has been told about a section that is not there.
+  defp shows_versions?(%{renderings: nil, parallels: nil, alternates: nil}), do: false
+  defp shows_versions?(versions) when is_map(versions), do: true
+  defp shows_versions?(_), do: false
 
   defp page_title(%{provenance: %{work_id: work_id}}), do: work_id
   defp page_title(_), do: "Passage"
@@ -109,6 +139,103 @@ defmodule PramanaWeb.PassageLive do
             the line URN is what a quotation of this line is verified against.
           </p>
         </section>
+
+        <section :if={@versions && @versions.renderings} class="space-y-2">
+          <h2 class="flex items-baseline gap-2 font-semibold">
+            Translations
+            <span class="text-sm font-normal text-base-content/60">
+              {@versions.renderings.count} in {@versions.renderings.lang}
+            </span>
+          </h2>
+          <p class="text-xs text-base-content/60">
+            The whole pool, not a winner. A rendering is addressed as a fragment of this
+            passage's URN, so stripping it always leaves a citable source.
+          </p>
+          <article
+            :for={rendering <- @versions.renderings.pool}
+            class="space-y-1 rounded-lg bg-base-200/40 p-3"
+          >
+            <p class="leading-relaxed">{rendering.text}</p>
+            <div class="flex flex-wrap items-center gap-2 text-xs text-base-content/60">
+              <span class="badge badge-sm badge-outline">{rendering.tier}</span>
+              <span :if={rendering.method != "human"} class="badge badge-sm badge-warning">
+                {rendering.method}-generated — not citable as source
+              </span>
+              <span>{rendering.translator || rendering.translator_id}</span>
+              <span class="font-mono break-all">{rendering.urn}</span>
+            </div>
+          </article>
+        </section>
+
+        <section :if={@versions && @versions.parallels} class="space-y-2">
+          <h2 class="flex items-baseline gap-2 font-semibold">
+            Parallels
+            <span class="text-sm font-normal text-base-content/60">
+              {@versions.parallels.total} recorded · {@versions.parallels.quotable} resolvable here
+            </span>
+          </h2>
+          <p class="text-xs text-base-content/60">
+            Different texts judged to transmit the same material. Neither is a translation
+            of the other.
+          </p>
+          <p
+            :if={@versions.parallels.referenced_but_not_held > 0}
+            class="alert alert-info alert-soft text-xs"
+          >
+            {@versions.parallels.referenced_but_not_held} of these point at texts this bake
+            does not hold, so they cannot be opened. They are counted rather than dropped:
+            a parallel we cannot show still tells you it exists.
+          </p>
+          <ul class="space-y-1 text-sm">
+            <li
+              :for={parallel <- Enum.take(@versions.parallels.versions, 25)}
+              class="flex flex-wrap items-baseline gap-2"
+            >
+              <span class="badge badge-sm badge-ghost">{parallel[:relation]}</span>
+              <span :if={parallel[:partial]} class="badge badge-sm badge-outline">partial</span>
+              <span class="text-base-content/60">{parallel[:uid]}</span>
+              <.link
+                :if={parallel[:urn]}
+                navigate={~p"/passage?#{[urn: parallel[:urn]]}"}
+                class="link link-hover font-mono text-xs break-all"
+              >
+                {parallel[:urn]}
+              </.link>
+              <span :if={is_nil(parallel[:urn])} class="text-xs text-base-content/50">
+                not in this bake
+              </span>
+            </li>
+          </ul>
+        </section>
+
+        <section :if={@versions && @versions.alternates} class="space-y-2">
+          <h2 class="font-semibold">
+            Other works transmitting this material
+            <span class="text-sm font-normal text-base-content/60">
+              {@versions.alternates.count}
+            </span>
+          </h2>
+          <p class="text-xs text-base-content/60">
+            Candidates for 異譯本 — <strong>not</strong>
+            established alternate translations. The evidence is shared passages, which
+            cannot distinguish a genuine re-translation from two different collections
+            that overlap.
+          </p>
+          <ul class="space-y-1 text-sm">
+            <li :for={work <- @versions.alternates.works} class="flex flex-wrap items-baseline gap-2">
+              <span class="font-medium">{work[:work_id]}</span>
+              <span class="text-base-content/70">{work[:title]}</span>
+              <span :if={work[:attributed_author]} class="text-base-content/60">
+                · {work[:attributed_author]}
+              </span>
+              <span class="badge badge-sm badge-ghost">{work[:confidence]}</span>
+            </li>
+          </ul>
+        </section>
+
+        <p :if={shows_versions?(@versions)} class="text-xs text-base-content/60">
+          {@versions.note}
+        </p>
 
         <section :if={@outline && @outline.entries != []} class="space-y-2">
           <h2 class="font-semibold">{@outline.entries |> length()} sections in this work</h2>
