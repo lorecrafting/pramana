@@ -113,12 +113,29 @@ defmodule PramanaWeb.ReaderComponents do
         <p :if={@retrievers}>
           Searched by: {Enum.join(@retrievers, " + ")}.
           <span :if={"semantic" not in @retrievers}>
-            Meaning-based matches were not considered — only the characters you typed.
+            Meaning-based matches were not considered — only the characters you typed. {semantic_absent_because()}
           </span>
         </p>
       </div>
     </div>
     """
+  end
+
+  # WHY the semantic arm did not run, which is a different fact from THAT it did not.
+  #
+  # "No serving is running" is fixed by starting the server differently and says nothing
+  # about the corpus; "nothing is embedded" is a fact about the corpus and no restart will
+  # help. Reporting only the symptom leaves a reader to guess which, and the guess decides
+  # whether they conclude the canon is thin.
+  defp semantic_absent_because do
+    cond do
+      not Pramana.Embed.Serving.available?() ->
+        "No embedding serving is running here — start the server with PRAMANA_EMBEDDING=1 " <>
+          "to enable it. This is a property of this process, not of the corpus."
+
+      true ->
+        "The serving is running, so this query reached nothing embedded."
+    end
   end
 
   @doc """

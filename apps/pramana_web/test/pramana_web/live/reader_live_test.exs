@@ -269,6 +269,19 @@ defmodule PramanaWeb.ReaderLiveTest do
       refute html =~ "not checkable against a printed page"
     end
 
+    # "The semantic arm did not run" and "why it did not run" are different facts, and
+    # only the second tells a reader whether the fix is a restart or an ingest. Reporting
+    # the symptom alone leaves them to guess, and the guess decides whether they conclude
+    # the canon is thin.
+    test "says why meaning-based search did not run, not only that it did not",
+         %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
+
+      assert html =~ "Meaning-based matches were not considered"
+      assert html =~ "PRAMANA_EMBEDDING=1"
+      assert html =~ "not of the corpus"
+    end
+
     test "the coverage banner names what is not loaded", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
 
