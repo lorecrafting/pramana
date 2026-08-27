@@ -45,6 +45,10 @@ defmodule Pramana.Retrieval.Hybrid do
   alias Pramana.Retrieval.Terms
 
   # The conventional RRF constant. Larger flattens the contribution of top ranks.
+  #
+  # Overridable per call (`rrf_k:`) so it can be SWEPT against the gold set rather than
+  # argued about. 60 is convention, not a measurement — every other retrieval constant
+  # here earned its value from `evals/` and this one never has.
   @k 60
   @default_limit 20
 
@@ -82,6 +86,11 @@ defmodule Pramana.Retrieval.Hybrid do
 
   @type opts :: [
           limit: pos_integer(),
+          # The RRF constant and the rerank over-fetch multiplier. Both default to the
+          # shipped values and exist as options so a sweep can move them without editing
+          # the module — a configuration measured is worth more than a constant defended.
+          rrf_k: pos_integer(),
+          rerank_multiplier: pos_integer(),
           serving: Nx.Serving.t(),
           origin: String.t() | [String.t()],
           role: String.t() | [String.t()],
@@ -142,7 +151,7 @@ defmodule Pramana.Retrieval.Hybrid do
     fused =
       [lexical, semantic, translated]
       |> Enum.reject(&(&1 == []))
-      |> fuse()
+      |> fuse(Keyword.get(opts, :rrf_k, @k))
       # Rerank over a WIDER slice than the caller asked for, then cut. Reordering only
       # the top `limit` cannot promote anything from below it, and the whole gain is
       # candidates sitting at ranks 11-50 (median 37).
@@ -199,7 +208,8 @@ defmodule Pramana.Retrieval.Hybrid do
   @rerank_multiplier 5
 
   defp rerank_depth(opts, limit) do
-    if rerank?(opts), do: min(limit * @rerank_multiplier, @max_limit), else: limit
+    multiplier = Keyword.get(opts, :rerank_multiplier, @rerank_multiplier)
+    if rerank?(opts), do: min(limit * multiplier, @max_limit), else: limit
   end
 
   # ON BY DEFAULT, measured over the whole gold set and every category:
@@ -282,7 +292,17 @@ defmodule Pramana.Retrieval.Hybrid do
   # Options that belong to THIS layer and mean nothing to either retriever, so they are
   # dropped before both. Both retrievers reject an option they do not know — correctly —
   # so a hybrid-level option that reaches either one crashes the search.
-  @hybrid_only_opts [:coverage, :depth, :lexical_depth, :semantic_depth, :expand_terms, :rerank]
+  @hybrid_only_opts [
+    :coverage,
+    :depth,
+    :lexical_depth,
+    :semantic_depth,
+    :expand_terms,
+    :rerank,
+    # Fusion and rerank shape, swept against the gold set rather than argued about.
+    :rrf_k,
+    :rerank_multiplier
+  ]
 
   # A THIRD ARM: the English query's doctrinal terms, searched in Chinese.
   #

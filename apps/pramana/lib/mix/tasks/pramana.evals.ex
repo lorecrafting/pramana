@@ -10,6 +10,7 @@ defmodule Mix.Tasks.Pramana.Evals do
       mix pramana.evals --gate            # non-zero exit on a regression
       mix pramana.evals --per-tradition   # experiment: retrieve per canon, then merge
       mix pramana.evals --only retrieval --tradition tibetan --depth 200
+      mix pramana.evals --rrf-k 30 --rerank-multiplier 8 --json evals/experiments/k30m8.json
 
   Retrieval cases need the embedding model, so run with `PRAMANA_EMBEDDING=1`; without
   it the harness says so and scores the lexical path only, rather than reporting a
@@ -46,6 +47,8 @@ defmodule Mix.Tasks.Pramana.Evals do
     semantic_depth: :integer,
     expand_terms: :boolean,
     rerank: :boolean,
+    rrf_k: :integer,
+    rerank_multiplier: :integer,
     # Not an override — a FILTER. Scoring one tradition is how an experiment aimed at one
     # canon stays affordable; the decision still needs the whole set.
     tradition: :string
@@ -208,7 +211,9 @@ defmodule Mix.Tasks.Pramana.Evals do
         lexical_depth: opts[:lexical_depth],
         semantic_depth: opts[:semantic_depth],
         expand_terms: opts[:expand_terms],
-        rerank: opts[:rerank]
+        rerank: opts[:rerank],
+        rrf_k: opts[:rrf_k],
+        rerank_multiplier: opts[:rerank_multiplier]
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 

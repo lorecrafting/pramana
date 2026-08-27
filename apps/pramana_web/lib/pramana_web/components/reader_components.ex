@@ -23,6 +23,9 @@ defmodule PramanaWeb.ReaderComponents do
   """
   use PramanaWeb, :html
 
+  alias Pramana.Embed.Serving
+  alias Pramana.Provenance
+
   @doc """
   Where a passage comes from, in words.
 
@@ -37,7 +40,7 @@ defmodule PramanaWeb.ReaderComponents do
     ~H"""
     <div class={["flex flex-wrap items-center gap-x-2 gap-y-1 text-xs", @class]}>
       <span class="badge badge-sm badge-outline">
-        {Pramana.Provenance.label(@provenance[:composition_origin], @provenance[:text_role])}
+        {Provenance.label(@provenance[:composition_origin], @provenance[:text_role])}
       </span>
       <.link
         :if={@provenance[:work_id]}
@@ -149,13 +152,11 @@ defmodule PramanaWeb.ReaderComponents do
   # help. Reporting only the symptom leaves a reader to guess which, and the guess decides
   # whether they conclude the canon is thin.
   defp semantic_absent_because do
-    cond do
-      not Pramana.Embed.Serving.available?() ->
-        "No embedding serving is running here — start the server with PRAMANA_EMBEDDING=1 " <>
-          "to enable it. This is a property of this process, not of the corpus."
-
-      true ->
-        "The serving is running, so this query reached nothing embedded."
+    if Serving.available?() do
+      "The serving is running, so this query reached nothing embedded."
+    else
+      "No embedding serving is running here — start the server with PRAMANA_EMBEDDING=1 " <>
+        "to enable it. This is a property of this process, not of the corpus."
     end
   end
 

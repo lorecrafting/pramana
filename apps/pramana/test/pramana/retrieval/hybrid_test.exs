@@ -265,6 +265,53 @@ defmodule Pramana.Retrieval.HybridTest do
     test "no rankings yields nothing" do
       assert Hybrid.fuse([]) == []
     end
+
+    # 60 is convention, not a measurement — every other retrieval constant here earned its
+    # value from `evals/` and this one never has. It is an option so a sweep can move it.
+    test "k is what decides how much a top rank is worth" do
+      # "solo" is one retriever's top hit and the other has never heard of it. "agreed"
+      # is fourth on both lists. Small k makes rank 1 dominate and the solo hit wins;
+      # large k flattens rank differences until fusion is close to a vote, and agreement
+      # wins. That trade is the whole content of the constant, and 60 was inherited from
+      # convention rather than measured here.
+      rankings = [
+        ["solo", "p", "q", "agreed"],
+        ["r", "s", "t", "agreed"]
+      ]
+
+      # Comparing the two against EACH OTHER rather than against the head of the list:
+      # the second retriever's own rank-1 ties with "solo" at small k, and which of them
+      # sorts first is not what this test is about.
+      rank_of = fn fused, urn -> Enum.find_index(fused, &(elem(&1, 0) == urn)) end
+
+      sharp = Hybrid.fuse(rankings, 1)
+      flat = Hybrid.fuse(rankings, 1000)
+
+      assert rank_of.(sharp, "solo") < rank_of.(sharp, "agreed")
+      assert rank_of.(flat, "agreed") < rank_of.(flat, "solo")
+    end
+  end
+
+  # Both are hybrid-level options, so both must be dropped before either retriever sees
+  # them — `Lexical` and `Semantic` RAISE on an unknown option, deliberately, and that is
+  # how `per_tradition` once became reachable only by calling `Semantic` directly.
+  describe "the swept knobs are hybrid-level options" do
+    test "rrf_k does not reach the retrievers" do
+      assert {:ok, %{total: total}} = Hybrid.search("如是我聞", rrf_k: 5)
+      assert total > 0
+    end
+
+    test "rerank_multiplier does not reach the retrievers" do
+      assert {:ok, %{total: total}} = Hybrid.search("如是我聞", rerank_multiplier: 8)
+      assert total > 0
+    end
+
+    test "both together, as a sweep would pass them" do
+      assert {:ok, %{total: total}} =
+               Hybrid.search("如是我聞", rrf_k: 30, rerank_multiplier: 3, limit: 5)
+
+      assert total > 0
+    end
   end
 
   describe "search/2 degrades honestly" do
