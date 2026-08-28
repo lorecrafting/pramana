@@ -167,7 +167,7 @@ defmodule Mix.Tasks.Pramana.Public.Bake do
 
       lockfile      sources.public.lock.json (derived, #{length(lock["sources"])} source(s))
       publishable   #{Enum.join(Publishing.sources(), ", ")}
-      ingesting     #{@ingests |> Enum.map(& &1.source) |> Enum.join(", ")}
+      ingesting     #{Enum.map_join(@ingests, ", ", & &1.source)}
       #{if opts[:dry_run], do: "DRY RUN", else: ""}
     """)
   end

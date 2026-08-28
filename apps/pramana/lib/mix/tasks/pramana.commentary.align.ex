@@ -55,23 +55,27 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     """)
 
     results =
-      Enum.map(pairs, fn {commentary, root} ->
-        result =
-          if opts[:dry_run] do
-            Commentary.measure(commentary, root)
-          else
-            case Commentary.align(commentary, root, bake_id: bake_id) do
-              {:ok, report} -> report
-              {:skip, report} -> report
-              {:error, reason} -> {:error, commentary, root, reason}
-            end
-          end
-
+      Enum.map(pairs, fn pair ->
+        result = run_pair(pair, opts[:dry_run], bake_id)
         report(result)
         result
       end)
 
     summarise(results)
+  end
+
+  defp run_pair({commentary, root}, true, _bake_id),
+    do: Commentary.measure(commentary, root)
+
+  # `{:skip, report}` is not an error: a pair below the density floor is a commentary that
+  # paraphrases rather than quotes, which this method cannot see and which says nothing
+  # about whether the relation is right. Both shapes carry the same numbers.
+  defp run_pair({commentary, root}, _dry_run, bake_id) do
+    case Commentary.align(commentary, root, bake_id: bake_id) do
+      {:ok, report} -> report
+      {:skip, report} -> report
+      {:error, reason} -> {:error, commentary, root, reason}
+    end
   end
 
   defp pairs(nil) do

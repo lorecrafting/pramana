@@ -58,10 +58,25 @@ defmodule Mix.Tasks.Pramana.Gate do
 
   # Cheapest first, so a two-second failure is found in two seconds. `env` is the MIX_ENV
   # each step needs; the corpus steps must run against dev, where the corpus is.
+  # CHEAPEST FIRST, and this list is `docs/CHECKS.md` § "1. Code" plus the data checks.
+  #
+  # It ran three of that document's seven commands for two phases. `compile
+  # --warnings-as-errors`, `dialyzer` and `deps.audit` were all specified as gate checks and
+  # none of them was in the gate — so "mix pramana.gate passed" and "the phase gate passed"
+  # were different statements that read identically. Dialyzer found a real defect the day
+  # after it was first run by hand.
+  #
+  # `hex.outdated` is deliberately absent: CHECKS.md asks for it to *note drift*, and a
+  # dependency being upgradable is not a failure. A gate step that cannot fail is noise.
   @steps [
     %{id: "format", cmd: ~w(mix format --check-formatted), env: "dev", quick: true},
+    %{id: "compile", cmd: ~w(mix compile --warnings-as-errors --force), env: "dev", quick: true},
     %{id: "credo", cmd: ~w(mix credo --strict), env: "dev", quick: true},
+    %{id: "audit", cmd: ~w(mix deps.audit), env: "dev", quick: true},
     %{id: "test", cmd: ~w(mix test), env: "test", quick: true},
+    # Slow enough to sit behind the cheap checks and fast enough not to be `quick: false`:
+    # ~45 s once the PLT is built, against 26 minutes for `verify --all`.
+    %{id: "dialyzer", cmd: ~w(mix dialyzer), env: "dev", quick: true},
     %{id: "lockfile", cmd: :lockfile, env: "dev", quick: true},
     %{id: "verify", cmd: ~w(mix pramana.verify --all), env: "dev", quick: false},
     %{id: "integrity", cmd: ~w(mix pramana.integrity), env: "dev", quick: false},

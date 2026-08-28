@@ -22,14 +22,20 @@ A checkpoint is a real stop. Do not start the next phase until all of it passes.
 
 ### 1. Code
 ```bash
-mix format --check-formatted
-mix compile --warnings-as-errors
-mix test --cover            # coverage must not regress
-mix credo --strict
-mix dialyzer                # types; slow, so phase-gate only
-mix deps.audit              # known CVEs in deps
-mix hex.outdated            # note drift; upgrade deliberately
+mix pramana.gate --quick    # format, compile, credo, deps.audit, test, dialyzer, lockfile
+mix test --cover            # coverage must not regress — not in the gate
+mix hex.outdated            # note drift; upgrade deliberately — not in the gate
 ```
+
+**Six of these are `mix pramana.gate --quick`, and for two phases they were not.** This
+block listed seven commands; the gate ran three of them, so *"the gate passed"* and *"the
+phase-gate code checks passed"* were different statements that read identically.
+`compile --warnings-as-errors`, `dialyzer` and `deps.audit` are now steps.
+
+Two stay out, deliberately. `hex.outdated` is asked for here to **note** drift, and a
+dependency being upgradable is not a failure — a gate step that cannot fail is noise.
+`--cover` needs a stored baseline to compare against, which does not exist yet; until it
+does, "coverage must not regress" is a judgement a person makes.
 
 ### 2. Architecture review
 Re-read `CLAUDE.md`'s invariants and confirm the phase's code honors all seven.
