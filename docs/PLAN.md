@@ -31,7 +31,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
-| eval | **93.1%** over 1,400 cases (`evals/baseline.json`) — 0 stale, 0 errored, and **0 drift** after the commentary and translation work |
+| eval | **92.4% over 1,472 cases** (`evals/baseline.json`) — not comparable to the previous 93.1%/1,400: the denominator grew by the two new gold sets, one of which is 70%. Compare per row |
 | new gold sets | **rendering 70.0%** (40 cases, mean rank 1.68) · **gloss 100%** (32 cases, a regression detector — see below) |
 | retrieval@10 | 374/446 — zh 96.1% · pa 80.0% · bo 48.4%\* |
 | absence | **75%** — and the failing case is real and stays red; see item D |
@@ -406,10 +406,28 @@ is — and F in particular is a stone witness to texts held in print, so it belo
 
     N   漢譯南傳大藏經（元亨寺版）  83   a Chinese rendering of the Pāli canon
 
-**This is the collection to take deliberately, not casually.** It competes with the Āgama
-material head-on — the same discourses in Chinese, which is precisely the overlap that
-cost X four cases — so it should land with a gate run of its own rather than folded into a
-batch. The payoff is a three-way comparison nothing else offers: the Pāli, the Chinese
+**▸ THE PREDICTION WAS WRONG, AND THE GATE SAYS SO — 2026-08-28.** This item said N was
+"the one that will move numbers" and should get a gate run of its own because it competes
+with the Āgama material head-on. It got one. **`retrieval/chinese` moved 96.1% → 95.7%, one
+case, inside the rebuild noise floor.** Pāli unchanged, everything else unchanged.
+
+**Three collections have now tested the heuristic and it is neither size nor genre — it is
+the VOLUME OF COMPETING MATERIAL, which is their product:**
+
+| | works | chunks | genre overlap with the gold set | cost |
+|---|---|---|---|---|
+| X 卍續藏 | 1,230 | ~285,000 | high — sūtra exegesis quoting definitional formulae | **4 Chinese cases** |
+| J 嘉興藏 | 285 | ~30,000 | low — Ming/Qing Chan recorded sayings | 0 |
+| N 漢譯南傳 | 38 | **30,399** | **highest** — the same discourses, in Chinese | 1 case, noise |
+
+N is the cleanest test available: maximum genre overlap, minimum volume. It is 30,399
+chunks against 703,407 Literary Chinese chunks — **4.3%** — and displacement is a
+competition for ranked slots, so 4.3% of the pool cannot displace much however well it
+matches. X was ten times the volume at lower overlap and cost four times as much.
+
+**The original claim below stands corrected, not deleted.** It read: *"It competes with the
+Āgama material head-on — the same discourses in Chinese, which is precisely the overlap that
+cost X four cases."* The overlap is real; the inference from it was not. The payoff is a three-way comparison nothing else offers: the Pāli, the Chinese
 Āgama translated from a different Indic lineage, and a modern Chinese rendering of the
 Pāli itself. `Compare.versions/2` and the parallel data are already shaped for it.
 

@@ -13,6 +13,30 @@ the provenance model or the eval harness.
 
 ---
 
+## Where we are — audited 2026-08-28
+
+| phase | | |
+|---|---|---|
+| **0** Skeleton | ✅ complete, tagged `phase-0` | |
+| **1** Chinese corpus | ✅ complete, tagged `phase-1` | and long since exceeded — 11 CBETA collections, not one |
+| **2** Japanese delta | ⚠️ **the only unfinished phase behind us** | #15, #16 done. #14 (SAT, Taishō 56–84) blocked on an email a person must send. Gate deliberately **not tagged** while a known gap stands |
+| **3** Pāli + parallels | ✅ complete | |
+| **4** Eval harness | ✅ complete, tagged `phase-4` | 1,472 cases, published, and the gate ratchets on them |
+| **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
+| **6** Deterministic enrichment | ◐ **half** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅. Translator fingerprinting and authority linking untouched |
+| **7** Research agent + translation | ✗ not started | the citation guard exists and is wired; nothing else |
+| **8** Web reader | ✅ **shipped early** | five screens, and the public artefact builds |
+
+**The shape of the remaining work is not what this roadmap assumed.** It planned eight
+sequential phases; what is actually left is one blocked item (SAT), one half-finished phase
+(6), one unstarted phase (7), and a long tail of coverage. Phase 8 shipped out of order
+because the API made it cheap, exactly as predicted.
+
+**Read `docs/PLAN.md` for what to do next.** This file is the plan as it was drawn; the plan
+as it is now lives there, with evidence.
+
+---
+
 ## Phase 0 — Skeleton ✅ COMPLETE (tag `phase-0`)
 
 Prove the whole pipeline end-to-end on **one sūtra** before scaling anything.
@@ -68,12 +92,11 @@ The differentiator. Small phase, high value.
 - SAT ingest **if it ever arrives** — send the request once and sequence nothing behind
   it (`docs/SOURCES.md`). The licence is settled (CC BY-SA 4.0); only the bulk copy is
   missing. If it never comes, the announced gap is an acceptable end state.
-- **Instead, and first: CBETA's other collections.** This corpus holds witness `T` and
-  nothing else from CBETA — one of ~20. `X`, `J`, `B`, `K`, `L`, `N` are unacquired:
-  thousands of works, no permission needed, and the same pipeline already proven on
-  2,471. Revisit `Pramana.Coverage.taisho/0` when a second collection lands, since it
-  reasons about Taishō volume numbers and will not see works arriving under other
-  numbering.
+- **Instead, and first: CBETA's other collections.** ▸ **DONE, ten of them.** Written when
+  the corpus held witness `T` and nothing else. X, J, N and the seven alternative editions
+  (K, A, P, L, U, S, M) are all ingested — 4,081 works across 11 of CBETA's 26 collections.
+  `Coverage.cbeta/0` reports the 15 still absent, by name, and `Coverage.taisho/0` was
+  revisited exactly as this bullet asked.
 - When SAT does arrive: dedupe vols 1–55/85 against CBETA by work ID, keeping both as
   distinct witnesses
 - Vols **56–84 → `composition_origin: japanese, text_role: commentary`**
@@ -128,21 +151,25 @@ The long pole. Budget generously.
 
 **Exit:** three-way Chinese/Pāli/Tibetan retrieval with correct provenance.
 
-## Phase 6 — Deterministic enrichment (weeks 17–20)
+## Phase 6 — Deterministic enrichment (weeks 17–20) — ◐ HALF DONE
 
-Where the unique features get built.
+Where the unique features get built. Three of five shipped; the two that have not are
+listed as **not started** rather than in progress, because nothing has been written.
 
 - **Quotation graph** — suffix-array reuse detection across the full corpus, as a
   standalone Rust binary invoked as a port (see `docs/ELIXIR.md`)
 - **Buddhist reading-exception dictionary** — 般若 *bōrě* not *bānruò*, 南無 *námó*,
   plus 呉音 go-on readings for the Japanese material. Generic pinyin libraries get
   these wrong, confidently, in exactly the passages users care about.
-- Commentary lemma-and-gloss (科文) parsing → root↔commentary alignment
-- **Translator fingerprinting** from parallel Chinese translations (異譯本), and
+- ✅ **Quotation graph** — 141,073 verbatim reuses across 1,301 works
+- ✅ **Reading exceptions** — 9,543 over a 44,348-character base
+- ✅ **Commentary lemma-and-gloss (科文) parsing** — 27,254 lemmas over 43 work pairs,
+  attaching commentary to 20,954 root lines, deterministically. `docs/COMMENTARY.md`.
+- ✗ **Translator fingerprinting** from parallel Chinese translations (異譯本), and
   **translation divergence scoring** — the same computation, applied to both human
   and machine renderings. Doubles as the corpus-wide difficulty map that prioritizes
   human review effort.
-- DILA authority linking; lineage chains; Wikidata Q-IDs
+- ✗ DILA authority linking; lineage chains; Wikidata Q-IDs — untouched
 
 **Exit:** "every text that quotes this passage" and "how Kumārajīva vs. Xuanzang
 rendered this term" both work.
@@ -161,15 +188,18 @@ rendered this term" both work.
   the scored promotion pipeline that elevates good candidates into the next bake
 - Doctrinal position comparison (replacing persona mode)
 
-## Phase 8 — Web reader (post-v1)
+## Phase 8 — Web reader ✅ SHIPPED EARLY (was post-v1)
 
 Now cheap, because the API already returns structured spans with URNs and offsets.
 **LiveView**, not a separate SPA — a parallel-column reader is server-state-heavy and
 mostly read-only, and this avoids maintaining a second API client.
 
-- Parallel-column reader, clickable URN citations, variant-reading apparatus display,
-  quotation-graph visualization, IIIF manuscript images beside the text
-- Public demo restricted to the CC0/CC-BY subset
+- ✅ Five screens — search, inventory, survey, passage, work. Clickable URN citations,
+  variant-reading apparatus, commentary on the line, links out to the publishing edition.
+  `docs/READER.md`.
+- ✗ Parallel-column reader, quotation-graph visualisation, IIIF images beside the text
+- ◐ **Public demo restricted to the CC0/CC-BY subset** — `mix pramana.public.bake` builds
+  and verifies the artefact (13,017 texts, 0 CBETA); nothing is deployed. `docs/DEPLOY.md`.
 
 ## Later — East Asian medical texts
 
@@ -183,15 +213,30 @@ the same `composition_origin`/`text_role` axes as Taishō 56–84 with no schema
 - **Embedding a full bake is the main recurring cost.** Roughly 250M+ characters of
   Chinese alone. Use `dev.yaml` subsets while iterating; batch full bakes rarely;
   cache by content hash so re-bakes only embed what changed.
-- **Biggest technical risk:** cross-lingual retrieval quality between Classical
-  Chinese and Pāli/Tibetan. Both reference projects have this problem and one admits
-  it. The multi-vector English-gloss trick is the mitigation — validate it in Phase 3
-  before committing to the Phase 5 timeline.
+- **Biggest technical risk: CONFIRMED, and the mitigation did not work.** Cross-lingual
+  retrieval into Classical Chinese was named here as the biggest technical risk, with the
+  multi-vector English-gloss trick as the mitigation. `topical/chinese` is **0% of 12** and
+  has never been anything else. The gloss layer works where it exists — English→Pāli is 75%
+  — and no English layer exists over the Chinese canon, so an English query must cross
+  inside BGE-M3's own multilingual space, which it does not do on this material.
+
+  Two routes out have been measured and both are recorded in `docs/PLAN.md` § Rejected:
+  84000's glossary recovers 2 of 12 gold terms, and a deterministic English→Pāli→Chinese
+  walk through the curated parallels scores **1 of 12**. What remains is a corpus-derived
+  term table, and the caution in PLAN item F stands: that row is 12 cases, cannot grow, and
+  one case is 8.3 points. **Judge this axis by "answered from any tradition" — 81.8% —
+  rather than by the row.**
 - **Biggest scope risk:** Tibetan. See the warning at the top.
 - **Biggest correctness risk:** silent normalization corruption (gaiji, CJK
   normalization, lost `<lb/>`). Test suites in Phase 1, not later.
-- **Stack risk:** the Elixir MCP library situation is unsettled (`hermes_mcp` →
-  `anubis-mcp` fork). Mitigated by MCP being small enough to implement directly in
-  Phoenix. Resolve in Phase 0.
-- **Stack risk:** BGE-M3 multi-vector may not run under Bumblebee. Mitigated by the
-  Python sidecar, which is the assumed default until the Phase 0 spike says otherwise.
+- ~~**Stack risk:** the Elixir MCP library situation is unsettled.~~ **Resolved in Phase 0**:
+  `anubis_mcp`, the maintained fork. Fourteen tools ship on it.
+- ~~**Stack risk:** BGE-M3 multi-vector may not run under Bumblebee.~~ **Resolved**: the
+  Python sidecar is the path, it does tensor math only, and a full embedding run is 34
+  minutes and ~$0.45 on a rented L4. `docs/GPU_RUNBOOK.md`.
+- **Risk the roadmap did not name, and the one that has actually cost the most time:**
+  every measurement in this project has been wrong at least once, and always in the
+  flattering direction. A LoRA that improved every proxy and scored 0%; a threshold
+  calibrated against a 40-pair tail; a gold set nearly built from the retriever's own
+  output; four different greps that matched a substring. `docs/PROXIES.md` and `docs/RULES.md`
+  exist because of this, and `docs/CHECKS.md` §2 is the only check that catches the class.
