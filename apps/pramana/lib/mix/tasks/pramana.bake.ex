@@ -70,7 +70,7 @@ defmodule Mix.Tasks.Pramana.Bake do
     {:ok, %{text: text, segments: count}} =
       Loader.load(ir,
         source: source,
-        source_file: Enum.map_join(volumes, " ", &raw_path(pipeline, source, config, &1, number)),
+        source_file: Enum.join(raw_paths(pipeline, source, config, volumes, number), " "),
         # THE CANON, not `pipeline.witness`. That registry field is a static "T", which was
         # indistinguishable from correct while the Taishō was the only CBETA collection
         # held. Baking a single X work through this path produced
@@ -116,8 +116,17 @@ defmodule Mix.Tasks.Pramana.Bake do
   # so it answers.
   defp with_work_list(source, config) do
     case WorkList.find(source, config["work"]) do
-      %{volumes: volumes, canon: canon} ->
-        Map.merge(config, %{"volumes" => volumes, "canon" => canon, "volume" => hd(volumes)})
+      %{volumes: volumes, canon: canon} = entry ->
+        Map.merge(config, %{
+          "volumes" => volumes,
+          "canon" => canon,
+          "volume" => hd(volumes),
+          # The paths as acquired. Reconstructing them pads the volume to two digits and
+          # the width belongs to the edition — A091, P154, L115 use three — so a rebuilt
+          # path for canon A points at a file that does not exist. Both bake paths read
+          # `WorkList`, and this is the second time they would otherwise have disagreed.
+          "paths" => Map.get(entry, :paths)
+        })
 
       nil ->
         Map.put(config, "volumes", [config["volume"]])
@@ -130,10 +139,10 @@ defmodule Mix.Tasks.Pramana.Bake do
     number = String.replace_prefix(work, canon, "")
 
     volumes
-    |> Enum.map(fn volume ->
+    |> Enum.zip(raw_paths(pipeline, source, config, volumes, number))
+    |> Enum.map(fn {volume, path} ->
       {:ok, ir} =
-        pipeline.normalizer.normalize(
-          File.read!(raw_path(pipeline, source, config, volume, number)),
+        pipeline.normalizer.normalize(File.read!(path),
           work_id: work,
           canon: canon,
           volume: volume,
@@ -145,9 +154,17 @@ defmodule Mix.Tasks.Pramana.Bake do
     |> IR.concat()
   end
 
-  defp raw_path(pipeline, source, config, volume, number) do
-    target = %{canon: config["canon"], volume: volume, number: number}
-    Path.join([Lockfile.raw_dir(), source, pipeline.acquirer.raw_path(target)])
+  defp raw_paths(pipeline, source, config, volumes, number) do
+    case config["paths"] do
+      paths when is_list(paths) and paths != [] ->
+        Enum.map(paths, &Path.join([Lockfile.raw_dir(), source, &1]))
+
+      _ ->
+        Enum.map(volumes, fn volume ->
+          target = %{canon: config["canon"], volume: volume, number: number}
+          Path.join([Lockfile.raw_dir(), source, pipeline.acquirer.raw_path(target)])
+        end)
+    end
   end
 
   defp provenance_for(pipeline, target) do

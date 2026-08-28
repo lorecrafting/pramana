@@ -202,8 +202,9 @@ defmodule Mix.Tasks.Pramana.Verify do
   # reason.
   defp reproduce_cbeta(text, volumes) do
     volumes
-    |> Enum.reduce_while({:ok, []}, fn volume, {:ok, acc} ->
-      with {:ok, xml} <- read_raw(text, volume),
+    |> Enum.zip(cbeta_paths(text, volumes))
+    |> Enum.reduce_while({:ok, []}, fn {volume, path}, {:ok, acc} ->
+      with {:ok, xml} <- read_raw(path),
            {:ok, ir} <- renormalize(text, xml, volume) do
         {:cont, {:ok, [ir | acc]}}
       else
@@ -316,17 +317,34 @@ defmodule Mix.Tasks.Pramana.Verify do
     end
   end
 
-  defp read_raw(text, volume) do
+  # THE RECORDED PATH FIRST, reconstruction only for a text baked before paths were
+  # stored. `CBETA.work_path/3` pads the volume to two digits and the width belongs to the
+  # edition — T, X, J, K, S and M use two, while A, P, L and U use three — so rebuilding
+  # `A/A091/A091n1057.xml` from volume 91 produces `A/A91/A91n1057.xml`, which does not
+  # exist. Two works failed to bake that way before the path was carried, and this check
+  # would have failed on them identically.
+  defp cbeta_paths(%{meta: %{"source_file" => recorded}}, volumes)
+       when is_binary(recorded) and recorded != "" do
+    case String.split(recorded, " ", trim: true) do
+      paths when length(paths) == length(volumes) -> paths
+      _ -> rebuilt_paths(volumes, nil)
+    end
+  end
+
+  defp cbeta_paths(text, volumes), do: rebuilt_paths(volumes, text)
+
+  defp rebuilt_paths(volumes, nil), do: Enum.map(volumes, fn _ -> "" end)
+
+  defp rebuilt_paths(volumes, text) do
     canon = text.witness_id
     number = String.replace_prefix(text.work_id, canon, "")
 
-    path =
-      Path.join([
-        Lockfile.raw_dir(),
-        text.source_id,
-        CBETA.work_path(canon, volume || 0, number)
-      ])
+    Enum.map(volumes, fn volume ->
+      Path.join([Lockfile.raw_dir(), text.source_id, CBETA.work_path(canon, volume || 0, number)])
+    end)
+  end
 
+  defp read_raw(path) do
     case File.read(path) do
       {:ok, xml} -> {:ok, xml}
       {:error, reason} -> {:error, {:raw_unreadable, path, reason}}

@@ -241,9 +241,11 @@ defmodule Mix.Tasks.Pramana.Integrity do
     # and counting one file's `<lb/>` against a two-file text would report thousands of
     # lost lines for a text that is intact — or, before the bake assembled them, a clean
     # pass over a text that had lost half of itself.
+    volumes = volumes(text)
+
     parts =
-      for volume <- volumes(text) do
-        xml = File.read!(raw_path(text, volume))
+      for {volume, path} <- Enum.zip(volumes, cbeta_paths(text, volumes)) do
+        xml = File.read!(path)
         {:ok, ir} = renormalize(text, xml, volume)
         {xml, ir}
       end
@@ -361,6 +363,21 @@ defmodule Mix.Tasks.Pramana.Integrity do
   end
 
   defp count(haystack, needle), do: length(String.split(haystack, needle)) - 1
+
+  # The recorded path first. `CBETA.work_path/3` pads the volume to two digits, and the
+  # width belongs to the edition — A, P, L and U use three — so reconstruction turns
+  # `A/A091/...` into `A/A91/...`, which does not exist. See `Pramana.Bake.WorkList`.
+  defp cbeta_paths(%{meta: %{"source_file" => recorded}} = text, volumes)
+       when is_binary(recorded) and recorded != "" do
+    case String.split(recorded, " ", trim: true) do
+      paths when length(paths) == length(volumes) -> paths
+      # A recorded list that does not match the volume count is a text baked before the
+      # two were kept in step; fall back rather than pair them up wrongly.
+      _ -> Enum.map(volumes, &raw_path(text, &1))
+    end
+  end
+
+  defp cbeta_paths(text, volumes), do: Enum.map(volumes, &raw_path(text, &1))
 
   defp raw_path(text, volume) do
     number = String.replace_prefix(text.work_id, text.witness_id, "")

@@ -43,9 +43,10 @@ defmodule Pramana.Bake.Worker do
     } = args
 
     volumes = volumes(args)
+    paths = paths(args, source, canon, volumes, number)
 
     with {:ok, pipeline} <- Pipeline.for_source(source),
-         {:ok, parts} <- normalize_volumes(source, pipeline, canon, volumes, number, work_id) do
+         {:ok, parts} <- normalize_volumes(pipeline, paths, volumes, canon, number, work_id) do
       ir = IR.concat(parts)
 
       provenance =
@@ -68,7 +69,7 @@ defmodule Pramana.Bake.Worker do
           source: source,
           witness: canon,
           provenance: provenance,
-          source_file: Enum.map_join(volumes, " ", &raw_path(source, pipeline, canon, &1, number))
+          source_file: Enum.join(paths, " ")
         )
 
       {:ok, %{work_id: work_id, segments: count}}
@@ -86,13 +87,34 @@ defmodule Pramana.Bake.Worker do
   defp volumes(%{"volumes" => volumes}) when is_list(volumes) and volumes != [], do: volumes
   defp volumes(%{"volume" => volume}), do: [volume]
 
+  # The acquired paths, absolute. Rebuilt ONLY for a job enqueued before they were
+  # carried — `Acquire.CBETA.work_path/3` pads the volume to two digits and the width is
+  # a property of the edition (A091, P154, L115 use three), so reconstruction is a guess
+  # that happens to be right for T, X and J.
+  defp paths(%{"paths" => paths}, source, _canon, _volumes, _number)
+       when is_list(paths) and paths != [],
+       do: Enum.map(paths, &Path.join([Lockfile.raw_dir(), source, &1]))
+
+  defp paths(_args, source, canon, volumes, number) do
+    {:ok, pipeline} = Pipeline.for_source(source)
+
+    Enum.map(volumes, fn volume ->
+      Path.join([
+        Lockfile.raw_dir(),
+        source,
+        pipeline.acquirer.raw_path(%{canon: canon, volume: volume, number: number})
+      ])
+    end)
+  end
+
   # Each volume is normalized on its own and the parts are assembled afterwards. Doing
   # it the other way — concatenating the XML — would produce a document with two TEI
   # headers and two licence notices, and the parser would be reading something no
   # edition ever published.
-  defp normalize_volumes(source, pipeline, canon, volumes, number, work_id) do
-    Enum.reduce_while(volumes, {:ok, []}, fn volume, {:ok, acc} ->
-      with {:ok, xml} <- read_raw(source, pipeline, canon, volume, number),
+  defp normalize_volumes(pipeline, paths, volumes, canon, number, work_id) do
+    Enum.zip(paths, volumes)
+    |> Enum.reduce_while({:ok, []}, fn {path, volume}, {:ok, acc} ->
+      with {:ok, xml} <- read_raw(path),
            {:ok, ir} <- normalize(pipeline, xml, work_id, canon, volume, number) do
         {:cont, {:ok, [ir | acc]}}
       else
@@ -105,21 +127,11 @@ defmodule Pramana.Bake.Worker do
     end
   end
 
-  defp read_raw(source, pipeline, canon, volume, number) do
-    path = raw_path(source, pipeline, canon, volume, number)
-
+  defp read_raw(path) do
     case File.read(path) do
       {:ok, xml} -> {:ok, xml}
       {:error, reason} -> {:error, {:raw_unreadable, path, reason}}
     end
-  end
-
-  defp raw_path(source, pipeline, canon, volume, number) do
-    Path.join([
-      Lockfile.raw_dir(),
-      source,
-      pipeline.acquirer.raw_path(%{canon: canon, volume: volume, number: number})
-    ])
   end
 
   defp normalize(pipeline, xml, work_id, canon, volume, number) do
@@ -156,6 +168,8 @@ defmodule Pramana.Bake.Worker do
       "source" => source,
       "canon" => entry.canon,
       "volumes" => entry.volumes,
+      # The paths as acquired, so the worker never rebuilds one. See `Bake.WorkList`.
+      "paths" => Map.get(entry, :paths),
       "number" => entry.number,
       "work_id" => entry.work_id
     }

@@ -50,17 +50,29 @@ defmodule Pramana.Bake.WorkerTest do
   # not Oban's dispatch, so going straight at it is both stabler and more honest.
   defp run(args), do: Worker.perform(%Oban.Job{args: args})
 
+  # Paths are DERIVED here from whatever the test overrode, the way `Bake.WorkList` derives
+  # them from the lockfile — so a test that changes the work number does not silently keep
+  # pointing at T0262's file.
   defp args(overrides \\ %{}) do
-    Map.merge(
-      %{
-        "source" => "cbeta",
-        "canon" => "T",
-        "volume" => 9,
-        "number" => "0262",
-        "work_id" => "T0262"
-      },
-      overrides
-    )
+    base = %{
+      "source" => "cbeta",
+      "canon" => "T",
+      "volume" => 9,
+      "number" => "0262",
+      "work_id" => "T0262"
+    }
+
+    merged = Map.merge(base, overrides)
+
+    Map.put_new_lazy(merged, "paths", fn ->
+      canon = merged["canon"]
+      volumes = merged["volumes"] || [merged["volume"]]
+
+      for v <- volumes do
+        vol = v |> Integer.to_string() |> String.pad_leading(2, "0")
+        "#{canon}/#{canon}#{vol}/#{canon}#{vol}n#{merged["number"]}.xml"
+      end
+    end)
   end
 
   describe "perform/1" do
@@ -139,7 +151,7 @@ defmodule Pramana.Bake.WorkerTest do
 
     test "an unregistered source is rejected" do
       assert {:error, :unsupported_source} =
-               run(args(%{"source" => "nope"}))
+               run(args(%{"source" => "nope", "paths" => ["T/T09/T09n0262.xml"]}))
     end
   end
 
@@ -229,16 +241,35 @@ defmodule Pramana.Bake.WorkerTest do
     test "a job enqueued by an older run, carrying one volume, still runs" do
       assert {:ok, %{work_id: "T0262", segments: 1}} = run(args(%{"volume" => 9}))
     end
+
+    # A job enqueued before paths were carried has to rebuild one, and the rebuild is
+    # right for T. It is NOT right for A, P, L or U, whose volume directories are three
+    # digits — which is why paths are carried now rather than reconstructed.
+    test "a job with no paths falls back to reconstruction rather than failing" do
+      args = args() |> Map.delete("paths")
+
+      assert {:ok, %{work_id: "T0262", segments: 1}} = run(args)
+    end
   end
 
   describe "args/2" do
     test "builds job args from a catalog entry" do
-      entry = %{canon: "T", volumes: [9], number: "0262", work_id: "T0262"}
+      entry = %{
+        canon: "T",
+        volumes: [9],
+        number: "0262",
+        work_id: "T0262",
+        paths: ["T/T09/T09n0262.xml"]
+      }
 
       assert Worker.args("cbeta", entry) == %{
                "source" => "cbeta",
                "canon" => "T",
                "volumes" => [9],
+               # CARRIED, not rebuilt. `work_path/3` pads the volume to two digits and the
+               # width belongs to the edition — A, P, L and U use three — so rebuilding
+               # `A/A091/...` from volume 91 yields `A/A91/...`, which does not exist.
+               "paths" => ["T/T09/T09n0262.xml"],
                "number" => "0262",
                "work_id" => "T0262"
              }

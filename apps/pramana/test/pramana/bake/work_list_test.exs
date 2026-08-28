@@ -42,6 +42,21 @@ defmodule Pramana.Bake.WorkListTest do
              ] = WorkList.from_lockfile("cbeta", nil)
     end
 
+    # The alternative editions are 23% volume-spanning because CBETA digitised a
+    # SELECTION from each, and what gets selected is the large multi-fascicle work.
+    # L1557 runs across four, which nothing in T, X or J did.
+    test "a work spread over four volumes is one work, in printed order" do
+      lock!([
+        "L/L133/L133n1557.xml",
+        "L/L130/L130n1557.xml",
+        "L/L132/L132n1557.xml",
+        "L/L131/L131n1557.xml"
+      ])
+
+      assert [%{work_id: "L1557", volumes: [130, 131, 132, 133]}] =
+               WorkList.from_lockfile("cbeta", "L")
+    end
+
     # X0240 is in X08 and X09 under ONE number. The Taishō never shows this because
     # CBETA gives its split works distinct ids (T0220a, T0220b).
     test "a work spread over two volume files is ONE work, in printed order" do
@@ -54,6 +69,29 @@ defmodule Pramana.Bake.WorkListTest do
       lock!(["T/T09/T09n0262.xml", "X/X08/X08n0240.xml"])
 
       assert [%{work_id: "X0240"}] = WorkList.from_lockfile("cbeta", "X")
+    end
+
+    # Acquisition takes several canons in one download because the archive path fetches
+    # the whole repository tarball. A bake that could not be told the same thing would
+    # need seven runs to load what one run acquired — and for an hour it could not: the
+    # whole string was compared to each canon, matched nothing, and the census reported
+    # `enqueueing 0 work(s) from 0 file(s)`. Loudly, which is the census working.
+    test "restricts to SEVERAL canons, as acquisition does" do
+      lock!([
+        "T/T09/T09n0262.xml",
+        "K/K34/K34n1257.xml",
+        "A/A97/A97n1267.xml",
+        "X/X08/X08n0240.xml"
+      ])
+
+      ids = WorkList.from_lockfile("cbeta", "K,A") |> Enum.map(& &1.work_id) |> Enum.sort()
+      assert ids == ["A1267", "K1257"]
+    end
+
+    test "whitespace between names does not silently drop one" do
+      lock!(["K/K34/K34n1257.xml", "A/A97/A97n1267.xml"])
+
+      assert length(WorkList.from_lockfile("cbeta", "K, A")) == 2
     end
 
     test "ignores paths that are not a canon/volume/work file" do
