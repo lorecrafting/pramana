@@ -41,22 +41,48 @@ defmodule Pramana.Commentary do
   ## Density decides, and root coverage does not
 
   The obvious gate — what fraction of the root is quoted — is **scale-sensitive and was
-  nearly shipped**. T1736 quotes 2,288 distinct lemmas from the 80-fascicle Avataṃsaka and
-  covers 3.3% of it, because the root is enormous; four incidental matches against an
-  unrelated sūtra can score higher. Ranking by that number would have discarded one of the
-  richest commentaries in the corpus.
+  nearly shipped**, because the denominator is the wrong object. `T1742` quotes 177 lemmas
+  from T0278 at a density of 69.2, more than twice the floor, and forward order of 82.4%;
+  its root coverage is **0.3%**, which is *below* what unrelated pairs score. Any
+  root-coverage threshold strict enough to exclude the null band would have thrown it out.
+
+  A first version of this doc claimed T1736 as the example — 2,536 lemmas from the
+  80-fascicle Avataṃsaka at 4.9% coverage — and said the density gate rescued it. **It does
+  not.** T1736's density is 20.4 and it fails this gate too, which is a fact worth keeping
+  rather than a counter-example to hide: its title, 大方廣佛華嚴經隨疏演義鈔, says it
+  expounds *following the 疏*, and the 疏 is T1735, Chengguan's own commentary on the sūtra.
+  The `comments_on` row points at the sūtra because it was asserted by title match. A
+  sub-commentary quoting its commentary sparsely from the root is the expected shape, and
+  the alignment declining to fire is the method behaving correctly on a relation aimed one
+  layer too far down.
 
   So the gate is `spans / 10k characters of the COMMENTARY` — how densely this commentary
-  quotes, which does not shrink as the root grows. Over the 89 asserted `comments_on`
-  relations and 40 null pairs built by giving each commentary a root it does not explain:
+  quotes, which does not shrink as the root grows. Measured over the 89 asserted
+  `comments_on` relations and **120 null pairs**, built by giving each commentary three
+  roots it does not explain:
 
-      spans per 10k commentary chars     p10     median     p90
-        asserted                          0.4      19.1     175.4
-        null                              0.0       0.7      10.8
+      spans per 10k commentary chars    median     p90     max
+        asserted                          28.0   175.5   250.5
+        null                               0.5    11.3    28.4
 
-  At the default floor of 25, **42 of 89 asserted pairs qualify and 0 of 40 null pairs
-  do**. Forty null pairs is a thin tail, so the floor sits well above the observed null
-  maximum rather than at it.
+      floor    asserted        null
+        10       61/89       12/120
+        20       51/89        4/120
+        25       46/89        3/120
+        30       43/89        0/120
+        40       35/89        0/120
+
+  **The floor is 30 because the null maximum is 28.4.** It was 25 for an afternoon, chosen
+  when the null set was 40 pairs whose p90 was 10.8 and whose maximum nothing had looked
+  at. Tripling the null set moved the observed maximum from below 11 to 28.4, and 25 turned
+  out to admit three of them. The lesson is not about this number: **a threshold calibrated
+  against a thin tail is calibrated against nothing**, and the way to find out is to make
+  the tail bigger rather than to reason about it.
+
+  The margin at 30 is 1.6, which is thin, and a null pair somewhere in the corpus may well
+  clear it. `forward_pct` is the second signal for exactly that case — 77.1% median across
+  asserted pairs against 47.1% across nulls — and it rides on every row rather than being
+  folded into the gate, because two signals a caller can see beat one number it cannot.
 
   ## Forward order finds the translation a commentary is NOT quoting
 
@@ -98,9 +124,9 @@ defmodule Pramana.Commentary do
   # lemma whole rather than only its longer siblings.
   @window 8
 
-  # Spans per 10,000 characters of commentary. See the module doc: the observed null p90
-  # is 10.8, so this sits above the null tail rather than on it.
-  @min_density 25.0
+  # Spans per 10,000 characters of commentary, and the value is measured — see the module
+  # doc. It sits just above the highest density any of 120 null pairs reached.
+  @min_density 30.0
 
   @type span :: %{
           lemma: String.t(),

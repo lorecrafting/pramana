@@ -31,10 +31,10 @@ times. It also records what has been **tried and rejected, with evidence**; chec
 before proposing something.
 
 **Before writing a new source pipeline, read `docs/STATUS.md` § "Rules that
-generalize".** **53 rules**, each learned from a real defect, and most of them apply
-directly to the next normalizer. That number said "eight" for a long time after it was
-53, which is the same class of staleness the plan warns about — the list is the thing to
-read, not the count.
+generalize".** **55 rules**, each learned from a real defect, and most of them apply
+directly to the next normalizer. This number said "eight" long after the list held 53,
+which is the same class of staleness the plan warns about — the list is the thing to read,
+and if the count here disagrees with it, the list wins.
 
 Several have already been rediscovered the hard way: the buffered-element-spans-a-line
 bug was fixed twice, and the second time it left 10,590 printed lines with no citation;

@@ -26,8 +26,8 @@ This section used to open *"Nothing in the database says which text a commentary
 on."* Both halves are built:
 
 - **Which work** — `work_relations`, 89 `comments_on` rows, and `Pramana.Relations`.
-- **Which line** — `commentary_alignments`, **21,686 lemma alignments over 42 pairs**,
-  attaching commentary to **14,692 distinct root lines**, and `Pramana.Commentary`.
+- **Which line** — `commentary_alignments`, **27,254 lemma alignments over 43 pairs**,
+  attaching commentary to **20,954 distinct root lines**, and `Pramana.Commentary`.
 
 The second is what this document called *"the single highest-value piece of this
 feature"*, and it is deterministic: a Chinese commentary quotes a phrase of its root and
@@ -50,11 +50,18 @@ they do **not** explain:
 | consecutive anchors moving forward | 88–95% | ~50%, which is chance |
 
 **The obvious gate was wrong and was nearly shipped.** Ranking by *what fraction of the
-root is quoted* is scale-sensitive: T1736 quotes 2,288 distinct lemmas from the
-80-fascicle Avataṃsaka and covers 3.3% of it, less than some incidental matches score. The
-gate is spans per 10,000 characters of the **commentary**, which does not shrink as the
-root grows. Over the 89 asserted relations and 40 null pairs, the floor of 25 admits 42
-asserted pairs and **zero** nulls.
+root is quoted* puts the denominator on the wrong object. T1742 quotes T0278 at density
+69.2 with 82.4% forward order — comfortably real — and covers **0.3%** of it, which is
+below what unrelated pairs score; any root-coverage threshold strict enough to exclude the
+null band would have discarded it. The gate is spans per 10,000 characters of the
+**commentary**, which does not shrink as the root grows.
+
+**And the floor itself was mis-calibrated for an afternoon.** It was set to 25 against a
+40-pair null set whose p90 was 10.8. Tripling that set to 120 pairs moved the observed null
+*maximum* to 28.4 — 25 admitted three of them. The floor is now **30**, the lowest value
+rejecting all 120, and it costs three asserted pairs. A threshold calibrated against a thin
+tail is calibrated against nothing; the way to find that out is to enlarge the tail rather
+than reason about it.
 
 **A pair below the floor is not a refuted relation.** A commentary may paraphrase, and
 several here plainly do; this method sees verbatim quotation and nothing else. Nothing

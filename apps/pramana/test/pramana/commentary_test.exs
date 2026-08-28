@@ -74,8 +74,11 @@ defmodule Pramana.CommentaryTest do
 
   describe "the density floor" do
     test "is stated in the module rather than buried in a task" do
-      assert Commentary.min_density() > 10.8,
-             "the floor must sit above the observed null p90, not on it"
+      # 28.4 is the highest density reached by any of 120 pairs built from a commentary
+      # and a root it does not explain. The floor was 25 for an afternoon, calibrated
+      # against a 40-pair null set whose maximum nobody had looked at.
+      assert Commentary.min_density() > 28.4,
+             "the floor must sit above the observed null MAXIMUM, not its p90"
 
       assert Commentary.window() == 8
     end

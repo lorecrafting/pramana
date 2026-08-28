@@ -27,6 +27,8 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
+| commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
+| public exposure | **not safe** — 34,697 rows forbidden by licence, 76,040 CC0 rows withheld only by an inferred licence (`mix pramana.public.check`) |
 | eval | **93.1%** over 1,400 cases (`evals/baseline.json`, re-baselined 2026-08-27 over the seven editions) — 0 stale, 0 errored |
 | retrieval@10 | 374/446 — zh 96.1% · pa 80.0% · bo 48.4%\* |
 | absence | **75%** — and the failing case is real and stays red; see item D |
@@ -735,18 +737,24 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   the number meaningless.
 - ~~**Commentary lemma-and-gloss (科文) parsing** → root↔commentary alignment. Phase 6,
   untouched, deterministic, a real differentiator.~~ **▸ SHIPPED 2026-08-27.**
-  `commentary_alignments`, `Pramana.Commentary`, `mix pramana.commentary.align`. **21,686
-  lemma alignments over 42 pairs, attaching commentary to 14,692 distinct root lines.**
+  `commentary_alignments`, `Pramana.Commentary`, `mix pramana.commentary.align`. **27,254
+  lemma alignments over 43 pairs, attaching commentary to 20,954 distinct root lines.**
 
   The rule is uniqueness, not similarity: a lemma anchors where its 8-character window
   occurs *exactly once* in the root. Measured against roots the same commentaries do not
   explain — 70–78% of root lines carry an anchor vs 0.5–1.9%, and 88–95% of consecutive
   anchors move forward through the root vs ~50%, which is chance.
 
-  **The obvious gate was scale-sensitive and was nearly shipped.** Root-coverage% ranks
-  T1736 — 2,288 lemmas from the 80-fascicle Avataṃsaka — at 3.3%, below some incidental
-  matches. The gate is spans per 10k characters of the *commentary*: floor 25 admits 42 of
-  89 asserted pairs and 0 of 40 nulls.
+  **The obvious gate was scale-sensitive and was nearly shipped.** Root-coverage% puts the
+  denominator on the wrong object: T1742 quotes T0278 at density 69.2 and 82.4% forward
+  order while covering **0.3%** of it, below what unrelated pairs score. The gate is spans
+  per 10k characters of the *commentary*.
+
+  **The floor was then mis-calibrated, and re-measuring caught it.** 25 was chosen against
+  a 40-pair null set with p90 10.8. At 120 null pairs the observed maximum is **28.4**, and
+  25 admits three of them. The floor is **30** — the lowest value rejecting all 120 — which
+  costs three asserted pairs. A threshold calibrated against a thin tail is calibrated
+  against nothing.
 
   **Still open, and now visible:** 47 pairs align nothing. Some paraphrase rather than
   quote, which this method cannot see and which is where an LLM layer earns its place —

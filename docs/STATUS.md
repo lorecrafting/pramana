@@ -3617,6 +3617,35 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     field can be a range, the code that addresses one line must take the line's value, not
     the work's.**
 
+54. **Normalise by the thing doing the measuring, not by the thing being measured.** The
+    first gate for commentary alignment was *what fraction of the root does this commentary
+    quote*, which puts the denominator on the other object and therefore ranks by that
+    object's size. T1742 quotes T0278 at a density of 69.2 with 82.4% forward order, and
+    covers **0.3%** of it — below what unrelated pairs score. Any root-coverage threshold
+    strict enough to exclude the null band discards it. The working measure is spans per
+    10,000 characters of the **commentary**, which does not shrink as its target grows.
+    Before trusting a ratio, check it against the largest and smallest instance you have.
+
+    And **a threshold calibrated against a thin tail is calibrated against nothing.** The
+    floor was set to 25 against 40 null pairs — commentaries paired with roots they do not
+    explain — whose p90 was 10.8, which looked like enormous margin. Tripling the null set
+    to 120 moved the observed *maximum* from under 11 to **28.4**, and 25 turned out to
+    admit three of them. The floor is now 30, the lowest value rejecting all 120.
+
+    Two habits follow. **Quote the null maximum, never its p90**, because a gate's job is
+    to reject the worst case and a percentile is chosen to ignore it. And when the margin
+    still looks thin, **enlarge the null set rather than reason about the margin** — it
+    cost one more run and it was the run that found the error.
+
+55. **Whitespace you introduced is yours, never the edition's — do not match on it.**
+    `texts.body` joins printed lines with newlines. An 8-character window taken raw over
+    that can be two newlines and six characters, and a quotation running across a printed
+    line break — which most do, the break being typographic — fragments into one match per
+    line. Lemmas were stored beginning `\n\n`. Match over the text with whitespace removed
+    and map the offsets back. Classical Chinese prints no whitespace at all, so **any**
+    whitespace in a CJK body is an artefact of our own storage; this is the same root fact
+    as "never use whitespace tokenization", arriving at a different layer.
+
 ---
 
 ## One-off gotchas
