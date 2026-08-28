@@ -74,7 +74,7 @@ defmodule Mix.Tasks.Pramana.Tibetan.Pairs do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     path = Keyword.get(opts, :out, "priv/train/tibetan_pairs.jsonl")
 
     File.mkdir_p!(Path.dirname(path))

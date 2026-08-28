@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Pramana.Evals.Compare do
 
   @impl Mix.Task
   def run(argv) do
-    {opts, paths, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, paths} = OptionParser.parse!(argv, strict: @switches)
 
     {before_path, after_path} =
       case paths do

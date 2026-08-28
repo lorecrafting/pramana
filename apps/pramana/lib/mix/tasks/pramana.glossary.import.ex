@@ -34,7 +34,7 @@ defmodule Mix.Tasks.Pramana.Glossary.Import do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, args, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, args} = OptionParser.parse!(argv, strict: @switches)
 
     path =
       List.first(args) || Mix.raise("usage: mix pramana.glossary.import <file> --source <id>")

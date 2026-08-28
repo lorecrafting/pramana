@@ -44,7 +44,7 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     min_title = Keyword.get(opts, :min_title, @default_min_title)
 
     roots = load(["root"], min_title)

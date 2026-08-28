@@ -55,7 +55,7 @@ defmodule Mix.Tasks.Pramana.Evals.Derive do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     out = Keyword.get(opts, :out, @default_out)
     per_type = Keyword.get(opts, :per_type, @default_per_type)

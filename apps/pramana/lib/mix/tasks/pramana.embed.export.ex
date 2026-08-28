@@ -27,7 +27,7 @@ defmodule Mix.Tasks.Pramana.Embed.Export do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     path = Keyword.get(opts, :out, "priv/embed/chunks.jsonl")
 
     {:ok, info} = Transfer.export(path, opts)

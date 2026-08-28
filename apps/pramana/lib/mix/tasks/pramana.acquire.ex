@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Pramana.Acquire do
   @impl Mix.Task
   def run(argv) do
     {:ok, _} = Application.ensure_all_started(:req)
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     source = Keyword.get(opts, :source, "cbeta")
 

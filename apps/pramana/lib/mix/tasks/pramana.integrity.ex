@@ -68,7 +68,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     texts = Repo.all(from t in Text, order_by: t.work_id) |> maybe_limit(opts[:limit])
 

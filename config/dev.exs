@@ -5,7 +5,11 @@ config :pramana, Pramana.Repo,
   username: System.get_env("PGUSER") || System.get_env("USER"),
   password: System.get_env("PGPASSWORD") || "",
   hostname: System.get_env("PGHOST") || "localhost",
-  database: "pramana_dev",
+  # Overridable so the PUBLIC bake can target a database of its own. The public artefact
+  # is redistributable sources only, and it is a separate database rather than a query
+  # filter because `Corpus.resolve/1` takes no filter — safety has to be a property of
+  # what is present. See `mix pramana.public.bake`.
+  database: System.get_env("PRAMANA_DATABASE") || "pramana_dev",
   # Bake tasks insert tens of thousands of rows; per-query logging buries the
   # actual output. Set PRAMANA_SQL_LOG=1 to get it back when debugging.
   log: System.get_env("PRAMANA_SQL_LOG") == "1" and :debug,

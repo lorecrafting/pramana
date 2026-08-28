@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Pramana.Embed.Index do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     # `opts[:x] or opts[:y]` raises when both are nil — Elixir's `or` demands booleans.
     if opts[:drop] == true or opts[:rebuild] == true, do: drop()

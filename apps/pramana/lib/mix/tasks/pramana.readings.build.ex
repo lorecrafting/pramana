@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Pramana.Readings.Build do
 
   @impl Mix.Task
   def run(argv) do
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     if opts[:corpus], do: Mix.Task.run("app.start")
 
     unihan = @unihan |> path!() |> File.stream!() |> Build.unihan()

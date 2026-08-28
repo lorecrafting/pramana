@@ -3662,6 +3662,20 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     now exists to do. **Any policy of "when unsure, withhold" needs a report of what is
     being withheld**, or it silently becomes the answer.
 
+57. **A safety check is not a completeness check, and the artefact needs both.** The
+    public bake verified that nothing forbidden was present and reported **"✓ safe to
+    expose"** over a corpus holding 1,195 Tibetan texts instead of 4,575. The Tengyur stage
+    had re-run the Kangyur, because it was passed `--source derge-tengyur` to a task whose
+    switch is `--collection`, and **`OptionParser.parse/2` — without the bang — drops an
+    unknown switch silently**. Every stage returned `:ok`.
+
+    That is the coverage doctrine failing inside the artefact built to embody it. A corpus
+    missing a canon answers *"the tradition is silent"* to questions it was simply never
+    given the text for, and it does so with total confidence. Every ingest now declares a
+    row floor and the bake counts what landed. **Use `OptionParser.parse!/2` in a task, and
+    when a stage's success is reported by the stage itself, verify it by counting from the
+    other side.**
+
 ---
 
 ## One-off gotchas

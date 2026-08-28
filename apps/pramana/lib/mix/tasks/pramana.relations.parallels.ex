@@ -80,7 +80,7 @@ defmodule Mix.Tasks.Pramana.Relations.Parallels do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     min_full = Keyword.get(opts, :min_full, @default_min_full)
     dry_run? = Keyword.get(opts, :dry_run, false)
 

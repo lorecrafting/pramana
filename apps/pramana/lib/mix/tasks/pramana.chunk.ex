@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Pramana.Chunk do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     # No default here: the size comes from the text's script unless the caller
     # deliberately overrides it. See `Pramana.Chunk.Builder.max_chars_for/1`.
     max_chars = opts[:max_chars]

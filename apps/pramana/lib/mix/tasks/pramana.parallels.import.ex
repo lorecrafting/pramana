@@ -42,7 +42,7 @@ defmodule Mix.Tasks.Pramana.Parallels.Import do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     {parallels_raw, info_raw} = fetch()
 

@@ -63,3 +63,7 @@ native/quotations/target/
 # Fine-tuned embedding weights: 2.2 GB of tensors, reproducible from the LoRA adapter
 # and the pinned base model. See docs/GPU_RUNBOOK.md and mix pramana.embed.fetch_model.
 priv/models/
+
+# Derived on every `mix pramana.public.bake` from sources.lock.json, which IS committed.
+# Committing it too would be a second copy of the same facts, free to drift.
+sources.public.lock.json

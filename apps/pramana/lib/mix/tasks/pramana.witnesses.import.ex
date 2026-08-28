@@ -43,7 +43,7 @@ defmodule Mix.Tasks.Pramana.Witnesses.Import do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     texts = texts(opts[:work])
     if texts == [], do: Mix.raise("no CBETA texts matched")

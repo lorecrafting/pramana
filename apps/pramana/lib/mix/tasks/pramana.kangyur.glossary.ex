@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Glossary do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     root = Keyword.get(opts, :root, @default_root)
 

@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Pramana.Embed.Import do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
     path = Keyword.fetch!(opts, :in)
 
     {:ok, r} = maybe_without_index(opts, fn -> Transfer.import(path, opts) end)

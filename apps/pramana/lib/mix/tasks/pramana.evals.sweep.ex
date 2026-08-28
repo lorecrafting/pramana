@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
   @impl Mix.Task
   def run(argv) do
     Mix.Task.run("app.start")
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     grid = parse_grid!(Keyword.get_values(opts, :grid))
     combos = combinations(grid)

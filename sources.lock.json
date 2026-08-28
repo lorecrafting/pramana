@@ -29796,7 +29796,8 @@
         "files_sha256": "56a6bbf515eda5b1932ccf3e179cd41e7569f6c6fddf9a2f8a64e9f01b6d1329",
         "type": "content"
       },
-      "retrieved_at": "2026-08-18T18:39:23.419405Z",
+      "raw_root": "derge",
+      "retrieved_at": "2026-08-28T07:22:57.704038Z",
       "upstream": "https://github.com/Esukhia/derge-kangyur"
     },
     {
@@ -30882,7 +30883,8 @@
         "files_sha256": "9b1a40eaae91f36001a32205daa0313a2e1bd79a79b536114f02e698abb69f25",
         "type": "content"
       },
-      "retrieved_at": "2026-08-21T01:32:15.416017Z",
+      "raw_root": "derge-tengyur",
+      "retrieved_at": "2026-08-28T07:26:38.815130Z",
       "upstream": "https://github.com/Esukhia/derge-tengyur"
     },
     {
@@ -71609,7 +71611,7 @@
         "type": "git"
       },
       "raw_root": "sc",
-      "retrieved_at": "2026-08-20T17:31:30.189166Z",
+      "retrieved_at": "2026-08-28T07:20:52.725983Z",
       "upstream": "https://github.com/suttacentral/bilara-data"
     },
     {
@@ -96641,7 +96643,7 @@
         "type": "git"
       },
       "raw_root": "sc/bilara-data",
-      "retrieved_at": "2026-08-28T06:49:35.958254Z",
+      "retrieved_at": "2026-08-28T07:27:08.460929Z",
       "upstream": "https://github.com/suttacentral/bilara-data"
     },
     {

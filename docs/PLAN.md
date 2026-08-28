@@ -668,8 +668,31 @@ The remaining 9,841 are real: 83 files of Sujato's Jātaka, in the repository an
 from `_publication.json`, plus his `name/` glossaries and four of Suddhāso's. Nothing local
 can resolve those, and `redistributable` correctly stays false.
 
-**So the public demo's blocker is now only the shape of the artefact**, not the licence
-data: a separate bake from a redistributable-only lockfile.
+**▸ AND THE ARTEFACT EXISTS — `mix pramana.public.bake`, 2026-08-27.**
+
+    pramana_public   13,017 texts · 1,797,144 segments · 210,756 renderings · 0 CBETA
+    forbidden        0 rows
+    bake_id          9539ef41…  (the research corpus is 0a687700… — never confusable)
+
+A separate database from a derived `sources.public.lock.json`, not a query filter. The
+reason is `Corpus.resolve/1`, which takes no licence option at all: a public URN endpoint
+over the research database serves every text in it. **Safety is a property of what is
+present.** The task refuses to run against a database whose name does not say `public`, and
+verifies the result before calling it done.
+
+**It found its own defect on the first run, and that is the part worth keeping.** The
+Tengyur stage was passed `--source derge-tengyur` to a task whose switch is `--collection`,
+and `OptionParser.parse/2` drops an unknown switch silently — so it re-ran the Kangyur, the
+public corpus held 1,195 Tibetan texts instead of 4,575, every stage returned `:ok`, and the
+bake reported **"✓ safe to expose"**. It had verified that nothing forbidden was present and
+never asked whether anything expected was missing: the coverage doctrine failing inside the
+artefact built to embody it. Every ingest now declares a row floor. See rule 57 — and all
+**35** tasks in the repo now use `OptionParser.parse!/2` with `strict:`, because they all
+had the same silent-typo behaviour.
+
+**Still to do before a demo is servable:** the public corpus has no chunks and no vectors,
+so it is lexical-only today. Chunking is cheap; embedding 1.8M segments is a GPU spend and
+a separate decision.
 
 **Scope guard.** Phase 8 is a *renderer* over an API that already returns spans, URNs and
 offsets. If it starts needing new domain logic, that is a signal the API is missing

@@ -59,7 +59,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
   end
 
   defp do_run(argv) do
-    {opts, _, _} = OptionParser.parse(argv, switches: @switches)
+    {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     # Absolute: `System.cmd/3` resolves a bare name against PATH and does NOT resolve a
     # relative path, so "native/..." fails with :enoent even though File.exists? just
