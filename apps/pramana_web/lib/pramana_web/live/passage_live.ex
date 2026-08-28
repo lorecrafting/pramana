@@ -204,8 +204,8 @@ defmodule PramanaWeb.PassageLive do
             </a>
             <span class="text-base-content/60">
               — opens the {@edition_link.granularity}, not the line.
-              <span :if={@edition_link.linehead}>
-                Paste <code class="font-mono">{@edition_link.linehead}</code> into its Goto box.
+              <span :if={@edition_link.anchor}>
+                Its {@edition_link.anchor_label} for this line is <code class="font-mono">{@edition_link.anchor}</code>.
               </span>
             </span>
             <p class="mt-1 text-xs text-base-content/50">

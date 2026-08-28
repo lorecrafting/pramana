@@ -117,7 +117,7 @@ defmodule Pramana.ReaderTest do
       assert ref.url == "https://cbetaonline.dila.edu.tw/en/T0262_001"
       assert ref.edition == "CBETA Online"
       assert ref.granularity == "juan"
-      assert ref.linehead == "T09n0262_p0001a05"
+      assert ref.anchor == "T09n0262_p0001a05"
     end
 
     test "never claims the link is verified" do
@@ -154,8 +154,76 @@ defmodule Pramana.ReaderTest do
              ) == nil
     end
 
+    # Every uid below is one this corpus holds and SuttaCentral's own API resolves.
+    test "links a Pāli text to SuttaCentral by its own uid" do
+      ref =
+        Reader.reference(
+          "pramana:sc.ms:sn6.4@1.2",
+          %{source: "sc", work_id: "sn6.4"}
+        )
+
+      assert ref.edition == "SuttaCentral"
+      assert ref.url == "https://suttacentral.net/sn6.4"
+      assert ref.granularity == "sutta"
+      # SuttaCentral writes a segment as uid:segment, which its API returns as a key.
+      assert ref.anchor == "sn6.4:1.2"
+      assert ref.anchor_label == "SuttaCentral segment ID"
+      assert ref.verified == false
+    end
+
+    test "links a translation layer to the same sutta as its anchor" do
+      ref =
+        Reader.reference(
+          "pramana:sc-translations.en:mn1@1.1",
+          %{source: "sc-translations", work_id: "mn1"}
+        )
+
+      assert ref.url == "https://suttacentral.net/mn1"
+    end
+
+    # dhp298, an1.70 and sn45.142 have no page of their own — SuttaCentral groups them
+    # into dhp290-305, an1.61-70 and sn45.141-145, and resolves the member uid to the
+    # range. The note says so rather than promising the exact verse.
+    test "says the link may open a range rather than the text itself" do
+      ref = Reader.reference("pramana:sc.ms:dhp298@1.1", %{source: "sc", work_id: "dhp298"})
+      assert ref.note =~ "range that contains it"
+    end
+
+    test "links a Tibetan work to 84000 by its Toh number" do
+      ref = Reader.reference("pramana:derge.D:toh308@1.2b.6", %{source: "derge"})
+
+      assert ref.edition == "84000"
+      assert ref.url == "https://read.84000.co/translation/toh308.html"
+      assert ref.granularity == "work"
+      # 84000 prints folio references in running text, not in addressable ids, so there
+      # is no coordinate to hand over — and claiming one would be inventing it.
+      assert ref.anchor == nil
+      assert ref.anchor_label == nil
+      assert ref.note =~ "catalogue entry where it does not"
+    end
+
+    test "links the Tengyur the same way, since 84000 catalogues both" do
+      ref =
+        Reader.reference("pramana:derge-tengyur.D:toh3865@103.230b.2", %{source: "derge-tengyur"})
+
+      assert ref.url == "https://read.84000.co/translation/toh3865.html"
+    end
+
+    # sc-data is SuttaCentral's structural metadata, not text. There is no page to open.
+    test "returns nil for a source that holds no readable text" do
+      assert Reader.reference("pramana:sc-data.ms:mn1", %{source: "sc-data"}) == nil
+    end
+
     test "returns nil for a malformed URN rather than building a link around junk" do
       assert Reader.reference("not-a-urn", provenance()) == nil
+    end
+
+    test "keeps the anchor label even where the anchor itself is unavailable" do
+      # `anchor_label` names the grammar the edition uses; that is true of the edition
+      # whether or not this particular line has a coordinate.
+      ref = Reader.reference(@urn, Map.delete(provenance(), :page))
+      assert ref.anchor == nil
+      assert ref.anchor_label == "CBETA linehead"
     end
 
     test "still returns a link when the line components are missing" do
@@ -164,7 +232,7 @@ defmodule Pramana.ReaderTest do
       ref = Reader.reference(@urn, Map.delete(provenance(), :page))
 
       assert ref.url == "https://cbetaonline.dila.edu.tw/en/T0262_001"
-      assert ref.linehead == nil
+      assert ref.anchor == nil
     end
   end
 end

@@ -105,9 +105,12 @@ defmodule PramanaWeb.MCP.Resources.Guide do
     - `bake_id` — which corpus snapshot produced this. Cite it for reproducibility.
     - `reader` — a link into the published edition, for a human who wants to check the
       passage. It opens the **fascicle, not the line**, and `verified: false` is
-      literal: these readers are single-page apps that return HTTP 200 for any path,
-      so the link cannot be checked by fetching it. `reader.linehead` is CBETA's own
-      citation string (`T09n0262_p0001a05`) and pastes into the reader's Goto box.
+      literal: CBETA Online and SuttaCentral are single-page apps that return HTTP 200
+      for any path, so those links cannot be checked by fetching them. `reader.anchor`
+      is that edition's own coordinate for the line — CBETA's linehead
+      (`T09n0262_p0001a05`, which pastes into its Goto box), SuttaCentral's segment id
+      (`sn6.4:1.2`) — and `reader.anchor_label` says which grammar it is. Neither
+      replaces the URN.
       **Cite the URN, never the URL.**
 
     ## Things that are true and easy to get wrong

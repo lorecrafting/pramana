@@ -64,7 +64,11 @@ defmodule PramanaWeb.MCP.ToolsTest do
       reader = payload(response)["reader"]
 
       assert reader["url"] == "https://cbetaonline.dila.edu.tw/en/T0262_001"
-      assert reader["linehead"] == "T09n0262_p0001c17"
+      # `anchor` is whatever coordinate that edition uses; `anchor_label` names which,
+      # because CBETA's linehead and SuttaCentral's segment id are different grammars
+      # arriving in the same field.
+      assert reader["anchor"] == "T09n0262_p0001c17"
+      assert reader["anchor_label"] == "CBETA linehead"
 
       # The one unverifiable thing this project emits must say so at the boundary, not
       # only in its own module doc.
