@@ -32,6 +32,8 @@ defmodule Pramana.Reader do
   nothing about it appears wrong.
   """
 
+  alias Pramana.Cbeta.Collections
+
   @cbeta_base "https://cbetaonline.dila.edu.tw"
 
   @type link :: %{
@@ -91,6 +93,23 @@ defmodule Pramana.Reader do
   reader, its search box and the printed apparatus all use, so it is what a person
   pastes or types when checking us. Returns `nil` rather than a partial string when any
   component is missing — half a citation is not a citation.
+
+  ## This was Taishō-shaped, and nine collections later that was a defect
+
+  It padded the volume to two digits unconditionally, which is right for T, X and J and
+  wrong for A, P, L and U: `A1057` sits in volume `A091`, and `A91n1057_p0311b01` is a
+  string CBETA's reader cannot find. The width now comes from
+  `Pramana.Cbeta.Collections.volume_token/2`, checked against CBETA's own rendered lines.
+
+  The second half of the same defect was upstream. `Pramana.Corpus.provenance/1` supplied
+  the **text's** volume, and a work spanning volumes records its range there — `"130-133"`
+  for L1557 — so the citation came out as `130-133n1557_p0003a01`. It now supplies the
+  volume the cited line was itself printed in.
+
+  Both shipped hidden behind a corpus that was one collection, of two-digit volumes, with
+  no work spanning any of them. Ten collections made them reachable, and neither would
+  ever have raised: a wrong linehead is a plausible-looking string that silently fails in
+  someone else's search box.
   """
   @spec linehead(map()) :: String.t() | nil
   def linehead(%{
@@ -101,17 +120,17 @@ defmodule Pramana.Reader do
         register: register,
         line: line
       })
-      when is_binary(witness) and is_binary(volume) and is_binary(work_id) and
+      when is_binary(witness) and is_binary(work_id) and
              is_binary(page) and is_binary(register) and is_integer(line) do
-    # `work_id` is "T0262"; CBETA's linehead wants the number without the canon letter,
-    # and the volume zero-padded to two digits: T09n0262_p0037a13.
+    # `work_id` is "T0262"; CBETA's linehead wants the number without the canon letter:
+    # T09n0262_p0037a13. J numbers keep a letter of their own — J31nB271 — and stripping
+    # only the canon prefix preserves it.
     number = String.replace_prefix(work_id, witness, "")
 
-    if number == "" do
-      nil
-    else
-      volume = String.pad_leading(volume, 2, "0")
-      "#{witness}#{volume}n#{number}_p#{page}#{register}#{pad_line(line)}"
+    case {number, Collections.volume_token(witness, volume)} do
+      {"", _} -> nil
+      {_, nil} -> nil
+      {number, token} -> "#{token}n#{number}_p#{page}#{register}#{pad_line(line)}"
     end
   end
 

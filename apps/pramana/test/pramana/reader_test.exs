@@ -39,6 +39,59 @@ defmodule Pramana.ReaderTest do
       assert Reader.linehead(p) =~ "T85n2837_"
     end
 
+    # THE DEFECT NINE COLLECTIONS EXPOSED. The volume was padded to two digits for every
+    # canon, which is right for T, X and J and wrong for A, P, L and U. `A91n1057_p0311b01`
+    # looks exactly like a citation and CBETA's reader cannot find it. Each expectation
+    # below is CBETA's own output, from the `id` attribute on the line in the juan its
+    # website renders (`cbdata.dila.edu.tw/stable/juans`, fetched 2026-08-27).
+    test "pads to the width the EDITION uses, which is not the same for every collection" do
+      cases = [
+        {"A", "A1057", 91, "0311", "b", 1, "A091n1057_p0311b01"},
+        {"P", "P1519", 154, "0463", "a", 1, "P154n1519_p0463a01"},
+        {"L", "L1557", 130, "0003", "a", 1, "L130n1557_p0003a01"},
+        {"U", "U1368", 205, "0231", "b", 1, "U205n1368_p0231b01"},
+        {"X", "X0488", 25, "0282", "a", 2, "X25n0488_p0282a02"},
+        {"K", "K1402", 38, "0512", "a", 1, "K38n1402_p0512a01"},
+        {"M", "M1540", 59, "0789", "b", 1, "M59n1540_p0789b01"}
+      ]
+
+      for {witness, work_id, volume, page, register, line, expected} <- cases do
+        actual =
+          Reader.linehead(%{
+            witness: witness,
+            work_id: work_id,
+            volume: Integer.to_string(volume),
+            page: page,
+            register: register,
+            line: line
+          })
+
+        assert actual == expected, "#{work_id}: expected #{expected}, got #{inspect(actual)}"
+      end
+    end
+
+    # J numbers carry a letter of their own: work JB271 is CBETA's J31nB271. Stripping the
+    # canon prefix rather than every non-digit is what keeps the B.
+    test "keeps a letter that belongs to the work number" do
+      p = provenance(%{witness: "J", work_id: "JB271", volume: "31", page: "0771", line: 1})
+      assert Reader.linehead(p) == "J31nB271_p0771a01"
+    end
+
+    # A volume RANGE is what a volume-spanning work records on its text row, and it is a
+    # description of the work rather than a coordinate. Emitting `130-133n1557_p0003a01`
+    # is inventing a citation ID, which invariant #2 forbids outright.
+    test "refuses to build a citation from a volume range" do
+      p = provenance(%{witness: "L", work_id: "L1557", volume: "130-133"})
+      assert Reader.linehead(p) == nil
+    end
+
+    # We hold none of these, so there is no page to check a guess against. `canons.json`
+    # names them; nothing names their volume width.
+    test "returns nil for a collection whose width has never been checked" do
+      p = provenance(%{witness: "N", work_id: "N0001", volume: "1"})
+      assert Reader.linehead(p) == nil
+    end
+
     test "pads single-digit line numbers, as the printed citation does" do
       assert Reader.linehead(provenance(%{line: 3})) == "T09n0262_p0001a03"
       assert Reader.linehead(provenance(%{line: 17})) == "T09n0262_p0001a17"

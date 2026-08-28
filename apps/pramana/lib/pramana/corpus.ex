@@ -344,7 +344,7 @@ defmodule Pramana.Corpus do
       witness: text.witness_id,
       source: text.source_id,
       license_class: text.source && text.source.license_class,
-      volume: text.volume,
+      volume: volume(segment, text),
       juan: segment.juan,
       page: segment.page,
       register: segment.register,
@@ -352,6 +352,22 @@ defmodule Pramana.Corpus do
       addressing: addressing(text)
     }
   end
+
+  # THE VOLUME OF THE LINE, NOT OF THE WORK.
+  #
+  # `text.volume` describes the work, and for a work that spans volumes it is a range —
+  # "130-133" for L1557, "31-32" for JB271. That is a correct description and a useless
+  # coordinate: every printed reference is to one volume, and `Pramana.Reader.linehead/1`
+  # built `130-133n1557_p0003a01` out of it, a citation nothing can resolve.
+  #
+  # `IR.concat/1` stamps each line with the volume it was printed in for exactly this
+  # reason, so the answer is already recorded and only had to be asked for. Segments in a
+  # single-volume work carry no stamp and fall back to the text's volume, which for them
+  # is the same number.
+  defp volume(%Segment{meta: %{"volume" => volume}}, _text) when is_integer(volume),
+    do: Integer.to_string(volume)
+
+  defp volume(_segment, text), do: text.volume
 
   # A source DECLARES how checkable its anchors are; only the fallback is inferred.
   # See `Pramana.Local.Manifest` for the three levels. Inferring this from the source id

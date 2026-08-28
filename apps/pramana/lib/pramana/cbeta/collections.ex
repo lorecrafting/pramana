@@ -133,4 +133,69 @@ defmodule Pramana.Cbeta.Collections do
   @doc "One collection by its id, or `nil`."
   @spec get(String.t()) :: map() | nil
   def get(id), do: Enum.find(@collections, &(&1.id == id))
+
+  # HOW WIDE THE VOLUME NUMBER IS, PER COLLECTION — and it is not a constant.
+  #
+  # `T09`, `X25`, `J31` are two digits; `A091`, `P154`, `L130`, `U205` are three. The
+  # width is a property of the edition, which `Pramana.Bake.WorkList` learned the hard way
+  # when two works failed to bake with `:enoent` on a path rebuilt as `A91`.
+  #
+  # These ten are the collections held, and each was checked TWICE against CBETA rather
+  # than reasoned about: the acquired directory name (`raw/cbeta/A/A091/A091n1057.xml`) and
+  # the `id` attribute CBETA's own reader puts on the line — fetched from
+  # `cbdata.dila.edu.tw/stable/juans` on 2026-08-27, which returns the same HTML the
+  # website renders.
+  #
+  # **CBETA's catalogue disagrees with CBETA's reader, and the reader is what we want.**
+  # `works?work=M1540` reports `vol: "M059"`, while the line in the rendered juan is
+  # `M59n1540_p0789b01` and the file is `M/M59/M59n1540.xml`. A width table built from the
+  # catalogue field would have produced `M059n1540_p0789b01`, which is not a citation
+  # anything can resolve. Checking against the artefact a reader actually sees, rather
+  # than against a metadata field describing it, is the same rule that made a text's own
+  # byline beat the volume table for provenance.
+  #
+  # The other 16 collections are ABSENT rather than guessed. We hold none of them, so
+  # there is no page to check a guess against, and a linehead is a citation — the one
+  # thing invariant #2 says must never be invented.
+  @volume_width %{
+    "T" => 2,
+    "X" => 2,
+    "J" => 2,
+    "K" => 2,
+    "S" => 2,
+    "M" => 2,
+    "A" => 3,
+    "P" => 3,
+    "L" => 3,
+    "U" => 3
+  }
+
+  @doc """
+  CBETA's own volume token for a collection and volume — `"A091"`, `"T09"` — or `nil`.
+
+  `nil` for a collection whose width has not been checked against a real CBETA page, and
+  for a volume that is not a positive integer. A volume-spanning work records its range
+  (`"130-133"`) on the text, and a range is not a coordinate: every printed reference is
+  to one volume, so the caller must supply the volume the cited *line* was printed in.
+  """
+  @spec volume_token(String.t(), integer() | String.t()) :: String.t() | nil
+  def volume_token(canon, volume) when is_binary(canon) and is_integer(volume) and volume > 0 do
+    case Map.fetch(@volume_width, canon) do
+      {:ok, width} -> canon <> String.pad_leading(Integer.to_string(volume), width, "0")
+      :error -> nil
+    end
+  end
+
+  def volume_token(canon, volume) when is_binary(canon) and is_binary(volume) do
+    case Integer.parse(volume) do
+      {n, ""} -> volume_token(canon, n)
+      _ -> nil
+    end
+  end
+
+  def volume_token(_canon, _volume), do: nil
+
+  @doc "The collections whose volume token is known well enough to build a citation from."
+  @spec volume_token_known() :: [String.t()]
+  def volume_token_known, do: @volume_width |> Map.keys() |> Enum.sort()
 end
