@@ -450,12 +450,19 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
   test passed because something always ran hybrid first. The atom table is global
   mutable state; map string→atom explicitly instead. (Same family as the
   `function_exported?/3` entry below.)
-- **A scripted patch that fails still lets the commit run — SIXTH occurrence.** The
+- **A scripted patch that fails still lets the commit run — EIGHTH occurrence.** The
   Phase 2 gate findings were written by a Python `str.replace`, the anchor did not match,
   the script raised, and `git commit` in the same `&&` chain still succeeded because the
   heredoc was a separate command. The commit message described a doc section that did not
   exist. **Use the Edit tool for docs.** If a script must be used, grep for the new text
   afterwards and treat a missing match as a failed step.
+
+  **Two more on 2026-08-28**, both while writing rules about not doing this. One script
+  computed a replacement and never assigned it — `s.replace(old, new)` with no `s =` — and
+  printed "ok". Another anchored on `@spec` and inserted a `@doc` between a neighbouring
+  `@doc` and its function, which only the compiler caught. Both were found by the grep this
+  entry prescribes, which is the entry working; neither was prevented, which is the entry
+  not being read. That is why `CLAUDE.md` now indexes these by trigger instead of by topic.
 - **The variant-character problem was not where the task assumed.** #32 was written
   expecting the *corpus* to mix orthographic forms. It does not: CBETA writes 說 412,524
   times and 説 zero, 眾生 132,626 times and 众生 zero. The gap is between the **reader's

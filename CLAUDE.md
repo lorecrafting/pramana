@@ -41,17 +41,40 @@ and this project has now corrected published claims about its own state four sep
 times. It also records what has been **tried and rejected, with evidence**; check that list
 before proposing something.
 
-**Before writing a new source pipeline, read `docs/RULES.md`.** **58 rules**, each learned from a real defect, and most of them apply
-directly to the next normalizer. This number said "eight" long after the list held 53,
-which is the same class of staleness the plan warns about — the list is the thing to read,
-and if the count here disagrees with it, the list wins.
+### Which rules apply to what you are about to do
 
-Several have already been rediscovered the hard way: the buffered-element-spans-a-line
-bug was fixed twice, and the second time it left 10,590 printed lines with no citation;
-the two-digit CBETA volume constant was fixed in the bake and left wrong in the reader,
-where it mis-cited 725,650 segments. **Rule 41 — a rule written after a fix does not
-sweep for the other instances — is the one that keeps re-earning itself. When you fix a
-constant, grep for it.**
+`docs/RULES.md` holds **58 rules, each learned from a real defect here**, and they are cited
+by number in code and commits. This file is always in your context and that one is not, so
+the triggers live here. **Read the listed rules before starting the activity, not after the
+test goes red.**
+
+| about to… | read |
+|---|---|
+| write or change a **normalizer / ingest** | 1, 2, 3, 23, 27, 28, 29, 45, 46, 48, 50, 51, 52, 53, 55, 56 |
+| write a **mix task** or add a CLI option | 4, 8, 57 |
+| add a **filter, option or mode** | 4, 5, 6, 26, 36 |
+| write an **Ecto query** or touch performance | 9, 14, 15, 19, 21, 25, 34, 38, 39, 40 |
+| report a **coverage figure or any ratio** | 22, 31, 44, 54 |
+| choose a **threshold**, or build a benchmark | 7, 18, 30, 32, 35, 37, 47, 49, 54, and `docs/PROXIES.md` |
+| change a **schema, enum or registry** | 11, 12, 13, 42 |
+| **acquire** or cache anything from upstream | 10, 43, 58 |
+| **delete** anything, or write `on_conflict` | 9, 20 |
+| edit **docs with a script** | 8, and the gotcha above it — eight occurrences and counting |
+| **fix a constant** — any constant | 41, always |
+| make anything **optional**, or a dependency degrade | 17 |
+| **generalise** from one case, or reach for a shared helper | 16, 24, 33 |
+
+**The three that keep re-earning themselves**, because reading them once has not been
+enough:
+
+- **41 — a rule written after a fix does not sweep for the other instances.** When you fix
+  a constant, grep for it. The two-digit CBETA volume was fixed in the bake and left wrong
+  in the reader, where it mis-cited 725,650 segments, and then found a third time in
+  acquisition.
+- **8 — a scripted patch that reports success may have done nothing.** Eight occurrences,
+  two of them while writing rules about it. Grep for the new text afterwards.
+- **1 — a buffered element that can span a line must be split at that line.** Fixed twice;
+  the second time it left 10,590 printed lines with no citation.
 
 Checkpoint tasks are marked ⛔ and are real stops — see `docs/CHECKS.md`.
 
