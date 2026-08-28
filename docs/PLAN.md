@@ -1,6 +1,6 @@
 # Plan
 
-**The living task list.** `STATUS.md` records what happened and what was learned; this
+**The living task list.** `HISTORY.md` records what happened, `RULES.md` what was learned; this
 records what is *next* and why. Where they disagree, STATUS is the evidence and this is
 the intent.
 
@@ -55,7 +55,7 @@ between them — with published numbers saying how often that works.
 
 By that definition the *retrieval substrate* is close, and **a surface a human can use
 now exists** — five screens, one of which exists to say what the corpus does *not* hold.
-What is still thin is **coverage** (10 CBETA collections of 26, and Taishō 56–84 needs a
+What is still thin is **coverage** (11 CBETA collections of 26, and Taishō 56–84 needs a
 human to send an email) and **the deterministic enrichment that differentiates this
 project** (#22 and A done, #23 unblocked but unstarted, commentary alignment untouched).
 
@@ -338,9 +338,9 @@ done, and those are one sequence: chunk → embed → import → gate.**
 
 **J refuted the size heuristic on 2026-08-27.** 285 works of Ming/Qing Chan material moved
 no retrieval number at all, while X's 1,230 works of sūtra exegesis cost four Chinese
-cases. The mechanism is **genre overlap with the gold set**, not volume, so the remaining
-23 collections sort into three groups that behave differently and should be taken in this
-order:
+cases. The mechanism is **genre overlap with the gold set**, not volume, so the collections
+still unheld sort into three groups that behave differently and should be taken in this
+order — N, group 3 below, was taken on 2026-08-28:
 
 **1. ~~Alternative EDITIONS of works already held — the apparatus payload.~~ ▸ ACQUIRED
 2026-08-27, AND THE STATED RATIONALE WAS WRONG.**
@@ -499,7 +499,7 @@ missing it:
 
 **And the atom-table bug was walked into a second time.** `String.to_existing_atom("phrase")`
 in the LiveView raised on the first phrase search in a fresh VM and worked on every one
-after — the exact failure `docs/STATUS.md` records for the MCP tool. That is why the
+after — the exact failure `docs/HISTORY.md` records for the MCP tool. That is why the
 mapping is now a literal map in the domain, with a regression test.
 
 **▸ 2026-08-27 — the passage page now carries versions, and Coverage knows the
@@ -522,8 +522,9 @@ Two things the page had to be taught not to claim:
   parallel we cannot show still tells a reader it exists.
 
 **`Coverage.cbeta/0` closes the collections gap.** CBETA publishes **26 collections** and
-this holds two; 24 collections and 1,298 works were absent with nothing saying so, which is
-the Taishō 56–84 failure one level up. The counts are measured from the pinned catalogue
+this held **two when the function shipped**; 24 collections and 1,298 works were absent with
+nothing saying so, which is the Taishō 56–84 failure one level up. (Eleven are held now —
+the function is computed, so it has tracked every ingest since without an edit.) The counts are measured from the pinned catalogue
 (`Pramana.Cbeta.Collections`, one git-tree call at `2b8ab8d5`), and **most entries have no
 name on purpose**: each CBETA file states its own collection in `<sourceDesc>` — T's say
 大正新脩大藏經, X's say 卍新纂大日本續藏經 — and for a collection we have not acquired there

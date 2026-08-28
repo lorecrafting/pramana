@@ -43,7 +43,7 @@ defmodule Pramana.Embed do
   # Measured before adoption, related-vs-unrelated gap on adjacent chunks of one work:
   # bo +0.0098 -> +0.1883 (19x), pli +0.0693 -> +0.1405, lzh +0.0845 -> +0.1903. The base
   # model rated an adjacent Tibetan chunk at 0.984 and an unrelated one at 0.974.
-  # REVERTED to stock. The Tibetan LoRA (see docs/STATUS.md) posted excellent proxy
+  # REVERTED to stock. The Tibetan LoRA (see docs/PROXIES.md) posted excellent proxy
   # numbers — 19x discrimination gap, 3.4x in-batch top-1 — and then scored 0/20 on
   # Tibetan retrieval against the real corpus, down from 7/20. Overall 79.5% -> 70.7%.
   # The adapter, its training script and its pair set are kept; the vectors are not.

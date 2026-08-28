@@ -11,7 +11,7 @@ defmodule Pramana.Normalize.Derge do
         ༄༅༅། །རྒྱ་གར་སྐད་དུ། བི་ན་ཡ་བསྟུ།…
 
   So one file yields dozens of works, and the whole 103-file edition yields **1,125**.
-  This is `docs/STATUS.md` rule 23 seen from the other side: there, ten Pāli suttas
+  This is `docs/RULES.md` rule 23 seen from the other side: there, ten Pāli suttas
   shared one JSON file and taking the work id from the filename collapsed ten passages
   onto one address. Here the mismatch runs the other way and the fix is the same — take
   the work id from what the source itself **cites**, which for Tibetan is the Tōhoku

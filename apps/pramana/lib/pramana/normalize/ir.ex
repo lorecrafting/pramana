@@ -72,7 +72,7 @@ defmodule Pramana.Normalize.IR do
     "nothing was printed here" exactly.
 
     A blank line is the only line that may be dropped without a URN (`CLAUDE.md`
-    invariant 1, and rule 3 in `docs/STATUS.md`).
+    invariant 1, and rule 3 in `docs/RULES.md`).
     """
     @spec blank?(t()) :: boolean()
     def blank?(%__MODULE__{} = line) do

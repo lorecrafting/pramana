@@ -38,7 +38,7 @@ defmodule Mix.Tasks.Pramana.Evals.Sweep do
   the same coverage without pretending to be interactive.
 
   **A fast proxy metric would industrialise a failure this project has already had.**
-  See `docs/STATUS.md` § "Why every proxy lied": a Tibetan LoRA where every cheap
+  See `docs/PROXIES.md`: a Tibetan LoRA where every cheap
   measurement said it worked and the gold set said `retrieval/tibetan` 0%. A ratchet
   keyed to a proxy does not merely risk drift, it optimises into it.
 

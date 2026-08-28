@@ -129,7 +129,7 @@ in the generator.
 The four topical rows did **not** widen and cannot: those cases come from a curated
 doctrinal-term list that rejects terms as too common to measure (སྟོང་པ་ཉིད occurs in 20,500
 segments). They remain the hardest questions here and the least decidable.
-`docs/STATUS.md` has the isolation experiments behind the Pāli and Tibetan figures.
+`docs/HISTORY.md` has the isolation experiments behind the Pāli and Tibetan figures.
 
 Reproduce with:
 
@@ -183,7 +183,7 @@ and moved English→Chinese from 0% to 33.3%. It also cost Pāli recall, because
 vectors from every tradition compete in one space: 1,665 gloss vectors were enough to
 displace Pāli answers, and a full canon pass would add ~300,000 against 14,781 Pāli ones.
 The layer is therefore built and **opt-in** (`vector_kinds: ["source", "translation",
-"parallel_gloss"]`) until there is a tradition-balancing story. See `docs/STATUS.md`.
+"parallel_gloss"]`) until there is a tradition-balancing story. See `docs/HISTORY.md`.
 
 ### What these numbers do not say
 
@@ -284,7 +284,10 @@ rented L4 via Modal · MCP server exposing **fourteen** read-only tools · Phoen
 | [`docs/PRIMER.md`](docs/PRIMER.md) | **Start here.** The whole system from the ground up, plus a glossary |
 | [`CLAUDE.md`](CLAUDE.md) | The eight invariants everything else defends |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Pipeline stages in technical detail |
-| [`docs/STATUS.md`](docs/STATUS.md) | Current state, and **"Rules that generalize"** — every hard-won lesson |
+| [`docs/STATUS.md`](docs/STATUS.md) | What is true right now |
+| [`docs/RULES.md`](docs/RULES.md) | **58 rules**, each learned from a real defect and cited by number |
+| [`docs/HISTORY.md`](docs/HISTORY.md) | What happened, in order — true of its date, not of today |
+| [`docs/PROXIES.md`](docs/PROXIES.md) | Why every cheap evaluation proxy lied, and what it cost |
 | [`docs/MCP.md`](docs/MCP.md) | The tool surface a model actually sees |
 | [`docs/READER.md`](docs/READER.md) | The same corpus for a person, and what each screen insists on |
 | [`docs/CHECKS.md`](docs/CHECKS.md) | `mix pramana.gate`, and what CI can and cannot prove |

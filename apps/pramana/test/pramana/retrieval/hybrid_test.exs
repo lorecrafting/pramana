@@ -165,7 +165,7 @@ defmodule Pramana.Retrieval.HybridTest do
   describe "a limit above the maximum is refused, not silently shrunk" do
     # This cost a published claim. A probe asked `Semantic` for `limit: 500`, was given
     # 200, and the finding was written up as "30 of 41 misses absent from the top 500"
-    # when it meant the top 200 — see docs/STATUS.md #19. Same category as a
+    # when it meant the top 200 — see docs/HISTORY.md #19. Same category as a
     # silently-ignored filter, same answer.
     test "Semantic raises and names the maximum" do
       error =

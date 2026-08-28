@@ -22,7 +22,7 @@ defmodule Pramana.Normalize.Derge.Edition do
 
   The first version of the normalizer treated "no `toh` marker seen yet" as front matter
   and dropped it, which discarded 146,962 lines — 31% of the edition — while every
-  number it reported stayed healthy (`docs/STATUS.md`). 26 of the 103 files contain no
+  number it reported stayed healthy (`docs/HISTORY.md`). 26 of the 103 files contain no
   marker at all, and the symptom in all 26 was the same: a volume that produced nothing.
   So that is checked here, per volume, as `{:error, {:empty_volume, n}}`. A three-line
   guard against a bug that took a count taken from the source to find.

@@ -144,7 +144,7 @@ defmodule PramanaWeb.SearchLive do
     # `Retrieval.mode/1`, never `String.to_existing_atom/1`. The atom table is global
     # mutable state and `:phrase` only enters it when `Retrieval.Lexical` loads, so
     # converting here raised on the first phrase search in a fresh VM and worked on every
-    # one after — the exact failure `docs/STATUS.md` records for the MCP tool, walked into
+    # one after — the exact failure `docs/HISTORY.md` records for the MCP tool, walked into
     # again from a second surface. That is why the mapping lives in the domain.
     opts =
       [

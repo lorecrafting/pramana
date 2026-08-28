@@ -50,7 +50,7 @@ defmodule Pramana.Chunk.Builder do
   # about as much *meaning* as a Chinese one. They also tokenize to 1.5× the window, so
   # **three quarters of the Pāli vectors described roughly the first two thirds of their
   # chunk** — a plausible mechanical contributor to Pāli recall@10 sitting at 37.5%
-  # against Chinese at 98.7% (`docs/STATUS.md`, #19).
+  # against Chinese at 98.7% (`docs/HISTORY.md`, #19).
   #
   # So each size is now the largest whose 95th percentile fits the window. Tibetan is
   # 0.151 tokens per character — the lowest of the three, because the tokenizer handles

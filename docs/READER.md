@@ -51,7 +51,7 @@ copy button, because the URN *is* the citation: `T0262_001@p0001c19` reads as Ta
 register and line to anyone checking against print. (Invariants #1 and #2.)
 
 **Both silences are stated above the results, on every search.** What is not ingested
-(`Coverage.caveat/0` — Taishō 56–84, and 24 of CBETA's 26 collections) and what is
+(`Coverage.caveat/0` — Taishō 56–84, and whichever of CBETA's 26 collections are absent) and what is
 ingested but not vector-indexed (`embedding_coverage.note`). Plus which retrievers
 actually ran, and **why** the semantic one did not when it did not: no serving in this
 process is a different fact from nothing embedded, and only the first is fixed by
@@ -115,9 +115,11 @@ which records what was measured for each publisher and on how many identifiers.
 Someone opening a search box cannot tell an empty result from a short shelf. Search,
 survey and passage all carry `Coverage.caveat/0` alongside results a reader has *already
 asked for*; `/inventory` says it before they ask, and **leads with the gaps rather than
-the totals**. 17,061 texts is an impressive number and an uninformative one — *ten of
-CBETA's 26 collections* and *Taishō 56–84 entirely absent* is what decides whether this
-corpus can answer your question.
+the totals**. A five-figure text count is an impressive number and an uninformative one;
+*which of CBETA's 26 collections are absent* and *that Taishō 56–84 is missing entirely* is
+what decides whether this corpus can answer your question. Every figure on the page is
+computed, so this document names none of them — the sentence it replaced quoted a text
+count and a collection count, and both went stale within two ingests.
 
 Every figure comes from `Pramana.Inventory.snapshot/0`, which has anticipated this page
 since Phase 3: *"Phase 8 will want the same numbers for the reader, and a second

@@ -26,7 +26,7 @@ canon.** 133 hours is 5.5 days of pinned CPU.
 - 299,317 chunks
 - 85.9M characters → **~82M tokens** at the measured 1.05 chars/token
 - 1024 dims × 4 bytes × 299,317 ≈ **1.2 GB** of vectors (not the 300 GB it would have
-  been at segment granularity — see `docs/STATUS.md` on why chunks exist)
+  been at segment granularity — see `docs/HISTORY.md` on why chunks exist)
 
 ## Option A — rent a GPU (recommended)
 

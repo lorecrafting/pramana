@@ -7,7 +7,7 @@ defmodule Pramana.Normalize.Derge.Audit do
   says how much of it appears before the volume's first `toh` marker. Deliberately dumb,
   because a fidelity check computed by the same logic that did the parsing agrees with
   itself by construction — which is exactly how 146,962 lines went missing while every
-  number the parser reported looked healthy (`docs/STATUS.md`).
+  number the parser reported looked healthy (`docs/HISTORY.md`).
 
   Bytes rather than characters, and whitespace stripped, so the count survives the two
   things that make Tibetan character counts unstable: combining vowel signs, which make

@@ -1123,13 +1123,16 @@ In roughly this order:
 | `docs/MCP.md` | the tool surface a model actually sees |
 | `docs/READER.md` | the same corpus for a person — and the four things the view had to push back into the domain |
 | `docs/CHECKS.md` | what must pass at a gate |
-| `docs/STATUS.md` | where the project is, plus **"Rules that generalize"** — every hard-won lesson, each stated as a rule that will apply again |
+| `docs/STATUS.md` | where the project is right now
+| `docs/RULES.md` | **58 rules**, each learned from a real defect and cited by number
+| `docs/HISTORY.md` | what happened, in order
+| `docs/PROXIES.md` | why every cheap evaluation proxy lied |
 | `docs/GPU_RUNBOOK.md` | the embedding round trip, step by step |
 | `docs/EMBEDDING.md` | model choice and cost |
 | `docs/ADDING_TEXTS.md` | how to put a text of your own into the corpus |
 | `docs/DEV_ENV.md`, `docs/ELIXIR.md` | getting a working environment, and the language |
 | `docs/ROADMAP.md` | the phases and what each one is for |
 
-If you read only one after this: **`docs/STATUS.md`'s "Rules that generalize"**. It is the
+If you read only one after this: **`docs/RULES.md`**. It is the
 distilled experience of every bug this project has hit, and most of them are the kind that
 produce results that look correct.

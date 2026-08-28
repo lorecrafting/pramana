@@ -25,12 +25,16 @@ defmodule Pramana.Coverage do
 
   ## The CBETA collections gap
 
-  The same failure, one level up. CBETA publishes **26 collections** and this holds two:
-  the Taishō and the 卍續藏. While the Taishō was the only one loaded, "the Chinese canon"
-  and "what we have" were close enough to the same sentence that nobody wrote the
-  difference down. They are not the same sentence — 1,304 works across 24 further
-  collections are not here, and a reader searching for a 嘉興藏 text gets an empty result
-  with nothing to distinguish *not in the canon* from *not in this bake*.
+  The same failure, one level up. CBETA publishes **26 collections** and a bake holds some
+  of them. While the Taishō was the only one loaded, "the Chinese canon" and "what we have"
+  were close enough to the same sentence that nobody wrote the difference down. They are not
+  the same sentence: a reader searching for a 嘉興藏 text the bake does not hold gets an
+  empty result with nothing to distinguish *not in the canon* from *not in this bake*.
+
+  **How many are held is deliberately not written here.** `cbeta/0` counts them from the
+  corpus, and this paragraph said "two" through four ingests — a doc that quotes a computed
+  number is a doc that will be wrong, and this module exists to stop exactly that kind of
+  wrongness elsewhere.
 
   See `cbeta/0` and `Pramana.Cbeta.Collections`.
   """

@@ -43,7 +43,7 @@ Specifically audit:
 - Is any generated translation reachable as a top-level URN? (It must not.)
 - Is the bake still reproducible from `sources.lock.json` alone?
 
-Write findings into `docs/STATUS.md` under the phase heading. If an invariant was
+Write findings into `docs/HISTORY.md` under the phase heading. If an invariant was
 violated, fix it before the gate passes — invariant drift is what makes long projects
 collapse, and it is much cheaper to fix inside the phase that introduced it.
 
@@ -229,7 +229,7 @@ PRAMANA_EMBEDDING=1 mix pramana.evals --gate
 Scores the committed gold set in `evals/gold/` and fails if any case type regressed
 against `evals/baseline.json`. A ratchet, like the coverage threshold: a number that
 rises becomes the new floor; one that falls fails the gate. Record the numbers in
-`docs/STATUS.md` and the README.
+`docs/STATUS.md`, `docs/HISTORY.md` and the README.
 
 Three things to know before reading the output.
 
@@ -344,7 +344,7 @@ easy ones is not an improvement, and `broken` counts exactly that.
 - Does `docs/ROADMAP.md` still describe what we actually built? Amend if not.
 - Do `ARCHITECTURE.md` / `LAYERS.md` / `TRANSLATION.md` match the implemented schema?
 - Is `CLAUDE.md`'s layout section accurate?
-- Update `docs/STATUS.md`: what's done, what's next, decisions taken, surprises found.
+- Update `docs/HISTORY.md` (what happened) and `docs/STATUS.md` (what is now true).
 
 Docs drifting from code is the main way a future session gets misled. Treat a doc
 correction as part of the work, not overhead.

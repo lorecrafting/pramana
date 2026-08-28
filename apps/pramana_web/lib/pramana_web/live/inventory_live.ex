@@ -13,10 +13,14 @@ defmodule PramanaWeb.InventoryLive do
 
   ## It leads with the gaps, not the totals
 
-  17,061 texts is an impressive number and an uninformative one. **Ten of CBETA's 26
-  collections**, and **Taishō volumes 56–84 entirely absent**, is what a reader actually
-  needs before deciding whether this corpus can answer their question. The totals are
-  underneath.
+  A five-figure text count is an impressive number and an uninformative one. **Which of
+  CBETA's 26 collections are absent**, and that **Taishō volumes 56–84 are missing
+  entirely**, is what a reader needs before deciding whether this corpus can answer their
+  question. The totals are underneath.
+
+  No count is written down here. Every figure on the page is computed, and a moduledoc that
+  quoted one would be a number nobody updates — this one said "17,061" and "ten
+  collections" through two ingests.
   """
   use PramanaWeb, :live_view
 

@@ -189,7 +189,7 @@ defmodule Pramana.Retrieval.Semantic do
   # again: guaranteeing Tibetan a third of the slots made Tibetan pinpoint retrieval WORSE.
   # More room only helps a canon whose internal ranking can use it, and Tibetan's mean
   # pairwise cosine is 0.9727 (#10) — the extra slots fill with near-ties. See
-  # docs/STATUS.md.
+  # docs/HISTORY.md.
   def search_vector(vector, opts) when is_list(opts) do
     if opts[:per_tradition],
       do: per_tradition_search(vector, opts),

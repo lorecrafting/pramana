@@ -25,7 +25,7 @@ Prove the whole pipeline end-to-end on **one sūtra** before scaling anything.
   on it. Binary pattern matching makes the Taishō page/register/line grammar clean.
 - One MCP tool: `get_passage(urn)`, served from Phoenix
 
-**Spikes, all resolved** (see `docs/STATUS.md` for the evidence):
+**Spikes, all resolved** (see `docs/HISTORY.md` for the evidence):
 - **BGE-M3 through Bumblebee** — viable for dense: BGE-M3 declares
   `architectures: ["XLMRobertaModel"]`, which Bumblebee supports. Its sparse/ColBERT
   heads are two loose `.pt` linear layers, portable to Nx.

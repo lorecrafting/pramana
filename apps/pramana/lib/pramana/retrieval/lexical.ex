@@ -379,7 +379,7 @@ defmodule Pramana.Retrieval.Lexical do
       # which is the difference between 600 bodies and a few dozen rows of metadata.
       #
       # Measured over the full corpus, five Chinese formulae, warmed and ABBA-verified:
-      # 1403 ms -> 44 ms, a 32x speedup. See docs/STATUS.md.
+      # 1403 ms -> 44 ms, a 32x speedup. See docs/HISTORY.md.
       |> preload([_s, _t], text: ^Text.preload_without_body())
       |> where(^match_filter(terms))
       |> apply_provenance_filters(opts)

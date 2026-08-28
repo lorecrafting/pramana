@@ -19,9 +19,20 @@ is deterministic and model-independent.
 
 ## Resuming work (new session, no context)
 
-Read **`docs/STATUS.md`** first — it says where we are, what was decided and why, and
-what surprised us. Then **`docs/PLAN.md`**, which is the living task list: what is next,
-why, and what it is blocked on. Then this file's invariants, then `docs/ROADMAP.md`.
+Read **`docs/STATUS.md`** first — 220 lines, and only what is true right now. Then
+**`docs/PLAN.md`**, the living task list: what is next, why, and what it is blocked on.
+Then this file's invariants, then `docs/ROADMAP.md`.
+
+Four files, four jobs, and the split exists because they were one file of 3,896 lines where
+a historical sentence read as a current claim:
+
+| | |
+|---|---|
+| `docs/STATUS.md` | **what is true now** |
+| `docs/PLAN.md` | **what to do next**, and what it is blocked on |
+| `docs/RULES.md` | **58 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
+| `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
 **`docs/PLAN.md` must be updated in the same commit as the work it describes.** Finishing
 an item, discovering new work, or invalidating an estimate all require an edit. A plan
@@ -30,8 +41,7 @@ and this project has now corrected published claims about its own state four sep
 times. It also records what has been **tried and rejected, with evidence**; check that list
 before proposing something.
 
-**Before writing a new source pipeline, read `docs/STATUS.md` § "Rules that
-generalize".** **58 rules**, each learned from a real defect, and most of them apply
+**Before writing a new source pipeline, read `docs/RULES.md`.** **58 rules**, each learned from a real defect, and most of them apply
 directly to the next normalizer. This number said "eight" long after the list held 53,
 which is the same class of staleness the plan warns about — the list is the thing to read,
 and if the count here disagrees with it, the list wins.

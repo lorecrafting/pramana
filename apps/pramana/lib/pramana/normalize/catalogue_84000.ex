@@ -32,7 +32,7 @@ defmodule Pramana.Normalize.Catalogue84000 do
   shape as bilara-data, whose repository claimed CC0 while its publication file recorded
   Public Domain Mark and CC BY-SA — and the rule there applies here: **the more specific
   statement governs, and a licence is recorded per publication rather than per
-  repository** (`docs/STATUS.md`).
+  repository** (`docs/HISTORY.md`).
   """
 
   @behaviour Saxy.Handler
