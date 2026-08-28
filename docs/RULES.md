@@ -436,6 +436,18 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
 
 ---
 
+59. **A "reasonable" constraint on a coordinate is an assumption about an edition, and the
+    next edition will refute it.** `volume_token/2` guarded `volume > 0`, because a volume
+    being at least 1 is the sort of thing nobody checks. Three CBETA collections number
+    their first volume **zero** — `I00`, `GA000`, `GB000` — so every linehead in them came
+    back `nil`. This is rule 53 wearing a different hat: there it was the *width* of the
+    volume number asserted rather than read, here it is the *range*. Both were caught by the
+    same test, which reproduces every token in `sources.lock.json` rather than a fixture.
+
+    A test that encodes the assumption is part of the defect: `assert volume_token("T", 0)
+    == nil` had to be deleted, not adjusted. **When a guard rejects a value, ask which
+    edition told you it was impossible.**
+
 ---
 
 ## One-off gotchas

@@ -151,6 +151,14 @@ defmodule Pramana.Cbeta.Collections do
   # that had no N in it, and it caught the first collection to arrive after it. Checked as
   # the others were — `raw/cbeta/N/N13/...` and `N13n0006_p0001a01` from the rendered juan.
   #
+  # I, F, GA, GB and ZS arrived the same day and the guard caught all five together.
+  # **GA and GB are three digits** where their neighbours are two — `GA000na001` — which is
+  # exactly the assumption that made `A091` wrong, waiting in a different collection.
+  #
+  # ZS is worth a note it does not need a table entry for: its pages are ALPHABETIC —
+  # `ZS01n0001_pa001a01`, not `_p0001a01`. The volume token is unaffected, but anything
+  # that parses a page number from a linehead will meet this.
+  #
   # **CBETA's catalogue disagrees with CBETA's reader, and the reader is what we want.**
   # `works?work=M1540` reports `vol: "M059"`, while the line in the rendered juan is
   # `M59n1540_p0789b01` and the file is `M/M59/M59n1540.xml`. A width table built from the
@@ -170,6 +178,11 @@ defmodule Pramana.Cbeta.Collections do
     "S" => 2,
     "M" => 2,
     "N" => 2,
+    "I" => 2,
+    "F" => 2,
+    "ZS" => 2,
+    "GA" => 3,
+    "GB" => 3,
     "A" => 3,
     "P" => 3,
     "L" => 3,
@@ -185,7 +198,12 @@ defmodule Pramana.Cbeta.Collections do
   to one volume, so the caller must supply the volume the cited *line* was printed in.
   """
   @spec volume_token(String.t(), integer() | String.t()) :: String.t() | nil
-  def volume_token(canon, volume) when is_binary(canon) and is_integer(volume) and volume > 0 do
+  # `volume >= 0`, NOT `> 0`. Three of the collections acquired on 2026-08-28 number their
+  # first volume ZERO — `I00`, `GA000`, `GB000` — and the guard here said `> 0` because a
+  # volume being at least 1 is the kind of assumption nobody checks. It is the same shape as
+  # the two-digit width: a property of an edition, asserted rather than read, and refuted by
+  # the next edition to arrive.
+  def volume_token(canon, volume) when is_binary(canon) and is_integer(volume) and volume >= 0 do
     case Map.fetch(@volume_width, canon) do
       {:ok, width} -> canon <> String.pad_leading(Integer.to_string(volume), width, "0")
       :error -> nil

@@ -389,7 +389,19 @@ cost, which is exactly the mechanism X demonstrated at a larger scale. If a late
 the same index shows the same three rows down again, that is a second sample and it means
 something.
 
-**2. Genres the corpus does not contain at all — additive, non-competing.**
+**2. Genres the corpus does not contain at all — additive, non-competing.** ▸ **ACQUIRED
+2026-08-28, and N's result is the argument for them.** 189 files, 182 works, 43.4 MB.
+Baking is the next step. N demonstrated that displacement costs scale with the *volume of
+competing material*; epigraphy and gazetteers are not scripture and cannot displace a
+doctrinal query at all, so they extend what the corpus **is** at no measurable retrieval
+cost. The lockfile is 4,340 files and CBETA is **16 of 26 collections**.
+
+Three widths had to be checked, and the guard caught all five collections together: **GA
+and GB are three digits** where their neighbours are two, and **I, GA and GB number their
+first volume zero**, which `volume_token/2` rejected outright — rule 59. ZS also prints
+*alphabetic* page numbers (`ZS01n0001_pa001a01`), which nothing parses yet but something
+eventually will.
+
 
     I   北朝佛教石刻拓片百品  101   stone-inscription rubbings, Northern Dynasties
     F   房山石經           27   the Fangshan stone canon, carved 7th–12th c.

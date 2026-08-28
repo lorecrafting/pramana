@@ -63,16 +63,30 @@ defmodule Pramana.Cbeta.CollectionsTest do
     # rather than a fixed list: this test tracks the boundary, and moving a collection
     # across it is a deliberate edit with a checked page behind it.
     test "is nil for a collection whose width has not been checked" do
+      # `Y` is 印順法師佛學著作集 and `TX` 太虛大師全書 — 20th-century authors' collected
+      # works, which PLAN B2 puts deliberately last because loading a living author's essay
+      # without a `text_role` that says so files it beside a sūtra.
       assert Collections.volume_token("ZW", 12) == nil
-      assert Collections.volume_token("GA", 3) == nil
+      assert Collections.volume_token("Y", 3) == nil
+      assert Collections.volume_token("TX", 1) == nil
     end
 
-    test "is nil for anything that is not one positive volume" do
+    test "is nil for anything that is not one volume" do
       # "130-133" is what a volume-spanning work records: a description, not a coordinate.
       assert Collections.volume_token("L", "130-133") == nil
-      assert Collections.volume_token("T", 0) == nil
       assert Collections.volume_token("T", nil) == nil
       assert Collections.volume_token("T", "") == nil
+      assert Collections.volume_token("T", -1) == nil
+    end
+
+    # VOLUME ZERO IS REAL. This test asserted `volume_token("T", 0) == nil`, on the
+    # assumption that a volume is at least 1 — and three collections acquired on 2026-08-28
+    # number their first volume zero: `I00`, `GA000`, `GB000`. The assumption was never
+    # checked against an edition, which is how the two-digit width got in as well.
+    test "accepts volume zero, which three collections use" do
+      assert Collections.volume_token("I", 0) == "I00"
+      assert Collections.volume_token("GA", 0) == "GA000"
+      assert Collections.volume_token("GB", 0) == "GB000"
     end
 
     test "accepts the string form provenance carries" do
