@@ -9,18 +9,41 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 
 ## Tools
 
+**Fourteen tools.** This table listed ten for two phases — `get_commentaries` and
+`get_parallels` were registered and undocumented, which for a surface whose entire purpose
+is to be discovered by a model is the same as not shipping them.
+
 | tool | for |
 |---|---|
-| `search` | **Hybrid by default** — lexical fused with semantic by RRF. The normal entry point. |
+| `search` | **Hybrid by default** — lexical fused with semantic by RRF. The normal entry point, and it reads SOURCE text. |
+| `search_translations` | The tool for an English phrase. `search` answers an English question with source-language n-gram noise; this reads the renderings and returns the **anchor** each one renders. |
 | `survey_corpus` | Exhaustive counts, not a ranked sample. The tool that supports claims about *how often* or *where*. |
 | `get_passage` | One URN, optionally with `context_before` / `context_after`, and optionally with translations (`translation`, `translator`, `compare_translations`). |
 | `get_outline` | A work's structure without its text. |
+| `get_commentaries` | Which works explain this work, and what this work explains — walked back to root scripture. |
+| `get_glosses` | Which commentaries explain **this line**, by deterministic 科文 lemma match. |
+| `get_parallels` | Curated passage parallels for a work. Note `Coverage.parallels/0`: 6.1% of the recorded graph has both ends in this bake. |
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
 | `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |
 | `get_quotations` | Every other text that reproduces this passage word for word. |
 | `get_readings` | How a passage is pronounced, where the ordinary answer is wrong. |
 | `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
+
+### An English question needs `search_translations`, not `search`
+
+`search` reads the source text, so an English query reaches it as characters: it returns
+Pāli or Chinese passages that share n-grams with the English and nothing to do with the
+question. 210,756 English renderings can answer, and every one of them leads with the
+source line it renders. **Cite `anchor_urn`; the rendering carries
+`citable_as_source: false` and a `rendering_urn` that is a fragment over the anchor, never
+a top-level URN.**
+
+`match` says how hard it worked. The unit is one rendered line, so requiring every term in
+one row is strict — `Baka Brahmā` finds nothing that way while each word alone returns the
+same discourse. The fallback reports `match: "any_term"`, and a caller told that knows the
+words were not found together. Measured at **70.0%, mean rank 1.68** over 40 cases derived
+without consulting the retriever.
 
 ### Translations never arrive in `text`
 

@@ -9,8 +9,10 @@ defmodule PramanaWeb.MCP.ToolsTest do
 
   alias Pramana.Corpus.Loader
   alias Pramana.Normalize.CBETA
+  alias PramanaWeb.MCP.Tools.GetGlosses
   alias PramanaWeb.MCP.Tools.GetPassage
   alias PramanaWeb.MCP.Tools.Search
+  alias PramanaWeb.MCP.Tools.SearchTranslations
   alias PramanaWeb.MCP.Tools.VerifyCitation
 
   @xml """
@@ -231,6 +233,72 @@ defmodule PramanaWeb.MCP.ToolsTest do
       data = payload(response)
       assert data["verdict"] == "not_found"
       assert data["verified"] == false
+    end
+  end
+
+  # Two capabilities shipped and were reachable only from the reader and the domain, on a
+  # project whose stated purpose is that ANY LLM can do citation-grounded scholarship over
+  # it. The MCP surface is the product; a feature it cannot reach is a feature the product
+  # does not have.
+  describe "search_translations" do
+    setup do
+      Pramana.Translations.store([
+        %{
+          anchor_urn: @urn,
+          work_id: "T0262",
+          lang: "en",
+          translator_id: "kumarajiva-en",
+          tier: "t0",
+          method: "human",
+          text: "Translated by Kumārajīva on imperial command.",
+          redistributable: true,
+          license_class: "cc0"
+        }
+      ])
+
+      :ok
+    end
+
+    test "answers an English phrase with the SOURCE line, not the rendering" do
+      {:reply, response, _} =
+        SearchTranslations.execute(%{query: "imperial command"}, %{})
+
+      data = payload(response)
+      hit = hd(data["results"])
+
+      # The anchor is what a citation may point at.
+      assert hit["anchor_urn"] == @urn
+      assert hit["rendering_urn"] =~ "#tr:en/"
+      assert hit["provenance"]["citable_as_source"] == false
+    end
+
+    test "the note tells a model what it may cite, in every match mode" do
+      {:reply, response, _} = SearchTranslations.execute(%{query: "imperial command"}, %{})
+
+      assert payload(response)["match"] == "all_terms"
+      assert payload(response)["note"] =~ "cite `anchor_urn`, never the translated text"
+    end
+
+    test "says when it fell back to matching some of the words" do
+      {:reply, response, _} =
+        SearchTranslations.execute(%{query: "imperial zzzznotaword"}, %{})
+
+      data = payload(response)
+      assert data["match"] == "any_term"
+      assert data["note"] =~ "SOME of them"
+    end
+  end
+
+  describe "get_glosses" do
+    test "an empty result says which kind of absence it is" do
+      {:reply, response, _} = GetGlosses.execute(%{urn: @urn}, %{})
+      data = payload(response)
+
+      assert data["glosses"] == []
+      # "No commentary quotes this line" and "no commentary explains it" are different
+      # facts, and only the first is what an empty list means.
+      assert data["note"] =~ "not that none explains it"
+      assert data["method"] == "lemma_match"
     end
   end
 end

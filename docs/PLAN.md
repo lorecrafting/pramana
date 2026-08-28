@@ -25,6 +25,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | corpus | **17,061 texts · 12,041,579 segments** · 3 traditions · 989,881 vectors |
 | CBETA | **10 collections of 26** — T 2,471 · X 1,230 · J 285 · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · M 1 — 4,068 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
+| MCP surface | **14 read-only tools** — `search_translations` and `get_glosses` added 2026-08-28 |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
