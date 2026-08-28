@@ -130,6 +130,26 @@ defmodule PramanaWeb.WorkLive do
         </section>
 
         <section class="space-y-2">
+          <h2 class="font-semibold">Search inside this work</h2>
+          <p class="text-xs text-base-content/60">
+            A work can run to 92,192 printed lines. Finding a phrase in one is a different
+            act from finding it in the canon, and the outline cannot do it.
+          </p>
+          <form action={~p"/"} method="get" class="flex gap-2">
+            <input type="hidden" name="work" value={@work_id} />
+            <input type="hidden" name="mode" value="phrase" />
+            <input
+              type="text"
+              name="q"
+              placeholder={"a phrase in #{@outline.title || @work_id}"}
+              class="input input-bordered input-sm flex-1"
+              autocomplete="off"
+            />
+            <button type="submit" class="btn btn-sm btn-primary">Search</button>
+          </form>
+        </section>
+
+        <section class="space-y-2">
           <h2 class="font-semibold">Contents</h2>
           <p :if={@outline.entries == []} class="text-sm text-base-content/70">
             This work records no internal divisions. That is a fact about the edition,

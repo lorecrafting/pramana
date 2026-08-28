@@ -168,6 +168,23 @@ forces a full re-embed. The numbers held, and three of them are rules rather tha
 | import with the index **dropped** | **69 s** for 67,371 rows |
 | index rebuild, table not bloated | **15 min 47 s** |
 
+### Index build cost at scale, measured 2026-08-27
+
+| vectors | `maintenance_work_mem` | build |
+|---|---|---|
+| 617,038 | 4 GB | 15m47s |
+| 907,430 | 6 GB | 25m12s |
+| 966,931 | 6 GB | 28m06s |
+
+Roughly linear, and **the memory has to grow with the graph** — the rule of thumb is
+~1.5 GB per 300k vectors at 1024 dimensions. Undersizing does not merely run slower: the
+build falls back to disk and *degrades* as the graph grows, which is why 187k of 299,317
+tuples took 17 minutes at PostgreSQL's 64 MB default and was still slowing.
+
+Budget half an hour per import at this size, and run it in the background. It is the
+single most expensive step in the whole pipeline — more than computing the vectors on the
+GPU, which took 34.6 min for 290k and 7.7 min for 59k.
+
 **Rule 1: drop the HNSW index before ANY bulk write.** Not just imports. Measured on
 three different operation types in one day:
 

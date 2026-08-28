@@ -114,6 +114,7 @@ defmodule PramanaWeb.SearchLive do
       "origin" => "",
       "role" => "",
       "witness" => "",
+      "work" => "",
       "limit" => "20"
     }
   end
@@ -151,6 +152,7 @@ defmodule PramanaWeb.SearchLive do
       |> put_unless_blank(:origin, params["origin"])
       |> put_unless_blank(:role, params["role"])
       |> put_unless_blank(:witness_id, params["witness"])
+      |> put_unless_blank(:work_id, params["work"])
 
     case Retrieval.search(query, opts) do
       {:ok, found} ->
@@ -264,6 +266,14 @@ defmodule PramanaWeb.SearchLive do
               {n} results
             </option>
           </select>
+
+          <span
+            :if={@form.params["work"] not in [nil, ""]}
+            class="badge badge-primary badge-sm gap-1"
+          >
+            within {@form.params["work"]}
+            <input type="hidden" name="work" value={@form.params["work"]} />
+          </span>
 
           <button :if={@result} type="button" phx-click="clear" class="btn btn-ghost btn-sm">
             clear

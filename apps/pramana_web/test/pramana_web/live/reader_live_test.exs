@@ -221,6 +221,24 @@ defmodule PramanaWeb.ReaderLiveTest do
       assert html =~ "No work with that id is in this bake"
     end
 
+    # A work can run to 92,192 printed lines; finding a phrase inside one is a different
+    # act from finding it in the canon, and an outline cannot do it.
+    test "offers a search scoped to the work", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T0262")
+
+      assert html =~ "Search inside this work"
+      assert html =~ ~s(name="work" value="T0262")
+    end
+
+    test "a work-scoped search returns only that work", %{conn: conn} do
+      {:ok, _view, html} =
+        live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase", work: "T0262"]}")
+
+      assert html =~ "within T0262"
+      assert html =~ "T0262_001@p0001c17"
+      refute html =~ "T2187_001@p0002a01"
+    end
+
     test "a search hit links to its work", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
 
