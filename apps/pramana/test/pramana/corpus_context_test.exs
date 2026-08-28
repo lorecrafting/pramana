@@ -158,4 +158,27 @@ defmodule Pramana.CorpusContextTest do
       assert {:error, :not_found} = Corpus.resolve("pramana:cbeta.T:T0262_001@p9999a01-p9999a09")
     end
   end
+
+  # `witness: "T"` and `witness: "N"` differ by one character. The texts behind them differ
+  # by fifteen centuries and two intervening languages — T0099 is Guṇabhadra's c. 435
+  # rendering of a Sarvāstivāda Sanskrit original; N0006 is a 1990s Chinese rendering of the
+  # Japanese rendering of the Pāli. Both are `indic` and `root`, both correctly, so before
+  # this the entire difference between them was the letter.
+  describe "the witness in a provenance record" do
+    test "is named, not left as a sigil", ctx do
+      {:ok, span} = Corpus.resolve(ctx.urn)
+
+      assert span.provenance.witness == "T"
+      assert span.provenance.witness_name =~ "Taishō"
+    end
+
+    test "falls back to the id rather than to nil when nothing names it", ctx do
+      # A caller reading `witness_name` must always get something nameable; the id is what
+      # the witnesses table itself stores when nothing better is known.
+      Pramana.Repo.update_all(Pramana.Corpus.Witness, set: [name: "T"])
+
+      {:ok, span} = Corpus.resolve(ctx.urn)
+      assert span.provenance.witness_name == "T"
+    end
+  end
 end

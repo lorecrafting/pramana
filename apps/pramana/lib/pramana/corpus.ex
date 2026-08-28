@@ -346,6 +346,20 @@ defmodule Pramana.Corpus do
       attributed_author: work.attributed_author,
       attribution_confidence: work.attribution_confidence,
       witness: text.witness_id,
+      # THE SIGIL IS NOT THE WITNESS, and one letter is not a provenance record.
+      #
+      # `witness: "T"` and `witness: "N"` differ by a character, and the texts behind them
+      # differ by fifteen centuries and two intervening languages: T0099 雜阿含經 is
+      # Guṇabhadra's c. 435 rendering of a Sarvāstivāda Sanskrit original, while N0006
+      # 相應部經典 is a 1990s Chinese rendering of the Japanese rendering of the Pāli. Both
+      # are `indic` in origin and `root` in role, both correctly, so before this the entire
+      # difference between them was the letter.
+      #
+      # A model reading `witness: "N"` has no way to know that. This is the `#wit1` problem
+      # `Pramana.Apparatus` exists to prevent, one level up from the apparatus: a sigil in
+      # front of a reader who has not been told what it means. The `witnesses` table has
+      # carried real names since 2026-08-27; the payload simply never asked for one.
+      witness_name: witness_name(text),
       source: text.source_id,
       license_class: text.source && text.source.license_class,
       volume: volume(segment, text),
@@ -356,6 +370,12 @@ defmodule Pramana.Corpus do
       addressing: addressing(text)
     }
   end
+
+  # Loaded via the text's association when present. Falls back to the id rather than to
+  # nil: a caller that reads `witness_name` must always get something nameable, and the id
+  # is what the witnesses table itself stores when nothing better is known.
+  defp witness_name(%{witness: %{name: name}}) when is_binary(name), do: name
+  defp witness_name(%{witness_id: id}), do: id
 
   # THE VOLUME OF THE LINE, NOT OF THE WORK.
   #

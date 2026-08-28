@@ -172,6 +172,10 @@ Retrieval degrades rather than failing, so every response says what it actually 
   `unchunked_texts: 1230` means the index is complete over the part of the corpus it
   covers and blind to the rest; `note` says so in words when it applies.
 - **`mode`** — `phrase` is strong evidence; `ngram` is a character-window fallback.
+- **`witness_name`** — the edition by name, never only its sigil. `witness: "T"` and
+  `witness: "N"` differ by one character; the texts behind them differ by fifteen centuries
+  and two intervening languages, and both are `indic` in origin and `root` in role.
+  **Read the name.**
 - **`addressing`** — `canonical` is checkable against a printed edition; `derived` is
   not, because that source has no printed page and line.
 - **`bake_id`** — which corpus snapshot answered.

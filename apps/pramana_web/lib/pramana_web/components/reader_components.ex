@@ -287,11 +287,15 @@ defmodule PramanaWeb.ReaderComponents do
   defp pad_line(nil), do: ""
   defp pad_line(n), do: String.pad_leading(Integer.to_string(n), 2, "0")
 
+  # THE WITNESS BY NAME, not by its letter. `T` and `N` differ by a character and by
+  # fifteen centuries: the Taishō's 雜阿含經 is a 5th-century rendering of a Sarvāstivāda
+  # original, while the 漢譯南傳大藏經's 相應部經典 is a 1990s Chinese rendering of the
+  # Japanese rendering of the Pāli. A reader shown "N · vol. 13" has been told nothing.
   defp printed_reference(p) do
     volume = p[:volume] && "vol. #{p[:volume]}"
     page = p[:page] && "p. #{p[:page]}#{p[:register]}#{pad_line(p[:line])}"
 
-    [p[:witness], volume, page]
+    [p[:witness_name] || p[:witness], volume, page]
     |> Enum.reject(&is_nil/1)
     |> Enum.join(" · ")
   end
