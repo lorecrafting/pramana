@@ -3205,6 +3205,35 @@ wider swing it moves again.
 three or four rebuilds would give a real distribution. Until then, treat a Tibetan movement
 under five cases across any corpus change as carrying no information.
 
+### The alternative editions are not alternative witnesses — 2026-08-27
+
+Stated twice today, written into `docs/PLAN.md` and a commit message: acquiring K, A, P,
+L, U, S and M would turn the **572,701 segments carrying a variant apparatus** into
+passages a reader could open, because those readings name 【宋】【元】【明】【麗】 editions
+the corpus did not hold.
+
+**Measured after baking: of 57 works, 2 share a title with anything in T, X or J.**
+
+CBETA does not publish a parallel Koryŏ *text* of the Taishō's works. Its K is a selection
+of what is **distinctive to** that edition — 高麗國新雕大藏校正別錄, the Koryŏ's own
+collation record; 御製秘藏詮 and 御製逍遙詠, Song imperial compositions preserved there;
+新集藏經音義隨函錄, a phonetic glossary. A is Song catalogue records (大中祥符法寶錄,
+景祐新修法寶錄) and 趙城金藏 survivals. L is largely Ming-Qing Chan recorded sayings.
+
+The error was reasoning from the *name* of a collection to its *contents*, which is the
+same mistake as reading a two-letter code as a canon name — refused three hours earlier in
+`Cbeta.Collections` for exactly this reason, and then made anyway one level up. A
+collection called "the Qianlong Canon" containing 21 works is not the Qianlong Canon; it is
+what CBETA chose to digitise from it.
+
+**What this leaves open.** The apparatus gap is real and is not closable from CBETA:
+opening a 【麗】 reading needs the Koryŏ text of *that Taishō work*, which is the Tripiṭaka
+Koreana project — a new source with its own licence and citation grammar, not a collection
+flag. Recorded as such rather than quietly dropped.
+
+**What survives.** 57 works of rare material, much of it digitised nowhere else, and the
+first exercise of `IR.concat/1` four volumes deep (L1557, 1,329,342 characters).
+
 ## Decisions taken
 
 | Decision | Rationale |

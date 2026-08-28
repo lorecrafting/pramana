@@ -327,23 +327,35 @@ cases. The mechanism is **genre overlap with the gold set**, not volume, so the 
 23 collections sort into three groups that behave differently and should be taken in this
 order:
 
-**1. Alternative EDITIONS of works already held — the apparatus payload.**
+**1. ~~Alternative EDITIONS of works already held — the apparatus payload.~~ ▸ ACQUIRED
+2026-08-27, AND THE STATED RATIONALE WAS WRONG.**
 
-    K   高麗大藏經    10    the Koreana, which the Taishō itself is based on
-    A   趙城金藏      12    the Jin canon
-    P   永樂北藏      20    Ming imperial
-    L   乾隆大藏經    26    Qing imperial
-    U   洪武南藏       3
-    S   宋藏遺珍       2
-    M   卍正藏經       1                                       74 works total
+    K   高麗大藏經     9 works        A   趙城金藏      9
+    P   永樂北藏      13             L   乾隆大藏經    21
+    U   洪武南藏       2             S   宋藏遺珍       2
+    M   卍正藏經       1                         57 works, all baked
 
-These are *other witnesses to the same texts*, which is exactly what
-`Pramana.Apparatus` and the witness machinery exist for — and 572,701 segments already
-carry a variant apparatus that names the Song, Yuan, Ming and Koryŏ readings **without
-holding those editions**. Acquiring them turns a recorded variant into a passage a reader
-can open. Predicted retrieval disruption: **near zero**, because they duplicate works
-rather than compete for slots, and `Compare.witnesses` is the surface that benefits.
-Seventy-four works is a day's work for the largest single gain on the differentiator list.
+The claim was that these are *other witnesses to works already held*, so acquiring them
+would turn the 572,701 segments carrying a variant apparatus — which names 【宋】【元】
+【明】【麗】 readings for texts the corpus holds only in the Taishō — into passages a
+reader could open. **Measured after baking: of 57 works, 2 share a title with anything in
+T, X or J.** Not 40, not 20. Two.
+
+CBETA does not publish a parallel Koryŏ *text* of the Taishō's works. It publishes a
+**selection of what is distinctive to each edition** — the Koryŏ's own collation record
+(高麗國新雕大藏校正別錄), Song imperial compositions preserved there (御製秘藏詮, 御製逍遙詠),
+phonetic glossaries (音義), Song catalogue records (大中祥符法寶錄, 景祐新修法寶錄), and in
+L a run of Ming-Qing Chan recorded sayings (雪嶠信禪師語錄, 密雲悟禪師語錄). Rare material,
+much of it digitised nowhere else — and **not** the variant-reading unlock.
+
+**So the apparatus gap is still open, and it is not closable by acquiring CBETA
+collections.** Opening a 【麗】 reading needs the Koryŏ text of *that Taishō work*, which
+would come from the Korean Tripiṭaka Koreana project rather than from CBETA's K. That is a
+new source with its own licence and citation grammar, not a collection flag.
+
+**The acquisition was still worth it**, for reasons that survive the correction: 57 works
+of rare material, and it exercised the assembly path four volumes deep (L1557) where
+nothing before had gone past two.
 
 **2. Genres the corpus does not contain at all — additive, non-competing.**
 
