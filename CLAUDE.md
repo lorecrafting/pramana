@@ -109,6 +109,52 @@ Violating any of these is a bug, not a tradeoff.
    generated translations of everything, this is the invariant that keeps our own
    model output from being served back as scripture. See `docs/LAYERS.md`.
 
+## Which document to open, by what you are doing
+
+Twenty-five documents. This table is the routing layer; without it the answer to "where is
+that written down" is a grep, and a grep finds the file that mentions a thing rather than
+the file that owns it.
+
+| doing… | open |
+|---|---|
+| starting a session, orienting | `docs/STATUS.md`, then `docs/PLAN.md` |
+| **adding a text source** | `docs/ADDING_TEXTS.md`, `docs/SOURCES.md` — and the normalizer rules above |
+| changing **retrieval** | `docs/ARCHITECTURE.md`; run `evals/` — invariant #6 is not optional |
+| changing **embeddings** or renting a GPU | `docs/EMBEDDING.md`, `docs/GPU_RUNBOOK.md` |
+| touching the **MCP surface** | `docs/MCP.md` — a tool that is not in its table is a tool a model will not find |
+| touching the **reader** | `docs/READER.md` |
+| **translations** or generated text | `docs/LAYERS.md`, `docs/TRANSLATION.md` — invariant #8 lives here |
+| **commentary / parallels / quotations** | `docs/COMMENTARY.md` |
+| anything **public or licensed** | `docs/DEPLOY.md`, the licensing posture below, `mix pramana.public.check` |
+| a **phase gate**, or "am I done" | `docs/CHECKS.md` |
+| local setup, Postgres, toolchain | `docs/DEV_ENV.md`, `docs/ELIXIR.md` |
+| wondering **why** something is the way it is | `docs/HISTORY.md`; if it was a measurement, `docs/PROXIES.md` |
+| wondering whether an idea was already tried | `docs/PLAN.md` § "Rejected, with evidence" — **check before proposing** |
+| onboarding a person, or explaining the project | `docs/PRIMER.md`, `README.md` |
+
+## Keeping the documentation true
+
+These are the rules that keep the two tables above worth trusting. Every one was learned the
+same way: a document that had quietly stopped being true.
+
+1. **Never write down a number the code computes.** State the shape and name the function.
+   `Coverage`'s own moduledoc said "this holds two" through four ingests; the reader doc
+   quoted a text count that went stale within two. If you want the number, run the function.
+2. **A statement about the past belongs in `docs/HISTORY.md`, or carries its date.** A
+   historical sentence in a current-state file reads as a current claim — precisely what
+   made `STATUS.md` wrong four times.
+3. **A new rule is not finished until a trigger points at it.** Add it to `docs/RULES.md`
+   *and* to the trigger table above. `Docs.RoutingTest` fails the build otherwise: a rule
+   nobody is routed to fires after the defect rather than before it.
+4. **`docs/PLAN.md` changes in the same commit as the work.** Finishing an item,
+   discovering work, or invalidating an estimate each require an edit.
+5. **When a doc and the code disagree, the code wins — then fix the doc in that commit.**
+   Not later, not in a cleanup pass.
+6. **Verify a scripted doc edit by grepping for the new text.** A `str.replace` whose anchor
+   missed still exits zero and still lets the commit run. Eight occurrences; see rule 8.
+7. **Publish the gap, not just the total.** A figure without its denominator is the failure
+   this project is most prone to — rules 22, 44 and 54.
+
 ## Layout
 
 An umbrella app. `pramana` is pure domain logic with no web dependency.
