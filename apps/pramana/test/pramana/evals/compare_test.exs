@@ -85,6 +85,20 @@ defmodule Mix.Tasks.Pramana.Evals.CompareTest do
       assert rebuilt =~ "within noise"
       assert rebuilt =~ "0.9727"
     end
+
+    # Measured by rebuilding over unchanged data: retrieval/tibetan moved four cases with
+    # the corpus, the vectors and the code all byte-identical.
+    test "four cases of Tibetan movement across a rebuild is still noise" do
+      out =
+        compare(
+          card([{"retrieval/tibetan", 32, 64}]),
+          card([{"retrieval/tibetan", 28, 64}]),
+          ["--rebuilt"]
+        )
+
+      assert out =~ "within noise"
+      refute out =~ "REGRESSION"
+    end
   end
 
   describe "the verdict" do

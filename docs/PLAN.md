@@ -31,7 +31,7 @@ left of it is the GPU spend and a re-baseline.**
 | retrieval@10 | 378/446 — zh 96.6% · pa 81.3% · bo 50.0%\* |
 | absence | **75%** — and the failing case is real; see item D |
 | answered from any tradition | 81.8% |
-| noise floor | 1 case same-index; **rebuild-induced variance is unmeasured and larger** |
+| noise floor | 1 case same-index · **6 cases across an index rebuild, 4 of them Tibetan** |
 | full gate | 26m53s at 0.9 cases/s |
 | redistributable subset | 13,017 texts · 1.8M segments · 315k vectors |
 

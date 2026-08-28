@@ -3157,6 +3157,54 @@ collisions inside a shared juan is measured rather than argued.
 one transaction, 1.4x the X1571 load that forced 120s -> 300s. Raised from a measurement
 taken before the bake instead of from a failure during it.
 
+### The index rebuild moves the gate by six cases, over unchanged data — 2026-08-27
+
+The experiment that had to be run, and the answer is worse than the guess. HNSW index
+rebuilt over **completely unchanged data** — same corpus, same 966,931 vectors, same code,
+byte-identical inputs — and the full 1,400-case gate re-run:
+
+    overall             93.4% -> 92.9%    -6 cases
+    retrieval/tibetan   50.0% -> 43.8%    -4 cases
+    retrieval/pali      81.3% -> 80.7%    -1
+    retrieval/chinese   96.6% -> 96.1%    -1
+
+**Nothing changed except the graph.** An HNSW build is randomised, so reindexing the same
+vectors yields different approximate neighbourhoods, and Tibetan absorbs most of it for a
+reason already on record: BGE-M3 packs Tibetan at **0.9727 mean pairwise cosine** against
+0.84 for Pāli, so its candidates are near-ties by construction and reorder under any
+perturbation while the other traditions mostly hold position.
+
+**What this retires.** The noise floor was published this morning as **1 case**, measured
+by running the identical configuration twice against the identical index. That number is
+correct and it measures only query nondeterminism. Across a rebuild the floor is **at
+least 4 cases on `retrieval/tibetan` and 6 overall** — four to six times larger.
+
+**What it does and does not invalidate**, stated precisely because the difference matters:
+
+| kind of change | rebuilds the index? | floor |
+|---|---|---|
+| configuration — depth, rerank, `rrf_k`, balance | no | ~1 case |
+| corpus or embedding — import, re-embed, chunk size | **yes** | ≥4 Tibetan, ≥6 overall |
+
+So the configuration findings stand: per-arm depth, the reranker's +46, `balance:
+:tradition`, `hnsw.ef_search` — none of those rebuilt the index. **The Tibetan claims
+attached to corpus changes do not.** Today's own "J improved Tibetan by 2 cases" was
+already refused on reasoning; it is now refuted by measurement, and refuted in the
+direction of being smaller than the noise rather than larger.
+
+It also means `retrieval/tibetan`'s recorded history — 48.4%, 46.9%, 50.0%, 43.8% — is one
+number with a ±4-case band around it, not a trend.
+
+**What was changed as a result.** `mix pramana.evals.compare --rebuilt` uses 4, measured,
+and the proportional guard moved from 5% to 10% of a row because 4 cases on a 64-case row
+is 6.25% and a 5% cap would have called a measured non-event a regression. The threshold
+is set by the measurement rather than by a round number, and if a later probe measures a
+wider swing it moves again.
+
+**Still owed:** one rebuild is one sample. Four is a floor on the floor, not the floor, and
+three or four rebuilds would give a real distribution. Until then, treat a Tibetan movement
+under five cases across any corpus change as carrying no information.
+
 ## Decisions taken
 
 | Decision | Rationale |

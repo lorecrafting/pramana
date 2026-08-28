@@ -22,17 +22,24 @@ defmodule Mix.Tasks.Pramana.Evals.Compare do
   64-case one, so the same absolute difference is noise on one row and possibly signal on
   another. Rows are flagged per row, against their own size.
 
-  **`--rebuilt` widens that considerably, and you usually need it.** An HNSW rebuild is
-  not deterministic: the graph is built with randomisation, so reindexing the same vectors
-  gives slightly different approximate neighbourhoods. Adding vectors does the same thing
-  to queries that have nothing to do with them. **Tibetan is where this shows** — BGE-M3
-  packs it at 0.9727 mean pairwise cosine against 0.84 for Pāli, so its candidates are
-  near-ties by construction and a small graph perturbation reorders them while the other
-  traditions hold position.
+  **`--rebuilt` widens that fourfold, and it is measured.** An HNSW rebuild is not
+  deterministic: the graph is built with randomisation, so reindexing the same vectors
+  gives different approximate neighbourhoods. Rebuilt over **completely unchanged data** —
+  same corpus, same vectors, same code — the gate moved:
 
-  Every import, re-embed and chunk-size experiment involves a rebuild. If one sits between
-  the two runs, pass `--rebuilt` and the tool will refuse to call a small Tibetan movement
-  a result.
+      retrieval/tibetan   50.0% -> 43.8%   -4 cases
+      retrieval/pali      81.3% -> 80.7%   -1
+      retrieval/chinese   96.6% -> 96.1%   -1
+      overall             93.4% -> 92.9%   -6
+
+  **Tibetan is where it concentrates** because BGE-M3 packs it at 0.9727 mean pairwise
+  cosine against 0.84 for Pāli: its candidates are near-ties by construction and reorder
+  under any graph perturbation, while the other traditions mostly hold position.
+
+  Every import, re-embed and chunk-size experiment rebuilds the index. Pass `--rebuilt`
+  when one sits between the two runs, and understand what it implies: **a four-case
+  movement in `retrieval/tibetan` carries no information at all** unless it was produced
+  without a rebuild, or reproduced across several.
   """
 
   use Mix.Task
@@ -44,10 +51,16 @@ defmodule Mix.Tasks.Pramana.Evals.Compare do
   # of `retrieval/pali` and 1.6pp of `retrieval/tibetan`.
   @same_index_noise_cases 1
 
-  # Unmeasured as of 2026-08-27, and known to be larger. Two cases is the observed
-  # movement in `retrieval/tibetan` across one rebuild that also added unrelated vectors;
-  # it is a floor on the floor, not the floor.
-  @rebuild_noise_cases 2
+  # MEASURED 2026-08-27, by rebuilding the HNSW index over completely unchanged data and
+  # re-running the whole gate: `retrieval/tibetan` moved **4 cases**, 50.0% -> 43.8%, and
+  # the corpus, the vectors and the code were byte-identical across the two runs. Overall
+  # moved 6 cases.
+  #
+  # Four is the observed swing from one rebuild, not a bound established over many, so it
+  # is a floor rather than the floor. It is still four times the same-index figure, and
+  # using the same-index figure across a rebuild is how a graph reshuffle gets written up
+  # as a retrieval improvement.
+  @rebuild_noise_cases 4
 
   @impl Mix.Task
   def run(argv) do
@@ -123,17 +136,20 @@ defmodule Mix.Tasks.Pramana.Evals.Compare do
     "#{pad(name)} #{fmt(b)} -> #{fmt(a)}#{label}"
   end
 
-  # NOISE IS A COUNT AND A PROPORTION, and the first version of this used only the count —
-  # which reported `absence 1/4 -> 3/4` as within noise. That is a fifty-point move on a
-  # four-case row. The docstring already said "the same absolute difference is noise on one
-  # row and possibly signal on another"; the code did not do it, and the tool caught itself
-  # on its first real run.
+  # NOISE IS A COUNT AND A PROPORTION, and both bounds were set by being wrong first.
   #
-  # A movement is noise only if it is BOTH within the measured case count AND at most 5% of
-  # the row. On a row too small for that, every case is signal — which is the honest answer
-  # for a four-case row, not a limitation.
+  # The count alone reported `absence 1/4 -> 3/4` as within noise — a fifty-point move on a
+  # four-case row — so a proportional guard went in at 5% of the row.
+  #
+  # Then the rebuild probe measured `retrieval/tibetan` moving **4 cases on a 64-case row**
+  # over completely unchanged data. That is 6.25%, which the 5% guard would have called a
+  # REGRESSION on evidence that it is nothing at all. The cap is 10% because a measurement
+  # says so, not because a round number felt right — and if a future probe measures a wider
+  # swing, this moves again rather than the measurement being argued with.
+  @max_noise_share 0.10
+
   defp noise?(cases, scored, noise_cases) do
-    abs(cases) <= noise_cases and scored >= noise_cases * 20
+    abs(cases) <= noise_cases and scored > 0 and abs(cases) / scored <= @max_noise_share
   end
 
   defp answered(before, later) do
