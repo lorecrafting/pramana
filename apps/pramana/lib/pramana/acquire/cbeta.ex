@@ -16,6 +16,7 @@ defmodule Pramana.Acquire.CBETA do
   @behaviour Pramana.Pipeline.Acquirer
 
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Cbeta.Collections
   alias Pramana.Sources
 
   @source_id "cbeta"
@@ -82,19 +83,48 @@ defmodule Pramana.Acquire.CBETA do
   end
 
   @doc """
-  Builds the repository path for a Taishō work.
+  Builds the repository path for a CBETA work.
 
       iex> Pramana.Acquire.CBETA.work_path("T", 9, "0262")
       "T/T09/T09n0262.xml"
 
+      iex> Pramana.Acquire.CBETA.work_path("A", 91, "1057")
+      "A/A091/A091n1057.xml"
+
   The volume is *not* derivable from the work number — it is catalogue data — so it
   must be supplied. Guessing it would produce a confidently wrong citation, which is
   the failure mode this project exists to prevent.
+
+  **How wide the volume number is, is also catalogue data**, and this function used to
+  guess it: two digits, which is right for T, X and J and wrong for A, P, L and U. That
+  produced `A/A91/A91n1057.xml` and two works failed to bake with `:enoent`. The bake was
+  fixed by carrying the acquired path instead of rebuilding it (rule 50) and this
+  function, which is still what single-work acquisition calls, was left guessing —
+  rule 41, third time.
+
+  It now takes the width from `Pramana.Cbeta.Collections.volume_token/2` and **raises for
+  a collection whose width has not been checked against a real CBETA page**. Raising is
+  the point: acquiring a new collection should stop here and make someone look, rather
+  than fetch a 404 from a path that looks plausible.
   """
   @spec work_path(String.t(), pos_integer(), String.t()) :: String.t()
   def work_path(canon, volume, number) when is_integer(volume) do
-    vol = volume |> Integer.to_string() |> String.pad_leading(2, "0")
-    "#{canon}/#{canon}#{vol}/#{canon}#{vol}n#{number}.xml"
+    case Collections.volume_token(canon, volume) do
+      nil ->
+        raise ArgumentError, """
+        no verified volume-number width for CBETA collection #{inspect(canon)}.
+
+        The width is a property of the edition — T09 is two digits, A091 is three — so it
+        cannot be guessed. Check one file's path in the CBETA repository, or the `id`
+        attribute on a line at cbdata.dila.edu.tw/stable/juans?work=..., and add the
+        collection to `Pramana.Cbeta.Collections`.
+
+        Known: #{Enum.join(Collections.volume_token_known(), ", ")}
+        """
+
+      token ->
+        "#{canon}/#{token}/#{token}n#{number}.xml"
+    end
   end
 
   @doc """

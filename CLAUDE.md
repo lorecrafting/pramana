@@ -31,10 +31,17 @@ times. It also records what has been **tried and rejected, with evidence**; chec
 before proposing something.
 
 **Before writing a new source pipeline, read `docs/STATUS.md` § "Rules that
-generalize".** Eight rules, each learned from a real defect, and most of them apply
-directly to the next normalizer. Two have already been rediscovered the hard way — the
-same buffered-element-spans-a-line bug was fixed twice, and the second time it left
-10,590 printed lines with no citation.
+generalize".** **53 rules**, each learned from a real defect, and most of them apply
+directly to the next normalizer. That number said "eight" for a long time after it was
+53, which is the same class of staleness the plan warns about — the list is the thing to
+read, not the count.
+
+Several have already been rediscovered the hard way: the buffered-element-spans-a-line
+bug was fixed twice, and the second time it left 10,590 printed lines with no citation;
+the two-digit CBETA volume constant was fixed in the bake and left wrong in the reader,
+where it mis-cited 725,650 segments. **Rule 41 — a rule written after a fix does not
+sweep for the other instances — is the one that keeps re-earning itself. When you fix a
+constant, grep for it.**
 
 Checkpoint tasks are marked ⛔ and are real stops — see `docs/CHECKS.md`.
 

@@ -40,6 +40,26 @@ defmodule Pramana.Acquire.CBETATest do
     test "zero-pads the volume to two digits" do
       assert CBETA.work_path("T", 1, "0001") == "T/T01/T01n0001.xml"
     end
+
+    # Two digits is the Taishō's width, not CBETA's. A/P/L/U use three, so this built
+    # `A/A91/A91n1057.xml` and the fetch 404s on a path that looks entirely plausible.
+    # Every expectation here is a path that exists in `sources.lock.json`.
+    test "uses the width the COLLECTION uses, not the Taishō's" do
+      assert CBETA.work_path("A", 91, "1057") == "A/A091/A091n1057.xml"
+      assert CBETA.work_path("P", 154, "1519") == "P/P154/P154n1519.xml"
+      assert CBETA.work_path("L", 130, "1557") == "L/L130/L130n1557.xml"
+      assert CBETA.work_path("U", 205, "1368") == "U/U205/U205n1368.xml"
+      assert CBETA.work_path("M", 59, "1540") == "M/M59/M59n1540.xml"
+      assert CBETA.work_path("J", 31, "B271") == "J/J31/J31nB271.xml"
+    end
+
+    # Stopping is the correct behaviour for a collection nobody has checked. A guessed
+    # path either 404s — confusing — or, worse, finds a file and cites it wrongly.
+    test "raises for a collection whose width has never been checked" do
+      assert_raise ArgumentError, ~r/no verified volume-number width/, fn ->
+        CBETA.work_path("N", 1, "0001")
+      end
+    end
   end
 
   describe "resolve_pin/1" do

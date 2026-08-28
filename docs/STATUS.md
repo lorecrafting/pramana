@@ -3591,6 +3591,32 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     one line, and the failure it prevents is a text that resolves, verifies, and is half
     missing.
 
+53. **A format that is "obviously" uniform across an edition is a table, and the table is
+    the publisher's, not yours.** `Reader.linehead/1` padded CBETA volume numbers to two
+    digits, because for two phases every volume held was two digits. Four of the ten
+    collections now held use three — `A1057` is in `A091` — so 725,650 segments, 7.1% of
+    the CBETA corpus, emitted a citation string CBETA's own reader cannot find. It could
+    not raise: a wrong linehead is a plausible string that fails silently in someone
+    else's search box, which is the failure this project treats as worse than an error.
+    The same constant had already bitten `WorkList` as an `:enoent` (rule 50) and been
+    fixed *there only* — rule 41 again, and now on its own recorded rule.
+
+    **Check the artefact a reader sees, not the metadata field describing it.** The widths
+    here were taken from the `id` attribute CBETA's website puts on the line. CBETA's
+    catalogue API disagrees with CBETA's website: `works?work=M1540` reports volume
+    `M059`, the rendered line is `M59n1540_p0789b01`, and a table built from the catalogue
+    would have been silently wrong about a whole collection. This is the same shape as a
+    text's own byline beating the 部 volume table for provenance — prefer the edition's
+    own output over a description of it.
+
+    **And a citation format needs a coordinate, so never feed it a range.** The other half
+    of the same bug was `Corpus.provenance/1` supplying `text.volume`, which for a
+    volume-spanning work is `"130-133"`. The 18 such works cited as
+    `130-133n1557_p0003a01`. `IR.concat/1` had stamped every line with its own printed
+    volume since the X assembly fix; the answer was recorded and never asked for. **When a
+    field can be a range, the code that addresses one line must take the line's value, not
+    the work's.**
+
 ---
 
 ## One-off gotchas
