@@ -196,6 +196,17 @@ defmodule PramanaWeb.ReaderLiveTest do
   end
 
   describe "the work browser" do
+    # A work page is where someone decides whether to trust a text, so it is where the
+    # publisher's own copy is most worth one click away.
+    test "links out to the edition that published the work", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      assert html =~ "cbetaonline.dila.edu.tw"
+      assert html =~ "CBETA Online"
+      # The link must never read as the citation.
+      assert html =~ "not the citation"
+    end
+
     test "leads with provenance, because an outline is where a text is misjudged",
          %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/works/T2187")

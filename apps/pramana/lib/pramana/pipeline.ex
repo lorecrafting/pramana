@@ -77,7 +77,13 @@ defmodule Pramana.Pipeline do
       acquirer: Pramana.Acquire.CBETA,
       normalizer: Pramana.Normalize.CBETA,
       segmenter: Pramana.Segment.Taisho,
-      witness: "T",
+      # NO `witness:` HERE, DELIBERATELY. It used to hold a static "T", which is not a
+      # property of the source — CBETA is 26 collections and the witness is whichever one a
+      # work belongs to. Both bake paths now take it from the work's own canon, but the
+      # field sat here looking authoritative until 2026-08-27, and the one path that read
+      # it baked `pramana:cbeta.T:X1508`: an X work addressed as if it sat in the Taishō,
+      # with a URN that resolves and is wrong. A dead field that answers a question wrongly
+      # is worse than a missing one, because the next caller will believe it.
       provenance_rule: Pramana.Taisho.Divisions
     }
   }

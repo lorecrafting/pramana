@@ -9,6 +9,7 @@ defmodule Pramana.Corpus.Loader do
 
   import Ecto.Query
 
+  alias Pramana.Cbeta.Collections
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
@@ -35,7 +36,7 @@ defmodule Pramana.Corpus.Loader do
 
     Repo.transaction(fn ->
       ensure_source!(source_id, Keyword.get(opts, :source_definition))
-      ensure_witness!(witness_id)
+      ensure_witness!(source_id, witness_id)
       segmenter = Keyword.get(opts, :segmenter, Taisho)
       work = upsert_work!(ir, provenance)
 
@@ -113,33 +114,50 @@ defmodule Pramana.Corpus.Loader do
     )
   end
 
-  defp ensure_witness!("T" = id) do
-    Repo.insert!(
-      %Witness{id: id, name: "Taishō Shinshū Daizōkyō 大正新脩大藏經"},
-      on_conflict: :nothing,
-      conflict_target: :id
-    )
-  end
-
-  defp ensure_witness!("ms" = id) do
-    Repo.insert!(
-      %Witness{id: id, name: "Mahāsaṅgīti Tipiṭaka Buddhavasse 2500"},
-      on_conflict: :nothing,
-      conflict_target: :id
-    )
+  defp ensure_witness!("sc" <> _, "ms" = id) do
+    insert_witness!(id, "Mahāsaṅgīti Tipiṭaka Buddhavasse 2500")
   end
 
   # `D` is the sigil the field already uses — "D 113, vol. 51, f. 1b" — so the witness in
   # the URN reads the way the citation does.
-  defp ensure_witness!("D" = id) do
+  defp ensure_witness!("derge" <> _, "D" = id) do
+    insert_witness!(id, "Derge (sde dge) Kangyur, par phud printing")
+  end
+
+  # A CBETA witness IS a CBETA collection, and CBETA names its own collections — the
+  # `canons.json` at the pin, agreeing with the `<sourceDesc>` in every acquired file. So
+  # the name is looked up rather than invented, and rather than left as the bare letter
+  # the fallback below produced: nine of the eleven CBETA witnesses were stored as `name:
+  # "X"`, `name: "J"`, `name: "A"`. A table whose entire job is to say what a sigil means,
+  # holding the sigil, is the `#wit1` problem one level up from the apparatus.
+  #
+  # KEYED ON THE SOURCE, not on the id alone, because witness ids are GLOBAL and
+  # collection ids are not. CBETA's collection `D` is 國家圖書館善本佛典 and the Degé is
+  # also `D`; matching on the letter alone would name whichever arrived second after
+  # whichever arrived first. Nothing holds CBETA's D today — see the plan before it does.
+  defp ensure_witness!("cbeta", id) do
+    case Collections.get(id) do
+      %{name: name, name_en: name_en} -> insert_witness!(id, "#{name_en} #{name}")
+      _ -> name_unknown!(id)
+    end
+  end
+
+  defp ensure_witness!(_source_id, id), do: name_unknown!(id)
+
+  # A name we can SOURCE replaces whatever is there, so a re-bake repairs rows written
+  # before the name was known — the nine CBETA collections stored as a bare letter fix
+  # themselves on the next bake rather than needing a migration.
+  defp insert_witness!(id, name) do
     Repo.insert!(
-      %Witness{id: id, name: "Derge (sde dge) Kangyur, par phud printing"},
-      on_conflict: :nothing,
+      %Witness{id: id, name: name},
+      on_conflict: {:replace, [:name]},
       conflict_target: :id
     )
   end
 
-  defp ensure_witness!(id) do
+  # No name to source: write the id and never overwrite, because a row already present may
+  # have been named by a source that does know, and replacing that with a sigil is a loss.
+  defp name_unknown!(id) do
     Repo.insert!(%Witness{id: id, name: id}, on_conflict: :nothing, conflict_target: :id)
   end
 

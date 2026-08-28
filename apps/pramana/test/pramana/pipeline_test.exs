@@ -14,7 +14,8 @@ defmodule Pramana.PipelineTest do
       assert config.acquirer == Pramana.Acquire.CBETA
       assert config.normalizer == Pramana.Normalize.CBETA
       assert config.segmenter == Pramana.Segment.Taisho
-      assert config.witness == "T"
+      # No `witness`: it is a property of the WORK, not of the source. See the registry.
+      refute Map.has_key?(config, :witness)
     end
 
     test "rejects an unregistered source rather than guessing" do

@@ -27,8 +27,8 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
-| eval | **93.4%** over 1,400 cases (`evals/baseline.json`) — **a re-baseline over the seven editions is in flight** |
-| retrieval@10 | 378/446 — zh 96.6% · pa 81.3% · bo 50.0%\* |
+| eval | **93.1%** over 1,400 cases (`evals/baseline.json`, re-baselined 2026-08-27 over the seven editions) — 0 stale, 0 errored |
+| retrieval@10 | 374/446 — zh 96.1% · pa 80.0% · bo 48.4%\* |
 | absence | **75%** — and the failing case is real and stays red; see item D |
 | answered from any tradition | 81.8% |
 | noise floor | 1 case same-index · **6 cases across an index rebuild, 4 of them Tibetan** |
@@ -367,6 +367,23 @@ new source with its own licence and citation grammar, not a collection flag.
 of rare material, and it exercised the assembly path four volumes deep (L1557) where
 nothing before had gone past two.
 
+**▸ RE-BASELINED 2026-08-27. The 57 works cost nothing measurable — with one honest
+caveat.** 1,400 cases in 23m58s over a rebuilt HNSW index: **93.4% → 93.1%**, four cases,
+inside the measured rebuild floor of six. Every guard, provenance and topical row is
+unchanged to the case.
+
+    retrieval/chinese   96.6% -> 96.1%   -1
+    retrieval/pali      81.3% -> 80.0%   -2
+    retrieval/tibetan   50.0% -> 48.4%   -1
+
+**The caveat is the direction, not the size.** All three retrieval rows moved the same way,
+and noise need not do that. Each is within its own floor and the total is within the
+overall floor, so the honest statement is *consistent with noise*, not *proven to be
+noise* — one sample cannot separate four cases of jitter from a small real displacement
+cost, which is exactly the mechanism X demonstrated at a larger scale. If a later run over
+the same index shows the same three rows down again, that is a second sample and it means
+something.
+
 **2. Genres the corpus does not contain at all — additive, non-competing.**
 
     I   北朝佛教石刻拓片百品  101   stone-inscription rubbings, Northern Dynasties
@@ -390,6 +407,17 @@ cost X four cases — so it should land with a gate run of its own rather than f
 batch. The payoff is a three-way comparison nothing else offers: the Pāli, the Chinese
 Āgama translated from a different Indic lineage, and a modern Chinese rendering of the
 Pāli itself. `Compare.versions/2` and the parallel data are already shaped for it.
+
+**One of these cannot be loaded without a schema decision first.** CBETA's collection `D`
+is 國家圖書館善本佛典, 64 works — and the Degé Kangyur is already witness `D`. **Witness ids
+are global; collection ids are not.** `witnesses` is one table keyed by id, so loading
+CBETA's D would attach 64 Chinese rare-book texts to the witness row that says *"Derge (sde
+dge) Kangyur, par phud printing"*, and every URN would read `pramana:cbeta.D:D0001`
+alongside `pramana:derge.D:toh1-1`. Nothing would raise. Found 2026-08-27 while naming the
+CBETA witnesses from CBETA's own `canons.json`, which is when it became clear the two
+namespaces were being treated as one. **Decide the namespacing before acquiring D**, and
+note the same question is waiting for CBETA's `B`, `G`, `I`, `N` and any future source that
+picks a single-letter sigil.
 
 **Deliberately last:** B (204) and ZW (202) are miscellanies, G (60) and D (64) are
 selections, and Y/TX/YP/LC (117 works between them) are **modern authors' collected

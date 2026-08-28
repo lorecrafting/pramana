@@ -18,6 +18,7 @@ defmodule PramanaWeb.WorkLive do
 
   alias Pramana.Apparatus
   alias Pramana.Corpus
+  alias Pramana.Reader
   alias Pramana.Relations
 
   @impl true
@@ -33,7 +34,8 @@ defmodule PramanaWeb.WorkLive do
            page_title: outline.title || work_id
          )
          |> assign(relations: Relations.parallels_of(work_id))
-         |> assign(apparatus: apparatus_summary(work_id))}
+         |> assign(apparatus: apparatus_summary(work_id))
+         |> assign(edition_link: edition_link(outline))}
 
       {:error, reason} ->
         {:ok,
@@ -42,6 +44,7 @@ defmodule PramanaWeb.WorkLive do
            outline: nil,
            relations: [],
            apparatus: nil,
+           edition_link: nil,
            error: reason,
            page_title: work_id
          )}
@@ -51,6 +54,11 @@ defmodule PramanaWeb.WorkLive do
   # How much of THIS work the witnesses disagree over. A work-level number, because "does
   # this text have a variant apparatus at all" is a question a reader asks before opening
   # it, and `Apparatus.at/1` only answers per line.
+  # A work page is where someone decides whether to trust a text, so it is where the
+  # publisher's own copy is most worth one click away. `urn_prefix` is the work URN with no
+  # locator, which is exactly the granularity these links open at.
+  defp edition_link(outline), do: Reader.reference(outline.urn_prefix, %{source: outline.source})
+
   defp apparatus_summary(work_id) do
     case Apparatus.count_for_work(work_id) do
       0 -> nil
@@ -84,6 +92,13 @@ defmodule PramanaWeb.WorkLive do
           </div>
           <h1 class="text-xl font-semibold">{@outline.title || @outline.work_id}</h1>
           <p class="font-mono text-xs text-base-content/60">{@outline.urn_prefix}</p>
+          <p :if={@edition_link} class="text-xs text-base-content/60">
+            Published by
+            <a href={@edition_link.url} target="_blank" rel="noopener" class="link">
+              {@edition_link.edition}
+            </a>
+            — a convenience, not the citation.
+          </p>
         </section>
 
         <section class="flex flex-wrap gap-4 rounded-lg bg-base-200/40 p-4 text-sm">

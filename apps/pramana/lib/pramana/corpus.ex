@@ -155,6 +155,10 @@ defmodule Pramana.Corpus do
            division_en: text.work.division_en,
            attributed_author: text.work.attributed_author,
            witness: text.witness_id,
+           # The witness alone does not identify the collection: the Degé Kangyur and the
+           # Degé Tengyur are both witness "D", and only the source separates them. It is
+           # also what decides which publisher a reader link points at.
+           source: text.source_id,
            provenance_label: Provenance.label(text.work.composition_origin, text.work.text_role),
            entries: entries
          }}
