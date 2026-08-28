@@ -22,8 +22,8 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 
 | | |
 |---|---|
-| corpus | **17,061 texts · 12,041,579 segments** · 3 traditions · 989,881 vectors |
-| CBETA | **10 collections of 26** — T 2,471 · X 1,230 · J 285 · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · M 1 — 4,068 files locked |
+| corpus | **17,099 texts · 12,358,849 segments** · 3 traditions · 989,881 vectors (N unembedded) |
+| CBETA | **11 collections of 26** — T 2,471 · X 1,230 · J 285 · **N 38** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · M 1 — 4,151 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
 | MCP surface | **14 read-only tools** — `search_translations` and `get_glosses` added 2026-08-28 |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
@@ -412,6 +412,41 @@ cost X four cases — so it should land with a gate run of its own rather than f
 batch. The payoff is a three-way comparison nothing else offers: the Pāli, the Chinese
 Āgama translated from a different Indic lineage, and a modern Chinese rendering of the
 Pāli itself. `Compare.versions/2` and the parallel data are already shaped for it.
+
+**▸ BAKED 2026-08-28. 38 works, 0 failed, 365s. `verify OK` over 4,081 CBETA texts and
+2,428,757 segments, byte-identical.** Corpus 17,061 → **17,099 texts**, 12,041,579 →
+**12,358,849 segments**.
+
+**The census is the headline: 83 files, 38 works, and 16 of the 38 span volumes — 42%.**
+N0018 spans **twelve**, three times the deepest case the assembly path had ever seen
+(L1557 at four). Baked per file, this collection would have produced 83 works where there
+are 38, with 16 of them keeping one volume of themselves — worse than X's six, which is
+why the path exists. The depth record and the size record are different works: N0018 is
+49,489 lines against L1557's 104,959, so the 600 s transaction ceiling was never at risk.
+
+**Why the provenance work had to come first.** CBETA's byline for N0006 相應部經典 is
+`通妙譯` — ends in 譯, so `composition_origin: "indic"`, correctly, and `text_role` is null
+as it is for every non-Taishō collection. Before `witness_name` landed, a caller comparing
+N0006 with T0099 雜阿含經 would have received two records differing in one letter, where one
+is Guṇabhadra's c. 435 rendering of a Sarvāstivāda original and the other a 1990s Chinese
+rendering of the Japanese rendering of the Pāli. It now says **"Chinese Translation of the
+Pāḷi Tipiṭaka (Yuan Heng Temple Edition) 漢譯南傳大藏經（元亨寺版）"**.
+
+`integrity OK` over all 17,099 texts: every `<lb/>` produced a line, every line with
+printed content got a segment, all 305,942 gaiji reachable, 0 stranded. It also now names
+**37 volume-spanning works** across the corpus, 16 of them N's.
+
+**Still to do:** N is unchunked and unembedded, so it is lexically reachable and
+semantically invisible — and the gate run this collection was supposed to get is only
+meaningful after it is embedded. That is a GPU spend.
+
+**Found while checking it, not fixed:** `text_role` is null for **1,640 texts** — every
+non-Taishō CBETA collection, since only T has a 部 table. `role:` is a retrieval filter, so
+a query for `["root"]` silently returns Taishō only. Assigning roles by byline verb is
+tempting and refused for the reason `Cbeta.Byline` already gives about 撰: guessing puts a
+wrong label on thousands of works. N makes it sharper, because N holds the whole Tipiṭaka —
+sutta, vinaya and abhidhamma — so a single blanket role for the collection would be wrong
+three ways.
 
 **One of these cannot be loaded without a schema decision first.** CBETA's collection `D`
 is 國家圖書館善本佛典, 64 works — and the Degé Kangyur is already witness `D`. **Witness ids
