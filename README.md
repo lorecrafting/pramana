@@ -17,15 +17,16 @@ no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
 
 | | |
 |---|---|
-| Texts | **17,004** |
-| Segments (citable units) | **11,519,879** |
-| Chinese works (CBETA) | 3,986 — Taishō 2,471 · 卍續藏 1,230 · 嘉興藏 285 |
+| Texts | **17,099** |
+| Segments (citable units) | **12,358,849** |
+| Chinese works (CBETA) | 4,081 across **11 collections** — Taishō 2,471 · 卍續藏 1,230 · 嘉興藏 285 · 漢譯南傳大藏經 38 · seven alternative editions 57 |
 | Pāli works (SuttaCentral) | 8,442 |
 | Tibetan works (Degé Kangyur / Tengyur) | 1,195 / 3,380 |
-| Retrieval chunks | 850,630 |
-| Embedding vectors | **907,430** (100% of chunked text; J is baked and not yet chunked) |
-| English renderings | 241,409 by 7 translators |
-| Curated cross-tradition parallels | 407,176 (24,717 resolvable at both ends) |
+| Retrieval chunks | 963,480 |
+| Embedding vectors | **1,020,280** |
+| English renderings | 241,409 by 7 translators, **searchable by their own words** |
+| Commentary aligned to the line it explains | **27,254 lemmas** over 43 work pairs, 20,954 root lines |
+| Curated cross-tradition parallels | 407,176 recorded, **24,717 (6.1%) openable** — the rest name witnesses this bake does not hold |
 | Verbatim quotations between works | 141,073 across 1,301 works |
 | Buddhist reading exceptions | 9,543 over a 44,348-character base |
 
@@ -36,9 +37,16 @@ content on every run passes the first and fails the second. `mix pramana.gate` r
 plus formatting, Credo, the test suite, a lockfile census and the eval ratchet, cheapest
 first, and stops at the first failure.
 
-**CBETA is 26 collections and this holds 3.** `Pramana.Coverage` says which are absent, by
-name, in every survey response — 23 collections and 1,013 works — because an empty result
-otherwise reads as the canon being silent rather than as the shelf being short.
+**CBETA is 26 collections and this holds 11.** `Pramana.Coverage` says which are absent, by
+name, in every survey response, because an empty result otherwise reads as the canon being
+silent rather than as the shelf being short. It says the same about **Taishō volumes 56–84**
+(547 works, not in CBETA at all), about the **6.1% of the parallel graph** whose other end
+is a witness we do not hold, and about the **1,640 texts a `role:` filter cannot reach**
+because only the Taishō has a 部 division table.
+
+Each of those was a number nobody had published until something made it visible. That is
+the pattern this project is built around: a gap that is stated is a gap a reader can work
+with, and a gap that is silent reads as an answer.
 
 ---
 
@@ -48,33 +56,54 @@ Nobody in this field publishes retrieval numbers. The nearest comparable project
 "~98% of served answers are trustworthy" with no reproducible benchmark. So here is ours,
 produced by `mix pramana.evals` over the gold set committed in [`evals/`](evals/).
 
-**1,400 cases · 0 stale · overall 89.5%**
+**1,400 cases · 0 stale · 0 errored · overall 93.1%**
 
-| what is measured | cases | result |
+| what it measures | cases | |
 |---|---|---|
 | **Quote verification** — the guard confirms a quotation that is really there | 300 | **100%** |
 | **Quote rejection** — the guard refuses altered text and fabricated URNs | 301 | **100%** |
 | **Provenance labelling** — origin and role match the Taishō's own catalogue | 300 | **100%** |
-| **Absence** — the system returns nothing where it holds nothing | 4 | **100%** |
-| **Adversarial subset** | 305 | **100%** |
-| **Retrieval @10** — two different tasks, see below | 446 | 73.3% |
-| ↳ *Same-language*: a Chinese definitional formula → its passage | 232 | 97.8% |
-| ↳ *Cross-lingual*: an English rendering → the Pāli it renders | 150 | 53.3% |
-| ↳ *Cross-lingual*: an English rendering → the Tibetan it renders | 64 | 31.3% |
-| **Topical @10** — a natural question returns a passage that discusses it | 49 | **42.9%** |
-| ↳ Chinese question → Chinese passage | 12 | **100%** |
-| ↳ English question → Pāli passage | 16 | 56.3% |
+| **Absence** — the system returns nothing where it holds nothing | 4 | 75% |
+| **Adversarial subset** | 305 | **99.7%** |
+| **Retrieval @10** — two different tasks, see below | 446 | 83.9% |
+| ↳ *Same-language*: a Chinese definitional formula → its passage | 232 | **96.1%** |
+| ↳ *Cross-lingual*: an English rendering → the Pāli it renders | 150 | 80.0% |
+| ↳ *Cross-lingual*: an English rendering → the Tibetan it renders | 64 | 48.4% |
+| **Topical @10** — a natural question returns a passage that discusses it | 49 | 51.0% |
+| ↳ Chinese question → Chinese passage | 12 | **91.7%** |
+| ↳ English question → Pāli passage | 16 | 75.0% |
 | ↳ English question → Chinese passage | 12 | **0%** |
-| ↳ English question → Tibetan passage | 9 | **0%** |
-| **Answered from any tradition** — the reader got a good answer from *some* canon | 11 topics | **72.7%** |
+| ↳ English question → Tibetan passage | 9 | 22.2% |
+| **Answered from any tradition** — the reader got a good answer from *some* canon | 11 topics | **81.8%** |
 
-**The 73.3% retrieval aggregate mixes two tasks and should not be read as one number.**
+Two further gold sets measure the newest layers:
+
+| | cases | |
+|---|---|---|
+| **Rendering** — an English phrase → the source line it renders | 40 | 70.0%, mean rank 1.68 |
+| **Gloss** — a root line → the commentaries that quote it | 32 | 100%, and see below |
+
+**The gloss row is a regression detector, not a quality measurement**, and it says so on
+every case. No mechanical ground truth exists for which commentary explains which line —
+that is a scholar's judgement the corpus does not record — so the cases are derived from the
+alignment's own output. 100% means *it still says what it said*. What speaks to correctness
+is the null set: **0 of 120 unrelated work pairs** cleared the alignment's density floor.
+
+The rendering set was nearly built the same way and was rebuilt before it shipped. Selecting
+phrases that the retriever already found would have reported 100% forever — able to catch a
+regression, never able to show a weakness. Its cases now come from a property of the *text*,
+and 12 of 40 miss.
+
+**These numbers are `evals/baseline.json`.** If this table and that file disagree, the file
+is right; every figure here was copied from it rather than remembered.
+
+**The 83.9% retrieval aggregate mixes two tasks and should not be read as one number.**
 Every Chinese retrieval case is a *definitional formula* — `云何為十一者常為十`, a phrase
 that appears verbatim in the corpus, which the bigram index finds by substring. Every Pāli
 and Tibetan case is *cross-lingual*: a translator's English, matched back to the source
-passage it renders. Those are different difficulties, and 97.8% against 31.3% is not
-evidence that Chinese retrieval is three times better — it is evidence that exact-phrase
-lookup is an easier problem than cross-lingual matching.
+passage it renders. Those are different difficulties, and 96.1% against 48.4% is not
+evidence that Chinese retrieval is twice as good — it is evidence that exact-phrase lookup
+is an easier problem than cross-lingual matching.
 
 There are **no cross-lingual Chinese cases at all**, and that is not an oversight: all
 55,135 English rendering vectors sit on Tibetan and Pāli chunks, because CBETA material has
@@ -89,8 +118,10 @@ categories went from 49% of cases to 64%. Compare per-row, never overall, and al
 the case count.
 
 What widening actually revealed: the old per-language figures were noisy estimates.
-retrieval/Pāli is 53.3% (n=150), not 55.0% (n=20); retrieval/Tibetan is 31.3% (n=64), not
-35.0% (n=20). Both old numbers sat inside their own sampling error. And it exposed a defect in the gold set
+retrieval/Pāli was 53.3% (n=150), not 55.0% (n=20); retrieval/Tibetan 31.3% (n=64), not
+35.0% (n=20). Both old numbers sat inside their own sampling error. Those two rows have
+since moved to 80.0% and 48.4% on real work, which the wider set could measure and the
+narrow one could not. And it exposed a defect in the gold set
 itself: one "altered quote" case had been altered into *itself*, so the guard verified it
 correctly and was scored as having failed. Invisible at n=41, surfaced at n=301, and fixed
 in the generator.
@@ -117,8 +148,8 @@ question was whether that canon is reachable. This is the number that tells you 
 has gone dark.
 
 **Answered from any tradition** asks "did the reader get a good answer from anywhere?"
-Either canon counts. This is what someone using the system cares about, and at **72.7%**
-it is a very different picture from the 0% and 56.3% above it. Until the two were
+Either canon counts. This is what someone using the system cares about, and at **81.8%**
+it is a very different picture from the 0% and 75.0% above it. Until the two were
 separated (#44), answering correctly from the other canon was scored as a failure.
 
 ### The finding that matters
@@ -129,15 +160,21 @@ is.** Ask in Chinese and the corpus answers perfectly; ask the identical questio
 English and it answers not at all.
 
 The reason is structural, not a tuning problem. Phase 3 built a second vector per chunk
-holding an English rendering, which is why an English question reaches Pāli at 56.3%.
+holding an English rendering, which is why an English question reaches Pāli at 75.0%.
 Phase 5 gave Tibetan the same layer, from 84000's published translations — and Tibetan
-topical retrieval is **0%** anyway, because 84000 has translated 385 of ~1,169 Tōhoku
+topical retrieval is **22.2%** anyway, because 84000 has translated 385 of ~1,169 Tōhoku
 numbers and **95% of the Kangyur therefore has no English vector to cross on**. A layer
-over a twentieth of a canon is not a layer for topical questions.
+over a twentieth of a canon is a thin layer for topical questions.
 **The Chinese canon has no such layer** — no English translation exists for it in this
 corpus — so an English query must cross into Literary Chinese inside BGE-M3's own
 multilingual space, which `Pramana.Retrieval.Semantic` has said from the start is
 unproven on this material. Now it is measured: it does not work.
+
+One deterministic route out was tried and **rejected on evidence**: walk an English query
+to a Pāli anchor through the translation layer, then to a Chinese passage through the
+curated parallels. **1 of 12**, and it fails at the parallels step rather than the term
+step — eleven of the twelve questions land on Pāli works with no openable Chinese parallel
+at all. That is what surfaced the 6.1% figure above.
 
 That makes an English gloss layer for Chinese chunks the highest-value retrieval work
 available, ahead of any parameter tuning — with a caveat measured the hard way. A free
@@ -236,7 +273,7 @@ was missing a function.
 ## Stack
 
 Elixir/Phoenix umbrella · PostgreSQL 18 with pgvector and pg_bigm · BGE-M3 embeddings on a
-rented L4 via Modal · MCP server exposing twelve read-only tools · Phoenix LiveView reader.
+rented L4 via Modal · MCP server exposing **fourteen** read-only tools · Phoenix LiveView reader with five screens.
 
 ---
 
