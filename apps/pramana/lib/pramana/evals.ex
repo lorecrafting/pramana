@@ -49,8 +49,8 @@ defmodule Pramana.Evals do
   alias Pramana.Evals.Score
   alias Pramana.Guard
   alias Pramana.Repo
-  alias Pramana.Translations
   alias Pramana.Retrieval.Hybrid
+  alias Pramana.Translations
   alias Pramana.URN
 
   @default_dir "evals/gold"
