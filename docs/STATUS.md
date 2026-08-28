@@ -3700,13 +3700,22 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 - **A scripted patch that errors leaves docs untouched while the commit still runs.**
   This bit three times. Always verify the file, and never trust an unconditional
   "patched" message.
-- **A deep link into CBETA Online or SAT cannot be validated by fetching it.** Both are
-  single-page apps that resolve content in the browser: a real path and complete
-  nonsense both return HTTP 200 with a **byte-identical body** (1,018,537 bytes for
-  SAT, either way). So `reader.verified` is permanently `false` and stated in the
-  payload — a link checker here would be theatre. Formats are confirmed against
-  indexed pages instead, and the CBETA linehead is cross-checked against CBETA's own
-  TEI file naming for all 2,471 works.
+- **A deep link into CBETA Online, SuttaCentral or SAT cannot be validated by fetching
+  it.** All three are single-page apps that resolve content in the browser: a real path
+  and complete nonsense both return HTTP 200 with a **byte-identical body** (1,018,537
+  bytes for SAT, either way). So `reader.verified` is permanently `false` and stated in
+  the payload — a link checker there would be theatre.
+
+  **84000 is the exception, and it is worth knowing which publishers are which.** It is
+  server-rendered: `read.84000.co/translation/toh308.html` returns *"Questions Regarding
+  Death and Transmigration"* while `toh9999.html` returns a page titled *"Toh 9999"*. So
+  its links *could* be checked. `verified: false` stays the floor everywhere anyway,
+  because a per-publisher truth claim is one nobody will keep current.
+
+  For the SPAs, formats are measured against each publisher's own **JSON API or rendered
+  markup** instead of its HTML status code: 40 of 40 SuttaCentral uids resolve, and every
+  CBETA volume token is reproduced from `sources.lock.json` and cross-checked against the
+  `id` CBETA puts on the line in the HTML its site serves.
 - **Filtering an ANN index post-hoc silently returns too few rows, or none.** Postgres
   plans a filtered vector query as an HNSW index scan *followed by* the join and the
   provenance filter. HNSW yields only `ef_search` candidates (40 by default), so

@@ -163,27 +163,50 @@ published edition, so checking a citation is one click rather than a trip to a l
   "edition": "CBETA Online",
   "url": "https://cbetaonline.dila.edu.tw/en/T0262_001",
   "granularity": "juan",
-  "linehead": "T09n0262_p0001a05",
+  "anchor": "T09n0262_p0001a05",
+  "anchor_label": "CBETA linehead",
   "verified": false
 }
 ```
 
-Three deliberate limits, all of them in the payload rather than only in this file:
+Three publishers, each measured against real identifiers drawn from the corpus:
 
-- **`granularity: "juan"`** — the link opens the fascicle. CBETA Online has no
-  line-addressable URL, so `linehead` carries the exact line in CBETA's own citation
-  string, which pastes into the reader's Goto box.
-- **`verified: false` is literal, not modesty.** CBETA Online and SAT are SPAs that
-  resolve content in the browser: both return HTTP 200 with a **byte-identical body**
-  for a real path and for nonsense. There is no server-side signal, so a link checker
-  would be theatre. Measured, not assumed.
+| source | edition | opens | measured |
+|---|---|---|---|
+| `cbeta` | CBETA Online | the fascicle | every volume token reproduced from `sources.lock.json`, 4,068 files |
+| `sc`, `sc-translations` | SuttaCentral | the sutta | 40 of 40 uids resolve; 3 land on the range that contains them |
+| `derge`, `derge-tengyur` | 84000 | the work | 29 of 30 Toh numbers return the work's own title |
+
+Four deliberate limits, all of them in the payload rather than only in this file:
+
+- **The link opens a unit, not a line**, and `granularity` says which. `anchor` carries
+  that edition's own coordinate for the exact line and `anchor_label` names the grammar,
+  because one field holds three: CBETA's linehead (`T09n0262_p0001a05`, which pastes into
+  its Goto box), SuttaCentral's segment id (`sn6.4:1.2`), and **nothing** for 84000, whose
+  reading room prints folio references in running text rather than in addressable ids.
+  `anchor: null` there is a refusal to invent one.
+- **`verified: false` is literal, not modesty** — and it is not uniform. CBETA Online and
+  SuttaCentral are SPAs that resolve content in the browser: both return HTTP 200 with a
+  **byte-identical body** for a real path and for nonsense, so a link checker would be
+  theatre. 84000 is server-rendered and *can* be checked — `toh9999` comes back titled
+  "Toh 9999". `false` everywhere is the honest floor rather than a per-publisher claim
+  nobody will keep current.
+- **A short text may open its range.** SuttaCentral groups `dhp298` into `dhp290-305` and
+  resolves the member uid to it. The cited verse is on the page; the note says which
+  happened rather than promising the verse.
 - **No template, no link.** `reader` is absent for any source whose format has not been
   confirmed against real pages — SAT included, until task #14 ingests it and the format
   can be checked against real identifiers. A plausible link to the wrong passage is
   worse than none, because nothing about it looks wrong.
 
-The `linehead` construction is cross-checked against CBETA's own TEI file naming
-(`T09n0262.xml` encodes the same volume and number) for **all 2,471 works**.
+**The linehead was wrong for 725,650 segments until 2026-08-27**, and the way it was wrong
+is the reason this section names its evidence. It padded every volume to two digits, which
+is the Taishō's width and not CBETA's — `A1057` is in `A091` — and it took the volume from
+the *work*, which for a volume-spanning work is the range `"130-133"`. Both produced
+strings that look exactly like citations and resolve nowhere. The widths now come from the
+`id` attribute CBETA puts on the line in the HTML its own site serves, and a test
+reproduces every volume token in the lockfile. Note which source won: CBETA's *catalogue*
+reports M1540 in volume `M059` while CBETA's *page* says `M59n1540_p0789b01`.
 
 **The URN is the citation; the URL is a convenience.** The corpus is reproducible from
 `sources.lock.json`; a third-party website is not.

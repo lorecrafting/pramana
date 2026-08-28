@@ -496,8 +496,22 @@ two surfaces start disagreeing about what the corpus contains”* — and it gai
 `cbeta_coverage`, without which the provenance breakdown describes the Chinese material as
 though it were the Chinese canon.
 
-**Still to build:** reader deep-links into the published editions (CBETA and SuttaCentral
-both have stable URLs for a line we can already address). Not on the critical path.
+**▸ 2026-08-27 — deep links into the published editions, and a defect they exposed.**
+
+Every passage now links into CBETA Online, SuttaCentral or 84000. Formats measured on ids
+drawn from the corpus, never assumed: SuttaCentral **40 of 40** (three land on the range
+that contains a short text, which the note states), 84000 **29 of 30** — it catalogues the
+whole Degé, not only what it has translated. That covers the 13,017 SuttaCentral and
+Tibetan texts, over three quarters of the works held, which had no link at all.
+
+**Building them found that the CBETA linehead had been wrong for 725,650 segments** — 7.1%
+of the CBETA corpus, emitted through the MCP tools and the passage page. Two constants, one
+in the reader and one in acquisition, both assuming the Taishō's two-digit volume; plus
+provenance handing over a volume *range* for the 18 works that span volumes. See rule 53.
+
+**Still to build:** nothing on the reader's critical path. Another screen is not what this
+needs next — the gap named at the top of this file is root↔commentary alignment, and the
+reader will render it when it exists.
 
 ### D. The semantic arm cannot express ignorance — newly discovered, 2026-08-27
 

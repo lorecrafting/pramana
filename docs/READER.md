@@ -97,6 +97,19 @@ The serving is opt-in because a developer running migrations should not pay 2.2 
 The consequence is visible rather than silent: without it every search reports
 `Searched by: lexical` and says what would turn the other arm on.
 
+## Every passage links out to the edition that published it
+
+The passage page carries a link into CBETA Online, SuttaCentral or 84000 — whichever
+published the text — beside the edition's own coordinate for that line: CBETA's linehead
+`T09n0262_p0001a05`, SuttaCentral's segment id `sn6.4:1.2`, and none for 84000, which
+prints folio references in running text rather than in ids anything can address.
+
+**The link is a convenience and the page says so.** The URN is the citation, and it is
+reproducible from `sources.lock.json` in a way a third-party website is not. `verified` is
+literally false: CBETA Online and SuttaCentral return HTTP 200 with an identical body for
+a real path and for nonsense, so a link checker would be theatre. See `Pramana.Reader`,
+which records what was measured for each publisher and on how many identifiers.
+
 ## The inventory answers, once, what every other page answers per query
 
 Someone opening a search box cannot tell an empty result from a short shelf. Search,
