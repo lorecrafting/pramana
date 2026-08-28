@@ -6,6 +6,7 @@ defmodule Pramana.Application do
   use Application
 
   alias Pramana.Embed.Serving
+  alias Pramana.Publishing.Guard
 
   @impl true
   def start(_type, _args) do
@@ -17,7 +18,11 @@ defmodule Pramana.Application do
         {Phoenix.PubSub, name: Pramana.PubSub},
         # Opt-in: loading BGE-M3 costs ~80s and 2.2 GB, which tests and migrations
         # must not pay. Absent, semantic retrieval degrades to lexical and says so.
-        Serving.child_spec_if_enabled()
+        Serving.child_spec_if_enabled(),
+        # AFTER the Repo, because it asks the database a question. Only present when this
+        # node declares itself public, and then it stops the node rather than let one
+        # wrong DATABASE_URL serve the research corpus to everyone.
+        Guard.child_spec_if_public()
       ]
       |> Enum.reject(&is_nil/1)
 

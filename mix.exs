@@ -15,7 +15,25 @@ defmodule Pramana.Umbrella.MixProject do
       ],
       deps: deps(),
       aliases: aliases(),
+      releases: releases(),
       listeners: [Phoenix.CodeReloader]
+    ]
+  end
+
+  # ONE RELEASE, AND IT DELIBERATELY OMITS NOTHING. Both apps ship, because the web app is
+  # transport over a domain that owns the data — splitting them would need the domain
+  # reachable over the network, which is a distributed system nobody asked for.
+  #
+  # The mix TASKS do not ship, and that is the point rather than an omission: `CLAUDE.md`
+  # invariant #7 says tools read and the CLI writes. A release has no Mix, so a deployed
+  # node physically cannot acquire, bake, or ingest — the read-only posture is a property
+  # of the artefact rather than a rule the router enforces.
+  defp releases do
+    [
+      pramana: [
+        applications: [pramana: :permanent, pramana_web: :permanent],
+        include_executables_for: [:unix]
+      ]
     ]
   end
 
