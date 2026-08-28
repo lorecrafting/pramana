@@ -130,10 +130,17 @@ defmodule Pramana.Guard do
   # Invariant #7: generated translations are a layer over a source anchor, never a
   # source in their own right.
   #
-  # Translation layers do not exist until Phase 3, so today `:method` is always absent
-  # and this always returns :ok. It is wired now, and tested with a synthetic span,
-  # so the guard is not retrofitted later around content that already exists — which
-  # is exactly how an invariant like this gets quietly skipped.
+  # Wired before there was anything to check, so the guard would not have to be retrofitted
+  # around content that already existed — which is exactly how an invariant like this gets
+  # quietly skipped. This comment used to end "translation layers do not exist until
+  # Phase 3, so today `:method` is always absent and this always returns :ok", and stayed
+  # that way two phases after the corpus grew 241,409 renderings.
+  #
+  # The path is real now: `Corpus.resolve/1` sends a URN carrying `#tr:<lang>/<translator>`
+  # to `Translations.resolve/1`, which returns a span whose provenance has `method`. So a
+  # generated rendering quoted as scripture reaches this clause through the ORDINARY resolve
+  # path, not one a caller has to remember to use. Absent `:method` still defaults to
+  # "human", because a source span legitimately has none.
   defp citable_as_source(span) do
     case Map.get(span.provenance || %{}, :method, "human") do
       "human" -> :ok

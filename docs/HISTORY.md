@@ -16,6 +16,38 @@ noticed the heading was the problem.
 
 ---
 
+## Architecture review — 2026-08-28
+
+`docs/CHECKS.md` §2, run by reading rather than by a task, because the gate's own closing
+note says no task can do it: *"a codebase can be fully green and have quietly stopped being
+the thing it was designed to be."* All five audits pass; one stale comment was found and
+fixed.
+
+| audit | result |
+|---|---|
+| anything in `apps/pramana_web` reading the DB | **0** occurrences of `Repo.`, `import Ecto.Query` or `from(` |
+| domain logic in `priv/embed` | **none** — 0 matches for urn/provenance/citation/witness/canon, and the four files import only `argparse`, `json`, `modal`, `os`, `sys`, `time` |
+| a tool returning text without `urn` + offsets + `sha256` | **none**; every text-bearing tool carries them |
+| a generated translation reachable as a top-level URN | **impossible by construction** — see below |
+| bake reproducible from `sources.lock.json` alone | **yes** — `verify OK`, 4,081 CBETA texts, byte-identical, same day |
+
+**Invariant #8 is wired correctly and its comment had gone stale.** `Guard.citable_as_source/1`
+carried *"translation layers do not exist until Phase 3, so today `:method` is always absent
+and this always returns `:ok`"* — two phases after the corpus grew 241,409 renderings. The
+mechanism itself is right: `Corpus.resolve/1` routes a URN carrying `#tr:<lang>/<translator>`
+to `Translations.resolve/1`, which returns a span whose provenance has `method`, so a
+generated rendering quoted as scripture reaches the check through the **ordinary** resolve
+path rather than one a caller must remember. Comment corrected.
+
+**Two false positives in the audit itself, both mine, both the same mistake.** The sidecar
+first appeared to leak domain vocabulary because the pattern `urn` matches inside
+**`return`**; the dead-code audit the same hour reported every `?` and `!` function as an
+orphan because `\b` cannot match after those characters. Third and fourth occurrence in one
+session of grepping for a symptom and getting a subset — the first two were credo's five
+priority arrows and the same `\b` problem. **Use the exit code; anchor the pattern.**
+
+---
+
 ## Announcements as they were written
 
 *Moved out of `STATUS.md`'s "Where we are", which had become a pile of dated claims reading
