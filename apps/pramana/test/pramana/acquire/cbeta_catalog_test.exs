@@ -14,6 +14,51 @@ defmodule Pramana.Acquire.CBETA.CatalogTest do
     }
   end
 
+  # Acquisition downloads the WHOLE repository tarball once per call — about 2 GB — so
+  # fetching the seven alternative-edition collections one at a time is seven downloads of
+  # the same archive for 74 works between them.
+  describe "several canons in one call" do
+    @paths [
+      "T/T09/T09n0262.xml",
+      "K/K01/K01n0001.xml",
+      "A/A01/A01n0001.xml",
+      "X/X08/X08n0240.xml"
+    ]
+
+    test "a comma-separated list keeps exactly those collections" do
+      {:ok, entries} = Catalog.parse_tree(tree(@paths), canon: "K,A")
+
+      assert entries |> Enum.map(& &1.canon) |> Enum.sort() == ["A", "K"]
+    end
+
+    test "whitespace around a name does not silently drop it" do
+      {:ok, entries} = Catalog.parse_tree(tree(@paths), canon: "K, A")
+
+      assert length(entries) == 2
+    end
+
+    test "a single canon still behaves as it always did" do
+      {:ok, entries} = Catalog.parse_tree(tree(@paths), canon: "T")
+
+      assert Enum.map(entries, & &1.canon) == ["T"]
+    end
+
+    test "no canon means every collection" do
+      {:ok, entries} = Catalog.parse_tree(tree(@paths), [])
+
+      assert length(entries) == 4
+    end
+
+    # An empty string is not "everything" — it is a caller who built the flag from a
+    # variable that turned out blank, and silently acquiring 5,005 works would be an
+    # expensive way to find that out. It filters to nothing instead.
+    test "an empty list of canons is treated as no filter, not as a match-all surprise" do
+      {:ok, entries} = Catalog.parse_tree(tree(@paths), canon: "")
+
+      assert length(entries) == 4
+    end
+  end
+
   describe "parse_tree/2" do
     test "derives canon, volume, number and work id from the path alone" do
       {:ok, [entry]} = Catalog.parse_tree(tree(["T/T09/T09n0262.xml"]), [])

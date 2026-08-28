@@ -31,7 +31,10 @@ defmodule Pramana.Acquire.CBETA.Catalog do
   Fetches and parses the catalog at `sha`.
 
   Options:
-    * `:canon`   — restrict to one collection, e.g. `"T"`
+    * `:canon`   — restrict to one collection or several: `"T"`, or `"K,A,P,L"`. Several
+      matters because the archive path downloads the WHOLE repository tarball once per
+      call, so acquiring seven small collections one at a time is seven downloads of the
+      same ~2 GB for 74 works.
     * `:fetcher` — injected for tests; no test touches the network
   """
   @spec fetch(String.t(), keyword()) :: {:ok, [entry()]} | {:error, term()}
@@ -56,7 +59,7 @@ defmodule Pramana.Acquire.CBETA.Catalog do
   def parse_tree(%{"truncated" => true}, _opts), do: {:error, :tree_truncated}
 
   def parse_tree(%{"tree" => nodes}, opts) do
-    canon_filter = Keyword.get(opts, :canon)
+    canon_filter = canon_filter(Keyword.get(opts, :canon))
 
     entries =
       nodes
@@ -69,6 +72,17 @@ defmodule Pramana.Acquire.CBETA.Catalog do
 
   def parse_tree(_other, _opts), do: {:error, :unexpected_tree_response}
 
+  # `nil` means every collection; a MapSet means these. Built once per call rather than
+  # split per path, over 5,005 of them.
+  defp canon_filter(nil), do: nil
+
+  defp canon_filter(spec) when is_binary(spec) do
+    case String.split(spec, ",", trim: true) do
+      [] -> nil
+      canons -> MapSet.new(canons, &String.trim/1)
+    end
+  end
+
   defp parse_path(%{"path" => path} = node, canon_filter) do
     case Regex.named_captures(@path_pattern, path) do
       nil ->
@@ -76,7 +90,7 @@ defmodule Pramana.Acquire.CBETA.Catalog do
         []
 
       %{"canon" => canon, "vol" => vol, "number" => number} ->
-        if canon_filter && canon != canon_filter do
+        if canon_filter && not MapSet.member?(canon_filter, canon) do
           []
         else
           [

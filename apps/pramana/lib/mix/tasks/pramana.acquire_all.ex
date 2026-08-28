@@ -4,8 +4,15 @@ defmodule Mix.Tasks.Pramana.AcquireAll do
   @moduledoc """
   Acquires a whole collection at a pinned commit.
 
-      mix pramana.acquire_all --source cbeta --canon T      # Taisho only, 2,471 works
-      mix pramana.acquire_all --source cbeta                # everything, 5,005 works
+      mix pramana.acquire_all --source cbeta --canon T          # Taisho only, 2,471 works
+      mix pramana.acquire_all --source cbeta --canon K,A,P,L    # several at once
+      mix pramana.acquire_all --source cbeta                    # everything, 5,005 works
+
+  **Pass several canons rather than looping.** Acquisition downloads the whole repository
+  tarball once per call — about 2 GB — and extracts what the catalogue asked for. The seven
+  alternative-edition collections (K, A, P, L, U, S, M) are 74 works between them, and
+  fetching them one at a time is seven downloads of the same archive for less material
+  than a single Taishō volume.
 
   One recursive git-tree call builds the catalog, and one archive download fetches the
   bytes — rather than thousands of individual requests. Every extracted file is still
