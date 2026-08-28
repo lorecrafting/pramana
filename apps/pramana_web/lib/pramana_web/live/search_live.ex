@@ -53,6 +53,7 @@ defmodule PramanaWeb.SearchLive do
   alias Pramana.Provenance
   alias Pramana.Retrieval
   alias Pramana.Retrieval.Semantic
+  alias Pramana.Translations
 
   # Every mode the retriever actually implements, with the sentence a reader needs to
   # weigh the evidence. `phrase` is strong evidence; `ngram` is a character-window
@@ -78,6 +79,7 @@ defmodule PramanaWeb.SearchLive do
        # Once, here — see the moduledoc. Not per search.
        index_coverage: Semantic.coverage(),
        result: nil,
+       renderings: nil,
        searching?: false,
        error: nil
      )
@@ -91,8 +93,11 @@ defmodule PramanaWeb.SearchLive do
     socket = assign(socket, form: to_form(form_params))
 
     case String.trim(form_params["q"] || "") do
-      "" -> {:noreply, assign(socket, result: nil, error: nil, searching?: false)}
-      query -> {:noreply, run_search(socket, query, form_params)}
+      "" ->
+        {:noreply, assign(socket, result: nil, renderings: nil, error: nil, searching?: false)}
+
+      query ->
+        {:noreply, run_search(socket, query, form_params)}
     end
   end
 
@@ -159,12 +164,32 @@ defmodule PramanaWeb.SearchLive do
         assign(socket,
           result: normalize_result(found),
           groups: Provenance.group(found.results),
+          renderings: renderings(query),
           error: nil,
           searching?: false
         )
 
       {:error, reason} ->
-        assign(socket, result: nil, groups: [], error: reason, searching?: false)
+        assign(socket, result: nil, groups: [], renderings: nil, error: reason, searching?: false)
+    end
+  end
+
+  # RUN BESIDE THE PASSAGE SEARCH, NEVER FUSED INTO IT.
+  #
+  # An English query used to reach the lexical retriever, which reads `segments`, and come
+  # back with Pāli passages that shared character n-grams with it — confident results with
+  # nothing to do with the question. The 210,756 renderings that could have answered were
+  # reachable only through an anchor the caller already had.
+  #
+  # They arrive in a section of their own because a rendering is not a passage. Fused into
+  # one ranked list they would appear as peers of the text they translate, and invariant #8
+  # would survive only as a field somebody remembers to read. A fluent English sentence is
+  # exactly the kind of result that reads like an answer.
+  defp renderings(query) do
+    case Translations.search(query, limit: 6) do
+      {:ok, %{results: []}} -> nil
+      {:ok, found} -> found
+      {:error, _} -> nil
     end
   end
 
@@ -310,6 +335,33 @@ defmodule PramanaWeb.SearchLive do
           <span class="font-mono">phrase</span>
           mode or a different orthographic form.
         </p>
+
+        <section :if={@renderings} class="space-y-2 rounded-lg border border-base-300 p-3">
+          <h2 class="flex items-baseline gap-2">
+            <span class="font-semibold">Translations using these words</span>
+            <span class="text-sm text-base-content/60">
+              {length(@renderings.results)}
+            </span>
+          </h2>
+          <p class="text-xs text-base-content/60">
+            Separate from the passages above, and deliberately so: <strong>a translation is
+            never citable as the text</strong>. Each links to the line it renders, which is
+            the thing a citation must point at.
+            <span :if={@renderings.match == :any_term}>
+              These match <em>some</em> of your words, not all — nothing in the pool uses
+              them together.
+            </span>
+          </p>
+          <article :for={r <- @renderings.results} class="space-y-1 text-sm">
+            <p class="leading-relaxed break-words">{r.text}</p>
+            <p class="text-xs text-base-content/60">
+              {r.translator} · {r.lang} ·
+              <.link navigate={~p"/passage?#{[urn: r.anchor_urn]}"} class="link font-mono">
+                {r.anchor_urn}
+              </.link>
+            </p>
+          </article>
+        </section>
 
         <section :for={group <- @groups} class="space-y-2">
           <h2 class="flex items-baseline gap-2 border-b border-base-300 pb-1">

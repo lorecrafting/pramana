@@ -522,6 +522,156 @@ defmodule Pramana.Translations do
     }
   end
 
+  # Search options this understands. An unknown option RAISES rather than being ignored,
+  # the rule `Retrieval.Lexical` already follows: a filter silently dropped is a filter a
+  # caller believes is applied, and here that caller may be deciding what to publish.
+  @search_opts [:lang, :limit, :translator, :redistributable_only, :work_id]
+
+  @doc """
+  Renderings whose text matches a query — *"which line does this translator render this
+  way"*, which is the question the anchor-keyed functions above cannot ask.
+
+  Without it, an English query reached the lexical retriever, which reads `segments`, and
+  returned **Pāli passages sharing character n-grams with the English** — three confident
+  results with nothing to do with the question. 210,756 renderings were reachable only
+  through an anchor a caller already had.
+
+  ## Every result is a rendering, and says so
+
+  A hit carries `anchor_urn` — the source line it renders — and the full provenance record,
+  including `citable_as_source: false`. It is **not** a search result in the sense the
+  retrieval layer means: nothing here may be quoted as what a text says, only as how
+  somebody rendered it. Invariant #8 is structural, and this is the surface where it would
+  be easiest to lose, because a fluent English sentence reads like an answer.
+
+  This is why it is not a third arm in the hybrid fusion. Fused into one ranked list, a
+  rendering and a source span would arrive as peers and the distinction would survive only
+  as a field somebody remembers to read — the same objection that kept the glossary out of
+  RRF, for a stronger reason.
+
+  ## Options
+
+    * `:lang` — defaults to `"en"`, the only language with a text index
+    * `:limit`, `:translator`, `:work_id`
+    * `:redistributable_only` — as elsewhere, what we are willing to act on
+  """
+  @spec search(String.t(), keyword()) ::
+          {:ok, %{results: [map()], match: :all_terms | :any_term}} | {:error, atom()}
+  def search(query, opts \\ [])
+
+  def search(query, opts) when is_binary(query) do
+    case Keyword.keys(opts) -- @search_opts do
+      [] ->
+        {hits, match} = do_search(String.trim(query), opts)
+        {:ok, %{results: hits, match: match}}
+
+      unknown ->
+        raise ArgumentError, "unknown option(s) #{inspect(unknown)}"
+    end
+  end
+
+  def search(_query, _opts), do: {:error, :bad_query}
+
+  defp do_search("", _opts), do: {[], :all_terms}
+
+  # ALL TERMS FIRST, THEN ANY, AND THE ANSWER SAYS WHICH.
+  #
+  # The unit here is one rendered LINE — usually a single sentence — so requiring every
+  # query term in one row is far stricter than it looks. "Baka Brahmā" returns nothing
+  # while "Baka" and "Brahmā" each return the same discourse, because it names them on
+  # different lines. Requiring all terms alone is a search that answers "not here" about
+  # text it holds.
+  #
+  # Loosening to any-term unconditionally would be worse: one common word would fill the
+  # results of a precise query. So it is a FALLBACK and the mode is REPORTED — exactly what
+  # `Retrieval.Lexical` does with `phrase` and its `ngram` fallback, for the same reason. A
+  # caller told `:any_term` knows the terms were not found together.
+  defp do_search(query, opts) do
+    case Repo.all(all_terms(query, opts)) |> Enum.map(&hit/1) do
+      [] -> {Repo.all(any_term(query, opts)) |> Enum.map(&hit/1), :any_term}
+      hits -> {hits, :all_terms}
+    end
+  end
+
+  defp all_terms(query, opts) do
+    from(t in Translation,
+      where:
+        fragment(
+          "to_tsvector('english', ?) @@ websearch_to_tsquery('english', ?)",
+          t.text,
+          ^query
+        ),
+      order_by: [
+        desc:
+          fragment(
+            "ts_rank(to_tsvector('english', ?), websearch_to_tsquery('english', ?))",
+            t.text,
+            ^query
+          )
+      ]
+    )
+    |> common(opts)
+  end
+
+  # `websearch_to_tsquery` has no or-by-default mode, so the query is rebuilt: each word
+  # becomes a term and they are joined with `|`. Punctuation is STRIPPED rather than
+  # escaped, because a tsquery operator arriving from a user is a syntax error at best and
+  # someone else's query at worst.
+  defp any_term(query, opts) do
+    words = String.split(query, ~r/[^\p{L}\p{N}]+/u, trim: true)
+
+    if words == [] do
+      from(t in Translation, where: false)
+    else
+      joined = Enum.join(words, " | ")
+
+      from(t in Translation,
+        where: fragment("to_tsvector('english', ?) @@ to_tsquery('english', ?)", t.text, ^joined),
+        order_by: [
+          desc:
+            fragment(
+              "ts_rank(to_tsvector('english', ?), to_tsquery('english', ?))",
+              t.text,
+              ^joined
+            )
+        ]
+      )
+      |> common(opts)
+    end
+  end
+
+  defp common(query, opts) do
+    lang = Keyword.get(opts, :lang, "en")
+
+    query
+    |> where([t], t.lang == ^lang)
+    |> limit(^Keyword.get(opts, :limit, 10))
+    |> filter_translator(opts[:translator])
+    |> filter_work(opts[:work_id])
+    |> filter_redistributable(opts[:redistributable_only])
+  end
+
+  # `filter_translator/2` and `filter_redistributable/2` are the ones `pool/2` already uses.
+  # A second copy would be a second definition of what "only what we may republish" means,
+  # in the module where that phrase decides a licensing question.
+  defp filter_work(query, nil), do: query
+  defp filter_work(query, work_id), do: where(query, [t], t.work_id == ^work_id)
+
+  # ANCHOR FIRST, TEXT SECOND. The shape says what this is: a rendering OF something, whose
+  # source is one resolve away. A map leading with the English would read as a passage.
+  defp hit(%Translation{} = t) do
+    %{
+      anchor_urn: t.anchor_urn,
+      rendering_urn: rendering_urn(t),
+      work_id: t.work_id,
+      text: t.text,
+      text_sha256: t.text_sha256,
+      translator: t.translator_name || t.translator_id,
+      lang: t.lang,
+      provenance: provenance(t)
+    }
+  end
+
   @doc "The rendering URN for a stored translation."
   @spec rendering_urn(Translation.t()) :: String.t()
   def rendering_urn(%Translation{} = t) do

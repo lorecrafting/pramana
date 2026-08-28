@@ -385,6 +385,86 @@ defmodule Pramana.TranslationsTest do
     end
   end
 
+  # 210,756 renderings were reachable only through an anchor a caller already had. Ask an
+  # English question and the lexical retriever — which reads `segments` — answered with
+  # Pāli passages that happened to share character n-grams: three confident results with
+  # nothing to do with the question. On the public artefact, where the renderings are most
+  # of what a reader can use, that was the whole surface.
+  describe "searching the renderings" do
+    setup do
+      put(%{translator_id: "sujato", text: "Mendicants, the eye really is impermanent."})
+
+      put(%{
+        anchor_urn: "pramana:sc.ms:mn1@1.2",
+        translator_id: "sujato",
+        text: "Baka the Divinity is lost in ignorance."
+      })
+
+      :ok
+    end
+
+    test "finds a rendering by its own words" do
+      assert {:ok, %{results: [hit], match: :all_terms}} =
+               Translations.search("eye impermanent")
+
+      assert hit.text =~ "eye really is impermanent"
+      assert hit.anchor_urn == @anchor
+    end
+
+    # THE SHAPE IS THE INVARIANT. A fluent English sentence reads like an answer, so the
+    # result leads with the line it renders and states outright that it is not citable.
+    test "every hit is a rendering OF something, and says it is not the source" do
+      {:ok, %{results: [hit]}} = Translations.search("eye impermanent")
+
+      assert hit.anchor_urn == @anchor
+      assert hit.rendering_urn == "#{@anchor}#tr:en/sujato"
+      assert hit.provenance.citable_as_source == false
+      assert hit.provenance.layer == "translation"
+    end
+
+    # The unit is one rendered LINE, so requiring every term in one row is far stricter
+    # than it looks — these two words are in the corpus and never in the same sentence.
+    # The fallback finds them and the mode says the terms were not found together.
+    test "falls back to any term, and reports that it did" do
+      assert {:ok, %{results: results, match: :any_term}} =
+               Translations.search("impermanent Baka")
+
+      assert length(results) == 2
+    end
+
+    test "says nothing rather than something for a word the corpus does not hold" do
+      assert {:ok, %{results: [], match: :any_term}} = Translations.search("zzzznotaword")
+    end
+
+    test "punctuation is stripped, never passed to the parser as an operator" do
+      # `&`, `|` and `!` are tsquery operators. Arriving from a caller they are a syntax
+      # error at best, and someone else's query at worst.
+      assert {:ok, %{results: [_ | _]}} = Translations.search("impermanent & eye | !x")
+    end
+
+    test "honours the licence filter, because this is what a public surface serves" do
+      put(%{
+        translator_id: "withheld",
+        text: "Mendicants, the eye is unreliable.",
+        redistributable: false
+      })
+
+      {:ok, %{results: all}} = Translations.search("eye", limit: 10)
+
+      {:ok, %{results: public}} =
+        Translations.search("eye", limit: 10, redistributable_only: true)
+
+      assert length(all) > length(public)
+      assert Enum.all?(public, & &1.provenance.redistributable)
+    end
+
+    test "raises on an unknown option rather than ignoring a filter" do
+      assert_raise ArgumentError, ~r/unknown option/, fn ->
+        Translations.search("eye", licence_only: true)
+      end
+    end
+  end
+
   describe "coverage" do
     test "reports what fraction of a work each translator rendered" do
       put(%{translator_id: "sujato"})

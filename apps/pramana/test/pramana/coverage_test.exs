@@ -401,7 +401,7 @@ defmodule Pramana.CoverageTest do
     # CBETA was one CBETA had nothing to say about — exactly backwards. Holding none of it
     # is the largest gap there is.
     test "says so plainly rather than reciting 26 collections", %{} do
-      note = Pramana.Coverage.cbeta_note_for([], Pramana.Cbeta.Collections.all())
+      note = Coverage.cbeta_note_for([], Collections.all())
 
       assert note =~ "NO Chinese Buddhist canon"
       assert note =~ "26 CBETA collections"

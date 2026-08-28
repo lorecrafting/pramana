@@ -690,9 +690,34 @@ artefact built to embody it. Every ingest now declares a row floor. See rule 57 
 **35** tasks in the repo now use `OptionParser.parse!/2` with `strict:`, because they all
 had the same silent-typo behaviour.
 
-**Still to do before a demo is servable:** the public corpus has no chunks and no vectors,
-so it is lexical-only today. Chunking is cheap; embedding 1.8M segments is a GPU spend and
-a separate decision.
+**▸ CHUNKED, AND THE TRANSLATION LAYER IS SEARCHABLE — 2026-08-27.** 260,073 chunks in
+116s, a 6.9× reduction on segments.
+
+**Exercising the artefact found the defect that mattered most.** An English query reached
+the lexical retriever, which reads `segments`, and came back with **Pāli passages sharing
+character n-grams with the English** — three confident results with nothing to do with the
+question. The 210,756 renderings that could have answered were reachable only through an
+anchor the caller already had. On the public corpus, where those renderings are most of
+what a reader can use, that was the whole surface.
+
+`Translations.search/2` fixes it, with a GIN index on `to_tsvector('english', text)`.
+Postgres FTS and not `pg_bigm`, which is the same rule as always read the other way round:
+match the tool to the script, and English has whitespace, morphology and stop words.
+
+Two decisions worth keeping:
+
+- **A rendering is never fused into the ranked passage list.** It arrives in a section of
+  its own, on the reader and in the domain. Fused, a fluent English sentence would appear
+  as a peer of the text it translates and invariant #8 would survive only as a field
+  somebody remembers to read.
+- **All terms, then any term, and the answer says which.** The unit is one rendered *line*,
+  so requiring every term in one row is far stricter than it looks — `Baka Brahmā` returns
+  nothing while `Baka` and `Brahmā` each return the same discourse. The fallback is
+  reported as `match: :any_term`, exactly as `Lexical` reports its `ngram` fallback.
+
+**Still to do before the demo is servable:** no vectors, so it is lexical-only. Embedding
+1.8M segments is a GPU spend and a separate decision. And it is not deployed — hosting is a
+choice nobody has made.
 
 **Scope guard.** Phase 8 is a *renderer* over an API that already returns spans, URNs and
 offsets. If it starts needing new domain logic, that is a signal the API is missing

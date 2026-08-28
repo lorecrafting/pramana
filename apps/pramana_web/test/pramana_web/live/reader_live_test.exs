@@ -319,6 +319,24 @@ defmodule PramanaWeb.ReaderLiveTest do
   # Someone opening a search box cannot tell an empty result from a short shelf. Every
   # other surface answers that per query, attached to results they already asked for;
   # this answers it once, before they ask.
+  # An English query used to reach the lexical retriever, which reads `segments`, and come
+  # back with Pāli passages that shared character n-grams with it. The renderings that
+  # could have answered were reachable only through an anchor the caller already had.
+  describe "translations beside the search results" do
+    test "renders nothing when no rendering matches", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?q=#{"云何為念力"}")
+
+      refute html =~ "Translations using these words"
+    end
+
+    test "keeps a rendering out of the ranked passage list", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?q=#{"云何為念力"}")
+
+      # Whatever else the page shows, a translation must never be presented as a passage.
+      refute html =~ "never citable as the text" and html =~ "provenance group"
+    end
+  end
+
   describe "the inventory" do
     test "leads with what is NOT loaded", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/inventory")
