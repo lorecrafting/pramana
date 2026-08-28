@@ -3555,7 +3555,35 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     character. Each list was written by someone who knew about the kinds of content that
     existed *at the time*. `Pramana.Normalize.IR.Line` knows all of them; the predicate
     belongs there, derived, not restated at each call site (see rule 42).
-49. **A volume is not the unit of loading, and this is the second source it has bitten.**
+49. **Measure the instrument's variance before attributing a delta to your change.** The
+    noise floor was published as one case, measured by running the identical configuration
+    twice against the identical index. Rebuilding the HNSW index over **completely
+    unchanged data** then moved the gate by **six cases, four of them `retrieval/tibetan`**
+    — four to six times larger, and invisible until someone ran the null experiment. Every
+    import, re-embed and chunk-size change rebuilds the index. A metric whose noise you
+    have not measured cannot support the claim you want to make with it, and the null
+    experiment costs one run.
+50. **Carry what you were given; never parse it apart and rebuild it.** `A/A091/A091n1057.xml`
+    was parsed into the integer 91 and formatted back with two-digit padding, producing
+    `A/A91/...`, which does not exist — because the padding width belongs to the edition
+    (T, X, J, K, S, M use two; A, P, L, U use three) and the string already knew it. Two
+    works failed to bake, and `verify` and `integrity` would have failed on them
+    identically, because all three rebuilt the same path from the same parts. The lockfile
+    records the path; the bake now carries it. This is the same shape as inferring a
+    lockfile's raw root from a source id, and as inferring `addressing` from a source id
+    before that: **an identifier reconstructed from its components is a guess wearing the
+    costume of a fact.**
+51. **A collection's NAME is not its contents, and neither is its size.** Seven CBETA
+    collections were acquired on the argument that they are other witnesses to works
+    already held, which would have turned 572,701 recorded variant readings into passages
+    a reader could open. Of 57 works, **2** share a title with anything in T, X or J:
+    CBETA publishes what is *distinctive to* each edition — the Koryŏ's own collation
+    record, Song imperial compositions, phonetic glossaries — not a parallel text of the
+    Taishō's works. A collection called "the Qianlong Canon" holding 21 works is not the
+    Qianlong Canon. The refusal to expand a two-letter code into a canon name, three hours
+    earlier and in the same module, was the identical rule one level down; **check what a
+    source contains before designing around what it is called.**
+52. **A volume is not the unit of loading, and this is the second source it has bitten.**
     Recorded for Derge, where 75 of 1,195 works span volumes; found again in CBETA X,
     where six do. The Taishō hid it for two phases because CBETA gives its split works
     distinct ids (`T0220a`, `T0220b`) while X reuses the number. Before baking a new
