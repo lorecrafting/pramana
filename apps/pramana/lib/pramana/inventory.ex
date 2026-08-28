@@ -46,6 +46,10 @@ defmodule Pramana.Inventory do
       # The parallel graph is 407,176 rows and 6.1% of it opens. A reader looking at the
       # relation counts above would otherwise take them for the whole graph.
       parallel_coverage: Coverage.parallels(),
+      # `by_text_role` above counts what HAS a role. This counts what has none and is
+      # therefore unreachable by any `role:` filter — the same denominator problem, on a
+      # breakdown a reader would otherwise take for the whole corpus.
+      role_coverage: Coverage.roles(),
       note: @note
     }
   end

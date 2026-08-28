@@ -172,6 +172,12 @@ Retrieval degrades rather than failing, so every response says what it actually 
   `unchunked_texts: 1230` means the index is complete over the part of the corpus it
   covers and blind to the rest; `note` says so in words when it applies.
 - **`mode`** — `phrase` is strong evidence; `ngram` is a character-window fallback.
+- **`role`, as a filter, cannot reach 1,640 texts.** `text_role` comes from the Taishō's 部
+  division table and no other collection has one, so `role: ["root"]` returns the Taishō
+  and silently excludes X's 1,230 works, J's 285 and N's 38. A thin result under a role
+  filter may mean the material was never a candidate. `pramana://inventory` reports the
+  gap; the roles are not guessed, because a wrong role on thousands of works is worse than
+  a missing one.
 - **`witness_name`** — the edition by name, never only its sigil. `witness: "T"` and
   `witness: "N"` differ by one character; the texts behind them differ by fifteen centuries
   and two intervening languages, and both are `indic` in origin and `root` in role.

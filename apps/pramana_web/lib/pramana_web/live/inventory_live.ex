@@ -48,6 +48,7 @@ defmodule PramanaWeb.InventoryLive do
             <p>{@snapshot.taisho_coverage.note}</p>
             <p :if={@snapshot.tibetan_coverage.note}>{@snapshot.tibetan_coverage.note}</p>
             <p>{@snapshot.parallel_coverage.note}</p>
+            <p :if={@snapshot.role_coverage.note}>{@snapshot.role_coverage.note}</p>
           </div>
         </div>
 
@@ -96,7 +97,10 @@ defmodule PramanaWeb.InventoryLive do
         />
         <.breakdown
           title="What they are"
-          note="Scripture, treatise, commentary, or a text the canon itself marks doubtful."
+          note={
+            "Scripture, treatise, commentary, or a text the canon itself marks doubtful — " <>
+              "for the #{@snapshot.role_coverage.texts - @snapshot.role_coverage.without_role} texts that carry a role at all."
+          }
           rows={@snapshot.by_text_role}
           label_fun={&Provenance.role_label/1}
         />

@@ -441,4 +441,28 @@ defmodule Pramana.CoverageTest do
       assert note =~ "sag"
     end
   end
+
+  # `text_role` is a retrieval FILTER. 1,640 texts have no role — every non-Taishō CBETA
+  # collection, since the role comes from the 部 division table — so a query for ["root"]
+  # returns the Taishō and says nothing about the 1,553 works that were never candidates.
+  describe "what a role filter cannot reach" do
+    test "is nil when every text carries a role" do
+      load!("T0001", 1, "0001")
+      Repo.update_all(Pramana.Corpus.Work, set: [text_role: "root"])
+
+      assert %{without_role: 0, note: nil} = Coverage.roles()
+    end
+
+    test "names the witnesses whose texts a role filter can never return" do
+      load!("T0001", 1, "0001")
+      Repo.update_all(Pramana.Corpus.Work, set: [text_role: nil])
+
+      assert %{without_role: 1, by_witness: [%{witness: "T", texts: 1}], note: note} =
+               Coverage.roles()
+
+      # An empty result under a filter and an empty corpus are different facts.
+      assert note =~ "cannot return them at all"
+      assert note =~ "not that the canon is silent"
+    end
+  end
 end

@@ -256,6 +256,61 @@ defmodule Pramana.Coverage do
   end
 
   @doc """
+  How many texts a `role:` filter cannot reach, because they have no role at all.
+
+  `text_role` is a retrieval FILTER, so a query for `["root"]` returns only texts that
+  carry a role — and **1,640 do not**. That is every non-Taishō CBETA collection: the role
+  comes from the Taishō's 部 division table, and nothing else has one. A caller asking for
+  root scripture gets the Taishō and no indication that X's 1,230 works, J's 285 and N's 38
+  were never candidates.
+
+  This is the coverage doctrine applied to a filter rather than to the corpus. The answer
+  to a filtered query is not just what matched; it is also **what the filter could never
+  have matched**, and only one of those is visible in a result list.
+
+  **Deliberately not fixed by assigning roles.** `Pramana.Cbeta.Byline` refuses to infer
+  from 撰 because "guessing would put a wrong label on thousands of works", and N sharpens
+  it: N holds the whole Tipiṭaka — sutta, vinaya and abhidhamma — so a single role for the
+  collection would be wrong three ways. Reporting the gap is honest; filling it by
+  inference is not.
+  """
+  @spec roles() :: map()
+  def roles do
+    total = Repo.aggregate(from(t in Text), :count)
+
+    unroled =
+      Repo.all(
+        from t in Text,
+          join: w in Work,
+          on: w.id == t.work_id,
+          where: is_nil(w.text_role),
+          group_by: t.witness_id,
+          order_by: [desc: count(t.id)],
+          select: {t.witness_id, count(t.id)}
+      )
+
+    missing = Enum.reduce(unroled, 0, fn {_w, n}, acc -> acc + n end)
+
+    %{
+      texts: total,
+      without_role: missing,
+      by_witness: Enum.map(unroled, fn {w, n} -> %{witness: w, texts: n} end),
+      note: roles_note(missing, unroled)
+    }
+  end
+
+  defp roles_note(0, _), do: nil
+
+  defp roles_note(missing, unroled) do
+    witnesses = Enum.map_join(unroled, ", ", fn {w, n} -> "#{w} (#{n})" end)
+
+    "#{missing} text(s) carry no `text_role`, so a `role:` filter cannot return them at " <>
+      "all — by witness: #{witnesses}. The role comes from the Taishō's 部 division table " <>
+      "and no other collection has one. An empty or thin result under a role filter may " <>
+      "mean the material was never a candidate, not that the canon is silent."
+  end
+
+  @doc """
   How much of SuttaCentral's parallel graph this bake can actually open.
 
   **24,717 of 407,176 — 6.1%.** That number had never been published, and the number that
