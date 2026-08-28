@@ -4,6 +4,7 @@ The human surface. `mix phx.server`, then `/`.
 
 ```
 /                          search — grouped by provenance
+/inventory                 what is in this bake, and what is not
 /survey?q=<phrase>         every occurrence, counted rather than sampled
 /passage?urn=<urn>         one line in its printed context
 /works/<work_id>           a work's structure, without its text
@@ -95,6 +96,20 @@ PRAMANA_EMBEDDING=1 mix phx.server    # loads BGE-M3: ~80 s and ~2.2 GB, then hy
 The serving is opt-in because a developer running migrations should not pay 2.2 GB for it.
 The consequence is visible rather than silent: without it every search reports
 `Searched by: lexical` and says what would turn the other arm on.
+
+## The inventory answers, once, what every other page answers per query
+
+Someone opening a search box cannot tell an empty result from a short shelf. Search,
+survey and passage all carry `Coverage.caveat/0` alongside results a reader has *already
+asked for*; `/inventory` says it before they ask, and **leads with the gaps rather than
+the totals**. 17,061 texts is an impressive number and an uninformative one — *ten of
+CBETA's 26 collections* and *Taishō 56–84 entirely absent* is what decides whether this
+corpus can answer your question.
+
+Every figure comes from `Pramana.Inventory.snapshot/0`, which has anticipated this page
+since Phase 3: *"Phase 8 will want the same numbers for the reader, and a second
+implementation is how two surfaces start disagreeing about what the corpus contains."*
+The view computes nothing.
 
 ## The survey exists because a search page invites a bad claim
 

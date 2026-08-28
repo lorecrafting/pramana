@@ -38,6 +38,11 @@ defmodule Pramana.Inventory do
       # Japanese-composed works, which is true and, without this, badly misleading.
       taisho_coverage: Coverage.taisho(),
       tibetan_coverage: Coverage.tibetan(),
+      # CBETA is 26 collections and this holds ten. Without this the breakdown above
+      # describes the Chinese material as though it were the Chinese canon — the same
+      # failure the Taishō and Tibetan lines are here to prevent, at the level of the
+      # collection rather than the volume.
+      cbeta_coverage: Coverage.cbeta(),
       note: @note
     }
   end
