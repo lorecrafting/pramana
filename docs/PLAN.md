@@ -29,7 +29,8 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
-| eval | **93.1%** over 1,400 cases (`evals/baseline.json`, re-baselined 2026-08-27 over the seven editions) — 0 stale, 0 errored |
+| eval | **93.1%** over 1,400 cases (`evals/baseline.json`) — 0 stale, 0 errored, and **0 drift** after the commentary and translation work |
+| new gold sets | **rendering 70.0%** (40 cases, mean rank 1.68) · **gloss 100%** (32 cases, a regression detector — see below) |
 | retrieval@10 | 374/446 — zh 96.1% · pa 80.0% · bo 48.4%\* |
 | absence | **75%** — and the failing case is real and stays red; see item D |
 | answered from any tradition | 81.8% |
@@ -817,7 +818,33 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   costs three asserted pairs. A threshold calibrated against a thin tail is calibrated
   against nothing.
 
-  **Still open, and now visible:** 47 pairs align nothing. Some paraphrase rather than
+  **▸ BOTH NEW CAPABILITIES ARE UNDER THE EVAL HARNESS — 2026-08-27.** Their numbers were
+measured in scratch scripts, which is the "vibes" invariant #6 exists to forbid. Two case
+types now carry them:
+
+    rendering   40 cases   70.0%   mean rank 1.68
+    gloss       32 cases  100.0%   regression detector, NOT a quality measurement
+
+**The rendering set was nearly worthless and was rebuilt.** The first derivation kept a
+phrase only if `Translations.search/2` already returned its anchor — a gold set selected by
+the thing it measures, which would report 100% forever and could detect a regression but
+never a weakness. It now takes ten words from the middle of a rendering by a property of
+the *text*, with no reference to what any search does with them, and 12 of 40 miss. Every
+miss is a formulaic phrase that matched a different line better, which is the answer a
+useful benchmark gives.
+
+**The gloss set cannot be rebuilt that way, and says so on every case.** No mechanical
+ground truth exists for which commentary explains which line — that is a scholar's
+judgement the corpus does not record — so the cases come from the alignment's own output.
+100% means *the alignment still says what it said*, never *the alignment is right*. It will
+catch a normalizer change that shifts offsets or a re-bake that drops a pair. What can
+speak to correctness, and did, is the null set: 0 of 120 unrelated pairs cleared the floor.
+
+**And the full gate is unchanged** — 1,400 cases, 93.1%, **+0 on every row**, same index so
+the noise floor is 1. The commentary table, the translation index and the provenance change
+touched nothing the retrievers do.
+
+**Still open, and now visible:** 47 pairs align nothing. Some paraphrase rather than
   quote, which this method cannot see and which is where an LLM layer earns its place —
   labelled `method: "llm"`, which the table already has a column and a CHECK for.
 - **▸ DIAGNOSED 2026-08-27 — `retrieval/chinese`'s stubborn misses.** Now 9 after X, and

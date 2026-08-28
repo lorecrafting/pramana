@@ -41,6 +41,7 @@ defmodule Pramana.Evals do
 
   import Ecto.Query
 
+  alias Pramana.Commentary
   alias Pramana.Corpus
   alias Pramana.Corpus.Segment
   alias Pramana.Embed.Serving
@@ -48,6 +49,7 @@ defmodule Pramana.Evals do
   alias Pramana.Evals.Score
   alias Pramana.Guard
   alias Pramana.Repo
+  alias Pramana.Translations
   alias Pramana.Retrieval.Hybrid
   alias Pramana.URN
 
@@ -170,6 +172,15 @@ defmodule Pramana.Evals do
       else: {:no_locator_term_in_corpus, kase.expect_contains}
   end
 
+  # A gloss case names a root LINE and the commentaries expected on it, so its premise is
+  # that the line exists — `expect_urns` is not how it is addressed.
+  defp stale_reason(%Case{type: :gloss} = kase) do
+    case Corpus.resolve(kase.urn) do
+      {:ok, _} -> nil
+      _ -> {:root_line_not_in_corpus, kase.urn}
+    end
+  end
+
   defp stale_reason(%Case{expect_urns: []} = kase) do
     if kase.type in [:quote_reject], do: nil, else: {:no_expected_urns, kase.id}
   end
@@ -239,6 +250,48 @@ defmodule Pramana.Evals do
       rank == nil -> {:miss, %{retrieved: hits |> Enum.take(3) |> Enum.map(& &1.urn)}}
       rank <= kase.k -> {:hit, %{rank: rank, matched_via: matched_via(hits, rank)}}
       true -> {:miss, %{rank: rank, beyond_k: kase.k}}
+    end
+  end
+
+  # Does an English question reach the translation layer?
+  #
+  # The expected answer is the ANCHOR — the line the rendering renders — not the rendering,
+  # because that is the thing a citation may point at. A case that expected the rendering
+  # would be scoring the layer against itself.
+  defp evaluate(%Case{type: :rendering} = kase, _opts) do
+    {:ok, found} = Translations.search(kase.query, limit: kase.k)
+    anchors = Enum.map(found.results, & &1.anchor_urn)
+
+    rank =
+      anchors
+      |> Enum.with_index(1)
+      |> Enum.find_value(fn {urn, i} -> if urn in kase.expect_urns, do: i end)
+
+    cond do
+      # An all-terms match found nothing and the fallback found the answer: a hit, and the
+      # `match` says which, because a caller told `any_term` knows the words were not
+      # found together.
+      rank && rank <= kase.k -> {:hit, %{rank: rank, match: found.match}}
+      rank -> {:miss, %{rank: rank, beyond_k: kase.k}}
+      true -> {:miss, %{match: found.match, retrieved: Enum.take(anchors, 3)}}
+    end
+  end
+
+  # Does the deterministic 科文 alignment attach the expected commentary to this line?
+  #
+  # No `k`: the alignment is an exact claim about which lemma sits where, so either the
+  # commentary is attached to this root line or it is not. Ranking would invent a
+  # gradation the method does not have.
+  defp evaluate(%Case{type: :gloss} = kase, _opts) do
+    attached =
+      kase.urn
+      |> Commentary.glosses_on(limit: 50)
+      |> Enum.map(& &1.commentary_work_id)
+      |> Enum.uniq()
+
+    case Enum.filter(kase.expect_contains, &(&1 in attached)) do
+      [] -> {:miss, %{attached: Enum.take(attached, 5), expected: kase.expect_contains}}
+      found -> {:hit, %{commentaries: found}}
     end
   end
 

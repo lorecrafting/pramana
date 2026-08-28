@@ -13,7 +13,14 @@ defmodule Pramana.Evals.Case do
   """
 
   @type type ::
-          :retrieval | :topical | :quote_verify | :quote_reject | :provenance | :absence
+          :retrieval
+          | :topical
+          | :quote_verify
+          | :quote_reject
+          | :provenance
+          | :absence
+          | :rendering
+          | :gloss
 
   @type t :: %__MODULE__{
           id: String.t(),
@@ -73,7 +80,26 @@ defmodule Pramana.Evals.Case do
     "quote_verify" => :quote_verify,
     "quote_reject" => :quote_reject,
     "provenance" => :provenance,
-    "absence" => :absence
+    "absence" => :absence,
+    # Does an English question reach the translation layer? Scored separately from
+    # `retrieval` because it asks a different thing: not "find the passage" but "find the
+    # rendering that uses these words", whose answer is a rendering and is never citable
+    # as the passage. Folding it into `retrieval` would average a source-citation number
+    # together with a paraphrase-lookup number and publish the mean.
+    "rendering" => :rendering,
+    # Does the deterministic 科文 alignment attach the expected commentary to this root
+    # line? The claim is exact, so a miss is a real miss rather than a ranking question —
+    # there is no k here.
+    #
+    # A REGRESSION DETECTOR, NOT A QUALITY MEASUREMENT, and the difference must not be lost
+    # when the number is read. These cases are derived from the alignment's own output,
+    # because no mechanical ground truth exists for which commentary explains which line —
+    # that is a scholar's judgement and the corpus does not record it. So 100% means "the
+    # alignment still says what it said", never "the alignment is right". It will catch a
+    # normalizer change that shifts offsets or a re-bake that drops a pair, which is worth
+    # having; it cannot tell you the method works. What can, and did, is the null set: 0 of
+    # 120 unrelated pairs cleared the density floor. See `Pramana.Commentary`.
+    "gloss" => :gloss
   }
 
   @types Map.keys(@type_map)
