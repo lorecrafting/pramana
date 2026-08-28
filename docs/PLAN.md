@@ -27,11 +27,11 @@ left of it is the GPU spend and a re-baseline.**
 | vector coverage | 100% of what is chunked; **J's 285 texts are not chunked yet** |
 | reader | LiveView search, passage and work browser at `/`, `/passage`, `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
-| eval | **93.1%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
-| retrieval@10 | 375/446 — zh 96.1% · pa 81.3% · bo 46.9% |
+| eval | **93.4%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
+| retrieval@10 | 378/446 — zh 96.6% · pa 81.3% · bo 50.0%\* |
 | absence | **75%** — and the failing case is real; see item D |
 | answered from any tradition | 81.8% |
-| noise floor | **1 case**, 0.67pp on a tradition row — the identical config, run twice |
+| noise floor | 1 case same-index; **rebuild-induced variance is unmeasured and larger** |
 | full gate | 26m53s at 0.9 cases/s |
 | redistributable subset | 13,017 texts · 1.8M segments · 315k vectors |
 

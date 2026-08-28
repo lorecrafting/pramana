@@ -3083,6 +3083,43 @@ Caveat stated: J was baked and **not chunked or embedded** for this run, so it p
 in the lexical arm only. The post-embedding run measures the semantic half separately,
 which is why the two were kept apart.
 
+### HNSW is not stable under insertion, and Tibetan is where that shows — 2026-08-27
+
+J embedded, index rebuilt over 966,931 vectors, gate re-run:
+
+    overall             93.1% -> 93.4%   +3 cases
+    retrieval/chinese   96.1% -> 96.6%   +1
+    retrieval/tibetan   46.9% -> 50.0%   +2      <- not attributable to J
+
+**The Tibetan gain is not being claimed.** 285 Chinese works cannot answer a Tibetan gold
+question — those cases expect Tibetan URNs — so J did not supply the two new hits. Two
+mechanisms can, and neither is J being useful:
+
+1. **An HNSW rebuild is not deterministic.** The graph is built with randomisation, so
+   the same vectors reindexed give slightly different approximate neighbourhoods.
+2. **Adding vectors reorders results for queries that have nothing to do with them.**
+   59,501 new Chinese vectors change the graph globally, and approximate search is
+   approximate for everyone in it.
+
+Tibetan is the tradition most exposed to both, and the reason is already measured:
+**BGE-M3 packs Tibetan at 0.9727 mean pairwise cosine** against 0.84 for Pāli. Its
+candidates are near-ties by construction, so a small perturbation of the graph reorders
+them where Chinese and Pāli hold their positions.
+
+**This invalidates the noise floor as previously stated.** The 1-case figure came from
+running the identical configuration twice **against the same index**. It measures query
+nondeterminism and nothing else. Any change that involves an index rebuild — every import,
+every re-embed, every chunk-size experiment — carries a second and larger source of
+variance that has never been measured.
+
+**The experiment that would settle it:** rebuild the index over unchanged data and re-run
+the gate. About 55 minutes, unattended, and it is worth more than the configuration sweep,
+because until it is done every future claim of the form *"this change improved Tibetan by
+two cases"* is unfalsifiable.
+
+The baseline is updated to 93.4%, which is the true state of this bake. The Tibetan row is
+recorded with this caveat attached rather than as a gain.
+
 ## Decisions taken
 
 | Decision | Rationale |
