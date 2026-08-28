@@ -13,8 +13,8 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-08-26** — A shipped. **B (CBETA X) is baked and correct; what is
-left of it is the GPU spend and a re-baseline.**
+Last reviewed: **2026-08-27** — A shipped. **B is done through the seventh CBETA
+collection: 10 of 26 held, every text chunked and embedded, the reader at five screens.**
 
 ---
 
@@ -22,18 +22,19 @@ left of it is the GPU spend and a re-baseline.**
 
 | | |
 |---|---|
-| corpus | **17,004 texts · 11,519,879 segments** · 3 traditions · 907,430 vectors |
-| CBETA | 3 collections of 26 — T 2,471 · X 1,230 · **J 285** — 3,994 files locked |
-| vector coverage | 100% of what is chunked; **J's 285 texts are not chunked yet** |
-| reader | LiveView search, passage and work browser at `/`, `/passage`, `/works/:id` |
+| corpus | **17,061 texts · 12,041,579 segments** · 3 traditions · 989,881 vectors |
+| CBETA | **10 collections of 26** — T 2,471 · X 1,230 · J 285 · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · M 1 — 4,068 files locked |
+| vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
+| reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
-| eval | **93.4%** over 1,400 cases (`evals/baseline.json`), 0 stale, 0 errored |
+| eval | **93.4%** over 1,400 cases (`evals/baseline.json`) — **a re-baseline over the seven editions is in flight** |
 | retrieval@10 | 378/446 — zh 96.6% · pa 81.3% · bo 50.0%\* |
-| absence | **75%** — and the failing case is real; see item D |
+| absence | **75%** — and the failing case is real and stays red; see item D |
 | answered from any tradition | 81.8% |
 | noise floor | 1 case same-index · **6 cases across an index rebuild, 4 of them Tibetan** |
 | full gate | 26m53s at 0.9 cases/s |
 | redistributable subset | 13,017 texts · 1.8M segments · 315k vectors |
+| CI | GitHub Actions on every push — compile `--warnings-as-errors`, format, credo, 1,198 tests |
 
 **Every retrieval row went DOWN when X landed, and that is not a regression in the
 retrieval system.** 1,230 mostly-commentarial works joined the corpus, and a commentary
@@ -47,10 +48,16 @@ an LLM can ask a question of three canons, receive passages that are byte-verifi
 against a print edition, see the provenance of each, and follow parallels and variants
 between them — with published numbers saying how often that works.
 
-By that definition the *retrieval substrate* is close. What is thin is **coverage**
-(two CBETA collections of ~20), **the deterministic enrichment that differentiates this
-project** (#22 done, #23 blocked, commentary alignment untouched), and **any surface a
-human can use** (no reader).
+By that definition the *retrieval substrate* is close, and **a surface a human can use
+now exists** — five screens, one of which exists to say what the corpus does *not* hold.
+What is still thin is **coverage** (10 CBETA collections of 26, and Taishō 56–84 needs a
+human to send an email) and **the deterministic enrichment that differentiates this
+project** (#22 and A done, #23 unblocked but unstarted, commentary alignment untouched).
+
+**The last of those is now the real gap.** Coverage has moved a long way in three days and
+the reader went from nothing to five screens; root↔commentary alignment has not moved at
+all, and it is the one item on this list that no general-purpose search tool will ever
+produce for you.
 
 ---
 
@@ -95,7 +102,7 @@ against 竺佛念 against 玄奘 on the same material.
 
 ## Next
 
-### B. CBETA's other collections — the largest coverage gap
+### B. CBETA's other collections — ▸ 10 OF 26 HELD, 2026-08-27
 
 **▸ J (嘉興藏) ACQUIRED AND BAKING, 2026-08-27.** 287 files, 105 MB, network-only and run
 alongside code work — the one stage `docs/PLAN.md` says is safe to overlap, and it was.
@@ -120,11 +127,14 @@ three.
 **Note the work ids carry a letter**: `J40nB492` → `JB492`. The path pattern already
 allowed it.
 
-**Goal.** Ingest `X` (卍續藏), and then `J`, `B`, `K`, `L`, `N` as they prove out.
+**Goal, as written on 2026-08-24.** *Ingest `X` (卍續藏), and then `J`, `B`, `K`, `L`, `N`
+as they prove out.* Nine of those ten landed in three days — X, J, and the seven editions
+K/A/P/L/U/S/M — leaving `B` and `N`, and `N` is deliberately held back (see B2).
 
-**Why.** This is meant to be a substrate for the Buddhist canons and it holds **one CBETA
-collection out of ~20** — witness `T`, 2,471 texts. No permission is needed and the
-pipeline is proven on 2,471 works.
+**Why it was the largest gap.** This is meant to be a substrate for the Buddhist canons and
+it held **one CBETA collection out of 26** — witness `T`, 2,471 texts. It now holds ten,
+17,061 texts, every one chunked and embedded. No permission was needed for any of them; the
+gap that *does* need permission is Taishō 56–84, and that is an email a human has to send.
 
 **▸ SPIKE DONE 2026-08-24. The pipeline is ready; the decision is cost.**
 
@@ -388,7 +398,7 @@ about the canon rather than canon, and loading them without a `text_role` that s
 would put a living author's essay in the same bucket as a sūtra. That is a provenance
 question to answer before an acquisition question.
 
-### C. The reader — ▸ FIRST TWO SCREENS SHIPPED 2026-08-26
+### C. The reader — ▸ FIVE SCREENS SHIPPED, first pass complete 2026-08-27
 
 `mix phx.server` now serves a search page at `/` and a passage page at `/passage?urn=…`,
 both LiveView, both renderers over the same domain the MCP surface reads.
@@ -469,9 +479,25 @@ sigil-shaped string in front of a reader is the exact failure that module was wr
 prevent. `Apparatus.count_for_work/1` is new and in the domain, because a surface counting
 `meta ? 'apparatus'` for itself is a second definition of what an apparatus is.
 
-**Still to build:** a survey view over `Retrieval.Survey` (exhaustive counts rather than a
-ranked sample), and reader deep-links into the published editions. Neither is on the
-critical path.
+**▸ 2026-08-27 — survey and inventory land, and the reader is five screens.**
+
+`/survey` renders `Retrieval.Survey`: **every** occurrence of a phrase, counted rather than
+sampled, because a ranked list of ten invites *「this phrase appears in the Lotus」* when what
+was measured is *「it ranked highly in ten results」*. `/inventory` renders
+`Inventory.snapshot/0` and **leads with the gaps rather than the totals** — 17,061 texts is
+an impressive number and an uninformative one, while *ten of CBETA's 26 collections, and
+Taishō 56–84 entirely absent* is what decides whether this corpus can answer a question.
+It is the only screen that answers the coverage question **before** a reader asks one; the
+other four answer it beside results already requested.
+
+Both compute nothing of their own. `Inventory.snapshot/0` had anticipated this since Phase
+3 — *“Phase 8 will want the same numbers for the reader, and a second implementation is how
+two surfaces start disagreeing about what the corpus contains”* — and it gained
+`cbeta_coverage`, without which the provenance breakdown describes the Chinese material as
+though it were the Chinese canon.
+
+**Still to build:** reader deep-links into the published editions (CBETA and SuttaCentral
+both have stable URLs for a line we can already address). Not on the critical path.
 
 ### D. The semantic arm cannot express ignorance — newly discovered, 2026-08-27
 
@@ -556,7 +582,7 @@ character n-grams; the component does not. Third proxy to flatter a signal in on
 **abs-001 stays red, and should.** Reporting is not refusing. Closing it means suppressing
 results, and suppression costs ~45 retrieval cases at the only threshold that works.
 
-### E. Public demo — newly unblocked### E. Public demo — newly unblocked
+### E. Public demo — newly unblocked
 
 **Why it moved.** The Phase 2 gate recorded "the public corpus is currently EMPTY". That
 stopped being true two phases ago and nobody noticed until 2026-08-24: **13,017
