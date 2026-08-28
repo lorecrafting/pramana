@@ -218,8 +218,21 @@ defmodule Pramana.CoverageTest do
       assert Enum.any?(divisions, &(&1.work_numbers == "T2185\u2013T2700"))
     end
 
-    test "the caveat names the work numbers a reader would search for" do
+    # THE NARROWER TRUE STATEMENT MUST NOT REPLACE THE WIDER ONE. This test asserted the
+    # Taishō 56–84 note unconditionally, and it passed on a corpus holding NO Taishō at
+    # all — where "volumes 56–84 are not loaded" implies volumes 1–55 are present. So it
+    # is asserted with a Taishō text loaded, which is the situation the note describes.
+    test "names the work numbers a reader would search for, once a Taishō is here" do
+      load!("T0001", 1, "0001")
+
       assert Coverage.caveat() =~ "T2185\u2013T2731"
+    end
+
+    test "an empty bake says the canon is absent, not that a delta is missing" do
+      caveat = Coverage.caveat()
+
+      assert caveat =~ "NO Chinese Buddhist canon"
+      refute caveat =~ "T2185\u2013T2731"
     end
   end
 
@@ -379,6 +392,21 @@ defmodule Pramana.CoverageTest do
       assert coverage.tengyur_works == 1
       refute coverage.tengyur_missing
       refute Coverage.caveat() =~ "Tengyur"
+    end
+  end
+
+  describe "a bake holding no CBETA at all" do
+    # THE PUBLIC ARTEFACT IS EXACTLY THIS, and it is the case the caveat used to stay
+    # silent about. `collections_held: 0` returned nil, on the reading that a bake with no
+    # CBETA was one CBETA had nothing to say about — exactly backwards. Holding none of it
+    # is the largest gap there is.
+    test "says so plainly rather than reciting 26 collections", %{} do
+      note = Pramana.Coverage.cbeta_note_for([], Pramana.Cbeta.Collections.all())
+
+      assert note =~ "NO Chinese Buddhist canon"
+      assert note =~ "26 CBETA collections"
+      # The list-shaped sentence renders as "holds 0: ." with nothing between.
+      refute note =~ "holds 0"
     end
   end
 end

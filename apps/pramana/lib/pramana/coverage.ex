@@ -172,7 +172,31 @@ defmodule Pramana.Coverage do
     }
   end
 
+  @doc """
+  The CBETA coverage sentence for a given held/missing split.
+
+  Public so the wording can be tested without a corpus: this is the sentence a reader of
+  the public artefact sees in place of the Chinese canon, and it was wrong for as long as
+  nothing exercised the empty case.
+  """
+  @spec cbeta_note_for([map()], [map()]) :: String.t()
+  def cbeta_note_for(present, missing), do: cbeta_note(present, missing)
+
   defp cbeta_note(_present, []), do: "Every CBETA collection is loaded."
+
+  # HOLDING NONE OF IT IS THE LARGEST GAP, NOT AN ABSENT TOPIC.
+  #
+  # A bake with no CBETA at all — the public artefact is exactly this — needs the plainest
+  # statement there is, and the list-of-what-is-missing sentence below is the wrong shape
+  # for it: it renders as "this bake holds 0: ." and then recites 26 collections a reader
+  # never expected to be there. Say the one thing that matters instead.
+  defp cbeta_note([], missing) do
+    "This bake holds NO Chinese Buddhist canon. All #{length(missing)} CBETA collections " <>
+      "and #{Enum.sum(Enum.map(missing, & &1.works))} works are absent, so there is no " <>
+      "Chinese material here to find — an empty result for a Chinese query means the text " <>
+      "is not in this bake and says nothing about the canon. Acquire with " <>
+      "`mix pramana.acquire_all --source cbeta --canon <ID>`."
+  end
 
   defp cbeta_note(present, missing) do
     absent_works = Enum.sum(Enum.map(missing, & &1.works))
@@ -209,17 +233,24 @@ defmodule Pramana.Coverage do
     end
   end
 
+  # SUPPRESSED WHEN THERE IS NO TAISHŌ AT ALL, because a narrower true statement in place
+  # of a wider one is worse than silence. On the public artefact, which holds no CBETA,
+  # "Taishō volumes 56–84 are not loaded" was the ONLY caveat a reader saw — and it implies
+  # volumes 1–55 are present. They are not. `cbeta_caveat/0` says the real thing.
   defp taisho_caveat do
-    case taisho() do
-      %{japanese_delta_missing: true} -> japanese_caveat()
+    case {taisho(), cbeta()} do
+      {_, %{collections_held: 0}} -> nil
+      {%{japanese_delta_missing: true}, _} -> japanese_caveat()
       _ -> nil
     end
   end
 
+  # `collections_held: 0` used to return nil here, on the reading that a bake with no CBETA
+  # was a bake CBETA had nothing to say about. That is exactly backwards: holding none of it
+  # is the largest gap there is, and it was the one case this stayed quiet about.
   defp cbeta_caveat do
     case cbeta() do
       %{missing: [], collections_held: n} when n > 0 -> nil
-      %{collections_held: 0} -> nil
       %{note: note} -> note
     end
   end
