@@ -199,6 +199,29 @@ recorded location no other checkout can find. Check every source, not the one yo
 touched — the defect is in how a path was *written*, and it is invisible from the side
 that reads it back on the same machine.
 
+### 4a. Comparing two runs
+
+```bash
+mix pramana.evals.compare evals/baseline.json evals/scorecard-new.json
+mix pramana.evals.compare a.json b.json --rebuilt    # an index rebuild sits between them
+```
+
+**A delta smaller than the noise floor is not a result**, and the floor is a count and a
+proportion at once. Two runs of the identical configuration against the identical index
+differ by about **one case**, concentrated in `retrieval/pali` — but one case is 0.67
+percentage points on a 150-case row and **25 points on a four-case one**, so the same
+absolute difference is noise on one row and a finding on another. The task applies both
+tests; the first version applied only the count and reported `absence 1/4 -> 3/4` as
+within noise, which is a tool arguing a reader out of a real result.
+
+**`--rebuilt` is needed more often than it looks.** An HNSW rebuild is not deterministic —
+the graph is built with randomisation, so reindexing the same vectors yields slightly
+different approximate neighbourhoods, and adding vectors perturbs queries that have nothing
+to do with them. `retrieval/tibetan` is where this surfaces, because BGE-M3 packs Tibetan
+at 0.9727 mean pairwise cosine against 0.84 for Pāli: its candidates are near-ties by
+construction and reorder under any graph change. Every import, re-embed and chunk-size
+experiment involves a rebuild.
+
 ### 4. Evals (from Phase 4 on)
 ```bash
 PRAMANA_EMBEDDING=1 mix pramana.evals --gate
