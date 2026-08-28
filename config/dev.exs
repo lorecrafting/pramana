@@ -22,8 +22,14 @@ config :pramana, Pramana.Repo,
   # ceiling is the fix the rule above prescribes — splitting the load would put half a
   # work in the corpus if the second half failed, which is the defect that made the
   # assembly necessary in the first place.
+  #
+  # 300s -> 600s before the alternative-edition collections, measured from the raw files
+  # rather than discovered by a failure: L1557 (乾隆大藏經, 天台四教儀 commentary) runs
+  # across FOUR volumes and assembles to 104,959 lines, 1.4x X1571. Those collections are
+  # CBETA's selections from each edition, so what got digitised is the large multi-fascicle
+  # works — 13 of their 57 works span volumes, 23%, against 0.5% in X and 0.7% in J.
   pool_size: 25,
-  timeout: 300_000,
+  timeout: 600_000,
   queue_target: 5_000,
   queue_interval: 30_000
 

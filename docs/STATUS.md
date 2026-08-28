@@ -3120,6 +3120,43 @@ two cases"* is unfalsifiable.
 The baseline is updated to 93.4%, which is the true state of this bake. The Tibetan row is
 recorded with this caveat attached rather than as a gain.
 
+### The alternative editions are 23% volume-spanning, and one runs to four volumes
+
+74 files acquired in a single download — the whole CBETA tarball is ~2 GB and fetching
+seven collections separately would have downloaded it seven times for less material than
+one Taishō volume. Read from disk before baking:
+
+    K  10 files   9 works   高麗大藏經（新文豐版）    唐 玄奘譯
+    A  12 files   9 works   趙城金藏               唐 慧菀述
+    P  20 files  13 works   永樂北藏               宋 宗永集 元 清茂續集
+    L  26 files  21 works   乾隆大藏經（新文豐版）    隋 智顗說、灌頂記 唐 湛然釋
+    U   3 files   2 works   洪武南藏               唐 義忠述
+    S   2 files   2 works   宋藏遺珍（新文豐版）      唐 詮明集
+    M   1 file    1 work    卍正藏經（新文豐版）      宋 蘊聞錄
+
+**13 of 57 works span volumes — 23%, against 0.5% in X and 0.7% in J.** That is not an
+anomaly, it is what these collections are: CBETA has digitised a *selection* from each
+edition, and what gets selected is the large multi-fascicle work. Every one of them would
+have lost a volume under the pre-2026-08-27 loader.
+
+**Three of them span more than two volumes, which `IR.concat/1` has never seen.** P1612
+runs across three, and **L1557 across four**. The URN assumption was re-checked on the raw
+files rather than assumed to generalise:
+
+    L1557   4 volumes   104,959 lines   juan 1->17, 17->34, 34->51, 51->80
+              anchor-only collisions  78,080
+              juan+anchor collisions       0
+
+Page numbering restarts at each volume, so the bare anchor collides seventy-eight thousand
+times; the juan disambiguates every one. Note the boundaries **overlap** — volume 130 ends
+in juan 17 and volume 131 begins in juan 17 — so the rule is not "each volume holds whole
+fascicles" but "juan is monotonic and may straddle a boundary", and the absence of
+collisions inside a shared juan is measured rather than argued.
+
+`config/dev.exs` pool timeout 300s -> 600s in advance: L1557 assembles to 104,959 lines in
+one transaction, 1.4x the X1571 load that forced 120s -> 300s. Raised from a measurement
+taken before the bake instead of from a failure during it.
+
 ## Decisions taken
 
 | Decision | Rationale |
