@@ -31,7 +31,7 @@ times. It also records what has been **tried and rejected, with evidence**; chec
 before proposing something.
 
 **Before writing a new source pipeline, read `docs/STATUS.md` § "Rules that
-generalize".** **57 rules**, each learned from a real defect, and most of them apply
+generalize".** **58 rules**, each learned from a real defect, and most of them apply
 directly to the next normalizer. This number said "eight" long after the list held 53,
 which is the same class of staleness the plan warns about — the list is the thing to read,
 and if the count here disagrees with it, the list wins.

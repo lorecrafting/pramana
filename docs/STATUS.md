@@ -3676,6 +3676,20 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     when a stage's success is reported by the stage itself, verify it by counting from the
     other side.**
 
+58. **A cache keyed on existence is a cache that poisons itself.** `Acquire.Archive`
+    trusted a downloaded tarball if it existed and had `size > 0`. The CBETA archive is
+    1.2 GB; an interrupted download leaves exactly that, so every later run logged
+    *"archive already downloaded"*, skipped the fetch and died in `:erl_tar` with
+    `{:extract_failed, :eof}` — an error that points at the extraction code and says
+    nothing about the cache, which stays poisoned until someone deletes it by hand.
+
+    **Verify with the operation that will consume it.** The check is now
+    `:erl_tar.table/2`, literally the call that used to fail two steps later. Nothing
+    weaker worked: the first fix streamed the gzip with `File.stream!([:compressed])`,
+    which reads a truncated archive to its short end **without raising** and reported half
+    a file as fine — the same bug wearing a different hat. And a failed download now
+    removes its partial file rather than leaving one for the next run to trust.
+
 ---
 
 ## One-off gotchas
@@ -3756,6 +3770,14 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
   `Oban.Testing.perform_job/2` signature changed — call the worker directly instead.
 - **`function_exported?/3` is false for a module that is merely not loaded**, so a test
   using it passes or fails by load order unless you `Code.ensure_loaded!` first.
+- **`async: true` plus `Application.put_env(:pramana, :project_root, …)` invalidates the
+  corpus tests, on some seeds.** That key is global, and `CBETACorpusTest` /
+  `TaishoCorpusTest` read the real `raw/` through it in `setup_all`. An async module that
+  repoints it at a temp directory makes those fail with `:enoent` — *"failure on setup_all
+  callback, all tests have been invalidated"*, 16 tests, intermittently. `cbeta_test.exs`,
+  `lockfile_test.exs` and `work_list_test.exs` are all `async: false` for this reason and
+  none of them says so, which is how a new file gets it wrong. **Any test that sets
+  `:project_root` must be `async: false`.**
 - **A scripted patch that errors leaves docs untouched while the commit still runs.**
   This bit three times. Always verify the file, and never trust an unconditional
   "patched" message.

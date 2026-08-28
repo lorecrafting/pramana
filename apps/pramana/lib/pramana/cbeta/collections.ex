@@ -140,11 +140,16 @@ defmodule Pramana.Cbeta.Collections do
   # width is a property of the edition, which `Pramana.Bake.WorkList` learned the hard way
   # when two works failed to bake with `:enoent` on a path rebuilt as `A91`.
   #
-  # These ten are the collections held, and each was checked TWICE against CBETA rather
+  # These eleven are the collections held, and each was checked TWICE against CBETA rather
   # than reasoned about: the acquired directory name (`raw/cbeta/A/A091/A091n1057.xml`) and
   # the `id` attribute CBETA's own reader puts on the line — fetched from
-  # `cbdata.dila.edu.tw/stable/juans` on 2026-08-27, which returns the same HTML the
-  # website renders.
+  # `cbdata.dila.edu.tw/stable/juans`, which returns the same HTML the website renders.
+  #
+  # N was added on 2026-08-28 and the test below is why it was not forgotten: acquiring the
+  # collection turned `mix test` red with "N is acquired but has no verified volume width,
+  # so its lineheads will be nil". The guard was written the day before, against a lockfile
+  # that had no N in it, and it caught the first collection to arrive after it. Checked as
+  # the others were — `raw/cbeta/N/N13/...` and `N13n0006_p0001a01` from the rendered juan.
   #
   # **CBETA's catalogue disagrees with CBETA's reader, and the reader is what we want.**
   # `works?work=M1540` reports `vol: "M059"`, while the line in the rendered juan is
@@ -164,6 +169,7 @@ defmodule Pramana.Cbeta.Collections do
     "K" => 2,
     "S" => 2,
     "M" => 2,
+    "N" => 2,
     "A" => 3,
     "P" => 3,
     "L" => 3,

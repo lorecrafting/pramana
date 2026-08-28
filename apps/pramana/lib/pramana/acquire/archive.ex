@@ -37,18 +37,74 @@ defmodule Pramana.Acquire.Archive do
     end
   end
 
+  # A CACHED ARCHIVE IS TRUSTED ONLY IF IT IS READABLE, NOT IF IT EXISTS.
+  #
+  # This checked `size > 0`, which any interrupted download satisfies — the CBETA archive
+  # is 1.2 GB and a stall, a Ctrl-C or a dropped connection leaves a plausible-looking file
+  # behind. Every subsequent run then logged "archive already downloaded", skipped the
+  # fetch, and died in `:erl_tar` with `{:extract_failed, :eof}`, an error that says
+  # nothing about the cache and sends you looking at the extraction code. The cache poisons
+  # itself and stays poisoned.
+  #
+  # The check is `:erl_tar.table/2` — literally the operation that used to fail two steps
+  # later. Nothing weaker works: `File.stream!([:compressed])` reads a truncated gzip to
+  # its short end without raising, so a cache test built on it reports a half archive as
+  # fine, which is the bug wearing a different hat. Asking the tar reader whether it can
+  # read the archive is the only predicate that answers the question actually being asked.
+  #
+  # It costs one decompression pass over an archive we are about to decompress anyway, and
+  # we have no expected hash to compare against — GitHub generates these tarballs and does
+  # not publish a digest for them.
   defp download(url, target, opts) do
-    if File.exists?(target) and File.stat!(target).size > 0 do
-      Logger.info("archive already downloaded: #{target}")
-      :ok
-    else
-      Logger.info("downloading #{url}")
+    cond do
+      not File.exists?(target) ->
+        fetch_archive(url, target, opts)
 
-      case Keyword.get(opts, :downloader, &default_download/2).(url, target) do
-        :ok -> :ok
-        {:error, reason} -> {:error, {:download_failed, reason}}
-      end
+      readable_archive?(target) ->
+        Logger.info("archive already downloaded: #{target}")
+        :ok
+
+      true ->
+        Logger.warning("cached archive is truncated or corrupt, refetching: #{target}")
+        File.rm(target)
+        fetch_archive(url, target, opts)
     end
+  end
+
+  defp fetch_archive(url, target, opts) do
+    Logger.info("downloading #{url}")
+
+    case Keyword.get(opts, :downloader, &default_download/2).(url, target) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        # A partial file left behind would be trusted by the NEXT run's existence check if
+        # the readability test above ever regressed. Remove it here too.
+        File.rm(target)
+        {:error, {:download_failed, reason}}
+    end
+  end
+
+  defp readable_archive?(path) do
+    case File.stat(path) do
+      {:ok, %{size: size}} when size > 0 -> gzip_complete?(path)
+      _ -> false
+    end
+  end
+
+  # Streams the gzip to its end. The trailer is only reached if every byte is there, so
+  # this returns false for exactly the truncation that used to surface as `:eof` from the
+  # tar reader two steps later.
+  defp gzip_complete?(path) do
+    case :erl_tar.table(String.to_charlist(path), [:compressed]) do
+      {:ok, _entries} -> true
+      _ -> false
+    end
+  rescue
+    _ -> false
+  catch
+    _, _ -> false
   end
 
   defp default_download(url, target) do

@@ -86,9 +86,11 @@ defmodule Pramana.ReaderTest do
     end
 
     # We hold none of these, so there is no page to check a guess against. `canons.json`
-    # names them; nothing names their volume width.
+    # names them; nothing names their volume width. `N` was this example until the
+    # collection was acquired, which is the boundary behaving as intended rather than a
+    # test needing a permanent stand-in.
     test "returns nil for a collection whose width has never been checked" do
-      p = provenance(%{witness: "N", work_id: "N0001", volume: "1"})
+      p = provenance(%{witness: "ZW", work_id: "ZW0001", volume: "1"})
       assert Reader.linehead(p) == nil
     end
 

@@ -58,10 +58,13 @@ defmodule Pramana.Cbeta.CollectionsTest do
       end
     end
 
-    # We hold none of these and have no page to check a guess against.
+    # We hold none of these and have no page to check a guess against. `N` used to be one
+    # of them and is now held — which is the whole point of naming unheld collections here
+    # rather than a fixed list: this test tracks the boundary, and moving a collection
+    # across it is a deliberate edit with a checked page behind it.
     test "is nil for a collection whose width has not been checked" do
-      assert Collections.volume_token("N", 1) == nil
       assert Collections.volume_token("ZW", 12) == nil
+      assert Collections.volume_token("GA", 3) == nil
     end
 
     test "is nil for anything that is not one positive volume" do

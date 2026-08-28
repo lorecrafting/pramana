@@ -57,7 +57,7 @@ defmodule Pramana.Acquire.CBETATest do
     # path either 404s — confusing — or, worse, finds a file and cites it wrongly.
     test "raises for a collection whose width has never been checked" do
       assert_raise ArgumentError, ~r/no verified volume-number width/, fn ->
-        CBETA.work_path("N", 1, "0001")
+        CBETA.work_path("ZW", 1, "0001")
       end
     end
   end
