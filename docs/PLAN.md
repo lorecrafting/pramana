@@ -27,6 +27,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
+| passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
 | eval | **93.1%** over 1,400 cases (`evals/baseline.json`) — 0 stale, 0 errored, and **0 drift** after the commentary and translation work |
@@ -724,7 +725,29 @@ choice nobody has made.
 offsets. If it starts needing new domain logic, that is a signal the API is missing
 something — fix the API, not the view.
 
-### F. `topical/chinese` is still 0%
+### F. `topical/chinese` is still 0% — and one route to it is now closed
+
+**▸ THE DETERMINISTIC BRIDGE IS REJECTED, 2026-08-28.** Before building the term table
+below, a cheaper hypothesis was registered and tested: an English question could reach a
+Chinese passage with no model and no glossary, by walking data already held — English query
+→ `Translations.search` → Pāli anchor → `text_parallels` → Chinese anchor.
+
+**1 of 12.** And the diagnosis matters more than the score: it fails at the *parallels*
+step, not the term step. Eleven of the twelve questions land on Pāli works with **no
+openable Chinese parallel at all**, so there is nothing to check a term against.
+
+**Which surfaced a number that had never been published.** `text_parallels` holds 407,176
+passage parallels and **24,717 of them — 6.1% — have both ends in this bake.** The reader
+has always reported this per work, where T0099 reads 1,958 recorded and 1,661 resolvable,
+and that shape invites the impression that resolution runs at 85%.
+
+Every unresolved row was checked and **none is a resolution failure**: all 363,047 name a
+work no source here provides, chiefly the Vinaya prātimokṣa witnesses SuttaCentral collates
+across Sanskrit manuscript finds and several Chinese recensions it publishes itself —
+`san-mu-bu-pm-gbm` alone is 12,524. `Coverage.parallels/0` now states it and `/inventory`
+shows it.
+
+
 
 The last zero on the scorecard. Measured options, in order of evidence:
 
@@ -878,4 +901,5 @@ touched nothing the retrievers do.
 | Tibetan LoRA | Every proxy said it worked; the gold set said 0%. See *Why every proxy lied*. |
 | Doc-translation stage B (~$260–770) | Superseded by query translation, which is free and scored higher. |
 | **A gap statistic (top1 − top10) to detect "no answer"** | **No separation.** 6 of 8 unanswerable queries have gaps inside the answerable range; `photosynthesis in C4 plants` spreads wider than 13 of 20 answerable Chinese ones. Measured on 48 queries, 2026-08-27. |
+| **An English→Pāli→Chinese bridge for `topical/chinese`** | **1 of 12.** Walking `Translations.search` → the Pāli anchor → `text_parallels` → a Chinese passage reaches the expected term once. It fails at the PARALLELS step, not the term step: 11 of 12 questions land on Pāli works with no openable Chinese parallel at all. Measured 2026-08-28. |
 | **A hard similarity threshold for refusal** | **~45 retrieval cases to gain 1 absence case.** 0.75 is the lowest cut admitting no unanswerable query and it refuses 10% of answerable ones; the scale is per-language, so one cut-off fights two distributions. Reported instead. |

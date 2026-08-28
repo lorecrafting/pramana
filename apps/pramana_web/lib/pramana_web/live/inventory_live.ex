@@ -47,6 +47,7 @@ defmodule PramanaWeb.InventoryLive do
             <p>{@snapshot.cbeta_coverage.note}</p>
             <p>{@snapshot.taisho_coverage.note}</p>
             <p :if={@snapshot.tibetan_coverage.note}>{@snapshot.tibetan_coverage.note}</p>
+            <p>{@snapshot.parallel_coverage.note}</p>
           </div>
         </div>
 

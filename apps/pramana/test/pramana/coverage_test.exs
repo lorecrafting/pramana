@@ -409,4 +409,36 @@ defmodule Pramana.CoverageTest do
       refute note =~ "holds 0"
     end
   end
+
+  # 407,176 parallels and 24,717 open. The reader has always reported this per work —
+  # T0099, 1,958 recorded and 1,661 resolvable — which reads as 85% resolution. Corpus-wide
+  # it is 6.1%, and the difference had never been published.
+  describe "the parallels that cannot be opened" do
+    test "an empty bake says so rather than dividing by zero" do
+      assert %{recorded: 0, openable: 0, percent: +0.0, note: note} = Coverage.parallels()
+      assert note =~ "No parallel data"
+    end
+
+    test "counts a parallel we cannot open rather than dropping it" do
+      Repo.insert_all("text_parallels", [
+        %{
+          source_uid: "mn1",
+          target_uid: "sag123",
+          relation: "full",
+          partial: false,
+          source_urn: "pramana:sc.ms:mn1@1.1",
+          target_urn: nil,
+          source_work_id: nil,
+          inserted_at: NaiveDateTime.utc_now(:second),
+          updated_at: NaiveDateTime.utc_now(:second)
+        }
+      ])
+
+      assert %{recorded: 1, openable: 0, percent: +0.0, note: note} = Coverage.parallels()
+
+      # Knowing a passage has a Sanskrit parallel is worth something even unopenable.
+      assert note =~ "COUNTED and not dropped"
+      assert note =~ "sag"
+    end
+  end
 end

@@ -256,6 +256,65 @@ defmodule Pramana.Coverage do
   end
 
   @doc """
+  How much of SuttaCentral's parallel graph this bake can actually open.
+
+  **24,717 of 407,176 — 6.1%.** That number had never been published, and the number that
+  had invites the opposite impression: the reader says per work that T0099 has 1,958
+  recorded and 1,661 resolvable, which reads as resolution running at 85%.
+
+  Corpus-wide it runs at 6.1%, and the gap is almost entirely the **Vinaya prātimokṣa
+  witnesses** — `san-mu-bu-pm-gbm` (12,524 parallels), `san-sarv-bu-pm-tf` (8,946),
+  `lzh-sarv-bu-pm` (8,729). SuttaCentral collates the monastic codes across Sanskrit
+  manuscript finds and several Chinese recensions it publishes itself; none of those is a
+  source in this bake, and CBETA does not publish them separately either.
+
+  This is coverage, not a defect: **every unresolved row was checked and none is a
+  resolution failure** — all 363,047 name a work no source here provides. Which is exactly
+  why it must be stated. A parallels feature that silently shows a sixteenth of what it
+  knows about invites the reading that the rest does not exist.
+  """
+  @spec parallels() :: map()
+  def parallels do
+    total = Repo.aggregate(from(p in "text_parallels"), :count)
+
+    resolved =
+      Repo.aggregate(
+        from(p in "text_parallels", where: not is_nil(p.source_urn) and not is_nil(p.target_urn)),
+        :count
+      )
+
+    absent =
+      Repo.all(
+        from p in "text_parallels",
+          where: is_nil(p.source_work_id),
+          group_by: fragment("regexp_replace(?, \'[0-9].*$\', \'\')", p.source_uid),
+          order_by: [desc: count(p.id)],
+          limit: 6,
+          select: {fragment("regexp_replace(?, \'[0-9].*$\', \'\')", p.source_uid), count(p.id)}
+      )
+
+    %{
+      recorded: total,
+      openable: resolved,
+      percent: if(total > 0, do: Float.round(100 * resolved / total, 1), else: 0.0),
+      absent_witnesses: Enum.map(absent, fn {uid, n} -> %{prefix: uid, parallels: n} end),
+      note: parallels_note(total, resolved, absent)
+    }
+  end
+
+  defp parallels_note(0, _resolved, _absent), do: "No parallel data is loaded."
+
+  defp parallels_note(total, resolved, absent) do
+    names = Enum.map_join(absent, ", ", fn {uid, n} -> "#{uid} (#{n})" end)
+
+    "SuttaCentral records #{total} passage parallels and #{resolved} of them — " <>
+      "#{Float.round(100 * resolved / total, 1)}% — have both ends in this bake. " <>
+      "The rest point at witnesses the corpus does not hold, chiefly: #{names}. " <>
+      "A parallel we cannot open is COUNTED and not dropped, because knowing a passage " <>
+      "has a Sanskrit or Gāndhārī parallel is worth something even when we cannot show it."
+  end
+
+  @doc """
   Which part of the Tibetan canon is in the bake.
 
   The Tōhoku numbers say which: 1–1108 is the Kangyur, 1109–4569 the Tengyur. Holding

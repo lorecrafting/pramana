@@ -43,6 +43,9 @@ defmodule Pramana.Inventory do
       # failure the Taishō and Tibetan lines are here to prevent, at the level of the
       # collection rather than the volume.
       cbeta_coverage: Coverage.cbeta(),
+      # The parallel graph is 407,176 rows and 6.1% of it opens. A reader looking at the
+      # relation counts above would otherwise take them for the whole graph.
+      parallel_coverage: Coverage.parallels(),
       note: @note
     }
   end
