@@ -12,9 +12,13 @@ The bake is: fetch thousands of files, parse each independently, transform, embe
 load — with retries, backpressure, and per-item fault isolation. This is the canonical
 BEAM workload.
 
-- **Broadway/GenStage** give real backpressure between stages. The embedding sidecar
-  is the slow stage; Broadway throttles upstream parsing automatically instead of
-  building an unbounded queue.
+- **Oban alone, and Broadway was dropped.** The original argument for Broadway was
+  backpressure between stages, with the embedding sidecar as the slow one. It never earned
+  its place: Broadway pays off when a slow stage must throttle an upstream *stream*, and the
+  bake's input is a static list of 5,005 files. The dependency was removed on 2026-08-28
+  after an audit found it declared, never referenced, and described as current by three
+  documents — the same shape as the Tibetan `botok` dependency this file already records.
+  `docs/ROADMAP.md` had the decision written down correctly the whole time.
 - **Oban** gives durable, idempotent, resumable stages. A bake that dies at hour three
   resumes; it doesn't restart.
 - **Per-file process isolation** means one malformed TEI file kills one job, not the

@@ -67,3 +67,6 @@ priv/models/
 # Derived on every `mix pramana.public.bake` from sources.lock.json, which IS committed.
 # Committing it too would be a second copy of the same facts, free to drift.
 sources.public.lock.json
+
+# macOS finder metadata, committed once by accident
+.DS_Store

@@ -912,7 +912,6 @@ You will see these repeatedly:
 | **Ecto** | the database layer: schemas, queries, migrations |
 | **Mix** | the build tool; `mix something` runs a task |
 | **Oban** | background job queue, backed by Postgres — used for the bake |
-| **Broadway** | concurrent data-processing pipelines |
 | **umbrella app** | one repository holding several applications (`pramana`, `pramana_web`, `pramana_native`) |
 
 An **umbrella** keeps the core domain logic (`pramana`) independent of the web layer

@@ -77,7 +77,6 @@ defmodule Pramana.MixProject do
       {:saxy, "~> 1.6"},
       {:req, "~> 0.5"},
       {:oban, "~> 2.19"},
-      {:broadway, "~> 1.2"},
       {:yaml_elixir, "~> 2.11"},
 
       # Quality gates — see docs/CHECKS.md

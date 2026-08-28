@@ -180,7 +180,7 @@ apps/
       index/               (Phase 1 #11) embeddings
       pipeline.ex          Acquirer/Normalizer/Segmenter behaviours + source registry
       bake.ex              pipeline_version, bake_id, recording
-      bake/                Oban/Broadway orchestration
+      bake/                Oban orchestration
   pramana_web/              Phoenix — MCP endpoint, LiveView reader (`docs/READER.md`)
   pramana_native/           Rustler NIFs: CJK segmentation, suffix-array reuse
 priv/embed/                Python sidecar — BGE-M3 inference ONLY (see docs/ELIXIR.md)
@@ -191,7 +191,7 @@ docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR, 
 ## Stack
 
 **Elixir 1.20.3 / OTP 29.0.5 · Phoenix 1.8.11 · Ecto · PostgreSQL 18 + pgvector (HNSW)
-+ pg_bigm · Oban · Broadway · Saxy · Req · Rustler.** Toolchain versions are pinned
++ pg_bigm · Oban · Saxy · Req · Rustler.** Toolchain versions are pinned
 exactly in `mise.toml` — run `mise trust` in this directory or the global config
 silently wins. See `docs/ELIXIR.md` for the rationale and the three deliberate
 exceptions, and `docs/DEV_ENV.md` for why Postgres runs natively rather than in a
