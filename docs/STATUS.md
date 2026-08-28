@@ -3646,6 +3646,22 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     whitespace in a CJK body is an artefact of our own storage; this is the same root fact
     as "never use whitespace tokenization", arriving at a different layer.
 
+56. **When a record says which files it governs, match on that — not on an identifier that
+    usually correlates.** SuttaCentral publications were resolved by `text_uid` prefix,
+    which works because `mn` covers `mn1` and fails because `pli-tv-vi` — the whole Vinaya
+    Piṭaka — is not a prefix of `pli-tv-bu-vb-pj1`. **66,199 rows of CC0 public-domain text
+    sat marked not-redistributable for two phases** as a result. The same records carry
+    `source_url`, pointing at the directory the publication publishes; matching on that
+    resolves 4,784 of 4,996 files exactly. Before inferring, check whether the data already
+    states the thing you are about to infer.
+
+    **And a conservative default hides its own errors.** Storing `redistributable: false`
+    when unsure is right, and it is indistinguishable from a correct answer — no test
+    fails, no query errors, the text is simply absent from anything public. The only way it
+    surfaces is by counting what the caution costs, which is what `mix pramana.public.check`
+    now exists to do. **Any policy of "when unsure, withhold" needs a report of what is
+    being withheld**, or it silently becomes the answer.
+
 ---
 
 ## One-off gotchas

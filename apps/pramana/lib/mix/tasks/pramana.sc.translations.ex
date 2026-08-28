@@ -182,7 +182,9 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
     candidates = Map.get(publications, {lang, translator}, [])
 
     segments = file |> File.read!() |> Jason.decode!()
-    license = license(publication_for(candidates, work_of(segments)))
+
+    license =
+      license(publication_for(candidates, work_of(segments), Path.relative_to(file, root)))
 
     {new_rows, misses} =
       Enum.reduce(segments, {[], %{}}, fn {segment_id, text}, {acc, misses} ->
@@ -238,23 +240,78 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
     end
   end
 
-  # Resolving a file to the publication whose terms govern it, in three steps.
+  # Resolving a file to the publication whose terms govern it.
   #
-  # `text_uid` is usually a prefix of the works it covers (`mn` covers `mn1`), so the
-  # longest matching prefix wins. But it is sometimes a **collection uid that is not a
-  # prefix of its members**: Brahmali's `pli-tv-vi` is the whole Vinaya Pitaka, whose
-  # works are `pli-tv-bu-vb-pj1` and friends. Prefix matching alone left 66,199 of his
-  # renderings unattributed. And some material has no publication at all — Sujato's
-  # Jataka is in the repository but absent from `_publication.json`.
+  # THE PUBLICATION SAYS WHICH FILES IT COVERS, AND SAYS IT AS A PATH. Every record in
+  # `_publication.json` carries a `source_url` pointing at the directory it publishes —
+  # `.../tree/published/translation/en/brahmali/vinaya` — so the governing publication is
+  # the one whose directory contains this file, longest match winning where publications
+  # nest. That is SuttaCentral's own statement about its own files, and it is exact.
   #
-  # So when nothing matches, the licence is INFERRED from the translator's other
-  # publications, and only if they all agree. An inferred licence is good enough to hold
-  # and search under; it is not good enough to republish on, so `redistributable` stays
-  # false until a person confirms it. That these are two separate columns is what makes
-  # the distinction expressible instead of a coin flip between "unknown" and "CC0".
-  defp publication_for([], _work), do: {nil, :none}
+  # It replaces matching on `text_uid`, which is usually a prefix of the works it covers
+  # (`mn` covers `mn1`) and is sometimes a **collection uid that is not a prefix of its
+  # members**: Brahmali's `pli-tv-vi` is the whole Vinaya Pitaka, whose works are
+  # `pli-tv-bu-vb-pj1` and friends. That mismatch left **66,199 of his renderings** on an
+  # inferred licence and therefore not redistributable — CC0 text withheld by our own
+  # uncertainty, and the largest single block standing between this corpus and a public
+  # demo. Path matching resolves 4,784 of 4,996 files exactly.
+  #
+  # `text_uid` is kept as a second attempt, because a publication whose `source_url` is
+  # missing or shaped differently should still resolve if the uid can do it.
+  #
+  # The 212 files that match neither are real: 83 are Sujato's Jataka, in the repository
+  # and absent from `_publication.json`, and 124 are `name/` files — proper-name
+  # glossaries rather than translations of texts. For those the licence is INFERRED from
+  # the translator's other publications, and only if they all agree. An inferred licence
+  # is good enough to hold and search under and not good enough to republish on, so
+  # `redistributable` stays false until a person confirms it. That these are two separate
+  # columns is what makes the distinction expressible instead of a coin flip between
+  # "unknown" and "CC0".
+  @doc """
+  The publication whose terms govern one translation file, and how sure we are.
 
-  defp publication_for(candidates, work) do
+  Public because it decides a licensing question, and a licensing question decided by an
+  untested private function is how 66,199 rows of CC0 text spent two phases marked
+  not-redistributable.
+
+  Returns `{publication, :matched}` when the publication states it covers this file,
+  `{publication, :inferred}` when the licence was taken from the translator's other
+  publications and they all agree, and `{nil, :none}` when neither is possible.
+  """
+  @spec publication_for([map()], String.t(), String.t()) ::
+          {map(), :matched | :inferred} | {nil, :none}
+  def publication_for([], _work, _path), do: {nil, :none}
+
+  def publication_for(candidates, work, path) do
+    case by_path(candidates, path) do
+      nil -> by_uid(candidates, work)
+      publication -> {publication, :matched}
+    end
+  end
+
+  defp by_path(candidates, path) do
+    candidates
+    |> Enum.filter(fn c ->
+      case published_dir(c) do
+        nil -> false
+        dir -> path == dir or String.starts_with?(path, dir <> "/")
+      end
+    end)
+    |> Enum.max_by(&String.length(published_dir(&1)), fn -> nil end)
+  end
+
+  # `https://github.com/suttacentral/bilara-data/tree/published/translation/en/...`
+  # -> `translation/en/...`, the path as this repository stores it.
+  defp published_dir(%{"source_url" => url}) when is_binary(url) do
+    case String.split(url, "/tree/published/", parts: 2) do
+      [_, dir] -> String.trim_trailing(dir, "/")
+      _ -> nil
+    end
+  end
+
+  defp published_dir(_), do: nil
+
+  defp by_uid(candidates, work) do
     candidates
     |> Enum.filter(&String.starts_with?(work, &1["text_uid"] || "\u0000"))
     |> Enum.max_by(&String.length(&1["text_uid"] || ""), fn -> nil end)

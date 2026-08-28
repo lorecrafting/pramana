@@ -28,7 +28,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
-| public exposure | **not safe** — 34,697 rows forbidden by licence, 76,040 CC0 rows withheld only by an inferred licence (`mix pramana.public.check`) |
+| public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
 | eval | **93.1%** over 1,400 cases (`evals/baseline.json`, re-baselined 2026-08-27 over the seven editions) — 0 stale, 0 errored |
 | retrieval@10 | 374/446 — zh 96.1% · pa 80.0% · bo 48.4%\* |
 | absence | **75%** — and the failing case is real and stays red; see item D |
@@ -651,12 +651,25 @@ run against a **separate bake from a lockfile holding only redistributable sourc
 enforced by the artefact, the way invariant #3 enforces reproducibility, not by every
 caller remembering an option.
 
-**The largest blocked bucket is our own caution, not a licence.** 76,040 translation rows
-are CC0-1.0 and flagged `redistributable: false` because `mix pramana.sc.translations`
-inferred the licence from a sibling rather than matching the publication record, and
-stored the safe answer — which is the right default and a misleading headline. Confirming
-those is a data task with no legal component, and it roughly doubles what a demo could
-serve. **It is now the single largest item between this corpus and a public demo.**
+**The largest blocked bucket was our own caution, not a licence — ▸ AND IT IS FIXED.**
+76,040 translation rows were CC0-1.0 and flagged `redistributable: false` because
+`mix pramana.sc.translations` inferred the licence rather than matching the publication
+record. **The publication says which files it covers, and says it as a path**: every record
+in `_publication.json` carries a `source_url` pointing at the directory it publishes, so
+the governing publication is the one whose directory contains the file. Matching on that
+resolves **4,784 of 4,996 files exactly**, against a uid-prefix rule that could not match a
+collection whose uid is not a prefix of its members — Brahmāli's `pli-tv-vi` is the whole
+Vinaya Piṭaka and its works are `pli-tv-bu-vb-pj1`.
+
+    withheld by uncertainty     76,040  ->  9,841
+    servable                   147,733  ->  213,932
+
+The remaining 9,841 are real: 83 files of Sujato's Jātaka, in the repository and absent
+from `_publication.json`, plus his `name/` glossaries and four of Suddhāso's. Nothing local
+can resolve those, and `redistributable` correctly stays false.
+
+**So the public demo's blocker is now only the shape of the artefact**, not the licence
+data: a separate bake from a redistributable-only lockfile.
 
 **Scope guard.** Phase 8 is a *renderer* over an API that already returns spans, URNs and
 offsets. If it starts needing new domain logic, that is a signal the API is missing
