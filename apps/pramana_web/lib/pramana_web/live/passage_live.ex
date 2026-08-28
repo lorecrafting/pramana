@@ -39,6 +39,7 @@ defmodule PramanaWeb.PassageLive do
   import PramanaWeb.ReaderComponents
 
   alias Pramana.Apparatus
+  alias Pramana.Commentary
   alias Pramana.Compare
   alias Pramana.Corpus
   alias Pramana.Derge.Images
@@ -61,6 +62,7 @@ defmodule PramanaWeb.PassageLive do
          |> assign(outline: outline_for(context.focus))
          |> assign(versions: versions_for(urn))
          |> assign(apparatus: apparatus_for(urn))
+         |> assign(glosses: Commentary.glosses_on(urn, limit: 8))
          |> assign(
            edition_link: Reader.reference(urn, context.focus.provenance),
            page_image: page_image(urn)
@@ -75,6 +77,7 @@ defmodule PramanaWeb.PassageLive do
            outline: nil,
            versions: nil,
            apparatus: nil,
+           glosses: [],
            edition_link: nil,
            page_image: nil,
            error: reason
@@ -90,6 +93,7 @@ defmodule PramanaWeb.PassageLive do
        outline: nil,
        versions: nil,
        apparatus: nil,
+       glosses: [],
        edition_link: nil,
        page_image: nil,
        error: :bad_urn
@@ -194,6 +198,29 @@ defmodule PramanaWeb.PassageLive do
             The window URN covers {@context.segment_count} printed lines and resolves as a unit;
             the line URN is what a quotation of this line is verified against.
           </p>
+        </section>
+
+        <section :if={@glosses != []} class="space-y-2">
+          <h2 class="font-semibold">Commentary on this line</h2>
+          <p class="text-xs text-base-content/60">
+            Found by lemma match: each commentary quotes this line verbatim before glossing
+            it. A commentary explains scripture and is <strong>never citable as</strong>
+            scripture — follow the link to read it in its own place.
+          </p>
+          <ul class="space-y-2 text-sm">
+            <li :for={g <- @glosses} class="border-l-2 border-base-300 pl-3">
+              <.link navigate={~p"/passage?#{[urn: g.commentary_urn]}"} class="link font-medium">
+                {g.commentary_title || g.commentary_work_id}
+              </.link>
+              <span :if={g.commentary_author} class="text-base-content/60">
+                · {g.commentary_author}
+              </span>
+              <div class="font-mono text-xs text-base-content/50">{g.commentary_urn}</div>
+              <div class="text-base-content/70">
+                quotes <span class="font-medium">{g.lemma}</span>
+              </div>
+            </li>
+          </ul>
         </section>
 
         <section :if={@edition_link || @page_image} class="space-y-2">

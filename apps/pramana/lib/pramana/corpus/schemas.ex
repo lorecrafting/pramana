@@ -593,3 +593,45 @@ defmodule Pramana.Corpus.Quotation do
     timestamps(type: :utc_datetime_usec)
   end
 end
+
+defmodule Pramana.Corpus.CommentaryAlignment do
+  @moduledoc """
+  One lemma in a commentary, and the root line it quotes.
+
+  Directional where `Quotation` deliberately is not: the direction does not come from the
+  characters, which cannot supply it, but from the `comments_on` relation that was
+  asserted on other grounds. See the migration for why this is neither `work_relations`
+  nor `quotations`.
+  """
+  use Ecto.Schema
+
+  alias Pramana.Corpus.Text
+
+  @type t :: %__MODULE__{}
+
+  schema "commentary_alignments" do
+    field :lemma, :string
+    field :lemma_sha256, :string
+    field :length, :integer
+
+    belongs_to :commentary_text, Text
+    field :commentary_work_id, :string
+    field :commentary_urn, :string
+    field :commentary_char_start, :integer
+    field :commentary_char_end, :integer
+
+    belongs_to :root_text, Text
+    field :root_work_id, :string
+    field :root_urn, :string
+    field :root_char_start, :integer
+    field :root_char_end, :integer
+
+    field :method, :string
+    field :confidence, :string
+
+    field :bake_id, :string
+    field :meta, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end

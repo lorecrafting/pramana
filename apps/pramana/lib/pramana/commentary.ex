@@ -1,0 +1,479 @@
+defmodule Pramana.Commentary do
+  @moduledoc """
+  Which line of a commentary explains which line of its root text — 科文 alignment,
+  found deterministically.
+
+  `Pramana.Relations` can say *T1789 comments on T0670*. `docs/COMMENTARY.md` calls that
+  "easy and only mildly useful", and names this the highest-value piece of the feature:
+  landing on a dense canonical line and being handed the layers of explanation attached to
+  **that line**, each labelled with when and where it was written.
+
+  No model is involved, which is `CLAUDE.md` invariant #5 in its strongest form. A Chinese
+  commentary works by quoting a phrase of its root and then glossing it, so the alignment
+  is already written down in the text — it only has to be read.
+
+  ## The uniqueness rule
+
+  A lemma anchors to a root position when its **8-character window occurs exactly once in
+  the root**. That is the whole method, and the reason it needs no threshold to defend: a
+  commentary quoting 云何為二 tells you nothing about where in the root it is looking,
+  because that phrase is everywhere; a window occurring once tells you exactly. Uniqueness
+  is a property of the root text, measured, not a similarity score.
+
+  Windows are then collapsed into maximal runs where **both sides advance together**, so
+  one continuous quotation is one alignment rather than thirteen overlapping windows of
+  itself. The median run is about ten characters, which is what a 科文 lemma looks like.
+
+  ## What it was measured against
+
+  Four well-attested pairs, and the same commentaries against roots they do not explain:
+
+  |  | asserted pairs | roots they do not explain |
+  |---|---|---|
+  | root printed lines carrying an anchor | 70–78% | 0.5–1.9% |
+  | root quoted verbatim | 52–61% | 0.5–0.8% |
+  | consecutive anchors moving forward | 88–95% | ~50%, which is chance |
+
+  The forward figure is the one that says this is really 科文 structure and not incidental
+  overlap: a commentary walks its root in order, and unrelated texts match in no order at
+  all.
+
+  ## Density decides, and root coverage does not
+
+  The obvious gate — what fraction of the root is quoted — is **scale-sensitive and was
+  nearly shipped**. T1736 quotes 2,288 distinct lemmas from the 80-fascicle Avataṃsaka and
+  covers 3.3% of it, because the root is enormous; four incidental matches against an
+  unrelated sūtra can score higher. Ranking by that number would have discarded one of the
+  richest commentaries in the corpus.
+
+  So the gate is `spans / 10k characters of the COMMENTARY` — how densely this commentary
+  quotes, which does not shrink as the root grows. Over the 89 asserted `comments_on`
+  relations and 40 null pairs built by giving each commentary a root it does not explain:
+
+      spans per 10k commentary chars     p10     median     p90
+        asserted                          0.4      19.1     175.4
+        null                              0.0       0.7      10.8
+
+  At the default floor of 25, **42 of 89 asserted pairs qualify and 0 of 40 null pairs
+  do**. Forty null pairs is a thin tail, so the floor sits well above the observed null
+  maximum rather than at it.
+
+  ## Forward order finds the translation a commentary is NOT quoting
+
+  Over the 42 aligned pairs, forward order runs 58% to 96% — and the whole low end is one
+  situation. `T1510b`, `T1511`, `T1703`, `T1704` and `T1515` each align against **four
+  different translations of the same sūtra**: T0235 (Kumārajīva), T0236a and T0236b
+  (Bodhiruci), T0237 (Paramārtha), all titled 金剛般若波羅蜜經. The same happens for the
+  three Heart Sūtra translations and the two Nirvāṇa recensions.
+
+  A commentary quotes **one** of them. It aligns to the others because translations of one
+  Indic original share phrasing with each other, so lemmas match out of order. Every pair
+  in that cluster sits at 58–70% forward; every single-root pair sits at 79–96%.
+
+  This is reported, not gated on. Forty-two pairs is not enough to place a second
+  threshold, and the obvious reading — that the highest-forward root is the translation
+  actually being quoted — is **not supported**: all four Diamond Sūtra commentaries peak on
+  T0236a regardless of who translated them, so something about that text rather than about
+  the commentaries is doing the ranking. The number rides in each row's `meta` so a caller
+  can weigh it.
+
+  ## What a pair below the floor means, and does not
+
+  It means **no passage-level alignment**, not a refuted relation. A commentary is free to
+  paraphrase its root, and several here plainly do. Nothing about the `comments_on` row is
+  changed by failing this test; the row records what a catalogue or a title asserted, and
+  this method has nothing to say about it either way.
+  """
+
+  import Ecto.Query
+
+  alias Pramana.Corpus.CommentaryAlignment
+  alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Text
+  alias Pramana.Repo
+  alias Pramana.URN
+
+  # Eight characters. Long enough that a window is almost always unique where it matches —
+  # 94% of shared 6-grams already are — and short enough to catch the median 10-character
+  # lemma whole rather than only its longer siblings.
+  @window 8
+
+  # Spans per 10,000 characters of commentary. See the module doc: the observed null p90
+  # is 10.8, so this sits above the null tail rather than on it.
+  @min_density 25.0
+
+  @type span :: %{
+          lemma: String.t(),
+          commentary_char_start: non_neg_integer(),
+          commentary_char_end: non_neg_integer(),
+          root_char_start: non_neg_integer(),
+          root_char_end: non_neg_integer()
+        }
+
+  # `optional(:written)` and every other key written out longhand. A map typespec's
+  # shorthand `key: type` means REQUIRED and EXACT, and shorthand cannot be mixed with
+  # `optional/1` — so declaring the seven measured keys in shorthand made
+  # `%{written: n}` unmatchable, which is exactly what dialyzer said. `Pramana.Sources`
+  # carries the same comment for the same reason; this is its second occurrence.
+  #
+  # `written` is present only after `align/3` has actually written rows: `measure/3` and a
+  # skipped pair report the same numbers and wrote nothing, and the difference between
+  # "nothing qualified" and "nothing was attempted" is worth keeping in the shape.
+  @type report :: %{
+          :commentary_work_id => String.t(),
+          :root_work_id => String.t(),
+          :spans => non_neg_integer(),
+          :density => float(),
+          :root_pct => float(),
+          :forward_pct => float(),
+          :aligned => boolean(),
+          optional(:written) => non_neg_integer()
+        }
+
+  @doc "The scan window, in characters."
+  @spec window() :: pos_integer()
+  def window, do: @window
+
+  @doc "The density floor a pair must clear before any alignment is recorded."
+  @spec min_density() :: float()
+  def min_density, do: @min_density
+
+  @doc """
+  Lemma spans shared by a commentary and its root, as character offsets into each body.
+
+  Pure: takes two strings, touches no database. Returns spans in commentary order.
+  """
+  @spec spans(String.t(), String.t(), keyword()) :: [span()]
+  def spans(commentary, root, opts \\ []) when is_binary(commentary) and is_binary(root) do
+    n = Keyword.get(opts, :window, @window)
+    {c_text, c_map} = without_breaks(commentary)
+    {r_text, r_map} = without_breaks(root)
+    root_positions = unique_windows(r_text, n)
+
+    c_text
+    |> char_windows(n)
+    |> Enum.flat_map(fn {w, positions} ->
+      case Map.get(root_positions, w) do
+        nil -> []
+        root_pos -> Enum.map(positions, &{&1, root_pos})
+      end
+    end)
+    |> Enum.sort()
+    |> collapse()
+    |> Enum.map(fn {c_start, r_start, len} ->
+      chars = len + n - 1
+      {c_from, c_to} = original_range(c_map, c_start, chars)
+      {r_from, r_to} = original_range(r_map, r_start, chars)
+
+      %{
+        lemma: String.slice(root, r_from, r_to - r_from),
+        commentary_char_start: c_from,
+        commentary_char_end: c_to,
+        root_char_start: r_from,
+        root_char_end: r_to
+      }
+    end)
+  end
+
+  # THE LINE BREAK IS TYPOGRAPHIC AND MUST NOT BE MATCHED ON.
+  #
+  # `texts.body` joins printed lines with newlines, so an 8-character window taken raw can
+  # be two newlines and six characters — and a lemma that runs across a line break, which
+  # most do, fragments into one span per line instead of being found whole. The first
+  # version did exactly that and stored lemmas beginning "\n\n".
+  #
+  # So windows are taken over the text with whitespace removed, and offsets are mapped back
+  # afterwards. This is the same rule the retrieval layer already follows for a different
+  # reason: classical Chinese has no whitespace, so any whitespace in the body is ours and
+  # never the edition's.
+  #
+  # Returns the stripped text and a tuple mapping each stripped index to its index in the
+  # original.
+  defp without_breaks(text) do
+    {chars, indices} =
+      text
+      |> String.graphemes()
+      |> Enum.with_index()
+      |> Enum.reject(fn {c, _} -> String.trim(c) == "" end)
+      |> Enum.unzip()
+
+    {Enum.join(chars), List.to_tuple(indices)}
+  end
+
+  # A run of `count` stripped characters, as a range in the ORIGINAL text. The end is the
+  # last matched character's original index plus one, so a lemma that spanned a line break
+  # includes the break — the span is contiguous in the text a reader sees.
+  defp original_range(map, start, count) do
+    {elem(map, start), elem(map, start + count - 1) + 1}
+  end
+
+  @doc """
+  Measure a pair without writing anything.
+
+  `aligned` says whether the pair clears the density floor. Everything else is reported
+  whether it does or not, because a number withheld is a number nobody can argue with.
+  """
+  @spec measure(String.t(), String.t(), keyword()) :: report() | {:error, :not_found}
+  def measure(commentary_work_id, root_work_id, opts \\ []) do
+    with {:ok, commentary} <- body(commentary_work_id),
+         {:ok, root} <- body(root_work_id) do
+      report(commentary_work_id, root_work_id, commentary, root, spans(commentary, root, opts))
+    end
+  end
+
+  defp report(commentary_work_id, root_work_id, commentary, root, spans) do
+    c_len = String.length(commentary)
+    r_len = String.length(root)
+    covered = Enum.reduce(spans, 0, &(&2 + &1.root_char_end - &1.root_char_start))
+    density = 10_000 * length(spans) / max(1, c_len)
+
+    %{
+      commentary_work_id: commentary_work_id,
+      root_work_id: root_work_id,
+      spans: length(spans),
+      density: Float.round(density, 1),
+      root_pct: Float.round(100 * covered / max(1, r_len), 1),
+      forward_pct: forward_pct(spans),
+      aligned: density >= @min_density
+    }
+  end
+
+  # How often consecutive lemmas move FORWARD through the root. A commentary walks its
+  # text in order; incidental matches between unrelated works land in no order, which
+  # shows up as ~50%. Reported rather than gated on, because it is evidence about the
+  # pair and the density floor already separates cleanly.
+  defp forward_pct(spans) do
+    pairs =
+      spans
+      |> Enum.map(& &1.root_char_start)
+      |> Enum.chunk_every(2, 1, :discard)
+
+    case pairs do
+      [] -> 0.0
+      _ -> Float.round(100 * Enum.count(pairs, fn [a, b] -> b >= a end) / length(pairs), 1)
+    end
+  end
+
+  defp body(work_id) do
+    case Repo.one(from t in Text, where: t.work_id == ^work_id, select: t.body) do
+      nil -> {:error, :not_found}
+      body -> {:ok, body}
+    end
+  end
+
+  # Every n-window of a text, with the positions it occurs at. NOT `windows/2`, which is
+  # `Ecto.Query.windows/2` in a module that imports it — the collision is a compile error
+  # rather than a subtle one, but the name would still read wrongly here.
+  defp char_windows(text, n) do
+    chars = text |> String.graphemes() |> List.to_tuple()
+    last = tuple_size(chars) - n
+
+    if last < 0 do
+      %{}
+    else
+      Enum.reduce(0..last, %{}, fn i, acc ->
+        Map.update(acc, window_at(chars, i, n), [i], &[i | &1])
+      end)
+    end
+  end
+
+  # Only the windows occurring EXACTLY ONCE, mapped to that one position. A window
+  # occurring twice cannot say which of the two a commentary is quoting, and guessing
+  # would be inventing an alignment.
+  defp unique_windows(text, n) do
+    text
+    |> char_windows(n)
+    |> Enum.reduce(%{}, fn
+      {w, [only]}, acc -> Map.put(acc, w, only)
+      _, acc -> acc
+    end)
+  end
+
+  defp window_at(chars, i, n), do: Enum.map_join(i..(i + n - 1), &elem(chars, &1))
+
+  # Maximal runs where both sides advance by one together: one continuous quotation, not
+  # every overlapping window of it.
+  defp collapse(anchors) do
+    anchors
+    |> Enum.reduce([], fn {c, r}, acc ->
+      case acc do
+        [{c0, r0, len} | rest] when c == c0 + len and r == r0 + len -> [{c0, r0, len + 1} | rest]
+        _ -> [{c, r, 1} | acc]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  @doc """
+  Commentary passages that gloss a root passage, most specific first.
+
+  This is the reading question — *what explains this line* — so it is asked by root URN.
+  Each result carries both ends and the method that produced it; nothing here is
+  presented as the root text, which is the rule `Pramana.Relations` states and this
+  inherits: a commentary explaining scripture is never citable as the scripture.
+  """
+  @spec glosses_on(String.t(), keyword()) :: [map()]
+  def glosses_on(root_urn, opts \\ []) when is_binary(root_urn) do
+    limit = Keyword.get(opts, :limit, 20)
+
+    from(a in CommentaryAlignment,
+      where: a.root_urn == ^root_urn,
+      order_by: [desc: a.length],
+      limit: ^limit,
+      preload: [commentary_text: ^Text.preload_without_body()]
+    )
+    |> Repo.all()
+    |> Enum.map(&present/1)
+  end
+
+  @doc """
+  Every lemma a commentary quotes, in the commentary's own order.
+  """
+  @spec lemmas_of(String.t(), keyword()) :: [map()]
+  def lemmas_of(commentary_work_id, opts \\ []) when is_binary(commentary_work_id) do
+    limit = Keyword.get(opts, :limit, 100)
+
+    from(a in CommentaryAlignment,
+      where: a.commentary_work_id == ^commentary_work_id,
+      order_by: [asc: a.commentary_char_start],
+      limit: ^limit,
+      preload: [commentary_text: ^Text.preload_without_body()]
+    )
+    |> Repo.all()
+    |> Enum.map(&present/1)
+  end
+
+  defp present(%CommentaryAlignment{} = a) do
+    %{
+      lemma: a.lemma,
+      length: a.length,
+      commentary_urn: a.commentary_urn,
+      commentary_work_id: a.commentary_work_id,
+      commentary_title: a.commentary_text && a.commentary_text.work.title,
+      commentary_author: a.commentary_text && a.commentary_text.work.attributed_author,
+      composition_origin: a.commentary_text && a.commentary_text.work.composition_origin,
+      root_urn: a.root_urn,
+      root_work_id: a.root_work_id,
+      method: a.method,
+      confidence: a.confidence
+    }
+  end
+
+  @doc """
+  Aligns one pair and writes the result, or explains why it wrote nothing.
+
+  Replaces this pair's rows rather than appending, so re-running converges — the same
+  discipline as `Corpus.Loader`.
+  """
+  @spec align(String.t(), String.t(), keyword()) ::
+          {:ok, report()} | {:skip, report()} | {:error, term()}
+  def align(commentary_work_id, root_work_id, opts \\ []) do
+    with {:ok, commentary} <- text_row(commentary_work_id),
+         {:ok, root} <- text_row(root_work_id),
+         true <- commentary.id != root.id do
+      found = spans(commentary.body, root.body, opts)
+      report = report(commentary_work_id, root_work_id, commentary.body, root.body, found)
+
+      if report.aligned do
+        {:ok, persist(commentary, root, found, report, opts)}
+      else
+        {:skip, report}
+      end
+    else
+      false -> {:error, :same_text}
+      error -> error
+    end
+  end
+
+  defp text_row(work_id) do
+    case Repo.one(from t in Text, where: t.work_id == ^work_id, limit: 1) do
+      nil -> {:error, {:not_found, work_id}}
+      text -> {:ok, text}
+    end
+  end
+
+  defp persist(commentary, root, found, report, opts) do
+    bake_id = Keyword.get(opts, :bake_id)
+    now = DateTime.utc_now()
+    c_segments = segments(commentary.id)
+    r_segments = segments(root.id)
+
+    # The PAIR's numbers ride on every row of it. A caller holding one alignment can then
+    # weigh it without a second query, which is the same shape as `semantic_confidence`
+    # on a search hit: state the fact, let the caller decide what it is worth.
+    pair = %{"density" => report.density, "forward_pct" => report.forward_pct}
+
+    rows =
+      found
+      |> Enum.map(&row(&1, commentary, root, c_segments, r_segments, bake_id, now, pair))
+      |> Enum.reject(&is_nil/1)
+
+    Repo.transaction(fn ->
+      Repo.delete_all(
+        from a in CommentaryAlignment,
+          where:
+            a.commentary_text_id == ^commentary.id and a.root_text_id == ^root.id and
+              a.method == "lemma_match"
+      )
+
+      # Chunked because a rich pair produces thousands of rows and Postgres caps a
+      # statement's parameters.
+      Enum.each(Enum.chunk_every(rows, 500), &Repo.insert_all(CommentaryAlignment, &1))
+    end)
+
+    Map.put(report, :written, length(rows))
+  end
+
+  defp row(span, commentary, root, c_segments, r_segments, bake_id, now, pair) do
+    with c_urn when is_binary(c_urn) <-
+           range_urn(c_segments, span.commentary_char_start, span.commentary_char_end),
+         r_urn when is_binary(r_urn) <-
+           range_urn(r_segments, span.root_char_start, span.root_char_end) do
+      %{
+        lemma: span.lemma,
+        lemma_sha256: :crypto.hash(:sha256, span.lemma) |> Base.encode16(case: :lower),
+        length: String.length(span.lemma),
+        commentary_text_id: commentary.id,
+        commentary_work_id: commentary.work_id,
+        commentary_urn: c_urn,
+        commentary_char_start: span.commentary_char_start,
+        commentary_char_end: span.commentary_char_end,
+        root_text_id: root.id,
+        root_work_id: root.work_id,
+        root_urn: r_urn,
+        root_char_start: span.root_char_start,
+        root_char_end: span.root_char_end,
+        method: "lemma_match",
+        # Never `certain`. The lemma is certain; that this commentary is glossing THIS
+        # occurrence rather than quoting the phrase in passing is an inference, and a
+        # commentary can quote its root without commenting on the line it took it from.
+        confidence: "probable",
+        bake_id: bake_id,
+        meta: pair,
+        inserted_at: now,
+        updated_at: now
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  defp segments(text_id) do
+    Repo.all(
+      from s in Segment,
+        where: s.text_id == ^text_id,
+        order_by: s.char_start,
+        select: %{urn: s.urn, char_start: s.char_start, char_end: s.char_end}
+    )
+  end
+
+  # A lemma crossing a printed line break — most do, the break being typographic — becomes
+  # a range URN, exactly as a chunk or a quotation does.
+  defp range_urn(segments, start, finish) do
+    case Enum.filter(segments, &(&1.char_start < finish and &1.char_end > start)) do
+      [] -> nil
+      [one] -> one.urn
+      many -> URN.range(List.first(many).urn, List.last(many).urn)
+    end
+  end
+end

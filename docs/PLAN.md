@@ -632,6 +632,30 @@ redistributable texts, 1.8M segments, 315k vectors**, and `redistributable_only:
 returns real results end to end. The blocker was never the reader; it was having nothing
 lawful to serve.
 
+**▸ 2026-08-27 — and having lawful content was never the whole blocker either.**
+`mix pramana.public.check` now reports what a public deployment of a given database would
+actually serve, and this one is **not safe to expose**:
+
+    forbidden by licence        34,697 rows   cbeta 4,043 · 84000 30,653 · 1 local
+    withheld by uncertainty     76,040 rows   CC0 text, licence INFERRED not matched
+    safe                       147,733 rows
+
+Two things follow, and neither was in this item before.
+
+**A filter is not an enforcement mechanism.** `license_class:` is an option on some
+retrieval queries; `Corpus.resolve/1` takes no such option at all, so a public URN
+endpoint over this database serves every text in it, CBETA included. The public demo must
+run against a **separate bake from a lockfile holding only redistributable sources** —
+enforced by the artefact, the way invariant #3 enforces reproducibility, not by every
+caller remembering an option.
+
+**The largest blocked bucket is our own caution, not a licence.** 76,040 translation rows
+are CC0-1.0 and flagged `redistributable: false` because `mix pramana.sc.translations`
+inferred the licence from a sibling rather than matching the publication record, and
+stored the safe answer — which is the right default and a misleading headline. Confirming
+those is a data task with no legal component, and it roughly doubles what a demo could
+serve. **It is now the single largest item between this corpus and a public demo.**
+
 **Scope guard.** Phase 8 is a *renderer* over an API that already returns spans, URNs and
 offsets. If it starts needing new domain logic, that is a signal the API is missing
 something — fix the API, not the view.
@@ -709,8 +733,24 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
   the number meaningless.
-- **Commentary lemma-and-gloss (科文) parsing** → root↔commentary alignment. Phase 6,
-  untouched, deterministic, a real differentiator.
+- ~~**Commentary lemma-and-gloss (科文) parsing** → root↔commentary alignment. Phase 6,
+  untouched, deterministic, a real differentiator.~~ **▸ SHIPPED 2026-08-27.**
+  `commentary_alignments`, `Pramana.Commentary`, `mix pramana.commentary.align`. **21,686
+  lemma alignments over 42 pairs, attaching commentary to 14,692 distinct root lines.**
+
+  The rule is uniqueness, not similarity: a lemma anchors where its 8-character window
+  occurs *exactly once* in the root. Measured against roots the same commentaries do not
+  explain — 70–78% of root lines carry an anchor vs 0.5–1.9%, and 88–95% of consecutive
+  anchors move forward through the root vs ~50%, which is chance.
+
+  **The obvious gate was scale-sensitive and was nearly shipped.** Root-coverage% ranks
+  T1736 — 2,288 lemmas from the 80-fascicle Avataṃsaka — at 3.3%, below some incidental
+  matches. The gate is spans per 10k characters of the *commentary*: floor 25 admits 42 of
+  89 asserted pairs and 0 of 40 nulls.
+
+  **Still open, and now visible:** 47 pairs align nothing. Some paraphrase rather than
+  quote, which this method cannot see and which is where an LLM layer earns its place —
+  labelled `method: "llm"`, which the table already has a column and a CHECK for.
 - **▸ DIAGNOSED 2026-08-27 — `retrieval/chinese`'s stubborn misses.** Now 9 after X, and
   two unrelated causes. Seven are X displacement (commentaries quoting a formula, X holds
   6–8 of the top ten). **Two are the original stubborn ones and both return a CORRECT
