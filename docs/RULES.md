@@ -468,12 +468,27 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
   - and **all 41 succeed when `Worker.perform/1` is called with those same args outside
     Oban.** That is how the collection was finally loaded.
 
-  So the defect is in the Oban execution context, not in the worker, the args, or the data.
-  Adding an `IO.inspect` to the worker made some jobs pass, which is a race signature and
-  is the only clue left. **If you meet this: the work is recoverable by running the
-  discarded jobs' args through `Worker.perform/1` directly.** Do not conclude the bake is
-  broken from the `:enoent` alone — the path in that message is not the path the job was
-  given.
+  **▸ SOLVED. A `mix phx.server` left running since the previous day was draining the same
+  queue with the code it was started with.** Oban is a *database* queue: any node connected
+  to that database competes for its jobs. That server's `Pramana.Cbeta.Collections` had no
+  `GA` entry — the collection was acquired the following morning — so its worker padded the
+  volume to two digits and asked for a file that has never existed. My VM won 12 of 53 job
+  races and the stale one won the rest.
+
+  Every symptom follows: the split moved between runs because it was a race; an `IO.inspect`
+  changed it because it changed the timing; the args and the code were correct because they
+  were *my* args and *my* code, and neither was what ran.
+
+  **The step that found it, after an hour of inference that did not:** printing at the top of
+  `perform`. Fifty-one jobs enqueued, twelve `PERFORM` lines. A worker that is not running
+  cannot be debugged by reading it. **Count invocations before reasoning about behaviour.**
+
+  Killing the process fixed it outright — 53 baked, 0 failed.
+
+- **A long-lived `mix phx.server` runs the code it was started with, and holds your job
+  queue.** The corollary of the above, worth its own line because the failure does not look
+  like a stale server. Check `ps` for old beam processes before debugging anything that
+  involves Oban, and `select * from oban_peers` names the node but not its age or its build.
 
 Environment and tooling quirks. Each cost real time; recorded so they cost it only once.
 

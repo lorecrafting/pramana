@@ -55,7 +55,7 @@ the API rather than left to be inferred from an empty result:
 | parallel graph openable | **6.1%** — 24,717 of 407,176; the rest name witnesses not held |
 | texts a `role:` filter cannot reach | **1,640** — only the Taishō has a 部 division table |
 | `topical/chinese` | **0%** — no English layer over Chinese, and the deterministic bridge was tried and rejected |
-| a bake stage that fails under Oban | 41 of 53 GA jobs, deterministic, cause not found — `docs/RULES.md` gotchas, with the recovery path |
+
 
 ### Phases
 

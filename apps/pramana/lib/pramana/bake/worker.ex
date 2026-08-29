@@ -92,8 +92,9 @@ defmodule Pramana.Bake.Worker do
   # a property of the edition (A091, P154, L115 use three), so reconstruction is a guess
   # that happens to be right for T, X and J.
   defp paths(%{"paths" => paths}, source, _canon, _volumes, _number)
-       when is_list(paths) and paths != [],
-       do: Enum.map(paths, &Path.join([Lockfile.raw_dir(), source, &1]))
+       when is_list(paths) and paths != [] do
+    Enum.map(paths, &Path.join([Lockfile.raw_dir(), source, &1]))
+  end
 
   defp paths(_args, source, canon, volumes, number) do
     {:ok, pipeline} = Pipeline.for_source(source)
