@@ -15,6 +15,7 @@ defmodule PramanaWeb.MCP.Tools.SurveyCorpus do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Retrieval.Survey
 
   schema do
@@ -53,7 +54,7 @@ defmodule PramanaWeb.MCP.Tools.SurveyCorpus do
 
     case Survey.survey(params.query, opts) do
       {:ok, result} ->
-        {:reply, Response.json(Response.tool(), result), frame}
+        {:reply, Reply.json("survey_corpus", params, result), frame}
 
       {:error, :empty_query} ->
         {:reply, Response.error(Response.tool(), "Query is empty."), frame}

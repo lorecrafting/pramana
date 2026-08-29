@@ -26,7 +26,7 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Provenance
   alias Pramana.Relations
 
@@ -52,7 +52,11 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
       end
 
     {:reply,
-     Response.json(Response.tool(), Map.put(payload, :bake_id, Pramana.Bake.current_id())), frame}
+     Reply.json(
+       "get_commentaries",
+       params,
+       Map.put(payload, :bake_id, Pramana.Bake.current_id())
+     ), frame}
   end
 
   defp downward(work_id) do

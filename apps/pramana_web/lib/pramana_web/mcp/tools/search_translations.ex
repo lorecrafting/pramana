@@ -29,6 +29,7 @@ defmodule PramanaWeb.MCP.Tools.SearchTranslations do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Translations
 
   schema do
@@ -63,7 +64,7 @@ defmodule PramanaWeb.MCP.Tools.SearchTranslations do
           bake_id: Pramana.Bake.current_id()
         }
 
-        {:reply, Response.json(Response.tool(), payload), frame}
+        {:reply, Reply.json("search_translations", params, payload), frame}
 
       {:error, _} ->
         {:reply,

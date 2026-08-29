@@ -189,7 +189,16 @@ Retrieval degrades rather than failing, so every response says what it actually 
   **Read the name.**
 - **`addressing`** — `canonical` is checkable against a printed edition; `derived` is
   not, because that source has no printed page and line.
-- **`bake_id`** — which corpus snapshot answered.
+- **`bake_id`** — which corpus snapshot answered. **On every tool**, since 2026-08-28; nine
+  of fifteen carried it before, and `survey_corpus` was among the six that did not, which is
+  the worst of them: a count without the corpus it counted is not evidence of anything.
+- **`replay`** — `{tool, arguments}`, the call that produced this response. With `bake_id`
+  it is a **reproducible citation of a retrieval**, exactly as a URN is one of a passage:
+  run it again against the same bake and you get the same answer. A sourced report can carry
+  the replay record beside each claim, so a reader can check not only that the quotation is
+  real but that the search which found it was the search the report says it was.
+  `arguments` holds what the caller actually sent — a default is omitted, because re-sending
+  one would pin a value free to change.
 
 ## Reader deep-links
 

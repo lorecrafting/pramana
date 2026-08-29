@@ -16,6 +16,7 @@ defmodule PramanaWeb.MCP.Tools.GetQuotations do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Quotations
 
   schema do
@@ -36,7 +37,7 @@ defmodule PramanaWeb.MCP.Tools.GetQuotations do
 
     case Quotations.quoting(urn, opts) do
       {:ok, payload} ->
-        {:reply, Response.json(Response.tool(), payload), frame}
+        {:reply, Reply.json("get_quotations", params, payload), frame}
 
       {:error, :not_found} ->
         {:reply,

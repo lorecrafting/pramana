@@ -34,7 +34,7 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Commentary
 
   @note "Found by verbatim lemma match. An empty result means no commentary QUOTES this " <>
@@ -64,7 +64,7 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
       bake_id: Pramana.Bake.current_id()
     }
 
-    {:reply, Response.json(Response.tool(), payload), frame}
+    {:reply, Reply.json("get_glosses", params, payload), frame}
   end
 
   defp present(g) do

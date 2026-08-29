@@ -325,4 +325,26 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert Map.has_key?(data, "returned")
     end
   end
+
+  # Nine of fifteen tools attached a bake_id and six did not. `survey_corpus` was among the
+  # six, which is the worst of them: a count without the corpus it counted is not evidence.
+  describe "every tool describes its own call" do
+    test "search carries a replay record and a bake" do
+      {:reply, response, _} = Search.execute(%{query: "鳩摩羅什", mode: "phrase"}, %{})
+      data = payload(response)
+
+      assert data["replay"]["tool"] == "search"
+      assert data["replay"]["arguments"]["query"] == "鳩摩羅什"
+      # Present always; nil on a database with no bake recorded, which is this one.
+      assert Map.has_key?(data, "bake_id")
+    end
+
+    test "get_passage does too, on the path that returns context" do
+      {:reply, response, _} = GetPassage.execute(%{urn: @urn, context_before: 1}, %{})
+      data = payload(response)
+
+      assert data["replay"]["tool"] == "get_passage"
+      assert data["replay"]["arguments"]["context_before"] == 1
+    end
+  end
 end

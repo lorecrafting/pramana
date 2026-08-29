@@ -15,6 +15,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Provenance
   alias Pramana.Reader
   alias Pramana.Retrieval
@@ -95,7 +96,7 @@ defmodule PramanaWeb.MCP.Tools.Search do
 
     case dispatch(params, opts) do
       {:ok, found} ->
-        {:reply, Response.json(Response.tool(), payload(found)), frame}
+        {:reply, Reply.json("search", params, payload(found)), frame}
 
       {:error, :empty_query} ->
         {:reply, Response.error(Response.tool(), "Query is empty."), frame}
@@ -123,7 +124,6 @@ defmodule PramanaWeb.MCP.Tools.Search do
       query: found.query,
       # Which corpus these hits came from. An answer that cannot name its corpus is
       # not reproducible — see docs/ARCHITECTURE.md, Stage 5.
-      bake_id: Pramana.Bake.current_id(),
       # Which strategy actually produced these hits. An :ngram result is weaker
       # evidence than a :phrase one, and a lexical-only hybrid run is weaker than a
       # fused one — saying so is more useful than hiding it.

@@ -19,6 +19,7 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Corpus
   alias Pramana.Readings
 
@@ -46,7 +47,7 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
       {:ok, span} ->
         tokens = Readings.render(span.content, scheme: scheme, lang: lang_for(scheme))
 
-        {:reply, Response.json(Response.tool(), payload(span, tokens, scheme)), frame}
+        {:reply, Reply.json("get_readings", params, payload(span, tokens, scheme)), frame}
 
       {:error, :not_found} ->
         {:reply,
@@ -79,7 +80,6 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
 
     %{
       urn: span.urn,
-      bake_id: Pramana.Bake.current_id(),
       text: span.content,
       scheme: scheme,
       reading: tokens |> Enum.map(& &1.reading) |> Enum.reject(&is_nil/1) |> Enum.join(" "),

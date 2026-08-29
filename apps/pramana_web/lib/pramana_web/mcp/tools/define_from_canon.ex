@@ -30,7 +30,7 @@ defmodule PramanaWeb.MCP.Tools.DefineFromCanon do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Definitions
   alias Pramana.Provenance
 
@@ -92,7 +92,7 @@ defmodule PramanaWeb.MCP.Tools.DefineFromCanon do
           "here is a synthesised gloss."
       )
 
-    {:reply, Response.json(Response.tool(), payload), frame}
+    {:reply, Reply.json("define_from_canon", params, payload), frame}
   end
 
   defp group(results) do

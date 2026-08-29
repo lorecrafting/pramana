@@ -16,6 +16,7 @@ defmodule PramanaWeb.MCP.Tools.CompareWitnesses do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Apparatus
 
   schema do
@@ -29,10 +30,10 @@ defmodule PramanaWeb.MCP.Tools.CompareWitnesses do
   end
 
   @impl true
-  def execute(%{urn: urn}, frame) do
+  def execute(%{urn: urn} = params, frame) do
     case Apparatus.at(urn) do
       {:ok, payload} ->
-        {:reply, Response.json(Response.tool(), payload), frame}
+        {:reply, Reply.json("compare_witnesses", params, payload), frame}
 
       {:error, :not_a_single_line} ->
         {:reply,

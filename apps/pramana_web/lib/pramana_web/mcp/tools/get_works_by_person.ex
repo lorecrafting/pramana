@@ -27,7 +27,7 @@ defmodule PramanaWeb.MCP.Tools.GetWorksByPerson do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Authority
 
   schema do
@@ -50,7 +50,7 @@ defmodule PramanaWeb.MCP.Tools.GetWorksByPerson do
       |> Map.put(:note, note(result))
       |> Map.put(:bake_id, Pramana.Bake.current_id())
 
-    {:reply, Response.json(Response.tool(), payload), frame}
+    {:reply, Reply.json("get_works_by_person", params, payload), frame}
   end
 
   # `count` is every work with this id; `returned` is this page. Reporting only the page

@@ -11,6 +11,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Corpus
   alias Pramana.Derge.Images
   alias Pramana.Reader
@@ -110,7 +111,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
           after: Enum.map(ctx.after, &payload(&1, params))
         }
 
-        {:reply, Response.json(Response.tool(), payload), frame}
+        {:reply, Reply.json("get_passage", params, payload), frame}
 
       {:error, reason} ->
         {:reply, Response.error(Response.tool(), error_message(urn, reason)), frame}
@@ -120,7 +121,7 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
   defp single(urn, params, frame) do
     case Corpus.resolve(urn) do
       {:ok, span} ->
-        {:reply, Response.json(Response.tool(), payload(span, params)), frame}
+        {:reply, Reply.json("get_passage", params, payload(span, params)), frame}
 
       {:error, reason} ->
         {:reply, Response.error(Response.tool(), error_message(urn, reason)), frame}
@@ -138,7 +139,6 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
   defp payload(span, params) do
     %{
       urn: span.urn,
-      bake_id: Pramana.Bake.current_id(),
       text: span.content,
       sha256: span.sha256,
       offsets: %{

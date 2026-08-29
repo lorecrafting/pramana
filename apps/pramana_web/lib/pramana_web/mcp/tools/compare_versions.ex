@@ -13,6 +13,7 @@ defmodule PramanaWeb.MCP.Tools.CompareVersions do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Compare
 
   schema do
@@ -59,7 +60,7 @@ defmodule PramanaWeb.MCP.Tools.CompareVersions do
 
     case Compare.versions(urn, opts) do
       {:ok, payload} ->
-        {:reply, Response.json(Response.tool(), payload), frame}
+        {:reply, Reply.json("compare_versions", params, payload), frame}
 
       {:error, :not_found} ->
         {:reply,

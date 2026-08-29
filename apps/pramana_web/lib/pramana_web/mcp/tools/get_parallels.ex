@@ -32,6 +32,7 @@ defmodule PramanaWeb.MCP.Tools.GetParallels do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Parallels
 
   schema do
@@ -59,7 +60,7 @@ defmodule PramanaWeb.MCP.Tools.GetParallels do
         {:reply, Response.error(Response.tool(), message), frame}
 
       {:ok, subject, parallels} ->
-        {:reply, Response.json(Response.tool(), payload(subject, parallels)), frame}
+        {:reply, Reply.json("get_parallels", params, payload(subject, parallels)), frame}
     end
   end
 
@@ -106,7 +107,6 @@ defmodule PramanaWeb.MCP.Tools.GetParallels do
       total: length(parallels),
       groups: grouped,
       source: "SuttaCentral sc-data — hand-curated comparative scholarship, not similarity",
-      bake_id: Pramana.Bake.current_id(),
       note: note(parallels)
     })
   end

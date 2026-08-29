@@ -14,6 +14,7 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Corpus
 
   schema do
@@ -24,7 +25,7 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
   end
 
   @impl true
-  def execute(%{work_id: work_id}, frame) do
+  def execute(%{work_id: work_id} = params, frame) do
     case Corpus.outline(work_id) do
       {:ok, outline} ->
         payload =
@@ -33,7 +34,7 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
           # bake-dependent as a passage, since a re-bake can change the structure.
           |> Map.put(:bake_id, Pramana.Bake.current_id())
 
-        {:reply, Response.json(Response.tool(), payload), frame}
+        {:reply, Reply.json("get_outline", params, payload), frame}
 
       {:error, :not_found} ->
         {:reply,

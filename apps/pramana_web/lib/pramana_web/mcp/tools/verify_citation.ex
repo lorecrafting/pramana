@@ -9,7 +9,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
+  alias PramanaWeb.MCP.Reply
   alias Pramana.Guard
 
   schema do
@@ -22,7 +22,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
   end
 
   @impl true
-  def execute(%{urn: urn, quoted_text: quoted}, frame) do
+  def execute(%{urn: urn, quoted_text: quoted} = params, frame) do
     finding = Guard.check(urn, quoted)
 
     payload = %{
@@ -35,7 +35,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
       explanation: explain(finding.verdict)
     }
 
-    {:reply, Response.json(Response.tool(), payload), frame}
+    {:reply, Reply.json("verify_citation", params, payload), frame}
   end
 
   defp explain(:ok), do: "The quoted text appears verbatim at this URN."
