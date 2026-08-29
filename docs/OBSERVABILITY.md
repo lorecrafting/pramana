@@ -64,6 +64,19 @@ what has dates and authority links; the last gate result if one is recorded.
 Highest value per hour of anything here, because it is read-only, needs no design decisions,
 and every future session pays the cost of its absence.
 
+**▸ BUILT 2026-08-29**, and building it found a defect in something else.
+
+`Inventory.snapshot/0` takes **9.8 seconds**, against ~300 ms for every coverage figure it
+reports combined. The cost is one field: `chars` sums `length(body)` across 548 million
+characters, which makes Postgres detoast every text in the corpus. **The reader's
+`/inventory` page pays that on every load** — a ten-second page whose slowness is entirely
+one number nobody asked for at that moment.
+
+`doctor` avoids it by reading the character total from the recorded bake, where it was
+computed once. The real fix is a stored `char_count` per text, set at load time; it is a
+schema change and a backfill, and it is in `docs/PLAN.md` § Backlog rather than bolted onto
+a diagnostic command.
+
 ### 2. Domain telemetry at five boundaries
 
 `:telemetry.execute/3` at the bake job, retrieval, the guard, an MCP tool call, and

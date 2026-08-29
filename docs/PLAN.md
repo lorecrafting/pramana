@@ -1437,7 +1437,7 @@ importance. Sources: § A6 (feedback loop), `docs/OBSERVABILITY.md` (audit).
 |---|---|---|---|
 | 1 | **Guard mismatch diagnosis** | `:quote_mismatch` covers a fabrication, an edition that punctuates differently, and a citation naming the first of two lines. Three layers, one verdict | ▸ done |
 | 2 | **Surface it** — `verify_citation`, `verify_report` | a diagnosis nobody reads is rule 60 again. NOT the reader: it renders passages and never verifies a quote, so it has no refusal surface | ▸ done |
-| 3 | **`mix pramana.doctor`** | the state every session rediscovers with hand-written psql. Highest value per hour in the audit | |
+| 3 | **`mix pramana.doctor`** | the state every session rediscovers with hand-written psql. Highest value per hour in the audit | ▸ done |
 | 4 | **Oban failure handler** | ~10 lines. The stall that cost an afternoon was diagnosed with a print statement inside `perform` | |
 | 5 | **Domain telemetry, five boundaries** | bake, retrieval, guard, MCP call, acquisition. Free when unattached; the substrate for 7 | |
 | 6 | **Structured MCP errors** | seven hand-written strings across seventeen tools. A model cannot branch on prose | |
@@ -1484,6 +1484,14 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 ---
 
 ## Backlog
+
+- **`/inventory` is a ten-second page load, and one field is the whole cost.** Found
+  2026-08-29 while building `mix pramana.doctor`. `Inventory.snapshot/0` takes 9.8 s against
+  ~300 ms for every coverage figure it reports combined; the difference is `chars`, which
+  sums `length(body)` over 548 million characters and forces Postgres to detoast every text.
+  The fix is a stored `char_count` on `texts`, set at load time — a migration, a backfill and
+  a normalizer change, which is why it is not bolted onto the diagnostic that found it.
+  `doctor` reads the total from the recorded bake instead.
 
 - **Restore coverage to 85 / 93.** ▸ **ENFORCEMENT TURNED ON 2026-08-28**, and it exposed a
   15-point regression nobody could have seen.
