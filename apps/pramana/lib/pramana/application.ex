@@ -10,6 +10,10 @@ defmodule Pramana.Application do
 
   @impl true
   def start(_type, _args) do
+    # BEFORE the supervisor starts anything, so a job that fails during boot is still
+    # reported. Attaching is idempotent.
+    Pramana.Telemetry.attach()
+
     children =
       [
         Pramana.Repo,

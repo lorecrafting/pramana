@@ -88,12 +88,24 @@ dev for free, and it is the substrate for everything in § A6 of `docs/PLAN.md`.
 `bake_id`, mode and which retrievers actually ran — because "the semantic arm silently did
 not run" is a real failure this project has already had.
 
-### 3. An Oban failure handler
+### 3. An Oban failure handler — ▸ BUILT 2026-08-29
 
-Attach to `[:oban, :job, :exception]`, log the worker, args and reason. Roughly ten lines,
-and it is the single item that would have made the stall above a two-minute diagnosis.
-Consider raising the pruner's 24 h retention for failed jobs specifically: a bake run
-overnight currently loses its own failures before anyone reads them.
+`Pramana.Telemetry` attaches to `[:oban, :job, :exception]` at boot and logs the worker,
+args, attempt, queue, duration, reason **and node** — the last because the stall that
+motivated this was a second VM draining the same queue with yesterday's build, and nothing
+else in the record would have told them apart.
+
+It reports and returns. A telemetry handler that retried or discarded would be a control
+path hiding in an observation path, and Oban owns that policy.
+
+Successes are not logged: a bake is tens of thousands of jobs and a line each buries the one
+line that matters.
+
+**And the pruner now keeps seven days rather than one.** A job that exhausts its attempts is
+`discarded`, which the pruner treats like any other terminal state — so at 24 h an overnight
+bake lost its own failures before anyone read them. Oban's pruner takes a single `max_age`,
+so keeping failures longer keeps successes longer too; `oban_jobs` rows are small and that is
+a trade worth making in one direction only.
 
 ### 4. Structured errors on the MCP surface
 

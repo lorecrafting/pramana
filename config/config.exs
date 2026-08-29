@@ -28,7 +28,13 @@ config :pramana, Oban,
   repo: Pramana.Repo,
   engine: Oban.Engines.Basic,
   queues: [bake: 8],
-  plugins: [{Oban.Plugins.Pruner, max_age: 60 * 60 * 24}]
+  # SEVEN DAYS, not one. The pruner discards completed, cancelled and discarded jobs alike,
+  # and a job that exhausted its attempts is `discarded` — so at 24 h a bake run overnight
+  # loses its own failures before anyone reads them. That is precisely what made the stall of
+  # 41-of-53 jobs expensive to diagnose. Oban's pruner takes a single `max_age`, so keeping
+  # failures longer means keeping successes longer; `oban_jobs` rows are small and a full
+  # bake is a few thousand of them, which is a trade worth making in one direction only.
+  plugins: [{Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}]
 
 config :pramana_web,
   ecto_repos: [Pramana.Repo],
