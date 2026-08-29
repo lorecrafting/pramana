@@ -28,6 +28,46 @@ defmodule Pramana.CoverageTest do
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T", provenance: %{})
   end
 
+  describe "caveats/0 — the countable form" do
+    test "names which gaps fired, not the prose" do
+      # `caveat/0` joins them into a sentence, which is right for a reader and useless for
+      # counting. WHICH gap callers keep hitting is a prioritised acquisition list.
+      kinds = Coverage.caveats()
+
+      assert is_list(kinds)
+      assert Enum.all?(kinds, &(&1 in [:taisho, :cbeta, :tibetan]))
+    end
+
+    test "the prose and the kinds agree about whether anything fired" do
+      # Two functions computing the same thing separately is how they drift apart.
+      assert Coverage.caveats() == [] == is_nil(Coverage.caveat())
+    end
+
+    test "emits which kinds fired, so the acquisition list is countable" do
+      ref = make_ref()
+      parent = self()
+
+      :telemetry.attach(
+        ref,
+        [:pramana, :coverage, :caveat],
+        fn _e, m, meta, _ -> send(parent, {:caveat, m, meta}) end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(ref) end)
+
+      case Coverage.caveat() do
+        nil ->
+          refute_receive {:caveat, _, _}
+
+        _text ->
+          assert_receive {:caveat, %{fired: n}, %{kinds: kinds}}
+          assert n == length(kinds)
+          assert kinds == Enum.sort(kinds)
+      end
+    end
+  end
+
   describe "an empty corpus" do
     test "reports every volume missing rather than claiming completeness" do
       coverage = Coverage.taisho()

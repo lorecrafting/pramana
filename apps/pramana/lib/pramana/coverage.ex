@@ -46,6 +46,7 @@ defmodule Pramana.Coverage do
   alias Pramana.Corpus.Work
   alias Pramana.Repo
   alias Pramana.Taisho.Divisions
+  alias Pramana.Telemetry
 
   @taisho_volumes 1..85
   @japanese_delta 56..84
@@ -262,12 +263,43 @@ defmodule Pramana.Coverage do
   """
   @spec caveat() :: String.t() | nil
   def caveat do
-    [taisho_caveat(), cbeta_caveat(), tibetan_caveat()]
-    |> Enum.reject(&is_nil/1)
-    |> case do
-      [] -> nil
-      caveats -> Enum.join(caveats, " ")
+    active = active_caveats()
+
+    # WHICH CAVEAT FIRES MOST IS AN ACQUISITION LIST, and nobody was counting. This is the
+    # moment the system says "here is what is missing" — emitted here rather than at each
+    # call site so every serving path is counted without one of them being forgotten.
+    #
+    # It counts internal calls too. That is a known imprecision and a cheap one: the figure
+    # answers "which gap do callers keep hitting", and a handful of diagnostic calls does not
+    # change which gap is largest.
+    if active != [] do
+      Telemetry.emit([:pramana, :coverage, :caveat], %{fired: length(active)}, %{
+        kinds: Enum.sort(Keyword.keys(active))
+      })
     end
+
+    case Keyword.values(active) do
+      [] -> nil
+      texts -> Enum.join(texts, " ")
+    end
+  end
+
+  @doc """
+  Which gaps are currently worth stating, as atoms.
+
+  `caveat/0` joins these into prose, which is right for a reader and useless for counting —
+  and *which* gap callers keep hitting is a prioritised acquisition list. Separating the two
+  is what makes the list countable.
+  """
+  @spec caveats() :: [:taisho | :cbeta | :tibetan]
+  def caveats, do: Keyword.keys(active_caveats())
+
+  # Computed ONCE. Each of these runs queries, and an earlier version of `caveat/0` asked for
+  # the kinds and then asked again for the prose — paying twice for the same three answers on
+  # a path that runs on every search.
+  defp active_caveats do
+    [taisho: taisho_caveat(), cbeta: cbeta_caveat(), tibetan: tibetan_caveat()]
+    |> Enum.reject(fn {_kind, text} -> is_nil(text) end)
   end
 
   # SUPPRESSED WHEN THERE IS NO TAISHŌ AT ALL, because a narrower true statement in place

@@ -126,10 +126,22 @@ undercounted by looking only at single-line call sites. Every one now goes throu
 `reason` to branch on, the sentence to read, and `bake_id` and `replay` beside them, because
 *"no passage exists at this URN"* is a fact about a particular corpus.
 
-### 5. Guard refusals and caveat counts
+### 5. Guard refusals and caveat counts — ▸ BUILT 2026-08-29
 
-`docs/PLAN.md` § A6, items 1 and 3. Both signals are already computed and thrown away, and
-both become useful the moment (2) exists to carry them.
+Both were computed and thrown away. Both are counters now, reported by verdict and by kind:
+citation refusals answer *where is the corpus hard to cite*, and which caveat fires answers
+*what should we acquire next* — on evidence rather than intuition.
+
+**Counters, not a stored log, and that is a decision rather than a stage.** Persisting
+refusals or queries is a question about privacy and retention before it is a feature: a
+scholar's queries reveal unpublished research direction, and § A6 says the retention policy
+comes before the first row. A counter answers most of the question and stores nothing.
+
+Making the caveats countable meant splitting `Coverage.caveat/0` — it joined three gaps into
+one sentence, so nothing could count *which* fired. `Coverage.caveats/0` returns the kinds;
+both now share one computation, because the first version asked for the kinds and then asked
+again for the prose, paying twice for three database answers on a path that runs on every
+search.
 
 ## What this deliberately does not propose
 

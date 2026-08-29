@@ -90,6 +90,22 @@ defmodule PramanaWeb.Telemetry do
         tags: [:verdict],
         description: "Citation checks by verdict — refusals are the signal"
       ),
+      # THE TWO SIGNALS THAT WERE COMPUTED AND DISCARDED — docs/PLAN.md § A6, items 1 and 3.
+      #
+      # Counters rather than a stored log, deliberately. Persisting refusals or queries is a
+      # decision about privacy and retention before it is a feature: a scholar's queries
+      # reveal unpublished research direction. § A6 says the retention policy comes before
+      # the first row, and these answer most of the question without one.
+      counter("pramana.guard.check.duration",
+        event_name: "pramana.guard.check",
+        measurement: :duration,
+        tags: [:verdict],
+        description: "Citation refusals by verdict — a rising rate is a corpus problem"
+      ),
+      counter("pramana.coverage.caveat.fired",
+        tags: [:kinds],
+        description: "Which gap callers keep hitting — a prioritised acquisition list"
+      ),
       counter("pramana.mcp.tool.calls",
         tags: [:tool],
         description: "Which tools a model actually reaches for"
