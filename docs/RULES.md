@@ -503,6 +503,17 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     for a red gate. Both are the same error: reading a proxy for the status instead of the
     status. `cmd; echo $?`, or `set -o pipefail`, or do not pipe.
 
+    **And a chain reports only its last command.** Split across invocations, or joined with
+    `;`, `mix format; mix test` reports the test run and says nothing about the formatter —
+    a failure earlier in the chain is invisible behind a green ending. Join with `&&`: it
+    stops at the first failure, so the chain's status is the chain's.
+
+    **This shell is `zsh`, where the bash habit reports nothing at all.** `${PIPESTATUS[0]}`
+    is unset here and expands to the empty string, so the status line prints `EXIT:` with
+    nothing after it — and an empty status reads as a fine one. zsh's array is `$pipestatus`,
+    lowercase and **1-indexed**: `${pipestatus[1]}` is the first command. Confirmed in zsh
+    5.9 on 2026-08-29, when this rule's own status line came back empty.
+
 64. **A derived identifier must be re-derived, or something must notice it wasn't.**
     `bake_id = sha256(sources.lock + pipeline_version + config)` and every MCP response is
     stamped with the **recorded** one, so an answer can be tied to the dataset that produced
@@ -538,6 +549,53 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     first time it was run. A property asserted once is asserted under one set of conditions;
     where a failure depends on timing or process state, run it several times before believing
     it.
+
+66. **A `mix` task edited this session runs its OLD code, and prints old output.** Mix loads
+    the task module from `_build` *before* the task's own `Mix.Task.run("app.start")`
+    compiles anything, and an executing invocation stays on the code version it started in.
+    So a task whose printing changed will compile the new beam, call the new domain module,
+    and then report through the old printer.
+
+    It cost a 40-minute measurement. `Recall.parallels/1` computed the cross-lingual hits and
+    the summary printed `2` found — from the new module — while not one hit was printed,
+    because `Mix.Tasks.Pramana.Recall` was still the pre-edit beam. **`mix test` had passed
+    twenty seconds earlier and proved nothing**: it compiles into `_build/test`, a different
+    build from the one `mix <task>` loads.
+
+    The evidence is two timestamps: source saved 11:01:50, `_build/dev` beam written
+    11:02:10 — which is when the run started, not before it.
+
+    **`mix compile && mix <task>`**, always, when the task itself was touched. Nothing inside
+    the old module can detect this, so there is no check to add — only the habit. Rule 63's
+    `&&` for the same reason.
+
+67. **A pooled `Repo` call does not stay on one connection, and the sandbox hides it.**
+    `Pramana.Recall` seeded its sample with `Repo.query!("SELECT setseed($1)")` and then ran
+    `ORDER BY random()` as a second `Repo` call. `setseed` seeds one Postgres **session**;
+    the pool hands the next query whatever connection is free. So the seed landed in one
+    session and the query it was meant to seed ran in another, and **`--seed` did nothing at
+    all** — silently, for as long as the option has existed.
+
+    Measured: **eight calls with the same seed drew eight different samples; the same eight
+    inside `Repo.transaction/1` drew one.** Every figure this project published under a seed
+    was an unseeded draw, including `docs/PLAN.md` § F, whose three runs of one "reproducible"
+    command gave cross-lingual 0.4%, 0.4% and 0.2% against controls of 20.8%, 26.4% and 18.4%.
+    That spread was read as a stable measurement.
+
+    **And no test could have caught it.** `Pramana.DataCase` uses Ecto's SQL sandbox, which
+    checks out ONE connection and pins it for the test — so `setseed` and its query always
+    share a session there. Deleting the fix and re-running left all nine tests green.
+
+    Generalising, and this is the part that outlives the bug: **anything that depends on two
+    calls sharing a connection is invisible to this test suite** — session settings
+    (`setseed`, `SET LOCAL`, `search_path`), advisory locks, temp tables, `LISTEN`. The suite
+    runs on one pinned connection by construction and cannot reproduce a two-connection
+    world. The instrument that sees it is a script run against a real pool, or a check in
+    `mix pramana.gate`, which runs against a real database.
+
+    **Session state belongs inside `Repo.transaction/1`**, which pins the checkout. If a
+    guarantee cannot be stated as "these calls are in one transaction", it is not a
+    guarantee.
 
 ---
 

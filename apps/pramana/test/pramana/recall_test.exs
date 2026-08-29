@@ -109,6 +109,34 @@ defmodule Pramana.RecallTest do
     ])
   end
 
+  # Rows that no search can find, so every drawn case is a `:neither` and therefore appears
+  # in `misses` — which is the only place `run/1` reports WHICH rows it drew.
+  defp quotation!(text, length) do
+    Repo.insert_all("quotations", [
+      %{
+        text: text,
+        text_sha256: String.duplicate("b", 64),
+        length: length,
+        a_text_id: text_id("T0099"),
+        a_work_id: "T0099",
+        a_urn: "pramana:cbeta.T:T0099_001@p0001a01",
+        # DISTINCT OFFSETS PER ROW. `quotations` is uniquely indexed on
+        # (a_text_id, a_char_start, b_text_id, b_char_start), so twenty rows all starting at
+        # 0 are one row and nineteen constraint violations.
+        a_char_start: length,
+        a_char_end: length + 10,
+        b_text_id: text_id("T0100"),
+        b_work_id: "T0100",
+        b_urn: "pramana:cbeta.T:T0100_001@p0001a01",
+        b_char_start: length,
+        b_char_end: length + 10,
+        meta: %{},
+        inserted_at: NaiveDateTime.utc_now(:second),
+        updated_at: NaiveDateTime.utc_now(:second)
+      }
+    ])
+  end
+
   defp text_id(work_id) do
     import Ecto.Query
     Repo.one!(from t in "texts", where: t.work_id == ^work_id, select: t.id)
@@ -136,14 +164,56 @@ defmodule Pramana.RecallTest do
     assert %{recall: 1.0} = Recall.run(sample: 10)
   end
 
-  test "a sample is reproducible, or it is an anecdote" do
-    # `order by random()` gives a different answer every run, so no figure could be compared
-    # with the one before it — the failure `docs/PROXIES.md` exists to record.
-    first = Recall.run(sample: 1, seed: 0.5)
-    second = Recall.run(sample: 1, seed: 0.5)
+  test "REGRESSION: a sample is reproducible, and the seed must survive the pool" do
+    # `setseed` seeds one Postgres SESSION. `Repo.query!` takes whatever connection the pool
+    # hands it, so the seed landed in one session and the `ORDER BY random()` it was meant to
+    # seed ran in another. Measured on 2026-08-29: **eight calls with one seed drew eight
+    # different samples.** `--seed` did nothing, and every figure published under one —
+    # `docs/PLAN.md` § F included — was an unseeded draw.
+    #
+    # THE TEST THIS REPLACED ASSERTED THE SAME PROPERTY AND PASSED THROUGHOUT, because it
+    # drew `sample: 1` from a one-row fixture, where every possible sample is identical. A
+    # reproducibility test needs a population big enough for an unseeded draw to differ.
+    Repo.delete_all("quotations")
+    for i <- 1..20, do: quotation!("ZZZ-not-in-any-work-#{i}", 100 + i)
 
-    assert Enum.map(first.misses, & &1.a_work) == Enum.map(second.misses, & &1.a_work)
-    assert first.sampled == second.sampled
+    # `length` is a per-row id here, so this compares WHICH rows were drawn and in what
+    # order. Twenty rows choose five ordered: an unseeded draw repeats by chance about
+    # once in 1.9 million.
+    drawn = fn -> Recall.run(sample: 5, seed: 0.5).misses |> Enum.map(& &1.length) end
+
+    first = drawn.()
+    assert length(first) == 5
+
+    for _ <- 1..3, do: assert(drawn.() == first)
+  end
+
+  # WHAT THESE TWO TESTS DO NOT CATCH, stated because a test whose limits are unwritten gets
+  # trusted for the thing it cannot do.
+  #
+  # They catch a seed that is IGNORED — dropped argument, removed `setseed`. They cannot
+  # catch a seed sent to the WRONG CONNECTION, which is the defect that actually happened:
+  # `Pramana.DataCase` uses Ecto's SQL sandbox, which checks out ONE connection and pins it
+  # for the whole test, so `setseed` and its query always share a session here no matter how
+  # the code is written. **Verified on 2026-08-29 by deleting the transaction from
+  # `seeded/2`: all nine tests still passed.**
+  #
+  # Which generalises past this file: NO pool-dependent defect is visible to this suite. A
+  # sandboxed test runs on one connection by construction, and a bug that only appears when
+  # two calls land on two connections is invisible to every test in it. The only instrument
+  # that sees it is a script against a real pool — see `docs/RULES.md` 67.
+
+  test "a different seed draws a different sample, or the seed is being ignored" do
+    # The mirror of the test above, and the one that catches a `seeded/2` that silently
+    # swallows its argument: identical output under two different seeds passes every
+    # reproducibility check ever written.
+    Repo.delete_all("quotations")
+    for i <- 1..20, do: quotation!("ZZZ-not-in-any-work-#{i}", 100 + i)
+
+    a = Recall.run(sample: 5, seed: 0.1).misses |> Enum.map(& &1.length)
+    b = Recall.run(sample: 5, seed: 0.9).misses |> Enum.map(& &1.length)
+
+    refute a == b
   end
 
   describe "parallels/1 — the axis that has never moved" do
@@ -168,6 +238,24 @@ defmodule Pramana.RecallTest do
       assert result.control.found > 0
       assert result.cross_lingual.found > 0
       assert result.cross_lingual.rate == 1.0
+    end
+
+    test "a hit carries what it landed on, because at 0.4% the misses say nothing" do
+      # Two of 496 cross-lingual cases landed and the run reported only the 494 failures, so
+      # the only positive evidence about what crosses the language barrier went on the floor.
+      result = Recall.parallels(sample: 10, mode: :lexical)
+
+      assert [hit] = result.hits
+      assert hit.target_work == "T0201"
+      assert hit.rank >= 1
+      assert hit.query =~ "如是我聞"
+      assert hit.matched_text =~ "如是我聞"
+
+      # WORK-LEVEL RECALL IS NOT LINE-LEVEL. `exact_rank` is the whole reason a hit is worth
+      # printing: it separates *the parallel's own line came back* from *some line of a work
+      # with thousands of them did*, and without it the two read identically.
+      assert hit.matched_urn == hit.target_urn
+      assert hit.exact_rank == hit.rank
     end
 
     test "VOID, not zero, when the control cannot find its own pairs" do

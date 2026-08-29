@@ -50,10 +50,18 @@ failure handler and errors a model can branch on.
 reads the 141,073 verbatim quotations as free relevance judgements: **100.0% over 1,891
 decided pairs**, which bounds where retrieval failures can live — not in exact matching.
 `--parallels` points the same trick at SuttaCentral's 10,493 Pāli↔Chinese parallels — the
-axis `topical/chinese` has been 0% of twelve gold cases on — and gives it a number:
-**0.4% cross-lingual against a 20.8% same-language control, or 1.9% of achievable recall.**
-The language barrier costs 98% of what this corpus can do on the identical task in one
-language. `docs/PLAN.md` § F.
+axis `topical/chinese` has been 0% of twelve gold cases on.
+
+**Its published figure was withdrawn on 2026-08-29, the day it was published.** `--seed` did
+not work — `setseed` and the query it seeded ran on different pooled connections, so three
+runs of one "reproducible" command gave cross-lingual 0.4%, 0.4% and 0.2% against controls of
+20.8%, 26.4% and 18.4%. And the successes were work-level credit for a stock formula in 113
+texts, not a cross-lingual match. **What stands is the direction — cross-lingual recall is
+roughly fiftyfold below same-language recall on the identical task — and nothing to more
+precision than that.** Rule 67; `docs/PLAN.md` § F for both defects and what replaced them.
+
+The quotation figure above is drawn by the same sampling and was equally unseeded; 100.0% is
+100% of whatever it drew, and the 1,891 is one draw's denominator.
 
 **A report can now be checked, not just a quotation.** `verify_report` byte-compares every
 citation in a document **and re-executes the searches its figures rest on** — "appears

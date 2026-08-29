@@ -878,27 +878,57 @@ steered on, and one case is 8.3 points.* `mix pramana.recall --parallels` reads 
 curated Pāli↔Chinese parallels as what they are — **scholars' cross-lingual relevance
 judgements** — and there are 10,493 of them with both ends in this bake.
 
-    mode hybrid, limit 100, seed 0.42, PRAMANA_EMBEDDING=1
+**▸ THE NUMBERS BELOW ARE WITHDRAWN — 2026-08-29, the same day they were published.** Two
+defects, found by trying to read the successes rather than the failures.
 
-    control (same language)   26/125 decided   20.8%
-    cross-lingual              2/496 decided    0.4%
-    cross vs same                               1.9% of same-language recall
+**1. `--seed` never worked, so nothing here was reproducible.** `setseed` seeds one Postgres
+session and `Repo.query!` takes whatever connection the pool offers, so the seed and the
+`ORDER BY random()` it was meant to seed ran in different sessions. Eight calls with one seed
+drew eight different samples. Fixed by pinning both to a transaction; rule 67, and the reason
+no test caught it is in there too.
 
-**The control is the finding.** Retrieving a *paraphrase* is hard even inside one language:
-a parallel records that two discourses correspond, not that they share words, so 20.8% is
-what this corpus and this cap can do on the task at all. That is the yardstick, and it was
+What was published as one seeded measurement was three unseeded draws:
+
+    mode hybrid, limit 100, PRAMANA_EMBEDDING=1     control      cross-lingual   ratio
+    run 1 (published as § F)                     26/125  20.8%   2/496  0.4%     1.9%
+    run 2                                        33/125  26.4%   2/499  0.4%     1.5%
+    run 3                                        23/125  18.4%   1/499  0.2%     1.1%
+
+**The ratio was quoted to two significant figures and it moved by 70% across draws.** The
+control moved by eight points. "1.9% of achievable recall" and "the language barrier costs
+98%" were one sample read as a constant.
+
+**2. The successes are an artifact of work-level scoring, and there is no positive
+evidence.** The whole point of reading the hits was that 2 of 496 were the only observations
+of what crosses the language barrier. The one that could be inspected — run 3's single hit —
+matched `Ayampi attho vutto bhagavatā`, the stock Itivuttaka closing formula, present in
+**114 segments across 113 texts**. It landed at rank 50, and **not on the parallel line at
+all**: the Chinese query surfaced a frame phrase that appears in every sutta of the
+collection, in a work that happened to be the right one.
+
+Recall here is work-level by design — `Recall`'s moduledoc argues for it, and for the
+quotation probe it is right. Against *parallels* it lets boilerplate earn credit, and at a
+rate of two in five hundred, one boilerplate match is the entire finding. The probe now
+reports `on line` beside `found`, requiring the parallel's own target line.
+
+**What survives.** The direction and the order of magnitude: cross-lingual recall is far
+below same-language recall on the identical task, by something like fifty-fold across all
+three draws. That is worth having and it is what the axis was built to show. The *precision*
+does not survive, and neither does any claim that something was learned about what makes a
+cross-lingual match land.
+
+**The control is still the finding.** Retrieving a *paraphrase* is hard even inside one
+language: a parallel records that two discourses correspond, not that they share words, so
+roughly 20% is what this corpus and this cap can do on the task at all. That yardstick was
 nearly thrown away — an earlier version of the probe called anything under 50% a broken run,
 a floor picked from nothing rather than from a measured distribution.
 
-Against that yardstick the language barrier costs **98% of the achievable recall**. Not
-"cross-lingual retrieval is weak" but *fifty times worse than the same task in one language*,
-which is a different claim and a checkable one.
-
 **What it does not establish.** Hybrid fuses lexical and semantic, and lexical contributes
 essentially nothing across scripts, so this is the semantic arm's number. It says nothing
-about whether a corpus-derived term table would fix it — that hypothesis is still unbuilt and
-now has an instrument to be judged against, which is the point. Two of 496 succeeded and are
-worth reading before anything is built.
+about whether a corpus-derived term table would fix it — that hypothesis is unbuilt, has an
+instrument to be judged against, and now has **zero** supporting observations rather than
+two. **Do not start the term table on the strength of the hits.** A seeded run reporting
+line-level recall is the thing to build it on, and it is what should be read next.
 
 ### F.1 The route that is closed
 

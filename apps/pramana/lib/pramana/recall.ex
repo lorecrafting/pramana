@@ -96,6 +96,19 @@ defmodule Pramana.Recall do
 
   A `control` that collapses makes the whole run `:void` rather than zero — the distinction
   between *retrieval cannot do this* and *we cannot measure it*.
+
+  ## Read the hits, not only the misses
+
+  At 0.4% the failures are the whole distribution and say almost nothing; the handful that
+  land are the only observations of what *does* cross the language barrier. Each carries
+  `rank`, the query, the matched line, and `exact_rank` — which separates *the parallel line
+  itself came back* from *some line of a work with thousands of them did*.
+
+  ## Options
+
+  `:sample`, `:limit`, `:seed` and `:mode`, plus `:on_progress` — a one-argument function
+  called after every probe. Five hundred cases take an hour, and a measurement nobody can
+  watch is one whose remaining time nobody can state.
   """
   @spec parallels(keyword()) :: map()
   def parallels(opts \\ []) do
@@ -106,8 +119,8 @@ defmodule Pramana.Recall do
     cross = sample_parallels(sample, :cross, Keyword.get(opts, :seed))
     control = sample_parallels(max(div(sample, 4), 10), :same, Keyword.get(opts, :seed))
 
-    cross_results = Enum.map(cross, &probe_parallel(&1, limit, mode, opts))
-    control_results = Enum.map(control, &probe_parallel(&1, limit, mode, opts))
+    cross_results = probe_all(cross, :cross, limit, mode, opts)
+    control_results = probe_all(control, :control, limit, mode, opts)
 
     control_score = score(control_results)
     cross_score = score(cross_results)
@@ -130,7 +143,13 @@ defmodule Pramana.Recall do
           {control, cross} when control > 0 -> cross / control
           _ -> nil
         end,
-      misses: cross_results |> Enum.filter(&(&1.outcome == :miss)) |> Enum.take(8)
+      misses: cross_results |> Enum.filter(&(&1.outcome == :miss)) |> Enum.take(8),
+      # THE POSITIVE EVIDENCE, WHICH WAS BEING DISCARDED. Two of 496 cross-lingual cases
+      # landed and only the 494 failures were reported, so the one thing the run could say
+      # about what *does* cross the language barrier went on the floor. § F proposes a
+      # corpus-derived term table; these are the only observations available to build one
+      # from evidence rather than from intuition.
+      hits: cross_results |> Enum.filter(&(&1.outcome == :found)) |> Enum.take(8)
     }
   end
 
@@ -151,38 +170,52 @@ defmodule Pramana.Recall do
   defp verdict(%{found: 0}, _cross), do: :void
   defp verdict(_control, _cross), do: :measured
 
+  # WORK-LEVEL CREDIT IS EARNED BY BOILERPLATE, which is not a hypothetical: the only
+  # inspectable cross-lingual hit this probe has ever produced matched `Ayampi attho vutto
+  # bhagavatā` — the stock Itivuttaka closing formula, in 114 segments across 113 texts — at
+  # rank 50, and not the parallel line at all. Scored as `found`, read as evidence that
+  # something crossed the language barrier, it was a frame phrase landing in the right book.
+  #
+  # So both are reported. `found` is the comparable historical figure; `on_line` is the one
+  # that means what the number is usually taken to mean.
   defp score(results) do
     decided = Enum.reject(results, &(&1.outcome == :undecided))
     found = Enum.count(decided, &(&1.outcome == :found))
+    on_line = Enum.count(decided, &(Map.get(&1, :exact_rank) != nil))
 
     %{
       sampled: length(results),
       decided: length(decided),
       found: found,
-      rate: if(decided != [], do: found / length(decided))
+      on_line: on_line,
+      rate: if(decided != [], do: found / length(decided)),
+      line_rate: if(decided != [], do: on_line / length(decided))
     }
   end
 
   # `:cross` is a pair whose two ends come from different SOURCES — SuttaCentral and CBETA,
   # which here means Pāli and Classical Chinese. `:same` is the control.
   defp sample_parallels(n, kind, seed) do
-    if seed, do: Repo.query!("SELECT setseed($1)", [seed])
-
     comparison = if kind == :cross, do: "<>", else: "="
 
-    %{rows: rows} =
-      Repo.query!(
-        """
-        SELECT p.source_urn, p.target_urn, p.target_work_id, st.source_id, tt.source_id
-        FROM text_parallels p
-          JOIN texts st ON st.work_id = p.source_work_id
-          JOIN texts tt ON tt.work_id = p.target_work_id
-        WHERE p.source_urn IS NOT NULL AND p.target_urn IS NOT NULL
-          AND st.source_id #{comparison} tt.source_id
-        ORDER BY random() LIMIT $1
-        """,
-        [n]
-      )
+    rows =
+      seeded(seed, fn ->
+        %{rows: rows} =
+          Repo.query!(
+            """
+            SELECT p.source_urn, p.target_urn, p.target_work_id, st.source_id, tt.source_id
+            FROM text_parallels p
+              JOIN texts st ON st.work_id = p.source_work_id
+              JOIN texts tt ON tt.work_id = p.target_work_id
+            WHERE p.source_urn IS NOT NULL AND p.target_urn IS NOT NULL
+              AND st.source_id #{comparison} tt.source_id
+            ORDER BY random() LIMIT $1
+            """,
+            [n]
+          )
+
+        rows
+      end)
 
     Enum.map(rows, fn [source_urn, target_urn, target_work, src, tgt] ->
       %{
@@ -195,6 +228,24 @@ defmodule Pramana.Recall do
     end)
   end
 
+  # AN HOUR OF SILENCE IS AN OBSERVABILITY BUG, and this module proved it: a full run went
+  # by before anyone could see that its printer was broken, and "how much longer" had no
+  # answer but a guess. `:on_progress` is called once per probe with the phase, the counts
+  # and the outcome; formatting is the caller's business, so nothing here knows about a
+  # shell. Absent, it costs one anonymous-function call per case.
+  defp probe_all(pairs, phase, limit, mode, opts) do
+    report = Keyword.get(opts, :on_progress) || fn _ -> :ok end
+    total = length(pairs)
+
+    pairs
+    |> Enum.with_index(1)
+    |> Enum.map(fn {pair, index} ->
+      result = probe_parallel(pair, limit, mode, opts)
+      report.(%{phase: phase, done: index, total: total, outcome: result.outcome})
+      result
+    end)
+  end
+
   # Query with the SOURCE passage's own words and ask whether the target work comes back.
   # A passage that will not resolve is `:undecided`: the parallel names a witness this bake
   # holds a work id for and not the line, which is a coverage fact rather than a retrieval one.
@@ -203,37 +254,80 @@ defmodule Pramana.Recall do
          text when is_binary(text) and byte_size(text) > 0 <- span.content,
          {:ok, %{results: results}} <-
            Retrieval.search(text, Keyword.merge([mode: mode, limit: limit], search_opts(opts))) do
-      works = results |> Enum.map(& &1.span.provenance.work_id) |> MapSet.new()
+      # A hybrid result whose URN did not resolve carries `span: nil` — see
+      # `Retrieval.Hybrid.decorate/1` — and reaching through it raises, forty minutes into
+      # a run that then reports nothing at all.
+      results = Enum.filter(results, & &1.span)
 
-      Map.put(
-        pair,
-        :outcome,
-        if(MapSet.member?(works, pair.target_work), do: :found, else: :miss)
-      )
+      case Enum.find_index(results, &(&1.span.provenance.work_id == pair.target_work)) do
+        nil -> Map.put(pair, :outcome, :miss)
+        index -> Map.merge(pair, hit(pair, results, index, text))
+      end
     else
       _ -> Map.put(pair, :outcome, :undecided)
     end
+  end
+
+  # WORK-LEVEL RECALL IS NOT LINE-LEVEL, and a hit is only worth reading if it says which
+  # one happened. T0099 is thousands of lines: surfacing *some* line of it is far weaker
+  # evidence than surfacing the line the curators actually pointed at, and printed without
+  # that distinction the two are indistinguishable. `rank` is where the work first appears;
+  # `exact_rank` is where the parallel's own target line appears, and is `nil` when the hit
+  # is the work only.
+  defp hit(pair, results, index, query) do
+    matched = Enum.at(results, index)
+    exact = Enum.find_index(results, &(&1.span.urn == pair.target_urn))
+
+    %{
+      outcome: :found,
+      rank: index + 1,
+      exact_rank: exact && exact + 1,
+      query: query,
+      matched_urn: matched.span.urn,
+      matched_text: matched.span.content
+    }
   end
 
   defp search_opts(opts), do: Keyword.take(opts, [:serving])
 
   # A REPRODUCIBLE SAMPLE. `order by random()` gives a different answer every run, so a
   # figure could never be compared with the one before it — the failure `docs/PROXIES.md`
-  # exists to record. The seed goes to Postgres, so the same seed draws the same pairs.
+  # exists to record.
   defp sample_pairs(n, seed) do
-    if seed, do: Repo.query!("SELECT setseed($1)", [seed])
+    seeded(seed, fn ->
+      Repo.all(
+        from q in "quotations",
+          select: %{
+            text: q.text,
+            a_work: q.a_work_id,
+            b_work: q.b_work_id,
+            length: q.length
+          },
+          order_by: fragment("random()"),
+          limit: ^n
+      )
+    end)
+  end
 
-    Repo.all(
-      from q in "quotations",
-        select: %{
-          text: q.text,
-          a_work: q.a_work_id,
-          b_work: q.b_work_id,
-          length: q.length
-        },
-        order_by: fragment("random()"),
-        limit: ^n
-    )
+  # THE SEED AND THE QUERY IT SEEDS MUST SHARE A CONNECTION, and two `Repo` calls do not.
+  # `setseed` sets the random sequence for one Postgres SESSION; the pool then hands the
+  # `ORDER BY random()` whatever connection is free, which is usually a different session
+  # that was never seeded. So `--seed` did nothing, silently, and every figure this module
+  # published under one was an unseeded draw — including `docs/PLAN.md` § F.
+  #
+  # Measured on 2026-08-29 before the fix: **eight calls with the same seed drew eight
+  # different samples; the same eight inside a transaction drew one.** A transaction pins
+  # the checkout, which is the whole fix. See `docs/RULES.md` 67.
+  defp seeded(nil, fun), do: fun.()
+
+  defp seeded(seed, fun) do
+    {:ok, result} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT setseed($1)", [seed])
+        fun.()
+      end)
+
+    result
   end
 
   # THE LONGEST SINGLE LINE, WITH ITS PUNCTUATION. Two mistakes were made getting here and
