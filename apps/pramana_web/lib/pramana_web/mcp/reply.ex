@@ -57,6 +57,36 @@ defmodule PramanaWeb.MCP.Reply do
     |> then(&Response.json(Response.tool(), &1))
   end
 
+  @doc """
+  An error a model can branch on, not only read.
+
+  Nineteen error paths across seventeen tools were each a hand-written sentence. Prose is the
+  right thing to *show* a caller and the wrong thing to give it as a contract: a model cannot
+  distinguish "this URN does not exist" from "this work is not in the bake" from "your query
+  was empty" without matching on English, which changes whenever someone improves the wording.
+
+  So an error carries a **`reason`** — a stable, snake_case atom naming the failure — beside
+  the sentence, and the sentence stays as good as it was. It also carries `bake_id` and
+  `replay`, because a failure is as much a fact about a corpus as a result is: "no passage at
+  this URN" is true of *this* bake and may be false of the next.
+
+  The payload is JSON in the error body rather than bare text, so the same parse works
+  whether a call succeeded or failed.
+  """
+  @spec error(String.t(), map(), atom(), String.t()) :: Response.t()
+  def error(tool, arguments, reason, message)
+      when is_binary(tool) and is_atom(reason) and is_binary(message) do
+    Pramana.Telemetry.emit([:pramana, :mcp, :tool], %{calls: 1}, %{tool: tool, error: reason})
+
+    %{
+      error: %{reason: reason, message: message},
+      bake_id: Pramana.Bake.current_id(),
+      replay: %{tool: tool, arguments: normalize(arguments)}
+    }
+    |> Jason.encode!()
+    |> then(&Response.error(Response.tool(), &1))
+  end
+
   # Struct-free and atom-keyed, so the record round-trips through JSON as what was sent.
   # A nil-valued option is dropped rather than recorded: it was not part of the call, and a
   # replay that re-sends it would pin a default that is free to change.

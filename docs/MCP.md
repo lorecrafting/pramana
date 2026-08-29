@@ -218,6 +218,26 @@ Retrieval degrades rather than failing, so every response says what it actually 
   `arguments` holds what the caller actually sent — a default is omitted, because re-sending
   one would pin a value free to change.
 
+## Errors
+
+Every failure returns an MCP error whose body is **JSON in the same shape a result uses**, so
+a caller needs one parse rather than two:
+
+    {"error": {"reason": "bad_urn", "message": "Malformed URN: … Expected pramana:<source>…"},
+     "bake_id": "…",
+     "replay": {"tool": "get_passage", "arguments": {"urn": "…"}}}
+
+**Branch on `reason`, read `message`.** The sentence is written for a person and is free to
+improve; `reason` is the contract. Distinguishing `bad_urn` (your mistake) from `not_found`
+(a fact about this bake) previously required matching on English.
+
+A failure carries `bake_id` and `replay` for the same reason a result does: *"no passage
+exists at this URN"* is true of **this** corpus and may be false of the next, so the refusal
+is as replayable as an answer.
+
+Reasons in use: `bad_urn`, `not_found`, `work_not_found`, `unknown_authority_id`,
+`range_not_supported`, `empty_query`, `search_failed`, `survey_failed`.
+
 ## Verifying a whole report, not just a quotation
 
 `verify_citation` answers one question about one URN. `verify_report` answers it for every

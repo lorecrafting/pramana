@@ -65,7 +65,6 @@ defmodule PramanaWeb.MCP.Tools.GetPerson do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Authority
   alias PramanaWeb.MCP.Reply
 
@@ -89,8 +88,10 @@ defmodule PramanaWeb.MCP.Tools.GetPerson do
     case Authority.person(id) do
       nil ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "get_person",
+           params,
+           :unknown_authority_id,
            "No authority person #{id}. Ids come from provenance.authority_id on a passage; " <>
              "an unrecognised one is an unknown id, not a person with nothing recorded."
          ), frame}

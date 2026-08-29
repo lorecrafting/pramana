@@ -28,7 +28,6 @@ defmodule PramanaWeb.MCP.Tools.SearchTranslations do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Translations
   alias PramanaWeb.MCP.Reply
 
@@ -68,8 +67,10 @@ defmodule PramanaWeb.MCP.Tools.SearchTranslations do
 
       {:error, _} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "search_translations",
+           params,
+           :failed,
            "A query must be a string of words to look for in the renderings."
          ), frame}
     end

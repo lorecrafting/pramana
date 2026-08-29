@@ -10,7 +10,6 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Corpus
   alias Pramana.Derge.Images
   alias Pramana.Reader
@@ -114,7 +113,9 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
         {:reply, Reply.json("get_passage", params, payload), frame}
 
       {:error, reason} ->
-        {:reply, Response.error(Response.tool(), error_message(urn, reason)), frame}
+        {:reply,
+         Reply.error("get_passage", params, reason_code(reason), error_message(urn, reason)),
+         frame}
     end
   end
 
@@ -124,9 +125,21 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
         {:reply, Reply.json("get_passage", params, payload(span, params)), frame}
 
       {:error, reason} ->
-        {:reply, Response.error(Response.tool(), error_message(urn, reason)), frame}
+        {:reply,
+         Reply.error("get_passage", params, reason_code(reason), error_message(urn, reason)),
+         frame}
     end
   end
+
+  # The reason a MODEL branches on, beside the sentence a person reads. `:bad_urn` is the
+  # caller's mistake and `:not_found` is a fact about this bake — two different next steps,
+  # and previously distinguishable only by matching on English.
+  # `Corpus.resolve/1` returns exactly these two, so there is no catch-all: dialyzer refuses a
+  # clause it can prove unreachable, and a defensive fallback here would be dead code
+  # pretending to be caution. If a third reason is ever added, this stops compiling — which
+  # is the correct place to be told.
+  defp reason_code(:bad_urn), do: :bad_urn
+  defp reason_code(:not_found), do: :not_found
 
   defp error_message(urn, :bad_urn),
     do: "Malformed URN: #{urn}. Expected pramana:<source>.<witness>:<work>[@<locator>]."

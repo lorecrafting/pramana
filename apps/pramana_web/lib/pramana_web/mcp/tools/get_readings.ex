@@ -18,7 +18,6 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Corpus
   alias Pramana.Readings
   alias PramanaWeb.MCP.Reply
@@ -51,16 +50,20 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
 
       {:error, :not_found} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "get_readings",
+           params,
+           :not_found,
            "No passage exists at #{urn}. This URN is well-formed but addresses nothing " <>
              "in the current bake — do not cite it."
          ), frame}
 
       {:error, _} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "get_readings",
+           params,
+           :bad_urn,
            "Malformed URN: #{urn}. Expected pramana:<source>.<witness>:<work>@<locator>."
          ), frame}
     end

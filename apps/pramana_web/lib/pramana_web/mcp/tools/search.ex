@@ -14,7 +14,6 @@ defmodule PramanaWeb.MCP.Tools.Search do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Provenance
   alias Pramana.Reader
   alias Pramana.Retrieval
@@ -118,10 +117,10 @@ defmodule PramanaWeb.MCP.Tools.Search do
          frame}
 
       {:error, :empty_query} ->
-        {:reply, Response.error(Response.tool(), "Query is empty."), frame}
+        {:reply, Reply.error("search", params, :empty_query, "Query is empty."), frame}
 
       {:error, reason} ->
-        {:reply, Response.error(Response.tool(), "Search failed: #{reason}"), frame}
+        {:reply, Reply.error("search", params, :search_failed, "Search failed: #{reason}"), frame}
     end
   end
 

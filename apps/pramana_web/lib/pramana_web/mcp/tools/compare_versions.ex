@@ -12,7 +12,6 @@ defmodule PramanaWeb.MCP.Tools.CompareVersions do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Compare
   alias PramanaWeb.MCP.Reply
 
@@ -64,16 +63,20 @@ defmodule PramanaWeb.MCP.Tools.CompareVersions do
 
       {:error, :not_found} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "compare_versions",
+           params,
+           :not_found,
            "No passage exists at #{urn}. This URN is well-formed but addresses nothing " <>
              "in the current bake — do not cite it."
          ), frame}
 
       {:error, _} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "compare_versions",
+           params,
+           :bad_urn,
            "Malformed URN: #{urn}. Expected pramana:<source>.<witness>:<work>[@<locator>]."
          ), frame}
     end

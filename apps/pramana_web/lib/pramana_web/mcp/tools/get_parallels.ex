@@ -31,7 +31,6 @@ defmodule PramanaWeb.MCP.Tools.GetParallels do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Parallels
   alias PramanaWeb.MCP.Reply
 
@@ -57,7 +56,7 @@ defmodule PramanaWeb.MCP.Tools.GetParallels do
   def execute(params, frame) do
     case fetch(params) do
       {:error, message} ->
-        {:reply, Response.error(Response.tool(), message), frame}
+        {:reply, Reply.error("get_parallels", params, :work_not_found, message), frame}
 
       {:ok, subject, parallels} ->
         {:reply, Reply.json("get_parallels", params, payload(subject, parallels)), frame}

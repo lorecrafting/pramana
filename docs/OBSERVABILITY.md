@@ -118,11 +118,13 @@ bake lost its own failures before anyone read them. Oban's pruner takes a single
 so keeping failures longer keeps successes longer too; `oban_jobs` rows are small and that is
 a trade worth making in one direction only.
 
-### 4. Structured errors on the MCP surface
+### 4. Structured errors on the MCP surface — ▸ BUILT 2026-08-29
 
-Seven error paths across seventeen tools, each a hand-written string. A model cannot branch
-on prose. A consistent shape — a machine-readable `reason` beside the human sentence —
-costs little and makes tool failures analysable rather than merely readable.
+**Nineteen** error paths across seventeen tools, each a hand-written string — the audit
+undercounted by looking only at single-line call sites. Every one now goes through
+`Reply.error/4` and returns JSON in the same shape a result uses: a stable snake_case
+`reason` to branch on, the sentence to read, and `bake_id` and `replay` beside them, because
+*"no passage exists at this URN"* is a fact about a particular corpus.
 
 ### 5. Guard refusals and caveat counts
 

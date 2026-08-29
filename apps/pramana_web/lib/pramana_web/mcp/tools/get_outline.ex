@@ -13,7 +13,6 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Corpus
   alias PramanaWeb.MCP.Reply
 
@@ -38,8 +37,10 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
 
       {:error, :not_found} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "get_outline",
+           params,
+           :work_not_found,
            "No work #{work_id} in the current bake. Use search to find what is available."
          ), frame}
     end

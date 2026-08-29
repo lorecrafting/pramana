@@ -15,7 +15,6 @@ defmodule PramanaWeb.MCP.Tools.CompareWitnesses do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Anubis.Server.Response
   alias Pramana.Apparatus
   alias PramanaWeb.MCP.Reply
 
@@ -37,24 +36,30 @@ defmodule PramanaWeb.MCP.Tools.CompareWitnesses do
 
       {:error, :not_a_single_line} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "compare_witnesses",
+           params,
+           :range_not_supported,
            "#{urn} addresses a range of lines. Variants are recorded per line, so ask " <>
              "for one — the apparatus of the first line is not the apparatus of the range."
          ), frame}
 
       {:error, :not_found} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "compare_witnesses",
+           params,
+           :not_found,
            "No passage exists at #{urn}. This URN is well-formed but addresses nothing " <>
              "in the current bake — do not cite it."
          ), frame}
 
       {:error, _} ->
         {:reply,
-         Response.error(
-           Response.tool(),
+         Reply.error(
+           "compare_witnesses",
+           params,
+           :bad_urn,
            "Malformed URN: #{urn}. Expected pramana:<source>.<witness>:<work>@<locator>."
          ), frame}
     end
