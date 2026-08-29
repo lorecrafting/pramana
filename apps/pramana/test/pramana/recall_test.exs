@@ -60,6 +60,55 @@ defmodule Pramana.RecallTest do
     :ok
   end
 
+  defp load_into!(source, work_id, number) do
+    xml = """
+    <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+    <teiHeader><fileDesc><titleStmt><title level="m">測試</title>
+    <author>唐 某撰</author></titleStmt></fileDesc></teiHeader>
+    <text><body><milestone n="1" unit="juan"/>
+    <lb n="0001a01"/>（三四七）如是我聞：一時，佛
+    </body></text></TEI>
+    """
+
+    {:ok, ir} = CBETA.normalize(xml, work_id: work_id, canon: "T", volume: 1, number: number)
+    {:ok, _} = Loader.load(ir, source: source, witness: "T", provenance: %{})
+  end
+
+  defp parallel!(source_work, target_work) do
+    # LOOKED UP, not constructed. The loader builds a URN prefix from the source and canon,
+    # so a hand-written `pramana:cbeta.T:…` is wrong for a work loaded under `sc` — it
+    # resolves to nothing, the case comes back `:undecided`, and the probe reports zero for
+    # a reason that has nothing to do with retrieval. Which is this module's whole failure
+    # mode, reproduced in its own fixture.
+    urn = fn w ->
+      import Ecto.Query
+
+      Repo.one!(
+        from s in "segments",
+          join: t in "texts",
+          on: t.id == s.text_id,
+          where: t.work_id == ^w,
+          select: s.urn,
+          limit: 1
+      )
+    end
+
+    Repo.insert_all("text_parallels", [
+      %{
+        source_uid: source_work,
+        target_uid: target_work,
+        relation: "full",
+        partial: false,
+        source_urn: urn.(source_work),
+        target_urn: urn.(target_work),
+        source_work_id: source_work,
+        target_work_id: target_work,
+        inserted_at: NaiveDateTime.utc_now(:second),
+        updated_at: NaiveDateTime.utc_now(:second)
+      }
+    ])
+  end
+
   defp text_id(work_id) do
     import Ecto.Query
     Repo.one!(from t in "texts", where: t.work_id == ^work_id, select: t.id)
@@ -95,6 +144,44 @@ defmodule Pramana.RecallTest do
 
     assert Enum.map(first.misses, & &1.a_work) == Enum.map(second.misses, & &1.a_work)
     assert first.sampled == second.sampled
+  end
+
+  describe "parallels/1 — the axis that has never moved" do
+    setup do
+      # The same passage in two SOURCES. `topical/chinese` is 0% of twelve gold cases;
+      # SuttaCentral's curated parallels are 10,493 Pāli↔Chinese judgements made by scholars,
+      # which is the same free ground truth pointed at the weak axis.
+      load_into!("sc", "SC001", "0801")
+      load_into!("cbeta", "T0201", "0201")
+      load_into!("cbeta", "T0202", "0202")
+
+      parallel!("SC001", "T0201")
+      parallel!("T0201", "T0202")
+
+      :ok
+    end
+
+    test "reports the cross-lingual rate and the control separately" do
+      result = Recall.parallels(sample: 10, mode: :lexical)
+
+      assert result.verdict == :measured
+      assert result.control.found > 0
+      assert result.cross_lingual.found > 0
+      assert result.cross_lingual.rate == 1.0
+    end
+
+    test "VOID, not zero, when the control cannot find its own pairs" do
+      # This module reported a false 0.0% twice. A cross-lingual zero with no working control
+      # is indistinguishable from a broken query path, and "retrieval cannot do this" and "we
+      # cannot measure this" are different conclusions to hand somebody.
+      Repo.delete_all("text_parallels")
+      parallel!("SC001", "T0201")
+
+      result = Recall.parallels(sample: 10, mode: :lexical)
+
+      assert result.verdict == :void
+      assert result.control.decided == 0
+    end
   end
 
   test "a full result set is undecided, never a miss" do

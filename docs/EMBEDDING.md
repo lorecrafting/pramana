@@ -129,3 +129,12 @@ Which is right depends on whether truncation measurably hurts retrieval, and tha
 question for the Phase 4 eval harness (#19) rather than for taste. It is recorded here so
 the choice is made with the number in front of it — the same reason
 `Pramana.Retrieval.Semantic` states plainly that BGE-M3 is unproven on Literary Chinese.
+
+
+## The tasks
+
+    mix pramana.embed.fetch_model    brings fine-tuned weights back from the GPU volume
+
+The round trip is deliberate and is described above: training happens on rented hardware and
+the weights come home, because a bake must be reproducible from things this repository pins.
+A model that exists only on someone's volume is not one `sources.lock.json` can account for.

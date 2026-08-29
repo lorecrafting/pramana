@@ -155,6 +155,12 @@ same way: a document that had quietly stopped being true.
 3. **A new rule is not finished until a trigger points at it.** Add it to `docs/RULES.md`
    *and* to the trigger table above. `Docs.RoutingTest` fails the build otherwise: a rule
    nobody is routed to fires after the defect rather than before it.
+
+   **The same now holds for a mix task and an MCP tool**, and for the same reason. `Docs.TasksTest`
+   requires every task to be named in some document; `PramanaWeb.MCP.DocumentedTest` requires
+   every tool to be in `docs/MCP.md`'s table. Ten of forty-nine tasks were named nowhere when
+   that check was written — six of them added the same week — and the CLI is the *only* way
+   anything is written to this corpus.
 4. **`docs/PLAN.md` changes in the same commit as the work.** Finishing an item,
    discovering work, or invalidating an estimate each require an edit.
 5. **When a doc and the code disagree, the code wins — then fix the doc in that commit.**
@@ -264,6 +270,9 @@ serves the CC0/CC-BY subset only.
 - CBETA gaiji (`<g ref="#CB01234"/>`, ~30k rare glyphs) must go through the gaiji
   mapping table. Dropping them silently corrupts search — there is a test for this.
 - CBETA punctuation is modern editorial addition, not in the witness. Keep it, flag it.
+  `Pramana.Punctuation` is the single definition of what counts as editorial — strip it when
+  comparing two passages to each other, and **never when querying the index**, which holds
+  what the editor printed. Getting that backwards made a recall probe report 0.0%.
 - Preserve `<lb/>`, `<juan>`, `<lg>/<l>`, and `<app>/<lem>/<rdg>` through
   normalization — line breaks are load-bearing for citation, and the apparatus is a
   feature we ship.
@@ -307,5 +316,23 @@ mix pramana.mcp.stdio                   # stdio MCP server for local Claude Code
 mix pramana.evals                       # retrieval + citation scores
 ```
 
+**Start a session with `mix pramana.doctor`.** It prints what is otherwise rediscovered with
+hand-written SQL — which bake this is and whether it still describes its inputs, what is
+loaded, what is declared and never acquired, what is missing.
+
+```bash
+mix pramana.doctor                      # the state of this checkout, in one command
+mix pramana.gate                        # every mechanical check; --quick for the code half
+mix pramana.coherence                   # do independently derived facts about one work agree?
+mix pramana.recall --seed 0.42          # retrieval against the corpus's own quotations
+mix pramana.recall --parallels          # ...and against curated cross-lingual parallels
+mix pramana.provenance                  # re-derive composition_origin / text_role
+mix pramana.authority.import            # DILA people and places into reference tables
+mix pramana.authority.link              # bylines -> people, and works -> date bounds
+```
+
 Use the `dev` bake config (a few hundred works) while iterating. A full bake is hours
 and significant embedding cost — don't run one to test a normalizer.
+
+**A measurement task takes `--seed`, and a figure quoted without one is an anecdote**: the
+sample changes every run, so no number can be compared with the number before it.

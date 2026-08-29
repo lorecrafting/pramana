@@ -156,6 +156,17 @@ its manifest, and passage-level alignment from `mix pramana.commentary.align` if
 its root verbatim — which a modern vernacular commentary generally will not, and that is
 the honest limit of a method built on character identity.
 
+## The tasks that build the graph
+
+    mix pramana.relations.derive   commentary -> root, from work titles
+    mix pramana.quotations.scan    verbatim text reuse across works, into the quotation graph
+
+Both are **deterministic and re-runnable**, which is invariant #5 and also what makes them
+safe: a re-run converges on the same graph rather than accumulating a second copy of it. The
+quotation graph is 141,073 verbatim reuses, and `Pramana.Recall` reads it as free relevance
+judgements — every one is a statement that a passage occurs in two named works, which is a
+retrieval test nobody had to label.
+
 ## The rule that must not bend
 
 A commentary explains scripture; it is not scripture. Same principle as invariant #7

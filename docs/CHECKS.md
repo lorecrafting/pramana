@@ -23,6 +23,7 @@ A checkpoint is a real stop. Do not start the next phase until all of it passes.
 ### 1. Code
 ```bash
 mix pramana.gate --quick    # format, compile, credo, deps.audit, test --cover, dialyzer, lockfile, coherence
+mix pramana.doctor          # not a check — the state a session opens with
 mix hex.outdated            # note drift; upgrade deliberately — not in the gate
 ```
 
@@ -43,6 +44,12 @@ below it — nothing needed building.
 The cost of that mistake was measurable. With the gate running plain `mix test`, pramana_web
 fell from 93% to **77.5%** and no check said a word, while `mix.exs` went on recording 93.
 See `docs/PLAN.md` § Backlog for the reset and the restoration targets.
+
+**Not a gate step, and deliberately:** `mix pramana.evals.sweep` runs the gold set across a
+grid of retrieval configurations. It answers *which settings are best*, which is a question
+for a person choosing a default — the gate's job is that the chosen default has not
+regressed. A search over configurations that ran on every commit would also be the fastest
+way to overfit `evals/baseline.json`.
 
 ### 2. Architecture review
 Re-read `CLAUDE.md`'s invariants and confirm the phase's code honors **all eight** — this line said "all seven" while `CLAUDE.md` listed eight, which is a review that cannot notice the one it does not count.

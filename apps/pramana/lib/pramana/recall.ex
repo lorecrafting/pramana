@@ -30,7 +30,9 @@ defmodule Pramana.Recall do
 
   import Ecto.Query
 
+  alias Pramana.Corpus
   alias Pramana.Repo
+  alias Pramana.Retrieval
   alias Pramana.Retrieval.Lexical
 
   @default_sample 200
@@ -72,6 +74,130 @@ defmodule Pramana.Recall do
       limit: limit
     }
   end
+
+  @doc """
+  The same trick, pointed at the axis that has never moved.
+
+  `run/1` measures lexical retrieval against verbatim quotations and reports 100%. That is
+  worth knowing and it is the **strong** axis. `topical/chinese` has been **0% of 12** since
+  it was first measured, and `docs/PLAN.md` § F says the quiet part: *that row is 12 cases,
+  cannot grow, and one case is 8.3 points.* You cannot steer on twelve cases.
+
+  SuttaCentral's curated parallels are **scholars' cross-lingual relevance judgements** —
+  10,493 Pāli↔Chinese pairs with both ends resolvable in this bake. Query with one side and
+  ask whether the other comes back.
+
+  ## The control group is the point
+
+  Same-language pairs are measured alongside, and they are a **positive control**: if the
+  Pāli→Pāli case also fails, the probe is broken and the cross-lingual figure means nothing.
+  This module reported 0.0% twice while working perfectly on data it could not match, so a
+  measurement here without a control is a number to distrust on principle.
+
+  A `control` that collapses makes the whole run `:void` rather than zero — the distinction
+  between *retrieval cannot do this* and *we cannot measure it*.
+  """
+  @spec parallels(keyword()) :: map()
+  def parallels(opts \\ []) do
+    sample = Keyword.get(opts, :sample, @default_sample)
+    limit = Keyword.get(opts, :limit, @default_limit)
+    mode = Keyword.get(opts, :mode, :hybrid)
+
+    cross = sample_parallels(sample, :cross, Keyword.get(opts, :seed))
+    control = sample_parallels(max(div(sample, 4), 10), :same, Keyword.get(opts, :seed))
+
+    cross_results = Enum.map(cross, &probe_parallel(&1, limit, mode, opts))
+    control_results = Enum.map(control, &probe_parallel(&1, limit, mode, opts))
+
+    control_score = score(control_results)
+    cross_score = score(cross_results)
+
+    %{
+      mode: mode,
+      limit: limit,
+      control: control_score,
+      cross_lingual: cross_score,
+      # VOID, NOT ZERO. If the same-language control cannot find its own pair, nothing about
+      # the cross-lingual number is interpretable — and reporting 0% would blame the axis for
+      # a broken probe, which this module has already done twice.
+      verdict: verdict(control_score, cross_score),
+      misses: cross_results |> Enum.filter(&(&1.outcome == :miss)) |> Enum.take(8)
+    }
+  end
+
+  @control_floor 0.5
+
+  defp verdict(%{found: found, decided: decided}, _cross) when decided == 0 or found == 0,
+    do: :void
+
+  defp verdict(%{rate: control_rate}, _cross) when control_rate < @control_floor, do: :void
+  defp verdict(_control, _cross), do: :measured
+
+  defp score(results) do
+    decided = Enum.reject(results, &(&1.outcome == :undecided))
+    found = Enum.count(decided, &(&1.outcome == :found))
+
+    %{
+      sampled: length(results),
+      decided: length(decided),
+      found: found,
+      rate: if(decided != [], do: found / length(decided))
+    }
+  end
+
+  # `:cross` is a pair whose two ends come from different SOURCES — SuttaCentral and CBETA,
+  # which here means Pāli and Classical Chinese. `:same` is the control.
+  defp sample_parallels(n, kind, seed) do
+    if seed, do: Repo.query!("SELECT setseed($1)", [seed])
+
+    comparison = if kind == :cross, do: "<>", else: "="
+
+    %{rows: rows} =
+      Repo.query!(
+        """
+        SELECT p.source_urn, p.target_urn, p.target_work_id, st.source_id, tt.source_id
+        FROM text_parallels p
+          JOIN texts st ON st.work_id = p.source_work_id
+          JOIN texts tt ON tt.work_id = p.target_work_id
+        WHERE p.source_urn IS NOT NULL AND p.target_urn IS NOT NULL
+          AND st.source_id #{comparison} tt.source_id
+        ORDER BY random() LIMIT $1
+        """,
+        [n]
+      )
+
+    Enum.map(rows, fn [source_urn, target_urn, target_work, src, tgt] ->
+      %{
+        source_urn: source_urn,
+        target_urn: target_urn,
+        target_work: target_work,
+        from: src,
+        to: tgt
+      }
+    end)
+  end
+
+  # Query with the SOURCE passage's own words and ask whether the target work comes back.
+  # A passage that will not resolve is `:undecided`: the parallel names a witness this bake
+  # holds a work id for and not the line, which is a coverage fact rather than a retrieval one.
+  defp probe_parallel(pair, limit, mode, opts) do
+    with {:ok, span} <- Corpus.resolve(pair.source_urn),
+         text when is_binary(text) and byte_size(text) > 0 <- span.content,
+         {:ok, %{results: results}} <-
+           Retrieval.search(text, Keyword.merge([mode: mode, limit: limit], search_opts(opts))) do
+      works = results |> Enum.map(& &1.span.provenance.work_id) |> MapSet.new()
+
+      Map.put(
+        pair,
+        :outcome,
+        if(MapSet.member?(works, pair.target_work), do: :found, else: :miss)
+      )
+    else
+      _ -> Map.put(pair, :outcome, :undecided)
+    end
+  end
+
+  defp search_opts(opts), do: Keyword.take(opts, [:serving])
 
   # A REPRODUCIBLE SAMPLE. `order by random()` gives a different answer every run, so a
   # figure could never be compared with the one before it — the failure `docs/PROXIES.md`

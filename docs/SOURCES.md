@@ -201,6 +201,18 @@ silently restrict every source that predates it.
 - v1 use: catalog metadata, RIDs as authority identifiers, and IIIF image links so a
   reader can show the manuscript page beside the text. Full-text OCR is post-v1.
 
+### The tasks that ingest the Tibetan pair
+
+    mix pramana.kangyur.catalogue     titles the Kangyur from 84000's catalogue, links to BDRC
+    mix pramana.kangyur.translations  84000's English as renderings of the Degé Kangyur
+    mix pramana.kangyur.glossary      84000's per-translation Skt–Tib–En term anchors
+    mix pramana.derge.images          BDRC's image lists, one per volume
+
+Four commands rather than one because they are four different **claims**: what a text is
+called, what it says in English, what its terms correspond to, and where its scans live. Each
+can be absent without the others being wrong, and the Tibetan pair is two sources rather than
+one for the same reason — see above.
+
 ## Supporting data
 
 ### Reading dictionaries — INGESTED (#24)
@@ -241,6 +253,9 @@ every canon, and `Pramana.Sources` marks the tradition `reference` for exactly t
   contain README files only, so neither is declared in `Pramana.Acquire.DILA`. The registry
   named this source *"(person, place, time)"* until 2026-08-28, promising a database the
   upstream does not ship.
+
+    mix pramana.readings.import   loads the built reading dictionary into the database
+    mix pramana.glossary.import   a markdown glossary as pinned term renderings
 
 Other reference data still wanted, none acquired:
 
