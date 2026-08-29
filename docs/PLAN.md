@@ -25,7 +25,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | corpus | **17,281 texts · 12,586,964 segments** · 3 traditions · **1,037,264 vectors** |
 | CBETA | **16 collections of 26** — T 2,471 · X 1,230 · J 285 · **I 101** · N 38 · **GA 51** · **F 27** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · **GB 2** · M 1 · **ZS 1** — 4,340 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
-| MCP surface | **14 read-only tools** — `search_translations` and `get_glosses` added 2026-08-28 |
+| MCP surface | **16 read-only tools** — `search_translations`, `get_glosses`, `get_works_by_person` and `get_person` all added 2026-08-28 |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
@@ -53,16 +53,40 @@ an LLM can ask a question of three canons, receive passages that are byte-verifi
 against a print edition, see the provenance of each, and follow parallels and variants
 between them — with published numbers saying how often that works.
 
-By that definition the *retrieval substrate* is close, and **a surface a human can use
-now exists** — five screens, one of which exists to say what the corpus does *not* hold.
-What is still thin is **coverage** (11 CBETA collections of 26, and Taishō 56–84 needs a
-human to send an email) and **the deterministic enrichment that differentiates this
-project** (#22 and A done, #23 unblocked but unstarted, commentary alignment untouched).
+**▸ BY THAT DEFINITION v1 IS MET — 2026-08-28.** Each clause, and what answers it:
 
-**The last of those is now the real gap.** Coverage has moved a long way in three days and
-the reader went from nothing to five screens; root↔commentary alignment has not moved at
-all, and it is the one item on this list that no general-purpose search tool will ever
-produce for you.
+| the sentence says | what does it |
+|---|---|
+| ask a question of three canons | 16 read-only MCP tools · five reader screens · 17,281 texts across Chinese, Pāli and Tibetan |
+| passages byte-verifiable against a print edition | `Pramana.Guard` byte-compares every quote; `verify --all` re-normalizes from `raw/`; the CBETA linehead is checkable against the printed page |
+| see the provenance of each | four axes, plus `witness_name` and `authority_id` — the edition by name and the person the byline denotes |
+| follow parallels and variants between them | curated parallels, the apparatus, 141,073 quotations, and **27,254 commentary lemmas** attaching commentary to the line it explains |
+| published numbers saying how often | 1,472 cases in `evals/baseline.json`, and the gaps published beside them |
+
+**This paragraph said the opposite three days ago** — *"#23 unblocked but unstarted,
+commentary alignment untouched… the one item that no general-purpose search tool will ever
+produce for you"*. Both shipped. It is left visible rather than deleted, because the plan's
+value is that it records what was believed as well as what is true.
+
+**Then the line moved, deliberately.** v1 as *written* is met; v1 as *scoped* now includes
+four things added by decision after the definition was, and the honest reading is that **v1
+is no longer met** — two of the four are designed and unbuilt:
+
+| added to v1 | state |
+|---|---|
+| lineage chains | ✅ `Authority.lineage/1`, `teacher_chain/2`, exposed on `get_person` |
+| Wikidata q-ids | ✅ `external_ids` on `get_person`; 1,446 of the linked works' people carry one |
+| **place authority** | ◐ designed, unbuilt — § A3. `place_id` is stored on 12,134 people and resolves to nothing |
+| **Phase 7 research agent** | ◐ designed, unbuilt — § H, and it is a *report verifier*, not an agent |
+
+That is a scope decision, not a slip, and it is recorded here rather than by editing the
+sentence above — because a definition that quietly grows to match what got built measures
+nothing. The clause table stands as the record of what the original definition asked for and
+when it was answered.
+
+**What remains and is NOT v1.** Taishō 56–84 needs an email a person must send, and the
+`phase-2` tag is withheld until it resolves — stamping a gate green over a known gap is how
+gates stop meaning anything.
 
 ---
 
@@ -102,6 +126,51 @@ alternate translations. A T0099 passage returns 12, led by T0100 at 706 shared p
 **Unblocks #23** (translator fingerprinting): `parallels_of/1` returns
 `attributed_author` beside each pair, which is the join the feature needs — 求那跋陀羅
 against 竺佛念 against 玄奘 on the same material.
+
+---
+
+### A2. Authority identity, dates and lineage — ▸ DONE 2026-08-28
+
+**A byline is not a person, and until this landed the corpus could only say what the
+edition printed.** `mix pramana.authority.import` reads DILA's person authority
+(CC BY-SA 3.0) into two tables:
+
+    49,259 people · 46,157 relations · 2,910 with an external id
+    7,711 with a birth date · 8,840 with a death · 16,134 with a sect · 12,134 with a place
+
+8 relations were dropped for naming a person the file does not define. `works.authority_id`
+links **2,374 works at 60.4%** of resolvable bylines — see `Pramana.Authority` for why the
+first measurement of that said 74% and was wrong.
+
+**Dates are bounds, and the schema refuses to let that be forgotten.** 1,515 works now
+carry `date_start`/`date_end` derived from the attributed person's lifespan, each stamped
+`date_basis: authority_lifespan`, with a CHECK making a date-without-a-basis
+unrepresentable. 1,298 have both ends, 195 are *no later than*, 22 *no earlier than*.
+
+Two errors were caught on the way and both are the same shape — **a false precision is
+worse than an absence**:
+
+- The first version coalesced the ends, so a person recorded only by death produced
+  `1798 – 1798`, which reads as "composed in 1798" and means "composed no later than". 217
+  works said that.
+- The first date *filter* then read the resulting null lower bound as "could be any year",
+  and returned that same 1798 work under `composed_before: 400`. The filter now falls back
+  to the known end — the coalesce storage refuses, because storing a claim and testing one
+  are different acts.
+
+**Reachable, per rule 60.** `search` gained `composed_after`/`composed_before` on **both**
+retrievers, and `get_person` (tool 16) returns dates as ranges with both ends, sect, place,
+recorded teachers and students, and a Wikidata q-id where DILA has one — 1,446 of the
+linked works' people do. Every dated search carries `Coverage.dated/0`, because the filter
+reads 1,515 works of 17,281 and a query that silently discards 91% of the shelf is rule 44
+with a nicer interface.
+
+**What is deliberately not done.** `date_basis` admits `catalogue` and `colophon` and
+nothing in the corpus is either. A colophon date is the only one that is really the
+*work's* date rather than its author's; it needs a source that states it, and no such
+source is acquired. The enum exists now so that filling it later is a data change rather
+than a migration, and so a reader can see that every date currently held is the weakest of
+the three kinds.
 
 ---
 
@@ -859,6 +928,130 @@ aligned bo↔en folio pairs).
 
 ---
 
+### A3. Place authority — **v1 scope**, designed, unbuilt, 2026-08-28
+
+**`place_id: "PL000000009585"` is stored on 12,134 people and resolves to nothing**, because
+the person authority was imported and the place authority beside it was not. They are the
+same repository at the same pin — `sources.lock.json` already holds
+`dila-authority @ 4c204f88` — so this is one more file out of a commit already recorded,
+not a new source.
+
+    authority_place/Buddhist_Studies_Place_Authority.xml   31.1 MB
+    authority_place/districts.xml                           2.9 MB
+
+**What it buys, measured against what this bake actually cites:**
+
+    people with a place_id      12,134  across 4,310 distinct places
+    ...of people we cite           287 distinct places, across 1,529 works
+    people with a place NAME and no id   0
+
+1,529 works is the same order of reach as the 1,515 that gained a date, and the entry
+carries more than a label:
+
+    <place xml:id="PL000000000001">
+      <placeName xml:lang="zho-Hant">闊悉多國</placeName>
+      <placeName xml:lang="eng-Latn">Khost</placeName>
+      <location><place key="PLA000002">阿富汗</place><geo>67.868089 36.555275</geo></location>
+
+So a place resolves to **a containing region, a district, and coordinates**. That makes
+"translators from Central Asia" and "works composed in Jiangnan" queryable in the way
+`composed_after` made "Tang" queryable.
+
+**The English names are not the win, and the first version of this item said they were.**
+Measured over the first 8,510 entries rather than assumed from the one example above:
+
+    <district>     8,510 / 8,510      <geo>       8,457   (99.4%)
+    <placeName>    8,510 / 8,510      <country>   7,040   (82.7%)
+    placeName xml:lang="zho-Hant"  8,510      "eng-Latn"     24
+
+**24 of 8,510.** An English gloss over Chinese place names would have been a real gain on
+`topical/chinese`, which is 0% for exactly that want — and this is not it. What *is*
+near-universal is the coordinate, so the thing to build for is geography, not language.
+
+**Two things to get right, both already learned here:**
+
+- **Rule 43.** dila-authority is now a source acquired in parts. The lockfile write must
+  MERGE the place files into the existing entry — `put_source/1` would drop the person
+  file's record exactly as acquiring X dropped the Taishō's 2,471.
+- **A containing region is not a birthplace.** `<place key="PLA...">` nests a place inside
+  a region, and flattening the two into one column is the same collapse rule 61 was written
+  for. Store the id and the region separately.
+
+**And a registry line to correct in the same change.** `Pramana.Sources` names this source
+*"DILA Buddhist Studies Authority Databases (person, place, time)"*. At this pin
+`authority_time/` and `authority_catalog/` contain **README files and no data**. The name
+promises two databases that are not there — which is the failure `Coverage` exists to
+prevent, sitting in the registry rather than in a result.
+
+**`active_at` stays unresolved and that is not this item.** 1,227 people carry place names
+where they were active, as strings with no ids, because DILA records them that way. Matching
+them to place records by name is a probabilistic join over a 4,310-row table with repeated
+names, and invariant #5 puts that behind everything deterministic. Store the strings, say
+they are strings.
+
+---
+
+### H. Phase 7's first slice — **v1 scope** — verify a *report*, not just a quotation — designed 2026-08-28
+
+**The research agent is not a thing this project builds, and saying so is the design.**
+Invariant #7 keeps the MCP surface read-only and `CLAUDE.md`'s thesis makes the model a
+swappable reader; an agent living inside the server would contradict both. What Phase 7
+ships instead is the thing that makes **any** agent's report checkable — which is the same
+move the citation guard already made for a single quotation, one level up.
+
+**The gap is claims a citation guard structurally cannot reach.** `Guard.check_output/1`
+byte-compares every quoted span, so a fabricated passage cannot survive. It says nothing
+about the three claims that actually carry a report:
+
+| claim | guard | what would check it |
+|---|---|---|
+| "T0262 says X" | ✅ byte-compare | already done |
+| "X appears 36,775 times across 1,904 works" | ✗ | re-run the `survey_corpus` call and compare |
+| "no Japanese-composed text uses X" | ✗ | re-run the search and confirm it is still empty |
+
+The second and third are where a report goes wrong in the way that matters, because a
+frequency claim generalised from twenty ranked hits reads exactly like one counted over ten
+million segments.
+
+**The piece that makes this possible already shipped.** Every tool response carries
+`replay: {tool, arguments}` beside `bake_id` — added 2026-08-28 and described there as *"a
+reproducible citation of a retrieval, exactly as a URN is one of a passage"*. Nothing yet
+consumes it. This item is what consumes it.
+
+**Shape.** A sourced report is claims, each carrying quoted spans, replay records, or both.
+
+- `Pramana.Report.parse/1` — claims with their URNs and replay records out of markdown.
+- `Pramana.Report.verify/1` — quotes through `Guard`; **replay records by re-executing the
+  named tool with the named arguments against the named bake, and comparing the figure the
+  report states to the figure that comes back**.
+- `mix pramana.report.verify <file>` and a `verify_report` MCP tool — a read, so it sits
+  inside invariant #7 beside `verify_citation`.
+
+**Three refusals it must make, and each is the point:**
+
+1. **A replay against a different `bake_id` is `unverifiable`, never `failed`.** The corpus
+   changed; the claim may well have been true. Reporting that as a falsehood would teach
+   people to ignore the checker, which is the failure mode `integrity` had while it cried
+   wolf over 1,228 X texts.
+2. **A claim with no quote and no replay is `unsourced`, and that is a result.** Counting
+   only what it can check and publishing a pass rate over that denominator is rule 44 in the
+   one place it would be most embarrassing.
+3. **It does not judge whether a citation supports its claim.** `Guard`'s moduledoc already
+   draws this line and it holds here: mechanical warrant, never interpretation.
+
+**Why this and not a fleet of skeptic subagents.** The verification pattern going around is
+N independent models voting on whether a finding survives. Invariant #5 says that is for the
+residual only — and here there is no residual: re-running a survey is arithmetic over the
+bake, and a majority vote is strictly weaker than a recount. Adversarial verification earns
+its place on questions with no deterministic check, such as whether a commentary alignment
+is real. It has no place on *how often*.
+
+**Not decided.** Whether a report format is markdown-with-conventions or a JSON sidecar; and
+whether promotion of a verified report into anything durable exists at all in v1 — probably
+not, because a stored report is a claim the corpus would then appear to make.
+
+---
+
 ## Blocked
 
 | item | blocked on |
@@ -891,6 +1084,15 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 ---
 
 ## Backlog
+
+- **The coverage ratchet is configured and the gate does not enforce it** — found
+  2026-08-28 while rewriting `docs/PRIMER.md` § 17. `test_coverage: [summary: [threshold:
+  …]]` is set per app (`pramana`, `pramana_web`), and `docs/CHECKS.md` calls a coverage
+  regression a gate failure — but `mix pramana.gate`'s test step runs `mix test`, not
+  `mix test --cover`. So the ratchet has been decorative for as long as the gate has been
+  the way anyone runs the suite. One-line fix; the reason it is backlog rather than Now is
+  that turning it on may fail immediately, and that failure wants its own session rather
+  than being bolted onto an unrelated commit.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes

@@ -70,6 +70,8 @@ defmodule Pramana.Retrieval.Semantic do
     :per_tradition,
     :source_id,
     :witness_id,
+    :composed_after,
+    :composed_before,
     :redistributable_only,
     :license_class,
     :mode,
@@ -593,6 +595,34 @@ defmodule Pramana.Retrieval.Semantic do
     |> filter_witness(opts[:witness_id])
     |> filter_license(opts)
     |> filter_work(opts[:work_id])
+    |> filter_dates(opts)
+  end
+
+  # See `Pramana.Retrieval.Lexical.filter_dates/2` for the bound semantics. Added on both
+  # sides in the same change, for the reason `filter_witness/2` below records.
+  defp filter_dates(query, opts) do
+    case {opts[:composed_after], opts[:composed_before]} do
+      {nil, nil} ->
+        query
+
+      {after_year, before_year} ->
+        query
+        |> where([work: w], not is_nil(w.date_basis))
+        |> not_before(after_year)
+        |> not_after(before_year)
+    end
+  end
+
+  defp not_before(query, nil), do: query
+
+  defp not_before(query, year) do
+    where(query, [work: w], fragment("coalesce(?, ?)", w.date_end, w.date_start) >= ^year)
+  end
+
+  defp not_after(query, nil), do: query
+
+  defp not_after(query, year) do
+    where(query, [work: w], fragment("coalesce(?, ?)", w.date_start, w.date_end) <= ^year)
   end
 
   # NAMED bindings, not positional. These filters used `[_c, _t, w]`, which was correct

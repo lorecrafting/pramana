@@ -9,9 +9,12 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 
 ## Tools
 
-**Fifteen tools.** This table listed ten for two phases — `get_commentaries` and
-`get_parallels` were registered and undocumented, which for a surface whose entire purpose
-is to be discovered by a model is the same as not shipping them.
+**Every registered tool is in this table, and `PramanaWeb.MCP.DocumentedTest` fails the
+build otherwise — in both directions.** The table listed ten for two phases while
+`get_commentaries` and `get_parallels` were registered and undocumented, which for a
+surface whose entire purpose is to be discovered by a model is the same as not shipping
+them. It then went stale twice more before anything checked it. No count is written here:
+count the rows, or ask `tools/list`.
 
 | tool | for |
 |---|---|
@@ -23,6 +26,7 @@ is to be discovered by a model is the same as not shipping them.
 | `get_commentaries` | Which works explain this work, and what this work explains — walked back to root scripture. |
 | `get_glosses` | Which commentaries explain **this line**, by deterministic 科文 lemma match. |
 | `get_works_by_person` | Everything one translator or author produced, under a **DILA authority id** rather than a byline string — 求那跋陀羅 is one man across three spellings. |
+| `get_person` | Who that id **is**: dates as ranges, sect, place, recorded teachers and students, and a Wikidata q-id where DILA carries one. |
 | `get_parallels` | Curated passage parallels for a work. Note `Coverage.parallels/0`: 6.1% of the recorded graph has both ends in this bake. |
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
 | `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |
@@ -179,6 +183,13 @@ Retrieval degrades rather than failing, so every response says what it actually 
   filter may mean the material was never a candidate. `pramana://inventory` reports the
   gap; the roles are not guessed, because a wrong role on thousands of works is worse than
   a missing one.
+- **`composed_after` / `composed_before` on `search` reach 1,515 works, not 17,281.** A work
+  is datable only where its byline resolved to a DILA person **and** that person has a
+  recorded date, so a date-filtered search reads under a tenth of the shelf. The response
+  carries `date_coverage` whenever either option is used, and its `note` is the sentence
+  that matters: an undated work is **unaddressed** by the filter, not excluded on evidence.
+  The dates themselves are lifespan bounds — `date_basis: authority_lifespan` — so they
+  answer *which century* and never *which year*.
 - **`authority_id`** — who the byline denotes, where it could be resolved. A byline is what
   the edition printed and the same person appears under several; the id is one identity
   across them, and `get_works_by_person` takes it. It is `null` on roughly 40% of works —
@@ -190,7 +201,7 @@ Retrieval degrades rather than failing, so every response says what it actually 
 - **`addressing`** — `canonical` is checkable against a printed edition; `derived` is
   not, because that source has no printed page and line.
 - **`bake_id`** — which corpus snapshot answered. **On every tool**, since 2026-08-28; nine
-  of fifteen carried it before, and `survey_corpus` was among the six that did not, which is
+  of the then-fifteen carried it before, and `survey_corpus` was among the six that did not, which is
   the worst of them: a count without the corpus it counted is not evidence of anything.
 - **`replay`** — `{tool, arguments}`, the call that produced this response. With `bake_id`
   it is a **reproducible citation of a retrieval**, exactly as a URN is one of a passage:

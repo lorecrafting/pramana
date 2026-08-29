@@ -103,6 +103,12 @@ defmodule Mix.Tasks.Pramana.Authority.Link do
       set: [authority_id: nil, authority_method: nil, authority_confidence: nil]
     )
 
+    # Only the dates this task itself derived. A `catalogue` or `colophon` date is a
+    # stronger claim from another source and must not be cleared by a re-link.
+    Repo.update_all(from(w in Work, where: w.date_basis == "authority_lifespan"),
+      set: [date_start: nil, date_end: nil, date_basis: nil]
+    )
+
     linked
     |> Enum.filter(fn {_w, l} -> l end)
     |> Enum.chunk_every(500)
@@ -118,6 +124,38 @@ defmodule Mix.Tasks.Pramana.Authority.Link do
       end)
     end)
 
-    Mix.shell().info("  written.\n")
+    dated = write_dates()
+    Mix.shell().info("  written. #{dated} work(s) also gained a date bound.\n")
+  end
+
+  # A PERSON'S LIFESPAN IS A BOUND, NOT A DATE. Amoghavajra was born in 705 and did not
+  # translate at birth, so his dates say only that his works fall between them. That is
+  # enough to answer "Tang or Ming" and not enough to answer "which year", and `date_basis`
+  # records which kind of claim this is so nothing downstream mistakes it for a colophon.
+  #
+  # AN OPEN BOUND IS HONEST; A FALSE POINT IS NOT. The first version of this coalesced the
+  # two ends, so a person with only a death date produced `772 – 772` — which reads as "made
+  # in 772" and means "made no later than 772". 217 works said that. Half a bound is stored
+  # as half a bound: unknown birth leaves `date_start` null, and the CHECK constraint permits
+  # exactly that as long as the basis is stated.
+  defp write_dates do
+    {count, _} =
+      Repo.update_all(
+        from(w in Work,
+          join: p in "authority_people",
+          on: p.id == w.authority_id,
+          where: not is_nil(p.birth_earliest) or not is_nil(p.death_latest),
+          update: [
+            set: [
+              date_start: fragment("extract(year from ?)::int", p.birth_earliest),
+              date_end: fragment("extract(year from ?)::int", p.death_latest),
+              date_basis: "authority_lifespan"
+            ]
+          ]
+        ),
+        []
+      )
+
+    count
   end
 end

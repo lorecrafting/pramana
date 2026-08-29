@@ -58,6 +58,39 @@ defmodule Pramana.Coverage do
   @tengyur_toh 1109..4569
 
   @doc """
+  How many works carry a date bound, and therefore what a date filter can even see.
+
+  `composed_after`/`composed_before` are the sharpest filters this corpus offers and the
+  most dangerous, because a work is datable only when its byline resolved to an authority
+  person **and** that person has a recorded birth or death. Everything else is silently
+  outside a dated query — not undated-and-therefore-late, just unaddressed by the filter.
+
+  Reporting the total alongside the dated count is rule 44: a filter that discards most of
+  the corpus without saying so produces a confident answer about a tenth of the evidence.
+  No figure here is written down anywhere — run the function.
+  """
+  @spec dated() :: map()
+  def dated do
+    works = Repo.aggregate(Work, :count)
+    dated = Repo.aggregate(from(w in Work, where: not is_nil(w.date_basis)), :count)
+    linked = Repo.aggregate(from(w in Work, where: not is_nil(w.authority_id)), :count)
+
+    %{
+      works: works,
+      dated: dated,
+      authority_linked: linked,
+      undated: works - dated,
+      note:
+        "#{dated} of #{works} works carry a date. A date is derived from the attributed " <>
+          "person's lifespan (`date_basis: authority_lifespan`), so it exists only where a " <>
+          "byline resolved to a DILA person with recorded dates — #{linked} works are " <>
+          "linked, and not all linked people have dates. A `composed_before`/" <>
+          "`composed_after` query therefore searches #{dated} works, not #{works}: an " <>
+          "undated work is unaddressed by the filter, NOT excluded on evidence."
+    }
+  end
+
+  @doc """
   Which Taishō volumes are in the bake and which are missing.
 
   Computed from the data rather than asserted, so it stays true when SAT lands.

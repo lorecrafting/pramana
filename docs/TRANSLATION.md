@@ -159,6 +159,36 @@ Naive on-the-fly translation at 250M characters is ruinous. Constraints:
   bounded concurrency, Oban for background whole-work runs, Phoenix PubSub to stream
   partial results into the LiveView reader later.
 
+### Four levers, and the order to reach for them
+
+None of these is specific to a vendor, and none of the numbers is written down here —
+rule 41 and the doc rule above it both say measure it, and a quoted price is stale the
+week after it is quoted.
+
+1. **Tier the work.** A whole-work translation is one job in name only: pinning glossary
+   terms, extracting a byline, classifying a passage's genre and rendering the passage are
+   different kinds of thinking with wildly different values. Bounded, repetitive extraction
+   belongs on the cheapest model that passes its eval; **judgement — the rendering itself,
+   and any adjudication between candidates — is where the expensive tokens earn their
+   place.** Every job here already carries the metadata to tier it, because
+   `translation_layers` records the model per rendering.
+2. **Hold the prefix still.** A glossary-pinned prompt is mostly a *fixed* preamble — the
+   term table, the register instructions, the provenance frame — with a small variable
+   span at the end. Order it that way and the fixed part is cached across a whole-work run;
+   interleave the variable part and it is not. This is a prompt-construction decision, not
+   an infrastructure one, and it is invisible until someone measures a run.
+3. **Batch what nobody is waiting for.** Whole-work translation is already an Oban job that
+   notifies on completion, so latency is not a constraint on it. On-the-fly span
+   translation is the opposite and must stay synchronous. The split already exists in the
+   design above; the point is that it is also the cost split.
+4. **Cache by content hash before any of the above.** Formulaic passages are pervasive in
+   this corpus, and the cheapest token is the one not spent. This is first in value and
+   listed last because it is the one already decided.
+
+**Measure per work, not per corpus.** A projection from one sūtra to 250M characters is
+the kind of extrapolation `docs/PROXIES.md` exists to record the failures of. Translate
+one work, count what it actually cost, and publish the figure beside its denominator.
+
 ---
 
 ## The decoupling contract holds

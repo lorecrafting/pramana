@@ -219,14 +219,36 @@ Neither is corpus text, so neither gets a row in `sources`: that table gates wha
 *served*, and a dictionary is a build input. Both are pinned in `sources.lock.json` by
 content hash, because the derived artifact is only reproducible against the exact input.
 
-- **DILA authority databases** — person/place/time authority records, ~22k
-  teacher–student lineage chains. The backbone of any knowledge graph.
+### DILA authority databases — PERSON INGESTED, place next
+
+`DILA-edu/Authority-Databases`, CC BY-SA 3.0, pinned in `sources.lock.json` and acquired in
+parts — which makes rule 43 binding on the next fetch: the lockfile write must **merge**,
+or the person file's record disappears the way the Taishō's 2,471 did.
+
+Not corpus text and so no `sources` row: these describe people and places that appear across
+every canon, and `Pramana.Sources` marks the tradition `reference` for exactly that reason.
+
+- **`authority_person/`** — ▸ **ingested**. `mix pramana.authority.import` loads it into
+  `authority_people` and `authority_relations`; `mix pramana.authority.link` attaches people
+  to bylines and derives the works' date bounds. Counts are computed, not written here — run
+  the task, or `Pramana.Coverage.dated/0`.
+- **`authority_place/`** — ◐ **designed, unbuilt.** 31.1 MB plus a 2.9 MB districts file.
+  Resolves the `place_id` already stored on 12,134 people, and carries an English placeName,
+  a containing region and coordinates per place. `docs/PLAN.md` § A3.
+- **`authority_time/`, `authority_catalog/`** — **no data at this pin.** Both directories
+  contain README files only. `Pramana.Sources` names this source *"(person, place, time)"*
+  and that name promises a database which is not in the repository.
+
+Other reference data still wanted, none acquired:
+
 - **DDB** (Digital Dictionary of Buddhism) — Chinese Buddhist terminology
 - **Mahāvyutpatti** — the canonical Sanskrit–Tibetan term correspondence table;
   exact, citable cross-lingual anchors
 - **Digital Pali Dictionary**, **Monier-Williams** (Sanskrit)
 - **GRETIL** — Sanskrit etexts, for surviving Indic originals
-- **Wikidata** — Q-IDs for people/places, for external linking
+- **Wikidata** — nothing is fetched from Wikidata, and `get_person` already returns q-ids
+  for 1,446 of the linked works' people. They arrive as **DILA's pass-through**, so their
+  correctness is DILA's claim; querying Wikidata itself is a separate, unmade decision
 
 ## Later expansion: East Asian medical texts
 

@@ -30,8 +30,15 @@ defmodule Pramana.RelationsTest do
 
   setup do
     work!("T0262", %{title: "妙法蓮華經", text_role: "root", composition_origin: "indic"})
-    work!("T1718", %{title: "法華文句", date_start: 587})
-    work!("T1719", %{title: "法華文句記", text_role: "subcommentary", date_start: 765})
+    work!("T1718", %{title: "法華文句", date_start: 587, date_basis: "catalogue"})
+
+    work!("T1719", %{
+      title: "法華文句記",
+      text_role: "subcommentary",
+      date_start: 765,
+      date_basis: "catalogue"
+    })
+
     :ok
   end
 

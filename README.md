@@ -273,7 +273,7 @@ was missing a function.
 ## Stack
 
 Elixir/Phoenix umbrella · PostgreSQL 18 with pgvector and pg_bigm · BGE-M3 embeddings on a
-rented L4 via Modal · MCP server exposing **fourteen** read-only tools · Phoenix LiveView reader with five screens.
+rented L4 via Modal · MCP server exposing **sixteen** read-only tools · Phoenix LiveView reader with five screens.
 
 ---
 

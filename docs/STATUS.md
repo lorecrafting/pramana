@@ -35,9 +35,15 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 ### What it can do
 
 Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a citation
-guard that byte-compares every quoted span, **14 read-only MCP tools**, and a five-screen
+guard that byte-compares every quoted span, **16 read-only MCP tools**, and a five-screen
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
+
+**Bylines resolve to people.** 2,374 works carry a DILA authority id, and through it dates,
+sect, place, recorded teachers and students, and a Wikidata q-id where one exists. 1,515
+works can be filtered by period — as a **bound from the author's lifespan**, stamped
+`date_basis: authority_lifespan`, answering *which century* and never *which year*. That
+filter reads 1,515 works of 17,281 and says so on every use.
 
 **Eval: 92.3% over 1,472 cases**, 0 stale, 0 errored — `evals/baseline.json` is the
 published record and this line is copied from it. Not comparable with the earlier 93.1% over
@@ -56,6 +62,21 @@ the API rather than left to be inferred from an empty result:
 | texts a `role:` filter cannot reach | **1,640** — only the Taishō has a 部 division table |
 | `topical/chinese` | **0%** — no English layer over Chinese, and the deterministic bridge was tried and rejected |
 
+
+### v1 as written is met; v1 as scoped is not
+
+The definition in `docs/PLAN.md` — *a scholar or an LLM can ask a question of three canons,
+receive passages byte-verifiable against a print edition, see the provenance of each, and
+follow parallels and variants between them, with published numbers saying how often that
+works* — is answered clause by clause there.
+
+**Four things were then added to v1 by decision**, after that definition was written. Two
+shipped (lineage chains, Wikidata ids). **Two are designed and unbuilt: place authority
+(`docs/PLAN.md` § A3) and Phase 7's report verifier (§ H).** So the honest current answer to
+"is v1 done" is **no**, and the reason is a scope decision rather than a slip.
+
+Separately, **the phase-2 gate is not done** and is blocked on an email a person must send,
+not on code.
 
 ### Phases
 

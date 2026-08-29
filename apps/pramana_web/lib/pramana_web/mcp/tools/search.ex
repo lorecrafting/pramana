@@ -67,6 +67,22 @@ defmodule PramanaWeb.MCP.Tools.Search do
     field(:exclude_origin, :string, description: "Exclude a composition origin.")
     field(:work_id, :string, description: "Restrict to one work, e.g. T0262.")
     field(:juan, :integer, description: "Restrict to one fascicle.")
+
+    field(:composed_after, :integer,
+      description:
+        "Keep only works whose attributed author could have written them in this year " <>
+          "or later, e.g. 618 for Tang and after. A BOUND, not a date: it comes from the " <>
+          "author's lifespan, so it answers *which century* and never *which year*. " <>
+          "Only works whose byline resolved to a dated person are visible to this filter " <>
+          "at all — the response reports how many that is, and it is a small fraction of " <>
+          "the corpus."
+    )
+
+    field(:composed_before, :integer,
+      description:
+        "The other end of the same bound, e.g. 907 for Tang and earlier. Combine with " <>
+          "composed_after for a window. See that field's caveats — they apply equally."
+    )
   end
 
   # The cap this tool's schema already advertises ("capped at 200"), now ENFORCED here
@@ -90,13 +106,16 @@ defmodule PramanaWeb.MCP.Tools.Search do
         exclude_origin: params[:exclude_origin],
         normalize_variants: params[:normalize_variants],
         work_id: params[:work_id],
-        juan: params[:juan]
+        juan: params[:juan],
+        composed_after: params[:composed_after],
+        composed_before: params[:composed_before]
       ]
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
 
     case dispatch(params, opts) do
       {:ok, found} ->
-        {:reply, Reply.json("search", params, payload(found)), frame}
+        {:reply, Reply.json("search", params, found |> payload() |> with_date_note(params)),
+         frame}
 
       {:error, :empty_query} ->
         {:reply, Response.error(Response.tool(), "Query is empty."), frame}
@@ -118,6 +137,22 @@ defmodule PramanaWeb.MCP.Tools.Search do
   end
 
   defp mode(m), do: Retrieval.mode(m)
+
+  # A DATE FILTER SEES A TENTH OF THE CORPUS, AND SAYING SO IS THE POINT.
+  #
+  # A work is datable only where its byline resolved to a DILA person who has recorded
+  # dates. Everything else is *unaddressed* by the filter rather than excluded on evidence,
+  # and a caller who reads twenty Tang-window hits without that sentence will generalise
+  # from a tenth of the shelf — the same failure `survey_corpus` exists to prevent for
+  # frequency. Attached only when a date filter was actually used, because an unconditional
+  # caveat is one nobody reads.
+  defp with_date_note(payload, params) do
+    if params[:composed_after] || params[:composed_before] do
+      Map.put(payload, :date_coverage, Pramana.Coverage.dated())
+    else
+      payload
+    end
+  end
 
   defp payload(found) do
     %{

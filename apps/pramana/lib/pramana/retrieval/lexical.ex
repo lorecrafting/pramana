@@ -81,6 +81,8 @@ defmodule Pramana.Retrieval.Lexical do
     :exclude_origin,
     :source_id,
     :witness_id,
+    :composed_after,
+    :composed_before,
     :serving,
     :lexical_only,
     :semantic_only
@@ -452,7 +454,77 @@ defmodule Pramana.Retrieval.Lexical do
     |> filter_juan(opts[:juan])
     |> filter_text(opts[:source_id], :source_id)
     |> filter_text(opts[:witness_id], :witness_id)
+    |> filter_dates(opts)
     |> filter_license(opts)
+  end
+
+  # WHEN, AS A BOUND — and a bound is not a date.
+  #
+  # `works.date_start`/`date_end` are derived from the attributed person's lifespan, so a
+  # work sits in a *range* of possible composition years. `composed_after: 600` therefore
+  # keeps everything whose range reaches 600 or later (`date_end >= 600`), and
+  # `composed_before: 800` keeps everything whose range starts at or before 800. An open
+  # end is unknown-in-that-direction and is kept, because excluding it would assert
+  # something the data does not say.
+  #
+  # `date_basis` is the test for "dated at all", not `date_start`: half a bound is still a
+  # date, and 195 works carry only `date_end`.
+  #
+  # THIS FILTER DISCARDS MOST OF THE CORPUS AND MUST SAY SO. Only works with an authority
+  # link that carries a lifespan have any date at all — `Pramana.Coverage.dated/0` is the
+  # denominator, and the MCP tool reports it on every dated query. A silent 91% discard is
+  # exactly rule 44.
+  # Built as a join plus wheres against a NAMED binding rather than one clever `on`. The
+  # one-expression version pushed `is_nil(^year)` into SQL to make an absent bound a no-op,
+  # and Postgres rejected it outright: `$1 IS NULL` on its own gives the planner nothing to
+  # infer a type from. Deciding in Elixir which predicates exist is both correct and the
+  # thing that is readable a year from now.
+  # A MISSING END IS NOT AN INFINITE ONE. The first version read a null `date_start` as
+  # "could be any year", so 性起 — who died in 1798, with no birth recorded — came back
+  # under `composed_before: 400`. Formally defensible, useless in practice, and the kind of
+  # plausible-looking result this project treats as worse than an error.
+  #
+  # So the filter falls back to the known end: a person recorded only by death is compared
+  # on that death year at both ends. Note that this is the coalesce the *storage* side
+  # deliberately refuses — writing `1798 – 1798` into the row would assert a precision
+  # nobody has, while using 1798 as the comparison point is a stated filtering rule. Storing
+  # a claim and testing one are different acts.
+  defp filter_dates(query, opts) do
+    case {opts[:composed_after], opts[:composed_before]} do
+      {nil, nil} ->
+        query
+
+      {after_year, before_year} ->
+        query
+        |> join(:inner, [s, t], w in Pramana.Corpus.Work,
+          on: w.id == t.work_id and not is_nil(w.date_basis),
+          as: :dated_work
+        )
+        |> not_before(after_year)
+        |> not_after(before_year)
+    end
+  end
+
+  # `coalesce` because a person recorded only by death is compared on that death year at
+  # both ends — see the note on `filter_dates/2`.
+  defp not_before(query, nil), do: query
+
+  defp not_before(query, year) do
+    where(
+      query,
+      [dated_work: w],
+      fragment("coalesce(?, ?)", w.date_end, w.date_start) >= ^year
+    )
+  end
+
+  defp not_after(query, nil), do: query
+
+  defp not_after(query, year) do
+    where(
+      query,
+      [dated_work: w],
+      fragment("coalesce(?, ?)", w.date_start, w.date_end) <= ^year
+    )
   end
 
   # THE FILTER THAT MAKES THE LICENCE POSTURE ENFORCEABLE.

@@ -69,6 +69,9 @@ defmodule Pramana.Corpus.Work do
     field :attribution_confidence, :string
     field :date_start, :integer
     field :date_end, :integer
+    # Where those dates came from. A lifespan bound and a colophon date are different
+    # claims; see the migration.
+    field :date_basis, :string
 
     # DILA authority identity for `attributed_author`, beside the byline and never instead
     # of it. See `Pramana.Authority`.
@@ -637,6 +640,67 @@ defmodule Pramana.Corpus.CommentaryAlignment do
 
     field :bake_id, :string
     field :meta, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
+defmodule Pramana.Corpus.AuthorityPerson do
+  @moduledoc """
+  One person in DILA's authority database — reference data about who wrote and translated,
+  not a witness to anything. See `Pramana.Authority`.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  @primary_key {:id, :string, autogenerate: false}
+  schema "authority_people" do
+    field :name, :string
+    field :names, {:array, :string}, default: []
+    field :dynasty, :string
+
+    # Both ends of each range: the width is the uncertainty, and DILA states it that way.
+    field :birth_earliest, :date
+    field :birth_latest, :date
+    field :birth_note, :string
+    field :death_earliest, :date
+    field :death_latest, :date
+    field :death_note, :string
+
+    field :sect, :string
+    field :place_of_origin, :string
+    field :place_id, :string
+    field :active_at, {:array, :string}, default: []
+    field :monk, :boolean
+    field :concise, :string
+    field :external_ids, :map, default: %{}
+    field :source, :string
+
+    has_many :relations, Pramana.Corpus.AuthorityRelation, foreign_key: :person_id
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
+defmodule Pramana.Corpus.AuthorityRelation do
+  @moduledoc """
+  A teacher or student link between two authority people, **as DILA states it**.
+
+  Never inferred. Inferred lineage is how a scholarly claim gets manufactured, and `source`
+  is stored so a chain walked through these rows is reportable as *DILA says* rather than
+  as fact.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  schema "authority_relations" do
+    belongs_to :person, Pramana.Corpus.AuthorityPerson, type: :string
+    field :related_id, :string
+    field :type, :string
+    field :related_name, :string
+    field :source, :string
 
     timestamps(type: :utc_datetime_usec)
   end

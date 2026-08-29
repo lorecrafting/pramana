@@ -856,18 +856,66 @@ was lost.
 > absent from both sides of `verify` and the check passes happily. Only counting against
 > the source catches loss.
 
-Both are required at a phase gate. Both are currently green over all 10,914 texts and
-5,185,767 segments.
+Both are required at a phase gate, and both are green over the whole corpus. This document
+deliberately quotes no text or segment count: the last one written here went stale within
+two ingests, and `Pramana.Inventory.snapshot/0` computes it.
 
-### Gates and the ratchet
+### The gate: CI for a dataset, not just for code
 
-Work is organised in phases, each ending in a **gate** — a checkpoint where the full
-check suite must pass before the phase is tagged. The suite is: formatting, `credo`
-(a style/consistency linter), `dialyzer` (a static type checker for Elixir), the test
-suite with coverage, plus `verify --all` and `integrity`.
+Ordinary CI answers *does the code work*. Here the deliverable is a dataset of millions of
+segments, so there is a second question — *is the data still what it claims to be* — and it
+needs different checks entirely.
 
-Test coverage has a **ratchet**: a minimum percentage that is raised when coverage rises
-and *never* lowered to make a run pass. Currently 83% and 91% for the two applications.
+`mix pramana.gate` is all of them as one command, **ordered cheapest-first and halting at
+the first failure**, so a formatting error costs two seconds rather than being discovered
+after the eval run.
+
+**Code checks — about a minute in total:**
+
+| step | what it answers |
+|---|---|
+| `format --check-formatted` | costs nothing, fails often, so it goes first |
+| `compile --warnings-as-errors --force` | warnings are failures. `--force` because incremental compilation will not re-emit a warning in a file it did not rebuild |
+| `credo --strict` | style and consistency linting |
+| `deps.audit` | known CVEs in dependencies |
+| `test` | the suite |
+| `dialyzer` | static analysis of the BEAM: unreachable clauses, impossible patterns. It found a defensive `parse_date(nil)` clause that could never match, because `Regex.run/2` yields `""` for a capture group that did not participate, never `nil` |
+
+**Data checks — most of an hour:**
+
+| step | what it answers |
+|---|---|
+| lockfile | every file `sources.lock.json` records still exists in `raw/` with a matching sha256 — for **every** source, not the one just touched |
+| `verify --all` | re-normalize every text from `raw/` and byte-compare: the pipeline is **deterministic** |
+| `integrity` | count against the *source files*: nothing printed was **lost** |
+| `evals --gate` | 1,472 gold retrieval questions scored against a committed `evals/baseline.json` |
+
+Steps 8 and 9 are the pair described above, and running only the first is how a real defect
+survived a passing gate. The lockfile check is there because *both* of them work from paths
+recorded at ingest, and stay green when the lockfile itself is wrong — where "wrong"
+includes incomplete, which is exactly how the Taishō's 2,471 file records went missing while
+every check stayed green.
+
+**Why one command.** `docs/CHECKS.md` specified this as a list a person had to remember. The
+CBETA X ingest shipped with `verify` green and `integrity` never executed — and integrity
+had been failing on 1,228 texts the whole time. Nobody skipped it on purpose; it was one
+more command at the end of a long day.
+
+`--from <step>` resumes after a fix without repaying for the steps that passed, and
+`--quick` runs the code half only.
+
+### The ratchet, and where it is not yet wired
+
+Test coverage has a **ratchet**: a minimum percentage raised when coverage rises and *never*
+lowered to make a run pass. It lives in each app's `mix.exs` under `test_coverage:`, and it
+must nest under `summary:` — `test_coverage: [threshold: n]` is silently ignored while Mix
+goes on applying its own default of 90.
+
+**It is configured but the gate does not enforce it.** `mix pramana.gate` runs `mix test`,
+not `mix test --cover`, so a coverage regression passes the gate today. `docs/CHECKS.md`
+treats a regression as a gate failure, which makes this a gap between two documents and the
+code — recorded here rather than quietly fixed in prose, per rule 5 of *Keeping the
+documentation true*.
 
 Phase 2's gate was run and the tag **deliberately withheld**, because one of its tasks is
 blocked on SAT. Recording that honestly is worth more than a green tag.

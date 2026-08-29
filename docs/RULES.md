@@ -462,6 +462,29 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     row in `docs/MCP.md`'s table**. If the reader should show it too, that is a fifth. Ask
     "can a model reach this?" before calling anything done.
 
+61. **A derived value must never assert more precision than the thing it was derived
+    from.** `works.date_start`/`date_end` are bounds taken from the attributed author's
+    lifespan, and the first version coalesced the two ends — so a person recorded only by
+    death produced `1798 – 1798`, which reads as *composed in 1798* and means *composed no
+    later than 1798*. 217 works said it. Half a bound is stored as half a bound, and
+    `date_basis` records which kind of claim it is at all.
+
+    **Testing a value and storing one are different acts.** The date *filter* legitimately
+    falls back to the known end — a person who died in 1798 did not write before 400 — and
+    that same fallback in the row would be a fabrication. The distinction is which one
+    a later reader inherits as fact.
+
+    Generally: when a computation loses a distinction the source made, either keep both
+    ends or record which end you kept. A lost distinction is not recoverable by anyone
+    downstream, and it does not announce itself — it looks exactly like data.
+
+62. **Judge a command by its exit code, never by grepping its output.** `mix credo` prints
+    five different priority arrows and a grep for `↘` reported "clean, 0 issues" while
+    three findings stood. Piping a gate through `tee` to watch it made the pipeline report
+    **exit 0 for a run that had failed at credo**, so a background task announced success
+    for a red gate. Both are the same error: reading a proxy for the status instead of the
+    status. `cmd; echo $?`, or `set -o pipefail`, or do not pipe.
+
 ---
 
 ## One-off gotchas

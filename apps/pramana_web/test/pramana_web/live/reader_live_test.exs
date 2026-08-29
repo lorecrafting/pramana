@@ -10,6 +10,8 @@ defmodule PramanaWeb.ReaderLiveTest do
   """
   use PramanaWeb.ConnCase, async: false
 
+  alias Pramana.Embed.Serving
+
   import Phoenix.LiveViewTest
 
   alias Pramana.Corpus.Loader
@@ -451,8 +453,19 @@ defmodule PramanaWeb.ReaderLiveTest do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
 
       assert html =~ "Meaning-based matches were not considered"
-      assert html =~ "PRAMANA_EMBEDDING=1"
-      assert html =~ "not of the corpus"
+
+      # BOTH BRANCHES, because which one is right depends on the environment and the
+      # invariant does not. This asserted the no-serving wording only, and failed the day
+      # the gate ran with PRAMANA_EMBEDDING=1 exported — where the serving IS running and
+      # the page correctly says so. A test that passes only in one environment is a test
+      # that will fail in the other at the worst moment.
+      if Serving.available?() do
+        assert html =~ "The serving is running"
+        assert html =~ "nothing embedded"
+      else
+        assert html =~ "PRAMANA_EMBEDDING=1"
+        assert html =~ "not of the corpus"
+      end
     end
 
     test "the coverage banner names what is not loaded", %{conn: conn} do

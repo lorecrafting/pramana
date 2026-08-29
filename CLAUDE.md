@@ -30,7 +30,7 @@ a historical sentence read as a current claim:
 |---|---|
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
-| `docs/RULES.md` | **60 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/RULES.md` | **62 rules** from real defects, cited by number — read before a new pipeline |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -43,7 +43,7 @@ before proposing something.
 
 ### Which rules apply to what you are about to do
 
-`docs/RULES.md` holds **60 rules, each learned from a real defect here**, and they are cited
+`docs/RULES.md` holds **62 rules, each learned from a real defect here**, and they are cited
 by number in code and commits. This file is always in your context and that one is not, so
 the triggers live here. **Read the listed rules before starting the activity, not after the
 test goes red.**
@@ -60,6 +60,8 @@ test goes red.**
 | **acquire** or cache anything from upstream | 10, 43, 58 |
 | **delete** anything, or write `on_conflict` | 9, 20 |
 | edit **docs with a script** | 8, and the gotcha above it — eight occurrences and counting |
+| **derive a value** from another — a date, a bound, a rollup | 61 |
+| **check whether something passed** — a gate, a linter, a script | 8, 62 |
 | **fix a constant** — any constant | 41, always |
 | **finish any capability** — before calling it done | **60** — a model must be able to reach it |
 | make anything **optional**, or a dependency degrade | 17 |

@@ -74,3 +74,18 @@ and a separate decision; see `docs/GPU_RUNBOOK.md`.
 The translation layer *is* searchable — `Translations.search/2` over a Postgres FTS index —
 so an English question reaches the 210,756 English renderings rather than returning Pāli
 that happens to share character n-grams with it.
+
+**No people, and therefore no dates.** `get_person`, `get_works_by_person` and
+`search`'s `composed_after`/`composed_before` are all reached through
+`works.authority_id`, and **no work in the public artefact carries one**. That is not a
+build defect: DILA's person authority records the Chinese Buddhist tradition, and the
+public subset is exactly the part of the corpus that is not CBETA. The tables ship empty
+because the migrations run; the data does not, because there is nothing to link.
+
+Nothing degrades silently. A date-filtered search there returns nothing and reports
+`date_coverage` as *0 of 13,017*, which is `Pramana.Coverage.dated/0` doing what the whole
+module exists for — and it is the right answer, not a bug to route around. But **two of
+sixteen tools are inert on the public artefact**, and a demo that lists a tool a caller
+cannot use is the discoverability failure of rule 60 pointed the other way. If a public
+demo ever ships, either say this on the page or do not register those tools in that
+build.

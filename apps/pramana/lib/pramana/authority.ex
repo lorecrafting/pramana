@@ -69,10 +69,35 @@ defmodule Pramana.Authority do
 
   import Ecto.Query
 
+  alias Pramana.Corpus.AuthorityPerson
+  alias Pramana.Corpus.AuthorityRelation
   alias Pramana.Corpus.Work
   alias Pramana.Repo
 
-  @type person :: %{id: String.t(), names: [String.t()], dynasty: String.t() | nil}
+  @type relation :: %{type: String.t(), person_id: String.t(), name: String.t() | nil}
+
+  # DATES ARE RANGES, AND THE WIDTH IS THE UNCERTAINTY. DILA writes
+  # `<birth> +0383-01-01 ~ +0383-12-31 </birth>` for "sometime in 383", and
+  # `+0442-01-28 ~ +0443-02-15` for a death whose lunar date crosses a Julian year. Storing
+  # one year would discard the thing the range is there to say, which is the same reason
+  # `attribution_confidence` sits beside `attributed_author` rather than replacing it.
+  @type date_range :: %{earliest: Date.t() | nil, latest: Date.t() | nil, note: String.t() | nil}
+
+  @type person :: %{
+          id: String.t(),
+          names: [String.t()],
+          dynasty: String.t() | nil,
+          relations: [relation()],
+          external_ids: %{String.t() => String.t()},
+          birth: date_range() | nil,
+          death: date_range() | nil,
+          sect: String.t() | nil,
+          place_of_origin: String.t() | nil,
+          place_id: String.t() | nil,
+          active_at: [String.t()],
+          monk: boolean() | nil,
+          concise: String.t() | nil
+        }
   @type link :: %{
           authority_id: String.t(),
           matched_name: String.t(),
@@ -180,6 +205,77 @@ defmodule Pramana.Authority do
     |> Enum.take(1)
   end
 
+  # `<birth> +0383-01-01 ~ +0383-12-31 <note>依記錄推算。</note> </birth>`
+  #
+  # Both ends are kept. A range of one day and a range of thirteen months are different
+  # claims, and collapsing either to "383" makes them look the same.
+  defp date_range(body, element) do
+    # `~r/.../` and not `~r{...}`: a `{4}` quantifier closes the brace-delimited sigil early,
+    # and the rest of the file uses braces only in patterns that have no quantifiers.
+    pattern =
+      ~r/<#{element}[^>]*>\s*([+\-]?\d{4}-\d{2}-\d{2})?\s*~?\s*([+\-]?\d{4}-\d{2}-\d{2})?(.*?)<\/#{element}>/s
+
+    case Regex.run(pattern, body) do
+      nil ->
+        nil
+
+      [_, earliest, latest, rest] ->
+        case {parse_date(earliest), parse_date(latest)} do
+          {nil, nil} -> nil
+          {e, l} -> %{earliest: e, latest: l || e, note: note_text(rest)}
+        end
+    end
+  end
+
+  # `+0383-01-01`. The leading sign is an era marker, not arithmetic: `-` is BCE, which no
+  # record here uses but the format allows, and dropping it silently would turn a
+  # pre-Common-Era date into a Common-Era one.
+  # No `nil` clause: `Regex.run/2` gives `""` for a group that did not participate, never
+  # `nil`, so a defensive clause here is unreachable code that dialyzer correctly refuses.
+  defp parse_date(""), do: nil
+
+  defp parse_date("-" <> _), do: nil
+
+  defp parse_date(text) do
+    case Date.from_iso8601(String.trim_leading(text, "+")) do
+      {:ok, date} -> date
+      _ -> nil
+    end
+  end
+
+  defp note_text(rest) do
+    case Regex.run(~r{<note>([^<]+)</note>}, rest) do
+      [_, text] -> String.trim(text)
+      _ -> nil
+    end
+  end
+
+  defp note(body, type) do
+    case Regex.run(~r{<note type="#{type}">([^<]*)</note>}, body) do
+      [_, text] -> text |> String.trim() |> presence()
+      _ -> nil
+    end
+  end
+
+  defp place_name(body) do
+    case Regex.run(~r{<note type="placeOfOrigin">\s*<placeName>\s*([^<\s]+)}, body) do
+      [_, name] -> presence(String.trim(name))
+      _ -> nil
+    end
+  end
+
+  # `<ref target="…/place/">PL000000055425</ref>` — the id in DILA's place authority, kept
+  # so the two databases can be joined without re-matching on a place name.
+  defp place_id(body) do
+    case Regex.run(~r{<note type="placeOfOrigin">.*?<ref[^>]*>\s*(PL\d+)}s, body) do
+      [_, id] -> id
+      _ -> nil
+    end
+  end
+
+  defp presence(""), do: nil
+  defp presence(text), do: text
+
   defp found(id, name, index, method) do
     %{
       authority_id: id,
@@ -242,6 +338,141 @@ defmodule Pramana.Authority do
   end
 
   @doc """
+  The whole record behind an authority id: names, dates, sect, place, external ids, lineage.
+
+  This is the node the rest of the graph hangs from. `works/2` says what one hand produced;
+  this says who the hand belonged to, and it is what makes a work's `date_start` legible —
+  a bound is only interpretable next to the lifespan it was derived from.
+
+  ## Dates come back as ranges, and the width is the claim
+
+  DILA records a birth as `0602` or as `0602-05-13` or as a span, and flattening those to
+  one year throws away the difference between a date known to the day and a date known to
+  the century. Both ends of both ranges are returned. `docs/RULES.md` 41 is the reason:
+  a lost distinction is not recoverable later by anyone.
+
+  `works.date_start`/`date_end` are derived from these by `mix pramana.authority.link`, and
+  carry `date_basis: "authority_lifespan"` so nothing downstream mistakes a lifespan bound
+  for a composition date.
+
+  ## `external_ids` is the way out of this corpus
+
+  Wikidata Q-ids for 1,446 of the linked works' people, plus whatever else DILA records.
+  They are pass-throughs: nothing here fetches them, and their correctness is DILA's claim,
+  not ours.
+
+  Returns `nil` for an id the authority does not define, rather than an empty person — an
+  unknown id and a person with no recorded dates are different answers.
+  """
+  @spec person(String.t()) :: map() | nil
+  def person(authority_id) when is_binary(authority_id) do
+    case Repo.get(AuthorityPerson, authority_id) do
+      nil ->
+        nil
+
+      row ->
+        %{
+          authority_id: row.id,
+          name: row.name,
+          also_known_as: row.names -- [row.name],
+          dynasty: row.dynasty,
+          birth: range(row.birth_earliest, row.birth_latest, row.birth_note),
+          death: range(row.death_earliest, row.death_latest, row.death_note),
+          sect: row.sect,
+          place_of_origin: row.place_of_origin,
+          place_id: row.place_id,
+          active_at: row.active_at,
+          monk: row.monk,
+          summary: row.concise,
+          external_ids: row.external_ids,
+          source: row.source,
+          lineage: lineage(authority_id),
+          works_in_bake:
+            Repo.aggregate(from(w in Work, where: w.authority_id == ^authority_id), :count)
+        }
+    end
+  end
+
+  # `nil` rather than a range with two nils: "no date recorded" is a statement, and an
+  # empty structure reads as a date whose ends happen to be missing.
+  defp range(nil, nil, _note), do: nil
+
+  defp range(earliest, latest, note) do
+    %{earliest: earliest, latest: latest, note: note, exact: earliest == latest}
+  end
+
+  @doc """
+  A person's teachers and students, **as DILA states them**.
+
+  Never inferred — not from co-occurrence, not from dates, not from anything. Inferred
+  lineage is how a scholarly claim gets manufactured; every row here carries `source` so a
+  chain is reportable as *DILA says* rather than as fact.
+  """
+  @spec lineage(String.t()) :: %{teachers: [map()], students: [map()]}
+  def lineage(authority_id) when is_binary(authority_id) do
+    rows =
+      Repo.all(
+        from r in AuthorityRelation,
+          where: r.person_id == ^authority_id,
+          select: %{type: r.type, id: r.related_id, name: r.related_name, source: r.source}
+      )
+
+    %{
+      teachers: Enum.filter(rows, &(&1.type == "teacher")),
+      students: Enum.filter(rows, &(&1.type == "student"))
+    }
+  end
+
+  @doc """
+  A teacher chain walked upward, oldest ancestor last.
+
+  Stops at `depth`, and stops at a cycle. **A cycle is real data, not a bug**: authority
+  editors record what sources say, and sources disagree about who taught whom, so two
+  people can each be recorded as the other's teacher. Walking that forever is the failure;
+  reporting it is not.
+
+  Where a person has several teachers the chain follows the first and says so in
+  `branched`, because a lineage is a graph and a chain is a path through it.
+  """
+  @spec teacher_chain(String.t(), keyword()) :: %{
+          chain: [map()],
+          branched: boolean(),
+          stopped: atom()
+        }
+  def teacher_chain(authority_id, opts \\ []) do
+    walk_teachers(
+      authority_id,
+      Keyword.get(opts, :depth, 8),
+      MapSet.new([authority_id]),
+      [],
+      false
+    )
+  end
+
+  defp walk_teachers(_id, 0, _seen, acc, branched),
+    do: %{chain: Enum.reverse(acc), branched: branched, stopped: :depth}
+
+  defp walk_teachers(id, depth, seen, acc, branched) do
+    case lineage(id).teachers do
+      [] ->
+        %{chain: Enum.reverse(acc), branched: branched, stopped: :no_teacher_recorded}
+
+      [next | rest] ->
+        if MapSet.member?(seen, next.id) do
+          %{chain: Enum.reverse(acc), branched: branched, stopped: :cycle}
+        else
+          walk_teachers(
+            next.id,
+            depth - 1,
+            MapSet.put(seen, next.id),
+            [next | acc],
+            branched or rest != []
+          )
+        end
+    end
+  end
+
+  @doc """
   Parses DILA's person authority TEI into the shape `index/1` wants.
 
   Deliberately a plain regex scan rather than a streaming parser: the file is one 49 MB
@@ -264,7 +495,41 @@ defmodule Pramana.Authority do
           case Regex.run(~r{<note type="dynasty">\s*([^<\s]+)}, body) do
             [_, d] -> String.trim(d)
             _ -> nil
-          end
+          end,
+        # `<relation type="teacher" active="A000242" n="弘璧"/>` — the lineage, stated by
+        # DILA rather than inferred by us. `n` is the name as that record spells it and is
+        # kept for display; `active` is the identity and is what a chain is walked on.
+        relations:
+          ~r{<relation type="([^"]+)" active="([^"]+)"(?: n="([^"]*)")?}
+          |> Regex.scan(body)
+          |> Enum.map(fn
+            [_, type, pid, name] -> %{type: type, person_id: pid, name: name}
+            [_, type, pid] -> %{type: type, person_id: pid, name: nil}
+          end),
+        # `<idno type="Wikidata">Q16906306</idno>`, and CBDB and others alongside it. Kept
+        # as a map so a new authority appearing upstream needs no code change here.
+        external_ids:
+          ~r{<idno type="([^"]+)">([^<]+)</idno>}
+          |> Regex.scan(body)
+          |> Map.new(fn [_, kind, value] -> {kind, String.trim(value)} end),
+        birth: date_range(body, "birth"),
+        death: date_range(body, "death"),
+        sect: note(body, "sect"),
+        place_of_origin: place_name(body),
+        place_id: place_id(body),
+        # `鄧尉山聖恩寺；天台山華頂；天平白雲古寺` — monasteries, on a full-width semicolon.
+        active_at:
+          case note(body, "activeAt") do
+            nil -> []
+            text -> text |> String.split(["；", ";"], trim: true) |> Enum.map(&String.trim/1)
+          end,
+        monk:
+          case note(body, "monk") do
+            "是" -> true
+            "否" -> false
+            _ -> nil
+          end,
+        concise: note(body, "concise")
       }
     end)
   end

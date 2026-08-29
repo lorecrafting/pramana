@@ -24,7 +24,7 @@ the provenance model or the eval harness.
 | **4** Eval harness | ✅ complete, tagged `phase-4` | 1,472 cases, published, and the gate ratchets on them |
 | **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
 | **6** Deterministic enrichment | ◐ **half** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅. Translator fingerprinting and authority linking untouched |
-| **7** Research agent + translation | ✗ not started | the citation guard exists and is wired; nothing else |
+| **7** Research agent + translation | ◐ first slice designed, unbuilt | the citation guard is wired, and every tool response now carries a `replay` record — the thing a report verifier consumes. `docs/PLAN.md` § H |
 | **8** Web reader | ✅ **shipped early** | five screens, and the public artefact builds |
 
 **The shape of the remaining work is not what this roadmap assumed.** It planned eight
@@ -187,6 +187,13 @@ rendered this term" both work.
 
 ## Phase 7 — Research agent + translation (weeks 21–24)
 
+- **Report verification, not a research agent.** The agent is whichever model the caller
+  brings — invariant #7 keeps this surface read-only and `CLAUDE.md` makes the model
+  swappable, so an agent inside the server would contradict both. What ships is the thing
+  that makes any agent's report checkable: quotes through `Guard`, and **frequency and
+  absence claims re-executed from the `replay` record the tool response carried**. A
+  citation guard cannot reach "appears 36,775 times" or "no Japanese text says this", and
+  those are the claims that carry a report. Designed in `docs/PLAN.md` § H.
 - Multi-hop agentic research mode: plan → survey → cross-reference → sourced report,
   every claim URN-anchored
 - Post-generation citation guard wired into all answer paths
