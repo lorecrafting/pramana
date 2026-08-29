@@ -1442,7 +1442,7 @@ importance. Sources: § A6 (feedback loop), `docs/OBSERVABILITY.md` (audit).
 | 5 | **Domain telemetry, five boundaries** | bake, retrieval, guard, MCP call, acquisition. Free when unattached; the substrate for 7 | ▸ done |
 | 6 | **Structured MCP errors** | nineteen hand-written strings across seventeen tools. A model cannot branch on prose | ▸ done |
 | 7 | **Guard-refusal and caveat counters** | both signals are computed and discarded today (§ A6 items 1 and 3) | ▸ done — as counters, not a stored log |
-| 8 | **Self-supervised parallel recall** | 141,073 quotations and the curated parallel graph are free relevance judgements. Needs no users | |
+| 8 | **Self-supervised parallel recall** | 141,073 quotations and the curated parallel graph are free relevance judgements. Needs no users | ▸ done — 100.0% over 1,891 decided pairs |
 
 **Ordering notes that are not obvious.** 3 before 5 because `doctor` needs no design
 decisions and pays every session; 4 before 5 because it is ten lines and removes the worst

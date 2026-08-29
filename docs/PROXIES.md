@@ -1041,3 +1041,36 @@ that should have been used before publishing the first.
 **What it cost.** No code, because this was sizing. Three separate retractions in
 `docs/PLAN.md`, which are kept rather than collapsed into the final number, and a feature
 nearly designed away from coordinates that are present on **every place this bake cites**.
+
+
+### A recall probe that reported 0.0% twice — 2026-08-29
+
+`Pramana.Recall` measures retrieval against ground truth the corpus already holds: 141,073
+verbatim quotations, each a statement that one passage occurs in two named works. If a search
+for that passage surfaces only one of them, that is a recall failure nobody had to label.
+
+It reported **0.0% recall over 120 pairs** on the first run and again on the second. Both
+times the retriever was fine and the probe was wrong, and both times the number was
+*plausible* — a broken measurement does not raise.
+
+**A segment is the unit the index matches within.** A quotation spans lines, and the `\n` in
+its stored text are real segment boundaries, so the concatenated passage cannot be found
+inside any one segment. This is the same fact `Pramana.Guard`'s `:spans_line_boundary`
+diagnosis exists for — written two items earlier in the same session, and walked into anyway.
+
+**Punctuation must not be stripped when querying the index.** Everywhere else in this project
+stripping CBETA's editorial punctuation is correct, because it is the editor's and not the
+witness's. The index holds what the editor printed, so a stripped query matches nothing.
+Stripping is right when comparing two passages to each other and wrong when asking the corpus
+a question — the distinction is *what is on the other side of the comparison*.
+
+The corrected figure, over 2,000 pairs with a fixed seed:
+
+    decided     1,891      both works  1,891      recall 100.0%
+    undecided     109      (result set filled the cap — absence is not evidence)
+
+**What that number is worth, and what it is not.** It says lexical phrase retrieval reliably
+finds both ends of an exact repeated passage, which bounds where retrieval failures can live:
+not in exact matching. It says nothing about semantic or cross-lingual retrieval, which is
+where `topical/chinese` has been 0% since it was first measured. A probe that confirms the
+strong axis is worth having and is not evidence about the weak one.
