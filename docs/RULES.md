@@ -448,6 +448,20 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     == nil` had to be deleted, not adjusted. **When a guard rejects a value, ask which
     edition told you it was impossible.**
 
+60. **A capability the MCP surface cannot reach has not shipped.** This project's thesis is
+    that *any LLM* can do citation-grounded scholarship over the corpus, and the MCP tools
+    are how. A domain module with tests, a mix task and a moduledoc is not a feature until a
+    model can call it. **Three times in one week**: commentary alignment and translation
+    search were reachable only from the reader; `get_commentaries` and `get_parallels` were
+    registered and absent from `docs/MCP.md`, which for a surface designed to be discovered
+    is the same as unregistered; authority linking and translator comparison landed in the
+    database and nowhere else.
+
+    Finishing a capability means four things, and the last two are the ones that get
+    skipped: the domain function, its tests, **a tool in `PramanaWeb.MCP.Server`**, and **a
+    row in `docs/MCP.md`'s table**. If the reader should show it too, that is a fifth. Ask
+    "can a model reach this?" before calling anything done.
+
 ---
 
 ## One-off gotchas

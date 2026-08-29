@@ -9,7 +9,7 @@ why, and `CLAUDE.md` invariant #7 makes it binding.
 
 ## Tools
 
-**Fourteen tools.** This table listed ten for two phases — `get_commentaries` and
+**Fifteen tools.** This table listed ten for two phases — `get_commentaries` and
 `get_parallels` were registered and undocumented, which for a surface whose entire purpose
 is to be discovered by a model is the same as not shipping them.
 
@@ -22,6 +22,7 @@ is to be discovered by a model is the same as not shipping them.
 | `get_outline` | A work's structure without its text. |
 | `get_commentaries` | Which works explain this work, and what this work explains — walked back to root scripture. |
 | `get_glosses` | Which commentaries explain **this line**, by deterministic 科文 lemma match. |
+| `get_works_by_person` | Everything one translator or author produced, under a **DILA authority id** rather than a byline string — 求那跋陀羅 is one man across three spellings. |
 | `get_parallels` | Curated passage parallels for a work. Note `Coverage.parallels/0`: 6.1% of the recorded graph has both ends in this bake. |
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
 | `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |
@@ -178,6 +179,10 @@ Retrieval degrades rather than failing, so every response says what it actually 
   filter may mean the material was never a candidate. `pramana://inventory` reports the
   gap; the roles are not guessed, because a wrong role on thousands of works is worse than
   a missing one.
+- **`authority_id`** — who the byline denotes, where it could be resolved. A byline is what
+  the edition printed and the same person appears under several; the id is one identity
+  across them, and `get_works_by_person` takes it. It is `null` on roughly 40% of works —
+  a refusal, not a gap, because a wrong link merges two people permanently.
 - **`witness_name`** — the edition by name, never only its sigil. `witness: "T"` and
   `witness: "N"` differ by one character; the texts behind them differ by fifteen centuries
   and two intervening languages, and both are `indic` in origin and `root` in role.

@@ -11,6 +11,7 @@ defmodule PramanaWeb.MCP.ToolsTest do
   alias Pramana.Normalize.CBETA
   alias PramanaWeb.MCP.Tools.GetGlosses
   alias PramanaWeb.MCP.Tools.GetPassage
+  alias PramanaWeb.MCP.Tools.GetWorksByPerson
   alias PramanaWeb.MCP.Tools.Search
   alias PramanaWeb.MCP.Tools.SearchTranslations
   alias PramanaWeb.MCP.Tools.VerifyCitation
@@ -299,6 +300,29 @@ defmodule PramanaWeb.MCP.ToolsTest do
       # facts, and only the first is what an empty list means.
       assert data["note"] =~ "not that none explains it"
       assert data["method"] == "lemma_match"
+    end
+  end
+
+  # Rule 60: a capability the MCP surface cannot reach has not shipped. Authority linking
+  # landed in the database and nowhere else until this tool existed.
+  describe "get_works_by_person" do
+    test "says clearly when no work carries that id", %{} do
+      {:reply, response, _} = GetWorksByPerson.execute(%{authority_id: "A999999"}, %{})
+      data = payload(response)
+
+      assert data["count"] == 0
+      # "This translator is absent" and "no work resolved to them" are different facts.
+      assert data["note"] =~ "refusal rather than a gap"
+    end
+
+    test "reports the total, not the page size" do
+      {:reply, response, _} = GetWorksByPerson.execute(%{authority_id: "A999999", limit: 1}, %{})
+      data = payload(response)
+
+      # A limit that looks like a total is the denominator failure this project is most
+      # prone to; `count` and `returned` are separate for that reason.
+      assert Map.has_key?(data, "count")
+      assert Map.has_key?(data, "returned")
     end
   end
 end

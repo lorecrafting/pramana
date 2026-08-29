@@ -154,6 +154,7 @@ defmodule Pramana.Corpus do
            division: text.work.division,
            division_en: text.work.division_en,
            attributed_author: text.work.attributed_author,
+           authority_id: text.work.authority_id,
            witness: text.witness_id,
            # The witness alone does not identify the collection: the Degé Kangyur and the
            # Degé Tengyur are both witness "D", and only the source separates them. It is
@@ -344,6 +345,12 @@ defmodule Pramana.Corpus do
       division: work.division,
       division_en: work.division_en,
       attributed_author: work.attributed_author,
+      # THE BYLINE IS WHAT THE EDITION PRINTED; THIS IS WHO IT DENOTES. 姚秦 竺佛念譯 and a
+      # differently-spelled byline elsewhere are the same hand, and only the id says so. It
+      # is `nil` for the 40% that cannot be resolved confidently, which is a refusal rather
+      # than a gap — see `Pramana.Authority`.
+      authority_id: work.authority_id,
+      authority_confidence: work.authority_confidence,
       attribution_confidence: work.attribution_confidence,
       witness: text.witness_id,
       # THE SIGIL IS NOT THE WITNESS, and one letter is not a provenance record.

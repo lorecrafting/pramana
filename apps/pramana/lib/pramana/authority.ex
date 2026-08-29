@@ -67,6 +67,11 @@ defmodule Pramana.Authority do
     "曹魏" => "魏"
   }
 
+  import Ecto.Query
+
+  alias Pramana.Corpus.Work
+  alias Pramana.Repo
+
   @type person :: %{id: String.t(), names: [String.t()], dynasty: String.t() | nil}
   @type link :: %{
           authority_id: String.t(),
@@ -185,6 +190,54 @@ defmodule Pramana.Authority do
       # denotes THIS person rather than a namesake the authority does not record is an
       # inference.
       confidence: "probable"
+    }
+  end
+
+  @doc """
+  Every work attributed to one authority person, with the bylines that named them.
+
+  This is what an identity buys and a byline string cannot: 竺佛念 appears under more than
+  one spelling, and asking for "everything by 竺佛念" as text would find one of them.
+
+  The distinct bylines come back alongside the works, because they are the evidence for the
+  grouping and a caller may disagree with it. `Pramana.Authority` never claims `certain`.
+  """
+  @spec works(String.t(), keyword()) :: %{
+          authority_id: String.t(),
+          works: [map()],
+          bylines: [String.t()],
+          count: non_neg_integer(),
+          returned: non_neg_integer()
+        }
+  def works(authority_id, opts \\ []) when is_binary(authority_id) do
+    rows =
+      Repo.all(
+        from w in Work,
+          where: w.authority_id == ^authority_id,
+          order_by: w.id,
+          limit: ^Keyword.get(opts, :limit, 100),
+          select: %{
+            work_id: w.id,
+            title: w.title,
+            attributed_author: w.attributed_author,
+            composition_origin: w.composition_origin,
+            text_role: w.text_role,
+            method: w.authority_method,
+            confidence: w.authority_confidence
+          }
+      )
+
+    # COUNTED SEPARATELY, NOT `length(rows)`. `rows` is capped by `:limit`, so counting it
+    # reports the page size as the total — `count: 3` for a translator with 28 works, which
+    # is the coverage-denominator failure (rule 44) inside a single function.
+    total = Repo.aggregate(from(w in Work, where: w.authority_id == ^authority_id), :count)
+
+    %{
+      authority_id: authority_id,
+      works: rows,
+      bylines: rows |> Enum.map(& &1.attributed_author) |> Enum.uniq() |> Enum.sort(),
+      count: total,
+      returned: length(rows)
     }
   end
 
