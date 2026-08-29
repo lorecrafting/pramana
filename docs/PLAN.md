@@ -1055,7 +1055,7 @@ they are strings.
 
 ---
 
-### A4. ⛔ 122 Chinese works are labelled Japanese — found 2026-08-28, UNFIXED
+### A4. 122 Chinese works were labelled Japanese — ▸ FIXED 2026-08-28
 
 **This is an invariant #4 violation, and it was found by cross-checking the new place data
 against composition origin.** `CLAUDE.md` states the invariant as *"A Japanese Kamakura-era
@@ -1091,19 +1091,39 @@ its header even reads 卍新纂**大日本**續藏經. Nothing in the corpus con
 contradiction only appears once a translator's **birthplace** is resolvable and can be set
 against the origin of what they wrote, which is what A3 bought.
 
-**The fix is two parts, and the second is not optional:**
+**▸ FIXED.** `volume_fallback/1` now applies only to the Taishō; every other collection
+whose byline is silent gets `%{}`. An unlabelled work is a smaller problem than a mislabelled
+one, which this module already said about `text_role` and did not honour here.
 
-1. **`volume_fallback/1` must apply only to the Taishō.** For any other collection it should
-   return `%{}`. An unlabelled work is a smaller problem than a mislabelled one — the module
-   already says this about `text_role` and does not honour it here.
-2. **Extend `@composed`**, or those 122 simply become null. The verbs actually present are
-   ordinary compositional ones the list omits: 輯 (28), 纂 (6), 訂 (5), 定 (4), 答, 閱, 唱,
-   釋, 鈔, 次, 出, 節. Add them and most of the 122 become `chinese`, which is what they are.
+    X japanese   145 -> 23     the 23 are the bylines that say 日本
+    X text_role  122 -> 0      the same bad fallback had set `commentary` too
 
-**Not done in this session, deliberately.** It changes provenance on works already loaded,
-so it needs a re-derivation and its own gate, and bundling it into the place-authority commit
-would put a corpus change inside a reference-data change. `pipeline_version` should be bumped
-when it lands: *when in doubt, bump*.
+`mix pramana.provenance` re-derives non-Taishō CBETA works through `Byline.provenance/1` —
+**the same function the bake calls**, so a from-scratch bake and this pass agree rather than
+one undoing the other. `pipeline_version` → **5**: no segment moved, but two corpora that
+disagree about who composed 122 works must not share a `bake_id`.
+
+**The second half of the fix was abandoned on evidence.** The plan was to extend `@composed`
+with the verbs actually present — 輯, 纂, 訂, 定, 答, 閱, 唱, 釋, 鈔, 次, 出, 節 — so most of
+the 122 would become `chinese`. Measured against the Taishō, where the 部 table gives ground
+truth, **that validation is impossible**:
+
+    撰   234 works   223 chinese      the existing rule, confirmed
+    譯 1,666 works 1,645 indic        ditto
+    輯     4          纂 3            too few to judge
+    訂 · 釋 · 鈔 · 節 · 次 · 閱        absent from the Taishō entirely
+    出     2 works     0 chinese, 2 INDIC
+
+These verbs are characteristic of the later 卍續藏 material and barely occur in the Taishō,
+so there is no ground truth to check them against. **出 would have been an outright
+mislabel** — both its Taishō occurrences are translations, which is what 出經 means. So the
+122 are null, and null is honest. Extending the list needs a validation source that is not
+the Taishō, and that is a separate piece of work.
+
+**How it was found, and why nothing else could have found it.** `verify` and `integrity`
+were both green over these 122 works, correctly — they were faithfully and reproducibly
+mislabelled. It took a second, independently sourced fact about the same work: the
+translator's **birthplace**, which § A3 made resolvable. See § A5.
 
 ---
 
@@ -1161,38 +1181,134 @@ correctness proof: two independently wrong sources agree happily.
 
 ---
 
-### A6. The feedback loop, and the shape invariant #7 forces on it — proposed 2026-08-28
+### A6. The feedback loop — signals, limits, and the ways it degrades — proposed 2026-08-28
 
-**The obvious loop is forbidden here, and that is deliberate.** Invariant #7 makes the MCP
-surface read-only because *"if a model could write to the corpus, reproducibility from
-`sources.lock.json` is gone, `bake_id` stops determining contents, and prompt injection
-becomes corpus poisoning"*. So "usage improves the data" cannot mean what it usually means.
+**First, the premise deserves a challenge: most of what a feedback loop would buy is
+available now, with no users at all.** The corpus is deeply redundant — 141,073 verbatim
+quotations, curated passage parallels, and 異譯本 where the same Indic original was
+translated two to six times. That redundancy is a **self-supervised eval**: if a query
+retrieves a passage but not its known parallel, that is a recall failure detectable with
+nothing but the corpus. Build that before instrumenting anyone, because it needs no traffic,
+no privacy posture, and no waiting.
 
-What is legitimate, in rough order of value per unit of work. **None of it is built.**
+## What a query can actually tell you
 
-1. **The guard already generates a signal and discards it.** Every refused citation is a
-   datum — which URNs models fabricate, which quotes fail byte-comparison and by how much.
-   Logged, that is a map of where the corpus invites error. This is the cheapest item here
-   and the only one needing no new concept.
-2. **`replay` makes retrieval reproducible, which makes it mineable.** Every response
-   already carries `{tool, arguments, bake_id}`. Queries returning nothing, and sequences
-   where a model immediately re-queried differently, are the signature of a retrieval miss
-   — and unlike a click log they can be *re-run* against the same bake.
-3. **Which `Coverage` caveat fires most is a prioritised acquisition list.** It fires on
-   every search already; nobody counts it. If callers keep hitting Taishō 56–84, the SAT
-   email moves up the queue on evidence rather than on intuition.
-4. **A human correction is a LAYER, never an edit.** "This attribution is wrong" becomes an
-   annotation carrying `method: human` and who said it, sitting over the work exactly as a
-   translation does. The baked corpus stays a pure function of the lockfile. This is the
-   only shape that does not destroy reproducibility, and it is the same answer
-   `docs/LAYERS.md` already gives for generated text.
-5. **Evals grow from real queries, through a person.** Mined candidates are proposals only.
-   Promoting them automatically drifts the benchmark toward what the system already does
-   well — the self-fulfilling gold set that was caught once here already and had to be
-   rebuilt from scratch.
+Two populations, and they emit different things.
 
-**The ordering constraint.** 1–3 are observation and touch nothing. 4 introduces a write
-path and must be designed against invariant #7 before any of it is built, not after.
+**A model, through MCP.** The tool and arguments (replayable); result count including zero;
+which retriever arm answered and the score spread; **what it did next** — reformulated, drilled
+into a URN, ran `survey_corpus`, or stopped; whether it then quoted, and whether the guard
+passed or refused; which `Coverage` caveat fired.
+
+**A person, through the reader.** The same queries plus which result they opened, and — the
+strongest single human signal here — **whether they clicked out to CBETA Online or
+SuttaCentral**. That means "I needed to verify, or your context was not enough", which is a
+sharper judgement than dwell time.
+
+## The unusual asset: this system can re-run its own history
+
+Every response already carries `replay: {tool, arguments}` and `bake_id`. That is not a click
+log — it is a **reproducible experiment**. Consequences, in order of value:
+
+1. **Counterfactual evaluation on the real query distribution.** For every logged query,
+   re-run it under the current and the proposed retrieval and diff. A retrieval change can be
+   judged against what people actually ask before it ships, with no user involved and no gold
+   labels required. This is the single highest-value item on this page and it needs only a
+   log plus a harness.
+2. **Corpus drift and retrieval drift become separable.** A result that changed between two
+   observations changed because of the bake or because of the code, and `bake_id` says which.
+   Without it every measurement is confounded.
+3. **The log becomes a regression suite that grows by itself** — subject to the curation rule
+   below.
+
+## The guard already produces labelled data and throws it away
+
+Every refusal is a labelled negative: this model, for this claim, produced this citation, and
+it did not verify. Nothing else in the stack produces supervision that clean.
+
+**The shape of the failure diagnoses the layer**, which is what makes this more than a
+hallucination counter:
+
+| failure shape | what it indicts |
+|---|---|
+| quote differs only in punctuation | normalization — CBETA punctuation is editorial |
+| quote differs by one rare character | gaiji mapping, or a variant not in the table |
+| URN off by one line | segmentation boundary |
+| passage exists, cited at the wrong URN | **addressing**, not hallucination |
+| URN does not exist at all | retrieval failed and the model filled the gap |
+
+The last row is the important inversion: **a fabricated citation is usually a retrieval
+failure wearing a disguise.** Counting which passages get invented tells you where the corpus
+is hard to reach.
+
+## Zero results are the highest-value signal a corpus project has
+
+And they are ambiguous, so they need triage rather than counting. Deterministically:
+
+- **Zero, and a caveat fired** → an acquisition priority with its cause already attached.
+- **Zero, but `survey_corpus` finds it** → a *ranking* bug, not a coverage gap.
+- **Zero, and a variant of the query finds it** → the variant table is missing an entry.
+- **Zero, and a curated parallel of the target work has it** → an alignment opportunity.
+- **Zero everywhere** → a true negative, and *that is valuable*: "the canon does not say this"
+  is the answer this project exists to be able to give.
+
+None of that needs a model, which is invariant #5 applied to the loop itself.
+
+## Two mining ideas that feed deterministic infrastructure
+
+**Reformulation pairs are implicit relevance judgements.** Query A returns nothing or is
+abandoned; A′ succeeds. `(A, A′)` is a candidate synonym — and in this corpus that means
+orthographic variants, 異體字, and the many transliterations of the same Sanskrit name. Those
+feed the **variant table**, which is deterministic infrastructure rather than a model.
+
+**English → Chinese pairs attack the one axis that has never moved.** `topical/chinese` is
+**0% of 12** and has been since it was first measured, because no English layer exists over
+the Chinese canon; `docs/PLAN.md` § F records two routes tried and rejected, and says what
+remains is a corpus-derived term table. If a caller asks in English, gets nothing, and later
+lands on a Chinese passage — by reformulating, or through a Pāli parallel — that pair is
+**exactly the missing bridge, harvested from use**. It is the only proposal here that
+addresses a known-hard failure rather than sharpening something that already works.
+
+## How this degrades, which is the part to design against
+
+1. **Popularity feedback.** Optimising for engagement promotes what is already findable, and
+   in a canon the long tail *is* the scholarship. **Guard:** improvements must be demonstrated
+   on a held-out set that is deliberately not traffic-weighted.
+2. **Self-fulfilling evals.** Already paid for once here: the rendering gold set kept only
+   phrases the retriever already found and had to be rebuilt. **Guard:** mined cases are
+   *proposals*; a person promotes them.
+3. **Corpus poisoning.** Invariant #7's stated reason. Anything user-supplied is untrusted
+   input — local source text already is.
+4. **Query confidentiality.** A scholar's queries reveal unpublished research direction. A
+   query log is sensitive data and needs a retention policy before it has a first row.
+5. **Model-specific overfitting.** Tuning to how one model phrases things breaks the *any LLM*
+   thesis. **Guard:** segment by model, and require an improvement to hold across two.
+6. **Reward-hacking the guard.** If quoting less makes verification easier, quotes will get
+   shorter. Watch the quote-length distribution as a health metric, not just the pass rate.
+
+## The architectural constraint, which follows from the thesis rather than from taste
+
+**Nothing in this loop may change the response to a given (query, `bake_id`).** The moment it
+does, `replay` stops replaying and the citation-of-a-retrieval property is gone. So: no
+serve-time personalisation and no learned re-ranking in the request path. **Improvements ship
+as a new bake or a new pipeline version** — which is the discipline this project already has,
+and the loop must not become the exception to it.
+
+Storage is append-only, outside the bake, keyed by `bake_id`, and never read during retrieval.
+Human corrections land as an annotation layer carrying `method: human` and attribution — the
+answer `docs/LAYERS.md` already gives for generated text.
+
+## Order, and how you would know it is working
+
+Free today: the guard's refusals are already computed, and `Coverage.caveat/0` already fires.
+Both are discarded. Then: the query log; zero-result triage; **the counterfactual harness**;
+reformulation mining; the English–Chinese term table; and last, the human correction layer,
+which is the only item introducing a write path and must be designed against invariant #7
+first rather than retrofitted.
+
+**And the loop itself needs an eval, or it is a machine for generating plausible
+improvements.** The test is whether a change driven by mined signal improves the *held-out,
+non-traffic-weighted* gold set. If it does not, the loop is noise that feels like progress.
 
 ---
 

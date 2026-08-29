@@ -54,7 +54,12 @@ defmodule Pramana.Bake do
   #       matched "nothing was printed here" exactly. One line in the whole CBETA
   #       corpus — X0575 0966b12, 䦚 — and it is the kind of content a reader cannot
   #       reconstruct from anything else.
-  @pipeline_version "4"
+  # 5 — 2026-08-28. Provenance is pipeline output, and it changed: the volume fallback is
+  # Taishō-only now, so 122 X works stop being labelled `japanese` with
+  # `text_role: commentary` by Taishō volume numbering they never used. Not normalization or
+  # segmentation — no segment moved — but *when in doubt, bump*: two corpora that disagree
+  # about who composed 122 works must not share a `bake_id`.
+  @pipeline_version "5"
 
   @doc "The current pipeline version."
   @spec pipeline_version() :: String.t()

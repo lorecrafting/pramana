@@ -163,12 +163,33 @@ defmodule Pramana.Taisho.Divisions do
   # rule happens to run last.
   def provenance_for_target(%{author: author} = target) when is_binary(author) do
     case Byline.provenance(author) do
-      empty when map_size(empty) == 0 -> volume_fallback(target)
+      empty when map_size(empty) == 0 -> taisho_only_fallback(target)
       attrs -> attrs
     end
   end
 
-  def provenance_for_target(target), do: volume_fallback(target)
+  def provenance_for_target(target), do: taisho_only_fallback(target)
+
+  # THE VOLUME RULE IS TAISHŌ VOLUME NUMBERING, AND ONLY THE TAISHŌ IS NUMBERED THAT WAY.
+  #
+  # This fell through to `volume_fallback/1` for every collection, and Taishō volumes 56–84
+  # are the Japanese sectarian corpus — so **122 X works whose byline verb this rule does
+  # not recognise were labelled `japanese`, with `text_role: commentary` alongside it**.
+  # 淨土晨鐘 (清 周克復纂), 淨土資糧全集 (明 袾宏校正), 十不二門指要鈔詳解: Ming and Qing
+  # authors from Zhejiang and Jiangsu, presented as Japanese-composed. That is invariant #4
+  # running backwards, and it is the same family as the two-digit volume width — a Taishō
+  # constant applied where Taishō numbering does not hold (rule 41).
+  #
+  # It hid because it produces a PLAUSIBLE label in the one collection that genuinely is
+  # part-Japanese: the 卍續藏 is published in Kyoto and its header reads 卍新纂大日本續藏經.
+  # Nothing in the corpus contradicted it until a translator's birthplace became resolvable
+  # and could be set against the origin of what they wrote.
+  #
+  # An unlabelled work is a smaller problem than a mislabelled one — which this module
+  # already says about `text_role` and did not honour here. Non-Taishō collections whose
+  # byline is silent now get nothing.
+  defp taisho_only_fallback(%{canon: "T"} = target), do: volume_fallback(target)
+  defp taisho_only_fallback(_target), do: %{}
 
   defp volume_fallback(%{volume: volume}) when is_integer(volume) do
     case Taisho.provenance_for_volume(volume) do

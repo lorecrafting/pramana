@@ -18,6 +18,7 @@ defmodule Mix.Tasks.Pramana.Provenance do
 
   import Ecto.Query
 
+  alias Pramana.Cbeta.Byline
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Repo
@@ -98,7 +99,51 @@ defmodule Mix.Tasks.Pramana.Provenance do
       end)
 
     Mix.shell().info("updated #{updated}, left unattributed #{skipped}")
+    rederive_non_taisho()
     report()
+  end
+
+  # THE COLLECTIONS THE 部 TABLE CANNOT SPEAK FOR.
+  #
+  # X, J, GA and the rest have no division table, so their provenance comes from the work's
+  # own byline — and until 2026-08-28 it fell back to *Taishō volume numbering* when the
+  # byline's verb was unrecognised, which labelled 122 X works `japanese` because X volumes
+  # 56–84 collided with the Taishō's Japanese range. See `Pramana.Taisho.Divisions`.
+  #
+  # Re-derived through `Byline.provenance/1` — the same function the bake calls, so a
+  # from-scratch bake and this pass agree rather than one undoing the other. **Both axes are
+  # cleared when the byline is silent**, because the bad fallback set `text_role` too.
+  defp rederive_non_taisho do
+    works =
+      Repo.all(
+        from w in Work,
+          join: t in Text,
+          on: t.work_id == w.id,
+          where: t.source_id == "cbeta" and t.witness_id != "T",
+          distinct: w.id,
+          select: w
+      )
+
+    {changed, unchanged} =
+      Enum.reduce(works, {0, 0}, fn work, {changed, same} ->
+        attrs = Byline.provenance(work.attributed_author || "")
+
+        want = %{
+          composition_origin: attrs[:composition_origin],
+          text_role: attrs[:text_role]
+        }
+
+        if {work.composition_origin, work.text_role} == {want.composition_origin, want.text_role} do
+          {changed, same + 1}
+        else
+          work |> Ecto.Changeset.change(want) |> Repo.update!()
+          {changed + 1, same}
+        end
+      end)
+
+    Mix.shell().info(
+      "non-Taishō CBETA: #{changed} re-derived from the byline, #{unchanged} already correct"
+    )
   end
 
   defp report do

@@ -97,6 +97,52 @@ defmodule Pramana.Taisho.DivisionsTest do
     end
   end
 
+  describe "provenance_for_target/1 — the volume rule is Taishō-only" do
+    test "the Taishō still falls back to its volume when the 部 table is silent" do
+      # Volume 62 is inside 56–84, the Japanese sectarian range, and for a TAISHŌ work that
+      # is the correct answer.
+      assert %{composition_origin: "japanese"} =
+               Divisions.provenance_for_target(%{canon: "T", volume: 62, author: "某 撰輯"})
+    end
+
+    test "REGRESSION: another collection's volume 62 is not Taishō volume 62" do
+      # 122 X works were labelled `japanese` with `text_role: commentary` this way —
+      # 淨土晨鐘 (清 周克復纂), a Qing compilation by a man from Jiangsu, among them. The
+      # verb 纂 is not in the composed list, so the byline said nothing and the rule reached
+      # for Taishō volume numbering, which X does not use. Invariant #4, backwards.
+      assert Divisions.provenance_for_target(%{canon: "X", volume: 62, author: "清 周克復纂"}) ==
+               %{}
+    end
+
+    test "an unrecognised byline in any non-Taishō collection yields nothing at all" do
+      for canon <- ~w(X J GA L P N) do
+        assert Divisions.provenance_for_target(%{canon: canon, volume: 60, author: "某 某輯"}) ==
+                 %{},
+               "#{canon} volume 60 must not be read as Taishō volume 60"
+      end
+    end
+
+    test "a recognised byline still wins outside the Taishō" do
+      assert %{composition_origin: "chinese"} =
+               Divisions.provenance_for_target(%{canon: "X", volume: 62, author: "唐 王勃撰"})
+
+      assert %{composition_origin: "indic"} =
+               Divisions.provenance_for_target(%{canon: "X", volume: 62, author: "後秦 鳩摩羅什譯"})
+
+      # 日本 in the byline is checked before the verb and is the one japanese label that
+      # survived the fix — 23 X works carry it.
+      assert %{composition_origin: "japanese"} =
+               Divisions.provenance_for_target(%{canon: "X", volume: 1, author: "日本 道忠編"})
+    end
+
+    test "a target with no author at all still refuses outside the Taishō" do
+      assert Divisions.provenance_for_target(%{canon: "X", volume: 62}) == %{}
+
+      assert %{composition_origin: "japanese"} =
+               Divisions.provenance_for_target(%{canon: "T", volume: 62})
+    end
+  end
+
   describe "check_against/1" do
     test "passes when numbers sit inside their division's volumes" do
       assert {:ok, 2} = Divisions.check_against([{262, 9}, {1, 1}])

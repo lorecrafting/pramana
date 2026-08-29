@@ -39,6 +39,13 @@ guard that byte-compares every quoted span, **16 read-only MCP tools**, and a fi
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
 
+**122 works stopped being Japanese on 2026-08-28.** They are Ming and Qing Chinese
+compositions that Taishō volume numbering, applied to the 卍續藏 which does not use it, had
+labelled `japanese` — an invariant #4 violation that `verify` and `integrity` were both
+green over, because they were faithfully and reproducibly mislabelled. It was found by
+setting the translator's birthplace against the origin of what they wrote. `pipeline_version`
+is **5**. See `docs/PLAN.md` § A4, and § A5 for the check that would catch its family.
+
 **Bylines resolve to people, and people to places.** 2,374 works carry a DILA authority id,
 and through it dates, sect, recorded teachers and students, and a Wikidata q-id where one
 exists. A `place_id` now resolves against **59,335 imported places**, giving both a modern
