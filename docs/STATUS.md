@@ -49,8 +49,11 @@ failure handler and errors a model can branch on.
 **Retrieval is measured against ground truth the corpus already holds.** `mix pramana.recall`
 reads the 141,073 verbatim quotations as free relevance judgements: **100.0% over 1,891
 decided pairs**, which bounds where retrieval failures can live — not in exact matching.
-`--parallels` points the same trick at SuttaCentral's 10,493 Pāli↔Chinese parallels, the axis
-`topical/chinese` has been 0% of twelve gold cases on.
+`--parallels` points the same trick at SuttaCentral's 10,493 Pāli↔Chinese parallels — the
+axis `topical/chinese` has been 0% of twelve gold cases on — and gives it a number:
+**0.4% cross-lingual against a 20.8% same-language control, or 1.9% of achievable recall.**
+The language barrier costs 98% of what this corpus can do on the identical task in one
+language. `docs/PLAN.md` § F.
 
 **A report can now be checked, not just a quotation.** `verify_report` byte-compares every
 citation in a document **and re-executes the searches its figures rest on** — "appears

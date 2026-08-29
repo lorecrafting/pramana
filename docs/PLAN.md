@@ -870,7 +870,37 @@ choice nobody has made.
 offsets. If it starts needing new domain logic, that is a signal the API is missing
 something — fix the API, not the view.
 
-### F. `topical/chinese` is still 0% — and one route to it is now closed
+### F. `topical/chinese` is still 0% — now measured over 496 cases rather than 12
+
+**▸ MEASURED 2026-08-29.** The row has been 0% of **twelve** gold cases since it was first
+scored, and this plan has said the honest thing about that all along: *twelve cases cannot be
+steered on, and one case is 8.3 points.* `mix pramana.recall --parallels` reads SuttaCentral's
+curated Pāli↔Chinese parallels as what they are — **scholars' cross-lingual relevance
+judgements** — and there are 10,493 of them with both ends in this bake.
+
+    mode hybrid, limit 100, seed 0.42, PRAMANA_EMBEDDING=1
+
+    control (same language)   26/125 decided   20.8%
+    cross-lingual              2/496 decided    0.4%
+    cross vs same                               1.9% of same-language recall
+
+**The control is the finding.** Retrieving a *paraphrase* is hard even inside one language:
+a parallel records that two discourses correspond, not that they share words, so 20.8% is
+what this corpus and this cap can do on the task at all. That is the yardstick, and it was
+nearly thrown away — an earlier version of the probe called anything under 50% a broken run,
+a floor picked from nothing rather than from a measured distribution.
+
+Against that yardstick the language barrier costs **98% of the achievable recall**. Not
+"cross-lingual retrieval is weak" but *fifty times worse than the same task in one language*,
+which is a different claim and a checkable one.
+
+**What it does not establish.** Hybrid fuses lexical and semantic, and lexical contributes
+essentially nothing across scripts, so this is the semantic arm's number. It says nothing
+about whether a corpus-derived term table would fix it — that hypothesis is still unbuilt and
+now has an instrument to be judged against, which is the point. Two of 496 succeeded and are
+worth reading before anything is built.
+
+### F.1 The route that is closed
 
 **▸ THE DETERMINISTIC BRIDGE IS REJECTED, 2026-08-28.** Before building the term table
 below, a cheaper hypothesis was registered and tested: an English question could reach a

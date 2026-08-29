@@ -1074,3 +1074,36 @@ finds both ends of an exact repeated passage, which bounds where retrieval failu
 not in exact matching. It says nothing about semantic or cross-lingual retrieval, which is
 where `topical/chinese` has been 0% since it was first measured. A probe that confirms the
 strong axis is worth having and is not evidence about the weak one.
+
+
+### The cross-lingual number, and the control that nearly buried it — 2026-08-29
+
+`topical/chinese` has been 0% of twelve gold cases since it was first scored. Twelve cases
+cannot be steered on, so the axis was not stuck: it was unmeasured. SuttaCentral's curated
+parallels are 10,493 Pāli↔Chinese relevance judgements made by scholars, sitting unused.
+
+    control (same language)   26/125 decided   20.8%
+    cross-lingual              2/496 decided    0.4%
+    cross vs same                               1.9% of same-language recall
+
+**The control is what makes the number mean anything, and it was nearly discarded.** The
+first version of the probe called any control below 50% a broken run — a floor picked from
+nothing, which is the mistake this document exists to record. Measured, same-language
+paraphrase retrieval is ~21%, and that is very likely the real ceiling for the task: a
+parallel records that two discourses *correspond*, not that they share words, and finding one
+inside the top hundred of 12.5 million segments is genuinely hard.
+
+Had the floor stood, a working measurement would have been thrown away as a fault, and the
+project would still be quoting 0% of twelve.
+
+**Read the ratio, not the rate.** 0.4% alone is moved by the corpus, the cap and the
+difficulty of paraphrase retrieval. Against the identical task in one language it isolates
+the language barrier: it costs 98% of the achievable recall. That is a checkable claim; "weak
+cross-lingual retrieval" is not.
+
+**Cost of getting here.** Three wrong readings before this one. `--mode lexical` silently ran
+hybrid, because `:lexical` is not a mode and an unrecognised name falls back to `:hybrid` by
+design — 3.6 s per query, mistaken for a slow lexical path. Phrase mode then reported 0.0%
+cross-lingual with a 10% control, which the control correctly refused to publish. Only the
+third run, with the serving loaded and the floor corrected, produced a figure worth writing
+down.
