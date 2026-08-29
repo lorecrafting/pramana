@@ -452,6 +452,29 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
 
 ## One-off gotchas
 
+- **▸ OPEN, NOT SOLVED — an Oban job fails where the identical call succeeds.** Baking
+  CBETA GA, 41 of 53 jobs failed deterministically with `{:raw_unreadable, ".../GA/GA11/
+  GA11n0010.xml", :enoent}` — a path with the volume padded to **two** digits, which is the
+  `Bake.Worker` rebuild branch. Everything that could explain it was checked and excluded:
+
+  - the job's stored args carry the correct three-digit path (`GA/GA011/GA011n0010.xml`);
+  - `jsonb_typeof(args->'paths')` is `array`, not `null`, on all 53;
+  - `Collections.volume_token("GA", 11)` returns `"GA011"` in the same VM, so **nothing in
+    the loaded code can produce `GA11`**;
+  - one `Collections` beam is loaded and `:code.which` points at the dev build;
+  - the files exist on disk;
+  - failure does not correlate with multi-volume works — 36 of 41 failures carry one path;
+  - a `--force` recompile and an emptied queue do not change it;
+  - and **all 41 succeed when `Worker.perform/1` is called with those same args outside
+    Oban.** That is how the collection was finally loaded.
+
+  So the defect is in the Oban execution context, not in the worker, the args, or the data.
+  Adding an `IO.inspect` to the worker made some jobs pass, which is a race signature and
+  is the only clue left. **If you meet this: the work is recoverable by running the
+  discarded jobs' args through `Worker.perform/1` directly.** Do not conclude the bake is
+  broken from the `:enoent` alone — the path in that message is not the path the job was
+  given.
+
 Environment and tooling quirks. Each cost real time; recorded so they cost it only once.
 
 - **`String.to_existing_atom/1` made a tool crash by load order.** The search tool's

@@ -132,6 +132,13 @@ compute-bound here rather than starved — a bigger card would help, more batchi
 not. It is still **114× the 1.29 chunks/s** measured on the M1, which is the whole
 argument for renting.
 
+**Incremental import beats a rebuild for a small addition, measured 2026-08-28.** Adding
+16,984 vectors to an index already holding 1,020,280 took **15m56s without
+`--rebuild-index`**, against **~70 min** for the full rebuild that 30,399 vectors triggered
+the same day. The runbook's "a rebuild costs ~36 min regardless of how many rows you
+import" holds; what it lacked was the other side of the crossover. **Under ~2% of the index,
+skip the rebuild.**
+
 **The import is the slow step, not the embedding**, and the HNSW index is why. Measured
 on the same corpus:
 
