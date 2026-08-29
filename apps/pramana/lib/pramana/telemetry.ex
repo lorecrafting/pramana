@@ -63,12 +63,23 @@ defmodule Pramana.Telemetry do
     :telemetry.execute(event, measurements, Map.put_new_lazy(metadata, :bake_id, &bake_id/0))
   end
 
-  # Never let instrumentation break the thing it instruments. If the bake row cannot be read
-  # — no database, a migration in flight — the event still goes out without it.
+  # NEVER LET INSTRUMENTATION BREAK THE THING IT INSTRUMENTS.
+  #
+  # `rescue` alone was not enough and the gate caught it flaking: reading the bake row when
+  # the Repo is unavailable **exits** rather than raising — `DBConnection.Holder.checkout`
+  # dies with `:no_process` — and an exit walks straight past `rescue` into the caller. So a
+  # retrieval, a guard check or an MCP call could have been killed by the code that measures
+  # it, in exactly the situation where measurement matters least and the request matters
+  # most.
+  #
+  # Caught in one test run of three, which is the other lesson: a property asserted once is
+  # asserted under one set of conditions.
   defp bake_id do
     Pramana.Bake.current_id()
   rescue
     _ -> nil
+  catch
+    :exit, _ -> nil
   end
 
   @doc """

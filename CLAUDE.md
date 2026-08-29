@@ -30,7 +30,7 @@ a historical sentence read as a current claim:
 |---|---|
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
-| `docs/RULES.md` | **64 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/RULES.md` | **65 rules** from real defects, cited by number — read before a new pipeline |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -43,7 +43,7 @@ before proposing something.
 
 ### Which rules apply to what you are about to do
 
-`docs/RULES.md` holds **64 rules, each learned from a real defect here**, and they are cited
+`docs/RULES.md` holds **65 rules, each learned from a real defect here**, and they are cited
 by number in code and commits. This file is always in your context and that one is not, so
 the triggers live here. **Read the listed rules before starting the activity, not after the
 test goes red.**
@@ -62,6 +62,7 @@ test goes red.**
 | edit **docs with a script** | 8, and the gotcha above it — eight occurrences and counting |
 | **derive a value** from another — a date, a bound, a rollup | 61 |
 | **store a hash of inputs** as an id — `bake_id` and anything like it | 64 |
+| **instrument** anything, or wrap a request for observation | 65 |
 | **check whether something passed** — a gate, a linter, a script | 8, 63 |
 | **sample a file, or size a feature before building it** | 62, and `docs/PROXIES.md` |
 | **publish a number that confirms what you just concluded** | 62 — re-derive it by another method |

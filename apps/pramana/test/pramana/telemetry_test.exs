@@ -120,11 +120,17 @@ defmodule Pramana.TelemetryTest do
     end
 
     test "instrumentation never breaks the thing it instruments" do
-      # If the bake row cannot be read — no database, a migration in flight — the event
-      # still goes out. An observation path that can take down a request is worse than no
-      # observation.
+      # This case is an EXIT, not an exception. Reading the bake row without a database
+      # checkout dies in `DBConnection.Holder.checkout` with `:no_process`, and an exit walks
+      # straight past `rescue` into the caller — so a `rescue`-only version killed the
+      # retrieval it was measuring. It flaked one run in three before it was caught.
+      #
+      # This test module is deliberately `ExUnit.Case` rather than `DataCase`: with no
+      # ownership there is no connection, which is the condition being tested.
       assert :ok = Telemetry.emit([:pramana, :acquire, :fetch], %{bytes: 0})
-      assert_receive {:event, [:pramana, :acquire, :fetch], _, _}
+      assert_receive {:event, [:pramana, :acquire, :fetch], _, metadata}
+      # It goes out WITHOUT the id rather than not going out.
+      assert metadata.bake_id == nil
     end
   end
 

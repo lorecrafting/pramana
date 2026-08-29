@@ -523,6 +523,22 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     read time, there is a window where the two disagree, and it is silent by construction.
     Close it with a check, not with a convention.
 
+65. **`rescue` does not catch an exit, and instrumentation is where that bites.**
+    `Pramana.Telemetry.emit/3` attaches `bake_id`, which reads a row. With no database
+    checkout that **exits** — `DBConnection.Holder.checkout` dies with `:no_process` — and an
+    exit walks straight past `rescue` into the caller. So the code measuring a retrieval
+    could kill it, in exactly the situation where the measurement matters least and the
+    request matters most.
+
+    Any code that must not be able to fail its caller needs `catch :exit, _` as well as
+    `rescue`. That is instrumentation, health checks, and anything wrapped around a request
+    for observation rather than for behaviour.
+
+    **And it flaked one run in three.** The property had a test, and the test passed the
+    first time it was run. A property asserted once is asserted under one set of conditions;
+    where a failure depends on timing or process state, run it several times before believing
+    it.
+
 ---
 
 ## One-off gotchas
