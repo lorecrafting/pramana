@@ -121,16 +121,34 @@ defmodule Pramana.Recall do
       # the cross-lingual number is interpretable — and reporting 0% would blame the axis for
       # a broken probe, which this module has already done twice.
       verdict: verdict(control_score, cross_score),
+      # THE NUMBER TO READ. Cross-lingual recall means little alone — the corpus, the cap and
+      # the difficulty of paraphrase retrieval all move it. Against the same passage-matching
+      # task in ONE language it becomes a statement about the language barrier specifically.
+      relative:
+        case {control_score.rate, cross_score.rate} do
+          {nil, _} -> nil
+          {control, cross} when control > 0 -> cross / control
+          _ -> nil
+        end,
       misses: cross_results |> Enum.filter(&(&1.outcome == :miss)) |> Enum.take(8)
     }
   end
 
-  @control_floor 0.5
-
-  defp verdict(%{found: found, decided: decided}, _cross) when decided == 0 or found == 0,
-    do: :void
-
-  defp verdict(%{rate: control_rate}, _cross) when control_rate < @control_floor, do: :void
+  # THE CONTROL DETECTS A BROKEN PROBE. It is not a pass mark, and the first version made it
+  # one — a floor of 0.5 picked from nothing, which is the mistake `docs/PROXIES.md` exists
+  # to record: **a threshold has to come from a measured distribution.**
+  #
+  # Measured, same-language parallel recall is around 30%, and that is very likely the real
+  # number rather than a fault. A parallel is a PARAPHRASE — SuttaCentral records that two
+  # discourses correspond, not that they share words — so finding one inside the top hundred
+  # of 12.5 million segments is genuinely hard. Calling 30% a failure would have thrown away
+  # a working measurement.
+  #
+  # So `:void` means the probe found NOTHING, which no working retriever does. Anything above
+  # that is measured, and the figure to read is cross-lingual **relative to** same-language:
+  # the control is the reference point, not the bar.
+  defp verdict(%{decided: 0}, _cross), do: :void
+  defp verdict(%{found: 0}, _cross), do: :void
   defp verdict(_control, _cross), do: :measured
 
   defp score(results) do

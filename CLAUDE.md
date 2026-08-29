@@ -118,7 +118,7 @@ Violating any of these is a bug, not a tradeoff.
 
 ## Which document to open, by what you are doing
 
-Twenty-six documents. This table is the routing layer; without it the answer to "where is
+Every document in `docs/` is in this table, and `Docs.RoutingTest` fails the build otherwise. It is the routing layer; without it the answer to "where is
 that written down" is a grep, and a grep finds the file that mentions a thing rather than
 the file that owns it.
 
@@ -140,6 +140,10 @@ the file that owns it.
 | changing **how a model reads the corpus** | `docs/AGENT_MODELS.md` — the alternatives to MCP tools, and what none of them fix |
 | wondering whether an idea was already tried | `docs/PLAN.md` § "Rejected, with evidence" — **check before proposing** |
 | onboarding a person, or explaining the project | `docs/PRIMER.md`, `README.md` |
+| renting a GPU, or anything that runs off this machine | `docs/CLOUD.md` |
+| asked how this compares to another system | `docs/COMPETITIVE.md` |
+| looking for something to build, or parking an idea | `docs/IDEAS.md` — unfiltered, unlike `docs/PLAN.md` |
+| the SAT request that Phase 2 is blocked on | `docs/sat-request-email.md` — **a person must send it** |
 
 ## Keeping the documentation true
 
@@ -156,11 +160,15 @@ same way: a document that had quietly stopped being true.
    *and* to the trigger table above. `Docs.RoutingTest` fails the build otherwise: a rule
    nobody is routed to fires after the defect rather than before it.
 
-   **The same now holds for a mix task and an MCP tool**, and for the same reason. `Docs.TasksTest`
-   requires every task to be named in some document; `PramanaWeb.MCP.DocumentedTest` requires
-   every tool to be in `docs/MCP.md`'s table. Ten of forty-nine tasks were named nowhere when
-   that check was written — six of them added the same week — and the CLI is the *only* way
-   anything is written to this corpus.
+   **The same holds for a mix task, an MCP tool and a document**, and for the same reason.
+   `Docs.TasksTest` requires every task to be named somewhere; `MCP.DocumentedTest` requires
+   every tool to be in `docs/MCP.md`'s table; `Docs.RoutingTest` requires every file in
+   `docs/` to appear in the routing table above. Each check was written after something
+   turned out to be unfindable — ten of forty-nine tasks named nowhere, four documents
+   unreachable including the one you need before renting a GPU.
+
+   **The shape is always the same: a capability nobody is routed to has not shipped.** If you
+   add a fifth kind of thing, add its check in the same commit.
 4. **`docs/PLAN.md` changes in the same commit as the work.** Finishing an item,
    discovering work, or invalidating an estimate each require an edit.
 5. **When a doc and the code disagree, the code wins — then fix the doc in that commit.**

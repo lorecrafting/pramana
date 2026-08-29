@@ -18,6 +18,7 @@ defmodule Mix.Tasks.Pramana.Recall do
 
   alias Pramana.Embed.Serving
   alias Pramana.Recall
+  alias Pramana.Retrieval
 
   @switches [sample: :integer, limit: :integer, seed: :float, parallels: :boolean, mode: :string]
 
@@ -47,6 +48,7 @@ defmodule Mix.Tasks.Pramana.Recall do
 
       control (same language)   #{show(result.control)}
       cross-lingual             #{show(result.cross_lingual)}
+      cross vs same             #{relative(result.relative)}
     """)
 
     case result.verdict do
@@ -64,13 +66,30 @@ defmodule Mix.Tasks.Pramana.Recall do
     end
   end
 
-  # An explicit map, not `String.to_existing_atom/1`: the atom for a mode nobody has mentioned
-  # this run does not exist yet, and the failure is an ArgumentError about atoms rather than
-  # a sentence about modes.
-  defp mode("lexical"), do: :lexical
-  defp mode("semantic"), do: :semantic
-  defp mode("hybrid"), do: :hybrid
-  defp mode(other), do: Mix.raise("unknown --mode #{inspect(other)}; use lexical|semantic|hybrid")
+  # VALIDATED AGAINST THE REAL LIST, not a hand-written one.
+  #
+  # This offered `lexical`, which is **not a mode**: `Pramana.Retrieval`'s table is hybrid,
+  # semantic, auto, phrase, ngram, terms, and an unrecognised name falls back to `:hybrid`
+  # deliberately — a mode is a preference and an unknown one has an obviously right answer.
+  #
+  # So `--mode lexical` ran HYBRID while printing "lexical", and the 3.6 s per query it cost
+  # was hybrid without a serving, not a slow lexical path. A second list of modes maintained
+  # beside the first is how a task ends up offering something that does not exist.
+  defp mode(name) do
+    if name in Retrieval.modes() do
+      Retrieval.mode(name)
+    else
+      Mix.raise(
+        "unknown --mode #{inspect(name)}; use one of #{Enum.join(Retrieval.modes(), ", ")}"
+      )
+    end
+  end
+
+  # The control is the REFERENCE, not the bar. Cross-lingual recall alone is moved by the
+  # corpus, the cap and the sheer difficulty of retrieving a paraphrase; against the same task
+  # in one language it becomes a statement about the language barrier specifically.
+  defp relative(nil), do: "n/a — no same-language baseline to compare against"
+  defp relative(ratio), do: "#{Float.round(ratio * 100, 1)}% of same-language recall"
 
   defp show(%{found: found, decided: decided, rate: rate}) do
     pct = if rate, do: "#{Float.round(rate * 100, 1)}%", else: "n/a"

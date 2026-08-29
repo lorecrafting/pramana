@@ -82,6 +82,27 @@ defmodule Docs.RoutingTest do
   end
 
   describe "the document routing table" do
+    test "reaches every document in docs/" do
+      # The same rule as rules, tools and tasks: a document nobody is routed to is one the
+      # next session does not know exists. Four were unreachable when this was written —
+      # `CLOUD.md` among them, which is what a session needs BEFORE renting a GPU.
+      #
+      # The count is deliberately not asserted. `CLAUDE.md` said "Twenty-six documents" over
+      # twenty-seven, which is the written-down number this project has corrected more often
+      # than any other; the table now says every document is in it, and this makes that true.
+      claude = File.read!(Path.join(@root, "CLAUDE.md"))
+
+      missing =
+        @root
+        |> Path.join("docs/*.md")
+        |> Path.wildcard()
+        |> Enum.map(&Path.basename/1)
+        |> Enum.reject(&String.contains?(claude, &1))
+
+      assert missing == [],
+             "not routed from CLAUDE.md: #{Enum.join(missing, ", ")}"
+    end
+
     test "names only documents that exist" do
       missing =
         ~r/`(docs\/[A-Za-z_]+\.md)`/
