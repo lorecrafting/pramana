@@ -33,6 +33,12 @@ defmodule Mix.Tasks.Pramana.Gate do
   | 6 | `mix pramana.integrity` | ~13 min | fidelity: nothing printed was lost |
   | 7 | `mix pramana.evals --gate` | ~27 min | the ratchet against `evals/baseline.json` |
 
+  Steps 5 and 6 prove the pipeline is deterministic and that nothing printed was lost.
+  **`mix pramana.coherence` asks the third question — whether independently derived facts
+  about one work agree** — and it exists because both of those were green over 122 works
+  labelled Japanese that are Chinese compositions. Faithfully and reproducibly mislabelled.
+  See `Pramana.Coherence`.
+
   Steps 5 and 6 answer **different questions** and running only the first is how a real
   defect survived a passing gate: `verify` re-runs the pipeline and compares, so anything
   dropped deterministically is dropped on both sides and the check passes. Step 4 is in
@@ -85,6 +91,10 @@ defmodule Mix.Tasks.Pramana.Gate do
     # ~45 s once the PLT is built, against 26 minutes for `verify --all`.
     %{id: "dialyzer", cmd: ~w(mix dialyzer), env: "dev", quick: true, stage: 3},
     %{id: "lockfile", cmd: :lockfile, env: "dev", quick: true, stage: 3},
+    # 3 s, and it belongs with the cheap checks rather than the corpus ones: it reads a few
+    # aggregates and re-derives nothing. A check that lives outside the gate is decorative —
+    # the coverage ratchet was configured for four phases and enforced for none.
+    %{id: "coherence", cmd: ~w(mix pramana.coherence), env: "dev", quick: true, stage: 3},
     %{id: "verify", cmd: ~w(mix pramana.verify --all), env: "dev", quick: false, stage: 4},
     %{id: "integrity", cmd: ~w(mix pramana.integrity), env: "dev", quick: false, stage: 4},
     %{

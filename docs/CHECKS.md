@@ -22,7 +22,7 @@ A checkpoint is a real stop. Do not start the next phase until all of it passes.
 
 ### 1. Code
 ```bash
-mix pramana.gate --quick    # format, compile, credo, deps.audit, test --cover, dialyzer, lockfile
+mix pramana.gate --quick    # format, compile, credo, deps.audit, test --cover, dialyzer, lockfile, coherence
 mix hex.outdated            # note drift; upgrade deliberately — not in the gate
 ```
 

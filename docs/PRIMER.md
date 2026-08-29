@@ -958,10 +958,18 @@ broken cheap checks are seen in one pass rather than across three runs.
 | lockfile | every file `sources.lock.json` records still exists in `raw/` with a matching sha256 — for **every** source, not the one just touched |
 | `verify --all` | re-normalize every text from `raw/` and byte-compare: the pipeline is **deterministic** |
 | `integrity` | count against the *source files*: nothing printed was **lost** |
+| `coherence` | do independently derived facts about one work **agree**? |
 | `evals --gate` | 1,472 gold retrieval questions scored against a committed `evals/baseline.json` |
 
 Steps 8 and 9 are the pair described above, and running only the first is how a real defect
-survived a passing gate. The lockfile check is there because *both* of them work from paths
+survived a passing gate. **`coherence` is the third question, and it exists because the other
+two cannot see a rule applied outside its domain**: 122 works were labelled
+`composition_origin: japanese` that are Ming and Qing Chinese compositions, and `verify` and
+`integrity` were both green over them — correctly, because they were faithfully and
+reproducibly *mislabelled*. Catching that needed a second, independently sourced fact about
+the same work: the author's birthplace. Every check there is a rate with a floor and a
+minimum population, because upstream data legitimately disagrees with itself and a check
+demanding 100% goes permanently red. The lockfile check is there because *both* of them work from paths
 recorded at ingest, and stay green when the lockfile itself is wrong — where "wrong"
 includes incomplete, which is exactly how the Taishō's 2,471 file records went missing while
 every check stayed green.

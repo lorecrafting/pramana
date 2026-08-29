@@ -1127,7 +1127,7 @@ translator's **birthplace**, which § A3 made resolvable. See § A5.
 
 ---
 
-### A5. `mix pramana.coherence` — the third check, proposed 2026-08-28
+### A5. `mix pramana.coherence` — the third check — ▸ SHIPPED 2026-08-28
 
 **Every real defect found on 2026-08-28 came from the same move: two facts about the same
 thing, derived independently, compared.** A single-source claim cannot be caught being
@@ -1153,7 +1153,31 @@ the era he belongs to — so a check demanding 100% would be permanently red, wh
 failure mode `integrity` had while it cried wolf over 1,228 X texts. Pick the floor from the
 measured distribution, as `docs/PROXIES.md` requires.
 
-**Two already have numbers, measured 2026-08-28:**
+**▸ SHIPPED, in the gate, 3 s.** Four checks, and the first run corrected a written-down
+number that nothing had re-checked:
+
+    ok         dynasty_lifespan       5280/5320  99.2%, floor 97.0%
+    ok         birthplace_origin       611/648   94.3%, floor 85.0%
+    ok         byline_division        2044/2133  95.8%, floor 95.0%
+    undecided  commentary_after_root     13/13   under the minimum population
+
+`byline_division` is the one worth reading. `Pramana.Taisho.Divisions` claimed the byline
+rule "agrees with this table 97.3% of the time" in a comment nothing recomputed; it is
+**95.8%**, and the disagreements are structural rather than noise — which makes them
+interesting rather than defective:
+
+- `日本 永超集` (T2183) — byline says Japanese, table says Chinese, because the
+  Japanese-composed catalogues sit in 目錄部. The byline is the more specific source.
+- `唐 三藏法師義淨奉詔譯` (T2897) — byline says translated, table says Chinese, because the
+  work is in **疑似部, the doubtful division**. A Chinese composition carrying a translator's
+  byline is precisely what 疑似部 means, so the table is right and the byline is the forgery
+  it was written to be.
+
+`commentary_after_root` is `undecided` at 13 pairs and that is the design working: a check
+that passed for want of data would report success it never earned. It becomes meaningful as
+dates spread.
+
+**The original measurements, taken 2026-08-28 before the suite existed:**
 
 - **dynasty ↔ lifespan.** 4,401 people carry both; **4,354 agree (98.9%)** within a
   20-year boundary tolerance. The residual is upstream labelling, not our parse — 張士誠

@@ -154,8 +154,22 @@ defmodule Pramana.Taisho.Divisions do
   # volume rule here gives them nothing, because that rule is Taishō volume numbering too.
   #
   # So the work's own byline is asked instead — `唐 王勃撰` is composed, `後秦 佛陀耶舍…譯`
-  # is translated — which agrees with this table 97.3% of the time on the Taishō, where
-  # both can be compared. See `Pramana.Cbeta.Byline`.
+  # is translated — which broadly agrees with this table on the Taishō, where both can be
+  # compared. **The agreement rate is computed by `Pramana.Coherence.byline_division/0`, not
+  # written down here**: this comment quoted 97.3% for two phases and nothing re-checked it;
+  # recomputed it is 95.8%, and the gap is the point of the check rather than a defect.
+  #
+  # The disagreements are structural rather than noise, and both classes are informative:
+  #
+  #   - `日本 永超集` (T2183) — the byline says Japanese and the table says Chinese, because
+  #     the Japanese-composed catalogues sit in 目錄部, a division the table types as Chinese.
+  #     Here the byline is more specific than the division.
+  #   - `唐 三藏法師義淨奉詔譯` (T2897) — the byline says translated and the table says
+  #     Chinese, because the work is in 疑似部, the DOUBTFUL division. A Chinese composition
+  #     carrying a translator's byline is what 疑似部 means, so the table is right and the
+  #     byline is the forgery it was written to be.
+  #
+  # See `Pramana.Cbeta.Byline`.
   #
   # The order matters and is deliberate: for the Taishō the curated table WINS, because it
   # is work-number-precise where the byline is a per-work inference, and a disagreement

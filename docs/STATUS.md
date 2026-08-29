@@ -39,6 +39,11 @@ guard that byte-compares every quoted span, **16 read-only MCP tools**, and a fi
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
 
+**The gate has a third data check.** `mix pramana.coherence` asks whether independently
+derived facts about one work agree — `verify` proves determinism and `integrity` proves
+fidelity, and both were green over the 122 works below. Four checks, 3 s, in the gate. Rates
+and floors are computed; run it rather than quoting it.
+
 **122 works stopped being Japanese on 2026-08-28.** They are Ming and Qing Chinese
 compositions that Taishō volume numbering, applied to the 卍續藏 which does not use it, had
 labelled `japanese` — an invariant #4 violation that `verify` and `integrity` were both
