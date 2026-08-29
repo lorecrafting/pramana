@@ -11,11 +11,11 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Corpus
   alias Pramana.Derge.Images
   alias Pramana.Reader
   alias Pramana.Translations
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:urn, :string,

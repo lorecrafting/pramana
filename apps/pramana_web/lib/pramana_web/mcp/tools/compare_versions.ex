@@ -13,8 +13,8 @@ defmodule PramanaWeb.MCP.Tools.CompareVersions do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Compare
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:urn, :string,

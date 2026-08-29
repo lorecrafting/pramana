@@ -19,9 +19,9 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Corpus
   alias Pramana.Readings
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:urn, :string,

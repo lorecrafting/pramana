@@ -26,9 +26,9 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
 
   use Anubis.Server.Component, type: :tool
 
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Provenance
   alias Pramana.Relations
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:work_id, :string,

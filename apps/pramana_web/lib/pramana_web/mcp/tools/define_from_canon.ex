@@ -30,9 +30,9 @@ defmodule PramanaWeb.MCP.Tools.DefineFromCanon do
 
   use Anubis.Server.Component, type: :tool
 
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Definitions
   alias Pramana.Provenance
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:term, :string,

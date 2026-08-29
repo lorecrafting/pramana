@@ -9,8 +9,8 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
 
   use Anubis.Server.Component, type: :tool
 
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Guard
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:urn, :string, required: true, description: "The URN the quotation is attributed to.")

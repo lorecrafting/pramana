@@ -29,8 +29,8 @@ defmodule PramanaWeb.MCP.Tools.SearchTranslations do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Translations
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:query, :string,

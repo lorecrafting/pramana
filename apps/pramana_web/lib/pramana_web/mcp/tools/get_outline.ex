@@ -14,8 +14,8 @@ defmodule PramanaWeb.MCP.Tools.GetOutline do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Corpus
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:work_id, :string,

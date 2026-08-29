@@ -34,8 +34,8 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
 
   use Anubis.Server.Component, type: :tool
 
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Commentary
+  alias PramanaWeb.MCP.Reply
 
   @note "Found by verbatim lemma match. An empty result means no commentary QUOTES this " <>
           "line, not that none explains it — a commentary that paraphrases is invisible " <>

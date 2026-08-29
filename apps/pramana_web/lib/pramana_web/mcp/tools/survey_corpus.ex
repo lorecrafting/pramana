@@ -15,8 +15,8 @@ defmodule PramanaWeb.MCP.Tools.SurveyCorpus do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Retrieval.Survey
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:query, :string,

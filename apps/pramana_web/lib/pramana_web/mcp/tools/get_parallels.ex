@@ -32,8 +32,8 @@ defmodule PramanaWeb.MCP.Tools.GetParallels do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Parallels
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:work_id, :string,

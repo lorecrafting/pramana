@@ -27,8 +27,8 @@ defmodule PramanaWeb.MCP.Tools.GetWorksByPerson do
 
   use Anubis.Server.Component, type: :tool
 
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Authority
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:authority_id, :string,

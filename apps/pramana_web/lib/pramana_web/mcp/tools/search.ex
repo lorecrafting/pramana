@@ -15,11 +15,11 @@ defmodule PramanaWeb.MCP.Tools.Search do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Provenance
   alias Pramana.Reader
   alias Pramana.Retrieval
   alias Pramana.Retrieval.Semantic
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:query, :string,

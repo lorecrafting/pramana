@@ -16,8 +16,8 @@ defmodule PramanaWeb.MCP.Tools.CompareWitnesses do
   use Anubis.Server.Component, type: :tool
 
   alias Anubis.Server.Response
-  alias PramanaWeb.MCP.Reply
   alias Pramana.Apparatus
+  alias PramanaWeb.MCP.Reply
 
   schema do
     field(:urn, :string,
