@@ -130,6 +130,7 @@ the file that owns it.
 | a **phase gate**, or "am I done" | `docs/CHECKS.md` |
 | local setup, Postgres, toolchain | `docs/DEV_ENV.md`, `docs/ELIXIR.md` |
 | wondering **why** something is the way it is | `docs/HISTORY.md`; if it was a measurement, `docs/PROXIES.md` |
+| changing **how a model reads the corpus** | `docs/AGENT_MODELS.md` — the alternatives to MCP tools, and what none of them fix |
 | wondering whether an idea was already tried | `docs/PLAN.md` § "Rejected, with evidence" — **check before proposing** |
 | onboarding a person, or explaining the project | `docs/PRIMER.md`, `README.md` |
 

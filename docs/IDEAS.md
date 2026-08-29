@@ -180,7 +180,9 @@ client, as `tripitaka-mcp` does. Worth copying.
 
 **★ "Show your work" mode** — every retrieval the agent ran, replayable and inspectable.
 This is what makes an AI answer *auditable* rather than merely confident, and it's the
-natural extension of the project's thesis into the agent layer.
+natural extension of the project's thesis into the agent layer. `docs/AGENT_MODELS.md`
+argues it should be done **before** any of the larger bets on that page, because it needs no
+change to how a model reads the corpus.
 
 **Answer caching keyed by `(question_hash, bake_id)`** — reproducible answers, which is
 a genuinely unusual property for an LLM system and worth advertising.
