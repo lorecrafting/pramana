@@ -48,11 +48,8 @@ defmodule Pramana.Translators do
 
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
+  alias Pramana.Punctuation
   alias Pramana.Repo
-
-  # Punctuation, and whitespace we introduced. Both are ours or the editor's, never the
-  # translator's.
-  @editorial ~r/[\s，。、；：？！「」『』（）〔〕【】…—·]/u
 
   @type preference :: %{
           term: String.t(),
@@ -199,7 +196,7 @@ defmodule Pramana.Translators do
   # Editorial punctuation removed before windowing. See the moduledoc: this is the whole
   # difference between the top results being technical vocabulary and being `、苦`.
   defp ngrams(text, n) do
-    chars = text |> String.replace(@editorial, "") |> String.graphemes() |> List.to_tuple()
+    chars = text |> Punctuation.strip() |> String.graphemes() |> List.to_tuple()
     last = tuple_size(chars) - n
 
     if last < 0 do

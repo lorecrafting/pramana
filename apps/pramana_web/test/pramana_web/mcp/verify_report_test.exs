@@ -20,6 +20,7 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
   <author>姚秦 鳩摩羅什譯</author></titleStmt></fileDesc></teiHeader>
   <text><body><milestone n="1" unit="juan"/>
   <lb n="0001c17"/>鳩摩羅什奉　詔譯
+  <lb n="0001c18"/>王舍城耆闍崛山中
   </body></text></TEI>
   """
 
@@ -63,6 +64,24 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
 
     refute payload["citations"]["ok?"]
     refute payload["ok?"]
+  end
+
+  test "a failed citation says HOW it failed, not only that it did" do
+    # The words are real and one line further on. An author told "one citation failed" goes
+    # looking for a fabrication; told `wrong_address`, they fix a reference.
+    payload = json(~s|It reads "王舍城耆闍崛山中" [#{@urn}].|)
+
+    refute payload["citations"]["ok?"]
+    assert [finding] = payload["citations"]["findings"]
+    assert finding["reason"] == "wrong_address"
+    assert payload["note"] =~ "wrong_address"
+  end
+
+  test "punctuation an editor added is diagnosed as the editor's, not the text's" do
+    payload = json(~s|It reads "鳩摩羅什奉　詔譯，" [#{@urn}].|)
+
+    assert [finding] = payload["citations"]["findings"]
+    assert finding["reason"] == "editorial_punctuation"
   end
 
   test "a replay record is re-executed through the real tools" do

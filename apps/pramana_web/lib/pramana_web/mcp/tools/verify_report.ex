@@ -81,6 +81,24 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
   # The note leads with what was NOT established. A report can be free of failures and still
   # unverified — every replay `unverifiable` against an older corpus, or no evidence at all —
   # and a summary that opens with "0 failures" invites exactly that misreading.
+  # WHY the citations failed, in the note, because the reason changes what the author does
+  # next. `:wrong_address` means the words are real and the URN is not — a reference to
+  # correct. `:absent_from_corpus` is the only one of the five that is a fabrication.
+  defp reasons(findings) do
+    counts =
+      findings
+      |> Enum.map(& &1[:reason])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.frequencies()
+
+    if counts == %{} do
+      nil
+    else
+      "Failed citations by reason: " <>
+        Enum.map_join(counts, ", ", fn {reason, n} -> "#{reason} #{n}" end) <> "."
+    end
+  end
+
   defp note(result) do
     counts = Enum.frequencies_by(result.replays, & &1.status)
     unverifiable = Map.get(counts, :unverifiable, 0)
@@ -102,6 +120,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
           "#{result.skipped} replay record(s) beyond the per-report cap were not executed, " <>
             "so this report was not fully examined."
       ),
+      reasons(result.citations.findings),
       if(result.citations.existence_only > 0,
         do:
           "#{result.citations.existence_only} citation(s) were checked for EXISTENCE only — " <>

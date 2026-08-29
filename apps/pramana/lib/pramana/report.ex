@@ -152,7 +152,14 @@ defmodule Pramana.Report do
     max = Keyword.get(opts, :max_replays, @max_replays)
     {replays, skipped} = Enum.split(all_replays, max)
 
-    citations = Guard.check_output(markdown)
+    # DIAGNOSED, not merely counted. A report telling an author "one citation failed" sends
+    # them looking for a fabrication; telling them the quotation runs into the next line
+    # sends them to fix a range. Same finding, opposite afternoon.
+    citations =
+      markdown
+      |> Guard.check_output()
+      |> Map.update!(:findings, fn findings -> Enum.map(findings, &Guard.diagnose/1) end)
+
     results = Enum.map(replays, &check_replay(&1, executor, current_bake))
 
     %{

@@ -1428,6 +1428,30 @@ not, because a stored report is a claim the corpus would then appear to make.
 
 ---
 
+## The queue — 2026-08-29
+
+Worked top to bottom. Each item stands alone; the ordering is cost and dependency, not
+importance. Sources: § A6 (feedback loop), `docs/OBSERVABILITY.md` (audit).
+
+| # | item | why here | state |
+|---|---|---|---|
+| 1 | **Guard mismatch diagnosis** | `:quote_mismatch` covers a fabrication, an edition that punctuates differently, and a citation naming the first of two lines. Three layers, one verdict | ▸ done |
+| 2 | **Surface it** — `verify_citation`, `verify_report` | a diagnosis nobody reads is rule 60 again. NOT the reader: it renders passages and never verifies a quote, so it has no refusal surface | ▸ done |
+| 3 | **`mix pramana.doctor`** | the state every session rediscovers with hand-written psql. Highest value per hour in the audit | |
+| 4 | **Oban failure handler** | ~10 lines. The stall that cost an afternoon was diagnosed with a print statement inside `perform` | |
+| 5 | **Domain telemetry, five boundaries** | bake, retrieval, guard, MCP call, acquisition. Free when unattached; the substrate for 7 | |
+| 6 | **Structured MCP errors** | seven hand-written strings across seventeen tools. A model cannot branch on prose | |
+| 7 | **Guard-refusal and caveat counters** | both signals are computed and discarded today (§ A6 items 1 and 3) | |
+| 8 | **Self-supervised parallel recall** | 141,073 quotations and the curated parallel graph are free relevance judgements. Needs no users | |
+
+**Ordering notes that are not obvious.** 3 before 5 because `doctor` needs no design
+decisions and pays every session; 4 before 5 because it is ten lines and removes the worst
+debugging experience this project has had; 7 after 5 because counters want somewhere to go.
+8 is last because it is the largest and overlaps `evals/`, which needs a judgement about
+duplication before it is worth building.
+
+---
+
 ## Blocked
 
 | item | blocked on |

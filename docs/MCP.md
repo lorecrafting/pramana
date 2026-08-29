@@ -33,7 +33,7 @@ count the rows, or ask `tools/list`.
 | `get_quotations` | Every other text that reproduces this passage word for word. |
 | `get_readings` | How a passage is pronounced, where the ordinary answer is wrong. |
 | `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
-| `verify_citation` | Byte-compares a quotation against its URN. |
+| `verify_citation` | Byte-compares a quotation against its URN, and says **how** it failed — punctuation the editor added, an orthographic variant, a quote running into the next line, real text at the wrong address, or the one case that is a fabrication. |
 | `verify_report` | Byte-compares every citation in a document **and re-runs the searches its figures rest on** — the claims a citation guard cannot reach. |
 
 ### An English question needs `search_translations`, not `search`

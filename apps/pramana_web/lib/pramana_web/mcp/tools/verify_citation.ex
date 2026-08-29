@@ -23,7 +23,11 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
 
   @impl true
   def execute(%{urn: urn, quoted_text: quoted} = params, frame) do
-    finding = Guard.check(urn, quoted)
+    # DIAGNOSED. `:quote_mismatch` is true of a fabricated sūtra, of a quotation from an
+    # edition that punctuates differently, and of a citation naming the first of the two
+    # lines it quotes. Returning the same sentence for all three is what makes a caller
+    # treat the verdict as noise.
+    finding = urn |> Guard.check(quoted) |> Guard.diagnose()
 
     payload = %{
       urn: finding.urn,
@@ -32,7 +36,9 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
       quoted: finding.quoted,
       actual: finding.actual,
       provenance: finding.provenance,
-      explanation: explain(finding.verdict)
+      reason: finding[:reason],
+      found_at: finding[:found_at],
+      explanation: finding[:explanation] || explain(finding.verdict)
     }
 
     {:reply, Reply.json("verify_citation", params, payload), frame}
@@ -40,6 +46,8 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
 
   defp explain(:ok), do: "The quoted text appears verbatim at this URN."
 
+  # Only reached when the diagnosis declined to be more specific, which it does not for a
+  # mismatch — kept so the tool still answers if `diagnose/1` ever returns nothing.
   defp explain(:quote_mismatch),
     do:
       "This URN exists, but the quoted text does not appear in it. Compare against " <>

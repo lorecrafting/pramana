@@ -28,6 +28,9 @@ defmodule Pramana.Guard do
   """
 
   alias Pramana.Corpus
+  alias Pramana.Punctuation
+  alias Pramana.Retrieval.Lexical
+  alias Pramana.Retrieval.Variants
 
   # Matches a URN wherever it appears: bare, bracketed, or in markdown.
   # Deliberately permissive in what it extracts and strict in what it accepts —
@@ -170,6 +173,163 @@ defmodule Pramana.Guard do
       provenance: provenance,
       layer: Map.get(provenance || %{}, :layer, "source")
     }
+  end
+
+  @doc """
+  Says **how** a quotation failed, not only that it did.
+
+  `:quote_mismatch` is a true verdict and a useless one: it covers a model that invented a
+  passage, a scholar quoting the same line from an edition that punctuates differently, and
+  a citation that names the line before the one it quotes. Those are three different
+  defects in three different layers, and telling them apart is deterministic.
+
+      :editorial_punctuation   the words match; the punctuation does not
+      :orthographic_variant    the words match under this corpus's variant classes
+      :spans_line_boundary     the quote runs past this line into the next
+      :wrong_address           the text is real and this URN is not where it lives
+      :absent_from_corpus      these words are nowhere in the bake
+
+  ## The one that inverts the usual reading
+
+  **`:wrong_address` is not a hallucination.** The model found real text and cited the wrong
+  line for it, which indicts *addressing* — or retrieval, for handing back a span whose URN
+  did not travel with it. `:absent_from_corpus` is the fabrication case, and it is the only
+  one of the five that is.
+
+  ## And the one that is arguably not an error at all
+
+  **A Taishō line breaks wherever the block-cutter reached**, mid-sentence and mid-compound,
+  so a passage worth quoting routinely spans two of them. `:spans_line_boundary` says the
+  quotation is real and continuous in the printed page and the citation named only its first
+  line. That is a citation worth tightening, not a false claim, and reporting it as
+  `:quote_mismatch` alongside a fabrication trains people to ignore the guard.
+
+  Checked cheapest first, and the corpus is only consulted once the free string comparisons
+  have failed.
+  """
+  @spec diagnose(map()) :: map()
+  def diagnose(%{verdict: :quote_mismatch, quoted: quoted, actual: actual} = finding)
+      when is_binary(quoted) and is_binary(actual) do
+    Map.merge(finding, classify(String.trim(quoted), actual, finding))
+  end
+
+  # Every other verdict is already specific. `:not_found` and `:bad_urn` say what is wrong
+  # with the address, and `:not_citable_as_source` says the layer is wrong — none of them is
+  # improved by asking how the characters differ.
+  def diagnose(finding), do: Map.put(finding, :reason, nil)
+
+  defp classify(quoted, actual, finding) do
+    cond do
+      Punctuation.same_but_for_punctuation?(quoted, actual) or
+          String.contains?(Punctuation.strip(actual), Punctuation.strip(quoted)) ->
+        %{
+          reason: :editorial_punctuation,
+          explanation:
+            "The characters are the same; the punctuation is not. CBETA's punctuation is a " <>
+              "modern editorial addition and is not in the witness, so an edition that " <>
+              "punctuates differently is not a different text."
+        }
+
+      variant_match?(quoted, actual) ->
+        %{
+          reason: :orthographic_variant,
+          explanation:
+            "The passage matches once this corpus's orthographic variants are applied. The " <>
+              "quotation uses a different but equivalent glyph."
+        }
+
+      spans_boundary?(quoted, finding) ->
+        %{
+          reason: :spans_line_boundary,
+          explanation:
+            "The quotation is continuous across this line and its neighbours. A Taishō " <>
+              "line breaks wherever the block-cutter reached, mid-sentence and " <>
+              "mid-compound, so this is a citation to tighten — cite the range — rather " <>
+              "than a false claim."
+        }
+
+      true ->
+        elsewhere(quoted)
+    end
+  end
+
+  # Only the CHEAP direction: expand the quotation's variant classes and see whether any
+  # spelling of it is present. Expanding the whole line would be the same answer at many
+  # times the cost.
+  defp variant_match?(quoted, actual) do
+    stripped_actual = Punctuation.strip(actual)
+
+    quoted
+    |> Punctuation.strip()
+    |> Variants.expand(max_forms: 16)
+    |> elem(0)
+    |> Enum.any?(&String.contains?(stripped_actual, &1))
+  end
+
+  # ANCHORED AT THE CITED LINE, and that is the whole difficulty.
+  #
+  # The first version asked whether the quotation appeared anywhere in the surrounding
+  # window, which is true of a quotation lying wholly in the NEXT line — and that is
+  # `:wrong_address`, a different and more useful answer. So the two windows tested here
+  # both include the focus: the quotation either starts on this line and runs forward, or
+  # starts earlier and runs into it. A quotation that sits entirely in a neighbour matches
+  # neither and falls through to the search, which returns the URN it actually lives at.
+  #
+  # A small window, too: a quotation that only matches once fifty lines are concatenated is
+  # not spanning a boundary, it is a paraphrase of a passage.
+  defp spans_boundary?(quoted, %{urn: urn}) when is_binary(urn) do
+    case Corpus.context(urn, before: 1, after: 2) do
+      {:ok, %{focus: focus, before: before_spans, after: after_spans}} ->
+        needle = Punctuation.strip(quoted)
+
+        anchored =
+          Enum.any?(
+            [concat(before_spans ++ [focus]), concat([focus | after_spans])],
+            &String.contains?(&1, needle)
+          )
+
+        # AND in no single line. Containment in `focus <> next` is also true of a quotation
+        # lying wholly inside `next` — which is `:wrong_address`, and the more useful
+        # answer, because it names the URN the words actually live at. Spanning means
+        # crossing: present across the join and absent from either side alone.
+        anchored and not Enum.any?([focus | before_spans ++ after_spans], &in_span?(&1, needle))
+
+      _ ->
+        false
+    end
+  end
+
+  defp spans_boundary?(_quoted, _finding), do: false
+
+  defp concat(spans), do: spans |> Enum.map_join("", & &1.content) |> Punctuation.strip()
+
+  defp in_span?(span, needle), do: span.content |> Punctuation.strip() |> String.contains?(needle)
+
+  # The corpus is asked exactly once, and only here. A phrase search over the bigram index
+  # answers "do these words exist anywhere" in milliseconds; the answer changes the verdict
+  # from a fabrication to a misfiled citation, which is the difference between distrusting a
+  # model and correcting a reference.
+  defp elsewhere(quoted) do
+    stripped = Punctuation.strip(quoted)
+
+    case Lexical.search(stripped, mode: :phrase, limit: 3) do
+      {:ok, %{results: [%{span: span} | _] = results}} ->
+        %{
+          reason: :wrong_address,
+          found_at: Enum.map(results, & &1.span.urn),
+          explanation:
+            "These words are in the corpus, at #{span.urn} — this URN is not where they " <>
+              "live. That indicts the address rather than the quotation: the text is real."
+        }
+
+      _ ->
+        %{
+          reason: :absent_from_corpus,
+          explanation:
+            "These words appear nowhere in this bake. Of the five ways a quotation can " <>
+              "fail, this is the only one that is a fabrication."
+        }
+    end
   end
 
   @doc """

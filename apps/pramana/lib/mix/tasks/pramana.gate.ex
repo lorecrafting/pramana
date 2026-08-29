@@ -239,7 +239,13 @@ defmodule Mix.Tasks.Pramana.Gate do
 
     case System.cmd(exe, args, env: env_vars, into: into, stderr_to_stdout: true) do
       {_, 0} -> {:ok, ""}
-      {output, code} -> {{:error, {:exit, code}}, to_string(output)}
+      # `output` is a BINARY for a buffered step and the IO DEVICE for a streaming one,
+      # because that is what `into:` was given. Calling `to_string/1` on the device raised
+      # inside the gate's own failure path — so a failing solo step crashed the gate instead
+      # of reporting itself, which is the one moment a gate must not be the thing that
+      # breaks. A streaming step has already printed everything it had to say.
+      {output, code} when is_binary(output) -> {{:error, {:exit, code}}, output}
+      {_device, code} -> {{:error, {:exit, code}}, ""}
     end
   end
 

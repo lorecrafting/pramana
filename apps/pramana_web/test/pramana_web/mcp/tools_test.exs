@@ -221,7 +221,14 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert data["verdict"] == "quote_mismatch"
       assert data["verified"] == false
       assert data["actual"] == "鳩摩羅什奉　詔譯"
-      assert data["explanation"] =~ "does not appear"
+
+      # And WHY. A single altered character puts the phrase nowhere in the bake, which is
+      # the one of five reasons that is actually a fabrication — as opposed to punctuation
+      # the editor added, or a real phrase cited at the wrong line. This assertion used to
+      # read `explanation =~ "does not appear"`, the generic sentence returned for all of
+      # them.
+      assert data["reason"] == "absent_from_corpus"
+      assert data["explanation"] =~ "fabrication"
     end
 
     test "reports a fabricated URN rather than returning a plausible answer" do
