@@ -45,6 +45,28 @@ defmodule Pramana.Authority do
   attribution is real and this does not model it. See `link_byline/2`.
   """
 
+  # DYNASTY NAMES ARE SYNONYMS ACROSS THE TWO SOURCES, and asserting they would match cost
+  # the most important links in the corpus. CBETA writes 姚秦 where DILA writes 後秦 — the
+  # same Later Qin, named for its ruling Yao family rather than by sequence — and 吳 where
+  # DILA writes 孫吳. Before this, 竺佛念, 瞿曇僧伽提婆, 天息災 and 維祇難 were all refused:
+  # four of the translators the corpus most depends on.
+  #
+  # Each pair below is one dynasty under two conventional names. Nothing here maps two
+  # DIFFERENT dynasties together, which is the mistake that would silently merge people.
+  @dynasty_synonyms %{
+    "姚秦" => "後秦",
+    "苻秦" => "前秦",
+    "孫吳" => "吳",
+    "東吳" => "吳",
+    "蕭齊" => "南齊",
+    "元魏" => "北魏",
+    "後魏" => "北魏",
+    "拓跋魏" => "北魏",
+    "高齊" => "北齊",
+    "宇文周" => "北周",
+    "曹魏" => "魏"
+  }
+
   @type person :: %{id: String.t(), names: [String.t()], dynasty: String.t() | nil}
   @type link :: %{
           authority_id: String.t(),
@@ -109,7 +131,7 @@ defmodule Pramana.Authority do
         found(id, name, index, "name_match_no_dynasty")
 
       dynasty ->
-        if String.contains?(byline, dynasty),
+        if dynasty_agrees?(byline, dynasty),
           do: found(id, name, index, "name_and_dynasty"),
           else: nil
     end
@@ -131,6 +153,26 @@ defmodule Pramana.Authority do
       _ ->
         nil
     end
+  end
+
+  # Agreement, not string equality. Three ways a byline and a record can name one dynasty:
+  # verbatim, through a synonym, or as 宋 against 北宋 — where one conventional name
+  # contains the other because it distinguishes a period the byline did not bother to.
+  defp dynasty_agrees?(byline, dynasty) do
+    canonical = Map.get(@dynasty_synonyms, dynasty, dynasty)
+
+    String.contains?(byline, dynasty) or String.contains?(byline, canonical) or
+      Enum.any?(byline_dynasties(byline), fn d ->
+        canonical == Map.get(@dynasty_synonyms, d, d) or String.contains?(canonical, d)
+      end)
+  end
+
+  # The leading run of Han characters before the first space is where CBETA puts the
+  # dynasty: `姚秦 竺佛念譯`. Bylines that omit it simply produce nothing to compare.
+  defp byline_dynasties(byline) do
+    byline
+    |> String.split(~r/[\s　]+/u, trim: true)
+    |> Enum.take(1)
   end
 
   defp found(id, name, index, method) do

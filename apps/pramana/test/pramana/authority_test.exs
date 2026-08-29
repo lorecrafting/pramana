@@ -80,6 +80,33 @@ defmodule Pramana.AuthorityTest do
                Authority.link_byline("劉宋 求那跋陀羅譯", index)
     end
 
+    # THE REFUSAL THAT WAS COSTING THE MOST IMPORTANT LINKS. CBETA and DILA name the same
+    # dynasty differently — 姚秦 for 後秦, named for the ruling Yao family rather than by
+    # sequence — and asserting the strings would match refused 竺佛念, 天息災 and 維祇難,
+    # three of the translators this corpus most depends on.
+    test "accepts a dynasty named differently by the two sources" do
+      index = idx([person("A000435", ["竺佛念"], "後秦")])
+
+      assert %{authority_id: "A000435", method: "name_and_dynasty"} =
+               Authority.link_byline("姚秦 竺佛念譯", index)
+    end
+
+    test "accepts a byline that names the era less precisely than the record" do
+      # 宋 against 北宋: the record distinguishes a period the byline did not bother to.
+      index = idx([person("A000146", ["天息災"], "北宋")])
+
+      assert %{authority_id: "A000146"} = Authority.link_byline("宋 天息災譯", index)
+    end
+
+    # The synonym table must never map two DIFFERENT dynasties together, which is the
+    # mistake that would silently merge people. Saṅghadeva really did work under both, and
+    # DILA records only one — so this stays a refusal.
+    test "still refuses two genuinely different dynasties" do
+      index = idx([person("A001589", ["瞿曇僧伽提婆", "僧伽提婆"], "前秦")])
+
+      assert Authority.link_byline("東晉 瞿曇僧伽提婆譯", index) == nil
+    end
+
     test "ignores one-character names, which appear in almost every byline" do
       index = idx([person("A000001", ["宋"], "宋")])
       assert Authority.link_byline("宋 道隆述", index) == nil

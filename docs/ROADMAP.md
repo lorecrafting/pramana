@@ -165,7 +165,13 @@ listed as **not started** rather than in progress, because nothing has been writ
 - ✅ **Reading exceptions** — 9,543 over a 44,348-character base
 - ✅ **Commentary lemma-and-gloss (科文) parsing** — 27,254 lemmas over 43 work pairs,
   attaching commentary to 20,954 root lines, deterministically. `docs/COMMENTARY.md`.
-- ✗ **Translator fingerprinting** from parallel Chinese translations (異譯本), and
+- ◐ **Translator fingerprinting** from parallel Chinese translations (異譯本) —
+  `Pramana.Translators`. Works per work-pair (求那跋陀羅 against the anonymous T0100 returns
+  入處, 覺分, 緣生, 道跡, 法律 — his technical vocabulary). `compare_hands/3` keys on DILA
+  authority ids so a translator is one identity across spellings, and is **ahead of the
+  data**: six named pairs have parallel works and the richest, T0099 against T0210, is prose
+  sūtra against verse, so it measures genre rather than hand. Needs a genre-matched pair the
+  corpus does not yet hold. And
   **translation divergence scoring** — the same computation, applied to both human
   and machine renderings. Doubles as the corpus-wide difficulty map that prioritizes
   human review effort.

@@ -47,6 +47,7 @@ defmodule Pramana.Translators do
   import Ecto.Query
 
   alias Pramana.Corpus.Text
+  alias Pramana.Corpus.Work
   alias Pramana.Repo
 
   # Punctuation, and whitespace we introduced. Both are ours or the editor's, never the
@@ -112,6 +113,78 @@ defmodule Pramana.Translators do
       # which would sort every hapax above every real preference.
       skew: Float.round(rate / max(other_rate, 0.05), 1)
     }
+  end
+
+  @doc """
+  Two translators compared on the works they each rendered from a shared original.
+
+  Takes DILA authority ids, not bylines. That is the point of `Pramana.Authority`: 竺佛念
+  appears as `姚秦 竺佛念譯` in one edition and under other spellings elsewhere, and a
+  comparison keyed on the string would treat them as different hands.
+
+  Only works recorded as `parallel_of` each other are compared, so the difference measured
+  is a rendering difference rather than a difference of subject. Comparing two translators'
+  whole outputs would mostly measure what they happened to translate.
+
+  Returns `{:error, :no_shared_parallel}` when the two have no parallel works between them
+  — which is the common case, and is not a failure. `docs/ROADMAP.md`'s Phase 6 exit asks
+  "how did Kumārajīva and Xuanzang render this term"; the honest answer is often that the
+  corpus holds no passage where both rendered the same thing.
+
+  ## It is ahead of the data, and the measurement says so
+
+  Six named translator pairs have parallel works today, and the richest available —
+  求那跋陀羅 against 維祇難 — pairs **T0099 with T0210**: the Saṃyukta Āgama against the
+  Dharmapada. Those are parallel in SuttaCentral's sense, sharing discourses, and
+  generically opposite: prose sūtra against verse. So the top results are the sūtra frame
+  formula — 如是我聞, 爾時, 諸比丘 at 2,181:0 — which is a difference of genre, not of hand.
+
+  This is the same limit `preferences/3` already documents one level down, arriving from a
+  different direction: the method cannot tell a structural difference from a lexical choice.
+  There it was chapter headings; here it is the opening formula of a sūtra.
+
+  **What it needs is a genre-matched pair**, two translators rendering the same kind of text,
+  and the corpus does not hold one yet. The function is correct and the data is not ready;
+  reporting that is more useful than reporting 926x on 諸比.
+  """
+  @spec compare_hands(String.t(), String.t(), keyword()) ::
+          {:ok, %{pairs: [{String.t(), String.t()}], preferences: [preference()]}}
+          | {:error, :no_shared_parallel}
+  def compare_hands(authority_a, authority_b, opts \\ []) do
+    case parallel_pairs(authority_a, authority_b) do
+      [] ->
+        {:error, :no_shared_parallel}
+
+      pairs ->
+        preferences =
+          pairs
+          |> Enum.flat_map(&pair_preferences(&1, opts))
+          |> Enum.sort_by(& &1.skew, :desc)
+          |> Enum.uniq_by(& &1.term)
+          |> Enum.take(Keyword.get(opts, :limit, 20))
+
+        {:ok, %{pairs: pairs, preferences: preferences}}
+    end
+  end
+
+  defp pair_preferences({a, b}, opts) do
+    case preferences(a, b, opts) do
+      {:ok, prefs} -> prefs
+      _ -> []
+    end
+  end
+
+  defp parallel_pairs(a, b) do
+    Repo.all(
+      from r in "work_relations",
+        join: wa in Work,
+        on: wa.id == r.source_work_id,
+        join: wb in Work,
+        on: wb.id == r.target_work_id,
+        where: r.relation == "parallel_of" and wa.authority_id == ^a and wb.authority_id == ^b,
+        select: {r.source_work_id, r.target_work_id},
+        distinct: true
+    )
   end
 
   defp body(work_id) do
