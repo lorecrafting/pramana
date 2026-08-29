@@ -25,11 +25,13 @@ defmodule Mix.Tasks.Pramana.Authority.Import do
   alias Pramana.Acquire.Lockfile
   alias Pramana.Authority
   alias Pramana.Corpus.AuthorityPerson
+  alias Pramana.Corpus.AuthorityPlace
   alias Pramana.Corpus.AuthorityRelation
   alias Pramana.Repo
 
-  @switches [file: :string]
+  @switches [file: :string, places_file: :string]
   @default "authority_person/Buddhist_Studies_Person_Authority.xml"
+  @places_default "authority_place/Buddhist_Studies_Place_Authority.xml"
   @source "dila-authority"
 
   @impl Mix.Task
@@ -40,6 +42,11 @@ defmodule Mix.Tasks.Pramana.Authority.Import do
     path = opts[:file] || Path.join([Lockfile.raw_dir(), @source, @default])
     people = path |> File.read!() |> Authority.parse_people()
     now = DateTime.utc_now()
+
+    import_places(
+      opts[:places_file] || Path.join([Lockfile.raw_dir(), @source, @places_default]),
+      now
+    )
 
     person_rows =
       Enum.map(people, fn p ->
@@ -110,6 +117,58 @@ defmodule Mix.Tasks.Pramana.Authority.Import do
       end,
       timeout: :infinity
     )
+  end
+
+  # WHAT `place_id` HAS BEEN POINTING AT. 12,134 people carry one and it resolved to nothing
+  # until this ran. Skipped rather than failed when the file is absent: the person authority
+  # was acquired alone for a while, and an import that refuses to run because a second file
+  # is missing makes the first one unusable.
+  defp import_places(path, now) do
+    if File.exists?(path) do
+      places = path |> File.read!() |> Authority.parse_places()
+
+      rows =
+        Enum.map(places, fn p ->
+          %{
+            id: p.id,
+            name: p.name,
+            names: p.names,
+            name_en: p.name_en,
+            district: p.district,
+            district_path: p.district_path,
+            country: p.country,
+            region_id: p.region_id,
+            region_name: p.region_name,
+            lon: p.lon,
+            lat: p.lat,
+            geo_cert: p.geo_cert,
+            note: p.note,
+            source: @source,
+            inserted_at: now,
+            updated_at: now
+          }
+        end)
+
+      Repo.transaction(
+        fn ->
+          Repo.delete_all(AuthorityPlace)
+          insert_all(AuthorityPlace, rows)
+
+          # Reported with its denominator. `country` at roughly two thirds is the figure that
+          # decides whether a historical-region query is worth writing, and quoting only the
+          # total would hide it.
+          Mix.shell().info("""
+
+            #{length(rows)} place(s)
+            #{Enum.count(rows, & &1.lon)} with coordinates, #{Enum.count(rows, & &1.district)} with a district
+            #{Enum.count(rows, & &1.country)} with a historical region, #{Enum.count(rows, & &1.name_en)} with an English name
+          """)
+        end,
+        timeout: :infinity
+      )
+    else
+      Mix.shell().info("  no place authority at #{path} — skipping places")
+    end
   end
 
   # `insert_all` binds one parameter per column per row, so the batch size is a function of

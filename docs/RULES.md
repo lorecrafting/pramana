@@ -478,12 +478,50 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     ends or record which end you kept. A lost distinction is not recoverable by anyone
     downstream, and it does not announce itself — it looks exactly like data.
 
-62. **Judge a command by its exit code, never by grepping its output.** `mix credo` prints
+62. **A measurement bug reads exactly like a finding.** Sizing DILA's place authority,
+    `<geo>` coverage was published four times — 99.4%, then 2.3%, then 0.0%, then **100%**
+    — and the data never changed. Two of those were a prefix sample of an id-ordered file
+    (DILA's early ids are the countries somebody geocoded; the tail is Chinese districts).
+    The third, and the dangerous one, was a regex: it matched `<geo>` and the tag is
+    `<geo cert="high">`. **A tag pattern that does not allow attributes reports absence, not
+    error**, which is the same shape as the `\b`-after-`?` bug that made every predicate
+    function look orphaned — twice.
+
+    What made it survive was worse than the typo: 0.0% *confirmed the correction already
+    being written*, so it was published rather than checked. **A number that agrees with the
+    conclusion you just reached is the one to re-derive**, by a second method — here, opening
+    three real records and reading them, which took a minute and would have caught it.
+
+    Two habits: parse the whole file before quoting a percentage of it, and measure over the
+    population being asked about — not the file's 59,335 places but the 284 behind works in
+    this bake.
+
+63. **Judge a command by its exit code, never by grepping its output.** `mix credo` prints
     five different priority arrows and a grep for `↘` reported "clean, 0 issues" while
     three findings stood. Piping a gate through `tee` to watch it made the pipeline report
     **exit 0 for a run that had failed at credo**, so a background task announced success
     for a red gate. Both are the same error: reading a proxy for the status instead of the
     status. `cmd; echo $?`, or `set -o pipefail`, or do not pipe.
+
+64. **A derived identifier must be re-derived, or something must notice it wasn't.**
+    `bake_id = sha256(sources.lock + pipeline_version + config)` and every MCP response is
+    stamped with the **recorded** one, so an answer can be tied to the dataset that produced
+    it. But **acquisition rewrites the lockfile and only a bake writes the row.** Between the
+    two, every response carries an id for inputs that no longer exist and every `replay`
+    record cites a corpus nobody can reconstruct.
+
+    Found after acquiring DILA's place files: not one byte of corpus text changed, the
+    computed id moved anyway — correctly, because the answers changed — and nothing said so.
+    Acquiring the person authority had done the same thing weeks earlier and passed every
+    gate in between.
+
+    The gate now recomputes it in the lockfile step. **Recompute under the recorded bake's
+    own config**, not under `%{}`: the config is digested too, and the first version of this
+    check reported divergence for every bake ever built with one.
+
+    Generally: wherever an id is a hash of inputs and is *stored* rather than computed at
+    read time, there is a window where the two disagree, and it is silent by construction.
+    Close it with a check, not with a convention.
 
 ---
 

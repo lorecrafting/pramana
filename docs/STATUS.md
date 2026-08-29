@@ -39,8 +39,11 @@ guard that byte-compares every quoted span, **16 read-only MCP tools**, and a fi
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
 
-**Bylines resolve to people.** 2,374 works carry a DILA authority id, and through it dates,
-sect, place, recorded teachers and students, and a Wikidata q-id where one exists. 1,515
+**Bylines resolve to people, and people to places.** 2,374 works carry a DILA authority id,
+and through it dates, sect, recorded teachers and students, and a Wikidata q-id where one
+exists. A `place_id` now resolves against **59,335 imported places**, giving both a modern
+administrative path and the historical region — 江南東道 rather than 浙江省, which is the
+unit a scholar means. 1,515
 works can be filtered by period — as a **bound from the author's lifespan**, stamped
 `date_basis: authority_lifespan`, answering *which century* and never *which year*. That
 filter reads 1,515 works of 17,281 and says so on every use.

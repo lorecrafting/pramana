@@ -232,12 +232,15 @@ every canon, and `Pramana.Sources` marks the tradition `reference` for exactly t
   `authority_people` and `authority_relations`; `mix pramana.authority.link` attaches people
   to bylines and derives the works' date bounds. Counts are computed, not written here — run
   the task, or `Pramana.Coverage.dated/0`.
-- **`authority_place/`** — ◐ **designed, unbuilt.** 31.1 MB plus a 2.9 MB districts file.
-  Resolves the `place_id` already stored on 12,134 people, and carries an English placeName,
-  a containing region and coordinates per place. `docs/PLAN.md` § A3.
+- **`authority_place/`** — ▸ **ingested.** 31.1 MB plus a 2.9 MB districts file, loaded
+  into `authority_places`. Resolves the `place_id` already stored on 12,134 people into a
+  modern administrative path *and* a historical region — 江南東道, not 浙江省 — plus
+  coordinates. Read `Pramana.Authority.parse_places/1` before touching it: `<geo>` is
+  **longitude first**, which is the reverse of TEI's convention.
 - **`authority_time/`, `authority_catalog/`** — **no data at this pin.** Both directories
-  contain README files only. `Pramana.Sources` names this source *"(person, place, time)"*
-  and that name promises a database which is not in the repository.
+  contain README files only, so neither is declared in `Pramana.Acquire.DILA`. The registry
+  named this source *"(person, place, time)"* until 2026-08-28, promising a database the
+  upstream does not ship.
 
 Other reference data still wanted, none acquired:
 

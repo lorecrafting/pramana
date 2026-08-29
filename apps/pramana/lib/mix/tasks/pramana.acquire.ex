@@ -15,9 +15,17 @@ defmodule Mix.Tasks.Pramana.Acquire do
   use Mix.Task
 
   alias Pramana.Acquire.CBETA
+  alias Pramana.Acquire.DILA
   alias Pramana.Acquire.Lockfile
 
-  @switches [source: :string, work: :string, volume: :integer, canon: :string, verify: :boolean]
+  @switches [
+    source: :string,
+    work: :string,
+    volume: :integer,
+    canon: :string,
+    verify: :boolean,
+    pin: :string
+  ]
 
   @impl Mix.Task
   def run(argv) do
@@ -29,7 +37,37 @@ defmodule Mix.Tasks.Pramana.Acquire do
     cond do
       opts[:verify] -> verify(source)
       source == "cbeta" -> acquire_cbeta(opts)
+      source == "dila-authority" -> acquire_dila(opts)
       true -> Mix.raise("acquire for source #{inspect(source)} is not implemented yet")
+    end
+  end
+
+  # Reference data, not corpus, and acquired in parts: person landed alone and place came
+  # later. `Pramana.Acquire.DILA` fetches only what the lockfile does not already hold at
+  # the pinned commit, so re-running is cheap and idempotent.
+  defp acquire_dila(opts) do
+    case DILA.fetch(pin: opts[:pin]) do
+      {:ok, %{fetched: [], skipped: skipped}} ->
+        Mix.shell().info("dila-authority: all #{length(skipped)} file(s) already held")
+
+      {:ok, %{pin: pin, fetched: fetched, skipped: skipped}} ->
+        for path <- fetched, do: Mix.shell().info("  fetched  #{path}")
+        for path <- skipped, do: Mix.shell().info("  held     #{path}")
+        Mix.shell().info("\ndila-authority @ #{pin}: #{length(fetched)} file(s) fetched")
+
+      {:error, {:pin_conflict, existing, incoming}} ->
+        Mix.raise("""
+        the lockfile pins dila-authority at #{inspect(existing)} and this fetch is at
+        #{inspect(incoming)}.
+
+        One entry listing files from two commits states something untrue about every one of
+        them. Re-acquire the whole source at the new commit:
+
+            mix pramana.acquire --source dila-authority --pin <sha>
+        """)
+
+      {:error, reason} ->
+        Mix.raise("dila-authority acquisition failed: #{inspect(reason)}")
     end
   end
 

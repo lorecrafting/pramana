@@ -214,7 +214,11 @@ defmodule Pramana.Sources do
       # The axis exists so `per_tradition` knows which searches to run, and an authority
       # record belongs to no canon — it describes people who appear across all of them.
       tradition: "reference",
-      name: "DILA Buddhist Studies Authority Databases (person, place, time)",
+      # PERSON AND PLACE. `authority_time/` and `authority_catalog/` exist in the repository
+      # as README files with no data at this pin, and naming them here promised two databases
+      # the upstream does not ship — the failure `Pramana.Coverage` exists to prevent, sitting
+      # in the registry rather than in a result.
+      name: "DILA Buddhist Studies Authority Databases (person, place)",
       upstream_url: "https://github.com/DILA-edu/Authority-Databases",
       repo: "DILA-edu/Authority-Databases",
       license: %{

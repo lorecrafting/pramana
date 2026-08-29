@@ -32248,15 +32248,25 @@
       "upstream": "https://github.com/Esukhia/derge-tengyur"
     },
     {
-      "file_count": 1,
+      "file_count": 3,
       "files": [
         {
           "bytes": 51371527,
           "path": "authority_person/Buddhist_Studies_Person_Authority.xml",
           "sha256": "0c300b7fb9406c03e32584ffd099766604acdb7609e90aa672bfdac2836069f2"
+        },
+        {
+          "bytes": 31101686,
+          "path": "authority_place/Buddhist_Studies_Place_Authority.xml",
+          "sha256": "2de58b303771461075c25418a6d34527f0d3ce9733a1b96a9e404bf7652804a0"
+        },
+        {
+          "bytes": 2886399,
+          "path": "authority_place/districts.xml",
+          "sha256": "8e8e7950d9260642a7c92e3df5e9368aea3b30b779b7c3f9c3f5a8c5909048b4"
         }
       ],
-      "files_sha256": "85c19d7b48249305c2b9d5b7abb04812218cae5a05c6057ccc7eeade2d656441",
+      "files_sha256": "33b04d1c553fb4362c9297982c8f1046ce79a0f1e070ed8b655d0636ab576d98",
       "id": "dila-authority",
       "license": {
         "class": "cc-by-sa",
@@ -32270,7 +32280,7 @@
         "type": "git"
       },
       "raw_root": "dila-authority",
-      "retrieved_at": "2026-08-29T02:11:48.909783Z",
+      "retrieved_at": "2026-08-29T06:34:05.034349Z",
       "upstream": "https://github.com/DILA-edu/Authority-Databases"
     },
     {

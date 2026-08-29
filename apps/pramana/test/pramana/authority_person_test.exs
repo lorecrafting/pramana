@@ -11,6 +11,7 @@ defmodule Pramana.AuthorityPersonTest do
 
   alias Pramana.Authority
   alias Pramana.Corpus.AuthorityPerson
+  alias Pramana.Corpus.AuthorityPlace
   alias Pramana.Corpus.AuthorityRelation
   alias Pramana.Repo
 
@@ -125,6 +126,67 @@ defmodule Pramana.AuthorityPersonTest do
       relate!("B1", "B3", "丙", "teacher")
 
       assert %{branched: true, stopped: :no_teacher_recorded} = Authority.teacher_chain("B1")
+    end
+  end
+
+  describe "place" do
+    defp place!(attrs) do
+      %AuthorityPlace{}
+      |> Ecto.Changeset.change(Map.put_new(attrs, :source, "dila-authority"))
+      |> Repo.insert!()
+    end
+
+    test "resolves the id, and keeps the person authority's own spelling beside it" do
+      place!(%{
+        id: "PL1",
+        name: "錢塘",
+        district: "中國-浙江省-杭州市-下城區",
+        district_path: ~w(中國 浙江省 杭州市 下城區),
+        country: "江南東道",
+        region_name: "下城區",
+        lon: 120.1775,
+        lat: 30.2928,
+        geo_cert: "high"
+      })
+
+      insert!(%{id: "P1", name: "甲", place_of_origin: "錢唐", place_id: "PL1"})
+
+      person = Authority.person("P1")
+
+      # BOTH. The two files are maintained separately and can disagree — here the person
+      # authority prints 錢唐 and the place authority 錢塘 — and a caller has every right to
+      # prefer the byline's own spelling.
+      assert person.place_of_origin == "錢唐"
+      assert person.place.name == "錢塘"
+
+      # The historical unit is the one a scholar means by "a Jiangnan translator"; the modern
+      # path is what makes it group.
+      assert person.place.historical_region == "江南東道"
+      assert person.place.district_path == ~w(中國 浙江省 杭州市 下城區)
+
+      # Longitude first in the source, named here so it cannot be read backwards.
+      assert person.place.lon == 120.1775
+      assert person.place.lat == 30.2928
+      assert person.place.certainty == "high"
+    end
+
+    test "an id the place file does not define resolves to nil, not an empty place" do
+      # 22 of the 4,310 places people reference are absent from the place file. An empty
+      # record would read as a place about which nothing is known, rather than a missing one.
+      insert!(%{id: "P2", name: "乙", place_of_origin: "某處", place_id: "PL_MISSING"})
+
+      person = Authority.person("P2")
+
+      assert person.place_id == "PL_MISSING"
+      assert person.place == nil
+      assert person.place_of_origin == "某處"
+    end
+
+    test "a person with no place at all has neither" do
+      insert!(%{id: "P3", name: "丙"})
+
+      assert Authority.person("P3").place == nil
+      assert Authority.person("P3").place_id == nil
     end
   end
 

@@ -81,17 +81,28 @@ defmodule PramanaWeb.MCP.GetPersonTest do
 
       assert note =~ "no birth or death date is recorded"
       assert note =~ "no sect is recorded"
+      assert note =~ "no place of origin resolves"
       assert note =~ "no external id"
       assert note =~ "no teacher or student is recorded"
     end
 
     test "names no gap when the record is complete" do
+      %Pramana.Corpus.AuthorityPlace{}
+      |> Ecto.Changeset.change(%{
+        id: "PL9",
+        name: "錢塘",
+        country: "江南東道",
+        source: "dila-authority"
+      })
+      |> Repo.insert!()
+
       insert!(%{
         id: "A2",
         name: "甲",
         birth_earliest: ~D[0700-01-01],
         birth_latest: ~D[0700-01-01],
         sect: "天台宗",
+        place_id: "PL9",
         external_ids: %{"wikidata" => "Q1"}
       })
 

@@ -683,6 +683,42 @@ defmodule Pramana.Corpus.AuthorityPerson do
   end
 end
 
+defmodule Pramana.Corpus.AuthorityPlace do
+  @moduledoc """
+  A place DILA records, and what `authority_people.place_id` resolves to.
+
+  Two region schemes travel together and neither replaces the other: `district` is the
+  modern administrative path, `country` the historical unit — 江南東道 rather than 浙江省.
+  See the migration for why both, and for why `lon` and `lat` are named columns.
+  """
+  use Ecto.Schema
+
+  @primary_key {:id, :string, autogenerate: false}
+  schema "authority_places" do
+    field :name, :string
+    field :names, {:array, :string}, default: []
+    field :name_en, :string
+
+    field :district, :string
+    field :district_path, {:array, :string}, default: []
+    field :country, :string
+
+    field :region_id, :string
+    field :region_name, :string
+
+    # LONGITUDE FIRST in the source. Named columns rather than a `geo` string, so the order
+    # cannot be misread downstream.
+    field :lon, :float
+    field :lat, :float
+    field :geo_cert, :string
+
+    field :note, :string
+    field :source, :string
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
 defmodule Pramana.Corpus.AuthorityRelation do
   @moduledoc """
   A teacher or student link between two authority people, **as DILA states it**.

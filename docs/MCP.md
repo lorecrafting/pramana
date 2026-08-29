@@ -26,7 +26,7 @@ count the rows, or ask `tools/list`.
 | `get_commentaries` | Which works explain this work, and what this work explains — walked back to root scripture. |
 | `get_glosses` | Which commentaries explain **this line**, by deterministic 科文 lemma match. |
 | `get_works_by_person` | Everything one translator or author produced, under a **DILA authority id** rather than a byline string — 求那跋陀羅 is one man across three spellings. |
-| `get_person` | Who that id **is**: dates as ranges, sect, place, recorded teachers and students, and a Wikidata q-id where DILA carries one. |
+| `get_person` | Who that id **is**: dates as ranges, sect, a resolved place with both its modern district and its **historical** region, recorded teachers and students, and a Wikidata q-id where DILA carries one. |
 | `get_parallels` | Curated passage parallels for a work. Note `Coverage.parallels/0`: 6.1% of the recorded graph has both ends in this bake. |
 | `compare_versions` | One passage beside its renderings and its curated parallels. |
 | `compare_witnesses` | Where the manuscript witnesses to a line disagree, each named in the edition's own sigla. |

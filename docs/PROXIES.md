@@ -1006,3 +1006,38 @@ flag. Recorded as such rather than quietly dropped.
 
 **What survives.** 57 works of rare material, much of it digitised nowhere else, and the
 first exercise of `IR.concat/1` four volumes deep (L1557, 1,329,342 characters).
+
+### Four numbers for one field, three of them mine — 2026-08-28
+
+Sizing DILA's place authority before building it, `<geo>` coverage was measured and
+published four times. The file did not change.
+
+| measured over | pattern used | value |
+|---|---|---|
+| 8,510 entries (a 4 MB `Range:` request) | `<geo>` | 99.4% |
+| all 59,335 entries | `<geo>` | 2.3% |
+| the 284 places this bake cites | `<geo>` | **0.0%** |
+| the same 284 | `<geo` | **100.0%** |
+
+**The tag is `<geo cert="high">`.** A pattern matching `<geo>` finds the bare form, which is
+what the head of the file uses, and silently reports absence everywhere else. It did not
+error. It returned a plausible number.
+
+Two failures, and the second is the one that cost the time.
+
+**A prefix of an id-ordered file is a stratum, not a sample.** DILA assigns `PL` ids
+thematically: the early ones are the Indian and Central Asian countries of Xuanzang's
+travelogue, geocoded and glossed in English by someone; the tail is Chinese districts. A
+`head -c 4000000` on 31 MB looked like a 9% sample. English placeName really is rare — 24
+in that prefix, 1.2% file-wide, 4.9% among the places this corpus cites — so that half of
+the first correction stood. The `<geo>` half did not.
+
+**The number that confirms your correction is the one to re-derive.** 0.0% arrived while a
+paragraph retracting the earlier 99.4% was already being written, and it agreed. That
+agreement is exactly why it went out unchecked. Opening three actual records and reading
+them — a minute of work — showed `<geo cert="high">` immediately, and is the second method
+that should have been used before publishing the first.
+
+**What it cost.** No code, because this was sizing. Three separate retractions in
+`docs/PLAN.md`, which are kept rather than collapsed into the final number, and a feature
+nearly designed away from coordinates that are present on **every place this bake cites**.

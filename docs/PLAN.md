@@ -928,7 +928,7 @@ aligned bo↔en folio pairs).
 
 ---
 
-### A3. Place authority — **v1 scope**, designed, unbuilt, 2026-08-28
+### A3. Place authority — **v1 scope**, ▸ DONE 2026-08-28
 
 **`place_id: "PL000000009585"` is stored on 12,134 people and resolves to nothing**, because
 the person authority was imported and the place authority beside it was not. They are the
@@ -953,20 +953,38 @@ carries more than a label:
       <placeName xml:lang="eng-Latn">Khost</placeName>
       <location><place key="PLA000002">阿富汗</place><geo>67.868089 36.555275</geo></location>
 
-So a place resolves to **a containing region, a district, and coordinates**. That makes
-"translators from Central Asia" and "works composed in Jiangnan" queryable in the way
-`composed_after` made "Tang" queryable.
+**What it resolves to**, measured over the denominator that matters — the 287 distinct
+places behind works in this bake, 284 of which resolve:
 
-**The English names are not the win, and the first version of this item said they were.**
-Measured over the first 8,510 entries rather than assumed from the one example above:
+    <geo>               284 / 284   100.0%     coordinates
+    <district>          284 / 284   100.0%     中國-浙江省-杭州市-下城區
+    <country>           231 / 284    81.3%     江南東道 — the Tang circuit, not a modern state
+    alternative names   111 / 284    39.1%
+    English name         14 / 284     4.9%
 
-    <district>     8,510 / 8,510      <geo>       8,457   (99.4%)
-    <placeName>    8,510 / 8,510      <country>   7,040   (82.7%)
-    placeName xml:lang="zho-Hant"  8,510      "eng-Latn"     24
+That is richer than a coordinate. `<district>` is a **full modern administrative path**, so
+places roll up by province and prefecture for free; `<country>` is the **historical** unit —
+江南東道, 隴右道, 西突厥 — which is the one a scholar actually wants, because "a Jiangnan
+translator" is a claim about the Tang and not about Zhejiang.
 
-**24 of 8,510.** An English gloss over Chinese place names would have been a real gain on
-`topical/chinese`, which is 0% for exactly that want — and this is not it. What *is*
-near-universal is the coordinate, so the thing to build for is geography, not language.
+**Four numbers were published for this before that one, and three were my errors.** The
+sequence is kept because it is the useful part:
+
+| claim | value | why it was wrong |
+|---|---|---|
+| English placeName is a cross-lingual win | 24 of 8,510 | measured on a prefix; real answer 4.9% here |
+| `<geo>` is near-universal | 99.4% | prefix again — right by luck |
+| `<geo>` is 2.3%, and 0% for our works | **wrong** | the regex matched `<geo>` and the tag is `<geo cert="high">` |
+| `<geo>` on our works | **100%** | correct |
+
+The third is the one worth remembering: a **measurement bug reads exactly like a finding**,
+and it survived because it was the number that confirmed the previous correction. See rule
+62 and `docs/PROXIES.md`.
+
+**Coordinates are `longitude latitude`, and nothing says so.** 于闐 is `79.828 36.9881` and
+Khotan is 37.1°N 79.9°E. TEI's own convention for `<geo>` is latitude first, so reading the
+element as documented gives a point in the Arctic Ocean. `cert="high"` rides on most of
+them and must be stored beside the value, never dropped.
 
 **Two things to get right, both already learned here:**
 
@@ -976,6 +994,52 @@ near-universal is the coordinate, so the thing to build for is geography, not la
 - **A containing region is not a birthplace.** `<place key="PLA...">` nests a place inside
   a region, and flattening the two into one column is the same collapse rule 61 was written
   for. Store the id and the region separately.
+
+**▸ BUILT.** `Pramana.Acquire.DILA` fetches the two place files **at the commit the source
+was already pinned to** — resolving a fresh pin would put files from two commits under one,
+which `Lockfile.merge_source/1` refuses outright. The person file's record survived the
+merge, which is rule 43's whole point:
+
+    dila-authority @ 4c204f88   3 file(s), verify OK
+      51,371,527  authority_person/Buddhist_Studies_Person_Authority.xml
+      31,101,686  authority_place/Buddhist_Studies_Place_Authority.xml
+       2,886,399  authority_place/districts.xml
+
+`Authority.parse_places/1` and `authority_places` hold **59,335 places — 58,500 with
+coordinates, 38,048 with a historical region**. `Authority.person/1` resolves `place_id`
+into both region schemes and `get_person` returns them, so the capability is reachable
+(rule 60).
+
+Two things the data forced, both of them refusals:
+
+- **`district` is `:text`, not `:string`.** It runs to 536 bytes where a place spans modern
+  borders, with Cyrillic and parenthesised English inside it. 255 was chosen from what a
+  Chinese county name looks like.
+- **257 districts are semicolon-separated LISTS of regions, and get no `district_path`.**
+  Splitting `中國;蒙古;俄羅斯-…-Sakhalin` on `-` yields fragments that look exactly like a
+  hierarchy and are not — rule 33. The raw string is always kept, so the refusal loses
+  nothing.
+
+**And it exposed a defect older than itself.** Adding two files to `sources.lock.json`
+changed `bake_id` — correctly, since the answers changed — while the *recorded* bake row
+still held the old id. Every MCP response was therefore stamped with an id for inputs that
+no longer exist, and every `replay` record cited a corpus nobody could reconstruct.
+Acquisition rewrites the lockfile; only a bake writes the row; nothing watched the gap.
+**Acquiring the person authority had done the same thing weeks earlier, and every gate
+since passed.** `mix pramana.gate` now recomputes it in the lockfile step, and the bake was
+re-recorded — cheap, because `Bake.record/1` writes a row rather than re-baking. Rule 64.
+
+**One decision left open, deliberately.** `date_basis` admits `catalogue` and `colophon`,
+and a **locally added modern commentary declaring its own date through the manifest** is
+neither — it is someone stating a fact about a book in hand. `docs/COMMENTARY.md` now flags
+it. Decide it when the first such text lands, rather than mapping it silently onto the
+nearest existing word, which is how an enum stops meaning anything.
+
+**Deliberately not done: a region filter on `search`.** `composed_after` works because the
+date was denormalised onto `works`; a region filter would need either the same
+denormalisation or two more joins on the hot retrieval path, and which of those is right is
+a measurement nobody has taken. `get_person` answers "where was this translator from"; "this
+phrase, in works by Jiangnan translators" is the next step and is not this one.
 
 **And a registry line to correct in the same change.** `Pramana.Sources` names this source
 *"DILA Buddhist Studies Authority Databases (person, place, time)"*. At this pin
@@ -988,6 +1052,147 @@ where they were active, as strings with no ids, because DILA records them that w
 them to place records by name is a probabilistic join over a 4,310-row table with repeated
 names, and invariant #5 puts that behind everything deterministic. Store the strings, say
 they are strings.
+
+---
+
+### A4. ⛔ 122 Chinese works are labelled Japanese — found 2026-08-28, UNFIXED
+
+**This is an invariant #4 violation, and it was found by cross-checking the new place data
+against composition origin.** `CLAUDE.md` states the invariant as *"A Japanese Kamakura-era
+commentary must never be presentable as an Indian sūtra"*; this is the same error running
+the other way, and it is in the corpus now.
+
+    X1172  淨土晨鐘        清 周克復纂     → composition_origin: japanese
+    X1162  淨土資糧全集    明 袾宏校正…   → composition_origin: japanese
+    X0931  十不二門指要鈔詳解  宋 可度詳解… → composition_origin: japanese
+
+Ming and Qing authors from Zhejiang and Jiangsu, presented as Japanese-composed.
+
+**The cause is Taishō volume numbering applied to a collection that is not the Taishō.**
+`Divisions.provenance_for_target/1` asks the work's byline first, and falls through to
+`volume_fallback/1` when the byline's verb is unrecognised. That fallback is
+`Taisho.provenance_for_volume/1` — where **volumes 56–84 are the Japanese sectarian
+corpus**. X volume 62 is not Taishō volume 62. The module's own comment says the fallback
+"gives them nothing, because that rule is Taishō volume numbering too", and the code calls
+it anyway.
+
+**Blast radius, measured rather than assumed** — CBETA non-Taishō works carrying an origin:
+
+    from the byline:               1,261
+    from Taishō volume numbering:    122   ← all X, all volumes 56–84, all "japanese"
+
+23 further X works are `japanese` **correctly**, because their byline says 日本. `ms` and
+`D` look like fallback cases in a naive query and are not: SuttaCentral and the Degé are
+loaded by their own ingests, which declare provenance explicitly.
+
+**Why it stayed invisible.** It produces a *plausible* label on a plausible number of works,
+in the one collection that is genuinely part-Japanese — the 卍續藏 is published in Japan and
+its header even reads 卍新纂**大日本**續藏經. Nothing in the corpus contradicts it. The
+contradiction only appears once a translator's **birthplace** is resolvable and can be set
+against the origin of what they wrote, which is what A3 bought.
+
+**The fix is two parts, and the second is not optional:**
+
+1. **`volume_fallback/1` must apply only to the Taishō.** For any other collection it should
+   return `%{}`. An unlabelled work is a smaller problem than a mislabelled one — the module
+   already says this about `text_role` and does not honour it here.
+2. **Extend `@composed`**, or those 122 simply become null. The verbs actually present are
+   ordinary compositional ones the list omits: 輯 (28), 纂 (6), 訂 (5), 定 (4), 答, 閱, 唱,
+   釋, 鈔, 次, 出, 節. Add them and most of the 122 become `chinese`, which is what they are.
+
+**Not done in this session, deliberately.** It changes provenance on works already loaded,
+so it needs a re-derivation and its own gate, and bundling it into the place-authority commit
+would put a corpus change inside a reference-data change. `pipeline_version` should be bumped
+when it lands: *when in doubt, bump*.
+
+---
+
+### A5. `mix pramana.coherence` — the third check, proposed 2026-08-28
+
+**Every real defect found on 2026-08-28 came from the same move: two facts about the same
+thing, derived independently, compared.** A single-source claim cannot be caught being
+wrong. `composition_origin: japanese` on 122 Chinese works (§ A4) was internally consistent,
+plausible, and sat in the one collection that genuinely is part-Japanese — nothing
+contradicted it until a translator's **birthplace** became resolvable and could be set
+against the origin of what they wrote.
+
+The gate has two data checks and they answer different questions. This is the third:
+
+| check | question | how it fails |
+|---|---|---|
+| `verify` | **determinism** — same inputs, same output | the pipeline is not reproducible |
+| `integrity` | **fidelity** — nothing printed was lost | content was dropped from the source |
+| **`coherence`** | **agreement** — independently derived facts about one work concur | a rule is applied outside its domain |
+
+§ A4 is the case for it: `verify` and `integrity` were both green over those 122 works, and
+correctly so. They were faithfully and reproducibly **mislabelled**.
+
+**Each check is a threshold on an agreement rate, never a boolean.** Upstream data
+legitimately disagrees with itself — DILA files a Yuan-era warlord under 明 because that is
+the era he belongs to — so a check demanding 100% would be permanently red, which is the
+failure mode `integrity` had while it cried wolf over 1,228 X texts. Pick the floor from the
+measured distribution, as `docs/PROXIES.md` requires.
+
+**Two already have numbers, measured 2026-08-28:**
+
+- **dynasty ↔ lifespan.** 4,401 people carry both; **4,354 agree (98.9%)** within a
+  20-year boundary tolerance. The residual is upstream labelling, not our parse — 張士誠
+  (1321–1367) is filed under 明, 楊英風 (1926–1997) under 清. This validates the date
+  derivation end to end and is cheap to re-run.
+- **birthplace region ↔ composition origin.** 印度 → 219 indic / 5 chinese; 斯里蘭卡 → 177
+  indic / 0; 中國 → 611 chinese / 174 indic / **44 japanese**. The 174 are correct and
+  expected — a Chinese monk *translating* an Indian sūtra is what the multi-axis provenance
+  exists to express. The 44 were the thread that unravelled § A4.
+
+**Three more that would have caught defects this project has already paid for:**
+
+- **byline verb ↔ the 部 division table.** `Pramana.Taisho.Divisions` claims the byline rule
+  "agrees with this table 97.3% of the time on the Taishō" and **nothing re-checks it**. A
+  written-down number with no test is the doc failure this project has corrected four times.
+- **a commentary postdates its root.** Newly checkable, because dates exist as of § A2. A
+  violation is either a bad alignment or a bad date, and either is worth knowing.
+- **URN linehead ↔ the collection's volume-number width.** Would have caught the two-digit
+  volume bug that mis-cited **725,650 segments** and was then found a third time in
+  acquisition. Rule 41's most expensive instance.
+
+**What it is not.** Not a replacement for a human reading the data — every cross-check here
+was *proposed* by noticing something odd, and no suite proposes its own checks. And not a
+correctness proof: two independently wrong sources agree happily.
+
+---
+
+### A6. The feedback loop, and the shape invariant #7 forces on it — proposed 2026-08-28
+
+**The obvious loop is forbidden here, and that is deliberate.** Invariant #7 makes the MCP
+surface read-only because *"if a model could write to the corpus, reproducibility from
+`sources.lock.json` is gone, `bake_id` stops determining contents, and prompt injection
+becomes corpus poisoning"*. So "usage improves the data" cannot mean what it usually means.
+
+What is legitimate, in rough order of value per unit of work. **None of it is built.**
+
+1. **The guard already generates a signal and discards it.** Every refused citation is a
+   datum — which URNs models fabricate, which quotes fail byte-comparison and by how much.
+   Logged, that is a map of where the corpus invites error. This is the cheapest item here
+   and the only one needing no new concept.
+2. **`replay` makes retrieval reproducible, which makes it mineable.** Every response
+   already carries `{tool, arguments, bake_id}`. Queries returning nothing, and sequences
+   where a model immediately re-queried differently, are the signature of a retrieval miss
+   — and unlike a click log they can be *re-run* against the same bake.
+3. **Which `Coverage` caveat fires most is a prioritised acquisition list.** It fires on
+   every search already; nobody counts it. If callers keep hitting Taishō 56–84, the SAT
+   email moves up the queue on evidence rather than on intuition.
+4. **A human correction is a LAYER, never an edit.** "This attribution is wrong" becomes an
+   annotation carrying `method: human` and who said it, sitting over the work exactly as a
+   translation does. The baked corpus stays a pure function of the lockfile. This is the
+   only shape that does not destroy reproducibility, and it is the same answer
+   `docs/LAYERS.md` already gives for generated text.
+5. **Evals grow from real queries, through a person.** Mined candidates are proposals only.
+   Promoting them automatically drifts the benchmark toward what the system already does
+   well — the self-fulfilling gold set that was caught once here already and had to be
+   rebuilt from scratch.
+
+**The ordering constraint.** 1–3 are observation and touch nothing. 4 introduces a write
+path and must be designed against invariant #7 before any of it is built, not after.
 
 ---
 

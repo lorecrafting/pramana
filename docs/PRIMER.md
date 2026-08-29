@@ -682,6 +682,66 @@ The 135 "deliberately unattributed" are the 古逸部 (Dunhuang manuscripts and 
 texts) — where the honest answer is that nobody knows, and the function that supplies
 provenance returns `nil` rather than a guess.
 
+### 13.1 A byline is not a person
+
+Those four axes say what *kind* of text this is. They do not say who made it, and the field
+that looks like it does — `attributed_author` — is a **byline**: the string the edition
+printed. `劉宋 求那跋陀羅譯`, `宋 求那跋陀羅譯`, `劉宋 天竺三藏求那跋陀羅譯`. Three strings,
+one man. Search the text for any of them and you find a third of his work.
+
+So bylines are linked to **DILA's person authority** (CC BY-SA 3.0, ~49,000 people), and the
+id — not the string — is the identity. `provenance.authority_id` rides on every passage, and
+`get_works_by_person` takes it.
+
+**The rule for linking, and what it refuses.** A byline matches when it contains an authority
+name of two or more characters, longest first, **and the dynasty agrees**. That last clause
+costs 21 points of coverage and buys the number its meaning: an earlier version checked the
+dynasty only when a name was ambiguous — reasoning that a unique name needs no
+disambiguation — and linked `宋 道隆述` to a *Tang* 道隆, which is precisely the
+coincidence-of-characters case the check exists to refuse. **Whether a name is ambiguous says
+nothing about whether the match is right.**
+
+Roughly 40% of bylines link to nobody, and that is a **refusal, not a gap**: they name someone
+the authority does not record under that spelling, name several people at once, or carry a
+dynasty no namesake shares. A wrong link merges two people permanently, and every later
+question about "the same translator" inherits the error silently. No link is ever `certain` —
+the name is certainly in the byline; that it denotes *this* person rather than an unrecorded
+namesake is an inference.
+
+### 13.2 What an identity buys: dates, lineage, place
+
+Once a byline is a person, three things follow, and each carries a caveat that is part of the
+answer rather than a footnote to it.
+
+**Dates are bounds, not dates.** A work's `date_start`/`date_end` come from the attributed
+person's lifespan, so they answer *which century* and never *which year* — Amoghavajra was
+born in 705 and did not translate at birth. `date_basis` records where a date came from, and
+a CHECK constraint makes a date without a basis unrepresentable. Where only one end of a life
+is recorded, only one end is stored: half a bound is stored as half a bound, because
+`772 – 772` reads as "made in 772" and means "made no later than 772".
+
+`search` filters on this with `composed_after` / `composed_before`, and **the filter reaches
+1,515 works of 17,281**. Every dated search returns that denominator, because an undated work
+is *unaddressed* by the filter, not excluded on evidence.
+
+**Lineage is reported, never inferred.** Teacher and student come from DILA and carry the
+source that states them. Nothing here derives a relationship from shared dates, shared sect,
+or co-occurrence in a text — inferred lineage is how a scholarly claim gets manufactured out
+of a coincidence. A chain can branch, and it can **cycle**, because sources disagree about who
+taught whom and the authority records the disagreement. A cycle is data; walking it forever is
+the bug.
+
+**A place resolves into two region schemes.** `place_id` resolves against ~59,000 imported
+places into a modern administrative path (`中國-浙江省-杭州市-下城區`) *and* a historical
+region — 江南東道, a Tang circuit. The second is the one a scholar means by "a Jiangnan
+translator", because that is a claim about the Tang and says nothing about Zhejiang. The
+person authority's own spelling of the place is kept beside the resolved record rather than
+corrected against it: two files, maintained separately, allowed to disagree.
+
+One trap worth knowing if you ever touch that data: DILA publishes `<geo>` as **longitude
+first**, which is the reverse of TEI's own convention. Read as documented, every place in this
+corpus lands in the Arctic Ocean.
+
 ---
 
 ## 14. Layers: translations and readings

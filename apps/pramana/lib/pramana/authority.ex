@@ -70,6 +70,7 @@ defmodule Pramana.Authority do
   import Ecto.Query
 
   alias Pramana.Corpus.AuthorityPerson
+  alias Pramana.Corpus.AuthorityPlace
   alias Pramana.Corpus.AuthorityRelation
   alias Pramana.Corpus.Work
   alias Pramana.Repo
@@ -381,6 +382,7 @@ defmodule Pramana.Authority do
           sect: row.sect,
           place_of_origin: row.place_of_origin,
           place_id: row.place_id,
+          place: place_record(row.place_id),
           active_at: row.active_at,
           monk: row.monk,
           summary: row.concise,
@@ -389,6 +391,43 @@ defmodule Pramana.Authority do
           lineage: lineage(authority_id),
           works_in_bake:
             Repo.aggregate(from(w in Work, where: w.authority_id == ^authority_id), :count)
+        }
+    end
+  end
+
+  # THE STRING AND THE RECORD BOTH, never one instead of the other. `place_of_origin` is
+  # what the person authority printed — 沛縣 — and `place` is what the place authority knows
+  # about it. They can disagree, because they are two files maintained separately, and
+  # collapsing them would hide that from a caller who has every right to prefer the byline's
+  # own spelling.
+  #
+  # `nil` for an id the place file does not define: 22 of the 4,310 places people reference
+  # are not in it, and an empty record would read as a place about which nothing is known
+  # rather than one that is missing.
+  defp place_record(nil), do: nil
+
+  defp place_record(place_id) do
+    case Repo.get(AuthorityPlace, place_id) do
+      nil ->
+        nil
+
+      place ->
+        %{
+          place_id: place.id,
+          name: place.name,
+          name_en: place.name_en,
+          # The modern administrative path, and the historical unit beside it. `country` is
+          # a Tang circuit — 江南東道 — not a modern state, and it is the one a scholar
+          # means by "a Jiangnan translator".
+          district: place.district,
+          district_path: place.district_path,
+          historical_region: place.country,
+          contained_by: place.region_name,
+          # LONGITUDE FIRST in the source, named here so it cannot be misread. `certainty`
+          # is DILA's own, and travels with the value.
+          lon: place.lon,
+          lat: place.lat,
+          certainty: place.geo_cert
         }
     end
   end
@@ -469,6 +508,122 @@ defmodule Pramana.Authority do
             branched or rest != []
           )
         end
+    end
+  end
+
+  @doc """
+  Parses DILA's place authority TEI into place records.
+
+  A `place_id` on a person — `PL000000009585` — is opaque without this. What it resolves to
+  is not primarily a coordinate but a **region**, in two independent schemes, and both are
+  kept because they answer different questions:
+
+  - `district` is the **modern** administrative path, `中國-浙江省-杭州市-下城區`, hyphen
+    separated from country down to county. Split into `district_path` as well as kept whole,
+    because a path collapsed to a string cannot be grouped by province and a path split into
+    parts loses the spelling DILA published.
+  - `country` is the **historical** unit — 江南東道, 隴右道, 西突厥. Tang circuits, not modern
+    states, and this is the one a scholar wants: "a Jiangnan translator" is a claim about the
+    Tang and says nothing about Zhejiang.
+
+  ## `<geo>` is longitude first, and nothing in the file says so
+
+  TEI's own convention for `<geo>` is latitude then longitude. DILA publishes the reverse:
+  于闐 reads `79.828 36.9881`, and Khotan is 37.1°N 79.9°E. Read as documented, every place
+  in this corpus lands in the Arctic Ocean. `cert` rides on most of them and is stored
+  beside the value rather than dropped — a coordinate whose confidence has been discarded is
+  a coordinate nobody can argue with.
+
+  ## The tag carries attributes, and matching without them reports absence
+
+  `<geo cert="high">`, not `<geo>`. A pattern written for the bare tag returns a plausible
+  number rather than an error — it measured coverage of this field at 0.0% when the true
+  figure for the places this corpus cites is 100%. Rule 62.
+  """
+  @spec parse_places(String.t()) :: [map()]
+  def parse_places(xml) when is_binary(xml) do
+    ~r{<place xml:id="(PL\d+)"[^>]*>(.*?)</place>\s*(?=<place xml:id="PL|</listPlace>)}s
+    |> Regex.scan(xml)
+    |> Enum.map(fn [_, id, body] -> place(id, body) end)
+  end
+
+  defp place(id, body) do
+    names = place_names(body)
+    district = tag(body, "district")
+
+    %{
+      id: id,
+      # The head name is the one without `type="alternative"`; `names` keeps every spelling,
+      # which is what makes a place findable under the characters a text actually printed.
+      name: List.first(names),
+      names: names,
+      name_en: lang_name(body, "eng-Latn"),
+      district: district,
+      district_path: district_path(district),
+      country: tag(body, "country"),
+      region_id: attr(body, ~r{<place key="(PL[A-Z]\d+)"}),
+      region_name: attr(body, ~r{<place key="PL[A-Z]\d+">([^<]+)</place>}),
+      note: tag(body, "note")
+    }
+    |> Map.merge(geo(body))
+  end
+
+  defp place_names(body) do
+    ~r{<placeName[^>]*>([^<]+)</placeName>}
+    |> Regex.scan(body)
+    |> Enum.map(fn [_, n] -> String.trim(n) end)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+  end
+
+  defp lang_name(body, lang) do
+    attr(body, ~r{<placeName[^>]*xml:lang="#{lang}"[^>]*>([^<]+)</placeName>})
+  end
+
+  # LONGITUDE FIRST. See the moduledoc above; this is the one line where getting it backwards
+  # is invisible until someone plots a map of Tang China across the Arctic.
+  defp geo(body) do
+    case Regex.run(~r{<geo(?:\s+cert="([^"]*)")?[^>]*>\s*([\-\d.]+)\s+([\-\d.]+)\s*</geo>}, body) do
+      [_, cert, lon, lat] -> %{lon: to_float(lon), lat: to_float(lat), geo_cert: nilify(cert)}
+      _ -> %{lon: nil, lat: nil, geo_cert: nil}
+    end
+  end
+
+  defp to_float(text) do
+    case Float.parse(text) do
+      {value, _} -> value
+      :error -> nil
+    end
+  end
+
+  defp nilify(""), do: nil
+  defp nilify(value), do: value
+
+  # `中國-浙江省-杭州市-下城區` — country, province, city, county, which is the shape of 4,022
+  # of the 4,256 districts this corpus cites.
+  #
+  # **A semicolon means several regions, not a deeper one.** 257 entries read
+  # `中國;蒙古;俄羅斯-遠東聯邦管區…-Sakhalin`, a place spanning modern borders. Splitting those
+  # on `-` produces fragments that look exactly like a hierarchy and are not, which is worse
+  # than having none — rule 33. Those keep the raw string and an empty path.
+  defp district_path(nil), do: []
+
+  defp district_path(text) do
+    if String.contains?(text, [";", "；"]) do
+      []
+    else
+      text |> String.split("-", trim: true) |> Enum.map(&String.trim/1)
+    end
+  end
+
+  defp tag(body, name) do
+    attr(body, ~r{<#{name}>([^<]*)</#{name}>}s)
+  end
+
+  defp attr(body, pattern) do
+    case Regex.run(pattern, body) do
+      [_, value] -> value |> String.trim() |> nilify()
+      _ -> nil
     end
   end
 

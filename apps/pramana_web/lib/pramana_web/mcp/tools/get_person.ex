@@ -31,6 +31,24 @@ defmodule PramanaWeb.MCP.Tools.GetPerson do
   disagreement. `Pramana.Authority.teacher_chain/2` walks it and stops; a cycle is data,
   not a bug.
 
+  ## A place resolves into two region schemes, and both are returned
+
+  `place_of_origin` is the string the person authority printed — 錢唐. `place` is what the
+  place authority knows about that id, and it carries **two independent regions**:
+
+  - `district` / `district_path` — the modern administrative path,
+    `中國-浙江省-杭州市-下城區`, which is what makes places group by province.
+  - `historical_region` — the unit of its own time: 江南東道, 隴右道, 西突厥. Tang circuits,
+    not modern states, and this is the one a scholar means by "a Jiangnan translator".
+
+  Both spellings are returned because the two authority files are maintained separately and
+  can disagree; neither is corrected against the other.
+
+  `lon` and `lat` are named rather than returned as a pair, because DILA publishes `<geo>`
+  **longitude first** — the reverse of TEI's own convention — and `certainty` is DILA's own
+  and travels with the value. `place` is `null` where the place file does not define the id,
+  which is a missing record rather than a place nothing is known about.
+
   ## `external_ids` is the exit from this corpus
 
   Wikidata Q-ids and whatever else DILA carries. They are pass-throughs — nothing here
@@ -99,6 +117,7 @@ defmodule PramanaWeb.MCP.Tools.GetPerson do
       [
         {is_nil(person.birth) and is_nil(person.death), "no birth or death date is recorded"},
         {is_nil(person.sect), "no sect is recorded"},
+        {is_nil(person.place), "no place of origin resolves"},
         {person.external_ids == %{}, "no external id (Wikidata or otherwise) is recorded"},
         {person.lineage.teachers == [] and person.lineage.students == [],
          "no teacher or student is recorded"}

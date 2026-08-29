@@ -127,7 +127,22 @@ A modern commentary arrives through the **local-source manifest** (task #16), an
 piece it needs is already built:
 
 - `text_role: commentary` and `composition_origin` — populated and CHECK-constrained
-- `date_range` — already on `works`, so "modern" is `date_start > 1900`, not a new flag
+- `date_start` / `date_end` — on `works`, **and populated since 2026-08-28**, so "modern" is
+  `date_start > 1900` rather than a new flag. This bullet said "already on `works`" while
+  those columns were null for all 17,281 texts: true of the schema, false of the corpus, and
+  the exact shape of doc failure `CLAUDE.md` § *Keeping the documentation true* exists for.
+
+  **Read `date_basis` with them.** The 1,515 populated today are `authority_lifespan` —
+  bounds derived from the attributed person's life, answering *which century* and never
+  *which year*. That is enough to keep a Tang exegete apart from a Song sub-commentary,
+  which is what the paragraph above promises, and it is **not** enough to date a work
+  precisely.
+
+  A locally added modern commentary declares its own date through the manifest, and that is
+  a different kind of claim from a lifespan bound — someone stating a fact about a book they
+  have in hand. `date_basis` admits `catalogue` and `colophon` and neither quite names it;
+  which value a manifest date takes is **undecided**, and it should be decided when the
+  first one lands rather than mapped silently onto the nearest existing word.
 - `license_class: restricted` — modern work is in copyright; we publish the pipeline,
   not the corpus, and restricted content is excluded from any public surface
 - `addressing: derived` — a modern commentary has no canonical page/line grammar, so

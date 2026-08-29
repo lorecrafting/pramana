@@ -51,6 +51,7 @@ defmodule Mix.Tasks.Pramana.Gate do
   use Mix.Task
 
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake
   alias Pramana.Elapsed
   alias Pramana.Sources
 
@@ -255,7 +256,7 @@ defmodule Mix.Tasks.Pramana.Gate do
 
     case broken do
       [] ->
-        :ok
+        recorded_bake_matches_inputs()
 
       broken ->
         for {id, reason} <- broken do
@@ -263,6 +264,58 @@ defmodule Mix.Tasks.Pramana.Gate do
         end
 
         {:error, :lockfile}
+    end
+  end
+
+  # A BAKE ID THAT NO LONGER DESCRIBES ITS INPUTS IS WORSE THAN NO BAKE ID.
+  #
+  # `bake_id = sha256(sources.lock + pipeline_version + config)`, and every MCP response is
+  # stamped with the RECORDED one so an answer can be tied to the dataset that produced it.
+  # But acquisition rewrites `sources.lock.json` and only a bake records a new row — so
+  # between the two, every response carries an id for inputs that no longer exist, and a
+  # `replay` record cites a corpus nobody can reconstruct.
+  #
+  # Found 2026-08-28 after acquiring DILA's place files: not one byte of corpus text changed
+  # and the computed id moved anyway, which is correct — the answers changed. What was wrong
+  # is that nothing said so. Acquiring the person authority had done the same thing weeks
+  # earlier and passed every gate.
+  #
+  # `Bake.record/1` is the fix and it is cheap: it writes a row, it does not re-bake.
+  defp recorded_bake_matches_inputs do
+    case Bake.current() do
+      nil ->
+        Mix.shell().error("    no bake recorded — run `mix pramana.bake`")
+        {:error, :no_bake_recorded}
+
+      bake ->
+        compare_bake(bake, Bake.bake_id(bake.config))
+    end
+  end
+
+  # RECOMPUTED UNDER THE BAKE'S OWN CONFIG, not under `%{}`. `bake_id` digests the config
+  # alongside the lockfile, so comparing against a default-config id reports divergence for
+  # every bake that was built with one — this check's first version did exactly that and
+  # failed against a perfectly current bake.
+  defp compare_bake(bake, computed) do
+    case {computed, bake} do
+      {{:ok, id, _lock}, %{id: id}} ->
+        :ok
+
+      {{:ok, id, _lock}, %{id: recorded}} ->
+        Mix.shell().error("""
+            recorded bake  #{String.slice(recorded, 0, 16)}
+            these inputs   #{String.slice(id, 0, 16)}
+
+            sources.lock.json has changed since the bake was recorded, so every response is
+            stamped with an id for inputs that no longer exist. If only reference data moved,
+            `Pramana.Bake.record/1` re-records without re-baking; if a source's text moved,
+            re-bake.
+        """)
+
+        {:error, :bake_id_diverged}
+
+      {error, _} ->
+        {:error, error}
     end
   end
 

@@ -10,7 +10,9 @@ defmodule Pramana.AuthorityTest do
 
   defp idx(people), do: Authority.index(people)
 
-  defp person(id, names, dynasty \\ nil),
+  # No default on `dynasty`: every caller passes one, and a default nobody uses is a warning
+  # on every compile of this file.
+  defp person(id, names, dynasty),
     do: %{id: id, names: names, dynasty: dynasty}
 
   describe "link_byline/2" do
@@ -123,6 +125,91 @@ defmodule Pramana.AuthorityTest do
       # The name is certainly in the byline; that it denotes this person rather than a
       # namesake the authority does not record is an inference.
       assert %{confidence: "probable"} = Authority.link_byline("劉宋 求那跋陀羅譯", index)
+    end
+  end
+
+  describe "parse_places/1" do
+    @place """
+    <listPlace>
+    <place xml:id="PL000000047987">
+     <placeName xml:lang="zho-Hant">于闐</placeName>
+     <placeName type="alternative" xml:lang="zho-Hant">瞿薩怛那</placeName>
+     <location><place key="PLD003112">和田縣</place><geo cert="high">79.828 36.9881</geo></location>
+     <district>中國-新疆維吾爾自治區-和田地區-和田縣</district>
+     <country>西突厥</country>
+     <note>在安西府南二千里。</note>
+    </place>
+    <place xml:id="PL000000000001">
+     <placeName xml:lang="zho-Hant">闊悉多國</placeName>
+     <placeName xml:lang="eng-Latn">Khost</placeName>
+     <location><place key="PLA000002">阿富汗</place><geo>67.868089 36.555275</geo></location>
+     <district>阿富汗</district>
+    </place>
+    <place xml:id="PL000000099999">
+     <placeName xml:lang="zho-Hant">邊界</placeName>
+     <district>中國;蒙古;俄羅斯-遠東聯邦管區-Sakhalin</district>
+    </place>
+    </listPlace>
+    """
+
+    test "reads both region schemes, and every spelling" do
+      [khotan | _] = Authority.parse_places(@place)
+
+      assert khotan.id == "PL000000047987"
+      assert khotan.name == "于闐"
+      assert khotan.names == ["于闐", "瞿薩怛那"]
+      # The MODERN administrative path...
+      assert khotan.district_path == ~w(中國 新疆維吾爾自治區 和田地區 和田縣)
+      # ...and the HISTORICAL unit, which is the one a scholar means.
+      assert khotan.country == "西突厥"
+      assert khotan.region_id == "PLD003112"
+      assert khotan.region_name == "和田縣"
+    end
+
+    test "geo is LONGITUDE first, which is the reverse of what TEI documents" do
+      [khotan | _] = Authority.parse_places(@place)
+
+      # Khotan is 37.1°N 79.9°E. Read as TEI documents `<geo>` — latitude first — every
+      # place in this corpus lands in the Arctic Ocean.
+      assert khotan.lon == 79.828
+      assert khotan.lat == 36.9881
+      assert khotan.geo_cert == "high"
+    end
+
+    test "matches the tag WITH its attributes, and without them" do
+      places = Authority.parse_places(@place)
+
+      # `<geo cert="high">` and bare `<geo>` both occur in the file. A pattern written for
+      # the bare form reports absence rather than erroring — it measured this field at 0.0%
+      # when the truth is 100%. Rule 62.
+      assert Enum.at(places, 0).lon
+      assert Enum.at(places, 1).lon == 67.868089
+      assert Enum.at(places, 1).geo_cert == nil
+    end
+
+    test "an English name is read when present and nil when not" do
+      places = Authority.parse_places(@place)
+
+      assert Enum.at(places, 1).name_en == "Khost"
+      # 1.2% of the file carries one. Absent is the normal case and must not be an empty
+      # string, which would sort and compare as a name.
+      assert Enum.at(places, 0).name_en == nil
+    end
+
+    test "a semicolon means several regions, so no path is offered" do
+      border = Enum.at(Authority.parse_places(@place), 2)
+
+      # Splitting `中國;蒙古;俄羅斯-…` on `-` yields fragments that look like a hierarchy and
+      # are not. The raw string is always kept, so refusing the path loses nothing.
+      assert border.district == "中國;蒙古;俄羅斯-遠東聯邦管區-Sakhalin"
+      assert border.district_path == []
+    end
+
+    test "a place with no coordinates has neither end" do
+      border = Enum.at(Authority.parse_places(@place), 2)
+
+      assert border.lon == nil
+      assert border.lat == nil
     end
   end
 
