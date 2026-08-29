@@ -208,6 +208,27 @@ defmodule Pramana.Sources do
     # 84000 publishes twice over, under two licences, and the distinction is real: the
     # prose of a translation is restricted, the fact that Toh 113 is called
     # *Saddharmapuṇḍarīka* is not.
+    "dila-authority" => %{
+      id: "dila-authority",
+      # NOT a tradition: this is reference data ABOUT texts, not a witness to any of them.
+      # The axis exists so `per_tradition` knows which searches to run, and an authority
+      # record belongs to no canon — it describes people who appear across all of them.
+      tradition: "reference",
+      name: "DILA Buddhist Studies Authority Databases (person, place, time)",
+      upstream_url: "https://github.com/DILA-edu/Authority-Databases",
+      repo: "DILA-edu/Authority-Databases",
+      license: %{
+        spdx: "CC-BY-SA-3.0",
+        class: "cc-by-sa",
+        commercial_use: true,
+        redistributable: true,
+        derivatives: true,
+        notice:
+          "Creative Commons Attribution-ShareAlike 3.0 Unported, per COPYING.rst and the " <>
+            "README. Attribution: Dharma Drum Institute of Liberal Arts. ShareAlike binds " <>
+            "derivatives of the authority data itself, not the corpus it is linked to."
+      }
+    },
     "84000-rdf" => %{
       id: "84000-rdf",
       tradition: "tibetan",

@@ -24,11 +24,16 @@ defmodule Pramana.SourcesTest do
     # edit here. `sc-data` and `sc-translations` are separate entries for the same
     # repository, exactly as `84000` and `84000-rdf` are: same upstream, different
     # licences, and one entry would have to state the weakest of them about all three.
-    test "the canons are the three the corpus holds" do
+    test "the canons are the three the corpus holds, plus reference data that is none of them" do
       assert Sources.by_tradition() == %{
                "chinese" => ["cbeta", "sat"],
                "pali" => ["sc", "sc-data", "sc-translations"],
-               "tibetan" => ["84000", "84000-rdf", "bdrc-derge", "derge", "derge-tengyur"]
+               "tibetan" => ["84000", "84000-rdf", "bdrc-derge", "derge", "derge-tengyur"],
+               # NOT a canon. DILA's authority databases describe people who appear across
+               # all three — a translator is not Chinese material because his bylines are —
+               # so grouping them under any canon would make `per_tradition` search
+               # reference data as though it were scripture.
+               "reference" => ["dila-authority"]
              }
     end
 

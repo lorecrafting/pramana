@@ -169,7 +169,12 @@ listed as **not started** rather than in progress, because nothing has been writ
   **translation divergence scoring** — the same computation, applied to both human
   and machine renderings. Doubles as the corpus-wide difficulty map that prioritizes
   human review effort.
-- ✗ DILA authority linking; lineage chains; Wikidata Q-IDs — untouched
+- ◐ **DILA authority linking** — `Pramana.Authority`, `mix pramana.authority.link`.
+  **1,998 of 3,932 works (50.8%) carry a DILA person id**, 736 distinct people; Amoghavajra
+  170 works, Dharmarakṣa 93, Yijing 47, Guṇabhadra 28. Refusal is the common outcome and is
+  correct — half the bylines name someone DILA does not record under that spelling, name
+  several people at once, or carry a dynasty no namesake shares.
+- ✗ Lineage chains; Wikidata Q-IDs — untouched
 
 **Exit:** "every text that quotes this passage" and "how Kumārajīva vs. Xuanzang
 rendered this term" both work.

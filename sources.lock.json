@@ -32248,6 +32248,32 @@
       "upstream": "https://github.com/Esukhia/derge-tengyur"
     },
     {
+      "file_count": 1,
+      "files": [
+        {
+          "bytes": 51371527,
+          "path": "authority_person/Buddhist_Studies_Person_Authority.xml",
+          "sha256": "0c300b7fb9406c03e32584ffd099766604acdb7609e90aa672bfdac2836069f2"
+        }
+      ],
+      "files_sha256": "85c19d7b48249305c2b9d5b7abb04812218cae5a05c6057ccc7eeade2d656441",
+      "id": "dila-authority",
+      "license": {
+        "class": "cc-by-sa",
+        "commercial_use": true,
+        "redistributable": true,
+        "spdx": "CC-BY-SA-3.0"
+      },
+      "name": "DILA Buddhist Studies Authority Databases (person, place, time)",
+      "pin": {
+        "commit": "4c204f886e3f370ba3db0705c9ce42c005fcfce3",
+        "type": "git"
+      },
+      "raw_root": "dila-authority",
+      "retrieved_at": "2026-08-29T02:11:48.909783Z",
+      "upstream": "https://github.com/DILA-edu/Authority-Databases"
+    },
+    {
       "file_count": 849,
       "files": [
         {

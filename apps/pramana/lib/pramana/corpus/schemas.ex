@@ -70,6 +70,12 @@ defmodule Pramana.Corpus.Work do
     field :date_start, :integer
     field :date_end, :integer
 
+    # DILA authority identity for `attributed_author`, beside the byline and never instead
+    # of it. See `Pramana.Authority`.
+    field :authority_id, :string
+    field :authority_method, :string
+    field :authority_confidence, :string
+
     field :meta, :map, default: %{}
     timestamps(type: :utc_datetime_usec)
   end
