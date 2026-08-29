@@ -72,10 +72,17 @@ characters, which makes Postgres detoast every text in the corpus. **The reader'
 `/inventory` page pays that on every load** — a ten-second page whose slowness is entirely
 one number nobody asked for at that moment.
 
-`doctor` avoids it by reading the character total from the recorded bake, where it was
-computed once. The real fix is a stored `char_count` per text, set at load time; it is a
-schema change and a backfill, and it is in `docs/PLAN.md` § Backlog rather than bolted onto
-a diagnostic command.
+**▸ FIXED 2026-08-29.** `texts.char_count` is written with the body, in the same transaction,
+so it cannot drift — a column rather than a cache, because there is no moment at which the
+body exists and the count does not. `mix pramana.texts.count_chars` backfills a bake that
+predates it, in batches, in SQL.
+
+    Inventory.snapshot/0    9,819 ms -> 1,319 ms
+    chars                   548,047,059, unchanged
+
+`char_length` in Postgres and `String.length/1` in Elixir return the same number, so a
+backfilled row and a freshly loaded one agree — pinned by a test, because the failure would be
+a total that is quietly three times too large and still looks like a plausible corpus size.
 
 ### 2. Domain telemetry at five boundaries — ▸ BUILT 2026-08-29
 

@@ -103,6 +103,9 @@ defmodule Pramana.Corpus.Text do
     field :volume, :string
     field :body, :string
     field :body_sha256, :string
+    # `String.length(body)`, stored because computing it over the corpus detoasts every text
+    # — see the migration. Written with the body, in the same transaction, so it cannot drift.
+    field :char_count, :integer
     field :meta, :map, default: %{}
     field :outline, :map, default: %{}
 

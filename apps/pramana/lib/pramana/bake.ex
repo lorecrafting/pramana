@@ -137,8 +137,13 @@ defmodule Pramana.Bake do
     %{
       "texts" => Repo.aggregate(Text, :count),
       "segments" => Repo.aggregate(Segment, :count),
-      "chars" =>
-        Repo.one(from t in Text, select: coalesce(sum(fragment("length(?)", t.body)), 0)) || 0
+      # READS THE STORED COUNT. Summing `length(body)` makes Postgres detoast every text —
+      # 9.8 s over this corpus, paid by the reader's `/inventory` page on every load. The
+      # column is written with the body in the same transaction, so it cannot drift; a row
+      # from before the column existed contributes nothing until
+      # `mix pramana.texts.count_chars` fills it, which is visible rather than silent because
+      # the total is reported beside the text count.
+      "chars" => Repo.one(from t in Text, select: coalesce(sum(t.char_count), 0)) || 0
     }
   end
 

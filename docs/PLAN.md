@@ -1485,8 +1485,9 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 
 ## Backlog
 
-- **`/inventory` is a ten-second page load, and one field is the whole cost.** Found
-  2026-08-29 while building `mix pramana.doctor`. `Inventory.snapshot/0` takes 9.8 s against
+- ~~**`/inventory` is a ten-second page load, and one field is the whole cost.**~~ ▸ **FIXED
+  2026-08-29** — `texts.char_count`, written with the body; snapshot 9,819 ms → 1,319 ms.
+  Found 2026-08-29 while building `mix pramana.doctor`. `Inventory.snapshot/0` takes 9.8 s against
   ~300 ms for every coverage figure it reports combined; the difference is `chars`, which
   sums `length(body)` over 548 million characters and forces Postgres to detoast every text.
   The fix is a stored `char_count` on `texts`, set at load time — a migration, a backfill and

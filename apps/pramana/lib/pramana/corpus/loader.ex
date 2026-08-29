@@ -216,6 +216,10 @@ defmodule Pramana.Corpus.Loader do
         volume: volume_label(ir),
         body: body,
         body_sha256: :crypto.hash(:sha256, body) |> Base.encode16(case: :lower),
+        # CHARACTERS, not bytes. `String.length/1` on a UTF-8 binary counts graphemes, which
+        # is what a figure about a Chinese canon means; `byte_size/1` would report roughly
+        # three times as many and be wrong in a way nobody would notice.
+        char_count: String.length(body),
         meta: %{
           "license_notice" => ir.license_notice,
           "gaiji_declared" => map_size(ir.gaiji),
@@ -238,7 +242,8 @@ defmodule Pramana.Corpus.Loader do
         outline: %{"entries" => Enum.map(ir.outline, &stringify_entry/1)}
       },
       on_conflict:
-        {:replace, [:body, :body_sha256, :urn_prefix, :volume, :meta, :outline, :updated_at]},
+        {:replace,
+         [:body, :body_sha256, :char_count, :urn_prefix, :volume, :meta, :outline, :updated_at]},
       conflict_target: [:work_id, :witness_id, :source_id],
       returning: true
     )
