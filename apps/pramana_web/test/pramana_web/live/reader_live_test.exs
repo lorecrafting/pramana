@@ -259,6 +259,127 @@ defmodule PramanaWeb.ReaderLiveTest do
     end
   end
 
+  describe "the hand behind the byline" do
+    setup do
+      %Pramana.Corpus.AuthorityPlace{}
+      |> Ecto.Changeset.change(%{
+        id: "PL_KUCHA",
+        name: "龜茲",
+        district: "中國-新疆維吾爾自治區",
+        country: "西域",
+        source: "dila-authority"
+      })
+      |> Pramana.Repo.insert!()
+
+      %Pramana.Corpus.AuthorityPerson{}
+      |> Ecto.Changeset.change(%{
+        id: "A000001",
+        name: "鳩摩羅什",
+        names: ["鳩摩羅什", "羅什"],
+        dynasty: "後秦",
+        birth_earliest: ~D[0344-01-01],
+        death_latest: ~D[0413-12-31],
+        sect: "三論宗",
+        place_id: "PL_KUCHA",
+        source: "dila-authority"
+      })
+      |> Pramana.Repo.insert!()
+
+      %Pramana.Corpus.AuthorityRelation{}
+      |> Ecto.Changeset.change(%{
+        person_id: "A000001",
+        related_id: "A000002",
+        related_name: "佛陀耶舍",
+        type: "student",
+        source: "dila-authority"
+      })
+      |> Pramana.Repo.insert!()
+
+      import Ecto.Query, only: [from: 2]
+
+      Pramana.Repo.update_all(from(w in Pramana.Corpus.Work, where: w.id == "T0262"),
+        set: [authority_id: "A000001"]
+      )
+
+      :ok
+    end
+
+    test "names the person, their dates, sect and place", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/works/T0262")
+
+      assert html =~ "鳩摩羅什"
+      assert html =~ "344–413"
+      assert html =~ "三論宗"
+      assert html =~ "龜茲"
+      # The historical region, not only the modern province — 西域 is what a scholar means.
+      assert html =~ "西域"
+      assert html =~ "佛陀耶舍"
+    end
+
+    test "says the identification is an inference, on the page", %{conn: conn} do
+      # A reader who takes the panel as settled fact has been misled by a surface that looked
+      # more certain than the data. The caveat is not a footnote elsewhere.
+      {:ok, _view, html} = live(conn, ~p"/works/T0262")
+
+      assert html =~ "probable, never certain"
+      assert html =~ "unrecorded namesake"
+      assert html =~ "span of a life, not of the work"
+    end
+
+    test "an open bound is printed as an open bound", %{conn: conn} do
+      # 施護 is recorded only by his death. Printing "1018" alone would assert a birth year
+      # nobody recorded; "d. 1018" says what is actually known.
+      %Pramana.Corpus.AuthorityPerson{}
+      |> Ecto.Changeset.change(%{
+        id: "A000009",
+        name: "施護",
+        death_latest: ~D[1018-01-25],
+        source: "dila-authority"
+      })
+      |> Pramana.Repo.insert!()
+
+      import Ecto.Query, only: [from: 2]
+
+      Pramana.Repo.update_all(from(w in Pramana.Corpus.Work, where: w.id == "T2187"),
+        set: [authority_id: "A000009"]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      assert html =~ "施護"
+      assert html =~ "d. 1018"
+      refute html =~ "1018–1018"
+    end
+
+    test "a person with no recorded dates shows none, and no empty span", %{conn: conn} do
+      %Pramana.Corpus.AuthorityPerson{}
+      |> Ecto.Changeset.change(%{id: "A000010", name: "無名", source: "dila-authority"})
+      |> Pramana.Repo.insert!()
+
+      import Ecto.Query, only: [from: 2]
+
+      Pramana.Repo.update_all(from(w in Pramana.Corpus.Work, where: w.id == "T2187"),
+        set: [authority_id: "A000010"]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      assert html =~ "無名"
+      # The dates caveat is conditional: printing "dates are the span of a life" beside no
+      # dates would be noise.
+      refute html =~ "span of a life, not of the work"
+    end
+
+    test "a work whose byline resolved to nobody renders no panel at all", %{conn: conn} do
+      # Roughly 40% of bylines resolve to nobody, and that is a refusal rather than a gap.
+      # An empty "Attributed to" heading would assert that a person was identified and
+      # nothing is known about them.
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      refute html =~ "probable, never certain"
+    end
+  end
+
   describe "the variant apparatus" do
     @witnessed """
     <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">

@@ -17,6 +17,7 @@ defmodule PramanaWeb.WorkLive do
   use PramanaWeb, :live_view
 
   alias Pramana.Apparatus
+  alias Pramana.Authority
   alias Pramana.Corpus
   alias Pramana.Reader
   alias Pramana.Relations
@@ -34,6 +35,7 @@ defmodule PramanaWeb.WorkLive do
            page_title: outline.title || work_id
          )
          |> assign(relations: Relations.parallels_of(work_id))
+         |> assign(person: person(outline))
          |> assign(apparatus: apparatus_summary(work_id))
          |> assign(edition_link: edition_link(outline))}
 
@@ -58,6 +60,34 @@ defmodule PramanaWeb.WorkLive do
   # publisher's own copy is most worth one click away. `urn_prefix` is the work URN with no
   # locator, which is exactly the granularity these links open at.
   defp edition_link(outline), do: Reader.reference(outline.urn_prefix, %{source: outline.source})
+
+  # WHO THE BYLINE DENOTES, where it could be resolved. `nil` on roughly 40% of works, and
+  # that is a refusal rather than a gap — see `Pramana.Authority`. A section with nothing in
+  # it is not rendered, which is this reader's rule everywhere: an empty "Attributed to"
+  # heading would assert that we looked and found a person with no details, when in fact no
+  # person was identified at all.
+  defp person(%{authority_id: id}) when is_binary(id), do: Authority.person(id)
+  defp person(_outline), do: nil
+
+  # A lifespan as a printed span. Both ends when both are known, and an open end shown as an
+  # open end — `– 1018` means "no later than", and flattening it to "1018" would assert a
+  # birth year nobody recorded.
+  defp lifespan(%{birth: nil, death: nil}), do: nil
+
+  defp lifespan(person) do
+    case {year(person.birth), year(person.death)} do
+      {nil, nil} -> nil
+      {born, nil} -> "b. #{born}"
+      {nil, died} -> "d. #{died}"
+      {born, died} -> "#{born}–#{died}"
+    end
+  end
+
+  defp year(nil), do: nil
+  defp year(%{earliest: nil, latest: nil}), do: nil
+  defp year(%{earliest: %Date{} = date}), do: date.year
+  defp year(%{latest: %Date{} = date}), do: date.year
+  defp year(_), do: nil
 
   defp apparatus_summary(work_id) do
     case Apparatus.count_for_work(work_id) do
@@ -99,6 +129,57 @@ defmodule PramanaWeb.WorkLive do
             </a>
             — a convenience, not the citation.
           </p>
+
+          <div :if={@person} class="mt-3 rounded-lg border border-base-300 bg-base-200/40 p-3 text-xs">
+            <div class="flex flex-wrap items-baseline gap-x-2">
+              <span class="font-medium text-sm">{@person.name}</span>
+              <span :if={@person.dynasty} class="text-base-content/60">{@person.dynasty}</span>
+              <span :if={lifespan(@person)} class="text-base-content/60">
+                {lifespan(@person)}
+              </span>
+              <span :if={@person.sect} class="badge badge-xs badge-outline">{@person.sect}</span>
+            </div>
+
+            <p :if={@person.also_known_as != []} class="mt-1 text-base-content/60">
+              also {Enum.join(@person.also_known_as, "、")}
+            </p>
+
+            <p :if={@person.place} class="mt-1 text-base-content/60">
+              {@person.place.name}
+              <span :if={@person.place.historical_region}>
+                · {@person.place.historical_region}
+              </span>
+              <span :if={@person.place.district} class="text-base-content/40">
+                · {@person.place.district}
+              </span>
+            </p>
+
+            <p
+              :if={@person.lineage.teachers != [] or @person.lineage.students != []}
+              class="mt-1 text-base-content/60"
+            >
+              <span :if={@person.lineage.teachers != []}>
+                taught by {Enum.map_join(@person.lineage.teachers, "、", & &1.name)}
+              </span>
+              <span :if={@person.lineage.students != []}>
+                · taught {Enum.map_join(@person.lineage.students, "、", & &1.name)}
+              </span>
+            </p>
+
+            <%!--
+            The caveats are not a footnote. A reader who takes this panel as settled fact has
+            been misled by a surface that looked more certain than the data: the link is an
+            inference, and the dates are a bound on a life rather than a date of composition.
+            --%>
+            <p class="mt-2 text-base-content/50">
+              Identified from the byline and DILA's person authority (CC BY-SA 3.0) — <span class="font-medium">probable, never certain</span>: the name is in the
+              byline; that it denotes this person rather than an unrecorded namesake is an
+              inference.
+              <span :if={lifespan(@person)}>
+                Dates are the span of a life, not of the work.
+              </span>
+            </p>
+          </div>
         </section>
 
         <section class="flex flex-wrap gap-4 rounded-lg bg-base-200/40 p-4 text-sm">

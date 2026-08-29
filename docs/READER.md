@@ -70,6 +70,26 @@ empty list is the assertion *we looked and there are none*.
 1,958 recorded and 1,661 resolvable; the other 297 are reported as unopenable, because a
 parallel we cannot show still tells a reader it exists.
 
+**A work's page names the hand behind the byline, with the inference on screen.**
+`attributed_author` is what the edition printed — `姚秦 鳩摩羅什譯` — and beside it now sits
+the person it resolves to: dates as the span of a life, sect, birthplace with its
+**historical** region (西域, not 新疆維吾爾自治區), and recorded teachers and students.
+
+Two refusals carry over from `Pramana.Authority` and both are visible rather than
+documented:
+
+- **The panel says "probable, never certain" on the page.** The name is in the byline; that
+  it denotes this person rather than an unrecorded namesake is an inference, and a surface
+  that looked more certain than the data would be worse than no surface.
+- **A byline that resolved to nobody renders nothing at all.** Roughly 40% do not resolve,
+  and that is a refusal rather than a gap — an empty "Attributed to" heading would assert
+  that a person was identified and nothing is known about them.
+
+An open bound prints as an open bound: 施護 is recorded only by his death, so the page reads
+`d. 1018`. Printing `1018` alone would assert a birth year nobody recorded, and `1018–1018`
+would assert a life of no duration — the same distinction `date_basis` keeps in the
+database.
+
 ## Two things it took a bug each to get right
 
 **An edition page is a printed page.** The addressing badge was written as

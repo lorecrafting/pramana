@@ -117,7 +117,7 @@ Violating any of these is a bug, not a tradeoff.
 
 ## Which document to open, by what you are doing
 
-Twenty-five documents. This table is the routing layer; without it the answer to "where is
+Twenty-six documents. This table is the routing layer; without it the answer to "where is
 that written down" is a grep, and a grep finds the file that mentions a thing rather than
 the file that owns it.
 
@@ -134,6 +134,7 @@ the file that owns it.
 | anything **public or licensed** | `docs/DEPLOY.md`, the licensing posture below, `mix pramana.public.check` |
 | a **phase gate**, or "am I done" | `docs/CHECKS.md` |
 | local setup, Postgres, toolchain | `docs/DEV_ENV.md`, `docs/ELIXIR.md` |
+| **debugging**, or wondering why nothing can tell you what happened | `docs/OBSERVABILITY.md` — audited 2026-08-29, and mostly a plan |
 | wondering **why** something is the way it is | `docs/HISTORY.md`; if it was a measurement, `docs/PROXIES.md` |
 | changing **how a model reads the corpus** | `docs/AGENT_MODELS.md` — the alternatives to MCP tools, and what none of them fix |
 | wondering whether an idea was already tried | `docs/PLAN.md` § "Rejected, with evidence" — **check before proposing** |
