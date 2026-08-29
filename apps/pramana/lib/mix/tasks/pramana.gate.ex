@@ -54,7 +54,7 @@ defmodule Mix.Tasks.Pramana.Gate do
   alias Pramana.Elapsed
   alias Pramana.Sources
 
-  @switches [quick: :boolean, from: :string]
+  @switches [quick: :boolean, from: :string, serial: :boolean]
 
   # Cheapest first, so a two-second failure is found in two seconds. `env` is the MIX_ENV
   # each step needs; the corpus steps must run against dev, where the corpus is.
@@ -69,18 +69,31 @@ defmodule Mix.Tasks.Pramana.Gate do
   # `hex.outdated` is deliberately absent: CHECKS.md asks for it to *note drift*, and a
   # dependency being upgradable is not a failure. A gate step that cannot fail is noise.
   @steps [
-    %{id: "format", cmd: ~w(mix format --check-formatted), env: "dev", quick: true},
-    %{id: "compile", cmd: ~w(mix compile --warnings-as-errors --force), env: "dev", quick: true},
-    %{id: "credo", cmd: ~w(mix credo --strict), env: "dev", quick: true},
-    %{id: "audit", cmd: ~w(mix deps.audit), env: "dev", quick: true},
-    %{id: "test", cmd: ~w(mix test), env: "test", quick: true},
+    %{id: "format", cmd: ~w(mix format --check-formatted), env: "dev", quick: true, stage: 1},
+    %{
+      id: "compile",
+      cmd: ~w(mix compile --warnings-as-errors --force),
+      env: "dev",
+      quick: true,
+      stage: 2
+    },
+    %{id: "credo", cmd: ~w(mix credo --strict), env: "dev", quick: true, stage: 3},
+    %{id: "audit", cmd: ~w(mix deps.audit), env: "dev", quick: true, stage: 3},
+    %{id: "test", cmd: ~w(mix test --cover), env: "test", quick: true, stage: 3},
     # Slow enough to sit behind the cheap checks and fast enough not to be `quick: false`:
     # ~45 s once the PLT is built, against 26 minutes for `verify --all`.
-    %{id: "dialyzer", cmd: ~w(mix dialyzer), env: "dev", quick: true},
-    %{id: "lockfile", cmd: :lockfile, env: "dev", quick: true},
-    %{id: "verify", cmd: ~w(mix pramana.verify --all), env: "dev", quick: false},
-    %{id: "integrity", cmd: ~w(mix pramana.integrity), env: "dev", quick: false},
-    %{id: "evals", cmd: ~w(mix pramana.evals --gate), env: "dev", quick: false, embedding: true}
+    %{id: "dialyzer", cmd: ~w(mix dialyzer), env: "dev", quick: true, stage: 3},
+    %{id: "lockfile", cmd: :lockfile, env: "dev", quick: true, stage: 3},
+    %{id: "verify", cmd: ~w(mix pramana.verify --all), env: "dev", quick: false, stage: 4},
+    %{id: "integrity", cmd: ~w(mix pramana.integrity), env: "dev", quick: false, stage: 4},
+    %{
+      id: "evals",
+      cmd: ~w(mix pramana.evals --gate),
+      env: "dev",
+      quick: false,
+      embedding: true,
+      stage: 5
+    }
   ]
 
   @impl Mix.Task
@@ -96,9 +109,55 @@ defmodule Mix.Tasks.Pramana.Gate do
     running #{length(steps)} check(s): #{Enum.map_join(steps, " -> ", & &1.id)}
     """)
 
-    result = Enum.reduce_while(steps, :ok, &run_step/2)
+    result =
+      steps
+      |> Enum.chunk_by(& &1.stage)
+      |> Enum.reduce_while(:ok, &run_stage(&1, &2, opts))
 
     report(result, System.monotonic_time(:millisecond) - started)
+  end
+
+  # STAGES, BECAUSE HALF THE ARROWS CARRIED NO DATA.
+  #
+  # The gate was ten steps in a line, and most of the waits were an artefact of the order
+  # somebody typed them in: `credo` does not read `dialyzer`'s output, `integrity` does not
+  # read `verify`'s. Only three orderings are real, and each is here for its own reason:
+  #
+  #   1  format      alone and first, because it is two seconds and fails often. A
+  #                  formatting error must not cost a compile.
+  #   2  compile     alone, because every later step assumes built beams — and because
+  #                  concurrent `mix` invocations in one MIX_ENV contend on the build lock,
+  #                  so compiling once up front is what makes stage 3 safe to fan out.
+  #   3  cheap       credo, audit, test, dialyzer, lockfile — mutually independent. `test`
+  #                  is MIX_ENV=test and takes a different build lock again.
+  #   4  corpus      verify and integrity: both read-only over the same bake, and they
+  #                  answer DIFFERENT questions, which is why both are here at all.
+  #   5  evals       ALONE, and this one is not an oversight. docs/PLAN.md § "Can these run
+  #                  at the same time?": *eval runs are the measurement; contention
+  #                  invalidates every timing*. Fanning this in with stage 4 would buy
+  #                  thirteen minutes and cost the meaning of the number.
+  #
+  # A stage runs every step even after one fails, and reports all of them. The old
+  # first-failure halt was right for a line and wrong here: three cheap checks that all
+  # fail should be seen in one pass, not across three runs of the gate.
+  defp run_stage(stage, _acc, opts) do
+    solo? = length(stage) == 1 or opts[:serial]
+    stage = Enum.map(stage, &Map.put(&1, :solo, solo?))
+
+    failures =
+      if solo? do
+        stage |> Enum.map(&run_step/1) |> Enum.reject(&(&1 == :ok))
+      else
+        stage
+        |> Task.async_stream(&run_step/1, timeout: :infinity, ordered: false)
+        |> Enum.map(fn {:ok, result} -> result end)
+        |> Enum.reject(&(&1 == :ok))
+      end
+
+    case failures do
+      [] -> {:cont, :ok}
+      failures -> {:halt, {:error, failures}}
+    end
   end
 
   defp steps_for(opts) do
@@ -121,21 +180,33 @@ defmodule Mix.Tasks.Pramana.Gate do
     end
   end
 
-  defp run_step(step, _acc) do
-    Mix.shell().info([:bright, "\n  ▸ #{step.id}", :reset])
+  # A CONCURRENT STEP BUFFERS ITS OUTPUT; A LONE ONE STREAMS.
+  #
+  # Five steps streaming into one terminal at once is not a log, it is a race condition made
+  # of text. So a step that shares its stage captures its output and prints it only on
+  # failure, where it is the whole point. A stage of one — `format`, `compile`, `evals` —
+  # streams live, which keeps the eval scores scrolling past as they always have.
+  defp run_step(step) do
     started = System.monotonic_time(:millisecond)
-
-    status = execute(step)
+    {status, output} = execute(step)
     elapsed = System.monotonic_time(:millisecond) - started
 
     case status do
       :ok ->
-        Mix.shell().info([:green, "    ok", :reset, "  (#{Elapsed.human(elapsed)})"])
-        {:cont, :ok}
+        Mix.shell().info([
+          :green,
+          "  ok       ",
+          :reset,
+          step.id,
+          "  (#{Elapsed.human(elapsed)})"
+        ])
+
+        :ok
 
       {:error, detail} ->
-        Mix.shell().error("    FAILED after #{Elapsed.human(elapsed)}")
-        {:halt, {:error, step.id, detail}}
+        Mix.shell().error("  FAILED   #{step.id}  (#{Elapsed.human(elapsed)})")
+        if output != "", do: Mix.shell().error(output)
+        {step.id, detail}
     end
   end
 
@@ -144,6 +215,24 @@ defmodule Mix.Tasks.Pramana.Gate do
   # touched: the Tengyur landed with all 213 paths recorded as absolute paths on one
   # laptop, and that is invisible from the machine that wrote them.
   defp execute(%{cmd: :lockfile}) do
+    {lockfile_check(), ""}
+  end
+
+  defp execute(%{cmd: cmd, env: env} = step) do
+    [exe | args] = cmd
+
+    env_vars =
+      [{"MIX_ENV", env}] ++ if(step[:embedding], do: [{"PRAMANA_EMBEDDING", "1"}], else: [])
+
+    into = if step[:solo], do: IO.stream(:stdio, :line), else: ""
+
+    case System.cmd(exe, args, env: env_vars, into: into, stderr_to_stdout: true) do
+      {_, 0} -> {:ok, ""}
+      {output, code} -> {{:error, {:exit, code}}, to_string(output)}
+    end
+  end
+
+  defp lockfile_check do
     results = Map.new(Sources.ids(), &{&1, Lockfile.verify(&1)})
 
     # `:not_locked` is NOT a failure. A source can be registered and deliberately not
@@ -177,22 +266,6 @@ defmodule Mix.Tasks.Pramana.Gate do
     end
   end
 
-  defp execute(%{cmd: cmd, env: env} = step) do
-    [exe | args] = cmd
-
-    env_vars =
-      [{"MIX_ENV", env}] ++ if(step[:embedding], do: [{"PRAMANA_EMBEDDING", "1"}], else: [])
-
-    case System.cmd(exe, args,
-           env: env_vars,
-           into: IO.stream(:stdio, :line),
-           stderr_to_stdout: true
-         ) do
-      {_, 0} -> :ok
-      {_, code} -> {:error, {:exit, code}}
-    end
-  end
-
   defp report(:ok, elapsed) do
     Mix.shell().info([
       :green,
@@ -210,13 +283,21 @@ defmodule Mix.Tasks.Pramana.Gate do
     ])
   end
 
-  defp report({:error, id, detail}, elapsed) do
+  defp report({:error, failures}, elapsed) do
+    {first, _} = hd(failures)
+
+    listed =
+      Enum.map_join(failures, "\n", fn {id, detail} -> "      #{id} (#{inspect(detail)})" end)
+
     Mix.raise("""
-    gate FAILED at #{id} after #{Elapsed.human(elapsed)} (#{inspect(detail)}).
+    gate FAILED after #{Elapsed.human(elapsed)}:
 
-    Fix it, then resume without repaying for the steps that passed:
+    #{listed}
 
-        mix pramana.gate --from #{id}
+    Every step in that stage ran, so this is all of them, not the first one. Fix them,
+    then resume without repaying for the stages that passed:
+
+        mix pramana.gate --from #{first}
     """)
   end
 end

@@ -22,8 +22,7 @@ A checkpoint is a real stop. Do not start the next phase until all of it passes.
 
 ### 1. Code
 ```bash
-mix pramana.gate --quick    # format, compile, credo, deps.audit, test, dialyzer, lockfile
-mix test --cover            # coverage must not regress — not in the gate
+mix pramana.gate --quick    # format, compile, credo, deps.audit, test --cover, dialyzer, lockfile
 mix hex.outdated            # note drift; upgrade deliberately — not in the gate
 ```
 
@@ -32,13 +31,21 @@ block listed seven commands; the gate ran three of them, so *"the gate passed"* 
 phase-gate code checks passed"* were different statements that read identically.
 `compile --warnings-as-errors`, `dialyzer` and `deps.audit` are now steps.
 
-Two stay out, deliberately. `hex.outdated` is asked for here to **note** drift, and a
+One stays out, deliberately: `hex.outdated` is asked for here to **note** drift, and a
 dependency being upgradable is not a failure — a gate step that cannot fail is noise.
-`--cover` needs a stored baseline to compare against, which does not exist yet; until it
-does, "coverage must not regress" is a judgement a person makes.
+
+**`--cover` came in on 2026-08-28, and this block was wrong about why it was out.** It said
+`--cover` "needs a stored baseline to compare against, which does not exist yet". The
+baseline had existed the whole time: `test_coverage: [summary: [threshold: n]]` in each
+app's `mix.exs`, raised at four separate gates. Mix fails the run itself when coverage falls
+below it — nothing needed building.
+
+The cost of that mistake was measurable. With the gate running plain `mix test`, pramana_web
+fell from 93% to **77.5%** and no check said a word, while `mix.exs` went on recording 93.
+See `docs/PLAN.md` § Backlog for the reset and the restoration targets.
 
 ### 2. Architecture review
-Re-read `CLAUDE.md`'s invariants and confirm the phase's code honors all seven.
+Re-read `CLAUDE.md`'s invariants and confirm the phase's code honors **all eight** — this line said "all seven" while `CLAUDE.md` listed eight, which is a review that cannot notice the one it does not count.
 Specifically audit:
 - Does anything **in** `apps/pramana_web` read the DB directly — `Repo.`, `import
   Ecto.Query`, a handwritten query? (It must not: the web app is transport, the domain

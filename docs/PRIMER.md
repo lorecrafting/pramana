@@ -870,6 +870,16 @@ needs different checks entirely.
 the first failure**, so a formatting error costs two seconds rather than being discovered
 after the eval run.
 
+It runs in **stages**, because most of the ordering in a checklist is an artefact of the
+order somebody typed it in rather than a real dependency: `credo` does not read `dialyzer`'s
+output, and `integrity` does not read `verify`'s. Only three orderings here are real —
+`format` alone first because it is two seconds and fails often; `compile` alone next because
+everything after it assumes built beams *and* because concurrent `mix` invocations in one
+`MIX_ENV` contend on the build lock; and `evals` alone last, because an eval run **is** the
+measurement and contention invalidates its timings. Everything between those fans out.
+A stage runs every one of its steps even after one fails, and reports them all, so three
+broken cheap checks are seen in one pass rather than across three runs.
+
 **Code checks — about a minute in total:**
 
 | step | what it answers |
@@ -878,7 +888,7 @@ after the eval run.
 | `compile --warnings-as-errors --force` | warnings are failures. `--force` because incremental compilation will not re-emit a warning in a file it did not rebuild |
 | `credo --strict` | style and consistency linting |
 | `deps.audit` | known CVEs in dependencies |
-| `test` | the suite |
+| `test --cover` | the suite, plus the coverage ratchet described below |
 | `dialyzer` | static analysis of the BEAM: unreachable clauses, impossible patterns. It found a defensive `parse_date(nil)` clause that could never match, because `Regex.run/2` yields `""` for a capture group that did not participate, never `nil` |
 
 **Data checks — most of an hour:**
@@ -904,18 +914,61 @@ more command at the end of a long day.
 `--from <step>` resumes after a fix without repaying for the steps that passed, and
 `--quick` runs the code half only.
 
-### The ratchet, and where it is not yet wired
+### Test coverage, and the ratchet
 
-Test coverage has a **ratchet**: a minimum percentage raised when coverage rises and *never*
-lowered to make a run pass. It lives in each app's `mix.exs` under `test_coverage:`, and it
-must nest under `summary:` — `test_coverage: [threshold: n]` is silently ignored while Mix
-goes on applying its own default of 90.
+**Coverage** is the fraction of your code that runs at least once while the test suite
+executes. Elixir measures it with `mix test --cover`: it instruments every module, runs the
+tests, and reports the percentage of lines each module executed. 100% would mean no line
+went untouched.
 
-**It is configured but the gate does not enforce it.** `mix pramana.gate` runs `mix test`,
-not `mix test --cover`, so a coverage regression passes the gate today. `docs/CHECKS.md`
-treats a regression as a gate failure, which makes this a gap between two documents and the
-code — recorded here rather than quietly fixed in prose, per rule 5 of *Keeping the
-documentation true*.
+Coverage is a **negative** signal, and it is worth being precise about why. High coverage
+does not mean the code is correct — a test that calls a function and asserts nothing still
+marks every line as covered. But *low* coverage is conclusive: those lines have never run
+in any test, so nothing at all is known about them. It tells you where you are blind, not
+where you are safe.
+
+A **ratchet** is what turns that measurement into a standard. You record a minimum in
+`mix.exs`:
+
+```elixir
+test_coverage: [
+  summary: [threshold: 83],
+  ignore_modules: [~r/^Mix\.Tasks\./, ...]
+]
+```
+
+Mix fails the run when coverage falls below it. The rule attached to it is one-directional:
+**raise it when coverage rises; never lower it to make a run pass.** That asymmetry is the
+whole mechanism. Coverage can only go up, one gate at a time, and no individual commit can
+buy itself an exception. `pramana_web` climbed 82 → 91 → 92 → 93 that way, one gate each.
+
+`ignore_modules` matters as much as the number. 90% is Mix's default and this umbrella
+cannot honestly hold it: CLI shells over already-covered domain functions, OTP application
+callbacks, and NIF stubs whose Elixir bodies are *replaced by Rust at load time* and can
+never execute. Excluding those and defending a real number beats a threshold nobody can
+meet — a standard people cannot reach is one they learn to route around.
+
+Two traps, both of which this project fell into:
+
+**The option nests.** `test_coverage: [threshold: n]` is silently ignored; it must be
+`test_coverage: [summary: [threshold: n]]`. Written the wrong way it looks configured and
+Mix goes on applying its own default.
+
+**A threshold nothing runs is a comment.** `docs/CHECKS.md` called a coverage regression a
+gate failure from the beginning, and the ratchet was raised at four real gates. But when
+`mix pramana.gate` became the way the suite is run, its test step was plain `mix test` — no
+`--cover`. Over the following phases `pramana_web` fell from **93% to 77.5%** while
+`mix.exs` went on recording 93, and every gate passed. Two shipped MCP tools turned out to
+have no test at all.
+
+The fix, on 2026-08-28, was three parts, and the shape of it generalises: the gate now runs
+`mix test --cover`; the untested tools were tested (9.5% → 100%, 31.3% → 100%); and **the
+thresholds were reset to what is actually true** so that they can fail. The restoration
+targets stay recorded in `docs/PLAN.md`. Resetting downward looks like exactly the thing the
+rule forbids, and the distinction is worth holding onto: lowering a number *you are
+currently meeting* is gaming the ratchet, while recording a number you are *not* meeting, so
+that it can be enforced tomorrow, is the opposite. An unenforceable 93 protected nothing for
+months; an enforced 81 makes the next regression impossible.
 
 Phase 2's gate was run and the tag **deliberately withheld**, because one of its tasks is
 blocked on SAT. Recording that honestly is worth more than a green tag.

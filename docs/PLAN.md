@@ -1085,14 +1085,25 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 
 ## Backlog
 
-- **The coverage ratchet is configured and the gate does not enforce it** — found
-  2026-08-28 while rewriting `docs/PRIMER.md` § 17. `test_coverage: [summary: [threshold:
-  …]]` is set per app (`pramana`, `pramana_web`), and `docs/CHECKS.md` calls a coverage
-  regression a gate failure — but `mix pramana.gate`'s test step runs `mix test`, not
-  `mix test --cover`. So the ratchet has been decorative for as long as the gate has been
-  the way anyone runs the suite. One-line fix; the reason it is backlog rather than Now is
-  that turning it on may fail immediately, and that failure wants its own session rather
-  than being bolted onto an unrelated commit.
+- **Restore coverage to 85 / 93.** ▸ **ENFORCEMENT TURNED ON 2026-08-28**, and it exposed a
+  15-point regression nobody could have seen.
+
+  `docs/CHECKS.md` has always called a coverage regression a gate failure, and the ratchet
+  was raised at real gates — pramana_web went 82 → 91 → 92 → 93 across four commits. Then
+  `mix pramana.gate` became the way the suite is run, and **its test step was plain
+  `mix test`**. With nothing enforcing it, coverage fell to **77.5%** while `mix.exs` went
+  on recording 93.
+
+  The gate now runs `mix test --cover`, and the thresholds are reset to what is true (83,
+  81) so that they can fail. Two tools were tested up from nothing in the same change —
+  `GetPerson` 9.5% → 100%, `GetGlosses` 31.3% → 100%, both of them **shipped tools with no
+  test**, which is rule 60 met in the registry and missed in the suite.
+
+  **What is left, and it is the Phase 8 reader**: `PassageLive` 54.6%, `WorkLive` 66.0%,
+  `MCP.Server` 66.7%, `ReaderComponents` 70.0%, `SurveyLive` 78.6%, `SearchLive` 83.0%.
+  Restoring 93 means LiveView tests for five screens. **85 and 93 remain the targets**; the
+  reset is recorded here rather than forgotten, because the point of a ratchet is that a
+  number nobody can defend is worse than a lower one that everybody must.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
