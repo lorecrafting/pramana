@@ -30,11 +30,27 @@ defmodule Pramana.Bake.Worker do
   alias Pramana.Corpus.Loader
   alias Pramana.Normalize.IR
   alias Pramana.Pipeline
+  alias Pramana.Telemetry
 
   require Logger
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
+    Telemetry.span(
+      [:pramana, :bake, :work],
+      fn -> do_perform(args) end,
+      # PER WORK, so a slow bake can be attributed rather than guessed at. `segments` is the
+      # unit of output, and a work that produced none is the shape of a normalizer that
+      # dropped everything without failing.
+      fn
+        {:ok, %{segments: n}} -> {%{segments: n}, %{outcome: :ok}}
+        {:error, reason} -> {%{segments: 0}, %{outcome: :error, reason: reason}}
+        _ -> {%{segments: 0}, %{outcome: :ok}}
+      end
+    )
+  end
+
+  defp do_perform(args) do
     %{
       "source" => source,
       "canon" => canon,

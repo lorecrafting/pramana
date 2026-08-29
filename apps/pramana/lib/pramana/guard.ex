@@ -31,6 +31,7 @@ defmodule Pramana.Guard do
   alias Pramana.Punctuation
   alias Pramana.Retrieval.Lexical
   alias Pramana.Retrieval.Variants
+  alias Pramana.Telemetry
 
   # Matches a URN wherever it appears: bare, bracketed, or in markdown.
   # Deliberately permissive in what it extracts and strict in what it accepts —
@@ -100,6 +101,18 @@ defmodule Pramana.Guard do
   """
   @spec check(String.t(), String.t() | nil) :: finding()
   def check(urn, quoted_text \\ nil) do
+    Telemetry.span(
+      [:pramana, :guard, :check],
+      fn -> do_check(urn, quoted_text) end,
+      # THE VERDICT IS THE POINT. A refusal is the highest-signal thing this system produces
+      # and it was being computed and discarded — `docs/PLAN.md` § A6. Counting them by
+      # verdict is what turns "the guard says no sometimes" into a map of where the corpus
+      # is hard to cite.
+      fn finding -> {%{}, %{verdict: finding.verdict, layer: finding.layer}} end
+    )
+  end
+
+  defp do_check(urn, quoted_text) do
     case Corpus.resolve(urn) do
       {:error, reason} ->
         %{

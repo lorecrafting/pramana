@@ -42,6 +42,15 @@ defmodule PramanaWeb.MCP.Reply do
   """
   @spec json(String.t(), map(), map()) :: Response.t()
   def json(tool, arguments, payload) when is_binary(tool) and is_map(payload) do
+    # THE SURFACE THE WHOLE THESIS RESTS ON, AND IT WAS UNOBSERVED. Every tool builds its
+    # response here, so this is the one place that sees them all.
+    #
+    # A COUNT, not a duration: this runs after the work, and timing a tool properly needs a
+    # hook around `execute/2` that the server does not currently expose. Which tools are
+    # called and how often is most of the value and was previously zero; the honest thing is
+    # to report what is measured rather than a duration that would be the time to build a map.
+    Pramana.Telemetry.emit([:pramana, :mcp, :tool], %{calls: 1}, %{tool: tool})
+
     payload
     |> Map.put(:bake_id, Pramana.Bake.current_id())
     |> Map.put(:replay, %{tool: tool, arguments: normalize(arguments)})

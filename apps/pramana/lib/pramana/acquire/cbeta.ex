@@ -215,7 +215,21 @@ defmodule Pramana.Acquire.CBETA do
     Keyword.get(opts, :fetcher, &default_fetcher/1)
   end
 
+  # THE ONE STAGE THAT TOUCHES THE NETWORK, and the only one whose failures are somebody
+  # else's. `bytes` is what distinguishes a slow link from a truncated response — the cache
+  # that trusted `size > 0` and served a half-downloaded 1.2 GB tarball is rule 58.
   defp default_fetcher(url) do
+    Pramana.Telemetry.span(
+      [:pramana, :acquire, :fetch],
+      fn -> fetch(url) end,
+      fn
+        {:ok, body} -> {%{bytes: byte_size(body)}, %{outcome: :ok, source: @source_id}}
+        {:error, reason} -> {%{bytes: 0}, %{outcome: :error, reason: reason, source: @source_id}}
+      end
+    )
+  end
+
+  defp fetch(url) do
     case Req.get(url, headers: [{"user-agent", "pramana-acquire"}], max_retries: 3) do
       {:ok, %{status: 200, body: body}} when is_binary(body) -> {:ok, body}
       {:ok, %{status: 200, body: body}} -> {:ok, Jason.encode!(body)}

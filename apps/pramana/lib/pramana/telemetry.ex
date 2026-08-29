@@ -2,8 +2,26 @@ defmodule Pramana.Telemetry do
   @moduledoc """
   What happened, when nobody was watching.
 
-  Attached once at boot. Today it does one thing — **it makes a failing Oban job say so** —
-  and it is the place the rest of `docs/OBSERVABILITY.md` will hang from.
+  Attached once at boot. It makes a failing Oban job say so, and it defines the events the
+  rest of the system emits.
+
+  ## The events, named for the questions they answer
+
+  Emitting costs nothing when nothing is attached, so these are unconditional. What they are
+  *called* matters more than what they measure, because a name is what someone greps for at
+  two in the morning:
+
+  | event | measurements | why |
+  |---|---|---|
+  | `[:pramana, :retrieval, :search]` | `duration`, `results` | **which retrievers actually ran** is metadata here. "The semantic arm silently did not run" is a failure this project has already had |
+  | `[:pramana, :guard, :check]` | `duration` | the verdict and, on a mismatch, the reason. Refusals are the highest-signal thing the system produces and they were being discarded |
+  | `[:pramana, :mcp, :tool]` | `duration` | the surface the whole thesis rests on, and it was entirely unobserved |
+  | `[:pramana, :bake, :work]` | `duration`, `segments` | per work, so a slow bake can be attributed rather than guessed at |
+  | `[:pramana, :acquire, :fetch]` | `duration`, `bytes` | the one stage that touches the network |
+
+  **`bake_id` rides on every one of them.** A measurement that cannot say which corpus it
+  describes is not comparable with the next one, which is the same reason every API response
+  carries it.
 
   ## Why this exists, concretely
 
@@ -33,6 +51,44 @@ defmodule Pramana.Telemetry do
   @events [
     [:oban, :job, :exception]
   ]
+
+  @doc """
+  Emits one domain event, with `bake_id` attached.
+
+  Deliberately a thin wrapper rather than a macro: the call site should read as an ordinary
+  function call, because a measurement that is expensive to add does not get added.
+  """
+  @spec emit([atom()], map(), map()) :: :ok
+  def emit(event, measurements, metadata \\ %{}) when is_list(event) and is_map(measurements) do
+    :telemetry.execute(event, measurements, Map.put_new_lazy(metadata, :bake_id, &bake_id/0))
+  end
+
+  # Never let instrumentation break the thing it instruments. If the bake row cannot be read
+  # — no database, a migration in flight — the event still goes out without it.
+  defp bake_id do
+    Pramana.Bake.current_id()
+  rescue
+    _ -> nil
+  end
+
+  @doc """
+  Times `fun`, emits `event`, and returns whatever `fun` returned.
+
+  `describe` is a function of the RESULT returning `{measurements, metadata}`, so a call site
+  can report something about the answer — how many results, which retrievers ran — without
+  computing it twice and without the event needing to know how to inspect a result.
+  """
+  @spec span([atom()], (-> result), (result -> {map(), map()})) :: result when result: var
+  def span(event, fun, describe \\ fn _ -> {%{}, %{}} end) do
+    started = System.monotonic_time()
+    result = fun.()
+    duration = System.monotonic_time() - started
+
+    {measurements, metadata} = describe.(result)
+    emit(event, Map.put(measurements, :duration, duration), metadata)
+
+    result
+  end
 
   @doc """
   Attaches every handler. Idempotent: re-attaching is a no-op rather than an error, because

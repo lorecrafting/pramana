@@ -164,7 +164,21 @@ defmodule Pramana.Acquire.DILA do
   # These files are tens of megabytes; `receive_timeout` is raised well above Req's default
   # because a 31 MB body over a slow link otherwise fails as a timeout, which reads like an
   # outage rather than like a large file.
+  # THE ONE STAGE THAT TOUCHES THE NETWORK, and the only one whose failures are somebody
+  # else's. `bytes` is what distinguishes a slow link from a truncated response — the cache
+  # that trusted `size > 0` and served a half-downloaded 1.2 GB tarball is rule 58.
   defp default_fetcher(url) do
+    Pramana.Telemetry.span(
+      [:pramana, :acquire, :fetch],
+      fn -> http_get(url) end,
+      fn
+        {:ok, body} -> {%{bytes: byte_size(body)}, %{outcome: :ok, source: @source_id}}
+        {:error, reason} -> {%{bytes: 0}, %{outcome: :error, reason: reason, source: @source_id}}
+      end
+    )
+  end
+
+  defp http_get(url) do
     case Req.get(url,
            headers: [{"user-agent", "pramana-acquire"}],
            max_retries: 3,

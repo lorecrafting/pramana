@@ -77,16 +77,27 @@ computed once. The real fix is a stored `char_count` per text, set at load time;
 schema change and a backfill, and it is in `docs/PLAN.md` § Backlog rather than bolted onto
 a diagnostic command.
 
-### 2. Domain telemetry at five boundaries
+### 2. Domain telemetry at five boundaries — ▸ BUILT 2026-08-29
 
-`:telemetry.execute/3` at the bake job, retrieval, the guard, an MCP tool call, and
-acquisition. Emitting costs nothing when nothing is attached, LiveDashboard picks it up in
-dev for free, and it is the substrate for everything in § A6 of `docs/PLAN.md`.
+`Pramana.Telemetry` emits five events and `PramanaWeb.Telemetry` now reports them, so the
+dashboard shows this project rather than only Phoenix:
 
-**Name the events for the questions they answer**, not for the functions they sit in:
-`[:pramana, :retrieval, :search]` with `%{duration, results}` and metadata carrying
-`bake_id`, mode and which retrievers actually ran — because "the semantic arm silently did
-not run" is a real failure this project has already had.
+    [:pramana, :retrieval, :search]   duration, results   mode, retrievers, outcome
+    [:pramana, :guard, :check]        duration            verdict, layer
+    [:pramana, :mcp, :tool]           calls               tool
+    [:pramana, :bake, :work]          duration, segments  outcome, reason
+    [:pramana, :acquire, :fetch]      duration, bytes     source, outcome, reason
+
+**`bake_id` rides on every one**, because a measurement that cannot name the corpus it
+describes is not comparable with the next. An explicitly supplied one is never overwritten:
+a caller replaying an older bake is reporting about that one.
+
+Two honest limits. The MCP event is a **count, not a duration** — every tool builds its
+response through `Reply.json/3`, which runs after the work, and timing properly needs a hook
+around `execute/2` that the server does not expose. Which tools are reached for, and how
+often, was previously zero and is most of the value. And `retrievers` is metadata rather than
+a tag, because "the semantic arm silently did not run" is a failure about *which arms
+executed*, which a `mode` tag would have reported as `hybrid` throughout.
 
 ### 3. An Oban failure handler — ▸ BUILT 2026-08-29
 

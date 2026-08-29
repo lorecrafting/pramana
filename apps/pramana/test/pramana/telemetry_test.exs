@@ -62,6 +62,72 @@ defmodule Pramana.TelemetryTest do
     assert :ok = Telemetry.handle([:something, :else], %{}, %{}, %{})
   end
 
+  describe "domain events" do
+    setup do
+      ref = make_ref()
+      parent = self()
+
+      events = [
+        [:pramana, :retrieval, :search],
+        [:pramana, :guard, :check],
+        [:pramana, :mcp, :tool],
+        [:pramana, :bake, :work],
+        [:pramana, :acquire, :fetch]
+      ]
+
+      :telemetry.attach_many(
+        ref,
+        events,
+        fn event, measurements, metadata, _ ->
+          send(parent, {:event, event, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(ref) end)
+      :ok
+    end
+
+    test "emit/3 attaches the bake_id, because a measurement must name its corpus" do
+      Telemetry.emit([:pramana, :mcp, :tool], %{calls: 1}, %{tool: "search"})
+
+      assert_receive {:event, [:pramana, :mcp, :tool], %{calls: 1}, metadata}
+      assert Map.has_key?(metadata, :bake_id)
+      assert metadata.tool == "search"
+    end
+
+    test "an explicit bake_id is not overwritten" do
+      # A caller replaying an older corpus is reporting about THAT bake, not this one.
+      Telemetry.emit([:pramana, :guard, :check], %{}, %{bake_id: "older"})
+
+      assert_receive {:event, _, _, %{bake_id: "older"}}
+    end
+
+    test "span/3 times the work, returns the result untouched, and describes it" do
+      result =
+        Telemetry.span(
+          [:pramana, :retrieval, :search],
+          fn -> {:ok, %{results: [1, 2, 3], mode: "hybrid", retrievers: ["lexical"]}} end,
+          fn {:ok, found} -> {%{results: length(found.results)}, %{mode: found.mode}} end
+        )
+
+      assert {:ok, %{results: [1, 2, 3]}} = result
+
+      assert_receive {:event, [:pramana, :retrieval, :search], measurements, metadata}
+      assert measurements.results == 3
+      assert measurements.duration > 0
+      assert metadata.mode == "hybrid"
+    end
+
+    test "instrumentation never breaks the thing it instruments" do
+      # If the bake row cannot be read — no database, a migration in flight — the event
+      # still goes out. An observation path that can take down a request is worse than no
+      # observation.
+      assert :ok = Telemetry.emit([:pramana, :acquire, :fetch], %{bytes: 0})
+      assert_receive {:event, [:pramana, :acquire, :fetch], _, _}
+    end
+  end
+
   test "successes are not logged" do
     # A bake is tens of thousands of jobs. A line each buries the one line that matters.
     log = capture_log(fn -> :telemetry.execute([:oban, :job, :stop], %{duration: 1}, %{}) end)

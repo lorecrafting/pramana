@@ -76,6 +76,33 @@ defmodule PramanaWeb.Telemetry do
       ),
 
       # VM Metrics
+      # THIS PROJECT'S OWN EVENTS. Everything above is generated Phoenix scaffolding, which
+      # is why `docs/OBSERVABILITY.md` could say the running system was unobserved while a
+      # metrics module existed. See `Pramana.Telemetry` for what each event answers.
+      summary("pramana.retrieval.search.duration",
+        unit: {:native, :millisecond},
+        tags: [:mode, :outcome],
+        description: "Retrieval, by mode — and `retrievers` says which arms actually ran"
+      ),
+      summary("pramana.retrieval.search.results", description: "Results returned, zero included"),
+      summary("pramana.guard.check.duration",
+        unit: {:native, :millisecond},
+        tags: [:verdict],
+        description: "Citation checks by verdict — refusals are the signal"
+      ),
+      counter("pramana.mcp.tool.calls",
+        tags: [:tool],
+        description: "Which tools a model actually reaches for"
+      ),
+      summary("pramana.bake.work.duration",
+        unit: {:native, :millisecond},
+        tags: [:outcome],
+        description: "Per work, so a slow bake can be attributed"
+      ),
+      summary("pramana.acquire.fetch.bytes",
+        tags: [:source, :outcome],
+        description: "Bytes fetched — what distinguishes a slow link from a truncated one"
+      ),
       summary("vm.memory.total", unit: {:byte, :kilobyte}),
       summary("vm.total_run_queue_lengths.total"),
       summary("vm.total_run_queue_lengths.cpu"),

@@ -26,6 +26,7 @@ defmodule Pramana.Retrieval do
   alias Pramana.Embed
   alias Pramana.Retrieval.Hybrid
   alias Pramana.Retrieval.Lexical
+  alias Pramana.Telemetry
 
   # Mapped explicitly, NEVER via `String.to_existing_atom/1`. That crashed the MCP tool
   # by load order: the guard admitted `"phrase"` and the conversion then raised, because
@@ -69,6 +70,25 @@ defmodule Pramana.Retrieval do
   """
   @spec search(String.t(), keyword()) :: {:ok, map()} | {:error, atom()}
   def search(query, opts \\ []) do
+    Telemetry.span([:pramana, :retrieval, :search], fn -> do_search(query, opts) end, &describe/1)
+  end
+
+  # WHICH RETRIEVERS ACTUALLY RAN is the metadata that matters, not the timing. "The semantic
+  # arm silently did not run" is a failure this project has already had — a caller with no
+  # serving got lexical-only results, which is honest and is not what anyone meant. A
+  # measurement of `mode` alone would have reported `hybrid` throughout.
+  defp describe({:ok, found}) do
+    {%{results: length(Map.get(found, :results, []))},
+     %{
+       mode: Map.get(found, :mode),
+       retrievers: Map.get(found, :retrievers),
+       outcome: :ok
+     }}
+  end
+
+  defp describe({:error, reason}), do: {%{results: 0}, %{outcome: :error, reason: reason}}
+
+  defp do_search(query, opts) do
     {mode, opts} = Keyword.pop(opts, :mode)
 
     case mode(mode) do
