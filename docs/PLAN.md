@@ -31,7 +31,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
-| eval | **92.4% over 1,472 cases** (`evals/baseline.json`) — not comparable to the previous 93.1%/1,400: the denominator grew by the two new gold sets, one of which is 70%. Compare per row |
+| eval | **92.3% over 1,472 cases** (`evals/baseline.json`) — 0 stale, 0 errored. Not comparable with 93.1%/1,400: the denominator grew by two case types, one scoring 70%. Compare per row |
 | new gold sets | **rendering 70.0%** (40 cases, mean rank 1.68) · **gloss 100%** (32 cases, a regression detector — see below) |
 | retrieval@10 | 374/446 — zh 96.1% · pa 80.0% · bo 48.4%\* |
 | absence | **75%** — and the failing case is real and stays red; see item D |
@@ -389,8 +389,9 @@ cost, which is exactly the mechanism X demonstrated at a larger scale. If a late
 the same index shows the same three rows down again, that is a second sample and it means
 something.
 
-**2. Genres the corpus does not contain at all — additive, non-competing.** ▸ **ACQUIRED
-2026-08-28, and N's result is the argument for them.** 189 files, 182 works, 43.4 MB.
+**2. Genres the corpus does not contain at all — additive, non-competing.** ▸ **ACQUIRED,
+BAKED, EMBEDDED AND GATED 2026-08-28, and the prediction held: `retrieval/chinese` is 95.7%
+before and after, identical, not merely within noise.** 189 files, 182 works, 43.4 MB.
 Baking is the next step. N demonstrated that displacement costs scale with the *volume of
 competing material*; epigraphy and gazetteers are not scripture and cannot displace a
 doctrinal query at all, so they extend what the corpus **is** at no measurable retrieval
@@ -430,7 +431,14 @@ the VOLUME OF COMPETING MATERIAL, which is their product:**
 |---|---|---|---|---|
 | X 卍續藏 | 1,230 | ~285,000 | high — sūtra exegesis quoting definitional formulae | **4 Chinese cases** |
 | J 嘉興藏 | 285 | ~30,000 | low — Ming/Qing Chan recorded sayings | 0 |
-| N 漢譯南傳 | 38 | **30,399** | **highest** — the same discourses, in Chinese | 1 case, noise |
+| N 漢譯南傳 | 38 | 30,399 | **highest** — the same discourses, in Chinese | 1 case, noise |
+| I·F·GA·GB·ZS | 182 | 16,984 | **none** — rubbings, gazetteers, dynastic histories | **0, exactly** |
+
+**Four collections now, and the model is cost ≈ volume × overlap — both factors, neither
+alone.** N has maximum overlap and cost nothing because it is 4% of the pool. Group 2 has
+meaningful volume and cost nothing because a stone rubbing cannot answer a doctrinal query.
+Only X had both, and only X cost anything. `retrieval/chinese` is **95.7% before and after**
+group 2 — not "within noise", identical.
 
 N is the cleanest test available: maximum genre overlap, minimum volume. It is 30,399
 chunks against 703,407 Literary Chinese chunks — **4.3%** — and displacement is a

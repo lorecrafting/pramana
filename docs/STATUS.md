@@ -25,11 +25,11 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 
 | | |
 |---|---|
-| texts · segments | **17,099** · **12,358,849** |
-| Chinese (CBETA) | 4,081 works across **11 of 26 collections** — T 2,471 · X 1,230 · J 285 · N 38 · seven alternative editions 57 |
+| texts · segments | **17,281** · **12,586,964** |
+| Chinese (CBETA) | 4,263 works across **16 of 26 collections** — T 2,471 · X 1,230 · J 285 · I 101 · GA 51 · N 38 · F 27 · seven alternative editions 57 · GB 2 · ZS 1 |
 | Pāli (SuttaCentral) | 8,442 works, 241,409 English renderings by 7 translators |
 | Tibetan (Degé) | 1,195 Kangyur · 3,380 Tengyur |
-| chunks · vectors | 963,480 · **1,020,280** |
+| chunks · vectors | 980,464 · **1,037,264** |
 | pipeline | v4 · `mix pramana.verify --all` and `mix pramana.integrity` both green over every text |
 
 ### What it can do
@@ -39,8 +39,9 @@ guard that byte-compares every quoted span, **14 read-only MCP tools**, and a fi
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
 
-**Eval: 93.1% over 1,400 cases**, 0 stale, 0 errored — `evals/baseline.json` is the
-published record and this line is copied from it.
+**Eval: 92.3% over 1,472 cases**, 0 stale, 0 errored — `evals/baseline.json` is the
+published record and this line is copied from it. Not comparable with the earlier 93.1% over
+1,400: the gold set grew by two new case types, one of which scores 70%. **Compare per row.**
 
 ### What it deliberately says it cannot do
 
@@ -50,11 +51,11 @@ the API rather than left to be inferred from an empty result:
 | gap | size |
 |---|---|
 | Taishō volumes 56–84 | 547 works — CBETA excludes them, only SAT publishes them, **blocked on an email** |
-| CBETA collections absent | 15 of 26 |
+| CBETA collections absent | 10 of 26 |
 | parallel graph openable | **6.1%** — 24,717 of 407,176; the rest name witnesses not held |
 | texts a `role:` filter cannot reach | **1,640** — only the Taishō has a 部 division table |
 | `topical/chinese` | **0%** — no English layer over Chinese, and the deterministic bridge was tried and rejected |
-| N, the newest collection | baked and embedded; its gate run has not been read yet |
+| a bake stage that fails under Oban | 41 of 53 GA jobs, deterministic, cause not found — `docs/RULES.md` gotchas, with the recovery path |
 
 ### Phases
 
