@@ -30,7 +30,7 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 | Pāli (SuttaCentral) | 8,442 works, 241,409 English renderings by 7 translators |
 | Tibetan (Degé) | 1,195 Kangyur · 3,380 Tengyur |
 | chunks · vectors | 980,464 · **1,037,264** |
-| pipeline | v4 · `mix pramana.verify --all` and `mix pramana.integrity` both green over every text |
+| pipeline | **v5** · `verify --all`, `integrity` and `coherence` all green over every text |
 
 ### What it can do
 
@@ -38,6 +38,19 @@ Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a
 guard that byte-compares every quoted span, **17 read-only MCP tools**, and a five-screen
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
+
+**Start a session with `mix pramana.doctor`.** It prints which bake this is and whether it
+still describes its inputs, what is loaded, what is declared and never acquired, and what is
+missing — the state that was previously rediscovered with hand-written SQL. See
+`docs/OBSERVABILITY.md` for what the running system can and cannot tell you about itself,
+which as of the 2026-08-29 audit was *very little*, and now is five telemetry events, an Oban
+failure handler and errors a model can branch on.
+
+**Retrieval is measured against ground truth the corpus already holds.** `mix pramana.recall`
+reads the 141,073 verbatim quotations as free relevance judgements: **100.0% over 1,891
+decided pairs**, which bounds where retrieval failures can live — not in exact matching.
+`--parallels` points the same trick at SuttaCentral's 10,493 Pāli↔Chinese parallels, the axis
+`topical/chinese` has been 0% of twelve gold cases on.
 
 **A report can now be checked, not just a quotation.** `verify_report` byte-compares every
 citation in a document **and re-executes the searches its figures rest on** — "appears

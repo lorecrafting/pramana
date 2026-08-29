@@ -103,6 +103,56 @@ defmodule Docs.RoutingTest do
              "not routed from CLAUDE.md: #{Enum.join(missing, ", ")}"
     end
 
+    test "no document states a pipeline version that disagrees with the code" do
+      # `docs/STATUS.md` said "pipeline | v4" in its corpus table and "`pipeline_version` is
+      # **5**" eleven lines later — one file contradicting itself about the number that says
+      # whether two corpora are comparable at all.
+      #
+      # Most written-down figures are caught by reading. This one is small, changes rarely
+      # and is quoted in passing, which is the profile of a number that goes stale unnoticed.
+      #
+      # The rule enforced is `CLAUDE.md`'s own: **a statement about the past belongs in
+      # `docs/HISTORY.md`, or carries its date.** A dated mention is history and may say 4
+      # forever; an undated one reads as a current claim and must not.
+      current = Pramana.Bake.pipeline_version()
+      historical = ~w(HISTORY.md PROXIES.md)
+      version = ~r/pipeline[_ ]?version[^0-9\n]{0,16}(\d+)|pipeline \| \*{0,2}v(\d+)/i
+      dated = ~r/\d{4}-\d{2}-\d{2}/
+
+      wrong =
+        @root
+        |> Path.join("docs/*.md")
+        |> Path.wildcard()
+        |> Enum.reject(&(Path.basename(&1) in historical))
+        |> Enum.flat_map(fn path ->
+          path
+          |> File.read!()
+          |> String.split("\n")
+          |> Enum.flat_map(fn line ->
+            case Regex.run(version, line) do
+              nil ->
+                []
+
+              captures ->
+                stated = Enum.find(tl(captures), &(&1 not in [nil, ""]))
+
+                if stated == current or Regex.match?(dated, line),
+                  do: [],
+                  else: [{Path.basename(path), stated, String.slice(line, 0, 70)}]
+            end
+          end)
+        end)
+
+      assert wrong == [],
+             """
+             These lines state a pipeline version other than #{current}, undated:
+
+             #{Enum.map_join(wrong, "\n", fn {doc, v, line} -> "    #{doc} says #{v}: #{line}" end)}
+
+             Give the sentence its date, or move it to docs/HISTORY.md.
+             """
+    end
+
     test "names only documents that exist" do
       missing =
         ~r/`(docs\/[A-Za-z_]+\.md)`/

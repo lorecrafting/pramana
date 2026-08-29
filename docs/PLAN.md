@@ -374,7 +374,8 @@ texts loaded. The first three checks all start from a text row, and from inside 
 work that lost half of itself looks perfect. cbeta now reads `3,707 file(s) -> 3,701
 work(s) -> 3,701 loaded`.
 
-`pipeline_version` is **4**. `config/dev.exs`'s pool timeout went 120s → 300s: assembling
+`pipeline_version` went to **4** at this point, 2026-08-26 — it is 5 today, see § A4.
+`config/dev.exs`'s pool timeout went 120s → 300s: assembling
 X1571 makes one transaction of 74,570 lines against T1912's 26,000, which is the capacity
 answer that file's own comment prescribes.
 
