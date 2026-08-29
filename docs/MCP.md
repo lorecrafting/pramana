@@ -34,6 +34,7 @@ count the rows, or ask `tools/list`.
 | `get_readings` | How a passage is pronounced, where the ordinary answer is wrong. |
 | `define_from_canon` | Where the canon defines a term, by its own definitional formulae. |
 | `verify_citation` | Byte-compares a quotation against its URN. |
+| `verify_report` | Byte-compares every citation in a document **and re-runs the searches its figures rest on** — the claims a citation guard cannot reach. |
 
 ### An English question needs `search_translations`, not `search`
 
@@ -216,6 +217,51 @@ Retrieval degrades rather than failing, so every response says what it actually 
   real but that the search which found it was the search the report says it was.
   `arguments` holds what the caller actually sent — a default is omitted, because re-sending
   one would pin a value free to change.
+
+## Verifying a whole report, not just a quotation
+
+`verify_citation` answers one question about one URN. `verify_report` answers it for every
+citation in a document **and re-executes the retrievals its figures rest on** — which is the
+half a citation guard structurally cannot reach:
+
+| claim | guard | `verify_report` |
+|---|---|---|
+| "T0262 says X" | ✅ | ✅ |
+| "X appears 36,775 times across 1,904 works" | ✗ | re-runs the survey |
+| "no Japanese-composed text uses X" | ✗ | re-runs the search, confirms still empty |
+
+**Writing a report this can check** costs nothing extra, because the evidence is a field you
+already received. Every response carries `replay: {tool, arguments}` beside `bake_id`; put it
+next to the claim it supports:
+
+    ```pramana-replay
+    {"tool": "survey_corpus",
+     "arguments": {"query": "一切眾生"},
+     "bake_id": "b143d7f3…",
+     "assert": {"total": 36775, "works": 1904}}
+    ```
+
+`assert` names response keys and the values you are claiming for them; a dotted path reaches
+into nested maps. Omit it and the call is still re-run — proving the retrieval you cited
+still executes and still returns something is worth stating on its own.
+
+**Read the verdicts precisely:**
+
+| verdict | meaning |
+|---|---|
+| `verified` | re-executed, every asserted value re-derived |
+| `failed` | a value differs — both numbers are named |
+| **`unverifiable`** | recorded against a different `bake_id`. The corpus changed and the claim **cannot be re-run here**: not refuted, and not passed |
+| `error` | the tool is unknown, or it raised |
+
+`unsourced_figures` is a **heuristic warning list, never a verdict** — paragraphs carrying a
+number with no citation and no replay record. It reads; it does not judge.
+
+Two limits worth knowing before you rely on it. Only read-only tools are runnable, from an
+explicit whitelist — a replay record is untrusted input naming tools chosen by whoever wrote
+the report, and `verify_report` is deliberately absent from its own list. And there is a cap
+on replays per report; records beyond it are reported as skipped and **prevent `ok?`**,
+because a report whose evidence was not all examined has not been verified.
 
 ## Reader deep-links
 

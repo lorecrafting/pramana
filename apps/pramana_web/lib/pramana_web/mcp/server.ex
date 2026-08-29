@@ -35,6 +35,7 @@ defmodule PramanaWeb.MCP.Server do
   component(PramanaWeb.MCP.Tools.CompareWitnesses)
   component(PramanaWeb.MCP.Tools.DefineFromCanon)
   component(PramanaWeb.MCP.Tools.VerifyCitation)
+  component(PramanaWeb.MCP.Tools.VerifyReport)
 
   # Resources, not tools: guidance and inventory are things to READ about the corpus,
   # not operations to perform on it. Exposing them teaches a model to use the

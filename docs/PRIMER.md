@@ -600,6 +600,42 @@ only for *existence*, which is a materially weaker guarantee, so it is never fol
 attached to. That is interpretation. The guard answers only the mechanical question, and
 its value lies in that answer not being fuzzy.
 
+### One level up: verifying a whole report
+
+The guard makes a fabricated passage impossible to pass off. It says nothing about the
+claims that actually carry a piece of scholarship:
+
+| claim | guard | what checks it |
+|---|---|---|
+| "T0262 says X" | ✅ byte-compare | the guard |
+| "X appears 36,775 times across 1,904 works" | ✗ | re-run the survey and compare |
+| "no Japanese-composed text uses X" | ✗ | re-run the search and confirm it is still empty |
+
+The second and third are where a report goes wrong in the way that matters, because **a
+frequency claim generalised from twenty ranked hits reads exactly like one counted over
+twelve million segments.**
+
+What makes checking them possible is that every tool response carries
+`replay: {tool, arguments}` beside its `bake_id` — so a retrieval is *citable* in the same
+way a passage is. A report includes that record next to the claim it supports, and
+`verify_report` re-executes it:
+
+    ```pramana-replay
+    {"tool": "survey_corpus", "arguments": {"query": "一切眾生"},
+     "bake_id": "b143d7f3…", "assert": {"total": 36775, "works": 1904}}
+    ```
+
+The verdict worth understanding is **`unverifiable`**. If the record names a different
+`bake_id`, the corpus has changed and the claim *cannot be re-run here* — so it is neither
+confirmed nor refuted. Calling that a false report would be wrong, and it would also be
+corrosive: a checker that cries wolf is one people stop reading, which is what happened to
+`integrity` while it reported 1,228 X texts as broken.
+
+**This is deliberately not an agent.** The model stays swappable and the MCP surface stays
+read-only; what the project ships is the thing that makes *any* agent's report checkable.
+And the verification is arithmetic, not a vote — re-running a survey is stronger evidence
+than a panel of models agreeing with each other about it.
+
 ---
 
 ## 12. Addressing: the URN scheme

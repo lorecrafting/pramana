@@ -35,9 +35,16 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 ### What it can do
 
 Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a citation
-guard that byte-compares every quoted span, **16 read-only MCP tools**, and a five-screen
+guard that byte-compares every quoted span, **17 read-only MCP tools**, and a five-screen
 LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
+
+**A report can now be checked, not just a quotation.** `verify_report` byte-compares every
+citation in a document **and re-executes the searches its figures rest on** — "appears
+36,775 times across 1,904 works" and "no Japanese-composed text uses X" are the claims that
+carry a report, and a citation guard structurally cannot reach either. A replay recorded
+against a different bake comes back `unverifiable`, never `failed`: the corpus changed, and
+saying otherwise would teach people to ignore the checker.
 
 **The gate has a third data check.** `mix pramana.coherence` asks whether independently
 derived facts about one work agree — `verify` proves determinism and `integrity` proves

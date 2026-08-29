@@ -25,7 +25,7 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 | corpus | **17,281 texts · 12,586,964 segments** · 3 traditions · **1,037,264 vectors** |
 | CBETA | **16 collections of 26** — T 2,471 · X 1,230 · J 285 · **I 101** · N 38 · **GA 51** · **F 27** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · **GB 2** · M 1 · **ZS 1** — 4,340 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
-| MCP surface | **16 read-only tools** — `search_translations`, `get_glosses`, `get_works_by_person` and `get_person` all added 2026-08-28 |
+| MCP surface | **17 read-only tools** — `search_translations`, `get_glosses`, `get_works_by_person` and `get_person` all added 2026-08-28 |
 | reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
@@ -57,7 +57,7 @@ between them — with published numbers saying how often that works.
 
 | the sentence says | what does it |
 |---|---|
-| ask a question of three canons | 16 read-only MCP tools · five reader screens · 17,281 texts across Chinese, Pāli and Tibetan |
+| ask a question of three canons | 17 read-only MCP tools · five reader screens · 17,281 texts across Chinese, Pāli and Tibetan |
 | passages byte-verifiable against a print edition | `Pramana.Guard` byte-compares every quote; `verify --all` re-normalizes from `raw/`; the CBETA linehead is checkable against the printed page |
 | see the provenance of each | four axes, plus `witness_name` and `authority_id` — the edition by name and the person the byline denotes |
 | follow parallels and variants between them | curated parallels, the apparatus, 141,073 quotations, and **27,254 commentary lemmas** attaching commentary to the line it explains |
@@ -1336,7 +1336,7 @@ non-traffic-weighted* gold set. If it does not, the loop is noise that feels lik
 
 ---
 
-### H. Phase 7's first slice — **v1 scope** — verify a *report*, not just a quotation — designed 2026-08-28
+### H. Phase 7's first slice — **v1 scope** — verify a *report*, not just a quotation — ▸ SHIPPED 2026-08-28
 
 **The research agent is not a thing this project builds, and saying so is the design.**
 Invariant #7 keeps the MCP surface read-only and `CLAUDE.md`'s thesis makes the model a
@@ -1363,7 +1363,38 @@ million segments.
 reproducible citation of a retrieval, exactly as a URN is one of a passage"*. Nothing yet
 consumes it. This item is what consumes it.
 
-**Shape.** A sourced report is claims, each carrying quoted spans, replay records, or both.
+**▸ SHIPPED.** `Pramana.Report`, `PramanaWeb.MCP.ReplayExecutor`, and `verify_report`
+(tool 17). A report is markdown; a claim resting on a retrieval carries the call that
+produced it in a ```pramana-replay fence, which is a copy of the `replay` field every tool
+response already returns. `assert` names response keys and the values the report claims for
+them, dotted paths reach into nested maps, and an empty `assert` still re-runs the call —
+proving the named retrieval still executes is worth something on its own.
+
+**Two decisions the build forced:**
+
+- **The executor is injected, and its whitelist is explicit.** `Pramana.Report` cannot call
+  the tools it names — they live in `pramana_web` and the domain has no web dependency — so
+  the caller supplies an executor. That executor holds a hand-written list of read-only
+  tools rather than reading the server registry, because a replay record is **untrusted
+  input** naming tools chosen by whoever wrote the report, and a future tool must not join
+  that list by accident. `verify_report` is absent from its own table: a report asking to
+  verify a report is a loop over untrusted input.
+- **A per-report cap on replays.** Every record is a query; a document with ten thousand
+  fences would otherwise be a denial of service. Excess records are reported as skipped and
+  **prevent `ok?`**, because a report whose evidence was not all examined has not been
+  verified.
+
+**Three bugs the tests caught, and the first is worth remembering.**
+`String.to_existing_atom` is the right tool for converting untrusted keys and it has a trap:
+**an atom exists only once the module defining it has been loaded**, and module loading is
+lazy. `get_person` with a perfectly valid `authority_id` failed with "no function clause
+matching", because the key had been dropped. `Code.ensure_loaded!/1` before atomizing.
+Second, `decode/1` matched the success shape before `isError`, so a tool's clear refusal came
+back as `:tool_returned_unparseable_json` — an error about our parser. Third, a `~s(...)`
+sigil containing parentheses does not close where it looks like it does.
+
+**Shape, as designed.** A sourced report is claims, each carrying quoted spans, replay
+records, or both.
 
 - `Pramana.Report.parse/1` — claims with their URNs and replay records out of markdown.
 - `Pramana.Report.verify/1` — quotes through `Guard`; **replay records by re-executing the

@@ -24,7 +24,7 @@ the provenance model or the eval harness.
 | **4** Eval harness | ✅ complete, tagged `phase-4` | 1,472 cases, published, and the gate ratchets on them |
 | **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
 | **6** Deterministic enrichment | ◐ **half** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅. Translator fingerprinting and authority linking untouched |
-| **7** Research agent + translation | ◐ first slice designed, unbuilt | the citation guard is wired, and every tool response now carries a `replay` record — the thing a report verifier consumes. `docs/PLAN.md` § H |
+| **7** Research agent + translation | ◐ **report verification shipped**; translation not started | `verify_report` byte-compares every citation in a document and re-runs the retrievals its figures rest on. `docs/PLAN.md` § H |
 | **8** Web reader | ✅ **shipped early** | five screens, and the public artefact builds |
 
 **The shape of the remaining work is not what this roadmap assumed.** It planned eight
