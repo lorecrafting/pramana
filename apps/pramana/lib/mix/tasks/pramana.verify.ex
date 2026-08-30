@@ -118,7 +118,14 @@ defmodule Mix.Tasks.Pramana.Verify do
   # hand-written loop over four of them silently skipped `local-huang-nianzu-jie` and checked
   # 17,280 of 17,281 texts.
   defp verify_source(source, sample, seed) do
-    edition = editions([source])
+    # TIMED SEPARATELY, BECAUSE IT IS A FIXED COST AND WAS BEING REPORTED AS A RATE.
+    # Degé verification derives every work in the edition once, by walking each volume a
+    # single time. Measured 2026-08-29: `--source derge --sample 1` checks 0.3% of the
+    # segments and still takes **3m11s of 3m52s**, so 82% of that source's time is the walk
+    # and ~41s is the checking. Divided by 1,195 texts it printed as "5.2 texts/s", which
+    # read as a per-text problem and is not one.
+    {walk_us, edition} = :timer.tc(fn -> editions([source]) end)
+    if walk_us > 1_000_000, do: report_walk(source, walk_us)
 
     from(t in ids_scope(source), select: t.id, order_by: t.id)
     |> Repo.all()
@@ -134,6 +141,14 @@ defmodule Mix.Tasks.Pramana.Verify do
       |> Enum.map(fn {:ok, result} -> result end)
     end)
     |> Enum.to_list()
+  end
+
+  # Only when it is worth saying — a source with no edition to derive walks nothing.
+  defp report_walk(source, walk_us) do
+    Mix.shell().info(
+      "  #{source}: derived the edition in #{Pramana.Elapsed.human(div(walk_us, 1000))} " <>
+        "(one walk of every volume, before any text is checked)"
+    )
   end
 
   defp sources_for(nil) do

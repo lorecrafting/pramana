@@ -23,15 +23,32 @@ defmodule Mix.Tasks.Pramana.Gate do
 
   ## The steps, and why in this order
 
-  | | step | typical | why here |
+  All eleven steps, with the stage each runs in. **Timings are one measurement, taken
+  2026-08-29 on this machine** — they are here to justify the ordering, not to be quoted.
+  Run it if you want the number; the summary prints every step's own time.
+
+  | stage | step | 2026-08-29 | why here |
   |---|---|---|---|
-  | 1 | `mix format --check-formatted` | 2 s | costs nothing, fails often |
-  | 2 | `mix credo --strict` | 3 s | same |
-  | 3 | `mix test` | 6 s | proves behaviour before anything touches the corpus |
-  | 4 | lockfile verify, **every source** | 30 s | the bake is meaningless if `sources.lock.json` cannot reproduce it |
-  | 5 | `mix pramana.verify --all` | minutes | reproducibility: the pipeline is deterministic |
-  | 6 | `mix pramana.integrity` | ~13 min | fidelity: nothing printed was lost |
-  | 7 | `mix pramana.evals --gate` | ~27 min | the ratchet against `evals/baseline.json` |
+  | 1 | `mix format --check-formatted` | 0.5 s | costs nothing, fails often |
+  | 2 | `mix compile --warnings-as-errors --force` | 5.2 s | every later step assumes built beams |
+  | 3 | `mix deps.audit` | 2.3 s | cheap, independent |
+  | 3 | `mix credo --strict` | 3.7 s | same |
+  | 3 | `mix pramana.coherence` | 6.2 s | reads a few aggregates, re-derives nothing |
+  | 3 | lockfile verify, **every source** | 11 s | the bake is meaningless if `sources.lock.json` cannot reproduce it |
+  | 3 | `mix test --cover` | 17 s | proves behaviour before anything touches the corpus |
+  | 3 | `mix dialyzer` | 27 s | ~45 s cold; the PLT is what makes it cheap |
+  | 4 | `mix pramana.verify --all` | 7m09s | reproducibility: the pipeline is deterministic |
+  | 4 | `mix pramana.integrity` | 10m41s | fidelity: nothing printed was lost |
+  | 5 | `mix pramana.evals --gate` | 21m43s | the ratchet against `evals/baseline.json` |
+
+  **Whole gate: 32m57s**, from 48m40s before `verify` was rewritten to iterate sources.
+  The figures this table carried until 2026-08-29 — `~13 min` for integrity and `~27 min`
+  for evals — were both stale in the same direction, and were used to estimate a run that
+  then finished ten minutes early. Four steps were missing from it entirely.
+
+  **Stage 4 is `max(verify, integrity)`, not their sum**, which is why making `verify`
+  4.3x faster bought about thirteen minutes and then stopped mattering: integrity is now
+  that stage's critical path, and `evals` alone is two thirds of the whole run.
 
   Steps 5 and 6 prove the pipeline is deterministic and that nothing printed was lost.
   **`mix pramana.coherence` asks the third question — whether independently derived facts
