@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Pramana.Verify do
       mix pramana.verify                 # sample 1000 segments PER TEXT
       mix pramana.verify --all           # check every segment; ~2m30s for the full Taisho
       mix pramana.verify --sample 50     # 50 per text
+      mix pramana.verify --sample 50 --seed 0.42   # ...and the same 50 next run
       mix pramana.verify --source derge  # one source, while iterating on its pipeline
       mix pramana.verify --source derge-tengyur
 
@@ -52,10 +53,22 @@ defmodule Mix.Tasks.Pramana.Verify do
   alias Pramana.Normalize.DergeTengyur
   alias Pramana.Normalize.IR
   alias Pramana.Repo
+  alias Pramana.Sampling
   alias Pramana.Sources
   alias Pramana.URN
 
-  @switches [sample: :integer, all: :boolean, source: :string]
+  # RE-NORMALISING A TEXT IS INDEPENDENT OF EVERY OTHER TEXT, and this was a sequential
+  # `Enum.map` over 17,281 of them on eight cores — the single largest step in the gate.
+  # `editions/1` is computed once before the loop and read-only inside it, so the Degé walk
+  # that threads works across volumes in printed order still happens exactly once.
+  #
+  # FOUR, not eight, and the reason is memory rather than cores: `scope/1` selects whole
+  # `Text` rows, so all 17,281 bodies — ~548M characters — are already resident before this
+  # line, and each task then builds an IR of its own on a 16 GB machine. Raising this
+  # without first making the text load streaming is how a verify run starts swapping.
+  @concurrency 4
+
+  @switches [sample: :integer, all: :boolean, source: :string, seed: :float]
 
   @impl Mix.Task
   def run(argv) do
@@ -71,7 +84,18 @@ defmodule Mix.Tasks.Pramana.Verify do
 
     started = System.monotonic_time(:millisecond)
     edition = editions(texts)
-    results = Enum.map(texts, &verify_text(&1, sample, edition))
+
+    results =
+      texts
+      |> Task.async_stream(&verify_text(&1, sample, edition, opts[:seed]),
+        max_concurrency: @concurrency,
+        # ORDERED, so the failure list reads in corpus order rather than completion order.
+        # A gate whose output reshuffles between runs cannot be diffed against the last one.
+        ordered: true,
+        timeout: :infinity
+      )
+      |> Enum.map(fn {:ok, result} -> result end)
+
     elapsed = System.monotonic_time(:millisecond) - started
     failures = Enum.flat_map(results, & &1.failures)
 
@@ -130,13 +154,13 @@ defmodule Mix.Tasks.Pramana.Verify do
 
   defp volumes_for(root, DergeTengyur), do: DergeTengyur.volumes_at(root)
 
-  defp verify_text(text, sample, edition) do
+  defp verify_text(text, sample, edition, seed) do
     checks = [
       body_hash_check(text),
       renormalize_check(text, edition)
     ]
 
-    segments = load_segments(text, sample)
+    segments = load_segments(text, sample, seed)
     checks = checks ++ segment_checks(text, segments)
 
     %{
@@ -363,17 +387,26 @@ defmodule Mix.Tasks.Pramana.Verify do
     )
   end
 
-  defp load_segments(text, :all) do
+  defp load_segments(text, :all, _seed) do
     Repo.all(from s in Segment, where: s.text_id == ^text.id, order_by: s.ordinal)
   end
 
-  defp load_segments(text, n) do
-    Repo.all(
-      from s in Segment,
-        where: s.text_id == ^text.id,
-        order_by: fragment("random()"),
-        limit: ^n
-    )
+  # SEEDABLE, BECAUSE AN UNSEEDED SPOT CHECK CANNOT BE COMPARED WITH THE ONE BEFORE IT.
+  # `--sample` drew a different set of segments every run, so a run that passed and a run
+  # that failed were checking different things and neither could confirm the other. CLAUDE.md
+  # has asserted "a measurement task takes `--seed`" throughout, and this task did not.
+  #
+  # `--all` remains the honest default for a published figure; the seed makes a *sample*
+  # reproducible, which is a weaker and still useful thing.
+  defp load_segments(text, n, seed) do
+    Sampling.seeded(seed, fn ->
+      Repo.all(
+        from s in Segment,
+          where: s.text_id == ^text.id,
+          order_by: fragment("random()"),
+          limit: ^n
+      )
+    end)
   end
 
   defp segment_checks(text, segments) do

@@ -104,17 +104,20 @@ defmodule Mix.Tasks.Pramana.Recall do
     started = System.monotonic_time(:millisecond)
     found = :counters.new(1, [])
 
-    fn %{phase: phase, done: done, total: total, outcome: outcome} ->
+    fn %{phase: phase, done: done, total: total} = p ->
       # The two phases run in sequence and share the counter, so it resets on each first case.
       if done == 1, do: :counters.put(found, 1, 0)
-      if outcome == :found, do: :counters.add(found, 1, 1)
+      if p.outcome == :found, do: :counters.add(found, 1, 1)
 
       if rem(done, @every) == 0 or done == total do
-        per_case = (System.monotonic_time(:millisecond) - started) / done
+        # Rate and ETA span the WHOLE run, not this phase: `eta` for the cross phase alone
+        # read 22m with 125 control cases still queued behind it.
+        per_case = (System.monotonic_time(:millisecond) - started) / p.overall_done
+        left = (p.overall_total - p.overall_done) * per_case
 
         Mix.shell().info(
           "    #{phase}  #{done}/#{total}  found #{:counters.get(found, 1)}  " <>
-            "#{Float.round(per_case / 1000, 1)} s/case  eta #{eta((total - done) * per_case)}"
+            "#{Float.round(per_case / 1000, 1)} s/case  eta #{eta(left)} (whole run)"
         )
       end
     end

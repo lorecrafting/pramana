@@ -34,9 +34,21 @@ defmodule Pramana.Recall do
   alias Pramana.Repo
   alias Pramana.Retrieval
   alias Pramana.Retrieval.Lexical
+  alias Pramana.Sampling
 
   @default_sample 200
   @default_limit 100
+
+  # THE SERVING WAS BUILT TO BATCH AND NEVER SAW A BATCH. `Pramana.Embed.Serving` starts
+  # `Nx.Serving` with `batch_timeout: 100` precisely so concurrent callers are batched into
+  # one forward pass, and every caller here was a sequential `Enum.map` — so a 625-case run
+  # embedded one query at a time, on an eight-core machine, for an hour.
+  #
+  # Six, not eight: the dev pool is 25 connections and each case holds one for a resolve and
+  # a search, and leaving headroom is the whole lesson of the Tengyur session that
+  # `docs/PLAN.md` § "Can these run at the same time?" records. Override with
+  # `concurrency: 1` to reproduce a sequential run.
+  @concurrency 6
 
   @type outcome :: :both | :one | :neither | :undecided
 
@@ -119,8 +131,14 @@ defmodule Pramana.Recall do
     cross = sample_parallels(sample, :cross, Keyword.get(opts, :seed))
     control = sample_parallels(max(div(sample, 4), 10), :same, Keyword.get(opts, :seed))
 
-    cross_results = probe_all(cross, :cross, limit, mode, opts)
-    control_results = probe_all(control, :control, limit, mode, opts)
+    # The ETA must span BOTH phases. Reported per phase it read `eta 22m` with 125 control
+    # cases still to come, which is the same class of half-truth as a figure without its
+    # denominator — the caller is told a number that is true of a part and sounds like the
+    # whole.
+    overall = length(cross) + length(control)
+
+    cross_results = probe_all(cross, {:cross, 0, overall}, limit, mode, opts)
+    control_results = probe_all(control, {:control, length(cross), overall}, limit, mode, opts)
 
     control_score = score(control_results)
     cross_score = score(cross_results)
@@ -199,7 +217,7 @@ defmodule Pramana.Recall do
     comparison = if kind == :cross, do: "<>", else: "="
 
     rows =
-      seeded(seed, fn ->
+      Sampling.seeded(seed, fn ->
         %{rows: rows} =
           Repo.query!(
             """
@@ -228,20 +246,61 @@ defmodule Pramana.Recall do
     end)
   end
 
+  # URN EQUALITY IS THE WRONG TEST, AND IT READ AS A FINDING. `text_parallels.target_urn` is
+  # a POINT urn — `pramana:sc.ms:dhp331@0`, one segment — while the semantic arm returns
+  # CHUNK spans, which are ranges: `pramana:sc.ms:dhp331@0-4`. Compared with `==` those never
+  # match, so the first version of this reported **`on line` 0.0% across both arms**, a
+  # number clean enough to look like a discovery and consistent with the conclusion already
+  # written down. It was measuring URN granularity. Rule 62, and the tell was the control
+  # scoring zero too.
+  #
+  # Char offsets are the coordinate system both kinds share, so containment is the real
+  # question: does the passage that came back INCLUDE the line the curators pointed at?
+  defp covers?(_span, nil), do: false
+
+  defp covers?(span, target) do
+    span.provenance.work_id == target.provenance.work_id and
+      span.char_start <= target.char_start and span.char_end >= target.char_end
+  end
+
+  defp resolved(urn) do
+    case Corpus.resolve(urn) do
+      {:ok, span} -> span
+      _ -> nil
+    end
+  end
+
   # AN HOUR OF SILENCE IS AN OBSERVABILITY BUG, and this module proved it: a full run went
   # by before anyone could see that its printer was broken, and "how much longer" had no
   # answer but a guess. `:on_progress` is called once per probe with the phase, the counts
   # and the outcome; formatting is the caller's business, so nothing here knows about a
   # shell. Absent, it costs one anonymous-function call per case.
-  defp probe_all(pairs, phase, limit, mode, opts) do
+  defp probe_all(pairs, {phase, offset, overall}, limit, mode, opts) do
     report = Keyword.get(opts, :on_progress) || fn _ -> :ok end
     total = length(pairs)
 
     pairs
+    |> Task.async_stream(&probe_parallel(&1, limit, mode, opts),
+      max_concurrency: Keyword.get(opts, :concurrency, @concurrency),
+      # ORDERED, AND NOT AS DECORATION. The sample is seeded; a seeded sample whose results
+      # arrive in completion order is reproducible in name only, and `hits`/`misses` are
+      # `Enum.take(8)` off the front of exactly this list.
+      ordered: true,
+      # A search takes seconds and the default would kill it at five. `:infinity` here is
+      # the honest setting: the case's own failure paths already return `:undecided`.
+      timeout: :infinity
+    )
     |> Enum.with_index(1)
-    |> Enum.map(fn {pair, index} ->
-      result = probe_parallel(pair, limit, mode, opts)
-      report.(%{phase: phase, done: index, total: total, outcome: result.outcome})
+    |> Enum.map(fn {{:ok, result}, index} ->
+      report.(%{
+        phase: phase,
+        done: index,
+        total: total,
+        overall_done: offset + index,
+        overall_total: overall,
+        outcome: result.outcome
+      })
+
       result
     end)
   end
@@ -276,7 +335,8 @@ defmodule Pramana.Recall do
   # is the work only.
   defp hit(pair, results, index, query) do
     matched = Enum.at(results, index)
-    exact = Enum.find_index(results, &(&1.span.urn == pair.target_urn))
+    target = resolved(pair.target_urn)
+    exact = Enum.find_index(results, &covers?(&1.span, target))
 
     %{
       outcome: :found,
@@ -294,7 +354,7 @@ defmodule Pramana.Recall do
   # figure could never be compared with the one before it — the failure `docs/PROXIES.md`
   # exists to record.
   defp sample_pairs(n, seed) do
-    seeded(seed, fn ->
+    Sampling.seeded(seed, fn ->
       Repo.all(
         from q in "quotations",
           select: %{
@@ -307,27 +367,6 @@ defmodule Pramana.Recall do
           limit: ^n
       )
     end)
-  end
-
-  # THE SEED AND THE QUERY IT SEEDS MUST SHARE A CONNECTION, and two `Repo` calls do not.
-  # `setseed` sets the random sequence for one Postgres SESSION; the pool then hands the
-  # `ORDER BY random()` whatever connection is free, which is usually a different session
-  # that was never seeded. So `--seed` did nothing, silently, and every figure this module
-  # published under one was an unseeded draw — including `docs/PLAN.md` § F.
-  #
-  # Measured on 2026-08-29 before the fix: **eight calls with the same seed drew eight
-  # different samples; the same eight inside a transaction drew one.** A transaction pins
-  # the checkout, which is the whole fix. See `docs/RULES.md` 67.
-  defp seeded(nil, fun), do: fun.()
-
-  defp seeded(seed, fun) do
-    {:ok, result} =
-      Repo.transaction(fn ->
-        Repo.query!("SELECT setseed($1)", [seed])
-        fun.()
-      end)
-
-    result
   end
 
   # THE LONGEST SINGLE LINE, WITH ITS PUNCTUATION. Two mistakes were made getting here and

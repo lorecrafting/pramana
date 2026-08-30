@@ -344,3 +344,7 @@ and significant embedding cost — don't run one to test a normalizer.
 
 **A measurement task takes `--seed`, and a figure quoted without one is an anecdote**: the
 sample changes every run, so no number can be compared with the number before it.
+`mix pramana.recall` and `mix pramana.verify --sample` are the two tasks that sample, and
+both seed through `Pramana.Sampling.seeded/2`. **A seed applied outside that helper does
+nothing at all** — `setseed` and the query it seeds land on different pooled connections,
+which is rule 67 and is why every seeded figure this project published was an unseeded draw.

@@ -1513,6 +1513,87 @@ duplication before it is worth building.
 
 ---
 
+## Resume here — session of 2026-08-29, mid-flight
+
+**Delete this section when its checklist is empty.** It exists because the work below was
+interrupted-able: an hour-long measurement was running, several source changes could not be
+compiled while it ran, and none of it would have survived a lost session.
+
+**The working tree carries changes that have NOT been verified.** They compile-checked as
+far as `mix format` and no further. Treat every one as unproven until its row is ticked:
+
+| change | file | verified? |
+|---|---|---|
+| seeded sampling pinned to one connection | `pramana/sampling.ex` (new), `recall.ex` | tests green, and see rule 67 on why they prove little |
+| hits reported with `exact_rank`, containment not URN equality | `recall.ex` | **no** — the containment fix landed after the last run |
+| `on line` beside `found` | `recall.ex`, `pramana.recall.ex` | **no** |
+| progress output, whole-run ETA | `pramana.recall.ex` | partly — the per-phase ETA bug is fixed but unrun |
+| `--parallels` concurrency, `max_concurrency: 6` | `recall.ex` | **no — and this is the one that can silently change results** |
+| `verify` concurrency, `max_concurrency: 4` | `pramana.verify.ex` | **no** |
+| `--seed` on `verify` | `pramana.verify.ex` | **no** |
+
+### The order to do it in
+
+1. `mix compile && mix test && mix credo --strict` — nothing below is meaningful until this
+   passes. Use `&&`; rule 63.
+2. **The concurrency equivalence check, and it gates everything after it.** Batching alters
+   float accumulation, so a batched embedding need not be bit-identical to a solo one and
+   near-tie rankings can flip. Run the same seed at `concurrency: 1` and at `6` and compare
+   **case by case, not by timing**. If they diverge, concurrency comes out — a speedup that
+   moves the numbers is not a speedup.
+3. Apply the Postgres tuning in `docs/DEV_ENV.md` **together with** audit-queue #9's
+   deterministic ordering, so the sample is re-rolled once rather than twice.
+4. Re-baseline the seeded figures and write them into § F.
+5. `mix pramana.gate`, then commit.
+
+### What § F still says that is wrong
+
+§ F claims the cross-lingual hits are an artifact of work-level scoring and that there are
+**zero** supporting observations. That was committed in a03785c and it is **wrong**: of the
+three hits ever inspected, `dhp331` and `dhp68` genuinely cover the parallel line (verified
+by char-range containment) and only `iti95` was boilerplate. Generalised from one case, which
+is rule 16. **Both are Dhammapada verses** — short, terse, dense in concrete shared
+vocabulary, where the Chinese 法句經 is a close rendering rather than a paraphrase. That is
+the positive evidence § F says does not exist, and it points a term table at verse first.
+
+### If the measurement's output was lost
+
+It was written to a session-local scratchpad, which a new session cannot reach. Re-run it —
+it is seeded, so it is reproducible, and it costs about an hour:
+
+```bash
+mix compile && PRAMANA_EMBEDDING=1 mix pramana.recall --parallels \
+  --sample 500 --seed 0.42 --mode hybrid
+```
+
+---
+
+## The audit queue — 2026-08-29
+
+Found by auditing outward from two defects in `mix pramana.recall`, on the principle that a
+fix which does not sweep for the other instances is not finished (rule 41). Ordered by
+blast radius, not by effort.
+
+| # | item | why here | state |
+|---|---|---|---|
+| 1 | **§ F says the hits are an artifact — they are not** | committed wrong in a03785c. 2 of 3 inspected hits DO cover the parallel line; only `iti95` was boilerplate. Generalised from one case, which is rule 16 | ▸ in flight, lands with the seeded numbers |
+| 2 | **`Corpus.context/2` rejects range URNs, and the guard depends on it** | `resolve/1` was fixed to accept ranges because a range is a legitimate citation; `context/2` still does an exact `s.urn ==` match, so `Guard.spans_boundary?` takes its `_ -> false` branch and reports **"does not span a line boundary"** for every range citation. A multi-line quote is exactly when that diagnosis matters. Reachable from MCP `get_passage`, the reader and the guard | open |
+| 3 | **`mix pramana.verify --sample` has no `--seed`** | `ORDER BY random()` with nothing seeding it, so two runs check different segments. And **`CLAUDE.md` asserts "a measurement task takes `--seed`"**, which is false for it — fix the code or fix the claim, but they cannot both stand | open |
+| 4 | **A live check for pool-dependent defects** | rule 67: the test suite pins one connection and structurally cannot see this class — `setseed`, `SET LOCAL`, advisory locks, temp tables, `LISTEN`. The instrument is `mix pramana.gate`, which runs against a real database | open |
+| 5 | **Query-embedding cache across runs** | the seed works now, so the same sample is drawn every run and its embeddings could be reused. **Deferred deliberately**: a stale cache serves wrong vectors silently, so it needs keying on model identity, and it is only worth that risk if measurement shows embedding still dominates after #6 | deferred, pending measurement |
+| 6 | **The probe was sequential against a serving built to batch** | `Nx.Serving` starts with `batch_timeout: 100` so concurrent callers share a forward pass; every caller was `Enum.map`, so a 625-case run embedded one query at a time on eight cores for an hour | ▸ done, pending verification |
+| 8 | **`mix pramana.evals` is sequential too — the gate's 27-minute step** | `Evals` iterates its 1,472 cases with `Enum.map`, so the gate's largest step embeds one query at a time on eight cores, exactly as `recall` did. **Higher stakes than #6**: evals is the ratchet against `evals/baseline.json`, so a numeric change is a false regression or a hidden one. Same equivalence bar, applied harder — and note § "Can these run at the same time?" forbids *external* contention, which internal concurrency is not | open, after #6 proves the bar is passable |
+| 9 | **`ORDER BY random()` is PLAN-dependent, so the seed is only reproducible per configuration** | `random()` is volatile and evaluated per row, so which value each row gets depends on the order rows reach it — a parallel scan or a changed plan draws a different sample from the same seed. **Postgres tuning therefore silently re-rolls every seeded figure.** `ORDER BY md5(<seed> || <stable key>)` is a deterministic function of the row and is immune to both. Do it **with** the tuning, so there is one re-baseline instead of two | open, pairs with the tuning |
+| 10 | **`verify` loads all 17,281 bodies at once — ~548M characters** | `scope/1` is `from(t in Text, preload: [:work])` with no `select`, so every body is resident before the first check runs, on a 16 GB box. This is the **fifth** call site of the problem that the `texts.body` work fixed in four — rule 41. It also caps how far #6-style concurrency can be pushed here, which is why `verify` is bounded at 4 rather than 8 | open |
+| 7 | **"Retrieval is deterministic" rests on n=3 queries** | asserted more broadly than the evidence supports. Either widen it or stop saying it | open |
+
+**What #6 must prove before it counts as done**, because a speedup that changes the numbers
+is not a speedup: batching alters float accumulation, so a batched embedding need not be
+bit-identical to a solo one, and near-tie rankings would flip. The check is a same-seed run
+at `concurrency: 1` against one at `concurrency: 6`, compared case by case — not a timing.
+
+---
+
 ## Blocked
 
 | item | blocked on |
