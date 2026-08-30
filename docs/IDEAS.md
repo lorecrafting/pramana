@@ -288,3 +288,60 @@ no other system can express, and it is what a translator or a practitioner actua
 fojin has 110K entities, 28K relations, 22K teacher-student lineage chains on a Deck.GL
 map. We have DILA people and 59,335 places and do nothing visual with them. Not a
 differentiator — they are ahead — but the data is already here.
+
+
+---
+
+## Product direction — "check anything", not "ask anything"
+
+The obvious product is a box you ask about Buddhism that answers with citations. **fojin
+already ships it** — RAG, clickable 【《經》卷N】 citations, three deterministic answer
+guards, ~98% trustworthy at temperature 0. Building a second one competes on answer quality
+and UI polish against a team with a shipping cadence and a Discord, which is not a race a
+provenance project wins.
+
+**The thesis says the answer is not the product; the warrant is.** *Pramāṇa* means "valid
+means of knowledge". The differentiator was never a better explanation — it is that every
+sentence can be checked, and that the system says when it cannot check one.
+
+So: the same idea turned one degree. **One box you paste INTO.** A paragraph from a book, a
+teacher's talk, a translation draft, or another AI's answer, and it returns
+
+- every quotation byte-verified, with the five diagnoses the guard already distinguishes —
+  editorial punctuation, orthographic variant, a quote running into the next line, real text
+  at the wrong address, and the one case that is a fabrication
+- **every figure re-computed**, not trusted — "appears 36,775 times across 1,904 works" is a
+  claim no citation guard can reach and `verify_report` re-runs it
+- provenance per citation: a Kamakura-era Japanese composition is not an Indian sūtra
+- **what it cannot check, said plainly** — "this cites Taishō 62, which this corpus does not
+  hold"
+
+**Nobody offers this.** fojin's `/api/verify/quote` checks one quotation; this checks a
+document including its arithmetic. And the demand exists already: people are asking general
+assistants about the Dhamma and getting confident fabrications. A place to paste one and see
+what survives needs no trust in *our* model at all — which is the only honest way to sell a
+system whose founding claim is that the model is not trusted.
+
+Tracked as **L5** in `docs/PLAN.md`.
+
+### If a Q&A surface is built anyway, lead with refusal
+
+Not the answer — the decline. This project measures it: **6 of 10 unanswerable questions
+caught, 0 of 46 answerable ones lost**, and a hard threshold measured and *refused* because
+it cost 10% of answerable queries to gain one absence case.
+
+"I do not know, and here is why: that material is in Taishō 56–84, which this bake does not
+hold" is a more trustworthy interface than a 98% badge, and it is the coverage doctrine made
+visible rather than buried in a caveat field. **No other project in this space leads with
+what it cannot do.** That is the opening.
+
+### On fojin's UI, and the lesson to take rather than the criticism to make
+
+15 master personas, a geo map, a timeline, a category treemap, read-aloud, force-directed
+knowledge-graph visualisation — and the thing most people came for is several clicks in.
+Breadth is what an aggregator optimises for and it is a reasonable choice for what they are
+building.
+
+The lesson is not "their UI is scattered". It is that **a project with one guarantee should
+ship one screen that makes the guarantee visible**, and that this project has five reader
+screens and no surface for the capability that is actually unique to it.

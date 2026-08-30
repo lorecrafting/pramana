@@ -973,6 +973,53 @@ essentially nothing across scripts, so this is the semantic arm's number. It say
 about whether a corpus-derived term table would fix it — that hypothesis is unbuilt, has an
 instrument to be judged against, and **two line-level observations to build on**.
 
+### The worked example the term table has to satisfy — the bhūmis
+
+*"What happens on the seventh bodhisattva bhūmi, what is the 7→8 breakthrough, and what do
+the commentaries across the canons say about it?"* — a question a real reader asks, measured
+against this bake on 2026-08-30.
+
+**In Chinese it already works, and better than a ranked list would.** Exhaustive counts:
+
+    第七地    634 segments /  205 works        遠行地   802 /  237   (the 7th bhūmi)
+    第八地    845 segments /  235 works        不動地 1,161 /  329   (the 8th)
+    歡喜地  1,053 segments /  371 works        十地  19,096 / 1,414
+
+So *where is the 7→8 transition discussed most densely* has a real answer, `get_commentaries`
+walks to the works that explain those texts, and `get_glosses` finds the commentary anchored
+to **that line** by 科文 lemma. The survey also returns the coverage caveat unprompted — the
+Shingon and Tendai commentary on the bhūmis is in Taishō 56–84 and absent here, so an empty
+result is not silence.
+
+**Across the canons it fails, and the reason is measurable rather than vague:**
+
+    glossary entries with a Tibetan equivalent   55,807
+                        Sanskrit                 41,253
+                        Chinese                   1,105   <- 2%
+
+`acala` has **seven glossary entries with Tibetan and not one with Chinese.** Nothing in this
+system knows that **不動地 = acalā = the eighth bhūmi.** That is exactly why § F specifies a
+table built *from CBETA*, not from 84000's Tibetan-oriented glossary — and the 2% is the
+number behind that qualifier.
+
+**So the term table is not only a retrieval fix, it is the missing CONCEPT layer**, and this
+is the acceptance test for it:
+
+1. 不動地, acalā, dūraṅgamā and their Tibetan equivalents resolve to one concept
+2. a Chinese bhūmi query reaches the Tibetan and Pāli material
+3. `get_glosses` on a 7→8 passage returns commentary from more than one canon
+
+**Nothing here encodes that the bhūmis are ORDERED**, that 7→8 is a recognised turning point,
+or that "look at the lower bhūmis" is a sensible next move. A model given the passages can
+reason that out; the retrieval layer cannot suggest it, and a term table alone will not fix
+it either. That is a separate piece — an ordered-concept layer — and it should not be
+smuggled into the term table's scope.
+
+**And L2 comes first.** If the true-parallel probe shows BGE-M3 retrieving actual
+translations well and discourse correspondences badly, the cross-lingual score is a statement
+about the *task* and the term table's value is the concept layer above rather than the recall
+number. That changes what success looks like before a line of it is written.
+
 **And they point somewhere specific, now on four observations rather than two.** Every
 line-level cross-lingual hit this probe has ever produced is a **Dhammapada verse**: short,
 terse, verse-form, dense in concrete shared vocabulary, where the Chinese 法句經 is a close
@@ -1609,9 +1656,21 @@ which mattered, since the assistant that prompted the review invented two projec
 | # | item | why it is not optional | state |
 |---|---|---|---|
 | L1 | **Dictionaries** | **The largest functional gap in this project.** fojin ships 39 dictionaries, 747K entries — DPD, Mahāvyutpatti, Rangjung Yeshe, NTI Reader, Apte. We ship none. A scholar reading Classical Chinese without a lexicon is working one-handed, and **`define_from_canon` is not a substitute**: the canon defining 空 in its own formulae answers a different question from what 阿耨多羅三藐三菩提 transliterates. Licences vary per dictionary and must be tracked per source, exactly as text sources are | open |
-| L2 | **Evaluate MITRA-E before building § F's term table** | § F proposes a corpus-derived term table for the cross-lingual axis. **MITRA-E is a Gemma-2-9B embedding model purpose-built for Pāli, Sanskrit, Buddhist Chinese and Tibetan, and BGE-M3 — what we embed with — is one of its baselines.** If the bottleneck is the embedder rather than the vocabulary, the term table is the wrong build. The 496-case parallel probe is the instrument and it exists now. **Check two things first**: 9B makes the embedding pass a rented-GPU job, and Gemma derivatives carry Google's Gemma Terms, not a standard open licence | open — **do this before § F's term table** |
+| L2 | **Find out why BGE-M3 scores 51% in MITRA's benchmark and 0.4% here** — *before* buying either a term table or a new model | ▸ **CHEAPEST VERSION ALREADY RUN, 2026-08-30, and it redirects the question.** MITRA's benchmark includes BGE-M3 — the model this corpus embeds with — on Sanskrit→Chinese against 400,412 candidates:
+
+    BM25 14·23·28 · LaBSE 19·33·39 · **BGE-M3 base 29·45·51** · BGE-M3 ft 40·59·65 · MITRA-E 79·94·96
+
+**BGE-M3 reaches 51% P@10 there and 0.4% here.** A 31x larger haystack does not explain two orders of magnitude, so **the embedder is probably not the bottleneck** and neither a term table nor a 9B model is indicated yet.
+
+The likely explanation is in § F's own text: *a parallel records that two discourses correspond, not that they share words*. MITRA benchmarks **true parallel sentences** — translations of one another. We benchmark **discourse-level correspondence**, which is a strictly harder task, and the 20.8–28.8% same-language control is evidence the difficulty is in the task rather than the language.
+
+**The decisive experiment is cheap and uses data already held.** Run the probe against pairs that ARE translations of each other — the 30,653 aligned bo↔en folio pairs from 84000, or SuttaCentral's segment-aligned renderings — and compare with the discourse-parallel figure. If BGE-M3 does well on true parallels and badly on discourse correspondence, the diagnosis is the task and § F's framing needs rewriting, not its retrieval. Only if it does badly on BOTH is a better embedder implicated.
+
+MITRA-E details, for when that question is actually reached: 9B params, **3,584-dim embeddings** against the current 1,024 — a 3.5x vector-store increase and a schema migration — asymmetric encoding (queries wrapped in an instruct prompt, corpus raw), and a Gemma-derived licence to read before adoption | open — **run the true-parallel probe first** |
 | L3 | **Answer-time repair, and a trust vocabulary** | We diagnose citation failures in five distinct ways and **repair none of them**. fojin strips citations whose source was never retrieved, and downgrades non-verbatim "quotes" to plain prose. Diagnosis serves a caller who checks; repair serves the one who does not, and that is most of them. Adopt their four-word state vocabulary wholesale — `verified` / `citation_corrected` / `quote_relaxed` / `no_sources` | open |
 | L4 | **Cross-scheme URN resolution** | The same passage is `fojin:cbeta/T0001.1`, `pramana:cbeta.T:T0001_001@p0001a01`, `T2185_.56.0001a01` and `mn1:1.1` depending on who cites it, so **a citation cannot be checked in the system that did not produce it**. fojin exposes `resolve_urn`; we parse four native grammars already. Teaching each resolver the other's scheme is small, mutual, and makes citations portable across the field. Best effort-to-benefit ratio on the list | open |
+
+| L5 | **A "check anything" screen — one input, one verdict list** | `verify_report` shipped 2026-08-28 and **has no surface**: it byte-verifies every citation in a document *and re-executes the searches its figures rest on*, and the only way to reach it is an MCP call. Rule 60 — a capability a person cannot reach has not shipped. The screen is one textarea and a verdict list, far smaller than a chat product, and it is the one thing in this space nobody else offers: fojin's `/api/verify/quote` checks a single quotation; this checks a whole document including its arithmetic. **The use case is already live in the world** — people are getting confident fabrications about the Dhamma from general assistants, and a place to paste one and see which claims survive requires trusting no model of ours. It also makes the deepest infrastructure here the visible product rather than something buried behind a chat box | open |
 
 **And one correction to make first.** `docs/COMPETITIVE.md` has said *"fojin has more corpus;
 you will not out-scale it quickly there"*, and that has been shaping strategy. fojin reports
