@@ -144,8 +144,8 @@ shipped (lineage chains, Wikidata ids). **Two are designed and unbuilt: place au
 (`docs/PLAN.md` § A3) and Phase 7's report verifier (§ H).** So the honest current answer to
 "is v1 done" is **no**, and the reason is a scope decision rather than a slip.
 
-Separately, **the phase-2 gate is not done** and is blocked on an email a person must send,
-not on code.
+Separately, **the phase-2 gate is not done** and is blocked on SAT's reply to a request
+**sent 2026-08-15**, not on code and no longer on anyone here.
 
 ### Phases
 

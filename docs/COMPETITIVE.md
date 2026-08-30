@@ -46,6 +46,53 @@ And what we claim here that is **not yet true**:
 | Terminology-consistent translation with a visible term chain | Not built. The glossary is seeded (376 terms) and the pool exists; the engine is Phase 7 (#26). |
 | Quotation graph | **Built (#22).** `get_quotations` over verbatim reuse found by a standalone Rust scanner. |
 
+## Dharmamitra / DharmaNexus / MITRA — the one this file omitted
+
+Sebastian Nehrdich and Kurt Keutzer (UC Berkeley), with Hamburg's Khyentse Center,
+Tsadra and Tōhoku. **Missing from this analysis until 2026-08-30**, which is the more
+serious error in it: they are the deepest technical group in the field.
+
+- **BuddhaNexus (2020 →)** — intertextual text-matching across all four canons, FastText
+  embeddings, `buddhanexus.net`. The thing this file claimed nobody had built.
+- **DharmaNexus** — its successor, folded into MITRASearch.
+- **MITRA (`arXiv:2601.06400`)** — 1.74M parallel sentence pairs across Sanskrit,
+  Buddhist Chinese and Tibetan, plus **Gemma-2-9B models fine-tuned for translation and
+  for embedding**, released openly: `buddhist-nlp/gemma-2-mitra-e`.
+
+### Why MITRA-E matters more to us than anything else in this file
+
+**BGE-M3 — the model this corpus embeds with — is one of their baselines.**
+
+    cross-lingual parallel retrieval, P@1·P@5·P@10
+      Sanskrit -> Chinese    MITRA-E  79·94·96     LaBSE  19·33·39
+      Sanskrit -> Tibetan    MITRA-E  93·98·98     LaBSE  54·69·74
+
+`docs/PLAN.md` § F measures cross-lingual retrieval here at **0.4%**, and proposes a
+corpus-derived term table as the fix. **Those numbers are not comparable** — theirs is
+sentence-level retrieval on their own benchmark, ours is passage retrieval over 12.5M
+segments at a top-100 cap, and quoting 79% against 0.4% would be exactly the
+apples-to-oranges error `docs/PROXIES.md` exists to record. But the direction is not in
+doubt, and it suggests **the embedder is the bottleneck, not the vocabulary** — which
+would make the term table the wrong build.
+
+**Test it, do not assume it.** The 496-case parallel probe is the instrument for that,
+and it exists now. Two things to check first: 9B parameters makes the embedding pass a
+rented-GPU job rather than an M1 one, and Gemma derivatives carry **Google's Gemma Terms,
+not a standard open licence** — which for a project that tracks a licence per source is a
+question to answer before adoption, not after.
+
+## Projects that do not exist
+
+Asked what Buddhist-canon LLM projects are out there, a general assistant produced
+**"Tripitaka AI"** and **"Dharma Nexus"** with confident feature tables, a named model
+(GPT-4), and a claimed consensus on r/theravada. Searched 2026-08-30: **no trace of
+either as a distinct project.** "Dharma Nexus" is a garbling of DharmaNexus/BuddhaNexus;
+"Tripitaka AI" appears to be `tripitaka-mcp` restated as a product.
+
+Recorded here because the failure is instructive and will recur: a plausible-sounding
+landscape is the easiest thing in this field to fabricate, and a competitive analysis
+built on one is worse than none. Every project in this file has been opened and read.
+
 ## tripitaka-mcp (`dhamma-seeker/tripitaka-mcp`)
 
 Created April 2026 · 6★ · MIT code, non-commercial data · `tripitaka-mcp.com`
@@ -101,10 +148,16 @@ not language-specific, which is precisely the mistake we are avoiding.
 
 Ranked by (differentiation × feasibility).
 
-1. **Quotation graph.** Suffix-array/n-gram matching across ~250M characters to find
-   verbatim reuse. Commentaries quote root texts constantly. Deterministic, no LLM,
-   and it yields a real citation network: *"every text that quotes this passage."*
-   Nobody has built this for the Buddhist canon at scale.
+1. ~~**Quotation graph.** … Nobody has built this for the Buddhist canon at scale.~~
+   **▸ THE CLAIM WAS FALSE, corrected 2026-08-30.** BuddhaNexus has done exactly this
+   since 2020 — intertextual matching across Pāli, Sanskrit, Tibetan and Chinese — and
+   its successor DharmaNexus is a going concern with a research group behind it. See the
+   Dharmamitra section below. The line survived here because nobody checked.
+
+   What is still worth building is **not** the graph but what hangs off it: the quotation
+   data is 141,073 free relevance judgements, and `mix pramana.recall` turns them into a
+   retrieval measurement nobody else publishes. The asset is the *evaluation* the graph
+   enables, not the graph.
 
 2. **Translator fingerprinting (異譯本).** Many works were translated into Chinese
    2–6 times — the Lotus Sūtra three times. Aligning parallel translations of the
@@ -151,11 +204,34 @@ ship, and the survey page in particular is not a search box — it counts every 
 and reports how concentrated they are, which is the question a ranked list cannot answer.
 See `docs/READER.md`.
 
-Compete on **verifiability and philological depth** instead. Provenance modeling,
-variant readings, deterministic alignment, the quotation graph, and a published eval
-harness are all things a general-purpose "Buddhist AI" project structurally
-deprioritizes — and they compound into a corpus that is more *trustworthy*, which is
-the only durable moat in a field where a confident wrong citation is worse than no
-answer.
+**And the 2026-08-30 review narrowed the differentiators to three.** URNs, an MCP server,
+verbatim quote checking, an eval regression gate and an Apache-2.0 rebuild-your-own-corpus
+posture are all things fojin ships too; text reuse at canon scale is DharmaNexus's founding
+work. What actually remains ours:
 
-The bake is the asset. Models are commodities.
+1. **Multi-axis provenance, enforced in the response shape.** fojin's README does not model
+   composition origin at all. The demonstration is 2026-08-30: 452 of 510 works in
+   T2185–T2700 were mislabelled, **Nichiren's 立正安國論 filed as sub-commentary**, and a
+   test asserted it. Depth here is not a feature list, it is the thing that makes invariant
+   #4 true rather than aspirational.
+
+2. **Verification against the corpus rather than against the session.** fojin checks a quote
+   is a substring of *what was just retrieved*. This project re-resolves the URN against a
+   content-addressed corpus, byte-compares by sha256, checks provenance, and refuses a
+   generated translation presented as source. And **`verify_report` re-executes the searches
+   a document's FIGURES rest on** — "appears 36,775 times across 1,904 works" is a claim no
+   citation guard can reach. Nothing found in this review does that.
+
+3. **The coverage doctrine.** Publishing the gap with numbers — at least 541 works missing,
+   10 of 26 collections absent, 6.1% of the parallel graph openable, a `role:` filter that
+   reads 1,515 of 17,281 works and says so on every use. A discipline, not a feature, and
+   the opposite of what a product is incentivised to do.
+
+**"The bake is the asset, models are commodities" needs qualifying.** MITRA-E is a model
+purpose-built for these four languages that beats the general-purpose embedder this corpus
+runs on, in the one place this corpus is weakest. In this field the model is not
+interchangeable, and pretending otherwise would cost the cross-lingual axis.
+
+**Interop beats rivalry.** fojin-mcp and this MCP surface can be mounted in the same client
+against different corpora. The honest pitch is not "more texts" — it is *the one that tells
+you when it is wrong*.

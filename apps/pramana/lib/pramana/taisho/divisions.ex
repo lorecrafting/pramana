@@ -72,7 +72,28 @@ defmodule Pramana.Taisho.Divisions do
     # Non-Buddhist INDIAN works in Chinese translation (Sāṃkhya, Vaiśeṣika).
     {2137, 2144, "外教部", "Non-Buddhist doctrines", "54", "indic", "treatise"},
     {2145, 2184, "目錄部", "Catalogues", "55", "chinese", "catalogue"},
-    {2185, 2700, "續經疏部", "Japanese sub-commentaries", "56-83", "japanese", "commentary"},
+    # CORRECTED 2026-08-30 FROM SAT'S OWN METADATA. This was one row —
+    # `{2185, 2700, "續經疏部", ..., "commentary"}` — collapsing three divisions into one and
+    # mislabelling **452 of the 510 works** in that range. It was assembled from two published
+    # contents listings that agreed with each other and were both wrong here; the third
+    # source is SAT's 541 IIIF manifests, each carrying its own 分類, in
+    # `raw/sat-iiif/manifests/`.
+    #
+    # The existing validation could not have caught it: `mix pramana.provenance --check`
+    # asserts that a division's number range falls inside its volume range, which a single
+    # wrong row spanning 56–83 satisfies perfectly. And none of these works is loaded, so
+    # `verify` and `integrity` were green over it — exactly as they were over the 122 works
+    # § A4 records, and for the same reason.
+    #
+    # Caught before the text arrived rather than after, which is the whole argument for
+    # fetching metadata first.
+    {2185, 2245, "續經疏部", "Sub-commentaries on sūtras", "56-61", "japanese", "subcommentary"},
+    {2246, 2295, "續律疏部・續論疏部", "Sub-commentaries on vinaya and śāstra", "62-70", "japanese",
+     "subcommentary"},
+    # 402 works, the largest division in the Taishō. The doctrinal writings of the Japanese
+    # schools — Shingon, Tendai, Nichiren, Zen — which are compositions in their own right
+    # and not commentary on anything, whatever the old row said.
+    {2296, 2700, "續諸宗部", "Writings of the Japanese schools", "70-84", "japanese", "treatise"},
     {2701, 2731, "悉曇部", "Siddhaṃ script", "84", "japanese", "treatise"},
     # Recovered at Dunhuang. Found there; composed who knows where. Left null.
     {2732, 2864, "古逸部", "Recovered lost works", "85", nil, nil},

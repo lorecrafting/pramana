@@ -212,3 +212,79 @@ requires.** They're where the leverage is. The genuinely new construction is 5, 
 and 10 — and each of those is a differentiator no competitor is positioned to copy
 quickly, because each depends on the provenance and verification substrate rather than
 on model quality.
+
+
+---
+
+## From the 2026-08-30 landscape review
+
+Everything below came from actually opening the competing projects rather than asking a
+model what exists — which mattered, because the assistant that prompted this review
+invented two of them. See `docs/COMPETITIVE.md` § "Projects that do not exist".
+
+### ★★ A shared benchmark for citation faithfulness
+
+**The field cannot compare itself.** fojin reports `served_trustworthy_rate ≈ 98%`; this
+project reports 100% over 1,891 quotation pairs and 92.3% over 1,472 gold cases. Different
+data, different definitions, each self-scored. Nobody can tell which system is more
+trustworthy, so nobody can improve against anyone.
+
+A published, versioned, **CC0** adversarial set any system could run:
+
+- quotations altered by one character
+- quotations that exist, but in a different work
+- material genuinely absent from every canon
+- provenance traps — a Japanese-composed text presented as an Indian sūtra
+- **claims whose figures require re-computation**, not quote-checking ("appears 36,775
+  times across 1,904 works")
+
+This project is unusually placed to publish it: `evals/` already carries adversarial and
+absence cases, and `docs/PROXIES.md` is a record of every cheap proxy that lied — the
+rarest artifact in this field, because nobody publishes their failed measurements.
+
+It costs nothing competitively. We would score well on it, and a field with one honest
+yardstick beats a field of self-reported percentages.
+
+### ★ Publish the provenance model as an open dataset
+
+`composition_origin`, `text_role`, the 部 division table, the DILA authority links.
+**No other project models any of it** — fojin's README does not distinguish an Indic
+translation from a Chinese composition from a Japanese one. Released CC BY-SA, it becomes
+shared vocabulary for *who composed this, where, in what genre*.
+
+### ★ Contribute the division correction upstream
+
+452 of 510 works in T2185–T2700 carried the wrong 部 here, **Nichiren's 立正安國論 among
+them**, filed as sub-commentary. Found 2026-08-30 from SAT's own IIIF metadata. That is a
+real philological correction and it belongs with SAT and CBETA, not only in this repo.
+
+### Answer receipts
+
+Every response already carries `bake_id`. Make it portable: a JSON receipt a scholar
+attaches to a paper, that anyone can replay against that exact corpus state and get the
+same answer. `verify_report`'s replay machinery is most of it.
+
+### Corpus time-travel
+
+*"As of bake X, this passage read Y."* Scholarship needs a stable reference and corpora
+move underneath it. Content-addressing makes this nearly free here and impossible for a
+hosted product that overwrites its index.
+
+### Refusal quality as the headline metric
+
+We measure it — 6 of 10 unanswerable questions caught, **0 of 46 answerable ones lost**.
+Publishing *that* rather than recall@10 would reframe what the field competes on, from
+"how much can you find" to "how reliably do you decline".
+
+### ★ The claim checker
+
+Give it a sentence — *"the Buddha said craving is the origin of suffering"* — and get every
+canonical attestation across four canons **with provenance**, plus where it is **not**
+attested. `survey_corpus` + parallels + `Coverage` composed. The absence half is the part
+no other system can express, and it is what a translator or a practitioner actually wants.
+
+### Entity graph and geo-map
+
+fojin has 110K entities, 28K relations, 22K teacher-student lineage chains on a Deck.GL
+map. We have DILA people and 59,335 places and do nothing visual with them. Not a
+differentiator — they are ahead — but the data is already here.

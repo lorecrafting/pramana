@@ -104,14 +104,17 @@ max_parallel_workers_per_gather = 4 # max_worker_processes is 8
 Then `brew services restart postgresql@18` — `shared_buffers` needs a restart, not a reload,
 so **never apply this while a bake, an eval run or a measurement is in flight.**
 
-**It CAN re-roll a seeded sample — though applying it here did not.** `random()` is volatile
-and evaluated per row, so which value a row draws depends on the order rows reach it, and a
-changed plan or parallel-worker count can therefore draw a different sample from the same
-seed. That was predicted confidently before this block was applied on 2026-08-29, and it did
-not happen: the same seed drew a byte-identical sample before and after. The fragility is
-real, the certainty was not. Re-check a seeded figure after tuning rather than assuming
-either way; `docs/PLAN.md` audit queue #9 removes the dependence entirely by ordering on a
-deterministic hash.
+**It could once have re-rolled a seeded sample; it cannot now.** `random()` is volatile and
+evaluated per row, so which value a row draws depended on the order rows reached it, and a
+changed plan could therefore draw a different sample from the same seed. Applying this block
+on 2026-08-29 did **not** move the sample — which was briefly read as evidence that the
+worry was imaginary. It was not: the tuning was simply too small a plan change. Forcing
+`enable_indexscan=off` moved it immediately, while the hash ordering that replaced it held
+identical across five planner configurations.
+
+Sampling now orders on `md5(salt || id)` — see `Pramana.Sampling` — so a seeded figure no
+longer depends on the server's configuration at all, and this section is a record of a
+tuning that was tried and withdrawn rather than a caveat you still have to reason about.
 
 ## Toolchain pinning
 

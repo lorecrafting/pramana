@@ -216,24 +216,26 @@ defmodule Pramana.Recall do
   defp sample_parallels(n, kind, seed) do
     comparison = if kind == :cross, do: "<>", else: "="
 
-    rows =
-      Sampling.seeded(seed, fn ->
-        %{rows: rows} =
-          Repo.query!(
-            """
-            SELECT p.source_urn, p.target_urn, p.target_work_id, st.source_id, tt.source_id
-            FROM text_parallels p
-              JOIN texts st ON st.work_id = p.source_work_id
-              JOIN texts tt ON tt.work_id = p.target_work_id
-            WHERE p.source_urn IS NOT NULL AND p.target_urn IS NOT NULL
-              AND st.source_id #{comparison} tt.source_id
-            ORDER BY random() LIMIT $1
-            """,
-            [n]
-          )
+    # ORDERED BY A HASH OF THE ROW, not by `random()` — see `Pramana.Sampling`. Keyed on the
+    # PRIMARY KEY, and that is not incidental: the first version used `source_urn ||
+    # target_urn`, which has **24,099 distinct values across 407,176 rows**, so 94% of the
+    # table shared a hash with something else and the within-bucket order was left to the
+    # planner — the very dependence this replaced `random()` to remove.
+    order = Sampling.order_sql(seed, "p.id::text")
 
-        rows
-      end)
+    %{rows: rows} =
+      Repo.query!(
+        """
+        SELECT p.source_urn, p.target_urn, p.target_work_id, st.source_id, tt.source_id
+        FROM text_parallels p
+          JOIN texts st ON st.work_id = p.source_work_id
+          JOIN texts tt ON tt.work_id = p.target_work_id
+        WHERE p.source_urn IS NOT NULL AND p.target_urn IS NOT NULL
+          AND st.source_id #{comparison} tt.source_id
+        ORDER BY #{order} LIMIT $1
+        """,
+        [n]
+      )
 
     Enum.map(rows, fn [source_urn, target_urn, target_work, src, tgt] ->
       %{
@@ -290,7 +292,14 @@ defmodule Pramana.Recall do
       # the honest setting: the case's own failure paths already return `:undecided`.
       timeout: :infinity
     )
-    |> Enum.with_index(1)
+    # `Stream.with_index`, NOT `Enum.with_index`. The eager one materialises the whole
+    # async_stream before the `Enum.map` below runs, so every `on_progress` call fires at
+    # once after the last case — a 500-case run printed nothing for ten minutes and then
+    # four lines whose implied elapsed times were identical (7.8x25, 3.9x50, 2.6x75 all
+    # equal 195 s, which is how it was caught). The same mistake was made and fixed in
+    # `Pramana.Evals` earlier the same day; it survived here because only the final line was
+    # ever read, and the final line looks correct either way.
+    |> Stream.with_index(1)
     |> Enum.map(fn {{:ok, result}, index} ->
       report.(%{
         phase: phase,
@@ -354,19 +363,28 @@ defmodule Pramana.Recall do
   # figure could never be compared with the one before it — the failure `docs/PROXIES.md`
   # exists to record.
   defp sample_pairs(n, seed) do
-    Sampling.seeded(seed, fn ->
-      Repo.all(
-        from q in "quotations",
-          select: %{
-            text: q.text,
-            a_work: q.a_work_id,
-            b_work: q.b_work_id,
-            length: q.length
-          },
-          order_by: fragment("random()"),
-          limit: ^n
-      )
-    end)
+    base =
+      from q in "quotations",
+        select: %{
+          text: q.text,
+          a_work: q.a_work_id,
+          b_work: q.b_work_id,
+          length: q.length
+        },
+        limit: ^n
+
+    base
+    |> seeded_order(seed)
+    |> Repo.all()
+  end
+
+  # KEYED ON THE PRIMARY KEY. `text_sha256` was tried and is not unique — 33,030 distinct
+  # values over 141,073 rows — which leaves rows tied and their order back in the planner's
+  # hands. A hash order is only as reproducible as its key is unique.
+  defp seeded_order(query, nil), do: order_by(query, fragment("random()"))
+
+  defp seeded_order(query, seed) do
+    order_by(query, [q], fragment("md5(? || ?::text)", ^Sampling.salt(seed), q.id))
   end
 
   # THE LONGEST SINGLE LINE, WITH ITS PUNCTUATION. Two mistakes were made getting here and

@@ -227,7 +227,10 @@ defmodule Pramana.CoverageTest do
       # without a catalogue of texts we do not hold.
       divisions = Coverage.taisho().missing_divisions
 
-      assert Enum.any?(divisions, &(&1.work_numbers == "T2185\u2013T2700"))
+      # FOUR divisions, not two. Until 2026-08-30 one row covered T2185–T2700 as 續經疏部,
+      # which mislabelled 452 of the 510 works in it; SAT's per-work 分類 split it.
+      assert Enum.any?(divisions, &(&1.work_numbers == "T2185\u2013T2245"))
+      assert Enum.any?(divisions, &(&1.work_numbers == "T2296\u2013T2700"))
       assert Enum.any?(divisions, &(&1.work_numbers == "T2701\u2013T2731"))
     end
 
@@ -239,10 +242,19 @@ defmodule Pramana.CoverageTest do
       # behaviour and would make a blanket assertion pass for the wrong reason.
       japanese =
         Coverage.taisho().missing_divisions
-        |> Enum.filter(&(&1.work_numbers in ["T2185\u2013T2700", "T2701\u2013T2731"]))
+        |> Enum.filter(&(&1.composition_origin == "japanese"))
 
-      assert length(japanese) == 2
+      assert length(japanese) == 4
       assert Enum.all?(japanese, &(&1.composition_origin == "japanese"))
+
+      # 547 IS A RANGE WIDTH, NOT A COUNT — and this assertion is where the project's
+      # published "547 works" figure came from. It is the sum of `last - first + 1` over
+      # divisions that tile T2185–T2731 contiguously, which assumes every number in the
+      # range is a work. **SAT publishes 541.** Six numbers in that span are not works.
+      #
+      # Left asserting 547 deliberately, because that is what this function computes and
+      # the arithmetic is correct; what was wrong was reading it as a census. `Coverage`
+      # now says "at least 541" in the caveat a reader actually sees.
       assert Enum.sum(Enum.map(japanese, & &1.work_number_count)) == 547
     end
 
@@ -255,7 +267,7 @@ defmodule Pramana.CoverageTest do
       divisions = Coverage.taisho().missing_divisions
 
       refute Enum.any?(divisions, &(&1.volumes == "1-2"))
-      assert Enum.any?(divisions, &(&1.work_numbers == "T2185\u2013T2700"))
+      assert Enum.any?(divisions, &(&1.work_numbers == "T2296\u2013T2700"))
     end
 
     # THE NARROWER TRUE STATEMENT MUST NOT REPLACE THE WIDER ONE. This test asserted the

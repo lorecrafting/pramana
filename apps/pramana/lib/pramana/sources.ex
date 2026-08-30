@@ -205,6 +205,39 @@ defmodule Pramana.Sources do
             "them and never reads them."
       }
     },
+    # THE GAP DESCRIBED, WHICH IS NOT THE GAP FILLED. Taishō 56–84 is 547 works this corpus
+    # does not hold and only SAT publishes; the request for the text was sent 2026-08-15 and
+    # is unanswered. Separately, SAT and the National Institute of Japanese Literature
+    # published the *base-text survey* for the 日本撰述部 under CC BY-SA 4.0 — which
+    # manuscript or printed edition each work was edited from, where the original is held,
+    # and sometimes a link to a scan of it.
+    #
+    # It covers **144 of the 547 works** (T2185–T2346), so it describes about a quarter of
+    # the gap and fills none of it. Registered separately from `sat` because the licence is
+    # not the same obligation: this one carries a SECOND creator, and attributing only SAT
+    # would breach it.
+    "sat-teihon" => %{
+      id: "sat-teihon",
+      # Reference data ABOUT texts, not a witness to any — the same axis `dila-authority`
+      # sits on. It describes works this corpus cannot show.
+      tradition: "reference",
+      name: "SAT 底本調査 — base-text survey of the Taishō Japanese-composed section",
+      upstream_url: "http://21dzk.l.u-tokyo.ac.jp/SAT/teihon.html",
+      repo: nil,
+      license: %{
+        spdx: "CC-BY-SA-4.0",
+        class: "cc-by-sa",
+        commercial_use: true,
+        redistributable: true,
+        derivatives: true,
+        notice:
+          "CC BY-SA 4.0. Attribution is owed to BOTH creators — SAT大蔵経テキストデータベース" <>
+            "研究会 and 国文学研究資料館 (National Institute of Japanese Literature) — per the " <>
+            "licence line carried in the file itself. Naming only SAT is a licence breach, " <>
+            "which is why this is a separate entry from `sat` rather than a second file " <>
+            "under it."
+      }
+    },
     # 84000 publishes twice over, under two licences, and the distinction is real: the
     # prose of a translation is restricted, the fact that Toh 113 is called
     # *Saddharmapuṇḍarīka* is not.

@@ -143,7 +143,7 @@ the file that owns it.
 | renting a GPU, or anything that runs off this machine | `docs/CLOUD.md` |
 | asked how this compares to another system | `docs/COMPETITIVE.md` |
 | looking for something to build, or parking an idea | `docs/IDEAS.md` — unfiltered, unlike `docs/PLAN.md` |
-| the SAT request that Phase 2 is blocked on | `docs/sat-request-email.md` — **a person must send it** |
+| the SAT request that Phase 2 is blocked on | `docs/sat-request-email.md` — **sent 2026-08-15, awaiting reply** |
 
 ## Keeping the documentation true
 

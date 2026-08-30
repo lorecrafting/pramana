@@ -22,7 +22,29 @@ because each one's tooling makes the next cheaper.
 - Overlaps CBETA on vols 1–55/85 — dedupe by work ID, keep both as separate
   witnesses rather than discarding one
 
-**⛔ BLOCKED: there is no bulk download.** Checked 2026-08-15. The data is CC BY-SA 4.0,
+**⛔ STILL BLOCKED for TEXT — but two things changed on 2026-08-30, and one of them was
+never blocked at all.**
+
+**The catalogue exists and always did.** SAT serves a browsable index at
+`/iiif/taisho/manifests/`, listing 5,750 IIIF manifests over 2,873 works — of which **541
+fall in T2185–T2731 and span exactly volumes 56–84**. One request, no permission, pinned at
+`raw/sat-iiif/manifests_index_20260830.html`. This closes task #41, which this plan recorded
+as *"no source exists"*. It also corrected a figure published here for months: **"547 works"
+was `2731 - 2185 + 1`**, the width of the number range, not a count.
+
+**Metadata is fetchable and is not text.** `mix pramana.sat.metadata` walks those 541
+manifests — title, byline, 部 division, page extent — so `Pramana.Coverage` can *name* every
+missing work rather than report a number. IIIF exists to be read by machines. Note the
+licences differ: the **text is CC BY-SA 4.0, the page images are CC BY-NC-SA 4.0**, and only
+the second is non-commercial. `Pramana.Acquire.SAT` fetches text and manifests, never images.
+
+**The base-text survey is already public.** SAT and the National Institute of Japanese
+Literature publish 底本調査 for the 日本撰述部 under CC BY-SA 4.0 — 2,749 rows covering 144
+of the 541 works, naming the manuscript each was edited from and where it is held. Pinned at
+`raw/sat-teihon/`, registered as `sat-teihon` with **dual attribution**, which is why it is a
+separate source entry rather than a file under `sat`.
+
+**None of that is the text.** Checked 2026-08-15, and again 2026-08-30. The data is CC BY-SA 4.0,
 but SAT publishes no dump, no archive and no documented API; the site directs bulk
 enquiries to `sat at l.u-tokyo.ac.jp`. Nor is there a usable mirror — the candidate
 GitHub repositories are metadata only (`daizokyo/Taisho_shinshu_daizokyo`, 103 KB), a
@@ -33,8 +55,15 @@ Scraping the reader is not an option: it is the acquisition path this project's 
 rules forbid (no pinned upstream, no `files_sha256`, nothing reproducible), quite apart
 from being rude to a university service.
 
-**Next step is an email**, asking for a bulk copy of vols 56–84 under the CC BY-SA 4.0
-terms already granted, and stating the use. Note what that ask is and is not: **the
+**The email was SENT on 2026-08-15** and is unanswered as of 2026-08-30 — though it landed
+during Obon, so that is not yet a silence worth reading into. A follow-up is drafted in
+`docs/sat-request-email.md` for mid-September; it cites SAT's own CC BY-SA 4.0 release of the
+底本調査 as precedent, and it replaces the open-ended ask with a bounded one: the reader
+returns a whole **fascicle** per request, so the material is about **4,200 requests**, a few
+hours at one every three to five seconds — not the 28,800 pages an earlier estimate assumed.
+
+The original ask was for a bulk copy of vols 56–84 under the CC BY-SA 4.0 terms already
+granted, and stating the use. Note what that ask is and is not: **the
 licence is not in question**. SAT has already released this material under CC BY-SA 4.0,
 so the request is for a *copy of openly-licensed data*, not for permission. That is a far
 easier thing to grant than an exception.

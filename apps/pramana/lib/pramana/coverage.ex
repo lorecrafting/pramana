@@ -520,7 +520,17 @@ defmodule Pramana.Coverage do
   defp japanese_caveat do
     held = japanese_works_held()
 
-    "Taishō volumes 56–84 (work numbers T2185–T2731, 547 of them) are NOT loaded. Those " <>
+    # 541, MEASURED — and the 547 this said until 2026-08-30 was never a count. It is
+    # 2731 - 2185 + 1, the width of the number range, on the assumption that every Taishō
+    # number in it is a work. SAT publishes 541 IIIF manifests in that range
+    # (`raw/sat-iiif/manifests_index_20260830.html`, one public directory listing), spanning
+    # exactly volumes 56-84. Six numbers in the range are not works.
+    #
+    # Which is the defect the comment above warns about, committed by the line below it: a
+    # caveat that overstates a gap is as wrong as one that understates it. 541 is a floor —
+    # a work without a manifest would not appear — so it is stated as "at least".
+    "Taishō volumes 56–84 (work numbers T2185–T2731, at least 541 of them) are NOT " <>
+      "loaded. Those " <>
       "volumes are the Japanese-composed sectarian corpus (Shingon, Tendai, Nichiren, " <>
       "Zen); CBETA excludes them and only SAT publishes them. " <>
       japanese_held_clause(held) <>

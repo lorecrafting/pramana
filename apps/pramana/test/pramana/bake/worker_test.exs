@@ -85,8 +85,11 @@ defmodule Pramana.Bake.WorkerTest do
     end
 
     test "applies the Taishō volume provenance rule", %{write_raw: write_raw} do
-      # T2688 is 續經疏部 (2185-2700): Japanese sub-commentary. The division table and
-      # the vols 56-84 volume rule agree here; the division is simply finer-grained.
+      # T2688 is 立正安國論, Nichiren's *Risshō Ankoku Ron* — 續諸宗部, the writings of the
+      # Japanese schools. This test asserted `text_role: "commentary"` until 2026-08-30,
+      # because one table row covered T2185–T2700 as 續經疏部 sub-commentaries. Filing the
+      # founding treatise of a school as commentary on someone else's text is the shape of
+      # error invariant #4 exists to prevent, and it sat in a passing test.
       write_raw.("T/T84/T84n2688.xml", @xml)
 
       assert {:ok, _} =
@@ -94,7 +97,7 @@ defmodule Pramana.Bake.WorkerTest do
 
       work = Repo.get!(Pramana.Corpus.Work, "T2688")
       assert work.composition_origin == "japanese"
-      assert work.text_role == "commentary"
+      assert work.text_role == "treatise"
     end
 
     test "assigns division-based provenance during the bake" do

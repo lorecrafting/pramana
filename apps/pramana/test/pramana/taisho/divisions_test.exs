@@ -65,9 +65,18 @@ defmodule Pramana.Taisho.DivisionsTest do
                Divisions.provenance_for_number(2883)
     end
 
-    test "Japanese sub-commentaries are japanese/commentary" do
-      assert %{composition_origin: "japanese", text_role: "commentary"} =
+    # CORRECTED 2026-08-30. This asserted japanese/commentary, because one table row
+    # covered T2185–T2700 as 續經疏部. T2400 is 續諸宗部 — the doctrinal writings of the
+    # Japanese schools, which are compositions and not commentary on anything. SAT's own
+    # per-work 分類 says so, over 541 manifests.
+    test "the writings of the Japanese schools are compositions, not commentary" do
+      assert %{composition_origin: "japanese", text_role: "treatise", division: "續諸宗部"} =
                Divisions.provenance_for_number(2400)
+    end
+
+    test "sub-commentaries on sūtras keep their own division and role" do
+      assert %{composition_origin: "japanese", text_role: "subcommentary", division: "續經疏部"} =
+               Divisions.provenance_for_number(2200)
     end
 
     test "non-Buddhist Indian works are indic, not chinese" do

@@ -84,7 +84,7 @@ sentence above — because a definition that quietly grows to match what got bui
 nothing. The clause table stands as the record of what the original definition asked for and
 when it was answered.
 
-**What remains and is NOT v1.** Taishō 56–84 needs an email a person must send, and the
+**What remains and is NOT v1.** Taishō 56–84 waits on a reply to the request sent 2026-08-15, and the
 `phase-2` tag is withheld until it resolves — stamping a gate green over a known gap is how
 gates stop meaning anything.
 
@@ -908,18 +908,41 @@ committed because the first line-level measurement returned `on line 0.0%`, whic
 it. That zero was itself a bug: parallels store *point* URNs and the semantic arm returns
 *chunk ranges*, compared with `==`. Rule 62, twice over, in one afternoon.
 
-Scored by char-range containment instead, the seeded run says:
+Scored by char-range containment instead, and drawn twice — the second sample is
+**independent**, because audit-queue #9 replaced `setseed` + `random()` with a hash ordering
+and the same seed therefore selects different cases:
 
     seed 0.42, sample 500, mode hybrid, limit 100    found        on line
-    control (same language)                       26/125 20.8%   11/125  8.8%
-    cross-lingual                                  2/497  0.4%    2/497  0.4%
-    cross vs same                                        1.9%             4.5%
+    A. setseed sampling
+       control (same language)                    26/125 20.8%   11/125  8.8%
+       cross-lingual                               2/497  0.4%    2/497  0.4%
+    B. hash sampling, independent draw
+       control (same language)                    36/125 28.8%    6/125  4.8%
+       cross-lingual                               3/497  0.6%    2/497  0.4%
 
-**Both cross-lingual hits are line-level** — `dhp331` at rank 13 and `dhp68` at rank 34, each
-returning the passage the curators actually pointed at. **The control is what work-level
-scoring was flattering**: 26 works found, only 11 of them on the line. So the yardstick was
-inflated 2.4× and the barrier costs ~95% of achievable recall, not the 98% published from
-work-level numbers.
+**Read the ratio, never the raw count.** Cross-lingual line-level recall is 2 cases in both
+draws; the control moved 20.8% → 28.8% between them. At these rates a 500-case sample is a
+coin, and the stable quantity is cross **relative to** same-language: 1.9% and 2.1%
+work-level.
+
+**What replicates is the mechanism, and that is the finding.** Across two independent
+samples, six hits:
+
+| | |
+|---|---|
+| **line-level, all Dhammapada verse** | `dhp331` r13 · `dhp68` r34 · `dhp206` r83 · `dhp223` r47 |
+| **work-level only, all the same formula** | `iti95` r50 · `iti45` r26 |
+
+Four of six cross-lingual successes are **short Dhammapada verses**, matched on the line the
+curators pointed at. The other two are the **same stock Itivuttaka closing formula** —
+`Ayampi attho vutto bhagavatā`, present in 114 segments across 113 texts — landing in the
+right book by way of a phrase that appears in every sutta of the collection. One sample made
+that look like an anecdote; two independent samples make it a pattern.
+
+**The control is what work-level scoring flatters**, in both draws: 26 found / 11 on line,
+then 36 found / 6 on line. So the achievable-recall yardstick was inflated two- to six-fold,
+and the barrier costs less than the 98% first published — but the honest statement is a
+range, not a figure.
 
 **The caveat that stops this becoming the next overstatement:** `dhp331` is a 138-character
 text. For a Dhammapada verse of five segments, "found the work" and "found the line" nearly
@@ -950,12 +973,16 @@ essentially nothing across scripts, so this is the semantic arm's number. It say
 about whether a corpus-derived term table would fix it — that hypothesis is unbuilt, has an
 instrument to be judged against, and **two line-level observations to build on**.
 
-**And they point somewhere specific.** Both are Dhammapada verses: short, terse, verse-form,
-dense in concrete shared vocabulary, where the Chinese 法句經 is a close near-verbatim
-rendering rather than a paraphrase. Nothing discursive crossed. So a term table should be
-tested first against verse with high concrete-noun density — the case where the two languages
-share nameable things — and its failure on prose should be expected rather than treated as a
-surprise. Two observations cannot carry more weight than that, and should not be asked to.
+**And they point somewhere specific, now on four observations rather than two.** Every
+line-level cross-lingual hit this probe has ever produced is a **Dhammapada verse**: short,
+terse, verse-form, dense in concrete shared vocabulary, where the Chinese 法句經 is a close
+near-verbatim rendering rather than a paraphrase. **Nothing discursive has ever crossed.**
+
+So a term table should be **tested first against verse with high concrete-noun density** —
+the case where the two languages share nameable things — and its failure on prose should be
+the expected result rather than a surprise. The corresponding warning: the Itivuttaka
+formula crossed twice **without carrying any meaning**, so a term table evaluated on
+work-level recall would score those as wins. Judge it on `on line`.
 
 ### F.1 The route that is closed
 
@@ -1555,13 +1582,14 @@ blast radius, not by effort.
 | 5 | **Query-embedding cache across runs** | the seed works now, so the same sample is drawn every run and its embeddings could be reused. **Deferred deliberately**: a stale cache serves wrong vectors silently, so it needs keying on model identity, and it is only worth that risk if measurement shows embedding still dominates after #6 | deferred, pending measurement |
 | 6 | **The probe was sequential against a serving built to batch** | `Nx.Serving` starts with `batch_timeout: 100` so concurrent callers share a forward pass; every caller was `Enum.map`, so a 625-case run embedded one query at a time on eight cores for an hour | ▸ done, pending verification |
 | 8 | **`mix pramana.evals` is sequential too — the gate's 27-minute step** | `Evals` iterates its 1,472 cases with `Enum.map`, so the gate's largest step embeds one query at a time on eight cores, exactly as `recall` did. **Higher stakes than #6**: evals is the ratchet against `evals/baseline.json`, so a numeric change is a false regression or a hidden one. Same equivalence bar, applied harder | ▸ **REVERTED 2026-08-29 — see § "Rejected, with evidence".** Concurrent run scores retrieval **368/446 (82.5%)** against baseline **370/446 (83.0%)**, 0 stale, 0 errors. Two cases moved. Do not ship until isolated: the candidates are (a) concurrency, (b) the Postgres tuning — **not** via parallel plans, which was checked: `EXPLAIN` gives a byte-identical plain `Index Scan` on the HNSW index at both 2 and 4 workers, with no `Gather` node. The live mechanism is `work_mem` 4 MB → 16 MB, which can change hash-versus-sort and therefore tie-breaking, (c) a baseline recorded under conditions not yet confirmed identical. A `--concurrency 1` run over the same 446 cases is the discriminator. Separately, the obvious form of the fix would have reintroduced the 4h25m loss: `score_case/2` rescues and catches, but `async_stream` reports a task that dies anyway as `{:exit, _}`, which `fn {:ok, r} -> r end` turns into a run-killing `FunctionClauseError`. Handled explicitly |
-| 9 | **`ORDER BY random()` is PLAN-dependent, so the seed is only reproducible per configuration** | `random()` is volatile and evaluated per row, so which value each row gets depends on the order rows reach it — a parallel scan or a changed plan draws a different sample from the same seed. Tuning can therefore re-roll a seeded figure — **though when the tuning in `docs/DEV_ENV.md` was applied on 2026-08-29 it did not**: the same seed drew a byte-identical sample either side of it. Predicted as a certainty, measured as a non-event; the fragility stands, the urgency does not. `ORDER BY md5(<seed> || <stable key>)` is a deterministic function of the row and is immune to plan and parallelism alike | open — worth doing, no longer coupled to the tuning |
+| 9 | **`ORDER BY random()` is PLAN-dependent, so the seed is only reproducible per configuration** | `random()` is volatile and evaluated per row, so which value each row gets depends on the order rows reach it — a parallel scan or a changed plan draws a different sample from the same seed. Tuning can therefore re-roll a seeded figure — **though when the tuning in `docs/DEV_ENV.md` was applied on 2026-08-29 it did not**: the same seed drew a byte-identical sample either side of it. Predicted as a certainty, measured as a non-event; the fragility stands, the urgency does not. `ORDER BY md5(salt || id)` is a deterministic function of the row and is immune to plan and parallelism alike | ▸ **DONE 2026-08-29, and the fragility was real.** Demonstrated across five planner configurations: the old ordering is stable under three and **changes under `enable_indexscan=off`**; the hash ordering is identical under all five. The earlier note that "the predicted re-roll did not happen" was true of that particular tuning and wrong as a general claim — the tuning was simply too small a plan change. **Keyed on the primary key**, after a first attempt keyed `source_urn ‖ target_urn`, which has 24,099 distinct values over 407,176 rows and left 94% of the table tied |
 | 10 | **`verify` loads all 17,281 bodies at once — ~548M characters** | `scope/1` is `from(t in Text, preload: [:work])` with no `select`, so every body is resident before the first check runs, on a 16 GB box. This is the **fifth** call site of the problem that the `texts.body` work fixed in four — rule 41. It also caps how far #6-style concurrency can be pushed here | ▸ **done, and the first fix was worse than the bug.** Per-text loading bounded memory and cost 17,281 round-trips, taking `--all` to 46m48s. Chunked loading (200/query, 87 queries) restored bulk reads at bounded memory, and per-source iteration did the rest |
 | 11 | **`mix pramana.verify --all` was SIGTERMed twice, and the gate depends on it** | died at 7 min and at 3.5 min with `SIGTERM received - shutting down` and no jetsam record. Per-source runs of the same work succeed easily — sc 4.9 s, cbeta 45 s — which points at `--all` holding all 17,281 bodies at once (#10) rather than at the checking itself. **Both kills were after the `shared_buffers` 128 MB → 2 GB tuning**, and there is no pre-tuning `--all` run in this session to compare, so the tuning is a suspect and not a convicted one. Every source passed at FULL coverage individually — sc 4.5 s, derge 3m52s, tengyur 1m02s, cbeta 1m14s over 10,788,972 segments — so only `--all` dies, which points at the materialised bodies rather than the checking | ▸ **FIXED and confirmed 2026-08-29** — `--all` now iterates sources internally and completes in **6m03s** over every one of 12,586,964 segments, against a ~26 min baseline and the 46m48s single-pass version. Sources come from the database, so coverage is 17,281 texts and not the 17,280 a hand-written loop checked |
 | 12 | **`mix pramana.verify` prints its coverage without a denominator** | it reports `segments checked: 2,487,559` and `verify OK`, and without `--all` that is **23% of cbeta's 10,788,972** — the default samples 1,000 segments per text and nothing in the output says so. A reader sees a green check over 4,263 texts and reasonably concludes the corpus was verified. This is rules 22, 44 and 54 — *publish the gap, not just the total* — inside the gate's own verification step, and it nearly produced a fabricated 4.5× speedup here by comparing a sampled run against a full baseline | ▸ **done and confirmed** — prints `12586964 of 12586964 (every segment)`, or `409790 of 444673 (92.2% — SAMPLED)` when it is not |
 | 13 | **Degé Kangyur's verify time is per-text body work — three wrong hypotheses first** | 1,195 texts / 461,302 segments in **3m52s**, against cbeta's 10,788,972 segments in **1m14s** — 1,988 seg/s versus 145,800. — but that framing is **wrong, and it was mine**. `started` is set *before* `editions(...)`, so the one-time volume walk is inside the measured elapsed, and `volumes_for(root, Derge)` eagerly `File.read!`s all 103 Kangyur volumes before parsing them. So the headline "73× slower per segment" divides a fixed startup cost by 1,195 texts and prints it as a per-text rate. ▸ **ANSWERED 2026-08-29, and every hypothesis along the way was wrong.** Measured: `--sample 1` checks 0.3% of the segments and still takes **3m11s of 3m52s**; the edition walk is **10.4s**; the Kangyur edition derives all 1,195 works successfully, so there is no silent fallback. The time is **per-text body work** — sha256 over each body plus the re-render comparison — across 1,195 large Tibetan texts, which *is* the byte-compare guarantee and not a defect. The four dead hypotheses, in order: missing volume walk, bad root path, fixed cost misreported as a rate (82% of it), silent fallback. **The reporting fix stands** — the walk is now timed and printed separately — but there is nothing here to optimise without weakening the check that caught the phantom lines in toh4100 and toh4150 | ▸ done |
 | 14 | **`evals/baseline.json` records no per-case detail, so a regression cannot be localised** | keys are `overall`, `by_type`, `by_type_tradition`, `stale`, `errors`, `total` — rates only. When the concurrent run scored retrieval 368 against the baseline's 370 on 2026-08-29, **there was no way to identify which two cases moved**, and the only route to an answer was re-running the whole 446-case subset for ~20 minutes. A list of case ids and outcomes would have made it a diff. The ratchet can say *something regressed* and never *what* | open |
 | 15 | **The Tengyur's precomputed volume walk fails silently, and has been failing** | `derive_edition("derge-tengyur")` returns `{:error, {:empty_volume, 1}}` in 2 ms, and `derive_edition/1` swallows it with `_ -> %{}`, so **all 3,380 Tengyur texts take the per-work fallback**. That walk exists precisely because verifying work-by-work parsed 212 volumes ~16 times each and took ~90 minutes — *"97% of the whole gate"*. It is not costing that today (Tengyur verifies in 1m02s), which is why nobody noticed, but the optimisation is dead and the failure is invisible by construction. **Do not "fix" the fallback — find why `volumes_at/1` reports an empty first volume**, and make the swallow report rather than degrade silently (rule 17: anything optional degrades quietly) | open |
+| 16 | **The Taishō 部 table mislabelled 452 of 510 works in T2185–T2700** | ▸ **FIXED 2026-08-30, before the text ever arrived.** One row covered the whole range as 續經疏部 with `text_role: "commentary"`. SAT's 541 IIIF manifests each carry their own 分類, and the range is **four** divisions: 續經疏部 T2185–2245 (58), 續律疏部・續論疏部 T2246–2295 (50), **續諸宗部 T2296–2700 (402)**, 悉曇部 T2701–2731 (31). The 402 are the doctrinal writings of the Japanese schools — compositions, not commentary on anything. **T2688 is 立正安國論, Nichiren's *Risshō Ankoku Ron*, and the table filed it as a sub-commentary**; a test asserted that and passed. Nothing could have caught it: `provenance --check` validates that a number range sits inside its volume range, which one wrong row spanning 56–83 satisfies, and none of these works is loaded so `verify` and `integrity` were green over it — the § A4 pattern exactly. Five tests pinned the wrong data and were corrected with it | ▸ done |
 | 7 | **"Retrieval is deterministic" — what the evidence actually supports** | ▸ **stated properly 2026-08-29, not proven.** Two independent observations: three queries returned bit-identical result lists across separate VM invocations, and a 446-case retrieval run reproduced a previously recorded baseline's rate **exactly** (370/446). **Neither establishes per-case determinism** — equal rates are consistent with one case flipping to a hit and another to a miss, which is precisely the substitution a rate cannot see. The claim that is safe is *stable in aggregate over 446 cases and bit-identical on the three inspected*. Per-case proof needs a baseline carrying case detail, which #14 now produces going forward but which `evals/baseline.json` did not record when it was written | ▸ done — claim narrowed to its evidence |
 
 **What #6 must prove before it counts as done**, because a speedup that changes the numbers
@@ -1571,12 +1599,34 @@ at `concurrency: 1` against one at `concurrency: 6`, compared case by case — n
 
 ---
 
+## From the landscape review — 2026-08-30
+
+Four things this project should have, as distinct from the parked ideas in `docs/IDEAS.md`.
+They come from reading fojin and Dharmamitra rather than from asking a model what exists —
+which mattered, since the assistant that prompted the review invented two projects outright.
+`docs/COMPETITIVE.md` carries the corrected landscape.
+
+| # | item | why it is not optional | state |
+|---|---|---|---|
+| L1 | **Dictionaries** | **The largest functional gap in this project.** fojin ships 39 dictionaries, 747K entries — DPD, Mahāvyutpatti, Rangjung Yeshe, NTI Reader, Apte. We ship none. A scholar reading Classical Chinese without a lexicon is working one-handed, and **`define_from_canon` is not a substitute**: the canon defining 空 in its own formulae answers a different question from what 阿耨多羅三藐三菩提 transliterates. Licences vary per dictionary and must be tracked per source, exactly as text sources are | open |
+| L2 | **Evaluate MITRA-E before building § F's term table** | § F proposes a corpus-derived term table for the cross-lingual axis. **MITRA-E is a Gemma-2-9B embedding model purpose-built for Pāli, Sanskrit, Buddhist Chinese and Tibetan, and BGE-M3 — what we embed with — is one of its baselines.** If the bottleneck is the embedder rather than the vocabulary, the term table is the wrong build. The 496-case parallel probe is the instrument and it exists now. **Check two things first**: 9B makes the embedding pass a rented-GPU job, and Gemma derivatives carry Google's Gemma Terms, not a standard open licence | open — **do this before § F's term table** |
+| L3 | **Answer-time repair, and a trust vocabulary** | We diagnose citation failures in five distinct ways and **repair none of them**. fojin strips citations whose source was never retrieved, and downgrades non-verbatim "quotes" to plain prose. Diagnosis serves a caller who checks; repair serves the one who does not, and that is most of them. Adopt their four-word state vocabulary wholesale — `verified` / `citation_corrected` / `quote_relaxed` / `no_sources` | open |
+| L4 | **Cross-scheme URN resolution** | The same passage is `fojin:cbeta/T0001.1`, `pramana:cbeta.T:T0001_001@p0001a01`, `T2185_.56.0001a01` and `mn1:1.1` depending on who cites it, so **a citation cannot be checked in the system that did not produce it**. fojin exposes `resolve_urn`; we parse four native grammars already. Teaching each resolver the other's scheme is small, mutual, and makes citations portable across the field. Best effort-to-benefit ratio on the list | open |
+
+**And one correction to make first.** `docs/COMPETITIVE.md` has said *"fojin has more corpus;
+you will not out-scale it quickly there"*, and that has been shaping strategy. fojin reports
+10,500+ texts (8,900 with full content); this bake holds **17,281 texts and 12,586,964
+segments**. They count sources and volumes differently so it is not a clean comparison —
+**measure it properly rather than conceding it.**
+
+---
+
 ## Blocked
 
 | item | blocked on |
 |---|---|
-| **#14 SAT / Taishō 56–84** | An email to `sat at l.u-tokyo.ac.jp`. Draft sits unsent in `docs/sat-request-email.md`. **Needs a human.** |
-| **#41 T56–84 catalogue** | No source exists; arrives with #14 if access is granted. |
+| **#14 SAT / Taishō 56–84** | **SENT 2026-08-15** to `sat at l.u-tokyo.ac.jp` (text in `docs/sat-request-email.md`). No reply as of 2026-08-29. **Note it landed during Obon**, when Japanese universities are largely closed — 14 days is not yet a silence worth reading into. A follow-up in mid-September is the next step, not a workaround. |
+| ~~**#41 T56–84 catalogue**~~ | ▸ **UNBLOCKED 2026-08-30 — a source did exist, and always had.** SAT serves a browsable Apache index at `/iiif/taisho/manifests/`, listing 5,750 IIIF manifests over 2,873 works, of which **541 fall in T2185–T2731 and span exactly volumes 56–84**. One request, no permission, saved to `raw/sat-iiif/`. It also corrected a published figure: the "547 works" this project has been reporting is `2731 - 2185 + 1`, the width of the number range, **not a count**. |
 | **`phase-2` tag** | Withheld until #14 resolves or is formally moved. Stamping a gate green over a known gap is how gates stop meaning anything. |
 
 ---

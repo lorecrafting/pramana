@@ -481,14 +481,20 @@ defmodule Mix.Tasks.Pramana.Verify do
   # `--all` remains the honest default for a published figure; the seed makes a *sample*
   # reproducible, which is a weaker and still useful thing.
   defp load_segments(text, n, seed) do
-    Sampling.seeded(seed, fn ->
-      Repo.all(
-        from s in Segment,
-          where: s.text_id == ^text.id,
-          order_by: fragment("random()"),
-          limit: ^n
-      )
-    end)
+    base = from s in Segment, where: s.text_id == ^text.id, limit: ^n
+
+    base
+    |> seeded_order(seed)
+    |> Repo.all()
+  end
+
+  # Keyed on the primary key, for the reason `Pramana.Recall` records: a hash order is only
+  # as reproducible as its key is unique, and a non-unique key hands the tie-break back to
+  # the planner.
+  defp seeded_order(query, nil), do: order_by(query, fragment("random()"))
+
+  defp seeded_order(query, seed) do
+    order_by(query, [s], fragment("md5(? || ?::text)", ^Sampling.salt(seed), s.id))
   end
 
   defp segment_checks(text, segments) do

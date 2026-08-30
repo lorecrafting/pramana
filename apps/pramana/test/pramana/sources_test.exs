@@ -33,7 +33,13 @@ defmodule Pramana.SourcesTest do
                # all three — a translator is not Chinese material because his bylines are —
                # so grouping them under any canon would make `per_tradition` search
                # reference data as though it were scripture.
-               "reference" => ["dila-authority"]
+               #
+               # `sat-teihon` is here for the same reason and a sharper one: it is a survey
+               # of the manuscripts SAT edited the Japanese-composed section FROM, for 144
+               # of the 547 works this corpus cannot show at all. It describes texts that
+               # are absent. Filing it under "chinese" would let a per-tradition search
+               # return bibliography where a reader asked for scripture.
+               "reference" => ["dila-authority", "sat-teihon"]
              }
     end
 
