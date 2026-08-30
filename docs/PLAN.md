@@ -18,6 +18,50 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 
 ---
 
+## Start here — session of 2026-08-30 ended clean
+
+Tree clean at **6571a46**. Full gate green at 32m23s (1,472 eval cases, no case type
+regressed); everything after that passed `--quick` and touched no normalizer, no retrieval
+path and no corpus, so the corpus checks still hold.
+
+**Do these in order.**
+
+1. **§ E1 — an English layer over the Chinese canon.** Now the top priority. 4,263 CBETA
+   works have **zero** English renderings while Pāli has 5,845 and the Kangyur 472, and that
+   single fact is the whole of `topical/chinese` being 0%. Acquire (BDK English Tripiṭaka,
+   SuttaCentral's Āgama translations) or generate glossary-pinned as a layer that is never
+   citable as source. Success is measurable both ways: `topical/chinese` moves off 0%, and
+   `--renderings` scores English→Chinese near the 93.8% it already reaches for Pāli/Tibetan.
+2. **L5 — the checker screen.** `verify_report` shipped 2026-08-28 and is reachable only by
+   MCP call, which is rule 60. One textarea, one verdict list. It is the only thing in this
+   space nobody else offers.
+3. **L1 — dictionaries.** The largest functional gap. Consider mounting fojin's MCP
+   `lookup_dictionary` rather than re-deriving 39 sources; compose for breadth, own for
+   warrant.
+4. **#15 — the Tengyur's volume walk fails silently** and has for some time.
+
+**What changed today that is not obvious from the code.**
+
+- **The language barrier was never the problem.** English→Pāli/Tibetan retrieval is 93.8%;
+  cross-lingual *paraphrase* is 0.4%. § F's headline claim is withdrawn, MITRA-E is not
+  indicated, and the term table survives only as a **concept layer**, not a retrieval fix.
+- **452 of 510 works in T2185–T2700 carried the wrong 部**, Nichiren's 立正安國論 among them,
+  caught from SAT metadata before any text was fetched. Argument for metadata-before-text.
+- **`--seed` never worked** in two separate ways, both fixed and both proven.
+- **"547 works" was arithmetic, not a count.** It is at least 541.
+
+**Do not redo — all recorded with evidence in § "Rejected, with evidence".** Concurrency in
+`mix pramana.evals` (moved two cases for 1.19x). Postgres tuning (no measurable gain, prime
+suspect in swap thrashing). MITRA-E adoption (the embedder is not the bottleneck).
+
+**Parked, needing a human rather than code.** SAT phase 2 — the ~4,200-fascicle text fetch —
+is built and unstarted. `docs/SOURCES.md` forbids scraping the reader on reproducibility
+grounds, and the 2026-08-15 letter promised not to. The follow-up is drafted for mid-September
+in `docs/sat-request-email.md`. **Overruling that is a decision to record in the doc, not to
+imply in a commit.**
+
+---
+
 ## Where the product stands
 
 | | |
