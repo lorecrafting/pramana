@@ -32,6 +32,35 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 | chunks · vectors | 980,464 · **1,037,264** |
 | pipeline | **v5** · `verify --all`, `integrity` and `coherence` all green over every text |
 
+### English-first, and one canon is not reachable that way yet
+
+**The reader asks in English; the canons stay in their own languages.** Measured 2026-08-30
+by `mix pramana.recall --renderings`, over pairs that really are translations:
+
+| task | work-level | on the line |
+|---|---|---|
+| **English → Tibetan / Pāli source** | **93.8%** | 54.2% |
+| same-language discourse correspondence | 28.8% | 4.8% |
+| cross-lingual discourse correspondence | 0.6% | 0.4% |
+
+An English query reaches Tibetan and Pāli source text **469 times in 500** — better than the
+system handles *same-language* paraphrase. So the language barrier is not the problem it was
+published as, and the earlier claim that it "costs 98% of achievable recall" is withdrawn.
+
+**English reaches Chinese 0% of the time, and the reason is a missing layer rather than weak
+retrieval:**
+
+| canon | works | with an English layer |
+|---|---|---|
+| sc (Pāli) | 8,442 | 5,845 |
+| derge (Kangyur) | 1,195 | 472 |
+| **cbeta (Chinese)** | **4,263** | **0** |
+| derge-tengyur | 3,380 | 0 |
+
+The Taishō is the largest thing here — 4,263 works, 10.8M segments — and to an English reader
+it is currently unreachable except by already knowing the Chinese to search for. `docs/PLAN.md`
+§ E1.
+
 ### What it can do
 
 Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a citation

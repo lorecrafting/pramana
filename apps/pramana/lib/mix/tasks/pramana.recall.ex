@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Pramana.Recall do
       mix pramana.recall                          # 200 pairs
       mix pramana.recall --sample 2000 --seed 0.7 # reproducible
       mix pramana.recall --parallels              # the cross-lingual axis instead
+      mix pramana.recall --renderings             # ...against true translations, not correspondences
       mix pramana.recall --parallels --concurrency 1   # ...serially, to compare against
 
   See `Pramana.Recall`: 141,073 verbatim quotations are 141,073 statements that a passage
@@ -29,6 +30,7 @@ defmodule Mix.Tasks.Pramana.Recall do
     limit: :integer,
     seed: :float,
     parallels: :boolean,
+    renderings: :boolean,
     mode: :string,
     concurrency: :integer
   ]
@@ -38,7 +40,52 @@ defmodule Mix.Tasks.Pramana.Recall do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    if opts[:parallels], do: parallels(opts), else: quotations(opts)
+    cond do
+      opts[:renderings] -> renderings(opts)
+      opts[:parallels] -> parallels(opts)
+      true -> quotations(opts)
+    end
+  end
+
+  # THE EXPERIMENT THAT DECIDES WHETHER § F'S TERM TABLE IS THE RIGHT BUILD.
+  #
+  # `--parallels` measures retrieval of a discourse CORRESPONDENCE across languages and gets
+  # 0.4%. MITRA's benchmark scores BGE-M3 — this corpus's embedder — at 51% P@10 on
+  # cross-lingual retrieval. Either the task is harder than theirs, or the retrieval path is
+  # broken; the two call for opposite work and this tells them apart, by probing pairs that
+  # really are translations of one another.
+  defp renderings(opts) do
+    opts =
+      opts
+      |> Keyword.update(:mode, :hybrid, &mode/1)
+      |> Keyword.put(:serving, Serving.name())
+      |> Keyword.put(:on_progress, progress())
+
+    result = Recall.renderings(opts)
+
+    Mix.shell().info("""
+
+      mode #{result.mode}, limit #{result.limit}
+
+      renderings -> their own source line   #{show(result.renderings)}
+      by target language                    #{inspect(result.by_language)}
+
+      Compare with `--parallels`. A high number here beside a low one there means the
+      barrier is PARAPHRASE, not language, and § F's framing needs the rewrite rather than
+      its retrieval. Low in both implicates the retrieval path.
+    """)
+
+    for hit <- result.hits do
+      Mix.shell().info("""
+          hit   rank #{hit.rank}, #{on_target(hit)}  -> #{hit.to}  #{hit.target_work}
+                english  #{excerpt(hit.query)}
+                matched  #{excerpt(hit.matched_text)}
+      """)
+    end
+
+    for miss <- result.misses do
+      Mix.shell().info("    miss  -> #{miss.to}  #{miss.target_work}  #{excerpt(miss.text)}")
+    end
   end
 
   # THE AXIS THAT HAS NEVER MOVED. `topical/chinese` is 0% of twelve gold cases, and twelve

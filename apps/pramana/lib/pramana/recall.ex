@@ -171,6 +171,96 @@ defmodule Pramana.Recall do
     }
   end
 
+  @doc """
+  The same probe, pointed at pairs that really ARE translations of one another.
+
+  ## The question `parallels/1` cannot answer
+
+  `parallels/1` reports cross-lingual recall of **0.4%**. MITRA's published benchmark scores
+  BGE-M3 — the model this corpus embeds with — at **51% P@10** cross-lingually against
+  400,412 candidates. A 31x larger haystack does not explain two orders of magnitude, and the
+  two possible explanations call for opposite work:
+
+    * **the task** — a SuttaCentral parallel records that two discourses *correspond*, not
+      that one translates the other, and retrieving a paraphrase across a language barrier is
+      far harder than retrieving a translation. Then § F's framing needs rewriting, not its
+      retrieval.
+
+    * **the vocabulary** — and § F's corpus-derived term table is right, and is also the
+      concept layer the bhūmi case needs.
+
+  This separates them. The corpus holds **241,409 human renderings** — 30,653 bo→en from
+  84000, 210,756 pli→en from SuttaCentral — each anchored to the line it renders. Those are
+  translations, not correspondences. Query with the English; ask whether the line comes back.
+
+  **English→Classical is also the shape MITRA benchmarks**, so this number is comparable in
+  kind to theirs in a way the parallel figure is not.
+
+  High here beside low there means the barrier is paraphrase, not language. Low in both
+  implicates the retrieval path, and a better embedder becomes worth its cost.
+  """
+  @spec renderings(keyword()) :: map()
+  def renderings(opts \\ []) do
+    sample = Keyword.get(opts, :sample, @default_sample)
+    limit = Keyword.get(opts, :limit, @default_limit)
+    mode = Keyword.get(opts, :mode, :hybrid)
+
+    pairs = sample_renderings(sample, Keyword.get(opts, :seed))
+    results = probe_all(pairs, {:renderings, 0, length(pairs)}, limit, mode, opts)
+
+    %{
+      mode: mode,
+      limit: limit,
+      renderings: score(results),
+      by_language: Enum.frequencies_by(Enum.filter(results, &(&1.outcome == :found)), & &1.to),
+      hits: results |> Enum.filter(&(&1.outcome == :found)) |> Enum.take(6),
+      misses: results |> Enum.filter(&(&1.outcome == :miss)) |> Enum.take(6)
+    }
+  end
+
+  # LONG ENOUGH TO BE A QUERY. "Lots of people are jealous of you," is a real rendering and a
+  # meaningless retrieval probe. The parallel probe queries whole passages, so this filters to
+  # renderings of comparable substance — otherwise the two numbers measure different things
+  # and the comparison they exist for is void.
+  defp sample_renderings(n, seed) do
+    order = Sampling.order_sql(seed, "t.id::text")
+
+    %{rows: rows} =
+      Repo.query!(
+        """
+        SELECT t.anchor_urn, t.text, t.work_id, split_part(t.anchor_urn, ':', 2)
+        FROM translations t
+        WHERE t.method = 'human' AND length(t.text) >= 80
+        ORDER BY #{order} LIMIT $1
+        """,
+        [n]
+      )
+
+    Enum.map(rows, fn [anchor, text, work, ns] ->
+      %{source_urn: anchor, target_urn: anchor, target_work: work, from: "en", to: ns, text: text}
+    end)
+  end
+
+  # The query is the RENDERING's own words rather than a resolved source span — that is the
+  # whole point. Everything after the search is shared with `probe_parallel/4`.
+  defp probe_rendering(pair, limit, mode, opts) do
+    case Retrieval.search(
+           pair.text,
+           Keyword.merge([mode: mode, limit: limit], search_opts(opts))
+         ) do
+      {:ok, %{results: results}} ->
+        results = Enum.filter(results, & &1.span)
+
+        case Enum.find_index(results, &(&1.span.provenance.work_id == pair.target_work)) do
+          nil -> Map.put(pair, :outcome, :miss)
+          index -> Map.merge(pair, hit(pair, results, index, pair.text))
+        end
+
+      _ ->
+        Map.put(pair, :outcome, :undecided)
+    end
+  end
+
   # THE CONTROL DETECTS A BROKEN PROBE. It is not a pass mark, and the first version made it
   # one — a floor of 0.5 picked from nothing, which is the mistake `docs/PROXIES.md` exists
   # to record: **a threshold has to come from a measured distribution.**
@@ -277,12 +367,19 @@ defmodule Pramana.Recall do
   # answer but a guess. `:on_progress` is called once per probe with the phase, the counts
   # and the outcome; formatting is the caller's business, so nothing here knows about a
   # shell. Absent, it costs one anonymous-function call per case.
+  # The renderings probe queries with a TRANSLATION's own words; the parallel probe resolves
+  # a source URN first. Everything after the search is shared.
+  defp probe_one(pair, :renderings, limit, mode, opts),
+    do: probe_rendering(pair, limit, mode, opts)
+
+  defp probe_one(pair, _phase, limit, mode, opts), do: probe_parallel(pair, limit, mode, opts)
+
   defp probe_all(pairs, {phase, offset, overall}, limit, mode, opts) do
     report = Keyword.get(opts, :on_progress) || fn _ -> :ok end
     total = length(pairs)
 
     pairs
-    |> Task.async_stream(&probe_parallel(&1, limit, mode, opts),
+    |> Task.async_stream(&probe_one(&1, phase, limit, mode, opts),
       max_concurrency: Keyword.get(opts, :concurrency, @concurrency),
       # ORDERED, AND NOT AS DECORATION. The sample is seeded; a seeded sample whose results
       # arrive in completion order is reproducible in name only, and `hits`/`misses` are

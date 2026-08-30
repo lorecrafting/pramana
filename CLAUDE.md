@@ -7,6 +7,18 @@ establish **warrant** for a claim about a text, not merely to retrieve one.
 Retrieval substrate for the Buddhist canons (and later, East Asian medical texts),
 built so that **any** LLM can do citation-grounded scholarship over it.
 
+**English-first, and that is a decision rather than a default.** The reader asks in English;
+the canons stay in their own languages; every answer is anchored to the original with its
+provenance. Multilingual query support is possible later and is not the target now — the
+target is an English-speaking reader who cannot search 遠行地 because they do not know that
+is what to search for.
+
+It is also what the measurements support. `mix pramana.recall --renderings` scores an English
+query reaching Tibetan and Pāli source text at **93.8%**, because 241,409 human renderings
+exist to reach them through. The same query reaches Chinese at **0%**, because **there are
+none over CBETA** — which is the whole of `topical/chinese` being 0%, and why an English
+layer over the Chinese canon is the top priority in `docs/PLAN.md` § E1.
+
 ## The one idea
 
 The corpus is **baked** into an immutable, content-addressed artifact. The LLM is a

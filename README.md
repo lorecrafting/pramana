@@ -8,6 +8,11 @@ were an Indian sūtra.
 *Pramāṇa* (प्रमाण) is Sanskrit for "valid means of knowledge": the branch of Indian
 philosophy concerned with how one knows a claim is true. That is the design brief.
 
+**It is English-first.** You ask in English. The canons stay in Pāli, Classical Chinese and
+Tibetan, and every answer comes back anchored to the original — with its provenance, and with
+a citation you can check. You do not need to know that the seventh bodhisattva ground is
+written 遠行地 in order to ask about it.
+
 New to the project? **[`docs/PRIMER.md`](docs/PRIMER.md)** explains it from the ground up —
 no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
 

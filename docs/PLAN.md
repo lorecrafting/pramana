@@ -955,12 +955,42 @@ quotation probe it is right. Against *parallels* it lets boilerplate earn credit
 rate of two in five hundred, one boilerplate match is the entire finding. The probe now
 reports `on line` beside `found`, requiring the parallel's own target line.
 
-**What survives.** The direction and the order of magnitude: cross-lingual recall is far
-below same-language recall on the identical task — fiftyfold at work level, twentyfold at
-line level. That is worth having and it is what the axis was built to show. The *precision*
-does not survive: at a 0.4% rate, 500 cases is a coin that lands on 0, 1 or 2 hits without
-meaning anything, so judge this axis by the control-relative figure and never by the raw
-count.
+**▸ AND THEN THE FRAMING ITSELF FELL — 2026-08-30. It is not the language barrier.**
+
+`mix pramana.recall --renderings` runs the identical machinery against pairs that really are
+**translations** of one another — the 241,409 human renderings, 30,653 bo→en from 84000 and
+210,756 pli→en from SuttaCentral, each anchored to the line it renders. Same seed, same
+sample size, same cap:
+
+    task                                          work-level   on line
+    cross-lingual, TRUE TRANSLATION                  93.8%      54.2%
+    same-language, discourse correspondence          28.8%       4.8%
+    cross-lingual, discourse correspondence           0.6%       0.4%
+
+**An English query reaches Tibetan and Pāli source text 469 times in 500.** BGE-M3 crosses
+the language barrier better than it handles *same-language* correspondence. So:
+
+- **"The language barrier costs 98% of achievable recall" was wrong**, and it was this
+  section's headline. Language costs almost nothing when a translation exists to anchor on.
+- **MITRA-E is not indicated.** No 9B model, no rented GPU, no 3,584-dim migration, no Gemma
+  licence question. The embedder was never the bottleneck. Audit L2 is closed by this.
+
+**The precise reading is an interaction, and it is sharper than "task, not language".** If
+language were simply free, cross-lingual correspondence would land near the same-language
+28.8% instead of 0.4%. The two compound: with an exact translation the embedding space aligns
+the languages; with a *paraphrase in another language* there is nothing tight enough, lexical
+or semantic, to bridge on.
+
+**Which cuts against the term table as a retrieval fix.** Where two discourses genuinely share
+little content, no vocabulary bridge retrieves one from the other, and a large part of that
+0.4% is probably irreducible — the probe may be asking an ill-posed question rather than
+exposing a fixable weakness. **The term table survives on entirely different grounds**: the
+concept layer of the bhūmi case above, where 不動地 = acalā = the eighth ground, which is
+term-level equivalence for lookup and expansion rather than passage retrieval.
+
+**And the real finding is elsewhere.** English reaches Pāli at 93.8% and Chinese at 0% for
+one reason that has nothing to do with retrieval: **there are 210,756 English renderings over
+the Pāli canon and zero over CBETA.** See § E1.
 
 **The control is still the finding.** Retrieving a *paraphrase* is hard even inside one
 language: a parallel records that two discourses correspond, not that they share words, so
@@ -1643,6 +1673,46 @@ blast radius, not by effort.
 is not a speedup: batching alters float accumulation, so a batched embedding need not be
 bit-identical to a solo one, and near-tie rankings would flip. The check is a same-seed run
 at `concurrency: 1` against one at `concurrency: 6`, compared case by case — not a timing.
+
+---
+
+## E1. An English layer over the Chinese canon — the top priority, 2026-08-30
+
+**This project is English-first**: the reader asks in English, the canons stay in their own
+languages, and every answer is anchored to the original. That is a positioning decision and
+it is also what the measurements support — but it has exactly one hole, and it is large.
+
+    canon                works    with an English layer
+    sc (Pāli)            8,442    5,845   69%
+    derge (Kangyur)      1,195      472   39%
+    derge-tengyur        3,380        0
+    cbeta (Chinese)      4,263        0    <-
+
+**That table is the entire explanation for `topical/chinese` being 0%.** Not a weak embedder:
+`--renderings` measures English→Tibetan and English→Pāli at **93.8%**. English reaches those
+canons because there are 241,409 human renderings to reach them *through*, and fails on
+Chinese because there are **none**. The Taishō is the largest thing this corpus holds — 4,263
+works, 10.8M segments — and to an English-speaking reader it is currently unreachable except
+by knowing the Chinese to search for.
+
+**Two routes, and `docs/TRANSLATION.md` already designs the second.**
+
+1. **Acquire what exists.** The BDK English Tripiṭaka (Bukkyō Dendō Kyōkai) has been
+   translating the Taishō for decades; SuttaCentral carries English Āgama translations
+   (Anālayo, Bingenheimer). Human-translated, citable as source, partial coverage. Licences
+   must be read per work — BDK is not open by default.
+2. **Generate the rest**, glossary-pinned, as a **layer over a source anchor that is never
+   citable as source** (invariant #8). That invariant exists so this project's own model
+   output cannot be served back as scripture, and this is the case it was written for.
+
+**This is also where the term table finally earns itself.** Glossary-pinned generation needs
+exactly the term equivalence § F could not justify on retrieval grounds — 不動地 pinned to
+*acalā* and to "Immovable Ground" — so the concept layer and the English layer are one build,
+not two.
+
+**How to know it worked:** `topical/chinese` moves off 0% for the first time, and
+`--renderings` scores English→Chinese somewhere near the 93.8% it already reaches for Pāli
+and Tibetan. Both instruments exist.
 
 ---
 
