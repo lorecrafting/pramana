@@ -898,13 +898,34 @@ What was published as one seeded measurement was three unseeded draws:
 control moved by eight points. "1.9% of achievable recall" and "the language barrier costs
 98%" were one sample read as a constant.
 
-**2. The successes are an artifact of work-level scoring, and there is no positive
-evidence.** The whole point of reading the hits was that 2 of 496 were the only observations
-of what crosses the language barrier. The one that could be inspected — run 3's single hit —
-matched `Ayampi attho vutto bhagavatā`, the stock Itivuttaka closing formula, present in
-**114 segments across 113 texts**. It landed at rank 50, and **not on the parallel line at
-all**: the Chinese query surfaced a frame phrase that appears in every sutta of the
-collection, in a work that happened to be the right one.
+**2. Work-level scoring overcredits — but the cross-lingual hits are real, and an earlier
+version of this paragraph said otherwise.** One inspected hit *was* boilerplate: run 3's
+single success matched `Ayampi attho vutto bhagavatā`, the stock Itivuttaka closing formula,
+present in **114 segments across 113 texts**, at rank 50 and not on the parallel line. From
+that one case this section concluded there was no positive evidence at all. **That was
+generalising from one case — rule 16 — and it was wrong**, and it survived long enough to be
+committed because the first line-level measurement returned `on line 0.0%`, which agreed with
+it. That zero was itself a bug: parallels store *point* URNs and the semantic arm returns
+*chunk ranges*, compared with `==`. Rule 62, twice over, in one afternoon.
+
+Scored by char-range containment instead, the seeded run says:
+
+    seed 0.42, sample 500, mode hybrid, limit 100    found        on line
+    control (same language)                       26/125 20.8%   11/125  8.8%
+    cross-lingual                                  2/497  0.4%    2/497  0.4%
+    cross vs same                                        1.9%             4.5%
+
+**Both cross-lingual hits are line-level** — `dhp331` at rank 13 and `dhp68` at rank 34, each
+returning the passage the curators actually pointed at. **The control is what work-level
+scoring was flattering**: 26 works found, only 11 of them on the line. So the yardstick was
+inflated 2.4× and the barrier costs ~95% of achievable recall, not the 98% published from
+work-level numbers.
+
+**The caveat that stops this becoming the next overstatement:** `dhp331` is a 138-character
+text. For a Dhammapada verse of five segments, "found the work" and "found the line" nearly
+coincide, so line-level scoring only discriminates on long works — which is exactly where the
+control's 15 work-only successes live. Read `on line` as the honest number for long works and
+as near-tautological for short ones.
 
 Recall here is work-level by design — `Recall`'s moduledoc argues for it, and for the
 quotation probe it is right. Against *parallels* it lets boilerplate earn credit, and at a
@@ -912,10 +933,11 @@ rate of two in five hundred, one boilerplate match is the entire finding. The pr
 reports `on line` beside `found`, requiring the parallel's own target line.
 
 **What survives.** The direction and the order of magnitude: cross-lingual recall is far
-below same-language recall on the identical task, by something like fifty-fold across all
-three draws. That is worth having and it is what the axis was built to show. The *precision*
-does not survive, and neither does any claim that something was learned about what makes a
-cross-lingual match land.
+below same-language recall on the identical task — fiftyfold at work level, twentyfold at
+line level. That is worth having and it is what the axis was built to show. The *precision*
+does not survive: at a 0.4% rate, 500 cases is a coin that lands on 0, 1 or 2 hits without
+meaning anything, so judge this axis by the control-relative figure and never by the raw
+count.
 
 **The control is still the finding.** Retrieving a *paraphrase* is hard even inside one
 language: a parallel records that two discourses correspond, not that they share words, so
@@ -926,9 +948,14 @@ a floor picked from nothing rather than from a measured distribution.
 **What it does not establish.** Hybrid fuses lexical and semantic, and lexical contributes
 essentially nothing across scripts, so this is the semantic arm's number. It says nothing
 about whether a corpus-derived term table would fix it — that hypothesis is unbuilt, has an
-instrument to be judged against, and now has **zero** supporting observations rather than
-two. **Do not start the term table on the strength of the hits.** A seeded run reporting
-line-level recall is the thing to build it on, and it is what should be read next.
+instrument to be judged against, and **two line-level observations to build on**.
+
+**And they point somewhere specific.** Both are Dhammapada verses: short, terse, verse-form,
+dense in concrete shared vocabulary, where the Chinese 法句經 is a close near-verbatim
+rendering rather than a paraphrase. Nothing discursive crossed. So a term table should be
+tested first against verse with high concrete-noun density — the case where the two languages
+share nameable things — and its failure on prose should be expected rather than treated as a
+surprise. Two observations cannot carry more weight than that, and should not be asked to.
 
 ### F.1 The route that is closed
 
@@ -1513,61 +1540,6 @@ duplication before it is worth building.
 
 ---
 
-## Resume here — session of 2026-08-29, mid-flight
-
-**Delete this section when its checklist is empty.** It exists because the work below was
-interrupted-able: an hour-long measurement was running, several source changes could not be
-compiled while it ran, and none of it would have survived a lost session.
-
-**The working tree carries changes that have NOT been verified.** They compile-checked as
-far as `mix format` and no further. Treat every one as unproven until its row is ticked:
-
-| change | file | verified? |
-|---|---|---|
-| seeded sampling pinned to one connection | `pramana/sampling.ex` (new), `recall.ex` | tests green, and see rule 67 on why they prove little |
-| hits reported with `exact_rank`, containment not URN equality | `recall.ex` | **no** — the containment fix landed after the last run |
-| `on line` beside `found` | `recall.ex`, `pramana.recall.ex` | **no** |
-| progress output, whole-run ETA | `pramana.recall.ex` | partly — the per-phase ETA bug is fixed but unrun |
-| `--parallels` concurrency, `max_concurrency: 6` | `recall.ex` | **no — and this is the one that can silently change results** |
-| `verify` concurrency, `max_concurrency: 4` | `pramana.verify.ex` | **no** |
-| `--seed` on `verify` | `pramana.verify.ex` | **no** |
-
-### The order to do it in
-
-1. `mix compile && mix test && mix credo --strict` — nothing below is meaningful until this
-   passes. Use `&&`; rule 63.
-2. **The concurrency equivalence check, and it gates everything after it.** Batching alters
-   float accumulation, so a batched embedding need not be bit-identical to a solo one and
-   near-tie rankings can flip. Run the same seed at `concurrency: 1` and at `6` and compare
-   **case by case, not by timing**. If they diverge, concurrency comes out — a speedup that
-   moves the numbers is not a speedup.
-3. Apply the Postgres tuning in `docs/DEV_ENV.md` **together with** audit-queue #9's
-   deterministic ordering, so the sample is re-rolled once rather than twice.
-4. Re-baseline the seeded figures and write them into § F.
-5. `mix pramana.gate`, then commit.
-
-### What § F still says that is wrong
-
-§ F claims the cross-lingual hits are an artifact of work-level scoring and that there are
-**zero** supporting observations. That was committed in a03785c and it is **wrong**: of the
-three hits ever inspected, `dhp331` and `dhp68` genuinely cover the parallel line (verified
-by char-range containment) and only `iti95` was boilerplate. Generalised from one case, which
-is rule 16. **Both are Dhammapada verses** — short, terse, dense in concrete shared
-vocabulary, where the Chinese 法句經 is a close rendering rather than a paraphrase. That is
-the positive evidence § F says does not exist, and it points a term table at verse first.
-
-### If the measurement's output was lost
-
-It was written to a session-local scratchpad, which a new session cannot reach. Re-run it —
-it is seeded, so it is reproducible, and it costs about an hour:
-
-```bash
-mix compile && PRAMANA_EMBEDDING=1 mix pramana.recall --parallels \
-  --sample 500 --seed 0.42 --mode hybrid
-```
-
----
-
 ## The audit queue — 2026-08-29
 
 Found by auditing outward from two defects in `mix pramana.recall`, on the principle that a
@@ -1577,14 +1549,18 @@ blast radius, not by effort.
 | # | item | why here | state |
 |---|---|---|---|
 | 1 | **§ F says the hits are an artifact — they are not** | committed wrong in a03785c. 2 of 3 inspected hits DO cover the parallel line; only `iti95` was boilerplate. Generalised from one case, which is rule 16 | ▸ in flight, lands with the seeded numbers |
-| 2 | **`Corpus.context/2` rejects range URNs, and the guard depends on it** | `resolve/1` was fixed to accept ranges because a range is a legitimate citation; `context/2` still does an exact `s.urn ==` match, so `Guard.spans_boundary?` takes its `_ -> false` branch and reports **"does not span a line boundary"** for every range citation. A multi-line quote is exactly when that diagnosis matters. Reachable from MCP `get_passage`, the reader and the guard | open |
-| 3 | **`mix pramana.verify --sample` has no `--seed`** | `ORDER BY random()` with nothing seeding it, so two runs check different segments. And **`CLAUDE.md` asserts "a measurement task takes `--seed`"**, which is false for it — fix the code or fix the claim, but they cannot both stand | open |
+| 2 | **`Corpus.context/2` rejects range URNs, and the guard depends on it** | `resolve/1` was fixed to accept ranges because a range is a legitimate citation; `context/2` still does an exact `s.urn ==` match, so `Guard.spans_boundary?` takes its `_ -> false` branch and reports **"does not span a line boundary"** for every range citation. A multi-line quote is exactly when that diagnosis matters. Reachable from MCP `get_passage`, the reader and the guard | ▸ **FIXED 2026-08-29** — two layers deep: `fetch_segment/1` rejected the range, and the window was split by `&1.urn != focus.urn`, which a range URN can never satisfy. Both now key off ordinals, which work for a point and a range alike. Three tests, and the range one fails against the old code |
+| 3 | **`mix pramana.verify --sample` has no `--seed`** | `ORDER BY random()` with nothing seeding it, so two runs check different segments. And **`CLAUDE.md` asserts "a measurement task takes `--seed`"**, which is false for it — fix the code or fix the claim, but they cannot both stand | ▸ done — `--seed` added, and `Pramana.Sampling.seeded/2` extracted so the next task cannot reimplement rule 67's bug |
 | 4 | **A live check for pool-dependent defects** | rule 67: the test suite pins one connection and structurally cannot see this class — `setseed`, `SET LOCAL`, advisory locks, temp tables, `LISTEN`. The instrument is `mix pramana.gate`, which runs against a real database | open |
 | 5 | **Query-embedding cache across runs** | the seed works now, so the same sample is drawn every run and its embeddings could be reused. **Deferred deliberately**: a stale cache serves wrong vectors silently, so it needs keying on model identity, and it is only worth that risk if measurement shows embedding still dominates after #6 | deferred, pending measurement |
 | 6 | **The probe was sequential against a serving built to batch** | `Nx.Serving` starts with `batch_timeout: 100` so concurrent callers share a forward pass; every caller was `Enum.map`, so a 625-case run embedded one query at a time on eight cores for an hour | ▸ done, pending verification |
-| 8 | **`mix pramana.evals` is sequential too — the gate's 27-minute step** | `Evals` iterates its 1,472 cases with `Enum.map`, so the gate's largest step embeds one query at a time on eight cores, exactly as `recall` did. **Higher stakes than #6**: evals is the ratchet against `evals/baseline.json`, so a numeric change is a false regression or a hidden one. Same equivalence bar, applied harder — and note § "Can these run at the same time?" forbids *external* contention, which internal concurrency is not | open, after #6 proves the bar is passable |
-| 9 | **`ORDER BY random()` is PLAN-dependent, so the seed is only reproducible per configuration** | `random()` is volatile and evaluated per row, so which value each row gets depends on the order rows reach it — a parallel scan or a changed plan draws a different sample from the same seed. **Postgres tuning therefore silently re-rolls every seeded figure.** `ORDER BY md5(<seed> || <stable key>)` is a deterministic function of the row and is immune to both. Do it **with** the tuning, so there is one re-baseline instead of two | open, pairs with the tuning |
-| 10 | **`verify` loads all 17,281 bodies at once — ~548M characters** | `scope/1` is `from(t in Text, preload: [:work])` with no `select`, so every body is resident before the first check runs, on a 16 GB box. This is the **fifth** call site of the problem that the `texts.body` work fixed in four — rule 41. It also caps how far #6-style concurrency can be pushed here, which is why `verify` is bounded at 4 rather than 8 | open |
+| 8 | **`mix pramana.evals` is sequential too — the gate's 27-minute step** | `Evals` iterates its 1,472 cases with `Enum.map`, so the gate's largest step embeds one query at a time on eight cores, exactly as `recall` did. **Higher stakes than #6**: evals is the ratchet against `evals/baseline.json`, so a numeric change is a false regression or a hidden one. Same equivalence bar, applied harder | ▸ **REVERTED 2026-08-29 — see § "Rejected, with evidence".** Concurrent run scores retrieval **368/446 (82.5%)** against baseline **370/446 (83.0%)**, 0 stale, 0 errors. Two cases moved. Do not ship until isolated: the candidates are (a) concurrency, (b) the Postgres tuning — **not** via parallel plans, which was checked: `EXPLAIN` gives a byte-identical plain `Index Scan` on the HNSW index at both 2 and 4 workers, with no `Gather` node. The live mechanism is `work_mem` 4 MB → 16 MB, which can change hash-versus-sort and therefore tie-breaking, (c) a baseline recorded under conditions not yet confirmed identical. A `--concurrency 1` run over the same 446 cases is the discriminator. Separately, the obvious form of the fix would have reintroduced the 4h25m loss: `score_case/2` rescues and catches, but `async_stream` reports a task that dies anyway as `{:exit, _}`, which `fn {:ok, r} -> r end` turns into a run-killing `FunctionClauseError`. Handled explicitly |
+| 9 | **`ORDER BY random()` is PLAN-dependent, so the seed is only reproducible per configuration** | `random()` is volatile and evaluated per row, so which value each row gets depends on the order rows reach it — a parallel scan or a changed plan draws a different sample from the same seed. Tuning can therefore re-roll a seeded figure — **though when the tuning in `docs/DEV_ENV.md` was applied on 2026-08-29 it did not**: the same seed drew a byte-identical sample either side of it. Predicted as a certainty, measured as a non-event; the fragility stands, the urgency does not. `ORDER BY md5(<seed> || <stable key>)` is a deterministic function of the row and is immune to plan and parallelism alike | open — worth doing, no longer coupled to the tuning |
+| 10 | **`verify` loads all 17,281 bodies at once — ~548M characters** | `scope/1` is `from(t in Text, preload: [:work])` with no `select`, so every body is resident before the first check runs, on a 16 GB box. This is the **fifth** call site of the problem that the `texts.body` work fixed in four — rule 41. It also caps how far #6-style concurrency can be pushed here | ▸ **done, and the first fix was worse than the bug.** Per-text loading bounded memory and cost 17,281 round-trips, taking `--all` to 46m48s. Chunked loading (200/query, 87 queries) restored bulk reads at bounded memory, and per-source iteration did the rest |
+| 11 | **`mix pramana.verify --all` was SIGTERMed twice, and the gate depends on it** | died at 7 min and at 3.5 min with `SIGTERM received - shutting down` and no jetsam record. Per-source runs of the same work succeed easily — sc 4.9 s, cbeta 45 s — which points at `--all` holding all 17,281 bodies at once (#10) rather than at the checking itself. **Both kills were after the `shared_buffers` 128 MB → 2 GB tuning**, and there is no pre-tuning `--all` run in this session to compare, so the tuning is a suspect and not a convicted one. Every source passed at FULL coverage individually — sc 4.5 s, derge 3m52s, tengyur 1m02s, cbeta 1m14s over 10,788,972 segments — so only `--all` dies, which points at the materialised bodies rather than the checking | ▸ **FIXED and confirmed 2026-08-29** — `--all` now iterates sources internally and completes in **6m03s** over every one of 12,586,964 segments, against a ~26 min baseline and the 46m48s single-pass version. Sources come from the database, so coverage is 17,281 texts and not the 17,280 a hand-written loop checked |
+| 12 | **`mix pramana.verify` prints its coverage without a denominator** | it reports `segments checked: 2,487,559` and `verify OK`, and without `--all` that is **23% of cbeta's 10,788,972** — the default samples 1,000 segments per text and nothing in the output says so. A reader sees a green check over 4,263 texts and reasonably concludes the corpus was verified. This is rules 22, 44 and 54 — *publish the gap, not just the total* — inside the gate's own verification step, and it nearly produced a fabricated 4.5× speedup here by comparing a sampled run against a full baseline | ▸ **done and confirmed** — prints `12586964 of 12586964 (every segment)`, or `409790 of 444673 (92.2% — SAMPLED)` when it is not |
+| 13 | **Degé Kangyur's verify time is probably a FIXED cost reported as a rate** | 1,195 texts / 461,302 segments in **3m52s**, against cbeta's 10,788,972 segments in **1m14s** — 1,988 seg/s versus 145,800. — but that framing is **wrong, and it was mine**. `started` is set *before* `editions(...)`, so the one-time volume walk is inside the measured elapsed, and `volumes_for(root, Derge)` eagerly `File.read!`s all 103 Kangyur volumes before parsing them. So the headline "73× slower per segment" divides a fixed startup cost by 1,195 texts and prints it as a per-text rate. **The cheap discriminator is `--source derge --sample 1`**: if it still takes ~3m50s the cost is the walk, not the checking, and the fix is the reporting plus a streaming volume read — not a per-text optimisation. Two earlier hypotheses (missing walk, bad root) were already eliminated | open — test before optimising |
+| 14 | **`evals/baseline.json` records no per-case detail, so a regression cannot be localised** | keys are `overall`, `by_type`, `by_type_tradition`, `stale`, `errors`, `total` — rates only. When the concurrent run scored retrieval 368 against the baseline's 370 on 2026-08-29, **there was no way to identify which two cases moved**, and the only route to an answer was re-running the whole 446-case subset for ~20 minutes. A list of case ids and outcomes would have made it a diff. The ratchet can say *something regressed* and never *what* | open |
 | 7 | **"Retrieval is deterministic" rests on n=3 queries** | asserted more broadly than the evidence supports. Either widen it or stop saying it | open |
 
 **What #6 must prove before it counts as done**, because a speedup that changes the numbers
@@ -1731,6 +1707,67 @@ touched nothing the retrievers do.
   there, in `docs/ELIXIR.md`, `docs/DEV_ENV.md` and STATUS's open questions.
 
 ## Rejected, with evidence — do not redo
+
+### Postgres tuning on this machine — 2026-08-29
+
+**Applied, measured, reverted the same day.** `docs/DEV_ENV.md` recorded the block and now
+records that it was withdrawn. The settings were reasonable in isolation — `shared_buffers`
+128 MB → 2 GB, `random_page_cost` 4.0 → 1.1 on an SSD, `work_mem` 4 → 16 MB,
+`maintenance_work_mem` 64 → 512 MB.
+
+**It never produced a measurable gain on any workload here.**
+
+    recall probe, concurrency 6      1.9 s/case before -> 2.1 s/case after
+    verify, per source               unchanged; the gain came from parallelism
+    evals, retrieval subset          sequential reproduced the baseline exactly either side
+
+**And it is the prime suspect in a 7x slowdown of `verify --all`.** The parts sum to 6.2
+minutes of work — cbeta 1m09s, sc 4.5s, derge 3m52s, tengyur 1m02s — while `--all` took
+**46m48s**, on a 16 GB machine whose swap file grew 2 GB → 3 GB → 4 GB over the session with
+2.9 GB in use. `--all` holds both Degé edition maps resident (4,575 works of IR) where a
+per-source run holds one; handing 2 GB to Postgres on top of that is the difference between
+fitting and paging.
+
+**Two hypotheses were eliminated before landing on memory**, and both are worth not
+repeating: the slowdown is *not* the 17,281 per-text round-trips (chunking restored bulk
+queries and `--all` stayed at 46m48s, against 46m56s), and the eval scorecard change was
+*not* caused by tuning (a sequential run after tuning reproduced the baseline exactly).
+
+**The lesson is the sizing, not the settings.** A 16 GB machine that must simultaneously hold
+a 2.2 GB embedding model, the BEAM, and a working set over a 12.5M-segment corpus does not
+have 2 GB spare for a buffer cache. If this is revisited, measure **peak RSS and swap** first
+and treat the memory budget as the constraint — not the Postgres defaults, which were
+conservative for good reason here.
+
+### Concurrency in `mix pramana.evals` — 2026-08-29
+
+**Tried, measured, reverted the same day.** The eval loop is a sequential `Enum.map` over
+1,472 cases and looked like the same defect `Pramana.Recall`'s probe had, where
+`Task.async_stream` gave **3.1x with byte-identical output**. It is not the same.
+
+    --only retrieval, 446 cases        retrieval row      wall clock
+    baseline (recorded)                370/446  83.0%     —
+    concurrency 1, after tuning        370/446  83.0%     878s
+    concurrency 6                      368/446  82.5%     737s
+
+**Two cases change answer under concurrency, and it buys 1.19x.** Sequential-after-tuning
+reproduces the baseline exactly, which exonerates the Postgres tuning and leaves concurrency
+as the cause. Embeddings are bit-identical batched or solo (max elementwise difference 0.0),
+so the mechanism is most likely tie-breaking under concurrent query execution rather than
+anything in the model — **and it was not chased further, because the trade fails on the
+numbers regardless of mechanism**: a fifth of the runtime is not worth two moved cases in the
+published ratchet.
+
+**If you retry this, the bar is the same:** same case set at `1` and at `N`, compared row by
+row, before any timing is quoted. And note what the obvious implementation would have cost —
+`score_case/2` upholds *one case may not kill the run* with `rescue` and `catch :exit`, but
+`async_stream` reports a task that dies anyway as `{:exit, _}`, and `fn {:ok, r} -> r end`
+turns that into a `FunctionClauseError` that kills the run. That is the 4h25m loss this
+module already records, reintroduced by the shape of the fix.
+
+**What survives from the attempt:** per-case detail in the scorecard (audit queue #14),
+because localising this took a 20-minute re-run that a case-level diff would have answered
+instantly.
 
 | tried | verdict |
 |---|---|

@@ -117,6 +117,18 @@ defmodule Pramana.Evals do
     total = length(cases)
     on_progress = Keyword.get(opts, :on_progress, fn _done, _total, _elapsed_ms -> :ok end)
 
+    # SEQUENTIAL, AND MEASURED THAT WAY — do not "optimise" this into async_stream.
+    #
+    # It was made concurrent on 2026-08-29 and reverted the same day. `max_concurrency: 6`
+    # scored retrieval **368/446** where sequential scores **370/446**, reproducibly, with
+    # 0 errors and 0 stale either way — so two cases changed answer under concurrency alone,
+    # the Postgres tuning having been exonerated by a sequential run that matched the
+    # baseline exactly. Embeddings are bit-identical batched or solo, so the mechanism is
+    # more likely tie-breaking under concurrent query execution than anything in the model.
+    #
+    # And it bought **1.19x** — 878s to 737s — against 3.1x on `Pramana.Recall`'s probe,
+    # which is the same shape of loop. A fifth of the time for two moved cases in the
+    # published ratchet is not a trade worth making. See `docs/PLAN.md` audit queue #8.
     results =
       cases
       |> Enum.with_index(1)

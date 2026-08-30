@@ -42,6 +42,46 @@ defmodule Pramana.CorpusContextTest do
     %{urn: "pramana:cbeta.T:T0262_001@p0001c19"}
   end
 
+  describe "context around a RANGE urn — the sibling resolve/1 got and this did not" do
+    # `resolve/1` was deliberately taught to handle ranges because a range is a legitimate
+    # citation and a passage worth quoting is usually longer than one printed line.
+    # `context/2` was not, and it failed in two layers: `fetch_segment/1` rejected the range
+    # outright, and even past that the window was split by `&1.urn != focus.urn`, which a
+    # range URN can never satisfy. Rule 41 — the fix that was not swept to its sibling.
+    test "resolves, and splits the window at the range's ends" do
+      range = "pramana:cbeta.T:T0262_001@p0001c19-p0001c20"
+
+      assert {:ok, context} = Corpus.context(range, before: 1, after: 1)
+
+      assert context.focus.urn == range
+      # One line before p0001c19 and one after p0001c20 — NOT everything-before and
+      # nothing-after, which is what an urn-equality split produces on a range.
+      assert Enum.map(context.before, & &1.urn) == ["pramana:cbeta.T:T0262_001@p0001c18"]
+      assert Enum.map(context.after, & &1.urn) == ["pramana:cbeta.T:T0262_001@p0001c21"]
+    end
+
+    test "a point urn still behaves exactly as before" do
+      assert {:ok, context} =
+               Corpus.context("pramana:cbeta.T:T0262_001@p0001c19", before: 1, after: 1)
+
+      assert Enum.map(context.before, & &1.urn) == ["pramana:cbeta.T:T0262_001@p0001c18"]
+      assert Enum.map(context.after, & &1.urn) == ["pramana:cbeta.T:T0262_001@p0001c20"]
+    end
+
+    # THE REASON THIS MATTERS, not merely that an API returned an error. `Guard` diagnoses a
+    # quotation that crosses a line boundary by asking `context/2` for the neighbours; with
+    # `:not_found` it took its `_ -> false` branch and answered "does not span a line
+    # boundary" for every ranged citation — the case where a quote most likely does.
+    test "the guard can diagnose a boundary-spanning quote cited by range" do
+      range = "pramana:cbeta.T:T0262_001@p0001c19-p0001c20"
+      assert {:ok, span} = Corpus.resolve(range)
+
+      # The whole range quoted back is verifiable, which is the baseline the guard must not
+      # get wrong before any boundary question is asked.
+      assert %{verdict: :ok} = Guard.check(range, span.content)
+    end
+  end
+
   describe "outline — surveying structure without pulling text" do
     test "captures cb:mulu entries with resolvable URNs" do
       assert {:ok, outline} = Corpus.outline("T0262")

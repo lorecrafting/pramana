@@ -38,6 +38,18 @@ defmodule Pramana.Evals.Score do
       total: length(results),
       elapsed_ms: elapsed_ms,
       by_type: by_type,
+      # PER-CASE, BECAUSE A RATE CANNOT BE LOCALISED. On 2026-08-29 a run scored retrieval
+      # 368/446 against a baseline's 370/446 and there was **no way to learn which two cases
+      # moved** — the scorecard held rates and nothing else, so the only route to an answer
+      # was re-running all 446 for twenty minutes. A ratchet that reports *something
+      # regressed* and never *what* makes every investigation cost a full run.
+      #
+      # Id and outcome tag only: the outcome payloads carry retrieved spans and would turn a
+      # scorecard into a transcript.
+      cases:
+        Enum.map(results, fn r ->
+          %{id: r.case.id, type: r.case.type, outcome: outcome_tag(r.outcome)}
+        end),
       adversarial: results |> Enum.filter(& &1.case.adversarial) |> tally(),
       by_tradition:
         results
@@ -93,6 +105,11 @@ defmodule Pramana.Evals.Score do
         |> Enum.sort()
     }
   end
+
+  # The tag, not the payload — `{:miss, %{retrieved: [...]}}` becomes `:miss`.
+  defp outcome_tag(outcome) when is_atom(outcome), do: outcome
+  defp outcome_tag(outcome) when is_tuple(outcome), do: elem(outcome, 0)
+  defp outcome_tag(_), do: :unknown
 
   defp tally(results) do
     hits = Enum.count(results, &match?({:hit, _}, &1.outcome))

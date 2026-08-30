@@ -69,13 +69,19 @@ instead if staying strictly OSS matters more than filesystem speed.
 - **Embedded/ephemeral Postgres** — not worth it; the extensions we need (pgvector,
   pg_bigm) make a managed local install simpler.
 
-## Postgres tuning — this database runs on stock defaults otherwise
+## Postgres tuning — TRIED AND REVERTED 2026-08-29, do not reapply without reading this
 
 Homebrew ships `postgresql@18` with server defaults written for a much smaller machine, and
 nothing in this repo changes them. Measured on 2026-08-29: `shared_buffers` **128 MB**,
 `random_page_cost` **4.0**, `work_mem` **4 MB**, `maintenance_work_mem` **64 MB**. The
 `random_page_cost` default assumes a spinning disk and actively steers the planner away from
 index scans on an SSD.
+
+**This block was applied on 2026-08-29 and removed the same day.** It produced no
+measurable gain on any workload here and is the prime suspect in taking `mix pramana.verify
+--all` from ~6 min of actual work to **46m48s** by pushing a 16 GB machine into swap — see
+`docs/PLAN.md` § "Rejected, with evidence". It is kept here as a record of what was tried,
+**not as a recipe**. The database is back on stock defaults.
 
 Config lives at `/opt/homebrew/var/postgresql@18/postgresql.conf`. **Append the block below
 rather than editing existing lines** — later settings win, so appending is a change you can
@@ -98,11 +104,14 @@ max_parallel_workers_per_gather = 4 # max_worker_processes is 8
 Then `brew services restart postgresql@18` — `shared_buffers` needs a restart, not a reload,
 so **never apply this while a bake, an eval run or a measurement is in flight.**
 
-**It re-rolls every seeded sample, and that is not a side effect you can skip.** `random()`
-is volatile and evaluated per row, so which value a row draws depends on the order rows reach
-it; changing the plan or the parallel-worker count draws a different sample from the same
-seed. Anything published under a seed must be re-baselined afterwards. `docs/PLAN.md` audit
-queue #9 replaces the ordering with a deterministic hash so this stops being true.
+**It CAN re-roll a seeded sample — though applying it here did not.** `random()` is volatile
+and evaluated per row, so which value a row draws depends on the order rows reach it, and a
+changed plan or parallel-worker count can therefore draw a different sample from the same
+seed. That was predicted confidently before this block was applied on 2026-08-29, and it did
+not happen: the same seed drew a byte-identical sample before and after. The fragility is
+real, the certainty was not. Re-check a seeded figure after tuning rather than assuming
+either way; `docs/PLAN.md` audit queue #9 removes the dependence entirely by ordering on a
+deterministic hash.
 
 ## Toolchain pinning
 

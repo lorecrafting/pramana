@@ -52,13 +52,23 @@ decided pairs**, which bounds where retrieval failures can live — not in exact
 `--parallels` points the same trick at SuttaCentral's 10,493 Pāli↔Chinese parallels — the
 axis `topical/chinese` has been 0% of twelve gold cases on.
 
-**Its published figure was withdrawn on 2026-08-29, the day it was published.** `--seed` did
-not work — `setseed` and the query it seeded ran on different pooled connections, so three
-runs of one "reproducible" command gave cross-lingual 0.4%, 0.4% and 0.2% against controls of
-20.8%, 26.4% and 18.4%. And the successes were work-level credit for a stock formula in 113
-texts, not a cross-lingual match. **What stands is the direction — cross-lingual recall is
-roughly fiftyfold below same-language recall on the identical task — and nothing to more
-precision than that.** Rule 67; `docs/PLAN.md` § F for both defects and what replaced them.
+**Its first published figure was withdrawn on 2026-08-29, the day it was published**, because
+`--seed` did not work: `setseed` and the query it seeded ran on different pooled connections,
+so three runs of one "reproducible" command gave cross-lingual 0.4%, 0.4% and 0.2% against
+controls of 20.8%, 26.4% and 18.4%. Rule 67. The seeded measurement that replaced it reports
+two numbers, because work-level scoring credits a hit anywhere in the right work:
+
+| | found | on the parallel line |
+|---|---|---|
+| control (same language) | 26/125 · 20.8% | **11/125 · 8.8%** |
+| cross-lingual | 2/497 · 0.4% | **2/497 · 0.4%** |
+| cross vs same | 1.9% | **4.5%** |
+
+**The barrier costs ~95% of achievable recall**, measured line to line — the 98% first
+published came from a yardstick that work-level scoring had inflated 2.4×. Both cross-lingual
+hits are genuine line-level matches, and both are Dhammapada verses. At a 0.4% rate a
+500-case sample lands on 0, 1 or 2 hits without meaning anything, so this axis is read
+control-relative and never by raw count. `docs/PLAN.md` § F.
 
 The quotation figure above is drawn by the same sampling and was equally unseeded; 100.0% is
 100% of whatever it drew, and the 1,891 is one draw's denominator.
@@ -69,6 +79,19 @@ citation in a document **and re-executes the searches its figures rest on** — 
 carry a report, and a citation guard structurally cannot reach either. A replay recorded
 against a different bake comes back `unverifiable`, never `failed`: the corpus changed, and
 saying otherwise would teach people to ignore the checker.
+
+**`mix pramana.verify --all` re-derives every one of 12,586,964 segments in 6m03s**, from
+~26 minutes, and now prints its own coverage — `12586964 of 12586964 (every segment)`, or
+`409790 of 444673 (92.2% — SAMPLED)` when it is not. It reports the denominator because for
+a long time it did not: a green `verify OK` over 4,263 texts could mean 23% of them checked.
+It works one source at a time even for `--all`, which is a measured decision and not a
+preference — see `docs/PLAN.md` audit queue #11.
+
+**A citation given as a RANGE can be diagnosed again.** `Corpus.resolve/1` has always
+accepted ranges, because a range is a legitimate citation and a quoted passage is usually
+longer than one printed line; `Corpus.context/2` did not, so `Guard.spans_boundary?` answered
+"does not span a line boundary" for every ranged citation — the case where a quote most
+likely does. Fixed 2026-08-29.
 
 **The gate has a third data check.** `mix pramana.coherence` asks whether independently
 derived facts about one work agree — `verify` proves determinism and `integrity` proves
@@ -180,6 +203,8 @@ deployed anywhere; `docs/DEPLOY.md` has the hosting arithmetic.
 | **#21 term anchors** | **952** | — | 59 of 60 three-way anchors reachable in both canons | glossary ingest 27 s / 396 files | **56,382 entries, 16,741 Skt / 25,524 Tib terms, 865 three-way; 2,756 divergent** |
 | **#19 per_tradition decided** | **995** | **68.4% @10** under per_tradition (zh 97.8 / pa 42.7 / bo 21.9) vs **73.3%** default | **100%** verify + reject + provenance | full set **3h09m**; `--only topical` 5m22s | 1,400 cases, 0 stale; **opt-in confirmed** — 22 pinpoint cases lost for 2 topical; answered-from-any-canon 72.7% → 54.5% |
 | **#10 the 41-second search** | **1042** | **retrieval@10 74.9%** (zh 97.8 / pa 54.7 / **bo 39.1**) | **100%** verify + reject + provenance | **full gate 3h08m -> 18m13s**; one search 41.1s -> 2.2s | 1,400 cases, **90.0%**, 0 stale, 0 errored; `texts.body` removed from 4 call sites |
+
+| **audit: the seed, the guard, verify** | **1438** | unchanged | **no case type regressed over 1,472** | **gate 48m40s → 32m57s; `verify --all` ~26m → 6m03s** | 12,586,964 verified, every one |
 
 The `zh 98.7` in the `#19` row above was **corrected to 97.1** on 2026-08-22. It was a
 by-tradition figure that silently included the 40 provenance cases, so its sub-rows did

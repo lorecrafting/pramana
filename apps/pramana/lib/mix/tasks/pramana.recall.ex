@@ -7,6 +7,7 @@ defmodule Mix.Tasks.Pramana.Recall do
       mix pramana.recall                          # 200 pairs
       mix pramana.recall --sample 2000 --seed 0.7 # reproducible
       mix pramana.recall --parallels              # the cross-lingual axis instead
+      mix pramana.recall --parallels --concurrency 1   # ...serially, to compare against
 
   See `Pramana.Recall`: 141,073 verbatim quotations are 141,073 statements that a passage
   occurs in two named works, and a search for that passage should surface both.
@@ -21,7 +22,16 @@ defmodule Mix.Tasks.Pramana.Recall do
   alias Pramana.Recall
   alias Pramana.Retrieval
 
-  @switches [sample: :integer, limit: :integer, seed: :float, parallels: :boolean, mode: :string]
+  # `--concurrency` exists to be able to PROVE the concurrency changed nothing: same seed at
+  # 1 and at 6, compared case by case. A speedup that moves the numbers is not a speedup.
+  @switches [
+    sample: :integer,
+    limit: :integer,
+    seed: :float,
+    parallels: :boolean,
+    mode: :string,
+    concurrency: :integer
+  ]
 
   @impl Mix.Task
   def run(argv) do

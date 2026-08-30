@@ -76,29 +76,36 @@ defmodule Pramana.Corpus do
     after_n = opts |> Keyword.get(:after, 2) |> clamp(0, 50)
 
     with {:ok, focus} <- resolve(urn_string),
-         {:ok, segment} <- fetch_segment(urn_string) do
+         {:ok, first, last} <- focus_segments(urn_string) do
       neighbours =
         Repo.all(
           from s in Segment,
             join: t in Text,
             on: t.id == s.text_id,
             where:
-              s.text_id == ^segment.text_id and
-                s.ordinal >= ^(segment.ordinal - before_n) and
-                s.ordinal <= ^(segment.ordinal + after_n),
+              s.text_id == ^first.text_id and
+                s.ordinal >= ^(first.ordinal - before_n) and
+                s.ordinal <= ^(last.ordinal + after_n),
             order_by: s.ordinal,
             preload: [text: ^Text.preload_without_body()]
         )
 
+      # SPLIT BY ORDINAL, NOT BY URN EQUALITY. A range URN equals no segment's URN, so
+      # `split_while(&1.urn != focus.urn)` consumed the whole window and returned everything
+      # as `before` with nothing after. It never got that far in practice, because
+      # `fetch_segment/1` rejected the range first and the caller received `:not_found` —
+      # including `Guard.spans_boundary?`, which then reported "does not span a line
+      # boundary" for every ranged citation, which is exactly when it matters. Ordinals work
+      # for a point and a range alike.
+      {before_segments, rest} = Enum.split_with(neighbours, &(&1.ordinal < first.ordinal))
+      after_segments = Enum.filter(rest, &(&1.ordinal > last.ordinal))
       spans = Enum.map(neighbours, &to_span/1)
-      {before, rest} = Enum.split_while(spans, &(&1.urn != focus.urn))
-      after_spans = Enum.drop(rest, 1)
 
       {:ok,
        %{
          focus: focus,
-         before: before,
-         after: after_spans,
+         before: Enum.map(before_segments, &to_span/1),
+         after: Enum.map(after_segments, &to_span/1),
          text: Enum.map_join(spans, "", & &1.content),
          urn: range_urn(spans),
          segment_count: length(spans)
@@ -264,6 +271,29 @@ defmodule Pramana.Corpus do
       meta: %{"range_of" => length(segments)},
       provenance: provenance(first)
     }
+  end
+
+  # The segments a citation is anchored at: one for a point URN, the two ends for a range.
+  # `resolve/1` has accepted ranges since a range is a legitimate citation; this is the
+  # sibling that was never swept (rule 41).
+  defp focus_segments(urn_string) do
+    case URN.parse(urn_string) do
+      {:ok, %URN{locator_end: nil}} ->
+        with {:ok, segment} <- fetch_segment(urn_string), do: {:ok, segment, segment}
+
+      {:ok, %URN{} = urn} ->
+        with {:ok, first} <- fetch_segment(endpoint(urn, urn.locator)),
+             {:ok, last} <- fetch_segment(endpoint(urn, urn.locator_end)) do
+          {:ok, first, last}
+        end
+
+      {:error, _} ->
+        {:error, :bad_urn}
+    end
+  end
+
+  defp endpoint(%URN{} = urn, locator) do
+    URN.to_string(%{urn | locator: locator, locator_end: nil, raw: nil})
   end
 
   defp fetch_segment(urn_string) do

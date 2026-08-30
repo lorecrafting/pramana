@@ -68,6 +68,15 @@ defmodule Mix.Tasks.Pramana.Verify do
   # without first making the text load streaming is how a verify run starts swapping.
   @concurrency 4
 
+  # A CHUNK AT A TIME — bounded memory AND bulk queries, which the first two versions traded
+  # against each other. Loading every body up front cost ~548M characters resident and got
+  # `--all` SIGTERMed twice; loading one body per text fixed that and replaced a single query
+  # with **17,281 primary-key round-trips**, taking `--all` from a recorded ~26 min to
+  # **46m56s**. Both were measured, which is the only reason either was known.
+  #
+  # 200 per chunk: 87 queries instead of 17,281, and at most 200 bodies resident.
+  @chunk 200
+
   @switches [sample: :integer, all: :boolean, source: :string, seed: :float]
 
   @impl Mix.Task
@@ -76,35 +85,95 @@ defmodule Mix.Tasks.Pramana.Verify do
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
     sample = if opts[:all], do: :all, else: Keyword.get(opts, :sample, 1000)
 
-    texts = Repo.all(scope(opts[:source]))
+    sources = sources_for(opts[:source])
 
-    if texts == [] do
+    started = System.monotonic_time(:millisecond)
+    results = Enum.flat_map(sources, &verify_source(&1, sample, opts[:seed]))
+    elapsed = System.monotonic_time(:millisecond) - started
+
+    if results == [] do
       Mix.raise("nothing baked yet — run `mix pramana.bake` first")
     end
 
-    started = System.monotonic_time(:millisecond)
-    edition = editions(texts)
+    failures = Enum.flat_map(results, & &1.failures)
 
-    results =
-      texts
-      |> Task.async_stream(&verify_text(&1, sample, edition, opts[:seed]),
+    report(results, failures, elapsed, opts[:source])
+  end
+
+  # ONE SOURCE AT A TIME, EVEN FOR `--all` — and this is a measurement, not a preference.
+  #
+  # Verifying every source in a single pass took **46m48s** on 2026-08-29 while the same work
+  # done per source summed to **6.2 minutes**: cbeta 1m09s, sc 4.5s, derge 3m52s, tengyur
+  # 1m02s. Forty minutes unaccounted for, and two explanations were eliminated — it is not
+  # the per-text round-trips (chunking restored bulk queries and the time did not move) and
+  # reverting the Postgres tuning did not recover it either.
+  #
+  # What per-source changes structurally is residency: `editions/1` derives the full IR of
+  # every Degé work in its edition, and a single pass holds **both** Kangyur and Tengyur maps
+  # — 4,575 works — for the whole run, where this releases each before the next source
+  # begins. The pathology is still not fully explained; this ships the path that was measured
+  # rather than the one that needs a theory.
+  #
+  # Coverage is unchanged: sources are enumerated from the DATABASE, never a list. A
+  # hand-written loop over four of them silently skipped `local-huang-nianzu-jie` and checked
+  # 17,280 of 17,281 texts.
+  defp verify_source(source, sample, seed) do
+    edition = editions([source])
+
+    from(t in ids_scope(source), select: t.id, order_by: t.id)
+    |> Repo.all()
+    |> Stream.chunk_every(@chunk)
+    |> Stream.flat_map(fn chunk ->
+      chunk
+      |> load_texts()
+      |> Task.async_stream(&verify_text(&1, sample, edition, seed),
         max_concurrency: @concurrency,
-        # ORDERED, so the failure list reads in corpus order rather than completion order.
-        # A gate whose output reshuffles between runs cannot be diffed against the last one.
         ordered: true,
         timeout: :infinity
       )
       |> Enum.map(fn {:ok, result} -> result end)
-
-    elapsed = System.monotonic_time(:millisecond) - started
-    failures = Enum.flat_map(results, & &1.failures)
-
-    report(results, failures, elapsed)
+    end)
+    |> Enum.to_list()
   end
 
+  defp sources_for(nil) do
+    Repo.all(from t in Text, select: t.source_id, distinct: true, order_by: t.source_id)
+  end
+
+  defp sources_for(source), do: [source]
+
+  # Loads one chunk's bodies in a single query. See `@chunk`.
+  defp load_texts(ids) do
+    Repo.all(from t in Text, where: t.id in ^ids, order_by: t.id, preload: [:work])
+  end
+
+  # Counted through the SAME scope the run used, so the denominator cannot drift from the
+  # numerator when `--source` narrows it.
+  defp available_segments(source) do
+    query =
+      from s in Segment,
+        join: t in Text,
+        on: t.id == s.text_id,
+        select: count(s.id)
+
+    query
+    |> then(fn q -> if source, do: where(q, [_s, t], t.source_id == ^source), else: q end)
+    |> Repo.one()
+    |> Kernel.||(0)
+  end
+
+  defp coverage(_checked, 0), do: "no segments"
+  defp coverage(checked, available) when checked >= available, do: "every segment"
+  defp coverage(checked, available), do: "#{Float.round(checked / available * 100, 1)}% — SAMPLED"
+
+  # WITHOUT THE PRELOAD, because Ecto refuses `preload` alongside a narrowed `select` —
+  # "the binding used in `from` must be selected in `select`". `scope/1` carries
+  # `preload: [:work]` for the full-row load, so the id pass needs its own query rather than
+  # a reuse of that one. Compiled clean and passed 1,435 tests before failing on the first
+  # line of the real run: nothing in the suite exercises this task's `run/1`.
   # `--source` is for iterating on one pipeline; a gate runs the whole corpus.
-  defp scope(nil), do: from(t in Text, preload: [:work])
-  defp scope(source), do: from(t in Text, where: t.source_id == ^source, preload: [:work])
+  defp ids_scope(nil), do: from(t in Text)
+  defp ids_scope(source), do: from(t in Text, where: t.source_id == ^source)
 
   # Every Degé work derived ONCE, by walking each volume a single time.
   #
@@ -118,10 +187,8 @@ defmodule Mix.Tasks.Pramana.Verify do
   # only the number of times the same bytes are parsed changes. Weakening it to compare
   # stored text against stored text would forfeit the check that caught the phantom lines
   # in toh4100 and toh4150.
-  defp editions(texts) do
-    texts
-    |> Enum.map(& &1.source_id)
-    |> Enum.uniq()
+  defp editions(source_ids) do
+    source_ids
     |> Enum.filter(&(&1 in ["derge", "derge-tengyur"]))
     |> Map.new(fn source_id -> {source_id, derive_edition(source_id)} end)
   end
@@ -435,20 +502,30 @@ defmodule Mix.Tasks.Pramana.Verify do
   defp count_check(_label, []), do: :ok
   defp count_check(label, failures), do: {label, length(failures), Enum.take(failures, 3)}
 
-  defp report(results, [], elapsed) do
-    total = Enum.sum(Enum.map(results, & &1.segment_count))
+  # PUBLISH THE GAP, NOT JUST THE TOTAL — rules 22, 44 and 54, inside the gate's own
+  # verification step. This printed `segments checked: 2,487,559` above a green `verify OK`,
+  # and without `--all` that is **23%** of cbeta's 10,788,972: the default samples 1,000
+  # segments per text and nothing in the output said so. A reader sees a check over 4,263
+  # texts and concludes the corpus was verified.
+  #
+  # It also nearly produced a fabricated 4.5x speedup on 2026-08-29, by comparing a sampled
+  # run against a full baseline — the coverage was in the numbers all along and unreadable
+  # without its denominator.
+  defp report(results, [], elapsed, source) do
+    checked = Enum.sum(Enum.map(results, & &1.segment_count))
+    available = available_segments(source)
 
     Mix.shell().info("""
 
     verify OK
       texts checked:    #{length(results)}
-      segments checked: #{total}
+      segments checked: #{checked} of #{available} (#{coverage(checked, available)})
       elapsed:          #{Pramana.Elapsed.human(elapsed)} (#{Pramana.Elapsed.rate(length(results), elapsed)} texts/s)
       body re-normalized from raw/ and byte-identical for every text
     """)
   end
 
-  defp report(_results, failures, _elapsed) do
+  defp report(_results, failures, _elapsed, _source) do
     for f <- failures, do: Mix.shell().error("  #{inspect(f)}")
 
     Mix.raise("""
