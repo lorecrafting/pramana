@@ -107,7 +107,37 @@ Postgres. Deliberately *not* a NIF: a multi-gigabyte working set does not belong
 inside the BEAM VM. It's a bake stage, invoked once per bake, so process boundaries
 cost nothing.
 
-### 3. Embeddings + Tibetan tokenization → Python sidecar (`priv/embed`)
+### 3. Model inference → Python sidecar (`priv/embed`)
+
+**Restated 2026-09-02, and the restatement is the point.** This exception was written as
+"embeddings", and E1's translation tranche needs a 9B generative model on the same rented
+GPU — which under a literal reading is a second exception being opened, and under the
+right reading is the same one.
+
+**The boundary is not "only embedding". It is INFERENCE ONLY, NO DOMAIN LOGIC.** Python
+turns tokens into tokens and knows nothing else. Everything that *decides* stays in
+Elixir: which chunks to translate, which glossary terms pin which renderings, what the
+prompt contains, how output is scored, what is stored and what may carry a URN.
+
+**Could generation be done in Elixir instead?** Not realistically today, and this is an
+ecosystem fact rather than a preference. Bumblebee loads BGE-M3 because it is an
+XLM-RoBERTa the library supports; its coverage of current Chinese-capable generative
+models lags badly, and the machinery that makes generation affordable — quantisation,
+continuous batching, paged attention — lives in vLLM and SGLang, not in Nx/EXLA. The
+MITRA int8 build is quantised with vLLM's own `llm-compressor`, which is the shape of how
+far apart the two ecosystems are on this task.
+
+**The enforcement already exists**, which is why widening the wording is safe.
+`Architecture.BoundariesTest` fails the build if `priv/embed` imports outside the tensor
+stack or learns a domain word — `urn`, `provenance`, `citation`, `witness`, `canon`,
+`bake_id`. A translation sidecar that takes text and returns text passes it untouched.
+
+**The gap in that guard, stated so it is watched.** The test would not catch Chinese *term
+mappings* hard-coded in Python — a glossary is not in its vocabulary list. If a glossary
+ever appears in the sidecar rather than being passed into it, that is the drift, and it is
+the one thing here a test does not stop.
+
+### The original exception: embeddings + Tibetan tokenization
 
 The honest one — and now measured rather than assumed. **Phase 0 spike, resolved:**
 

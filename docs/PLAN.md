@@ -2034,6 +2034,49 @@ let the Python sidecar grow": a translation sidecar is still tensor math and sti
 domain logic, so it is the same exception embedding already is, but it is an exception
 being used a second time and should be a deliberate decision rather than a drift.
 
+**THE MODEL: `buddhist-nlp/gemma-2-mitra-it` — researched 2026-09-02.**
+
+A **domain-specific** model exists for exactly this task, and it is the reason not to
+reach for a general one. Gemma 2 MITRA-MT, from the Dharmamitra project (UC Berkeley,
+Tōhoku, Tsadra): 9B parameters on a Gemma-2-9b base, continuous pretraining on a
+**4.4B-token Buddhist corpus** and then instruction fine-tuning on parallel corpora,
+built for Pāli, Sanskrit, Buddhist Chinese and Tibetan into English.
+
+Its own reported Buddhist Chinese → English figures (arXiv 2601.06400, Table 3):
+
+    model                   chrF    BLEURT   GEMBA
+    MITRA NMT ZH-EN        32.14    0.551    67.41
+    Gemma 2 MITRA-MT       36.59    0.579    82.78
+
+    prompt: `Please translate into English: <text> 🔽 Translation::`
+            line breaks become 🔽, `#` is the stop token
+    int8 build: `buddhist-nlp/gemma-2-mitra-it-int8`, quantised with vLLM's llm-compressor
+
+**Read the claim narrowly.** "State of the art for open models on Buddhist
+Chinese-to-English" is *their* claim and the paper's Chinese table compares against
+exactly one baseline — their own earlier NMT model. **There is no published head-to-head
+against GPT-4, Claude, Gemini or a strong general open model like Qwen 2.5 72B.** A
+domain model with 4.4B tokens of Buddhist text should beat a general one on classical
+register and transliterated names, and that is an expectation, not a measurement.
+
+**Note this is a different model from the one already rejected.** `docs/PLAN.md` L2
+dismissed **MITRA-E**, the *embedding* model, because the embedder was never the
+bottleneck. That has no bearing on **MITRA-MT**, the translation model, which is squarely
+on the bottleneck E1 actually has.
+
+**Licence: Gemma Terms of Use, and it must be read before the run** — the same
+Gemma-derived question L2 flagged and never had to answer. Our use is favourable
+(generated output, index tier, never redistributed; the corpus is not redistributed
+either) but "favourable" is not "checked".
+
+**The bake-off, and we already hold the answer key.** Patton's 3,354 human renderings
+cover T0099 and T0026 line by line. Generate the same passages with MITRA-MT and score
+two ways: against Patton for fidelity, and — the one that decides the index tier — with
+`mix pramana.recall --renderings` for whether the generated English *retrieves* the line
+it renders. A few hundred chunks settles the model choice before the tranche is bought,
+and a general-model arm (Qwen) belongs in the same run so the domain claim is tested
+rather than trusted.
+
 **Start at top 20 — 26,191 chunks — because it is the cheapest run that can measure the
 one unknown.** The demand-weighting premium is untested: the ablation hid vectors at
 random, and the curve says a *random* 3.6% scores around 28% at work level. If a
