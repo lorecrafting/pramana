@@ -13,6 +13,44 @@ trust labeling).
 **It is a serious project.** Treat the citation guards and the MCP server as
 validation of the approach, not as things to differentiate from.
 
+### The difference that is not a feature — audience
+
+Everything below this line compares features, and for a long time that was the whole of
+how this project understood the comparison. **The real difference is who each is for.**
+
+fojin reads as built from Chinese, for readers of Chinese: a Chinese-language interface
+and repository, 613 sources of Chinese canonical material, dictionaries serving somebody
+who is already reading 漢文 and wants a term explained. Its scale in Chinese is genuine and
+this project will not out-scale it there.
+
+**This one is built for an English-speaking reader, and that is the strategy rather than a
+translation feature.** The target is somebody who cannot search 遠行地 because they do not
+know that is the thing to search for — and every architectural decision that looks
+expensive is downstream of it:
+
+| decision | why it follows from the audience |
+|---|---|
+| 244,763 English renderings anchored to source lines | the reader reads the English and cites the source; both have to be one object |
+| the `translation` vector layer, and E1's whole budget | an English question must reach a Chinese line, which needs English *in the index* |
+| the DILA glossaries, and Karashima scoped per translator | a reader without Chinese needs the lexicon far more than one with it |
+| `/check`, the reader, `verify_report` | this audience arrives through a web page and an assistant, not through a Chinese-language corpus tool |
+| invariant #8 — a machine translation is never citable as source | **the reader will rely on the generated English anyway**, so the boundary has to be structural rather than advisory |
+
+**Two consequences that are easy to miss.**
+
+The **on-line** figure matters more here than work-level. A reader who cannot check the
+Chinese and is handed the right *work* with the wrong *line* has been given something that
+reads authoritative and points at the wrong place. Cross-canon figures in `docs/PLAN.md`
+§ E1 are quoted both ways for that reason.
+
+And **`topical/chinese` measures the wrong deliverable for this audience.** It asks whether
+a Chinese passage comes back. For a reader without Chinese the deliverable is a passage
+that comes back *and can be read* — no gold case type asserts that today, and one should.
+`docs/PLAN.md`.
+
+Interop, not rivalry: fojin-mcp and this surface mount in the same client, and a reader
+who has both is better served than one who has either.
+
 ### Where it's weak
 
 | Gap | What we do |

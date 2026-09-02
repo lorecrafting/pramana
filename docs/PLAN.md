@@ -2012,6 +2012,23 @@ for why the raw graph is 62% one repetitive sūtra quoting itself — the **top 
 66.1% of the canon's citation weight and 73,565 chunks, 10.2% of CBETA.** That is the
 curve's knee and the concentration peak landing on the same number.
 
+**Tranches, so the first cheque is small.** Cost against citation weight captured:
+
+    tranche   chunks   % of CBETA   % of citation weight
+    top  10   16,112       2.2%          26.8%
+    top  20   26,191       3.6%          37.1%
+    top  30   42,198       5.9%          44.1%
+    top  50   48,650       6.8%          53.3%
+    top 100   73,565      10.2%          66.1%
+
+**Start at top 20 — 26,191 chunks — because it is the cheapest run that can measure the
+one unknown.** The demand-weighting premium is untested: the ablation hid vectors at
+random, and the curve says a *random* 3.6% scores around 28% at work level. If a
+demand-weighted top-20 beats that materially, the premium is proven and the rest can be
+bought with confidence; if it does not, very little was spent finding out. Top 50 is the
+likely stopping point either way — 6.8% of the corpus for 53.3% of the canon's citation
+weight.
+
 **So the thing to price is ~10% coverage, demand-weighted**: ~73,000 chunks. The ablation
 says a *random* 10% takes English→Chinese from 4% to ~44.5% at work level; a
 demand-weighted 10% should beat that, by an amount nobody has measured.
@@ -2035,6 +2052,27 @@ is `--renderings --to cbeta.T` compared against its own previous run**, plus a
 tradition-scoped topical row if one is ever added. Rule 69.
 
 ---
+
+## The gold set measures the wrong deliverable for this audience — 2026-09-02
+
+`topical/chinese` asks whether **a Chinese passage comes back** for an English question.
+For the reader this project exists for — one who cannot read Chinese — that is not the
+deliverable. The deliverable is a passage that comes back, **can be read**, and can be
+checked. Nothing in `evals/gold` asserts the middle clause.
+
+The consequence is live right now: E1's first slice could raise `topical/chinese` off 0%
+by putting Chinese lines in front of a reader who cannot use them, and the row would call
+that success.
+
+**The case type to add** — call it `answerable` — asserts three things at once for one
+English question: a passage returns, it carries an English rendering, and that rendering's
+anchor is the passage. The parts all exist (`Translations.covering/2`, the guard, the
+rendering gold set); what does not exist is a case type that requires them together.
+
+**And it changes which column to read.** Work-level says the right text came back;
+`on line` says the right line did. A reader who cannot check the Chinese and is handed the
+right work with the wrong line has something that reads authoritative and points at the
+wrong place. `docs/COMPETITIVE.md`.
 
 ## Found by the architecture review — 2026-09-02
 

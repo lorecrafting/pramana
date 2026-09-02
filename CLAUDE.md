@@ -7,7 +7,13 @@ establish **warrant** for a claim about a text, not merely to retrieve one.
 Retrieval substrate for the Buddhist canons (and later, East Asian medical texts),
 built so that **any** LLM can do citation-grounded scholarship over it.
 
-**English-first, and that is a decision rather than a default.** The reader asks in English;
+**English-first for an English-speaking reader, and that is the strategy rather than a
+feature.** The nearest comparable project, fojin, reads as built from Chinese for readers
+of Chinese and is larger in Chinese; this one is for somebody who cannot search 遠行地
+because they do not know that is what to search for. `docs/COMPETITIVE.md` has the table of
+which architectural decisions follow from that, and it is most of the expensive ones.
+
+The reader asks in English;
 the canons stay in their own languages; every answer is anchored to the original with its
 provenance. Multilingual query support is possible later and is not the target now — the
 target is an English-speaking reader who cannot search 遠行地 because they do not know that
