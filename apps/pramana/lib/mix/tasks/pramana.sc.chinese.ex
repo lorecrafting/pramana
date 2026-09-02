@@ -241,7 +241,16 @@ defmodule Mix.Tasks.Pramana.Sc.Chinese do
           # English line against the Taishō page is entitled to know whether we matched
           # the Chinese or bounded it.
           "anchor_method" => Atom.to_string(anchor.method),
-          "sc_segments" => Enum.map(parts, fn {id, _} -> id end)
+          "sc_segments" => Enum.map(parts, fn {id, _} -> id end),
+          # Where this rendering falls in the SOURCE's reading order, which the anchor
+          # ordinal cannot recover. Two renderings can begin on one Taishō line — a point
+          # anchor for `sa810:8.2` and a range anchor for `sa810:8.3-8.4` both start at
+          # b06 — and assembling a chunk's English then has a tie that the ordinal cannot
+          # break. 2,080 of Patton's 3,354 renderings are in such a tie, so the majority
+          # of the English over the Chinese canon was concatenated in whatever order
+          # Postgres returned rows: scrambled to read, and a different `content_sha256`
+          # on each bake. See `Pramana.Chunk.Vectors.translation_row/5`.
+          "reading_order" => reading_order(parts)
         })
     }
   end
@@ -265,6 +274,23 @@ defmodule Mix.Tasks.Pramana.Sc.Chinese do
   defp work_id(uid) do
     prefix = uid |> String.replace(~r/\d+$/, "")
     Map.fetch!(Lzh.collections(), prefix)
+  end
+
+  # The source's own position for this rendering: the sūtra's number, then the segment's
+  # dotted path. Sūtra-first because two suttas can abut on one printed line, and
+  # `sa811:1.1` must still follow `sa810:8.2` there — comparing only the dotted path puts
+  # [1, 1] before [8, 2] and reverses them.
+  defp reading_order(parts) do
+    parts
+    |> Enum.map(fn {id, _} -> [uid_number(id) | sort_key(id)] end)
+    |> Enum.min()
+  end
+
+  defp uid_number(segment_id) do
+    case Regex.run(~r/(\d+)$/, uid_of_segment(segment_id)) do
+      [_, n] -> String.to_integer(n)
+      _ -> 0
+    end
   end
 
   defp sort_key(segment_id) do

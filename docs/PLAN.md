@@ -2104,6 +2104,45 @@ it renders. A few hundred chunks settles the model choice before the tranche is 
 and a general-model arm (Qwen) belongs in the same run so the domain claim is tested
 rather than trusted.
 
+**WHETHER MITRA IS ACTUALLY THE BEST MODEL — four arms, one GPU session, 2026-09-02.**
+
+The question is fair and the honest answer is that **nobody has published the comparison**:
+the paper's Chinese table has one baseline, their own earlier NMT model, so "state of the
+art for open models" is an expectation we are choosing to test rather than a result we can
+cite. It is cheap to test, because the arms share a session and the sample is already
+prepared — `mix pramana.translate.bakeoff` blinds them and `mix pramana.recall
+--renderings --to cbeta.T` scores them without a human.
+
+| arm | what it isolates |
+|---|---|
+| `gemma-2-mitra-it` | the candidate |
+| **`gemma-2-9b-it`, the untuned base** | **what the 4.4B-token Buddhist fine-tune actually bought** |
+| a strong general open model (Qwen 2.5 32B/72B-instruct) | whether a bigger general model beats a small domain one |
+| **Patton, anonymised** | a human ceiling, and a calibration check on the ranker |
+
+**The base-model arm is the sharpest of the four and costs the least to add**, because it
+holds architecture, size and prompt constant and varies only the domain training. If
+MITRA does not beat `gemma-2-9b-it` on our passages, the domain claim is empty *here*
+whatever it scores on the paper's test set. If it does not beat Qwen, the right model is
+Qwen. Neither outcome is a setback — both are cheaper than buying a tranche on trust.
+
+**The two verdicts are taken with different instruments, and only one needs a person.**
+
+- **Index tier — automatic, reference-free, decides the purchase.** `--renderings --to
+  cbeta.T` asks whether the generated English retrieves the line it renders. No human, no
+  reference translation, and it measures the thing E1 is actually buying. Run it per arm
+  over the same passages.
+- **Fidelity — the blinded sheet.** Patton mixed in as an anonymous candidate does double
+  duty: it bounds the arms from above, and if the ranker cannot place the human rendering
+  near the top, the ranking session is measuring fluency rather than accuracy and the
+  instrument, not the model, is what the run has learned about.
+
+**Measure the substrate before the model.** Preparing this sample is what surfaced rule 71
+— 41% of the English chunks over the Chinese canon were assembled in scrambled sentence
+order, and the E1 baseline figures below (63.0% work-level, 37.0% on the line) were taken
+against that text. A model arm scored against a corrupted reference would have attributed
+the difference to the model. Re-measure after any fix to the layer being compared.
+
 **Start at top 20 — 26,191 chunks — because it is the cheapest run that can measure the
 one unknown.** The demand-weighting premium is untested: the ablation hid vectors at
 random, and the curve says a *random* 3.6% scores around 28% at work level. If a

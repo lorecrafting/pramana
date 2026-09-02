@@ -103,7 +103,15 @@ defmodule Pramana.Retrieval.Rerank do
   end
 
   # A candidate is a CHUNK and a Pāli rendering is anchored to a SEGMENT, so the path runs
-  # chunk -> member segments -> their renderings, concatenated in reading order.
+  # chunk -> member segments -> their renderings, concatenated.
+  #
+  # NOT in reading order, which this comment claimed until 2026-09-02: `string_agg` with
+  # `DISTINCT` and no `ORDER BY` emits its input sorted by the aggregated value, so the
+  # renderings arrive **alphabetically**. That is harmless *here* and only here — the
+  # result is tokenised into a `MapSet` for overlap scoring by `score/2`, so nothing
+  # downstream can observe the order. Do not copy this query anywhere the string is read
+  # as prose: assembling a chunk's English in an order the source did not choose is rule
+  # 71, and it scrambled 41% of the English over the Chinese canon.
   #
   # `Translations.covering/2` does not serve this: it resolves the ordinal-range anchors
   # 84000 uses for Derge, and returns nothing for a segment-anchored Pāli rendering. A

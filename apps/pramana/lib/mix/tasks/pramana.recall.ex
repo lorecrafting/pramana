@@ -48,10 +48,42 @@ defmodule Mix.Tasks.Pramana.Recall do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
+    require_semantic_arm!(opts, argv)
+
     cond do
       opts[:renderings] -> renderings(opts)
       opts[:parallels] -> parallels(opts)
       true -> quotations(opts)
+    end
+  end
+
+  # A MEASUREMENT WITH ITS MAIN RETRIEVER MISSING IS NOT A LOW SCORE, IT IS NO SCORE.
+  #
+  # The serving is started only when `PRAMANA_EMBEDDING=1` or `config :pramana,
+  # :embedding_serving`, and `Pramana.Retrieval` degrades to lexical-only without it —
+  # deliberately, because a search should not crash. For a *probe* that is the wrong
+  # trade: every English query then misses, because English words are not in the Chinese
+  # or Pāli source text, and the run prints a confident **0.0%**.
+  #
+  # That is not hypothetical. `--renderings --to cbeta.T` was run this way on 2026-09-02
+  # and returned `0/200 decided 0.0%`, against a baseline of 63.0%, and it read as a
+  # catastrophic regression in the layer that had just been fixed. `Pramana.Retrieval`'s
+  # own comment records the same failure arriving through a different door. Rule 17: a
+  # dependency that degrades has to be loud somewhere, and the somewhere is here.
+  defp require_semantic_arm!(opts, argv) do
+    mode = if opts[:mode], do: mode(opts[:mode]), else: :hybrid
+
+    if mode in [:hybrid, :semantic] and not Serving.available?() do
+      Mix.raise("""
+      mode #{mode} needs the embedding serving and it is not running, so only the lexical
+      arm would answer and every cross-language case would miss. This prints 0.0%, which
+      is not a result.
+
+          PRAMANA_EMBEDDING=1 mix pramana.recall #{Enum.join(argv, " ")}
+
+      Or set `config :pramana, :embedding_serving, true`. Use `--mode phrase` (or another
+      lexical mode) if a lexical-only measurement is what you meant.
+      """)
     end
   end
 

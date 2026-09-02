@@ -16,6 +16,92 @@ noticed the heading was the problem.
 
 ---
 
+## 41% of the English over the Chinese canon was scrambled, and every count said it was fine — 2026-09-02
+
+Preparing a sample for the model bake-off, not auditing anything. Pulling coherent
+passages with Patton's English beside them produced text that did not read:
+
+    One time, the Buddha was staying at Anāthapiṇḍada’s Park in Jeta’s Grove of
+    Śrāvastī. Thus I have heard: It was then that the Bhagavān addressed the monks …
+
+**The cause is a sort on a key that is not unique.** `Pramana.Chunk.Vectors` assembled a
+chunk's English with `Enum.sort_by(& &1.first)` — the start ordinal of each rendering.
+A translator working finer than the edition's citation unit puts two renderings on one
+printed line: SuttaCentral's `sa810:8.2` anchors to Taishō `p0208b06` and `sa810:8.3` to
+`p0208b06-b07`, and both start at the same ordinal. **2,080 of Patton's 3,354 renderings
+sit in such a tie.** `Enum.sort_by/2` is stable, neither query had an `ORDER BY`, and the
+two result lists were concatenated `point ++ range` — which breaks every tie in favour of
+the point anchor whether or not it reads first.
+
+**78 of 191 chunks — 41% — held scrambled English.** The damage is worse than it sounds,
+because what gets displaced is the topic sentence:
+
+    before  Those inside the city are kept safe, and external enemies are kept at bay.
+            “Furthermore, suppose the king’s frontier city makes a path all around it
+            that’s cleared, level, and broad. Those inside the city are kept safe, …
+
+    after   “Furthermore, suppose the king’s city digs a moat, making it quite deep and
+            wide, and it’s maintained dependably. Those inside the city are kept safe,
+            and external enemies are kept at bay. This is called the second …
+
+The scrambled chunk leads with a generic consequence clause and repeats it, having lost
+the content a query would match on. That is the text that was embedded.
+
+**Nothing counted it.** The right number of renderings, the right number of chunks, full
+coverage, no error, no warning — the same signature as the two defects found the week
+before. It was found by *reading* the assembled English, which is rule 60's habit applied
+to a layer rather than to a tool.
+
+**The fix is to record what the ordinal cannot recover.** A printed line does not know
+that `8.2` precedes `8.3`; the source does. `mix pramana.sc.chinese` now writes
+`reading_order` — the sūtra's number followed by the segment's dotted path — and the
+assembly sorts on it, finishing the key with `last` and the anchor URN so a source that
+records nothing is still deterministic. Now rule 71.
+
+**It is also a reproducibility defect, not only a correctness one.** Nothing pins the
+order `Repo.all/1` returns, so a translation chunk's `content_sha256` need not survive a
+re-bake — which is `bake_id` no longer determining contents, invariant #3.
+
+**A corollary found in the same hour: `on_conflict: :nothing` means a correction cannot
+land.** `Chunk.Vectors.insert/1` deliberately refuses to rewrite a changed row, because
+that would leave a vector describing words that are no longer there. Correct — but it
+then reported **"new translation rows: 0"** for 78 chunks whose text had changed, which
+reads as "nothing to do". A write path that declines to write has to say so: the builder
+now counts stale rows and prints them, and `mix pramana.vectors --refresh` drops and
+rebuilds them. The 78 were rebuilt and re-embedded.
+
+**A third instance, swept for and found benign.** `Pramana.Retrieval.Rerank` aggregates
+the same renderings with `string_agg(DISTINCT t.text, ' ')` — no `ORDER BY`, so Postgres
+emits them *alphabetically* — under a comment claiming "concatenated in reading order".
+The score is a `MapSet` intersection, so order is unobservable and nothing is wrong with
+the reranker. The comment was wrong and is the thing someone would copy; it now says why
+the order is safe here and nowhere else.
+
+**The bearing on E1.** The baseline this slice published — 63.0% work-level and 37.0% on
+the line for `--renderings --to cbeta.T` — was measured against the scrambled text. Had a
+model arm been run first, the difference would have been attributed to the model.
+**Measure the substrate before the model**, and re-measure after any fix to the layer
+being compared.
+
+**And re-measuring it produced a fourth instance of silent degradation, this time in the
+instrument.** The first re-run returned **`0/200 decided 0.0%`** against that 63.0%
+baseline, which read as a catastrophic regression in the layer just repaired. It was
+nothing of the kind: `Pramana.Embed.Serving` starts only under `PRAMANA_EMBEDDING=1`, and
+`Pramana.Retrieval` degrades to lexical-only without it — correct for a search, which
+should not crash, and wrong for a probe, because English words do not appear in Chinese
+source text and so **every** cross-language case misses. The run printed a confident
+0.0% with no warning.
+
+`Pramana.Retrieval`'s own comment already records this failure — "the semantic arm
+silently did not run" — arriving through a different door. `mix pramana.recall` now
+refuses to start in a semantic or hybrid mode when the serving is not running, and says
+what to set. Rule 17: a dependency that degrades has to be loud *somewhere*.
+
+Two false alarms in one afternoon, in opposite directions: a real defect that every count
+called healthy, and a healthy corpus that the instrument called dead.
+
+---
+
 ## The Chinese canon gets an English layer, and it is not enough — 2026-08-31
 
 § E1's first slice. `mix pramana.sc.chinese` and `Pramana.Sc.Lzh`: **3,354 CC0 English

@@ -29,7 +29,13 @@ defmodule Mix.Tasks.Pramana.Vectors do
   alias Pramana.Corpus.Text
   alias Pramana.Repo
 
-  @switches [source: :string, translations: :boolean, lang: :string, work: :string]
+  @switches [
+    source: :string,
+    translations: :boolean,
+    lang: :string,
+    work: :string,
+    refresh: :boolean
+  ]
 
   @impl Mix.Task
   def run(argv) do
@@ -43,21 +49,31 @@ defmodule Mix.Tasks.Pramana.Vectors do
     Mix.shell().info("#{length(texts)} text(s)")
     started = System.monotonic_time(:millisecond)
 
-    {sources, translations} =
+    refresh = opts[:refresh] || false
+
+    {sources, translations, stale} =
       texts
       |> Enum.with_index(1)
-      |> Enum.reduce({0, 0}, fn {id, i}, {src, tr} ->
+      |> Enum.reduce({0, 0, 0}, fn {id, i}, {src, tr, st} ->
         {:ok, s} = Vectors.build_source(id)
 
-        {:ok, t} =
-          if opts[:translations], do: Vectors.build_translations(id, lang: lang), else: {:ok, 0}
+        {t, n} = translations_for(id, lang, refresh, opts[:translations])
 
         if rem(i, 1_000) == 0, do: Mix.shell().info("  #{i}/#{length(texts)}")
-        {src + s, tr + t}
+        {src + s, tr + t, st + n}
       end)
 
     elapsed = div(System.monotonic_time(:millisecond) - started, 1000)
-    report(sources, translations, elapsed)
+    report(sources, translations, stale, elapsed)
+  end
+
+  defp translations_for(_id, _lang, _refresh, nil), do: {0, 0}
+
+  defp translations_for(id, lang, refresh, _yes) do
+    case Vectors.build_translations(id, lang: lang, refresh: refresh) do
+      {:ok, t} -> {t, 0}
+      {:ok, t, stale} -> {t, stale}
+    end
   end
 
   defp texts(opts) do
@@ -71,7 +87,7 @@ defmodule Mix.Tasks.Pramana.Vectors do
     |> Repo.all()
   end
 
-  defp report(sources, translations, elapsed) do
+  defp report(sources, translations, stale, elapsed) do
     rows =
       Enum.map_join(Vectors.stats(), "\n", fn s ->
         "      #{String.pad_trailing("#{s.kind}/#{s.lang}", 18)} #{s.vectors} row(s), " <>
@@ -83,8 +99,23 @@ defmodule Mix.Tasks.Pramana.Vectors do
     built vector rows in #{elapsed}s
       new source rows:      #{sources}
       new translation rows: #{translations}
-
+    #{stale_line(stale)}
     #{rows}
     """)
+  end
+
+  # A row that exists and no longer matches the text it was built from. It is never
+  # rewritten in place — `Pramana.Chunk.Vectors.insert/1` says why — so the choice is to
+  # count it or to rebuild it, and counting it silently is how a corrected translation
+  # stays uncorrected in the index it feeds.
+  defp stale_line(0), do: ""
+
+  defp stale_line(n) do
+    """
+      STALE:                #{n} row(s) whose text has changed since they were built.
+                            They still hold the old words and the old vector. Rebuild
+                            them with --refresh, then re-embed.
+    """
+    |> String.trim_trailing()
   end
 end

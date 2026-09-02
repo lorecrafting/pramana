@@ -29,7 +29,7 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 | Chinese (CBETA) | 4,263 works across **16 of 26 collections** — T 2,471 · X 1,230 · J 285 · I 101 · GA 51 · N 38 · F 27 · seven alternative editions 57 · GB 2 · ZS 1 |
 | Pāli (SuttaCentral) | 8,442 works, **210,756** English renderings by 6 translators |
 | Tibetan (Degé) | 1,195 Kangyur · 3,380 Tengyur, **30,653** English renderings from 84000 |
-| English over Chinese | **3,354 renderings** by 1 translator, over **2 of 4,263** CBETA works — new 2026-08-31 |
+| English over Chinese | **3,354 renderings** by 1 translator, over **2 of 4,263** CBETA works — new 2026-08-31; chunk assembly re-ordered and 78 chunks rebuilt 2026-09-02, rule 71 |
 | English renderings, all canons | **244,763** by 8 translators |
 | glossary entries | **89,649** — 56,382 from 84000/Mahāvyutpatti plus **33,267** from DILA (Soothill-Hodous, Karashima ×3, Mahāvyutpatti), new 2026-09-02 |
 | glossary anchors | **29,890** citations resolved against the bake — 25,504 to a line held (85.3%), **4,345 attested absences**, 41 unresolved |
@@ -100,6 +100,13 @@ probe pointed at one canon at a time, with `derge.D` run as a control:
 |---|---|---|---|
 | `sc.ms` (Pāli) | **1.00 segment** | 178/200 · 89.0% | 158/200 · 79.0% |
 | `cbeta.T` (Chinese) | **2.01 segments** | 126/200 · 63.0% | 74/200 · 37.0% |
+
+**The `cbeta.T` row is not comparable to any run after 2026-09-02.** It was measured
+before rule 71, so 41% of the English chunks it searched were in scrambled sentence
+order, and before `sample_renderings/3` was keyed on the anchor rather than on `t.id` —
+a re-ingest changed every id, so the same seed no longer draws the same 200 pairs. Both
+the text and the sample moved. Treat it as superseded rather than as a baseline to
+beat.
 | `derge.D` (Tibetan) | **6.94 segments** | 199/200 · 99.5% | **17/200 · 8.5%** |
 
 **`on the line` scores whether the retrieved span CONTAINS the whole anchor, so it is

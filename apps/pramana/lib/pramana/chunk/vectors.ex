@@ -90,10 +90,16 @@ defmodule Pramana.Chunk.Vectors do
   Creates `translation` vector rows for a text: one per chunk per translator.
 
   `lang` is the translation language, not the text's.
+
+  Returns `{:ok, written}`, or `{:ok, written, stale}` when `refresh: false` left rows
+  whose text has since changed — see `insert/1` on why a changed row is never rewritten
+  in place, and `refresh: true` to drop and rebuild them.
   """
-  @spec build_translations(integer(), keyword()) :: {:ok, non_neg_integer()}
+  @spec build_translations(integer(), keyword()) ::
+          {:ok, non_neg_integer()} | {:ok, non_neg_integer(), non_neg_integer()}
   def build_translations(text_id, opts \\ []) do
     lang = Keyword.get(opts, :lang, "en")
+    refresh = Keyword.get(opts, :refresh, false)
     now = DateTime.utc_now()
 
     chunks =
@@ -105,14 +111,17 @@ defmodule Pramana.Chunk.Vectors do
 
     case chunks do
       [] -> {:ok, 0}
-      chunks -> build_translation_rows(text_id, chunks, lang, now)
+      chunks -> build_translation_rows(text_id, chunks, lang, now, refresh)
     end
   end
 
-  defp build_translation_rows(text_id, chunks, lang, now) do
+  defp build_translation_rows(text_id, chunks, lang, now, refresh) do
     by_translator =
       (point_renderings(text_id, lang) ++ range_renderings(text_id, lang))
-      |> Enum.sort_by(& &1.first)
+      # `order_key/1`, not `first`: concatenating the two lists makes every point
+      # rendering precede every range one, so a shared start ordinal was broken in favour
+      # of the point anchor whether or not it reads first.
+      |> Enum.sort_by(&order_key/1)
       |> Enum.group_by(& &1.translator_id)
 
     rows =
@@ -122,7 +131,52 @@ defmodule Pramana.Chunk.Vectors do
           row != nil,
           do: row
 
-    insert(rows)
+    case stale(rows) do
+      [] ->
+        insert(rows)
+
+      stale when refresh ->
+        drop(stale)
+        insert(rows)
+
+      stale ->
+        {:ok, written} = insert(rows)
+        {:ok, written, length(stale)}
+    end
+  end
+
+  # Rows that already exist but no longer say what they said. `insert/1` will not touch
+  # them and must not, so the only honest alternatives are to count them or to drop them
+  # and let the embedder do the work again — silence is what let a rendering-order fix
+  # over 191 chunks land in `translations` and never reach the vectors built from it.
+  defp stale(rows) do
+    ids = rows |> Enum.map(& &1.chunk_id) |> Enum.uniq()
+
+    existing =
+      from(v in ChunkVector,
+        where: v.chunk_id in ^ids,
+        select: {{v.chunk_id, v.kind, v.lang, v.translator_id}, v.content_sha256}
+      )
+      |> Repo.all()
+      |> Map.new()
+
+    Enum.filter(rows, fn row ->
+      case Map.fetch(existing, {row.chunk_id, row.kind, row.lang, row.translator_id}) do
+        {:ok, sha} -> sha != row.content_sha256
+        :error -> false
+      end
+    end)
+  end
+
+  defp drop(stale) do
+    for %{chunk_id: id, kind: kind, lang: lang, translator_id: tr} <- stale do
+      from(v in ChunkVector,
+        where:
+          v.chunk_id == ^id and v.kind == ^kind and v.lang == ^lang and
+            fragment("COALESCE(?, '') = ?", v.translator_id, ^(tr || ""))
+      )
+      |> Repo.delete_all()
+    end
   end
 
   # A rendering anchored to a single segment. One query for the whole text rather than one
@@ -137,6 +191,8 @@ defmodule Pramana.Chunk.Vectors do
         select: %{
           first: s.ordinal,
           last: s.ordinal,
+          anchor_urn: tr.anchor_urn,
+          reading_order: fragment("? -> 'reading_order'", tr.meta),
           translator_id: tr.translator_id,
           text: tr.text
         }
@@ -171,6 +227,7 @@ defmodule Pramana.Chunk.Vectors do
               anchor_urn: tr.anchor_urn,
               first: fragment("(? -> 'ordinal_start')::int", tr.meta),
               last: fragment("(? -> 'ordinal_end')::int", tr.meta),
+              reading_order: fragment("? -> 'reading_order'", tr.meta),
               translator_id: tr.translator_id,
               text: tr.text
             }
@@ -187,7 +244,7 @@ defmodule Pramana.Chunk.Vectors do
     covered =
       translations
       |> Enum.filter(&(&1.last >= chunk.first and &1.first <= chunk.last))
-      |> Enum.sort_by(& &1.first)
+      |> Enum.sort_by(&order_key/1)
 
     span = chunk.last - chunk.first + 1
     coverage = if span > 0, do: covered_ordinals(covered, chunk) / span, else: 0.0
@@ -208,6 +265,24 @@ defmodule Pramana.Chunk.Vectors do
         updated_at: now
       }
     end
+  end
+
+  # A TOTAL order over the renderings that make up one chunk's English.
+  #
+  # `first` alone is not one. A translator working at a finer grain than the edition's
+  # citation unit puts two renderings on one line — `sa810:8.2` anchored to `p0208b06`
+  # and `sa810:8.3` to `p0208b06-b07` — and 2,080 of Patton's 3,354 renderings sit in
+  # such a tie. `Enum.sort_by/2` is stable, so a tie kept whatever order `Repo.all/1`
+  # returned, and neither query orders its rows. The English of the Chinese canon was
+  # therefore assembled in an order Postgres was free to change: "One time, the Buddha
+  # was staying … Thus I have heard", and a `content_sha256` that need not survive a
+  # re-bake — which is `bake_id` no longer determining contents.
+  #
+  # `reading_order` is the source's own position, recorded at ingest because it cannot be
+  # recovered from an ordinal. A source that does not record one keeps its previous
+  # behaviour and is still deterministic, since `last` and the anchor URN finish the key.
+  defp order_key(r) do
+    {r.first, r[:reading_order] || [], r.last, r[:anchor_urn] || ""}
   end
 
   # How much of the chunk any rendering speaks for, counted over the chunk's own segments

@@ -244,7 +244,17 @@ defmodule Pramana.Recall do
   # anything. The filter changes which population is measured and is therefore always
   # reported beside the figure.
   defp sample_renderings(n, seed, to) do
-    order = Sampling.order_sql(seed, "t.id::text")
+    # KEYED ON THE ANCHOR AND TRANSLATOR, NOT ON `t.id`. A surrogate key is not stable
+    # across a re-ingest: `mix pramana.sc.chinese` rewrites its 3,354 rows with fresh ids,
+    # so the same `--seed` drew a different sample before and after, and the 63.0% figure
+    # published for `--to cbeta.T` could not be compared with its own re-run. A seed that
+    # survives the query plan (rule 67) but not an ingest is only half a seed.
+    #
+    # The pair is effectively unique — two translators legitimately render one anchor —
+    # and it does not have the collision problem that made `sample_parallels/3` key on a
+    # primary key instead: there, `source_urn || target_urn` had 24,099 distinct values
+    # over 407,176 rows. Here the anchor is what identifies the case.
+    order = Sampling.order_sql(seed, "t.anchor_urn || '|' || t.translator_id")
 
     {filter, args} =
       if to, do: {"AND split_part(t.anchor_urn, ':', 2) = $2", [to]}, else: {"", []}

@@ -208,44 +208,7 @@ defmodule Pramana.Chunk.VectorsTest do
     # `pramana:cbeta.T:T0099`. No error, no warning: 2,089 of the first 3,354 renderings
     # to arrive simply had no vector built, and the only symptom was a count.
     test "a range-anchored rendering over a CBETA text is embedded" do
-      Repo.insert!(%Source{
-        id: "cbeta",
-        name: "CBETA",
-        tradition: "chinese",
-        license_spdx: "LicenseRef-CBETA-NC",
-        license_class: "nc",
-        commercial_use: false,
-        redistributable: false
-      })
-
-      Repo.insert!(%Witness{id: "T", name: "Taishō"})
-      Repo.insert!(%Work{id: "T0099", title: "雜阿含經"})
-
-      chinese =
-        Repo.insert!(%Text{
-          work_id: "T0099",
-          source_id: "cbeta",
-          witness_id: "T",
-          urn_prefix: "pramana:cbeta.T:T0099",
-          body: "如是我聞一時佛住舍衛國",
-          body_sha256: "x",
-          meta: %{}
-        })
-
-      for {content, i} <- Enum.with_index(["如是我聞一時", "佛住舍衛國"]) do
-        Repo.insert!(%Segment{
-          text_id: chinese.id,
-          urn: "pramana:cbeta.T:T0099_001@p0001a0#{i + 1}",
-          ordinal: i,
-          content: content,
-          content_sha256: "h#{i}",
-          char_start: 0,
-          char_end: String.length(content),
-          byte_start: 0,
-          byte_end: byte_size(content),
-          meta: %{}
-        })
-      end
+      chinese = cbeta_text!()
 
       {:ok, _} = Builder.build_for_text(chinese.id, max_chars: 300)
 
@@ -277,6 +240,59 @@ defmodule Pramana.Chunk.VectorsTest do
                )
 
       assert content =~ "So I have heard."
+    end
+
+    test "assembles a chunk's English in the source's reading order, not the anchor's" do
+      chinese = cbeta_text!()
+      {:ok, _} = Builder.build_for_text(chinese.id, max_chars: 300)
+
+      # Two renderings that begin on the SAME Taishō line, because the translator worked
+      # at a finer grain than the edition's citation unit. The one that reads FIRST is the
+      # range anchor, and the one that reads second is the point anchor — the inversion of
+      # what `point_renderings ++ range_renderings` produces, and of what sorting on the
+      # start ordinal alone can see.
+      {:ok, _} =
+        Translations.store([
+          %{
+            anchor_urn: "pramana:cbeta.T:T0099_001@p0001a01",
+            work_id: "T0099",
+            lang: "en",
+            translator_id: "patton",
+            tier: "t0",
+            method: "human",
+            text: "At one time the Buddha was staying in Sāvatthī.",
+            redistributable: true,
+            license_class: "cc0",
+            meta: %{"reading_order" => [1, 1, 2]}
+          },
+          %{
+            anchor_urn: "pramana:cbeta.T:T0099_001@p0001a01-p0001a02",
+            work_id: "T0099",
+            lang: "en",
+            translator_id: "patton",
+            tier: "t0",
+            method: "human",
+            text: "So I have heard.",
+            redistributable: true,
+            license_class: "cc0",
+            meta: %{
+              "ordinal_start" => 0,
+              "ordinal_end" => 1,
+              "reading_order" => [1, 1, 1]
+            }
+          }
+        ])
+
+      {:ok, _} = Vectors.build_translations(chinese.id, lang: "en")
+
+      assert [content] =
+               Repo.all(
+                 from v in ChunkVector,
+                   where: v.kind == "translation" and v.translator_id == "patton",
+                   select: v.content
+               )
+
+      assert content == "So I have heard. At one time the Buddha was staying in Sāvatthī."
     end
   end
 
@@ -419,5 +435,50 @@ defmodule Pramana.Chunk.VectorsTest do
     test "a division with no parallels produces nothing" do
       assert {:ok, 0} = Vectors.build_parallel_glosses("諸宗部")
     end
+  end
+
+  # A two-line CBETA text, which is the smallest fixture that can hold a rendering
+  # anchored to a range as well as one anchored to a line.
+  defp cbeta_text! do
+    Repo.insert!(%Source{
+      id: "cbeta",
+      name: "CBETA",
+      tradition: "chinese",
+      license_spdx: "LicenseRef-CBETA-NC",
+      license_class: "nc",
+      commercial_use: false,
+      redistributable: false
+    })
+
+    Repo.insert!(%Witness{id: "T", name: "Taishō"})
+    Repo.insert!(%Work{id: "T0099", title: "雜阿含經"})
+
+    chinese =
+      Repo.insert!(%Text{
+        work_id: "T0099",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T0099",
+        body: "如是我聞一時佛住舍衛國",
+        body_sha256: "x",
+        meta: %{}
+      })
+
+    for {content, i} <- Enum.with_index(["如是我聞一時", "佛住舍衛國"]) do
+      Repo.insert!(%Segment{
+        text_id: chinese.id,
+        urn: "pramana:cbeta.T:T0099_001@p0001a0#{i + 1}",
+        ordinal: i,
+        content: content,
+        content_sha256: "h#{i}",
+        char_start: 0,
+        char_end: String.length(content),
+        byte_start: 0,
+        byte_end: byte_size(content),
+        meta: %{}
+      })
+    end
+
+    chinese
   end
 end

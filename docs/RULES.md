@@ -703,6 +703,53 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     and fast throughout, and the honest reading of that evidence was that the fallback had
     quietly become the better path. Delete it and keep the measurement.
 
+71. **Concatenating rows needs a TOTAL order, and the source's order is rarely
+    recoverable from the address.** `Pramana.Chunk.Vectors` assembled each chunk's English
+    with `Enum.sort_by(& &1.first)` — the start ordinal of every rendering that overlaps
+    the chunk. That is not a total order. A translator working finer than the edition's
+    citation unit puts two renderings on one printed line: SuttaCentral's `sa810:8.2` is
+    anchored to Taishō `p0208b06` and `sa810:8.3` to `p0208b06-b07`, and both start at the
+    same ordinal. **2,080 of Patton's 3,354 renderings sit in such a tie.**
+
+    `Enum.sort_by/2` is stable, so each tie kept whatever order the rows arrived in — and
+    neither query had an `ORDER BY`, while the two result lists were concatenated
+    `point ++ range`, which breaks every tie in favour of the point anchor whether or not
+    it reads first. **41% of the English chunks over the Chinese canon were scrambled**:
+
+        before  Those inside the city are kept safe, and external enemies are kept at
+                bay. “Furthermore, suppose the king’s frontier city makes a path all
+                around it that’s cleared, level, and broad. Those inside the city are …
+
+        after   “Furthermore, suppose the king’s city digs a moat, making it quite deep
+                and wide, and it’s maintained dependably. Those inside the city are kept
+                safe, and external enemies are kept at bay. This is called the second …
+
+    The scrambled chunk leads with a generic consequence clause and has lost every topic
+    sentence — which is precisely the content retrieval needs, and this is the text that
+    was embedded.
+
+    Two things follow. **The reading order must be recorded at ingest**, because an
+    ordinal cannot recover it: the source knows that `8.2` precedes `8.3`, and the printed
+    line does not. `mix pramana.sc.chinese` now writes `reading_order` into the rendering's
+    meta and the assembly sorts on it, finishing the key with `last` and the anchor URN so
+    that a source recording nothing is still deterministic.
+
+    And **a tie broken by row order is also a reproducibility bug, not only a correctness
+    one.** Nothing pins the order `Repo.all/1` returns, so the `content_sha256` of a
+    translation chunk need not survive a re-bake — which is `bake_id` no longer determining
+    contents (invariant #3). The defect was invisible from every count: the right number of
+    renderings, the right number of chunks, full coverage, and no error anywhere. It was
+    found by reading the assembled English, which is rule 60's habit — a capability is not
+    finished until you look at what a model would actually receive.
+
+    A corollary, found in the same hour: **`on_conflict: :nothing` means a correction
+    cannot land.** The builder deliberately refuses to rewrite a changed row in place,
+    since that would leave a vector describing words no longer there — but it then reported
+    "0 new rows" for 78 chunks whose text had changed, which reads as "nothing to do". A
+    write path that declines to write must **say so and offer a way through**; the builder
+    now counts stale rows and `mix pramana.vectors --refresh` rebuilds them.
+
+
 ---
 
 ## One-off gotchas
