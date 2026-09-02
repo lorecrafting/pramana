@@ -35,6 +35,7 @@ defmodule Mix.Tasks.Pramana.Derge.Images do
   use Mix.Task
 
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake
   alias Pramana.Derge.Images
   alias Pramana.Sources
 
@@ -63,6 +64,12 @@ defmodule Mix.Tasks.Pramana.Derge.Images do
     if opts[:limit] == nil and failed == [] do
       write_lockfile(root)
       Images.build_index(root)
+
+      # THE LOCKFILE AND THE BAKE ID MOVE TOGETHER — `bake_id` is a hash of
+      # `sources.lock.json`, so writing it changes the id by definition. A bake row that no
+      # longer describes its inputs stamps every response with an id for a corpus that does
+      # not exist. `Bake.record/1` writes a row; it does not re-bake.
+      {:ok, _} = Bake.record(%{"source" => "bdrc-derge", "mode" => "derge_images"})
     end
 
     report(ok, failed)

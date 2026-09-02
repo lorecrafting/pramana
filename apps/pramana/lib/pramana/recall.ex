@@ -479,7 +479,10 @@ defmodule Pramana.Recall do
     }
   end
 
-  defp search_opts(opts), do: Keyword.take(opts, [:serving])
+  # `:translation_coverage` rides through so the coverage curve can be measured with the
+  # probe that produces the published figure, rather than with a copy of it. It is an
+  # experiment knob on `Pramana.Retrieval.Semantic`; absent, nothing changes.
+  defp search_opts(opts), do: Keyword.take(opts, [:serving, :translation_coverage])
 
   # A REPRODUCIBLE SAMPLE. `order by random()` gives a different answer every run, so a
   # figure could never be compared with the one before it — the failure `docs/PROXIES.md`

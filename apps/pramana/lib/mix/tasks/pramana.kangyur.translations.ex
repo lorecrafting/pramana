@@ -48,6 +48,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Translations do
   import Ecto.Query
 
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
@@ -81,7 +82,14 @@ defmodule Mix.Tasks.Pramana.Kangyur.Translations do
 
     tally = Enum.reduce(files, empty(), &ingest(&1, &2, opts[:dry_run]))
 
-    unless opts[:dry_run], do: maybe_lock(root, opts[:limit])
+    unless opts[:dry_run] do
+      maybe_lock(root, opts[:limit])
+      # THE LOCKFILE AND THE BAKE ID MOVE TOGETHER. `bake_id` is a hash of
+      # `sources.lock.json`, so writing it changes the id by definition, and a bake row that
+      # no longer describes its inputs stamps every API response with an id for a corpus
+      # that does not exist. `Bake.record/1` is cheap — a row, not a re-bake.
+      {:ok, _} = Bake.record(%{"source" => @source_id, "mode" => "kangyur_translations"})
+    end
 
     report(tally, length(files))
   end

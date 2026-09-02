@@ -31,6 +31,7 @@ defmodule Mix.Tasks.Pramana.Parallels.Import do
   use Mix.Task
 
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake
   alias Pramana.Parallels
   alias Pramana.Sources
 
@@ -58,6 +59,12 @@ defmodule Mix.Tasks.Pramana.Parallels.Import do
       {:ok, stored_anchors} = Parallels.store_anchors(anchors)
       {:ok, stored} = Parallels.store(pairs)
       :ok = lock(parallels_raw, info_raw)
+
+      # THE LOCKFILE AND THE BAKE ID MOVE TOGETHER — `bake_id` is a hash of
+      # `sources.lock.json`, so writing it changes the id by definition. A bake row that no
+      # longer describes its inputs stamps every response with an id for a corpus that does
+      # not exist. `Bake.record/1` writes a row; it does not re-bake.
+      {:ok, _} = Bake.record(%{"source" => "sc-data", "mode" => "parallels_import"})
 
       Mix.shell().info("""
         stored #{stored_anchors} anchor(s) and #{stored.written} parallel(s)

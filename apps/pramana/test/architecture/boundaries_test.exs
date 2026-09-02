@@ -142,6 +142,51 @@ defmodule Architecture.BoundariesTest do
     end
   end
 
+  describe "the lockfile and the bake id move together" do
+    # `Pramana.Bake.bake_id/1` is a hash of `sources.lock.json`, so ANY task that writes
+    # the lockfile changes it by definition — and a bake row that no longer describes its
+    # inputs stamps every API response with an id for a corpus that does not exist.
+    #
+    # `mix pramana.gate` catches the divergence, which means each such task leaves the gate
+    # red the next time it runs. Six of eleven did, until 2026-09-02. The fix was one line
+    # each; this is what stops the seventh.
+    #
+    # It cannot live in `Lockfile` itself — a file-manipulation module writing a database
+    # row is a layering violation, and it would break in any context without a repo.
+    @bake_exempt %{}
+
+    test "every task that writes the lockfile also records a bake" do
+      offenders =
+        Path.wildcard(Path.join(@root, "apps/*/lib/mix/tasks/*.ex"))
+        |> Enum.filter(fn file ->
+          source = elixir_code(file)
+
+          String.contains?(source, "Lockfile.put_source") or
+            String.contains?(source, "Lockfile.merge_source")
+        end)
+        # CODE, NOT COMMENTS — and the first version of this check did not say so, so it
+        # passed with the call deleted because the comment above the call still contained
+        # the words `Bake.record`. "Four different greps that matched a substring" is
+        # already on `docs/ROADMAP.md`'s risk list; this was the fifth, inside the test
+        # written to make the rule stick.
+        |> Enum.reject(&String.contains?(elixir_code(&1), "Bake.record("))
+        |> Enum.map(&relative/1)
+        |> Enum.reject(&Map.has_key?(@bake_exempt, &1))
+
+      assert offenders == [],
+             """
+             These tasks write `sources.lock.json` and never re-record the bake, so each
+             leaves `mix pramana.gate` failing on `:bake_id_diverged` the next time it runs:
+
+             #{Enum.map_join(offenders, "\n", &"    #{&1}")}
+
+             `Bake.record/1` writes a row; it does not re-bake. If a task genuinely should
+             not — it writes a lockfile for something that is not an input to any bake —
+             add it to `@bake_exempt` with the reason.
+             """
+    end
+  end
+
   @doc """
   What `docs/CHECKS.md` §2 asks for that this file cannot answer.
 
@@ -223,4 +268,15 @@ defmodule Architecture.BoundariesTest do
   end
 
   defp relative(file), do: Path.relative_to(file, @root)
+
+  # Whole-line comments dropped. Enough for this: every comment that mentions a function
+  # by name in this codebase is on its own line, and a heuristic that also tried to strip
+  # inline `#` would have to know which ones are inside strings and sigils.
+  defp elixir_code(file) do
+    file
+    |> File.read!()
+    |> String.split("\n")
+    |> Enum.reject(&(&1 |> String.trim() |> String.starts_with?("#")))
+    |> Enum.join("\n")
+  end
 end

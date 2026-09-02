@@ -68,6 +68,10 @@ defmodule Pramana.Retrieval.Lexical do
   # hybrid results with works from outside the requested division, and the results
   # still looked filtered because half the pipeline had applied it.
   @known_opts [
+    # Accepted and ignored here: it is a SEMANTIC knob, and `Pramana.Retrieval` hands one
+    # option list to both retrievers. Rejecting it would make the experiment unable to run
+    # through the path it exists to measure.
+    :translation_coverage,
     :normalize_variants,
     :redistributable_only,
     :license_class,

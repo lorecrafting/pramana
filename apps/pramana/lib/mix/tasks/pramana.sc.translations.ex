@@ -35,6 +35,7 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
   use Mix.Task
 
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake
   alias Pramana.Corpus.Segment
   alias Pramana.Repo
   alias Pramana.Sources
@@ -77,7 +78,14 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
         collect(file, root, publications, {anchors, works}, acc)
       end)
 
-    unless opts[:dry_run], do: maybe_lock(root, files, opts)
+    unless opts[:dry_run] do
+      maybe_lock(root, files, opts)
+      # THE LOCKFILE AND THE BAKE ID MOVE TOGETHER. `bake_id` is a hash of
+      # `sources.lock.json`, so writing it changes the id by definition, and a bake row that
+      # no longer describes its inputs stamps every API response with an id for a corpus
+      # that does not exist. `Bake.record/1` is cheap — a row, not a re-bake.
+      {:ok, _} = Bake.record(%{"source" => "sc-translations", "mode" => "sc_translations"})
+    end
 
     report(rows, skipped, publications, opts[:dry_run])
   end

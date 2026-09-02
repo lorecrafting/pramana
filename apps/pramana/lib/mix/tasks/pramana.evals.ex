@@ -175,20 +175,56 @@ defmodule Mix.Tasks.Pramana.Evals do
   # not to compete with the scorecard for the terminal.
   @progress_every 10
 
+  # PROJECTED FROM A TRAILING WINDOW, NOT FROM THE AVERAGE — and the difference is a
+  # factor of three.
+  #
+  # The 1,472 cases are two populations about 175x apart in cost. The ~930 that touch no
+  # embedder finish in **twelve seconds**, roughly 13 ms each; the ~540 after them embed a
+  # query and run a hybrid search at ~2.3 s. Dividing total elapsed by cases done averages
+  # across both and predicts neither: measured on 2026-09-01 the estimate read
+  # `~2m01s left` at case 1,310 while the marginal rate said six minutes, and it took
+  # 4m47s.
+  #
+  # That is rule 69 — a figure pooled over unlike populations — in this project's own
+  # tooling, and in the flattering direction, which is the one this codebase keeps having
+  # to correct.
+  #
+  # The window is the gap between two ticks, so `@progress_every` sets it: ten cases, which
+  # is noisy on its own and is being read once a second by a person watching a bar rather
+  # than recorded as a measurement. An estimate that tracks what the run is doing NOW and
+  # jitters is more use than a smooth one that is wrong by 3x.
+
   defp progress(done, total, elapsed_ms) do
     if rem(done, @progress_every) == 0 or done == total do
-      rate = done * 1000 / max(elapsed_ms, 1)
-      remaining = if rate > 0, do: round((total - done) / rate), else: 0
-
       IO.write(
         :stderr,
         "\r  #{done}/#{total} cases · #{Pramana.Elapsed.human(elapsed_ms)} elapsed · " <>
-          "~#{Pramana.Elapsed.human(remaining * 1000)} left    "
+          "~#{Pramana.Elapsed.human(remaining_ms(done, total, elapsed_ms))} left    "
       )
     end
 
     if done == total, do: IO.write(:stderr, "\n")
     :ok
+  end
+
+  # Held in the process dictionary rather than threaded through `Evals.run/1`: this is a
+  # terminal heartbeat, and giving the scoring loop an accumulator so its progress printer
+  # can be smarter would be the reporting tail wagging the measurement.
+  defp remaining_ms(done, total, elapsed_ms) do
+    prior = Process.get(:evals_progress_window)
+    Process.put(:evals_progress_window, {done, elapsed_ms})
+
+    case prior do
+      {prior_done, prior_ms} when done > prior_done and elapsed_ms > prior_ms ->
+        rate = (done - prior_done) * 1000 / (elapsed_ms - prior_ms)
+        if rate > 0, do: round((total - done) / rate * 1000), else: 0
+
+      _ ->
+        # First tick, or a window with no elapsed time in it — fall back to the average,
+        # which is all there is to go on before two samples exist.
+        rate = done * 1000 / max(elapsed_ms, 1)
+        if rate > 0, do: round((total - done) / rate * 1000), else: 0
+    end
   end
 
   defp tradition(opts) do

@@ -66,6 +66,7 @@ defmodule Pramana.Retrieval.Semantic do
     :limit,
     :vector_kinds,
     :vector_lang,
+    :translation_coverage,
     :balance,
     :per_tradition,
     :source_id,
@@ -247,6 +248,7 @@ defmodule Pramana.Retrieval.Semantic do
       |> where([v], not is_nil(v.embedding) and v.embedding_model == ^Embed.model())
       |> filter_vector_kinds(opts[:vector_kinds])
       |> filter_vector_lang(opts[:vector_lang])
+      |> ablate_translations(opts[:translation_coverage])
       |> join(:inner, [v], c in Chunk, as: :chunk, on: c.id == v.chunk_id)
       |> join(:inner, [v, c], t in Text, as: :text, on: t.id == c.text_id)
       |> join(:inner, [v, c, t], w in Work, as: :work, on: w.id == t.work_id)
@@ -314,6 +316,40 @@ defmodule Pramana.Retrieval.Semantic do
     else
       where(query, [v], v.kind in ^List.wrap(kinds))
     end
+  end
+
+  # AN EXPERIMENT KNOB, and it is in the real query rather than in a script on purpose.
+  #
+  # The question it exists to answer: an English query reaches the Pāli canon 89% of the
+  # time and the Chinese canon essentially never, and the difference is coverage — Pāli
+  # has 55,326 English vectors over 44,719 chunks, Chinese has 191 over 719,543. Matching
+  # Pāli's coverage over CBETA is ~720,000 chunk translations, which is a real spend, and
+  # **nobody has measured what fraction of it would do.** The whole estimate turns on
+  # where the curve bends.
+  #
+  # Pāli is the only canon that can answer it, being the only one fully covered. This
+  # hides a deterministic fraction of its translation vectors so the curve can be
+  # measured — through the query that ships, because a second retrieval path would
+  # measure something other than the thing being decided about.
+  #
+  # Deterministic by chunk id: the same coverage always hides the same vectors, so two
+  # points on the curve are comparable. `random()` would make every point a different
+  # sample, which is rule 67's shape one level up.
+  #
+  # Source vectors are never hidden. This models a corpus with a partial TRANSLATION
+  # layer — the Chinese situation exactly — not one with less text in it.
+  defp ablate_translations(query, nil), do: query
+
+  defp ablate_translations(query, coverage) when coverage >= 1.0, do: query
+
+  defp ablate_translations(query, coverage) when coverage >= 0.0 and coverage < 1.0 do
+    keep = round(coverage * 100)
+
+    where(
+      query,
+      [v],
+      v.kind != "translation" or fragment("abs(hashtext(?::text)) % 100", v.chunk_id) < ^keep
+    )
   end
 
   defp filter_vector_lang(query, nil), do: query

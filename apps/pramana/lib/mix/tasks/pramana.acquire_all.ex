@@ -25,6 +25,7 @@ defmodule Mix.Tasks.Pramana.AcquireAll do
   alias Pramana.Acquire.CBETA
   alias Pramana.Acquire.CBETA.Catalog
   alias Pramana.Acquire.Lockfile
+  alias Pramana.Bake
   alias Pramana.Sources
 
   @switches [source: :string, canon: :string, limit: :integer]
@@ -66,6 +67,16 @@ defmodule Mix.Tasks.Pramana.AcquireAll do
     # statement that the other 3,769 are gone. Replacing the entry is how the Taishō
     # fell out of the lockfile while its 2,471 texts stayed in the corpus.
     :ok = merge!(entry)
+
+    # THE LOCKFILE AND THE BAKE ID MOVE TOGETHER — `bake_id` is a hash of
+    # `sources.lock.json`, so merging into it changes the id by definition.
+    #
+    # This one acquires WITHOUT ingesting, and re-recording is still right: the bake's
+    # claim is about its *inputs*, and the inputs have changed even though nothing new is
+    # loaded yet. The alternative was to exempt acquire-only tasks, which would leave the
+    # gate red after every acquisition and teach people that its lockfile step is noise.
+    {:ok, _} = Bake.record(%{"source" => source, "mode" => "acquire_all"})
+
     {:ok, locked} = Lockfile.get_source(source)
 
     Mix.shell().info("""
