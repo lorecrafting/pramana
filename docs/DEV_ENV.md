@@ -116,6 +116,32 @@ Sampling now orders on `md5(salt || id)` — see `Pramana.Sampling` — so a see
 longer depends on the server's configuration at all, and this section is a record of a
 tuning that was tried and withdrawn rather than a caveat you still have to reason about.
 
+## `too_many_connections` looks like a failing test, and is not — 2026-09-02
+
+`mix pramana.gate --quick` failed on its **test** step in 4 s with
+
+    FATAL 53300 (too_many_connections) sorry, too many clients already
+
+and the same suite passed standalone. Nothing was wrong with the code.
+
+`config/dev.exs` sets `pool_size: 25`, Postgres ships `max_connections = 100`, and **every
+long-lived process holds a full dev pool**. Two `mix pramana.mcp.stdio` servers and a
+`mix phx.server` is 52 connections before any test runs; the umbrella test env then wants
+`System.schedulers_online() * 2` per app plus Oban's notifier, across three apps.
+
+**The symptom is the problem.** The gate reports its test step failed, which reads as a
+regression in the code you just wrote, and the actual cause is a session left running in
+another terminal. Check before debugging:
+
+```bash
+psql postgres -c "select datname, count(*) from pg_stat_activity group by 1 order by 2 desc"
+ps aux | grep '[b]eam.smp'   # each mcp.stdio / phx.server holds pool_size connections
+```
+
+Then stop a server you are not using, or raise `max_connections`. **Do not lower
+`pool_size` to make it fit** — 25 is what makes the bake and the eval runs fast, and this
+is a *concurrent sessions* problem rather than a per-process one.
+
 ## Toolchain pinning
 
 `mise.toml` pins exact Erlang/Elixir versions project-locally, deliberately not

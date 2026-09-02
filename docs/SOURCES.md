@@ -152,6 +152,57 @@ reproducibility, not about storage.
     cd raw/sc/bilara-data && git sparse-checkout set root/pli/ms translation/en root/lzh/sct
     mix pramana.sc.chinese
 
+### DILA Glossaries — the lexicon layer, INGESTED 2026-09-02
+
+`https://glossaries.dila.edu.tw/` — TEI P5, bulk download, no key. Same institution whose
+person and place authority this project already ingests. `mix pramana.glossary.dila`.
+
+| glossary | entries stored | scope | attestation |
+|---|---|---|---|
+| Soothill-Hodous (1937, corrected by Muller 2002-3) | 16,792 | general | dictionary |
+| Mahāvyutpatti | 9,379 | general | source |
+| Karashima, Dharmarakṣa's Lotus | 3,228 | **T0263** | 2,604 source |
+| Karashima, Kumārajīva's Lotus | 2,340 | **T0262** | 2,149 source |
+| Karashima, Lokakṣema's Aṣṭasāhasrikā | 1,528 | **T0224** | dictionary |
+
+**Chosen for accuracy, not reach.** L1 called dictionaries "the largest functional gap",
+and the gap was never that we hold none — the 56,382 entries already here are
+Tibetan-shaped, and *acalā* had seven with Tibetan and **not one with Chinese**.
+
+Karashima's three are the reason this set is worth more than its size. They are glossaries
+of **one translator's usage**, and they record things no general dictionary can:
+
+    佛   Soothill-Hodous   Buddha, from budh "to be aware of"…
+    佛   Lokakṣema         enlightenment; Buddhaship — a transliteration of Skt. bodhi
+
+    法   Soothill-Hodous   Dharma. Law, truth, religion, thing, anything Buddhist…
+    法   Kumārajīva        as a rule, normally, conforming to what is expected
+
+In the earliest translations 佛 transliterates *bodhi*; Kumārajīva's 法 is frequently an
+adverb. Karashima also records that **Lokakṣema often rendered *śrāvaka* as 阿羅漢**.
+
+**Each entry carries Taishō citations** — `T.262` at `59b7`, with the Chinese quotation and
+the Sanskrit witness beside it — so a gloss anchors to lines this corpus holds and can be
+byte-verified. 29,890 citations are stored; resolving them to URNs is a separate step.
+
+**Measured before it was built.** Seeded 200-headword samples against the CBETA text held
+here: Soothill-Hodous 187/199, Karashima's Kumārajīva 190/199, the Mahāvyutpatti's Chinese
+side 140/199.
+
+**Licence: CC BY-NC-SA 4.0**, per the site. The TEI headers say only *"Published on the
+Web with a Creative Commons License"* without naming a version and one secondary source
+said BY-SA 3.0, so the site governs and the restrictive reading is recorded — rule 10.
+NonCommercial puts these where CBETA already is: `redistributable: false`, out of the
+public artefact, usable for everything local.
+
+**Not taken:** Hopkins Tib-Skt-Eng (18,441) and the Nanshan Vinaya dictionary (3,218) are
+on the same site under the same terms. Both duplicate strength this corpus already has —
+Tibetan-side and Chinese-only respectively — and neither closes the measured gap.
+
+**Not acquirable:** the Digital Dictionary of Buddhism is the scholarly standard and is
+**not open for bulk download** — rights to individual articles are held by their authors.
+Same posture as SAT: it is asked for, not scraped.
+
 ## Tier 2 — Structured but partial
 
 ### The Tibetan pair — TWO sources, not one (#21)

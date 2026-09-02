@@ -35,9 +35,11 @@ corpus-wide number.
    glossary-pinned generation over a source anchor (`docs/TRANSLATION.md`, invariant #8).
    **Pick one and size it before building** — anything that does not reach a substantial
    fraction of 4,263 works will land where this slice did.
-2. **L1 — dictionaries.** Now the largest functional gap. Consider mounting fojin's MCP
-   `lookup_dictionary` rather than re-deriving 39 sources; compose for breadth, own for
-   warrant.
+2. **L1 follow-through — anchor the 29,890 Karashima citations to URNs.** The dictionaries
+   landed 2026-09-02 (§ L1 below); what is not done is resolving `T.262:59b7` to a URN, at
+   which point a gloss becomes byte-verifiable like any other claim and
+   `Pramana.Translators` gets the genre-matched 異譯本 pair it has been waiting for —
+   Dharmarakṣa and Kumārajīva on the same sūtra.
 3. **L4 — cross-scheme URN resolution.** Best effort-to-benefit ratio on the list, and
    pure domain logic: four native grammars are already parsed, and teaching the resolver
    fojin's scheme makes citations checkable in the system that did not produce them.
@@ -1969,7 +1971,7 @@ which mattered, since the assistant that prompted the review invented two projec
 
 | # | item | why it is not optional | state |
 |---|---|---|---|
-| L1 | **Dictionaries** | **The largest functional gap in this project.** fojin ships 39 dictionaries, 747K entries — DPD, Mahāvyutpatti, Rangjung Yeshe, NTI Reader, Apte. We ship none. A scholar reading Classical Chinese without a lexicon is working one-handed, and **`define_from_canon` is not a substitute**: the canon defining 空 in its own formulae answers a different question from what 阿耨多羅三藐三菩提 transliterates. Licences vary per dictionary and must be tracked per source, exactly as text sources are | open |
+| L1 | **Dictionaries** | ▸ **SHIPPED 2026-09-02** — `mix pramana.glossary.dila`, 33,267 entries from five DILA glossaries. See below. Originally: **the largest functional gap in this project.** fojin ships 39 dictionaries, 747K entries — DPD, Mahāvyutpatti, Rangjung Yeshe, NTI Reader, Apte. We ship none. A scholar reading Classical Chinese without a lexicon is working one-handed, and **`define_from_canon` is not a substitute**: the canon defining 空 in its own formulae answers a different question from what 阿耨多羅三藐三菩提 transliterates. Licences vary per dictionary and must be tracked per source, exactly as text sources are | open |
 | L2 | **Find out why BGE-M3 scores 51% in MITRA's benchmark and 0.4% here** — *before* buying either a term table or a new model | ▸ **CHEAPEST VERSION ALREADY RUN, 2026-08-30, and it redirects the question.** MITRA's benchmark includes BGE-M3 — the model this corpus embeds with — on Sanskrit→Chinese against 400,412 candidates:
 
     BM25 14·23·28 · LaBSE 19·33·39 · **BGE-M3 base 29·45·51** · BGE-M3 ft 40·59·65 · MITRA-E 79·94·96
@@ -1985,6 +1987,58 @@ MITRA-E details, for when that question is actually reached: 9B params, **3,584-
 | L4 | **Cross-scheme URN resolution** | The same passage is `fojin:cbeta/T0001.1`, `pramana:cbeta.T:T0001_001@p0001a01`, `T2185_.56.0001a01` and `mn1:1.1` depending on who cites it, so **a citation cannot be checked in the system that did not produce it**. fojin exposes `resolve_urn`; we parse four native grammars already. Teaching each resolver the other's scheme is small, mutual, and makes citations portable across the field. Best effort-to-benefit ratio on the list | open |
 
 | L5 | **A "check anything" screen — one input, one verdict list** | `verify_report` shipped 2026-08-28 and had **no surface**: only an MCP call reached it. Rule 60 | ▸ **SHIPPED 2026-08-31** — `PramanaWeb.CheckLive` at `/check`, in the nav, nine tests. See below |
+
+### L1 — dictionaries, shipped 2026-09-02
+
+`mix pramana.glossary.dila` and `Pramana.Normalize.DilaGlossary`. **33,267 entries** from
+DILA's TEI glossaries, taking `glossary_entries` from 56,382 to 89,649.
+
+**Composing was rejected, on invariants rather than taste.** Mounting fojin's
+`lookup_dictionary` would put text with no URN, no sha256 and no provenance record through
+an API that promises all three (#1), depend on a service no lockfile pins (#3), and break
+self-hosting for every user. There is also no MCP client in this codebase. And it buys
+nothing: `docs/COMPETITIVE.md` already says fojin-mcp and this surface **mount in the same
+client**, so composition works one layer up, for free, today.
+
+**Chosen for accuracy over reach**, which was the brief. Karashima's three are glossaries
+of *one translator's usage* and record what no general dictionary can — 佛 transliterating
+*bodhi* rather than *buddha* in the earliest translations, Kumārajīva's 法 as an ordinary
+adverb, Lokakṣema rendering *śrāvaka* as 阿羅漢.
+
+| | |
+|---|---|
+| stored | shh 16,792 · mvy 9,379 · dharmaraksa 3,228 · kumarajiva 2,340 · lokaksema 1,528 |
+| scoped to a work | 7,096 — the three Karashima glossaries, to T0263, T0262, T0224 |
+| source-attested | 14,132, meaning a Sanskrit witness carries an actual reading |
+| Taishō citations kept | **29,890** |
+| corpus coverage | seeded 200-headword samples: shh 187/199, kumarajiva 190/199, mvy 140/199 |
+
+**Polysemy is handled by refusing to resolve it.** One row per sense, `gloss_id` numbered
+per headword, and `work_id` carrying the scope. 怛姪他 has five senses in Kumārajīva alone;
+刹, 度 and 妙法 have four. Nothing here says what a word "means".
+
+**Three defects found while building, all of which produced plausible output:**
+
+1. **An unbounded `sa-witness` regex captured a Chinese quotation into the `sanskrit`
+   column.** Karashima records a Sanskrit NON-correspondence as `K. not found at 32.16`
+   with no `<quote>`, and the match ran on into the next parallel's Chinese. A line of the
+   Lotus Sūtra was stored as the Sanskrit of 法, and attestation was inflated to 2,311.
+2. **Bounding it to the FIRST witness block then under-reported it** to 2,064 — 法's real
+   reading, *dharmatā*, sits in the second parallel behind the "not found". Karashima
+   lists one witness per parallel passage. The true figure is 2,149.
+3. **276 headwords carry no gloss in any language** — cross-references and variant
+   spellings. They violate `glossary_entry_has_a_term`, and are **dropped and counted**
+   rather than admitted by loosening a constraint that exists because an entry without a
+   gloss is meaningless.
+
+**Not taken:** Hopkins (18,441) and Nanshan Vinaya (3,218), same site and terms, both
+duplicating strength already held. **Not acquirable:** the DDB is the scholarly standard
+and is not open for bulk download — rights sit with individual article authors. Asked for,
+not scraped, the same posture as SAT.
+
+**Licence CC BY-NC-SA 4.0** — site-stated; the TEI headers name no version, so the
+restrictive reading governs (rule 10). NC puts these where CBETA is: out of the public
+artefact.
 
 ### L5 — `/check`, shipped 2026-08-31
 

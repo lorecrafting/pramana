@@ -44,7 +44,11 @@ defmodule Pramana.SourcesTest do
                # of the 547 works this corpus cannot show at all. It describes texts that
                # are absent. Filing it under "chinese" would let a per-tradition search
                # return bibliography where a reader asked for scripture.
-               "reference" => ["dila-authority", "sat-teihon"]
+               # `dila-glossaries` is here rather than under `chinese` because a
+               # dictionary describes words, not a canon — and because the Mahāvyutpatti
+               # inside it bridges Sanskrit, Chinese and Tibetan, so any one canon would
+               # be wrong about part of the source.
+               "reference" => ["dila-authority", "dila-glossaries", "sat-teihon"]
              }
     end
 

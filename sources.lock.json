@@ -32284,6 +32284,52 @@
       "upstream": "https://github.com/DILA-edu/Authority-Databases"
     },
     {
+      "file_count": 5,
+      "files": [
+        {
+          "bytes": 3796515,
+          "path": "ddbc.soothill-hodous.tei.p5.xml",
+          "sha256": "38b3f9c3a00a2ba2ff642383bce5a0793b81702950f6477e2f7b98836848d897"
+        },
+        {
+          "bytes": 7381319,
+          "path": "dharmaraksa.dila.tei.p5.xml",
+          "sha256": "a1f1bce65e96f8a6f9051966853f218b0bc0f39de2bb56d69babfe4ed26710b7"
+        },
+        {
+          "bytes": 3907068,
+          "path": "kumarajiva.dila.tei.p5.xml",
+          "sha256": "e0595112fdbdf27b244dab06a277a18539dadb3a73ca0c869ac162acd27bbd25"
+        },
+        {
+          "bytes": 5494696,
+          "path": "lokaksema.xml",
+          "sha256": "220e2e7605c33e3e693c14554929148cf530636b194f76e75ffb8ad4a51a56a1"
+        },
+        {
+          "bytes": 6788944,
+          "path": "mahavyutpatti.dila.tei.p5.xml",
+          "sha256": "dfb68a0d8e9d2894f42a932cb970d6d00f92844e1922cffffec1608a70052aee"
+        }
+      ],
+      "files_sha256": "6f1fcbbf14df176ff443df5887450c192d04bfe0f899a23a73262f4a9305ba83",
+      "id": "dila-glossaries",
+      "license": {
+        "class": "nc",
+        "commercial_use": false,
+        "redistributable": false,
+        "spdx": "CC-BY-NC-SA-4.0"
+      },
+      "name": "DILA Glossaries for Buddhist Studies (Soothill-Hodous, Karashima, Mahāvyutpatti)",
+      "pin": {
+        "files_sha256": "6f1fcbbf14df176ff443df5887450c192d04bfe0f899a23a73262f4a9305ba83",
+        "type": "content"
+      },
+      "raw_root": "dila-glossaries",
+      "retrieved_at": "2026-09-02T07:36:28.400030Z",
+      "upstream": "https://glossaries.dila.edu.tw/"
+    },
+    {
       "file_count": 849,
       "files": [
         {

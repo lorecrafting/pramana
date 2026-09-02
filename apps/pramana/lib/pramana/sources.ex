@@ -136,6 +136,42 @@ defmodule Pramana.Sources do
     # holds and keeps a Taishō address; not one of its bytes lands in `texts` or
     # `segments`. It is registered and pinned anyway, because it is an input to an
     # ingest and a bake that cannot be reproduced from `sources.lock.json` is not a bake.
+    # DILA's TEI glossaries — the lexicon layer. `docs/PLAN.md` L1.
+    #
+    # ONE ENTRY FOR FIVE GLOSSARIES, unlike the bilara split, because they share a
+    # licence and a publisher: the DILA Glossaries project states CC BY-NC-SA 4.0 over
+    # the whole site. Which glossary an entry came from is on the row, in
+    # `glossary_entries.meta["glossary"]`, where it is data rather than a licence axis.
+    "dila-glossaries" => %{
+      id: "dila-glossaries",
+      # REFERENCE, not `chinese`, and the registry test is what forced the question. A
+      # dictionary describes WORDS; it is not part of a canon. `sat-teihon` is filed here
+      # for the parallel reason — it surveys manuscripts rather than being one — and the
+      # hazard is the same: a per-tradition search for the Chinese canon that could return
+      # lexicography where a reader asked for scripture.
+      #
+      # It is also not one canon's. Karashima's three gloss Chinese translations, but the
+      # Mahāvyutpatti is Sanskrit-headed and bridges Chinese and Tibetan at once, so any
+      # single canon would be wrong about part of this source.
+      tradition: "reference",
+      name: "DILA Glossaries for Buddhist Studies (Soothill-Hodous, Karashima, Mahāvyutpatti)",
+      upstream_url: "https://glossaries.dila.edu.tw/",
+      repo: nil,
+      license: %{
+        spdx: "CC-BY-NC-SA-4.0",
+        class: "nc",
+        commercial_use: false,
+        # NonCommercial, so it sits where CBETA sits: usable for everything local, and
+        # out of the public artefact.
+        redistributable: false,
+        notice:
+          "CC BY-NC-SA 4.0 per glossaries.dila.edu.tw. The TEI headers say only " <>
+            "\"Published on the Web with a Creative Commons License\" without naming a " <>
+            "version, so the site's statement governs and the restrictive reading is " <>
+            "recorded — see rule 10. Karashima's glossaries were digitised by DILA with " <>
+            "the author's permission."
+      }
+    },
     "sc-lzh" => %{
       id: "sc-lzh",
       # The canon it belongs to, not the repository it came from. bilara-data is
