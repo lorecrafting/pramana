@@ -8,6 +8,21 @@
 | | | **First, group the file list by work id and look at the groups larger than one.** "One file per work" is a claim about the source, not a default: three of four sources here break it, and CBETA breaks it in one collection out of two. A work loaded once per file keeps whichever file finished last, resolves, and verifies clean — see `Pramana.Bake.WorkList` and `IR.concat/1`. |
 | **A one-off text** (a modern commentary, a translation, a teacher's talks) | often | drop a folder with a manifest, run one command |
 | **A correction or annotation** to existing text | often | a *layer* over the bake, never an edit to it |
+| **A translation of something already here** (a better English Lotus, a sangha's published rendering, another model's output) | **the one this table used to answer wrongly** | renderings into the pool against **existing anchors** — no new text, no new work id, nothing replaced. `docs/TRANSLATION.md` |
+
+**The fourth row is a distinction the row above it hides.** A modern commentary is a new
+text and gets a work id. **A translation of the Lotus Sūtra is not a new text** — it is a
+set of renderings over T0262's existing anchors, and treating it as a one-off text would
+mint a second work id for a sūtra this corpus already holds, breaking every parallel,
+quotation and commentary link that points at the original.
+
+The pool is keyed on `anchor_urn + lang + translator_id`, so **a new rendering enters
+alongside rather than replacing**, needs no permission from whoever is already there, and
+`Pramana.Translations.select/2` with `mode: :compare` returns the whole pool instead of
+picking a winner. That is deliberate: where translators disagree, the disagreement is the
+evidence, and a corpus that silently picks one has destroyed it. Same refusal
+`Pramana.TermAnchors` makes about vocabulary and `compare_witnesses` about variant
+readings. See `docs/TRANSLATION.md` § "The translation layer is meant to be replaced".
 
 The first is correct as it stands — a new corpus genuinely has its own format and its own
 citation grammar, and that is code. The second is what most people mean, and it should

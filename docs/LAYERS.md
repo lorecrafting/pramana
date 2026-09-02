@@ -11,6 +11,15 @@ same URN anchors, never separate documents.
 
 ## 1. Translation layers
 
+**A translation is never a new text.** It is renderings over anchors this corpus already
+holds, keyed `anchor_urn + lang + translator_id` — so a new one enters beside whatever is
+there rather than replacing it, and nothing has to be adopted to be useful. The corpus is
+the stable thing and renderings are expected to churn, which is exactly why a rendering is
+a fragment over a source anchor and never a top-level URN. `docs/TRANSLATION.md` §
+"The translation layer is meant to be replaced"; `docs/ADDING_TEXTS.md` routes a
+contributor to it.
+
+
 **Yes — the corpus can hold a full machine translation of everything, per language.**
 
 The schema for this already exists as a side effect of Phase 3. SuttaCentral's
