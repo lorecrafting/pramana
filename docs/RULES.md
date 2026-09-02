@@ -660,6 +660,33 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     confound beside them; a pooled number over unlike populations is not a summary, it is
     a coincidence.
 
+70. **An optimisation is a claim about a bottleneck, and it expires when the bottleneck
+    moves.** `mix pramana.verify` derived every Degé work once by walking each volume a
+    single time, because verifying work-by-work re-parsed each volume ~16 times and had
+    been measured at ~90 minutes for the Tengyur — *"97% of the whole gate"*. That was
+    true. Then audit item #10 took `texts.body` out of the load path and made loading
+    chunked, which made the per-work path cheap and parallel, and **nobody re-measured the
+    optimisation those changes had made obsolete.**
+
+    Measured on one machine, both sources, both ways, all green and byte-identical:
+
+        source          precomputed walk        per-work fallback
+        derge           3m16s   6.1 texts/s     13s     87.6 texts/s
+        derge-tengyur   20m30s  2.7 texts/s     1m01s   55.3 texts/s
+
+    **Fifteen to twenty times slower, and the mechanism was memory rather than parsing.**
+    The walk materialised every IR in the edition and held it for the whole run — 3.7 GB
+    resident against 830 MB — and achieved parallelism halved, 181% CPU against 373%,
+    because garbage collection dominated. Sixteen times less parsing is not worth a
+    multi-gigabyte retained heap on a box that is also running Postgres.
+
+    Two habits follow. **When you make something faster, list what was built to avoid it**
+    — the load-path work was the reason this walk stopped paying, and its own commit is
+    where the walk should have been re-measured. And **the fix for a broken optimisation
+    is not always to fix it**: this one had failed silently for weeks, everything was green
+    and fast throughout, and the honest reading of that evidence was that the fallback had
+    quietly become the better path. Delete it and keep the measurement.
+
 ---
 
 ## One-off gotchas

@@ -118,22 +118,13 @@ defmodule Mix.Tasks.Pramana.Verify do
   # hand-written loop over four of them silently skipped `local-huang-nianzu-jie` and checked
   # 17,280 of 17,281 texts.
   defp verify_source(source, sample, seed) do
-    # TIMED SEPARATELY, BECAUSE IT IS A FIXED COST AND WAS BEING REPORTED AS A RATE.
-    # Degé verification derives every work in the edition once, by walking each volume a
-    # single time. Measured 2026-08-29: `--source derge --sample 1` checks 0.3% of the
-    # segments and still takes **3m11s of 3m52s**, so 82% of that source's time is the walk
-    # and ~41s is the checking. Divided by 1,195 texts it printed as "5.2 texts/s", which
-    # read as a per-text problem and is not one.
-    {walk_us, edition} = :timer.tc(fn -> editions([source]) end)
-    if walk_us > 1_000_000, do: report_walk(source, walk_us)
-
     from(t in ids_scope(source), select: t.id, order_by: t.id)
     |> Repo.all()
     |> Stream.chunk_every(@chunk)
     |> Stream.flat_map(fn chunk ->
       chunk
       |> load_texts()
-      |> Task.async_stream(&verify_text(&1, sample, edition, seed),
+      |> Task.async_stream(&verify_text(&1, sample, seed),
         max_concurrency: @concurrency,
         ordered: true,
         timeout: :infinity
@@ -141,14 +132,6 @@ defmodule Mix.Tasks.Pramana.Verify do
       |> Enum.map(fn {:ok, result} -> result end)
     end)
     |> Enum.to_list()
-  end
-
-  # Only when it is worth saying — a source with no edition to derive walks nothing.
-  defp report_walk(source, walk_us) do
-    Mix.shell().info(
-      "  #{source}: derived the edition in #{Pramana.Elapsed.human(div(walk_us, 1000))} " <>
-        "(one walk of every volume, before any text is checked)"
-    )
   end
 
   defp sources_for(nil) do
@@ -190,56 +173,40 @@ defmodule Mix.Tasks.Pramana.Verify do
   defp ids_scope(nil), do: from(t in Text)
   defp ids_scope(source), do: from(t in Text, where: t.source_id == ^source)
 
-  # Every Degé work derived ONCE, by walking each volume a single time.
+  # THERE IS NO PRECOMPUTED EDITION, AND THAT IS A MEASURED DECISION — 2026-09-01.
   #
-  # `reproduce/3` re-reads and re-parses every volume a work appears in, so verifying
-  # work-by-work parses 212 Tengyur volumes about 16 times each — roughly 14M lines to
-  # check 891,169. Measured before this: Tengyur 3,380 texts at ~0.6 texts/s, ~90 minutes,
-  # **97% of the whole gate**, against Pāli's 835.8 texts/s. `works/1` is the ingest walk:
-  # each volume parsed once, works threaded across volumes in printed order.
+  # There used to be one: every Degé work derived once by walking each volume a single
+  # time, because verifying work-by-work re-parses each volume about sixteen times and had
+  # been measured at ~90 minutes for the Tengyur, "97% of the whole gate". That was true
+  # when it was written. It stopped being true when audit item #10 took `texts.body` out
+  # of the load path and made loading chunked, and nobody re-measured the optimisation
+  # those changes had made obsolete — rule 47.
   #
-  # The guarantee is unchanged. Every work is still derived from `raw/` and byte-compared;
-  # only the number of times the same bytes are parsed changes. Weakening it to compare
-  # stored text against stored text would forfeit the check that caught the phantom lines
-  # in toh4100 and toh4150.
-  defp editions(source_ids) do
-    source_ids
-    |> Enum.filter(&(&1 in ["derge", "derge-tengyur"]))
-    |> Map.new(fn source_id -> {source_id, derive_edition(source_id)} end)
-  end
+  # Measured on this machine, both sources, both ways, all green and byte-identical:
+  #
+  #     source          precomputed walk        per-work fallback
+  #     derge           3m16s   6.1 texts/s     13s     87.6 texts/s
+  #     derge-tengyur   20m30s  2.7 texts/s     1m01s   55.3 texts/s
+  #
+  # FIFTEEN TO TWENTY TIMES SLOWER, and the mechanism is memory rather than parsing. The
+  # walk materialises every IR in the edition — 891,169 Tengyur lines — and holds them for
+  # the whole run: 3.7 GB resident against 830 MB, and achieved parallelism halves (181%
+  # CPU against 373%) because garbage collection dominates. The fallback re-parses each
+  # volume sixteen times, but inside `Task.async_stream` workers whose garbage is
+  # short-lived and collected per task. Sixteen times less parsing is not worth a
+  # multi-gigabyte retained heap on a box that is also running Postgres.
+  #
+  # It was also the sixth instance of audit #10's own pattern: materialise everything to
+  # avoid recomputing it, and pay in memory.
+  #
+  # `Pramana.Normalize.Derge.Edition.reduce/4` is untouched and still the ingest's walk,
+  # where threading works across volumes in printed order is the whole mechanism and there
+  # is no per-work alternative.
 
-  defp derive_edition(source_id) do
-    %{root: root, normalizer: normalizer} = edition_source(source_id)
-
-    with {:ok, volumes} <- volumes_for(root, normalizer),
-         {:ok, irs, _stats} <- DergeEdition.works(volumes, normalizer: normalizer) do
-      Map.new(irs, &{&1.work_id, &1})
-    else
-      # A failure here is reported per text by `renormalize_check/1`, which falls back to
-      # deriving that work on its own — slow, but it must still produce a real error rather
-      # than a silent pass.
-      _ -> %{}
-    end
-  end
-
-  defp edition_source("derge"),
-    do: %{root: "raw/derge/UT4CZ5369-200106", normalizer: Derge}
-
-  defp edition_source("derge-tengyur"),
-    do: %{root: "raw/derge-tengyur/text", normalizer: DergeTengyur}
-
-  defp volumes_for(root, Derge) do
-    with {:ok, numbered} <- DergeEdition.volumes_at(root) do
-      {:ok, Enum.map(numbered, fn {volume, path} -> {volume, File.read!(path)} end)}
-    end
-  end
-
-  defp volumes_for(root, DergeTengyur), do: DergeTengyur.volumes_at(root)
-
-  defp verify_text(text, sample, edition, seed) do
+  defp verify_text(text, sample, seed) do
     checks = [
       body_hash_check(text),
-      renormalize_check(text, edition)
+      renormalize_check(text)
     ]
 
     segments = load_segments(text, sample, seed)
@@ -263,8 +230,8 @@ defmodule Mix.Tasks.Pramana.Verify do
   # The strongest check available: go back to the untouched upstream bytes, run the
   # normalizer again, and require an identical body. This is what makes the bake
   # reproducible rather than merely persisted.
-  defp renormalize_check(text, edition) do
-    case reproduce(text, edition) do
+  defp renormalize_check(text) do
+    case reproduce(text) do
       {:ok, ir} -> compare_body(text, IR.body(ir))
       {:error, reason} -> {:renormalize_failed, text.urn_prefix, reason}
     end
@@ -283,17 +250,14 @@ defmodule Mix.Tasks.Pramana.Verify do
   # from pinned TEI in `raw/`; a locally-added text comes from its own `text/` directory,
   # which the lockfile hashes the same way. Assuming every text was CBETA made this
   # check fail on a legitimately added local source.
-  defp reproduce(%{source_id: "sc"} = text, _edition), do: reproduce_bilara(text)
+  defp reproduce(%{source_id: "sc"} = text), do: reproduce_bilara(text)
 
-  defp reproduce(%{source_id: source_id} = text, edition)
+  defp reproduce(%{source_id: source_id} = text)
        when source_id in ["derge", "derge-tengyur"] do
-    case get_in(edition, [source_id, text.work_id]) do
-      nil -> reproduce_derge(text, normalizer_for(source_id))
-      ir -> {:ok, ir}
-    end
+    reproduce_derge(text, normalizer_for(source_id))
   end
 
-  defp reproduce(text, _edition) do
+  defp reproduce(text) do
     if Sources.local?(text.source_id) do
       reproduce_local(text)
     else

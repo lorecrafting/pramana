@@ -48,6 +48,36 @@ puts the juan in between — now rule 68 and `Pramana.URN.addresses?/2`. And
 `mix pramana.recall --renderings` reported hits per language with no denominator, inside
 the instrument rules 22, 44 and 54 are measured with.
 
+## The Degé volume walk is deleted, because it was 15–20× slower — 2026-09-01
+
+Audit item #15 said the Tengyur's precomputed volume walk was failing silently and should
+be fixed. The bug was real and one line: `volumes_for/2` returned `{volume, path}` for the
+Tengyur where `Edition.volume()` is `{pos_integer(), binary() | Enumerable.t()}`, so the
+walk parsed a *file path string* as Tibetan, found no lines, and halted in 2 ms without
+ever opening a file. Two clauses of one function returning two different shapes.
+
+**Fixing it made verification 15–20× slower.** Measured on one machine, both sources both
+ways, all green and byte-identical:
+
+    source          precomputed walk        per-work fallback
+    derge           3m16s   6.1 texts/s     13s     87.6 texts/s
+    derge-tengyur   20m30s  2.7 texts/s     1m01s   55.3 texts/s
+
+The mechanism is memory rather than parsing. The walk holds every IR in the edition —
+891,169 Tengyur lines, 3.7 GB resident against 830 MB — and achieved parallelism halves,
+181% CPU against 373%, because garbage collection dominates. The fallback re-parses each
+volume about sixteen times, but inside `Task.async_stream` workers whose garbage dies with
+the task.
+
+**The ~90-minute figure that justified the walk was true when it was written.** It stopped
+being true when audit #10 removed `texts.body` from the load path and made loading
+chunked. Nobody re-measured the optimisation those changes had obsoleted — rule 70 — and
+it then failed silently for weeks while everything stayed green and fast, which was the
+evidence all along that the fallback had become the better path.
+
+So the walk is gone rather than repaired, `Edition.reduce/4` is untouched and still the
+ingest's walk, and `mix pramana.verify` lost a fixed cost and about sixty lines.
+
 ## Two of the five architecture audits stop being an honour system — 2026-09-01
 
 `Architecture.BoundariesTest`. `docs/CHECKS.md` §2 has always been owed by a person at a

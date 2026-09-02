@@ -146,7 +146,12 @@ against a different bake comes back `unverifiable`, never `failed`: the corpus c
 saying otherwise would teach people to ignore the checker.
 
 **`mix pramana.verify --all` re-derives every one of 12,586,964 segments in 6m03s**, from
-~26 minutes, and now prints its own coverage — `12586964 of 12586964 (every segment)`, or
+~26 minutes — and the Degé half of that got faster again on 2026-09-01, when the
+precomputed volume walk was **deleted** after measuring it at 15–20× slower than the
+per-work path it existed to avoid (derge 3m16s → 13s, derge-tengyur 20m30s → 1m02s).
+Rule 70.
+
+It prints its own coverage — `12586964 of 12586964 (every segment)`, or
 `409790 of 444673 (92.2% — SAMPLED)` when it is not. It reports the denominator because for
 a long time it did not: a green `verify OK` over 4,263 texts could mean 23% of them checked.
 It works one source at a time even for `--all`, which is a measured decision and not a
