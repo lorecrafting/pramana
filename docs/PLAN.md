@@ -2069,7 +2069,34 @@ Gemma-derived question L2 flagged and never had to answer. Our use is favourable
 (generated output, index tier, never redistributed; the corpus is not redistributed
 either) but "favourable" is not "checked".
 
-**The bake-off, and we already hold the answer key.** Patton's 3,354 human renderings
+**HOW THE FIDELITY VERDICT IS TAKEN — `mix pramana.translate.bakeoff`, built 2026-09-02.**
+
+Not by scoring a model against a human. **This project already refuses that move one
+level down** — where translators disagree it returns the disagreement with its
+attribution rather than picking a winner — and making one translator the definition of
+correct contradicts it.
+
+So the human is **one anonymous candidate among the others**, labels shuffled **per
+passage**, and the key is revealed after ranking. If a model outranks him the sheet can
+say so; if he outranks everything, that is worth knowing too.
+
+**One ranker is enough for a model choice, provided the ranker's consistency is
+measured.** A few passages repeat later under fresh labels. Ranking them the same way is
+what separates *this model is better* from *I prefer this register today*, and with n=1
+that distinction is the whole question. It costs nothing.
+
+**Reader ranking is the wrong instrument and is not planned.** A reader without Chinese
+can only rank fluency, and fluent-and-wrong is the failure this exists to catch — it
+would optimise for pleasing. Readers **flagging problems** is signal worth having;
+readers ranking quality is not.
+
+**A specialist panel is the right long-term answer, and its job is not to rank
+everything.** It ranks a *divergence-stratified* sample — the hard passages, which the
+divergence map is designed to find — in order to **validate a cheap automatic metric on
+this domain**. Once chrF or BLEURT is shown to track expert judgement here, the cheap
+metric ranks the rest. That is what `consensus_score` is on the schema for.
+
+**The bake-off, and we already hold candidates to blind it against.** Patton's 3,354 human renderings
 cover T0099 and T0026 line by line. Generate the same passages with MITRA-MT and score
 two ways: against Patton for fidelity, and — the one that decides the index tier — with
 `mix pramana.recall --renderings` for whether the generated English *retrieves* the line
