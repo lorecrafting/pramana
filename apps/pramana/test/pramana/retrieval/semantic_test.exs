@@ -343,4 +343,54 @@ defmodule Pramana.Retrieval.SemanticTest do
       assert kinds == ["source", "translation"]
     end
   end
+
+  # Comparing two model arms means holding everything constant except whose English the
+  # corpus holds. An arm cannot be queried with its own output — its own vector is then
+  # the nearest neighbour and every case is a hit by identity — so the query is a human
+  # rendering and the INDEX is what varies.
+  describe "restricting the index to one translator" do
+    setup %{} do
+      agama = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+
+      embed_chunks!(agama, 2,
+        kind: "translation",
+        lang: "en",
+        translator: "model:mitra",
+        content: "Thus have I heard. At one time the Buddha was staying near Rājagṛha."
+      )
+
+      embed_chunks!(agama, 2,
+        kind: "translation",
+        lang: "en",
+        translator: "model:qwen",
+        content: "So I have heard: once, the Buddha dwelt in the city of Rajagaha."
+      )
+
+      {:ok, probe: unit_vector(2)}
+    end
+
+    test "only the named translator's English is searched", %{probe: probe} do
+      %{results: results} = Semantic.search_vector(probe, limit: 20, translators: ["model:mitra"])
+
+      translators =
+        results
+        |> Enum.flat_map(& &1.matched_via)
+        |> Enum.filter(&(&1.kind == "translation"))
+        |> Enum.map(& &1.translator_id)
+        |> Enum.uniq()
+
+      assert translators == ["model:mitra"]
+    end
+
+    test "an empty list is the control — no English layer at all", %{probe: probe} do
+      %{results: results} = Semantic.search_vector(probe, limit: 20, translators: [])
+
+      kinds = results |> Enum.flat_map(& &1.matched_via) |> Enum.map(& &1.kind) |> Enum.uniq()
+
+      refute "translation" in kinds
+      # Source vectors carry no translator and must survive the filter, or the control
+      # measures an empty corpus rather than one with no translations.
+      assert "source" in kinds
+    end
+  end
 end

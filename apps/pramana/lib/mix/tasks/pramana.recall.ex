@@ -40,7 +40,8 @@ defmodule Mix.Tasks.Pramana.Recall do
     renderings: :boolean,
     mode: :string,
     concurrency: :integer,
-    to: :string
+    to: :string,
+    translators: :string
   ]
 
   @impl Mix.Task
@@ -87,6 +88,22 @@ defmodule Mix.Tasks.Pramana.Recall do
     end
   end
 
+  # WHOSE ENGLISH IS IN THE INDEX WHILE THE PROBE RUNS — the option that makes one model
+  # arm comparable with another.
+  #
+  # `--translators model:mitra` scores a corpus holding that arm's English and no other
+  # translator's, queried with the HUMAN renderings the probe always samples. An arm
+  # cannot be queried with its own output: its own vector is then the nearest neighbour
+  # and every case is a hit by identity. `--translators none` removes every translation
+  # vector, which is the control — what retrieval does with no English layer at all.
+  defp translators(opts) do
+    case opts[:translators] do
+      nil -> opts
+      "none" -> Keyword.put(opts, :translators, [])
+      list -> Keyword.put(opts, :translators, String.split(list, ",", trim: true))
+    end
+  end
+
   # THE EXPERIMENT THAT DECIDES WHETHER § F'S TERM TABLE IS THE RIGHT BUILD.
   #
   # `--parallels` measures retrieval of a discourse CORRESPONDENCE across languages and gets
@@ -100,6 +117,7 @@ defmodule Mix.Tasks.Pramana.Recall do
       |> Keyword.update(:mode, :hybrid, &mode/1)
       |> Keyword.put(:serving, Serving.name())
       |> Keyword.put(:on_progress, progress())
+      |> translators()
 
     result = Recall.renderings(opts)
 

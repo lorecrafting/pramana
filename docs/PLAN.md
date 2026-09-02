@@ -2191,6 +2191,31 @@ MITRA does not beat `gemma-2-9b-it` on our passages, the domain claim is empty *
 whatever it scores on the paper's test set. If it does not beat Qwen, the right model is
 Qwen. Neither outcome is a setback — both are cheaper than buying a tranche on trust.
 
+**HOW AN ARM IS SCORED WITHOUT SCORING IT AGAINST ITSELF — `--translators`, 2026-09-02.**
+
+`mix pramana.recall --renderings` samples `method = 'human'`, so it could not see a
+generated rendering at all, and the obvious repair is a trap: **query with an arm's own
+output and its own vector is the nearest neighbour, so every case is a hit by identity.**
+That is not hypothetical — the dense-vs-prose experiment scored one arm 150-0 that way
+before its query was changed to a second translator's words.
+
+So the query is held constant and the **index** is what varies. Patton's human English is
+the probe; `--translators <id>` restricts the index's translation vectors to one arm,
+leaving source vectors alone. Different arms then differ only in the English the corpus
+holds, which is the thing being compared.
+
+| run | what it measures |
+|---|---|
+| `--translators none` | no English layer at all — the floor |
+| `--translators patton` | the human layer, today's state |
+| `--translators model:mitra` | the domain model |
+| `--translators model:gemma-base` | what the 4.4B-token fine-tune bought |
+| `--translators model:qwen` | a bigger general model |
+
+**The baseline they have to beat is 46.8% work-level / 32.3% on the line**, measured over
+the whole 1,670-case population rather than a sample, so there is no seed to match and no
+draw to argue about. `docs/STATUS.md` carries it.
+
 **The two verdicts are taken with different instruments, and only one needs a person.**
 
 - **Index tier — automatic, reference-free, decides the purchase.** `--renderings --to

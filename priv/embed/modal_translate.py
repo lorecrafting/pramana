@@ -70,18 +70,27 @@ ACCELERATE = "accelerate==1.12.0"
 # the domain claim is empty *here* whatever it scores elsewhere.
 #
 # `revision` pins the weights to a commit, not to a branch name.
+# SIZED FROM A FAILED RUN, not from arithmetic. A 9.2B model in bf16 is 18.5 GB and an
+# L4 has 24, so the L4 "fits" on paper — and in practice the weights loaded with 61 MB
+# free, the caching allocator started reporting OOM, and generation ran at 0.07
+# passages/s, roughly ten times slower than the card should manage. A model that fits
+# with no room for its KV cache is not a model that fits. The 9B arms therefore get 48 GB.
+#
+# Qwen 32B in bf16 is ~65 GB and does NOT fit an A100-40GB, which is what this table said
+# before the same check was applied to it: the failure would have arrived after the
+# container had spun up and the weights had downloaded.
 ARMS = {
     "mitra": {
         "model": "buddhist-nlp/gemma-2-mitra-it",
         "revision": "main",
         "dialect": "mitra",
-        "gpu": "L4",
+        "gpu": "L40S",
     },
     "mitra-int8": {
         "model": "buddhist-nlp/gemma-2-mitra-it-int8",
         "revision": "main",
         "dialect": "mitra",
-        "gpu": "L4",
+        "gpu": "L40S",
     },
     # GATED. Needs the `huggingface-token` secret and a human who has accepted the Gemma
     # terms on that account.
@@ -89,18 +98,23 @@ ARMS = {
         "model": "google/gemma-2-9b-it",
         "revision": "main",
         "dialect": "chat",
-        "gpu": "L4",
+        "gpu": "L40S",
     },
-    # 32B in bf16 does not fit an L4's 24 GB.
     "qwen": {
         "model": "Qwen/Qwen2.5-32B-Instruct",
         "revision": "main",
         "dialect": "chat",
-        "gpu": "A100-40GB",
+        "gpu": "A100-80GB",
     },
 }
 
-MAX_NEW_TOKENS = 512
+# Sized from the human renderings of the same chunks, not guessed: a 300-character
+# Chinese passage is 1,500-2,000 characters of Patton's English, roughly 300-400 tokens.
+# 512 would clear the median and clip the tail — and a clipped rendering makes an arm look
+# worse for a reason that has nothing to do with the model. `truncated` below counts any
+# completion that used the whole budget, so this assumption is checked every run rather
+# than trusted.
+MAX_NEW_TOKENS = 768
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -166,7 +180,7 @@ def decode(dialect, text):
 # smaller card is not a slow run — it is an out-of-memory failure part-way through a
 # tranche that has already been paid for.
 @app.function(
-    gpu="L4",
+    gpu="L40S",
     volumes={"/data": volume},
     timeout=60 * 60 * 4,
     secrets=[modal.Secret.from_name("huggingface-token")],
@@ -231,6 +245,7 @@ def translate(
 
     started = time.time()
     done = 0
+    truncated = 0
 
     with open(f"/data/{output_name}", "w", encoding="utf-8") as out, torch.inference_mode():
         for i in range(0, len(rows), batch_size):
@@ -259,8 +274,16 @@ def translate(
             # Slice off the prompt by LENGTH rather than by string-matching the decoded
             # output: the prompt does not always survive detokenisation byte-identically,
             # and a failed match would silently keep the prompt in the rendering.
-            completions = tokenizer.batch_decode(
-                generated[:, encoded["input_ids"].shape[1] :], skip_special_tokens=True
+            new_tokens = generated[:, encoded["input_ids"].shape[1] :]
+            completions = tokenizer.batch_decode(new_tokens, skip_special_tokens=True)
+
+            # A completion that used every token it was given probably had more to say.
+            # Counted rather than silently accepted: an arm penalised for hitting a
+            # budget is being measured on the budget.
+            truncated += sum(
+                1
+                for row in range(new_tokens.shape[0])
+                if int(new_tokens[row].ne(tokenizer.pad_token_id).sum()) >= MAX_NEW_TOKENS
             )
 
             for row, completion in zip(batch, completions):
@@ -290,7 +313,19 @@ def translate(
     volume.commit()
     elapsed = time.time() - started
     print(f"wrote {done} rendering(s) in {elapsed / 60:.1f} min", flush=True)
-    return {"arm": arm, "renderings": done, "seconds": round(elapsed, 1)}
+    if truncated:
+        print(
+            f"  WARNING: {truncated} rendering(s) used the whole {MAX_NEW_TOKENS}-token "
+            f"budget and are probably cut off — raise MAX_NEW_TOKENS and re-run this arm "
+            f"before comparing it with another.",
+            flush=True,
+        )
+    return {
+        "arm": arm,
+        "renderings": done,
+        "truncated": truncated,
+        "seconds": round(elapsed, 1),
+    }
 
 
 @app.local_entrypoint()

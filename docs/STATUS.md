@@ -101,12 +101,23 @@ probe pointed at one canon at a time, with `derge.D` run as a control:
 | `sc.ms` (Pāli) | **1.00 segment** | 178/200 · 89.0% | 158/200 · 79.0% |
 | `cbeta.T` (Chinese) | **2.01 segments** | 126/200 · 63.0% | 74/200 · 37.0% |
 
-**The `cbeta.T` row is not comparable to any run after 2026-09-02.** It was measured
-before rule 71, so 41% of the English chunks it searched were in scrambled sentence
-order, and before `sample_renderings/3` was keyed on the anchor rather than on `t.id` —
-a re-ingest changed every id, so the same seed no longer draws the same 200 pairs. Both
-the text and the sample moved. Treat it as superseded rather than as a baseline to
-beat.
+**▸ SUPERSEDED. The `cbeta.T` row above was measured before rule 71**, so 41% of the
+English chunks it searched were in scrambled sentence order, and before
+`sample_renderings/3` was keyed on the anchor rather than on `t.id` — a re-ingest changed
+every id, so the same seed no longer drew the same 200 pairs. Both the text and the
+sample moved, and no delta against it is attributable.
+
+**The replacement is not a sample.** The eligible population is 1,670 cases, small enough
+to measure entirely, so it was:
+
+| | found the work | on the line |
+|---|---|---|
+| `cbeta.T`, all 1,670 renderings, 2026-09-02 | **782 · 46.8%** | **539 · 32.3%** |
+
+A 200-case draw of the same population scored 49.0% / 32.5%, so the sample was mildly
+optimistic and not misleading. **This is the number a model arm has to beat**, and it is
+the last one here that will need a caveat about sampling: `--translators` now varies the
+index instead of the sample, so arms are compared with the query held constant.
 | `derge.D` (Tibetan) | **6.94 segments** | 199/200 · 99.5% | **17/200 · 8.5%** |
 
 **`on the line` scores whether the retrieved span CONTAINS the whole anchor, so it is

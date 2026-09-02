@@ -67,6 +67,7 @@ defmodule Pramana.Retrieval.Semantic do
     :vector_kinds,
     :vector_lang,
     :translation_coverage,
+    :translators,
     :balance,
     :per_tradition,
     :source_id,
@@ -249,6 +250,7 @@ defmodule Pramana.Retrieval.Semantic do
       |> filter_vector_kinds(opts[:vector_kinds])
       |> filter_vector_lang(opts[:vector_lang])
       |> ablate_translations(opts[:translation_coverage])
+      |> filter_translators(opts[:translators])
       |> join(:inner, [v], c in Chunk, as: :chunk, on: c.id == v.chunk_id)
       |> join(:inner, [v, c], t in Text, as: :text, on: t.id == c.text_id)
       |> join(:inner, [v, c, t], w in Work, as: :work, on: w.id == t.work_id)
@@ -338,6 +340,37 @@ defmodule Pramana.Retrieval.Semantic do
   #
   # Source vectors are never hidden. This models a corpus with a partial TRANSLATION
   # layer — the Chinese situation exactly — not one with less text in it.
+  # WHICH TRANSLATORS' ENGLISH IS IN THE INDEX, for comparing one against another.
+  #
+  # A model arm cannot be scored by querying with its own output: its own vector is then
+  # the nearest neighbour and every case is a hit by identity. That is not hypothetical —
+  # the dense-vs-prose experiment scored one arm 150-0 that way before the query was
+  # changed to a second translator's words.
+  #
+  # So an arm is scored with a HUMAN rendering of the same passage as the query, held
+  # constant across arms, while the index's translation vectors are restricted to that one
+  # arm. Different arms then differ only in the English the corpus holds, which is the
+  # thing being compared. Passing `[]` leaves source vectors alone and removes every
+  # translation vector, which is the "before any English layer" control.
+  #
+  # Source vectors are never filtered — a translator id is a property of a rendering, and
+  # a source chunk has none.
+  defp filter_translators(query, nil), do: query
+
+  defp filter_translators(query, ids) do
+    ids = List.wrap(ids)
+
+    if has_named_binding?(query, :vector) do
+      where(
+        query,
+        [vector: v],
+        v.kind != "translation" or v.translator_id in ^ids
+      )
+    else
+      where(query, [v], v.kind != "translation" or v.translator_id in ^ids)
+    end
+  end
+
   defp ablate_translations(query, nil), do: query
 
   defp ablate_translations(query, coverage) when coverage >= 1.0, do: query

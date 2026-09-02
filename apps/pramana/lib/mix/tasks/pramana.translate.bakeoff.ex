@@ -60,7 +60,8 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
     repeats: :integer,
     seed: :integer,
     lang: :string,
-    min_chars: :integer
+    min_chars: :integer,
+    reveal: :boolean
   ]
 
   @impl Mix.Task
@@ -92,7 +93,9 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
     File.write!(out <> ".md", sheet(sheet_rows, lang))
     File.write!(out <> ".key.json", Jason.encode!(key(sheet_rows), pretty: true) <> "\n")
 
-    report(rows, sheet_rows, out)
+    if opts[:reveal], do: File.write!(out <> ".revealed.md", revealed(rows, lang))
+
+    report(rows, sheet_rows, out, opts[:reveal])
   end
 
   # An anchor is usable when two or more translators rendered it. Ordered by a hash of the
@@ -231,6 +234,51 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
 
   defp label(n), do: <<?A + n>>
 
+  # THE SAME PASSAGES WITH THE NAMES ON, for reading rather than for ranking.
+  #
+  # Deliberately a separate file and deliberately not the default. Knowing which rendering
+  # came from which model is exactly the information that makes a ranking worthless — you
+  # cannot un-know that B is the one you are hoping wins, and this project's whole posture
+  # is that a comparison has to survive the person running it. So: rank the sheet first,
+  # then read this.
+  #
+  # No repeats here, because a repeat exists to measure whether a ranker agrees with
+  # themselves under fresh labels, and there are no labels to be fresh.
+  defp revealed(rows, lang) do
+    header = """
+    # Bake-off, revealed — #{lang}
+
+    **Read this AFTER ranking `.md`, not before.** These are the same passages with the
+    translator named beside each rendering. A `t0`/human rendering is a published human
+    translation; a `t1`/llm one is generated and is not citable as source (invariant #8).
+
+    ---
+
+    """
+
+    rows
+    |> Enum.with_index(1)
+    |> Enum.map_join("\n", fn {row, i} ->
+      candidates =
+        row.candidates
+        |> Enum.sort_by(& &1.translator_id)
+        |> Enum.map_join("\n\n", fn c ->
+          "**#{c.translator_id}** (#{c.method}) — #{String.trim(c.text)}"
+        end)
+
+      """
+      ## #{i} · `#{row.anchor_urn}`
+
+      > #{String.trim(row.source || "(source text not held for this anchor)")}
+
+      #{candidates}
+
+      ---
+      """
+    end)
+    |> then(&(header <> &1))
+  end
+
   # Built from the SAME shuffled list the sheet rendered, so label position is the key's
   # ordering and the two cannot disagree. `label` is stored explicitly rather than left
   # implicit in the array order, because an implicit contract between two functions is
@@ -253,7 +301,7 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
     end)
   end
 
-  defp report(rows, sheet_rows, out) do
+  defp report(rows, sheet_rows, out, reveal?) do
     repeats = Enum.count(sheet_rows, fn {_row, repeat?} -> repeat? end)
 
     translators =
@@ -270,6 +318,7 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
 
       sheet  #{out}.md
       key    #{out}.key.json     <- do not open until the sheet is ranked
+    #{if reveal?, do: "  read   #{out}.revealed.md   <- named, for reading; ranking after this is not blind", else: ""}
 
     The index tier is NOT decided here — `mix pramana.recall --renderings` decides that
     automatically and without a reference translation. This sheet is for the reader tier.
