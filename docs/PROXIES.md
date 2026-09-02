@@ -1148,3 +1148,34 @@ which took thirty seconds and would have been skipped if the number had looked
 unremarkable. It looked *excellent* — 82.3% is the answer you want when you are hoping
 demand is concentrated — and that is exactly the condition under which this project has
 been wrong before.
+
+## The dense-gloss test that queried itself — 2026-09-02
+
+`docs/TRANSLATION.md` asks whether index-tier English needs to be prose, since nobody
+reads it. A dense gloss — content words only — would be about half the tokens, and at
+~73,000 chunks that is real money.
+
+**The first test said prose won 150 pairs to nothing.** It queried with the very text it
+was scoring: `embed(t)` against `embed(t)`, cosine 1.0 by construction. That is not a
+result, it is an identity — and it read as a clean, decisive negative, which is exactly
+the shape rule 62 warns about.
+
+**Fixed by using a second translator's rendering of the same chunk as the query.** 574
+chunks carry two independent human renderings; one asks, the other answers. Corrected:
+
+    mean margin over best distractor    prose 0.0989   dense 0.0549
+    beats every distractor              prose  99.3%   dense  86.7%
+    dense >= prose                                     4.7% of pairs
+    length                              657 chars ->   348 (53.0%)
+
+The conclusion survives and is now earned: **prose retrieves substantially better.** Half
+the tokens costs nearly half the margin and 12.6 points of "would be retrieved at all",
+and recovering that needs roughly double the coverage — more than the 47% saved.
+
+**What this does NOT rule out.** It tested *mechanically stripped prose*, not a
+purpose-written gloss. A model asked for "the terms, names and doctrinal vocabulary of
+this passage" would write something different, and probably better, than a stop-word
+filter produces. The cheap version of the idea is dead; the idea has not been tested.
+
+And the embedder is a variable: BGE-M3 is trained on natural language, so stripping
+function words moves the text off-distribution. A different model might not care.

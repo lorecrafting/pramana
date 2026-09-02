@@ -58,10 +58,21 @@ Cutting across them is a second axis nobody had named, and it decides most of E1
 model, and models read Classical Chinese. So English in the vector index exists to make a
 passage **findable**, and nothing more. Three consequences:
 
-  * It may be better as a **dense gloss** — terms, names, doctrinal vocabulary, no
-    connective tissue — than as fluent prose. More retrievable surface per token, none of
-    it spent on grammar. Cheaper, and possibly higher recall. **A/B this before generating
-    at scale**; it is the cheapest unasked question in the plan.
+  * ~~It may be better as a dense gloss.~~ ▸ **TESTED AND REJECTED, 2026-09-02.** The
+    hypothesis was that terms, names and doctrinal vocabulary with no connective tissue
+    would pack more retrievable surface per token. Measured against 150 pairs where one
+    human translator's rendering queries another's of the same chunk: **prose keeps a
+    margin of 0.0989 over the best distractor and dense keeps 0.0549**, and dense beats
+    every distractor in 86.7% of pairs against prose's 99.3% — for 53% of the length.
+    Recovering that loss needs roughly double the coverage, which costs more than the
+    tokens saved. **Generate prose.**
+
+    Two limits on that verdict. It tested *mechanically stripped prose*, not a
+    purpose-written gloss — a model asked for "the terms and names in this passage" would
+    write something different and probably better. And BGE-M3 is trained on natural
+    language, so removing function words moves the text off-distribution; another
+    embedder might not care. `docs/PROXIES.md` carries the test, including the first
+    version that queried itself and reached the same verdict for free.
   * The acceptance test is `mix pramana.recall --renderings --to cbeta.T`, not a human.
     That removes a review bottleneck from the middle of the budget.
   * Glossary-pinning is still essential, for a *retrieval* reason: 方便, 權 and 善巧 must

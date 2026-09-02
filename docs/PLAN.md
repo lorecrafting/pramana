@@ -2021,6 +2021,19 @@ curve's knee and the concentration peak landing on the same number.
     top  50   48,650       6.8%          53.3%
     top 100   73,565      10.2%          66.1%
 
+**And it runs on Modal, not on an API vendor.** `bin/pramana-modal` is set up and verified
+(modal 1.5.4), `priv/embed/modal_embed.py` already does BGE-M3 inference there and
+`modal_train_tibetan.py` has run a LoRA fine-tune, so generation is an open-weights model
+on the same rented GPU path — no Anthropic or OpenAI account, no per-token vendor bill.
+`docs/GPU_RUNBOOK.md`.
+
+That is worth stating because it was got wrong once: the absence of `ANTHROPIC_API_KEY` was
+read as "no generation capability", which is the wrong question — this project's inference
+has never gone through an API vendor. It does mean a judgement about `CLAUDE.md`'s "do not
+let the Python sidecar grow": a translation sidecar is still tensor math and still holds no
+domain logic, so it is the same exception embedding already is, but it is an exception
+being used a second time and should be a deliberate decision rather than a drift.
+
 **Start at top 20 — 26,191 chunks — because it is the cheapest run that can measure the
 one unknown.** The demand-weighting premium is untested: the ablation hid vectors at
 random, and the curve says a *random* 3.6% scores around 28% at work level. If a
@@ -2098,8 +2111,9 @@ English are different products** and only the first is in this budget.
              served, labelled, with       test: glossary compliance + consensus against
              the term chain visible             a human rendering where one exists
 
-E1 buys the **index** tier: dense, glossary-pinned, scored by the recall probe, never
-shown. The reader tier is generated on demand for passages somebody opens — small volume,
+E1 buys the **index** tier: **prose** (the dense-gloss alternative was tested and
+rejected 2026-09-02 — `docs/TRANSLATION.md`), glossary-pinned, scored by the recall probe,
+never shown. The reader tier is generated on demand for passages somebody opens — small volume,
 high bar — and is not a corpus-scale spend.
 
 **And the boundary this project can honestly claim**, which belongs on the page and not
