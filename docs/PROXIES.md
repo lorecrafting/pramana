@@ -1107,3 +1107,44 @@ design — 3.6 s per query, mistaken for a slow lexical path. Phrase mode then r
 cross-lingual with a 10% control, which the control correctly refused to publish. Only the
 third run, with the serving loaded and the floor corrected, produced a figure worth writing
 down.
+
+## The quotation graph as a demand proxy — contaminated twice, 2026-09-02
+
+Sizing E1's translation spend needs to know how concentrated demand is: if a few hundred
+works absorb most retrieval, translating them buys most of the benefit. The quotation
+graph — 141,073 verbatim reuses — looks like the obvious measure of which works the canon
+itself leans on.
+
+**First reading, and it was wrong: "the top 50 works are 82.3% of all quotations."**
+
+That number is one text quoting itself. T0220b and T0220c are sections of the
+大般若波羅蜜多經 and account for **87,659 of 141,073 quotations — 62% of the graph** —
+and 66,841 of T0220b's point at T0220a, another section of the same sūtra. The Large
+Prajñāpāramitā is famously repetitive; the detector is finding that repetition, correctly,
+and it is not citation.
+
+Measured across the whole graph: **92,545 of 141,073 pairs, 65.6%, join works sharing a
+five-character id prefix** — the same work split into CBETA sections.
+
+**Corrected to cross-work pairs only**, the graph is 48,528 quotations and the
+concentration is real but weaker: top 50 works 53.3%, top 100 **66.1%**, top 200 78.4%.
+The ranking becomes recognisable, which is the check that matters — 順正理論, 法苑珠林,
+妙法蓮華經, 摩訶般若波羅蜜經, both Āgamas, 大般涅槃經, 大方廣佛華嚴經.
+
+**A second contamination remains, smaller and named rather than corrected.** T2157
+貞元新定釋教目錄, T2148 and T2153 眾經目錄 are **catalogues**: they enumerate texts, so
+they quote hundreds of works and rank near the top while nobody reads them for doctrine.
+Citation weight is a proxy for what the tradition cites, and the tradition includes its
+own librarians.
+
+**And the deeper limit, which no correction reaches.** This measures what the canon cites,
+not what a modern English-speaking reader asks. They plainly correlate — the Lotus and the
+Āgamas are on both lists — and they are not the same thing, and there is no data here that
+measures the second. A figure derived from this should be read as "what the tradition
+leans on", never as "what users want".
+
+**The habit, again.** The first number was checked by looking at the ranking it produced,
+which took thirty seconds and would have been skipped if the number had looked
+unremarkable. It looked *excellent* — 82.3% is the answer you want when you are hoping
+demand is concentrated — and that is exactly the condition under which this project has
+been wrong before.

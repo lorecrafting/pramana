@@ -48,6 +48,30 @@ puts the juan in between — now rule 68 and `Pramana.URN.addresses?/2`. And
 `mix pramana.recall --renderings` reported hits per language with no denominator, inside
 the instrument rules 22, 44 and 54 are measured with.
 
+## The coverage curve, and a demand proxy that was 62% one sūtra — 2026-09-02
+
+E1's open question was a price: matching Pāli's English coverage over CBETA is ~720,000
+chunk translations and nobody had measured what fraction would do. Pāli is the only canon
+that can answer it, so its English layer was ablated at seven levels through the query
+that ships.
+
+**Returns are strongly concave.** The first 5% of coverage buys 38% of the achievable
+gain; the last 75% buys 32%. My first reading of the curve was backwards — from the top it
+looks like "no knee", because 100%→50% costs 16.5 points; the purchasing question is what
+a unit *buys*, and by that measure early coverage is worth ~17× late coverage.
+
+**The 0% control validated the instrument**: 4.0% with no English layer at all, and CBETA
+sits at 0.027% coverage with `topical/chinese` at 0 of 12.
+
+**Then the demand proxy lied, in the flattering direction.** "Top 50 works are 82.3% of all
+quotations" is one repetitive sūtra quoting itself — T0220b and T0220c are 62% of the whole
+graph, and 65.6% of all pairs join sections of a single work. Corrected to cross-work
+pairs, concentration is real but weaker: top 100 works, 66.1% of citation weight, 10.2% of
+CBETA's chunks. `docs/PROXIES.md` carries it.
+
+It was caught by looking at the ranking the number produced — thirty seconds, and easy to
+skip precisely because 82.3% is the answer one hopes for.
+
 ## Architecture review, the three audits a test cannot do — 2026-09-02
 
 `docs/CHECKS.md` §2 asks for findings to be written here. Two of its five audits became

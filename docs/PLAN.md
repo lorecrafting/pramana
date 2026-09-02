@@ -1972,6 +1972,56 @@ exactly the term equivalence § F could not justify on retrieval grounds — 不
 *acalā* and to "Immovable Ground" — so the concept layer and the English layer are one build,
 not two.
 
+### ▸ THE COVERAGE CURVE, MEASURED 2026-09-02 — and it prices the decision
+
+The question E1 could not answer: matching Pāli's English coverage over CBETA is ~720,000
+chunk translations, and **nobody had measured what fraction of that would do.** Pāli is the
+only canon that can answer it, being the only one fully covered — 55,326 English vectors
+over 44,719 chunks. `Pramana.Retrieval.Semantic`'s `translation_coverage` hides a
+deterministic fraction of them, through the query that ships, and
+`mix pramana.recall --renderings --to sc.ms` scores what is left. 200 pairs, seed 0.42,
+identical at every point.
+
+    coverage   found the work    on the line
+      100%     179/200  89.5%   158/200  79.0%
+       50%     146/200  73.0%    87/200  43.5%
+       25%     124/200  62.0%    51/200  25.5%
+       10%      89/200  44.5%    22/200  11.0%
+        5%      73/200  36.5%    18/200   9.0%
+        2%      38/200  19.0%     6/200   3.0%
+        0%       8/200   4.0%     3/200   1.5%
+
+**The 0% row is the control and it validates the instrument.** With no English layer an
+English query still reaches the right work 4% of the time, through BGE-M3's own
+cross-lingual space and the lexical arm. **CBETA today is at 0.027% coverage** — that row —
+and its measured `topical/chinese` is 0 of 12. The curve and the observed failure agree.
+
+**Returns are strongly concave, and the first reading of that was backwards.** Read from
+the top, 100%→50% costs 16.5 points and looks like "no knee". Read as *what you get per
+unit spent*, which is the purchasing question:
+
+    0% ->   5%   +32.5 pts   6.5 points per 1% of coverage
+    5% ->  25%   +25.5 pts   1.3
+   25% -> 100%   +27.5 pts   0.37
+
+**The first 5% buys 38% of the entire achievable gain; the last 75% buys 32%.** Early
+coverage is worth ~17x more per unit than late.
+
+**Demand is concentrated, and cheaply.** Cross-work citation only — see `docs/PROXIES.md`
+for why the raw graph is 62% one repetitive sūtra quoting itself — the **top 100 works are
+66.1% of the canon's citation weight and 73,565 chunks, 10.2% of CBETA.** That is the
+curve's knee and the concentration peak landing on the same number.
+
+**So the thing to price is ~10% coverage, demand-weighted**: ~73,000 chunks. The ablation
+says a *random* 10% takes English→Chinese from 4% to ~44.5% at work level; a
+demand-weighted 10% should beat that, by an amount nobody has measured.
+
+**Two caveats that must travel with any figure derived from this.** `on line` at 10% is
+11.0%, far weaker than the 44.5% work-level number — a reader who wants the right *line*
+is served much less well than one who wants the right work. And citation weight measures
+what the tradition cites, which includes its own catalogues (T2157, T2148, T2153 rank high
+and nobody reads them for doctrine) and is not the same as what an English reader asks.
+
 **How to know it worked:** `topical/chinese` moves off 0% for the first time, and
 `--renderings` scores English→Chinese somewhere near the 93.8% it already reaches for Pāli
 and Tibetan. Both instruments exist.

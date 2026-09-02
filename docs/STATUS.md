@@ -70,6 +70,23 @@ whole Āgama, so 2 works is **54 sūtras**, and 2,761 of the 65,785 segments in 
 texts — **2,761 of CBETA's 10,788,972**. See `docs/PLAN.md` § E1 for what shipped and what
 it measured.
 
+**The translation-coverage curve is measured, and it prices E1** — `docs/PLAN.md` § E1.
+Ablating Pāli's English layer, which is the only fully covered one, at 200 seeded pairs
+per point:
+
+| coverage | found the work | on the line |
+|---|---|---|
+| 100% | 89.5% | 79.0% |
+| 25% | 62.0% | 25.5% |
+| 10% | 44.5% | 11.0% |
+| **0%** | **4.0%** | 1.5% |
+
+The 0% row is the control: **CBETA today is at 0.027% coverage**, and its `topical/chinese`
+is 0 of 12. Returns are strongly concave — the first 5% of coverage buys 38% of the whole
+achievable gain, the last 75% buys 32% — and the **top 100 works by cross-work citation
+are 66.1% of the canon's citation weight for 10.2% of its chunks**. So ~73,000 chunk
+translations is the thing to price, not 720,000.
+
 **`topical/chinese` is still 0 of 12, and nothing regressed.** `--only topical` scores
 51.0% against a baseline of 51.0%, every tradition row identical. A search of the whole
 corpus puts 191 English vectors over the Chinese against 55,135 over the Pāli, and the
