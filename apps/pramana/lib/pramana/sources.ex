@@ -131,6 +131,34 @@ defmodule Pramana.Sources do
             "individual rendering; this entry states the most restrictive."
       }
     },
+    # The Chinese half of bilara-data, and the only source here that is READ AND NEVER
+    # STORED. `Pramana.Sc.Lzh` matches it against the CBETA Āgamas this corpus already
+    # holds and keeps a Taishō address; not one of its bytes lands in `texts` or
+    # `segments`. It is registered and pinned anyway, because it is an input to an
+    # ingest and a bake that cannot be reproduced from `sources.lock.json` is not a bake.
+    "sc-lzh" => %{
+      id: "sc-lzh",
+      # The canon it belongs to, not the repository it came from. bilara-data is
+      # SuttaCentral's and mostly Pāli; this subtree is the Chinese Āgamas.
+      tradition: "chinese",
+      name: "SuttaCentral bilara-data — SuttaCentral Taishō (lzh root)",
+      upstream_url: "https://github.com/suttacentral/bilara-data",
+      repo: "suttacentral/bilara-data",
+      license: %{
+        # scpub39, "SuttaCentral Taisho". SuttaCentral publishes it CC0; it is derived
+        # from SAT 2018, which is CC BY-SA 4.0, and re-punctuated and corrected against
+        # CBETA and Yinshun. The two terms never have to be reconciled here because
+        # nothing from this source is stored or served — see the note above.
+        spdx: "CC0-1.0",
+        class: "cc0",
+        commercial_use: true,
+        redistributable: true,
+        notice:
+          "CC0 per bilara-data _publication.json (scpub39). Corrected and re-punctuated " <>
+            "from SAT 2018 (CC BY-SA 4.0). Used as an alignment bridge only: no text " <>
+            "from this source is stored in the corpus or served by the API."
+      }
+    },
     "sc-data" => %{
       id: "sc-data",
       tradition: "pali",

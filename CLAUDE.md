@@ -15,9 +15,15 @@ is what to search for.
 
 It is also what the measurements support. `mix pramana.recall --renderings` scores an English
 query reaching Tibetan and Pāli source text at **93.8%**, because 241,409 human renderings
-exist to reach them through. The same query reaches Chinese at **0%**, because **there are
-none over CBETA** — which is the whole of `topical/chinese` being 0%, and why an English
-layer over the Chinese canon is the top priority in `docs/PLAN.md` § E1.
+exist to reach them through.
+
+**Chinese had none at all until 2026-08-31, and now has 3,354** — Charles Patton's CC0
+English of 54 Āgama sūtras, anchored to Taishō lines by `Pramana.Sc.Lzh`. That is **2 of
+4,263 CBETA works**, it did **not** move `topical/chinese` off 0%, and the reason is
+arithmetic: 55,135 English vectors over the Pāli against 191 over the Chinese answering
+the same English question. An English layer over the Chinese canon is still the top
+priority in `docs/PLAN.md` § E1, and the next increment has to be large enough to compete
+rather than merely non-zero.
 
 ## The one idea
 
@@ -42,7 +48,7 @@ a historical sentence read as a current claim:
 |---|---|
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
-| `docs/RULES.md` | **67 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/RULES.md` | **69 rules** from real defects, cited by number — read before a new pipeline |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -55,7 +61,7 @@ before proposing something.
 
 ### Which rules apply to what you are about to do
 
-`docs/RULES.md` holds **67 rules, each learned from a real defect here**, and they are cited
+`docs/RULES.md` holds **69 rules, each learned from a real defect here**, and they are cited
 by number in code and commits. This file is always in your context and that one is not, so
 the triggers live here. **Read the listed rules before starting the activity, not after the
 test goes red.**
@@ -66,7 +72,8 @@ test goes red.**
 | write a **mix task** or add a CLI option | 4, 8, 57, 66 |
 | add a **filter, option or mode** | 4, 5, 6, 26, 36 |
 | write an **Ecto query** or touch performance | 9, 14, 15, 19, 21, 25, 34, 38, 39, 40, 67 |
-| report a **coverage figure or any ratio** | 22, 31, 44, 54 |
+| **compare, split or match a URN** — a prefix test, a `split_part`, a `LIKE` | 68 |
+| report a **coverage figure or any ratio** | 22, 31, 44, 54, 69 |
 | choose a **threshold**, or build a benchmark | 7, 18, 30, 32, 35, 37, 47, 49, 54, 67, and `docs/PROXIES.md` |
 | change a **schema, enum or registry** | 11, 12, 13, 42 |
 | **acquire** or cache anything from upstream | 10, 43, 58, 64 |
@@ -311,6 +318,13 @@ serves the CC0/CC-BY subset only.
     (`an1.1-10` is ten suttas) and `Derge.normalize_file/2` returns
     `{:ok, [IR.t()], still_open}` — a Derge work spans volumes and must be assembled
     across them in printed order, which per-work jobs cannot do.
+
+  **And a source need not be stored at all.** `sc-lzh` — bilara's Chinese, added
+  2026-08-31 — is read at ingest, matched against the CBETA text already held, and
+  discarded; what is kept is a Taishō address. It is registered and pinned like any other,
+  because invariant #3 is about reproducing a bake from `sources.lock.json` rather than
+  about what ends up in `texts`. Reach for this shape whenever loading a source would put a
+  **second copy of a text this corpus already holds** in front of a reader.
 
   This bullet used to say "three behaviours plus one registry entry — nothing else", and
   `docs/ADDING_TEXTS.md` named bilara and 84000 as examples of it. Three of the four text

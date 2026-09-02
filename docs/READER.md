@@ -8,6 +8,7 @@ The human surface. `mix phx.server`, then `/`.
 /survey?q=<phrase>         every occurrence, counted rather than sampled
 /passage?urn=<urn>         one line in its printed context
 /works/<work_id>           a work's structure, without its text
+/check                     paste a report; see which of its claims survive
 ```
 
 `docs/MCP.md` is the same corpus for a model. This is the same corpus for a person, and
@@ -163,6 +164,44 @@ the concentration alongside the total, because that is the number that decides w
 count means: 一切眾生 appears in **36,775 lines across 1,904 works**, 40.8% Indic-composed
 and 35.0% Chinese-composed, with the heaviest single work holding 7%. A phrase in one work
 is that work's idiom; a phrase across nineteen hundred is the tradition's.
+
+## `/check` is the only page here that helps you disbelieve something
+
+Every other screen helps you find a passage. This one takes a document — an answer from
+some other assistant, an essay, a draft — and reports which of its claims survive contact
+with the corpus. Added 2026-08-31; `Pramana.Report.verify/2` had shipped three days
+earlier and was reachable only by MCP call, which is rule 60.
+
+It is the one thing in this space nobody else offers. `verify_citation` and fojin's
+`/api/verify/quote` check a single quotation. This checks **a whole document including its
+arithmetic**, because the claims that carry a report are not the quotes:
+
+    "T0262 says X"                              -> byte-compared, and always could be
+    "X appears 36,775 times across 1,904 works" -> needs the survey re-run
+    "no Japanese-composed text uses X"          -> needs the search re-run, still empty
+
+A frequency generalised from twenty ranked hits reads exactly like one counted over twelve
+million segments, and that is live in the world right now — people are getting fluent,
+confident, invented Dharma from general assistants with nowhere to take it. **Nothing on
+this page asks anyone to trust a model of ours**: the checks are byte comparisons and
+re-executed counts.
+
+**Three verdicts, and the third is why it is worth building.** `verified` and `failed` are
+the obvious two. **`unverifiable`** is a replay recorded against a different `bake_id` —
+the corpus has changed and the claim cannot be re-run here. It is not refuted and it does
+not pass, it is rendered in its own colour, and collapsing it into `failed` is how a
+checker teaches people to ignore it. `mix pramana.integrity` lost its audience that way,
+crying wolf over 1,228 X texts.
+
+**The summary states its denominator**, because "3 citations verified" over three
+renderings of one Pāli line is not the claim it appears to be. It reports how many were
+byte-compared, how many were checked for **existence** only because no quotation was
+attached, and how many quoted a translation rather than the source.
+
+And it refuses two things. It does not judge whether a citation *supports* the claim
+attached to it — `Pramana.Guard` draws that line and this holds it. And its
+*unsourced figures* list is a heuristic prompt to look, never a verdict: a check that
+failed on any prose containing a page number would be unusable.
 
 ## Not built yet
 

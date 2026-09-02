@@ -35,6 +35,7 @@ defmodule Pramana.Chunk.Vectors do
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Translation
   alias Pramana.Repo
+  alias Pramana.URN
 
   # The language of the text itself, by source. Not a guess: `sc` is the Mahāsaṅgīti Pāli
   # edition, `derge` is the Tibetan Kangyur, CBETA and locally-added commentary are
@@ -175,8 +176,10 @@ defmodule Pramana.Chunk.Vectors do
             }
         )
         # Ordinals belong to a text, not to a work, so a work held in two witnesses must
-        # not borrow the other one's positions.
-        |> Enum.filter(&String.starts_with?(&1.anchor_urn, prefix <> "@"))
+        # not borrow the other one's positions. `Pramana.URN.addresses?/2` and not a
+        # `starts_with?` on `prefix <> "@"`, which reads CBETA's juan as someone else's
+        # text — see its doc.
+        |> Enum.filter(&URN.addresses?(&1.anchor_urn, prefix))
     end
   end
 

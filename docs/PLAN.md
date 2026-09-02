@@ -18,29 +18,51 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 
 ---
 
-## Start here — session of 2026-08-30 ended clean
+## Start here — session of 2026-08-31
 
-Tree clean at **6571a46**. Full gate green at 32m23s (1,472 eval cases, no case type
-regressed); everything after that passed `--quick` and touched no normalizer, no retrieval
-path and no corpus, so the corpus checks still hold.
+Previous session ended clean at **81aa830**. This one shipped **§ E1's first slice** — the
+Chinese canon has an English layer for the first time. Read § E1 before picking anything
+up; the short version is that it works, it is 54 sūtras of 4,263 works, and it moved no
+corpus-wide number.
 
 **Do these in order.**
 
-1. **§ E1 — an English layer over the Chinese canon.** Now the top priority. 4,263 CBETA
-   works have **zero** English renderings while Pāli has 5,845 and the Kangyur 472, and that
-   single fact is the whole of `topical/chinese` being 0%. Acquire (BDK English Tripiṭaka,
-   SuttaCentral's Āgama translations) or generate glossary-pinned as a layer that is never
-   citable as source. Success is measurable both ways: `topical/chinese` moves off 0%, and
-   `--renderings` scores English→Chinese near the 93.8% it already reaches for Pāli/Tibetan.
-2. **L5 — the checker screen.** `verify_report` shipped 2026-08-28 and is reachable only by
-   MCP call, which is rule 60. One textarea, one verdict list. It is the only thing in this
-   space nobody else offers.
-3. **L1 — dictionaries.** The largest functional gap. Consider mounting fojin's MCP
+1. **§ E1, the increment that can actually compete.** 3,354 renderings is 191 chunk
+   vectors against 55,135 over the Pāli, and an English question asked of the whole corpus
+   is answered by the Pāli every time. The pipeline, the anchoring, the licence question
+   and both instruments now exist; **coverage is the only thing missing**, and there are
+   exactly two routes to it: a licence conversation (BDK English Tripiṭaka) or
+   glossary-pinned generation over a source anchor (`docs/TRANSLATION.md`, invariant #8).
+   **Pick one and size it before building** — anything that does not reach a substantial
+   fraction of 4,263 works will land where this slice did.
+2. **L1 — dictionaries.** Now the largest functional gap. Consider mounting fojin's MCP
    `lookup_dictionary` rather than re-deriving 39 sources; compose for breadth, own for
    warrant.
+3. **L4 — cross-scheme URN resolution.** Best effort-to-benefit ratio on the list, and
+   pure domain logic: four native grammars are already parsed, and teaching the resolver
+   fojin's scheme makes citations checkable in the system that did not produce them.
 4. **#15 — the Tengyur's volume walk fails silently** and has for some time.
 
-**What changed today that is not obvious from the code.**
+~~L5 — the checker screen.~~ ▸ **SHIPPED 2026-08-31**, `/check`. See § L5.
+
+**What changed on 2026-08-31 that is not obvious from the code.**
+
+- **Patton's Āgama English was already here and was being thrown away.** 54 CC0 files,
+  hashed into the `sc-translations` lockfile entry since #39, dropped at every ingest as
+  `no_such_anchor` — the same counter the Pāli's legitimate elisions land in, so the loss
+  read as noise. **Check what a skip counter is actually counting.**
+- **A prefix test on a URN is a parser** (rule 68). `Chunk.Vectors` excluded every
+  range-anchored CBETA rendering — 2,089 of the first 3,354 — because CBETA puts the juan
+  between the work and the `@`. Silent; the only symptom was a vector count nobody had an
+  expectation for.
+- **A source need not be stored.** `sc-lzh` is read, matched against CBETA, and discarded;
+  what is kept is a Taishō address. Registered and pinned regardless — invariant #3 is
+  about reproducing a bake, not about what ends up in `texts`.
+- **A CBETA "work" is a whole Āgama**, so "2 of 4,263 works have English" and "54 sūtras
+  have English" are the same fact and the second is the honest one. Any per-work ratio over
+  CBETA needs this said beside it.
+
+**What changed on 2026-08-30.**
 
 - **The language barrier was never the problem.** English→Pāli/Tibetan retrieval is 93.8%;
   cross-lingual *paraphrase* is 0.4%. § F's headline claim is withdrawn, MITRA-E is not
@@ -53,6 +75,8 @@ path and no corpus, so the corpus checks still hold.
 **Do not redo — all recorded with evidence in § "Rejected, with evidence".** Concurrency in
 `mix pramana.evals` (moved two cases for 1.19x). Postgres tuning (no measurable gain, prime
 suspect in swap thrashing). MITRA-E adoption (the embedder is not the bottleneck).
+**And do not re-acquire Patton's Āgama English** — it is ingested; § E1 records what it
+did and did not do.
 
 **Parked, needing a human rather than code.** SAT phase 2 — the ~4,200-fascicle text fetch —
 is built and unstarted. `docs/SOURCES.md` forbids scraping the reader on reproducibility
@@ -66,11 +90,12 @@ imply in a commit.**
 
 | | |
 |---|---|
-| corpus | **17,281 texts · 12,586,964 segments** · 3 traditions · **1,037,264 vectors** |
+| corpus | **17,281 texts · 12,586,964 segments** · 3 traditions · **1,037,455 vectors** |
 | CBETA | **16 collections of 26** — T 2,471 · X 1,230 · J 285 · **I 101** · N 38 · **GA 51** · **F 27** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · **GB 2** · M 1 · **ZS 1** — 4,340 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
 | MCP surface | **17 read-only tools** — `search_translations`, `get_glosses`, `get_works_by_person` and `get_person` all added 2026-08-28 |
-| reader | five LiveView screens — search `/`, **inventory `/inventory`**, survey `/survey`, passage `/passage`, work `/works/:id` |
+| English over Chinese | **3,354 renderings** over **2 of 4,263** CBETA works (54 Āgama sūtras) — new 2026-08-31, § E1 |
+| reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
 | work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
@@ -81,7 +106,7 @@ imply in a commit.**
 | absence | **75%** — and the failing case is real and stays red; see item D |
 | answered from any tradition | 81.8% |
 | noise floor | 1 case same-index · **6 cases across an index rebuild, 4 of them Tibetan** |
-| full gate | 26m53s at 0.9 cases/s |
+| full gate | **32m22s** — evals 21m14s at 1.2 cases/s, integrity 11m02s, `verify --all` 7m09s over every segment (2026-08-31) |
 | redistributable subset | 13,017 texts · 1.8M segments · 315k vectors |
 | CI | GitHub Actions on every push — compile `--warnings-as-errors`, format, credo, 1,198 tests |
 
@@ -112,21 +137,26 @@ commentary alignment untouched… the one item that no general-purpose search to
 produce for you"*. Both shipped. It is left visible rather than deleted, because the plan's
 value is that it records what was believed as well as what is true.
 
-**Then the line moved, deliberately.** v1 as *written* is met; v1 as *scoped* now includes
-four things added by decision after the definition was, and the honest reading is that **v1
-is no longer met** — two of the four are designed and unbuilt:
+**Then the line moved, deliberately.** v1 as *written* is met; v1 as *scoped* also includes
+four things added by decision after the definition was — and **all four have now shipped**:
 
 | added to v1 | state |
 |---|---|
 | lineage chains | ✅ `Authority.lineage/1`, `teacher_chain/2`, exposed on `get_person` |
 | Wikidata q-ids | ✅ `external_ids` on `get_person`; 1,446 of the linked works' people carry one |
-| **place authority** | ◐ designed, unbuilt — § A3. `place_id` is stored on 12,134 people and resolves to nothing |
-| **Phase 7 research agent** | ◐ designed, unbuilt — § H, and it is a *report verifier*, not an agent |
+| place authority | ✅ § A3, 2026-08-28 — 59,335 places, historical region as well as modern path |
+| Phase 7 report verifier | ✅ § H, 2026-08-28 — `verify_report`, and it is a verifier, not an agent |
 
-That is a scope decision, not a slip, and it is recorded here rather than by editing the
-sentence above — because a definition that quietly grows to match what got built measures
-nothing. The clause table stands as the record of what the original definition asked for and
-when it was answered.
+That the line moved at all was a scope decision, not a slip, and it is recorded here rather
+than by editing the sentence above — because a definition that quietly grows to match what
+got built measures nothing. The clause table stands as the record of what the original
+definition asked for and when it was answered.
+
+**The bottom two rows read "◐ designed, unbuilt" until 2026-08-31**, four days after §§ A3
+and H were marked ▸ DONE further down this same file, and `docs/STATUS.md` carried the same
+claim. Nothing was wrong with the code; a summary table went stale above the sections it
+summarises. **When you mark a section done, grep this file for the other place it is
+counted** — rule 41, applied to prose.
 
 **What remains and is NOT v1.** Taishō 56–84 waits on a reply to the request sent 2026-08-15, and the
 `phase-2` tag is withheld until it resolves — stamping a gate green over a known gap is how
@@ -1007,9 +1037,16 @@ reports `on line` beside `found`, requiring the parallel's own target line.
 sample size, same cap:
 
     task                                          work-level   on line
-    cross-lingual, TRUE TRANSLATION                  93.8%      54.2%
+    cross-lingual, TRUE TRANSLATION                  93.8%      54.2%   <- pooled; see below
     same-language, discourse correspondence          28.8%       4.8%
     cross-lingual, discourse correspondence           0.6%       0.4%
+
+**The `on line` figure here is pooled over two populations that score 79.0% and 8.5% on
+it** — Pāli, whose anchors are one segment, and Tibetan, whose 84000 anchors are folios of
+about seven. It is an average of the two and describes neither. Corrected 2026-08-31; see
+§ E1 and rule 69. The **93.8%** work-level figure and everything this section concludes
+from it stand: the claim was that language costs almost nothing when a translation exists
+to anchor on, and both populations reach their work.
 
 **An English query reaches Tibetan and Pāli source text 469 times in 500.** BGE-M3 crosses
 the language barrier better than it handles *same-language* correspondence. So:
@@ -1708,6 +1745,8 @@ blast radius, not by effort.
 | 11 | **`mix pramana.verify --all` was SIGTERMed twice, and the gate depends on it** | died at 7 min and at 3.5 min with `SIGTERM received - shutting down` and no jetsam record. Per-source runs of the same work succeed easily — sc 4.9 s, cbeta 45 s — which points at `--all` holding all 17,281 bodies at once (#10) rather than at the checking itself. **Both kills were after the `shared_buffers` 128 MB → 2 GB tuning**, and there is no pre-tuning `--all` run in this session to compare, so the tuning is a suspect and not a convicted one. Every source passed at FULL coverage individually — sc 4.5 s, derge 3m52s, tengyur 1m02s, cbeta 1m14s over 10,788,972 segments — so only `--all` dies, which points at the materialised bodies rather than the checking | ▸ **FIXED and confirmed 2026-08-29** — `--all` now iterates sources internally and completes in **6m03s** over every one of 12,586,964 segments, against a ~26 min baseline and the 46m48s single-pass version. Sources come from the database, so coverage is 17,281 texts and not the 17,280 a hand-written loop checked |
 | 12 | **`mix pramana.verify` prints its coverage without a denominator** | it reports `segments checked: 2,487,559` and `verify OK`, and without `--all` that is **23% of cbeta's 10,788,972** — the default samples 1,000 segments per text and nothing in the output says so. A reader sees a green check over 4,263 texts and reasonably concludes the corpus was verified. This is rules 22, 44 and 54 — *publish the gap, not just the total* — inside the gate's own verification step, and it nearly produced a fabricated 4.5× speedup here by comparing a sampled run against a full baseline | ▸ **done and confirmed** — prints `12586964 of 12586964 (every segment)`, or `409790 of 444673 (92.2% — SAMPLED)` when it is not |
 | 13 | **Degé Kangyur's verify time is per-text body work — three wrong hypotheses first** | 1,195 texts / 461,302 segments in **3m52s**, against cbeta's 10,788,972 segments in **1m14s** — 1,988 seg/s versus 145,800. — but that framing is **wrong, and it was mine**. `started` is set *before* `editions(...)`, so the one-time volume walk is inside the measured elapsed, and `volumes_for(root, Derge)` eagerly `File.read!`s all 103 Kangyur volumes before parsing them. So the headline "73× slower per segment" divides a fixed startup cost by 1,195 texts and prints it as a per-text rate. ▸ **ANSWERED 2026-08-29, and every hypothesis along the way was wrong.** Measured: `--sample 1` checks 0.3% of the segments and still takes **3m11s of 3m52s**; the edition walk is **10.4s**; the Kangyur edition derives all 1,195 works successfully, so there is no silent fallback. The time is **per-text body work** — sha256 over each body plus the re-render comparison — across 1,195 large Tibetan texts, which *is* the byte-compare guarantee and not a defect. The four dead hypotheses, in order: missing volume walk, bad root path, fixed cost misreported as a rate (82% of it), silent fallback. **The reporting fix stands** — the walk is now timed and printed separately — but there is nothing here to optimise without weakening the check that caught the phantom lines in toh4100 and toh4150 | ▸ done |
+| 17 | **`mix pramana.integrity` is now the gate's second-largest step and has never been profiled** | 11m02s on 2026-08-31, against `docs/CHECKS.md`'s recorded **13m18s** — so it has not regressed. It is simply that `verify --all` went ~26m → 6-7m in the 2026-08-29 audit and integrity did not move, and nobody has looked at it since it stopped being the small one. **Not urgent and not a defect**; noted so that the next person optimising the gate starts from the largest step rather than the most familiar one, which is rule 40 | open |
+| 18 | **`mix pramana.evals` prints an ETA that is wrong by 3x, and wrongly in the flattering direction** | It divides total elapsed by cases completed. The 1,472 cases are two populations ~175x apart in cost: the ~930 that touch no embedder finished in **12 seconds**, about 13 ms each; the ~540 after them embed a query and run hybrid search at ~2.3 s. At 1,310 cases the printed estimate said `~2m01s left` and the measured marginal rate said ~6 minutes; it took 4m47s. An average over unlike populations predicts neither — **rule 69, in this project's own tooling** — and the fix is to estimate from a trailing window rather than the total. A few lines | open |
 | 14 | **`evals/baseline.json` records no per-case detail, so a regression cannot be localised** | keys are `overall`, `by_type`, `by_type_tradition`, `stale`, `errors`, `total` — rates only. When the concurrent run scored retrieval 368 against the baseline's 370 on 2026-08-29, **there was no way to identify which two cases moved**, and the only route to an answer was re-running the whole 446-case subset for ~20 minutes. A list of case ids and outcomes would have made it a diff. The ratchet can say *something regressed* and never *what* | open |
 | 15 | **The Tengyur's precomputed volume walk fails silently, and has been failing** | `derive_edition("derge-tengyur")` returns `{:error, {:empty_volume, 1}}` in 2 ms, and `derive_edition/1` swallows it with `_ -> %{}`, so **all 3,380 Tengyur texts take the per-work fallback**. That walk exists precisely because verifying work-by-work parsed 212 volumes ~16 times each and took ~90 minutes — *"97% of the whole gate"*. It is not costing that today (Tengyur verifies in 1m02s), which is why nobody noticed, but the optimisation is dead and the failure is invisible by construction. **Do not "fix" the fallback — find why `volumes_at/1` reports an empty first volume**, and make the swallow report rather than degrade silently (rule 17: anything optional degrades quietly) | open |
 | 16 | **The Taishō 部 table mislabelled 452 of 510 works in T2185–T2700** | ▸ **FIXED 2026-08-30, before the text ever arrived.** One row covered the whole range as 續經疏部 with `text_role: "commentary"`. SAT's 541 IIIF manifests each carry their own 分類, and the range is **four** divisions: 續經疏部 T2185–2245 (58), 續律疏部・續論疏部 T2246–2295 (50), **續諸宗部 T2296–2700 (402)**, 悉曇部 T2701–2731 (31). The 402 are the doctrinal writings of the Japanese schools — compositions, not commentary on anything. **T2688 is 立正安國論, Nichiren's *Risshō Ankoku Ron*, and the table filed it as a sub-commentary**; a test asserted that and passed. Nothing could have caught it: `provenance --check` validates that a number range sits inside its volume range, which one wrong row spanning 56–83 satisfies, and none of these works is loaded so `verify` and `integrity` were green over it — the § A4 pattern exactly. Five tests pinned the wrong data and were corrected with it | ▸ done |
@@ -1721,6 +1760,148 @@ at `concurrency: 1` against one at `concurrency: 6`, compared case by case — n
 ---
 
 ## E1. An English layer over the Chinese canon — the top priority, 2026-08-30
+
+### ▸ FIRST SLICE SHIPPED 2026-08-31 — 3,354 renderings, and `topical/chinese` did not move
+
+`mix pramana.sc.chinese` and `Pramana.Sc.Lzh`. **The Chinese canon has an English layer
+for the first time**, and the honest headline is that it covers **54 sūtras — 2 of 4,263
+CBETA works** — and did not move the measurement it was built to move.
+
+**It was already on disk.** Charles Patton's CC0 English of the Chinese Saṃyukta and
+Madhyama Āgamas — 54 files — has been hashed into the `sc-translations` lockfile entry
+since #39 and **discarded at every ingest**, because its anchors name SuttaCentral
+addresses (`sa379:2.2`) while this corpus holds those Āgamas as CBETA.
+`mix pramana.sc.translations` filed every segment under `no_such_anchor`, which is also
+where the Pāli's legitimate elisions land, so the loss read as ordinary noise. The
+sparse checkout did not fetch `root/lzh` at all, so the Chinese they would have been
+joined through was never acquired either.
+
+**What it does.** bilara's Chinese is used as a bridge and never stored, so the anchor
+kept is a **Taishō** page-and-line address a reader can check against a print edition.
+Both editions print the sutta number — CBETA writes `（三七九）`, and T0099's 1,350
+markers and T0026's 222 are each unique — so the number gives a window and every segment
+is matched inside it, in order and forward only. A number pointing at the wrong sutta
+would match nothing and drop the work whole. Variant Han forms are folded and editorial
+punctuation stripped **for the comparison only**, because `root/lzh/sct` is SAT-derived
+and this corpus's Āgamas are CBETA.
+
+| | |
+|---|---|
+| works anchored | **64** of 64 in `sa`/`ma` (208 of 272 lzh files are collections with no anchoring) |
+| anchors exact | **3,758 — 86.9%** |
+| anchors interpolated | 567 — 13.1%, each bounded by neighbours that matched, and stamped `anchor_method` |
+| how wide a bounded anchor is | of the rows that span more than one line, interpolated ones average **2.49 printed lines, 8 at worst**, against 2.13 for exact ones. Not "somewhere in this sutta" |
+| segments dropped | **2** |
+| renderings stored | **3,354**, all CC0, `translator_id: patton`, over T0099 and T0026 |
+| chunk translation vectors | **191**, embedded |
+
+**The guarantee held, and it is checkable.** If a sutta number ever pointed at the wrong
+passage, that work's exact-match rate would collapse to near zero — two unrelated sutras do
+not agree character for character. Across all 64 works the **minimum is 57.1%** (sa162) and
+the median 85.0%, with sa34 at 100%. No work is anywhere near the signature of a
+mis-located window.
+
+**And it did not move `topical/chinese`, which stays 0 of 12.** `--only topical` scores
+**51.0%** against a baseline of 51.0%, every tradition row identical — chinese-native
+91.7%, pali 75.0%, tibetan 22.2%. **Nothing regressed and nothing improved.** The reason
+is arithmetic rather than mechanism: those cases search the whole corpus with no
+tradition filter, so an English question is answered by **55,135** English vectors over
+the Pāli against **191** over the Chinese.
+
+**Isolated from that competition it is measurable — and measuring it broke the
+instrument.** `mix pramana.recall --renderings --to <namespace>`, 200 pairs each, seed
+0.42, hybrid, limit 100, the same probe pointed at one canon at a time. The third row was
+run as a control and is the reason none of these three numbers can be compared with each
+other:
+
+| canon | mean anchor width | found the work | on the line |
+|---|---|---|---|
+| `sc.ms` (Pāli) | **1.00 segment** | 178/200 · 89.0% | 158/200 · 79.0% |
+| `cbeta.T` (Chinese) | **2.01 segments** | 126/200 · 63.0% | 74/200 · 37.0% |
+| `derge.D` (Tibetan) | **6.94 segments** | 199/200 · 99.5% | **17/200 · 8.5%** |
+
+**Tibetan finds the work 99.5% of the time and the line 8.5% of the time**, and that is
+not a fact about Tibetan retrieval. `Recall.covers?/2` scores a hit "on the line" when the
+retrieved span **contains the whole anchor**, and 84000's anchors are folio-wide — about
+seven Degé lines — so the chunk that matched is frequently smaller than the thing it has
+to contain. The on-line column is inversely ordered by anchor width across all three
+canons, perfectly, because that is what the predicate measures. Rule 69.
+
+**So neither column supports a cross-canon comparison, and they fail in opposite
+directions.** Work-level flatters Chinese — there are two CBETA works with any English, so
+"found the work" means landing anywhere in a 32,000-segment text, against 8,442 Pāli works.
+On-line penalises Chinese — its anchors are twice the width of the Pāli's, because
+SuttaCentral segments a sentence where the Taishō breaks at seventeen characters.
+
+**E1's second success criterion — "`--renderings` scores English→Chinese near the 93.8% it
+already reaches for Pāli/Tibetan" — turns out not to be answerable as written**, because
+93.8% was a pooled figure over two populations that score 79.0% and 8.5% on the same
+column. What can be said: English reaches the Taishō, at 63.0% and 37.0% on a probe whose
+two columns bracket the truth, and the corpus-wide measurement did not move.
+
+**The mechanism does work, and a control is what establishes how much.** Scoped to
+`source_id: cbeta`, "How is mindfulness of breathing taught?" returns the SĀ ānāpāna
+sutras at ranks 1–4. It would have been easy — and wrong — to publish that as the
+result: the nearest CBETA vectors to that query are `parallel_gloss/en/sujato` at
+d=0.143 and 0.153, machinery that **predates this change**, with Patton's own vector
+third at d=0.224. Rule 62. The new layer contributes and is not what produced the
+top hit.
+
+**What this says about the rest of E1.** The pipeline, the anchoring and the two
+instruments now exist and the licence question is settled for this source. What does not
+exist is coverage: 54 sūtras inside 2 of 4,263 works, and no route to the other 4,261 that
+does not go through either a licence conversation (BDK) or generation. **A slice this size cannot
+move a corpus-wide measurement, and that is the finding to carry forward** — the next
+increment has to be large enough to compete, not merely non-zero.
+
+**A general gap, found by the gate and left for a decision.** `bake_id` is a hash of
+`sources.lock.json`, so **any task that writes a lockfile entry changes it**, and a bake
+row that no longer describes its inputs stamps every API response with an id for a corpus
+that does not exist. `mix pramana.sc.chinese` now calls `Bake.record/1` like
+`sc.ingest`, `derge.ingest` and `local.add` do. **Six of the ten tasks that write a
+lockfile entry still do not:**
+
+    acquire_all · derge.images · kangyur.catalogue · kangyur.translations
+    parallels.import · sc.translations
+
+Each one leaves `mix pramana.gate` red on `:bake_id_diverged` the next time it runs, and
+the fix is one line each. It is not done here because two of them (`acquire_all`,
+`derge.images`) acquire without ingesting, and whether a bake should be re-recorded when
+only the *inputs* moved and nothing was loaded is a real question rather than an
+oversight. **Decide it once and apply it to all six**, rather than adding a call where it
+happens to be convenient.
+
+**Not attempted, with its measured size.** Extending the fold table with the Taishō
+glyph forms Unihan files under `kSemanticVariant` — 衞/衛, 繋/繫, 縁/緣, 増/增, 眞/真,
+偸/偷, 擧/舉, 徳/德, 倶/俱 — would move roughly 466 anchors from interpolated to exact.
+It is a hand-curated list against a residue that is evidence about two editions, and the
+anchors it would sharpen are already bounded. Left undone deliberately.
+
+**Three defects found on the way**, all latent, and the third only because rule 60's
+question was asked of something already green — *can a model actually reach this?*
+
+1. **`Pramana.Chunk.Vectors` excluded every range-anchored CBETA rendering.** It tested
+   `String.starts_with?(anchor_urn, urn_prefix <> "@")`, and a CBETA line puts the juan
+   in between — `pramana:cbeta.T:T0099_001@p0001a06` against a prefix of
+   `pramana:cbeta.T:T0099`. **2,089 of the first 3,354 renderings** had no vector built,
+   silently, with the count of vectors the only symptom. Now `Pramana.URN.addresses?/2`,
+   with a test that fails against the old code. The same assumption in
+   `mix pramana.tibetan.pairs` is scoped `WHERE translator_id = '84000'` and is correct
+   for Derge anchors, so it is left alone rather than churned.
+2. **And the same assumption again in `Pramana.Translations.covering/2`**, which matched
+   `work_id` against `urn.work` — the juan for a CBETA address. So even once those 2,089
+   renderings had vectors, `get_passage` on a Taishō line returned **no English for any of
+   them**: correctly stored, correctly anchored, unreachable. Rule 41 is the reason this was
+   looked for; the work is now read from the segment row rather than from the address, and
+   the remaining four `urn.work` uses were swept and are all correct.
+3. **`mix pramana.recall --renderings` reported hits per language with no denominator.**
+   `frequencies_by(found, & &1.to)` — rules 22, 44 and 54 inside the instrument those
+   rules are measured with. It now scores each namespace with its own denominator, and
+   `--to` restricts the sample to one, because at 1.4% of the pool the Chinese canon
+   draws about seven pairs in five hundred and cannot be scored at all.
+
+---
+
 
 **This project is English-first**: the reader asks in English, the canons stay in their own
 languages, and every answer is anchored to the original. That is a positioning decision and
@@ -1758,6 +1939,14 @@ not two.
 `--renderings` scores English→Chinese somewhere near the 93.8% it already reaches for Pāli
 and Tibetan. Both instruments exist.
 
+**▸ Both halves of that criterion turned out to be wrong, 2026-08-31**, and the slice above
+is how we found out. `topical/chinese` searches the whole corpus, so it cannot move until
+the Chinese layer can outcompete 55,135 Pāli vectors — it is a **coverage** test wearing a
+retrieval test's clothes. And 93.8% is a pooled figure over populations scoring 79.0% and
+8.5% on its companion column, so "near 93.8%" names no target. **The replacement criterion
+is `--renderings --to cbeta.T` compared against its own previous run**, plus a
+tradition-scoped topical row if one is ever added. Rule 69.
+
 ---
 
 ## From the landscape review — 2026-08-30
@@ -1784,7 +1973,46 @@ MITRA-E details, for when that question is actually reached: 9B params, **3,584-
 | L3 | **Answer-time repair, and a trust vocabulary** | We diagnose citation failures in five distinct ways and **repair none of them**. fojin strips citations whose source was never retrieved, and downgrades non-verbatim "quotes" to plain prose. Diagnosis serves a caller who checks; repair serves the one who does not, and that is most of them. Adopt their four-word state vocabulary wholesale — `verified` / `citation_corrected` / `quote_relaxed` / `no_sources` | open |
 | L4 | **Cross-scheme URN resolution** | The same passage is `fojin:cbeta/T0001.1`, `pramana:cbeta.T:T0001_001@p0001a01`, `T2185_.56.0001a01` and `mn1:1.1` depending on who cites it, so **a citation cannot be checked in the system that did not produce it**. fojin exposes `resolve_urn`; we parse four native grammars already. Teaching each resolver the other's scheme is small, mutual, and makes citations portable across the field. Best effort-to-benefit ratio on the list | open |
 
-| L5 | **A "check anything" screen — one input, one verdict list** | `verify_report` shipped 2026-08-28 and **has no surface**: it byte-verifies every citation in a document *and re-executes the searches its figures rest on*, and the only way to reach it is an MCP call. Rule 60 — a capability a person cannot reach has not shipped. The screen is one textarea and a verdict list, far smaller than a chat product, and it is the one thing in this space nobody else offers: fojin's `/api/verify/quote` checks a single quotation; this checks a whole document including its arithmetic. **The use case is already live in the world** — people are getting confident fabrications about the Dhamma from general assistants, and a place to paste one and see which claims survive requires trusting no model of ours. It also makes the deepest infrastructure here the visible product rather than something buried behind a chat box | open |
+| L5 | **A "check anything" screen — one input, one verdict list** | `verify_report` shipped 2026-08-28 and had **no surface**: only an MCP call reached it. Rule 60 | ▸ **SHIPPED 2026-08-31** — `PramanaWeb.CheckLive` at `/check`, in the nav, nine tests. See below |
+
+### L5 — `/check`, shipped 2026-08-31
+
+One textarea, one verdict list, and the deepest infrastructure here is now the visible
+product rather than something buried behind an MCP call.
+
+**Four decisions worth keeping.**
+
+1. **Three verdicts, not two.** `unverifiable` — a replay recorded against another
+   `bake_id` — has its own colour and never the failure colour. The corpus changed; the
+   claim is not refuted and does not pass. A test asserts it, and that test **failed for
+   the wrong reason first**: with no bake row in the test database `Bake.current_id()` is
+   nil, every replay simply executes, and the screen rendered `verified`. The setup now
+   records a bake. A test for a distinction has to be able to see the distinction.
+2. **The summary states its denominator.** Never "verified" — how many were byte-compared,
+   how many were checked for **existence** only because no quotation was attached, how many
+   quoted a translation rather than the source. Rules 22, 44 and 54, on the screen where a
+   reader will act on the number.
+3. **An oversized paste is refused whole, not truncated.** `Report.verify/2` caps replay
+   *execution*; the citation scan and the figure heuristic are regex passes over the whole
+   document and are not capped by it. 200 KB, refused with a message — a silently shortened
+   report would come back verified on the half that was read, which is rule 4 where it
+   would do the most damage.
+4. **It is synchronous, and the moduledoc says so.** 25 replays at ~1.2 s each holds the
+   socket for tens of seconds. Bounded, not free. Correct for a self-hosted reader with one
+   person in front of it; revisit before serving strangers, for whom the paste box is also
+   the obvious way to make the corpus work on someone else's behalf.
+
+**The format is on the page, as static help rather than a button that fills the box.** A
+quotation needs no markup — paste prose with URNs in it — but nobody guesses a
+`pramana-replay` block, and the one thing this screen does that nothing else does would
+otherwise be unreachable without reading the source. That is rule 60 one level in. A
+button filling the textarea with an example built from URNs that may not be in the
+reader's bake would have demonstrated the format **by failing**, which teaches the wrong
+thing on first use.
+
+**Still not done:** no worked example that actually verifies against the reader's own
+corpus. Doing it honestly means deriving one at mount from a segment the bake really
+holds, which is a domain function this screen does not justify on its own.
 
 **And one correction to make first.** `docs/COMPETITIVE.md` has said *"fojin has more corpus;
 you will not out-scale it quickly there"*, and that has been shaping strategy. fojin reports

@@ -26,7 +26,12 @@ defmodule Pramana.SourcesTest do
     # licences, and one entry would have to state the weakest of them about all three.
     test "the canons are the three the corpus holds, plus reference data that is none of them" do
       assert Sources.by_tradition() == %{
-               "chinese" => ["cbeta", "sat"],
+               # `sc-lzh` is bilara-data's Chinese half, and it is filed by the CANON it
+               # transmits rather than by the repository it came from. SuttaCentral is
+               # mostly Pāli; `root/lzh/sct` is the Chinese Āgamas, and a per-tradition
+               # search for the Chinese canon that skipped it would skip the only English
+               # route into the Taishō.
+               "chinese" => ["cbeta", "sat", "sc-lzh"],
                "pali" => ["sc", "sc-data", "sc-translations"],
                "tibetan" => ["84000", "84000-rdf", "bdrc-derge", "derge", "derge-tengyur"],
                # NOT a canon. DILA's authority databases describe people who appear across

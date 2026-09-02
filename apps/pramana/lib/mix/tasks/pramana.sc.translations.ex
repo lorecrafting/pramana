@@ -157,7 +157,16 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
   # happen to agree on licence today, which is a property of this snapshot and not a
   # guarantee; the recorded `publication` id would be wrong either way, and that id is
   # how anyone later audits which terms a rendering was taken under.
-  defp publications(root) do
+  @doc """
+  Every publication in `_publication.json`, grouped by `{language, author}`.
+
+  Public for the same reason `publication_for/3` is: it is the first half of a licensing
+  decision, and `mix pramana.sc.chinese` makes the same decision about the same file
+  tree. A second copy of it is rule 41 waiting to happen — the licence would drift
+  between two ingests reading one repository.
+  """
+  @spec publications(String.t()) :: %{{String.t(), String.t()} => [map()]}
+  def publications(root) do
     root
     |> Path.join("_publication.json")
     |> File.read!()
@@ -375,7 +384,15 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
   # CC0 waives everything; CC BY-SA 3.0 does not. Treating them alike would strip an
   # attribution the translator is entitled to, so the abbreviation is mapped explicitly
   # and anything unrecognised is `unknown` + not redistributable.
-  defp license({nil, _}) do
+  @doc """
+  The licence terms a `publication_for/3` result carries, ready to store on a rendering.
+
+  Public alongside `publications/1` and for the same reason. The mapping from CC0 and
+  CC BY-SA to `redistributable` is the decision, and an inferred licence never
+  authorises redistribution however confident the abbreviation looks.
+  """
+  @spec license({map(), :matched | :inferred} | {nil, :none}) :: map()
+  def license({nil, _}) do
     %{
       spdx: nil,
       class: "unknown",
@@ -387,7 +404,7 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
     }
   end
 
-  defp license({publication, confidence}) do
+  def license({publication, confidence}) do
     license = publication["license"] || %{}
     abbreviation = license["license_abbreviation"]
 

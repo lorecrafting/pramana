@@ -169,6 +169,66 @@ defmodule Pramana.TranslationsTest do
       assert rendering.text == "All three lines, rendered together."
     end
 
+    # THE SECOND PLACE THE SAME ASSUMPTION LIVED. `covering/2` matched
+    # `translations.work_id` against `urn.work`, the work component of the ADDRESS — and
+    # for CBETA that is the juan, `T0099_015`, where the work is `T0099`. Every
+    # range-anchored English rendering of the Chinese canon was therefore unreachable from
+    # the line it renders: 2,089 of the first 3,354, correctly stored and invisible.
+    # Rules 41 and 68. Found by checking whether a model could reach what had just
+    # shipped, which is rule 60's question asked of a thing that was already green.
+    test "is found through a CBETA address, where the juan sits between work and locator" do
+      Repo.insert!(%Pramana.Corpus.Source{
+        id: "cbeta",
+        name: "CBETA",
+        license_spdx: "LicenseRef-CBETA-NC",
+        license_class: "nc",
+        commercial_use: false,
+        redistributable: false
+      })
+
+      Repo.insert!(%Pramana.Corpus.Witness{id: "T", name: "Taishō"})
+      Repo.insert!(%Work{id: "T0099", title: "雜阿含經"})
+
+      chinese =
+        Repo.insert!(%Text{
+          work_id: "T0099",
+          source_id: "cbeta",
+          witness_id: "T",
+          urn_prefix: "pramana:cbeta.T:T0099",
+          body: "如是我聞一時佛住舍衛國",
+          body_sha256: "x",
+          meta: %{}
+        })
+
+      for {ordinal, locator, content} <- [{0, "p0001a01", "如是我聞一時"}, {1, "p0001a02", "佛住舍衛國"}] do
+        Repo.insert!(%Segment{
+          text_id: chinese.id,
+          urn: "pramana:cbeta.T:T0099_001@#{locator}",
+          ordinal: ordinal,
+          content: content,
+          content_sha256: :crypto.hash(:sha256, content) |> Base.encode16(case: :lower),
+          char_start: 0,
+          char_end: String.length(content),
+          byte_start: 0,
+          byte_end: byte_size(content),
+          meta: %{}
+        })
+      end
+
+      put(%{
+        anchor_urn: "pramana:cbeta.T:T0099_001@p0001a01-p0001a02",
+        work_id: "T0099",
+        translator_id: "patton",
+        text: "Thus I have heard. At one time the Buddha was staying in Sāvatthī.",
+        meta: %{"ordinal_start" => 0, "ordinal_end" => 1}
+      })
+
+      [rendering] = Translations.covering("pramana:cbeta.T:T0099_001@p0001a02")
+
+      assert rendering.translator_id == "patton"
+      assert rendering.covers == :containing_range
+    end
+
     test "says that it covers the span rather than matching it" do
       # A caller has to be able to tell a translation OF this line from one that includes
       # it, and the rendering's own anchor says how much wider it is.

@@ -129,4 +129,31 @@ defmodule Pramana.URNTest do
       assert URN.namespace(urn) == "cbeta.T"
     end
   end
+
+  describe "addresses?/2" do
+    # THE BUG. A CBETA text is `T0099`; its lines are addressed `T0099_015@p0103c13`,
+    # with the juan between the two. `Pramana.Chunk.Vectors` tested for the prefix
+    # followed immediately by `@`, so every range-anchored English rendering of the
+    # Chinese canon was excluded from being embedded — silently, with the count of
+    # vectors built the only sign anything had happened.
+    test "a CBETA line is inside its work even though the juan comes first" do
+      assert URN.addresses?("pramana:cbeta.T:T0099_015@p0103c13", "pramana:cbeta.T:T0099")
+
+      assert URN.addresses?(
+               "pramana:cbeta.T:T0099_015@p0103c13-p0103c14",
+               "pramana:cbeta.T:T0099"
+             )
+    end
+
+    # And the reason a bare `String.starts_with?/2` is not the fix.
+    test "one sutta is not inside another whose id is a prefix of it" do
+      refute URN.addresses?("pramana:sc.ms:mn10@1.1", "pramana:sc.ms:mn1")
+      assert URN.addresses?("pramana:sc.ms:mn1@1.1", "pramana:sc.ms:mn1")
+    end
+
+    test "a Derge line is inside its work" do
+      assert URN.addresses?("pramana:derge.D:toh113@51.1b.1", "pramana:derge.D:toh113")
+      refute URN.addresses?("pramana:derge.D:toh1130@51.1b.1", "pramana:derge.D:toh113")
+    end
+  end
 end

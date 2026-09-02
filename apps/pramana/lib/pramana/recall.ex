@@ -205,25 +205,49 @@ defmodule Pramana.Recall do
     limit = Keyword.get(opts, :limit, @default_limit)
     mode = Keyword.get(opts, :mode, :hybrid)
 
-    pairs = sample_renderings(sample, Keyword.get(opts, :seed))
+    to = Keyword.get(opts, :to)
+    pairs = sample_renderings(sample, Keyword.get(opts, :seed), to)
     results = probe_all(pairs, {:renderings, 0, length(pairs)}, limit, mode, opts)
 
     %{
       mode: mode,
       limit: limit,
+      to: to,
       renderings: score(results),
-      by_language: Enum.frequencies_by(Enum.filter(results, &(&1.outcome == :found)), & &1.to),
+      by_language: by_language(results),
       hits: results |> Enum.filter(&(&1.outcome == :found)) |> Enum.take(6),
       misses: results |> Enum.filter(&(&1.outcome == :miss)) |> Enum.take(6)
     }
+  end
+
+  # Scored per target namespace, WITH ITS DENOMINATOR. This used to be
+  # `frequencies_by(found, & &1.to)` — hit counts and nothing to divide them by, which is
+  # rules 22, 44 and 54 inside the instrument those rules are measured with. It also hid
+  # the reason a `--to` filter had to exist: a pool that is 98.6% Pāli and Tibetan reports
+  # "cbeta.T => 2" and there is no way to tell 2 of 2 from 2 of 40.
+  defp by_language(results) do
+    results
+    |> Enum.reject(&(&1.outcome == :undecided))
+    |> Enum.group_by(& &1.to)
+    |> Map.new(fn {namespace, group} -> {namespace, score(group)} end)
   end
 
   # LONG ENOUGH TO BE A QUERY. "Lots of people are jealous of you," is a real rendering and a
   # meaningless retrieval probe. The parallel probe queries whole passages, so this filters to
   # renderings of comparable substance — otherwise the two numbers measure different things
   # and the comparison they exist for is void.
-  defp sample_renderings(n, seed) do
+  #
+  # `to` restricts the sample to one target namespace — `cbeta.T`, `sc.ms`, `derge.D`.
+  # Without it a canon that is a small share of the pool cannot be scored at all: when
+  # English over the Chinese canon arrived it was 3,354 renderings against 241,409, so a
+  # 500-pair sample drew about seven of them and no rate computed from seven means
+  # anything. The filter changes which population is measured and is therefore always
+  # reported beside the figure.
+  defp sample_renderings(n, seed, to) do
     order = Sampling.order_sql(seed, "t.id::text")
+
+    {filter, args} =
+      if to, do: {"AND split_part(t.anchor_urn, ':', 2) = $2", [to]}, else: {"", []}
 
     %{rows: rows} =
       Repo.query!(
@@ -231,9 +255,10 @@ defmodule Pramana.Recall do
         SELECT t.anchor_urn, t.text, t.work_id, split_part(t.anchor_urn, ':', 2)
         FROM translations t
         WHERE t.method = 'human' AND length(t.text) >= 80
+        #{filter}
         ORDER BY #{order} LIMIT $1
         """,
-        [n]
+        [n | args]
       )
 
     Enum.map(rows, fn [anchor, text, work, ns] ->

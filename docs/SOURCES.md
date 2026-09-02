@@ -116,6 +116,7 @@ Revisit `Coverage` when a second CBETA collection lands.
   | `sc` — Mahāsaṅgīti Pāli root text | **CC-PDM-1.0** (Public Domain Mark, per scpub64) | yes |
   | `sc-translations` | **CC-BY-SA-3.0** — the weakest of the publications it covers (139 CC0, 1 CC BY-SA 3.0: scpub69, the Patna Dhammapada) | yes, with attribution and share-alike |
   | `sc-data` | **NOASSERTION** — no LICENSE file in the repository; terms unconfirmed as of 2026-08-15 | **no** |
+  | `sc-lzh` — SuttaCentral Taishō (`root/lzh/sct`) | **CC0-1.0** (per scpub39), corrected and re-punctuated from SAT 2018 (CC BY-SA 4.0) | n/a — **read and never stored** |
 
   This entry previously read "CC0, public domain" for the whole repository, which is the
   repository-level claim the corpus already established is wrong — and it is the reason
@@ -128,6 +129,28 @@ Revisit `Coverage` when a second CBETA collection lands.
   which reads as a licence grant nobody has given. It is held as `redistributable: false`
   until someone confirms terms with SuttaCentral.
 - Segment IDs (`mn1:1.1`) are the field standard. Adopt them verbatim.
+
+#### The Chinese half of bilara-data — `mix pramana.sc.chinese`, 2026-08-31
+
+**bilara is not only Pāli.** `root/lzh/sct` is 272 Chinese texts and
+`translation/en/patton` is Charles Patton's CC0 English of the Chinese Saṃyukta and
+Madhyama Āgamas — **54 works, on disk and hashed into the `sc-translations` lockfile
+entry since #39, and discarded at every ingest**, because their anchors name
+SuttaCentral addresses (`sa379:2.2`) and this corpus holds those Āgamas as CBETA.
+`mix pramana.sc.translations` filed all of them under `no_such_anchor`, which is also
+where the Pāli's legitimate elisions land, so the loss looked like ordinary noise. The
+sparse checkout did not even fetch the Chinese root they would have been joined through.
+
+`sc-lzh` is the first source here that is **read and never stored**. `Pramana.Sc.Lzh`
+matches it against the CBETA text already held and keeps a **Taishō** address, so an
+English reader following one of these citations arrives somewhere they can check against
+a print edition. Loading bilara's Chinese as a second witness would have been less work
+and would have pointed every reader at our own convenience copy. It is registered and
+pinned regardless, because it is an input to an ingest and invariant #3 is about
+reproducibility, not about storage.
+
+    cd raw/sc/bilara-data && git sparse-checkout set root/pli/ms translation/en root/lzh/sct
+    mix pramana.sc.chinese
 
 ## Tier 2 — Structured but partial
 

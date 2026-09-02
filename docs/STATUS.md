@@ -27,9 +27,11 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 |---|---|
 | texts · segments | **17,281** · **12,586,964** |
 | Chinese (CBETA) | 4,263 works across **16 of 26 collections** — T 2,471 · X 1,230 · J 285 · I 101 · GA 51 · N 38 · F 27 · seven alternative editions 57 · GB 2 · ZS 1 |
-| Pāli (SuttaCentral) | 8,442 works, 241,409 English renderings by 7 translators |
-| Tibetan (Degé) | 1,195 Kangyur · 3,380 Tengyur |
-| chunks · vectors | 980,464 · **1,037,264** |
+| Pāli (SuttaCentral) | 8,442 works, **210,756** English renderings by 6 translators |
+| Tibetan (Degé) | 1,195 Kangyur · 3,380 Tengyur, **30,653** English renderings from 84000 |
+| English over Chinese | **3,354 renderings** by 1 translator, over **2 of 4,263** CBETA works — new 2026-08-31 |
+| English renderings, all canons | **244,763** by 8 translators |
+| chunks · vectors | 980,464 · **1,037,455** |
 | pipeline | **v5** · `verify --all`, `integrity` and `coherence` all green over every text |
 
 ### English-first, and one canon is not reachable that way yet
@@ -39,33 +41,65 @@ by `mix pramana.recall --renderings`, over pairs that really are translations:
 
 | task | work-level | on the line |
 |---|---|---|
-| **English → Tibetan / Pāli source** | **93.8%** | 54.2% |
+| **English → Tibetan / Pāli source** | **93.8%** | 54.2%† |
 | same-language discourse correspondence | 28.8% | 4.8% |
 | cross-lingual discourse correspondence | 0.6% | 0.4% |
+
+† **Pooled over two populations that score 79.0% and 8.5% on this column** — read it per
+canon, and see the anchor-width table below for why. Corrected 2026-08-31, rule 69.
 
 An English query reaches Tibetan and Pāli source text **469 times in 500** — better than the
 system handles *same-language* paraphrase. So the language barrier is not the problem it was
 published as, and the earlier claim that it "costs 98% of achievable recall" is withdrawn.
 
-**English reaches Chinese 0% of the time, and the reason is a missing layer rather than weak
-retrieval:**
+**Chinese is reachable in English for the first time, and barely.** Measured 2026-08-31,
+after `mix pramana.sc.chinese`:
 
 | canon | works | with an English layer |
 |---|---|---|
 | sc (Pāli) | 8,442 | 5,845 |
 | derge (Kangyur) | 1,195 | 472 |
-| **cbeta (Chinese)** | **4,263** | **0** |
+| **cbeta (Chinese)** | **4,263** | **2** |
 | derge-tengyur | 3,380 | 0 |
 
-The Taishō is the largest thing here — 4,263 works, 10.8M segments — and to an English reader
-it is currently unreachable except by already knowing the Chinese to search for. `docs/PLAN.md`
-§ E1.
+Those 2 are T0099 and T0026, and the unit misleads in both directions: a CBETA work is a
+whole Āgama, so 2 works is **54 sūtras**, and 2,761 of the 65,785 segments in those two
+texts — **2,761 of CBETA's 10,788,972**. See `docs/PLAN.md` § E1 for what shipped and what
+it measured.
+
+**`topical/chinese` is still 0 of 12, and nothing regressed.** `--only topical` scores
+51.0% against a baseline of 51.0%, every tradition row identical. A search of the whole
+corpus puts 191 English vectors over the Chinese against 55,135 over the Pāli, and the
+Pāli wins every time.
+
+**Measuring it per canon broke the instrument, and that is the larger finding.**
+`mix pramana.recall --renderings --to <namespace>`, 200 pairs each, seed 0.42 — the same
+probe pointed at one canon at a time, with `derge.D` run as a control:
+
+| canon | mean anchor width | found the work | on the line |
+|---|---|---|---|
+| `sc.ms` (Pāli) | **1.00 segment** | 178/200 · 89.0% | 158/200 · 79.0% |
+| `cbeta.T` (Chinese) | **2.01 segments** | 126/200 · 63.0% | 74/200 · 37.0% |
+| `derge.D` (Tibetan) | **6.94 segments** | 199/200 · 99.5% | **17/200 · 8.5%** |
+
+**`on the line` scores whether the retrieved span CONTAINS the whole anchor, so it is
+mostly a function of anchor width** — 84000 anchors English to folios of about seven Degé
+lines, and the chunk that matched is often smaller than that. The column is inversely
+ordered by width across all three canons, exactly. Rule 69.
+
+**So the 93.8% / 54.2% pair above should be read per canon, not pooled**: 54.2% is an
+average of 79.0% and 8.5% and describes neither. Neither column supports a cross-canon
+comparison, and they fail in opposite directions — work-level flatters Chinese (2 works,
+against 8,442 Pāli ones), on-line penalises it (anchors twice the Pāli's width). What
+stands: the Taishō is reachable in English for the first time, and remains, for practical
+purposes, unreachable to a reader who does not already know the Chinese to search for.
 
 ### What it can do
 
 Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a citation
-guard that byte-compares every quoted span, **17 read-only MCP tools**, and a five-screen
-LiveView reader. **27,254 commentary lemmas** are aligned to the root lines they explain,
+guard that byte-compares every quoted span, **17 read-only MCP tools**, and a six-screen
+LiveView reader — including `/check`, where a person pastes a report and sees which of its
+claims survive. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
 
 **Start a session with `mix pramana.doctor`.** It prints which bake this is and whether it
@@ -158,20 +192,26 @@ the API rather than left to be inferred from an empty result:
 | CBETA collections absent | 10 of 26 |
 | parallel graph openable | **6.1%** — 24,717 of 407,176; the rest name witnesses not held |
 | texts a `role:` filter cannot reach | **1,640** — only the Taishō has a 部 division table |
-| `topical/chinese` | **0%** — no English layer over Chinese, and the deterministic bridge was tried and rejected |
+| `topical/chinese` | **0%** — an English layer now exists over **54 sūtras of 4,263 works** and cannot compete corpus-wide |
 
 
-### v1 as written is met; v1 as scoped is not
+### v1 is met, as written and as scoped
 
 The definition in `docs/PLAN.md` — *a scholar or an LLM can ask a question of three canons,
 receive passages byte-verifiable against a print edition, see the provenance of each, and
 follow parallels and variants between them, with published numbers saying how often that
 works* — is answered clause by clause there.
 
-**Four things were then added to v1 by decision**, after that definition was written. Two
-shipped (lineage chains, Wikidata ids). **Two are designed and unbuilt: place authority
-(`docs/PLAN.md` § A3) and Phase 7's report verifier (§ H).** So the honest current answer to
-"is v1 done" is **no**, and the reason is a scope decision rather than a slip.
+**Four things were then added to v1 by decision**, after that definition was written, and
+**all four have now shipped**: lineage chains, Wikidata ids, place authority
+(`docs/PLAN.md` § A3) and Phase 7's report verifier (§ H).
+
+**This section said the opposite until 2026-08-31**, claiming place authority and the
+report verifier were "designed and unbuilt" — while `docs/PLAN.md` marked both ▸ DONE on
+2026-08-28 and two paragraphs of this same file described them working, 59,335 places and
+all. A fifth correction of a published claim about our own state, and the first one caught
+by reading STATUS against PLAN rather than against the code. **Read the two together when
+either changes.**
 
 Separately, **the phase-2 gate is not done** and is blocked on SAT's reply to a request
 **sent 2026-08-15**, not on code and no longer on anyone here.
@@ -234,6 +274,7 @@ deployed anywhere; `docs/DEPLOY.md` has the hosting arithmetic.
 | **#10 the 41-second search** | **1042** | **retrieval@10 74.9%** (zh 97.8 / pa 54.7 / **bo 39.1**) | **100%** verify + reject + provenance | **full gate 3h08m -> 18m13s**; one search 41.1s -> 2.2s | 1,400 cases, **90.0%**, 0 stale, 0 errored; `texts.body` removed from 4 call sites |
 
 | **audit: the seed, the guard, verify** | **1438** | unchanged | **no case type regressed over 1,472** | **gate 48m40s → 32m57s; `verify --all` ~26m → 6m03s** | 12,586,964 verified, every one |
+| **English over Chinese · `/check`** | **1474** | unchanged | **every row identical to baseline, hit for hit** | gate **32m22s** — evals 21m14s, integrity 11m02s, verify 7m09s | 3,354 renderings anchored to Taishō lines; 191 vectors; `/check` is the sixth reader screen |
 
 The `zh 98.7` in the `#19` row above was **corrected to 97.1** on 2026-08-22. It was a
 by-tradition figure that silently included the 40 provenance cases, so its sub-rows did

@@ -16,6 +16,54 @@ noticed the heading was the problem.
 
 ---
 
+## The Chinese canon gets an English layer, and it is not enough — 2026-08-31
+
+§ E1's first slice. `mix pramana.sc.chinese` and `Pramana.Sc.Lzh`: **3,354 CC0 English
+renderings anchored to Taishō lines**, the first English over the Chinese canon in this
+corpus. 86.9% of anchors matched the two editions' text exactly; 13.1% are bounded by
+neighbours that did and stamped as such; 2 segments were dropped.
+
+**It was already on disk.** Charles Patton's English of 54 Saṃyukta and Madhyama Āgama
+sūtras had been in the `sc-translations` lockfile entry since #39 and discarded at every
+ingest, because its anchors name SuttaCentral addresses and this corpus holds those Āgamas
+as CBETA. It landed in `no_such_anchor`, the same counter the Pāli's legitimate elisions
+use, so it read as noise. The sparse checkout had never fetched `root/lzh` either.
+
+**And `topical/chinese` did not move.** Still 0 of 12; `--only topical` scored 51.0%
+against a baseline of 51.0% with every tradition row identical, so nothing regressed and
+nothing improved. 191 English chunk vectors over the Chinese against 55,135 over the Pāli
+answer the same English question, and the Pāli wins. Isolated from that competition,
+`mix pramana.recall --renderings --to cbeta.T` scores 63.0% work-level and **37.0% on
+line** over 200 seeded pairs.
+
+**A control changed the story on the way.** Scoped to CBETA, "How is mindfulness of
+breathing taught?" returns the SĀ ānāpāna sutras at ranks 1–4, which looked like the
+result. The nearest CBETA vectors to that query are `parallel_gloss/en/sujato` at d=0.143
+and 0.153 — machinery that predates this work — with Patton's own vector third at d=0.224.
+Rule 62, caught before it was written down as a finding.
+
+**Two latent defects surfaced.** `Pramana.Chunk.Vectors` excluded every range-anchored
+CBETA rendering (2,089 of 3,354) by testing `urn_prefix <> "@"` against an address that
+puts the juan in between — now rule 68 and `Pramana.URN.addresses?/2`. And
+`mix pramana.recall --renderings` reported hits per language with no denominator, inside
+the instrument rules 22, 44 and 54 are measured with.
+
+## `/check` — the first screen that helps you disbelieve something — 2026-08-31
+
+`PramanaWeb.CheckLive`. `Pramana.Report.verify/2` had shipped three days earlier and was
+reachable only by an MCP call; rule 60 says a capability a person cannot reach has not
+shipped. One textarea, one verdict list, nine tests, and it is in the nav.
+
+It checks a **whole document including its arithmetic** — every quotation byte-compared
+through `Guard`, every `pramana-replay` block re-executed against the current bake. Three
+verdicts, and `unverifiable` is rendered apart from `failed` because a claim recorded
+against an older corpus is not refuted by a corpus that has since changed.
+
+**The test for that distinction failed for the wrong reason first.** With no bake row in
+the test database, `Bake.current_id()` is nil, every replay is simply executed, and the
+screen rendered `verified` — the assertion caught it. Recording a bake in the setup is the
+fix, and the lesson is that a test for a distinction must be able to see the distinction.
+
 ## Architecture review — 2026-08-28
 
 `docs/CHECKS.md` §2, run by reading rather than by a task, because the gate's own closing

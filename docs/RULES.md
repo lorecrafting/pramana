@@ -597,6 +597,69 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     guarantee cannot be stated as "these calls are in one transaction", it is not a
     guarantee.
 
+68. **A string test against a URN encodes one edition's citation grammar, and every other
+    edition fails it in silence.** `Pramana.Chunk.Vectors` decided whether a rendering
+    belonged to a text with `String.starts_with?(anchor_urn, urn_prefix <> "@")`. True for
+    SuttaCentral (`pramana:sc.ms:mn1@1.1`) and for Derge (`pramana:derge.D:toh113@51.1b.1`),
+    and **false for every CBETA line ever written**, because CBETA puts the juan between the
+    two: `pramana:cbeta.T:T0099_001@p0001a06` against a prefix of `pramana:cbeta.T:T0099`.
+
+    The first English renderings of the Chinese canon arrived and **2,089 of 3,354 had no
+    vector built.** No error, no warning, no empty result to notice — the only symptom was a
+    count of vectors that was lower than it should have been, and nobody knew what it should
+    have been. The filter had been correct for two years because only two sources had ever
+    exercised it.
+
+    The two obvious repairs are both wrong. `starts_with?` without the separator puts
+    `mn10@1.1` inside `mn1`, which is a different sutta. Adding `_` as a second separator by
+    hand is the same assumption again, one source later. The test belongs in one named
+    function that states the grammar it knows — `Pramana.URN.addresses?/2` — so that the next
+    source with a different address shape has one place to fail and one place to fix.
+
+    **It lived in a second place, and rule 41 is why that was found.**
+    `Pramana.Translations.covering/2` matched `translations.work_id` against `urn.work` — and
+    `urn.work` for a CBETA line is the **juan**, `T0099_015`, where the work is `T0099`. So the
+    same 2,089 renderings, once they finally had vectors, were still unreachable from the line
+    they render: `get_passage` on a Taishō line returned no English for any of them. The fix
+    is not another string rule — the work is read from the **segment row**, which knows what
+    text it belongs to, rather than from the address. Sweeping the rest found four more
+    `urn.work` uses and all four are correct: two render a URN back, one compares two URNs of
+    the same grammar, and `Pramana.Reader` uses it as CBETA's own site path deliberately.
+
+    **Generalising: a comparison written against a URN is a parser.** `split_part(urn, '@', 1)`,
+    a `LIKE` on a prefix, a regex on a locator — each is a claim about a citation grammar this
+    project deliberately does not own, because invariant #2 adopts each tradition's own. Put
+    the claim behind a function with the counter-examples in its doc, or read the fact from
+    the row that owns it, and give it the case that broke it.
+
+69. **A score that asks whether the retrieved span CONTAINS the target is a function of
+    the target's size, and cannot be compared across populations whose targets differ in
+    size.** `mix pramana.recall --renderings` reports `on line` when the retrieved chunk
+    contains the whole anchor. Pointed at one canon at a time, seed 0.42, 200 pairs each:
+
+        canon      mean anchor width   found the work   on the line
+        sc.ms       1.00 segment        89.0%            79.0%
+        cbeta.T     2.01 segments       63.0%            37.0%
+        derge.D     6.94 segments       99.5%             8.5%
+
+    **Tibetan finds the work 99.5% of the time and the line 8.5% of the time.** Nothing
+    about Tibetan retrieval is wrong; 84000 anchors its English to folios, about seven
+    Degé lines, and the chunk that matched is often smaller than the thing it has to
+    contain. The column is inversely ordered by anchor width across all three canons,
+    exactly, because anchor width is most of what it measures.
+
+    This had been published as a single pooled figure — **54.2% "on the line"** over Pāli
+    and Tibetan together — which is an average of 79.0% and 8.5% and describes neither.
+    The pooled *work-level* figure beside it, 93.8%, has the opposite problem: it is
+    flattered by whichever canon has the fewest, largest works.
+
+    **Before comparing a rate across populations, ask what the scoring predicate is a
+    function of besides the thing you meant to measure**, and check it against the widest
+    and narrowest instance you have — rule 54's habit, applied to a predicate rather than
+    to a denominator. When the populations differ, report them separately with the
+    confound beside them; a pooled number over unlike populations is not a summary, it is
+    a coincidence.
+
 ---
 
 ## One-off gotchas

@@ -173,6 +173,33 @@ defmodule Pramana.URN do
   def anchor(%__MODULE__{} = urn), do: %{urn | rendering: nil, raw: nil}
 
   @doc """
+  Whether an anchor URN addresses a passage inside the text with this `urn_prefix`.
+
+      iex> Pramana.URN.addresses?("pramana:cbeta.T:T0099_015@p0103c13", "pramana:cbeta.T:T0099")
+      true
+      iex> Pramana.URN.addresses?("pramana:sc.ms:mn10@1.1", "pramana:sc.ms:mn1")
+      false
+
+  A text's prefix names its source, witness and work; what follows addresses a place
+  *within* the text. The separator is `@` — **except where a source subdivides the work
+  in the URN itself**, which CBETA does with the juan: the text is
+  `pramana:cbeta.T:T0099` and a line in it is `pramana:cbeta.T:T0099_015@p0103c13`.
+
+  Neither shortcut for this test is correct. `String.starts_with?/2` alone puts
+  `mn10` inside `mn1`, a different sutta. Requiring `@` immediately — which is what
+  `Pramana.Chunk.Vectors` did — excludes every CBETA anchor, and so excluded every
+  range-anchored English rendering of the Chinese canon from being embedded at all:
+  2,089 of the first 3,354 to arrive, silently, with the count of vectors built the
+  only sign.
+  """
+  @spec addresses?(String.t(), String.t()) :: boolean()
+  def addresses?(anchor_urn, urn_prefix)
+      when is_binary(anchor_urn) and is_binary(urn_prefix) do
+    String.starts_with?(anchor_urn, urn_prefix <> "@") or
+      String.starts_with?(anchor_urn, urn_prefix <> "_")
+  end
+
+  @doc """
   True when the URN addresses a range of anchors rather than a single point.
   """
   @spec range?(t()) :: boolean()

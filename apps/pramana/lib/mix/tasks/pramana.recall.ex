@@ -9,12 +9,19 @@ defmodule Mix.Tasks.Pramana.Recall do
       mix pramana.recall --parallels              # the cross-lingual axis instead
       mix pramana.recall --renderings             # ...against true translations, not correspondences
       mix pramana.recall --parallels --concurrency 1   # ...serially, to compare against
+      mix pramana.recall --renderings --to cbeta.T     # ...one canon, when it is a small share
 
   See `Pramana.Recall`: 141,073 verbatim quotations are 141,073 statements that a passage
   occurs in two named works, and a search for that passage should surface both.
 
   **`--seed` makes it a measurement rather than an anecdote.** Without one the sample changes
   every run and no figure can be compared with the one before it.
+
+  **`--to` restricts `--renderings` to one target namespace** — `cbeta.T`, `sc.ms`,
+  `derge.D` — and every figure it produces says so. It exists because a canon that is a
+  small share of the rendering pool cannot otherwise be scored: English over the Chinese
+  canon arrived as 3,354 renderings against 241,409, and an unfiltered 500-pair sample
+  draws about seven of them.
   """
 
   use Mix.Task
@@ -32,7 +39,8 @@ defmodule Mix.Tasks.Pramana.Recall do
     parallels: :boolean,
     renderings: :boolean,
     mode: :string,
-    concurrency: :integer
+    concurrency: :integer,
+    to: :string
   ]
 
   @impl Mix.Task
@@ -67,8 +75,9 @@ defmodule Mix.Tasks.Pramana.Recall do
 
       mode #{result.mode}, limit #{result.limit}
 
-      renderings -> their own source line   #{show(result.renderings)}
-      by target language                    #{inspect(result.by_language)}
+      renderings -> their own source line   #{show(result.renderings)}#{scope(result.to)}
+      by target language
+    #{by_language(result.by_language)}
 
       Compare with `--parallels`. A high number here beside a low one there means the
       barrier is PARAPHRASE, not language, and § F's framing needs the rewrite rather than
@@ -211,6 +220,19 @@ defmodule Mix.Tasks.Pramana.Recall do
   # TWO NUMBERS, because the first one overcredits. `found` is work-level and a stock
   # formula can earn it; `on line` requires the parallel's own target line. See
   # `Pramana.Recall.score/1`.
+  defp scope(nil), do: ""
+  defp scope(to), do: "\n      SAMPLED FROM #{to} ONLY — not the whole pool"
+
+  # Every namespace with its own denominator. A bare hit count here is the failure this
+  # project is most prone to; see `Pramana.Recall.by_language/1`'s comment.
+  defp by_language(by_language) do
+    by_language
+    |> Enum.sort_by(fn {namespace, _} -> namespace end)
+    |> Enum.map_join("\n    ", fn {namespace, scored} ->
+      "  #{String.pad_trailing(namespace, 12)} #{show(scored)}"
+    end)
+  end
+
   defp show(%{found: found, decided: decided, rate: rate} = s) do
     pct = if rate, do: "#{Float.round(rate * 100, 1)}%", else: "n/a"
     line_pct = if s.line_rate, do: "#{Float.round(s.line_rate * 100, 1)}%", else: "n/a"

@@ -197,6 +197,87 @@ defmodule Pramana.Chunk.VectorsTest do
     test "no renderings means no rows, not empty ones", %{text_id: text_id} do
       assert {:ok, 0} = Vectors.build_translations(text_id, lang: "de")
     end
+
+    # A RANGE anchor over a CBETA text, which is the shape every English rendering of
+    # the Chinese canon has: SuttaCentral segments a sentence at a time and the Taishō
+    # breaks at seventeen characters, so most renderings cover two printed lines.
+    #
+    # These were excluded entirely. `range_renderings/2` tested the anchor against
+    # `urn_prefix <> "@"`, and a CBETA line puts the juan in between —
+    # `pramana:cbeta.T:T0099_001@p0001a06` against a prefix of
+    # `pramana:cbeta.T:T0099`. No error, no warning: 2,089 of the first 3,354 renderings
+    # to arrive simply had no vector built, and the only symptom was a count.
+    test "a range-anchored rendering over a CBETA text is embedded" do
+      Repo.insert!(%Source{
+        id: "cbeta",
+        name: "CBETA",
+        tradition: "chinese",
+        license_spdx: "LicenseRef-CBETA-NC",
+        license_class: "nc",
+        commercial_use: false,
+        redistributable: false
+      })
+
+      Repo.insert!(%Witness{id: "T", name: "Taishō"})
+      Repo.insert!(%Work{id: "T0099", title: "雜阿含經"})
+
+      chinese =
+        Repo.insert!(%Text{
+          work_id: "T0099",
+          source_id: "cbeta",
+          witness_id: "T",
+          urn_prefix: "pramana:cbeta.T:T0099",
+          body: "如是我聞一時佛住舍衛國",
+          body_sha256: "x",
+          meta: %{}
+        })
+
+      for {content, i} <- Enum.with_index(["如是我聞一時", "佛住舍衛國"]) do
+        Repo.insert!(%Segment{
+          text_id: chinese.id,
+          urn: "pramana:cbeta.T:T0099_001@p0001a0#{i + 1}",
+          ordinal: i,
+          content: content,
+          content_sha256: "h#{i}",
+          char_start: 0,
+          char_end: String.length(content),
+          byte_start: 0,
+          byte_end: byte_size(content),
+          meta: %{}
+        })
+      end
+
+      {:ok, _} = Builder.build_for_text(chinese.id, max_chars: 300)
+
+      {:ok, _} =
+        Translations.store([
+          %{
+            anchor_urn: "pramana:cbeta.T:T0099_001@p0001a01-p0001a02",
+            work_id: "T0099",
+            lang: "en",
+            translator_id: "patton",
+            tier: "t0",
+            method: "human",
+            text: "So I have heard. At one time the Buddha was staying in Sāvatthī.",
+            redistributable: true,
+            license_class: "cc0",
+            meta: %{"ordinal_start" => 0, "ordinal_end" => 1}
+          }
+        ])
+
+      {:ok, n} = Vectors.build_translations(chinese.id, lang: "en")
+
+      assert n == 1
+
+      assert [content] =
+               Repo.all(
+                 from v in ChunkVector,
+                   where: v.kind == "translation" and v.translator_id == "patton",
+                   select: v.content
+               )
+
+      assert content =~ "So I have heard."
+    end
   end
 
   describe "stats" do

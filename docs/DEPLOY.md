@@ -21,6 +21,21 @@ the database is external and is built separately.
        DATABASE_URL=…/pramana_dev     PRAMANA_PUBLIC=1  →  REFUSED, node stops
        DATABASE_URL=…/pramana_public  PRAMANA_PUBLIC=1  →  ALLOWED
 
+## One route to decide about before a public deploy — `/check`
+
+`/check` takes a pasted document and runs up to 25 retrievals from it, synchronously.
+That is correct for a self-hosted reader with one person in front of it and it is an
+obvious workload amplifier from the open internet: the paste box is the cheapest way for a
+stranger to make the corpus do 25 surveys. Nothing about it is unsafe — the MCP surface it
+executes through is read-only by invariant #7, and a public node serves the public
+database — so this is a **capacity** decision, not a safety one.
+
+Three options, in the order they cost: leave it (a small node, and the 200 KB input cap
+and 25-replay cap already bound one request), rate-limit the route, or omit it from the
+public router. **Decide it deliberately**; it is written here because a route added on
+2026-08-31 for a local reader is exactly the kind of thing a later deploy inherits without
+anyone having chosen it.
+
 ## Build it
 
 ```bash

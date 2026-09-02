@@ -73041,6 +73041,1388 @@
       "upstream": "https://github.com/suttacentral/sc-data"
     },
     {
+      "file_count": 272,
+      "files": [
+        {
+          "bytes": 17415,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.10_root-lzh-sct.json",
+          "sha256": "283acaba6fcd2edb8aa5696c89e58a799dbc46841e127e892963a8cb52775da3"
+        },
+        {
+          "bytes": 19678,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.11_root-lzh-sct.json",
+          "sha256": "2a57021237cd7bc6e62c9704f710157dc72cb4bd5fbbf436868b3eccb45c3701"
+        },
+        {
+          "bytes": 20949,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.12_root-lzh-sct.json",
+          "sha256": "1e4fc11fc4030ff6e7a396548a5afddec30413dd70943fd98b45e53c1b6d9c38"
+        },
+        {
+          "bytes": 4756,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.13_root-lzh-sct.json",
+          "sha256": "4c531bd058fde4c0a7dd09bd6c243b12c76257bc1a588cab8c79732c80fbe1db"
+        },
+        {
+          "bytes": 13334,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.14_root-lzh-sct.json",
+          "sha256": "b2210dec7c64e3c71fc463c1c7766e42fb2c21689b73400cb24b9f5ff528c41f"
+        },
+        {
+          "bytes": 19910,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.15_root-lzh-sct.json",
+          "sha256": "f2c8e268b74afa6c5582b3de5fcd7e43cac79b4a061a1535218f0ae1ee056efb"
+        },
+        {
+          "bytes": 26829,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.16_root-lzh-sct.json",
+          "sha256": "ec58c62d38c61745f15c51327f1c9a48c4a1140d055bb4fc9d208088c9eb55c9"
+        },
+        {
+          "bytes": 10165,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.17_root-lzh-sct.json",
+          "sha256": "e92ff29ef429cc5250517cb8af48d6bf2ed509a3e638665ddf23e0b308e01b1f"
+        },
+        {
+          "bytes": 7451,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.18_root-lzh-sct.json",
+          "sha256": "0824711a46bcbb62566da06fe849503ca174d626f3104b696e9c312fe67ade88"
+        },
+        {
+          "bytes": 4802,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.19_root-lzh-sct.json",
+          "sha256": "69e2fcf361c49947e4baca33b068943fbc456228d46dbe6da9517cfe193d3502"
+        },
+        {
+          "bytes": 32929,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.1_root-lzh-sct.json",
+          "sha256": "b1a2343f59c16c6fe4eee9a8a0fa334817885ccab52d3d54437649c5f5fb06e0"
+        },
+        {
+          "bytes": 24232,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.20_root-lzh-sct.json",
+          "sha256": "437217e5ed1106e68b5e9dab3355dc6ab02e51019c9873114a65d33559918e0b"
+        },
+        {
+          "bytes": 62885,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.21_root-lzh-sct.json",
+          "sha256": "ed05cd18054ee497171340073bf7358f3dea1cc3598e0301bf85baf0716c4dea"
+        },
+        {
+          "bytes": 2032,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.21a_root-lzh-sct.json",
+          "sha256": "68af85c27f207ac2a7f42c1f1d16e40daaa378d0616dd9e10556e5f15c8919c0"
+        },
+        {
+          "bytes": 9796,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.2_root-lzh-sct.json",
+          "sha256": "ed3bc00915d24d317cc6eb76a3912da0105ff45e3d1fe56b24cc53f648b077fc"
+        },
+        {
+          "bytes": 28889,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.3_root-lzh-sct.json",
+          "sha256": "37726e8c35de77830a82470c907c8b223853951f531d29a90746b0b8272a6360"
+        },
+        {
+          "bytes": 2799,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.4_root-lzh-sct.json",
+          "sha256": "3284f09643b5b024d5a21078eb9ccd024333db594033cf7a699f4049a5ffc0b5"
+        },
+        {
+          "bytes": 8142,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.5_root-lzh-sct.json",
+          "sha256": "4f6fd8b6e8d50867727744497b18491faad1d3c9e0f5ce31c47fad752c909017"
+        },
+        {
+          "bytes": 8967,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.6_root-lzh-sct.json",
+          "sha256": "26453257ed1f735bf5e44082aafc937268b843dc178a3d104550b02d051f99b4"
+        },
+        {
+          "bytes": 23638,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.7_root-lzh-sct.json",
+          "sha256": "b38dd9cfdda10822def6fd0d77d6c31ae99f5de66952aa21e3aab856c192bacb"
+        },
+        {
+          "bytes": 25489,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.8_root-lzh-sct.json",
+          "sha256": "1b25a68c8eab72efd7b9fa79c8fad8abdb1a645381e7880c8467863486d67a0d"
+        },
+        {
+          "bytes": 22500,
+          "path": "root/lzh/sct/abhidhamma/lzh-dk/t1537.9_root-lzh-sct.json",
+          "sha256": "bdf13ecde16df454a82013e479de3fc7e2e332248079f718b2a4811d29c3df91"
+        },
+        {
+          "bytes": 11921,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.10_root-lzh-sct.json",
+          "sha256": "d9876ceca4fc0f97a47f8a52d368ad371f77a41e611b6153fe9fb31a9de9cc83"
+        },
+        {
+          "bytes": 33751,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.11_root-lzh-sct.json",
+          "sha256": "968a4b44bdc396bbff5737f724aef8a0a7ece65ba26698521402fc8f7cd8eeb1"
+        },
+        {
+          "bytes": 39186,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.12_root-lzh-sct.json",
+          "sha256": "0dd255fb60a188479521e083935003fbcb300e36f7211511a7ec33bcebb8d80a"
+        },
+        {
+          "bytes": 33675,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.13_root-lzh-sct.json",
+          "sha256": "0f2d96fe58a7f61bcc729c168b9cc84c4a75061ca3dcd82d2aa33b8041d13dd0"
+        },
+        {
+          "bytes": 112804,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.14_root-lzh-sct.json",
+          "sha256": "5983e0438b46085441273e94039ece3d7870bd3761bec9870d0c0688d7817261"
+        },
+        {
+          "bytes": 45615,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.15_root-lzh-sct.json",
+          "sha256": "7c2c9491c0e0daa989935e8a68e994a350143a98be734fb6e6a9fe96d60e4025"
+        },
+        {
+          "bytes": 26596,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.16_root-lzh-sct.json",
+          "sha256": "7b1800fc780d9418b07ba2a3ed086a62f3d57a7ee1630127a5f9404e5629e253"
+        },
+        {
+          "bytes": 3806,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.17_root-lzh-sct.json",
+          "sha256": "89a59ce2b4805f81fd8b9cfed8ae57784e6fea8556aab2b35d804e817aeddfa1"
+        },
+        {
+          "bytes": 17856,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.18_root-lzh-sct.json",
+          "sha256": "c1ce6f3642164232ad6378b1c64347009802bd1ea92bf3fcc9b01ce8297083e0"
+        },
+        {
+          "bytes": 35802,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.19_root-lzh-sct.json",
+          "sha256": "b61732787642a31340c40849d25f75e46566f2585e695666855ab0bbb7b6e29e"
+        },
+        {
+          "bytes": 61883,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.1_root-lzh-sct.json",
+          "sha256": "42f83a145baf261642b947d23a4ca446a2965d7709d4d27d6a328847e2dca1f1"
+        },
+        {
+          "bytes": 148652,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.20_root-lzh-sct.json",
+          "sha256": "17e7f0845dfada01d942637d8f503b573b82dd8a3148c4c5f772f9b2a79978f6"
+        },
+        {
+          "bytes": 110019,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.21_root-lzh-sct.json",
+          "sha256": "378ff59f3f9f5c3512eb740f24898bb121781d9cf9b0cc3ace87efdaa5adf490"
+        },
+        {
+          "bytes": 98136,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.22_root-lzh-sct.json",
+          "sha256": "6c8577e8604f95fcfd65ad694126913512e7b73701c3fa8f13a45bdff95be874"
+        },
+        {
+          "bytes": 59353,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.23_root-lzh-sct.json",
+          "sha256": "7717cb374e329ea80491d2e15885e8dd488f0628e33ea722de2a5fe693f08941"
+        },
+        {
+          "bytes": 57378,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.24_root-lzh-sct.json",
+          "sha256": "c32b28107090965473cecd4eeb89e6a8746fbc73abda5a6c5de0c587783fcbbe"
+        },
+        {
+          "bytes": 13263,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.25_root-lzh-sct.json",
+          "sha256": "1193de8b42af43fb3edf152d8566dc50e7df25f1de99ca89433f41b6ad32c00b"
+        },
+        {
+          "bytes": 9363,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.26_root-lzh-sct.json",
+          "sha256": "0d697796f48f27a7da46a60ce28e057da095a6576960f138d18fd7c36691acee"
+        },
+        {
+          "bytes": 33870,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.27_root-lzh-sct.json",
+          "sha256": "194bf884e05bf770d6741cf90a981bc7e4703dc492554b80e0cacd49f1a7e168"
+        },
+        {
+          "bytes": 2873,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.28_root-lzh-sct.json",
+          "sha256": "d56fd347ef95bf6adca80a37b235a77adc94aabb6777cf527d67c4af5f6854f0"
+        },
+        {
+          "bytes": 21384,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.29_root-lzh-sct.json",
+          "sha256": "1693880a60385243549ecda275812e47d45ca9ce47804b7bf5b40e89a2caf5c7"
+        },
+        {
+          "bytes": 61092,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.2_root-lzh-sct.json",
+          "sha256": "f0a83b2ca6e279604cac03bfd89bc5125012d26d13df57095eb240d5c33713e3"
+        },
+        {
+          "bytes": 20007,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.30_root-lzh-sct.json",
+          "sha256": "c74b9e6e2fe571fe6637a804763c6d235411aee43b7e6ea907f1eaaa9518a760"
+        },
+        {
+          "bytes": 5057,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.31_root-lzh-sct.json",
+          "sha256": "cf6eabd8b9746cf1164357533cae649fe8226bb22aa4d08db36d462e674bf963"
+        },
+        {
+          "bytes": 4686,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.32_root-lzh-sct.json",
+          "sha256": "397f1fe7ba5ea5ee130d480c262e0f46e16ad405e06323b8daece623255b65eb"
+        },
+        {
+          "bytes": 123808,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.33_root-lzh-sct.json",
+          "sha256": "762a6473bd674b588ef9e90fb9cbb5a5ff0c2222dcb836e11ec6f07afc870c98"
+        },
+        {
+          "bytes": 72313,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.3_root-lzh-sct.json",
+          "sha256": "6e1e8270e1b4597f46ca621ae411feff8aa8dfe9b1945b4d1e6c050417507790"
+        },
+        {
+          "bytes": 52256,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.4_root-lzh-sct.json",
+          "sha256": "406ed0d4df325bf831f262b4bfea69ec14b492473cda5201e64f451f55edc52a"
+        },
+        {
+          "bytes": 61512,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.5_root-lzh-sct.json",
+          "sha256": "0c657077cbdd15fc723707c3989071dd51d70994f7139101726b866d93e78a96"
+        },
+        {
+          "bytes": 15017,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.6_root-lzh-sct.json",
+          "sha256": "167696f94c494e290ffd4a8ee05f232e34741cc36503c06458b848267cb12529"
+        },
+        {
+          "bytes": 6618,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.7_root-lzh-sct.json",
+          "sha256": "f5eab1204ffdfdb3188268e0b42670b9ce7710b4a898064fa5f699c2f616cbfc"
+        },
+        {
+          "bytes": 12966,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.8_root-lzh-sct.json",
+          "sha256": "a5a85310a172188dc732d5b78a938a61f092942a6866ab44c363083b6ae5ac5f"
+        },
+        {
+          "bytes": 7700,
+          "path": "root/lzh/sct/abhidhamma/sag/t1548.9_root-lzh-sct.json",
+          "sha256": "d07560d251d16fef3c9b16cc93a219439cb3864d31bd9ecf0adda0276ecbe777"
+        },
+        {
+          "bytes": 7770,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.10_root-lzh-sct.json",
+          "sha256": "9b8c7fc8a0648c46ac3993fea17b8e19c799377bfcebe00c6082d5fdd4a4a6da"
+        },
+        {
+          "bytes": 38737,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.11_root-lzh-sct.json",
+          "sha256": "59d757ccdfe71547ff305e554b652f9a10b26281dda8fab304b557e1d4510630"
+        },
+        {
+          "bytes": 1067,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.12_root-lzh-sct.json",
+          "sha256": "a61aae5e069c90ced4ff7ab62b41ba477d665bea746c6a9fae3001eb8d21991f"
+        },
+        {
+          "bytes": 3418,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.1_root-lzh-sct.json",
+          "sha256": "a2186a10200fc62a6af5478fc7dc4afa15903a81e0afe996f599560293a04e81"
+        },
+        {
+          "bytes": 13775,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.2_root-lzh-sct.json",
+          "sha256": "823be6fff07cf5944fbc3e35c32d0e33bb55aed0bb79bc0747c83145ef172b35"
+        },
+        {
+          "bytes": 44728,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.3_root-lzh-sct.json",
+          "sha256": "5b5e245188d919e26f1390c5ecc2690bcf0f61defbea7f0f9178ede6fc6fe26d"
+        },
+        {
+          "bytes": 98315,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.4_root-lzh-sct.json",
+          "sha256": "8cfd340585eeb09ba65950d8a4872dc18057924eb49f054353a25a2d66939edc"
+        },
+        {
+          "bytes": 132369,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.5_root-lzh-sct.json",
+          "sha256": "46b8c40994c018edca1c007926b67174b966e9e3b7252887dce06c76c0e3a833"
+        },
+        {
+          "bytes": 111650,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.6_root-lzh-sct.json",
+          "sha256": "079914e807a5300f599398ac0f12c966721fd766d5ef009bd4964b6e24994760"
+        },
+        {
+          "bytes": 42417,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.7_root-lzh-sct.json",
+          "sha256": "3db99a8ee927b3eb1ccbcd3ad3513c992747bd33e6b3b2c79fd6e69312487008"
+        },
+        {
+          "bytes": 40704,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.8_root-lzh-sct.json",
+          "sha256": "32234a2e98c06fc5fcf2776d66025859c82e9a5a548c5ab9c96775edefefdb31"
+        },
+        {
+          "bytes": 34204,
+          "path": "root/lzh/sct/abhidhamma/sg/t1536.9_root-lzh-sct.json",
+          "sha256": "661b59eb951a6a24bbbdfa90fb189f45220c24e474afb7476d7697d2fd732aa8"
+        },
+        {
+          "bytes": 2427,
+          "path": "root/lzh/sct/sutta/ea/ea19/ea19.1_root-lzh-sct.json",
+          "sha256": "7be8164bb90b214c599acf94842780fb577d62c634e003d4a5622cae84333b9c"
+        },
+        {
+          "bytes": 1946,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.100_root-lzh-sct.json",
+          "sha256": "640067f6240697ce257bb29e75e0122026162163b0cfe17b37bf496b83e94493"
+        },
+        {
+          "bytes": 3053,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.101_root-lzh-sct.json",
+          "sha256": "4d528f22152fa40ef95aba24edac381dd5f313a861721706d5a14bb108b0fdea"
+        },
+        {
+          "bytes": 1815,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.102_root-lzh-sct.json",
+          "sha256": "2d4a063b6e87e148bf4419c91ac81815c6de4f62947abb0c288c85608a174c46"
+        },
+        {
+          "bytes": 2129,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.103_root-lzh-sct.json",
+          "sha256": "5a9aac65103a3f8f0d02510e29294288ed5860fa130139b2efcb347dedfea82e"
+        },
+        {
+          "bytes": 2860,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.104_root-lzh-sct.json",
+          "sha256": "71448fd6339e99565371fe97b7d046aa66b3ab5ccf08527c198145e3ead0227e"
+        },
+        {
+          "bytes": 1950,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.105_root-lzh-sct.json",
+          "sha256": "1624a684960942d57130d2c9dc4d45d9fee82269b24daf8bab954459037b465b"
+        },
+        {
+          "bytes": 1630,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.106_root-lzh-sct.json",
+          "sha256": "08ed8c1463f14a2271dec10e7ba9c8f5f567c37ca2b3debbaa8c66af95c5a62f"
+        },
+        {
+          "bytes": 3067,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.107_root-lzh-sct.json",
+          "sha256": "5a22992f94d566f2ea9f5e90e6b73eb834033b8af811520732a06ce56cbbcf9d"
+        },
+        {
+          "bytes": 1369,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.108_root-lzh-sct.json",
+          "sha256": "17b9bb768ffd8532404988c71a52118261fc4903775f1913c5a12fbfa0a5804c"
+        },
+        {
+          "bytes": 5108,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.109_root-lzh-sct.json",
+          "sha256": "58b4c9835f497789ee8ccff93047569089f7ccbdfe37ddf44c3c24d24ab6f03c"
+        },
+        {
+          "bytes": 1440,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.10_root-lzh-sct.json",
+          "sha256": "a3d81c0bb8e59ffa56d32b80d720f551c6e0b9f4e3554647492249b1e7133668"
+        },
+        {
+          "bytes": 4914,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.110_root-lzh-sct.json",
+          "sha256": "a84f93fcd4a8edb60e2d2156f1d9e75b14c4e69bcddce8213aed6c4e223cd20d"
+        },
+        {
+          "bytes": 2466,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.111_root-lzh-sct.json",
+          "sha256": "6d567b26555cbaa164c2e0489f2194345820884309f60bc1c8adb87a186cda85"
+        },
+        {
+          "bytes": 5219,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.112_root-lzh-sct.json",
+          "sha256": "f400a43b806f0d4b2c6440cf30cfb757807ad71f5276ae2e2390c8ae2a4fe430"
+        },
+        {
+          "bytes": 4211,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.113_root-lzh-sct.json",
+          "sha256": "72a9c5ba792611a25257442a24a0e583f44d88311623b393483666d0bd879c4e"
+        },
+        {
+          "bytes": 4337,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.114_root-lzh-sct.json",
+          "sha256": "292c7ecaa0f69c3dfaec8c270c4aacae62ea3567bdc61385ae84974aa6f2bec3"
+        },
+        {
+          "bytes": 2985,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.115_root-lzh-sct.json",
+          "sha256": "bfe0d9d169aa41157e6c3b2f16e3298fcf74c421b731f3042583861e382e41ba"
+        },
+        {
+          "bytes": 1736,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.116_root-lzh-sct.json",
+          "sha256": "4f871f184e016f880ec3a06dabb7be7925c0b02b8ebf52656fafba5ddc29f7c6"
+        },
+        {
+          "bytes": 2276,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.117_root-lzh-sct.json",
+          "sha256": "2661fd1899fa827c55b5688f1743bca818930ffb4d0fe0a11547518fa2ee7bf5"
+        },
+        {
+          "bytes": 2195,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.118_root-lzh-sct.json",
+          "sha256": "cec3bbc82ddb33f0af94d60d7e048559cef8f4e7b7a00067b470dbc1918c3f9f"
+        },
+        {
+          "bytes": 3534,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.119_root-lzh-sct.json",
+          "sha256": "64889c34140971ae55855ae1a268ed2d4f4cf8d9b49cd190b31f037520f30dfa"
+        },
+        {
+          "bytes": 1695,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.11_root-lzh-sct.json",
+          "sha256": "8d9a6f23bca6b7c74eed3f4ccb7526c520a3850a641f26d74c8b536fed38b515"
+        },
+        {
+          "bytes": 3512,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.120_root-lzh-sct.json",
+          "sha256": "ced5c6c43ad00bf5606776c1c44fcb0c3fae45d4526630611e93e22fe69c4570"
+        },
+        {
+          "bytes": 3479,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.121_root-lzh-sct.json",
+          "sha256": "0e057deda4e60d3a2598db12258983f7498c207b78a0d1b070fc6a789d1bbe3b"
+        },
+        {
+          "bytes": 2095,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.122_root-lzh-sct.json",
+          "sha256": "a0becadc2675cd9167b077962e62843ee7b93edaff4c070930dd953c0efbf5af"
+        },
+        {
+          "bytes": 1847,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.123_root-lzh-sct.json",
+          "sha256": "8164fea9c79b2379dfeda92a70384544d1c4c99a510b4e9090b63f984990b8bc"
+        },
+        {
+          "bytes": 1905,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.124_root-lzh-sct.json",
+          "sha256": "de7efd75c5b23a31e89eb213ac66ff17c1446fa329c75c096dc3a51f3e592074"
+        },
+        {
+          "bytes": 2286,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.125_root-lzh-sct.json",
+          "sha256": "efe72858d9525afddde4c786ef164b559d0973ac6e1c2166cb7518138aded771"
+        },
+        {
+          "bytes": 2202,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.126_root-lzh-sct.json",
+          "sha256": "86aabfb624816e4287caac8b3db7754370a0c7ec413305b8c5f5e2b1053b71df"
+        },
+        {
+          "bytes": 1774,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.127_root-lzh-sct.json",
+          "sha256": "5b37522e8f4092f6887752d5c7add33eac7a6ea0da126c9d34f926fc7d8d5924"
+        },
+        {
+          "bytes": 1426,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.128_root-lzh-sct.json",
+          "sha256": "8a132be7349a6bd8324cad8cbde2bb07ad811a9ffe811906b04da7ea76a4db38"
+        },
+        {
+          "bytes": 1622,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.129_root-lzh-sct.json",
+          "sha256": "8e91200b886abac432b0df88647a03d512748ac0c8a8a9aef686373b5d7de5f0"
+        },
+        {
+          "bytes": 1689,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.12_root-lzh-sct.json",
+          "sha256": "b519249ad47c5c8b42f40b50a99f86c119cc2f4a49535dc273034067f175bc59"
+        },
+        {
+          "bytes": 1590,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.130_root-lzh-sct.json",
+          "sha256": "d8dad1c4815037689c248efd75467e779249336ce36f1c7a7754dbd40b5c5c5e"
+        },
+        {
+          "bytes": 2699,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.131_root-lzh-sct.json",
+          "sha256": "382c7b24d9b07bbe71c7b36bfcd93bd40e33f2a5b3a5fc39e4c5497d13a770bc"
+        },
+        {
+          "bytes": 2538,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.132_root-lzh-sct.json",
+          "sha256": "8860eb44510eabfd4cb9714177100d84bd56ccc83799cee08293bcac75b296fa"
+        },
+        {
+          "bytes": 2808,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.133_root-lzh-sct.json",
+          "sha256": "cb4d541efb766f3c1bf4157b3ae9b2ddd6c672255c46c7d53bb70dcdff6002be"
+        },
+        {
+          "bytes": 1363,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.134_root-lzh-sct.json",
+          "sha256": "474ce2c382c2f1c5e16c593076286e6897335e11e7d55cbda7402bd894b26475"
+        },
+        {
+          "bytes": 2363,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.135_root-lzh-sct.json",
+          "sha256": "050418e241272e77860fdc8d92a9a27c06bc3f83c538bff9dd3d88550aec51f6"
+        },
+        {
+          "bytes": 2886,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.136_root-lzh-sct.json",
+          "sha256": "058e1a0d74f2e97238a52382653b347f0ebc9e9e58ce474372414b668e522e03"
+        },
+        {
+          "bytes": 3108,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.137_root-lzh-sct.json",
+          "sha256": "0694f479d28c80835af30247a000318700dc2939990d7e6d808d8c14f94f9cce"
+        },
+        {
+          "bytes": 3210,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.138_root-lzh-sct.json",
+          "sha256": "6e37d3428cf5241273b4636ed60699f3a06fd78cf315a8f3e277de8c7094eb11"
+        },
+        {
+          "bytes": 4202,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.139_root-lzh-sct.json",
+          "sha256": "5bc3e10e28fc0961489a2f5f9a41b55c9040d3ff57d64f93ec50851a1aa65cf5"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.13_root-lzh-sct.json",
+          "sha256": "596abd92d23aac32f1dfa703628f7fde96b0b3a6dd43cd2796f1f4c385af2bc4"
+        },
+        {
+          "bytes": 5281,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.140_root-lzh-sct.json",
+          "sha256": "18192cf1ddc3abeb16af9b6e0bebaa3399177e9a1cd4eec3e2b56639f00b955c"
+        },
+        {
+          "bytes": 1107,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.14_root-lzh-sct.json",
+          "sha256": "ba8a0e08929148df1b425eade50597c4cf8dee9fdd3af64b60aebeeae9f50dea"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.15_root-lzh-sct.json",
+          "sha256": "d51664c11c99096044cfb02d5a2c97cebcef9205b3a5c9c64534cbb498a308be"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.16_root-lzh-sct.json",
+          "sha256": "59ebe9e12bd512ab1cc608a1ad65ed233cbac4472dc10cf2f82c5a01ad7ac98d"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.17_root-lzh-sct.json",
+          "sha256": "cf74328c44d40ba5b797b75caa9bf9badb1ab67c4786d7be53a3a95513bf4386"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.18_root-lzh-sct.json",
+          "sha256": "3e7ac16c6cd49e8b0163b9153deae73e803ed52ff444d98e4a17aa4bc4f7327b"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.19_root-lzh-sct.json",
+          "sha256": "ade7287a26117a321a094ecb50fb700930293007c7669babe1d789540404ed32"
+        },
+        {
+          "bytes": 1166,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.1_root-lzh-sct.json",
+          "sha256": "cf12c4f45835ee967102ee12794531ff3301e405cef9948c10864e769045af98"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.20_root-lzh-sct.json",
+          "sha256": "679c3c8ac111de6973bba4a5e14c2f51d86f3d893c631102fa4418f063542872"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.21_root-lzh-sct.json",
+          "sha256": "739c8baf00f1499ceebe6594dea9f876859397d3ba07100848c1eade9ff38d00"
+        },
+        {
+          "bytes": 1107,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.22_root-lzh-sct.json",
+          "sha256": "66825062816a67f545603fb05c7b18ca767eafdb8fbd04a2391c734c10891fa7"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.23_root-lzh-sct.json",
+          "sha256": "4dc778cfe5671dce215b802579090948568a1c2d93c50f063d698181c9ce919b"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.24_root-lzh-sct.json",
+          "sha256": "f26036fb0928d4141cbb0609ec8e90c61af0bed5748780f4b76988dee673d3c2"
+        },
+        {
+          "bytes": 1104,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.25_root-lzh-sct.json",
+          "sha256": "02c8a7d0a149748abd67866928846f5afa3281415b91bd321900fdfbdecdf406"
+        },
+        {
+          "bytes": 1323,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.26_root-lzh-sct.json",
+          "sha256": "9a8b9651692e81a828e9baf584316dddf6f5f7c73501a6a398e3fd0ac0b0310e"
+        },
+        {
+          "bytes": 1110,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.27_root-lzh-sct.json",
+          "sha256": "539047f09898612af141e3bee677cc803f8b444c7c24f17b3e44ccdcccedde3b"
+        },
+        {
+          "bytes": 1107,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.28_root-lzh-sct.json",
+          "sha256": "5b50ab561e8b7d8e104be84846da121db4cff7ddf0f201fab7a43af5c59f7910"
+        },
+        {
+          "bytes": 1116,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.29_root-lzh-sct.json",
+          "sha256": "b977a2141d4e0e043af79d99af9e8e38a47f830115b17a0b3bcc7a96b1b26e38"
+        },
+        {
+          "bytes": 1166,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.2_root-lzh-sct.json",
+          "sha256": "d0b057c8bf60040010fa96621767aa61649c0524e6f3dbdabe062c53add25893"
+        },
+        {
+          "bytes": 1110,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.30_root-lzh-sct.json",
+          "sha256": "edf2dea5c7f2f30dcb586f842b4748679f337fd8ccf787425cb6b1cfb195c0fa"
+        },
+        {
+          "bytes": 1110,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.31_root-lzh-sct.json",
+          "sha256": "8a04ca32fbcdd5ecc8c6c6e547c8257f5d1e58cf06cc25b1904f8112e4e96d3f"
+        },
+        {
+          "bytes": 1110,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.32_root-lzh-sct.json",
+          "sha256": "f10da1747b33d1932887c89e41fcccc646d02c7b17a20716cb9de3ec8d7f4cfe"
+        },
+        {
+          "bytes": 1116,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.33_root-lzh-sct.json",
+          "sha256": "15332c093b76898307db1fb781b50f592927831add125d1f294499319dd4c89d"
+        },
+        {
+          "bytes": 1116,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.34_root-lzh-sct.json",
+          "sha256": "bddde7e56a28f160a6c678e5eb84065f54a712f68982909966ca57c16de70219"
+        },
+        {
+          "bytes": 1110,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.35_root-lzh-sct.json",
+          "sha256": "53f4ede58fbcf7444c0d620887aa136642919ed920c5fe7fe8f3f375dcf04c61"
+        },
+        {
+          "bytes": 1149,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.36_root-lzh-sct.json",
+          "sha256": "b4c1a5efb801601adac2763aa81211675e20c233d5cd2c598390ffdcfcbc2b5e"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.37_root-lzh-sct.json",
+          "sha256": "53ff937de958282f82297be36fc8e12f8d118cd931aaa1c7b05c448595d3f199"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.38_root-lzh-sct.json",
+          "sha256": "bd9a2a06ee6376b30643cefa6b2a41e80b6839cdd638d53783bff59d8b81cddd"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.39_root-lzh-sct.json",
+          "sha256": "7fe89c48ad4b710b846120977079aaccb240cb9f062d5234d1851ac72b904d3b"
+        },
+        {
+          "bytes": 1730,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.3_root-lzh-sct.json",
+          "sha256": "4070edf5b6fd9033507f564cb9cf1395a3d865cad38befd09b0d2b80ee7831ca"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.40_root-lzh-sct.json",
+          "sha256": "8e2a15cfa40d420f099b19b17e6ce2c787ea44ca7ea9d3909544f415f767584f"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.41_root-lzh-sct.json",
+          "sha256": "a6c8c67308f0f035c8f3212b3140b7c5f44d37e259bc6af781ee999ffb2e2c57"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.42_root-lzh-sct.json",
+          "sha256": "c502d0367e36d641c2a2f68469f78b75b2ca25cc4a6a9cbaf5e31b3a50015cd1"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.43_root-lzh-sct.json",
+          "sha256": "ca9d551e714c4304ec07e1751ee6386f5c2854b28a2afdafc28ca3358037ed3c"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.44_root-lzh-sct.json",
+          "sha256": "236228b40934832efca4fcdee9fd962aeda42f236328f0485246d7440d77a665"
+        },
+        {
+          "bytes": 1267,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.45_root-lzh-sct.json",
+          "sha256": "0866a58549db9827620571ded510606810ebe0c58510acee188157586aa924ab"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.46_root-lzh-sct.json",
+          "sha256": "dc357fa3e896d43829fbb1241b46fe344ba674205878c3d3de5ea4eebceae648"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.47_root-lzh-sct.json",
+          "sha256": "d544ed1d1483479876a7b77f0635d2237e16a4f344486c194b977c9a45f4bfef"
+        },
+        {
+          "bytes": 1260,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.48_root-lzh-sct.json",
+          "sha256": "83db39da6314dcfca1c4847d2a582cd993d11a8294929a0b1712befc16c43b1b"
+        },
+        {
+          "bytes": 1335,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.49_root-lzh-sct.json",
+          "sha256": "472bc2e8939f92d81f08bb6157af48524e0b6cf3b77cfd59bbd283c159f6cbce"
+        },
+        {
+          "bytes": 1151,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.4_root-lzh-sct.json",
+          "sha256": "0fe72fecee41b05fb3d5ba802da06292e16d8af1f7742975af630a0fabc32ae0"
+        },
+        {
+          "bytes": 2469,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.50_root-lzh-sct.json",
+          "sha256": "acfe6499fa997a0fc64b37f5ba90c9b3c4bfd2238fab4890e1dcafe7bf92b3c0"
+        },
+        {
+          "bytes": 1056,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.51_root-lzh-sct.json",
+          "sha256": "0953c1230bab1d088591808c194be71b9c9ac2833fa7958e4ecde591bbacddfe"
+        },
+        {
+          "bytes": 1056,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.52_root-lzh-sct.json",
+          "sha256": "aa5de08331da8245a410c100f560e1182a90e7b5e04d8b5efdf4886b4a6338e2"
+        },
+        {
+          "bytes": 1326,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.53_root-lzh-sct.json",
+          "sha256": "9e0173702c96f925a0b934ac7b5bbdd44e5b4f7423e768a86f8cbca59a683677"
+        },
+        {
+          "bytes": 1281,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.54_root-lzh-sct.json",
+          "sha256": "196e2d759a7f5a5a96b56cb456d7e191835581ba0b98029d25c92fb5a22bb9ca"
+        },
+        {
+          "bytes": 1245,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.55_root-lzh-sct.json",
+          "sha256": "ec4b5635425d1e79734f0e925e18aa78641e04245a7464b8251207015ea9531e"
+        },
+        {
+          "bytes": 579,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.56_root-lzh-sct.json",
+          "sha256": "039b3d1a78110a16f0305fad822de793df0549018e0ef12cd93f63144cde4557"
+        },
+        {
+          "bytes": 729,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.57_root-lzh-sct.json",
+          "sha256": "6e81240094995e6e70f59f0cd7d5da31c7bd3e8375fad78e6d4eb558cfbcb5db"
+        },
+        {
+          "bytes": 2307,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.58_root-lzh-sct.json",
+          "sha256": "24c2c8e42c07807cc29a835313eb6cb8934b0bb415f0f1a0315232f46eccf411"
+        },
+        {
+          "bytes": 2307,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.59_root-lzh-sct.json",
+          "sha256": "4311a3538763cb8b118439b9fb386b10a8145cbf556b0dd4351ef1f07d8248e1"
+        },
+        {
+          "bytes": 1151,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.5_root-lzh-sct.json",
+          "sha256": "514ea94973173e3f20e97ad9a030299911d2a38359c35fe3a8a549effb706f99"
+        },
+        {
+          "bytes": 1350,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.60_root-lzh-sct.json",
+          "sha256": "e887b2ebe692e9c6034c91bcd1afac56f445995c2be431cd88f38e5de1320cfd"
+        },
+        {
+          "bytes": 1380,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.61_root-lzh-sct.json",
+          "sha256": "b4e77217ca3734c7939a44bd1d1183df188893cff4a28342f6f7f75f01cc8d20"
+        },
+        {
+          "bytes": 3733,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.62_root-lzh-sct.json",
+          "sha256": "ecc763630d763d113deffdecf0f0c5b0983454715b6b6ca38b5aaad63b6de892"
+        },
+        {
+          "bytes": 1512,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.63_root-lzh-sct.json",
+          "sha256": "c84430c4d312a887aa4024f905dfe4a78ad52db3f57906cec3d9f4d32a54c879"
+        },
+        {
+          "bytes": 1509,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.64_root-lzh-sct.json",
+          "sha256": "b0569637b3e1f7174690c37cdc875186e887797befdb4291970ef18e90da61bd"
+        },
+        {
+          "bytes": 1641,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.65_root-lzh-sct.json",
+          "sha256": "521c5bfc35595e650822e6933213fdbde6ef1b7e624a26691f04f5b7a2ac0286"
+        },
+        {
+          "bytes": 1641,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.66_root-lzh-sct.json",
+          "sha256": "d6c92a760d0438d19cb6abcb4efc6f4edd43e955832b5232224504ebf34a0e7d"
+        },
+        {
+          "bytes": 1257,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.67_root-lzh-sct.json",
+          "sha256": "e46ec206578acc90abd643a77e582c368f8dc654ac761e00a0fcc9be74cbe6b1"
+        },
+        {
+          "bytes": 1257,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.68_root-lzh-sct.json",
+          "sha256": "6fe6c9b0a7e18d39734b592566b7fcfb4f33a92a61c5f65aca2585803fb9a470"
+        },
+        {
+          "bytes": 1443,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.69_root-lzh-sct.json",
+          "sha256": "760c5e9239c03fbc752cd8fc99900d938d8f4843e7bd32575c52f0a272a37619"
+        },
+        {
+          "bytes": 4652,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.6_root-lzh-sct.json",
+          "sha256": "972afa21b11bcc865810f26dbbd76c9e32bbf953195613b314b86b2073d550e9"
+        },
+        {
+          "bytes": 1459,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.70_root-lzh-sct.json",
+          "sha256": "fe21598bef6ed4ab50bef7a76bce8c3f82547f7c3047793ece679670c3f3ffbb"
+        },
+        {
+          "bytes": 1194,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.71_root-lzh-sct.json",
+          "sha256": "ae0cfb5e4114703a322866d7e783a1e37500d6c0d45f297c5b76e9a50952e3c1"
+        },
+        {
+          "bytes": 1194,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.72_root-lzh-sct.json",
+          "sha256": "05a7d12e80e3a7c05c18c46ad25048fc46c3bfed0ca4d41a4db84008899e3cf9"
+        },
+        {
+          "bytes": 2472,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.73_root-lzh-sct.json",
+          "sha256": "bbb6b0c14d11cf622a04f1c78545be49015ae950f87bdab5c128738008fc2535"
+        },
+        {
+          "bytes": 6825,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.74_root-lzh-sct.json",
+          "sha256": "aa65c93f4c9c4e61c164eb487c557d55ee8af8a9ce804fdf60bbf61c475a65fb"
+        },
+        {
+          "bytes": 1440,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.75_root-lzh-sct.json",
+          "sha256": "2f0a4622acf08ba4caee271e076e3fcafd3ec28ff7aedb68f6a18708749d51e9"
+        },
+        {
+          "bytes": 1494,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.76_root-lzh-sct.json",
+          "sha256": "bd48f72551bfaeff64e49956eae1f74e616fbe05fbb1befc827f643e054d5a9d"
+        },
+        {
+          "bytes": 1338,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.77_root-lzh-sct.json",
+          "sha256": "45976e30630f7fafb0baea7aff8d2ae3413f5fdab903fcce963ffd7a9459c679"
+        },
+        {
+          "bytes": 1407,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.78_root-lzh-sct.json",
+          "sha256": "dad070209a76516ea71993f8d2e40bb924c94d8637b95d7626dd760385de2396"
+        },
+        {
+          "bytes": 1815,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.79_root-lzh-sct.json",
+          "sha256": "5f2a80e96d1dbb501c05c6f3fa64547a87e11402a5d83ce701a056542e3c150e"
+        },
+        {
+          "bytes": 886,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.7_root-lzh-sct.json",
+          "sha256": "5cb1f167e50284c22161fff8a3f2d3f2508d500773b088be4b104fee09fee54a"
+        },
+        {
+          "bytes": 3853,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.80_root-lzh-sct.json",
+          "sha256": "a8cf32508e4b145a3933fee0785383ef73e80546e121cda2b18418be2b12fad1"
+        },
+        {
+          "bytes": 5465,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.81_root-lzh-sct.json",
+          "sha256": "ce0306390eee30e8bf66ee0317c6b9e6e3a833c2a5e5e45b8fcd484e846a4369"
+        },
+        {
+          "bytes": 1452,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.82_root-lzh-sct.json",
+          "sha256": "9d161f0843c9cddd69e12e5c8e7ccc4cb0507bc102944c6c703a580d7b95c145"
+        },
+        {
+          "bytes": 1266,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.83_root-lzh-sct.json",
+          "sha256": "aca15635e0346481ee60b9f506cd5c9eeb707b9aa77eaee1af0d16632ba9cc29"
+        },
+        {
+          "bytes": 1071,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.84_root-lzh-sct.json",
+          "sha256": "055f49302b17ce80489f145de7a066747507673c6de31b5b6dfc62cd6089915c"
+        },
+        {
+          "bytes": 2358,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.85_root-lzh-sct.json",
+          "sha256": "040d30c947c3c3dcb21d484347bc5422c5e217779d2fb1c0a53177f1c8203898"
+        },
+        {
+          "bytes": 5343,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.86_root-lzh-sct.json",
+          "sha256": "12df36ce0516971d73d66c88fedf0f15eb1f2ed7bc462a5c264bebf80ec58601"
+        },
+        {
+          "bytes": 1674,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.87_root-lzh-sct.json",
+          "sha256": "59a5d71e3df0464cd16706265b69af32de2f9935fd7c39032ca3ce11e3e87224"
+        },
+        {
+          "bytes": 2421,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.88_root-lzh-sct.json",
+          "sha256": "dac58aa413b26d332e11b0014b9f7be7e72439438d048f0b8bb8ceb385392d11"
+        },
+        {
+          "bytes": 1308,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.89_root-lzh-sct.json",
+          "sha256": "4037b60cfa680327f8b20b11fd6ed2bf3ba164293a4e271bc8b3989a1f3fdbfb"
+        },
+        {
+          "bytes": 880,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.8_root-lzh-sct.json",
+          "sha256": "5885ebeae2dbd5412bd55407615b3d400d4ede0542e08e49753e1aa32444932b"
+        },
+        {
+          "bytes": 2749,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.90_root-lzh-sct.json",
+          "sha256": "767416df324f81bc495250dfd8b75465ed142a764b31ffe27901258a09ea3be9"
+        },
+        {
+          "bytes": 1866,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.91_root-lzh-sct.json",
+          "sha256": "5385a3bd78f8e9522b2b7a2e0ec0310d0e9f18a6ba9b9493d00e2d567c1f30b8"
+        },
+        {
+          "bytes": 2073,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.92_root-lzh-sct.json",
+          "sha256": "8a651f79805435fa83640c6b1bcaf040a5eebe81618cc8641101ab85169ef7cf"
+        },
+        {
+          "bytes": 2013,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.93_root-lzh-sct.json",
+          "sha256": "f9a529b83f9aa1b012f08eb8f5f07b2127a850ceb4997e1df662d38ca506d3e0"
+        },
+        {
+          "bytes": 2490,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.94_root-lzh-sct.json",
+          "sha256": "05b94adb69463c36b2c0e6dcc97c3ff92fc0c9f900bf5220b428c6f05d2abaeb"
+        },
+        {
+          "bytes": 1449,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.95_root-lzh-sct.json",
+          "sha256": "e3ac2af4eabdca0c115c4a763c077d208e4382f8a005cb3f3c0a4c00229e3275"
+        },
+        {
+          "bytes": 2482,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.96_root-lzh-sct.json",
+          "sha256": "d47b9727e3ba4d4deca546dbc232fad2e7582eb5daeb443707795fc96782a667"
+        },
+        {
+          "bytes": 1141,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.97_root-lzh-sct.json",
+          "sha256": "2b5ed47195a10b2df91216283f321dae1817847040dc6c81f103cc6a6c7c3214"
+        },
+        {
+          "bytes": 2923,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.98_root-lzh-sct.json",
+          "sha256": "d7078c4d2ac8ba3cf3727a791dd003b7819322ecc0e2b92737f1eb54aadd5121"
+        },
+        {
+          "bytes": 1998,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.99_root-lzh-sct.json",
+          "sha256": "48ade2be9c84b84607063cb74bd58660299ea9528466872fe0b5f772185988ef"
+        },
+        {
+          "bytes": 1395,
+          "path": "root/lzh/sct/sutta/lzh-minor/lzh-iti/t765.9_root-lzh-sct.json",
+          "sha256": "f2f680c34c06eb382dc8aa1cbb7c4b2e209128408cdc9f630dd297576015acae"
+        },
+        {
+          "bytes": 8927,
+          "path": "root/lzh/sct/sutta/ma/ma10_root-lzh-sct.json",
+          "sha256": "b905336a9e7591fafc355ffc50e43f03c4be9c5c764ead9aee04484b547dc68b"
+        },
+        {
+          "bytes": 10334,
+          "path": "root/lzh/sct/sutta/ma/ma16_root-lzh-sct.json",
+          "sha256": "c3f0a0ffc95ef8d6b6d0ec87f6a8951b5c4d39d4cbea550d5fce68c5501ce09f"
+        },
+        {
+          "bytes": 7030,
+          "path": "root/lzh/sct/sutta/ma/ma1_root-lzh-sct.json",
+          "sha256": "eb1a799e8444d8576be977f93cafc38afc23b8290a4a5d92fb3ceb83741cd477"
+        },
+        {
+          "bytes": 25060,
+          "path": "root/lzh/sct/sutta/ma/ma200_root-lzh-sct.json",
+          "sha256": "63d2b88c7bf25449fb388003199bf4217a9d40a1ca92d8c4a50d514201f5be63"
+        },
+        {
+          "bytes": 3661,
+          "path": "root/lzh/sct/sutta/ma/ma2_root-lzh-sct.json",
+          "sha256": "aeab4403767ec3b1c269e01140a8f9f0db4d9e57fc0700c46701dad190798a0a"
+        },
+        {
+          "bytes": 17073,
+          "path": "root/lzh/sct/sutta/ma/ma31_root-lzh-sct.json",
+          "sha256": "69e5cb1f130e36021486ac4b134008324ac3a4b1dd28c0f20cf37c43365f5889"
+        },
+        {
+          "bytes": 10136,
+          "path": "root/lzh/sct/sutta/ma/ma3_root-lzh-sct.json",
+          "sha256": "433563380d2ebcdf9672e2195bbfe3b458e03e6b4296ebf691aee9d772226389"
+        },
+        {
+          "bytes": 7884,
+          "path": "root/lzh/sct/sutta/ma/ma4_root-lzh-sct.json",
+          "sha256": "5dc0c8afbfccdb72076bdbe852c1b5dde13955d73f7a421c6dc298364a21096f"
+        },
+        {
+          "bytes": 14227,
+          "path": "root/lzh/sct/sutta/ma/ma5_root-lzh-sct.json",
+          "sha256": "235ccbc3abb78b9bb134f9d3249595327a7c045aaad25a583fecf8d18e8c3fea"
+        },
+        {
+          "bytes": 6147,
+          "path": "root/lzh/sct/sutta/ma/ma6_root-lzh-sct.json",
+          "sha256": "f99d35cb49182b082461bfae90039cfdb4150326f567cd8153104e988ea1dbe2"
+        },
+        {
+          "bytes": 5014,
+          "path": "root/lzh/sct/sutta/ma/ma7_root-lzh-sct.json",
+          "sha256": "8e9b9dbf2da5b41213de8c52bf2a48792313de0f9e8619d8ffeb06e01585ef2d"
+        },
+        {
+          "bytes": 21735,
+          "path": "root/lzh/sct/sutta/ma/ma81_root-lzh-sct.json",
+          "sha256": "cde6107a787438ac91032f4adf4be0b7db9d73b6d733b9ae72795efb1c0d6008"
+        },
+        {
+          "bytes": 8404,
+          "path": "root/lzh/sct/sutta/ma/ma8_root-lzh-sct.json",
+          "sha256": "9dd434622b68947bb5663ca31711aa7b7be6fdaa5de859b93a3110115d6f9914"
+        },
+        {
+          "bytes": 16530,
+          "path": "root/lzh/sct/sutta/ma/ma98_root-lzh-sct.json",
+          "sha256": "ee1e0128c1fd1a1275f3c3ab39a8bc20dcaf8a2ed23c536c8703df8d8c73d31c"
+        },
+        {
+          "bytes": 13511,
+          "path": "root/lzh/sct/sutta/ma/ma9_root-lzh-sct.json",
+          "sha256": "0a125352edede1ac868eb08630a784d4e74e9f8dd03b4b574992e528be16f648"
+        },
+        {
+          "bytes": 795,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa10_root-lzh-sct.json",
+          "sha256": "ddd7283ea5293b929574fc52c39deed5890d0fd12e90b61fda62e28dc2ebe60f"
+        },
+        {
+          "bytes": 1101,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa11_root-lzh-sct.json",
+          "sha256": "21b358768f4c2bab669bafeddab52cb974ee86efd779545f38a95acf3db698e6"
+        },
+        {
+          "bytes": 982,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa1_root-lzh-sct.json",
+          "sha256": "edb0d39d5234a1881412645996635d80752710f524fa67bdd1e613e6e9169a7b"
+        },
+        {
+          "bytes": 952,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa2_root-lzh-sct.json",
+          "sha256": "6ec8eaf5d40018165ecb1750d6be441380492b38d02a9cf597e52541afd8a91e"
+        },
+        {
+          "bytes": 1898,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa33_root-lzh-sct.json",
+          "sha256": "26a93816a2abe998f9a43fbfa1df5d56eaa5e80d85b8c37c4f62da7d1f9aaf46"
+        },
+        {
+          "bytes": 1950,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa34_root-lzh-sct.json",
+          "sha256": "645ab043c94b00309780673d0f9c607300a8ee439273708eb4a5060b2ae49e05"
+        },
+        {
+          "bytes": 1407,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa35_root-lzh-sct.json",
+          "sha256": "f73366edbd93f12a580a4c4768e153705336e5e8a04aa3e535c6dff7e153b356"
+        },
+        {
+          "bytes": 2233,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa36_root-lzh-sct.json",
+          "sha256": "c067db78a668cf3d50b129a4b1fd338cee1c0d74292c1ab112d43a5bd761e669"
+        },
+        {
+          "bytes": 625,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa3_root-lzh-sct.json",
+          "sha256": "d5a6b5fafb9743030505aa7126b3a00d642e81dd6d68914d07a5e913bdcaeb94"
+        },
+        {
+          "bytes": 814,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa4_root-lzh-sct.json",
+          "sha256": "0f8827f3c3beb73bff849d09b4c6c3b4c7bddfad0c6cdcacec59640934425574"
+        },
+        {
+          "bytes": 685,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa5_root-lzh-sct.json",
+          "sha256": "556524f189a81cf3adb9940f79b173d459d8f489379cd5ae08fefb168ea98e8b"
+        },
+        {
+          "bytes": 745,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa6_root-lzh-sct.json",
+          "sha256": "4dc8bba8fc45252095351d487b080b78eebdcfe5ad2664932ba11354a277efed"
+        },
+        {
+          "bytes": 904,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa7_root-lzh-sct.json",
+          "sha256": "d9bdc31a86a052ce5b2ba82cfab1f5211747dcdbb2c65abff49f8cf1441de492"
+        },
+        {
+          "bytes": 823,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa8_root-lzh-sct.json",
+          "sha256": "7b149bb58363ca33622cac13be4bc40e2dbdc78bb2e19f619b880da36cbde95c"
+        },
+        {
+          "bytes": 922,
+          "path": "root/lzh/sct/sutta/sa/sa1-100/sa9_root-lzh-sct.json",
+          "sha256": "7efa08ae58a98f2e93891a935236df8767f43404df802b5ee0bf959853432b51"
+        },
+        {
+          "bytes": 2782,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa139_root-lzh-sct.json",
+          "sha256": "c014add146fcdc24c046a85f58481b01494143fb27e71dc7deecbfa0b3d50d70"
+        },
+        {
+          "bytes": 780,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa154_root-lzh-sct.json",
+          "sha256": "ddea0653e685839eccff9aca5731926fe355528b494ddf5897e1e4fb11d8a3a8"
+        },
+        {
+          "bytes": 815,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa155_root-lzh-sct.json",
+          "sha256": "3f6af2853894749ad5de04ed264c17c504a989e4bc96b62ba60f55a1f45fa3f7"
+        },
+        {
+          "bytes": 1035,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa156_root-lzh-sct.json",
+          "sha256": "d15f6916412faad8ef40471eb08d6f64fd15a95ae5fea4f761b759adf1ffd0b6"
+        },
+        {
+          "bytes": 513,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa157_root-lzh-sct.json",
+          "sha256": "b828fb3cd1e6de0e65053bb591cd10c26528f0734d65e9a63ed5488566f34870"
+        },
+        {
+          "bytes": 513,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa158_root-lzh-sct.json",
+          "sha256": "f4a3aa6e59d96c9fcf1a7cf6e754a66365084f6e6d8b2bcffa9969fdb26b5382"
+        },
+        {
+          "bytes": 519,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa159_root-lzh-sct.json",
+          "sha256": "d4c0b08b7c50df1c712aff9305c0a547a52c7f554743b6fb0bd37baa3145fb8a"
+        },
+        {
+          "bytes": 513,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa160_root-lzh-sct.json",
+          "sha256": "e5dd3394b56385fc46f358dfbae4d70e73ac74235b00df4ff236a460ebbedc32"
+        },
+        {
+          "bytes": 1179,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa161_root-lzh-sct.json",
+          "sha256": "27a215b4ce7c18502a9b407e351d80699f8f7e5de7e45df03c5e7e14e82c11df"
+        },
+        {
+          "bytes": 993,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa162_root-lzh-sct.json",
+          "sha256": "f72c687b1cb2002f2445cc6b5dbc553dccd4a14adfb53cf4635699ba20e8f465"
+        },
+        {
+          "bytes": 1533,
+          "path": "root/lzh/sct/sutta/sa/sa101-200/sa163_root-lzh-sct.json",
+          "sha256": "451d292de467fc935c87cfd4d400a8095d1921892b28a9f469cac4aa6361e124"
+        },
+        {
+          "bytes": 2375,
+          "path": "root/lzh/sct/sutta/sa/sa1101-1200/sa1198_root-lzh-sct.json",
+          "sha256": "06501b2e0cce068b6834267a27a1bbfbbceaf4915ff3754651f4716959962c6f"
+        },
+        {
+          "bytes": 2176,
+          "path": "root/lzh/sct/sutta/sa/sa1101-1200/sa1199_root-lzh-sct.json",
+          "sha256": "113d60b6d2b3ee2d6d0db7be70566974e73d803941a7811c791d9333cdd41279"
+        },
+        {
+          "bytes": 2114,
+          "path": "root/lzh/sct/sutta/sa/sa1101-1200/sa1200_root-lzh-sct.json",
+          "sha256": "b98fa03109a3bf550fe4c51a1a93c7fe39000db5a3e5a9d64cecfe5989a2aba9"
+        },
+        {
+          "bytes": 2584,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1201_root-lzh-sct.json",
+          "sha256": "e1718a241c9d763d00fab18e2a18151e1fbf50f169d5653127f3f7be6d6cdef0"
+        },
+        {
+          "bytes": 2237,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1202_root-lzh-sct.json",
+          "sha256": "9a996b7fae89acc287e797ec837a834f36445e7d8a36ad447330324d5a52425f"
+        },
+        {
+          "bytes": 2148,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1203_root-lzh-sct.json",
+          "sha256": "8b1c94df44d99164657f1c2d66c5b1e8a9542bd60aa4f6d2ac49401592bda461"
+        },
+        {
+          "bytes": 2191,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1204_root-lzh-sct.json",
+          "sha256": "be36e85016d65a92956e429bff21cc897e17368b5bb6143936ed16e458fa51d3"
+        },
+        {
+          "bytes": 2331,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1205_root-lzh-sct.json",
+          "sha256": "bab19d309253540dce5fb9ee80526dfb0c45b1173cb28a0710f8a6d333fa7475"
+        },
+        {
+          "bytes": 2474,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1206_root-lzh-sct.json",
+          "sha256": "40204bc5c7b8319913c1644f89f68138ee47287ee13a6820fdc812908bceea71"
+        },
+        {
+          "bytes": 2677,
+          "path": "root/lzh/sct/sutta/sa/sa1201-1300/sa1207_root-lzh-sct.json",
+          "sha256": "416b58de00a96649b91de2f6080489b773ff6aa7fdaf4c120ecb0ccd8cb0b2ac"
+        },
+        {
+          "bytes": 3363,
+          "path": "root/lzh/sct/sutta/sa/sa201-300/sa259_root-lzh-sct.json",
+          "sha256": "26745e54a1d4ef21feb6ec7a2310cc6032f891ff15ffa0fd550dd22ff7387df7"
+        },
+        {
+          "bytes": 3933,
+          "path": "root/lzh/sct/sutta/sa/sa301-400/sa379_root-lzh-sct.json",
+          "sha256": "dbd692ea6afe4a1f0c64cc50b6f31bdcfcae253d44cdcd537c9f349dca807d33"
+        },
+        {
+          "bytes": 877,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa723_root-lzh-sct.json",
+          "sha256": "7f50672a91c059890f3256ef5939c732e557c1de9c1c4b4b20752f34f945a63d"
+        },
+        {
+          "bytes": 852,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa724_root-lzh-sct.json",
+          "sha256": "00f24c06f767127f23645b0013861a51c2c5a819b3b3b9343288edc3a8da9155"
+        },
+        {
+          "bytes": 1569,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa733_root-lzh-sct.json",
+          "sha256": "01cfb14ab50b427c35d837852818536620ef028171e0c7b96527874c5b531eb9"
+        },
+        {
+          "bytes": 873,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa736_root-lzh-sct.json",
+          "sha256": "193ab6da3575ebe574c90e763ed17a04c220540bdc1b9394419aeadd64510e9b"
+        },
+        {
+          "bytes": 1731,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa737_root-lzh-sct.json",
+          "sha256": "18f806a3d16450adb99f4555ec37954d1fedd9af2f232575d8d26d292aa6b0f5"
+        },
+        {
+          "bytes": 792,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa740_root-lzh-sct.json",
+          "sha256": "ee1f4393e6ae17f7a6a1848c3892b35ee0dae2d93bab91a30680ffe68fe756b3"
+        },
+        {
+          "bytes": 1238,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa770_root-lzh-sct.json",
+          "sha256": "5b6deddbd747b20e403615cd9c70560634bfce522b8735567a37ac6d42063c77"
+        },
+        {
+          "bytes": 1651,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa784_root-lzh-sct.json",
+          "sha256": "7326aa7491527ca08c6013a7e1ed6915d9fcd61c58131bc5c9bd191a4daad561"
+        },
+        {
+          "bytes": 7115,
+          "path": "root/lzh/sct/sutta/sa/sa701-800/sa785_root-lzh-sct.json",
+          "sha256": "6a3beffe0d5840dcf43938836509b2b05e61eb1599ad776ba00060e025b1c167"
+        },
+        {
+          "bytes": 2809,
+          "path": "root/lzh/sct/sutta/sa/sa801-900/sa803_root-lzh-sct.json",
+          "sha256": "07bee3d5dedf8848530e794253d31e4ad9c3ce03c5f0c8dbcba2b86086a44c9a"
+        },
+        {
+          "bytes": 5276,
+          "path": "root/lzh/sct/sutta/sa/sa801-900/sa810_root-lzh-sct.json",
+          "sha256": "c6eb3c1bb8b16c1524e876359670191742c62c019b8905c78d3d09d18575e9f8"
+        }
+      ],
+      "files_sha256": "824d3e2108738117b2e142ae40daa0d04752fc3ed980fe6e8f98911bbf90fff0",
+      "id": "sc-lzh",
+      "license": {
+        "class": "cc0",
+        "commercial_use": true,
+        "redistributable": true,
+        "spdx": "CC0-1.0"
+      },
+      "name": "SuttaCentral bilara-data — SuttaCentral Taishō (lzh root)",
+      "pin": {
+        "commit": "79b491052083b8079934ac4a089c46cc3859cafe",
+        "sparse": "root/lzh",
+        "type": "git"
+      },
+      "raw_root": "sc/bilara-data",
+      "retrieved_at": "2026-09-02T05:40:35.238674Z",
+      "upstream": "https://github.com/suttacentral/bilara-data"
+    },
+    {
       "file_count": 4996,
       "files": [
         {

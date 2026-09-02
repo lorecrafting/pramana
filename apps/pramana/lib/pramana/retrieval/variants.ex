@@ -81,6 +81,39 @@ defmodule Pramana.Retrieval.Variants do
   def variants?(char), do: Map.has_key?(@classes, char)
 
   @doc """
+  Rewrites a passage so that every character stands for its whole variant class.
+
+  For **comparing two passages to each other**, never for storing or for querying. The
+  representative it picks is arbitrary and its identity carries no meaning — all that is
+  guaranteed is that two passages differing only in which form of a character they print
+  fold to the same string:
+
+      iex> Pramana.Retrieval.Variants.fold("說法") == Pramana.Retrieval.Variants.fold("説法")
+      true
+
+  This is `expand/2`'s job done the other way round, and it exists because
+  `Pramana.Sc.Lzh` has to align a SAT-derived edition against a CBETA-derived one where
+  the two print 説 and 說 for the same word. Expansion asks "which forms could this be
+  written in"; folding asks "are these two the same word". A comparison of six characters
+  where each has three forms is 729 expansions and one fold.
+
+  Index-time normalisation is still forbidden, for the reason in the moduledoc: which
+  Han form an edition prints is evidence about its transmission. Folding a *copy* to
+  compare it changes nothing that is stored.
+  """
+  @spec fold(String.t()) :: String.t()
+  def fold(text) when is_binary(text) do
+    text
+    |> String.graphemes()
+    |> Enum.map_join(fn char ->
+      case @classes do
+        %{^char => [representative | _]} -> representative
+        _ -> char
+      end
+    end)
+  end
+
+  @doc """
   Expands a query into every orthographic form it could be written in.
 
   Returns `{forms, expansions}` — the full list of query strings to OR-match, and a

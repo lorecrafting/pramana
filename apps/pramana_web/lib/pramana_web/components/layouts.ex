@@ -49,6 +49,7 @@ defmodule PramanaWeb.Layouts do
           <li><a href={~p"/"} class="btn btn-ghost btn-sm">Search</a></li>
           <li><a href={~p"/survey"} class="btn btn-ghost btn-sm">Survey</a></li>
           <li><a href={~p"/inventory"} class="btn btn-ghost btn-sm">What's here</a></li>
+          <li><a href={~p"/check"} class="btn btn-ghost btn-sm">Check a report</a></li>
           <li><.theme_toggle /></li>
         </ul>
       </div>

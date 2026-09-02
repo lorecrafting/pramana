@@ -13,7 +13,7 @@ the provenance model or the eval harness.
 
 ---
 
-## Where we are — audited 2026-08-28
+## Where we are — audited 2026-08-28, phase table revised 2026-08-31
 
 | phase | | |
 |---|---|---|
@@ -23,8 +23,8 @@ the provenance model or the eval harness.
 | **3** Pāli + parallels | ✅ complete | |
 | **4** Eval harness | ✅ complete, tagged `phase-4` | 1,472 cases, published, and the gate ratchets on them |
 | **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
-| **6** Deterministic enrichment | ◐ **half** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅. Translator fingerprinting and authority linking untouched |
-| **7** Research agent + translation | ◐ **report verification shipped**; translation not started | `verify_report` byte-compares every citation in a document and re-runs the retrievals its figures rest on. `docs/PLAN.md` § H |
+| **6** Deterministic enrichment | ◐ **half** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅, authority linking ✅ (2,374 works, plus places, lineage chains and Wikidata ids). Translator fingerprinting is written and **ahead of its data** — it needs a genre-matched 異譯本 pair the corpus does not hold |
+| **7** Research agent + translation | ◐ **report verification shipped**; translation not started, and it is now the critical path | `verify_report` byte-compares every citation in a document and re-runs the retrievals its figures rest on (`docs/PLAN.md` § H). Glossary-pinned generation is one of only two routes to an English layer over the Chinese canon — see the risk section below and § E1 |
 | **8** Web reader | ✅ **shipped early** | five screens, and the public artefact builds |
 
 **The shape of the remaining work is not what this roadmap assumed.** It planned eight
@@ -180,7 +180,10 @@ listed as **not started** rather than in progress, because nothing has been writ
   170 works, Dharmarakṣa 93, Yijing 47, Guṇabhadra 28. Refusal is the common outcome and is
   correct — half the bylines name someone DILA does not record under that spelling, name
   several people at once, or carry a dynasty no namesake shares.
-- ✗ Lineage chains; Wikidata Q-IDs — untouched
+- ✅ **Lineage chains and Wikidata Q-IDs** — shipped 2026-08-28, along with place authority
+  (59,335 places, historical region as well as modern administrative path). The 50.8% figure
+  above is **of 2026-08-27**; `docs/STATUS.md` carries the current one. Run
+  `mix pramana.authority.link` rather than quoting either.
 
 **Exit:** "every text that quotes this passage" and "how Kumārajīva vs. Xuanzang
 rendered this term" both work.
@@ -231,19 +234,32 @@ the same `composition_origin`/`text_role` axes as Taishō 56–84 with no schema
 - **Embedding a full bake is the main recurring cost.** Roughly 250M+ characters of
   Chinese alone. Use `dev.yaml` subsets while iterating; batch full bakes rarely;
   cache by content hash so re-bakes only embed what changed.
-- **Biggest technical risk: CONFIRMED, and the mitigation did not work.** Cross-lingual
-  retrieval into Classical Chinese was named here as the biggest technical risk, with the
-  multi-vector English-gloss trick as the mitigation. `topical/chinese` is **0% of 12** and
-  has never been anything else. The gloss layer works where it exists — English→Pāli is 75%
-  — and no English layer exists over the Chinese canon, so an English query must cross
-  inside BGE-M3's own multilingual space, which it does not do on this material.
+- **Biggest technical risk: CONFIRMED, and now understood as coverage rather than
+  retrieval.** Cross-lingual retrieval into Classical Chinese was named here as the biggest
+  technical risk, with the multi-vector English-gloss trick as the mitigation.
+  `topical/chinese` is **0% of 12** and has never been anything else. The gloss layer works
+  where it exists — English→Pāli is 75%.
 
-  Two routes out have been measured and both are recorded in `docs/PLAN.md` § Rejected:
-  84000's glossary recovers 2 of 12 gold terms, and a deterministic English→Pāli→Chinese
-  walk through the curated parallels scores **1 of 12**. What remains is a corpus-derived
-  term table, and the caution in PLAN item F stands: that row is 12 cases, cannot grow, and
-  one case is 8.3 points. **Judge this axis by "answered from any tradition" — 81.8% —
-  rather than by the row.**
+  **The diagnosis changed twice.** First on 2026-08-30: `mix pramana.recall --renderings`
+  scores an English query reaching Pāli and Tibetan **source** text at 93.8% work-level, so
+  BGE-M3 crosses the language barrier perfectly well *when a translation exists to anchor
+  on*. The problem was never the embedder — it was that no English layer existed over the
+  Chinese canon.
+
+  Then on 2026-08-31, when one did. `mix pramana.sc.chinese` anchored **3,354 CC0 English
+  renderings** to Taishō lines, and `topical/chinese` **did not move**, because those cases
+  search the whole corpus and 191 English vectors over the Chinese meet 55,135 over the
+  Pāli. So the axis is a **coverage** measurement wearing a retrieval measurement's
+  clothes, and it will stay at 0 until the Chinese layer is large enough to compete.
+  `docs/PLAN.md` § E1.
+
+  Three routes out have now been measured, all recorded in `docs/PLAN.md`: 84000's glossary
+  recovers 2 of 12 gold terms, a deterministic English→Pāli→Chinese walk through the
+  curated parallels scores **1 of 12** (both § Rejected), and a real English layer over 54
+  sūtras scores **0 of 12** because it is 1.3% of the Āgamas and 0.03% of CBETA's segments.
+  The caution in PLAN item F stands: that row is 12 cases, cannot grow, and one case is 8.3
+  points. **Judge this axis by "answered from any tradition" — 81.8% — rather than by the
+  row.**
 - **Biggest scope risk:** Tibetan. See the warning at the top.
 - **Biggest correctness risk:** silent normalization corruption (gaiji, CJK
   normalization, lost `<lb/>`). Test suites in Phase 1, not later.

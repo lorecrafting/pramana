@@ -36,6 +36,7 @@ defmodule Pramana.Translations do
 
   alias Pramana.Corpus
   alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Text
   alias Pramana.Corpus.Translation
   alias Pramana.Repo
   alias Pramana.URN
@@ -147,15 +148,23 @@ defmodule Pramana.Translations do
 
   Renderings found this way carry `covers: :containing_range`, so a caller can tell a
   translation OF this passage from one that includes it.
+
+  **The work is read from the segment, never from the URN.** `urn.work` is the work
+  component of the *address*, and for CBETA that is the juan — `T0099_015`, where the
+  work is `T0099`. Matching on it found nothing for every range-anchored English
+  rendering of the Chinese canon, which is 2,089 of the first 3,354: the English existed,
+  was correctly anchored, and was unreachable from the line it renders. Rules 41 and 68 —
+  the same assumption, in a second place, found by checking whether a model could actually
+  get to the thing that had just shipped.
   """
   @spec covering(String.t(), keyword() | map()) :: [map()]
   def covering(span_urn, opts \\ []) do
     policy = policy(opts)
 
     with {:ok, urn} <- URN.parse(span_urn),
-         {:ok, ordinal} <- ordinal_of(urn) do
+         {:ok, {ordinal, work_id}} <- ordinal_of(urn) do
       from(t in Translation,
-        where: t.work_id == ^urn.work and t.lang == ^policy.lang,
+        where: t.work_id == ^work_id and t.lang == ^policy.lang,
         where: fragment("(? -> 'ordinal_start')::int <= ?", t.meta, ^ordinal),
         where: fragment("(? -> 'ordinal_end')::int >= ?", t.meta, ^ordinal)
       )
@@ -168,13 +177,22 @@ defmodule Pramana.Translations do
     end
   end
 
-  # The span's position in its text. A range URN is located by where it starts.
+  # The span's position in its text, and the work that text belongs to. A range URN is
+  # located by where it starts. Both come from the segment row, because both are
+  # properties of the text rather than of the citation grammar it is addressed in.
   defp ordinal_of(%URN{} = urn) do
     anchor = URN.to_string(%{urn | locator_end: nil, rendering: nil})
 
-    case Repo.one(from s in Segment, where: s.urn == ^anchor, select: s.ordinal) do
+    query =
+      from s in Segment,
+        join: t in Text,
+        on: t.id == s.text_id,
+        where: s.urn == ^anchor,
+        select: {s.ordinal, t.work_id}
+
+    case Repo.one(query) do
       nil -> :error
-      ordinal -> {:ok, ordinal}
+      {ordinal, work_id} -> {:ok, {ordinal, work_id}}
     end
   end
 

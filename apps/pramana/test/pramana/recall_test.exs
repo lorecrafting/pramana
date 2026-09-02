@@ -277,4 +277,67 @@ defmodule Pramana.RecallTest do
     # counting that as a failure measures `limit` rather than the retriever.
     assert %{undecided: 1, decided: 0, recall: nil} = Recall.run(sample: 10, limit: 1)
   end
+
+  describe "renderings/1 --to" do
+    defp render!(anchor, work_id, text) do
+      {:ok, _} =
+        Pramana.Translations.store([
+          %{
+            anchor_urn: anchor,
+            work_id: work_id,
+            lang: "en",
+            translator_id: "patton",
+            tier: "t0",
+            method: "human",
+            text: text,
+            redistributable: true,
+            license_class: "cc0"
+          }
+        ])
+    end
+
+    setup do
+      # Long enough to be a query — the probe drops renderings under 80 characters,
+      # because a four-word sentence measures nothing.
+      render!(
+        "pramana:cbeta.T:T0099_001@p0001a01",
+        "T0099",
+        "So I have heard. At one time the Buddha was staying on Vulture Peak Mountain near Rājagṛha."
+      )
+
+      render!(
+        "pramana:sc.ms:mn1@1.1",
+        "mn1",
+        "So I have heard. At one time the Buddha was staying near Ukkaṭṭhā in the Subhaga Forest."
+      )
+
+      :ok
+    end
+
+    # Rule 5: a filter that is accepted and does nothing produces results that look
+    # filtered and are not. This one exists because the Chinese canon is 1.4% of the
+    # rendering pool, so an unfiltered sample cannot score it — a filter that quietly
+    # sampled everything would put a Pāli rate under a Chinese heading.
+    test "restricts the sample to one target namespace" do
+      chinese = Recall.renderings(sample: 50, mode: :lexical, to: "cbeta.T")
+      pali = Recall.renderings(sample: 50, mode: :lexical, to: "sc.ms")
+      both = Recall.renderings(sample: 50, mode: :lexical)
+
+      assert Map.keys(chinese.by_language) == ["cbeta.T"]
+      assert Map.keys(pali.by_language) == ["sc.ms"]
+      assert Enum.sort(Map.keys(both.by_language)) == ["cbeta.T", "sc.ms"]
+    end
+
+    # Rules 22, 44 and 54, inside the instrument. `by_language` used to be a count of
+    # hits with nothing to divide it by, so "cbeta.T => 2" could not be told from 2 of 2
+    # or 2 of 40 — and 2 of 40 is the reading that would have mattered.
+    test "every language carries its own denominator" do
+      %{by_language: by_language} = Recall.renderings(sample: 50, mode: :lexical)
+
+      for {_namespace, scored} <- by_language do
+        assert %{decided: _, found: _, rate: _} = scored
+        assert scored.decided <= scored.sampled
+      end
+    end
+  end
 end
