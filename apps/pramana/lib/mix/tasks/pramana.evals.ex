@@ -355,12 +355,57 @@ defmodule Mix.Tasks.Pramana.Evals do
         "  #{type}: #{was}% -> #{now}%  (#{was_hits} -> #{now_hits} cases)"
       end
 
+    moved = moved_cases(current, baseline)
+
     if regressions == [] do
       Mix.shell().info(
         "  gate OK — no case type regressed against #{inspect(baseline["total"])} baseline cases"
       )
+
+      # A PASS CAN STILL HAVE MOVED. Equal rates are consistent with one case flipping to
+      # a hit and another to a miss, which is exactly the substitution a rate cannot see —
+      # `docs/PLAN.md` audit item 7 says so and had no way to check it. Reported, not
+      # failed: a swap is not a regression, it is a thing to look at.
+      unless moved == [], do: report_moved(moved)
     else
-      Mix.raise("retrieval regression:\n" <> Enum.join(regressions, "\n"))
+      Mix.raise(
+        "retrieval regression:\n" <>
+          Enum.join(regressions, "\n") <> "\n\n" <> moved_detail(moved)
+      )
     end
+  end
+
+  # Which individual cases changed outcome. Empty when the baseline predates per-case
+  # detail, and says so rather than reporting every case as new.
+  defp moved_cases(current, baseline) do
+    was = baseline["cases"] || %{}
+    now = current["cases"] || %{}
+
+    if map_size(was) == 0 do
+      []
+    else
+      for {id, now_outcome} <- now,
+          was_outcome = Map.get(was, id),
+          was_outcome != nil,
+          was_outcome != now_outcome,
+          do: {id, was_outcome, now_outcome}
+    end
+  end
+
+  defp report_moved(moved) do
+    Mix.shell().info(
+      "  #{length(moved)} case(s) changed outcome without changing any rate:\n" <>
+        moved_detail(moved)
+    )
+  end
+
+  defp moved_detail([]),
+    do: "  (no per-case detail — the baseline predates it; re-record to enable)"
+
+  defp moved_detail(moved) do
+    moved
+    |> Enum.sort()
+    |> Enum.take(20)
+    |> Enum.map_join("\n", fn {id, was, now} -> "    #{id}: #{was} -> #{now}" end)
   end
 end

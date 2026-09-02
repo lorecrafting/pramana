@@ -305,6 +305,12 @@ defmodule Pramana.Evals.Score do
         Map.new(scorecard.by_type_tradition, fn {{type, tradition}, v} ->
           {"#{type}/#{tradition}", rate_of(v)}
         end),
+      # PER CASE, so a regression can be LOCALISED. `summarize/2` has carried this since
+      # the 2026-08-29 incident and `to_map/1` did not, so the baseline on disk still held
+      # rates and nothing else — and the ratchet could still say *something regressed* and
+      # never *what*. A map rather than a list: the only question ever asked of it is
+      # "what did this case do last time", and a list makes that a scan.
+      "cases" => Map.new(scorecard.cases, fn c -> {to_string(c.id), to_string(c.outcome)} end),
       "adversarial" => rate_of(scorecard.adversarial),
       "answered_any_tradition" => %{
         "rate" => scorecard.by_topic.rate,

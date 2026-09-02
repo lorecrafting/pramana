@@ -48,6 +48,39 @@ puts the juan in between — now rule 68 and `Pramana.URN.addresses?/2`. And
 `mix pramana.recall --renderings` reported hits per language with no denominator, inside
 the instrument rules 22, 44 and 54 are measured with.
 
+## Architecture review, the three audits a test cannot do — 2026-09-02
+
+`docs/CHECKS.md` §2 asks for findings to be written here. Two of its five audits became
+mechanical on 2026-09-01 (`Architecture.BoundariesTest`); these are the three that were
+left, performed by reading.
+
+**Can any tool return text without `urn` + offsets + `sha256`?** No, with one qualification
+that is new today. `get_outline` looked like a candidate — its own file never says `urn` —
+but the entries are built by `Corpus.outline/1`, which puts one on each. `survey_corpus`
+returns counts rather than text.
+
+**`compare_translators`, added today, returns Chinese and Sanskrit headwords with no URN.**
+They are not corpus spans — they are lexical entries from a third-party dictionary, and
+each response names Karashima and the licence — so invariant #1 is not violated on a
+strict reading. But **the anchors now exist**: `glossary_anchors` resolves 25,504 of those
+citations to lines this bake holds, and attaching one to each divergence would make every
+comparison openable and byte-verifiable rather than merely attributed. Recorded as work,
+not as a violation. `docs/PLAN.md`.
+
+**Is any generated translation reachable as a top-level URN?** No. `Pramana.Translations`
+addresses a rendering as a fragment over its anchor (`…#tr:en/patton`) and the guard's
+`:not_citable_as_source` verdict is exercised by tests. Nothing added today creates a new
+path to one: `Pramana.Repair` rewrites a caller's own document and never mints a URN, and
+`Pramana.Citation` resolves foreign citations only to lines that already exist.
+
+**Is the bake still reproducible from `sources.lock.json` alone?** Yes, and it is now
+harder to break: the gate's lockfile step passed on 2026-09-02, and all eleven tasks that
+write the lockfile re-record the bake, enforced by a structural test rather than by
+memory.
+
+**The judgement the section exists for** — *has this codebase quietly stopped being the
+thing it was designed to be* — is the one nobody can delegate, and it is not answered here.
+
 ## Three from the landscape list, and a defect they found — 2026-09-02
 
 **Translator fingerprinting**, which Phase 6 recorded as "ahead of its data", now has it.
