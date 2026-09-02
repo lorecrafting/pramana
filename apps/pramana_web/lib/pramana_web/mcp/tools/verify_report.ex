@@ -53,6 +53,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
   use Anubis.Server.Component, type: :tool
 
+  alias Pramana.Repair
   alias Pramana.Report
   alias PramanaWeb.MCP.ReplayExecutor
   alias PramanaWeb.MCP.Reply
@@ -73,6 +74,10 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
     payload =
       result
       |> Map.put(:runnable_tools, ReplayExecutor.tools())
+      # DIAGNOSIS SERVES A CALLER WHO CHECKS; REPAIR SERVES THE ONE WHO DOES NOT, and that
+      # is most of them. `docs/PLAN.md` L3. Nothing here writes to the corpus — it rewrites
+      # the caller's own document — so invariant #7 is untouched.
+      |> Map.put(:repair, Repair.repair(markdown))
       |> Map.put(:note, note(result))
 
     {:reply, Reply.json("verify_report", params, payload), frame}

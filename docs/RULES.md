@@ -632,6 +632,22 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     the claim behind a function with the counter-examples in its doc, or read the fact from
     the row that owns it, and give it the case that broke it.
 
+    **And a third instance, from the other end of the token — 2026-09-02.** `Guard`'s URN
+    pattern must admit `.` because a locator contains one (`sc.ms:mn1@1.1`), so it also
+    swallowed the full stop closing a sentence: *"…as stated at
+    pramana:cbeta.T:T0262_001@p0001c17."* extracted a URN with a period on the end, which
+    resolved to nothing. The guard reported `:not_found` for a perfectly good citation —
+    **a false accusation rather than a missed one**, in prose, which is where citations
+    mostly live. `evals/` could not see it because its gold citations are constructed
+    rather than written in sentences.
+
+    Two things follow. **A character a token may contain internally is a character the
+    pattern will eat at the boundary**, and the fix is to trim at the edge rather than to
+    loosen the grammar. And the trim has to go everywhere the token is keyed: fixing
+    `extract_urns/1` and not the quote-pairing map made every paired quotation miss its
+    key, silently downgrading a byte comparison to an existence check that reports `ok` —
+    rule 41, inside the commit that introduced the trim.
+
 69. **A score that asks whether the retrieved span CONTAINS the target is a function of
     the target's size, and cannot be compared across populations whose targets differ in
     size.** `mix pramana.recall --renderings` reports `on line` when the retrieved chunk

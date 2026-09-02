@@ -22,6 +22,7 @@ defmodule PramanaWeb.MCP.Server do
   component(PramanaWeb.MCP.Tools.GetCommentaries)
   # Which LINE a commentary explains, not merely which work. Deterministic 科文 alignment.
   component(PramanaWeb.MCP.Tools.GetGlosses)
+  component(PramanaWeb.MCP.Tools.CompareTranslators)
   # One identity across spellings. A byline is a string; this is the person it denotes.
   component(PramanaWeb.MCP.Tools.GetWorksByPerson)
   component(PramanaWeb.MCP.Tools.GetPerson)

@@ -48,6 +48,35 @@ puts the juan in between — now rule 68 and `Pramana.URN.addresses?/2`. And
 `mix pramana.recall --renderings` reported hits per language with no denominator, inside
 the instrument rules 22, 44 and 54 are measured with.
 
+## Three from the landscape list, and a defect they found — 2026-09-02
+
+**Translator fingerprinting**, which Phase 6 recorded as "ahead of its data", now has it.
+`Translators.attested/3` joins two of Karashima's glossaries on the Sanskrit headword:
+Kumārajīva and Dharmarakṣa on the same sūtra, **601 shared headwords, 126 agreed, 475
+diverged** — `adhimāna-prāpta` as 增上慢 against 貢高, `agra-bodhi` as 道心 against 佛道.
+Attested by a philologist rather than inferred from n-gram rates, and reachable through
+the new `compare_translators` tool: `Pramana.Translators` had no surface at all, which was
+rule 60 sitting in the codebase unnoticed.
+
+**L4**, `Pramana.Citation`. The payoff was not convenience. `Guard` scans prose for
+`pramana:` URNs, so a report citing the Taishō the way every article cites it contained no
+citations, the checker reported **zero checked**, and `/check` rendered that as a clean
+document. Two grammars implemented, both read off data already held; fojin's scheme
+deliberately left out because what its locator addresses is documented nowhere checkable.
+
+**L3**, `Pramana.Repair`. Four states from fojin's vocabulary and a fifth, `flagged`, for
+the two cases where repair needs a judgement rather than a substitution. Every correction
+is a substitution of something the corpus already said; an ambiguous quotation refuses
+rather than picking one of three.
+
+**And L3's first run found a defect in the guard.** A URN closing a sentence kept the full
+stop and resolved to nothing, so the guard reported `:not_found` for a good citation — a
+false accusation, in prose, which is where citations live. `evals/` was blind to it
+because its 601 gold quote cases are constructed rather than written as sentences. Fixing
+it then produced a second bug in the same commit: trimming in `extract_urns/1` and not in
+the quote-pairing map made every paired quotation miss its key and silently downgrade to
+an existence check reporting `ok`. Rule 68 carries both.
+
 ## The Degé volume walk is deleted, because it was 15–20× slower — 2026-09-01
 
 Audit item #15 said the Tengyur's precomputed volume walk was failing silently and should

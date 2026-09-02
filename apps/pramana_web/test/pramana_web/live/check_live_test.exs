@@ -174,6 +174,30 @@ defmodule PramanaWeb.CheckLiveTest do
     refute html =~ "Citations"
   end
 
+  # L3. A checker tells you what is wrong; this tells you what can be done about it, and
+  # the state vocabulary is what stops that becoming a more confident version of the same
+  # document.
+  test "a fabricated quotation is offered a repair that strips the citation", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/check")
+
+    html =
+      view
+      |> form("form", report: "The text says 「這是完全捏造的」 (#{@urn}).")
+      |> render_submit()
+
+    assert html =~ "What could be repaired"
+    assert html =~ "no_sources"
+  end
+
+  test "a citation in the Taishō's own print form is recognised and resolved", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/check")
+
+    html = view |> form("form", report: "As T. 262, 1c17 has it.") |> render_submit()
+
+    assert html =~ "Citations in another scheme"
+    assert html =~ "taisho"
+  end
+
   test "the screen is reachable from the nav, which is the whole point of building it", %{
     conn: conn
   } do

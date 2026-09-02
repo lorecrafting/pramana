@@ -156,6 +156,31 @@ defmodule Pramana.GuardTest do
     test "returns nothing for text without citations" do
       assert Guard.extract_urns("A paragraph with no citations at all.") == []
     end
+
+    # A URN AT THE END OF A SENTENCE KEPT THE FULL STOP AND RESOLVED TO NOTHING.
+    #
+    # `.` is legal inside a locator — `sc.ms:mn1@1.1` — so the pattern must admit it, and
+    # it therefore swallowed the period closing the sentence. The guard then reported
+    # `:not_found` for a perfectly good citation: a false accusation rather than a missed
+    # one, in the place where citations mostly live, which is prose.
+    #
+    # `evals/` could not see it because its gold citations are constructed rather than
+    # written in sentences. Found 2026-09-02 while building `Pramana.Repair`.
+    test "a URN closing a sentence does not keep the punctuation" do
+      assert Guard.extract_urns("As stated at pramana:cbeta.T:T0262_001@p0001a05.") ==
+               ["pramana:cbeta.T:T0262_001@p0001a05"]
+
+      for trailing <- [",", ";", ":", "!", "?", ")", "】", "」"] do
+        assert Guard.extract_urns("see pramana:a.b:c@1" <> trailing) == ["pramana:a.b:c@1"],
+               "failed on #{trailing}"
+      end
+    end
+
+    # And a locator that legitimately CONTAINS a period keeps it. SuttaCentral segment ids
+    # are `1.1`, and trimming them would break every Pāli citation in the corpus.
+    test "an internal period is part of the locator and survives" do
+      assert Guard.extract_urns("(pramana:sc.ms:mn1@1.1)") == ["pramana:sc.ms:mn1@1.1"]
+    end
   end
 
   describe "check_output/1 — post-generation verification" do

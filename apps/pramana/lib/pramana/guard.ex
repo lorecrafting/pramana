@@ -354,8 +354,23 @@ defmodule Pramana.Guard do
   def extract_urns(text) when is_binary(text) do
     @urn_pattern
     |> Regex.scan(text)
-    |> Enum.map(&hd/1)
+    |> Enum.map(&trim_sentence_punctuation(hd(&1)))
     |> Enum.uniq()
+  end
+
+  # A URN AT THE END OF A SENTENCE KEEPS THE FULL STOP, and then resolves to nothing.
+  #
+  # `.` is legal *inside* a locator — `sc.ms:mn1@1.1` — so the pattern has to admit it,
+  # and it therefore swallows the period of "…as stated at pramana:cbeta.T:T0262_001@
+  # p0001c17." The guard reported `:not_found` for a perfectly good citation, which is a
+  # false accusation rather than a missed one, and prose is where citations mostly live.
+  #
+  # Found 2026-09-02 while building `Pramana.Repair`, and invisible to `evals/` because
+  # its gold citations are constructed rather than written in sentences. No locator
+  # grammar here ends in punctuation, so trimming it is safe in a way that loosening the
+  # pattern would not be.
+  defp trim_sentence_punctuation(urn) do
+    String.replace(urn, ~r/[.,;:!?)\]】」』]+$/u, "")
   end
 
   @doc """
@@ -413,7 +428,14 @@ defmodule Pramana.Guard do
     quoted_by_urn =
       @quoted_citation
       |> Regex.scan(text)
-      |> Map.new(fn [_, quote, urn] -> {urn, quote} end)
+      # TRIMMED HERE TOO, or the keys stop matching. `extract_urns/1` trims the sentence
+      # punctuation off a URN; this map is keyed by the URN as the pairing regex captured
+      # it, and leaving the period on made every lookup miss. The quotation then read as
+      # absent and the citation was checked for EXISTENCE only — a silent downgrade from
+      # a byte comparison to nothing of the kind, reported as `ok`.
+      #
+      # Rule 41, inside the commit that introduced the trim.
+      |> Map.new(fn [_, quote, urn] -> {trim_sentence_punctuation(urn), quote} end)
 
     text
     |> extract_urns()

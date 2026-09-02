@@ -203,6 +203,30 @@ attached to it — `Pramana.Guard` draws that line and this holds it. And its
 *unsourced figures* list is a heuristic prompt to look, never a verdict: a check that
 failed on any prose containing a page number would be unusable.
 
+### `/check` also reads other people's citations, and offers repairs
+
+Added 2026-09-02, and the first half closes a hole rather than adding a convenience. The
+guard scans for `pramana:` URNs, so **a report citing the Taishō the way an article cites
+it — `T. 262, 6a23` — contained no citations at all.** The page reported nothing checked,
+which read as nothing wrong. It now recognises the Taishō in print and SAT form and
+SuttaCentral segment ids, resolves them, and lists any it could not place rather than
+dropping them.
+
+The second half is repair. Beneath the verdicts the page now offers what can be done:
+
+    verified            byte-matches. Untouched.
+    quote_relaxed       the words are the corpus's and the punctuation was an editor's —
+                        the quotation is replaced with what the corpus prints.
+    citation_corrected  the words are real, the address was wrong; the URN is replaced
+                        with where the guard's own search found them, and only if unique.
+    no_sources          nothing supports it — the citation goes, the sentence stays.
+    flagged             repair needs a judgement, so it is named and left alone.
+
+**Every change is a substitution of something the corpus already said.** Nothing is
+generated, and a quotation found in three places refuses rather than picking one — a
+document whose citations all resolve and some of which are wrong is worse than the one
+that came in. The repaired text sits behind a disclosure, never replacing what was pasted.
+
 ## Not built yet
 
 - Anything that writes. The MCP surface is read-only by invariant #7 and so is this; the

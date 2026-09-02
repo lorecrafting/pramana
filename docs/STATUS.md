@@ -33,6 +33,7 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 | English renderings, all canons | **244,763** by 8 translators |
 | glossary entries | **89,649** — 56,382 from 84000/Mahāvyutpatti plus **33,267** from DILA (Soothill-Hodous, Karashima ×3, Mahāvyutpatti), new 2026-09-02 |
 | glossary anchors | **29,890** citations resolved against the bake — 25,504 to a line held (85.3%), **4,345 attested absences**, 41 unresolved |
+| translators compared | Kumārajīva against Dharmarakṣa on the same sūtra: **601 shared Sanskrit headwords, 126 agreed, 475 diverged** — attested by Karashima, not inferred from n-grams |
 | chunks · vectors | 980,464 · **1,037,455** |
 | pipeline | **v5** · `verify --all`, `integrity` and `coherence` all green over every text |
 
@@ -99,7 +100,7 @@ purposes, unreachable to a reader who does not already know the Chinese to searc
 ### What it can do
 
 Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a citation
-guard that byte-compares every quoted span, **17 read-only MCP tools**, and a six-screen
+guard that byte-compares every quoted span, **18 read-only MCP tools**, and a six-screen
 LiveView reader — including `/check`, where a person pastes a report and sees which of its
 claims survive. **Two of the five architecture audits in `docs/CHECKS.md` §2 now run on
 every push** (`Architecture.BoundariesTest`) rather than being greps a person remembers at
@@ -139,6 +140,20 @@ control-relative and never by raw count. `docs/PLAN.md` § F.
 
 The quotation figure above is drawn by the same sampling and was equally unseeded; 100.0% is
 100% of whatever it drew, and the 1,891 is one draw's denominator.
+
+**A report written in prose is now checked at all, and can be repaired.** `Pramana.Citation`
+reads the Taishō as an article prints it — `T. 262, 6a23` — because `Guard` scans for
+`pramana:` URNs and a scholarly document contains none, so the checker reported zero
+citations and `/check` rendered that as clean. `Pramana.Repair` then acts on the diagnosis
+in five states: `verified`, `quote_relaxed`, `citation_corrected`, `no_sources` and
+`flagged`, the last being ours for the two cases where repair needs a judgement. **Every
+correction is a substitution of something the corpus already said**; nothing is generated,
+and an ambiguous quotation refuses rather than picking.
+
+Building it exposed a defect in the guard that had been there throughout: **a URN closing
+a sentence kept the full stop and resolved to nothing**, so a good citation was reported
+`:not_found`. `evals/` could not see it — 601 quote cases, none of them written as a
+sentence. Rule 68.
 
 **A report can now be checked, not just a quotation.** `verify_report` byte-compares every
 citation in a document **and re-executes the searches its figures rest on** — "appears

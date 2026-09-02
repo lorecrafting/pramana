@@ -25,7 +25,9 @@ Chinese canon has an English layer for the first time. Read § E1 before picking
 up; the short version is that it works, it is 54 sūtras of 4,263 works, and it moved no
 corpus-wide number.
 
-**Do these in order.**
+**Do these in order.** Items 2, 3 and 4 of the previous list all shipped on 2026-09-02 —
+translator fingerprinting, L4 and L3 — leaving E1 alone at the top, where it needs a
+decision rather than code.
 
 1. **§ E1, the increment that can actually compete.** 3,354 renderings is 191 chunk
    vectors against 55,135 over the Pāli, and an English question asked of the whole corpus
@@ -35,18 +37,14 @@ corpus-wide number.
    glossary-pinned generation over a source anchor (`docs/TRANSLATION.md`, invariant #8).
    **Pick one and size it before building** — anything that does not reach a substantial
    fraction of 4,263 works will land where this slice did.
-2. **Translator fingerprinting — the data it was waiting for now exists.** `Pramana.Translators`
-   was recorded as "ahead of its data", needing a genre-matched 異譯本 pair. It has one:
-   Karashima's Dharmarakṣa and Kumārajīva glossaries cover **the same sūtra**, and their
-   citations are anchored per line, including **4,345 attested absences** — places where
-   one translator's term has no counterpart in the other. That is divergence evidence at
-   term granularity, from a scholar rather than from a string comparison.
-3. **L4 — cross-scheme URN resolution.** Best effort-to-benefit ratio on the list, and
-   pure domain logic: four native grammars are already parsed, and teaching the resolver
-   fojin's scheme makes citations checkable in the system that did not produce them.
-4. **L3 — answer-time repair, and a trust vocabulary.** We diagnose citation failures in
-   five ways and repair none of them. fojin's four-word vocabulary — `verified` /
-   `citation_corrected` / `quote_relaxed` / `no_sources` — is worth adopting wholesale.
+2. ~~**Translator fingerprinting**~~ ▸ **SHIPPED 2026-09-02** — `Translators.attested/3`
+   and the `compare_translators` MCP tool. 601 shared Sanskrit headwords between
+   Kumārajīva and Dharmarakṣa, **126 agreed and 475 diverged**. Phase 6's exit question,
+   answered from a philologist rather than from n-gram rates.
+3. ~~**L4 — cross-scheme URN resolution**~~ ▸ **SHIPPED 2026-09-02** — `Pramana.Citation`.
+   The Taishō as an article prints it, and SuttaCentral segment ids. § L4 below.
+4. ~~**L3 — answer-time repair and a trust vocabulary**~~ ▸ **SHIPPED 2026-09-02** —
+   `Pramana.Repair`, five states. § L3 below.
 
 ~~L5 — the checker screen.~~ ▸ **SHIPPED 2026-08-31**, `/check`. See § L5.
 ~~#15 — the Tengyur's volume walk.~~ ▸ **RESOLVED 2026-09-01 by deleting the walk**, which
@@ -2057,6 +2055,75 @@ the entry citing `19a-6` is headed 方便 and marks that headword at line 24, wh
 The 41 were chased rather than written off. 31 name a line CBETA prints nothing on —
 `T.224` `448c4` is an `<lb/>` immediately followed by the next one, so rule 3 says it is
 droppable and the normalizer was right. Checked against `raw/`.
+
+### L4 — reading other people's citations, shipped 2026-09-02
+
+`Pramana.Citation`. **The payoff was not convenience.** `Guard` scans prose for `pramana:`
+URNs, so a report citing the Taishō the way every article cites it — `T. 262, 6a23` —
+contained no citations at all. The guard reported **zero checked** and `/check` rendered
+that as a document with nothing wrong with it: an absence of findings and a clean bill of
+health were the same screen.
+
+Two grammars, both read off data this project already holds rather than off a spec: the
+**Taishō in print and SAT form**, including the from-the-foot `27b-1` verified during the
+glossary anchoring, and **SuttaCentral segment ids**, which 244,763 renderings are keyed
+on.
+
+**fojin's `fojin:cbeta/T0001.1` is deliberately not implemented.** What the `.1` addresses
+is documented nowhere this project could check, and a resolver that guesses returns
+confident wrong passages — worse than one that returns nothing. Asking them is the next
+step, and it is a conversation rather than a commit.
+
+**Ambiguity is settled by the corpus, never by a rule.** `T 9, 6a23` might name text 9 or
+volume 9 and scholars write both; a parsed work is accepted only if this bake holds it.
+`sn22.51:1.1` is a segment id and `Matthew 3:16` is not, and no regex separates them — so
+the segment table does. A checker that invents findings is worse than one that misses them.
+
+### L3 — repair, shipped 2026-09-02
+
+`Pramana.Repair`. We diagnosed citation failures five ways and repaired none. Four of the
+five states are fojin's vocabulary adopted as `docs/PLAN.md` said to:
+
+    verified            the quotation byte-matches. Untouched.
+    quote_relaxed       the words are the corpus's and the punctuation or Han form was
+                        not — the quotation is REPLACED WITH WHAT THE CORPUS PRINTS.
+    citation_corrected  the words are real and the address was wrong; the URN becomes the
+                        one the guard's own search found them at, and only if unique.
+    no_sources          nothing supports it. The citation is stripped, the prose kept.
+
+The fifth is ours, recorded as a deviation rather than hidden:
+
+    flagged             repair needs a judgement — a quotation spanning a printed line
+                        boundary needs a range somebody must choose, and a translation
+                        quoted as source is invariant #8, not a typo.
+
+**Repair never invents, and the guard is why it does not have to.** Every correction is a
+substitution of something the corpus already said. `citation_corrected` uses `found_at`,
+which `Guard.diagnose/1` produced by searching for the quoted words — a place they were
+found, not a place they might be. A quotation found at three URNs gets `no_sources`, not
+the first of the three: picking one produces a document whose citations all resolve and
+some of which are wrong, which is worse than what came in.
+
+Reachable from `/check` and in the `verify_report` payload. Nothing writes to the corpus —
+it rewrites the caller's own document — so invariant #7 is untouched.
+
+**And it found a defect in the guard on its first run.** See § "A URN at the end of a
+sentence" below.
+
+### A URN at the end of a sentence resolved to nothing — found 2026-09-02
+
+`.` is legal inside a locator (`sc.ms:mn1@1.1`), so `Guard`'s URN pattern admitted it —
+and swallowed the full stop closing a sentence. *"…as stated at
+pramana:cbeta.T:T0262_001@p0001c17."* extracted a URN with a period on the end and the
+guard reported `:not_found`: **a false accusation rather than a missed one**, in prose,
+which is where citations mostly live.
+
+`evals/` could not see it because its gold citations are constructed rather than written
+in sentences — 601 quote cases, none of them a sentence. Rule 68 now carries it as a third
+instance, together with the rule-41 half: trimming in `extract_urns/1` and not in the
+quote-pairing map made every paired quotation miss its key, silently downgrading a byte
+comparison to an existence check that reports `ok`. Both are pinned by tests that fail
+against the respective wrong version.
 
 ### L5 — `/check`, shipped 2026-08-31
 

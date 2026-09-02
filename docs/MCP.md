@@ -25,6 +25,7 @@ count the rows, or ask `tools/list`.
 | `get_outline` | A work's structure without its text. |
 | `get_commentaries` | Which works explain this work, and what this work explains — walked back to root scripture. |
 | `get_glosses` | Which commentaries explain **this line**, by deterministic 科文 lemma match. |
+| `compare_translators` | Which Chinese word each translator chose for the same Sanskrit term — **attested** by Karashima's glossaries, not inferred from frequency. Kumārajīva 增上慢 against Dharmarakṣa 貢高 for *adhimāna-prāpta*. |
 | `get_works_by_person` | Everything one translator or author produced, under a **DILA authority id** rather than a byline string — 求那跋陀羅 is one man across three spellings. |
 | `get_person` | Who that id **is**: dates as ranges, sect, a resolved place with both its modern district and its **historical** region, recorded teachers and students, and a Wikidata q-id where DILA carries one. |
 | `get_parallels` | Curated passage parallels for a work. Note `Coverage.parallels/0`: 6.1% of the recorded graph has both ends in this bake. |

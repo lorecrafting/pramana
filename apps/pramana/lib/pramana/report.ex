@@ -63,6 +63,7 @@ defmodule Pramana.Report do
   """
 
   alias Pramana.Bake
+  alias Pramana.Citation
   alias Pramana.Guard
 
   @typedoc """
@@ -155,8 +156,19 @@ defmodule Pramana.Report do
     # DIAGNOSED, not merely counted. A report telling an author "one citation failed" sends
     # them looking for a fabrication; telling them the quotation runs into the next line
     # sends them to fix a range. Same finding, opposite afternoon.
+    # FOREIGN CITATIONS FIRST, or most of them are not checked at all. `Guard` scans for
+    # `pramana:` URNs, and a report citing the Taishō the way an article cites it —
+    # `T. 262, 6a23` — contains none. The guard then reports zero citations checked and a
+    # reader sees a document with nothing wrong with it. An absence of findings and a
+    # clean bill of health must not render the same.
+    #
+    # Done HERE and not inside `Guard.check_output/1` on purpose: that function is also
+    # the MCP `verify_citation` tool and the path 601 eval cases run through, and this
+    # needs to change what a REPORT check sees without touching either.
+    {resolved, foreign} = Citation.rewrite(markdown)
+
     citations =
-      markdown
+      resolved
       |> Guard.check_output()
       |> Map.update!(:findings, fn findings -> Enum.map(findings, &Guard.diagnose/1) end)
 
@@ -165,8 +177,15 @@ defmodule Pramana.Report do
     %{
       citations: citations,
       replays: results,
+      # What was recognised in somebody else's scheme, and what could not be placed. A
+      # citation this corpus cannot resolve is reported rather than dropped: it is
+      # precisely what a reader needs told.
+      foreign: foreign,
       malformed: malformed,
       skipped: length(skipped),
+      # From the ORIGINAL text: rewriting a citation does not change which paragraphs
+      # carry a number with nothing behind it, and scanning the rewritten copy would
+      # report URNs this module had just written into it.
       unsourced_figures: unsourced_figures(markdown),
       bake_id: current_bake,
       # `ok?` requires the citations to hold AND every replay to verify. An `:unverifiable`

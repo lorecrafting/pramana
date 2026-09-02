@@ -60,6 +60,7 @@ defmodule PramanaWeb.CheckLive do
   """
   use PramanaWeb, :live_view
 
+  alias Pramana.Repair
   alias Pramana.Report
   alias PramanaWeb.MCP.ReplayExecutor
 
@@ -91,6 +92,7 @@ defmodule PramanaWeb.CheckLive do
        page_title: "Check a report",
        report: "",
        result: nil,
+       repair: nil,
        error: nil
      )}
   end
@@ -114,7 +116,14 @@ defmodule PramanaWeb.CheckLive do
 
       true ->
         result = Report.verify(report, executor: ReplayExecutor.executor())
-        {:noreply, assign(socket, report: report, result: result, error: nil)}
+
+        {:noreply,
+         assign(socket,
+           report: report,
+           result: result,
+           repair: Repair.repair(report),
+           error: nil
+         )}
     end
   end
 
@@ -153,10 +162,12 @@ defmodule PramanaWeb.CheckLive do
 
       <div :if={@result} class="space-y-6">
         <.verdict result={@result} />
+        <.foreign found={Map.get(@result, :foreign, [])} />
         <.citations citations={@result.citations} />
         <.replays replays={@result.replays} />
         <.malformed entries={@result.malformed} skipped={@result.skipped} />
         <.unsourced figures={@result.unsourced_figures} />
+        <.repair repair={@repair} />
 
         <p class="font-mono text-xs text-base-content/50">
           checked against bake {String.slice(@result.bake_id || "none", 0, 12)}
@@ -260,6 +271,42 @@ defmodule PramanaWeb.CheckLive do
 
   defp translation_note(n),
     do: "#{n} quoted a translation rather than the source text"
+
+  attr :found, :list, required: true
+
+  # Scholars cite the Taishō as `T. 262, 6a23`, not as a URN. Before this the guard saw no
+  # citation at all and the screen said nothing was wrong — an absence of findings
+  # rendering as a clean bill of health, which is the one thing a checker must never do.
+  defp foreign(assigns) do
+    ~H"""
+    <section :if={@found != []} class="space-y-2">
+      <h2 class="font-semibold">Citations in another scheme</h2>
+      <p class="text-xs text-base-content/60">
+        Recognised and resolved against this corpus before checking. A citation that could
+        not be placed is listed rather than dropped — it is checked as nothing otherwise.
+      </p>
+      <ul class="space-y-1 text-sm">
+        <li :for={f <- @found} class="flex flex-wrap items-baseline gap-2">
+          <span class={["badge badge-sm", if(f.urn, do: "badge-success", else: "badge-warning")]}>
+            {f.scheme}
+          </span>
+          <code class="text-xs">{f.matched}</code>
+          <span :if={f.urn} class="text-base-content/50">→</span>
+          <.link
+            :if={f.urn}
+            navigate={~p"/passage?#{[urn: f.urn]}"}
+            class="link link-hover font-mono text-xs"
+          >
+            {f.urn}
+          </.link>
+          <span :if={is_nil(f.urn)} class="text-xs text-base-content/70">
+            could not be placed in this bake
+          </span>
+        </li>
+      </ul>
+    </section>
+    """
+  end
 
   attr :citations, :map, required: true
 
@@ -370,6 +417,43 @@ defmodule PramanaWeb.CheckLive do
     </section>
     """
   end
+
+  attr :repair, :map, default: nil
+
+  # Diagnosis serves a reader who checks. This serves the one who does not — and the state
+  # vocabulary is what keeps that honest: a repaired document that did not say WHICH
+  # citations were rewritten, and which were removed for want of any source, would be a
+  # more confident version of the document that came in.
+  defp repair(assigns) do
+    ~H"""
+    <section :if={@repair && @repair.actions != []} class="space-y-2">
+      <h2 class="font-semibold">What could be repaired</h2>
+      <p class="text-xs text-base-content/60">
+        Every change here is a substitution of something the corpus already said — a line's
+        own words over a paraphrase of them, or the URN where the quoted text was found.
+        Nothing is generated. Where the corpus could not settle it, the citation is left
+        alone and named.
+      </p>
+      <ul class="space-y-1 text-sm">
+        <li :for={a <- @repair.actions} class="flex flex-wrap items-baseline gap-2">
+          <span class={["badge badge-sm", repair_badge(a.state)]}>{a.state}</span>
+          <code class="font-mono text-xs">{a.urn}</code>
+          <span :if={a.detail} class="text-xs text-base-content/70">{a.detail}</span>
+        </li>
+      </ul>
+      <details :if={@repair.repaired?} class="rounded border border-base-300 p-3">
+        <summary class="cursor-pointer text-sm font-medium">The repaired text</summary>
+        <pre class="mt-2 overflow-x-auto whitespace-pre-wrap text-xs">{@repair.text}</pre>
+      </details>
+    </section>
+    """
+  end
+
+  defp repair_badge(:verified), do: "badge-success"
+  defp repair_badge(:quote_relaxed), do: "badge-info"
+  defp repair_badge(:citation_corrected), do: "badge-info"
+  defp repair_badge(:no_sources), do: "badge-error"
+  defp repair_badge(_), do: "badge-warning"
 
   attr :figures, :list, required: true
 

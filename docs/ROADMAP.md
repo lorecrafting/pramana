@@ -23,7 +23,7 @@ the provenance model or the eval harness.
 | **3** Pāli + parallels | ✅ complete | |
 | **4** Eval harness | ✅ complete, tagged `phase-4` | 1,472 cases, published, and the gate ratchets on them |
 | **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
-| **6** Deterministic enrichment | ◐ **half** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅, authority linking ✅ (2,374 works, plus places, lineage chains and Wikidata ids). Translator fingerprinting is written and **ahead of its data** — it needs a genre-matched 異譯本 pair the corpus does not hold |
+| **6** Deterministic enrichment | ◐ **half, and the last gap is now unblocked** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅, authority linking ✅ (2,374 works, plus places, lineage chains and Wikidata ids). **Translator fingerprinting was "ahead of its data" and no longer is** — Karashima's Dharmarakṣa and Kumārajīva glossaries cover the SAME sūtra, anchored per line, with 4,345 attested absences. See `docs/PLAN.md` § L1 |
 | **7** Research agent + translation | ◐ **report verification shipped**; translation not started, and it is now the critical path | `verify_report` byte-compares every citation in a document and re-runs the retrievals its figures rest on (`docs/PLAN.md` § H). Glossary-pinned generation is one of only two routes to an English layer over the Chinese canon — see the risk section below and § E1 |
 | **8** Web reader | ✅ **shipped early** | five screens, and the public artefact builds |
 
@@ -165,6 +165,13 @@ listed as **not started** rather than in progress, because nothing has been writ
 - ✅ **Reading exceptions** — 9,543 over a 44,348-character base
 - ✅ **Commentary lemma-and-gloss (科文) parsing** — 27,254 lemmas over 43 work pairs,
   attaching commentary to 20,954 root lines, deterministically. `docs/COMMENTARY.md`.
+- ▸ **UNBLOCKED 2026-09-02, by acquisition rather than by code.** The blocker below was a
+  genre-matched 異譯本 pair. Karashima's glossaries of **Dharmarakṣa's and Kumārajīva's
+  Lotus** are exactly that — the same sūtra, two translators, glossed term by term with
+  Taishō citations now resolved to URNs, including **4,345 places where one translator's
+  term has no counterpart in the other**. That is divergence evidence at term granularity
+  from a scholar, which is stronger than anything `compare_hands/3` can derive from a
+  string comparison. `docs/SOURCES.md`, DILA Glossaries.
 - ◐ **Translator fingerprinting** from parallel Chinese translations (異譯本) —
   `Pramana.Translators`. Works per work-pair (求那跋陀羅 against the anonymous T0100 returns
   入處, 覺分, 緣生, 道跡, 法律 — his technical vocabulary). `compare_hands/3` keys on DILA
@@ -221,6 +228,22 @@ mostly read-only, and this avoids maintaining a second API client.
 - ✗ Parallel-column reader, quotation-graph visualisation, IIIF images beside the text
 - ◐ **Public demo restricted to the CC0/CC-BY subset** — `mix pramana.public.bake` builds
   and verifies the artefact (13,017 texts, 0 CBETA); nothing is deployed. `docs/DEPLOY.md`.
+
+## The lexicon layer — added to the roadmap after it shipped, 2026-09-02
+
+Not in the original eight phases, which is worth saying plainly: this roadmap planned
+texts, retrieval, enrichment and a reader, and **never planned a dictionary**. `docs/PLAN.md`
+L1 called that "the largest functional gap in this project" and it came from reading the
+competitive landscape rather than from this document.
+
+What shipped: 33,267 entries from five DILA glossaries, and 29,890 of their Taishō
+citations resolved to URNs — 25,504 to a line held, 4,345 attested absences.
+`mix pramana.glossary.dila`, `mix pramana.glossary.anchor`, `docs/SOURCES.md`.
+
+**The lesson for this file is that its gaps are not visible from inside it.** Eight phases
+covering acquisition through reader looked complete, and a scholar reading Classical
+Chinese without a lexicon is working one-handed. Read it against what a user is trying to
+do, not against itself.
 
 ## Later — East Asian medical texts
 

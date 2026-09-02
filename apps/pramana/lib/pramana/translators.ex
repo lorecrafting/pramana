@@ -61,6 +61,127 @@ defmodule Pramana.Translators do
         }
 
   @doc """
+  The same question, answered from a scholar's glossary instead of from n-grams.
+
+  `compare_hands/3` and `preferences/3` infer a translator's vocabulary from character
+  n-gram rates across parallel works. That is deterministic and it is still an inference:
+  it measures what is frequent, and frequency is a proxy for choice.
+
+  This measures the choice. Karashima glossed **Dharmarakṣa's and Kumārajīva's Lotus
+  Sūtra** term by term against the Sanskrit, so for a shared Sanskrit headword the two
+  Chinese renderings are recorded rather than derived — and where they differ, a
+  philologist has already said so.
+
+  It answers the roadmap's Phase 6 exit question, *"how Kumārajīva vs. Xuanzang rendered
+  this term"*, on a pair the corpus can actually support. `Pramana.Translators` was
+  recorded as **ahead of its data** for exactly this reason; the glossaries are the data.
+
+  ## The join key, and why it is lossy on purpose
+
+  Karashima writes a Sanskrit witness as it appears, with the stem marker, variant
+  readings and elisions a philologist needs: `apasmāraka~ (v.l. apasmāra-rūpa~)`,
+  `Sukha-vihāra-`, `arjakasya ... mañjarī`. Joining two glossaries needs those to collapse,
+  so `normalize_sanskrit/1` drops the parenthetical variants, the `~`, the edge hyphens
+  and the case.
+
+  **This under-joins rather than over-joins**, and that is the safe direction: two entries
+  that differ in the elided middle stay separate, which loses a comparison. Collapsing them
+  would invent one.
+
+  ## Divergence is the finding; agreement is the control
+
+  A pair of translators agreeing on a rendering is not interesting on its own — much of the
+  vocabulary was settled before either of them. Agreement is here because a divergence rate
+  quoted without it is a number with no denominator, which is rules 22 and 44.
+  """
+  @spec attested(String.t(), String.t(), keyword()) :: map()
+  def attested(glossary_a, glossary_b, opts \\ []) do
+    source = Keyword.get(opts, :source, "dila-glossaries")
+    limit = Keyword.get(opts, :limit, 50)
+
+    a = attested_index(source, glossary_a)
+    b = attested_index(source, glossary_b)
+
+    shared =
+      a
+      |> Map.keys()
+      |> Enum.filter(&Map.has_key?(b, &1))
+      |> Enum.map(fn key ->
+        %{sanskrit: key, a: Map.fetch!(a, key), b: Map.fetch!(b, key)}
+      end)
+
+    {agreed, diverged} = Enum.split_with(shared, &(&1.a == &1.b))
+
+    %{
+      glossary_a: glossary_a,
+      glossary_b: glossary_b,
+      terms_a: map_size(a),
+      terms_b: map_size(b),
+      shared: length(shared),
+      agreed: length(agreed),
+      diverged: length(diverged),
+      # Sorted so the output is stable between runs — a comparison table that reorders
+      # itself cannot be diffed against the last one.
+      examples: diverged |> Enum.sort_by(& &1.sanskrit) |> Enum.take(limit)
+    }
+  end
+
+  # One Chinese rendering per normalised Sanskrit key. Where a glossary records the same
+  # Sanskrit under two headwords the first by Chinese order wins, deterministically —
+  # picking by insertion order would make the answer depend on the ingest.
+  defp attested_index(source, glossary) do
+    from(e in Pramana.Corpus.GlossaryEntry,
+      where: e.source_id == ^source,
+      where: fragment("?->>'glossary' = ?", e.meta, ^glossary),
+      where: not is_nil(e.sanskrit) and not is_nil(e.chinese),
+      select: {e.sanskrit, e.chinese},
+      order_by: e.chinese
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {sanskrit, chinese}, acc ->
+      key = normalize_sanskrit(sanskrit)
+
+      # A key with no letter in it is not a Sanskrit headword. Karashima uses `***` where
+      # the witness is illegible, and joining two glossaries on it pairs terms that have
+      # nothing to do with each other — the first divergence this reported was `***`
+      # against `***`, which is two unrelated words agreeing that neither could be read.
+      if key != "" and Regex.match?(~r/\p{L}/u, key) do
+        Map.put_new(acc, key, strip_brackets(chinese))
+      else
+        acc
+      end
+    end)
+  end
+
+  @doc """
+  The form two glossaries can be joined on.
+
+      iex> Pramana.Translators.normalize_sanskrit("apasmāraka~ (v.l. apasmāra-rūpa~)")
+      "apasmāraka"
+
+      iex> Pramana.Translators.normalize_sanskrit("Sukha-vihāra-")
+      "sukha-vihāra"
+  """
+  @spec normalize_sanskrit(String.t()) :: String.t()
+  def normalize_sanskrit(sanskrit) do
+    sanskrit
+    |> String.replace(~r/\([^)]*\)/u, " ")
+    |> String.replace("~", "")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+    |> String.trim("-")
+    |> String.trim()
+    |> String.downcase()
+  end
+
+  # Karashima brackets a headword he has reconstructed rather than read — `[安行]`. The
+  # brackets are his editorial voice, not part of the word, and two glossaries bracketing
+  # differently would otherwise read as a divergence.
+  defp strip_brackets(chinese) do
+    chinese |> String.replace(~r/[\[\]（）\s]/u, "") |> String.trim()
+  end
+
+  @doc """
   Terms one translation uses that its parallel does not, commonest skew first.
 
   ## Options
