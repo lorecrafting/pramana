@@ -2053,26 +2053,38 @@ tradition-scoped topical row if one is ever added. Rule 69.
 
 ---
 
-## The gold set measures the wrong deliverable for this audience — 2026-09-02
+## The English layer is for FINDABILITY, not readability — settled 2026-09-02
 
-`topical/chinese` asks whether **a Chinese passage comes back** for an English question.
-For the reader this project exists for — one who cannot read Chinese — that is not the
-deliverable. The deliverable is a passage that comes back, **can be read**, and can be
-checked. Nothing in `evals/gold` asserts the middle clause.
+**Proposed and withdrawn the same day**, and the withdrawal is the useful part.
 
-The consequence is live right now: E1's first slice could raise `topical/chinese` off 0%
-by putting Chinese lines in front of a reader who cannot use them, and the row would call
-that success.
+The proposal was an `answerable` case type: `topical/chinese` asks only whether a Chinese
+passage comes back, and for a reader who cannot read Chinese that is not the deliverable,
+so a case should assert that an English rendering came with it.
 
-**The case type to add** — call it `answerable` — asserts three things at once for one
-English question: a passage returns, it carries an English rendering, and that rendering's
-anchor is the passage. The parts all exist (`Translations.covering/2`, the guard, the
-rendering gold set); what does not exist is a case type that requires them together.
+**That imports a product concern into a layer that is explicitly not the product.**
+`CLAUDE.md`: *the LLM is a swappable reader that never touches the database.* The consumer
+of retrieval is a model, models read Classical Chinese, and translating what comes back is
+the caller's job. "Did the right Chinese line come back, with provenance and a verifiable
+citation" **is** the right measure for this layer. `topical/chinese` stands as written.
 
-**And it changes which column to read.** Work-level says the right text came back;
-`on line` says the right line did. A reader who cannot check the Chinese and is handed the
-right work with the wrong line has something that reads authoritative and points at the
-wrong place. `docs/COMPETITIVE.md`.
+**And the consequence is a cheaper E1, which is why this matters more than the
+concession.** If the caller translates, the generated English layer only has to make a
+passage *findable*, never readable. Three things follow, all of them testable:
+
+  * **It may not need to be prose.** A dense English gloss per chunk — terms, names,
+    doctrinal vocabulary, no connective tissue — could match better than a fluent
+    translation: more retrievable surface per token, none of it spent on grammar. Cheaper,
+    and plausibly higher recall. **Worth an A/B before generating at scale.**
+  * **The quality bar becomes measurable rather than editorial.** No human has to judge
+    whether the English reads well; the recall probe scores it. That removes a review
+    bottleneck from the whole plan.
+  * **Glossary-pinning stays essential, for a different reason.** Not so a reader is not
+    misled, but so 方便, 權 and 善巧 land on the same English target and one query finds
+    all three.
+
+**The concern survives only on the human surfaces.** `/passage` and `/check` are read by
+people, and invariant #8's structural boundary earns its keep there. That is a reader
+concern; it does not gate E1 and it does not belong in the retrieval gold set.
 
 ## Found by the architecture review — 2026-09-02
 

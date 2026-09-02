@@ -43,10 +43,15 @@ Chinese and is handed the right *work* with the wrong *line* has been given some
 reads authoritative and points at the wrong place. Cross-canon figures in `docs/PLAN.md`
 § E1 are quoted both ways for that reason.
 
-And **`topical/chinese` measures the wrong deliverable for this audience.** It asks whether
-a Chinese passage comes back. For a reader without Chinese the deliverable is a passage
-that comes back *and can be read* — no gold case type asserts that today, and one should.
-`docs/PLAN.md`.
+And a correction, because the obvious inference from all this is wrong. It is tempting to
+conclude that **`topical/chinese` measures the wrong deliverable** — that it asks only
+whether a Chinese passage comes back, when a reader without Chinese needs one they can
+read. **It does not.** The consumer of retrieval is a model, models read Classical
+Chinese, and translating is the caller's job; the audience argument shapes the *product*
+surfaces and not the retrieval measure. `docs/PLAN.md` § "The English layer is for
+FINDABILITY" records the reasoning, and the payoff: if the caller translates, generated
+English only has to make a passage findable, which is a far cheaper bar than making it
+readable.
 
 Interop, not rivalry: fojin-mcp and this surface mount in the same client, and a reader
 who has both is better served than one who has either.
