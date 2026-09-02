@@ -51,6 +51,12 @@ corpus-wide number.
   hashed into the `sc-translations` lockfile entry since #39, dropped at every ingest as
   `no_such_anchor` — the same counter the Pāli's legitimate elisions land in, so the loss
   read as noise. **Check what a skip counter is actually counting.**
+- **Two of the architecture review's five audits were already greps**, so they are now a
+  test that runs on every push — `Architecture.BoundariesTest`, with an allowlist per rule
+  because the boundaries are expected to move. Each rule was proved to discriminate by
+  breaking it on purpose. **The other three, and "has this stopped being the thing it was
+  designed to be", are still owed by a person** and both `docs/CHECKS.md` and the gate's
+  closing summary say so.
 - **A prefix test on a URN is a parser** (rule 68). `Chunk.Vectors` excluded every
   range-anchored CBETA rendering — 2,089 of the first 3,354 — because CBETA puts the juan
   between the work and the `@`. Silent; the only symptom was a vector count nobody had an

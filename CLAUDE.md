@@ -188,6 +188,14 @@ same way: a document that had quietly stopped being true.
 
    **The shape is always the same: a capability nobody is routed to has not shipped.** If you
    add a fifth kind of thing, add its check in the same commit.
+
+   **And the same move now covers two architecture invariants.** `Architecture.BoundariesTest`
+   fails the build if anything in `apps/pramana_web` reads the database, or if `priv/embed`
+   imports outside the tensor stack or learns a domain word — the two audits of
+   `docs/CHECKS.md` §2 that a person was performing as greps at a phase gate. Each rule has
+   an allowlist with a reason, because these boundaries are expected to move; the list is
+   what separates evolution from drift. It does **not** replace §2 and names the three
+   audits it cannot do.
 4. **`docs/PLAN.md` changes in the same commit as the work.** Finishing an item,
    discovering work, or invalidating an estimate each require an edit.
 5. **When a doc and the code disagree, the code wins — then fix the doc in that commit.**

@@ -69,6 +69,11 @@ defmodule Mix.Tasks.Pramana.Gate do
   A codebase can be fully green and have quietly stopped being the thing it was designed
   to be, and no task detects that. This runs the checks that are mechanical; the ones that
   need judgement stay with a person, and the closing summary says so.
+
+  Two of §2's five audits became mechanical on 2026-09-01 and ride in on the `test` step —
+  `Architecture.BoundariesTest`, the web app's database boundary and the sidecar's. The
+  closing summary names them so that "the gate passed" keeps meaning exactly as much as it
+  did before, rather than quietly widening.
   """
 
   use Mix.Task
@@ -363,7 +368,9 @@ defmodule Mix.Tasks.Pramana.Gate do
       Mechanical checks only. Still owed by a person, and no task can do them:
 
         - the architecture review (docs/CHECKS.md §2) — a codebase can be fully green and
-          have quietly stopped being the thing it was designed to be
+          have quietly stopped being the thing it was designed to be. Two of its five
+          audits DO run in the test step now (Architecture.BoundariesTest); the other
+          three, and that question, do not
         - the docs sync: STATUS and PLAN updated in the same commit as the work
       """
     ])

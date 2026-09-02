@@ -48,6 +48,30 @@ puts the juan in between — now rule 68 and `Pramana.URN.addresses?/2`. And
 `mix pramana.recall --renderings` reported hits per language with no denominator, inside
 the instrument rules 22, 44 and 54 are measured with.
 
+## Two of the five architecture audits stop being an honour system — 2026-09-01
+
+`Architecture.BoundariesTest`. `docs/CHECKS.md` §2 has always been owed by a person at a
+phase gate, and most of it genuinely needs judgement — *has this codebase quietly stopped
+being the thing it was designed to be* is not a grep. But **two of its five audits were
+already being performed as greps**, and the 2026-08-28 review records them as exactly
+that: zero `Repo.` in `pramana_web`, four Python files importing nothing but stdlib and
+tensor libraries. Those now run on every push and name the file and line.
+
+**Leeway is the design, not a concession.** Each rule carries an allowlist with a reason,
+so a boundary crossed on purpose is one reviewed line and a boundary crossed by accident
+is a red test. A rule with no escape hatch gets deleted the first time it is inconvenient.
+
+**The first version reproduced a failure already on this project's own risk list.**
+Substring-matching `urn` flagged every `return` in the sidecar — "four different greps
+that matched a substring", `docs/ROADMAP.md`. The second version then forbade a docstring
+in `modal_train_tibetan.py` explaining that a fine-tuned embedder changes what is *found*
+and never what is *cited*, which is exactly the right comment to have written. Word
+boundaries, and prose excluded.
+
+**Each rule was proved to discriminate** by introducing a real violation of it and
+watching the test go red, then reversing the edit — a structural test that cannot fail is
+worth less than no test, because it reads as green forever.
+
 ## `/check` — the first screen that helps you disbelieve something — 2026-08-31
 
 `PramanaWeb.CheckLive`. `Pramana.Report.verify/2` had shipped three days earlier and was

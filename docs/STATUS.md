@@ -99,7 +99,9 @@ purposes, unreachable to a reader who does not already know the Chinese to searc
 Hybrid retrieval (lexical bigram fused with BGE-M3 by RRF), exhaustive survey, a citation
 guard that byte-compares every quoted span, **17 read-only MCP tools**, and a six-screen
 LiveView reader — including `/check`, where a person pastes a report and sees which of its
-claims survive. **27,254 commentary lemmas** are aligned to the root lines they explain,
+claims survive. **Two of the five architecture audits in `docs/CHECKS.md` §2 now run on
+every push** (`Architecture.BoundariesTest`) rather than being greps a person remembers at
+a phase gate; the other three, and the judgement the section exists for, still are not. **27,254 commentary lemmas** are aligned to the root lines they explain,
 deterministically. English renderings are searchable by their own words.
 
 **Start a session with `mix pramana.doctor`.** It prints which bake this is and whether it
@@ -274,7 +276,7 @@ deployed anywhere; `docs/DEPLOY.md` has the hosting arithmetic.
 | **#10 the 41-second search** | **1042** | **retrieval@10 74.9%** (zh 97.8 / pa 54.7 / **bo 39.1**) | **100%** verify + reject + provenance | **full gate 3h08m -> 18m13s**; one search 41.1s -> 2.2s | 1,400 cases, **90.0%**, 0 stale, 0 errored; `texts.body` removed from 4 call sites |
 
 | **audit: the seed, the guard, verify** | **1438** | unchanged | **no case type regressed over 1,472** | **gate 48m40s → 32m57s; `verify --all` ~26m → 6m03s** | 12,586,964 verified, every one |
-| **English over Chinese · `/check`** | **1474** | unchanged | **every row identical to baseline, hit for hit** | gate **32m22s** — evals 21m14s, integrity 11m02s, verify 7m09s | 3,354 renderings anchored to Taishō lines; 191 vectors; `/check` is the sixth reader screen |
+| **English over Chinese · `/check` · architecture boundaries** | **1479** | unchanged | **every row identical to baseline, hit for hit** | gate **32m22s** — evals 21m14s, integrity 11m02s, verify 7m09s | 3,354 renderings anchored to Taishō lines; 191 vectors; `/check` is the sixth reader screen |
 
 The `zh 98.7` in the `#19` row above was **corrected to 97.1** on 2026-08-22. It was a
 by-tradition figure that silently included the 40 provenance cases, so its sub-rows did
