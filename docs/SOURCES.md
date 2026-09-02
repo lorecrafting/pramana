@@ -203,6 +203,42 @@ Tibetan-side and Chinese-only respectively — and neither closes the measured g
 **not open for bulk download** — rights to individual articles are held by their authors.
 Same posture as SAT: it is asked for, not scraped.
 
+#### The citations are anchored — `mix pramana.glossary.anchor`, 2026-09-02
+
+Karashima's entries cite the passages a gloss rests on, and those are Taishō addresses
+this bake already holds. Resolved, a dictionary entry stops being a claim you take on
+trust:
+
+| | of 29,890 |
+|---|---|
+| **resolved** — a line this bake holds | **25,504 · 85.3%** |
+| **absent** — a scholar checked and the term is **not** there | **4,345 · 14.5%** |
+| unresolved — no such line here, or no address at all | 41 · 0.1% |
+
+Opening one line of Kumārajīva's Lotus now returns 方便 = *upāyakauśalya* and 無上道 =
+*agrabodhi* from his glossary — **and `absent` entries scoped to T0263**, meaning the term
+Dharmarakṣa used has no counterpart in Kumārajīva at that line. That is per-line
+cross-translation divergence, which is what `Pramana.Translators` has been short of data
+for.
+
+**`absent` is a status, not a failure.** 4,345 citations are Karashima having looked at a
+specific line and recorded that the word is not there — attested absence by somebody who
+checked, which `docs/PLAN.md` calls the highest-value signal a corpus project has.
+
+**Two conventions had to be read out of the data rather than assumed.** A siglum names
+whose translation is quoted (`Lk.` Lokakṣema, `Z.` 竺法護), and **a minus sign counts from
+the foot of the register** — `27b-1` is the *last* line of page 27b, not the first. 285
+citations use it, and reading them as ordinary line numbers put every one of them
+somewhere wrong. Verified before implementing: the entry citing `27b-1` quotes
+能於四衆示教利喜, which sits at line 29 where the register's last line is 29; the entry
+citing `19a-6` is headed 方便 and marks that headword inside 以智、方便而演説之 at line 24,
+which is `29 - 6 + 1`.
+
+The remaining 41 were chased rather than written off: 31 name a line CBETA prints nothing
+on. `T.224` `448c4` is `<lb n="0448c04"/>` immediately followed by the next `<lb/>`, so
+nothing was printed there and the normalizer was right to drop it — rule 3, checked
+against `raw/` rather than assumed.
+
 ## Tier 2 — Structured but partial
 
 ### The Tibetan pair — TWO sources, not one (#21)

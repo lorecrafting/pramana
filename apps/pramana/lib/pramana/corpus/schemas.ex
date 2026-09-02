@@ -418,6 +418,34 @@ defmodule Pramana.Corpus.GlossaryEntry do
   end
 end
 
+defmodule Pramana.Corpus.GlossaryAnchor do
+  @moduledoc """
+  A glossary citation, resolved against the corpus.
+
+  `status` is `resolved`, `absent` or `unresolved` — and `absent` is the interesting one:
+  Karashima records `Z. not found at 68c1`, a real address in Dharmarakṣa's translation
+  where the term Kumārajīva used is not. The URN is set because the place is real; the
+  claim is about what is not there.
+  """
+  use Ecto.Schema
+
+  alias Pramana.Corpus.GlossaryEntry
+
+  @type t :: %__MODULE__{}
+
+  schema "glossary_anchors" do
+    belongs_to :entry, GlossaryEntry
+
+    field :work_id, :string
+    field :urn, :string
+    field :citation, :string
+    field :status, :string
+    field :meta, :map, default: %{}
+
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
 defmodule Pramana.Corpus.TextAnchor do
   @moduledoc """
   A SuttaCentral text id resolved to the Taishō passage it names.

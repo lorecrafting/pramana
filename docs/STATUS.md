@@ -32,6 +32,7 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 | English over Chinese | **3,354 renderings** by 1 translator, over **2 of 4,263** CBETA works — new 2026-08-31 |
 | English renderings, all canons | **244,763** by 8 translators |
 | glossary entries | **89,649** — 56,382 from 84000/Mahāvyutpatti plus **33,267** from DILA (Soothill-Hodous, Karashima ×3, Mahāvyutpatti), new 2026-09-02 |
+| glossary anchors | **29,890** citations resolved against the bake — 25,504 to a line held (85.3%), **4,345 attested absences**, 41 unresolved |
 | chunks · vectors | 980,464 · **1,037,455** |
 | pipeline | **v5** · `verify --all`, `integrity` and `coherence` all green over every text |
 

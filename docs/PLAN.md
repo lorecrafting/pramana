@@ -35,11 +35,12 @@ corpus-wide number.
    glossary-pinned generation over a source anchor (`docs/TRANSLATION.md`, invariant #8).
    **Pick one and size it before building** — anything that does not reach a substantial
    fraction of 4,263 works will land where this slice did.
-2. **L1 follow-through — anchor the 29,890 Karashima citations to URNs.** The dictionaries
-   landed 2026-09-02 (§ L1 below); what is not done is resolving `T.262:59b7` to a URN, at
-   which point a gloss becomes byte-verifiable like any other claim and
-   `Pramana.Translators` gets the genre-matched 異譯本 pair it has been waiting for —
-   Dharmarakṣa and Kumārajīva on the same sūtra.
+2. **Translator fingerprinting — the data it was waiting for now exists.** `Pramana.Translators`
+   was recorded as "ahead of its data", needing a genre-matched 異譯本 pair. It has one:
+   Karashima's Dharmarakṣa and Kumārajīva glossaries cover **the same sūtra**, and their
+   citations are anchored per line, including **4,345 attested absences** — places where
+   one translator's term has no counterpart in the other. That is divergence evidence at
+   term granularity, from a scholar rather than from a string comparison.
 3. **L4 — cross-scheme URN resolution.** Best effort-to-benefit ratio on the list, and
    pure domain logic: four native grammars are already parsed, and teaching the resolver
    fojin's scheme makes citations checkable in the system that did not produce them.
@@ -2039,6 +2040,23 @@ not scraped, the same posture as SAT.
 **Licence CC BY-NC-SA 4.0** — site-stated; the TEI headers name no version, so the
 restrictive reading governs (rule 10). NC puts these where CBETA is: out of the public
 artefact.
+
+**▸ AND THE CITATIONS ARE ANCHORED — `mix pramana.glossary.anchor`, 2026-09-02.** 29,890
+citations resolved against the bake: **25,504 to a line held (85.3%)**, **4,345 absences**
+attested by a scholar who checked, 41 unresolved (0.1%). Opening one line of Kumārajīva's
+Lotus now returns 方便 = *upāyakauśalya* and 無上道 = *agrabodhi*, **and `absent` entries
+scoped to T0263** — the term Dharmarakṣa used, with no counterpart in Kumārajīva at that
+line.
+
+**A minus sign reverses the direction of counting**, and 285 citations use it. `27b-1` is
+the *last* line of page 27b. Verified before implementing rather than inferred: the entry
+citing `27b-1` quotes 能於四衆示教利喜 at line 29 of a register whose last line is 29, and
+the entry citing `19a-6` is headed 方便 and marks that headword at line 24, which is
+`29 - 6 + 1`. Unresolved fell 326 → 41.
+
+The 41 were chased rather than written off. 31 name a line CBETA prints nothing on —
+`T.224` `448c4` is an `<lb/>` immediately followed by the next one, so rule 3 says it is
+droppable and the normalizer was right. Checked against `raw/`.
 
 ### L5 — `/check`, shipped 2026-08-31
 
