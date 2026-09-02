@@ -222,6 +222,24 @@ filter reads 1,515 works of 17,281 and says so on every use.
 published record and this line is copied from it. Not comparable with the earlier 93.1% over
 1,400: the gold set grew by two new case types, one of which scores 70%. **Compare per row.**
 
+### The boundary of the claim
+
+**Guaranteed, model-independently:** the passage exists at the address given; the quoted
+text is byte-identical to the witness, re-resolved and sha256-compared rather than
+trusted; the provenance is right, so a Kamakura commentary cannot arrive dressed as an
+Indian sūtra; frequency and absence claims are re-executed; and no generated rendering can
+be presented as source.
+
+**Not guaranteed:** that the English beside those words is a faithful rendering. A model
+can retrieve a line correctly, cite it correctly, byte-verify it, and then paraphrase it
+into something the Chinese does not say — every mechanical check here passes. **The guard
+proves the citation, never the interpretation.**
+
+So the claim is precise: *you are reading the canon's actual words, at an address you can
+check.* `docs/TRANSLATION.md` carries the tier decision that follows from it — index
+English is never served, reader English is labelled and scored — and why the translation
+layer is built to be replaced rather than owned.
+
 ### What it deliberately says it cannot do
 
 Each of these was a silent gap until something made it visible, and each is now reported in

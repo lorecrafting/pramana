@@ -2086,6 +2086,34 @@ passage *findable*, never readable. Three things follow, all of them testable:
 people, and invariant #8's structural boundary earns its keep there. That is a reader
 concern; it does not gate E1 and it does not belong in the retrieval gold set.
 
+### ▸ THE TIER DECISION — `docs/TRANSLATION.md`, 2026-09-02
+
+Recorded there in full; the operative part for E1 is that **index English and reader
+English are different products** and only the first is in this budget.
+
+    index    consumed by the retriever    bar: does an English question reach the line
+             NEVER served to a person     test: `recall --renderings --to cbeta.T`
+
+    reader   consumed by a person         bar: is this a faithful rendering
+             served, labelled, with       test: glossary compliance + consensus against
+             the term chain visible             a human rendering where one exists
+
+E1 buys the **index** tier: dense, glossary-pinned, scored by the recall probe, never
+shown. The reader tier is generated on demand for passages somebody opens — small volume,
+high bar — and is not a corpus-scale spend.
+
+**And the boundary this project can honestly claim**, which belongs on the page and not
+only in a doc: *you are reading the canon's actual words, at an address you can check.*
+The guard proves the citation and never the interpretation, and saying so is the same
+discipline that makes the rest of it trustworthy.
+
+**The translation layer is meant to be replaceable.** The pool is keyed on
+`anchor_urn + lang + translator_id`, so a better rendering — somebody else's model, a
+scholar's revision, a published sangha translation — enters alongside rather than
+replacing, and `mode: :compare` returns the disagreement with its attribution. The corpus
+is the stable thing; renderings are expected to churn, which is why a rendering is a
+fragment over a source anchor and never a top-level URN.
+
 ## Found by the architecture review — 2026-09-02
 
 **`compare_translators` returns headwords with no URN, and the anchors to fix that now

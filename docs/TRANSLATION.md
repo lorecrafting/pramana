@@ -39,6 +39,107 @@ A translation is always a rendering of a source anchor.
 
 ---
 
+## Two PURPOSES, and the bar is different — decided 2026-09-02
+
+The tiers above are about **provenance**: who made a rendering and whether it reproduces.
+Cutting across them is a second axis nobody had named, and it decides most of E1's budget:
+**is this English going to be matched against, or read?**
+
+| purpose | who consumes it | the bar | served to a person |
+|---|---|---|---|
+| **index** | the retriever | does an English question reach the right line | **never** |
+| **reader** | a person, or a model quoting to a person | is this a faithful rendering | yes, labelled |
+
+**They are not the same product and must not be generated to the same spec.**
+
+### Index English does not have to be readable, and may not want to be prose
+
+`CLAUDE.md`'s thesis is that the LLM is a swappable reader; the consumer of retrieval is a
+model, and models read Classical Chinese. So English in the vector index exists to make a
+passage **findable**, and nothing more. Three consequences:
+
+  * It may be better as a **dense gloss** — terms, names, doctrinal vocabulary, no
+    connective tissue — than as fluent prose. More retrievable surface per token, none of
+    it spent on grammar. Cheaper, and possibly higher recall. **A/B this before generating
+    at scale**; it is the cheapest unasked question in the plan.
+  * The acceptance test is `mix pramana.recall --renderings --to cbeta.T`, not a human.
+    That removes a review bottleneck from the middle of the budget.
+  * Glossary-pinning is still essential, for a *retrieval* reason: 方便, 權 and 善巧 must
+    land on one English target or a query for "skilful means" finds one of the three.
+
+### Reader English is a different obligation
+
+The moment a rendering is shown, its fidelity is ours. It is generated on demand for
+passages somebody actually opens — small volume, high bar — and it carries the term chain
+so a reader can audit the choices: 空 ← *śūnyatā* ← "emptiness".
+
+`glossary_compliance` and `consensus_score` exist on the row for this and are NULL on all
+244,763 today, because every rendering held is human and there has been nothing to score.
+They become the mechanical half of the bar:
+
+  * **Terminology compliance** against the pinned glossary. Not proof of meaning — but
+    **doctrinal error concentrates in word choice.** Whether *anattā* is 無我 or 非我 is
+    one of the largest disputes in the tradition and it is a term decision, checkable
+    against a table.
+  * **Consensus** against a human rendering of the same anchor where one exists — Patton
+    over the Āgamas, Sujato through any Pāli parallel. Systematic drift becomes a number.
+
+---
+
+## What this system guarantees, and what it does not
+
+Stated here because it is the honest boundary of the whole design, and it belongs on the
+page rather than in a doc nobody reads.
+
+**Guaranteed, and model-independently:** the passage exists at the address given; the
+quoted text is byte-identical to the witness, re-resolved and sha256-compared rather than
+trusted; the provenance is right, so a Kamakura commentary cannot arrive dressed as an
+Indian sūtra; frequency and absence claims are re-executed rather than believed; and no
+generated rendering can be presented as source.
+
+**Not guaranteed:** that the English beside those words is a faithful rendering of them.
+A model can retrieve a line correctly, cite it correctly, byte-verify it, and then
+paraphrase it into something the Chinese does not say — and every mechanical check here
+passes. **The guard proves the citation, never the interpretation.**
+
+So the claim this project can make is precise and worth making exactly: *you are reading
+the canon's actual words, at an address you can check.* Anything about what they mean is
+the reader's, or a translator's, and is labelled as such.
+
+**Stating the limit is the same discipline that makes the rest trustworthy** — the checker
+already reports which citations it could not verify rather than quietly passing them, and
+this is that habit applied one level up.
+
+---
+
+## The translation layer is meant to be replaced, and the pool already allows it
+
+A consequence of the pool being keyed on `anchor_urn + lang + translator_id`, worth saying
+out loud because it shapes what other people can build on this.
+
+**Nothing has to be adopted to be useful.** A better translation layer — somebody else's
+model, a scholar's revision, a sangha's published rendering — enters as another
+`translator_id` alongside what is here, with its own tier, method, licence and attribution.
+It does not replace anything, it does not need permission, and `Translations.select/2` with
+`mode: :compare` returns the whole pool rather than a winner.
+
+That is the same refusal `Pramana.TermAnchors` makes about vocabulary and
+`compare_witnesses` makes about readings: **where people disagree, return the disagreement
+with its attribution.** A translation is an argument about a passage, and a corpus that
+silently picks one has destroyed evidence.
+
+Three things follow for anyone building on this:
+
+  * A competing layer can be **composed** rather than merged — mounted in the same client,
+    or ingested and served beside ours with both visible.
+  * If one is better, `divergence_score` and `consensus_score` are how that gets
+    demonstrated rather than asserted.
+  * The corpus is the stable thing. **Renderings are expected to churn**, and the URN a
+    rendering hangs off does not, which is why a rendering is a fragment over a source
+    anchor and never a top-level address.
+
+---
+
 ## Why ephemeral output does not go straight into the bake
 
 This is the important structural decision.
