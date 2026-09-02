@@ -168,9 +168,11 @@ equivalent, so it keeps the sidecar alive regardless until at least Phase 5.~~
 syllables on the tsheg the edition prints, which supersedes `botok` for the same reason
 jieba was refused for Chinese: a dictionary tokenizer shatters transliterated names, and
 this corpus has `པྲ་ཛྙཱ་ཝརྨ` sitting in a colophon. `botok` was never added to the sidecar,
-nothing imports it, and only the documentation kept it alive — so the sidecar is BGE-M3
-inference and nothing else, and the argument for keeping it is Phase 1's multi-vector
-question alone.
+nothing imports it, and only the documentation kept it alive — so as of that date the
+sidecar was BGE-M3 inference and nothing else, and the argument for keeping it was Phase
+1's multi-vector question alone. (It gained translation inference on 2026-09-02; §3 above
+is the current boundary. This paragraph is about the `botok` withdrawal and is true of
+its date.)
 
 **Decision:** one small Python service behind a tiny interface:
 

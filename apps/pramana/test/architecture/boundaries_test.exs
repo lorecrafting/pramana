@@ -87,7 +87,7 @@ defmodule Architecture.BoundariesTest do
     # Standard library plus the tensor stack. Adding to this list is how the sidecar is
     # allowed to grow in the direction it is supposed to grow in.
     @allowed_imports ~w(
-      argparse json os random sys time
+      argparse hashlib json os random sys time
       torch transformers peft modal numpy
     )
 
@@ -228,10 +228,19 @@ defmodule Architecture.BoundariesTest do
     end
   end
 
+  # Both halves of the statement are required, and that is not pedantry: the first
+  # version matched `^\s*(?:import|from)\s+(\w+)`, so any DOCSTRING line beginning "from
+  # its inputs is not a bake" was reported as an import of a module called `its`. A check
+  # that fires on English prose gets satisfied by rewording the prose, which leaves the
+  # boundary unguarded and the docs worse. Rule 8's shape again — verify the check fails
+  # for the reason you think it does.
   defp imported_module(line) do
-    case Regex.run(~r/^\s*(?:import|from)\s+([a-zA-Z_][\w]*)/, line) do
+    from = Regex.run(~r/^\s*from\s+([a-zA-Z_]\w*)[\w.]*\s+import\s/, line)
+    plain = Regex.run(~r/^\s*import\s+([a-zA-Z_]\w*)[\w.]*\s*(?:,|\s+as\s|$)/, line)
+
+    case from || plain do
       [_, module] -> module
-      nil -> nil
+      _ -> nil
     end
   end
 

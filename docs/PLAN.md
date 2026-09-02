@@ -2034,6 +2034,34 @@ let the Python sidecar grow": a translation sidecar is still tensor math and sti
 domain logic, so it is the same exception embedding already is, but it is an exception
 being used a second time and should be a deliberate decision rather than a drift.
 
+**▸ THE PATH TO A GPU IS BUILT, 2026-09-02. What is left is renting one.**
+
+| piece | where |
+|---|---|
+| select passages, with the hash that lets them be checked | `mix pramana.translate.export` |
+| run a model on Modal, one arm at a time | `priv/embed/modal_translate.py` |
+| store output as `t1`/`llm`, range-anchored | `mix pramana.translate.import` |
+| index verdict, per arm | `PRAMANA_EMBEDDING=1 mix pramana.recall --renderings --to cbeta.T` |
+| fidelity verdict, blinded | `mix pramana.translate.bakeoff` |
+
+`--covered-by patton` is the option that makes a bake-off possible: it selects only
+chunks a human already renders, so every arm is scored on passages that have a human
+rendering to be blinded against.
+
+**Three things are deliberate and worth not undoing.** Decoding is **greedy** — a
+rendering that cannot be reproduced from its inputs is not a bake (invariant #3), so
+`temperature` is not a knob to reach for. The sidecar's chat prompt is **neutral**, naming
+neither the genre nor the source language, because any framing beyond "translate this" is
+a domain decision and `docs/ELIXIR.md` names exactly that as the gap the boundary test
+cannot catch; framing is assembled in Elixir and arrives inside the passage. And the
+GPU is **re-specialised per arm** (`.with_options`), because Qwen 32B does not fit the L4
+the 9B arms use and asking for the smaller card is not a slow run but an out-of-memory
+failure part-way through a tranche already paid for.
+
+**The human step, and it gates the sharpest arm.** `google/gemma-2-9b-it` is gated: the
+Gemma terms must be accepted on a HuggingFace account and the token supplied as the Modal
+secret `huggingface-token`, before the GPU is rented rather than after.
+
 **THE MODEL: `buddhist-nlp/gemma-2-mitra-it` — researched 2026-09-02.**
 
 A **domain-specific** model exists for exactly this task, and it is the reason not to
@@ -2064,10 +2092,47 @@ dismissed **MITRA-E**, the *embedding* model, because the embedder was never the
 bottleneck. That has no bearing on **MITRA-MT**, the translation model, which is squarely
 on the bottleneck E1 actually has.
 
-**Licence: Gemma Terms of Use, and it must be read before the run** — the same
-Gemma-derived question L2 flagged and never had to answer. Our use is favourable
-(generated output, index tier, never redistributed; the corpus is not redistributed
-either) but "favourable" is not "checked".
+**▸ LICENCE: READ AND SETTLED, 2026-09-02. The Gemma Terms of Use govern, our use is
+inside them, and the one clause that bites is already structurally enforced.**
+
+**Neither MITRA repo declares a licence at all** — no `license:` in the card, no LICENSE
+file, ungated — while the `google/gemma-2-9b` it derives from is Gemma-licensed and
+gated. Absence is not a broader grant: the weights are a Gemma **Model Derivative** and
+the Terms travel with them whether or not the redistributor restated them. We treat them
+as Gemma-licensed and accept the terms deliberately rather than by omission.
+
+Where that leaves us, clause by clause:
+
+- **We do not distribute the model or any Model Derivative**, so §3.1 — pass the Terms to
+  recipients, mark modified files, ship the Notice file — does not attach.
+- **Outputs are explicitly not Model Derivatives**, and "Google claims no rights in
+  Outputs you generate using Gemma." Distributing generated English does not trigger
+  §3.1 either.
+- **§3.2 and the Prohibited Use Policy bind us regardless of distribution**, and one of
+  its four categories is squarely on point: **false attribution of human authorship**.
+  Generating English of scripture and presenting it as a human translation is exactly
+  that — and it is already impossible here, because invariant #8 makes a generated
+  rendering a layer over a source anchor rather than a citable URN and the citation guard
+  rejects any quote resolving to `method != human` presented as canonical. **The licence
+  requirement and the invariant point the same way**, which is the argument for having
+  built the invariant structurally rather than as a prompt.
+- **Gemma does not restrict commercial use** beyond the Prohibited Use Policy. That is
+  not the binding constraint anyway: CBETA's non-commercial terms govern the *source*
+  text and are stricter.
+
+**One operational consequence, and it needs a person.** The control arm is the only gated
+model:
+
+| arm | licence | gated |
+|---|---|---|
+| `buddhist-nlp/gemma-2-mitra-it` (and `-int8`) | none declared; Gemma travels with it | no |
+| **`google/gemma-2-9b-it`** — the control | `gemma` | **manual — a human must accept on HF** |
+| `Qwen/Qwen2.5-32B-Instruct` | `apache-2.0` | no |
+
+So the sharpest arm is the one with a human step in front of it: accepting the Gemma
+terms on a HuggingFace account and issuing a token before the GPU is rented, not after.
+Note the shape of it — **the derivative is ungated while its base is gated**, so Gemma
+weights can be obtained without ever being shown the terms that govern them.
 
 **HOW THE FIDELITY VERDICT IS TAKEN — `mix pramana.translate.bakeoff`, built 2026-09-02.**
 

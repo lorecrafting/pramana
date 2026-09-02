@@ -241,7 +241,7 @@ apps/
       bake/                Oban orchestration
   pramana_web/              Phoenix — MCP endpoint, LiveView reader (`docs/READER.md`)
   pramana_native/           Rustler NIFs: CJK segmentation, suffix-array reuse
-priv/embed/                Python sidecar — BGE-M3 inference ONLY (see docs/ELIXIR.md)
+priv/embed/                Python sidecar — model inference ONLY (see docs/ELIXIR.md)
 evals/                     gold question sets + scoring harness
 docs/                      ARCHITECTURE, SOURCES, ROADMAP, COMPETITIVE, ELIXIR, MCP, READER
 ```
@@ -264,9 +264,19 @@ what BEAM is for, and Elixir binaries are UTF-8 native, which matters for CJK.
 1. **Rustler NIF** — CJK word segmentation (`jieba-rs`). In-process, no sidecar.
 2. **Rust port binary** — suffix-array text-reuse detection over 250M+ chars. Batch,
    memory-hungry, would block BEAM schedulers. Kept outside the VM entirely.
-3. **Python sidecar (`priv/embed`)** — BGE-M3 inference, and nothing else. Behind a
-   deliberately tiny interface (`{texts, mode} -> vectors`) so it stays replaceable.
-   It was scoped to include Tibetan `botok` segmentation and never needed to: the
+3. **Python sidecar (`priv/embed`)** — **model inference, and nothing else.** Two uses
+   now, each behind a deliberately tiny interface so it stays replaceable:
+   `{texts, mode} -> vectors` for BGE-M3, and `{text, target_lang} -> text` for
+   translation (`modal_translate.py`, added 2026-09-02 for `docs/PLAN.md` § E1).
+
+   **The second one is a deliberate decision, not drift**, and the test of it is that
+   nothing domain-specific crossed over: which passages, in what order, with what
+   glossary pinned into them, and what the result may be cited as all stay in Elixir.
+   The sidecar knows only how a particular set of weights expects its input shaped —
+   the same category as mean-pooling. A glossary-pinned prompt is domain logic and is
+   assembled on the Elixir side, arriving as opaque text.
+
+   It was also scoped to include Tibetan `botok` segmentation and never needed to: the
    lexical layer windows syllables on the tsheg the edition itself prints, which cannot
    mis-segment a transliterated name the way a dictionary tokenizer does. That
    dependency was never taken, and four documents went on describing it — including this

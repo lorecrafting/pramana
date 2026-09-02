@@ -183,6 +183,35 @@ one translation — but they are excluded from embeddings and clearly marked pro
 
 ---
 
+## Getting text to a model and back — `export` / `import`, built 2026-09-02
+
+Two tasks and a sidecar, in the shape `mix pramana.embed.export` / `import` already
+established, because the problem is the same one: the model runs on a rented GPU and the
+text has to make a round trip it can be held accountable for.
+
+```
+mix pramana.translate.export --covered-by patton --limit 300 --out /tmp/bakeoff.jsonl
+modal run priv/embed/modal_translate.py --arm mitra
+mix pramana.translate.import --in /tmp/renderings-mitra.jsonl --translator-id model:mitra
+```
+
+**`--covered-by` selects chunks a named human already renders**, which is what a bake-off
+needs: every generated passage then has a human rendering to be blinded against, and the
+arms are scored on the same passages the human is scored on.
+
+**The sha256 travels with the text**, so `import` can prove a rendering still describes
+the passage it names — a chunk re-chunked between export and import is rejected and
+counted, never attached to whatever now occupies that id. And what comes back is stored
+`tier: "t1"`, `method: "llm"`, range-anchored to the chunk's ordinal span. It is not
+citable as source and cannot be made so by this path; that is invariant #8, and
+`Pramana.Guard` is where it is enforced rather than here.
+
+`Pramana.Translate.Transfer` holds both directions. The Python side is handed text and
+returns text — see `docs/ELIXIR.md` § 3 for why that is inference rather than a second
+exception.
+
+---
+
 ## The promotion pipeline
 
 This answers "can on-the-fly translations get pooled?" — yes, through an explicit gate,
