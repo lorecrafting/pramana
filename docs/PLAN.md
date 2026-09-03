@@ -209,9 +209,13 @@ and prompt were each measured, and § E1 records what by.
    Ground truth grew 26 → 38 testable works and item 3's `13 of 13` became **14 of 17** —
    see item 3. Rule 74 applied before the fact instead of after it.
 
-   **Still owed: the shared-text half.** `Pramana.Quotations.Roots` still joins partners on
-   `text_role = 'root'` and still refuses subcommentaries. It can now be *scored* on them,
-   which is what was missing — and the refusal is currently earning itself at 0 of 4.
+   **The shared-text half was then measured and REFUSED** — § "Rejected, with evidence".
+   Letting `Pramana.Quotations.Roots` take treatise partners scores **1 of 14** against the
+   ground truth this fix created, because two of the three 俱舍論 commentaries land on
+   Saṅghabhadra's treatises, which quote the Kośa at length. Shared text cannot tell the
+   work a commentary explains from another work that quotes it heavily, and among treatises
+   there is no `root`-shaped restriction left to make. That population belongs to title
+   matching, which now holds it.
 
    **What this does not fix, and needs its own rule.** A sole partner satisfies
    "dominant" trivially, so silence reads as dominance: `T1708` 仁王經疏 shares seven
@@ -3023,6 +3027,41 @@ less urgent gain than making a canon reachable at all. It is written down here s
 costed rather than floating.
 
 ## Rejected, with evidence — do not redo
+
+### Widening the shared-text rule's partners to treatises — 2026-09-02
+
+**This is item 4's second half, and it is refused rather than owed.** The obvious
+completion of `Relations.may_explain/1` is to let `Pramana.Quotations.Roots` take treatise
+partners for `subcommentary` sources, the way title matching now does. Measured against
+the 18 `subcommentary_of` links title matching produces, it scores **1 of 14 testable —
+0 of 2 in the dominant band at five or more shared passages, 0 of 7 below it, 1 of 5 tied.**
+
+**The three Abhidharma cases are the mechanism, and they are hand-checkable because
+scoring cannot see them** — none of `俱舍論記`, `俱舍論疏`, `俱舍論頌疏` contains
+`阿毘達磨俱舍論`, so no title link exists for any of them:
+
+    T1823 俱舍論頌疏  ->  T1558 阿毘達磨俱舍論      334 passages   correct
+    T1822 俱舍論疏    ->  T1562 阿毘達磨順正理論    108            wrong
+    T1821 俱舍論記    ->  T1563 阿毘達磨藏顯宗論     47            wrong
+
+`T1562` and `T1563` are Saṅghabhadra's treatises, which quote the Kośa at length — so two
+of the three Kośa commentaries land on a work that *contains* their root rather than on
+their root. **The shared-text signal cannot tell "the work this explains" from "another
+work that quotes it heavily",** which is the failure that restricting partners to
+root-role works suppresses. Among treatises there is no equivalent restriction to make:
+`root` is a category, `the Kośa rather than its critics` is not.
+
+**So the refusal in `Roots` is correct rather than merely cautious, and that population
+belongs to title matching**, which now holds it — 18 links, deterministic containment. The
+one case shared text gets right and titles cannot, `T1823 → T1558` at 334 passages, is real
+and is not worth the other two.
+
+Also measured and rejected the same day: **abstaining when a partner is unopposed**
+(`runner_up_passages: nil`). `T1708` 仁王經疏 suggested it — seven passages with the
+`T0220` family and nothing at all with either 仁王經 above the scan's 20-character floor —
+but the cell does not hold up: unopposed proposals score **7 of 11** against **13 of 18**
+for contested ones, and unopposed *at strength* is 3 of 3. There is no threshold there to
+build on.
 
 ### Postgres tuning on this machine — 2026-08-29
 

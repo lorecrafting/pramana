@@ -214,10 +214,14 @@ exegetical core. A second constant sat behind the first: the generic-title floor
 full census of what each floor admits (at 2, 人本欲生經註 matches 生經). Title matching went
 from 54 works and 110 relations to **78 and 138**.
 
-The shared-text half of that fix is still owed, so **subcommentaries are refused there** —
-a `subcommentary_of` aimed at a sūtra is incoherent whatever the evidence — and the
-refusal is currently scoring 0 of 4, which is the division table's prediction confirmed.
-`docs/PLAN.md` item 4.
+**The shared-text half of that fix was then measured and refused, which is the more useful
+result.** Letting the quotation graph take treatise partners scores **1 of 14** against the
+ground truth the title fix created: two of the three 俱舍論 commentaries land on
+Saṅghabhadra's `T1562`/`T1563`, which quote the Kośa at length. Shared text cannot tell the
+work a commentary explains from another work that quotes it heavily, and among treatises
+there is no `root`-shaped restriction left to make — so that population belongs to title
+matching, which now holds it. Subcommentaries stay refused in the shared-text rule, and
+that is now evidence rather than caution. `docs/PLAN.md` § "Rejected, with evidence".
 
 **One failure mode survives that no widening reaches**: a sole partner satisfies
 "dominant" trivially, so silence reads as dominance. `T1708` 仁王經疏 shares seven passages
