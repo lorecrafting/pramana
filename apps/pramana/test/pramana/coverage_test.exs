@@ -517,4 +517,57 @@ defmodule Pramana.CoverageTest do
       assert note =~ "not that the canon is silent"
     end
   end
+
+  # THE THIRD QUESTION. `gaps` asks what was never acquired; `stranded/0` asks what was
+  # derived and left where nothing queries it; `derivations/0` asks whether a derivation
+  # has finished. All three exist because a corpus can be wrong in ways every count calls
+  # healthy — and on 2026-09-02 the third was misread four times in one day, always by
+  # checking a value instead of the work.
+  describe "stranded/0" do
+    test "a title held in meta and absent from the column it is read from" do
+      load!("T0001", 1, "0001")
+
+      Repo.update_all(Pramana.Corpus.Work,
+        set: [title: nil, meta: %{"title_sa_ltn_computed" => "pra mA Na bAr ti kA"}]
+      )
+
+      assert [row] = Coverage.stranded()
+      assert row.count == 1
+      assert row.what =~ "works.title"
+      # A warning with no remedy is one people learn to skim past.
+      assert row.fix =~ "mix pramana.derge.titles"
+    end
+
+    test "says nothing when every derived field is where it is read from" do
+      load!("T0001", 1, "0001")
+      Repo.update_all(Pramana.Corpus.Work, set: [title: "already promoted"])
+
+      assert Coverage.stranded() == []
+    end
+  end
+
+  describe "derivations/0" do
+    test "every row carries the denominator its figure is meaningless without" do
+      load!("T0001", 1, "0001")
+
+      for d <- Coverage.derivations() do
+        assert is_integer(d.done) and is_integer(d.eligible)
+        assert d.done <= d.eligible, "#{d.what}: #{d.done} of #{d.eligible} is not a ratio"
+        assert is_binary(d.unit) and d.unit != ""
+        # The note has to say what the REMAINDER is: "43 of 89" only helps beside "the
+        # other 46 are relations this method cannot see, not relations that are wrong".
+        assert is_binary(d.note) and String.length(d.note) > 40
+      end
+    end
+
+    test "counts alignment in pairs, because the eligible set is pairs" do
+      # The first draft reported distinct commentaries against a PAIR denominator — two
+      # units in one ratio, reading as "24 of 89, a quarter done" when the answer was
+      # complete. That is the misreading this section exists to stop, reproduced inside it.
+      assert %{what: "commentary alignment", unit: unit} =
+               Enum.find(Coverage.derivations(), &(&1.what == "commentary alignment"))
+
+      assert unit =~ "pair"
+    end
+  end
 end
