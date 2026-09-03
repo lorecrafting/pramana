@@ -325,6 +325,109 @@ defmodule Pramana.Coverage do
   end
 
   @doc """
+  How far each DERIVATION has got, against the inputs it could reach.
+
+  `gaps/0` and its neighbours ask what has not been **acquired**. `stranded/0` asks what
+  was derived and left where nothing queries it. This asks the third question: **has this
+  derivation run, and is what it produced the whole of what it can produce?**
+
+  It exists because that question was misread four times on 2026-09-02, always the same
+  way — a *value* was checked instead of the *work*. "24 commentaries aligned" reads as a
+  quarter of the 89 relations until you know the 43 pairs above the floor collapse to 24
+  distinct works, at which point it is complete. `count(title) = 0` reads as "no titles
+  exist" when the titles were in `works.meta`. Each time the fix was a denominator.
+
+  So every row here carries its own, and the note says what the remainder IS — because
+  "43 of 89" is only useful beside "the other 46 are relations this method cannot see,
+  not relations that are wrong".
+  """
+  @spec derivations() :: [map()]
+  def derivations do
+    [alignment_coverage(), relation_coverage(), tibetan_title_coverage()]
+  end
+
+  # A pair is alignable when both works are Chinese — 科文 alignment rests on an
+  # eight-CHARACTER window being unique in the root, which is a fact about Chinese.
+  defp alignment_coverage do
+    %{rows: [[pairs]]} =
+      Repo.query!("""
+      SELECT count(*) FROM (
+        SELECT DISTINCT r.source_work_id, r.target_work_id
+          FROM work_relations r
+          JOIN texts cs ON cs.work_id = r.source_work_id
+          JOIN texts rt ON rt.work_id = r.target_work_id
+         WHERE r.relation = 'comments_on' AND r.target_work_id IS NOT NULL
+           AND cs.source_id IN ('cbeta','sat','local-huang-nianzu-jie')
+           AND rt.source_id IN ('cbeta','sat','local-huang-nianzu-jie')) x
+      """)
+
+    # PAIRS AGAINST PAIRS. Counting distinct commentaries against a pair denominator
+    # reads as "24 of 89, a quarter done" — which is precisely the misreading this whole
+    # section exists to stop, reproduced inside it. 43 pairs cleared the floor and they
+    # collapse to 24 works, because an ambiguous relation gives one commentary several
+    # candidate roots.
+    %{rows: [[aligned_pairs, works, rows]]} =
+      Repo.query!("""
+      SELECT count(*), count(DISTINCT commentary_work_id), sum(n) FROM (
+        SELECT commentary_work_id, root_work_id, count(*) n
+          FROM commentary_alignments GROUP BY 1, 2) x
+      """)
+
+    %{
+      what: "commentary alignment",
+      done: aligned_pairs,
+      eligible: pairs,
+      unit: "alignable pair(s) — #{works} distinct commentaries, #{rows} line alignments",
+      note:
+        "A pair below the density floor is not a refuted relation — a commentary may " <>
+          "paraphrase, and this method sees only verbatim quotation. More alignments " <>
+          "need more `comments_on` relations, not another run."
+    }
+  end
+
+  defp relation_coverage do
+    %{rows: [[linked, commentarial]]} =
+      Repo.query!("""
+      SELECT count(*) FILTER (WHERE EXISTS (
+               SELECT 1 FROM work_relations r
+                WHERE r.source_work_id = w.id AND r.relation <> 'parallel_of')),
+             count(*)
+        FROM works w
+       WHERE w.text_role IN ('commentary','subcommentary','treatise')
+      """)
+
+    %{
+      what: "commentary -> root links",
+      done: linked,
+      eligible: commentarial,
+      unit: "commentarial works reach a root",
+      note:
+        "Title matching finds a root only when the title names one. 大智度論 explains " <>
+          "摩訶般若波羅蜜經 without naming it, so the unlinked remainder is mostly works " <>
+          "no title rule can reach — a new signal, not a re-run."
+    }
+  end
+
+  defp tibetan_title_coverage do
+    %{rows: [[titled, total]]} =
+      Repo.query!("""
+      SELECT count(DISTINCT w.id) FILTER (WHERE w.title IS NOT NULL), count(DISTINCT w.id)
+        FROM works w JOIN texts t ON t.work_id = w.id
+       WHERE t.source_id IN ('derge','derge-tengyur')
+      """)
+
+    %{
+      what: "Tibetan work titles",
+      done: titled,
+      eligible: total,
+      unit: "works named",
+      note:
+        "The remainder print no title block at all — mostly continuations of a work " <>
+          "spanning volumes. Closing it needs the Degé dkar chag or BDRC, a new source."
+    }
+  end
+
+  @doc """
   Data the corpus HOLDS and no query can reach.
 
   A different question from the rest of this module. Everything else asks what has not

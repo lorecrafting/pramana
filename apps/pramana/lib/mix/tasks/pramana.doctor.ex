@@ -46,6 +46,7 @@ defmodule Mix.Tasks.Pramana.Doctor do
     corpus()
     sources()
     gaps()
+    derivations()
     stranded()
     reference()
     migrations()
@@ -155,6 +156,26 @@ defmodule Mix.Tasks.Pramana.Doctor do
 
     dated = Coverage.dated()
     row("dates", "#{dated.dated} of #{dated.works} works; #{dated.authority_linked} linked")
+  end
+
+  # HOW FAR EACH DERIVATION HAS GOT, against what it could reach.
+  #
+  # `gaps/0` above asks what has not been ACQUIRED. This asks whether the things the
+  # corpus derives FROM what it holds have finished — and it exists because that question
+  # was misread four times on 2026-09-02, every time by checking a value instead of the
+  # work. "24 commentaries aligned" reads as a quarter of 89 relations until you know the
+  # 43 pairs above the floor collapse to 24 works, at which point it is complete.
+  #
+  # A count without its denominator invites exactly that misreading, which is rules 22, 44
+  # and 54 — applied here to a derivation rather than to a coverage figure.
+  defp derivations do
+    heading("what has been derived")
+
+    Enum.each(Coverage.derivations(), fn d ->
+      pct = if d.eligible > 0, do: Float.round(100 * d.done / d.eligible, 1), else: 0.0
+      row(d.what, "#{d.done} of #{d.eligible} #{d.unit} (#{pct}%)")
+      row("", d.note)
+    end)
   end
 
   # DATA THAT IS HELD AND CANNOT BE REACHED.
