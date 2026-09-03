@@ -90,6 +90,22 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
   # Twenty of 109 and twenty of twenty are the same list. 27 root lines in the corpus
   # carry more than the default limit, one of them 109, and a caller handed the first
   # twenty had no way to learn that. Rules 22, 44, 54.
+  # Invariant #1: no unattributed text leaves the API. A lemma is a verbatim quotation of
+  # the root line, and it shipped without its sha256 or offsets until 2026-09-03 — the
+  # domain carried them and this tool re-shapes the map, so a field added there reached
+  # nobody. `Architecture.BoundariesTest` now fails on a tool that returns text with no
+  # sha256 beside it.
+  test "a lemma travels with what verifies it" do
+    [gloss] = json(%{urn: @root_urn})["glosses"]
+
+    assert gloss["lemma_sha256"] ==
+             Base.encode16(:crypto.hash(:sha256, gloss["lemma"]), case: :lower)
+
+    assert gloss["root_offsets"]["char_start"] |> is_integer()
+    assert gloss["root_offsets"]["char_end"] > gloss["root_offsets"]["char_start"]
+    assert gloss["commentary_offsets"]["char_end"] > gloss["commentary_offsets"]["char_start"]
+  end
+
   test "reports how many glosses exist, not only how many it returned" do
     payload = json(%{urn: @root_urn})
 

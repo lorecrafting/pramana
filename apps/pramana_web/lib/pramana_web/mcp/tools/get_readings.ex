@@ -84,6 +84,19 @@ defmodule PramanaWeb.MCP.Tools.GetReadings do
     %{
       urn: span.urn,
       text: span.content,
+      # INVARIANT #1, WHICH THIS TOOL SHIPPED WITHOUT UNTIL 2026-09-03. No unattributed
+      # text leaves the API: every returned span carries its URN, offsets, sha256 and
+      # provenance. This returned the passage with a URN and none of the rest, while its
+      # own note said "the text, not its pronunciation, is what is citable" — naming the
+      # text as the citable thing and then shipping it unverifiable.
+      sha256: span.sha256,
+      offsets: %{
+        char_start: span.char_start,
+        char_end: span.char_end,
+        byte_start: span.byte_start,
+        byte_end: span.byte_end
+      },
+      provenance: span.provenance,
       scheme: scheme,
       reading: tokens |> Enum.map(& &1.reading) |> Enum.reject(&is_nil/1) |> Enum.join(" "),
       tokens: Enum.map(tokens, &%{form: &1.form, reading: &1.reading, source: &1.source}),

@@ -35,8 +35,8 @@ between the markers; edit the corpus, or run the task.
 | texts | **17,281** |
 | segments | **12,586,964** |
 | chunks | **980,464** |
-| vectors | **1,038,275** |
-| renderings | **245,583** |
+| vectors | **1,066,026** |
+| renderings | **273,334** |
 | glossary entries | **89,649** |
 | quotations | **141,073** |
 | MCP tools | **19** |

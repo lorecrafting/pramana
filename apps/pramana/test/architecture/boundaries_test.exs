@@ -196,13 +196,71 @@ defmodule Architecture.BoundariesTest do
   """
   def unmechanised do
     [
-      "Can any tool return text without urn + offsets + sha256? Shape, not substring.",
+      # PARTLY MECHANISED 2026-09-03, and the remainder is stated rather than dropped.
+      # The test above proves no tool returns quotable text with no sha256 anywhere in its
+      # module — which is the failure that actually happened, twice, in `get_readings` and
+      # `get_glosses`. It cannot prove the sha256 belongs to the text beside it, that the
+      # offsets index the right witness, or that a NEW response shape carries them at all.
+      # Reading a tool's payload is still a person's job; forgetting entirely is not.
+      "Does each returned span's sha256 and offsets belong to the text beside them? The " <>
+        "mechanical check proves only that a tool emitting text also emits a sha256 " <>
+        "somewhere in the module — presence, not correspondence.",
       "Is any generated translation reachable as a top-level URN? Invariant #8, and the " <>
         "guard tests cover the resolver, not every future path to it.",
       "Is the bake still reproducible from sources.lock.json alone?",
       "And the question none of these is: has this codebase quietly stopped being the " <>
         "thing it was designed to be?"
     ]
+  end
+
+  describe "no unattributed text leaves the API" do
+    # `docs/CHECKS.md` §2 lists this as an audit a PERSON performs at a phase gate. It
+    # found a real violation the first time anyone actually performed it, on 2026-09-03:
+    # `get_readings` returned the passage text with a URN and no sha256, no offsets and no
+    # provenance — while its own note said "the text, not its pronunciation, is what is
+    # citable". A check that runs once a phase, on the honour system, is how that survives.
+    #
+    # Invariant #1: every returned span carries `urn`, offsets, `sha256` and provenance.
+    # This is the coarse mechanical half — a module that emits quotable text must also
+    # emit a sha256 — and it cannot prove they belong to the same object. It can prove
+    # nobody forgot, which is the failure that actually happened twice.
+    @text_keys ~w(text content lemma quote snippet)
+
+    @text_without_hash_exempt %{
+      # A gloss lists which commentaries touch a line; `compare_translators` lists agreed
+      # and diverged headwords. Neither returns a span OF the corpus — they return terms a
+      # philologist attested — so there is nothing to byte-verify against a witness.
+      "compare_translators.ex" => "attested headwords, not spans of any text"
+    }
+
+    test "a tool that returns quotable text also returns a sha256" do
+      offenders =
+        Path.wildcard(Path.join(@root, "apps/pramana_web/lib/pramana_web/mcp/tools/*.ex"))
+        |> Enum.filter(&emits_text?/1)
+        |> Enum.reject(&(File.read!(&1) =~ "sha256"))
+        |> Enum.map(&Path.basename/1)
+        |> Enum.reject(&Map.has_key?(@text_without_hash_exempt, &1))
+
+      assert offenders == [],
+             """
+             These MCP tools return quotable text with no sha256 beside it:
+
+             #{Enum.map_join(offenders, "\n", &"    #{&1}")}
+
+             Invariant #1: no unattributed text ever leaves the API. A caller that quotes
+             what a tool returned must be able to byte-verify it, and the citation guard
+             re-resolves every URN and compares the span — which it cannot do for text
+             that arrived without one.
+
+             If the text genuinely is not a span of any witness — an attested headword, a
+             generated label — add it to `@text_without_hash_exempt` with the reason.
+             """
+    end
+
+    defp emits_text?(file) do
+      source = File.read!(file)
+      Enum.any?(@text_keys, &Regex.match?(~r/^\s+#{&1}:/m, source))
+    end
   end
 
   describe "a task that bulk-writes asks before it writes" do

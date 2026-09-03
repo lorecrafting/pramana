@@ -91,7 +91,14 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
       attributed_author: g.commentary_author,
       composition_origin: g.composition_origin,
       lemma: g.lemma,
+      # A lemma is a verbatim quotation of the root line, so it travels with what verifies
+      # it. Invariant #1: no unattributed text leaves the API, and this tool re-shapes the
+      # domain's map rather than passing it through — so a field added there reaches a
+      # caller only if it is added here too, which is how this went missing.
+      lemma_sha256: g.lemma_sha256,
       length: g.length,
+      root_offsets: g.root_offsets,
+      commentary_offsets: g.commentary_offsets,
       method: g.method,
       confidence: g.confidence
     }

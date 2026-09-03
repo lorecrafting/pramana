@@ -791,10 +791,20 @@ defmodule Pramana.Commentary do
     |> Enum.map(&present/1)
   end
 
+  # A lemma is a verbatim quotation of the root, so it travels with what verifies it:
+  # its own sha256 and the character range it occupies in each text. Invariant #1 —
+  # "no unattributed text ever leaves the API" — and this shipped the words without the
+  # anchor until 2026-09-03.
   defp present(%CommentaryAlignment{} = a) do
     %{
       lemma: a.lemma,
+      lemma_sha256: a.lemma_sha256,
       length: a.length,
+      commentary_offsets: %{
+        char_start: a.commentary_char_start,
+        char_end: a.commentary_char_end
+      },
+      root_offsets: %{char_start: a.root_char_start, char_end: a.root_char_end},
       commentary_urn: a.commentary_urn,
       commentary_work_id: a.commentary_work_id,
       commentary_title: a.commentary_text && a.commentary_text.work.title,

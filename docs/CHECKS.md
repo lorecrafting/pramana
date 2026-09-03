@@ -87,7 +87,16 @@ Specifically audit:
   own aggregation.
 - ~~Did any domain logic leak into `priv/embed`?~~ — **now mechanical**, same file, by
   vocabulary and by import list.
-- Can any tool return text without `urn` + offsets + `sha256`? (It must not.)
+- ~~Can any tool return text without `urn` + offsets + `sha256`?~~ — **partly mechanical
+  since 2026-09-03**, `Architecture.BoundariesTest`. Performing it by hand for the first
+  time found two live violations: `get_readings` returned the passage text with a URN and
+  no sha256, offsets or provenance — while its own note said *"the text, not its
+  pronunciation, is what is citable"* — and `get_glosses` returned a lemma, a verbatim
+  quotation of the root, with no anchor of its own. **Both had been shipping.** The test
+  now fails on a tool that emits quotable text with no sha256 in the module, which is the
+  failure that actually happened. **It cannot prove correspondence** — that the sha256 is
+  *of* the text beside it, or that a new response shape carries offsets at all — so
+  reading a payload is still a person's job. Presence is mechanical; belonging is not.
 - Is any generated translation reachable as a top-level URN? (It must not.)
 - Is the bake still reproducible from `sources.lock.json` alone?
 
