@@ -39,7 +39,13 @@ defmodule Pramana.MixProject do
         # THE RULE IS UNCHANGED: never lower this to make a run pass. Lowering from a
         # number you are meeting is gaming the ratchet; recording a number you are not
         # meeting, so it can be defended, is the opposite.
-        summary: [threshold: 83],
+        # 83 -> 84 on 2026-09-03. Raised because coverage rose, which is the only reason
+        # this number may move: `Pramana.Provenance` went 9% -> 86% and
+        # `Pramana.Publishing.Guard` 36% -> 73%. Those two were picked for what they carry
+        # rather than for their size — invariant #4's structural enforcement and the
+        # licence refusal at boot — so the headroom is a byproduct of testing the riskiest
+        # untested code rather than the goal. Restoration target is 85.
+        summary: [threshold: 84],
         ignore_modules: [
           ~r/^Mix\.Tasks\./,
           ~r/^Pramana\.Corpus\.[A-Z]/,

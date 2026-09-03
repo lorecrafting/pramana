@@ -94,6 +94,31 @@ defmodule Pramana.Publishing.GuardTest do
   end
 
   describe "public?/0" do
+    # `nil` rather than a no-op child: a research node's supervision tree should not carry
+    # a process whose purpose is to do nothing, and the difference is visible in `:sys`.
+    test "a research node gets no child at all, not an inert one" do
+      System.delete_env("PRAMANA_PUBLIC")
+
+      assert Guard.child_spec_if_public() == nil
+    end
+
+    test "a public node gets a temporary child, since a check that has run is not a service" do
+      System.put_env("PRAMANA_PUBLIC", "1")
+
+      assert %{id: Guard, restart: :temporary, start: {Guard, :verify_and_ignore, []}} =
+               Guard.child_spec_if_public()
+    after
+      System.delete_env("PRAMANA_PUBLIC")
+    end
+
+    # The refusing branch calls `System.stop/1` and cannot be exercised without ending the
+    # test run, which is the point of it. The passing branch can: it must return `:ignore`
+    # so the supervisor records no child.
+    test "on a safe corpus it starts nothing and reports :ignore" do
+      assert Guard.verify() == :ok
+      assert Guard.verify_and_ignore() == :ignore
+    end
+
     test "is off unless the node declares itself public" do
       # A research node holds restricted text by design and must start normally.
       refute Guard.public?()

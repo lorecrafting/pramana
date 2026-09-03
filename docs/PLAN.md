@@ -289,19 +289,32 @@ and prompt were each measured, and § E1 records what by.
    existing 26: require a beaten runner-up, or a higher floor when `runner_up_passages`
    is null.
 
-5. **▸ DISCOVERED 2026-09-02 — the gate's coverage step was already red, and is now
-   exactly on the line.** `mix pramana.gate` failed at `test` with **82.80% against a
-   threshold of 83**, measured with this session's work stashed, so it is not a regression
-   from anything here. The handover recorded the gate green on all 11 steps; that had
-   stopped being true before this session started, and nothing was watching because the
-   step's own output is 300 lines of coverage table with the failure at the bottom.
+5. ~~**▸ DISCOVERED 2026-09-02 — the gate's coverage step was already red.**~~ ▸ **CLOSED
+   2026-09-03, by testing the two riskiest untested modules rather than by padding.** It
+   was 82.80% against a threshold of 83, measured with that session's work stashed, so it
+   was never a regression from anything.
 
-   Covering this session's own code and two real gaps in `Pramana.Relations` — the
-   `resolve_root/2` depth cap, and the registry-versus-constraint contract for the
-   `relation` column as well as `method` — brings it to **83.00%, which passes with no
-   margin at all.** The next lib module added without tests fails the gate again. The
-   restoration targets in `apps/pramana/mix.exs` are 85 here and 93 for `pramana_web`
-   (82.69% today), and the ratchet must not be lowered to make a run pass.
+   **`Pramana.Provenance` was 9% covered.** It is invariant #4's structural enforcement —
+   the grouping that stops a Kamakura commentary being rendered directly beneath an Indian
+   sūtra — and a grouping function has exactly two ways to betray that invariant: putting
+   two provenances in one bucket, and losing a result on the way. Both are pinned now, as
+   is the unattributed bucket, because a work nobody has catalogued is a fact about the
+   catalogue rather than a reason to hide the work. **9% → 86%.**
+
+   **`Pramana.Publishing.Guard` was 36%.** `verify/0` was well covered; the boot wiring was
+   not. The refusing branch calls `System.stop/1` and cannot be exercised without ending
+   the test run, which is the point of it — the passing branch and the child spec now are.
+   **36% → 73%.**
+
+   Ratchets raised because coverage rose, which is the only reason they may move:
+   `pramana` 83 → **84** (achieved 84.26), `pramana_web` 81 → **83** (achieved 83.72).
+   Restoration targets remain 85 and 93.
+
+   **A test that failed and should have.** The registry check first asserted that every
+   declared role's label differs from its key, and `catalogue`'s plain-language name
+   legitimately *is* "catalogue". The assertion was wrong, not the code. What replaced it
+   is sharper — **a declared value must never be described as missing** — with a companion
+   test that an undeclared one is, because the first means nothing without the second.
 
 6. ~~**Re-run the 科文 alignment over the new relations — and size it first.**~~ ▸ **DONE
    2026-09-03, and sizing it first is the only reason it is minutes rather than hours.**
@@ -3189,6 +3202,38 @@ less urgent gain than making a canon reachable at all. It is written down here s
 costed rather than floating.
 
 ## Rejected, with evidence — do not redo
+
+### Deriving `text_role` from a Chinese title suffix — 2026-09-03
+
+**1,944 works carry no `text_role`, so no linker and no aligner can even consider them** —
+1,230 of them the whole X collection, which is mostly commentarial. `Pramana.Derge.Genre`
+derives Tibetan role from a genre suffix, so the obvious move is the Chinese equivalent.
+
+**Measured against the Taishō works whose role comes from the 部 table**, which is
+independent ground truth, and only two suffixes carry signal:
+
+    suffix    n    commentarial   treatise   root
+    論      166           15.7%      75.3%    2.4%
+    疏       64           84.4%       6.3%    0.0%
+    記       53           56.6%       9.4%    3.8%
+    義       17           29.4%      52.9%   17.6%
+    讚       27            3.7%      44.4%   51.9%
+    傳       31            0.0%       3.2%    0.0%
+
+`疏` predicts commentary and `論` predicts treatise. **`記` is a coin flip, `讚` is mostly
+root** — a hymn rather than exegesis, so the rule that looks most obvious would be actively
+wrong — and `傳` is biography from 史傳部.
+
+**The yield does not pay for what honesty would cost.** The two reliable suffixes reach
+**134 of the 1,944** roleless works — 7% — at 84% and 75% precision. And `works.text_role`
+carries no confidence or basis column, so a derived role would be indistinguishable from
+one the 部 table asserts. Doing it properly means a `text_role_basis` column, the way
+`date_basis` already exists for exactly this reason, plus a backfill and every consumer
+taught to read it. That is a schema change and a provenance claim for 7% of a population,
+against a doctrine that an unlabelled work is a smaller problem than a mislabelled one.
+
+**If it is ever revisited**, the finding to start from is that the suffix table above is
+the whole signal — and that `記` and `讚` are the traps.
 
 ### Widening the shared-text rule's partners to treatises — 2026-09-02
 
