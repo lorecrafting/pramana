@@ -269,6 +269,13 @@ one of them is freely redistributable and the other is not.
   file — so nothing in it says which of the 3,380 works a line belongs to. (The Kangyur's
   TEI has 1,208 of them.) The plain text marks each work inline as `{D1109}`: 3,380
   markers, 3,380 distinct.
+- **Then link its commentaries — `mix pramana.derge.relations --write`.** Tibetan titles
+  do not work the way `mix pramana.relations.derive` assumes: a Chinese commentary's title
+  CONTAINS its root's, while a Tibetan one shares a **stem** and differs by genre suffix
+  (`འགྲེལ་པ` vṛtti, `འགྲེལ་བཤད` ṭīkā, `ཚིག་ལེའུར་བྱས་པ` kārikā), so neither title contains
+  the other. `Pramana.Derge.Genre` reads the suffix. Ritual genres are excluded by name —
+  `སྒྲུབ་ཐབས` alone appears ~700 times, more than every commentarial suffix combined, and a
+  sādhana shares its stem with every other sādhana for the same deity.
 - **Its titles need promoting after an ingest — `mix pramana.derge.titles --write`.**
   The ingest reads each work's incipit into `works.meta` (`title_sa_ltn_computed`,
   `title_bo_ltn_computed`, `title_sa_bo_script`) and leaves `works.title` null, and
