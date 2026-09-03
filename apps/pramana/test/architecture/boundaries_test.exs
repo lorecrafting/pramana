@@ -205,6 +205,84 @@ defmodule Architecture.BoundariesTest do
     ]
   end
 
+  describe "a task that bulk-writes asks before it writes" do
+    # THE FAILURE: a task took every Tibetan work and set `title` unconditionally. The
+    # Kangyur was ALREADY titled — 1,189 of 1,195, with curated English from 84000 — so
+    # the run would have replaced published translations with Wylie transliteration. The
+    # dry run reported honest counts and showed none of it, because the destructive part
+    # was invisible until somebody asked what was already in the column.
+    #
+    # A bulk write is not reviewable by reading its diff: the damage is a function of what
+    # the database already holds, which the source does not say. So the guard is a habit
+    # rather than an analysis — a task that can rewrite many rows must default to telling
+    # you what it would do, and take a flag to actually do it. Then the destructive
+    # version is always one command away from having been previewed.
+    #
+    # Exemptions are named with a reason, because some bulk writes ARE the point of the
+    # task and previewing them means nothing.
+    @bulk_write_exempt %{
+      # Ingests: writing the corpus IS the task, and a dry ingest reports "would load
+      # everything", which is not information.
+      "apps/pramana/lib/mix/tasks/pramana.sc.chinese.ex" => "ingest",
+      "apps/pramana/lib/mix/tasks/pramana.translate.import.ex" => "ingest",
+      "apps/pramana/lib/mix/tasks/pramana.vectors.ex" =>
+        "derives rows, and --refresh is already the guarded half",
+      "apps/pramana/lib/mix/tasks/pramana.embed.import.ex" =>
+        "ingest, and re-checks a hash per row",
+      # Writes a count computed from the text itself. No curated value sits in the column
+      # for a recount to lose, and a preview would print the numbers it is about to write.
+      "apps/pramana/lib/mix/tasks/pramana.texts.count_chars.ex" => "recomputes a derived count",
+      # Writes the witness map parsed out of each file into `texts.meta`. Same shape:
+      # derived from the source, nothing curated underneath it.
+      "apps/pramana/lib/mix/tasks/pramana.witnesses.import.ex" =>
+        "derives meta from the source files"
+    }
+
+    test "a task that updates many rows in place is dry by default" do
+      offenders =
+        Path.wildcard(Path.join(@root, "apps/*/lib/mix/tasks/*.ex"))
+        |> Enum.filter(&rewrites_in_place?/1)
+        |> Enum.reject(&previewable?/1)
+        |> Enum.map(&relative/1)
+        |> Enum.reject(&Map.has_key?(@bulk_write_exempt, &1))
+
+      assert offenders == [],
+             """
+             These tasks rewrite rows in place with no way to see what they would do
+             first:
+
+             #{Enum.map_join(offenders, "\n", &"    #{&1}")}
+
+             A bulk update's damage depends on what the database already holds, which the
+             source does not show — the case this was written for would have overwritten
+             1,189 curated English titles with transliteration, and its dry run looked
+             fine. Add a `--write` (or `--apply`) switch and report the counts without it.
+             If the write IS the task, add it to `@bulk_write_exempt` with a reason.
+             """
+    end
+
+    # `update_all` or a raw UPDATE. An insert is not this: a row that did not exist cannot
+    # have held something better.
+    defp rewrites_in_place?(file) do
+      source = elixir_code(file)
+
+      String.contains?(source, "update_all(") or
+        String.contains?(source, "Repo.update_all") or
+        source =~ ~r/\bUPDATE\s+\w+/
+    end
+
+    # A switch that gates the write, whatever it is called.
+    defp previewable?(file) do
+      source = elixir_code(file)
+
+      # `--write` and `--dry-run` both let you look first, and both count. They are not
+      # equally safe: `--write` defaults to preview, so forgetting it costs a wasted run,
+      # while `--dry-run` defaults to writing, so forgetting it costs the data. Prefer
+      # `--write` in anything new.
+      source =~ ~r/\b(write|apply|commit|execute|dry_run):\s*:boolean/
+    end
+  end
+
   test "this file says which audits it does not perform" do
     assert length(unmechanised()) == 4
   end

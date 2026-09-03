@@ -10,6 +10,50 @@ name when explaining why they refuse a shortcut.
 
 ---
 
+## Glossary pinning buys 4.3 points, and the spec asked for it without measuring — 2026-09-02
+
+`docs/PLAN.md` specified the index tier as "prose, **glossary-pinned**". Nothing
+implemented it, and building it was what showed the idea is two-sided rather than a
+settled good.
+
+**What a glossary actually holds.** Of 24,811 Chinese-English pairs, most are
+*definitions rather than renderings* — `娑婆` glosses as "a transliteration of Sabhā (=
+Sahā, the name of the world in which we live)", which is true and is not what a
+translator writes. 4,533 entries survive a term-like filter, and **4,353 of those are
+unanimous** across every glossary recording them, which is far better agreement than
+`Pramana.Translators` found on Sanskrit headwords (475 of 601 disagreeing).
+
+**But the first pinned prompt opened with `云何 = why?`** — a function word that is "how"
+or "what is" at least as often — and `比丘 = bhikṣu`, which moves the English *away* from
+the "monk" a reader types. Restricting pins to 3+ character compounds, where the
+doctrinal vocabulary lives, leaves 1,723 terms and pins 119 of 205 passages.
+
+**The hypothesis was genuinely two-sided.** Pinning buys vocabulary consistency, which is
+what an index wants; it also pins the *lexicographer's* phrasing, and the index tier is
+scored on whether a **reader's** English reaches the line. The glossary says `四念處` is
+"four applications of mindfulness" while the gold set asks for "four **foundations**".
+
+    arm                              found the work   on the line
+    gemma-2-9b-it, unpinned           135/205 65.9%    55  26.8%
+    gemma-2-9b-it, PINNED             144/205 70.2%    56  27.3%
+    gemma-2-mitra-it, unpinned        166/205 81.0%    82  40.0%
+
+**Pinning helps, by 4.3 points at work level and by nothing on the line.** That is 9 net
+cases out of 205 — suggestive, not conclusive, and it is recorded here as suggestive.
+
+**It does not change the model choice, which is the decision it was run to inform.**
+Pinned `base` at 70.2% still trails MITRA's unpinned 81.0% by 10.8 points, more than
+double what pinning buys — and MITRA has no instruction slot, its template being fixed, so
+it cannot be pinned at all. The tranche runs MITRA unpinned.
+
+**Two things that keep this honest.** Pinning demonstrably applied: 119 of 119 pinned
+passages differ from their unpinned counterparts, so a null result would have meant "does
+not help" rather than "never ran". And compliance is loose — told `舍衛國 = śrāvastī`, the
+model wrote "Sravati" — so this measures pinning **as it behaves**, not as specified. A
+model that honoured its pins exactly might score differently.
+
+---
+
 ## Why every proxy lied
 
 This is the finding worth keeping, and it cost ~$2.60 to buy:

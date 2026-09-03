@@ -46,6 +46,7 @@ defmodule Mix.Tasks.Pramana.Doctor do
     corpus()
     sources()
     gaps()
+    stranded()
     reference()
     migrations()
 
@@ -154,6 +155,32 @@ defmodule Mix.Tasks.Pramana.Doctor do
 
     dated = Coverage.dated()
     row("dates", "#{dated.dated} of #{dated.works} works; #{dated.authority_linked} linked")
+  end
+
+  # DATA THAT IS HELD AND CANNOT BE REACHED.
+  #
+  # The failure this exists for: 2,675 Tengyur works had their title extracted at ingest
+  # and written into `works.meta`, while `works.title` — the column `get_outline` and
+  # `search` read — stayed null. Every count said the corpus was healthy, and the whole
+  # *pramāṇa* literature was nameless to a reader. Worse, `count(title) = 0` invited
+  # writing a parser for text that was already parsed.
+  #
+  # So this asks a different question from `gaps/0`. That one asks what has not been
+  # acquired; this asks what has been acquired, derived, and then left somewhere nothing
+  # queries. A row here is not a missing ingest — it is a promotion nobody ran.
+  defp stranded do
+    heading("held but unreachable")
+
+    case Coverage.stranded() do
+      [] ->
+        ok("nothing stranded — every derived field is in the column that is read")
+
+      rows ->
+        Enum.each(rows, fn r ->
+          warn("#{r.count} #{r.what}")
+          row("", r.fix)
+        end)
+    end
   end
 
   # `Coverage.caveat/0` is deliberately NOT printed here: it is the taishō and collection

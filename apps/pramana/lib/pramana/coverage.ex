@@ -325,6 +325,42 @@ defmodule Pramana.Coverage do
   end
 
   @doc """
+  Data the corpus HOLDS and no query can reach.
+
+  A different question from the rest of this module. Everything else asks what has not
+  been acquired; this asks what was acquired, derived, and then left in a place nothing
+  reads — where every count looks healthy and a capability is silently absent.
+
+  It exists because of a real one: the Degé ingest writes each work's title into
+  `works.meta` and leaves `works.title` null, so 2,675 Tengyur works had a title,
+  `get_outline` and `search` could not show it, and `count(title) = 0` invited writing a
+  parser for text that had already been parsed. **Both failures are the same failure** —
+  nobody asked whether the value was already held somewhere else.
+
+  Each row names the promotion that fixes it, because a warning without a remedy is a
+  warning people learn to skim. Returns `[]` when nothing is stranded.
+  """
+  @spec stranded() :: [%{what: String.t(), count: non_neg_integer(), fix: String.t()}]
+  def stranded do
+    [
+      %{
+        query: """
+        SELECT count(DISTINCT w.id) FROM works w
+         WHERE w.title IS NULL
+           AND (w.meta ? 'title_sa_ltn_computed' OR w.meta ? 'title_bo_ltn_computed')
+        """,
+        what: "works have a title in works.meta and null in works.title",
+        fix: "mix pramana.derge.titles --write"
+      }
+    ]
+    |> Enum.map(fn probe ->
+      %{rows: [[count]]} = Repo.query!(probe.query)
+      %{what: probe.what, count: count, fix: probe.fix}
+    end)
+    |> Enum.reject(&(&1.count == 0))
+  end
+
+  @doc """
   How many texts a `role:` filter cannot reach, because they have no role at all.
 
   `text_role` is a retrieval FILTER, so a query for `["root"]` returns only texts that

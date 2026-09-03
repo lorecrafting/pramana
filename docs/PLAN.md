@@ -2034,6 +2034,21 @@ let the Python sidecar grow": a translation sidecar is still tensor math and sti
 domain logic, so it is the same exception embedding already is, but it is an exception
 being used a second time and should be a deliberate decision rather than a drift.
 
+**▸ RUNNING, 2026-09-02. Tranche C on MITRA: 27,956 passages, batch 32, ~11 hours.**
+
+Top-10 by *directed* citation weight plus the four Āgamas — 14 works. The Āgamas are back
+in because directing dropped them and the gold set's early-Buddhist terms went with them:
+`六入處` fell to 1 segment, `安那般那` to 2, `七覺支` to 9. With them, 86, 43 and 52.
+
+Decisions the run rests on, each measured rather than assumed:
+
+| question | answer | how |
+|---|---|---|
+| which model | **MITRA**, +15.1 over its own base | the four-arm ladder |
+| glossary-pinned? | **no** — worth 4.3 pts, and MITRA cannot take pins | `docs/PROXIES.md` |
+| batch size | **32**, 35% faster than 8 | 600-passage pilot, twice |
+| GPU | **L40S**, not L4 | an L4 loaded the weights with 61 MB free |
+
 **▸ THE PATH TO A GPU IS BUILT, 2026-09-02. What is left is renting one.**
 
 | piece | where |
