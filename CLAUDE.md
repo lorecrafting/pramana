@@ -54,7 +54,7 @@ a historical sentence read as a current claim:
 |---|---|
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
-| `docs/RULES.md` | **78 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/RULES.md` | **79 rules** from real defects, cited by number — read before a new pipeline |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -67,7 +67,7 @@ before proposing something.
 
 ### Which rules apply to what you are about to do
 
-`docs/RULES.md` holds **78 rules, each learned from a real defect here**, and they are cited
+`docs/RULES.md` holds **79 rules, each learned from a real defect here**, and they are cited
 by number in code and commits. This file is always in your context and that one is not, so
 the triggers live here. **Read the listed rules before starting the activity, not after the
 test goes red.**
@@ -95,7 +95,7 @@ test goes red.**
 | **sample a file, or size a feature before building it** | 62, and `docs/PROXIES.md` |
 | **publish a number that confirms what you just concluded** | 62 — re-derive it by another method |
 | **fix a constant** — any constant | 41, always |
-| **finish any capability** — before calling it done | **60** — a model must be able to reach it |
+| **finish any capability** — before calling it done | **60**, **79** — a model must be able to reach it, and an invariant that holds only because something crashes does not hold |
 | make anything **optional**, or a dependency degrade | 17 |
 | **generalise** from one case, or reach for a shared helper | 16, 24, 33 |
 
@@ -105,11 +105,22 @@ enough:
 - **41 — a rule written after a fix does not sweep for the other instances.** When you fix
   a constant, grep for it. The two-digit CBETA volume was fixed in the bake and left wrong
   in the reader, where it mis-cited 725,650 segments, and then found a third time in
-  acquisition.
+  acquisition. **Three more on 2026-09-03 alone**: `String.slice` vs `binary_part` was
+  recorded in `Pramana.Segment.Taisho` and never reached `Pramana.Commentary`, where it
+  cost 100× on the 科文 run; the Taishō volume rule still typed vols 56–84 `commentary`
+  after the division table that contradicts it was corrected; and one hash was called
+  `sha256` in `Pramana.Corpus` and `content_sha256` in `Pramana.Translations`. **It is
+  cited in 16 files and is the most-tripped rule here by a wide margin.**
 - **8 — a scripted patch that reports success may have done nothing.** Eight occurrences,
   two of them while writing rules about it. Grep for the new text afterwards.
 - **1 — a buffered element that can span a line must be split at that line.** Fixed twice;
   the second time it left 10,590 printed lines with no citation.
+
+**And a fourth, on the evidence of 2026-09-03: 68 — a URN comparison is a parser.** Cited
+in 9 files. `segments.urn == alignments.root_urn` looks obviously right and drops every
+lemma anchored to a range, which is **12,697 of `T1509`'s 21,834** — the ordinary case, not
+an edge one, because most lemmas cross a printed line break. Join on the columns that
+cannot be ranges.
 
 Checkpoint tasks are marked ⛔ and are real stops — see `docs/CHECKS.md`.
 

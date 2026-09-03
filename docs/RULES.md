@@ -62,10 +62,22 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     `license_class_known` made every insert fail. That is the constraint working: a
     licence class nothing enumerates is one no query can reason about. Extend the
     constraint in the same change as the registry.
+
+    **▸ MECHANISED for `work_relations` on 2026-09-02.** `Pramana.RelationsTest` iterates
+    `Relations.methods/0` and `Relations.relations/0` and asserts the database accepts each
+    — so adding a value without extending the constraint fails a test rather than every
+    insert at runtime. It is derived from the registry (rule 12), so it extends itself. The
+    other enumerated columns still rely on somebody remembering.
 12. **A test that hardcodes a value the registry owns will fight the registry.** Three
     licence-filter tests asserted `"cc0"` for a source and broke when the licence was
     corrected — inviting a "fix" that restores the wrong licence. Derive such values
     from the source of truth (`Sources.fetch!/1`) so the test checks the *behaviour*.
+
+    **The failure has a second shape, seen 2026-09-03: a test that hardcodes a RELATIONSHIP
+    between two names.** `Pramana.TranslationsTest` asserted
+    `pooled.sha256 == resolved.content_sha256` — bridging two names for one field at the
+    only place they met, and so hiding that there were two. `get_passage` crashed on every
+    rendering URN for want of the fix that test made invisible. Rule 79.
 13. **When a column mirrors a claim someone else made, carry how confident you are
     separately from the claim.** bilara-data's publication ids do not always map onto
     the works they cover — `pli-tv-vi` is the whole Vinaya, not a prefix of
@@ -923,6 +935,29 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     The general shape: **when a check's threshold is the same number as the current
     measurement, the check has stopped measuring the thing and started measuring
     compliance.** True of the density floor, of eval baselines, and of this.
+
+79. **An invariant enforced by a crash is not enforced, and a test that bridges an
+    inconsistency is what keeps the crash alive.** `Corpus.resolve/1` routes a URN carrying
+    `#tr:` to the translation layer, so `get_passage` can be handed a generated rendering.
+    It raised `KeyError: key :sha256` on every one of them, because a rendering span named
+    its hash `content_sha256` where `Pramana.Corpus` names it `sha256`.
+
+    Invariant #8 was never violated — nothing served generated text as scripture. But it
+    held for the wrong reason. **"It crashes" is not a safeguard**: the next person to fix
+    the crash is one line from serving the text unlabelled, and they will fix it without
+    ever learning there was a rule. An invariant has to be a positive statement in the
+    response — `layer: "translation"`, `citable_as_source: false` — not the absence of one.
+
+    **And the inconsistency was known.** `Pramana.TranslationsTest` asserted
+    `pooled.sha256 == resolved.content_sha256` under the comment *"verifiability must not
+    depend on which call the caller happened to make"*. That test crossed the boundary
+    where the two names met and **encoded the mismatch as normal** rather than reporting
+    it. A test that translates between two names for one thing is the reason nobody
+    notices there are two.
+
+    Two habits: when a tool raises rather than answers, ask which rule was silently
+    depending on it; and when a test converts one field name into another, delete the
+    conversion instead of the test.
 
 
 ---
