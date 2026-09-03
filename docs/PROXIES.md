@@ -54,6 +54,52 @@ model that honoured its pins exactly might score differently.
 
 ---
 
+## The quotation graph is not a citation graph — 2026-09-02
+
+Everything that ranks works by "cross-work citation weight" — which works get an English
+layer, in what order, for how much money — reads a graph built by **suffix-array
+shared-text detection**. Its edges mean *these two texts share a passage*. They have been
+read all day as if they meant *this text cites that one*.
+
+**Measured, and they do not.** Classical Chinese marks a citation: `經云`, `論曰`, `頌曰`
+sit immediately before the quoted span, on the quoting side only. Over the 48,650
+cross-family pairs, taking the quote's head against the segment it starts in plus the one
+before:
+
+    pairs                                   48,650
+    quote locatable in its context          19,422   40%
+    a citation marker on either side          ~394    0.8%
+    DIRECTED by marker                         287    0.6%
+
+**287 pairs, against 9,812 that role and date resolve.** The marker signal is 34× weaker
+than the thing it was proposed to replace, and the reason is not that the markers are
+missed — it is that **the edges are mostly not citations**. Shared text between two
+canonical works is usually formulaic phrasing, a stock passage, or two translations of one
+Indic original. Almost nobody says "the sūtra says" first.
+
+**So a demand ranking off this graph is closer to a genre measure than an importance
+measure**, and that explains what it produced: 法苑珠林, an encyclopedia, topped the
+undirected ranking because sharing text with everything is what an encyclopedia does, and
+catalogues followed for the same reason. Directing by `text_role` and `date_start` helped
+because those encode something real about the works; markers cannot help, because the
+relation being directed is largely not the relation assumed.
+
+**Two things follow.** The tranche selected on 2026-09-02 stands — the directed top-10 is
+Prajñāpāramitā, Lotus, Avataṃsaka, Ratnakūṭa, and adding the Āgamas covers the gold set —
+but it was chosen by a proxy weaker than its name suggests, and a *better* demand signal
+would come from somewhere else entirely: what readers ask, or what the commentarial
+tradition actually explains (`work_relations`), not what shares phrasing.
+
+And **the measurement was nearly void twice**. The first query substringed into
+`texts.body`, megabytes per row, 97,300 times, and never finished. The second searched for
+the whole 37-character quote inside a 17-character segment and returned 0 directed out of
+48,650 — a clean, publishable-looking zero that meant only that the query was wrong. The
+diagnostic that caught it was counting how many quotes were *locatable at all*, which the
+first two versions never reported. **A zero with no denominator beside it is not a
+finding.**
+
+---
+
 ## Why every proxy lied
 
 This is the finding worth keeping, and it cost ~$2.60 to buy:
