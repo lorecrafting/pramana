@@ -25,9 +25,10 @@ So the categories already exist and are populated: **352 treatises, 155 commenta
 This section used to open *"Nothing in the database says which text a commentary comments
 on."* Both halves are built:
 
-- **Which work** — `work_relations`, 89 `comments_on` rows, and `Pramana.Relations`.
-- **Which line** — `commentary_alignments`, **27,254 lemma alignments over 43 pairs**,
-  attaching commentary to **20,954 distinct root lines**, and `Pramana.Commentary`.
+- **Which work** — `work_relations`, **269 `comments_on` and 38 `subcommentary_of` rows**,
+  and `Pramana.Relations`. Run `mix pramana.doctor` for the live figure; these age.
+- **Which line** — `commentary_alignments`, **72,120 lemma alignments over 76 pairs**,
+  attaching commentary to **54,343 distinct root lines**, and `Pramana.Commentary`.
 
 The second is what this document called *"the single highest-value piece of this
 feature"*, and it is deterministic: a Chinese commentary quotes a phrase of its root and

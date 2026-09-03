@@ -163,8 +163,8 @@ listed as **not started** rather than in progress, because nothing has been writ
   these wrong, confidently, in exactly the passages users care about.
 - ✅ **Quotation graph** — 141,073 verbatim reuses across 1,301 works
 - ✅ **Reading exceptions** — 9,543 over a 44,348-character base
-- ✅ **Commentary lemma-and-gloss (科文) parsing** — 27,254 lemmas over 43 work pairs,
-  attaching commentary to 20,954 root lines, deterministically. `docs/COMMENTARY.md`.
+- ✅ **Commentary lemma-and-gloss (科文) parsing** — 72,120 lemmas over 76 work pairs,
+  attaching commentary to 54,343 root lines, deterministically. `docs/COMMENTARY.md`.
 - ▸ **UNBLOCKED 2026-09-02, by acquisition rather than by code.** The blocker below was a
   genre-matched 異譯本 pair. Karashima's glossaries of **Dharmarakṣa's and Kumārajīva's
   Lotus** are exactly that — the same sūtra, two translators, glossed term by term with

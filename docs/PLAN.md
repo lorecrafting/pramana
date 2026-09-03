@@ -455,10 +455,10 @@ imply in a commit.**
 | corpus | **17,281 texts · 12,586,964 segments** · 3 traditions · **1,037,455 vectors** |
 | CBETA | **16 collections of 26** — T 2,471 · X 1,230 · J 285 · **I 101** · N 38 · **GA 51** · **F 27** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · **GB 2** · M 1 · **ZS 1** — 4,340 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
-| MCP surface | **17 read-only tools** — `search_translations`, `get_glosses`, `get_works_by_person` and `get_person` all added 2026-08-28 |
+| MCP surface | **18 read-only tools** — count them with `ls apps/pramana_web/lib/pramana_web/mcp/tools/*.ex`; this line said 17 while `docs/STATUS.md` said 18 and the directory said 18 |
 | English over Chinese | **3,354 renderings** over **2 of 4,263** CBETA works (54 Āgama sūtras) — new 2026-08-31, § E1 |
 | reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
-| work relations | 249 `comments_on` · 17 `subcommentary_of` · 82 `parallel_of` (41 pairs) — by signal, `title_match` 191, **`shared_text` 74**, `manifest` 1 |
+| work relations | **389** — 269 `comments_on` · 38 `subcommentary_of` · 82 `parallel_of` (41 pairs). By signal, in ROWS: `title_match` 240, **`shared_text` 66**, `manifest` 1; in distinct source works, 156 / 66 / 1, because one relation asserted by two methods is two rows and that is corroboration rather than duplication |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
 | commentary alignment | **72,120 lemmas over 76 pairs**, attaching commentary to **54,343 root lines** — deterministic, no model. 2026-09-03: the run went from a projected 9 hours to 2 minutes, `String.slice/3` |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
@@ -3019,7 +3019,8 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
 - ~~**Commentary lemma-and-gloss (科文) parsing** → root↔commentary alignment. Phase 6,
   untouched, deterministic, a real differentiator.~~ **▸ SHIPPED 2026-08-27.**
   `commentary_alignments`, `Pramana.Commentary`, `mix pramana.commentary.align`. **27,254
-  lemma alignments over 43 pairs, attaching commentary to 20,954 distinct root lines.**
+  lemma alignments over 43 pairs, attaching commentary to 20,954 distinct root lines** —
+  true of 2026-08-27, and **72,120 over 76 pairs and 54,343 lines as of 2026-09-03**.
 
   The rule is uniqueness, not similarity: a lemma anchors where its 8-character window
   occurs *exactly once* in the root. Measured against roots the same commentaries do not
