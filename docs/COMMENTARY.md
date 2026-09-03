@@ -68,6 +68,19 @@ than reason about it.
 several here plainly do; this method sees verbatim quotation and nothing else. Nothing
 about a `comments_on` row changes when its pair fails to align.
 
+**▸ RESOLVED 2026-09-03: the floor is no longer one number.** 論疏部 has its own, 14,
+calibrated the same way over its own null set — each subcommentary against twelve treatises
+it does not explain, 264 pairs, maximum 13.5 against the sūtra population's 28.4. Sūtras
+share enormous formulaic material with each other and treatises share much less, so
+coincidence scores lower and the bar can be lower with it. `Pramana.Commentary.min_density/1`.
+
+**The tail moved when the set grew, exactly as it did the first time**: 64 nulls maxed at
+2.6 and a floor of 3 looked defensible; 264 nulls max at 13.5. And the corroboration is
+that the pairs newly admitted average **86.5% forward order** against 84.3% over all
+accepted Chinese pairs — density called them noise and sequence says otherwise.
+
+The paragraph below is what that measurement started from.
+
 **And the floor was calibrated on one population, which is now visibly not the only one.**
 Since 2026-09-03 the aligner also reads `subcommentary_of`, so 論疏部 works — a 論疏 quoting
 its śāstra — are measured too. Of the first twelve, **one clears the floor** (`T1820`

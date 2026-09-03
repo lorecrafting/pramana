@@ -146,6 +146,7 @@ defmodule Pramana.Commentary do
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.Corpus.Work
   alias Pramana.Repo
   alias Pramana.URN
 
@@ -157,6 +158,14 @@ defmodule Pramana.Commentary do
   # Spans per 10,000 characters of commentary, and the value is measured — see the module
   # doc. It sits just above the highest density any of 120 null pairs reached.
   @min_density 30.0
+
+  # 論疏部 quotes its śāstra less verbatim than 經疏部 quotes its sūtra, and the floor above
+  # was calibrated on the second population. Its own null set — each subcommentary against
+  # twelve treatises it does not explain, 264 pairs — tops out at 13.5, against 28.4 for
+  # the sūtra nulls. Sūtras share enormous formulaic material with each other and treatises
+  # share much less, so coincidence scores lower here and the bar can be lower with it.
+  # See `min_density/1`.
+  @sastra_min_density 14.0
 
   @type span :: %{
           lemma: String.t(),
@@ -193,6 +202,43 @@ defmodule Pramana.Commentary do
   @doc "The density floor a pair must clear before any alignment is recorded."
   @spec min_density() :: float()
   def min_density, do: @min_density
+
+  @doc """
+  The density floor for a commentary of this `text_role`, which is not one number.
+
+  **30 was calibrated against sūtra exegesis and applied to everything**, and applying it
+  to 論疏部 rejected 24 of the 29 asserted śāstra pairs. That is the floor working
+  correctly on a population it was never measured over: a 論疏 quotes its śāstra less
+  verbatim than a 經疏 quotes its sūtra.
+
+  Calibrated the same way — the lowest value rejecting every null — over a null set built
+  the same way, each subcommentary against treatises it does not explain:
+
+      population        nulls   null max   floor   asserted kept
+      sūtra exegesis      120       28.4      30          43/89
+      śāstra exegesis     264       13.5      14          12/29
+
+  **And the tail moved when the set grew, exactly as it did the first time.** At 64 nulls
+  the maximum was 2.6 and a floor of 3 looked defensible; at 264 it is 13.5. A threshold
+  calibrated against a thin tail is calibrated against nothing, and the way to find out is
+  to enlarge the tail rather than reason about it — the lesson `@min_density` was already
+  carrying, re-earned.
+
+  **The corroboration is that the newly admitted pairs look MORE like real 科文 than the
+  old ones.** The seven admitted between 14 and 30 average **86.5% forward order**, against
+  84.3% over all accepted Chinese pairs. Density said they were noise; sequence says they
+  are not.
+
+  **The worst null is not a null**, and is left in rather than removed. `T1849`
+  大乘起信論內義略探記 against `T1668` 釋摩訶衍論 scores 13.5 — and 釋摩訶衍論 is itself a
+  commentary on 大乘起信論, typed `treatise`. Two commentaries on one work share their
+  root's words, which is the same contamination `Pramana.Quotations.Roots` found. Excluding
+  it would put the floor at 4; keeping it puts the floor at 14, and a threshold that
+  survives a contaminated null set is the one to have.
+  """
+  @spec min_density(String.t() | nil) :: float()
+  def min_density("subcommentary"), do: @sastra_min_density
+  def min_density(_role), do: @min_density
 
   @doc """
   Lemma spans shared by a commentary and its root, as character offsets into each body.
@@ -352,11 +398,15 @@ defmodule Pramana.Commentary do
     end
   end
 
+  # The floor depends on what kind of exegesis this is — see `min_density/1`. Looked up
+  # here rather than passed in, because every caller has the work id and none of them
+  # should have to know that the floor is not one number.
   defp report(commentary_work_id, root_work_id, commentary, root, spans) do
     c_len = String.length(commentary)
     r_len = String.length(root)
     covered = covered_chars(spans)
     density = 10_000 * length(spans) / max(1, c_len)
+    floor = commentary_work_id |> role_of() |> min_density()
 
     %{
       commentary_work_id: commentary_work_id,
@@ -365,7 +415,7 @@ defmodule Pramana.Commentary do
       density: Float.round(density, 1),
       root_pct: Float.round(100 * covered / max(1, r_len), 1),
       forward_pct: forward_pct(spans),
-      aligned: density >= @min_density
+      aligned: density >= floor
     }
   end
 
@@ -413,6 +463,10 @@ defmodule Pramana.Commentary do
       [] -> 0.0
       _ -> Float.round(100 * Enum.count(pairs, fn [a, b] -> b >= a end) / length(pairs), 1)
     end
+  end
+
+  defp role_of(work_id) do
+    Repo.one(from w in Work, where: w.id == ^work_id, select: w.text_role)
   end
 
   defp body(work_id) do

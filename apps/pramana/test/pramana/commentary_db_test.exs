@@ -18,6 +18,7 @@ defmodule Pramana.CommentaryDbTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.Corpus.Work
   alias Pramana.Normalize.CBETA
   alias Pramana.Repo
 
@@ -78,6 +79,63 @@ defmodule Pramana.CommentaryDbTest do
       confidence: "probable"
     })
     |> Repo.insert!()
+  end
+
+  describe "min_density/1" do
+    # 30 was calibrated against sūtra exegesis and applied to everything, which rejected 24
+    # of 29 asserted śāstra pairs. 論疏部 quotes its śāstra less verbatim than 經疏部 quotes
+    # its sūtra, and its own null set of 264 pairs tops out at 13.5 against 28.4.
+    test "śāstra exegesis has a lower floor than sūtra exegesis" do
+      assert Commentary.min_density("subcommentary") < Commentary.min_density("commentary")
+    end
+
+    test "an unknown or absent role gets the conservative floor, not the lower one" do
+      assert Commentary.min_density(nil) == Commentary.min_density("commentary")
+      assert Commentary.min_density("treatise") == Commentary.min_density("commentary")
+    end
+
+    # The floor follows the SOURCE's role, so the same evidence decides differently for a
+    # 經疏 and a 論疏. Without that, this whole calibration would be decoration.
+    # Density is spans per 10k characters of the COMMENTARY, so landing between the two
+    # floors needs a body long enough that one quotation is worth about twenty: one span
+    # in ~500 characters. The filler is deliberately nothing the root contains.
+    test "the same density aligns a subcommentary and does not align a commentary" do
+      load_long_commentary!()
+
+      density = Commentary.measure("T9999", "T0223").density
+      assert density > 14.0 and density < 30.0, "fixture must sit between the floors: #{density}"
+
+      set_role!("T9999", "subcommentary")
+
+      assert Commentary.measure("T9999", "T0223").aligned,
+             "a subcommentary clears the śāstra floor at this density"
+
+      set_role!("T9999", "commentary")
+
+      refute Commentary.measure("T9999", "T0223").aligned,
+             "the same evidence does not clear the sūtra floor"
+    end
+
+    defp set_role!(id, role) do
+      Repo.update_all(from(w in Work, where: w.id == ^id), set: [text_role: role])
+    end
+
+    defp load_long_commentary! do
+      filler = String.duplicate("此中應廣分別其義理趣", 48)
+
+      xml = """
+      <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
+      <teiHeader><fileDesc><titleStmt><title level="m" xml:lang="zh-Hant">長論疏</title>
+      </titleStmt></fileDesc></teiHeader>
+      <text><body>
+      <milestone n="1" unit="juan"/>
+      <lb n="0001a01"/>釋曰如是我聞一時佛住王舍城者#{filler}
+      </body></text></TEI>
+      """
+
+      {:ok, ir} = CBETA.normalize(xml, work_id: "T9999", canon: "T", volume: 25, number: "9999")
+      {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T")
+    end
   end
 
   describe "outline/1" do

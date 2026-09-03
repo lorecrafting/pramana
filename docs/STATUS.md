@@ -49,14 +49,14 @@ between the markers; edit the corpus, or run the task.
 | comments_on | **269** |
 | subcommentary_of | **38** |
 | parallel_of | **82** |
-| commentary alignments | **72,120** |
-| root lines with commentary | **54,343** |
+| commentary alignments | **74,644** |
+| root lines with commentary | **56,363** |
 <!-- /figures -->
 
 <!-- figures:derived -->
 | | |
 |---|---|
-| commentary alignment | **76 of 184 alignable pair(s) — 54 distinct commentaries, 72,120 line alignments** |
+| commentary alignment | **83 of 184 alignable pair(s) — 60 distinct commentaries, 74,644 line alignments** |
 | commentary -> root links | **194 of 3,923 commentarial works reach a root** |
 | Tibetan work titles | **3,864 of 4,575 works named** |
 <!-- /figures -->

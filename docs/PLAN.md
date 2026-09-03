@@ -342,8 +342,11 @@ and prompt were each measured, and § E1 records what by.
    108.5). The other eleven are not noise — forward order runs **66–83%** against ~50% for
    chance. Śāstra exegesis has 科文 structure and quotes less verbatim than sūtra exegesis,
    and a floor calibrated on 120 null pairs of the latter rejects nearly all of the former.
-   **Whether 30 is the right floor for that population is now an open question with numbers
-   attached**, and it needs its own null set before anyone moves it.
+   ~~**Whether 30 is the right floor for that population is now an open question with
+   numbers attached**, and it needs its own null set before anyone moves it.~~ ▸ **ANSWERED
+   2026-09-03: it is 14**, calibrated over 264 nulls built the same way the original 120
+   were. `83 of 184 pairs align, from 76`; `74,644` alignments from 72,120; 60 distinct
+   commentaries from 54. See `Pramana.Commentary.min_density/1`.
 
 7. ~~**`Commentary.lemmas_of/2` answers a real question and nothing routes to it.**~~
    ▸ **DONE 2026-09-03, by answering the question rather than routing the function.**
@@ -482,14 +485,14 @@ held 18, so the counts no longer live in prose. Rule 77.
 | comments_on | **269** |
 | subcommentary_of | **38** |
 | parallel_of | **82** |
-| commentary alignments | **72,120** |
-| root lines with commentary | **54,343** |
+| commentary alignments | **74,644** |
+| root lines with commentary | **56,363** |
 <!-- /figures -->
 
 <!-- figures:derived -->
 | | |
 |---|---|
-| commentary alignment | **76 of 184 alignable pair(s) — 54 distinct commentaries, 72,120 line alignments** |
+| commentary alignment | **83 of 184 alignable pair(s) — 60 distinct commentaries, 74,644 line alignments** |
 | commentary -> root links | **194 of 3,923 commentarial works reach a root** |
 | Tibetan work titles | **3,864 of 4,575 works named** |
 <!-- /figures -->
