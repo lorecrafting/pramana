@@ -121,11 +121,29 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
   # Tibetan is about two syllables, which recur constantly — the uniqueness rule does not
   # hold, so the method has no basis there.
   #
-  # This reads every `comments_on` relation, and on 2026-09-02 `mix pramana.derge.relations`
-  # added 93 Tibetan ones. A single Tibetan pair then ran for five minutes without
-  # finishing, against seconds for a Chinese one, because a window that is unique nowhere
-  # makes every candidate set enormous. Left unguarded it would either burn hours finding
-  # nothing or, worse, return alignments whose uniqueness premise was never true.
+  # This reads every asserted relation, and on 2026-09-02 `mix pramana.derge.relations`
+  # added 93 Tibetan ones.
+  #
+  # **The original reason for this guard was that a Tibetan pair ran five minutes without
+  # finishing. That was a defect, not the method** — `String.slice/3` walking the binary
+  # once per span, fixed 2026-09-03. The same pairs now run in 0.01-0.05 s.
+  #
+  # **The real reason is stronger, and the fix is what made it visible.** Measured on three
+  # Tibetan pairs the day the speed excuse went away:
+  #
+  #     toh2231 -> toh2229   density 554.1   forward 57.4%
+  #     toh1900 -> toh1901   density 297.1   forward 60.7%
+  #     toh1900 -> toh1367   density 373.7   forward 51.9%
+  #
+  # Forward order is at chance — 50% — against **84.3% over accepted Chinese pairs**, which
+  # is exactly what "eight characters is about two Tibetan syllables" predicts: the windows
+  # match everywhere and in no order. And the densities are 10-18x the floor, so **the
+  # floor would wave every one of them through.** Unguarded, this would now write thousands
+  # of alignments whose uniqueness premise was never true, quickly.
+  #
+  # So the guard is more necessary since it got fast, not less. See `docs/PLAN.md` item 2:
+  # a Tibetan aligner needs syllable windows, its own floor, AND the discriminator actually
+  # enforced rather than reported.
   #
   # So the filter is on the SOURCE, not on the relation: a pair is alignable when both
   # sides are Chinese. A Tibetan equivalent needs syllable windows and its own measured

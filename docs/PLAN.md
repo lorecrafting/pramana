@@ -47,13 +47,44 @@ and prompt were each measured, and § E1 records what by.
    `comments_on` relations between works both held in Chinese — which was item 3.
    ▸ **Item 3 shipped 2026-09-02 and added 74**, so the input has grown; re-running is now
    item 6, and it needs sizing before it is started.
-2. **A Tibetan aligner, if #1 pays.** The Chinese method cannot transfer: 科文 alignment
+2. **A Tibetan aligner. #1 paid — 72,120 alignments — so this is live, and the case for
+   it changed on 2026-09-03.** The Chinese method still cannot transfer: 科文 alignment
    rests on an eight-CHARACTER window being unique in the root, and eight characters of
-   Tibetan is about two syllables, which recur constantly. A single Tibetan pair ran five
-   minutes without finishing where a Chinese one takes seconds. A Tibetan version needs
+   Tibetan is about two syllables, which recur constantly. A Tibetan version needs
    **syllable** windows and its own measured floor — the tsheg the edition prints is the
    unit, the same reasoning that refused `botok` for the lexical layer. New method, not a
    parameter.
+
+   **▸ CORRECTION. "A single Tibetan pair ran five minutes without finishing" was a defect,
+   not the method** — `String.slice/3`, item 6. The same pairs now run in 0.01–0.05 s.
+   Anyone reading the old sentence would conclude the guard exists for performance and
+   could remove it now that the performance is fine.
+
+   **The measured reason is the opposite, and it is worse.** With the speed excuse gone:
+
+       toh2231 -> toh2229   density 554.1   forward 57.4%
+       toh1900 -> toh1901   density 297.1   forward 60.7%
+       toh1900 -> toh1367   density 373.7   forward 51.9%
+
+   Forward order is at chance against **84.3% over accepted Chinese pairs** — the windows
+   match everywhere and in no order, exactly as the syllable argument predicts. And the
+   densities are 10–18× the floor, so **the density floor would accept every one of them.**
+   The source guard is now the only thing standing between this task and thousands of fast,
+   confident, meaningless alignments.
+
+   **Which exposes a design gap worth fixing before any Tibetan work: the floor gates on
+   density, and the discriminator is only reported.** `docs/COMMENTARY.md` uses forward
+   order to tell real 科文 structure from overlap, and `aligned` never consults it. On
+   Chinese the two agree, so nothing showed; on Tibetan they disagree completely.
+
+   Enforcing it is not free and needs its own null set before a threshold is picked: **7 of
+   76 accepted Chinese pairs fall below 70% forward**, and they are mostly Diamond Sūtra
+   commentaries aligned against a *different translation* of their root — `T1510b` → `T0236b`
+   at 67.3%, `T1511` → `T0236b` at 67.0%. That is the case `docs/COMMENTARY.md` already
+   says forward order detects, so those numbers are informative rather than noise, and a
+   gate would have to decide whether the right sūtra in the wrong translation is an
+   alignment or not. Calibrate as the density floor was calibrated — the lowest value
+   rejecting a null set — not by eye.
 3. ~~**Chinese śāstra linking.**~~ ▸ **SHIPPED 2026-09-02** —
    `mix pramana.relations.shared_text`, `Pramana.Quotations.Roots`, `method: shared_text`.
    **66 works linked, 44 of which reach no root by any other method.** With item 4's fix

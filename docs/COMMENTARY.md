@@ -81,6 +81,17 @@ place.
 See `Pramana.Commentary` for the full method, including what forward order says about a
 commentary aligned to four different translations of the same sūtra.
 
+**And note what the floor does NOT do: it gates on density, and forward order is only
+reported.** On Chinese the two agree, so nothing showed. On Tibetan they disagree
+completely — `toh2231` → `toh2229` scores density 554.1 against a floor of 30, with forward
+order at **57.4%**, which is chance. The windows match everywhere and in no order, because
+eight characters is about two Tibetan syllables. Only the source guard in
+`mix pramana.commentary.align` keeps those out, and it was written for a performance reason
+that turned out to be a `String.slice/3` defect. Enforcing the discriminator is
+`docs/PLAN.md` item 2, and it needs a null set before a threshold: **7 of 76 accepted
+Chinese pairs fall below 70% forward**, and they are mostly commentaries aligned to a
+different translation of their root — informative, not noise.
+
 ## The design
 
 A typed, directional relation table:
