@@ -23,6 +23,7 @@ count the rows, or ask `tools/list`.
 | `survey_corpus` | Exhaustive counts, not a ranked sample. The tool that supports claims about *how often* or *where*. |
 | `get_passage` | One URN, optionally with `context_before` / `context_after`, and optionally with translations (`translation`, `translator`, `compare_translations`). |
 | `get_outline` | A work's structure without its text. |
+| `get_commentary_outline` | Where a commentary does its work in its root, by juan — the 科文 outline from the commentary's side, where `get_glosses` reads it from the root's. A juan absent from the list is one nothing was quoted from, never one missing from the corpus. |
 | `get_commentaries` | Which works explain this work, and what this work explains — walked back to root scripture. Each carries `alignment` when it is anchored to the root lemma by lemma; absence means no verbatim quotation, never a weaker commentary. |
 | `get_glosses` | Which commentaries explain **this line**, by deterministic 科文 lemma match. |
 | `compare_translators` | Which Chinese word each translator chose for the same Sanskrit term — **attested** by Karashima's glossaries, not inferred from frequency. Kumārajīva 增上慢 against Dharmarakṣa 貢高 for *adhimāna-prāpta*. |

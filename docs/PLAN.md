@@ -345,25 +345,33 @@ and prompt were each measured, and § E1 records what by.
    **Whether 30 is the right floor for that population is now an open question with numbers
    attached**, and it needs its own null set before anyone moves it.
 
-7. **`Commentary.lemmas_of/2` answers a real question and nothing routes to it.**
-   ▸ **DISCOVERED 2026-09-03.** Not the MCP surface, not the reader, not a test, not a
-   document — and `CLAUDE.md` is explicit that a capability nobody is routed to has not
-   shipped.
+7. ~~**`Commentary.lemmas_of/2` answers a real question and nothing routes to it.**~~
+   ▸ **DONE 2026-09-03, by answering the question rather than routing the function.**
 
-   It is worth routing rather than deleting. *Walk me through what this commentary
-   explains, in its own order* is the 科文 outline, and it is the natural complement to
-   `get_glosses`, which answers the same question from the other end — *what explains this
-   line*. It also got 2.65× richer on 2026-09-03.
+   `get_commentary_outline` is the 科文 outline from the commentary's side, where
+   `get_glosses` reads it from the root's: **which juan of its root a commentary works
+   over, with the lemma and line counts in each.** `T1509` 大智度論 anchors **21,834
+   lemmas across 27 juan** of `T0223`.
 
-   **Route it WITH a total.** It truncates at 100 in silence, which now hides **67,055 of
-   72,120 alignments across 45 of 54 commentaries** — `T1509` holds 21,834 and would return
-   100. `get_glosses` had the same defect on a smaller scale (27 root lines above the
-   default 20, one at 109) and now returns `returned`, `total` and `truncated`; whatever
-   routes to `lemmas_of` must do the same before it is exposed, not after.
+   **A page of lemmas was never the answer.** `lemmas_of/2` returns 100 of 21,834 — 0.5%,
+   in silence. The question behind *walk me through what this commentary explains* is where
+   its attention falls, which is a shape rather than a list, and a shape is small enough to
+   return whole. Counts are complete; the lemmas for any line come from `get_glosses`.
 
-   ~~Also owed: the reader shows 8 glosses of however many exist and says nothing about
-   the rest.~~ ▸ **DONE 2026-09-03** — `passage_live` prints *"Showing the 8 longest of N
-   quotations of this line"* whenever there is a remainder, and nothing when there is not.
+   **An absent juan is a claim and the reply states it.** 科文 alignment sees verbatim
+   quotation, so a juan that does not appear is one nothing was quoted from — usually the
+   commentary stopping partway through its root. It never means the juan is missing from the
+   corpus, and a gap in a list of divisions is exactly the shape a reader mistakes for an
+   absence in the canon.
+
+   **Building it found a 58% silent undercount.** The obvious join is
+   `segments.urn == alignments.root_urn`, and it reported 9,137 lemmas for `T1509` against
+   the alignment run's 21,834: **12,697 of them are anchored to RANGE URNs**
+   (`...@p0321b24-p0321b25`) because the lemma crosses a printed line break, which
+   `Pramana.Commentary` itself says most lemmas do. An equality test on a URN is a parser —
+   rule 68, in the form that bites hardest, because the rows it drops are the ordinary case.
+   The join is now on `root_text_id` plus character containment, columns that cannot be
+   ranges, and a test pins a range-anchored lemma so the equality version cannot come back.
 
 8. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
    worth another ~$40 depends on what this one delivers, and the demand ranking it would
@@ -464,7 +472,7 @@ held 18, so the counts no longer live in prose. Rule 77.
 | renderings | **245,583** |
 | glossary entries | **89,649** |
 | quotations | **141,073** |
-| MCP tools | **18** |
+| MCP tools | **19** |
 <!-- /figures -->
 
 <!-- figures:relations -->

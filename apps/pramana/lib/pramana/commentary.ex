@@ -532,16 +532,94 @@ defmodule Pramana.Commentary do
   end
 
   @doc """
+  Where in its root a commentary does its work, by juan, with the totals.
+
+  ## Why an outline rather than a list
+
+  `lemmas_of/2` returns lemmas and `T1509` has 21,834 of them; a hundred of those answers
+  nothing and all of them are not an answer either. The question behind *walk me through
+  what this commentary explains* is **where its attention falls** — which parts of the root
+  it works over and which it passes by — and that is a shape, not a list.
+
+  So this groups by the root's own division. `segments.juan` is a first-class column, so
+  no URN is split to get it (rule 68: a prefix test on a URN is a parser).
+
+  ## A juan with no lemmas is absent, and that is a claim
+
+  A juan the commentary never quotes does not appear. That is real information — 科文
+  alignment sees verbatim quotation, so an absent juan means *this commentary quotes
+  nothing from it*, which is usually because the commentary stops partway through its root
+  and occasionally because it paraphrases that stretch. It never means the juan is missing
+  from the corpus. Callers that would read a gap as an absence in the canon get the totals
+  beside it to check against.
+  """
+  @spec outline(String.t()) :: %{
+          commentary_work_id: String.t(),
+          lemmas: non_neg_integer(),
+          roots: [map()]
+        }
+  def outline(commentary_work_id) when is_binary(commentary_work_id) do
+    # NOT `s.urn == a.root_urn`. A lemma that crosses a printed line break is anchored to a
+    # RANGE — `...@p0321b24-p0321b25` — which equals no segment's URN, and **12,697 of
+    # T1509's 21,834 alignments are ranges**: an equality join reported 9,137 and dropped
+    # 58% in silence. Rule 68, in the form that bites hardest, because the dropped rows are
+    # the ordinary case rather than an edge one; this module's own docs say most lemmas
+    # cross a break.
+    #
+    # So the join is on the columns that cannot be ranges: the text, and the segment whose
+    # character span contains the lemma's start.
+    rows =
+      from(a in CommentaryAlignment,
+        join: s in Segment,
+        on:
+          s.text_id == a.root_text_id and s.char_start <= a.root_char_start and
+            s.char_end > a.root_char_start,
+        where: a.commentary_work_id == ^commentary_work_id,
+        group_by: [a.root_work_id, s.juan],
+        order_by: [asc: a.root_work_id, asc: s.juan],
+        select: %{
+          root_work_id: a.root_work_id,
+          juan: s.juan,
+          lemmas: count(a.id),
+          lines: count(s.urn, :distinct)
+        }
+      )
+      |> Repo.all()
+
+    roots =
+      rows
+      |> Enum.group_by(& &1.root_work_id)
+      |> Enum.map(fn {root, spread} ->
+        %{
+          root_work_id: root,
+          lemmas: Enum.sum(Enum.map(spread, & &1.lemmas)),
+          lines: Enum.sum(Enum.map(spread, & &1.lines)),
+          juan: Enum.map(spread, &Map.take(&1, [:juan, :lemmas, :lines]))
+        }
+      end)
+      |> Enum.sort_by(&(-&1.lemmas))
+
+    %{
+      commentary_work_id: commentary_work_id,
+      lemmas: Enum.sum(Enum.map(roots, & &1.lemmas)),
+      roots: roots
+    }
+  end
+
+  @doc """
   Every lemma a commentary quotes, in the commentary's own order.
 
-  > #### No caller, and a 93% gap if one appears {: .warning}
+  > #### Use `outline/1` unless you want the lemmas themselves {: .tip}
   >
-  > Nothing routes to this — not the MCP surface, not the reader, not a test. It also
-  > truncates at 100 with no disclosure, and after 2026-09-03 that hides **67,055 of the
-  > corpus's 72,120 alignments across 45 of 54 commentaries**; `T1509` alone holds 21,834
-  > and would return 100 of them. The question it answers is real — *walk me through what
-  > this commentary explains, in its own order*, which is the 科文 outline — so it is worth
-  > routing rather than deleting, WITH a total beside it. `docs/PLAN.md` has the decision.
+  > This truncates at 100 with no disclosure, which for `T1509`'s 21,834 alignments means
+  > returning 0.5% of them and saying nothing. It had no caller at all until 2026-09-03,
+  > and rather than routing it, `outline/1` answers the question behind it — *where does
+  > this commentary do its work* — with complete counts, because a page of lemmas is not
+  > what anyone wanted from a 21,834-lemma commentary.
+  >
+  > Kept for the case this really is the question: a short commentary, read in order.
+  > **A caller that pages through it must publish the total** (`gloss_count/1` for the
+  > per-line version), which is the condition `docs/PLAN.md` item 7 attached.
   """
   @spec lemmas_of(String.t(), keyword()) :: [map()]
   def lemmas_of(commentary_work_id, opts \\ []) when is_binary(commentary_work_id) do

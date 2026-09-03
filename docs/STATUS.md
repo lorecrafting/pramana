@@ -39,7 +39,7 @@ between the markers; edit the corpus, or run the task.
 | renderings | **245,583** |
 | glossary entries | **89,649** |
 | quotations | **141,073** |
-| MCP tools | **18** |
+| MCP tools | **19** |
 <!-- /figures -->
 
 <!-- figures:relations -->
