@@ -488,7 +488,33 @@ defmodule Pramana.Commentary do
   end
 
   @doc """
+  How many commentary lemmas anchor to this root line, ignoring any limit.
+
+  **`glosses_on/2` truncates and cannot say so from a list.** 27 root lines carry more
+  than the default 20 — `T0279_012@p0058a11` carries 109 — and a caller handed twenty of
+  them has no way to learn there are eighty-nine more. Publishing the gap rather than the
+  total is this project's most-repeated lesson (rules 22, 44, 54) and the API surface was
+  not honouring it.
+
+  Ordering makes truncation defensible rather than arbitrary — longest lemma first, so a
+  caller keeps the most substantial glosses — but defensible is not the same as disclosed.
+  """
+  @spec gloss_count(String.t()) :: non_neg_integer()
+  def gloss_count(root_urn) when is_binary(root_urn) do
+    Repo.aggregate(from(a in CommentaryAlignment, where: a.root_urn == ^root_urn), :count)
+  end
+
+  @doc """
   Every lemma a commentary quotes, in the commentary's own order.
+
+  > #### No caller, and a 93% gap if one appears {: .warning}
+  >
+  > Nothing routes to this — not the MCP surface, not the reader, not a test. It also
+  > truncates at 100 with no disclosure, and after 2026-09-03 that hides **67,055 of the
+  > corpus's 72,120 alignments across 45 of 54 commentaries**; `T1509` alone holds 21,834
+  > and would return 100 of them. The question it answers is real — *walk me through what
+  > this commentary explains, in its own order*, which is the 科文 outline — so it is worth
+  > routing rather than deleting, WITH a total beside it. `docs/PLAN.md` has the decision.
   """
   @spec lemmas_of(String.t(), keyword()) :: [map()]
   def lemmas_of(commentary_work_id, opts \\ []) when is_binary(commentary_work_id) do

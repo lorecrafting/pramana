@@ -345,7 +345,26 @@ and prompt were each measured, and § E1 records what by.
    **Whether 30 is the right floor for that population is now an open question with numbers
    attached**, and it needs its own null set before anyone moves it.
 
-7. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
+7. **`Commentary.lemmas_of/2` answers a real question and nothing routes to it.**
+   ▸ **DISCOVERED 2026-09-03.** Not the MCP surface, not the reader, not a test, not a
+   document — and `CLAUDE.md` is explicit that a capability nobody is routed to has not
+   shipped.
+
+   It is worth routing rather than deleting. *Walk me through what this commentary
+   explains, in its own order* is the 科文 outline, and it is the natural complement to
+   `get_glosses`, which answers the same question from the other end — *what explains this
+   line*. It also got 2.65× richer on 2026-09-03.
+
+   **Route it WITH a total.** It truncates at 100 in silence, which now hides **67,055 of
+   72,120 alignments across 45 of 54 commentaries** — `T1509` holds 21,834 and would return
+   100. `get_glosses` had the same defect on a smaller scale (27 root lines above the
+   default 20, one at 109) and now returns `returned`, `total` and `truncated`; whatever
+   routes to `lemmas_of` must do the same before it is exposed, not after.
+
+   Also owed: **the reader shows 8 glosses of however many exist** (`passage_live.ex`) and
+   says nothing about the rest. Same fix, user-facing.
+
+8. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
    worth another ~$40 depends on what this one delivers, and the demand ranking it would
    use is itself a weak proxy — see § E1 and `docs/PROXIES.md`.
 

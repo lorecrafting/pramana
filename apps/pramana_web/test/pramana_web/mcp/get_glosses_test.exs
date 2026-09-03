@@ -87,6 +87,60 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
     response |> Map.fetch!(:content) |> hd() |> Map.fetch!("text") |> Jason.decode!()
   end
 
+  # Twenty of 109 and twenty of twenty are the same list. 27 root lines in the corpus
+  # carry more than the default limit, one of them 109, and a caller handed the first
+  # twenty had no way to learn that. Rules 22, 44, 54.
+  test "reports how many glosses exist, not only how many it returned" do
+    payload = json(%{urn: @root_urn})
+
+    assert payload["returned"] == length(payload["glosses"])
+    assert payload["total"] == payload["returned"]
+    refute payload["truncated"]
+  end
+
+  test "says so when it truncates" do
+    second_gloss_on_the_same_line()
+
+    payload = json(%{urn: @root_urn, limit: 1})
+
+    assert payload["returned"] == 1
+    assert payload["total"] == 2
+    assert payload["truncated"]
+    # Longest lemma first, so truncation keeps the most substantial gloss.
+    assert hd(payload["glosses"])["length"] == 9
+  end
+
+  # A second commentary explaining the same root line — the ordinary case for a much-read
+  # sūtra, and the one the default limit of 20 hides at 109.
+  defp second_gloss_on_the_same_line do
+    [root_id, commentary_id] =
+      Enum.map(["T0262", "T1718"], fn work ->
+        Repo.one!(from(t in Text, where: t.work_id == ^work, select: t.id))
+      end)
+
+    lemma = "如是我聞一時佛住王"
+
+    %CommentaryAlignment{}
+    |> Ecto.Changeset.change(%{
+      lemma: lemma,
+      lemma_sha256: Base.encode16(:crypto.hash(:sha256, lemma), case: :lower),
+      length: 9,
+      commentary_text_id: commentary_id,
+      commentary_work_id: "T1718",
+      commentary_urn: @commentary_urn,
+      commentary_char_start: 20,
+      commentary_char_end: 29,
+      root_text_id: root_id,
+      root_work_id: "T0262",
+      root_urn: @root_urn,
+      root_char_start: 0,
+      root_char_end: 9,
+      method: "lemma_match",
+      confidence: "probable"
+    })
+    |> Repo.insert!()
+  end
+
   test "returns the commentaries that gloss this line" do
     payload = json(%{urn: @root_urn})
 

@@ -12,6 +12,12 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
   A Chinese commentary quotes a phrase of its root and then glosses it, so the alignment is
   already written in the text. A lemma anchors where its 8-character window occurs **exactly
   once** in the root — a property of the root, measured, not a similarity score. `method` is
+  A response says how many glosses exist, not only how many it returned. `returned`,
+  `total` and `truncated` travel with every reply, because twenty of 109 and twenty of
+  twenty are otherwise the same list — and 27 root lines in the corpus carry more than the
+  default 20, one of them 109. Raise `limit` to see the rest. Truncation keeps the longest
+  lemmas, so it is the most substantial glosses that survive it.
+
   `lemma_match` and `confidence` is `probable`: the lemma is certain, and that this
   commentary is glossing *this* occurrence rather than quoting the phrase in passing is an
   inference.
@@ -53,12 +59,20 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
 
   @impl true
   def execute(%{urn: urn} = params, frame) do
-    glosses = Commentary.glosses_on(urn, limit: params[:limit] || 20)
+    limit = params[:limit] || 20
+    glosses = Commentary.glosses_on(urn, limit: limit)
+    total = Commentary.gloss_count(urn)
 
     payload = %{
       root_urn: urn,
       glosses: Enum.map(glosses, &present/1),
       commentaries: glosses |> Enum.map(& &1.commentary_work_id) |> Enum.uniq(),
+      # THE GAP, NOT JUST WHAT FITS. Twenty of 109 and twenty of twenty are the same list,
+      # and a caller that cannot tell them apart will read the first as complete. Rules 22,
+      # 44 and 54; `Commentary.gloss_count/1`.
+      returned: length(glosses),
+      total: total,
+      truncated: total > length(glosses),
       method: "lemma_match",
       note: @note,
       bake_id: Pramana.Bake.current_id()
