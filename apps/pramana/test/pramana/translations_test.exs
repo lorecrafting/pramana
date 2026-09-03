@@ -109,8 +109,12 @@ defmodule Pramana.TranslationsTest do
       [pooled] = Translations.pool(@anchor)
       {:ok, resolved} = Pramana.Corpus.resolve("#{@anchor}#tr:en/sujato")
 
-      # Verifiability must not depend on which call the caller happened to make.
-      assert pooled.sha256 == resolved.content_sha256
+      # Verifiability must not depend on which call the caller happened to make — and
+      # until 2026-09-03 it depended on which NAME the caller reached for: this line read
+      # `pooled.sha256 == resolved.content_sha256`, comparing across an inconsistency
+      # rather than reporting it. `get_passage` reaches for `span.sha256` and crashed on
+      # every rendering URN because of it.
+      assert pooled.sha256 == resolved.sha256
 
       assert pooled.sha256 ==
                :crypto.hash(:sha256, "So I have heard.") |> Base.encode16(case: :lower)

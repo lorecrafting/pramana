@@ -309,7 +309,11 @@ defmodule Pramana.Translations do
       # translation is one lookup away from the words it is a translation OF.
       anchor_urn: anchor,
       content: rendering.text,
-      content_sha256: rendering.text_sha256,
+      # `sha256`, matching what `Pramana.Corpus` returns. It was `content_sha256` here and
+      # `sha256` there, and `get_passage` reaches for `span.sha256` — so any rendering URN
+      # crashed the tool with a KeyError rather than answering. Two names for one field
+      # across a boundary is a bug waiting for the first caller who crosses it.
+      sha256: rendering.text_sha256,
       provenance: provenance(rendering)
     }
   end

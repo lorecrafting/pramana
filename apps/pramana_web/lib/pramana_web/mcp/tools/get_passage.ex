@@ -149,6 +149,34 @@ defmodule PramanaWeb.MCP.Tools.GetPassage do
       "No passage exists at #{urn}. This URN is well-formed but addresses nothing " <>
         "in the current bake — do not cite it."
 
+  # A RENDERING IS NOT A PASSAGE, AND SAYING SO IS INVARIANT #8.
+  #
+  # `Corpus.resolve/1` routes a URN carrying `#tr:<lang>/<translator>` to the translation
+  # layer, so this tool really can be handed one — and it crashed on every rendering URN
+  # with `KeyError: key :sha256`, because a rendering span has no offsets into a witness
+  # and named its hash differently. Found 2026-09-03 by performing `docs/CHECKS.md` §2's
+  # invariant #8 audit by hand.
+  #
+  # It answers now, and the answer leads with what the thing is. No offsets are invented:
+  # a rendering has none, and a fabricated range would be exactly the false precision the
+  # citation guard exists to make impossible. `anchor_urn` is what a caller cites.
+  defp payload(%{anchor_urn: anchor} = span, _params) when is_binary(anchor) do
+    %{
+      urn: span.urn,
+      layer: "translation",
+      citable_as_source: false,
+      anchor_urn: anchor,
+      text: span.content,
+      sha256: span.sha256,
+      provenance: span.provenance,
+      note:
+        "This is a RENDERING of #{anchor}, not a passage of any witness. Cite " <>
+          "`anchor_urn` and quote the source there; a translation is never citable as " <>
+          "source, and a generated one carries `method` other than `human`. It has no " <>
+          "offsets because it indexes no edition — fetch `anchor_urn` for those."
+    }
+  end
+
   defp payload(span, params) do
     %{
       urn: span.urn,

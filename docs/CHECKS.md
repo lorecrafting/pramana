@@ -97,7 +97,16 @@ Specifically audit:
   failure that actually happened. **It cannot prove correspondence** — that the sha256 is
   *of* the text beside it, or that a new response shape carries offsets at all — so
   reading a payload is still a person's job. Presence is mechanical; belonging is not.
-- Is any generated translation reachable as a top-level URN? (It must not.)
+- Is any generated translation reachable as a top-level URN? (It must not.) — **audited by
+  hand 2026-09-03.** The structure holds: a rendering is a URN *fragment*, so it cannot be
+  addressed without naming the source anchor it renders, and `search_translations` returns
+  `anchor_urn` and `rendering_urn` separately with `citable_as_source: false`, `method`,
+  `tier`, model id and prompt hash. **But `get_passage` crashed on every rendering URN** —
+  `KeyError: key :sha256`, because a rendering span has no offsets into a witness and named
+  its hash `content_sha256` where `Pramana.Corpus` names it `sha256`. A tool that raises is
+  not leaking, so the invariant held; a tool that raises is also not answering. It now
+  answers and leads with `layer: "translation"` and `citable_as_source: false`, and invents
+  no offsets, because a fabricated range is the false precision the guard exists to prevent.
 - Is the bake still reproducible from `sources.lock.json` alone?
 
 Write findings into `docs/HISTORY.md` under the phase heading. If an invariant was

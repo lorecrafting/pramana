@@ -100,6 +100,35 @@ defmodule PramanaWeb.MCP.GetPassageTranslationsTest do
       |> Map.fetch!("text")
       |> Jason.decode!()
 
+  describe "a rendering URN reaches this tool, and is not a passage" do
+    @generated "#{@anchor}#tr:en/model:claude-opus-5"
+
+    # `Corpus.resolve/1` routes a URN carrying `#tr:` to the translation layer, so this
+    # tool really can be handed one. It crashed on every rendering URN with
+    # `KeyError: key :sha256` until 2026-09-03 — a rendering span has no offsets into a
+    # witness and named its hash `content_sha256` where the corpus names it `sha256`.
+    # Found by performing `docs/CHECKS.md` §2's invariant #8 audit by hand.
+    test "answers rather than raising, and leads with what it is" do
+      payload = call!(%{urn: @generated})
+
+      assert payload["layer"] == "translation"
+      assert payload["citable_as_source"] == false
+      assert payload["anchor_urn"] == @anchor
+      assert payload["text"] == "Thus have I heard."
+      assert payload["provenance"]["method"] == "llm"
+    end
+
+    # No offsets rather than fabricated ones: a rendering indexes no edition, and a
+    # made-up range is exactly the false precision the citation guard exists to prevent.
+    test "carries a sha256 and invents no offsets" do
+      payload = call!(%{urn: @generated})
+
+      assert is_binary(payload["sha256"])
+      refute Map.has_key?(payload, "offsets")
+      assert payload["note"] =~ "never citable as source"
+    end
+  end
+
   test "no translation is attached unless one was asked for" do
     data = call!(%{urn: @anchor})
 
