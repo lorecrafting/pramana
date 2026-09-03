@@ -2721,6 +2721,58 @@ touched nothing the retrievers do.
   `CLAUDE.md` among them, which is the one a new session treats as binding. Corrected
   there, in `docs/ELIXIR.md`, `docs/DEV_ENV.md` and STATUS's open questions.
 
+## S1. The surviving Sanskrit witnesses — scoped 2026-09-02, not started
+
+**There is no Sanskrit canon, and the item has to be written as if there is not.** No
+Sanskrit Tripiṭaka exists the way a Pāli canon or a Taishō does: most Indic originals are
+lost, and the Āgamas survive in Chinese *because* the Sanskrit did not. What exists is a
+survival set — Saddharmapuṇḍarīka, Aṣṭasāhasrikā, Laṅkāvatāra, Vimalakīrti in part;
+Abhidharmakośa and the Madhyamaka and Yogācāra śāstras; Mahāvastu, Lalitavistara,
+Divyāvadāna; and manuscript finds from Gilgit, Schøyen and Turfan. "Add Sanskrit" means
+adding **witnesses**, not a fourth canon, and any plan phrased the other way is wrong
+before it starts.
+
+**What it buys is the pivot, and that is the argument for it.** Chinese-to-Tibetan term
+correspondence currently rests on a glossary's *assertion* — `Pramana.Translators` joins
+two Karashima glossaries on normalised Sanskrit and finds **475 of 601 shared terms
+disagree**. With Sanskrit source text the same alignment can run through the shared
+original: deterministic, checkable, and invariant #5's stated preference over the
+probabilistic route we are presently forced onto. Nothing else in the corpus can do this,
+because Sanskrit is the language the other three translate *from*.
+
+**Shape: a dedicated ingest, not the pipeline behaviours.** `CLAUDE.md`'s rule decides it
+— GRETIL is one file per work but the markup is not uniform (plain text, TEI and HTML in
+the same collection), so this is `mix pramana.gretil.ingest` calling a normalizer and
+`Corpus.Loader` directly, as SuttaCentral, Derge and 84000 all do. It edits no existing
+source, adds nothing to `mix pramana.bake`, and adds a `Pramana.Sources` entry because
+that is where the licence and the tradition are declared.
+
+**Two blockers, and neither is architecture.**
+
+1. **Licence, and it gates acquisition.** GRETIL is per-text "free for scholarly use"
+   rather than uniformly CC0 or CC-BY, which does not map cleanly onto a `license_class`
+   the API can exclude by. DSBC (Nagarjuna Institute) and SARIT are cleaner in places.
+   **Read the terms before acquiring anything**, the way the Gemma terms were read on
+   2026-09-02 rather than assumed — and expect the answer to be per-text, which may mean
+   the source carries a licence per work instead of one for the source.
+2. **Citation grammar, and it is the hard part.** Invariant #2 forbids inventing ids, so
+   each text needs its own edition's numbering — Kośa kārikā numbers, Lotus chapter and
+   verse — and GRETIL carries those inconsistently across files. A work whose grammar
+   cannot be recovered is **not ingested**, rather than ingested under a made-up address.
+
+**Scope it to the intersection, not the corpus.** The value is concentrated in the works
+surviving in Sanskrit **and** Chinese **and** Tibetan — roughly 20-30 texts — because
+that is where a pivot has two ends to join. That is a bounded ingest with a clear
+acceptance test: for a work held in all three, does the Sanskrit anchor a Chinese term to
+its Tibetan counterpart without consulting a glossary? Ingesting all of GRETIL is the
+open-ended version of this item and should be refused.
+
+**Priority: after E1.** E1 is what makes 4,263 CBETA works reachable by an English
+reader, and it is the measured bottleneck (38.5% with no English layer against 89% for
+Pāli). S1 improves *alignment quality* for works we already hold, which is a smaller and
+less urgent gain than making a canon reachable at all. It is written down here so it is
+costed rather than floating.
+
 ## Rejected, with evidence — do not redo
 
 ### Postgres tuning on this machine — 2026-08-29

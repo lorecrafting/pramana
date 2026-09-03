@@ -371,6 +371,13 @@ def translate(
                             "model": spec["model"],
                             "revision": spec["revision"],
                             "params_sha256": params_sha256,
+                            # WHETHER THIS ROW WAS PROMPTED WITH A PINNED TERM TABLE.
+                            # `params_sha256` covers the model and the decoding settings,
+                            # which are identical for a pinned and an unpinned run — the
+                            # instruction is per-row data, so without this the two are
+                            # indistinguishable in the record and `prompt_version` would
+                            # claim they were produced the same way.
+                            "instructed": bool(row.get("instruction")),
                             "text": decode(spec["dialect"], completion),
                         },
                         ensure_ascii=False,

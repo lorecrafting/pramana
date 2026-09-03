@@ -251,7 +251,11 @@ defmodule Pramana.Translate.Transfer do
         # a property of the TEXT, so after a re-chunk any chunk whose content hashes the
         # same can re-adopt its rendering with no GPU at all — and one whose text really
         # did change is correctly left without one.
-        "source_sha256" => chunk.content_sha256
+        "source_sha256" => chunk.content_sha256,
+        # Whether a pinned term table was in the prompt. The decoding config is identical
+        # either way, so `prompt_version` alone cannot tell a pinned rendering from an
+        # unpinned one.
+        "instructed" => rendering["instructed"] == true
       }
     }
   end

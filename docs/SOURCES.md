@@ -269,6 +269,15 @@ one of them is freely redistributable and the other is not.
   file — so nothing in it says which of the 3,380 works a line belongs to. (The Kangyur's
   TEI has 1,208 of them.) The plain text marks each work inline as `{D1109}`: 3,380
   markers, 3,380 distinct.
+- **Its titles need promoting after an ingest — `mix pramana.derge.titles --write`.**
+  The ingest reads each work's incipit into `works.meta` (`title_sa_ltn_computed`,
+  `title_bo_ltn_computed`, `title_sa_bo_script`) and leaves `works.title` null, and
+  `get_outline` and `search` read `title` — so 2,675 works that HAVE a title could not be
+  found by it, the whole *pramāṇa* literature among them: `toh4210` is Dharmakīrti's
+  Pramāṇavārttikakārikā and `toh4203` Dignāga's Pramāṇasamuccaya. The task promotes
+  Sanskrit-first, writes only into a null so the Kangyur's curated English from 84000 is
+  never overwritten, and is a no-op on a second run. 705 works have no title block at all
+  — mostly continuations of a work spanning volumes — and stay nameless.
 - The release is pinned at 2019-05 rather than tracking master, which has more editorial
   annotation (71 vs 70 markers in volume 1). A moving upstream is not a citable edition.
 - Volume 213, the དཀར་ཆག catalogue volume, ships as a filename with **no bytes**.
@@ -402,7 +411,11 @@ Other reference data still wanted, none acquired:
 - **Mahāvyutpatti** — the canonical Sanskrit–Tibetan term correspondence table;
   exact, citable cross-lingual anchors
 - **Digital Pali Dictionary**, **Monier-Williams** (Sanskrit)
-- **GRETIL** — Sanskrit etexts, for surviving Indic originals
+- **GRETIL** — Sanskrit etexts, for surviving Indic originals. **Scoped 2026-09-02 as
+  `docs/PLAN.md` § S1** and deliberately not acquired: the licence is per-text "free for
+  scholarly use" rather than a class the API can exclude by, and the citation grammar
+  differs per work, which invariant #2 will not let us paper over. Note it is a set of
+  **witnesses**, not a canon — most Indic originals are lost
 - **Wikidata** — nothing is fetched from Wikidata, and `get_person` already returns q-ids
   for 1,446 of the linked works' people. They arrive as **DILA's pass-through**, so their
   correctness is DILA's claim; querying Wikidata itself is a separate, unmade decision
