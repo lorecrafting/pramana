@@ -2,7 +2,8 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
   @shortdoc "Aligns commentaries to their root texts, lemma by lemma"
 
   @moduledoc """
-  Passage-level 科文 alignment for every asserted `comments_on` relation.
+  Passage-level 科文 alignment for every asserted `comments_on` and `subcommentary_of`
+  relation.
 
       mix pramana.commentary.align
       mix pramana.commentary.align --work T1789
@@ -54,24 +55,58 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
       #{if opts[:dry_run], do: "DRY RUN — nothing will be written", else: "bake          #{bake_id}"}
     """)
 
+    # ROOT-MAJOR, AND THAT IS THE WHOLE OPTIMISATION.
+    #
+    # The cost is linear in characters and the expensive half depends only on the root, so
+    # the order pairs are visited in decides how much work is repeated. On 2026-09-03 the
+    # 155 asserted pairs covered 60 distinct roots: **41.7M root characters to window 11.0M
+    # distinct ones**, against 21.4M on the commentary side. Sorting by root and carrying
+    # one prepared root forward pays 32.4M instead of 63.1M — measured at 1,946 chars/s on
+    # `T1509`, that is 4.6 hours instead of 9.0.
+    #
+    # One root, not all of them: a prepared root holds a map entry per character, so the 60
+    # of them cannot be resident at once. Sorting is what makes holding one sufficient.
     results =
-      Enum.map(pairs, fn pair ->
-        result = run_pair(pair, opts[:dry_run], bake_id)
+      pairs
+      |> Enum.sort_by(fn {commentary, root} -> {root, commentary} end)
+      |> Enum.reduce({[], nil}, fn {_, root} = pair, {acc, cached} ->
+        held = prepared_for(root, cached)
+        result = run_pair(pair, opts[:dry_run], bake_id, elem(held, 1))
         report(result)
-        result
+        {[result | acc], held}
       end)
+      |> then(fn {acc, _} -> Enum.reverse(acc) end)
 
     summarise(results)
   end
 
-  defp run_pair({commentary, root}, true, _bake_id),
-    do: Commentary.measure(commentary, root)
+  # Keyed on the work id, which sorting has already made consecutive. `prepare_root/2` also
+  # checks the body before trusting a prepared form, so a mistake here would be slow rather
+  # than wrong.
+  defp prepared_for(root, {root, _} = held), do: held
+
+  defp prepared_for(root, _other) do
+    case Commentary.prepare_root_by_work(root) do
+      {:ok, prepared} -> {root, prepared}
+      _ -> {root, nil}
+    end
+  end
+
+  # A prepared root is an optimisation and never an input to the answer: `nil` here takes
+  # the slow path to the same result, which is what makes the cache safe to get wrong.
+  defp run_pair(pair, dry_run, bake_id, prepared) do
+    opts = if prepared, do: [prepared_root: prepared], else: []
+    run_pair(pair, dry_run, bake_id, opts, :ready)
+  end
+
+  defp run_pair({commentary, root}, true, _bake_id, opts, :ready),
+    do: Commentary.measure(commentary, root, opts)
 
   # `{:skip, report}` is not an error: a pair below the density floor is a commentary that
   # paraphrases rather than quotes, which this method cannot see and which says nothing
   # about whether the relation is right. Both shapes carry the same numbers.
-  defp run_pair({commentary, root}, _dry_run, bake_id) do
-    case Commentary.align(commentary, root, bake_id: bake_id) do
+  defp run_pair({commentary, root}, _dry_run, bake_id, opts, :ready) do
+    case Commentary.align(commentary, root, Keyword.put(opts, :bake_id, bake_id)) do
       {:ok, report} -> report
       {:skip, report} -> report
       {:error, reason} -> {:error, commentary, root, reason}
@@ -97,6 +132,21 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
   # floor, which is a different piece of work and not a parameter of this one.
   @alignable_sources ~w(cbeta sat local-huang-nianzu-jie)
 
+  # `subcommentary_of` was excluded until 2026-09-03, when there were nine of them. There
+  # are now 38, and 29 are Chinese pairs of exactly the shape this method is for: a 論疏
+  # quotes a phrase of its śāstra and glosses it, the same 科文 structure as a 經疏 over a
+  # sūtra. Nothing in the method cares which the target is.
+  #
+  # **Most of them will not clear the floor, and that was measured before including them.**
+  # Of twelve, one does — `T1820` 佛遺教經論疏節要 at density 108.5. But the rest are not
+  # noise: forward order runs 66–83% against ~50% for chance, which is the discriminator
+  # `docs/COMMENTARY.md` uses to tell real structure from overlap. Śāstra exegesis has the
+  # structure and quotes less verbatim than sūtra exegesis, and a floor calibrated on 120
+  # null pairs of the latter rejects nearly all of the former. Whether that floor is right
+  # for this population is a separate question needing its own null set; including the
+  # pairs is what puts the numbers in front of anyone who asks it.
+  @alignable_relations ~w(comments_on subcommentary_of)
+
   defp pairs(work) do
     from(r in "work_relations",
       join: cs in "texts",
@@ -104,7 +154,7 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
       join: rt in "texts",
       on: rt.work_id == r.target_work_id,
       where:
-        r.relation == "comments_on" and not is_nil(r.target_work_id) and
+        r.relation in ^@alignable_relations and not is_nil(r.target_work_id) and
           cs.source_id in ^@alignable_sources and rt.source_id in ^@alignable_sources,
       distinct: true,
       select: {r.source_work_id, r.target_work_id},

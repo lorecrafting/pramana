@@ -188,7 +188,16 @@ def decode(dialect, text):
 @app.function(
     gpu="L40S",
     volumes={"/data": volume},
-    timeout=60 * 60 * 4,
+    # SIZED FOR A TRANCHE, NOT FOR A SAMPLE. This was `60 * 60 * 4`, copied from
+    # `modal_embed.py` where four hours is generous — and a 27,956-passage tranche at
+    # 0.54 passages/s needs about fourteen. It died at exactly 14400s with 53% written,
+    # which resumption recovered and a supervisor would have restarted, except that
+    # `--detach` had made a supervisor unsafe. Two mitigations that each assumed the
+    # other was present.
+    #
+    # 24h is Modal's per-function ceiling. A run that needs more than that has to be
+    # split, and the resumption in `translate/2` is what makes splitting free.
+    timeout=60 * 60 * 24,
     secrets=[modal.Secret.from_name("huggingface-token")],
 )
 def translate(

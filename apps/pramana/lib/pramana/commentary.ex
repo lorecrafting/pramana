@@ -173,8 +173,7 @@ defmodule Pramana.Commentary do
   def spans(commentary, root, opts \\ []) when is_binary(commentary) and is_binary(root) do
     n = Keyword.get(opts, :window, @window)
     {c_text, c_map} = without_breaks(commentary)
-    {r_text, r_map} = without_breaks(root)
-    root_positions = unique_windows(r_text, n)
+    %{map: r_map, positions: root_positions} = prepared_root(root, opts)
 
     c_text
     |> char_windows(n)
@@ -231,6 +230,58 @@ defmodule Pramana.Commentary do
   # includes the break — the span is contiguous in the text a reader sees.
   defp original_range(map, start, count) do
     {elem(map, start), elem(map, start + count - 1) + 1}
+  end
+
+  @doc """
+  The half of `spans/3` that depends only on the root, computed once and reused.
+
+  **This exists because the same root is windowed many times in one run.** The alignment
+  cost is linear in characters — one map insert per position, each building an
+  8-character window — and on 2026-09-03 the 155 asserted pairs covered only 60 distinct
+  roots: **41.7M root characters processed to window 11.0M distinct ones.** A caller that
+  walks pairs root-major and carries this forward pays the smaller number.
+
+  It is deliberately not a cache inside this module. A prepared root is a map with one
+  entry per character — `T0279` 華嚴經 is 731k of them — so holding all 60 at once is not
+  possible, and the only safe policy is the caller's: hold one, in an order that makes
+  one enough. See `mix pramana.commentary.align`.
+  """
+  @spec prepare_root(String.t(), keyword()) :: prepared_root()
+  def prepare_root(root, opts \\ []) when is_binary(root) do
+    n = Keyword.get(opts, :window, @window)
+    {r_text, r_map} = without_breaks(root)
+    %{body: root, map: r_map, positions: unique_windows(r_text, n), window: n}
+  end
+
+  @doc """
+  `prepare_root/2` for a work already in the corpus, by id.
+
+  The caller that needs this is walking pairs root-major and has an id, not a body; making
+  it load the body itself would duplicate what `align/3` and `measure/3` already do.
+  """
+  @spec prepare_root_by_work(String.t(), keyword()) :: {:ok, prepared_root()} | {:error, term()}
+  def prepare_root_by_work(root_work_id, opts \\ []) do
+    with {:ok, root} <- body(root_work_id), do: {:ok, prepare_root(root, opts)}
+  end
+
+  @typedoc "A root's unique windows and offset map. Opaque; build it with `prepare_root/2`."
+  @type prepared_root :: %{
+          body: String.t(),
+          map: tuple(),
+          positions: %{String.t() => non_neg_integer()},
+          window: pos_integer()
+        }
+
+  # A prepared root from `opts` when the caller has one for THIS root, otherwise computed.
+  # The body check is not paranoia: passing a prepared form of a different text would
+  # silently align against the wrong work, and nothing downstream could detect it.
+  defp prepared_root(root, opts) do
+    n = Keyword.get(opts, :window, @window)
+
+    case Keyword.get(opts, :prepared_root) do
+      %{body: ^root, window: ^n} = prepared -> prepared
+      _ -> prepare_root(root, opts)
+    end
   end
 
   @doc """

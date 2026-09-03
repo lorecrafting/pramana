@@ -9,6 +9,38 @@ visible failure.
 
 ---
 
+## A long tranche: detach it, and supervise it by asking Modal
+
+`modal run` creates an **ephemeral** app that Modal stops when the local client
+disconnects, so a laptop going to sleep kills the job. `--detach` is what prevents that,
+and `bin/pramana-tranche` wraps the pair:
+
+    bin/pramana-tranche mitra trancheC.jsonl trancheC-mitra.jsonl
+
+**The restart condition is "Modal says no app is running", never "our client exited".**
+That distinction is the whole point. An attached run and its client live and die together,
+so watching the client was safe; a detached run outlives its client, and a supervisor that
+restarts on client-exit would put two containers on one output file.
+
+**Both halves were learned the hard way on 2026-09-02.** A 27,956-passage tranche ran
+attached under a client-watching supervisor; switching to `--detach` for sleep-safety made
+that supervisor unsafe, so it was removed; three hours later the job hit a **four-hour
+function timeout** with 53% written and nothing restarted it. Two mitigations, each
+assuming the other was in place.
+
+**Size the timeout from the measured rate, not from a neighbouring script.** The four
+hours came from `modal_embed.py`, where it is generous. At 0.54 passages/s a 27,956-row
+tranche needs about fourteen. `modal_translate.py` now asks for 24h, Modal's per-function
+ceiling; a run needing more has to be split, and resumption is what makes splitting free.
+
+**Restarts cost only the weight download**, because `translate/2` resumes: it reads what
+is on the volume, skips those ids, and **refuses to resume at all** if their
+`params_sha256` does not match the current configuration — so a restart can never blend
+two configurations into one tranche. Recovering 14,752 rows twice in one night is what
+that field is for.
+
+---
+
 ## 0. What you are shipping
 
 **Two steps, and the first one is easy to miss.** Chunking creates `chunks`; the thing
