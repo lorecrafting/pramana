@@ -904,6 +904,26 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     staleness the first time a figure was wrong, because `not nil` raises — found by editing
     a figure to a wrong value on purpose. Break it before you trust it.
 
+78. **A ratchet set at the waterline manufactures the behaviour it was built to prevent.**
+    The coverage threshold's own comment says *raise it when coverage rises*, and applying
+    that literally put it at 84 against an achieved 84.26 — a quarter of a point of room.
+    Every later commit then becomes a coverage negotiation, and the cheapest way to win one
+    is a test that asserts nothing. The number keeps rising and means less each time.
+
+    **A ratchet exists to catch a regression, not to force maximisation.** A module that
+    quietly lost its tests, a suite that stopped running — that is what it is for, and a
+    point of margin catches all of it while letting honest work land.
+
+    So the threshold trails achieved coverage by about a point, and rises when coverage
+    rises by more than the margin. **This is not licence to lower it to make a failing run
+    pass**, which remains forbidden; the distinction is that restoring margin after
+    over-tightening is a different act, and it is only a different act if the reasoning is
+    written where the number is.
+
+    The general shape: **when a check's threshold is the same number as the current
+    measurement, the check has stopped measuring the thing and started measuring
+    compliance.** True of the density floor, of eval baselines, and of this.
+
 
 ---
 

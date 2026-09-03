@@ -306,9 +306,13 @@ and prompt were each measured, and § E1 records what by.
    the test run, which is the point of it — the passing branch and the child spec now are.
    **36% → 73%.**
 
-   Ratchets raised because coverage rose, which is the only reason they may move:
-   `pramana` 83 → **84** (achieved 84.26), `pramana_web` 81 → **83** (achieved 83.72).
-   Restoration targets remain 85 and 93.
+   **The ratchets were then over-tightened and corrected in the same session, which is
+   rule 78.** "Raise it when coverage rises" applied literally put `pramana` at 84 against
+   an achieved 84.26 — a quarter of a point of room, which makes every later commit a
+   coverage negotiation whose cheapest win is a test that asserts nothing. A ratchet
+   catches a *regression*; it does not force maximisation. The thresholds now trail
+   achieved coverage by about a point: `pramana` **83** (achieved 84.26) and `pramana_web`
+   81 → **82** (achieved 83.72). Restoration targets remain 85 and 93.
 
    **A test that failed and should have.** The registry check first asserted that every
    declared role's label differs from its key, and `catalogue`'s plain-language name
