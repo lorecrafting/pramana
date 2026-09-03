@@ -40,6 +40,12 @@ defmodule Pramana.Commentary do
 
   ## Density decides, and root coverage does not
 
+  **`root_pct` was also wrong until 2026-09-03**, and the figures below are the corrected
+  ones. It summed span lengths, which double-counts every overlap, so it could exceed its
+  own denominator — and did: 4 of 184 Chinese pairs to 125%, and 67 of 102 Tibetan pairs to
+  **1102%**. `T1509`'s coverage of `T0223` was published as 83.2% and is 64.5%. Nothing
+  gated on it, so no alignment decision moved; `covered_chars/1` now measures the union.
+
   The obvious gate — what fraction of the root is quoted — is **scale-sensitive and was
   nearly shipped**, because the denominator is the wrong object. `T1742` quotes 177 lemmas
   from T0278 at a density of 69.2, more than twice the floor, and forward order of 82.4%;
@@ -47,7 +53,7 @@ defmodule Pramana.Commentary do
   root-coverage threshold strict enough to exclude the null band would have thrown it out.
 
   A first version of this doc claimed T1736 as the example — 2,536 lemmas from the
-  80-fascicle Avataṃsaka at 4.9% coverage — and said the density gate rescued it. **It does
+  80-fascicle Avataṃsaka at 3.9% coverage — and said the density gate rescued it. **It does
   not.** T1736's density is 20.4 and it fails this gate too, which is a fact worth keeping
   rather than a counter-example to hide: its title, 大方廣佛華嚴經隨疏演義鈔, says it
   expounds *following the 疏*, and the 疏 is T1735, Chengguan's own commentary on the sūtra.
@@ -325,7 +331,7 @@ defmodule Pramana.Commentary do
   defp report(commentary_work_id, root_work_id, commentary, root, spans) do
     c_len = String.length(commentary)
     r_len = String.length(root)
-    covered = Enum.reduce(spans, 0, &(&2 + &1.root_char_end - &1.root_char_start))
+    covered = covered_chars(spans)
     density = 10_000 * length(spans) / max(1, c_len)
 
     %{
@@ -337,6 +343,36 @@ defmodule Pramana.Commentary do
       forward_pct: forward_pct(spans),
       aligned: density >= @min_density
     }
+  end
+
+  # THE UNION OF THE SPANS, NOT THE SUM OF THEIR LENGTHS.
+  #
+  # Summing lengths double-counts wherever two spans overlap, and `root_pct` is published as
+  # a percentage of the root — so it could exceed 100%, which is not a coverage figure at
+  # all. On 2026-09-03 it did: **67 of 102 Tibetan pairs, to a maximum of 1102%**, and
+  # **4 of 184 Chinese pairs, to 125%**. The Tibetan numbers are the method's premise
+  # failing loudly (windows that are unique nowhere match everywhere, overlapping heavily);
+  # the Chinese ones are the same arithmetic in a population where it hid.
+  #
+  # A number that can exceed its own denominator was never measuring what it said.
+  @doc """
+  Characters of the root these spans cover, counting an overlap once.
+
+  Public because the question is the caller's as often as it is this module's, and because
+  a private version of it is what let `root_pct` report 1102%.
+  """
+  @spec covered_chars([span()]) :: non_neg_integer()
+  def covered_chars(spans) do
+    spans
+    |> Enum.map(&{&1.root_char_start, &1.root_char_end})
+    |> Enum.sort()
+    |> Enum.reduce({0, nil}, fn
+      {from, to}, {total, nil} -> {total + to - from, to}
+      {from, to}, {total, prev} when from >= prev -> {total + to - from, to}
+      {_from, to}, {total, prev} when to > prev -> {total + to - prev, to}
+      _, acc -> acc
+    end)
+    |> elem(0)
   end
 
   # How often consecutive lemmas move FORWARD through the root. A commentary walks its

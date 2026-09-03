@@ -72,6 +72,19 @@ and prompt were each measured, and § E1 records what by.
    The source guard is now the only thing standing between this task and thousands of fast,
    confident, meaningless alignments.
 
+   **The three pairs above were the three SMALLEST, which is a biased draw (rule 62), so
+   the population was measured too — and it holds.** Over all 98 Tibetan pairs that clear
+   the floor: forward order median **54.1%**, p25 52.1, p75 57.5, **82 of 98 below 60%**,
+   two above 70%. The sample was lucky, not sound; the conclusion survives being checked.
+
+   **A significance test is the wrong gate, and measuring it is what showed that.** The
+   null for forward order is known analytically — a coin — so the obvious move is to ask
+   whether a pair beats chance rather than to pick a percentage. It separates badly: every
+   Chinese pair sits above z = 2.03, but so do 55 of 98 Tibetan ones, because `toh4025` has
+   **8,260 spans** and 67.6% forward is overwhelming at that n. **With enough spans, noise
+   is significant.** The effect size is the signal here and the p-value is not, which is an
+   argument for a calibrated percentage after all.
+
    **Which exposes a design gap worth fixing before any Tibetan work: the floor gates on
    density, and the discriminator is only reported.** `docs/COMMENTARY.md` uses forward
    order to tell real 科文 structure from overlap, and `aligned` never consults it. On

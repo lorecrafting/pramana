@@ -8,6 +8,49 @@ defmodule Pramana.CommentaryTest do
 
   alias Pramana.Commentary
 
+  describe "root coverage" do
+    # `root_pct` is published as a percentage of the root, and summing span lengths
+    # double-counts overlaps — so it could exceed 100%, which is not a coverage figure. It
+    # did: 67 of 102 Tibetan pairs to a maximum of 1102%, and 4 of 184 Chinese pairs.
+    test "never exceeds 100%, even when spans overlap heavily" do
+      # A root whose every window is the same phrase repeated: the commentary's lemmas
+      # match at many overlapping positions, which is what breaks the sum.
+      root = String.duplicate("一二三四五六七八九十", 12)
+      commentary = String.duplicate("一二三四五六七八九十", 12)
+
+      spans = Commentary.spans(commentary, root)
+
+      assert Commentary.covered_chars(spans) <= String.length(root)
+    end
+
+    test "two overlapping spans cover their union, not the sum of their lengths" do
+      overlapping = [
+        %{root_char_start: 0, root_char_end: 100},
+        %{root_char_start: 50, root_char_end: 150}
+      ]
+
+      assert Commentary.covered_chars(overlapping) == 150
+    end
+
+    test "a span wholly inside another adds nothing" do
+      nested = [
+        %{root_char_start: 0, root_char_end: 100},
+        %{root_char_start: 20, root_char_end: 40}
+      ]
+
+      assert Commentary.covered_chars(nested) == 100
+    end
+
+    test "disjoint spans are simply summed" do
+      disjoint = [
+        %{root_char_start: 0, root_char_end: 10},
+        %{root_char_start: 90, root_char_end: 100}
+      ]
+
+      assert Commentary.covered_chars(disjoint) == 20
+    end
+  end
+
   describe "prepare_root/2" do
     @root "菩薩摩訶薩行深般若波羅蜜多時照見五蘊皆空度一切苦厄"
     @commentary "疏菩薩摩訶薩行深般若波羅蜜多時照見五蘊皆空度一切苦厄者總標也"
