@@ -70,7 +70,16 @@ defmodule Mix.Tasks.Pramana.Bake do
     {:ok, %{text: text, segments: count}} =
       Loader.load(ir,
         source: source,
-        source_file: Enum.join(raw_paths(pipeline, source, config, volumes, number), " "),
+        # RELATIVE TO THE REPOSITORY, never absolute. An absolute path records the
+        # developer's home directory into the corpus — 648 of 648 CBETA texts named
+        # `/Users/…/pramana/raw/cbeta/…` until 2026-09-03 — and a provenance record that
+        # only resolves on one machine is not provenance. `mix pramana.derge.ingest`
+        # already had a `relative/1` for exactly this and the lesson never reached here,
+        # which is rule 41.
+        source_file:
+          pipeline
+          |> raw_paths(source, config, volumes, number)
+          |> Enum.map_join(" ", &Path.relative_to(&1, File.cwd!())),
         # THE CANON, not `pipeline.witness`. That registry field is a static "T", which was
         # indistinguishable from correct while the Taishō was the only CBETA collection
         # held. Baking a single X work through this path produced

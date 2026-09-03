@@ -107,7 +107,27 @@ Specifically audit:
   not leaking, so the invariant held; a tool that raises is also not answering. It now
   answers and leads with `layer: "translation"` and `citable_as_source: false`, and invents
   no offsets, because a fabricated range is the false precision the guard exists to prevent.
-- Is the bake still reproducible from `sources.lock.json` alone?
+- Is the bake still reproducible from `sources.lock.json` alone? — **audited by hand
+  2026-09-03, and it holds.** `Lockfile.verify/1` proves the *forward* direction, that every
+  locked file is on disk with its recorded hash. The audit asks the *reverse*: does every
+  file the corpus actually used appear in the lockfile? That is the direction the 2026-08-26
+  incident broke, when acquiring X replaced the Taishō's lockfile entry and left 3,701 baked
+  texts reproducible from 1,230. Checked over every text recording a `source_file` — **13,807
+  paths across four sources, 0 not in the lockfile.**
+
+  **It did find that CBETA recorded ABSOLUTE paths** — 648 of 648, including
+  `/Users/…/pramana/` — so the provenance resolved on one machine and nowhere else.
+  `mix pramana.derge.ingest` already had a `relative/1` helper for exactly this and the
+  lesson had not reached `mix pramana.bake` (rule 41). Now relative; `mix pramana.integrity`
+  reads both shapes via `Path.expand/1`, so no re-bake is required to read rows written
+  before the change.
+
+  **Two false alarms on the way, both worth knowing.** Comparing the stored path to the
+  lockfile path raw reports every file missing, because the lockfile stores paths relative
+  to the source's raw root and a text stores them from the repository. And a work spanning
+  volumes records several paths in one space-separated field, so a single-path lookup
+  reports 75 of 1,195 Degé texts unreproducible. Both read exactly like a catastrophe.
+  Rule 62.
 
 Write findings into `docs/HISTORY.md` under the phase heading. If an invariant was
 violated, fix it before the gate passes — invariant drift is what makes long projects

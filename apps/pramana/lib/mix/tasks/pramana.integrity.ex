@@ -175,7 +175,9 @@ defmodule Mix.Tasks.Pramana.Integrity do
   # bilara gives segment ids directly, so there is no `<lb/>` to lose and no gaiji. The
   # equivalent question is whether every id in the file became an addressable segment.
   defp check_text(%{source_id: "sc"} = text, totals) do
-    {:ok, json} = File.read(text.meta["source_file"])
+    # `Path.expand/1` for the same reason as `cbeta_paths/2`: relative since 2026-09-03,
+    # absolute in rows baked before it, and this must read both without a re-bake.
+    {:ok, json} = File.read(Path.expand(text.meta["source_file"]))
     {:ok, irs} = Bilara.normalize_file(json, witness: text.witness_id)
     ir = Enum.find(irs, &(&1.work_id == text.work_id))
 
@@ -370,7 +372,10 @@ defmodule Mix.Tasks.Pramana.Integrity do
   defp cbeta_paths(%{meta: %{"source_file" => recorded}} = text, volumes)
        when is_binary(recorded) and recorded != "" do
     case String.split(recorded, " ", trim: true) do
-      paths when length(paths) == length(volumes) -> paths
+      # Both shapes: rows baked before 2026-09-03 hold an absolute path, and a re-bake is
+      # not required to read them. `Path.expand/1` leaves an absolute path alone and
+      # resolves a relative one against the repository, which is where a mix task runs.
+      paths when length(paths) == length(volumes) -> Enum.map(paths, &Path.expand/1)
       # A recorded list that does not match the volume count is a text baked before the
       # two were kept in step; fall back rather than pair them up wrongly.
       _ -> Enum.map(volumes, &raw_path(text, &1))
