@@ -78,24 +78,40 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     end
   end
 
-  defp pairs(nil) do
-    Repo.all(
-      from r in "work_relations",
-        where: r.relation == "comments_on" and not is_nil(r.target_work_id),
-        select: {r.source_work_id, r.target_work_id},
-        order_by: [asc: r.source_work_id, asc: r.target_work_id]
-    )
-  end
+  # THE METHOD IS CHINESE, AND THE PAIR LIST IS NOT.
+  #
+  # 科文 alignment works because a Chinese commentary quotes a phrase of its root and then
+  # glosses it, and because an eight-CHARACTER window is a substantial phrase whose
+  # uniqueness in the root is the whole method (`Pramana.Commentary`). Eight characters of
+  # Tibetan is about two syllables, which recur constantly — the uniqueness rule does not
+  # hold, so the method has no basis there.
+  #
+  # This reads every `comments_on` relation, and on 2026-09-02 `mix pramana.derge.relations`
+  # added 93 Tibetan ones. A single Tibetan pair then ran for five minutes without
+  # finishing, against seconds for a Chinese one, because a window that is unique nowhere
+  # makes every candidate set enormous. Left unguarded it would either burn hours finding
+  # nothing or, worse, return alignments whose uniqueness premise was never true.
+  #
+  # So the filter is on the SOURCE, not on the relation: a pair is alignable when both
+  # sides are Chinese. A Tibetan equivalent needs syllable windows and its own measured
+  # floor, which is a different piece of work and not a parameter of this one.
+  @alignable_sources ~w(cbeta sat local-huang-nianzu-jie)
 
   defp pairs(work) do
-    Repo.all(
-      from r in "work_relations",
-        where:
-          r.relation == "comments_on" and not is_nil(r.target_work_id) and
-            r.source_work_id == ^work,
-        select: {r.source_work_id, r.target_work_id},
-        order_by: [asc: r.target_work_id]
+    from(r in "work_relations",
+      join: cs in "texts",
+      on: cs.work_id == r.source_work_id,
+      join: rt in "texts",
+      on: rt.work_id == r.target_work_id,
+      where:
+        r.relation == "comments_on" and not is_nil(r.target_work_id) and
+          cs.source_id in ^@alignable_sources and rt.source_id in ^@alignable_sources,
+      distinct: true,
+      select: {r.source_work_id, r.target_work_id},
+      order_by: [asc: r.source_work_id, asc: r.target_work_id]
     )
+    |> then(fn q -> if work, do: where(q, [r], r.source_work_id == ^work), else: q end)
+    |> Repo.all()
   end
 
   defp report({:error, commentary, root, reason}),

@@ -18,9 +18,44 @@ collection: 10 of 26 held, every text chunked and embedded, the reader at five s
 
 ---
 
-## Start here — session of 2026-08-31
+## Start here — session of 2026-09-02
 
-Previous session ended clean at **81aa830**. This one shipped **§ E1's first slice** — the
+**A tranche is running.** MITRA over 27,956 passages on a Modal L40S, ~13 hours from
+16:36 HST. It resumes from what it has written, refuses to resume across a config change,
+and restarts itself up to 8 times. When it lands: `mix pramana.translate.import`, then
+`mix pramana.vectors --translations --source cbeta`, then `mix pramana.embed`, then the
+ladder in § E1. **Do not re-export or re-rank the tranche** — the model, batch size, GPU
+and prompt were each measured, and § E1 records what by.
+
+### The queue, in order
+
+1. **Run the full Chinese 科文 alignment — `mix pramana.commentary.align`.** 182
+   `comments_on` relations exist and **24 commentaries are aligned**. This is the
+   line-level version of the work-level links: landing on a dense canonical line and being
+   handed the layers of explanation attached to *that line*, which `docs/COMMENTARY.md`
+   names the highest-value piece of the feature. Already built and already measured —
+   70–78% of root lines carry an anchor on attested pairs against 0.5–1.9% on non-pairs —
+   so this is a run and a check, not a build.
+2. **A Tibetan aligner, if #1 pays.** The Chinese method cannot transfer: 科文 alignment
+   rests on an eight-CHARACTER window being unique in the root, and eight characters of
+   Tibetan is about two syllables, which recur constantly. A single Tibetan pair ran five
+   minutes without finishing where a Chinese one takes seconds. A Tibetan version needs
+   **syllable** windows and its own measured floor — the tsheg the edition prints is the
+   unit, the same reasoning that refused `botok` for the lexical layer. New method, not a
+   parameter.
+3. **Chinese śāstra linking — 3,732 treatises, 2 links, and MEASURE FIRST.** Title
+   containment cannot fix it: 大智度論 comments on 摩訶般若波羅蜜經 and does not name it.
+   This needs a genuinely new signal, and the one that looked obvious is already refuted —
+   citation markers direct 287 of 48,650 pairs because the quotation graph is a shared-text
+   graph, not a citation graph (`docs/PROXIES.md`). **Do not build before measuring
+   yield**; three separate proposals fell to that test on 2026-09-02 alone.
+4. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
+   worth another ~$40 depends on what this one delivers, and the demand ranking it would
+   use is itself a weak proxy — see § E1 and `docs/PROXIES.md`.
+
+### Previous session
+
+Previous session ended clean at **81aa830**. That one shipped **§ E1's first slice** — the
 Chinese canon has an English layer for the first time. Read § E1 before picking anything
 up; the short version is that it works, it is 54 sūtras of 4,263 works, and it moved no
 corpus-wide number.
