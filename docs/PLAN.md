@@ -90,14 +90,35 @@ and prompt were each measured, and § E1 records what by.
    order to tell real 科文 structure from overlap, and `aligned` never consults it. On
    Chinese the two agree, so nothing showed; on Tibetan they disagree completely.
 
-   Enforcing it is not free and needs its own null set before a threshold is picked: **7 of
-   76 accepted Chinese pairs fall below 70% forward**, and they are mostly Diamond Sūtra
-   commentaries aligned against a *different translation* of their root — `T1510b` → `T0236b`
-   at 67.3%, `T1511` → `T0236b` at 67.0%. That is the case `docs/COMMENTARY.md` already
-   says forward order detects, so those numbers are informative rather than noise, and a
-   gate would have to decide whether the right sūtra in the wrong translation is an
-   alignment or not. Calibrate as the density floor was calibrated — the lowest value
-   rejecting a null set — not by eye.
+   **▸ PRICED 2026-09-03, and the null set turned out to already exist.** The density floor
+   needed 120 constructed null pairs; this did not, because the Tibetan relations *are* a
+   population where the method's premise is known false. Both signals, over the 76 Chinese
+   and 98 Tibetan pairs that clear the floor:
+
+       rule                              Chinese kept    Tibetan admitted
+       forward >= 65                        74 of 76           6 of 98
+       forward >= 70                        69 of 76           2 of 98
+       density <= 250                       72 of 76          37 of 98
+       forward >= 75 and density <= 250     58 of 76           0 of 98
+
+   **Forward order separates and density does not** — a ceiling at 250 rejects 4 Chinese to
+   catch only 61 of 98. The two distributions overlap at the tails (Chinese min 61.5%,
+   Tibetan max 80.8%) and not in the bulk: Tibetan median forward is 54.1%, Chinese 84.3%
+   over accepted pairs.
+
+   **What the 7 lost Chinese pairs are decides this, and it is not a tuning question.**
+   They are the cross-translation cluster — `T1510b` → `T0236b` at 67.3%, `T1511` → `T0236b`
+   at 67.0% — real alignments to a real work the commentary is not quoting, which
+   `docs/COMMENTARY.md` says forward order exists to detect. Gating at 70 asserts that the
+   right sūtra in the wrong translation is not an alignment. **That is a claim about what
+   the corpus should say, so it is left to a person**; the measurement is recorded in
+   `Pramana.Commentary` so it does not have to be re-derived to make it.
+
+   **The gate is in any case not what makes Tibetan safe** — the source guard is, and it is
+   structural rather than statistical: the window unit is wrong, which is knowable without
+   measuring anything. A forward gate would be defence in depth for the day someone removes
+   the guard because it looks like a performance workaround, which is exactly what its
+   comment used to make it look like.
 3. ~~**Chinese śāstra linking.**~~ ▸ **SHIPPED 2026-09-02** —
    `mix pramana.relations.shared_text`, `Pramana.Quotations.Roots`, `method: shared_text`.
    **66 works linked, 44 of which reach no root by any other method.** With item 4's fix

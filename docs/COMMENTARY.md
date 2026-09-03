@@ -88,9 +88,20 @@ order at **57.4%**, which is chance. The windows match everywhere and in no orde
 eight characters is about two Tibetan syllables. Only the source guard in
 `mix pramana.commentary.align` keeps those out, and it was written for a performance reason
 that turned out to be a `String.slice/3` defect. Enforcing the discriminator is
-`docs/PLAN.md` item 2, and it needs a null set before a threshold: **7 of 76 accepted
-Chinese pairs fall below 70% forward**, and they are mostly commentaries aligned to a
-different translation of their root — informative, not noise.
+`docs/PLAN.md` item 2, and it is now **priced rather than owed**. The null set did not need
+building: the Tibetan relations are a population where the premise is known false.
+
+| rule | Chinese kept | Tibetan admitted |
+|---|---|---|
+| forward ≥ 65 | 74 of 76 | 6 of 98 |
+| **forward ≥ 70** | **69 of 76** | **2 of 98** |
+| density ≤ 250 | 72 of 76 | 37 of 98 |
+| forward ≥ 75 and density ≤ 250 | 58 of 76 | 0 of 98 |
+
+Forward order separates; density does not. **The seven Chinese pairs lost at 70 are the
+cross-translation cluster** — real alignments to a real work the commentary is not quoting
+— so gating at 70 asserts that the right sūtra in the wrong translation is not an
+alignment. That is a claim about what the corpus should say, and it is left to a person.
 
 ## The design
 

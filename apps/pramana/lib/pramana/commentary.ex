@@ -102,7 +102,31 @@ defmodule Pramana.Commentary do
   Indic original share phrasing with each other, so lemmas match out of order. Every pair
   in that cluster sits at 58–70% forward; every single-root pair sits at 79–96%.
 
-  This is reported, not gated on. Forty-two pairs is not enough to place a second
+  ## What gating on it would cost, measured 2026-09-03
+
+  Both premises of the decision below have since changed — 42 aligned pairs are now 76, and
+  "the density floor already separates cleanly" is true of Chinese and false elsewhere. The
+  Tibetan relations, which `mix pramana.commentary.align` excludes structurally, are a
+  ready-made population where the method's premise is known false, so they price a gate:
+
+      rule                              Chinese kept    Tibetan admitted
+      forward >= 65                        74 of 76           6 of 98
+      forward >= 70                        69 of 76           2 of 98
+      forward >= 75 and density <= 250     58 of 76           0 of 98
+
+  **A percentage separates; significance does not.** The null for forward order is a coin,
+  so testing `z` looks principled — but every Chinese pair clears z = 2.03 and so do 55 of
+  98 Tibetan ones, because `toh4025` has 8,260 spans and 67.6% is overwhelming at that n.
+  With enough spans, noise is significant. Effect size is the signal here.
+
+  **The seven Chinese pairs lost at 70 are not junk, which is why this is still not
+  gated.** They are the cross-translation cluster below — `T1510b` → `T0236b` at 67.3%,
+  `T1511` → `T0236b` at 67.0% — real alignments to a real work that the commentary is not
+  quoting. Whether that is an alignment is a question about what the corpus should assert,
+  not a threshold to tune, and the source guard already handles the case this measurement
+  came from. The numbers are here so the decision can be made rather than re-derived.
+
+  This is reported, not gated on. Forty-two pairs was not enough to place a second
   threshold, and the obvious reading — that the highest-forward root is the translation
   actually being quoted — is **not supported**: all four Diamond Sūtra commentaries peak on
   T0236a regardless of who translated them, so something about that text rather than about
