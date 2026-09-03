@@ -51,12 +51,43 @@ and prompt were each measured, and § E1 records what by.
    **syllable** windows and its own measured floor — the tsheg the edition prints is the
    unit, the same reasoning that refused `botok` for the lexical layer. New method, not a
    parameter.
-3. **Chinese śāstra linking — 3,732 treatises, 2 links, and MEASURE FIRST.** Title
-   containment cannot fix it: 大智度論 comments on 摩訶般若波羅蜜經 and does not name it.
-   This needs a genuinely new signal, and the one that looked obvious is already refuted —
-   citation markers direct 287 of 48,650 pairs because the quotation graph is a shared-text
-   graph, not a citation graph (`docs/PROXIES.md`). **Do not build before measuring
-   yield**; three separate proposals fell to that test on 2026-09-02 alone.
+3. **Chinese śāstra linking — MEASURED 2026-09-02, the signal is real, ready to build.**
+   Title containment cannot find these: 大智度論 comments on 摩訶般若波羅蜜經 and does not
+   name it. **The quotation graph can** — not as a citation graph, which it is not
+   (`docs/PROXIES.md`), but as a **candidate generator**, which is exactly what a
+   shared-text graph is good for.
+
+   The flagship case is unambiguous: **T1509 shares 955 passages with T0223, its actual
+   root, and 24 with its next partner** — a 40× gap on the pair cited all day as
+   unfindable.
+
+   **Validated against the links title matching already gives us**, which is independent
+   ground truth. The rule is *a commentarial work's root is its dominant shared-text
+   partner among `text_role = 'root'` works*:
+
+       band                     works  correct  precision
+       sole root partner            7        6      85.7%
+       top >= 5x runner-up          4        4     100.0%
+       2-5x                         9        6      66.7%
+       under 2x                     6        4      66.7%
+       ---
+       all testable                26       20      76.9%
+
+   **Restricting partners to root-role works is what makes it work.** Unrestricted it
+   scores 43.8%, because two commentaries on one sūtra share *the sūtra's* text with each
+   other — `T1703`'s top partner is `T1701`, both Diamond Sūtra commentaries, 62 shared
+   passages between them.
+
+   **Build it as:** dominant root-role partner, `confidence: probable` when the partner is
+   sole or ≥5× the runner-up (10 of 11 correct) and `uncertain` below that (10 of 15). The
+   prize is **995 unlinked candidate pairs over 171 commentarial works**, against 119
+   linked today — and every new `comments_on` is also new input for 科文 alignment, which
+   item 1 showed cannot grow any other way.
+
+   **Two cautions.** n=26 is small and the bands are noisy — 4 works at 100% is not
+   evidence of 100%. And `method:` needs a decision: `lemma_match` is deterministic text
+   evidence and already in the enum, while a new `shared_text` is more honest and is a
+   registry change (rules 11, 12, 13, 42).
 4. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
    worth another ~$40 depends on what this one delivers, and the demand ranking it would
    use is itself a weak proxy — see § E1 and `docs/PROXIES.md`.
