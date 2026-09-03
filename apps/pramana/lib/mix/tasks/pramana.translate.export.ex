@@ -25,9 +25,11 @@ defmodule Mix.Tasks.Pramana.Translate.Export do
   @switches [
     out: :string,
     work: :string,
+    works: :string,
     covered_by: :string,
     limit: :integer,
-    lang: :string
+    lang: :string,
+    glossary: :boolean
   ]
 
   @impl Mix.Task

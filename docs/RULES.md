@@ -750,6 +750,45 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     now counts stale rows and `mix pramana.vectors --refresh` rebuilds them.
 
 
+72. **An undirected graph cannot answer a directed question, and excluding the obvious
+    self-reference is not enough.** The demand estimate for E1's tranche ranks works by
+    "cross-work citation weight" over the quotation graph. That graph comes from
+    suffix-array shared-text detection: `a` and `b` are the two sides of a match, and
+    there is no "quotes" direction in it at all.
+
+    Two things follow, and both were live.
+
+    **The same-text artifact survives a same-`work_id` exclusion.** `docs/PROXIES.md`
+    records that the raw graph is 62% one sūtra quoting itself, corrected by going
+    cross-work. But `T0220a`–`T0220d` are divisions of ONE work — the Mahāprajñāpāramitā
+    — carrying four distinct work ids, so the exclusion renamed the artifact rather than
+    removing it: **65.6% of all "cross-work" pairs are within one text family, and the
+    single pair `T0220b`↔`T0220a` is 47% of the whole graph.** Exclude on the family
+    (`regexp_replace(work_id, '[a-z]+$', '')`), not on the id.
+
+    **And symmetric weight measures the wrong thing.** It cannot tell a sūtra quoted by
+    many commentaries from a commentary quoting many sūtras, so the undirected top-20 was
+    23% catalogues and encyclopedias — 法苑珠林 shares text with everything because that is
+    what an encyclopedia is for, and `docs/PLAN.md` already warned that catalogues "rank
+    high and nobody reads them for doctrine". Directing it with the two signals already
+    stored — a later work cites an earlier one, a commentary cites a root — moves the top
+    20 to **85% root sūtras and 0% catalogues**: Prajñāpāramitā, Lotus, Avataṃsaka,
+    Ratnakūṭa, Laṅkāvatāra.
+
+    **Direction resolves only 20.2% of pairs from role and date**, because `text_role` is
+    known for 54% of works and `date_start` for 31%, so the ranking rests on a fifth of
+    the data and over-represents works we happen to hold metadata about. The signal that
+    would close the gap is in the text: Classical Chinese marks a citation — `經云`,
+    `論曰`, `頌曰` — and the quotation rows carry character offsets, so the side with a
+    marker immediately before the shared span is the citer. It is deterministic, which is
+    invariant #5's preference, and it needs materialising rather than an ad-hoc query:
+    scanning 48,650 spans against full text bodies did not finish in two minutes.
+
+    **The general shape: before ranking by a graph, ask what its edges mean.** These
+    edges meant "these two texts share a passage", and every conclusion drawn from them
+    had assumed they meant "this text cites that one".
+
+
 ---
 
 ## One-off gotchas

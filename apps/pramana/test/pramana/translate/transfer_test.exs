@@ -142,6 +142,11 @@ defmodule Pramana.Translate.TransferTest do
       # the English exists and is unreachable from the passage it renders — rule 68.
       assert stored.meta["ordinal_start"] == 0
       assert stored.meta["ordinal_end"] == 4
+
+      # The hash of the passage translated, so the rendering survives a re-chunk: every
+      # other locator here — the anchor URN, the chunk id, the ordinals — belongs to one
+      # particular chunking and changes with it.
+      assert stored.meta["source_sha256"] == "chunkhash"
     end
 
     test "rejects a rendering whose passage has changed since export", %{

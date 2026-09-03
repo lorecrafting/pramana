@@ -47,6 +47,7 @@ structurally impossible.
 
 import hashlib
 import json
+import os
 import time
 
 import modal
@@ -137,7 +138,7 @@ app = modal.App("pramana-translate", image=image)
 volume = modal.Volume.from_name("pramana-translate", create_if_missing=True)
 
 
-def build_prompt(dialect, tokenizer, source, target_lang):
+def build_prompt(dialect, tokenizer, source, target_lang, instruction=None):
     """Wrap a passage in the form its model was trained to answer.
 
     This is model *mechanics*, the same category as `mean_pool` in `modal_embed.py` — how
@@ -154,22 +155,16 @@ def build_prompt(dialect, tokenizer, source, target_lang):
         body = source.replace("\n", "🔽")
         return f"Please translate into {target_lang}: {body} 🔽 Translation::"
 
+    # NEUTRAL BY DEFAULT. Naming the genre or the source language here would be a domain
+    # prompt decision living on the wrong side of the boundary — `docs/ELIXIR.md` names
+    # exactly that as the gap the boundary test cannot catch. Anything more specific,
+    # including a pinned term table, is composed in Elixir and arrives as `instruction`.
+    task = instruction or (
+        f"Translate the following passage into {target_lang}. Reply with the translation only."
+    )
+
     return tokenizer.apply_chat_template(
-        [
-            {
-                "role": "user",
-                # NEUTRAL, deliberately. Naming the genre or the source language here
-                # would be a domain prompt decision living on the wrong side of the
-                # boundary — and `docs/ELIXIR.md` names exactly this as the gap the
-                # boundary test cannot catch. Any framing beyond "translate this" is
-                # assembled in Elixir and arrives inside `content`. It also makes the
-                # arms comparable: MITRA's own template says no more than this.
-                "content": (
-                    f"Translate the following passage into {target_lang}. "
-                    f"Reply with the translation only.\n\n{source}"
-                ),
-            }
-        ],
+        [{"role": "user", "content": f"{task}\n\n{source}"}],
         tokenize=False,
         add_generation_prompt=True,
     )
@@ -239,8 +234,53 @@ def translate(
         json.dumps(params, sort_keys=True, ensure_ascii=False).encode("utf-8")
     ).hexdigest()
 
-    print(f"{len(rows)} passage(s), arm {arm} ({spec['model']}) on {spec['gpu']}", flush=True)
+    # RESUMABLE, because a tranche is hours long and a container can die in the middle of
+    # one. Already-written renderings are kept only when they were produced by THIS
+    # configuration: resuming across a changed model, revision or decoding setting would
+    # blend two configurations into one tranche, which is the thing `params_sha256` exists
+    # to make impossible. A mismatch restarts rather than silently mixing.
+    done = {}
+    out_path = f"/data/{output_name}"
+
+    if os.path.exists(out_path):
+        with open(out_path, encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    prev = json.loads(line)
+                except json.JSONDecodeError:
+                    # A partial last line from a container killed mid-write. Dropped, and
+                    # its passage is simply regenerated.
+                    continue
+                if prev.get("params_sha256") == params_sha256:
+                    done[prev["id"]] = True
+
+        stale = sum(1 for _ in open(out_path, encoding="utf-8")) - len(done)
+        print(f"resuming: {len(done)} already done, {stale} row(s) from another config", flush=True)
+
+        if stale > 0:
+            raise SystemExit(
+                f"{out_path} holds rows from a different configuration. Delete it and "
+                f"start this arm again rather than mixing two configs in one tranche."
+            )
+
+    rows = [r for r in rows if r["id"] not in done]
+
+    # LENGTH-SORTED, because a batch is padded to its longest member and generation runs
+    # until its slowest member stops. Mixing a 56-character passage with a 300-character
+    # one makes the short one wait for the long one and pays attention over the padding
+    # in between. Sorting is free and the output carries its own ids, so order does not
+    # matter downstream.
+    rows.sort(key=lambda r: len(r["content"]))
+
+    print(f"{len(rows)} passage(s) to do, arm {arm} ({spec['model']}) on {spec['gpu']}", flush=True)
     print(f"params {params_sha256[:16]}", flush=True)
+
+    if not rows:
+        print("nothing outstanding", flush=True)
+        return {"arm": arm, "renderings": 0, "truncated": 0, "seconds": 0.0}
 
     tokenizer = AutoTokenizer.from_pretrained(spec["model"], revision=spec["revision"])
     model = AutoModelForCausalLM.from_pretrained(
@@ -268,10 +308,11 @@ def translate(
             print(f"  '#' is {len(hash_ids)} tokens, not usable as a stop id", flush=True)
 
     started = time.time()
-    done = 0
+    written = 0
     truncated = 0
 
-    with open(f"/data/{output_name}", "w", encoding="utf-8") as out, torch.inference_mode():
+    # APPEND. Truncating would discard exactly the work resumption exists to keep.
+    with open(out_path, "a", encoding="utf-8") as out, torch.inference_mode():
         for i in range(0, len(rows), batch_size):
             batch = rows[i : i + batch_size]
             prompts = [
@@ -280,6 +321,7 @@ def translate(
                     tokenizer,
                     row["content"],
                     row.get("target_lang", "English"),
+                    row.get("instruction"),
                 )
                 for row in batch
             ]
@@ -336,17 +378,26 @@ def translate(
                     + "\n"
                 )
 
-            done += len(batch)
-            rate = done / max(time.time() - started, 1e-9)
+            # FLUSHED AND COMMITTED as we go, not once at the end: a volume commit that
+            # only happens on success means a container killed at hour 17 has written
+            # nothing. Every 25 batches is a few seconds of overhead against hours of
+            # exposure.
+            out.flush()
+            written += len(batch)
+
+            if (written // batch_size) % 25 == 0:
+                volume.commit()
+
+            rate = written / max(time.time() - started, 1e-9)
             print(
-                f"  {done}/{len(rows)}  {rate:.2f} passages/s  "
-                f"eta {(len(rows) - done) / max(rate, 1e-9) / 60:.1f} min",
+                f"  {written}/{len(rows)}  {rate:.2f} passages/s  "
+                f"eta {(len(rows) - written) / max(rate, 1e-9) / 60:.1f} min",
                 flush=True,
             )
 
     volume.commit()
     elapsed = time.time() - started
-    print(f"wrote {done} rendering(s) in {elapsed / 60:.1f} min", flush=True)
+    print(f"wrote {written} rendering(s) in {elapsed / 60:.1f} min", flush=True)
     if truncated:
         print(
             f"  WARNING: {truncated} rendering(s) used the whole {MAX_NEW_TOKENS}-token "
@@ -356,19 +407,27 @@ def translate(
         )
     return {
         "arm": arm,
-        "renderings": done,
+        "renderings": written,
         "truncated": truncated,
         "seconds": round(elapsed, 1),
     }
 
 
 @app.local_entrypoint()
-def main(arm: str = "mitra", input_name: str = "passages.jsonl"):
+def main(
+    arm: str = "mitra",
+    input_name: str = "passages.jsonl",
+    output_name: str = "",
+    batch_size: int = 8,
+):
     if arm not in ARMS:
         raise SystemExit(f"unknown arm {arm!r}; expected one of {sorted(ARMS)}")
 
-    output_name = f"renderings-{arm}.jsonl"
+    # Named explicitly for a tranche, because the default is per-ARM and two different
+    # inputs run through the same arm would otherwise append into one file — the bake-off
+    # sample and the production tranche mixed, with no field distinguishing them.
+    output_name = output_name or f"renderings-{arm}.jsonl"
     runner = translate.with_options(gpu=ARMS[arm]["gpu"])
-    result = runner.remote(arm, input_name, output_name)
+    result = runner.remote(arm, input_name, output_name, batch_size)
     print(result)
     print(f"\nmodal volume get pramana-translate /{output_name} /tmp/{output_name}")

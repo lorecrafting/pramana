@@ -39,6 +39,7 @@ defmodule Pramana.Translate.Transfer do
   alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Text
   alias Pramana.Repo
+  alias Pramana.Translate.Glossary
   alias Pramana.Translations
 
   @default_lang "en"
@@ -49,6 +50,9 @@ defmodule Pramana.Translate.Transfer do
   Options:
 
     * `:work` — a single work id, e.g. `"T0026"`
+    * `:works` — several, comma-separated. A demand-weighted tranche is a list of works,
+      and naming them explicitly is what makes the tranche reproducible: the ranking that
+      produced it is a query over a graph that changes as the corpus grows
     * `:covered_by` — only chunks a named human translator already renders, which is what
       a bake-off needs: it is the subset where a human rendering exists to blind the
       model arms against
@@ -60,16 +64,23 @@ defmodule Pramana.Translate.Transfer do
     lang = Keyword.get(opts, :lang, @default_lang)
     chunks = select_chunks(opts)
 
+    # Loaded once for the whole export rather than per passage: it is 4,533 rows and the
+    # tranche is tens of thousands of chunks.
+    table = if opts[:glossary], do: Glossary.table(), else: []
+
     bytes =
       File.open!(path, [:write, :utf8], fn handle ->
         Enum.reduce(chunks, 0, fn chunk, acc ->
           line =
-            Jason.encode!(%{
+            %{
               id: chunk.id,
               sha256: chunk.content_sha256,
               content: chunk.content,
               target_lang: lang
-            }) <> "\n"
+            }
+            |> maybe_pin(chunk, table)
+            |> Jason.encode!()
+            |> Kernel.<>("\n")
 
           IO.write(handle, line)
           acc + byte_size(line)
@@ -79,11 +90,34 @@ defmodule Pramana.Translate.Transfer do
     {:ok, %{path: path, chunks: length(chunks), bytes: bytes, lang: lang}}
   end
 
+  # The pinned instruction travels as a FIELD, not baked into the passage: the sidecar
+  # decides how a particular model wants its input shaped, and this decides what the
+  # instruction says. A model with no instruction slot — MITRA's template is fixed —
+  # simply ignores it.
+  defp maybe_pin(row, _chunk, []), do: row
+
+  defp maybe_pin(row, chunk, table) do
+    case Glossary.instruction(chunk.content, table) do
+      nil -> row
+      instruction -> Map.put(row, :instruction, instruction)
+    end
+  end
+
   defp select_chunks(opts) do
     Chunk
     |> join(:inner, [c], t in Text, on: t.id == c.text_id)
     |> then(fn q ->
       if opts[:work], do: where(q, [_c, t], t.work_id == ^opts[:work]), else: q
+    end)
+    |> then(fn q ->
+      case opts[:works] do
+        nil ->
+          q
+
+        list ->
+          works = list |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+          where(q, [_c, t], t.work_id in ^works)
+      end
     end)
     |> then(fn q -> if opts[:covered_by], do: covered_by(q, opts[:covered_by]), else: q end)
     |> order_by([c], asc: c.id)
@@ -209,7 +243,15 @@ defmodule Pramana.Translate.Transfer do
         "ordinal_start" => chunk.first_ordinal,
         "ordinal_end" => chunk.last_ordinal,
         "revision" => rendering["revision"],
-        "chunk_id" => chunk.id
+        "chunk_id" => chunk.id,
+        # THE HASH OF WHAT WAS TRANSLATED, so a rendering can outlive the chunk row it
+        # was made for. `chunk_id` and the anchor URN are both properties of a particular
+        # chunking; change `max_chars` or bump `pipeline_version` and every one of them
+        # is different, which would orphan an entire paid-for tranche. The content hash is
+        # a property of the TEXT, so after a re-chunk any chunk whose content hashes the
+        # same can re-adopt its rendering with no GPU at all — and one whose text really
+        # did change is correctly left without one.
+        "source_sha256" => chunk.content_sha256
       }
     }
   end
