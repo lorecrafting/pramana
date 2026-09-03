@@ -880,6 +880,30 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     (The cache was kept, but on a re-measure rather than on its original argument: 1.79×
     after the real defect was gone. Rule 70.)
 
+77. **A rule that loses to a real need needs a mechanism, not a restatement.** *Never write
+    down a number the code computes* has been project doctrine for months, and the
+    documentation writes them down constantly — because a file whose job is *what is true
+    now* is made of numbers, and the need is legitimate. Restating the rule harder produced
+    five stale figures in one week: `work_relations` said 249 when it was 269,
+    `docs/ROADMAP.md` said 27,254 commentary alignments when there were 72,120, and
+    `docs/PLAN.md` said 17 MCP tools while `docs/STATUS.md` said 18 and the *directory*
+    settled it. Every one was caught by a person reading carefully, which is not a
+    mechanism.
+
+    So the numbers stayed and stopped being written down: they are generated into marked
+    blocks and the gate fails when regenerating would change one. Nobody is asked to
+    remember.
+
+    **The generalisable part is the diagnosis, not the generator.** When a rule is broken
+    repeatedly by people who know it, the rule is losing to something real. Find what, and
+    build the thing that makes compliance free — the same move as `Docs.RoutingTest`,
+    `Docs.TasksTest` and `Architecture.BoundariesTest`, each of which replaced a discipline
+    a person was supposed to remember at a phase gate.
+
+    **And a check that never fails is not a check.** This one crashed instead of reporting
+    staleness the first time a figure was wrong, because `not nil` raises — found by editing
+    a figure to a wrong value on purpose. Break it before you trust it.
+
 
 ---
 

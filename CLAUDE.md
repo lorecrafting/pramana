@@ -54,7 +54,7 @@ a historical sentence read as a current claim:
 |---|---|
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
-| `docs/RULES.md` | **76 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/RULES.md` | **77 rules** from real defects, cited by number — read before a new pipeline |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -67,7 +67,7 @@ before proposing something.
 
 ### Which rules apply to what you are about to do
 
-`docs/RULES.md` holds **76 rules, each learned from a real defect here**, and they are cited
+`docs/RULES.md` holds **77 rules, each learned from a real defect here**, and they are cited
 by number in code and commits. This file is always in your context and that one is not, so
 the triggers live here. **Read the listed rules before starting the activity, not after the
 test goes red.**
@@ -79,7 +79,7 @@ test goes red.**
 | add a **filter, option or mode** | 4, 5, 6, 26, 36, **75** — name the population the filter removes, and check the method abstains there rather than substituting |
 | write an **Ecto query** or touch performance | 9, 14, 15, 19, 21, 25, 34, 38, 39, 40, 67 |
 | **compare, split or match a URN** — a prefix test, a `split_part`, a `LIKE` | 68 |
-| report a **coverage figure or any ratio** | 22, 31, 44, 54, 69, 74 — and say what population the sample behind it was drawn from |
+| report a **coverage figure or any ratio** | 22, 31, 44, 54, 69, 74, **77** — say what population the sample was drawn from, and put a corpus count in a generated block rather than typing it |
 | **rank or weight by a graph** — citations, parallels, quotations | 72, 73 — ask what an edge means before ranking by it, and count distinct evidence rather than the rows carrying it |
 | choose a **threshold**, or build a benchmark | 7, 18, 30, 32, 35, 37, 47, 49, 54, 67, **74**, and `docs/PROXIES.md` |
 | **make something faster**, or fix a broken optimisation | 40, 47, **70**, **76** — re-measure what was built to avoid the thing you just fixed, and falsify the cost model before optimising against it |
@@ -178,9 +178,23 @@ the file that owns it.
 These are the rules that keep the two tables above worth trusting. Every one was learned the
 same way: a document that had quietly stopped being true.
 
-1. **Never write down a number the code computes.** State the shape and name the function.
-   `Coverage`'s own moduledoc said "this holds two" through four ingests; the reader doc
-   quoted a text count that went stale within two. If you want the number, run the function.
+1. **Never write down a number the code computes** — and where a document must state one
+   anyway, **generate it**. `Coverage`'s own moduledoc said "this holds two" through four
+   ingests; the reader doc quoted a text count that went stale within two. In one week of
+   2026-09 five more drifted, including `docs/PLAN.md` claiming 17 MCP tools while
+   `docs/STATUS.md` said 18 and the directory settled it.
+
+   A file whose job is *what is true now* is made of numbers, so the rule kept losing to
+   the need. It no longer has to: corpus counts live in `<!-- figures:key -->` blocks,
+   `mix pramana.docs.figures --write` regenerates them, and **the gate fails when
+   regenerating would change one** — `mix format --check-formatted` for facts.
+
+   **Measurements must never go in a block.** "Retrieval@10 is 74.9%" is true of a date and
+   a method, not of the corpus, and regenerating it would overwrite a record of what was
+   measured with whatever a re-run produced. The test is: *would a second run of the same
+   command change it?* A count changes when the corpus grows and should be generated. A
+   measurement changes when the method changes, and then it is a new measurement with a new
+   date. See `Pramana.Docs.Figures`.
 2. **A statement about the past belongs in `docs/HISTORY.md`, or carries its date.** A
    historical sentence in a current-state file reads as a current claim — precisely what
    made `STATUS.md` wrong four times.

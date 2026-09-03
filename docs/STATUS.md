@@ -23,9 +23,42 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 
 ### The corpus
 
+**The counts below are generated.** `mix pramana.docs.figures` regenerates them from the
+corpus and the gate fails when they are stale, because in one week this file and
+`docs/PLAN.md` disagreed about the number of MCP tools while the directory settled it, and
+`docs/ROADMAP.md` reported 27,254 commentary alignments when there were 72,120. Do not edit
+between the markers; edit the corpus, or run the task.
+
+<!-- figures:corpus -->
 | | |
 |---|---|
-| texts · segments | **17,281** · **12,586,964** |
+| texts | **17,281** |
+| segments | **12,586,964** |
+| chunks | **980,464** |
+| vectors | **1,038,275** |
+| renderings | **245,583** |
+| glossary entries | **89,649** |
+| quotations | **141,073** |
+| MCP tools | **18** |
+<!-- /figures -->
+
+<!-- figures:relations -->
+| | |
+|---|---|
+| work relations | **389** |
+| comments_on | **269** |
+| subcommentary_of | **38** |
+| parallel_of | **82** |
+| commentary alignments | **72,120** |
+| root lines with commentary | **54,343** |
+<!-- /figures -->
+
+Everything below this point is a person's prose about those numbers, and carries the usual
+obligation: a measurement states its date, and a claim about what is *true now* is checked
+against `mix pramana.doctor` when either file changes.
+
+| | |
+|---|---|
 | Chinese (CBETA) | 4,263 works across **16 of 26 collections** — T 2,471 · X 1,230 · J 285 · I 101 · GA 51 · N 38 · F 27 · seven alternative editions 57 · GB 2 · ZS 1 |
 | Pāli (SuttaCentral) | 8,442 works, **210,756** English renderings by 6 translators |
 | Tibetan (Degé) | 1,195 Kangyur · 3,380 Tengyur, **30,653** English renderings from 84000 |
@@ -37,7 +70,6 @@ section used to accumulate are in `docs/HISTORY.md`, where a sentence is allowed
 | glossary entries | **89,649** — 56,382 from 84000/Mahāvyutpatti plus **33,267** from DILA (Soothill-Hodous, Karashima ×3, Mahāvyutpatti), new 2026-09-02 |
 | glossary anchors | **29,890** citations resolved against the bake — 25,504 to a line held (85.3%), **4,345 attested absences**, 41 unresolved |
 | translators compared | Kumārajīva against Dharmarakṣa on the same sūtra: **601 shared Sanskrit headwords, 126 agreed, 475 diverged** — attested by Karashima, not inferred from n-grams |
-| chunks · vectors | 980,464 · **1,037,455** |
 | pipeline | **v5** · `verify --all`, `integrity` and `coherence` all green over every text |
 
 ### English-first, and one canon is not reachable that way yet

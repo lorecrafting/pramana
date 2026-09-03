@@ -45,11 +45,7 @@ defmodule Mix.Tasks.Pramana.Mcp.Stdio do
     Application.put_env(:logger, :default_handler, false)
 
     # Before `app.start`, which is when the Repo reads its configuration.
-    Application.put_env(
-      :pramana,
-      Pramana.Repo,
-      Keyword.put(Application.get_env(:pramana, Pramana.Repo, []), :pool_size, @pool_size)
-    )
+    Pramana.Runtime.use_small_pool!(@pool_size)
 
     Mix.Task.run("app.start")
 

@@ -16,6 +16,15 @@ mix credo --strict
 
 All four must pass. A task with failing tests is `in_progress`, not `completed`.
 
+**If the task changed the corpus, also run `mix pramana.docs.figures`** — or just
+`mix pramana.gate --quick`, which includes it. Corpus counts in documentation live in
+`<!-- figures:key -->` blocks and are generated; the check fails when regenerating would
+change one, and `--write` fixes it. Nothing is lost by regenerating: the numbers in a stale
+block were describing a corpus that no longer exists.
+
+It refuses on an empty database rather than rewriting the documentation to zeroes, so it is
+safe to run in a checkout with no bake — it simply says it did not check.
+
 ## Every phase gate (the ⛔ CHECKPOINT tasks)
 
 A checkpoint is a real stop. Do not start the next phase until all of it passes.

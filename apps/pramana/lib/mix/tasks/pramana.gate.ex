@@ -34,6 +34,7 @@ defmodule Mix.Tasks.Pramana.Gate do
   | 3 | `mix deps.audit` | 2.3 s | cheap, independent |
   | 3 | `mix credo --strict` | 3.7 s | same |
   | 3 | `mix pramana.coherence` | 6.2 s | reads a few aggregates, re-derives nothing |
+  | 3 | `mix pramana.docs.figures` | 3 s | documentation figures against the corpus |
   | 3 | lockfile verify, **every source** | 11 s | the bake is meaningless if `sources.lock.json` cannot reproduce it |
   | 3 | `mix test --cover` | 17 s | proves behaviour before anything touches the corpus |
   | 3 | `mix dialyzer` | 27 s | ~45 s cold; the PLT is what makes it cheap |
@@ -117,6 +118,15 @@ defmodule Mix.Tasks.Pramana.Gate do
     # aggregates and re-derives nothing. A check that lives outside the gate is decorative —
     # the coverage ratchet was configured for four phases and enforced for none.
     %{id: "coherence", cmd: ~w(mix pramana.coherence), env: "dev", quick: true, stage: 3},
+    # Documentation figures against the corpus. Cheap — eight counts and a directory listing
+    # — and it belongs in the gate rather than in `mix test`, because `mix test` runs
+    # against a sandbox with no corpus and every figure would read zero. It refuses on an
+    # empty database rather than reporting green, which is why it is safe to run anywhere.
+    #
+    # It is here because five figures went stale in one week and every one was caught by a
+    # person reading carefully. `docs/PLAN.md` said 17 MCP tools while `docs/STATUS.md` said
+    # 18 and the directory settled it.
+    %{id: "figures", cmd: ~w(mix pramana.docs.figures), env: "dev", quick: true, stage: 3},
     %{id: "verify", cmd: ~w(mix pramana.verify --all), env: "dev", quick: false, stage: 4},
     %{id: "integrity", cmd: ~w(mix pramana.integrity), env: "dev", quick: false, stage: 4},
     %{
