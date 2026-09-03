@@ -139,8 +139,30 @@ ps aux | grep '[b]eam.smp'   # each mcp.stdio / phx.server holds pool_size conne
 ```
 
 Then stop a server you are not using, or raise `max_connections`. **Do not lower
-`pool_size` to make it fit** — 25 is what makes the bake and the eval runs fast, and this
-is a *concurrent sessions* problem rather than a per-process one.
+`pool_size` in `config/dev.exs` to make it fit** — 25 is what makes the bake and the eval
+runs fast.
+
+### ▸ REFINED the same day, after it happened again during a full gate
+
+The paragraph above called this "a *concurrent sessions* problem rather than a per-process
+one", and that is half right. It recurred on the full gate: `FAILED test (45s)` with all
+1,567 tests passing, and 2,090 lines of `Oban.Notifiers.Postgres failed to connect` around
+the real cause.
+
+**Both halves are true, and only one of them is anybody's fault.** `mix pramana.bake` and
+`mix pramana.evals` genuinely use 25 connections and should keep them. `mix
+pramana.mcp.stdio` cannot: stdio serialises requests over a single stream and every MCP
+tool handler runs sequential `Repo` calls on the caller's process — nothing in that path
+fans out. It held 25 connections to use one, for the whole length of an editor session,
+and two editors made that 50 of the server's 100.
+
+So **that task now sets its own `pool_size: 4`** before `app.start`, which is a different
+change from lowering the shared constant: a long-lived process's share of a finite budget
+should be what it can use, not what the heaviest job needs. `mix phx.server` keeps the
+full pool, because an HTTP transport really does serve concurrent requests.
+
+The diagnosis above stands and the commands are still the first thing to run — the
+per-process fix buys headroom, it does not make a stock `max_connections = 100` unlimited.
 
 ## Toolchain pinning
 
