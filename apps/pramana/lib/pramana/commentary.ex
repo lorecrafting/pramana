@@ -155,6 +155,38 @@ defmodule Pramana.Commentary do
   # lemma whole rather than only its longer siblings.
   @window 8
 
+  # U+0F0B TIBETAN MARK INTERSYLLABIC TSHEG — the separator the Degé prints between
+  # syllables. Splitting on it is reading the edition, not tokenising it.
+  @tsheg "་"
+
+  # Tibetan needs fewer units for the same discrimination: 6 syllables are 99.8% unique in
+  # `toh4210` where 8 Chinese graphemes are 62.0% unique in `T0223`. Calibrated 2026-09-03.
+  @syllable_window 6
+
+  # The Tibetan density floor, calibrated the way the others were — the lowest value
+  # rejecting every null, over 468 pairs built by giving each commentary six works it does
+  # not explain. Null max 19.3.
+  @syllable_min_density 20.0
+
+  # AND A SECOND GATE, WHICH ONLY THIS PATH HAS.
+  #
+  # Density alone is not enough here: of the 40 asserted Tibetan pairs clearing 20, **17
+  # have forward order at chance** — 50.8% to 66.9% — against 17 above 87%. The low cluster
+  # is explicable rather than mysterious: `toh4220` and `toh4223` both point at `toh4224`,
+  # which is itself a vṛtti, so these are SIBLING COMMENTARIES sharing their common root's
+  # words. The same contamination `Quotations.Roots` found in Chinese and the same one that
+  # produced the worst śāstra null.
+  #
+  # Chinese does not get this gate and the difference is evidence, not language: there the
+  # seven pairs below 70% are commentaries aligned to a DIFFERENT TRANSLATION of their root,
+  # which is a real alignment to a real work and informative. Here they are coincidence.
+  #
+  # 80 rather than 70 because the distribution has a 10-point gap at 76.9 → 87.0 and a
+  # narrower one at 66.9 → 71.6. **Six pairs sit in the ambiguous band and are refused**;
+  # deciding them needs evidence this corpus does not have, and a new capability that starts
+  # by asserting doubtful links is one nobody will trust afterwards.
+  @syllable_min_forward 80.0
+
   # Spans per 10,000 characters of commentary, and the value is measured — see the module
   # doc. It sits just above the highest density any of 120 null pairs reached.
   @min_density 30.0
@@ -195,7 +227,21 @@ defmodule Pramana.Commentary do
           optional(:written) => non_neg_integer()
         }
 
-  @doc "The scan window, in characters."
+  # The unit and the window travel together: a window of 8 means 8 graphemes or 8
+  # syllables depending on which, and confusing them is the whole of why Tibetan looked
+  # impossible. Defaults pair correctly, so a caller passing neither gets Chinese.
+  defp unit(opts), do: Keyword.get(opts, :unit, :grapheme)
+
+  defp window_for(opts) do
+    Keyword.get_lazy(opts, :window, fn ->
+      case unit(opts) do
+        :syllable -> @syllable_window
+        _ -> @window
+      end
+    end)
+  end
+
+  @doc "The scan window, in units — graphemes by default, syllables for Tibetan."
   @spec window() :: pos_integer()
   def window, do: @window
 
@@ -247,8 +293,8 @@ defmodule Pramana.Commentary do
   """
   @spec spans(String.t(), String.t(), keyword()) :: [span()]
   def spans(commentary, root, opts \\ []) when is_binary(commentary) and is_binary(root) do
-    n = Keyword.get(opts, :window, @window)
-    {c_text, c_map} = without_breaks(commentary)
+    n = window_for(opts)
+    {c_text, c_map} = without_breaks(commentary, unit(opts))
     %{map: r_map, positions: root_positions, chars: r_chars} = prepared_root(root, opts)
 
     c_text
@@ -295,23 +341,56 @@ defmodule Pramana.Commentary do
   #
   # Returns the stripped text and a tuple mapping each stripped index to its index in the
   # original.
-  defp without_breaks(text) do
-    {stripped, indices, _all} = split_breaks(text)
-    {stripped, indices}
+  defp without_breaks(text, unit) do
+    {units, spans, _all} = split_breaks(text, unit)
+    {units, spans}
+  end
+
+  # THE UNIT IS WHAT THE EDITION PRINTS.
+  #
+  # Chinese has no whitespace, so the grapheme is the unit and an 8-grapheme window is a
+  # substantial phrase. Tibetan prints a tsheg between syllables, so the SYLLABLE is the
+  # unit — the same reasoning that refused `botok` for the lexical layer, and it needs no
+  # dictionary: the edition has already done the segmentation.
+  #
+  # Measured 2026-09-03, and it overturns what `docs/PLAN.md` assumed:
+  #
+  #     T0223  8-grapheme windows unique   62.0%
+  #     toh4210  6-syllable windows unique  99.8%
+  #
+  # "Eight characters of Tibetan is about two syllables, which recur constantly" was right
+  # about characters and wrong about the conclusion. In its own unit Tibetan discriminates
+  # BETTER than the language this method was built for.
+  defp unitise(text, :grapheme), do: String.graphemes(text)
+
+  defp unitise(text, :syllable) do
+    text
+    |> String.split(@tsheg)
+    |> Enum.map(&(&1 <> @tsheg))
+    |> then(fn units -> List.update_at(units, -1, &String.replace_suffix(&1, @tsheg, "")) end)
   end
 
   # The same walk, also handing back the ORIGINAL graphemes as a tuple so a lemma can be
   # cut from it by index. One pass rather than two, since the graphemes are built anyway.
-  defp split_breaks(text) do
+  defp split_breaks(text, unit) do
     all = String.graphemes(text)
 
-    {chars, indices} =
-      all
-      |> Enum.with_index()
-      |> Enum.reject(fn {c, _} -> String.trim(c) == "" end)
-      |> Enum.unzip()
+    {units, spans} =
+      text
+      |> unitise(unit)
+      |> Enum.reduce({[], [], 0}, fn u, {units, spans, at} ->
+        len = String.length(u)
+        trimmed = String.trim(u)
 
-    {Enum.join(chars), List.to_tuple(indices), List.to_tuple(all)}
+        if trimmed == "",
+          do: {units, spans, at + len},
+          else: {[trimmed | units], [{at, at + len} | spans], at + len}
+      end)
+      |> then(fn {units, spans, _} ->
+        {Enum.reverse(units), spans |> Enum.reverse() |> List.to_tuple()}
+      end)
+
+    {units, spans, List.to_tuple(all)}
   end
 
   defp lemma_at(chars, from, to),
@@ -320,8 +399,13 @@ defmodule Pramana.Commentary do
   # A run of `count` stripped characters, as a range in the ORIGINAL text. The end is the
   # last matched character's original index plus one, so a lemma that spanned a line break
   # includes the break — the span is contiguous in the text a reader sees.
+  # `map` holds {start, end} per unit, because a syllable is several characters where a
+  # grapheme is one. Assuming one made the span end one character past the START of the
+  # last unit, which is right for Chinese by accident and wrong for Tibetan always.
   defp original_range(map, start, count) do
-    {elem(map, start), elem(map, start + count - 1) + 1}
+    {from, _} = elem(map, start)
+    {_, to} = elem(map, start + count - 1)
+    {from, to}
   end
 
   @doc """
@@ -340,8 +424,8 @@ defmodule Pramana.Commentary do
   """
   @spec prepare_root(String.t(), keyword()) :: prepared_root()
   def prepare_root(root, opts \\ []) when is_binary(root) do
-    n = Keyword.get(opts, :window, @window)
-    {r_text, r_map, r_chars} = split_breaks(root)
+    n = window_for(opts)
+    {r_text, r_map, r_chars} = split_breaks(root, unit(opts))
 
     %{
       body: root,
@@ -376,7 +460,7 @@ defmodule Pramana.Commentary do
   # The body check is not paranoia: passing a prepared form of a different text would
   # silently align against the wrong work, and nothing downstream could detect it.
   defp prepared_root(root, opts) do
-    n = Keyword.get(opts, :window, @window)
+    n = window_for(opts)
 
     case Keyword.get(opts, :prepared_root) do
       %{body: ^root, window: ^n} = prepared -> prepared
@@ -394,19 +478,32 @@ defmodule Pramana.Commentary do
   def measure(commentary_work_id, root_work_id, opts \\ []) do
     with {:ok, commentary} <- body(commentary_work_id),
          {:ok, root} <- body(root_work_id) do
-      report(commentary_work_id, root_work_id, commentary, root, spans(commentary, root, opts))
+      report(
+        commentary_work_id,
+        root_work_id,
+        commentary,
+        root,
+        spans(commentary, root, opts),
+        opts
+      )
     end
   end
 
   # The floor depends on what kind of exegesis this is — see `min_density/1`. Looked up
   # here rather than passed in, because every caller has the work id and none of them
   # should have to know that the floor is not one number.
-  defp report(commentary_work_id, root_work_id, commentary, root, spans) do
+  defp report(commentary_work_id, root_work_id, commentary, root, spans, opts) do
     c_len = String.length(commentary)
     r_len = String.length(root)
     covered = covered_chars(spans)
     density = 10_000 * length(spans) / max(1, c_len)
-    floor = commentary_work_id |> role_of() |> min_density()
+    forward = forward_pct(spans)
+    unit = unit(opts)
+
+    floor =
+      if unit == :syllable,
+        do: @syllable_min_density,
+        else: min_density(role_of(commentary_work_id))
 
     %{
       commentary_work_id: commentary_work_id,
@@ -414,8 +511,8 @@ defmodule Pramana.Commentary do
       spans: length(spans),
       density: Float.round(density, 1),
       root_pct: Float.round(100 * covered / max(1, r_len), 1),
-      forward_pct: forward_pct(spans),
-      aligned: density >= floor
+      forward_pct: forward,
+      aligned: density >= floor and forward >= min_forward(unit)
     }
   end
 
@@ -465,6 +562,11 @@ defmodule Pramana.Commentary do
     end
   end
 
+  # Chinese has no forward gate — see `@syllable_min_forward` for why that is evidence
+  # rather than inconsistency.
+  defp min_forward(:syllable), do: @syllable_min_forward
+  defp min_forward(_), do: 0.0
+
   defp role_of(work_id) do
     Repo.one(from w in Work, where: w.id == ^work_id, select: w.text_role)
   end
@@ -479,8 +581,8 @@ defmodule Pramana.Commentary do
   # Every n-window of a text, with the positions it occurs at. NOT `windows/2`, which is
   # `Ecto.Query.windows/2` in a module that imports it — the collision is a compile error
   # rather than a subtle one, but the name would still read wrongly here.
-  defp char_windows(text, n) do
-    chars = text |> String.graphemes() |> List.to_tuple()
+  defp char_windows(units, n) when is_list(units) do
+    chars = List.to_tuple(units)
     last = tuple_size(chars) - n
 
     if last < 0 do
@@ -718,7 +820,7 @@ defmodule Pramana.Commentary do
          {:ok, root} <- text_row(root_work_id),
          true <- commentary.id != root.id do
       found = spans(commentary.body, root.body, opts)
-      report = report(commentary_work_id, root_work_id, commentary.body, root.body, found)
+      report = report(commentary_work_id, root_work_id, commentary.body, root.body, found, opts)
 
       if report.aligned do
         {:ok, persist(commentary, root, found, report, opts)}

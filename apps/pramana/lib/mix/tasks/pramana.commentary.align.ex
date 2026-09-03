@@ -38,6 +38,10 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
 
   @switches [work: :string, dry_run: :boolean, min_density: :float]
 
+  @grapheme_sources ~w(cbeta sat local-huang-nianzu-jie)
+  @syllable_sources ~w(derge derge-tengyur)
+  @alignable_sources @grapheme_sources ++ @syllable_sources
+
   @impl Mix.Task
   def run(argv) do
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
@@ -68,10 +72,11 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     # of them cannot be resident at once. Sorting is what makes holding one sufficient.
     results =
       pairs
-      |> Enum.sort_by(fn {commentary, root} -> {root, commentary} end)
-      |> Enum.reduce({[], nil}, fn {_, root} = pair, {acc, cached} ->
-        held = prepared_for(root, cached)
-        result = run_pair(pair, opts[:dry_run], bake_id, elem(held, 1))
+      |> Enum.sort_by(fn {commentary, root, _} -> {root, commentary} end)
+      |> Enum.reduce({[], nil}, fn {_, root, source} = pair, {acc, cached} ->
+        unit = unit_for(source)
+        held = prepared_for(root, cached, unit)
+        result = align_pair(pair, opts[:dry_run], bake_id, elem(held, 1), unit)
         report(result)
         {[result | acc], held}
       end)
@@ -83,29 +88,36 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
   # Keyed on the work id, which sorting has already made consecutive. `prepare_root/2` also
   # checks the body before trusting a prepared form, so a mistake here would be slow rather
   # than wrong.
-  defp prepared_for(root, {root, _} = held), do: held
+  # The Degé prints a tsheg between syllables and CBETA prints nothing between characters,
+  # so the window unit follows the source. See the note above `@alignable_sources`.
+  defp unit_for(source) when source in @syllable_sources, do: :syllable
+  defp unit_for(_source), do: :grapheme
 
-  defp prepared_for(root, _other) do
-    case Commentary.prepare_root_by_work(root) do
-      {:ok, prepared} -> {root, prepared}
-      _ -> {root, nil}
+  # Keyed on the work id AND the unit: the same root prepared for graphemes is useless for
+  # syllables, and reusing it would silently align against the wrong tokenisation.
+  defp prepared_for(root, {{root, unit}, _} = held, unit), do: held
+
+  defp prepared_for(root, _other, unit) do
+    case Commentary.prepare_root_by_work(root, unit: unit) do
+      {:ok, prepared} -> {{root, unit}, prepared}
+      _ -> {{root, unit}, nil}
     end
   end
 
   # A prepared root is an optimisation and never an input to the answer: `nil` here takes
   # the slow path to the same result, which is what makes the cache safe to get wrong.
-  defp run_pair(pair, dry_run, bake_id, prepared) do
-    opts = if prepared, do: [prepared_root: prepared], else: []
-    run_pair(pair, dry_run, bake_id, opts, :ready)
+  defp align_pair(pair, dry_run, bake_id, prepared, unit) do
+    opts = [unit: unit] ++ if prepared, do: [prepared_root: prepared], else: []
+    run_pair(pair, dry_run, bake_id, opts)
   end
 
-  defp run_pair({commentary, root}, true, _bake_id, opts, :ready),
+  defp run_pair({commentary, root, _source}, true, _bake_id, opts),
     do: Commentary.measure(commentary, root, opts)
 
   # `{:skip, report}` is not an error: a pair below the density floor is a commentary that
   # paraphrases rather than quotes, which this method cannot see and which says nothing
   # about whether the relation is right. Both shapes carry the same numbers.
-  defp run_pair({commentary, root}, _dry_run, bake_id, opts, :ready) do
+  defp run_pair({commentary, root, _source}, _dry_run, bake_id, opts) do
     case Commentary.align(commentary, root, Keyword.put(opts, :bake_id, bake_id)) do
       {:ok, report} -> report
       {:skip, report} -> report
@@ -113,42 +125,27 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     end
   end
 
-  # THE METHOD IS CHINESE, AND THE PAIR LIST IS NOT.
+  # THE METHOD IS NOT CHINESE ANY MORE, AND THAT TOOK ONE MEASUREMENT TO FIND OUT.
   #
-  # 科文 alignment works because a Chinese commentary quotes a phrase of its root and then
-  # glosses it, and because an eight-CHARACTER window is a substantial phrase whose
-  # uniqueness in the root is the whole method (`Pramana.Commentary`). Eight characters of
-  # Tibetan is about two syllables, which recur constantly — the uniqueness rule does not
-  # hold, so the method has no basis there.
+  # This excluded Tibetan for a year on the grounds that "eight characters of Tibetan is
+  # about two syllables, which recur constantly", and that is true and was the wrong
+  # conclusion. In its OWN unit Tibetan discriminates better than Chinese:
   #
-  # This reads every asserted relation, and on 2026-09-02 `mix pramana.derge.relations`
-  # added 93 Tibetan ones.
+  #     T0223    8-grapheme windows unique   62.0%
+  #     toh4210  6-syllable windows unique   99.8%
   #
-  # **The original reason for this guard was that a Tibetan pair ran five minutes without
-  # finishing. That was a defect, not the method** — `String.slice/3` walking the binary
-  # once per span, fixed 2026-09-03. The same pairs now run in 0.01-0.05 s.
+  # The tsheg the Degé prints is the segmentation, so no dictionary is needed — the same
+  # reasoning that refused `botok` for the lexical layer. `toh4224` -> `toh4210`, the
+  # Pramāṇavārttika vṛtti against its kārikā, went from 19,499 spans at 52.1% forward order
+  # — noise — to 182 spans at 97.8%.
   #
-  # **The real reason is stronger, and the fix is what made it visible.** Measured on three
-  # Tibetan pairs the day the speed excuse went away:
-  #
-  #     toh2231 -> toh2229   density 554.1   forward 57.4%
-  #     toh1900 -> toh1901   density 297.1   forward 60.7%
-  #     toh1900 -> toh1367   density 373.7   forward 51.9%
-  #
-  # Forward order is at chance — 50% — against **84.3% over accepted Chinese pairs**, which
-  # is exactly what "eight characters is about two Tibetan syllables" predicts: the windows
-  # match everywhere and in no order. And the densities are 10-18x the floor, so **the
-  # floor would wave every one of them through.** Unguarded, this would now write thousands
-  # of alignments whose uniqueness premise was never true, quickly.
-  #
-  # So the guard is more necessary since it got fast, not less. See `docs/PLAN.md` item 2:
-  # a Tibetan aligner needs syllable windows, its own floor, AND the discriminator actually
-  # enforced rather than reported.
-  #
-  # So the filter is on the SOURCE, not on the relation: a pair is alignable when both
-  # sides are Chinese. A Tibetan equivalent needs syllable windows and its own measured
-  # floor, which is a different piece of work and not a parameter of this one.
-  @alignable_sources ~w(cbeta sat local-huang-nianzu-jie)
+  # **Tibetan carries a second gate that Chinese does not**, and the difference is evidence
+  # rather than language. Of the 40 asserted Tibetan pairs clearing the density floor, 17
+  # sit at chance: `toh4220` and `toh4223` both point at `toh4224`, which is itself a
+  # vṛtti, so they are sibling commentaries sharing their common root's words. Density
+  # cannot see that and forward order can. In Chinese the low-forward pairs are commentaries
+  # aligned to a different TRANSLATION of their root — a real alignment to a real work — so
+  # gating there would discard something informative. See `Pramana.Commentary`.
 
   # `subcommentary_of` was excluded until 2026-09-03, when there were nine of them. There
   # are now 38, and 29 are Chinese pairs of exactly the shape this method is for: a 論疏
@@ -175,7 +172,7 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
         r.relation in ^@alignable_relations and not is_nil(r.target_work_id) and
           cs.source_id in ^@alignable_sources and rt.source_id in ^@alignable_sources,
       distinct: true,
-      select: {r.source_work_id, r.target_work_id},
+      select: {r.source_work_id, r.target_work_id, cs.source_id},
       order_by: [asc: r.source_work_id, asc: r.target_work_id]
     )
     |> then(fn q -> if work, do: where(q, [r], r.source_work_id == ^work), else: q end)

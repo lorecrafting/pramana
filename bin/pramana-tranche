@@ -51,28 +51,35 @@ launch() {
     --batch-size "${PRAMANA_TRANCHE_BATCH:-32}" > "$log" 2>&1 &
 }
 
-for attempt in $(seq 0 "$MAX_RESTARTS"); do
+# POLLING IS FREE; ONLY A RESTART IS RATIONED. The first version spent one restart per
+# poll, because both lived in the same `for`, so it exited after thirteen 120-second polls
+# — twenty-six minutes of everything going RIGHT — and announced "gave up after 12
+# restarts" having restarted nothing. A budget that a healthy loop consumes is not a
+# budget, and a message that reports work never done is worse than no message.
+restarts=0
+
+while true; do
   if running; then
     sleep "$POLL"
     continue
   fi
 
-  log="$LOG_DIR/${OUTPUT%.jsonl}-attempt-$attempt.log"
-
-  # A previous attempt that finished the work says so, and saying so is how this loop
-  # ends. Checking the log beats re-counting the volume: the run itself is the only thing
-  # that knows what it skipped.
-  if [ "$attempt" -gt 0 ] && grep -qa "nothing outstanding" "$LOG_DIR"/*.log 2>/dev/null; then
+  # The run itself is the only thing that knows what it skipped, so it is what declares
+  # completion. Checking the log beats re-counting the volume.
+  if grep -qa "nothing outstanding" "$LOG_DIR"/*.log 2>/dev/null; then
     echo "$(date +%H:%M:%S) tranche complete"
     exit 0
   fi
 
-  launch "$log"
+  if [ "$restarts" -ge "$MAX_RESTARTS" ]; then
+    echo "$(date +%H:%M:%S) gave up after $restarts restart(s) — check $LOG_DIR"
+    exit 1
+  fi
 
-  # Let the app register before polling, or the next check races the launch and starts a
-  # second one — the exact failure this script is written to prevent.
+  launch "$LOG_DIR/${OUTPUT%.jsonl}-attempt-$restarts.log"
+  restarts=$((restarts + 1))
+
+  # Let the app register before polling again, or the next check races the launch and
+  # starts a second one — the exact failure this script exists to prevent.
   sleep 60
 done
-
-echo "$(date +%H:%M:%S) gave up after $MAX_RESTARTS restart(s) — check $LOG_DIR"
-exit 1

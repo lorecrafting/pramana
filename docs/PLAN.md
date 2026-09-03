@@ -47,78 +47,46 @@ and prompt were each measured, and § E1 records what by.
    `comments_on` relations between works both held in Chinese — which was item 3.
    ▸ **Item 3 shipped 2026-09-02 and added 74**, so the input has grown; re-running is now
    item 6, and it needs sizing before it is started.
-2. **A Tibetan aligner. #1 paid — 72,120 alignments — so this is live, and the case for
-   it changed on 2026-09-03.** The Chinese method still cannot transfer: 科文 alignment
-   rests on an eight-CHARACTER window being unique in the root, and eight characters of
-   Tibetan is about two syllables, which recur constantly. A Tibetan version needs
-   **syllable** windows and its own measured floor — the tsheg the edition prints is the
-   unit, the same reasoning that refused `botok` for the lexical layer. New method, not a
-   parameter.
+2. ~~**A Tibetan aligner.**~~ ▸ **SHIPPED 2026-09-03. 17 pairs, 2,078 alignments — the
+   first passage-level commentary outside Chinese.**
 
-   **▸ CORRECTION. "A single Tibetan pair ran five minutes without finishing" was a defect,
-   not the method** — `String.slice/3`, item 6. The same pairs now run in 0.01–0.05 s.
-   Anyone reading the old sentence would conclude the guard exists for performance and
-   could remove it now that the performance is fine.
+   **The premise this item rested on was wrong, and one measurement showed it.** "Eight
+   characters of Tibetan is about two syllables, which recur constantly" is true and led to
+   the wrong conclusion. In its own unit Tibetan discriminates BETTER than the language the
+   method was built for:
 
-   **The measured reason is the opposite, and it is worse.** With the speed excuse gone:
+       T0223    8-grapheme windows unique   62.0%
+       toh4210  6-syllable windows unique   99.8%
 
-       toh2231 -> toh2229   density 554.1   forward 57.4%
-       toh1900 -> toh1901   density 297.1   forward 60.7%
-       toh1900 -> toh1367   density 373.7   forward 51.9%
+   The tsheg the Degé prints IS the segmentation, so no dictionary is needed — the same
+   reasoning that refused `botok` for the lexical layer. `toh4224` → `toh4210`, the
+   Pramāṇavārttika vṛtti against its kārikā, goes from **19,499 spans at 52.1% forward
+   order — noise — to 182 spans at 97.8%**. It was never a new method; it was the wrong
+   unit, and "new method, not a parameter" was a guess this file recorded as a finding.
 
-   Forward order is at chance against **84.3% over accepted Chinese pairs** — the windows
-   match everywhere and in no order, exactly as the syllable argument predicts. And the
-   densities are 10–18× the floor, so **the density floor would accept every one of them.**
-   The source guard is now the only thing standing between this task and thousands of fast,
-   confident, meaningless alignments.
+   **Tibetan carries a second gate that Chinese does not, and the difference is evidence.**
+   Of the 40 asserted pairs clearing the density floor, 17 sit at chance — `toh4220` and
+   `toh4223` both point at `toh4224`, which is itself a vṛtti, so they are sibling
+   commentaries sharing their common root's words. Density cannot see that; forward order
+   can. In Chinese the low-forward pairs are commentaries aligned to a different
+   *translation* of their root, which is a real alignment and informative, so gating there
+   would discard something. This is the forward-order gate that item 2 previously said
+   needed a null set before anyone placed it — the null set now exists.
 
-   **The three pairs above were the three SMALLEST, which is a biased draw (rule 62), so
-   the population was measured too — and it holds.** Over all 98 Tibetan pairs that clear
-   the floor: forward order median **54.1%**, p25 52.1, p75 57.5, **82 of 98 below 60%**,
-   two above 70%. The sample was lucky, not sound; the conclusion survives being checked.
+   **Both thresholds are the only pair that admits no null**, over 468 nulls built by
+   giving each commentary six works it does not explain:
 
-   **A significance test is the wrong gate, and measuring it is what showed that.** The
-   null for forward order is known analytically — a coin — so the obvious move is to ask
-   whether a pair beats chance rather than to pick a percentage. It separates badly: every
-   Chinese pair sits above z = 2.03, but so do 55 of 98 Tibetan ones, because `toh4025` has
-   **8,260 spans** and 67.6% forward is overwhelming at that n. **With enough spans, noise
-   is significant.** The effect size is the signal here and the p-value is not, which is an
-   argument for a calibrated percentage after all.
+       density x forward     asserted kept / null admitted
+        >= 2, >= 80              40/102        20/468
+        >= 5, >= 80              31/102        10/468
+       >= 10, >= 80              24/102         3/468
+       >= 20, >= 80              17/102         0/468
 
-   **Which exposes a design gap worth fixing before any Tibetan work: the floor gates on
-   density, and the discriminator is only reported.** `docs/COMMENTARY.md` uses forward
-   order to tell real 科文 structure from overlap, and `aligned` never consults it. On
-   Chinese the two agree, so nothing showed; on Tibetan they disagree completely.
+   **The flagship pair is refused, and the null set says that is right.** `toh4224` →
+   `toh4210` scores 97.8% forward and density 6.7, and at density ≥ 5 the nulls admit ten.
+   Forward order alone is not enough either: 8 nulls clear 80% with 40+ spans, one with 307.
+   Two gates, both necessary, and the intuitively obvious pair falls outside them.
 
-   **▸ PRICED 2026-09-03, and the null set turned out to already exist.** The density floor
-   needed 120 constructed null pairs; this did not, because the Tibetan relations *are* a
-   population where the method's premise is known false. Both signals, over the 76 Chinese
-   and 98 Tibetan pairs that clear the floor:
-
-       rule                              Chinese kept    Tibetan admitted
-       forward >= 65                        74 of 76           6 of 98
-       forward >= 70                        69 of 76           2 of 98
-       density <= 250                       72 of 76          37 of 98
-       forward >= 75 and density <= 250     58 of 76           0 of 98
-
-   **Forward order separates and density does not** — a ceiling at 250 rejects 4 Chinese to
-   catch only 61 of 98. The two distributions overlap at the tails (Chinese min 61.5%,
-   Tibetan max 80.8%) and not in the bulk: Tibetan median forward is 54.1%, Chinese 84.3%
-   over accepted pairs.
-
-   **What the 7 lost Chinese pairs are decides this, and it is not a tuning question.**
-   They are the cross-translation cluster — `T1510b` → `T0236b` at 67.3%, `T1511` → `T0236b`
-   at 67.0% — real alignments to a real work the commentary is not quoting, which
-   `docs/COMMENTARY.md` says forward order exists to detect. Gating at 70 asserts that the
-   right sūtra in the wrong translation is not an alignment. **That is a claim about what
-   the corpus should say, so it is left to a person**; the measurement is recorded in
-   `Pramana.Commentary` so it does not have to be re-derived to make it.
-
-   **The gate is in any case not what makes Tibetan safe** — the source guard is, and it is
-   structural rather than statistical: the window unit is wrong, which is knowable without
-   measuring anything. A forward gate would be defence in depth for the day someone removes
-   the guard because it looks like a performance workaround, which is exactly what its
-   comment used to make it look like.
 3. ~~**Chinese śāstra linking.**~~ ▸ **SHIPPED 2026-09-02** —
    `mix pramana.relations.shared_text`, `Pramana.Quotations.Roots`, `method: shared_text`.
    **66 works linked, 44 of which reach no root by any other method.** With item 4's fix
@@ -502,14 +470,14 @@ held 18, so the counts no longer live in prose. Rule 77.
 | comments_on | **269** |
 | subcommentary_of | **38** |
 | parallel_of | **82** |
-| commentary alignments | **74,644** |
-| root lines with commentary | **56,363** |
+| commentary alignments | **76,722** |
+| root lines with commentary | **57,609** |
 <!-- /figures -->
 
 <!-- figures:derived -->
 | | |
 |---|---|
-| commentary alignment | **83 of 184 alignable pair(s) — 60 distinct commentaries, 74,644 line alignments** |
+| commentary alignment | **100 of 184 alignable pair(s) — 77 distinct commentaries, 76,722 line alignments** |
 | commentary -> root links | **194 of 3,923 commentarial works reach a root** |
 | Tibetan work titles | **3,864 of 4,575 works named** |
 <!-- /figures -->

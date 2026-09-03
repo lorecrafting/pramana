@@ -64,6 +64,29 @@ rejecting all 120, and it costs three asserted pairs. A threshold calibrated aga
 tail is calibrated against nothing; the way to find that out is to enlarge the tail rather
 than reason about it.
 
+## It is not a Chinese-only method any more — 2026-09-03
+
+The Degé prints a tsheg between syllables, so the **syllable** is Tibetan's unit the way
+the grapheme is Chinese's, and no dictionary is needed to find it. Measured, the premise
+holds better there than here:
+
+| | windows unique in the root |
+|---|---|
+| `T0223`, 8 graphemes | 62.0% |
+| `toh4210`, 6 syllables | **99.8%** |
+
+`toh4224` → `toh4210`, the Pramāṇavārttika vṛtti against its kārikā, goes from 19,499 spans
+at 52.1% forward order — noise — to **182 spans at 97.8%**. 17 Tibetan pairs now align,
+2,078 lemmas, the first passage-level commentary outside Chinese.
+
+**Tibetan carries a forward-order gate that Chinese does not**, and the difference is
+evidence rather than language. 17 of the 40 Tibetan pairs clearing the density floor sit at
+chance, because works like `toh4220` and `toh4223` both point at `toh4224` — sibling
+commentaries sharing their common root's words. In Chinese the low-forward pairs are
+commentaries aligned to a different *translation* of their root, which is a real alignment
+and informative. Both Tibetan thresholds — density 20, forward 80 — are the only pair
+admitting none of 468 nulls.
+
 **A pair below the floor is not a refuted relation.** A commentary may paraphrase, and
 several here plainly do; this method sees verbatim quotation and nothing else. Nothing
 about a `comments_on` row changes when its pair fails to align.
