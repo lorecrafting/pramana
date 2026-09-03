@@ -10,6 +10,56 @@ Most of the ideas below are *harvesting* that, not new construction.
 
 ---
 
+## 0. The commentary is the tradition's own answer, and nothing routes a model to it
+
+**★★ Raised 2026-09-02 and not yet committed — this may belong in `CLAUDE.md` as a fourth
+guard rather than here.**
+
+The project has two rules about what may stand for what, and both run the same direction:
+**invariant #8**, a machine translation is never citable as source, and
+`docs/COMMENTARY.md`'s, a commentary is not scripture. Both protect the root text from
+things below it.
+
+**The missing one runs the other way: an interpretation the model supplies must not stand
+where the tradition's own explanation exists.** Positively — where the canon glossed a
+passage, the reader is told, and told whose voice it is.
+
+Why it matters more here than in ordinary retrieval: a model's default gloss on `空` is
+sediment from popular books, forum posts and translations of translations. Kuiji's gloss
+is a different kind of object — attributable, dated, located, part of the tradition's own
+self-understanding. Conflating them is what a project named *pramāṇa* exists to prevent;
+the whole tradition is an argument about which means of knowing are valid.
+
+**The concrete gap, and it is rule 60's shape.** `get_commentaries` exists,
+`Pramana.Commentary` aligns a commentary line to the root line it explains, and
+**`get_passage` says nothing about either**. A model landing on a dense line receives the
+words, no signal that Vasubandhu explained *that* line, and improvises. The capability is
+built and unreachable at the moment of use.
+
+Four moves, cheapest first:
+
+1. **`get_passage` reports availability** — `commentary: %{count: 3, urns: [...]}`. Small,
+   and the only one that changes behaviour: a model told three commentaries explain this
+   line will ask for them.
+2. **Structural, not prompted.** The response already carries `citable_as_source: false`
+   on a rendering — invariant #8 visible in the response shape. A canonical commentary
+   carries author, date and address; a model's gloss carries none, and that absence is the
+   signal. Invariant #4's method.
+3. **An "unconsulted" check in the guard.** `Pramana.Guard` byte-compares quotes and
+   cannot check meaning — but it *can* check whether an answer explaining a passage cited
+   the commentary that exists for it. Presence is deterministic where correctness is not,
+   and it is the same move as the citation guard: not "is this right" but "did you look".
+4. **Label rather than blend.** `search(include_commentary:)` exists; commentary hits
+   should arrive marked as explanation, not mixed into one ranked list.
+
+**The honest limit.** 24 commentaries are aligned and 89 pairs are alignable, so this
+would often answer "nothing glosses this line". That is fine and better than silence: *the
+tradition did not gloss this passage, here is my reading, labelled as mine* is a true
+answer. The failure to prevent is the model's reading arriving **unlabelled** where
+Kuiji's was available.
+
+---
+
 ## 1. Scholar workflow — where the real users are
 
 **★ `pramana verify-bibliography <file>`** — the killer app. Point it at a `.md`,

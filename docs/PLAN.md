@@ -29,13 +29,21 @@ and prompt were each measured, and § E1 records what by.
 
 ### The queue, in order
 
-1. **Run the full Chinese 科文 alignment — `mix pramana.commentary.align`.** 182
-   `comments_on` relations exist and **24 commentaries are aligned**. This is the
-   line-level version of the work-level links: landing on a dense canonical line and being
-   handed the layers of explanation attached to *that line*, which `docs/COMMENTARY.md`
-   names the highest-value piece of the feature. Already built and already measured —
-   70–78% of root lines carry an anchor on attested pairs against 0.5–1.9% on non-pairs —
-   so this is a run and a check, not a build.
+1. ~~**Run the full Chinese 科文 alignment.**~~ ▸ **ALREADY DONE — verified 2026-09-02, it
+   added nothing.** "24 commentaries aligned" is not a partial run against 182 relations:
+   the 89 Chinese pairs yield 43 above the density floor, and those **collapse to 24
+   distinct commentary works** because an ambiguous relation gives one commentary several
+   root candidates. Re-running reproduced 27,254 alignments exactly.
+
+   What it did establish: the alignment is **reproducible** from the same inputs, the
+   discriminator still separates real 科文 structure from overlap — **forward order 84.0%
+   over accepted pairs against 57.1% over the rest**, chance being ~50% — and the Tibetan
+   guard works in situ, 89 pairs considered rather than the ~182 that would have included
+   Tibetan edges.
+
+   **To extend this, the input has to grow, not the run.** More alignments need more
+   `comments_on` relations between works both held in Chinese — which is item 3, and item
+   3 says measure first.
 2. **A Tibetan aligner, if #1 pays.** The Chinese method cannot transfer: 科文 alignment
    rests on an eight-CHARACTER window being unique in the root, and eight characters of
    Tibetan is about two syllables, which recur constantly. A single Tibetan pair ran five
