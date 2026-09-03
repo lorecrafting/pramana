@@ -488,6 +488,33 @@ defmodule Pramana.Commentary do
   end
 
   @doc """
+  For each commentary explaining this work, how much of it is anchored line by line.
+
+  **The evidence existed and did not reach the reader.** Six works are recorded as
+  explaining `T0262`; two of them are aligned to it lemma by lemma and four are not, and
+  `get_commentaries` could not say which. That is the difference between a list of names
+  and a list a person can choose from.
+
+  **Absence here is not a verdict, and the caller must be told so.** A pair below the
+  density floor is not a refuted relation — a commentary may paraphrase its root, which
+  this method cannot see at all — so a missing entry means *no verbatim quotation was
+  found*, never *this is the weaker commentary*. Several of the most important commentaries
+  in the corpus paraphrase.
+  """
+  @spec alignment_counts(String.t()) :: %{
+          String.t() => %{lemmas: pos_integer(), lines: pos_integer()}
+        }
+  def alignment_counts(root_work_id) when is_binary(root_work_id) do
+    from(a in CommentaryAlignment,
+      where: a.root_work_id == ^root_work_id,
+      group_by: a.commentary_work_id,
+      select: {a.commentary_work_id, count(a.id), count(a.root_urn, :distinct)}
+    )
+    |> Repo.all()
+    |> Map.new(fn {work, lemmas, lines} -> {work, %{lemmas: lemmas, lines: lines}} end)
+  end
+
+  @doc """
   How many commentary lemmas anchor to this root line, ignoring any limit.
 
   **`glosses_on/2` truncates and cannot say so from a list.** 27 root lines carry more

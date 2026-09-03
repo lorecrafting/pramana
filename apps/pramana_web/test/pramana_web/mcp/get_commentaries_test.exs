@@ -69,6 +69,35 @@ defmodule PramanaWeb.MCP.GetCommentariesTest do
       |> Map.fetch!("text")
       |> Jason.decode!()
 
+  describe "how thoroughly, and what absence means" do
+    # `Relations.assert/1` keeps the same relation from two methods as two rows, because
+    # corroboration is information. Counting rows said six works explain the Lotus Sūtra
+    # when five do — a count whose unit is not the reader's unit is a wrong count.
+    test "counts works, and reports assertions separately when they differ" do
+      {:ok, _} =
+        Relations.assert(%{
+          source_work_id: "T1718",
+          target_work_id: "T0262",
+          relation: "comments_on",
+          method: "shared_text"
+        })
+
+      data = call!(%{work_id: "T0262"})
+
+      assert data["total"] == 2, "two works explain T0262"
+      assert data["assertions"] == 3, "one of them by two methods"
+      assert data["note"] =~ "corroboration rather than a duplicate"
+    end
+
+    test "a commentary with no verbatim alignment is not reported as weaker" do
+      data = call!(%{work_id: "T0262"})
+
+      assert data["aligned"] == 0
+      assert data["note"] =~ "NOT weaker or refuted"
+      assert data["note"] =~ "Do not rank by this field"
+    end
+  end
+
   describe "what explains a work" do
     test "returns the commentaries pointing at it" do
       data = call!(%{work_id: "T0262"})

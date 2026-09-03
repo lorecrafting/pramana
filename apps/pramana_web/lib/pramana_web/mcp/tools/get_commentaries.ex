@@ -6,6 +6,15 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
   is the question people actually have: "commentary on the Lotus Sūtra", not "Chinese
   commentary".
 
+  ## How thoroughly, not only which
+
+  A commentary aligned to its root lemma by lemma carries `alignment` with the counts — 
+  `T1519` explains 82 lines of the Lotus Sūtra across 106 lemmas. **A commentary without it
+  is not weaker and not refuted**: 科文 alignment sees verbatim quotation and nothing else,
+  so a commentary that paraphrases aligns to nothing, and several of the most important
+  ones paraphrase. The reply says so, because a bare number invites a ranking the evidence
+  does not support.
+
   ## A commentary explains scripture and is not scripture
 
   Results are grouped by composition origin and text role and carry each work's dates,
@@ -33,6 +42,7 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
 
   use Anubis.Server.Component, type: :tool
 
+  alias Pramana.Commentary
   alias Pramana.Provenance
   alias Pramana.Relations
   alias PramanaWeb.MCP.Reply
@@ -67,18 +77,53 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
   end
 
   defp downward(work_id) do
-    commentaries = Relations.commentaries_on(work_id)
+    aligned = Commentary.alignment_counts(work_id)
+
+    commentaries =
+      work_id
+      |> Relations.commentaries_on()
+      |> Enum.map(&Map.put(&1, :alignment, Map.get(aligned, &1.work_id)))
 
     %{
       work_id: work_id,
       direction: "explains_this",
-      total: length(commentaries),
+      # WORKS, not rows. `Relations.assert/1` keeps the same relation from two methods as
+      # two rows, because corroboration is information — so `T1520` is asserted to explain
+      # `T0262` by both `title_match` and `shared_text` and appears twice below. Counting
+      # rows here said six works explain the Lotus Sūtra when five do. Rules 22 and 44: a
+      # count whose unit is not the unit the reader assumes is a wrong count.
+      total: commentaries |> Enum.map(& &1.work_id) |> Enum.uniq() |> length(),
+      assertions: length(commentaries),
+      aligned: map_size(aligned),
       groups: group(commentaries),
       note:
         "These works EXPLAIN #{work_id}; none of them is #{work_id}. Fetch a passage by " <>
           "URN to quote one, and attribute it to the commentary, never to the text it " <>
-          "comments on."
+          "comments on. " <> alignment_note(commentaries, aligned)
     }
+  end
+
+  # ABSENCE IS NOT A VERDICT, and a caller ranking by this field would make it one.
+  #
+  # `alignment` says a commentary was matched to its root lemma by lemma, which is worth
+  # knowing: it is the difference between "here are six commentaries" and a list a person
+  # can choose from. But 科文 alignment sees verbatim quotation and nothing else, so a
+  # commentary that paraphrases scores nothing — and several of the most important ones do.
+  # A missing entry means no verbatim quotation was found, never a weaker commentary.
+  defp alignment_note(commentaries, aligned) do
+    works = commentaries |> Enum.map(& &1.work_id) |> Enum.uniq() |> length()
+
+    corroborated =
+      if length(commentaries) > works,
+        do:
+          " #{length(commentaries)} assertions cover #{works} works: one asserted by two " <>
+            "methods appears once per method, which is corroboration rather than a duplicate.",
+        else: ""
+
+    "Of #{works}, #{map_size(aligned)} are aligned to this work lemma by " <>
+      "lemma and carry `alignment` with the counts. The rest are NOT weaker or refuted: " <>
+      "科文 alignment sees verbatim quotation only, so a commentary that paraphrases its " <>
+      "root aligns to nothing. Do not rank by this field." <> corroborated
   end
 
   defp upward(work_id) do
@@ -146,6 +191,10 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
       relation: w.relation,
       scope: w.scope,
       target_urn: w.target_urn,
+      # How much of the root this one is anchored to, lemma by lemma. `nil` means no
+      # verbatim quotation was found, which is not the same as explaining less — see the
+      # note on the reply.
+      alignment: w[:alignment],
       # How this link was established, and how strongly. Never averaged away.
       method: w.method,
       confidence: w.confidence,
