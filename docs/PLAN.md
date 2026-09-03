@@ -450,12 +450,49 @@ imply in a commit.**
 
 ## Where the product stands
 
+**The three blocks below are generated** — `mix pramana.docs.figures`, checked by the gate.
+This table said 249 work relations when there were 269 and 17 MCP tools when the directory
+held 18, so the counts no longer live in prose. Rule 77.
+
+<!-- figures:corpus -->
 | | |
 |---|---|
-| corpus | **17,281 texts · 12,586,964 segments** · 3 traditions · **1,037,455 vectors** |
+| texts | **17,281** |
+| segments | **12,586,964** |
+| chunks | **980,464** |
+| vectors | **1,038,275** |
+| renderings | **245,583** |
+| glossary entries | **89,649** |
+| quotations | **141,073** |
+| MCP tools | **18** |
+<!-- /figures -->
+
+<!-- figures:relations -->
+| | |
+|---|---|
+| work relations | **389** |
+| comments_on | **269** |
+| subcommentary_of | **38** |
+| parallel_of | **82** |
+| commentary alignments | **72,120** |
+| root lines with commentary | **54,343** |
+<!-- /figures -->
+
+<!-- figures:derived -->
+| | |
+|---|---|
+| commentary alignment | **76 of 184 alignable pair(s) — 54 distinct commentaries, 72120 line alignments** |
+| commentary -> root links | **194 of 3,923 commentarial works reach a root** |
+| Tibetan work titles | **3,864 of 4,575 works named** |
+<!-- /figures -->
+
+The rest of this table is prose about those numbers, and a measurement in it states its
+date.
+
+| | |
+|---|---|
 | CBETA | **16 collections of 26** — T 2,471 · X 1,230 · J 285 · **I 101** · N 38 · **GA 51** · **F 27** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · **GB 2** · M 1 · **ZS 1** — 4,340 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
-| MCP surface | **18 read-only tools** — count them with `ls apps/pramana_web/lib/pramana_web/mcp/tools/*.ex`; this line said 17 while `docs/STATUS.md` said 18 and the directory said 18 |
 | English over Chinese | **3,354 renderings** over **2 of 4,263** CBETA works (54 Āgama sūtras) — new 2026-08-31, § E1 |
 | reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
 | work relations | **389** — 269 `comments_on` · 38 `subcommentary_of` · 82 `parallel_of` (41 pairs). By signal, in ROWS: `title_match` 240, **`shared_text` 66**, `manifest` 1; in distinct source works, 156 / 66 / 1, because one relation asserted by two methods is two rows and that is corroboration rather than duplication |

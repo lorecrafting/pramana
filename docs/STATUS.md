@@ -53,6 +53,14 @@ between the markers; edit the corpus, or run the task.
 | root lines with commentary | **54,343** |
 <!-- /figures -->
 
+<!-- figures:derived -->
+| | |
+|---|---|
+| commentary alignment | **76 of 184 alignable pair(s) — 54 distinct commentaries, 72120 line alignments** |
+| commentary -> root links | **194 of 3,923 commentarial works reach a root** |
+| Tibetan work titles | **3,864 of 4,575 works named** |
+<!-- /figures -->
+
 Everything below this point is a person's prose about those numbers, and carries the usual
 obligation: a measurement states its date, and a claim about what is *true now* is checked
 against `mix pramana.doctor` when either file changes.

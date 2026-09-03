@@ -60,7 +60,17 @@ defmodule Pramana.Docs.Figures do
   """
   @spec blocks() :: %{String.t() => [{String.t(), String.t()}]}
   def blocks do
-    %{"corpus" => corpus(), "relations" => relations()}
+    %{"corpus" => corpus(), "relations" => relations(), "derived" => derived()}
+  end
+
+  # `Pramana.Coverage.derivations/0` already computes these for `mix pramana.doctor`, and
+  # a second copy here is how the first one goes stale — which is the defect this whole
+  # module exists for. **Every one of these is a ratio with its denominator**, because a
+  # figure without one is the failure this project is most prone to (rules 22, 44, 54).
+  defp derived do
+    Enum.map(Pramana.Coverage.derivations(), fn d ->
+      {d.what, "#{commas(d.done)} of #{commas(d.eligible)} #{d.unit}"}
+    end)
   end
 
   defp corpus do
@@ -114,6 +124,8 @@ defmodule Pramana.Docs.Figures do
     %{rows: [[n]]} = Repo.query!(sql)
     n
   end
+
+  defp commas(n) when is_binary(n), do: n
 
   defp commas(n) do
     n
