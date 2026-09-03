@@ -78,12 +78,29 @@ defmodule Pramana.URN.Taisho do
   CBETA covers Taishō vols 1–55 and 85. SAT covers 1–85. The delta, vols **56–84**, is
   exactly the Japanese-composed sectarian corpus (Shingon, Tendai, Nichiren, Zen).
 
+  **Origin is mechanical; role is not, and this used to guess it.** Until 2026-09-02 the
+  56–84 clause returned `text_role: "commentary"` for the whole block. That is contradicted
+  by every row `Pramana.Taisho.Divisions` holds for the range — 續經疏部 and 續律疏部・續論疏部
+  are `subcommentary`, 續諸宗部 and 悉曇部 are `treatise`, and not one is `commentary`.
+
+  It survived the correction of 2026-08-30, which rebuilt exactly this range from SAT's own
+  分類 after finding 452 of 510 works mislabelled by a single collapsed row. **Same range,
+  third time** — rule 41: a fix that does not sweep for the constant's other homes leaves it
+  standing where it will fire next. Nothing is mislabelled today only because these volumes
+  are not loaded, and the division table wins for canon `T` whenever it can speak; this is
+  the fallback for when it cannot, and a fallback that guesses is worse than one that does
+  not.
+
+  So role is now `nil` here, which is what the rest of this module already does: *an
+  unlabelled work is a smaller problem than a mislabelled one.*
+
   See `docs/ARCHITECTURE.md`, "Your Taishō requirement, solved".
   """
   @spec provenance_for_volume(pos_integer()) ::
-          {:ok, %{composition_origin: String.t(), text_role: String.t()}} | {:error, atom()}
+          {:ok, %{composition_origin: String.t() | nil, text_role: String.t() | nil}}
+          | {:error, atom()}
   def provenance_for_volume(volume) when is_integer(volume) and volume in 56..84 do
-    {:ok, %{composition_origin: "japanese", text_role: "commentary"}}
+    {:ok, %{composition_origin: "japanese", text_role: nil}}
   end
 
   def provenance_for_volume(volume) when is_integer(volume) and volume in 1..85 do

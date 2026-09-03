@@ -5,15 +5,20 @@ defmodule Mix.Tasks.Pramana.Derge.Relations do
       mix pramana.derge.relations           # report only, writes nothing
       mix pramana.derge.relations --write
 
-  **41 of 3,923 commentarial works in this corpus reach a root, and none of them are
-  Tibetan.** `resolve_root/2` walks a chain to depth 10 and `get_commentaries` is a live
-  MCP tool, so the capability a reader wants — from a sūtra to its commentary to the
-  subcommentary on that — is built and exposed and has almost nothing to walk.
+  **Almost no commentarial work in this corpus reaches a root, and none of them were
+  Tibetan** when this was written — `mix pramana.doctor` prints the fraction now, and the
+  Tibetan half of it comes from here. `resolve_root/2` walks a chain to depth 10 and
+  `get_commentaries` is a live MCP tool, so the capability a reader wants — from a sūtra
+  to its commentary to the subcommentary on that — was built and exposed with almost
+  nothing to walk.
 
   `mix pramana.relations.derive` cannot fill it, because it matches the way Chinese titles
   work: a commentary's title *contains* its root's. Tibetan shares a **stem** and differs
   by genre suffix, so neither title contains the other. `Pramana.Derge.Genre` reads the
   suffix; this walks the families it finds.
+
+  Nor can `mix pramana.relations.shared_text`, which reaches the Chinese works no title
+  rule can: the quotation graph is Chinese at both ends of every edge it holds.
 
   ## The parent is the longest title this one extends, not the family's root
 

@@ -401,11 +401,34 @@ defmodule Pramana.Coverage do
       done: linked,
       eligible: commentarial,
       unit: "commentarial works reach a root",
-      note:
-        "Title matching finds a root only when the title names one. 大智度論 explains " <>
-          "摩訶般若波羅蜜經 without naming it, so the unlinked remainder is mostly works " <>
-          "no title rule can reach — a new signal, not a re-run."
+      note: "by signal — #{relation_methods()}. " <> relation_note()
     }
+  end
+
+  # Which signal found them, because the two are different claims and the remainder means
+  # something different for each: a title rule cannot reach a commentary that never names
+  # its root, and the shared-text rule cannot reach one that paraphrases.
+  defp relation_methods do
+    %{rows: rows} =
+      Repo.query!("""
+      SELECT method, count(DISTINCT source_work_id)
+        FROM work_relations
+       WHERE relation <> 'parallel_of'
+       GROUP BY 1 ORDER BY 2 DESC
+      """)
+
+    Enum.map_join(rows, ", ", fn [method, count] -> "#{method} #{count}" end)
+  end
+
+  defp relation_note do
+    "Title matching finds a root only when the title names one — 大智度論 explains " <>
+      "摩訶般若波羅蜜經 without naming it — and `mix pramana.relations.shared_text` reaches " <>
+      "those through the quotation graph. What neither reaches: a commentary that " <>
+      "paraphrases rather than quotes, and treatises, which the shared-text rule derives " <>
+      "and refuses to assert because nothing tests that role. Subcommentaries were " <>
+      "unreachable by BOTH until 2026-09-02, when the target of a link stopped being " <>
+      "`root` for every source role — 論疏部 explains 論. A work counted here may be " <>
+      "linked with `confidence: uncertain`; read the band, not the total."
   end
 
   defp tibetan_title_coverage do

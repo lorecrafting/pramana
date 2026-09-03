@@ -34,7 +34,7 @@ defmodule Pramana.Relations do
   alias Pramana.Repo
 
   @relations ~w(comments_on subcommentary_of translates conflates abridges quotes parallel_of)
-  @methods ~w(catalogue manifest title_match lemma_match llm)
+  @methods ~w(catalogue manifest title_match lemma_match shared_text llm)
   @confidences ~w(certain probable asserted uncertain)
 
   # Chain-following relations. `quotes` and `parallel_of` are deliberately excluded:
@@ -45,6 +45,44 @@ defmodule Pramana.Relations do
 
   @max_depth 10
 
+  # What a work of each role may be found to explain. Read off `Pramana.Taisho.Divisions`
+  # rather than assumed — see `may_explain/1`.
+  @explains %{
+    "commentary" => ~w(root),
+    "subcommentary" => ~w(treatise commentary root),
+    "treatise" => ~w(root)
+  }
+
+  @doc """
+  The `text_role`s a work of this role may be found to explain.
+
+  **This was one global `["root"]` in two separate linkers until 2026-09-02**, which is a
+  claim about the literature — *only scripture is commented on* — and the Taishō's own
+  division table contradicts it:
+
+      1816-1850  論疏部  Śāstra exegesis  ->  subcommentary
+      1536-1563  毘曇部  Abhidharma       ->  treatise
+      1564-1578  中觀部  Madhyamaka       ->  treatise
+      1579-1627  瑜伽部  Yogācāra         ->  treatise
+
+  **論疏部 is a whole Taishō division whose purpose is commenting on 論**, and every 論
+  division is `text_role: treatise`. So every subcommentary in the corpus was unlinkable by
+  construction, and `T1830` 成唯識論述記 — whose title contains 成唯識論 literally — was found
+  by nothing. Worse, `Pramana.Quotations.Roots` did not abstain for them: with the right
+  answer filtered out, the runner-up looks like the answer, and it proposed the
+  Mahāprajñāpāramitā at `confidence: probable`. Rule 75.
+
+  It lives here rather than in either caller because both need the same answer and a
+  second copy is how the first one went stale. A role with no entry explains nothing, which
+  is why `history`, `catalogue` and `apocryphon` are absent: they are not exegesis.
+  """
+  @spec may_explain(String.t() | nil) :: [String.t()]
+  def may_explain(role), do: Map.get(@explains, role, [])
+
+  @doc "The roles that may explain something at all — the sources of a `comments_on`."
+  @spec explanatory_roles() :: [String.t()]
+  def explanatory_roles, do: @explains |> Map.keys() |> Enum.sort()
+
   @doc "Known relation names, for validating input before it reaches the database."
   @spec relations() :: [String.t()]
   def relations, do: @relations
@@ -54,6 +92,13 @@ defmodule Pramana.Relations do
 
   `title_match` sits between `manifest` and `lemma_match`: deterministic, but an
   inference from a string rather than an editorial judgement.
+
+  `shared_text` is weaker than both and is the only one that infers the relation from
+  evidence that does not mention it — a commentary's dominant shared-text partner among
+  root-role works (`Pramana.Quotations.Roots`). It is deliberately not filed under
+  `lemma_match`, which names what `commentary_alignments` does *given* a relation already
+  asserted; naming the inference after the procedure that presupposes it would make one
+  value mean two things.
   """
   @spec methods() :: [String.t()]
   def methods, do: @methods

@@ -13,8 +13,10 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-08-27** — A shipped. **B is done through the seventh CBETA
-collection: 10 of 26 held, every text chunked and embedded, the reader at five screens.**
+Last reviewed: **2026-09-02** — the queue and the sections it points at; the phase
+sections further down were not re-read, and the date claims only what was. A shipped.
+**B is done through the sixteenth CBETA collection: 16 of 26 held, every text chunked and
+embedded, the reader at six screens.**
 
 ---
 
@@ -42,8 +44,9 @@ and prompt were each measured, and § E1 records what by.
    Tibetan edges.
 
    **To extend this, the input has to grow, not the run.** More alignments need more
-   `comments_on` relations between works both held in Chinese — which is item 3, and item
-   3 says measure first.
+   `comments_on` relations between works both held in Chinese — which was item 3.
+   ▸ **Item 3 shipped 2026-09-02 and added 74**, so the input has grown; re-running is now
+   item 6, and it needs sizing before it is started.
 2. **A Tibetan aligner, if #1 pays.** The Chinese method cannot transfer: 科文 alignment
    rests on an eight-CHARACTER window being unique in the root, and eight characters of
    Tibetan is about two syllables, which recur constantly. A single Tibetan pair ran five
@@ -51,44 +54,201 @@ and prompt were each measured, and § E1 records what by.
    **syllable** windows and its own measured floor — the tsheg the edition prints is the
    unit, the same reasoning that refused `botok` for the lexical layer. New method, not a
    parameter.
-3. **Chinese śāstra linking — MEASURED 2026-09-02, the signal is real, ready to build.**
-   Title containment cannot find these: 大智度論 comments on 摩訶般若波羅蜜經 and does not
-   name it. **The quotation graph can** — not as a citation graph, which it is not
-   (`docs/PROXIES.md`), but as a **candidate generator**, which is exactly what a
-   shared-text graph is good for.
+3. ~~**Chinese śāstra linking.**~~ ▸ **SHIPPED 2026-09-02** —
+   `mix pramana.relations.shared_text`, `Pramana.Quotations.Roots`, `method: shared_text`.
+   **66 works linked, 44 of which reach no root by any other method.** With item 4's fix
+   landing in the same commit, commentarial works reaching a root went **119 → 194 of
+   3,923 (3.0% → 4.9%)**. The flagship case landed:
+   **T1509 大智度論 → T0223 摩訶般若波羅蜜經, 654 distinct shared passages against 12 for
+   the runner-up.**
 
-   The flagship case is unambiguous: **T1509 shares 955 passages with T0223, its actual
-   root, and 24 with its next partner** — a 40× gap on the pair cited all day as
-   unfindable.
+   **The handed-over measurement reproduced exactly** — 20 of 26, 76.9%, same four ratio
+   bands — and then two things changed what shipped. Both are the reason the number is not
+   76.9% over 171.
 
-   **Validated against the links title matching already gives us**, which is independent
-   ground truth. The rule is *a commentarial work's root is its dominant shared-text
-   partner among `text_role = 'root'` works*:
+   **Rows were counting repetition, not evidence (rule 73).** `count(*)` over `quotations`
+   counts *occurrences*: `T1723` 妙法蓮華經玄贊 shares one 29-character list with the
+   Mahāprajñāpāramitā, printed there five times, and those five copies of one string beat
+   the Lotus Sūtra it is named after. On `count(DISTINCT text_sha256)` the flagship reads
+   654/12 rather than 955/24, and **50 of 171 apparent dominant partners dissolve into
+   ties** — their margin had been repetition. Partners are also grouped by *family*
+   (`T0220a`–`T0220d` are one work), which rule 72 already required and which removes
+   seven more fake ties.
 
-       band                     works  correct  precision
-       sole root partner            7        6      85.7%
-       top >= 5x runner-up          4        4     100.0%
-       2-5x                         9        6      66.7%
-       under 2x                     6        4      66.7%
-       ---
-       all testable                26       20      76.9%
+   Rebanded on that footing, the errors stop being scattered across the ratio bands and
+   concentrate — one row per work, so per-work and per-row precision are the same number.
 
-   **Restricting partners to root-role works is what makes it work.** Unrestricted it
-   scores 43.8%, because two commentaries on one sūtra share *the sūtra's* text with each
-   other — `T1703`'s top partner is `T1701`, both Diamond Sūtra commentaries, 62 shared
-   passages between them.
+   **And then item 4 enlarged the ground truth from 26 works to 38, which withdrew the
+   headline.** The final measurement, scoring what is written apart from what is refused
+   because a blended figure charges the rule for proposals it declines to make:
 
-   **Build it as:** dominant root-role partner, `confidence: probable` when the partner is
-   sole or ≥5× the runner-up (10 of 11 correct) and `uncertain` below that (10 of 15). The
-   prize is **995 unlinked candidate pairs over 171 commentarial works**, against 119
-   linked today — and every new `comments_on` is also new input for 科文 alignment, which
-   item 1 showed cannot grow any other way.
+       of what would be WRITTEN                works  correct
+       dominant family, n >= 5                    17       14
+       dominant family, n < 5                     12        6
+       ---                                        29       20
 
-   **Two cautions.** n=26 is small and the bands are noisy — 4 works at 100% is not
-   evidence of 100%. And `method:` needs a decision: `lemma_match` is deterministic text
-   evidence and already in the enum, while a new `shared_text` is more honest and is a
-   registry change (rules 11, 12, 13, 42).
-4. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
+       of what is REFUSED — low earns the refusal
+       dominant family, n >= 5                     1        0
+       dominant family, n < 5                      3        0
+       no dominant family (a tie)                  5        1
+       ---                                         9        1
+
+   **13 of 13 was an artifact of a ground truth that could not see these works**, and is
+   withdrawn: the strong band is **14 of 17**. Two of the three new errors are the ground
+   truth being *coarser* rather than wrong — `T1806` 四分律比丘含注戒本 is scored wrong for
+   proposing `T1429` 四分律比丘戒本 where the title says `T1428` 四分律, and annotating the
+   prātimokṣa is the more precise answer.
+
+   **The refusals are now measured rather than argued: 1 of 9.** Ties score 1 of 5 and
+   subcommentaries 0 of 4, which is exactly what item 4 predicted from the division table.
+
+   **And the validation set is not the population (rule 74).** Every one of the 26
+   testable works is `text_role: commentary`, because `title_match` can only reach a work
+   whose title names a root. Treatises are **82 of the 171** and are scored nowhere — and
+   the top of their band is one systematic error repeated: `T1537`, `T1536`, `T1563`,
+   `T1562`, `T1544`, five Sarvāstivāda Abhidharma śāstras proposed as commentaries on the
+   Mahāprajñāpāramitā because both are full of the same list-formulae. `T1579` 瑜伽師地論 →
+   `T0676` 解深密經 is the subtler form: the Yogācārabhūmi absorbs the Saṃdhinirmocana and
+   does not comment on it.
+
+   **So the rule shipped narrowed, which is what the handover asked for if precision did
+   not hold.** Written: `text_role: commentary` only, dominant family, `probable` at
+   ≥ 5 distinct shared passages and `uncertain` below. Refused, and reported with its size
+   rather than silently never generated: **43 ties** (a 33-way tie at one shared passage is
+   an absence of evidence, not a choice between roots — per row that band is 3 of 22 where
+   per work it flatters itself at 3 of 4, and 1 of 5 against the enlarged ground truth),
+   **82 treatises** and **8 subcommentaries**.
+   Restricted to the one asserted role the Prajñāpāramitā artifact shrinks but does not
+   vanish: **9 proposals
+   still point at the `T0220` family and 3 of them are `probable`**, of which one is right
+   — `T1695` 大般若波羅蜜多經般若理趣分述讚 really does comment on a division of it — and
+   two are the two failure modes worth knowing.
+
+   **`T1708` 仁王經疏 is the graph having no evidence for the right answer.** It shares 7
+   distinct passages with the `T0220` family and **nothing at all** with either surviving
+   仁王經 (`T0245`, `T0246`) above the 20-character floor, so there is no runner-up to
+   compete and a sole partner reads as dominance. Family summing did not cause it but did
+   promote it: 3 + 2 + 2 across three ids is `probable`, where the best single id would
+   have been `uncertain`.
+
+   **`T1830` 成唯識論述記 is structural, and it turned out to be a wrong constant rather
+   than a limitation.** It explains `T1585` 成唯識論, which is `text_role: treatise` —
+   outside the partner set. Chasing that produced **item 4**: 論疏部 is a whole Taishō
+   division that explains 論, both Chinese linkers restrict targets to root scripture, and
+   so every `subcommentary` in the corpus is unlinkable by construction. **`subcommentary`
+   was therefore dropped from what this writes**, because a `subcommentary_of` aimed at a
+   sūtra is incoherent whatever the evidence supports.
+
+   **A hub penalty was considered and the measurement says no.** If `T0220` were winning
+   by being enormous, it would be the top partner far more often than anything else. It is
+   top for 7 of the 66 written and 2 of the 34 `probable`, against 7 and 3 for `T0279`
+   華嚴經 — which has many real commentaries. There is no anomaly to threshold on, so
+   nothing was built.
+
+   **`method:` decided as a new `shared_text`**, not `lemma_match`. `lemma_match` already
+   names what `commentary_alignments` does — align lemmas to root lines **given** a
+   `comments_on` relation asserted elsewhere — and this *infers* that relation. Naming the
+   inference after the procedure that presupposes it would make one value mean two things
+   in the one place a reader sees it (`get_glosses`), and would read as circular. One
+   migration, `Relations.methods/0`, and a test derived from the registry that every
+   declared method is one the constraint accepts (rules 11, 12).
+
+   **What this does not do.** Precision on treatises is still unknown and the refusal is
+   the honest form of that, not a claim they are unlinkable. **38 is still small**, and the
+   task re-derives the table on every run rather than quoting it precisely because the last
+   two enlargements each moved it. And the new links are **new input for 科文 alignment**,
+   which item 1 showed cannot grow any other way — that is item 6, and it needs sizing
+   before it is started.
+
+4. ~~**The target of a `comments_on` is restricted to root scripture.**~~ ▸ **FIXED
+   2026-09-02, discovered while shipping item 3.**
+
+   `mix pramana.relations.derive` loads targets as `load(["root"], min_title)` and
+   `Pramana.Quotations.Roots` joins partners on `text_role = 'root'`. Both encode the same
+   premise: **only scripture can be commented on.** The Taishō's own division table, which
+   is already in this repository and already validated, says otherwise:
+
+       1816-1850  論疏部  Śāstra exegesis  ->  subcommentary
+       1536-1563  毘曇部  Abhidharma       ->  treatise
+       1564-1578  中觀部  Madhyamaka       ->  treatise
+       1579-1627  瑜伽部  Yogācāra         ->  treatise
+
+   **論疏部 is an entire division whose defining purpose is commenting on 論**, and every
+   論 division is `text_role: treatise`. So the corpus's 35 `subcommentary` works — the
+   whole Chinese śāstra-exegesis literature it holds — are structurally unlinkable by
+   either method, and worse, item 3's rule did not abstain for them: it proposed whichever
+   sūtra they shared formulae with. `T1830` 成唯識論述記 explains `T1585` 成唯識論 and was
+   proposed for the Mahāprajñāpāramitā at `confidence: probable`.
+
+   **Item 3 shipped narrowed to `commentary` alone because of this**, so nothing incoherent
+   was written.
+
+   **The fix is `Pramana.Relations.may_explain/1`**: the target role is a function of the
+   source role, not one global constant — a `commentary` (釋經論部, 經疏部, 律疏部) explains
+   scripture, a `subcommentary` (論疏部) explains a śāstra. It is read off a validated table,
+   so it is deterministic, which is invariant #5, and it lives in `Pramana.Relations`
+   because both linkers need the same answer and a second copy is how the first goes stale.
+
+   **Done in `mix pramana.relations.derive` first, and the order was the point.** Title
+   matching held the same constant, which is *why* no subcommentary was testable. Widening
+   it is pure containment and gets those links for free — **18 works, T1816–T1850**:
+   成唯識論述記 → 成唯識論, 瑜伽師地論略纂 → 瑜伽師地論, 唯識二十論述記 → 唯識二十論, six
+   commentaries on 大乘起信論, 因明入正理論疏 → 因明入正理論. The Chinese Yogācāra and
+   Awakening-of-Faith exegetical core, previously reachable by nothing.
+
+   **A second constant was hiding behind the first, and it needed its own census.**
+   `@default_min_title` was 5, and 成唯識論 is four characters — so the four great 成唯識論
+   commentaries stayed unfindable even after the role fix. The floor is now **3**,
+   calibrated by reading *everything* each floor admits rather than sampling it: at 4 and
+   at 3 every admitted pair is correct, and at 2 they are not — `人本欲生經註` matches
+   `生經`, whose root is 人本欲生經. 3 is the lowest value admitting no error, which is how
+   `docs/COMMENTARY.md` set the alignment density floor. Title matching went from 54 works
+   and 110 relations to **78 and 138**.
+
+   **And the payoff was immediate and unwelcome, which is the point of doing it first.**
+   Ground truth grew 26 → 38 testable works and item 3's `13 of 13` became **14 of 17** —
+   see item 3. Rule 74 applied before the fact instead of after it.
+
+   **Still owed: the shared-text half.** `Pramana.Quotations.Roots` still joins partners on
+   `text_role = 'root'` and still refuses subcommentaries. It can now be *scored* on them,
+   which is what was missing — and the refusal is currently earning itself at 0 of 4.
+
+   **What this does not fix, and needs its own rule.** A sole partner satisfies
+   "dominant" trivially, so silence reads as dominance: `T1708` 仁王經疏 shares seven
+   passages with the `T0220` family and *nothing* with either 仁王經 above the scan's
+   20-character floor, and no widening reaches it. Candidates worth measuring against the
+   existing 26: require a beaten runner-up, or a higher floor when `runner_up_passages`
+   is null.
+
+5. **▸ DISCOVERED 2026-09-02 — the gate's coverage step was already red, and is now
+   exactly on the line.** `mix pramana.gate` failed at `test` with **82.80% against a
+   threshold of 83**, measured with this session's work stashed, so it is not a regression
+   from anything here. The handover recorded the gate green on all 11 steps; that had
+   stopped being true before this session started, and nothing was watching because the
+   step's own output is 300 lines of coverage table with the failure at the bottom.
+
+   Covering this session's own code and two real gaps in `Pramana.Relations` — the
+   `resolve_root/2` depth cap, and the registry-versus-constraint contract for the
+   `relation` column as well as `method` — brings it to **83.00%, which passes with no
+   margin at all.** The next lib module added without tests fails the gate again. The
+   restoration targets in `apps/pramana/mix.exs` are 85 here and 93 for `pramana_web`
+   (82.69% today), and the ratchet must not be lowered to make a run pass.
+
+6. **Re-run the 科文 alignment over the new relations — and size it first.**
+   Item 1 established that the alignment cannot grow without more `comments_on` relations
+   between works both held in Chinese, and item 3 has now added 74. That is the input it
+   was waiting for.
+
+   **It is not a free re-run, which is new information.** A first attempt at
+   `mix pramana.commentary.align --dry-run` was stopped after ~25 minutes having printed
+   nothing. The pair count roughly doubles (89 → ~163) but the pairs are not the same size:
+   the flagship is 大智度論 against 摩訶般若波羅蜜經, both around 100 juan, where the
+   previously aligned pairs are mostly a commentary against one sūtra. **Size it before
+   running it** — `--work` takes one commentary, so the cost curve can be measured on
+   three pairs rather than discovered on 163. `docs/PROXIES.md`, and the habit of measuring
+   before building.
+
+7. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
    worth another ~$40 depends on what this one delivers, and the demand ranking it would
    use is itself a weak proxy — see § E1 and `docs/PROXIES.md`.
 
@@ -181,7 +341,7 @@ imply in a commit.**
 | MCP surface | **17 read-only tools** — `search_translations`, `get_glosses`, `get_works_by_person` and `get_person` all added 2026-08-28 |
 | English over Chinese | **3,354 renderings** over **2 of 4,263** CBETA works (54 Āgama sūtras) — new 2026-08-31, § E1 |
 | reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
-| work relations | 90 `comments_on` · 82 `parallel_of` (41 pairs) |
+| work relations | 249 `comments_on` · 17 `subcommentary_of` · 82 `parallel_of` (41 pairs) — by signal, `title_match` 191, **`shared_text` 74**, `manifest` 1 |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
 | commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |

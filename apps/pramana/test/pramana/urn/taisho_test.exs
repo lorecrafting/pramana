@@ -1,6 +1,7 @@
 defmodule Pramana.URN.TaishoTest do
   use ExUnit.Case, async: true
 
+  alias Pramana.Taisho.Divisions
   alias Pramana.URN.Taisho
 
   describe "parse_locator/1" do
@@ -51,10 +52,24 @@ defmodule Pramana.URN.TaishoTest do
   end
 
   describe "provenance_for_volume/1 — the Taishō 56-84 rule" do
-    test "vols 56-84 are mechanically Japanese-composed commentary" do
+    # Origin is mechanical — the CBETA/SAT delta IS the Japanese sectarian corpus. Role is
+    # not, and this returned `commentary` for the whole block until 2026-09-02, which
+    # `Pramana.Taisho.Divisions` contradicts on every row it holds for the range:
+    # 續經疏部 and 續律疏部・續論疏部 are `subcommentary`, 續諸宗部 and 悉曇部 are `treatise`.
+    # Same range as the 452-work mislabelling of 2026-08-30, and the same rule 41.
+    test "vols 56-84 are mechanically Japanese-composed, and their role is not guessed" do
       for vol <- [56, 70, 84] do
-        assert {:ok, %{composition_origin: "japanese", text_role: "commentary"}} =
+        assert {:ok, %{composition_origin: "japanese", text_role: nil}} =
                  Taisho.provenance_for_volume(vol)
+      end
+    end
+
+    test "the division table types that range, and disagrees with what was guessed" do
+      for number <- [2185, 2245, 2246, 2295, 2296, 2700, 2701, 2731] do
+        %{text_role: role} = Divisions.provenance_for_number(number)
+
+        assert role in ~w(subcommentary treatise),
+               "T#{number} is #{inspect(role)}; the volume rule used to call it commentary"
       end
     end
 

@@ -82,8 +82,9 @@ work_relations
                      | abridges | quotes | parallel_of
   scope              whole_work | juan | passage
   target_urn         optional: the exact passage, when known
-  confidence         certain | probable | asserted
-  method             catalogue | manifest | lemma_match | llm
+  confidence         certain | probable | asserted | uncertain
+  method             catalogue | manifest | title_match | lemma_match
+                     | shared_text | llm
   evidence           jsonb
 ```
 
@@ -158,14 +159,51 @@ the honest limit of a method built on character identity.
 
 ## The tasks that build the graph
 
-    mix pramana.relations.derive   commentary -> root, from work titles
-    mix pramana.quotations.scan    verbatim text reuse across works, into the quotation graph
+    mix pramana.relations.derive        commentary -> what its title names, by containment
+    mix pramana.derge.relations         the same for Tibetan, from stem and genre suffix
+    mix pramana.quotations.scan         verbatim text reuse across works, into the quotation graph
+    mix pramana.relations.shared_text   commentary -> root, from that graph
 
-Both are **deterministic and re-runnable**, which is invariant #5 and also what makes them
+All are **deterministic and re-runnable**, which is invariant #5 and also what makes them
 safe: a re-run converges on the same graph rather than accumulating a second copy of it. The
 quotation graph is 141,073 verbatim reuses, and `Pramana.Recall` reads it as free relevance
 judgements — every one is a statement that a passage occurs in two named works, which is a
 retrieval test nobody had to label.
+
+### Reaching the commentaries no title names
+
+Most Chinese commentarial works never name their root — 大智度論 explains 摩訶般若波羅蜜經
+and says so nowhere — so `mix pramana.relations.derive` cannot reach them, and
+`mix pramana.doctor` prints how few it does.
+
+`mix pramana.relations.shared_text` reaches them through the quotation graph, **as a
+candidate generator and not as a citation graph**, which it is not (rule 72,
+`docs/PROXIES.md`). The rule is *a commentarial work's root is its dominant shared-text
+partner among works whose `text_role` is `root`*, and the direction comes from `text_role`
+rather than from the edge, which carries none. `Pramana.Quotations.Roots` holds it, with
+the two counting decisions that make it work — distinct passages rather than quotation rows
+(rule 73), and partner *families* rather than work ids (rule 72) — and the measurement
+against the title-matched links, which is the only independent ground truth available.
+
+**It refuses more than it writes, and the refusals are the interesting part.** A tie is not
+a root. `text_role: treatise` is a role nothing has tested and which need not be about
+another text at all: its strongest proposals are five Sarvāstivāda Abhidharma śāstras aimed
+at the Mahāprajñāpāramitā, because both are full of the same list-formulae. Rule 74.
+
+`text_role: subcommentary` is refused for a different and sharper reason. **論疏部
+(T1816–T1850, "Śāstra exegesis") explains 論, and every 論 division in
+`Pramana.Taisho.Divisions` is `text_role: treatise`** — so restricting targets to root
+scripture excludes, by construction, the only works a subcommentary can be about. Rule 75.
+
+`Pramana.Relations.may_explain/1` is the fix: the target role follows the source role,
+read off that division table rather than assumed. It landed in the title matcher first,
+where it is pure containment — **18 works, T1816–T1850**, the Chinese Yogācāra and
+Awakening-of-Faith exegetical core, reachable by nothing before. The shared-text half is
+still owed (`docs/PLAN.md` item 4), so subcommentaries stay refused here; the refusal now
+scores **0 of 4** against the ground truth that fix created, which is the division table's
+prediction confirmed rather than argued.
+
+Every refusal is derived, counted and printed rather than silently never generated.
 
 ## The rule that must not bend
 

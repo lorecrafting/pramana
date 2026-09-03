@@ -42,7 +42,72 @@ defmodule Pramana.RelationsTest do
     :ok
   end
 
+  describe "may_explain/1" do
+    # 論疏部 (T1816-T1850, "Śāstra exegesis") explains 論, and every 論 division in
+    # `Pramana.Taisho.Divisions` is `text_role: treatise`. A single global `["root"]` in
+    # two linkers therefore made every subcommentary in the corpus unlinkable — and made
+    # `Quotations.Roots` propose scripture for them rather than abstain. Rule 75.
+    test "a subcommentary may explain a treatise, which a commentary may not" do
+      assert "treatise" in Relations.may_explain("subcommentary")
+      refute "treatise" in Relations.may_explain("commentary")
+    end
+
+    test "a commentary explains scripture, which is what the partner restriction is for" do
+      assert Relations.may_explain("commentary") == ~w(root)
+    end
+
+    test "a role that is not exegesis explains nothing, and an unknown role does not raise" do
+      for role <- ~w(root history catalogue apocryphon) do
+        assert Relations.may_explain(role) == []
+      end
+
+      assert Relations.may_explain(nil) == []
+      assert Relations.may_explain("no-such-role") == []
+    end
+
+    test "the exegetical roles are the sources a link may be derived for" do
+      assert Relations.explanatory_roles() == ~w(commentary subcommentary treatise)
+
+      for role <- Relations.explanatory_roles() do
+        refute Relations.may_explain(role) == [],
+               "#{role} is listed as exegetical but may explain nothing"
+      end
+    end
+  end
+
   describe "assert/1" do
+    # Rule 11: the check constraint on `method` is a contract with `Relations.methods/0`,
+    # and a value in one and not the other fails every insert. Derived from the registry
+    # rather than listed here (rule 12), so adding a method extends this test by itself.
+    test "every method the registry declares is one the database accepts" do
+      for method <- Relations.methods() do
+        assert {:ok, r} =
+                 Relations.assert(%{
+                   source_work_id: "T1718",
+                   target_work_id: "T0262",
+                   relation: "comments_on",
+                   method: method
+                 })
+
+        assert r.method == method
+      end
+    end
+
+    # Same contract as the methods above, on the other enumerated column of the same table.
+    test "every relation the registry declares is one the database accepts" do
+      for relation <- Relations.relations() do
+        assert {:ok, r} =
+                 Relations.assert(%{
+                   source_work_id: "T1718",
+                   target_work_id: "T0262",
+                   relation: relation,
+                   method: "catalogue"
+                 })
+
+        assert r.relation == relation
+      end
+    end
+
     test "records a relation with its method and confidence" do
       assert {:ok, r} =
                Relations.assert(%{
@@ -201,6 +266,26 @@ defmodule Pramana.RelationsTest do
       assert ids == Enum.uniq(ids)
     end
 
+    # A chain this long is a data problem rather than a text, and the cap is what keeps a
+    # malformed catalogue from walking the whole corpus.
+    test "stops at the depth cap rather than walking an arbitrarily long chain" do
+      ids = for n <- 1..14, do: "C#{n}"
+
+      for id <- ids, do: work!(id, %{text_role: "commentary"})
+
+      for [child, parent] <- Enum.chunk_every(ids, 2, 1, :discard) do
+        {:ok, _} =
+          Relations.assert(%{
+            source_work_id: child,
+            target_work_id: parent,
+            relation: "comments_on",
+            method: "catalogue"
+          })
+      end
+
+      assert length(Relations.resolve_root("C1")) == 10
+    end
+
     test "does not follow `quotes`, which is not a chain step" do
       # Quoting a sūtra does not make a work a commentary on it; following it would
       # report a root the text never claimed to explain.
@@ -230,6 +315,34 @@ defmodule Pramana.RelationsTest do
 
       assert Relations.explanatory?("T1718")
       refute Relations.explanatory?("T0262")
+    end
+  end
+
+  describe "stats/0" do
+    test "counts the graph by relation AND method, so two signals stay distinguishable" do
+      for {method, target} <- [{"title_match", "T0262"}, {"shared_text", "T0262"}] do
+        {:ok, _} =
+          Relations.assert(%{
+            source_work_id: "T1718",
+            target_work_id: target,
+            relation: "comments_on",
+            method: method
+          })
+      end
+
+      {:ok, _} =
+        Relations.assert(%{
+          source_work_id: "T1719",
+          target_work_id: "T1718",
+          relation: "subcommentary_of",
+          method: "shared_text"
+        })
+
+      stats = Relations.stats()
+
+      assert %{relation: "comments_on", method: "title_match", count: 1} in stats
+      assert %{relation: "comments_on", method: "shared_text", count: 1} in stats
+      assert %{relation: "subcommentary_of", method: "shared_text", count: 1} in stats
     end
   end
 end

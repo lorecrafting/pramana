@@ -100,6 +100,60 @@ finding.**
 
 ---
 
+## The graph works as a candidate generator, and two proxies inside it lied — 2026-09-02
+
+The same graph, used the way it can be used: *which root-role work does this commentary
+share most text with*. That is a candidate generator, not a reading of direction, and it
+finds the pairs no title rule can — `T1509` 大智度論 shares 654 distinct passages with
+`T0223` 摩訶般若波羅蜜經 and 12 with its runner-up. It shipped as
+`mix pramana.relations.shared_text`. Two things inside it were proxies, and both lied.
+
+**"How much text do they share" was measured as a row count, and that is a measure of
+repetition.** A `quotations` row is one *occurrence*. `T1723` 妙法蓮華經玄贊 shares a single
+29-character list of the ten stages with the Mahāprajñāpāramitā, which prints it five
+times, and by row count those five copies of one string beat the Lotus Sūtra the commentary
+is named after. `count(DISTINCT text_sha256)` also dissolved 50 of 171 apparent winners
+into ties — their margin had been repetition all along. Rule 73.
+
+**And the validation set was the other method's population.** The rule scored 20 of 26
+against the links `title_match` already gives, which is genuinely independent evidence —
+and all 26 were `text_role: commentary`, because a title rule can only reach a work whose
+title names a root. The population being written to is 48% `treatise`, scored nowhere, and
+its strongest proposals are five Sarvāstivāda Abhidharma śāstras pointed at the
+Mahāprajñāpāramitā because both are full of the same list-formulae. The 76.9% was not
+wrong; it described a population that was not the one being acted on. Rule 74.
+
+**Fixing the constant underneath then withdrew the headline, which is the test that the
+diagnosis was real.** Once title matching could reach subcommentaries and four-character
+titles, ground truth went 26 → 38 works and the strong band fell from **13 of 13 to 14 of
+17**. A precision that survives an enlargement of its ground truth has earned something; a
+precision that does not was measuring the ground truth.
+
+**What both have in common with everything else in this file: the number looked fine.**
+76.9% over 26 cases with an honest denominator, published as such in `docs/PLAN.md`, and
+neither transferable nor stable. The check that caught it was cross-tabulating the validation set
+against the population by the variables the method could turn on — role, and weight of
+evidence — which took one query.
+
+**And the cross-tab found a third thing, which was not a proxy at all but the constant
+underneath both of them.** The rule works *because* partners are restricted to
+`text_role = 'root'`; unrestricted it scores 43.8%. That restriction also states a premise
+about the literature — only scripture is commented on — and 論疏部 (T1816–T1850) is a
+Taishō division whose defining purpose is commenting on 論, every 論 division being
+`text_role: treatise`. So all 35 subcommentaries in the corpus were excluded by
+construction, `mix pramana.relations.derive` holds the same constant so no ground truth
+existed to expose it, and `T1830` 成唯識論述記 did not fail to resolve — **it resolved to
+the Mahāprajñāpāramitā at `confidence: probable`**, because with the right answer filtered
+out the runner-up looks like the answer. Rule 75.
+
+`Pramana.Relations.may_explain/1` fixed it in the title matcher, where it is pure
+containment: **18 works, T1816–T1850**, the Chinese Yogācāra and Awakening-of-Faith
+exegetical core, reachable by nothing before. Subcommentaries stay refused in the
+shared-text rule until that half lands, and the refusal now scores **0 of 4** — the
+division table's prediction confirmed rather than argued. `docs/PLAN.md` item 4.
+
+---
+
 ## Why every proxy lied
 
 This is the finding worth keeping, and it cost ~$2.60 to buy:

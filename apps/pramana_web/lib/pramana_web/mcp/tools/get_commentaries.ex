@@ -17,11 +17,18 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
   ## Every relation states how it was established
 
   `method` and `confidence` travel with each result, because a catalogue assertion, a
-  source manifest, a title match and an LLM inference are four different claims
-  (`CLAUDE.md` invariant #5). `title_match` with `confidence: uncertain` means several
-  works share the matched title — for instance every commentary on 般若波羅蜜多心經 matches
-  all four surviving Chinese translations of it. That ambiguity is real and is reported
-  rather than resolved.
+  source manifest, a title match, a shared-text inference and an LLM inference are five
+  different claims (`CLAUDE.md` invariant #5). `title_match` with `confidence: uncertain`
+  means several works share the matched title — for instance every commentary on
+  般若波羅蜜多心經 matches all four surviving Chinese translations of it. That ambiguity is
+  real and is reported rather than resolved.
+
+  **`shared_text` is the weakest of them and says so.** No title connects the two works;
+  the relation is inferred from the commentary's dominant shared-text partner among root
+  scripture, and its `evidence` carries the passage counts a reader needs to judge it —
+  `shared_passages` against `runner_up_passages`. 大智度論 → 摩訶般若波羅蜜經 is 654 against
+  12, and at `confidence: uncertain` the margin can be one passage against none. Read the
+  evidence, not the relation alone. `Pramana.Quotations.Roots` has the measurement.
   """
 
   use Anubis.Server.Component, type: :tool

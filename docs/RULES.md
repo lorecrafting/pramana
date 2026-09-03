@@ -788,6 +788,76 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     edges meant "these two texts share a passage", and every conclusion drawn from them
     had assumed they meant "this text cites that one".
 
+73. **Count distinct evidence, not the rows carrying it.** Rule 72's graph was then used
+    the right way — as a candidate generator, asking which root-role work a commentary
+    shares most text with — and the first version counted `quotations` rows. A row is one
+    *occurrence* of a shared string, so a long text that repeats itself contributes one
+    row per printing: `T1723` 妙法蓮華經玄贊 shares a single 29-character list of the ten
+    stages with the Mahāprajñāpāramitā, printed there five times, and by row count that
+    one string beat the Lotus Sūtra the commentary is *named after*. Switching to
+    `count(DISTINCT text_sha256)` also revealed that **50 of 171 works had no dominant
+    partner at all** — their apparent winner had been decided by repetition, and under
+    honest counting they were ties.
+
+    A row count measures the corpus's redundancy. The relationship is measured by how
+    many distinct things the two texts have in common, and the two diverge exactly where
+    the data is most repetitive, which is where the false positives live.
+
+    **The tell is that the winner's margin comes from one `text_sha256` repeated.** Any
+    time rows are summed as evidence, group by the identity of the evidence first and
+    check the count changes — it did here for 29% of the population.
+
+74. **A validation set drawn from an existing method inherits that method's population,
+    not the one you are about to write to.** The same rule was validated at 76.9% against
+    the links `title_match` already gives, which is genuinely independent evidence — and
+    every one of the 26 testable works turned out to be `text_role: commentary`, because
+    a title rule can only find works whose titles name a root. The population being
+    written to is 48% `treatise`, a role the score says nothing about, and whose strongest
+    proposals were five Sarvāstivāda Abhidharma śāstras pointed at the Mahāprajñāpāramitā
+    because both are full of the same list-formulae.
+
+    **Before carrying a precision onto a population, check the population is shaped like
+    the sample** — by the variables the method could plausibly turn on, here role and
+    weight of evidence. The measurement was not wrong; the ground truth is simply only
+    available where the other method already worked, which is a bias no denominator
+    discloses on its own. What it buys is a narrowing: assert the roles the score covers,
+    derive and report the rest.
+
+    **The confirmation came from enlarging the ground truth.** Fixing rule 75's constant
+    let title matching reach twelve more works; the strong band fell from **13 of 13 to
+    14 of 17** on the same rule and the same code. A precision that survives an
+    enlargement of its ground truth has earned something. One that does not was measuring
+    the ground truth.
+
+75. **The restriction that makes a method work also decides what it can never find, and it
+    will substitute rather than abstain.** Restricting the shared-text rule's partners to
+    `text_role = 'root'` took it from 43.8% to 76.9% and is the single reason it works —
+    two commentaries on one sūtra otherwise point at each other. It also encodes a premise
+    about the literature: *only scripture is commented on*. **論疏部 (T1816–T1850) is a
+    Taishō division whose defining purpose is commenting on 論, and every 論 division is
+    `text_role: treatise`**, so all 35 of the corpus's subcommentaries were excluded by
+    construction — and the same constant sits in `mix pramana.relations.derive`, so the
+    ground truth that would have exposed it was missing for the identical reason.
+
+    **The damage is not the missing links, it is that nothing said they were missing.**
+    `T1830` 成唯識論述記 does not fail to resolve; it resolves to the Mahāprajñāpāramitā,
+    at `confidence: probable`, because the nearest thing inside the allowed set still wins.
+    A filter that removes the right answer leaves the runner-up looking like the answer.
+
+    **So: whenever a restriction is what makes a method work, write down the population it
+    removes, and check the method abstains there instead of substituting.** Both halves —
+    the enumeration is what turns a silent blind spot into a reported gap, and the
+    abstention is what stops a wrong answer being served in the meantime.
+
+    **And expect a second constant behind the first.** After the role restriction was
+    fixed, the four great 成唯識論 commentaries were *still* unfindable, because the
+    generic-title floor was 5 characters and 成唯識論 is 4. A role filter and a
+    generic-title guard are different questions and both were answering "no". The floor
+    is now 3, calibrated by reading everything each value admits rather than sampling:
+    at 3 and 4 every admitted pair is correct, at 2 they are not. Rule 41's habit — when
+    you fix a constant, grep for the others — applies to the constants that were merely
+    *hiding* behind it, not only to copies of the same one.
+
 
 ---
 
