@@ -173,7 +173,7 @@ defmodule Pramana.Commentary do
   def spans(commentary, root, opts \\ []) when is_binary(commentary) and is_binary(root) do
     n = Keyword.get(opts, :window, @window)
     {c_text, c_map} = without_breaks(commentary)
-    %{map: r_map, positions: root_positions} = prepared_root(root, opts)
+    %{map: r_map, positions: root_positions, chars: r_chars} = prepared_root(root, opts)
 
     c_text
     |> char_windows(n)
@@ -191,7 +191,12 @@ defmodule Pramana.Commentary do
       {r_from, r_to} = original_range(r_map, r_start, chars)
 
       %{
-        lemma: String.slice(root, r_from, r_to - r_from),
+        # NOT `String.slice/3`. It counts graphemes from the START of the binary, so on a
+        # 358k-character root it costs 34 ms at offset 300,000 against 0.006 ms from the
+        # tuple — and it runs once per span. `T1509` produces 21,834 spans, and this line
+        # alone was 371 of that pair's 813 seconds. `Pramana.Segment.Taisho` records the
+        # same lesson about `binary_part/3`; it had not reached here. Rule 41.
+        lemma: lemma_at(r_chars, r_from, r_to),
         commentary_char_start: c_from,
         commentary_char_end: c_to,
         root_char_start: r_from,
@@ -215,15 +220,26 @@ defmodule Pramana.Commentary do
   # Returns the stripped text and a tuple mapping each stripped index to its index in the
   # original.
   defp without_breaks(text) do
+    {stripped, indices, _all} = split_breaks(text)
+    {stripped, indices}
+  end
+
+  # The same walk, also handing back the ORIGINAL graphemes as a tuple so a lemma can be
+  # cut from it by index. One pass rather than two, since the graphemes are built anyway.
+  defp split_breaks(text) do
+    all = String.graphemes(text)
+
     {chars, indices} =
-      text
-      |> String.graphemes()
+      all
       |> Enum.with_index()
       |> Enum.reject(fn {c, _} -> String.trim(c) == "" end)
       |> Enum.unzip()
 
-    {Enum.join(chars), List.to_tuple(indices)}
+    {Enum.join(chars), List.to_tuple(indices), List.to_tuple(all)}
   end
+
+  defp lemma_at(chars, from, to),
+    do: Enum.map_join(from..(to - 1)//1, &elem(chars, &1))
 
   # A run of `count` stripped characters, as a range in the ORIGINAL text. The end is the
   # last matched character's original index plus one, so a lemma that spanned a line break
@@ -249,8 +265,15 @@ defmodule Pramana.Commentary do
   @spec prepare_root(String.t(), keyword()) :: prepared_root()
   def prepare_root(root, opts \\ []) when is_binary(root) do
     n = Keyword.get(opts, :window, @window)
-    {r_text, r_map} = without_breaks(root)
-    %{body: root, map: r_map, positions: unique_windows(r_text, n), window: n}
+    {r_text, r_map, r_chars} = split_breaks(root)
+
+    %{
+      body: root,
+      map: r_map,
+      chars: r_chars,
+      positions: unique_windows(r_text, n),
+      window: n
+    }
   end
 
   @doc """
@@ -268,6 +291,7 @@ defmodule Pramana.Commentary do
   @type prepared_root :: %{
           body: String.t(),
           map: tuple(),
+          chars: tuple(),
           positions: %{String.t() => non_neg_integer()},
           window: pos_integer()
         }

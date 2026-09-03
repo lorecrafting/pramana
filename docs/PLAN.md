@@ -238,19 +238,47 @@ and prompt were each measured, and § E1 records what by.
    restoration targets in `apps/pramana/mix.exs` are 85 here and 93 for `pramana_web`
    (82.69% today), and the ratchet must not be lowered to make a run pass.
 
-6. **Re-run the 科文 alignment over the new relations — and size it first.**
-   Item 1 established that the alignment cannot grow without more `comments_on` relations
-   between works both held in Chinese, and item 3 has now added 74. That is the input it
-   was waiting for.
+6. ~~**Re-run the 科文 alignment over the new relations — and size it first.**~~ ▸ **DONE
+   2026-09-03, and sizing it first is the only reason it is minutes rather than hours.**
 
-   **It is not a free re-run, which is new information.** A first attempt at
-   `mix pramana.commentary.align --dry-run` was stopped after ~25 minutes having printed
-   nothing. The pair count roughly doubles (89 → ~163) but the pairs are not the same size:
-   the flagship is 大智度論 against 摩訶般若波羅蜜經, both around 100 juan, where the
-   previously aligned pairs are mostly a commentary against one sūtra. **Size it before
-   running it** — `--work` takes one commentary, so the cost curve can be measured on
-   three pairs rather than discovered on 163. `docs/PROXIES.md`, and the habit of measuring
-   before building.
+   **72,120 alignments over 76 pairs, from 27,254 over 43**, attaching commentary to
+   **54,343 distinct root lines** against 20,954. The discriminator holds: forward order
+   **84.3% over accepted pairs against 62.9% over the rest**, chance being ~50%.
+
+   **The sizing found a 100× defect, and the estimate it was built on was wrong.** Timing
+   the flagship pair gave `T1509` → `T0223` at **13m33s**, and the cost model — linear in
+   characters, one map insert per position — projected 9 hours for the full run. Then a
+   second pair broke the model: `T1736`, a *larger* commentary, took 6m50s for three pairs.
+   Cost was not linear in characters, so something else dominated.
+
+   It was `String.slice/3`. It counts graphemes from the **start** of the binary, and it
+   runs once per span to cut the lemma: **34 ms at offset 300,000 on a 358k-character root,
+   against 0.006 ms from a grapheme tuple.** `T1509` produces 21,834 spans, so that one
+   line was ~805 of its 813 seconds. Cut from a tuple instead, the pair runs in **8.7
+   seconds** with byte-identical output, and the full run is **2 minutes instead of a
+   projected 9 hours**.
+
+   `Pramana.Segment.Taisho` already records this exact lesson about `binary_part/3` versus
+   `String.slice/3`. It had not reached `Pramana.Commentary`. Rule 41, and a sweep confirms
+   every other `String.slice` in the tree is a display truncation at offset 0.
+
+   **A root cache was built first, against the wrong model, and survives on a re-measure.**
+   Pairs are walked root-major carrying one prepared root, because 155 pairs covered 60
+   distinct roots — 41.7M root characters to window 11.0M distinct ones. Rule 70 says
+   re-measure what was built to avoid the thing you just fixed: with the `String.slice`
+   defect gone it is still **1.79×** (219s → 122s over 184 pairs), so it stays. One root and
+   not all sixty: a prepared root holds a map entry per character, and 華嚴經 alone is 731k
+   of them.
+
+   **The aligner also stopped ignoring `subcommentary_of`.** It filtered on `comments_on`
+   alone, from when there were nine such relations; item 4 made 29 Chinese ones, of exactly
+   the shape this method is for — a 論疏 quotes its śāstra and glosses it. **Measured before
+   including them**: of twelve, one clears the floor (`T1820` 佛遺教經論疏節要 at density
+   108.5). The other eleven are not noise — forward order runs **66–83%** against ~50% for
+   chance. Śāstra exegesis has 科文 structure and quotes less verbatim than sūtra exegesis,
+   and a floor calibrated on 120 null pairs of the latter rejects nearly all of the former.
+   **Whether 30 is the right floor for that population is now an open question with numbers
+   attached**, and it needs its own null set before anyone moves it.
 
 7. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
    worth another ~$40 depends on what this one delivers, and the demand ranking it would
@@ -347,7 +375,7 @@ imply in a commit.**
 | reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
 | work relations | 249 `comments_on` · 17 `subcommentary_of` · 82 `parallel_of` (41 pairs) — by signal, `title_match` 191, **`shared_text` 74**, `manifest` 1 |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
-| commentary alignment | **27,254 lemmas over 43 pairs**, attaching commentary to **20,954 root lines** — deterministic, no model |
+| commentary alignment | **72,120 lemmas over 76 pairs**, attaching commentary to **54,343 root lines** — deterministic, no model. 2026-09-03: the run went from a projected 9 hours to 2 minutes, `String.slice/3` |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
 | eval | **92.3% over 1,472 cases** (`evals/baseline.json`) — 0 stale, 0 errored. Not comparable with 93.1%/1,400: the denominator grew by two case types, one scoring 70%. Compare per row |
 | new gold sets | **rendering 70.0%** (40 cases, mean rank 1.68) · **gloss 100%** (32 cases, a regression detector — see below) |
@@ -378,7 +406,7 @@ between them — with published numbers saying how often that works.
 | ask a question of three canons | 17 read-only MCP tools · five reader screens · 17,281 texts across Chinese, Pāli and Tibetan |
 | passages byte-verifiable against a print edition | `Pramana.Guard` byte-compares every quote; `verify --all` re-normalizes from `raw/`; the CBETA linehead is checkable against the printed page |
 | see the provenance of each | four axes, plus `witness_name` and `authority_id` — the edition by name and the person the byline denotes |
-| follow parallels and variants between them | curated parallels, the apparatus, 141,073 quotations, and **27,254 commentary lemmas** attaching commentary to the line it explains |
+| follow parallels and variants between them | curated parallels, the apparatus, 141,073 quotations, and **72,120 commentary lemmas** attaching commentary to the line it explains |
 | published numbers saying how often | 1,472 cases in `evals/baseline.json`, and the gaps published beside them |
 
 **This paragraph said the opposite three days ago** — *"#23 unblocked but unstarted,

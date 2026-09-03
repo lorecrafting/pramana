@@ -67,6 +67,17 @@ than reason about it.
 several here plainly do; this method sees verbatim quotation and nothing else. Nothing
 about a `comments_on` row changes when its pair fails to align.
 
+**And the floor was calibrated on one population, which is now visibly not the only one.**
+Since 2026-09-03 the aligner also reads `subcommentary_of`, so 論疏部 works — a 論疏 quoting
+its śāstra — are measured too. Of the first twelve, **one clears the floor** (`T1820`
+佛遺教經論疏節要, density 108.5). The other eleven are not noise: forward order runs
+**66–83%** against ~50% for chance, which is this section's own discriminator for real 科文
+structure. Śāstra exegesis has the structure and quotes less verbatim than sūtra exegesis,
+and a floor set by 120 null pairs of the latter rejects nearly all of the former.
+**Whether 30 is right for that population is an open question with numbers attached**, and
+moving it needs its own null set — the same enlargement that set it at 30 in the first
+place.
+
 See `Pramana.Commentary` for the full method, including what forward order says about a
 commentary aligned to four different translations of the same sūtra.
 
@@ -163,6 +174,7 @@ the honest limit of a method built on character identity.
     mix pramana.derge.relations         the same for Tibetan, from stem and genre suffix
     mix pramana.quotations.scan         verbatim text reuse across works, into the quotation graph
     mix pramana.relations.shared_text   commentary -> root, from that graph
+    mix pramana.commentary.align        lemma -> the root LINE it quotes (科文)
 
 All are **deterministic and re-runnable**, which is invariant #5 and also what makes them
 safe: a re-run converges on the same graph rather than accumulating a second copy of it. The

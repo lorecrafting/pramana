@@ -356,7 +356,8 @@ defmodule Pramana.Coverage do
           FROM work_relations r
           JOIN texts cs ON cs.work_id = r.source_work_id
           JOIN texts rt ON rt.work_id = r.target_work_id
-         WHERE r.relation = 'comments_on' AND r.target_work_id IS NOT NULL
+         WHERE r.relation IN ('comments_on', 'subcommentary_of')
+           AND r.target_work_id IS NOT NULL
            AND cs.source_id IN ('cbeta','sat','local-huang-nianzu-jie')
            AND rt.source_id IN ('cbeta','sat','local-huang-nianzu-jie')) x
       """)
@@ -381,7 +382,11 @@ defmodule Pramana.Coverage do
       note:
         "A pair below the density floor is not a refuted relation — a commentary may " <>
           "paraphrase, and this method sees only verbatim quotation. More alignments " <>
-          "need more `comments_on` relations, not another run."
+          "need more relations, not another run. The denominator counts " <>
+          "`subcommentary_of` as well as `comments_on` since 2026-09-03, because the " <>
+          "aligner does: 論疏 quotes its śāstra the way 經疏 quotes its sūtra, and most " <>
+          "of those pairs sit below the floor at a forward order of 66-83% — real " <>
+          "structure, less verbatim quotation than the floor was calibrated on."
     }
   end
 

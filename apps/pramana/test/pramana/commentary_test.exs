@@ -8,6 +8,44 @@ defmodule Pramana.CommentaryTest do
 
   alias Pramana.Commentary
 
+  describe "prepare_root/2" do
+    @root "菩薩摩訶薩行深般若波羅蜜多時照見五蘊皆空度一切苦厄"
+    @commentary "疏菩薩摩訶薩行深般若波羅蜜多時照見五蘊皆空度一切苦厄者總標也"
+
+    # The expensive half of `spans/3` depends only on the root, and one run windows the
+    # same root many times. This must be an optimisation and nothing else.
+    test "a prepared root gives exactly the spans an unprepared one gives" do
+      prepared = Commentary.prepare_root(@root)
+
+      assert Commentary.spans(@commentary, @root, prepared_root: prepared) ==
+               Commentary.spans(@commentary, @root)
+    end
+
+    # A prepared form of the WRONG text would align against the wrong work and nothing
+    # downstream could detect it, so the body is checked before it is trusted. A stale
+    # cache must be slow, never wrong.
+    test "a prepared root for a different text is ignored, not used" do
+      other = Commentary.prepare_root("諸行無常是生滅法生滅滅已寂滅為樂")
+
+      assert Commentary.spans(@commentary, @root, prepared_root: other) ==
+               Commentary.spans(@commentary, @root)
+    end
+
+    test "a prepared root built for a different window size is ignored too" do
+      prepared = Commentary.prepare_root(@root, window: 4)
+
+      assert Commentary.spans(@commentary, @root, prepared_root: prepared) ==
+               Commentary.spans(@commentary, @root)
+    end
+
+    test "carries the root's own characters, so a lemma is cut by index and not by walking" do
+      prepared = Commentary.prepare_root(@root)
+
+      assert tuple_size(prepared.chars) == String.length(@root)
+      assert prepared.body == @root
+    end
+  end
+
   describe "spans/3" do
     test "anchors a quoted lemma to the one place it occurs in the root" do
       root = "如是我聞一時佛在舍衛國祇樹給孤獨園與大比丘眾千二百五十人俱"

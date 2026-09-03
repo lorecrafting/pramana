@@ -858,6 +858,28 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     you fix a constant, grep for the others — applies to the constants that were merely
     *hiding* behind it, not only to copies of the same one.
 
+76. **A cost model fitted to one measurement is not a model. Falsify it with a case it
+    says should be slower.** Sizing the 科文 alignment, `T1509` → `T0223` took 13m33s; the
+    algorithm is one map insert per character, so the model was *linear in characters*, and
+    over the 155 pairs' 63.1M characters it projected **9 hours**. A root-windowing cache
+    was designed against exactly that model, and it was a reasonable design.
+
+    Then a second pair broke it. `T1736` is a **larger** commentary and took 6m50s for
+    three pairs — six times faster per character than the model allowed. Something not
+    counted in characters dominated, and it was `String.slice/3`, which counts graphemes
+    from the START of the binary and ran once per span to cut each lemma: **34 ms at offset
+    300,000 against 0.006 ms from a grapheme tuple**, ~805 of that pair's 813 seconds.
+    Cutting from a tuple made the same pair **8.7 seconds** with byte-identical output, and
+    the whole run 2 minutes rather than 9 hours.
+
+    **Had the model gone unchallenged the cache would have shipped a 4.6-hour run and
+    called it a 2× win.** The falsifying case cost one command; the model it killed would
+    have cost a night. Pick the second case for what the model predicts about it, not for
+    being convenient — a bigger input that runs faster is the cheapest possible refutation.
+
+    (The cache was kept, but on a re-measure rather than on its original argument: 1.79×
+    after the real defect was gone. Rule 70.)
+
 
 ---
 
