@@ -12,10 +12,14 @@ defmodule PramanaWeb.ReaderLiveTest do
 
   alias Pramana.Embed.Serving
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
+  alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.Loader
+  alias Pramana.Corpus.Text
   alias Pramana.Normalize.CBETA
+  alias Pramana.Repo
 
   @indic """
   <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
@@ -59,6 +63,62 @@ defmodule PramanaWeb.ReaderLiveTest do
     })
 
     :ok
+  end
+
+  describe "commentary on a line" do
+    @root_urn "pramana:cbeta.T:T0262_001@p0001c17"
+
+    # `get_glosses` had this defect on the API side and the page has it too: eight of 109
+    # rendered in silence tells the reader there are eight. 27 root lines in the corpus
+    # carry more than eight.
+    test "says how many quotations exist when it shows only some", %{conn: conn} do
+      align!(12)
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: @root_urn]}")
+
+      assert html =~ "Commentary on this line"
+      assert html =~ "Showing the 8 longest of 12 quotations"
+    end
+
+    test "says nothing about a remainder when there is none", %{conn: conn} do
+      align!(3)
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: @root_urn]}")
+
+      assert html =~ "Commentary on this line"
+      refute html =~ "Showing the"
+    end
+
+    defp align!(count) do
+      [root_id, commentary_id] =
+        Enum.map(["T0262", "T2187"], fn work ->
+          Repo.one!(from(t in Text, where: t.work_id == ^work, select: t.id))
+        end)
+
+      for n <- 1..count//1 do
+        lemma = "如是我聞一時佛住" <> String.duplicate("王", n)
+
+        %CommentaryAlignment{}
+        |> Ecto.Changeset.change(%{
+          lemma: lemma,
+          lemma_sha256: Base.encode16(:crypto.hash(:sha256, lemma), case: :lower),
+          length: String.length(lemma),
+          commentary_text_id: commentary_id,
+          commentary_work_id: "T2187",
+          commentary_urn: "pramana:cbeta.T:T2187_001@p0002a01",
+          commentary_char_start: n,
+          commentary_char_end: n + 8,
+          root_text_id: root_id,
+          root_work_id: "T0262",
+          root_urn: @root_urn,
+          root_char_start: 0,
+          root_char_end: 8,
+          method: "lemma_match",
+          confidence: "probable"
+        })
+        |> Repo.insert!()
+      end
+    end
   end
 
   describe "search" do

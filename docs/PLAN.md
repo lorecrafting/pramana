@@ -361,8 +361,9 @@ and prompt were each measured, and § E1 records what by.
    default 20, one at 109) and now returns `returned`, `total` and `truncated`; whatever
    routes to `lemmas_of` must do the same before it is exposed, not after.
 
-   Also owed: **the reader shows 8 glosses of however many exist** (`passage_live.ex`) and
-   says nothing about the rest. Same fix, user-facing.
+   ~~Also owed: the reader shows 8 glosses of however many exist and says nothing about
+   the rest.~~ ▸ **DONE 2026-09-03** — `passage_live` prints *"Showing the 8 longest of N
+   quotations of this line"* whenever there is a remainder, and nothing when there is not.
 
 8. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
    worth another ~$40 depends on what this one delivers, and the demand ranking it would

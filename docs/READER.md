@@ -47,6 +47,13 @@ language.** Not sorted, not colour-coded — bucketed under a heading that says
 directly beneath an Indian sūtra with nothing between them; a reader who mis-attributes
 one now has to ignore a heading rather than merely miss a field. (Invariant #4.)
 
+**A list that is cut says how much it cut.** The passage page shows the 8 longest
+quotations of a line and, when there are more, says *"Showing the 8 longest of 109
+quotations of this line"* — 27 root lines in the corpus carry more than eight. Eight of 109
+rendered in silence tells a reader there are eight, which is the same failure as a
+coverage figure without its denominator, on a page rather than in a number. `get_glosses`
+had it on the API side and reports `returned`, `total` and `truncated` for the same reason.
+
 **Every hit carries its URN and its sha256.** The URN is displayed, not hidden behind a
 copy button, because the URN *is* the citation: `T0262_001@p0001c19` reads as Taishō page,
 register and line to anyone checking against print. (Invariants #1 and #2.)

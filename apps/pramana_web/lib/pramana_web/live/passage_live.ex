@@ -36,6 +36,11 @@ defmodule PramanaWeb.PassageLive do
   """
   use PramanaWeb, :live_view
 
+  # Eight fits the page. 27 root lines in the corpus carry more than that and one carries
+  # 109, so the count has to travel with them: a page showing eight of 109 in silence is
+  # telling the reader there are eight. Same defect `get_glosses` had on the API side.
+  @gloss_limit 8
+
   import PramanaWeb.ReaderComponents
 
   alias Pramana.Apparatus
@@ -62,7 +67,10 @@ defmodule PramanaWeb.PassageLive do
          |> assign(outline: outline_for(context.focus))
          |> assign(versions: versions_for(urn))
          |> assign(apparatus: apparatus_for(urn))
-         |> assign(glosses: Commentary.glosses_on(urn, limit: 8))
+         |> assign(
+           glosses: Commentary.glosses_on(urn, limit: @gloss_limit),
+           gloss_total: Commentary.gloss_count(urn)
+         )
          |> assign(
            edition_link: Reader.reference(urn, context.focus.provenance),
            page_image: page_image(urn)
@@ -78,6 +86,8 @@ defmodule PramanaWeb.PassageLive do
            versions: nil,
            apparatus: nil,
            glosses: [],
+           gloss_total: 0,
+           gloss_total: 0,
            edition_link: nil,
            page_image: nil,
            error: reason
@@ -221,6 +231,9 @@ defmodule PramanaWeb.PassageLive do
               </div>
             </li>
           </ul>
+          <p :if={@gloss_total > length(@glosses)} class="text-xs text-base-content/60">
+            Showing the {length(@glosses)} longest of {@gloss_total} quotations of this line.
+          </p>
         </section>
 
         <section :if={@edition_link || @page_image} class="space-y-2">
