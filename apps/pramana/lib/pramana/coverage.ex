@@ -378,7 +378,8 @@ defmodule Pramana.Coverage do
       what: "commentary alignment",
       done: aligned_pairs,
       eligible: pairs,
-      unit: "alignable pair(s) — #{works} distinct commentaries, #{rows} line alignments",
+      unit:
+        "alignable pair(s) — #{works} distinct commentaries, #{thousands(rows)} line alignments",
       note:
         "A pair below the density floor is not a refuted relation — a commentary may " <>
           "paraphrase, and this method sees only verbatim quotation. More alignments " <>
@@ -388,6 +389,16 @@ defmodule Pramana.Coverage do
           "of those pairs sit below the floor at a forward order of 66-83% — real " <>
           "structure, less verbatim quotation than the floor was calibrated on."
     }
+  end
+
+  # A figure a reader has to count the digits of is a figure they will misread. `72120`
+  # and `3,923` sat in the same generated table until 2026-09-03.
+  defp thousands(n) do
+    n
+    |> to_string()
+    |> String.reverse()
+    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+    |> String.reverse()
   end
 
   defp relation_coverage do

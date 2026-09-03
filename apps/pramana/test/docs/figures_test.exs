@@ -84,13 +84,17 @@ defmodule Docs.FiguresTest do
       assert texts == "0"
     end
 
-    test "large numbers carry thousands separators, since the documents show them verbatim" do
-      assert Figures.blocks()
-             |> Map.values()
-             |> List.flatten()
-             |> Enum.all?(fn {_, v} ->
-               v =~ ~r/^\d{1,3}(,\d{3})*$/
-             end)
+    # Not every value is a bare number — `derived` figures are ratios with their unit
+    # attached — so the invariant is about the digits, not the shape: a reader who has to
+    # count digits will misread the figure. `72120` and `3,923` shared a table until this
+    # test was written.
+    test "no number reaches a document without thousands separators" do
+      unseparated = ~r/(?<![\d,])\d{4,}/
+
+      for {block, figures} <- Figures.blocks(), {label, value} <- figures do
+        refute value =~ unseparated,
+               "#{block}/#{label} renders #{inspect(value)}; four digits need a separator"
+      end
     end
   end
 end

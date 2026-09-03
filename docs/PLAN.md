@@ -481,7 +481,7 @@ held 18, so the counts no longer live in prose. Rule 77.
 <!-- figures:derived -->
 | | |
 |---|---|
-| commentary alignment | **76 of 184 alignable pair(s) — 54 distinct commentaries, 72120 line alignments** |
+| commentary alignment | **76 of 184 alignable pair(s) — 54 distinct commentaries, 72,120 line alignments** |
 | commentary -> root links | **194 of 3,923 commentarial works reach a root** |
 | Tibetan work titles | **3,864 of 4,575 works named** |
 <!-- /figures -->
