@@ -473,4 +473,47 @@ defmodule Pramana.Retrieval.HybridTest do
       assert {:error, :empty_query} = Hybrid.search("   ")
     end
   end
+
+  # THE CLASS, NOT THE INSTANCE. Hybrid fans one option list out to two retrievers that
+  # each raise on an option they do not know. It used to do that with hand-maintained
+  # exclusion lists, and both `:translation_coverage` and `:translators` were missing from
+  # them — so a semantic-only option crashed the whole search with `unknown search
+  # option(s)`, and the per-arm model comparison it was added for produced nothing.
+  #
+  # Asserting on the routing rather than on a list of names: whatever either retriever
+  # declares, hybrid must be able to hand it every option it accepts.
+  describe "option routing between the two retrievers" do
+    # A value that is legal for each option, so the search is exercised rather than
+    # rejected at validation. Only semantic-only options are listed — the ones the lexical
+    # arm has never heard of, which are exactly the ones that used to crash it.
+    @semantic_only_values %{
+      vector_kinds: ["source"],
+      vector_lang: "en",
+      balance: true,
+      per_tradition: true,
+      translators: ["model:mitra"],
+      translation_coverage: 0.5,
+      # Serving parameters. Found by this test rather than by reading the list — they
+      # would have crashed the lexical arm exactly as `:translators` did.
+      sequence_length: 320,
+      batch_size: 8
+    }
+
+    test "no semantic-only option can crash the lexical arm" do
+      declared = Semantic.known_opts() -- Lexical.known_opts()
+
+      # If Semantic gains an option, it must be added here — the point of the test is that
+      # somebody notices, which is precisely what the old exclusion lists did not force.
+      untested = declared -- (Map.keys(@semantic_only_values) ++ [:serving])
+
+      assert untested == [],
+             "semantic-only options with no routing case: #{inspect(untested)}"
+
+      for {opt, value} <- @semantic_only_values do
+        assert {:ok, _} =
+                 Hybrid.search("mindfulness", [{opt, value}, {:limit, 5}, {:serving, nil}]),
+               "#{opt} reached the lexical arm and crashed the search"
+      end
+    end
+  end
 end

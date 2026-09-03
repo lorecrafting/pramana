@@ -114,7 +114,18 @@ ARMS = {
 # worse for a reason that has nothing to do with the model. `truncated` below counts any
 # completion that used the whole budget, so this assumption is checked every run rather
 # than trusted.
-MAX_NEW_TOKENS = 768
+MAX_NEW_TOKENS = 1024
+
+# GREEDY DECODING LOOPS, and on the first real run it looped badly: the longest MITRA
+# renderings were "the perception of the perception of the perception of…" and "for the
+# sake of sensual domination, for the sake of sensual domination…", running to the token
+# budget without ever finishing a sentence. 62.9% of that run ended mid-sentence.
+#
+# A repetition penalty is still fully deterministic, so `do_sample=False` keeps its
+# meaning and a run remains reproducible from its inputs (invariant #3). It is applied to
+# EVERY arm, because a decoding setting that varies between arms is measured as if it
+# were the model.
+REPETITION_PENALTY = 1.1
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -221,6 +232,7 @@ def translate(
         "dialect": spec["dialect"],
         "max_new_tokens": MAX_NEW_TOKENS,
         "do_sample": False,
+        "repetition_penalty": REPETITION_PENALTY,
         "transformers": TRANSFORMERS,
     }
     params_sha256 = hashlib.sha256(
@@ -242,6 +254,18 @@ def translate(
     tokenizer.padding_side = "left"
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    stop_ids = [tokenizer.eos_token_id]
+
+    if spec["dialect"] == "mitra":
+        # '#' as an actual stopping condition rather than a post-hoc split. Encoded
+        # without special tokens and only used if it is a single token — a multi-token
+        # encoding would stop on the wrong thing.
+        hash_ids = tokenizer.encode("#", add_special_tokens=False)
+        if len(hash_ids) == 1:
+            stop_ids.append(hash_ids[0])
+        else:
+            print(f"  '#' is {len(hash_ids)} tokens, not usable as a stop id", flush=True)
 
     started = time.time()
     done = 0
@@ -268,6 +292,13 @@ def translate(
                 # bake — invariant #3 — and these are stored as citable-adjacent `t1`
                 # rows attributed to a model and a configuration.
                 do_sample=False,
+                repetition_penalty=REPETITION_PENALTY,
+                # MITRA marks the end of a translation with '#' and has no EOS for it, so
+                # without this generation never halts: it fills the budget with whatever
+                # follows, which is where the loops came from. Splitting on '#' after the
+                # fact cleaned the text but not the truncation, because the tokens were
+                # already spent.
+                eos_token_id=stop_ids,
                 pad_token_id=tokenizer.pad_token_id,
             )
 
@@ -280,11 +311,14 @@ def translate(
             # A completion that used every token it was given probably had more to say.
             # Counted rather than silently accepted: an arm penalised for hitting a
             # budget is being measured on the budget.
-            truncated += sum(
-                1
-                for row in range(new_tokens.shape[0])
-                if int(new_tokens[row].ne(tokenizer.pad_token_id).sum()) >= MAX_NEW_TOKENS
-            )
+            # TRUNCATED means "did not stop on its own", not "used the budget". The
+            # first version measured the latter and reported 205 of 205 for a run whose
+            # text was mostly complete — the model simply never emits EOS, so budget use
+            # said nothing. A completion is finished when it contains a stop id.
+            for row in range(new_tokens.shape[0]):
+                ids = new_tokens[row].tolist()
+                if not any(i in stop_ids for i in ids):
+                    truncated += 1
 
             for row, completion in zip(batch, completions):
                 out.write(

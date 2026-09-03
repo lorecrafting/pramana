@@ -292,22 +292,21 @@ defmodule Pramana.Retrieval.Hybrid do
   # `Hybrid.search(q, per_tradition: true)` raise from `Lexical.validate_opts!/1`: the
   # option was reachable only by calling `Semantic` directly, so nothing that ships — the
   # MCP tools, the eval harness — could use it. There is a test for exactly this now.
-  @semantic_only_opts [:vector_kinds, :vector_lang, :balance, :per_tradition, :serving]
-
-  # Options that belong to THIS layer and mean nothing to either retriever, so they are
-  # dropped before both. Both retrievers reject an option they do not know — correctly —
-  # so a hybrid-level option that reaches either one crashes the search.
-  @hybrid_only_opts [
-    :coverage,
-    :depth,
-    :lexical_depth,
-    :semantic_depth,
-    :expand_terms,
-    :rerank,
-    # Fusion and rerank shape, swept against the gold set rather than argued about.
-    :rrf_k,
-    :rerank_multiplier
-  ]
+  # WHAT THE LEXICAL ARM IS GIVEN IS DERIVED, NOT LISTED.
+  #
+  # Both retrievers reject an option they do not know — correctly, since a silently
+  # ignored filter is the bug they were hardened against — so any option meant for the
+  # other stage crashes the whole search when it reaches this one. That was handled by two
+  # hand-maintained drop lists, and a hand-maintained list of what to exclude fails the
+  # moment somebody adds a capability without editing it: BOTH `:translation_coverage`
+  # and `:translators` were missing, so the ablation knob and the per-arm translator
+  # filter each crashed hybrid search with `unknown search option(s)`.
+  #
+  # Keeping what Lexical declares cannot drift, because a new semantic option is excluded
+  # by not being on Lexical's list rather than by being remembered onto this one. It is
+  # the same move `Pramana.Retrieval.do_search/2` already makes one layer up, and the same
+  # move that deleted `@filter_keys` — the thing that had to be remembered is gone.
+  defp lexical_only(opts), do: Keyword.take(opts, Lexical.known_opts())
 
   # A THIRD ARM: the English query's doctrinal terms, searched in Chinese.
   #
@@ -337,7 +336,7 @@ defmodule Pramana.Retrieval.Hybrid do
   defp rank_terms(terms, opts, depth) do
     lexical_opts =
       opts
-      |> Keyword.drop(@semantic_only_opts ++ @hybrid_only_opts)
+      |> lexical_only()
       |> Keyword.merge(limit: depth)
       |> Keyword.put(:mode, :phrase)
 
@@ -370,7 +369,7 @@ defmodule Pramana.Retrieval.Hybrid do
     # Hybrid is the layer that knows which stage each option belongs to.
     lexical_opts =
       opts
-      |> Keyword.drop(@semantic_only_opts ++ @hybrid_only_opts)
+      |> lexical_only()
       |> Keyword.merge(limit: depth)
       |> Keyword.put(:mode, :auto)
 
@@ -406,7 +405,7 @@ defmodule Pramana.Retrieval.Hybrid do
       true ->
         search_opts =
           opts
-          |> Keyword.drop(@hybrid_only_opts)
+          |> Keyword.take(Semantic.known_opts())
           |> Keyword.merge(limit: depth, serving: serving)
           |> Keyword.delete(:mode)
 

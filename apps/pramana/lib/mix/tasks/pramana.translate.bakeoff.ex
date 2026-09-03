@@ -49,6 +49,8 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
 
   import Ecto.Query
 
+  alias Pramana.Corpus.Chunk
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Translation
   alias Pramana.Repo
@@ -134,13 +136,22 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
       |> Enum.group_by(& &1.anchor_urn)
 
     sources = source_text(anchors)
+    chunk_level = chunk_level_candidates(anchors)
 
     anchors
     |> Enum.map(fn urn ->
+      exact = Map.get(renderings, urn, [])
+      seen = MapSet.new(exact, & &1.translator_id)
+
+      covering =
+        chunk_level
+        |> Map.get(urn, [])
+        |> Enum.reject(&MapSet.member?(seen, &1.translator_id))
+
       %{
         anchor_urn: urn,
         source: Map.get(sources, urn),
-        candidates: Map.get(renderings, urn, [])
+        candidates: exact ++ covering
       }
     end)
     |> Enum.reject(&(length(&1.candidates) < 2))
@@ -149,16 +160,49 @@ defmodule Mix.Tasks.Pramana.Translate.Bakeoff do
     # distinct anchors — and the first sheet this produced had the same sentence at
     # passages 1 and 2. Ranking forty rows of "at one time the Buddha was staying near
     # Sāvatthī" measures a house style and nothing about how a model handles doctrine.
-    |> Enum.uniq_by(fn row -> row.source && String.trim(row.source) end)
+    # Falling back to the ANCHOR when the source is missing. `row.source && trim` returns
+    # nil for every source-less row, and `uniq_by` treats one nil like another — so a
+    # sheet of 205 chunk-anchored passages silently became a sheet of 1. A deduplication
+    # key that collapses on absence is rule 71's shape in a different place.
+    |> Enum.uniq_by(fn row -> (row.source && String.trim(row.source)) || row.anchor_urn end)
     |> Enum.take(count)
   end
 
   # The passage being translated, so a ranker can check a rendering against it rather than
   # against their taste. A sheet without the source measures fluency.
+  # A rendering may be anchored to a SEGMENT or to a CHUNK, and both are addressed by URN.
+  # Looking in only one of them left every chunk-anchored passage without its source —
+  # which is both a sheet that cannot be checked against the Chinese and, through the
+  # deduplication above, a sheet that was almost entirely thrown away.
   defp source_text(anchors) do
-    from(s in Segment, where: s.urn in ^anchors, select: {s.urn, s.content})
+    segments =
+      from(s in Segment, where: s.urn in ^anchors, select: {s.urn, s.content}) |> Repo.all()
+
+    chunks = from(c in Chunk, where: c.urn in ^anchors, select: {c.urn, c.content}) |> Repo.all()
+
+    Map.new(segments ++ chunks)
+  end
+
+  # THE HUMAN CANDIDATE, WHICH LIVES AT A DIFFERENT GRAIN.
+  #
+  # A generated rendering is anchored to the chunk it was given; Patton's is anchored to
+  # the Taishō line it renders. They are renderings of the same passage and they never
+  # share an `anchor_urn`, so grouping by anchor alone produces a sheet of model arms with
+  # no human in it — and the human is what bounds the arms from above and calibrates the
+  # ranker.
+  #
+  # `chunk_vectors` already holds each translator's English assembled per chunk, in
+  # reading order since rule 71, so the alignment does not have to be recomputed here.
+  defp chunk_level_candidates(anchors) do
+    from(v in ChunkVector,
+      join: c in Chunk,
+      on: c.id == v.chunk_id,
+      where: c.urn in ^anchors and v.kind == "translation",
+      select: %{anchor_urn: c.urn, translator_id: v.translator_id, text: v.content}
+    )
     |> Repo.all()
-    |> Map.new()
+    |> Enum.map(&Map.put(&1, :method, "human"))
+    |> Enum.group_by(& &1.anchor_urn)
   end
 
   # REPEATS ARE SEPARATED, not adjacent. A repeat next to its original is a memory test;

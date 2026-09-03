@@ -2169,6 +2169,40 @@ it renders. A few hundred chunks settles the model choice before the tranche is 
 and a general-model arm (Qwen) belongs in the same run so the domain claim is tested
 rather than trusted.
 
+**▸ ANSWERED, 2026-09-02. MITRA IS BETTER, AND THE MARGIN IS OVER ITS OWN BASE MODEL.**
+
+205 Patton-covered chunks, three arms generated on Modal, scored by holding the query
+constant (Patton's human English) and restricting the index's translation vectors to one
+arm at a time — `--translators`. Same seed, same 205 cases, every rung.
+
+| index contents | found the work | on the line |
+|---|---|---|
+| no English layer at all | 79 · **38.5%** | 23 · 11.2% |
+| `google/gemma-2-9b-it` — the untuned base | 135 · **65.9%** | 55 · 26.8% |
+| `Qwen/Qwen2.5-32B-Instruct` | 145 · **70.7%** | 70 · 34.1% |
+| **`buddhist-nlp/gemma-2-mitra-it`** | **166 · 81.0%** | **82 · 40.0%** |
+| Patton, human | 173 · **84.4%** | 110 · 53.7% |
+
+**The domain claim holds, and the control is what establishes it.** MITRA beats its own
+untuned base by **15.1 points** with architecture, size and prompt held constant, so the
+4.4B-token Buddhist pretraining is doing the work rather than Gemma-2 being good. It also
+beats a **3.5× larger** general model by 10.3 points, which is the comparison the paper
+never published.
+
+**And generated English recovers 93% of the human layer's retrieval value**: over a floor
+of 38.5%, Patton adds 45.9 points and MITRA adds 42.5. At the line it is weaker — 40.0%
+against 53.7% — which is the granularity cost of translating a 300-character chunk rather
+than a line.
+
+**These are controlled numbers, not production ones.** Restricting the index to one
+translator also removes the 55,326 Pāli and Tibetan English vectors that compete in the
+real corpus, which is why every rung sits above the 46.8% full-population baseline. The
+ladder answers "which arm", not "what will production score".
+
+**The fidelity verdict is still open** and is the blinded sheet's job: `mix
+pramana.translate.bakeoff --work T0026 --anchors 25` now produces 25 passages with all
+three arms *and* Patton on each.
+
 **WHETHER MITRA IS ACTUALLY THE BEST MODEL — four arms, one GPU session, 2026-09-02.**
 
 The question is fair and the honest answer is that **nobody has published the comparison**:

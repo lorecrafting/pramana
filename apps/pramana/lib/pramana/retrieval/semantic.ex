@@ -122,6 +122,16 @@ defmodule Pramana.Retrieval.Semantic do
 
   def search(_, _), do: {:error, :bad_query}
 
+  @doc """
+  The options this retriever accepts.
+
+  Public so a caller that fans out to several retrievers can keep what this one knows
+  rather than listing what it does not — see `Pramana.Retrieval.Hybrid`, where two
+  hand-maintained exclusion lists went stale the moment an option was added.
+  """
+  @spec known_opts() :: [atom()]
+  def known_opts, do: @known_opts
+
   @doc false
   def validate_opts!(opts) do
     case Keyword.keys(opts) -- @known_opts do
