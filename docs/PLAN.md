@@ -13,42 +13,72 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-02** — the queue and the sections it points at; the phase
-sections further down were not re-read, and the date claims only what was. A shipped.
+Last reviewed: **2026-09-04** — "Start here", the isolation section, items 8 through 11 and
+§ E1. The phase sections further down were not re-read, and the date claims only what was.
 **B is done through the sixteenth CBETA collection: 16 of 26 held, every text chunked and
 embedded, the reader at six screens.**
 
 ---
 
-## Start here — session of 2026-09-03
+## Start here — session of 2026-09-04
 
-**The tranche landed.** MITRA's 27,956 passages are imported: **28,571 generated renderings**
-are in the corpus, `method: llm`, `tier: t1`, never citable as source. `mix pramana.embed`
-and the § E1 ladder are what follow, and **the other session owns that** — do not re-export
-or re-rank it, because the model, batch size, GPU and prompt were each measured and § E1
-records what by.
+**§ E1's tranche question is CLOSED, and the answer is not the one this file was written to
+give.** It asked how many more chunks to buy. Every lever was measured and four of five are
+eliminated:
+
+| lever | verdict |
+|---|---|
+| more coverage | **cannot help** — `never generated` is 0; the English is already there |
+| more density | **actively hurts** — −32 cases, the larger of the two things degrading the line column |
+| finer translation granularity | **refuted by counting** — human packs 17.56 renderings/vector against 1.00 and scores 14 points better |
+| subspan representation | **refuted before building** — identical chunk geometry in every outcome bucket, and identical chunk *ids* give 171 against 148 |
+| reranking | **+44 cases, free, already shipped** |
+
+**What survives is translation quality, and it is the only addressable thing left.** So the
+next purchase, if there is one, is **better English over the same passages** rather than
+more passages. Item 8 has the numbers.
+
+**And a floor to know before chasing it: 15 of the 35 unreachable cases are unreachable
+with HUMAN English too.** Roughly 20 of 189 are actually addressable.
 
 **What is owed, in order of how much it needs a person:**
 
-1. **ONE full gate, when the machine is quiet.** Neither session has run one since the
-   afternoon's work; both verified serially instead, because the gate cannot get a database
-   connection while an import or a recall run is going. See "Two sessions" below. Run it
-   once for both sessions' commits rather than once each.
-2. ~~**The architecture review's remaining question** — `docs/CHECKS.md` §2.~~ ▸ **ANSWERED
-   2026-09-03** by a session that wrote none of the code, which was the point. Findings in
-   `docs/HISTORY.md`. **The verdict is no — it has not stopped being what it was designed
-   to be**, and the eight invariants hold structurally rather than by intention. What it
-   found is one fact wearing three sets of clothes: **a second axis of state grew up beside
-   the baked corpus in two days, and nothing that governs the first governs the second.**
-   The three items it generated are 9, 10 and 11 below.
-3. **§ E1's next tranche decision** — the measurement is scored (2026-09-03) and item 8 carries the numbers and the caveat: buy on the line column, not the work column.
+1. **The fidelity verdict — the one thing here that a machine cannot take.**
+   `mix pramana.translate.bakeoff --work T0026 --anchors 25` produces the blinded sheet
+   with every arm and Patton anonymised among them. It is § E1's last open question and it
+   now matters most, because quality is the only lever left. **Rank it yourself**: the
+   design deliberately refuses reader ranking, since a reader without Chinese can only rank
+   fluency and fluent-and-wrong is the failure it exists to catch. A few passages repeat
+   under fresh labels so the ranker's own consistency is measured.
+2. **Item 10 — `bake_id` does not identify what answered.** The overpromise is withdrawn in
+   all three places, so nothing lies to a model now; the `source_bake_id` /
+   `vector_set_id` / `release_id` split is still owed and is a **prerequisite for anything
+   public**. Not urgent while this is a local corpus. It becomes urgent the moment a public
+   demo or a shared `verify_report` replay is on the table.
+3. **705 Tengyur works with no title**, and the SAT request, which has waited since
+   2026-08-15. Both need a person and neither needs code.
+
+**The instrument to reach for first is `--within-work`.** `mix pramana.recall --renderings
+--to cbeta.T --within-work` reports where the covering chunk ranks *inside its own work*,
+which separates a ranking failure from a recall failure from an absent translation — three
+situations `on the line` reports identically. It is reference-free, automatic, and far more
+sensitive than the aggregate column: it put 23 cases between Patton and MITRA on **identical
+chunks**, where the aggregate showed 14 points muddled with density. It is the sharpest
+instrument this project has for comparing one model arm against another.
 
 **And a warning about this file.** The queue below is written by whoever finished the last
 item, and on 2026-09-03 one of its entries was wrong in a way that cost a year of not
 trying: *"a Tibetan aligner needs syllable windows and its own measured floor — new method,
 not a parameter"*. The premise was sound and the conclusion was a guess, recorded in the
-imperative. One measurement refuted it and Tibetan now aligns. **Read an unmeasured claim
-here as a hypothesis with a confident voice.**
+imperative. One measurement refuted it and Tibetan now aligns.
+
+**On 2026-09-04 that happened three more times in one day**, and all three were caught by
+*sizing before building*: `@min_coverage` (refuses 0 of MITRA's chunks), the granularity
+hypothesis (refuted by two counts), and the subspan namespace (refuted by one 30-minute
+probe, against a migration plus an embedding run plus a generation run). Two of the three
+were proposed earlier the same session by the person who then killed them. **Read an
+unmeasured claim here as a hypothesis with a confident voice, including one you just
+wrote.**
 
 ### Two sessions, one branch, one machine — 2026-09-03
 

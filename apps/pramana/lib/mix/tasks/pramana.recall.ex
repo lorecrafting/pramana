@@ -11,6 +11,7 @@ defmodule Mix.Tasks.Pramana.Recall do
       mix pramana.recall --parallels --concurrency 1   # ...serially, to compare against
       mix pramana.recall --renderings --to cbeta.T     # ...one canon, when it is a small share
       mix pramana.recall --renderings --translators model:mitra --translation-chunks-of model:qwen
+      mix pramana.recall --renderings --to cbeta.T --within-work   # rank inside the right work
 
   See `Pramana.Recall`: 141,073 verbatim quotations are 141,073 statements that a passage
   occurs in two named works, and a search for that passage should surface both.
@@ -49,6 +50,9 @@ defmodule Mix.Tasks.Pramana.Recall do
     # same id, so re-running the ladder by translator alone would compare a dense arm
     # against sparse ones and call the difference the model.
     translation_chunks_of: :string,
+    # WITHIN-WORK RANK, the diagnostic that separates a ranking failure from a recall
+    # failure from an absent translation. `on the line` reports all three identically.
+    within_work: :boolean,
     # A vector-only control. The second stage reads renderings, so a run that means to
     # measure the vector index alone has to be able to switch it off — and until
     # 2026-09-03 it could not, which is why every arm was reranked against the whole
@@ -64,6 +68,7 @@ defmodule Mix.Tasks.Pramana.Recall do
     require_semantic_arm!(opts, argv)
 
     cond do
+      opts[:renderings] and opts[:within_work] -> within_work(opts)
       opts[:renderings] -> renderings(opts)
       opts[:parallels] -> parallels(opts)
       true -> quotations(opts)
@@ -195,6 +200,47 @@ defmodule Mix.Tasks.Pramana.Recall do
     for miss <- result.misses do
       Mix.shell().info("    miss  -> #{miss.to}  #{miss.target_work}  #{excerpt(miss.text)}")
     end
+  end
+
+  # WHY THE COVERING CHUNK IS NOT COMING BACK, which `on the line` cannot say.
+  #
+  # It reports "the covering chunk did not come back" for three different situations that
+  # call for three different responses — no translation exists for it, it exists and ranks
+  # too low, or it never becomes a candidate at all. Constraining retrieval to the correct
+  # work removes competition between works and asks only the within-work question.
+  #
+  # This decided § E1 item 8. `never generated` came back ZERO for every generated arm, so
+  # more coverage could not be the answer; the not-in-window count was identical with the
+  # reranker on and off, so those cases cannot be reordered into reach. See
+  # `Pramana.Recall.within_work/1`.
+  defp within_work(opts) do
+    opts =
+      opts
+      |> Keyword.put(:serving, Serving.name())
+      |> translators()
+      |> translation_chunks()
+
+    result = Recall.within_work(opts)
+    b = result.buckets
+    at = fn key -> Map.get(b, key, 0) end
+    n = result.located
+
+    pct = fn x -> if n > 0, do: " (#{Float.round(x * 100 / n, 1)}%)", else: "" end
+
+    Mix.shell().info("""
+
+      WITHIN-WORK rank of the covering chunk, limit #{result.limit}#{scope(result.to)}
+      #{result.located} of #{result.sampled} case(s) located; #{result.unlocated} anchor(s) resolved to no chunk
+
+        never generated — no translation vector for this arm   #{at.(:never_generated)}
+        covering chunk at rank 1-10                            #{at.(:top10)}#{pct.(at.(:top10))}
+        ...at 11-50                                            #{at.(:rank_11_50)}
+        ...at 51+                                              #{at.(:rank_51_plus)}
+        #{String.pad_trailing("NOT IN #{result.limit}, within its own work", 54)}#{at.(:beyond_limit)}
+
+      This is a WITHIN-work figure and is always higher than `on the line`, which pays for
+      competition between works as well. Never quote the two side by side.
+    """)
   end
 
   # THE AXIS THAT HAS NEVER MOVED. `topical/chinese` is 0% of twelve gold cases, and twelve

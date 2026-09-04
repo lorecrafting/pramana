@@ -220,6 +220,150 @@ defmodule Pramana.Recall do
     }
   end
 
+  @doc """
+  Where the covering chunk ranks **inside its own work** — the diagnostic that separates a
+  ranking failure from a recall failure from an absent translation.
+
+  ## What `on the line` cannot tell you
+
+  `renderings/1` reports whether the chunk containing the anchor came back. When it does
+  not, three completely different things could be true, and the aggregate column reports
+  them identically:
+
+    * **never generated** — the covering chunk has no translation vector for this arm at
+      all, so no amount of ranking work can help and the answer is more coverage;
+    * **ranked but deep** — it has one and loses to its own siblings, which is a ranking
+      problem and is what a reranker is for;
+    * **not in the window** — it never becomes a candidate, so no reordering can reach it.
+
+  Constraining retrieval to the correct work removes competition between works and asks
+  only the within-work question. Measured 2026-09-04 over 189 cases, and it decided
+  `docs/PLAN.md` § E1 item 8:
+
+      patton, human, 205 chunks     171 top-10   15 not in 200   1 never generated
+      model:mitra, 205 chunks       148 top-10   27 not in 200   0 never generated
+      model:mitra, 27,956 chunks    116 top-10   35 not in 200   0 never generated
+      model:mitra, no rerank         72 top-10   35 not in 200   0 never generated
+
+  **`never generated` was zero, so coverage could not be the answer**, and the not-in-200
+  count is identical with the reranker on and off, so those cases are a candidate-generation
+  failure rather than a ranking one. With density held constant the remaining gap is the
+  English itself — which is why this is now the sharpest instrument the project has for
+  comparing one model arm against another, and why it is a function rather than a script.
+
+  ## It is a WITHIN-work figure and is not comparable with the others
+
+  Competition between works is exactly what it removes, so it is always higher than
+  `renderings/1`'s `on the line` and must never be quoted beside it as though it were the
+  same measurement. Rule 74: state the population.
+  """
+  @spec within_work(keyword()) :: map()
+  def within_work(opts \\ []) do
+    sample = Keyword.get(opts, :sample, @default_sample)
+    limit = Keyword.get(opts, :limit, @default_limit)
+    to = Keyword.get(opts, :to)
+
+    pairs =
+      sample
+      |> sample_renderings(Keyword.get(opts, :seed), to)
+      |> Enum.map(&Map.put(&1, :chunk, covering_chunk(&1)))
+
+    located = Enum.reject(pairs, &is_nil(&1.chunk))
+
+    scored =
+      Enum.map(located, fn pair ->
+        Map.put(pair, :bucket, within_work_bucket(pair, limit, opts))
+      end)
+
+    %{
+      limit: limit,
+      to: to,
+      sampled: length(pairs),
+      # REPORTED, not silently dropped. An anchor whose covering chunk cannot be found is a
+      # gap in this instrument, and a rate computed over an unstated denominator is the
+      # failure this project is most prone to. Rules 22, 44, 54.
+      unlocated: length(pairs) - length(located),
+      located: length(located),
+      buckets: Enum.frequencies(Enum.map(scored, & &1.bucket))
+    }
+  end
+
+  defp within_work_bucket(pair, limit, opts) do
+    translators = Keyword.get(opts, :translators)
+
+    if translators && not has_translation_vector?(pair.chunk.id, translators) do
+      :never_generated
+    else
+      search_opts =
+        Keyword.merge(
+          [mode: :hybrid, limit: limit, work_id: pair.target_work],
+          search_opts(opts)
+        )
+
+      case Retrieval.search(pair.text, search_opts) do
+        {:ok, %{results: results}} ->
+          # Chunk IDENTITY, by the urn the chunks table itself stores — string equality
+          # between two values of one column. NOT `URN.addresses?/2`, which is a PREFIX
+          # test: handed a whole chunk URN it never matches, and the first version of this
+          # probe reported 0 at every rank and read like a finding. Rule 68.
+          rank = Enum.find_index(results, &(&1.urn == pair.chunk.urn))
+          rank_bucket(rank)
+
+        _ ->
+          :undecided
+      end
+    end
+  end
+
+  defp rank_bucket(nil), do: :beyond_limit
+  defp rank_bucket(i) when i < 10, do: :top10
+  defp rank_bucket(i) when i < 50, do: :rank_11_50
+  defp rank_bucket(_), do: :rank_51_plus
+
+  defp has_translation_vector?(chunk_id, translators) do
+    %{rows: [[n]]} =
+      Repo.query!(
+        """
+        SELECT count(*) FROM chunk_vectors
+        WHERE chunk_id = $1 AND kind = 'translation' AND translator_id = ANY($2)
+        """,
+        [chunk_id, List.wrap(translators)]
+      )
+
+    n > 0
+  end
+
+  # THE CHUNK THAT CONTAINS THE ANCHOR, found by character containment.
+  #
+  # `Corpus.resolve/1` accepts a point anchor and a RANGE anchor, which is why the anchor
+  # goes through it rather than through `segments.urn = $anchor` — that equality drops
+  # every range-anchored rendering, 2,080 of patton's 3,354, and is rule 68 in the form
+  # that bites hardest because the rows it drops are the ordinary case.
+  #
+  # The two LIKE branches mirror `Pramana.URN.addresses?/2` exactly: a prefix owns its `@`
+  # and `_` continuations. Everything decisive after that is an integer comparison on
+  # columns that cannot be ranges.
+  defp covering_chunk(pair) do
+    with {:ok, span} <- Corpus.resolve(pair.target_urn),
+         %{rows: [[id, urn]]} <-
+           Repo.query!(
+             """
+             SELECT c.id, c.urn
+             FROM chunks c
+             JOIN texts tx ON tx.id = c.text_id
+             WHERE tx.work_id = $1
+               AND ($2 LIKE tx.urn_prefix || '@%' OR $2 LIKE tx.urn_prefix || '_%')
+               AND c.char_start <= $3 AND c.char_end >= $4
+             LIMIT 1
+             """,
+             [pair.target_work, pair.target_urn, span.char_start, span.char_end]
+           ) do
+      %{id: id, urn: urn}
+    else
+      _ -> nil
+    end
+  end
+
   # Scored per target namespace, WITH ITS DENOMINATOR. This used to be
   # `frequencies_by(found, & &1.to)` — hit counts and nothing to divide them by, which is
   # rules 22, 44 and 54 inside the instrument those rules are measured with. It also hid

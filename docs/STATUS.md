@@ -260,6 +260,30 @@ covering chunk is out-ranked past 200 by same-work near-duplicates. **Density bu
 work and costs the line, and more `k` does not buy it back.** The reranker recovers +3.9 of
 the 6.3 lost on the line, and costs nothing, which is the cheapest half of the remedy.
 
+**And the line column was decomposed on 2026-09-04, which closed § E1's tranche question.**
+`mix pramana.recall --renderings --to cbeta.T --within-work` constrains retrieval to the
+correct work and reports where the covering chunk ranks inside it — separating a ranking
+failure from a recall failure from an absent translation, which `on the line` reports
+identically. 189 of 205 cases located, limit 200:
+
+| arm | rank 1–10 | not in 200 | never generated |
+|---|---|---|---|
+| `patton`, human, 205 chunks | **171 · 90.5%** | 15 | 1 |
+| `model:mitra`, **205 chunks** | **148 · 78.3%** | 27 | **0** |
+| `model:mitra`, 27,956 chunks | 116 · 61.4% | 35 | **0** |
+| `model:mitra`, 27,956, no rerank | 72 · 38.1% | 35 | **0** |
+
+**`never generated` is zero in every generated arm**, so more coverage cannot move these
+cases: the English is already in the index. The 55-case gap from human to production splits
+with one thing varying at a time — **translation quality −23, density −32** — so density
+costs more than quality, and buying more of the same shape is the larger of the two things
+already hurting the column. The 35 not-in-200 are **identical with the reranker on and
+off**, so they never enter the candidate window: a candidate-generation failure that no
+reordering can reach, and **15 of them are out of reach with human English too.**
+
+**These are WITHIN-work figures and are not comparable with the `on the line` column**,
+which pays for competition between works as well. Rule 74.
+
 **`topical/chinese` moved off 0 for the first time on 2026-09-03 — 0 of 12 to 6 of 12.**
 Against `evals/baseline.json` over all 1,472 cases:
 
