@@ -493,6 +493,9 @@ defmodule Pramana.Retrieval.HybridTest do
       per_tradition: true,
       translators: ["model:mitra"],
       translation_coverage: 0.5,
+      # A chunk id that exists nowhere, because this case is about routing rather than
+      # results: what must not happen is the lexical arm being handed it and raising.
+      translation_chunks: [1],
       # Serving parameters. Found by this test rather than by reading the list — they
       # would have crashed the lexical arm exactly as `:translators` did.
       sequence_length: 320,

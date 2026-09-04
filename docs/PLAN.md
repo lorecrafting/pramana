@@ -34,13 +34,13 @@ records what by.
    afternoon's work; both verified serially instead, because the gate cannot get a database
    connection while an import or a recall run is going. See "Two sessions" below. Run it
    once for both sessions' commits rather than once each.
-2. **The architecture review's remaining question** — `docs/CHECKS.md` §2. Its five audits
-   are now two mechanised and three performed by hand on 2026-09-03, **each of which found
-   a live defect**: two tools returning text with no `sha256`, `get_passage` raising on
-   every rendering URN, and 648 absolute paths in the corpus's provenance. What is left is
-   the question the section exists for — *has this stopped being the thing it was designed
-   to be?* — and it is the one thing here that is worse when done by whoever wrote the
-   code. **A session that did not write it should do this one.**
+2. ~~**The architecture review's remaining question** — `docs/CHECKS.md` §2.~~ ▸ **ANSWERED
+   2026-09-03** by a session that wrote none of the code, which was the point. Findings in
+   `docs/HISTORY.md`. **The verdict is no — it has not stopped being what it was designed
+   to be**, and the eight invariants hold structurally rather than by intention. What it
+   found is one fact wearing three sets of clothes: **a second axis of state grew up beside
+   the baked corpus in two days, and nothing that governs the first governs the second.**
+   The three items it generated are 9, 10 and 11 below.
 3. **§ E1's next tranche decision** — the measurement is scored (2026-09-03) and item 8 carries the numbers and the caveat: buy on the line column, not the work column.
 
 **And a warning about this file.** The queue below is written by whoever finished the last
@@ -119,9 +119,84 @@ Both stages hash the **same key** for a coverage ablation — `chunk_vectors.chu
 `chunks.id` are the same number — because candidates drawn from one 25% and reranked
 against a different 25% is not 25% coverage of anything.
 
-**Still owed: the re-runs.** The isolation is fixed; the figures measured without it are
-not. And pre- and post-rerank ranks are still not recorded, so the next confound of this
+**▸ THE RE-RUNS LANDED 2026-09-03, AND THE CONCLUSIONS SURVIVE.** Every CBETA figure above
+was re-measured with both stages honouring the scope. The full table is in `docs/STATUS.md`;
+what matters here is what moved and what did not.
+
+**The sample turned out to be recoverable, which nothing had recorded.** The original
+ladder's `--seed` appears in no commit, log or scratch file. `--seed 0.42` reproduces it:
+the `patton` rung and the 27,956-chunk rung both came back **identical to the digit**
+(173 · 84.4% · line 110 · 53.7%, and 194 · 94.6% · line 68 · 33.2%) while the rungs the
+leak actually touched moved. So this is a before/after on the same 205 queries rather than
+a replacement — established rather than assumed, and **rule 82** now exists because it
+nearly was not.
+
+| what was provisional | verdict |
+|---|---|
+| the four-arm ladder's **ordering** | **unchanged** — mitra > qwen > pinned > base > floor |
+| MITRA over its own untuned base | **15.1 points, to the decimal**, isolated as it was pooled |
+| "recovers 93% of the human layer's value" | **understated: 97.8%** — the old floor had been reranked against Patton |
+| the no-English floor | **38.5% work is right; on the line it was 11.2% and is 7.8%** |
+| the 205-vs-27,956 line reading | **stands, attenuated**: +11.2 work / −6.3 line, was +13.6 / −6.8 |
+
+**The floor was the rung the leak was inflating, and only on the line.** `--translators
+none` meant *no English vectors, then rerank against every rendering in the corpus* — so the
+control for "no English layer" was being reordered by the very English it was the control
+for. Work-level is unmoved, because reranking a fixed candidate list cannot conjure the
+right work into it; the line column loses a third of its value.
+
+**And the reranker's contribution is now separable for the first time**, which is what
+`--rerank false` was built for:
+
+| rung | with rerank | vector-only | the second stage is worth |
+|---|---|---|---|
+| none — no English | 38.5% · 7.8% | 38.5% · 7.8% | **nothing, exactly** |
+| mitra, 205 chunks | 83.4% · 39.5% | 77.6% · 36.1% | +5.8 work · +3.4 line |
+| patton, human | 84.4% · 53.7% | 83.4% · 51.2% | +1.0 work · +2.5 line |
+| mitra, 27,956 chunks | 94.6% · 33.2% | 92.2% · 29.3% | +2.4 work · +3.9 line |
+
+Two things to take from it. The `none` row **verifies the reranker's own stated safety
+property** — *"a candidate with no rendering scores 0 and keeps its fused position"* — as a
+control rather than as a moduledoc claim, which it had never been. And the second stage is
+worth **five times more to the generated arm than to the human one** (+5.8 against +1.0),
+which is what you would expect: the query *is* Patton's text, so his vectors nearly
+saturate the first stage on their own, while model English is a looser vector match that
+string containment recovers. It also **partially offsets the density penalty** — at tranche
+scale the reranker is worth +3.9 on the line, against a −6.3 density cost.
+
+**Still owed: pre- and post-rerank ranks are not recorded**, so the next confound of this
 shape would again be inferred rather than seen.
+
+**The Pāli coverage curve was re-run and CANNOT be deltaed against its predecessor.**
+`docs/STATUS.md` carries the new seven points. Three things differ between the runs, not
+one — the isolation repair, a different `bake_id` (the old curve ran 17:16 UTC on
+2026-09-02; the current bake was built at 18:50 that evening), and 27,751 Chinese English
+vectors that have since joined the pool a Pāli query searches. Six points moved down by
+1–4.5 and the 50% point moved *up* by 6, which is on its own reason enough not to
+attribute any of it. **Rule 80.** The new figures replace the old as current state.
+
+What the repair did visibly fix is the control: **0% coverage now scores 0.0% on the line**
+where it read 1.5%. Three cases were being credited to a "no English" arm by a reranker
+reading the English the ablation had hidden. And the number the demand-weighting premium
+was bounded against barely moves — interpolating the new curve, a *random* 3.6% reaches
+about **26%** at work level where the old gave about 28%, against the demand-weighted
+3.88% that reached 76.0%. The bound in rule 80 stands and is marginally wider.
+
+**And every measurement this project has published cost 2.5x what it needed to.**
+`Pramana.Evals` has passed `coverage: false` on every search since 2026-08-30, with the
+saving measured in the comment beside it — *~1.65 s per case, identical scores both ways,
+~13.7 minutes over a full run.* **`Pramana.Recall` did not**, and `Recall` is the harness
+behind the 46.8% -> 76.0% production baseline, the model ladder, the coverage curve and the
+cross-lingual parallels axis. Every one of those cases counted 560,238 chunks, probed each
+for a vector, and discarded the answer: `probe_rendering/4` reads `%{results: results}` and
+nothing else.
+
+Fixed 2026-09-03 and measured rather than assumed — **3.3 s/case -> 1.3 s/case** over 25
+cases of `--to cbeta.T`, which matches the 3.3 s/case in the 2026-09-02 ladder logs. On the
+1,670-case production run that is roughly **46 minutes spent on a field nobody read**. It
+is rule 41 in the measuring apparatus: found, measured and written down in one of the two
+harnesses a week ago, never swept to the other. **Anyone budgeting a future run should
+budget it at the new rate.**
 
 **No further GPU tranche until that lands and the affected arms are re-run.** The next
 tranche's shape was chosen off the line column, and the line column is one of the figures
@@ -523,6 +598,69 @@ look right. Neither has been checked against the code.
    The open question is whether a **smaller chunk** — the granularity cost named at the
    ladder, translating a 300-character chunk rather than a line — moves the line column
    where more coverage does not. Measure that before spending, and see `docs/PROXIES.md`.
+
+9. **The retrieval change of 2026-09-03 has never been scored against `evals/`, and
+   invariant #6 says it must be.** ▸ **FROM THE ARCHITECTURE REVIEW.** The full gate
+   finished at **19:41**; `ed0c154` — which made `Hybrid.maybe_rerank/3` pass `opts`, the
+   only change to retrieval *behaviour* that day — was committed at **19:54**. The commit
+   before it that touches `rerank.ex` is documentation only, verified in the diff. So the
+   gate being cited as covering the day predates the change by thirteen minutes.
+
+   Item 1 above frames the missing gate as scheduling, and the scheduling is real — one
+   16 GB machine, two sessions, no database connection to spare. **It is also an invariant
+   violation, and the two facts are not alternatives.** It compounds with audit finding 1
+   in the section above: the gate **passes without advancing the baseline**, so a green run
+   is compared against `evals/baseline.json`'s 1,359 / 92.3% whatever it actually scored.
+
+   What is owed: run it, then review the movements, then an explicit acceptance step and a
+   test that a pass cannot retain an obsolete baseline.
+
+10. **`bake_id` does not identify what answered, and nineteen tools say it does.** ▸ **FROM
+    THE ARCHITECTURE REVIEW**, and the enlargement of audit finding 3 above.
+
+    `Pramana.Bake`'s own moduledoc: *"Two people with the same `bake_id` hold byte-identical
+    corpora."* The current bake was built **2026-09-02 18:50**. Since then, under an
+    unchanged id, **27,751** `model:mitra` renderings were imported and **27,751**
+    translation vectors embedded.
+
+    The audit above recorded the consequence for `verify_report` replays. The surface is
+    larger: `PramanaWeb.MCP.Reply.json/3` stamps `bake_id` on **every** response of all
+    nineteen tools, and its moduledoc makes the promise in as many words — *"`{tool,
+    arguments, bake_id}` is enough to run the query again and get the same answer."* The
+    MCP guide resource tells a model to *"cite it for reproducibility."* Two reader screens
+    print it.
+
+    **An id that no longer identifies what produced the answer is worse than no id**,
+    because it is the thing a reader would check. The split named above —
+    `source_bake_id`, `translation_set_id`, `vector_set_id`, `release_id` — is the fix.
+    Until it lands, the claim is oversold in prose that ships to models, and that is the
+    part to fix first if the split is not imminent: **it is cheaper to stop promising than
+    to start delivering.**
+
+11. **The ordering has no provenance record, and it is now partly machine output.**
+    ▸ **FROM THE ARCHITECTURE REVIEW.**
+
+    `Rerank.renderings_for/3` joins `translations` on `lang` and the arm's scope — not on
+    `method`, not on `tier`. **27,751 CBETA chunks have machine English and no human
+    English**, every one `tier: t1`, `method: llm`, `review_state: raw`. Each can move a
+    candidate up the list.
+
+    No invariant is breached. Every returned span still carries URN, offsets, sha256 and
+    provenance (#1); nothing generated is citable as source (#8, re-confirmed —
+    `rendering_urn/1` is a fragment over its anchor and `provenance/1` carries
+    `citable_as_source: false`). **What has no warrant record is the rank.** `Hybrid`
+    reports `retrievers:` — the arms that generated candidates — and never that the second
+    stage ran or that a raw model rendering is why a result is first.
+
+    Before the tranche this was vacuous, and the reranker's own moduledoc said so: *"no
+    English renderings exist over the Chinese canon, so every candidate scores 0 and the
+    order is returned unchanged."* It stopped being true in the commit that produced the
+    headline figures. **The measurement now exists to price the disclosure**: the
+    reranker is worth +5.8 work-level points on the generated arm and +1.0 on the human
+    one, so this is not a rounding error being hidden.
+
+    Smallest honest fix: report `reranked: true` and how many results moved, and — since
+    the scope machinery already exists — the tiers the second stage read.
 
 ### Previous session
 

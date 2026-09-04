@@ -10,6 +10,8 @@ defmodule Pramana.Retrieval.RerankTest do
   """
   use Pramana.DataCase, async: true
 
+  import Ecto.Query
+
   alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
@@ -172,6 +174,19 @@ defmodule Pramana.Retrieval.RerankTest do
 
       assert moved?("So I have heard", translation_coverage: 1.0)
       refute moved?("So I have heard", translation_coverage: 0.0)
+    end
+
+    # AN ARM IS NAMED BY A TRANSLATOR, AND A TRANSLATOR ID STOPPED NAMING A FIXED ARM.
+    # `model:mitra` was 205 pilot chunks when the ladder was measured and 27,956 the next
+    # day, under the same id. A rung has to be able to say which chunks it means, or the
+    # re-run compares a dense arm against sparse ones and calls the difference the model.
+    test "a chunk outside the arm's set cannot reorder anything" do
+      two_translators!()
+
+      chunk_id = Repo.one!(from c in Chunk, where: c.urn == ^@chunk_urn, select: c.id)
+
+      assert moved?("So I have heard", translation_chunks: [chunk_id])
+      refute moved?("So I have heard", translation_chunks: [chunk_id + 1_000_000])
     end
 
     test "with no scope given, every rendering is visible — production behaviour is unchanged" do

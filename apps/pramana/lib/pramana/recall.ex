@@ -496,8 +496,33 @@ defmodule Pramana.Recall do
   # stage always ran, and it read every rendering regardless of the arm — so a "no English
   # layer" arm was reranked against the whole English layer. See
   # `Pramana.Retrieval.RenderingScope`.
-  defp search_opts(opts),
-    do: Keyword.take(opts, [:serving, :translation_coverage, :translators, :rerank])
+  # `:translation_chunks` rides through for the same reason: `translator_id` stopped
+  # naming a fixed arm once the tranche grew `model:mitra` from 205 chunks to 27,956
+  # under the same id, so a ladder rung has to be able to say which chunks it means.
+  #
+  # `:coverage` is turned OFF, and it is the largest single cost in a run of this probe.
+  # `Hybrid` computes it by counting 560,238 chunks and probing each for a vector;
+  # `Pramana.Evals` measured the saving at **~1.65 s per case** and identical scores both
+  # ways, and turned it off there on 2026-08-30. It was never swept here — so every figure
+  # this module has published, including the 1,670-case production baseline, paid roughly
+  # 46 minutes of database time for a field `probe_rendering/4` and `probe_parallel/4` do
+  # not read. Rule 41: a fix applied where it was found is half a fix.
+  #
+  # It matters to a CALLER, who might read an empty result as a small canon. It cannot
+  # matter to a probe that scores work ids.
+  defp search_opts(opts) do
+    Keyword.put(
+      Keyword.take(opts, [
+        :serving,
+        :translation_coverage,
+        :translators,
+        :translation_chunks,
+        :rerank
+      ]),
+      :coverage,
+      false
+    )
+  end
 
   # A REPRODUCIBLE SAMPLE. `order by random()` gives a different answer every run, so a
   # figure could never be compared with the one before it — the failure `docs/PROXIES.md`

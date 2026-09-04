@@ -382,6 +382,37 @@ defmodule Pramana.Retrieval.SemanticTest do
       assert translators == ["model:mitra"]
     end
 
+    # A TRANSLATOR ID STOPPED NAMING A FIXED ARM. `model:mitra` covered 205 pilot chunks
+    # when the four-arm ladder was measured and 27,956 the next day, under the same id, so
+    # a rung has to be able to name its chunk set or the re-run compares a dense arm with
+    # sparse ones and calls the difference the model.
+    test "an arm can be restricted to the chunks its comparison set covers", %{probe: probe} do
+      chunk_ids =
+        Repo.all(
+          from v in Pramana.Corpus.ChunkVector,
+            where: v.kind == "translation" and v.translator_id == "model:mitra",
+            select: v.chunk_id
+        )
+
+      kinds = fn opts ->
+        probe
+        |> Semantic.search_vector(Keyword.merge([limit: 20], opts))
+        |> Map.fetch!(:results)
+        |> Enum.flat_map(& &1.matched_via)
+        |> Enum.map(& &1.kind)
+        |> Enum.uniq()
+      end
+
+      assert "translation" in kinds.(translation_chunks: chunk_ids)
+
+      # A chunk set the English does not live in hides it. The source layer is untouched
+      # either way — narrowing the English must never narrow the Chinese.
+      outside = [Enum.max(chunk_ids) + 1_000_000]
+
+      refute "translation" in kinds.(translation_chunks: outside)
+      assert "source" in kinds.(translation_chunks: outside)
+    end
+
     test "an empty list is the control — no English layer at all", %{probe: probe} do
       %{results: results} = Semantic.search_vector(probe, limit: 20, translators: [])
 

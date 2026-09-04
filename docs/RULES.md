@@ -1025,6 +1025,30 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     them, and the second editor was working from a version already superseded.
 
 
+82. **An experiment arm named by a mutable id is not an arm.** The four-arm model ladder
+    compared `model:mitra`, `model:qwen` and `model:gemma-base` over one shared set of 205
+    pilot chunks on 2026-09-02. The next day the tranche landed and `model:mitra` covered
+    **27,956 chunks over 14 works** — under the same `translator_id`. Nothing was
+    overwritten and nothing was wrong; the id simply stopped naming the thing it named.
+
+    **Re-running that ladder by translator alone would have compared a dense arm against
+    sparse ones and attributed the difference to the model.** The rung would have gone up,
+    the conclusion would have been confirmed, and the confirmation would have been the
+    corpus rather than the model — which is the failure mode that is hardest to see,
+    because it agrees with you.
+
+    So an arm has to be pinned by what it actually contains: `--translation-chunks-of`
+    names a chunk set, `Pramana.Retrieval.RenderingScope` restricts every stage to it, and
+    the pilot rung is reconstructed from rows nothing overwrote. **Before re-running any
+    measurement, ask what the labels meant when it was first taken** — and check, rather
+    than assume they still mean it.
+
+    The companion habit: **write the invocation down**. The ladder's `--seed` was recorded
+    in no commit, no log and no scratch file, so its 205 cases cannot be recovered and the
+    re-run replaces it rather than deltas against it. A seed is part of a figure. Rule 67
+    made the seed work; this one is remembering what it was.
+
+
 ---
 
 ## One-off gotchas

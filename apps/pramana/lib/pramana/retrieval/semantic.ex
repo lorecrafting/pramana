@@ -48,6 +48,7 @@ defmodule Pramana.Retrieval.Semantic do
   alias Pramana.Corpus.Work
   alias Pramana.Embed
   alias Pramana.Repo
+  alias Pramana.Retrieval.RenderingScope
 
   @default_limit 20
   @max_limit 200
@@ -68,6 +69,7 @@ defmodule Pramana.Retrieval.Semantic do
     :vector_lang,
     :translation_coverage,
     :translators,
+    :translation_chunks,
     :balance,
     :per_tradition,
     :source_id,
@@ -259,8 +261,14 @@ defmodule Pramana.Retrieval.Semantic do
       |> where([v], not is_nil(v.embedding) and v.embedding_model == ^Embed.model())
       |> filter_vector_kinds(opts[:vector_kinds])
       |> filter_vector_lang(opts[:vector_lang])
-      |> ablate_translations(opts[:translation_coverage])
-      |> filter_translators(opts[:translators])
+      # THE VALUES COME FROM `RenderingScope`, NOT FROM `opts` — the predicates stay
+      # here because they are Ecto and its other caller needs SQL, but a second reading
+      # of the same option is a second definition. This file used to compute
+      # `round(coverage * 100)` itself, so "one definition, both stages read it" was true
+      # of the reranker and of a moduledoc. Rule 41.
+      |> ablate_translations(RenderingScope.coverage_keep(opts))
+      |> filter_translators(RenderingScope.translators(opts))
+      |> restrict_translation_chunks(RenderingScope.chunks(opts))
       |> join(:inner, [v], c in Chunk, as: :chunk, on: c.id == v.chunk_id)
       |> join(:inner, [v, c], t in Text, as: :text, on: t.id == c.text_id)
       |> join(:inner, [v, c, t], w in Work, as: :work, on: w.id == t.work_id)
@@ -381,18 +389,25 @@ defmodule Pramana.Retrieval.Semantic do
     end
   end
 
+  # `keep` is already an integer 0..100 — `RenderingScope.coverage_keep/1` owns the
+  # arithmetic and returns nil for "all of them", so there is no `>= 1.0` clause here to
+  # disagree with the one in that module.
   defp ablate_translations(query, nil), do: query
 
-  defp ablate_translations(query, coverage) when coverage >= 1.0, do: query
-
-  defp ablate_translations(query, coverage) when coverage >= 0.0 and coverage < 1.0 do
-    keep = round(coverage * 100)
-
+  defp ablate_translations(query, keep) when is_integer(keep) do
     where(
       query,
       [v],
       v.kind != "translation" or fragment("abs(hashtext(?::text)) % 100", v.chunk_id) < ^keep
     )
+  end
+
+  # THE ARM'S CHUNK SET. Source vectors are never restricted — narrowing the English layer
+  # must not narrow the Chinese — so this reads exactly like the other two rules.
+  defp restrict_translation_chunks(query, nil), do: query
+
+  defp restrict_translation_chunks(query, ids) do
+    where(query, [v], v.kind != "translation" or v.chunk_id in ^ids)
   end
 
   defp filter_vector_lang(query, nil), do: query

@@ -10,6 +10,7 @@ defmodule Mix.Tasks.Pramana.Recall do
       mix pramana.recall --renderings             # ...against true translations, not correspondences
       mix pramana.recall --parallels --concurrency 1   # ...serially, to compare against
       mix pramana.recall --renderings --to cbeta.T     # ...one canon, when it is a small share
+      mix pramana.recall --renderings --translators model:mitra --translation-chunks-of model:qwen
 
   See `Pramana.Recall`: 141,073 verbatim quotations are 141,073 statements that a passage
   occurs in two named works, and a search for that passage should surface both.
@@ -42,6 +43,12 @@ defmodule Mix.Tasks.Pramana.Recall do
     concurrency: :integer,
     to: :string,
     translators: :string,
+    # WHICH CHUNKS AN ARM'S ENGLISH COVERS, named by a translator that covers exactly
+    # them. `--translators` stopped naming a fixed arm on 2026-09-03: the tranche grew
+    # `model:mitra` from the ladder's 205 pilot chunks to 27,956 over 14 works under the
+    # same id, so re-running the ladder by translator alone would compare a dense arm
+    # against sparse ones and call the difference the model.
+    translation_chunks_of: :string,
     # A vector-only control. The second stage reads renderings, so a run that means to
     # measure the vector index alone has to be able to switch it off — and until
     # 2026-09-03 it could not, which is why every arm was reranked against the whole
@@ -109,6 +116,39 @@ defmodule Mix.Tasks.Pramana.Recall do
     end
   end
 
+  # RESOLVED HERE, NOT IN THE RETRIEVAL LAYER. The task speaks translator ids because that
+  # is what an experiment arm is named by; `Pramana.Retrieval.RenderingScope` speaks chunk
+  # ids because that is what both stages can filter on. Resolving at the boundary keeps the
+  # retrieval layer from having to know that an arm is a translator at all.
+  #
+  # It RAISES on an empty set rather than restricting to nothing, because "this translator
+  # covers no chunks" is a typo in a translator id far more often than it is a measurement,
+  # and the silent form of it scores every arm at the floor.
+  defp translation_chunks(opts) do
+    case opts[:translation_chunks_of] do
+      nil ->
+        opts
+
+      translator ->
+        ids = Pramana.Translations.chunks_covered(translator)
+
+        if ids == [] do
+          Mix.raise(
+            "--translation-chunks-of #{inspect(translator)} covers no chunks; " <>
+              "is that a translator id this corpus holds?"
+          )
+        end
+
+        Mix.shell().info(
+          "    English restricted to the #{length(ids)} chunk(s) #{translator} covers"
+        )
+
+        opts
+        |> Keyword.delete(:translation_chunks_of)
+        |> Keyword.put(:translation_chunks, ids)
+    end
+  end
+
   # `--translators none` now genuinely means no English anywhere in the path. It used to
   # mean "no English vectors, and rerank against every rendering in the corpus", which is
   # not a no-English control and was reported as one.
@@ -127,6 +167,7 @@ defmodule Mix.Tasks.Pramana.Recall do
       |> Keyword.put(:serving, Serving.name())
       |> Keyword.put(:on_progress, progress())
       |> translators()
+      |> translation_chunks()
 
     result = Recall.renderings(opts)
 

@@ -14,9 +14,13 @@ defmodule Pramana.Retrieval.RenderingScope do
   that way.
 
   A scope that only one stage obeys is not a scope. This module is the one definition, and
-  both stages read it.
+  both stages read it — `Semantic` for its values and `Rerank` for SQL. The first version
+  of this module was the one definition only in its moduledoc: `Semantic` went on deriving
+  `round(coverage * 100)` and its own translator predicate from `opts` and never referred
+  to this file, which is rule 41's shape one level up — a rule extracted into a shared
+  place that one of its two callers still does not call.
 
-  ## The two rules
+  ## The three rules
 
   **Translators.** A vector or rendering is in scope when it is not a translation at all,
   or when its `translator_id` is one of the named arms. Source text is never excluded —
@@ -28,6 +32,14 @@ defmodule Pramana.Retrieval.RenderingScope do
   hash the **chunk id**: `Semantic` over `chunk_vectors.chunk_id`, `Rerank` over
   `chunks.id`, which are the same number. `hashtext` is Postgres's own, so the partition is
   stable across processes and runs without storing anything.
+
+  **Chunks.** An arm comparison is only meaningful over the chunk set every arm covers, and
+  `translator_id` alone stopped expressing that on 2026-09-03: the four-arm ladder compared
+  `model:mitra`, `model:qwen` and `model:gemma-base` over the same 205 pilot chunks, and
+  the tranche then grew `model:mitra` to 27,956 chunks over 14 works under the same id. The
+  arm named by that id is no longer the arm that was measured. `:translation_chunks`
+  restricts the English layer to a named set of chunk ids, so the pilot rung can be
+  reconstructed from rows nothing overwrote rather than inferred.
 
   ## What it deliberately does not do
 
@@ -67,6 +79,24 @@ defmodule Pramana.Retrieval.RenderingScope do
   end
 
   @doc """
+  The chunk ids whose English an arm may see, or `nil` for "no restriction".
+
+  `[]` would mean *no chunk at all*, which is what `translators: []` already says more
+  directly, so it is treated as no restriction rather than given a second spelling.
+  """
+  @spec chunks(keyword()) :: [integer()] | nil
+  def chunks(opts) do
+    case Keyword.get(opts, :translation_chunks) do
+      nil -> nil
+      [] -> nil
+      ids -> Enum.map(List.wrap(ids), &to_id/1)
+    end
+  end
+
+  defp to_id(id) when is_integer(id), do: id
+  defp to_id(id) when is_binary(id), do: String.to_integer(id)
+
+  @doc """
   SQL conditions restricting a `translations` row, for the stage that is not written in
   Ecto.
 
@@ -81,7 +111,8 @@ defmodule Pramana.Retrieval.RenderingScope do
     {conditions, params, _n} =
       [
         {translators(opts), &"AND #{translation_alias}.translator_id = ANY($#{&1})"},
-        {coverage_keep(opts), &"AND abs(hashtext(#{chunk_alias}.id::text)) % 100 < $#{&1}"}
+        {coverage_keep(opts), &"AND abs(hashtext(#{chunk_alias}.id::text)) % 100 < $#{&1}"},
+        {chunks(opts), &"AND #{chunk_alias}.id = ANY($#{&1})"}
       ]
       |> Enum.reduce({[], [], next_param}, fn
         {nil, _sql}, acc -> acc

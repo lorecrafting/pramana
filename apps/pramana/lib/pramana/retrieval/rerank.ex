@@ -46,7 +46,7 @@ defmodule Pramana.Retrieval.Rerank do
   - **Not invent an ordering for a candidate it cannot read.** A candidate with no
     rendering in `lang` scores 0 and keeps its fused position.
 
-  ## ▸ TWO PROPERTIES THIS MODULE CLAIMED AND NO LONGER HAS — 2026-09-03
+  ## ▸ A PROPERTY THIS MODULE CLAIMED AND NO LONGER HAS — 2026-09-03
 
   **It said "not touch Chinese: no English renderings exist over the Chinese canon, so
   every candidate scores 0 and the order is returned unchanged."** That was true when it
@@ -54,18 +54,24 @@ defmodule Pramana.Retrieval.Rerank do
   renderings over the Chinese canon** now exist. This reorders Chinese candidates, and the
   behaviour changed silently, in the same commit that produced the headline figures.
 
-  **And it honours no experiment isolation.** `renderings_for/2` filters `translations` by
-  `lang` and nothing else — not `translator_id`, not `method`, not `tier`, and not
-  `:translation_coverage`. `Pramana.Retrieval.Semantic` honours `:translators` and
-  `:translation_coverage`; this stage does not, so **a controlled arm's candidates are
-  isolated and its ordering is not.** Every arm of the 205-case ladder was reranked against
-  the whole English layer, including the renderings that arm was defined by excluding.
+  **The experiment-isolation half of this note was repaired the same day** and the note is
+  corrected rather than deleted, because the figures taken before it are still in the
+  documents. `renderings_for/3` now reads `Pramana.Retrieval.RenderingScope` — the one
+  definition of what an arm may see — so `:translators`, `:translation_coverage` and
+  `:translation_chunks` reach this stage. Before that they reached candidate generation and
+  stopped: `Hybrid.maybe_rerank/3` passed no options at all, and **every arm of the 205-case
+  ladder was reranked against the whole English layer**, including the renderings that arm
+  was defined by excluding.
 
-  Nothing here is wrong as *production* behaviour — a reranker reading every rendering it
-  has is what a reranker should do. What is wrong is that an experiment cannot currently
-  exclude anything from it, so any figure whose meaning depends on an arm seeing only its
-  own translator is confounded at this stage. `docs/PLAN.md` carries the repair and the
-  list of figures that must be re-run behind it.
+  ## What it still does not disclose
+
+  It filters by `lang` and the arm's scope — **not by `method` and not by `tier`.** That is
+  right as production behaviour: a reranker reading every rendering it has is a reranker
+  working. But 27,751 CBETA chunks now have machine English and no human English, all of
+  them `tier: t1` and `review_state: raw`, so **a result can be at rank 1 because an
+  unreviewed model rendering matched** — and `Hybrid`'s response reports which retrievers
+  generated candidates, never that this stage ran or what moved. The span carries its
+  warrant; the ordering does not. `docs/HISTORY.md`, the 2026-09-03 architecture review.
   """
 
   alias Pramana.Repo

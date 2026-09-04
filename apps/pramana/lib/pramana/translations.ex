@@ -487,6 +487,66 @@ defmodule Pramana.Translations do
   end
 
   @doc """
+  The chunk ids a translator's renderings cover.
+
+  **An experiment arm is named by a translator id, and a translator id stopped naming a
+  fixed arm on 2026-09-03.** The four-arm model ladder compared `model:mitra`,
+  `model:qwen` and `model:gemma-base` over one shared set of 205 pilot chunks; the tranche
+  then grew `model:mitra` to 27,956 chunks over 14 works under the same id. Re-running the
+  ladder by translator alone would compare a dense arm against sparse ones and attribute
+  the difference to the model. This is how a rung says which chunks it means —
+  `Pramana.Retrieval.RenderingScope`.
+
+  **BOTH ANCHOR FORMS, and the meta field is not one of them.** Generated renderings record
+  `meta -> chunk_id` and human ones do not: `patton` is anchored to Taishō lines and
+  `84000` to folio ranges. Reading the meta field would answer for three translators and
+  silently return `[]` for every human one — the failure this join has already been written
+  wrong four times in this codebase, most recently in `Pramana.Retrieval.Rerank`. Rule 68.
+
+  **Two passes and a union, not one join with an `OR`.** Written as the reranker writes it
+  — one join whose condition is `anchor_urn = s.urn OR (work_id matches AND ordinal
+  between)` — the planner has nothing to drive the scan from and the query does not finish:
+  cancelled at 120 s for `patton`, whose 3,354 renderings cover two works. The reranker gets
+  away with that shape because `WHERE c.urn = ANY($1)` pins it to a page of candidates
+  first. Here there is no such anchor, so each form is asked separately, from the
+  translations side. Rule 9.
+
+  The range pass compares the rendering's ordinal span to the **chunk's** span rather than
+  walking segments, which is equivalent because a chunk holds a contiguous ordinal range of
+  one text — and it is the difference between a table scan and an index lookup.
+  """
+  @spec chunks_covered(String.t()) :: [integer()]
+  def chunks_covered(translator_id) do
+    %{rows: rows} =
+      Repo.query!(
+        """
+        SELECT c.id
+        FROM translations t
+        JOIN segments s ON s.urn = t.anchor_urn
+        JOIN chunks c
+          ON c.text_id = s.text_id
+         AND s.ordinal BETWEEN c.first_ordinal AND c.last_ordinal
+        WHERE t.translator_id = $1
+
+        UNION
+
+        SELECT c.id
+        FROM translations t
+        JOIN texts tx ON tx.work_id = t.work_id
+        JOIN chunks c
+          ON c.text_id = tx.id
+         AND c.last_ordinal >= (t.meta ->> 'ordinal_start')::int
+         AND c.first_ordinal <= (t.meta ->> 'ordinal_end')::int
+        WHERE t.translator_id = $1
+          AND t.meta ? 'ordinal_start'
+        """,
+        [translator_id]
+      )
+
+    Enum.map(rows, fn [id] -> id end)
+  end
+
+  @doc """
   Renderings whose licence could not be established, grouped by translator.
 
   A rendering with `license_class: "unknown"` is held and searchable but never
