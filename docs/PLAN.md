@@ -75,6 +75,48 @@ question.** `--renderings --to cbeta.T` with no `--sample` defaults to 200 pairs
 directly comparable. This is `docs/STATUS.md`'s "the last figure that will need a caveat
 about sampling" nearly needing one.
 
+### ▸ BEFORE ANY OF THE QUEUE BELOW — experiment isolation is broken, 2026-09-03
+
+**`--translators` and `--translation_coverage` restrict candidate generation and not
+ordering.** `Pramana.Retrieval.Semantic` honours both. `Pramana.Retrieval.Rerank` honours
+neither: `renderings_for/2` joins `translations` on `lang` and nothing else — no
+`translator_id`, no `method`, no `tier`, no coverage fraction. **Every arm of the 205-case
+ladder was reranked against the whole English layer, including the renderings that defined
+the arm by their absence.**
+
+**And the reranker's own stated safety property expired the same day.** It documented "not
+touch Chinese: no English renderings exist over the Chinese canon, so every candidate
+scores 0 and the order is returned unchanged." 28,571 now exist. It reorders Chinese
+candidates, and it began doing so in the commit that produced the headline figures.
+
+**This is not a production defect.** A reranker reading every rendering it has is a
+reranker working. It is an *experiment* defect: an arm cannot exclude anything from the
+second stage, so any figure whose meaning depends on an arm seeing only its own translator
+is confounded there.
+
+**What survives untouched, because it is whole-system before-and-after on one index:**
+
+| | |
+|---|---|
+| production recall, all 1,670 cases | 46.8% → **76.0%** work · 32.3% → **36.2%** line |
+| `topical/chinese` | 0/12 → **6/12** |
+| evals overall | 1,359 → **1,364** of 1,472 |
+
+**What is provisional until the isolation is repaired and re-run:** "MITRA recovered 93% of
+the human layer's value"; the four-arm ladder; the no-English floor; the Pāli coverage
+curve; the 205-vs-27,956 line-recall reading; and the demand-weighting premium, which was
+already bounded rather than measured for a *different* reason (rule 80).
+
+**The repair, and it is the next commit.** One rendering-scope policy both stages read, so
+translator selection, coverage fraction and eligibility apply to the whole retrieval path;
+`rerank: false` in the recall harness for a vector-only control; a test proving an excluded
+translator can influence neither stage; and pre- and post-rerank ranks recorded so a future
+confound of this shape is visible rather than inferred.
+
+**No further GPU tranche until that lands and the affected arms are re-run.** The next
+tranche's shape was chosen off the line column, and the line column is one of the figures
+in doubt.
+
 ### The queue, in order
 
 1. ~~**Run the full Chinese 科文 alignment.**~~ ▸ **ALREADY DONE — verified 2026-09-02, it
