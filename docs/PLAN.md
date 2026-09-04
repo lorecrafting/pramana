@@ -117,6 +117,57 @@ confound of this shape is visible rather than inferred.
 tranche's shape was chosen off the line column, and the line column is one of the figures
 in doubt.
 
+### Four more from the same audit, verified in the code — 2026-09-03
+
+An external review of this file raised seven prerequisites. Each was checked against the
+source before being written here, because a review is a set of claims and this file's own
+rule is that a claim about what is possible says whether it was measured. **All four below
+are confirmed.** The rerank isolation defect is above; these are the rest.
+
+**1. The gate passes without advancing the baseline.** `Mix.Tasks.Pramana.Evals.gate/2`
+writes `evals/baseline.json` **only when none exists**; with one present it compares and
+never updates. So today's full gate went green while `baseline.json` still records
+**1,359 / 92.3%** and the run scored **1,364 / 92.7%**. The five-case gain is not the
+baseline, so a later regression would be measured against the old number and could lose it
+silently. What is owed: an explicit acceptance step, the five net movements reviewed before
+it, and a test that a pass cannot retain an obsolete baseline. Audit item #14 says "the next
+gate records the detail" — the next gate did not.
+
+**2. A smaller translation row does not make a smaller retrieval unit.** `Chunk.Vectors`
+builds one translation vector *per chunk*, from "the same translator's renderings of those
+segments, in order, joined." Granularity is set by the **chunk**, not the rendering — so
+generating finer rows would concatenate into the same ~300-character parent vector and
+measure nothing. Item 8's "whether a smaller chunk moves the line column" names the right
+unit; anyone reading it as "translate in smaller pieces" would run a null experiment. A
+real test needs a separate vector namespace, one vector per subspan, and no parent vector
+in the same arm. Note also `@min_coverage 0.5`: below half a chunk's segments no
+translation vector is built at all, which is itself a line-recall mechanism nobody has
+measured.
+
+**3. `bake_id` does not identify the retrieval state.** It hashes
+`[lock_digest, pipeline_version, config]` — acquired bytes, normalisation, bake settings.
+It does **not** move when 28,571 translations are imported or when vectors are re-embedded
+with a different model. Both happened today under an unchanged `bake_id`. The consequence
+is concrete: `verify_report` replays are keyed on it, and `docs/STATUS.md` promises a replay
+against a different bake returns `unverifiable` rather than `failed`. A replay recorded
+before today runs against the *same* `bake_id` and a *different* index, so it can now fail
+and blame the report. Splitting source identity from retrieval-release identity —
+`source_bake_id`, `translation_set_id`, `vector_set_id`, `release_id` — is unplanned work
+and a prerequisite for anything public.
+
+**4. Search eligibility and display eligibility are distinguished for licence and not for
+tier.** `Pramana.Translations` holds a `license_class: "unknown"` rendering as searchable
+but never servable. Nothing does the equivalent for `tier: t1`: raw generated renderings are
+findable, which is the intent, and nothing marks them un-displayable to a reader. Invariant
+#8 stops them being cited as source; it does not stop them being *shown* as if reviewed.
+
+**Not verified, and recorded as proposals rather than findings**: the within-work line
+diagnostic (constrain retrieval to the correct work, then measure whether the covering
+chunk appears at ranks 10/50/100/200, separating "not competitive" from "removed by
+reranking" from "never generated"), and the fuller generation provenance — finish reason,
+token counts, model revision — beyond the truncation flag item #14 already requires. Both
+look right. Neither has been checked against the code.
+
 ### The queue, in order
 
 1. ~~**Run the full Chinese 科文 alignment.**~~ ▸ **ALREADY DONE — verified 2026-09-02, it
