@@ -16,6 +16,65 @@ noticed the heading was the problem.
 
 ---
 
+## The Chinese canon answers an English question for the first time — 2026-09-03
+
+`topical/chinese` had been **0 of 12 for the life of the project**. It is now **6 of 12**.
+
+The tranche was 27,956 MITRA renderings over 14 CBETA works — the top 10 by directed
+citation weight plus the four Āgamas — generated the day before and waiting on a GPU.
+Embedding was the cheap part: 27,751 rows missing a vector, **3.7 minutes on a Modal L4 at
+126.8 chunks/s**, 0 rejected on hash, dimension or id. Coverage went from **191 chunks to
+27,956 of CBETA's 719,543 — 0.027% to 3.88%**.
+
+**The production verdict, over the whole 1,670-case population:**
+
+| `--renderings --to cbeta.T`, all 1,670 | found the work | on the line |
+|---|---|---|
+| before | 782 · 46.8% | 539 · 32.3% |
+| after | **1,269 · 76.0%** | **604 · 36.2%** |
+
+**It beat the curve by a lot, and the first account of *why* was overstated within the
+day.** The ablation curve hid vectors at *random* and predicted about 28% at work level
+for a random 3.6%; a demand-weighted **3.88%** reached **76.0%**. This entry's first
+version called that gap the demand-weighting premium. It is an **upper bound** on it: the
+curve was measured by ablating **Pāli** and the 76.0% is **CBETA**, so two things vary
+rather than one, and the direction of the bias is known — these 1,670 queries pick the
+right work among the **14** CBETA works that have English, where the Pāli ablation picked
+among 5,845. Isolating the premium needs a *randomly* selected CBETA tranche to compare
+against, which is another tranche's money to price a decision already taken. Bounded,
+left unmeasured, and said so. **Rule 80**, and it was caught by a sentence sitting a
+hundred lines below the claim in the same file.
+
+**And the surprise is that the two columns disagree.** Work-level nearly doubled; the line
+moved 3.9 points. In the controlled rung — same 205 queries, same seed, index varied — the
+line column went the *wrong way*: 40.0% → **33.2%**, while work-level rose to 94.6%.
+
+The obvious explanation was displacement out of the limit-100 result window, and it is
+**wrong**. Re-run at `--limit 200`, the layer's maximum: identical to the digit, 194 ·
+94.6%, on line 68 · 33.2%. Not one covering span sits in ranks 101–200. The covering chunk
+is out-ranked *past 200* by same-work near-duplicates, and asking for more results does
+not buy it back. **Density buys the work and costs the line** — which is the finding that
+should price the next tranche, because work-level on covered works is near saturation
+while a reader who wants the right *line* is served at 36.2%.
+
+**The gain is also not free to the other canons.** Against `evals/baseline.json`: −1 on
+`topical/tibetan`, −1 on `retrieval/pali`, +1 on `retrieval/tibetan`. Deterministic runs
+over an unchanged gold set, so those are real displacements — 27,956 new English vectors
+compete in one pool and two cases another canon used to win, it no longer wins. Overall
+92.3% → 92.7%, net +5.
+
+**Three measurement traps surfaced on the way**, none of which broke anything and each of
+which would have published a number answering a different question — the documented
+`recall` invocation defaults to an unseeded 200-draw against a baseline measured over all
+1,670; `evals/scorecard.json` is a 249-case file shaped exactly like the 1,472-case
+`evals/baseline.json`; and a mechanism that fits the data is not evidence for the
+mechanism. `docs/PROXIES.md` has all three.
+
+**One thing is unexplained.** A 1,670-case run died at 25 minutes with `tcp recv (idle):
+closed` while Postgres was demonstrably healthy — 4 days up, no OOM, no timeouts
+configured, 45 of 100 connections. The re-run passed the same case. `docs/DEV_ENV.md`
+records what was ruled out.
+
 ## 41% of the English over the Chinese canon was scrambled, and every count said it was fine — 2026-09-02
 
 Preparing a sample for the model bake-off, not auditing anything. Pulling coherent
