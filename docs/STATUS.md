@@ -488,8 +488,12 @@ works can be filtered by period — as a **bound from the author's lifespan**, s
 `date_basis: authority_lifespan`, answering *which century* and never *which year*. That
 filter reads 1,515 works of 17,281 and says so on every use.
 
-**Eval: 92.3% over 1,472 cases**, 0 stale, 0 errored — `evals/baseline.json` is the
-published record and this line is copied from it. Not comparable with the earlier 93.1% over
+**Eval: 92.7% over 1,472 cases** — 1,364 hits, 0 stale, 0 errored. `evals/baseline.json`
+is the published record and this line is copied from it. **Advanced 2026-09-04**, after a
+clean 33m31s gate over a fixed tree: it had recorded 1,359 / 92.3% since 2026-08-28, and
+`--gate` writes a baseline only when none exists, so every gain since then had gone
+unadopted. `topical/chinese` 0 -> 6, `topical/tibetan` 2 -> 1, `retrieval/pali` 119 -> 118,
+`retrieval/tibetan` 29 -> 30. Not comparable with the earlier 93.1% over
 1,400: the gold set grew by two new case types, one of which scores 70%. **Compare per row.**
 
 ### The boundary of the claim

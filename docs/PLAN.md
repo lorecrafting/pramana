@@ -595,9 +595,35 @@ look right. Neither has been checked against the code.
    near saturation on covered works (94.6% in the controlled rung) while on the line sits
    at 36.2% and *fell* in the controlled rung as density rose. Another 20,000 chunks of
    the same shape buys findability this corpus largely has and not the precision it lacks.
-   The open question is whether a **smaller chunk** — the granularity cost named at the
+
+   ~~The open question is whether a **smaller chunk** — the granularity cost named at the
    ladder, translating a 300-character chunk rather than a line — moves the line column
-   where more coverage does not. Measure that before spending, and see `docs/PROXIES.md`.
+   where more coverage does not.~~ ▸ **THE GRANULARITY HYPOTHESIS IS REFUTED, 2026-09-04,
+   by counting.** Renderings per translation vector:
+
+       patton, human          3,354 renderings / 191 vectors = 17.56    on the line 53.7%
+       model:mitra            27,956 / 27,956  = 1.00                   on the line 39.5%
+
+   **The arm compressing 17x more renderings into each vector scores 14 points BETTER on
+   the line.** Both arms build exactly one vector per chunk — the human layer simply packs
+   line-level renderings into it — so "translating a 300-character chunk rather than a
+   line" cannot be the mechanism. It was a plausible sentence written at the moment its
+   author knew least about it, and two counts refute it. This file's own warning, again.
+
+   **And `@min_coverage 0.5` is irrelevant here, which one query settled.** The audit
+   called it "a line-recall mechanism nobody has measured". It refuses **14 of patton's
+   205 chunks (6.8%) and 0 of mitra's 27,956** — the generated layer is one rendering per
+   chunk, so the floor can never bite it. No experiment there can move an E1 number.
+   Rule 62 before rule 41.
+
+   **What the line column actually is, on this evidence: within-work disambiguation.**
+   Scoring `on the line` asks whether the chunk *containing the anchor* came back, and
+   both arms retrieve chunks. At 205 chunks the right one has few siblings; at 27,956 it
+   is out-ranked by same-work near-duplicates, past rank 200. **So the next measurement is
+   the within-work diagnostic the audit already proposed** — constrain retrieval to the
+   correct work, then ask at what rank the covering chunk appears — which separates *not
+   competitive* from *removed by reranking* from *never generated*, and costs no
+   generation and no embedding. Do that before buying anything.
 
 9. **The retrieval change of 2026-09-03 has never been scored against `evals/`, and
    invariant #6 says it must be.** ▸ **FROM THE ARCHITECTURE REVIEW.** The full gate
@@ -623,7 +649,24 @@ look right. Neither has been checked against the code.
    ignore it. And the gain is printed beside the loss, because `topical/chinese` +6 with
    `retrieval/pali` −1 was one run and "net +5" describes neither. Rules 22, 44, 54.
 
-   **Still owed: the baseline itself has not been advanced**, and a gate on a fixed tree.
+   ▸ **BOTH DONE 2026-09-04.** A clean gate over a fixed tree passed in **33m31s**, all
+   twelve checks, working tree clean at `3f0470d` throughout. The baseline was then
+   reviewed and advanced: `evals/baseline.json` now records **1,364 of 1,472, 92.7%**.
+
+   It moved exactly as `docs/STATUS.md` published — `topical/chinese` 0 -> 6,
+   `topical/tibetan` 2 -> 1, `retrieval/pali` 119 -> 118, `retrieval/tibetan` 29 -> 30 —
+   which is an independent reproduction of the 2026-09-03 figures on a clean tree.
+
+   **A bonus nobody asked for: the new baseline carries per-case detail, 1,472 entries
+   where the old one had none.** `moved_cases/2` returns `[]` against a baseline that
+   predates it, so the gate's "cases changed outcome without changing any rate" check —
+   the substitution a rate structurally cannot see — has been inert since it was written.
+   It works from the next run on.
+
+   The two runs also priced the ANN wobble the gate's threshold assumes: the mid-change
+   gate reported net +6 and the clean one +5, the difference being a single `retrieval`
+   case. Running it twice is what tells noise from signal, and `@tolerated_case_drop 1` is
+   calibrated for exactly that.
 
 10. **`bake_id` does not identify what answered, and nineteen tools say it does.** ▸ **FROM
     THE ARCHITECTURE REVIEW**, and the enlargement of audit finding 3 above.

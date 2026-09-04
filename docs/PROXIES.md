@@ -36,6 +36,12 @@ four-fifths absent. Here it would have reported the baseline as 79.5% against a 
 row happened to read 0/12 in both, which is what made it survive a first check. **The
 baseline is the one `--gate` reads: `evals/baseline.json`.**
 
+**▸ MADE STRUCTURAL 2026-09-04.** Documenting a trap leaves it armed. The file is now
+`evals/scorecard-249case-2026-08-18.json` — **its population is in its name**, which is
+rules 22, 44 and 54 applied to a filename, and it can no longer be picked up by someone
+reaching for "the scorecard". A partial run written to a path that looks like the baseline
+is the thing to avoid recreating: name a narrowed run for what it measured.
+
 **3. A mechanism that explains the data is not evidence for the mechanism.** Scaling
 MITRA from 205 to 27,956 chunks moved the controlled rung's columns in opposite
 directions: work-level 81.0% → **94.6%**, on the line 40.0% → **33.2%**. The obvious
