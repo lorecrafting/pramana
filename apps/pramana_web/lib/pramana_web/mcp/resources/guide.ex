@@ -102,7 +102,11 @@ defmodule PramanaWeb.MCP.Resources.Guide do
       structure and shift if the file changes. Reading this as a two-way split
       understates what can be verified, which is the mistake `Pramana.Corpus` records
       having already been made once by inferring addressing from the source id.
-    - `bake_id` — which corpus snapshot produced this. Cite it for reproducibility.
+    - `bake_id` — which **source-text** snapshot produced this: acquired bytes,
+      normalisation, bake config. Cite it with a passage, because a URN resolved against
+      the same `bake_id` gives byte-identical text. Do **not** read it as pinning a
+      search: it does not move when English renderings are imported or when chunks are
+      re-embedded, so two answers carrying one `bake_id` can rank differently.
     - `reader` — a link into the published edition, for a human who wants to check the
       passage. It opens the **fascicle, not the line**, and `verified: false` is
       literal: CBETA Online and SuttaCentral are single-page apps that return HTTP 200

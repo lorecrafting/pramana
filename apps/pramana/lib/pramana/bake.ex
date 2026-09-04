@@ -2,9 +2,27 @@ defmodule Pramana.Bake do
   @moduledoc """
   Bake identity: `bake_id = sha256(sources.lock + pipeline_version + config)`.
 
-  See `docs/ARCHITECTURE.md`, "Stage 5 — Freeze". Two people with the same `bake_id`
-  hold byte-identical corpora, which is what makes a citation reproducible years later
-  and what "decoupled from the LLM" actually means in practice.
+  See `docs/ARCHITECTURE.md`, "Stage 5 — Freeze". Two people with the same `bake_id` hold
+  byte-identical **source text**, which is what makes a citation reproducible years later.
+
+  ## ▸ WHAT IT DOES NOT IDENTIFY — 2026-09-03
+
+  This said "two people with the same `bake_id` hold byte-identical corpora", full stop,
+  and that stopped being true. The id hashes **acquired bytes, normalisation and bake
+  config**. It does not move when renderings are imported or when chunks are re-embedded,
+  and on 2026-09-03 **27,751 `model:mitra` renderings and 27,751 translation vectors landed
+  under an unchanged id** — so two holders of one `bake_id` can answer the same query
+  differently.
+
+  **A citation still resolves to the same bytes; a retrieval does not return the same
+  results.** The sentence is corrected rather than deleted because the promise was being
+  made in three places at once, including to models: `PramanaWeb.MCP.Reply` stamps this id
+  on every tool response and the MCP guide tells a model to cite it for reproducibility.
+  Both now say which half they mean.
+
+  Splitting source identity from retrieval-release identity — `source_bake_id`,
+  `translation_set_id`, `vector_set_id`, `release_id` — is unplanned work and a
+  prerequisite for anything public. `docs/PLAN.md` item 10.
 
   ## pipeline_version
 

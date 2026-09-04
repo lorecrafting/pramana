@@ -612,8 +612,18 @@ look right. Neither has been checked against the code.
    in the section above: the gate **passes without advancing the baseline**, so a green run
    is compared against `evals/baseline.json`'s 1,359 / 92.3% whatever it actually scored.
 
-   What is owed: run it, then review the movements, then an explicit acceptance step and a
-   test that a pass cannot retain an obsolete baseline.
+   ▸ **THE STRUCTURAL HALF SHIPPED 2026-09-04.** A pass now reports every case type that
+   moved and in which direction, `mix pramana.evals --gate --accept` adopts the run, and
+   `Pramana.Evals.BaselineDriftTest` pins that a pass cannot be quiet about it. **It fired
+   on its first real run** — the 34m12s gate of 2026-09-03 reported the baseline obsolete
+   by net +6 (retrieval 370 → 371, topical 25 → 30).
+
+   Adopting is deliberately a separate flag. Advancing on every pass would ratchet a run
+   nobody reviewed; failing the gate when the system improves would train everyone to
+   ignore it. And the gain is printed beside the loss, because `topical/chinese` +6 with
+   `retrieval/pali` −1 was one run and "net +5" describes neither. Rules 22, 44, 54.
+
+   **Still owed: the baseline itself has not been advanced**, and a gate on a fixed tree.
 
 10. **`bake_id` does not identify what answered, and nineteen tools say it does.** ▸ **FROM
     THE ARCHITECTURE REVIEW**, and the enlargement of audit finding 3 above.
@@ -633,9 +643,15 @@ look right. Neither has been checked against the code.
     **An id that no longer identifies what produced the answer is worse than no id**,
     because it is the thing a reader would check. The split named above —
     `source_bake_id`, `translation_set_id`, `vector_set_id`, `release_id` — is the fix.
-    Until it lands, the claim is oversold in prose that ships to models, and that is the
-    part to fix first if the split is not imminent: **it is cheaper to stop promising than
-    to start delivering.**
+
+    ▸ **THE OVERPROMISE IS WITHDRAWN, 2026-09-04, and the split is still owed.** All three
+    places now say which half they mean: `Pramana.Bake` ("byte-identical **source text**",
+    with what it does not identify stated), `PramanaWeb.MCP.Reply` (the replay record
+    identifies the call and the source text, not the index that ranked it), and the MCP
+    guide a model actually reads (*"do not read it as pinning a search"*). **It is cheaper
+    to stop promising than to start delivering**, and leaving a false promise up while the
+    real fix is pending is the worse of the two failures. A resolved passage is still
+    byte-identical; a search is not result-identical, and now nothing claims otherwise.
 
 11. **The ordering has no provenance record, and it is now partly machine output.**
     ▸ **FROM THE ARCHITECTURE REVIEW.**
@@ -659,8 +675,19 @@ look right. Neither has been checked against the code.
     reranker is worth +5.8 work-level points on the generated arm and +1.0 on the human
     one, so this is not a rounding error being hidden.
 
-    Smallest honest fix: report `reranked: true` and how many results moved, and — since
-    the scope machinery already exists — the tiers the second stage read.
+    ▸ **SHIPPED 2026-09-04.** A hybrid response now carries `reranked:` —
+    `%{ran: true, scored: n, promoted: n, tiers: [...]}`, or the atom `:not_run` when the
+    stage was switched off. **`tiers` is the disclosure that matters**: `["t0"]` is human
+    English alone, `["t0", "t1"]` says generated text influenced this order.
+
+    Three details that would have made it useless if missed. `:not_run` is an atom rather
+    than a zeroed map, because a caller reading `%{scored: 0}` cannot tell *the stage ran
+    and found no English* from *the stage was off*, and those are opposite facts — the same
+    reasoning `coverage/1` already uses. `scored` counts candidates the stage could
+    actually read, not rows fetched, because a candidate with no rendering scores 0 and
+    keeps its place. And `promoted` counts results that reached the caller's window **only
+    because this stage ran**, which is the number a reader cares about; positions that
+    merely shuffled inside the window changed nothing that came back.
 
 ### Previous session
 

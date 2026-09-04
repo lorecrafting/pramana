@@ -317,7 +317,22 @@ against `evals/baseline.json`. A ratchet, like the coverage threshold: a number 
 rises becomes the new floor; one that falls fails the gate. Record the numbers in
 `docs/STATUS.md`, `docs/HISTORY.md` and the README.
 
-Three things to know before reading the output.
+**▸ A rise did not actually become the new floor until 2026-09-03.** `--gate` writes the
+baseline only when none exists, so every improvement since the first run went unadopted —
+a run scoring 1,364 of 1,472 passed against a baseline recording 1,359, and a later slide
+back to 1,359 would have passed in silence. **A pass now names every case type that moved
+and in which direction, and the acceptance step is explicit:**
+
+```bash
+PRAMANA_EMBEDDING=1 mix pramana.evals --gate --accept
+```
+
+**Review the movements before running it.** The gain is reported beside the loss because
+the two travel together — `topical/chinese` +6 and `retrieval/pali` −1 was one run, and a
+net +5 describes neither. Adopting a baseline is a decision about what this project now
+guarantees, which is why it is not a side effect of passing.
+
+Four things to know before reading the output.
 
 **Run it with the embedding serving.** Without `PRAMANA_EMBEDDING=1` the harness scores
 the lexical path alone and says so. That is a real number for a smaller system and is

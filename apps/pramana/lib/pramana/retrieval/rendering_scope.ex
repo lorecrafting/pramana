@@ -50,6 +50,20 @@ defmodule Pramana.Retrieval.RenderingScope do
   """
 
   @doc """
+  Every option this module governs.
+
+  **Derived, so that a fourth rule cannot be half-added the way the first two were.**
+  `:translators` and `:translation_coverage` were honoured by the candidate stage and
+  ignored by the reranker, which is the defect this module exists for; the repair is only
+  worth something if the next rule cannot repeat it. `RenderingScopeTest` reads this list
+  and asserts each member reaches **both** stages, so adding a rule here without wiring it
+  fails the build rather than a measurement. It is the move `Docs.RoutingTest` makes for
+  rules and `MCP.DocumentedTest` for tools: the list nobody has to remember.
+  """
+  @spec rules() :: [atom()]
+  def rules, do: [:translators, :translation_coverage, :translation_chunks]
+
+  @doc """
   The translator ids an arm may see, or `nil` for "no restriction".
 
   `nil` and `[]` mean different things and the difference is load-bearing: `nil` is *every

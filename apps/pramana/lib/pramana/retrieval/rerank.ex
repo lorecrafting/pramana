@@ -85,30 +85,56 @@ defmodule Pramana.Retrieval.Rerank do
   incoming order, so this can only move what the signal actually distinguishes.
   """
   @spec by_rendering(String.t(), [map()], keyword()) :: [map()]
-  def by_rendering(query, results, opts \\ [])
+  def by_rendering(query, results, opts \\ []) do
+    {reordered, _report} = by_rendering_reported(query, results, opts)
+    reordered
+  end
 
-  def by_rendering(_query, [], _opts), do: []
+  @doc """
+  The same reordering, with a record of what this stage read to do it.
+
+  **A span carries its warrant and, until 2026-09-03, the rank did not.** `Hybrid` reported
+  which retrievers generated candidates and said nothing about whether this stage ran or
+  what it read — and by then 27,751 CBETA chunks had machine English and no human English,
+  every one `tier: t1` and `review_state: raw`. A result could be first because an
+  unreviewed model rendering matched the query, with nothing in the response to say so.
+
+  `tiers` is the answer to the question that actually matters to a reader: **was the
+  ordering influenced by generated text?** It is the distinct tiers of the renderings this
+  stage read, so `["t0"]` means human English alone and `["t0", "t1"]` means both.
+  """
+  @spec by_rendering_reported(String.t(), [map()], keyword()) :: {[map()], map()}
+  def by_rendering_reported(_query, [], _opts), do: {[], report(0, [])}
 
   # `opts` reaches here since 2026-09-03. It did not before: `Hybrid.maybe_rerank/3` called
   # `by_rendering(query, results)` with no options at all, so an experimental arm could
   # not restrict this stage even in principle. See `Pramana.Retrieval.RenderingScope`.
-  def by_rendering(query, results, opts) do
+  def by_rendering_reported(query, results, opts) do
     lang = Keyword.get(opts, :lang, "en")
     tokens = tokenize(query)
 
     if MapSet.size(tokens) == 0 do
-      results
+      {results, report(0, [])}
     else
-      renderings = renderings_for(Enum.map(results, & &1.urn), lang, opts)
+      {renderings, tiers} = renderings_for(Enum.map(results, & &1.urn), lang, opts)
 
-      results
-      |> Enum.with_index()
-      |> Enum.sort_by(fn {result, i} ->
-        {-containment(tokens, Map.get(renderings, result.urn)), i}
-      end)
-      |> Enum.map(&elem(&1, 0))
+      reordered =
+        results
+        |> Enum.with_index()
+        |> Enum.sort_by(fn {result, i} ->
+          {-containment(tokens, Map.get(renderings, result.urn)), i}
+        end)
+        |> Enum.map(&elem(&1, 0))
+
+      # SCORED, not merely read: a candidate the stage could not read scores 0 and keeps
+      # its place, so counting the rows would overstate what actually had an effect.
+      scored = Enum.count(results, &Map.has_key?(renderings, &1.urn))
+
+      {reordered, report(scored, tiers)}
     end
   end
+
+  defp report(scored, tiers), do: %{ran: true, scored: scored, tiers: Enum.sort(tiers)}
 
   # How much of the QUERY is present in the rendering, not how similar the two are.
   # Containment rather than Jaccard because a rendering may legitimately be longer than
@@ -167,7 +193,7 @@ defmodule Pramana.Retrieval.Rerank do
   # 84000 anchors a rendering to a folio RANGE and SuttaCentral anchors one to a segment
   # ID, so any join written against whichever source the author had in mind silently
   # excludes the other.
-  defp renderings_for([], _lang, _opts), do: %{}
+  defp renderings_for([], _lang, _opts), do: {%{}, []}
 
   defp renderings_for(urns, lang, opts) do
     # $1 urns, $2 lang, and the scope's own parameters from $3 — one definition of what an
@@ -175,7 +201,7 @@ defmodule Pramana.Retrieval.Rerank do
     {conditions, scope_params} = RenderingScope.sql_conditions("t", "c", opts, 3)
 
     sql = """
-    SELECT c.urn, string_agg(DISTINCT t.text, ' ')
+    SELECT c.urn, string_agg(DISTINCT t.text, ' '), array_agg(DISTINCT t.tier)
     FROM chunks c
     JOIN texts tx ON tx.id = c.text_id
     JOIN segments s
@@ -196,6 +222,8 @@ defmodule Pramana.Retrieval.Rerank do
     """
 
     %{rows: rows} = Repo.query!(sql, [urns, lang | scope_params])
-    Map.new(rows, fn [urn, text] -> {urn, text} end)
+
+    {Map.new(rows, fn [urn, text, _tiers] -> {urn, text} end),
+     rows |> Enum.flat_map(fn [_urn, _text, tiers] -> tiers || [] end) |> Enum.uniq()}
   end
 end

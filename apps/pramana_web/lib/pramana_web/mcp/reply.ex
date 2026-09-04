@@ -3,8 +3,22 @@ defmodule PramanaWeb.MCP.Reply do
   Every tool response carries the call that produced it.
 
   A URN is a reproducible citation of a **passage**: resolve it against the same `bake_id`
-  and you get the same bytes. This does the same thing one layer up, for a **retrieval** —
-  `{tool, arguments, bake_id}` is enough to run the query again and get the same answer.
+  and you get the same bytes. This records the same thing one layer up, for a **retrieval**:
+  `{tool, arguments, bake_id}` is the call that produced this answer.
+
+  ## ▸ WHAT `bake_id` DOES NOT PIN — 2026-09-03
+
+  This said `{tool, arguments, bake_id}` was **enough to run the query again and get the
+  same answer.** It is not, and had not been since the day before it was written.
+  `Pramana.Bake` hashes acquired bytes, normalisation and bake config; it does **not** move
+  when renderings are imported or chunks re-embedded, and 27,751 of each landed under an
+  unchanged id.
+
+  So the replay record identifies **the call and the source text**, not the index that
+  ranked it. A resolved passage is still byte-identical; a search is not
+  result-identical. Saying otherwise on every one of the tool responses — which is what
+  this module does — teaches a reader to check an id that cannot answer the question.
+  `docs/PLAN.md` item 10 carries the split that would make the original sentence true.
 
   That is what `docs/IDEAS.md` stars as *"show your work" mode*, in its smallest useful
   form. A model writing a sourced report can attach the `replay` record beside each claim,

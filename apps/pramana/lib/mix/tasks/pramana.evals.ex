@@ -8,6 +8,7 @@ defmodule Mix.Tasks.Pramana.Evals do
       mix pramana.evals --only retrieval
       mix pramana.evals --json evals/scorecard.json
       mix pramana.evals --gate            # non-zero exit on a regression
+      mix pramana.evals --gate --accept   # ...and adopt this run as the new baseline
       mix pramana.evals --per-tradition   # experiment: retrieve per canon, then merge
       mix pramana.evals --only retrieval --tradition tibetan --depth 200
       mix pramana.evals --rrf-k 30 --rerank-multiplier 8 --json evals/experiments/k30m8.json
@@ -21,6 +22,24 @@ defmodule Mix.Tasks.Pramana.Evals do
   `--gate` compares against `evals/baseline.json` and exits non-zero if any case type
   drops. It is a **ratchet**, like the coverage threshold: a number that goes up gets
   recorded, and one that goes down fails the build rather than being explained away.
+
+  ## ▸ A NUMBER THAT GOES UP WAS NOT ACTUALLY GETTING RECORDED — 2026-09-03
+
+  The paragraph above described an intent. `gate/2` writes `evals/baseline.json` **only
+  when none exists**; with one present it compares and never updates. So a run scoring
+  **1,364 of 1,472 passed against a baseline recording 1,359**, the five-case gain was
+  never adopted, and a later regression back to 1,359 would have been measured against the
+  old number and passed in silence. A ratchet that only ever holds its first position is a
+  floor, not a ratchet.
+
+  **A pass now says so**, naming every case type that moved and in which direction —
+  because a net figure alone would hide the real displacement inside an improvement, which
+  is what `topical/chinese` +6 and `retrieval/pali` −1 actually were.
+
+  **`--accept` adopts the run**, and it is a separate flag on purpose. Advancing
+  automatically on every pass would ratchet a run nobody reviewed; failing the gate when
+  the system improves would train everyone to ignore it. So the gate reports, a person
+  looks at the movements, and one command records them. `docs/PLAN.md` item 9.
   """
 
   use Mix.Task
@@ -36,6 +55,11 @@ defmodule Mix.Tasks.Pramana.Evals do
     gate: :boolean,
     dir: :string,
     baseline: :string,
+    # ADOPTING the current run as the new ratchet. Separate from `--gate` because it is a
+    # decision: `gate/2` writes a baseline only when none exists, so every improvement
+    # since the first run has gone unadopted and a later regression to the old number
+    # would pass in silence. `docs/PLAN.md` item 9.
+    accept: :boolean,
     # Experiment flags. They OVERRIDE every case's own search options, so a run that
     # uses them is measuring a configuration rather than the shipped default — which is
     # the point, and why the header says so.
@@ -98,7 +122,14 @@ defmodule Mix.Tasks.Pramana.Evals do
     )
 
     if path = opts[:json], do: write_json(path, scorecard)
-    if opts[:gate], do: gate(scorecard, Keyword.get(opts, :baseline, @default_baseline))
+
+    if opts[:gate],
+      do:
+        gate(
+          scorecard,
+          Keyword.get(opts, :baseline, @default_baseline),
+          Keyword.get(opts, :accept, false)
+        )
   end
 
   # A misspelled tradition selects nothing, and "0 case(s)" is a weak signal next to a
@@ -301,7 +332,12 @@ defmodule Mix.Tasks.Pramana.Evals do
     Mix.shell().info("  wrote #{path}")
   end
 
-  defp gate(scorecard, baseline_path) do
+  defp write_json_map(path, map) do
+    File.write!(path, Jason.encode!(map, pretty: true) <> "\n")
+    Mix.shell().info("  wrote #{path}")
+  end
+
+  defp gate(scorecard, baseline_path, accept?) do
     refuse_errored_gate!(scorecard)
 
     case File.read(baseline_path) do
@@ -310,7 +346,7 @@ defmodule Mix.Tasks.Pramana.Evals do
         write_json(baseline_path, scorecard)
 
       {:ok, contents} ->
-        compare(Score.to_map(scorecard), Jason.decode!(contents))
+        compare(Score.to_map(scorecard), Jason.decode!(contents), baseline_path, accept?)
     end
   end
 
@@ -344,7 +380,78 @@ defmodule Mix.Tasks.Pramana.Evals do
   # crying wolf costs more than missing a small win.
   @tolerated_case_drop 1
 
-  defp compare(current, baseline) do
+  @doc """
+  How far the baseline on disk has fallen behind the run that just passed.
+
+  **A green gate is not evidence that the baseline is current, and on 2026-09-03 it was
+  neither.** `gate/2` writes `evals/baseline.json` only when none exists; with one present
+  it compares and never updates. So a run scoring 1,364 of 1,472 passed against a baseline
+  recording 1,359, the five-case gain was never adopted, and a later regression down to
+  1,359 would have been measured against the old number and passed in silence.
+
+  Reported rather than failed, deliberately: **a benchmark that goes red when the system
+  improves gets ignored, and an ignored gate is worse than none.** What was missing is the
+  sentence saying the ratchet has drifted and the one command that advances it. Pure so it
+  can be tested — `docs/PLAN.md` item 9 asks for a test that a pass cannot quietly retain
+  an obsolete baseline, and a function that writes to `Mix.shell()` cannot provide one.
+  """
+  @spec drift(map(), map()) :: map()
+  def drift(current, baseline) do
+    types =
+      for {type, %{"hits" => was}} <- baseline["by_type"] || %{},
+          is_number(was),
+          now = get_in(current, ["by_type", type, "hits"]),
+          is_number(now),
+          now != was,
+          do: {type, was, now}
+
+    gained = types |> Enum.filter(fn {_t, was, now} -> now > was end) |> Enum.map(&elem(&1, 0))
+    lost = types |> Enum.filter(fn {_t, was, now} -> now < was end) |> Enum.map(&elem(&1, 0))
+
+    %{
+      stale?: types != [],
+      types: Enum.sort(types),
+      net: Enum.reduce(types, 0, fn {_t, was, now}, acc -> acc + now - was end),
+      gained: Enum.sort(gained),
+      lost: Enum.sort(lost)
+    }
+  end
+
+  defp report_drift(%{stale?: false}, _path, _accept?, _current), do: :ok
+
+  # ADOPTING A BASELINE IS A DECISION, so it is a flag rather than a side effect of
+  # passing. The five-case gain of 2026-09-03 went unadopted because nothing said it
+  # could be; installing it automatically would be the opposite error, quietly ratcheting
+  # a run nobody reviewed.
+  defp report_drift(drift, path, true, current) do
+    write_json_map(path, current)
+
+    Mix.shell().info(
+      "  ▸ baseline advanced — net #{sign(drift.net)} case(s), now #{current["total"]} total"
+    )
+  end
+
+  defp report_drift(drift, path, false, _current) do
+    detail =
+      Enum.map_join(drift.types, "\n", fn {type, was, now} ->
+        "    #{type}: #{was} -> #{now} case(s)"
+      end)
+
+    Mix.shell().info(
+      "\n  ▸ THE BASELINE IS NOW OBSOLETE — net #{sign(drift.net)} case(s) against " <>
+        "#{path}:\n" <>
+        detail <>
+        "\n\n  This run PASSED and the baseline was NOT advanced; that is what --gate " <>
+        "does.\n  Until it is, a later regression is measured against the old number and " <>
+        "can\n  pass in silence. Review the movements above, then adopt them:\n\n" <>
+        "      mix pramana.evals --gate --accept\n"
+    )
+  end
+
+  defp sign(n) when n > 0, do: "+#{n}"
+  defp sign(n), do: "#{n}"
+
+  defp compare(current, baseline, baseline_path, accept?) do
     regressions =
       for {type, %{"hits" => was_hits, "rate" => was}} <- baseline["by_type"] || %{},
           is_number(was_hits),
@@ -367,6 +474,10 @@ defmodule Mix.Tasks.Pramana.Evals do
       # `docs/PLAN.md` audit item 7 says so and had no way to check it. Reported, not
       # failed: a swap is not a regression, it is a thing to look at.
       unless moved == [], do: report_moved(moved)
+
+      current
+      |> drift(baseline)
+      |> report_drift(baseline_path, accept?, current)
     else
       Mix.raise(
         "retrieval regression:\n" <>

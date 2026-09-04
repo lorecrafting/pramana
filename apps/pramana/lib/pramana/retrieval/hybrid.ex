@@ -149,7 +149,7 @@ defmodule Pramana.Retrieval.Hybrid do
     semantic = Enum.map(scored_semantic, &elem(&1, 0))
     {translated, expanded_terms} = translated_ranking(query, opts, lexical_depth)
 
-    fused =
+    candidates =
       [lexical, semantic, translated]
       |> Enum.reject(&(&1 == []))
       |> fuse(Keyword.get(opts, :rrf_k, @k))
@@ -158,8 +158,9 @@ defmodule Pramana.Retrieval.Hybrid do
       # candidates sitting at ranks 11-50 (median 37).
       |> Enum.take(rerank_depth(opts, limit))
       |> Enum.map(&decorate/1)
-      |> maybe_rerank(query, opts)
-      |> Enum.take(limit)
+
+    {reordered, rerank} = maybe_rerank(candidates, query, opts)
+    fused = Enum.take(reordered, limit)
 
     %{
       query: query,
@@ -169,6 +170,13 @@ defmodule Pramana.Retrieval.Hybrid do
       # serving, or nothing embedded yet, this is lexical-only, and an answer built on
       # half the intended evidence should say so.
       retrievers: retrievers(lexical, semantic, translated),
+      # WHY THIS ORDER, not just where the candidates came from. The span carries its
+      # warrant — urn, offsets, sha256, provenance — and until 2026-09-03 the RANK carried
+      # none, while 27,751 CBETA chunks had acquired machine English and no human English.
+      # A result could be first because an unreviewed `tier: t1` rendering matched, and
+      # nothing in the response said so. `reranked.tiers` is the disclosure: `["t0"]` is
+      # human English alone, `["t0", "t1"]` means generated text influenced this order.
+      reranked: rerank_report(rerank, candidates, fused),
       # What the English query was expanded to, so a hit on a Chinese term the
       # reader never typed is visible rather than surprising — the same reporting
       # rule `Variants` follows for 異體字.
@@ -235,7 +243,26 @@ defmodule Pramana.Retrieval.Hybrid do
   # declared filter that does not reach a stage produces results that look filtered and are
   # not. `Pramana.Retrieval.RenderingScope`.
   defp maybe_rerank(results, query, opts) do
-    if rerank?(opts), do: Rerank.by_rendering(query, results, opts), else: results
+    if rerank?(opts) do
+      Rerank.by_rendering_reported(query, results, opts)
+    else
+      {results, :not_run}
+    end
+  end
+
+  # `:not_run` rather than a zeroed map, for the reason `coverage/1` gives one line down:
+  # a caller reading `%{scored: 0}` cannot tell "the stage ran and found no English" from
+  # "the stage was switched off", and those are opposite facts about the ordering.
+  defp rerank_report(:not_run, _candidates, _final), do: :not_run
+
+  defp rerank_report(report, candidates, final) do
+    # PROMOTED INTO THE ANSWER is the number a reader cares about — how many results the
+    # caller can see only because this stage ran. Positions that merely shuffled inside
+    # the window did not change what came back.
+    before = candidates |> Enum.take(length(final)) |> MapSet.new(& &1.urn)
+    promoted = Enum.count(final, &(not MapSet.member?(before, &1.urn)))
+
+    Map.put(report, :promoted, promoted)
   end
 
   defp rerank?(opts), do: Keyword.get(opts, :rerank, true)

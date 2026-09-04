@@ -16,6 +16,66 @@ noticed the heading was the problem.
 
 ---
 
+## Making the audit stick — 2026-09-04
+
+The 2026-09-03 architecture review found five things. Two were fixed in the commit that
+found them; three were **written down**, which in this codebase is a known failure state —
+`Docs.RoutingTest` exists because a rule was written, numbered, committed and never routed
+to, so it fired after the defect rather than before it. These are the three, made
+structural.
+
+**The false claims are withdrawn, which was the urgent half.** `Pramana.Bake` said *"two
+people with the same `bake_id` hold byte-identical corpora"*; `PramanaWeb.MCP.Reply`
+promised *"`{tool, arguments, bake_id}` is enough to run the query again and get the same
+answer"*; the MCP guide told a model to *"cite it for reproducibility."* None of the three
+had been true since 27,751 renderings and 27,751 vectors landed under an unchanged id. All
+three now say which half they mean: a resolved passage is still byte-identical, a search is
+not result-identical. **The `release_id` split is still owed** — but leaving a false promise
+up while the real fix is pending is the worse of the two failures, and stopping is cheap
+where delivering is not.
+
+**The ordering now discloses itself.** A hybrid response carries `reranked:` —
+`%{ran: true, scored: n, promoted: n, tiers: [...]}` — and `tiers` is the point: `["t0"]`
+is human English alone, `["t0", "t1"]` says generated text influenced this order. The
+project's thesis is warrant, the span has always carried its own, and the rank carried none
+while 27,751 CBETA chunks acquired machine English and no human English. `:not_run` is an
+atom rather than a zeroed map for the reason `coverage/1` already gives: `%{scored: 0}`
+cannot distinguish *ran and found nothing* from *was switched off*.
+
+**And a scope rule can no longer be half-added.** `RenderingScope.rules/0` is the derived
+list, and `RenderingScopeTest` asserts each member reaches **both** stages — the candidate
+stage must declare it in `known_opts`, the reranker must emit a SQL condition for it. Proved
+to discriminate by adding a fourth rule wired to nothing and watching both assertions fail
+with the file and the fix named. This is the `Docs.RoutingTest` move applied to retrieval
+scope: the list nobody has to remember. **The original defect was exactly this shape** —
+two rules honoured by one stage and ignored by the other — so the repair is only worth
+something if the next rule cannot repeat it.
+
+**The gate's ratchet turned out to be a floor, and it announced itself on the first run
+after being fixed.** `--gate` writes `evals/baseline.json` only when none exists, so every
+improvement since the first run went unadopted: a run scoring **1,364 of 1,472 passed
+against a baseline recording 1,359**, and a slide back to 1,359 would have passed in
+silence. A pass now names every case type that moved, in both directions, and
+`--accept` adopts the run. The 34m12s gate of 2026-09-03 printed:
+
+    gate OK — no case type regressed against 1472 baseline cases
+
+    ▸ THE BASELINE IS NOW OBSOLETE — net +6 case(s) against evals/baseline.json:
+      retrieval: 370 -> 371 case(s)
+      topical:    25 ->  30 case(s)
+
+Acceptance is a separate flag on purpose. Advancing on every pass ratchets a run nobody
+reviewed; failing when the system improves teaches everyone to ignore the gate. **The gain
+is printed beside the loss** — `topical/chinese` +6 with `retrieval/pali` −1 was one run,
+and "net +5" describes neither.
+
+**A caveat on that gate, recorded rather than smoothed over.** Its `evals` step ran between
+22:52 and 23:15 while `hybrid.ex` and `rerank.ex` were being edited, so it compiled a tree
+mid-change. 1,472 cases came through the ordering-disclosure change with nothing regressed,
+which is good news; it is **not** a clean gate over a fixed tree, and invariant #6 wants one
+of those. That is finding 1 recurring within a day of being written up, which is roughly how
+often this class of thing actually recurs.
+
 ## The figures measured without isolation, re-run — 2026-09-03
 
 `ed0c154` repaired the defect: `--translators` and `--translation_coverage` restricted
