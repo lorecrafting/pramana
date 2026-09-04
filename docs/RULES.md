@@ -1080,6 +1080,43 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     a figure that regenerates cannot quietly stop describing anything.
 
 
+84. **The arm you treat as the reference is the one you forget to check.** § E1 knew that
+    an arm queried with its own output scores by identity — it says so, with the incident
+    that taught it: *"the dense-vs-prose experiment scored one arm 150-0 that way before
+    its query was changed to a second translator's words."* That reasoning was applied to
+    every **model** arm and never to `patton`, the arm published as *"a human ceiling"*.
+
+    `mix pramana.recall --renderings` samples **human** renderings as queries. With
+    `--translators patton` the index holds patton's renderings — and the query is one of
+    them. Checked: **65 of 65** queries are a literal substring of the patton arm's own
+    vector content.
+
+    **Measured on the one canon where the comparison is possible**, since patton is the
+    only human English over CBETA. `suddhaso` and `sujato` render 457 of the same Pāli
+    chunks, so the query stays suddhaso's throughout and only the index arm changes:
+
+        index = suddhaso, the query's own translator     104/108   96.3%
+        index = sujato, a different human, same passages  88/108   81.5%
+
+    **~15 points, with density held constant.** Do not transfer the magnitude to another
+    canon — different translators, different corpus, n=108 (rule 80). What transfers is the
+    direction and the size class: **a "human ceiling" measured this way is not one**, and
+    every "% of the human layer's value" computed against it has an inflated denominator,
+    so the generated layer is **better** than those figures say.
+
+    **Two discarded designs on the way, both worth knowing.** The first constrained
+    retrieval to the correct work *and* to the shared chunks: both arms scored 100.0% and
+    99.1% — saturated, and a probe where both arms sit at ceiling cannot measure a
+    difference, which is the twin of `Pramana.Recall`'s `:void` verdict for a control that
+    finds nothing. The second removed both constraints and read 43.5 points, but the
+    suddhaso index holds 459 vectors against sujato's 15,850, so **density varied with the
+    translator**. Holding the chunk set equal put it at 14.8. Rule 80, three designs deep.
+
+    **The habit: for every arm in a comparison, ask what produced the query.** If the
+    answer names that arm, the rung measures memory rather than retrieval — and the arm
+    most likely to escape the question is the one everything else is being scored against.
+
+
 ---
 
 ## One-off gotchas

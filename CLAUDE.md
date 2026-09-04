@@ -83,6 +83,7 @@ test goes red.**
 | **rank or weight by a graph** — citations, parallels, quotations | 72, 73 — ask what an edge means before ranking by it, and count distinct evidence rather than the rows carrying it |
 | choose a **threshold**, or build a benchmark | 7, 18, 30, 32, 35, 37, 47, 49, 54, 67, **74**, **78** — and never set it at the current measurement, which measures compliance rather than the thing. `docs/PROXIES.md` |
 | **re-run a measurement** somebody else took, or compare an arm against an earlier one | **82** — check what the labels meant when it was first taken; an id that named 205 chunks on Wednesday named 27,956 on Thursday |
+| **compare arms**, or quote a ceiling | **84** — ask what produced the QUERY for every arm including the reference one; identity is worth ~15 measured points |
 | **make something faster**, or fix a broken optimisation | 40, 47, **70**, **76** — re-measure what was built to avoid the thing you just fixed, and falsify the cost model before optimising against it |
 | change a **schema, enum or registry** | 11, 12, 13, 42 |
 | **acquire** or cache anything from upstream | 10, 43, 58, 64 |

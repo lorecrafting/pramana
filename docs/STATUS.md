@@ -303,8 +303,29 @@ same comparison reads **97.8%**. Both are true of what they measure, and **the w
 figure is the one that describes a reader who wants the right line.**
 
 **The four model arms span four cases out of 189 and are not distinguishable here.** No
-ranking should be read into their order. What is clear is the human, 19–23 cases ahead of
-every one of them — five times the spread among the models.
+ranking should be read into their order.
+
+**▸ AND THE HUMAN ROW IS NOT A CEILING — 2026-09-04.** `mix pramana.recall --renderings`
+samples **human** renderings as queries, so `--translators patton` indexes the very text
+the query is drawn from: **65 of 65** checked queries are a literal substring of that arm's
+own vector content. Every rung above is scored against it, and every "% of the human
+layer's value" divides by it.
+
+**Calibrated where the comparison is possible.** `suddhaso` and `sujato` render 457 of the
+same Pāli chunks, so the query stays suddhaso's and only the index arm changes, with the
+chunk set held so density cannot vary:
+
+| index | top-10 of 108 |
+|---|---|
+| `suddhaso` — the query's own translator | **104 · 96.3%** |
+| `sujato` — a different human, same passages | **88 · 81.5%** |
+
+**Identity is worth ~15 points.** The magnitude does not transfer to another canon —
+different translators, different corpus, n=108, rule 80 — but the direction does: **the
+generated layer recovers MORE of a real human's retrieval value than the figures above
+say**, because their denominator is inflated. Rule 84. Re-deriving the recovery figures
+against a non-identity reference is owed, and cannot be done on the Chinese while patton is
+the only human English over it.
 
 **So MITRA's 15.1-point margin over its own untuned base is not within-work precision.**
 The domain fine-tune buys cross-work discrimination: English distinctive enough to reach

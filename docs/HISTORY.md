@@ -16,6 +16,50 @@ noticed the heading was the problem.
 
 ---
 
+## The human ceiling was the query matching itself — 2026-09-04
+
+Chasing why 26 cases retrieve for patton and not for MITRA, after truncation had been
+eliminated as their cause. The answer was not about MITRA.
+
+**`mix pramana.recall --renderings` samples HUMAN renderings as queries.** With
+`--translators patton` the index holds patton's renderings — and the query is one of them.
+Checked directly: **65 of 65** queries are a literal substring of the patton arm's own
+vector content.
+
+**§ E1 already knew this and had applied it selectively.** Its own text: *"query with an
+arm's own output and its own vector is the nearest neighbour, so every case is a hit by
+identity … the dense-vs-prose experiment scored one arm 150-0 that way before its query was
+changed to a second translator's words."* Every **model** arm was protected by that
+reasoning. `patton` — the arm published as *"a human ceiling"*, the denominator of every
+"% of the human layer's value" figure — was not.
+
+**Measured, on the one canon where it can be.** Patton is the only human English over
+CBETA, so the calibration runs on the Pāli, where `suddhaso` and `sujato` render 457 of the
+same chunks. The query stays suddhaso's throughout; only the index changes:
+
+| index | top-10 of 108 |
+|---|---|
+| `suddhaso` — the query's own translator | **104 · 96.3%** |
+| `sujato` — a different human, same passages | **88 · 81.5%** |
+
+**Identity is worth ~15 points**, density held. The magnitude must not be carried to
+another canon — different translators, different corpus, n=108, rule 80 — but the direction
+is not in doubt, and it runs **in the project's favour**: the generated layer recovers more
+of a real human's retrieval value than published, because the published denominator is
+inflated. Found while trying to explain why the models looked bad.
+
+**Three designs, and the two discarded ones are the useful part.** The first constrained
+retrieval to the correct work *and* to the shared chunks: 100.0% against 99.1%, both arms
+at ceiling, and a probe where both arms are saturated cannot measure a difference between
+them — the twin of the `:void` verdict `Pramana.Recall` already uses for a control that
+finds nothing. The second dropped both constraints and read **43.5** points, but the
+suddhaso index holds 459 vectors against sujato's 15,850, so density varied with the
+translator and the gap could be read either way. Holding the chunk set equal gives **14.8**
+— so roughly 29 of the 43.5 was density, which is consistent with everything else measured
+this week. Rule 80, three designs deep, in one afternoon.
+
+Now rule 84: **the arm you treat as the reference is the one you forget to check.**
+
 ## A constant calibrated on one layer, applied to another — 2026-09-04
 
 Chasing *how* the model English differs from Patton's rather than by how much. It did not

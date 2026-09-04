@@ -906,6 +906,36 @@ look right. Neither has been checked against the code.
     truncation plainly is not the dominant term everywhere. **Measure the gain on one arm
     before re-embedding the corpus.**
 
+13. **▸ THE "HUMAN CEILING" IS AN IDENTITY MATCH, AND EVERY RECOVERY FIGURE DIVIDES BY IT.**
+    Found 2026-09-04. `mix pramana.recall --renderings` samples **human** renderings as
+    queries, so `--translators patton` indexes the text the query is drawn from — **65 of
+    65** checked queries are a literal substring of that arm's own vector content.
+
+    § E1 knew the principle and applied it to every **model** arm; the reference arm escaped
+    the question. Rule 84.
+
+    **Calibrated on the Pāli**, the only place two humans render the same chunks, query held
+    to suddhaso's words and the chunk set held so density cannot vary:
+
+        index = suddhaso, the query's own translator     104/108   96.3%
+        index = sujato, a different human, same passages  88/108   81.5%
+
+    **~15 points, and the direction runs in the project's favour**: generated English
+    recovers *more* of a real human's retrieval value than published, because the
+    denominator is inflated.
+
+    **What is owed.** Every figure of the form "recovers N% of the human layer's value"
+    needs re-deriving against a non-identity reference — the aggregate **97.8%** and the
+    within-work **82–85%** both divide by the patton rung. **It cannot be done on the
+    Chinese**: patton is the only human English over CBETA, which is a fact about the
+    corpus rather than about the method, and the honest interim statement is that those
+    percentages have an inflated denominator by an amount measured at ~15 points *on a
+    different canon*.
+
+    **The cheapest way to close it** is a second human English over any CBETA passages
+    patton already covers — 54 sūtras of T0099 and T0026. That is a licence conversation,
+    not a GPU run, and it would also give the fidelity sheet a second human column.
+
 ### Previous session
 
 Previous session ended clean at **81aa830**. That one shipped **§ E1's first slice** — the
