@@ -41,7 +41,7 @@ records what by.
    the question the section exists for — *has this stopped being the thing it was designed
    to be?* — and it is the one thing here that is worse when done by whoever wrote the
    code. **A session that did not write it should do this one.**
-3. **§ E1's next tranche decision**, once the current measurement is scored. Item 8.
+3. **§ E1's next tranche decision** — the measurement is scored (2026-09-03) and item 8 carries the numbers and the caveat: buy on the line column, not the work column.
 
 **And a warning about this file.** The queue below is written by whoever finished the last
 item, and on 2026-09-03 one of its entries was wrong in a way that cost a year of not
@@ -407,9 +407,19 @@ about sampling" nearly needing one.
    The join is now on `root_text_id` plus character containment, columns that cannot be
    ranges, and a test pins a range-anchored lemma so the equality version cannot come back.
 
-8. **§ E1's next tranche decision**, once the running one is scored. Whether top-50 is
-   worth another ~$40 depends on what this one delivers, and the demand ranking it would
-   use is itself a weak proxy — see § E1 and `docs/PROXIES.md`.
+8. **§ E1's next tranche decision. The running one is SCORED 2026-09-03 and the answer
+   points at top-50** — production work-level 46.8% → **76.0%**, `topical/chinese` 0/12 →
+   **6/12**, and the demand-weighting premium measured for the first time: a demand-weighted
+   3.88% scored 76.0% where a *random* 3.6% was predicted to score ~28%. The demand ranking
+   is no longer a weak proxy on the evidence of its own result.
+
+   **But buy the next tranche on the line column, not the work column.** Work-level is
+   near saturation on covered works (94.6% in the controlled rung) while on the line sits
+   at 36.2% and *fell* in the controlled rung as density rose. Another 20,000 chunks of
+   the same shape buys findability this corpus largely has and not the precision it lacks.
+   The open question is whether a **smaller chunk** — the granularity cost named at the
+   ladder, translating a 300-character chunk rather than a line — moves the line column
+   where more coverage does not. Measure that before spending, and see `docs/PROXIES.md`.
 
 ### Previous session
 
@@ -535,7 +545,7 @@ date.
 |---|---|
 | CBETA | **16 collections of 26** — T 2,471 · X 1,230 · J 285 · **I 101** · N 38 · **GA 51** · **F 27** · L 21 · P 13 · K 9 · A 9 · U 2 · S 2 · **GB 2** · M 1 · **ZS 1** — 4,340 files locked |
 | vector coverage | **100% of texts chunked, 100% of chunks embedded** — the 38% unreachable that `reachable_percent` exposed on 2026-08-26 is closed |
-| English over Chinese | **3,354 renderings** over **2 of 4,263** CBETA works (54 Āgama sūtras) — new 2026-08-31, § E1 |
+| English over Chinese | **3,354 human** renderings over **2 of 4,263** CBETA works (54 Āgama sūtras), plus **28,571 generated** over **14 of 4,263** — 3.88% of CBETA's chunks, new 2026-09-03, § E1 |
 | reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
 | work relations | **389** — 269 `comments_on` · 38 `subcommentary_of` · 82 `parallel_of` (41 pairs). By signal, in ROWS: `title_match` 240, **`shared_text` 66**, `manifest` 1; in distinct source works, 156 / 66 / 1, because one relation asserted by two methods is two rows and that is corroboration rather than duplication |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
@@ -2464,7 +2474,76 @@ let the Python sidecar grow": a translation sidecar is still tensor math and sti
 domain logic, so it is the same exception embedding already is, but it is an exception
 being used a second time and should be a deliberate decision rather than a drift.
 
-**▸ RUNNING, 2026-09-02. Tranche C on MITRA: 27,956 passages, batch 32, ~11 hours.**
+**▸ SHIPPED AND SCORED, 2026-09-03. Tranche C on MITRA: 27,956 renderings, embedded and
+measured. `topical/chinese` moved off 0 for the first time in this project's life.**
+
+Embedding: exported 27,751 rows missing a vector (the other 205 were embedded for the
+ladder), 3.7 min on a Modal L4 at 126.8 chunks/s, **0 rejected** on hash, dimension and
+id. Coverage went **191 chunks → 27,956 of CBETA's 719,543 — 0.027% → 3.88%**, and
+**2 → 14 of 4,263 works**, 12 of them generated-only.
+
+**The production verdict, over the whole 1,670-case population so there is no seed to
+argue about:**
+
+| `--renderings --to cbeta.T`, all 1,670 | found the work | on the line |
+|---|---|---|
+| 2026-09-02, before the tranche | 782 · 46.8% | 539 · 32.3% |
+| **2026-09-03, after** | **1,269 · 76.0%** | **604 · 36.2%** |
+
+**The demand-weighting premium was the open question and it is now measured.** The
+ablation curve hid vectors at random and predicted a random 3.6% would score about 28% at
+work level. A demand-weighted **3.88%** scored **76.0%**. That gap is the premium, and it
+is the justification for the directed-citation ranking that chose these 14 works.
+
+**`topical/chinese`: 0/12 → 6/12**, against `evals/baseline.json` over 1,472 cases;
+overall 92.3% → 92.7%. **The cost travels with it: −1 on `topical/tibetan`, −1 on
+`retrieval/pali`, +1 on `retrieval/tibetan`, net +5.** Deterministic runs over an
+unchanged gold set, so those are real displacements — 27,956 new English vectors compete
+in one pool. A tranche is not free to the canons it does not cover.
+
+**The two columns disagree, and the disagreement is the finding to carry forward.**
+Work-level nearly doubled; on the line moved 3.9 points. In the *controlled* rung the
+line column actually went **down** — same 205 queries, same seed, index varied:
+
+| MITRA index | found the work | on the line |
+|---|---|---|
+| 205 chunks | 166 · 81.0% | 82 · **40.0%** |
+| **27,956 chunks** | **194 · 94.6%** | **68 · 33.2%** |
+
+Not rule 69: both runs score the same Patton anchors, so anchor width is constant.
+
+**The obvious explanation was tested and is wrong.** The guess was displacement — that
+`covers?/2` needs the covering span inside the limit-100 window and the tranche's sibling
+chunks push it out. Re-run at `--limit 200`, the maximum the retrieval layer allows, the
+result is **identical to the digit: 194 · 94.6%, on line 68 · 33.2%.** Not one covering
+span sits in ranks 101–200. So this is not a cheap window problem, and widening `k` will
+not buy the line column back.
+
+What is left is the stronger reading: the covering chunk is **out-ranked past 200** by
+same-work near-duplicates, or it is not competitive at all once the work is densely
+rendered. **Density buys the work and costs the line**, and the cost is not recoverable by
+asking for more results. A reader who wants the right *line* is served at 36.2%, and the
+next tranche should be priced on that column rather than on the work column.
+
+**Two things this run could not establish, recorded rather than glossed:**
+
+1. **The 70 truncated renderings cannot be identified.** `modal_translate.py` counts
+   completions carrying no stop id and prints a warning, but the flag never reaches
+   `translations.meta`, so those rows cannot be excluded from a score or found later.
+   0.25% is too small to move these figures; the gap is that it is unmeasurable rather
+   than that it is large. **Carry `truncated` through the importer before the next
+   tranche** — rule 60's question asked of a quality signal: nothing downstream can reach
+   it.
+2. **The bare command in the runbook does not measure the population it is compared
+   against.** `mix pramana.recall --renderings --to cbeta.T` defaults to `@default_sample`
+   200 with no seed, i.e. an unseeded 200-draw, while the 46.8%/32.3% baseline is the
+   whole 1,670. Comparing them would have been exactly the sampling error this section
+   already retracted once. **`--sample 1670` is the invocation**; it is written down here
+   because the default silently answers a different question.
+
+**The original entry, for the parameters the run rests on:**
+
+**▸ RAN 2026-09-02. Tranche C on MITRA: 27,956 passages, batch 32, ~11 hours.**
 
 Top-10 by *directed* citation weight plus the four Āgamas — 14 works. The Āgamas are back
 in because directing dropped them and the gold set's early-Buddhist terms went with them:
