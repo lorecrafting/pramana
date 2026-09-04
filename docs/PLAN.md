@@ -107,11 +107,21 @@ the human layer's value"; the four-arm ladder; the no-English floor; the Pāli c
 curve; the 205-vs-27,956 line-recall reading; and the demand-weighting premium, which was
 already bounded rather than measured for a *different* reason (rule 80).
 
-**The repair, and it is the next commit.** One rendering-scope policy both stages read, so
-translator selection, coverage fraction and eligibility apply to the whole retrieval path;
-`rerank: false` in the recall harness for a vector-only control; a test proving an excluded
-translator can influence neither stage; and pre- and post-rerank ranks recorded so a future
-confound of this shape is visible rather than inferred.
+**▸ THE REPAIR SHIPPED 2026-09-03.** `Pramana.Retrieval.RenderingScope` is the one
+definition of what an arm may see, and both stages read it. `Hybrid.maybe_rerank/3` now
+passes `opts` — it passed none, which is why the second stage could not honour a scope even
+in principle. `mix pramana.recall --rerank false` gives a vector-only control. Four tests
+pin it, including that `--translators none` means no English *anywhere in the path* rather
+than no English vectors, which is what it used to mean while being reported as the
+no-English control.
+
+Both stages hash the **same key** for a coverage ablation — `chunk_vectors.chunk_id` and
+`chunks.id` are the same number — because candidates drawn from one 25% and reranked
+against a different 25% is not 25% coverage of anything.
+
+**Still owed: the re-runs.** The isolation is fixed; the figures measured without it are
+not. And pre- and post-rerank ranks are still not recorded, so the next confound of this
+shape would again be inferred rather than seen.
 
 **No further GPU tranche until that lands and the affected arms are re-run.** The next
 tranche's shape was chosen off the line column, and the line column is one of the figures

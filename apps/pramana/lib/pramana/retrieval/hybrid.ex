@@ -229,8 +229,13 @@ defmodule Pramana.Retrieval.Hybrid do
   #
   # Nothing regressed, which is what #44 requires of a default. `rerank: false` opts out.
 
+  # OPTS, not none. This passed no options, so `:translators` and `:translation_coverage`
+  # reached the candidate stage and stopped there — an arm's ordering was computed against
+  # every rendering in the corpus, including the ones the arm excluded. Rule 5's shape: a
+  # declared filter that does not reach a stage produces results that look filtered and are
+  # not. `Pramana.Retrieval.RenderingScope`.
   defp maybe_rerank(results, query, opts) do
-    if rerank?(opts), do: Rerank.by_rendering(query, results), else: results
+    if rerank?(opts), do: Rerank.by_rendering(query, results, opts), else: results
   end
 
   defp rerank?(opts), do: Keyword.get(opts, :rerank, true)

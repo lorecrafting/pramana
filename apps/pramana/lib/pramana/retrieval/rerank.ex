@@ -69,6 +69,7 @@ defmodule Pramana.Retrieval.Rerank do
   """
 
   alias Pramana.Repo
+  alias Pramana.Retrieval.RenderingScope
 
   @doc """
   Reorders `results` by how much of `query` appears in each candidate's English rendering.
@@ -82,6 +83,9 @@ defmodule Pramana.Retrieval.Rerank do
 
   def by_rendering(_query, [], _opts), do: []
 
+  # `opts` reaches here since 2026-09-03. It did not before: `Hybrid.maybe_rerank/3` called
+  # `by_rendering(query, results)` with no options at all, so an experimental arm could
+  # not restrict this stage even in principle. See `Pramana.Retrieval.RenderingScope`.
   def by_rendering(query, results, opts) do
     lang = Keyword.get(opts, :lang, "en")
     tokens = tokenize(query)
@@ -89,7 +93,7 @@ defmodule Pramana.Retrieval.Rerank do
     if MapSet.size(tokens) == 0 do
       results
     else
-      renderings = renderings_for(Enum.map(results, & &1.urn), lang)
+      renderings = renderings_for(Enum.map(results, & &1.urn), lang, opts)
 
       results
       |> Enum.with_index()
@@ -157,9 +161,13 @@ defmodule Pramana.Retrieval.Rerank do
   # 84000 anchors a rendering to a folio RANGE and SuttaCentral anchors one to a segment
   # ID, so any join written against whichever source the author had in mind silently
   # excludes the other.
-  defp renderings_for([], _lang), do: %{}
+  defp renderings_for([], _lang, _opts), do: %{}
 
-  defp renderings_for(urns, lang) do
+  defp renderings_for(urns, lang, opts) do
+    # $1 urns, $2 lang, and the scope's own parameters from $3 — one definition of what an
+    # arm may see, shared with `Semantic` rather than restated here.
+    {conditions, scope_params} = RenderingScope.sql_conditions("t", "c", opts, 3)
+
     sql = """
     SELECT c.urn, string_agg(DISTINCT t.text, ' ')
     FROM chunks c
@@ -177,10 +185,11 @@ defmodule Pramana.Retrieval.Rerank do
               )
          )
     WHERE c.urn = ANY($1)
+    #{Enum.join(conditions, "\n    ")}
     GROUP BY c.urn
     """
 
-    %{rows: rows} = Repo.query!(sql, [urns, lang])
+    %{rows: rows} = Repo.query!(sql, [urns, lang | scope_params])
     Map.new(rows, fn [urn, text] -> {urn, text} end)
   end
 end

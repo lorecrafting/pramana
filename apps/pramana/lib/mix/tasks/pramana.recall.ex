@@ -41,7 +41,12 @@ defmodule Mix.Tasks.Pramana.Recall do
     mode: :string,
     concurrency: :integer,
     to: :string,
-    translators: :string
+    translators: :string,
+    # A vector-only control. The second stage reads renderings, so a run that means to
+    # measure the vector index alone has to be able to switch it off — and until
+    # 2026-09-03 it could not, which is why every arm was reranked against the whole
+    # English layer. `Pramana.Retrieval.RenderingScope`.
+    rerank: :boolean
   ]
 
   @impl Mix.Task
@@ -103,6 +108,10 @@ defmodule Mix.Tasks.Pramana.Recall do
       list -> Keyword.put(opts, :translators, String.split(list, ",", trim: true))
     end
   end
+
+  # `--translators none` now genuinely means no English anywhere in the path. It used to
+  # mean "no English vectors, and rerank against every rendering in the corpus", which is
+  # not a no-English control and was reported as one.
 
   # THE EXPERIMENT THAT DECIDES WHETHER § F'S TERM TABLE IS THE RIGHT BUILD.
   #
