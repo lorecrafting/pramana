@@ -1004,6 +1004,26 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     subtracting a prediction from a result, list what varies between them. If it is more
     than one thing, the difference is an upper bound on each.
 
+81. **In a shared working tree, stage the files you touched. Never `git add -A`.** Two
+    sessions worked this branch on 2026-09-03, and one committed with `git add -A` while
+    the other had `docs/DEV_ENV.md`, `docs/GPU_RUNBOOK.md` and `docs/PROXIES.md` in
+    progress. **107 lines of somebody else's work went in under a message describing none
+    of it**, and their next `git add` then failed in a way that read as though the edits
+    had vanished.
+
+    Nothing was lost — which is the trap. The damage is to the record: a commit whose
+    message describes three of its seven files is a history nobody can use to find when
+    something changed, and this project relies on that history to answer *why*.
+
+    **Two habits, and the second matters more.** Stage explicitly — `git add docs/PLAN.md
+    docs/STATUS.md`, the files you edited — so a sweep is impossible rather than merely
+    avoided. And **commit before editing a shared document**, because the window between
+    another session's edit and its commit is exactly when your `-A` will take it.
+
+    It also runs the other way: re-read a shared file before editing it. `docs/STATUS.md`
+    and `docs/PLAN.md` were edited by one session twenty minutes after the other committed
+    them, and the second editor was working from a version already superseded.
+
 
 ---
 
