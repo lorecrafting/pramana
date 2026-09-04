@@ -660,13 +660,42 @@ look right. Neither has been checked against the code.
    **A floor that is nobody's fault: 15 cases are out of reach with HUMAN English at low
    density.** So of MITRA's 35, about 15 are intrinsic and 20 are bought.
 
-   **What to do instead of buying, in order.** Subspan vectors — one vector per rendering
-   in its own namespace — so the covering span has a representation of its own rather than
-   being averaged into a ~300-character chunk alongside its siblings. The audit already
-   scoped it: a separate namespace, one vector per subspan, no parent vector in the same
-   arm. **Note the motivation has changed**: not "translating a chunk rather than a line
-   loses precision", which the 17.56-vs-1.00 counts refute, but "a chunk vector cannot
-   distinguish the covering span from its neighbours". A representation problem.
+   ▸ **AND THE SUBSPAN REMEDY IS REFUTED TOO, 2026-09-04, before it was built.** The
+   hypothesis was that a covering span loses because it is averaged into a ~300-character
+   chunk vector alongside its neighbours. If so, the cases that never enter the window
+   should sit in longer chunks. Median chunk geometry by outcome bucket:
+
+       top 10        n=116    15 segments   307 chars
+       11-50         n= 26    15 segments   306 chars
+       51-200        n= 12    15 segments   301 chars
+       not in 200    n= 35    15 segments   301 chars
+
+   **Identical.** Chunk length does not distinguish a case that lands at rank 1 from one
+   that never appears at all, so dilution is not the discriminator.
+
+   **And a second argument settles it from data already taken.** `patton` and
+   `model:mitra` restricted to the 205 pilot chunks search **the same chunk ids, the same
+   geometry, the same density**, and score **171 against 148** in the top 10. Same
+   container, different contents. The container cannot be what separates them.
+
+   **What this leaves is translation quality, and it is the only addressable thing left.**
+   Coverage cannot help (`never generated` = 0), density actively hurts (−32 cases),
+   representation is not the mechanism, and the reranker's +44 is already banked. **So the
+   next purchase, if there is one, is BETTER ENGLISH OVER THE SAME PASSAGES rather than
+   more passages** — a different decision from the one this item opened with, which assumed
+   the choice was how many chunks to buy.
+
+   **One caveat, stated rather than buried.** This test has low power against a *uniform*
+   level effect: chunks are built to ~300 characters, so there is little variance for
+   length to explain in the first place. It rules out dilution as the thing that separates
+   success from failure; it does not rule out dilution hurting every case equally. The
+   same-chunks Patton-vs-MITRA comparison is what makes that unlikely, and it is the
+   stronger of the two arguments.
+
+   **A saving worth naming: three proposed experiments were killed by sizing today** —
+   `@min_coverage`, the granularity hypothesis, and the subspan namespace — for the cost of
+   two counts and one 30-minute probe, against a migration, an embedding run and a
+   generation run. Rule 62.
 
 9. **The retrieval change of 2026-09-03 has never been scored against `evals/`, and
    invariant #6 says it must be.** ▸ **FROM THE ARCHITECTURE REVIEW.** The full gate

@@ -52,6 +52,24 @@ intrinsic and 20 were bought with density.
 **And the reranker is the largest lever in the table and costs nothing**: 72 → 116 into the
 top 10 within the work, +44 cases, already shipped.
 
+**The remedy that result pointed at was then refuted too, before it was built.** The
+subspan hypothesis says a covering span loses because it is averaged into a ~300-character
+chunk vector. Median chunk geometry by outcome bucket is **identical** — 15 segments and
+301–307 characters in every one of top-10, 11–50, 51–200 and not-in-200 — so chunk length
+does not distinguish a case that lands first from one that never appears. And `patton` and
+`model:mitra` restricted to the 205 pilot chunks search **the same chunk ids** and score
+171 against 148: same container, different contents.
+
+**So the only addressable thing left is translation quality.** Coverage cannot help,
+density hurts, representation is not the mechanism, and the reranker's gain is banked. The
+next purchase, if any, is *better English over the same passages* rather than more
+passages — which is not the decision § E1 item 8 was written to make.
+
+**Three proposed experiments were killed by sizing in one day** — `@min_coverage`, the
+granularity hypothesis and the subspan namespace — for two counts and one 30-minute probe,
+against a migration, an embedding run and a generation run. That is what rule 62 is for,
+and it is the cheapest work this project does.
+
 **Two things this session got wrong on the way, both recorded because the corrections are
 the useful part.**
 
