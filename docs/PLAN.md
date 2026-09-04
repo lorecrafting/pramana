@@ -618,12 +618,55 @@ look right. Neither has been checked against the code.
 
    **What the line column actually is, on this evidence: within-work disambiguation.**
    Scoring `on the line` asks whether the chunk *containing the anchor* came back, and
-   both arms retrieve chunks. At 205 chunks the right one has few siblings; at 27,956 it
-   is out-ranked by same-work near-duplicates, past rank 200. **So the next measurement is
-   the within-work diagnostic the audit already proposed** — constrain retrieval to the
-   correct work, then ask at what rank the covering chunk appears — which separates *not
-   competitive* from *removed by reranking* from *never generated*, and costs no
-   generation and no embedding. Do that before buying anything.
+   both arms retrieve chunks.
+
+   ▸ **MEASURED 2026-09-04 — the within-work diagnostic the audit proposed and nobody had
+   run.** Retrieval constrained to the correct work, limit 200, the same 205 cases; the
+   covering chunk located for 189 of them by resolving each anchor and matching on
+   character offsets. **One variable at a time, which is the whole point:**
+
+   | arm | rank 1-10 | 11-50 | 51-200 | not in 200 | never generated |
+   |---|---|---|---|---|---|
+   | `patton`, human, 205 chunks | **171 · 90.5%** | 2 | 0 | 15 | 1 |
+   | `model:mitra`, **205 chunks** | **148 · 78.3%** | 14 | 0 | 27 | **0** |
+   | `model:mitra`, 27,956 chunks | 116 · 61.4% | 26 | 12 | 35 | **0** |
+   | `model:mitra`, 27,956, no rerank | 72 · 38.1% | 43 | 39 | 35 | **0** |
+
+   **`never generated` is 0 in every generated arm.** Every covering chunk already holds
+   English. **So no amount of further coverage can move these cases** — the translation the
+   reader wants is in the index, and the question is entirely one of ranking. That is the
+   answer this item was waiting for, and it says do not buy.
+
+   **The 55-case gap from human to production splits with one thing varying each time:**
+
+       translation quality, density held at 205    171 -> 148   -23 cases
+       density, translator held at model:mitra     148 -> 116   -32 cases
+
+   **Density costs more than translation quality does.** Buying another tranche of the same
+   shape does not merely fail to help the line column; it is the larger of the two things
+   already hurting it. `docs/STATUS.md`'s "density buys the work and costs the line" was
+   inferred from two aggregate columns and is now measured with the work held constant.
+
+   **35 cases are unreachable by any reordering, and the reranker proves it.** The
+   not-in-200 count is **identical with the reranker on and off** — they never enter the
+   candidate window, so no ordering can reach them. That is a *candidate generation*
+   failure, not a ranking one: `Pramana.Retrieval.Rerank`'s own distinction between Pāli
+   ("a ranking failure and can be reranked") and Tibetan ("a recall failure and cannot"),
+   and here 154 of 189 are the first kind and 35 the second.
+
+   **And the reranker is the biggest lever in the table, at no cost.** 72 -> 116 into the
+   top 10 within the work, **+44 cases**, already shipped and already free.
+
+   **A floor that is nobody's fault: 15 cases are out of reach with HUMAN English at low
+   density.** So of MITRA's 35, about 15 are intrinsic and 20 are bought.
+
+   **What to do instead of buying, in order.** Subspan vectors — one vector per rendering
+   in its own namespace — so the covering span has a representation of its own rather than
+   being averaged into a ~300-character chunk alongside its siblings. The audit already
+   scoped it: a separate namespace, one vector per subspan, no parent vector in the same
+   arm. **Note the motivation has changed**: not "translating a chunk rather than a line
+   loses precision", which the 17.56-vs-1.00 counts refute, but "a chunk vector cannot
+   distinguish the covering span from its neighbours". A representation problem.
 
 9. **The retrieval change of 2026-09-03 has never been scored against `evals/`, and
    invariant #6 says it must be.** ▸ **FROM THE ARCHITECTURE REVIEW.** The full gate

@@ -16,6 +16,64 @@ noticed the heading was the problem.
 
 ---
 
+## The line column is a ranking problem, and coverage cannot fix it — 2026-09-04
+
+The within-work diagnostic the 2026-09-03 audit proposed and recorded as unverified. It
+decides § E1 item 8, and the answer is **do not buy another tranche for the line column.**
+
+Retrieval constrained to the correct work, limit 200, the same 205 cases at seed 0.42, the
+covering chunk located for 189 by resolving each anchor and matching on character offsets.
+One variable at a time:
+
+| arm | rank 1-10 | not in 200 | never generated |
+|---|---|---|---|
+| `patton`, human, 205 chunks | **171 · 90.5%** | 15 | 1 |
+| `model:mitra`, **205 chunks** | **148 · 78.3%** | 27 | **0** |
+| `model:mitra`, 27,956 chunks | 116 · 61.4% | 35 | **0** |
+| `model:mitra`, 27,956, no rerank | 72 · 38.1% | 35 | **0** |
+
+**`never generated` is zero in every generated arm.** Every covering chunk already holds
+English, so no further coverage can move these cases at all.
+
+**The 55-case gap from human to production splits cleanly**: translation quality, with
+density held at 205, is −23 cases; density, with the translator held at MITRA, is −32.
+**Density costs more than quality does** — so another tranche of the same shape is not
+merely useless to the line column, it is the larger of the two things already hurting it.
+The earlier "density buys the work and costs the line" was read off two aggregate columns;
+this measures it with the work held constant.
+
+**35 cases are unreachable by any reordering**, and the reranker proves it: the not-in-200
+count is *identical* with the stage on and off. They never enter the candidate window. That
+is `Pramana.Retrieval.Rerank`'s own distinction — Pāli is a ranking failure and can be
+reranked, Tibetan is a recall failure and cannot — and here 154 of 189 are the first and 35
+the second. **15 of those 35 are out of reach with HUMAN English too**, so roughly 15 are
+intrinsic and 20 were bought with density.
+
+**And the reranker is the largest lever in the table and costs nothing**: 72 → 116 into the
+top 10 within the work, +44 cases, already shipped.
+
+**Two things this session got wrong on the way, both recorded because the corrections are
+the useful part.**
+
+**Rule 62 killed the experiment I had recommended.** `@min_coverage 0.5` refuses **14 of
+patton's 205 chunks and 0 of mitra's 27,956** — the generated layer is one rendering per
+chunk, so the floor cannot bite it, and no experiment there can move an E1 number. I had
+also called it free; admitting chunks means embedding them.
+
+**And rule 68 broke the first version of the diagnostic, twice, in one script.**
+`URN.addresses?/2` is a *prefix* test and was handed a whole chunk URN, so it never
+matched; and `segments.urn = $anchor` drops every range-anchored rendering, which is 2,080
+of patton's 3,354. It printed 0 at every rank and 167 of 205 "never generated" — a broken
+probe wearing the clothes of a finding, in a codebase whose `CLAUDE.md` names this rule as
+one of the four that keep re-earning themselves. What made it obvious was that the shape
+was impossible rather than merely bad. **The fix is the rule's own prescription**: resolve
+the anchor through `Corpus.resolve/1`, which accepts both forms, and join on character
+offsets — columns that cannot be ranges.
+
+The script also printed nothing per case, so "slow" and "stuck" looked identical for thirty
+minutes, which is precisely what `Mix.Tasks.Pramana.Recall`'s progress printer exists to
+prevent. Copying a probe and not its lessons.
+
 ## Making the audit stick — 2026-09-04
 
 The 2026-09-03 architecture review found five things. Two were fixed in the commit that
