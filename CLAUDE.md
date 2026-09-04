@@ -238,6 +238,20 @@ same way: a document that had quietly stopped being true.
    missed still exits zero and still lets the commit run. Eight occurrences; see rule 8.
 7. **Publish the gap, not just the total.** A figure without its denominator is the failure
    this project is most prone to — rules 22, 44 and 54.
+8. **A claim about what is POSSIBLE must say whether it was measured.** `docs/PLAN.md` said
+   *"the Chinese method cannot transfer: eight characters of Tibetan is about two syllables,
+   which recur constantly. A Tibetan version needs syllable windows and its own measured
+   floor. New method, not a parameter."* The premise was true, the conclusion was a guess,
+   and it was written in the same imperative voice as the measured items around it. It
+   stood for a year. One command refuted it — 6-syllable windows are **99.8% unique** in
+   `toh4210` where 8-grapheme windows are **62.0% unique** in `T0223`, so Tibetan
+   discriminates *better* than the language the method was built for — and Tibetan now
+   aligns.
+
+   A plan is written by whoever finished the last item, at the moment they know least about
+   the next one. **Mark an untested claim as untested** — "expected", "unmeasured", "worth
+   one command to check" — because the cost is not the wrong guess, it is that a confident
+   sentence stops anyone spending the command.
 
 ## Layout
 

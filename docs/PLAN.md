@@ -20,14 +20,35 @@ embedded, the reader at six screens.**
 
 ---
 
-## Start here — session of 2026-09-02
+## Start here — session of 2026-09-03
 
-**A tranche is running.** MITRA over 27,956 passages on a Modal L40S, ~13 hours from
-16:36 HST. It resumes from what it has written, refuses to resume across a config change,
-and restarts itself up to 8 times. When it lands: `mix pramana.translate.import`, then
-`mix pramana.vectors --translations --source cbeta`, then `mix pramana.embed`, then the
-ladder in § E1. **Do not re-export or re-rank the tranche** — the model, batch size, GPU
-and prompt were each measured, and § E1 records what by.
+**The tranche landed.** MITRA's 27,956 passages are imported: **28,571 generated renderings**
+are in the corpus, `method: llm`, `tier: t1`, never citable as source. `mix pramana.embed`
+and the § E1 ladder are what follow, and **the other session owns that** — do not re-export
+or re-rank it, because the model, batch size, GPU and prompt were each measured and § E1
+records what by.
+
+**What is owed, in order of how much it needs a person:**
+
+1. **ONE full gate, when the machine is quiet.** Neither session has run one since the
+   afternoon's work; both verified serially instead, because the gate cannot get a database
+   connection while an import or a recall run is going. See "Two sessions" below. Run it
+   once for both sessions' commits rather than once each.
+2. **The architecture review's remaining question** — `docs/CHECKS.md` §2. Its five audits
+   are now two mechanised and three performed by hand on 2026-09-03, **each of which found
+   a live defect**: two tools returning text with no `sha256`, `get_passage` raising on
+   every rendering URN, and 648 absolute paths in the corpus's provenance. What is left is
+   the question the section exists for — *has this stopped being the thing it was designed
+   to be?* — and it is the one thing here that is worse when done by whoever wrote the
+   code. **A session that did not write it should do this one.**
+3. **§ E1's next tranche decision**, once the current measurement is scored. Item 8.
+
+**And a warning about this file.** The queue below is written by whoever finished the last
+item, and on 2026-09-03 one of its entries was wrong in a way that cost a year of not
+trying: *"a Tibetan aligner needs syllable windows and its own measured floor — new method,
+not a parameter"*. The premise was sound and the conclusion was a guess, recorded in the
+imperative. One measurement refuted it and Tibetan now aligns. **Read an unmeasured claim
+here as a hypothesis with a confident voice.**
 
 ### Two sessions, one branch, one machine — 2026-09-03
 
