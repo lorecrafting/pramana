@@ -520,6 +520,23 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     a failure earlier in the chain is invisible behind a green ending. Join with `&&`: it
     stops at the first failure, so the chain's status is the chain's.
 
+    **THREE more instances on 2026-09-03, in two sessions on one day, and one cost an
+    hour.** The rule is not being under-read; the habits it forbids are the convenient ones.
+
+    - A long measurement was piped through `tail -25`. **The summary prints FIRST**, so an
+      hour of compute yielded only the trailing hit/miss samples and had to be re-run.
+      Truncating output is the same error as grepping it: keeping a fragment chosen by
+      position rather than by meaning.
+    - A commit ran after `mix pramana.gate --quick` failed, because the chain used `;`
+      instead of `&&` — committed by the session that had cited this rule twice that day.
+    - Gate output was piped through `tail` repeatedly, which reports the pipeline's status
+      rather than the gate's, so a red gate read as `EXIT=0`.
+
+    **The general form: never let the shape of the output decide what you learn from it.**
+    Redirect to a file and read the file — `cmd > log 2>&1; echo $?` — which keeps both the
+    status and the whole of what was said. `tail`, `head` and `grep` are for reading a log
+    you have already saved, never for receiving one.
+
     **This shell is `zsh`, where the bash habit reports nothing at all.** `${PIPESTATUS[0]}`
     is unset here and expands to the empty string, so the status line prints `EXIT:` with
     nothing after it — and an empty status reads as a fine one. zsh's array is `$pipestatus`,

@@ -29,6 +29,31 @@ and restarts itself up to 8 times. When it lands: `mix pramana.translate.import`
 ladder in § E1. **Do not re-export or re-rank the tranche** — the model, batch size, GPU
 and prompt were each measured, and § E1 records what by.
 
+### Two sessions, one branch, one machine — 2026-09-03
+
+Both sessions committed to `english-over-chinese-and-check-screen` today. **Pull before
+committing**, and note two shared constraints that cost real time:
+
+**The machine is the bottleneck, not the work.** Postgres ships `max_connections = 100`
+and every dev BEAM takes a 25-connection pool, so `mix pramana.gate` cannot get a database
+connection while `mix pramana.embed.import` or a recall run is going. `mix pramana.evals`
+and a BGE-M3 serving are worse than additive on a 16 GB M1 — `docs/EMBEDDING.md` measured
+two servings plus Postgres as the swapping regime, slower rather than faster. **Run heavy
+tasks sequentially and run ONE full gate covering both sessions' work**, rather than each
+session gating over the other's load.
+
+`Pramana.Runtime.use_small_pool!/1` is for the processes that cannot use a full pool —
+`mix pramana.mcp.stdio` and `mix pramana.docs.figures` declare 4 and 2. Reach for it
+before reaching for `max_connections`.
+
+**A measurement command needs its sample and its seed stated, or it answers a different
+question.** `--renderings --to cbeta.T` with no `--sample` defaults to 200 pairs and no
+`--seed` means `random()`. The 46.8% / 32.3% baseline it has to beat was measured over the
+**entire 1,670-case population** precisely so no seed could be argued about, so an unseeded
+200-draw against it is not a comparison. `--sample 1670` takes the whole population and is
+directly comparable. This is `docs/STATUS.md`'s "the last figure that will need a caveat
+about sampling" nearly needing one.
+
 ### The queue, in order
 
 1. ~~**Run the full Chinese 科文 alignment.**~~ ▸ **ALREADY DONE — verified 2026-09-02, it
