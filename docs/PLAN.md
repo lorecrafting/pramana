@@ -409,7 +409,7 @@ about sampling" nearly needing one.
 
 8. **§ E1's next tranche decision. The running one is SCORED 2026-09-03 and the answer
    points at top-50** — production work-level 46.8% → **76.0%**, `topical/chinese` 0/12 →
-   **6/12**, and the demand-weighting premium measured for the first time: a demand-weighted
+   **6/12**, and the demand-weighting premium bounded for the first time: a demand-weighted
    3.88% scored 76.0% where a *random* 3.6% was predicted to score ~28%. The demand ranking
    is no longer a weak proxy on the evidence of its own result.
 
@@ -2490,10 +2490,29 @@ argue about:**
 | 2026-09-02, before the tranche | 782 · 46.8% | 539 · 32.3% |
 | **2026-09-03, after** | **1,269 · 76.0%** | **604 · 36.2%** |
 
-**The demand-weighting premium was the open question and it is now measured.** The
-ablation curve hid vectors at random and predicted a random 3.6% would score about 28% at
-work level. A demand-weighted **3.88%** scored **76.0%**. That gap is the premium, and it
-is the justification for the directed-citation ranking that chose these 14 works.
+**The demand-weighting premium was the open question, and the answer is "much larger than
+the curve predicted, by an amount this experiment cannot separate."** The ablation curve
+hid vectors at random and predicted a random 3.6% would score about 28% at work level. A
+demand-weighted **3.88%** scored **76.0%**. That gap justifies the directed-citation
+ranking that chose these 14 works.
+
+**It is not all premium.** The curve was measured by ablating **Pāli**, and
+`docs/STATUS.md` states that neither of these columns supports a cross-canon comparison —
+with the direction named: work-level flatters Chinese. These 1,670 queries come from the
+**14 CBETA works that have English**; the Pāli ablation drew from a corpus where 5,845
+works had it, and finding the right work among 14 candidates is an easier task than among
+5,845. The gap therefore contains the premium plus whatever separates ablated Pāli from
+native CBETA.
+
+**And it cannot be isolated by ablation**, which was the obvious next move and does not
+work: only the demand-weighted 3.88% has English at all, so every subset of it is still
+demand-weighted. Isolating the premium needs a **randomly selected** CBETA tranche to
+compare against — another tranche's cost, to price a decision already taken. Left
+unmeasured deliberately, and said so.
+
+**What is not confounded:** `topical/chinese` 0/12 → 6/12 on an unchanged gold set, and
+46.8% → 76.0% over the same 1,670 cases. Within-corpus, before-and-after, same queries.
+The tranche's effect is settled; the premium's share of it is not.
 
 **`topical/chinese`: 0/12 → 6/12**, against `evals/baseline.json` over 1,472 cases;
 overall 92.3% → 92.7%. **The cost travels with it: −1 on `topical/tibetan`, −1 on

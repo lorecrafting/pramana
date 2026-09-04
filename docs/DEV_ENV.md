@@ -164,6 +164,37 @@ full pool, because an HTTP transport really does serve concurrent requests.
 The diagnosis above stands and the commands are still the first thing to run — the
 per-process fix buys headroom, it does not make a stock `max_connections = 100` unlimited.
 
+## A long run died of `tcp recv (idle): closed`, and Postgres was not the cause — 2026-09-03
+
+**Unexplained, recorded so the next occurrence is the second data point rather than the
+first.** `mix pramana.recall --renderings --sample 1670` died 25 minutes in, at case ~175
+of 1,670:
+
+    ** (DBConnection.ConnectionError) tcp recv (idle): closed
+        (pramana) lib/pramana/retrieval/lexical.ex:396
+
+**What was ruled out.** Postgres had been up 4 days and did not restart. No OOM, no jetsam
+kill, swap at 1.2 GB of 2 GB. `idle_session_timeout`, `idle_in_transaction_session_timeout`
+and `tcp_keepalives_idle` are all `0`. Connections were 45 of `max_connections = 100`, so
+this is **not** the `too_many_connections` failure above. The server log shows three
+pooled backends cancelled within 10 ms of each other with `could not send data to client:
+Broken pipe` then `connection to client lost` — the signature of the **client** going away
+first. Postgres was the victim.
+
+**What it cost, and the two cheap mitigations.** One `async_stream` task raising takes the
+whole run with it, so 25 minutes of a 1,670-case measurement produced no scorecard. A
+re-run passed the same case without incident, so it is not data-dependent.
+
+- **Detach a long measurement**: `nohup env PRAMANA_EMBEDDING=1 mix pramana.recall ... > out.txt 2>&1 &`.
+  Outside any harness or terminal lifecycle, nothing but the OS can interrupt it.
+- **Never pipe the run through `tail`.** `recall` prints its summary **first** and the
+  hit/miss samples after, so `| tail -25` discards precisely the numbers the run existed
+  to produce. Redirect the whole stream to a file and read it there.
+
+The progress lines make a partial run salvageable: `--sample 1670` takes the whole
+population in random order, so an interrupted `found/N` is an unbiased estimate rather
+than a head-of-list slice.
+
 ## Toolchain pinning
 
 `mise.toml` pins exact Erlang/Elixir versions project-locally, deliberately not

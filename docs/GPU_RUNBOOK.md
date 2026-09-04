@@ -290,6 +290,40 @@ name, its table, and that the build has to hold `maintenance_work_mem` on its ow
 connection. Measured after the fix: **122,688 vectors imported in 1m42s** with the index
 dropped.
 
+## 1b-bis. A top-up on Modal, measured end to end — 2026-09-03
+
+The E1 MITRA tranche, and the numbers a future top-up should be sized against rather than
+inheriting the full-corpus ones:
+
+| step | measured |
+|---|---|
+| export rows missing a vector | 27,751 of 27,956 (205 already embedded) · 43.7 MB |
+| embed on an L4 | **3.7 min at 126.8 chunks/s** |
+| download and line-count | 27,751 lines · 299 MB |
+| import through a **live** HNSW index | ~10 min at ~3,000 rows/min · **0 rejected** |
+
+**126.8 chunks/s, not the 147 the full-corpus run measured.** English prose fills the
+320-token window more completely than the corpus average, so a tranche of *renderings*
+embeds slower per chunk than a tranche of source text. Re-derive from the population you
+are about to run, which is rule 76.
+
+**NAME THE VOLUME FILES AFTER THE RUN. Do not reuse `chunks.jsonl` / `vectors.jsonl`.**
+Both already exist on the `pramana-embed` volume from the full-corpus run, and
+`modal volume put` refuses to overwrite — which is the *helpful* failure. The dangerous
+one is forcing past it: if the embed step then fails or is skipped,
+`modal volume get /vectors.jsonl` hands back the **previous run's 980k source vectors**,
+and `mix pramana.embed.import` accepts them happily. Every hash matches, nothing is
+rejected, the summary reads clean, and the tranche you meant to embed is still unembedded.
+`modal_embed.py` takes `--input-name` and `--output-name` precisely so each run can own its
+filenames; use them.
+
+**`--rebuild-index` is not automatic at this size.** Runbook Rule 1 below says drop the
+index before any bulk write, and it is right at 67k+ rows. At **27,751** it is roughly
+break-even: the live import cost ~10 minutes, while dropping would make the load ~30
+seconds and then charge ~15 minutes for the rebuild regardless of row count — with
+semantic search unindexed throughout. Below ~50k rows, prefer the live import and keep
+search online.
+
 ## 1c. The index is built by a task, not by a migration
 
 `mix pramana.embed.index` creates the HNSW index; `--rebuild` drops and recreates it,

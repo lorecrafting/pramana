@@ -133,10 +133,31 @@ at 0 of 12. Returns are strongly concave — the first 5% of coverage buys 38% o
 achievable gain, the last 75% buys 32% — so a demand-weighted slice was the thing to
 price, not 720,000 chunks.
 
-**And the demand-weighting premium is now measured rather than assumed, 2026-09-03.** This
-curve hid vectors *at random*, and predicted a random 3.6% would reach about 28% at work
-level. A **demand-weighted 3.88%** reached **76.0%**. The premium is the whole gap, and it
-is the reason the top-100 ranking work was worth doing.
+**And the demand-weighting premium is far larger than the curve predicted, 2026-09-03.**
+This curve hid vectors *at random*, and predicted a random 3.6% would reach about 28% at
+work level. A **demand-weighted 3.88%** reached **76.0%**. That gap is the reason the
+top-100 ranking work was worth doing.
+
+**▸ But the premium is not the whole gap, and this file says so 100 lines below.** The
+curve was measured by ablating **Pāli**; the 76.0% is **CBETA**. *"Neither column supports
+a cross-canon comparison"* — and the bias has a known direction, given in the same passage:
+work-level flatters Chinese. The 1,670 queries are drawn from the **14 CBETA works that
+have English**, while the Pāli ablation drew queries from a corpus where 5,845 works had
+it. Finding the right work among 14 candidates is a different task from finding it among
+5,845, and the difference inflates the Chinese figure.
+
+So the gap contains the demand-weighting premium **plus** whatever separates ablated Pāli
+from native CBETA, and nothing here separates them. **Isolating it needs a randomly
+selected CBETA tranche to compare against** — you cannot ablate your way there, because
+only the demand-weighted 3.88% has English at all, so every subset of it is still
+demand-weighted. That is another tranche's cost to answer a question the top-100 ranking
+has already been paid for, which is a reason to leave it unmeasured and say so rather than
+to leave it unmeasured and not.
+
+**What is not in doubt:** `topical/chinese` moved 0/12 → 6/12 on an unchanged gold set,
+and production recall over the whole 1,670-case population went 46.8% → 76.0% at work
+level. Those are within-corpus, before-and-after, same queries. The premium's *size* is
+what is confounded, not the tranche's effect.
 
 **Which slice, though, was ranked off an undirected graph and was wrong.** The quotation
 graph is suffix-array shared-text detection: `a` and `b` are two sides of a match with no

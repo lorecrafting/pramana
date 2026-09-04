@@ -976,6 +976,34 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     depending on it; and when a test converts one field name into another, delete the
     conversion instead of the test.
 
+80. **A prediction and a result measured on different populations do not subtract into an
+    effect.** The E1 tranche scored **76.0%** at work level where the coverage curve
+    predicted about **28%** for comparable coverage, and the difference was published as
+    "the demand-weighting premium ... the premium is the whole gap". It is not. **The curve
+    was measured by ablating Pāli; the 76.0% is CBETA**, and `docs/STATUS.md` already said,
+    a hundred lines below the new claim in the same file, that *neither column supports a
+    cross-canon comparison*.
+
+    The bias even has a stated direction: **work-level flatters Chinese.** Those 1,670
+    queries come from the 14 CBETA works that have English, while the Pāli ablation drew
+    from a corpus where 5,845 works had it — and finding the right work among 14 candidates
+    is not the task of finding it among 5,845.
+
+    **The tranche's effect was never in doubt**: `topical/chinese` 0/12 → 6/12 and
+    46.8% → 76.0% are within-corpus, before-and-after, same queries. Only the *attribution*
+    was wrong, which is the subtler failure — a real result with a mechanism assigned to it
+    that the experiment did not test.
+
+    **And the obvious fix did not work either.** Ablating CBETA's own layer to a random
+    3.88% would isolate the premium, except that only the demand-weighted 3.88% has English
+    at all, so every subset of it is still demand-weighted. Isolating it needs a randomly
+    selected tranche — real money, to price a decision already taken. The right move was to
+    bound the claim and say why it stays unmeasured.
+
+    **The general shape: a difference is only an effect when one thing differs.** Before
+    subtracting a prediction from a result, list what varies between them. If it is more
+    than one thing, the difference is an upper bound on each.
+
 
 ---
 

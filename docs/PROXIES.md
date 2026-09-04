@@ -10,6 +10,48 @@ name when explaining why they refuse a shortcut.
 
 ---
 
+## Three ways to publish a number that answers a different question — 2026-09-03
+
+All three surfaced scoring the E1 MITRA tranche, none of them broke anything, and each
+would have produced a confident figure that could not be compared with the one it was
+placed beside.
+
+**1. The default sample answers a different question than the baseline.**
+`mix pramana.recall --renderings --to cbeta.T` is the invocation written down for the
+production verdict. It takes `@default_sample` **200** and, with no `--seed`, orders by
+`random()` — an unseeded 200-draw. The figure it is compared against, **46.8% / 32.3%**,
+was deliberately measured over the **entire 1,670-case population** so that there would be
+no seed to match and no draw to argue about. Running the documented command and reporting
+the delta would have been exactly the sampling error this project retracted once already,
+committed by following its own runbook. **`--sample 1670` is the invocation.** A default
+is not a measurement decision, and a command that is copied into a doc inherits whatever
+default it had on the day.
+
+**2. There are two files that look like the eval baseline and only one is.**
+`evals/scorecard.json` holds **249** scored cases; `evals/baseline.json` holds **1,472** —
+the gold set. Both have `overall`, `by_type` and `by_type_tradition` keys with identical
+shape, so reading the wrong one produces a well-formed comparison against a population
+four-fifths absent. Here it would have reported the baseline as 79.5% against a run of
+92.7% and made a **+13 point** improvement out of a file mismatch. The `topical/chinese`
+row happened to read 0/12 in both, which is what made it survive a first check. **The
+baseline is the one `--gate` reads: `evals/baseline.json`.**
+
+**3. A mechanism that explains the data is not evidence for the mechanism.** Scaling
+MITRA from 205 to 27,956 chunks moved the controlled rung's columns in opposite
+directions: work-level 81.0% → **94.6%**, on the line 40.0% → **33.2%**. The obvious
+account is displacement — `covers?/2` needs the covering span inside the limit-100
+window, and thousands of new sibling chunks from the same work crowd it out. It fits the
+data, it fits the hit log full of *"rank 1, the work but NOT the parallel line"*, and it
+is **wrong**. Re-run at `--limit 200`, the maximum the retrieval layer allows: **194 ·
+94.6%, on line 68 · 33.2%** — identical to the digit. Not one covering span sits in ranks
+101–200.
+
+The correct reading is stronger and less comfortable: the covering chunk is out-ranked
+*past 200* by same-work near-duplicates, and **more `k` does not buy the line column
+back**. The test cost one 205-case run. Rule 62 says re-derive a number that confirms what
+you just concluded; this is its twin for *explanations* — a mechanism that would change
+what gets bought next is worth the one command that can falsify it.
+
 ## Glossary pinning buys 4.3 points, and the spec asked for it without measuring — 2026-09-02
 
 `docs/PLAN.md` specified the index tier as "prose, **glossary-pinned**". Nothing

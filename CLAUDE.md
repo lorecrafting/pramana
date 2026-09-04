@@ -54,7 +54,7 @@ a historical sentence read as a current claim:
 |---|---|
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
-| `docs/RULES.md` | **79 rules** from real defects, cited by number — read before a new pipeline |
+| `docs/RULES.md` | **80 rules** from real defects, cited by number — read before a new pipeline |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -67,7 +67,7 @@ before proposing something.
 
 ### Which rules apply to what you are about to do
 
-`docs/RULES.md` holds **79 rules, each learned from a real defect here**, and they are cited
+`docs/RULES.md` holds **80 rules, each learned from a real defect here**, and they are cited
 by number in code and commits. This file is always in your context and that one is not, so
 the triggers live here. **Read the listed rules before starting the activity, not after the
 test goes red.**
@@ -79,7 +79,7 @@ test goes red.**
 | add a **filter, option or mode** | 4, 5, 6, 26, 36, **75** — name the population the filter removes, and check the method abstains there rather than substituting |
 | write an **Ecto query** or touch performance | 9, 14, 15, 19, 21, 25, 34, 38, 39, 40, 67 |
 | **compare, split or match a URN** — a prefix test, a `split_part`, a `LIKE` | 68 |
-| report a **coverage figure or any ratio** | 22, 31, 44, 54, 69, 74, **77** — say what population the sample was drawn from, and put a corpus count in a generated block rather than typing it |
+| report a **coverage figure or any ratio** | 22, 31, 44, 54, 69, 74, **77**, **80** — say what population the sample was drawn from, put a corpus count in a generated block rather than typing it, and never subtract two figures measured on different populations |
 | **rank or weight by a graph** — citations, parallels, quotations | 72, 73 — ask what an edge means before ranking by it, and count distinct evidence rather than the rows carrying it |
 | choose a **threshold**, or build a benchmark | 7, 18, 30, 32, 35, 37, 47, 49, 54, 67, **74**, **78** — and never set it at the current measurement, which measures compliance rather than the thing. `docs/PROXIES.md` |
 | **make something faster**, or fix a broken optimisation | 40, 47, **70**, **76** — re-measure what was built to avoid the thing you just fixed, and falsify the cost model before optimising against it |
