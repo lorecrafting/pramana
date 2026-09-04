@@ -284,6 +284,34 @@ reordering can reach, and **15 of them are out of reach with human English too.*
 **These are WITHIN-work figures and are not comparable with the `on the line` column**,
 which pays for competition between works as well. Rule 74.
 
+**Every arm on that metric at identical density — 2026-09-04, and it is less flattering
+than the aggregate.** All six restricted to the same 205 pilot chunks, so density is held
+and only the English varies:
+
+| arm | rank 1–10 | not in 100 |
+|---|---|---|
+| no English at all | **46 · 24.3%** | 92 |
+| `model:mitra` | 148 · 78.3% | 27 |
+| `gemma-2-9b-it`, glossary-pinned | 148 · 78.3% | 28 |
+| `Qwen2.5-32B-Instruct` | 152 · 80.4% | 23 |
+| `gemma-2-9b-it`, untuned base | 152 · 80.4% | 31 |
+| **`patton`, human** | **171 · 90.5%** | 15 |
+
+**Generated English recovers 82–85% of the human layer's within-work value** — 102 to 106
+cases over a floor of 46, against the human's 125. On the aggregate work-level ladder the
+same comparison reads **97.8%**. Both are true of what they measure, and **the within-work
+figure is the one that describes a reader who wants the right line.**
+
+**The four model arms span four cases out of 189 and are not distinguishable here.** No
+ranking should be read into their order. What is clear is the human, 19–23 cases ahead of
+every one of them — five times the spread among the models.
+
+**So MITRA's 15.1-point margin over its own untuned base is not within-work precision.**
+The domain fine-tune buys cross-work discrimination: English distinctive enough to reach
+the right *text*. It buys nothing measurable for finding the right *passage inside it*.
+**And glossary pinning, the cheapest intervention available, did not help** — 148 against
+the unpinned 152.
+
 **`topical/chinese` moved off 0 for the first time on 2026-09-03 — 0 of 12 to 6 of 12.**
 Against `evals/baseline.json` over all 1,472 cases:
 

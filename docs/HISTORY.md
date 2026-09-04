@@ -16,6 +16,56 @@ noticed the heading was the problem.
 
 ---
 
+## Every model arm is the same arm, on the metric that matters — 2026-09-04
+
+The within-work probe pointed at translation quality as the only lever left. So all six
+arms were run on it at **identical density** — every one restricted to the same 205 pilot
+chunks, so nothing varies but the English. 189 cases, seed 0.42, limit 100:
+
+| arm | rank 1-10 | not in 100 |
+|---|---|---|
+| no English at all | **46 · 24.3%** | 92 |
+| `model:mitra` | 148 · 78.3% | 27 |
+| `gemma-2-9b-it`, glossary-pinned | 148 · 78.3% | 28 |
+| `Qwen2.5-32B-Instruct` | 152 · 80.4% | 23 |
+| `gemma-2-9b-it`, untuned base | 152 · 80.4% | 31 |
+| **`patton`, human** | **171 · 90.5%** | 15 |
+
+**The four model arms span four cases out of 189.** They are not distinguishable here and
+no ranking should be read into their order — an intermediate reading of this run, taken
+before the last two arms landed, said "Qwen edges MITRA" and did not survive the full
+table. The human is **19–23 cases clear of every one of them**, five times the spread among
+the models.
+
+**So MITRA's 15.1-point margin over its own untuned base is not within-work precision.**
+That margin is real and reproduced exactly under isolation; it measures **cross-work
+discrimination** — English distinctive enough to reach the right *text*. It buys nothing
+measurable for finding the right *passage inside it*, which is why the aggregate ladder and
+this table disagree about the ordering. Two metrics, two different questions, and § E1 had
+only ever asked the first.
+
+**Glossary pinning, the cheapest intervention available, does not help**: 148 against the
+unpinned 152.
+
+**And the honest recovery figure is lower than the published one.** Over a floor of 46, the
+human layer adds 125 cases and any model arm adds 102–106 — **generated English recovers
+82–85% of the human layer's within-work value**, against **97.8%** on the aggregate
+work-level ladder. Both are true of what they measure; the within-work figure is the one
+that describes a reader who wants the right line, and it is the less flattering of the two.
+
+**What it leaves.** Not another model arm, not a better prompt. In ascending cost: the
+blinded fidelity sheet, to learn *how* the model English differs from Patton's rather than
+by how much; human review, which `review_state` already exists for; or a model better than
+any of the four tested. All three need a person to start.
+
+**The probe's own first real use found a flaw in it**, which is worth recording because it
+is the shape this project keeps meeting. The no-English arm came back `never generated:
+189` and short-circuited every search, so the floor row measured nothing: asking "does this
+arm have a translation vector" of an arm **defined** as having none answers no every time.
+`nil` and `[]` differ, and here they must behave the same — the same distinction
+`Pramana.Retrieval.RenderingScope` makes load-bearing one layer down, met again in a new
+place. Fixed, pinned by a test, and the floor re-run.
+
 ## The line column is a ranking problem, and coverage cannot fix it — 2026-09-04
 
 The within-work diagnostic the 2026-09-03 audit proposed and recorded as unverified. It

@@ -34,9 +34,34 @@ eliminated:
 | subspan representation | **refuted before building** — identical chunk geometry in every outcome bucket, and identical chunk *ids* give 171 against 148 |
 | reranking | **+44 cases, free, already shipped** |
 
-**What survives is translation quality, and it is the only addressable thing left.** So the
-next purchase, if there is one, is **better English over the same passages** rather than
-more passages. Item 8 has the numbers.
+**What survives is translation quality** — and on 2026-09-04 the cheap ways of buying it
+were measured and none of them work. Every arm on the within-work metric at identical
+density, floor 46 of 189:
+
+| arm | rank 1–10 | not in 100 |
+|---|---|---|
+| no English at all | 46 · 24.3% | 92 |
+| `model:mitra` | 148 · 78.3% | 27 |
+| `gemma-base`, glossary-pinned | 148 · 78.3% | 28 |
+| `model:qwen` | 152 · 80.4% | 23 |
+| `gemma-base`, untuned | 152 · 80.4% | 31 |
+| **`patton`, human** | **171 · 90.5%** | 15 |
+
+**The four model arms span 4 cases of 189 and are not distinguishable.** Swapping among
+them buys nothing. **Glossary pinning — the cheapest intervention there is — buys nothing**
+(148 against 152). And **MITRA's 15.1-point margin over its base is cross-work
+discrimination, not within-work precision**, which is why the aggregate ladder and this
+table disagree about the ordering.
+
+**Generated English recovers 82–85% of the human layer's within-work value** against 97.8%
+at work level. The aggregate flatters it; this is the figure that describes a reader who
+wants the right line.
+
+**So the next purchase is NOT another model arm and NOT a better prompt.** What is left,
+in ascending cost: the blinded fidelity sheet, to learn *how* the model English differs
+from Patton's rather than by how much; human review of generated renderings, which the
+schema already has `review_state` for; or a model better than any of the four tested. **All
+three need a person to start them, which is why item 1 of "Start here" is the bake-off.**
 
 **And a floor to know before chasing it: 15 of the 35 unreachable cases are unreachable
 with HUMAN English too.** Roughly 20 of 189 are actually addressable.

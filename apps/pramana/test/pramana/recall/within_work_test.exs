@@ -135,6 +135,20 @@ defmodule Pramana.Recall.WithinWorkTest do
       assert result.buckets == %{never_generated: 1}
     end
 
+    test "the no-English control is not reported as `never_generated`" do
+      # `[]` is the control arm and its absence of English is the point. Asking whether it
+      # has a translation vector answers "no" for every case, short-circuits the search and
+      # returns a floor row of 189/0/0/0 that measures nothing. This probe did that on its
+      # first real use. `nil` and `[]` differ, and here they must behave the same.
+      urns = corpus!()
+      rendering!(range_urn(urns))
+
+      result = Recall.within_work(sample: 10, seed: 0.42, to: "cbeta.T", translators: [])
+
+      refute Map.has_key?(result.buckets, :never_generated),
+             "the no-English control short-circuited instead of measuring a rank"
+    end
+
     test "the report always carries its denominator" do
       urns = corpus!()
       rendering!(range_urn(urns))

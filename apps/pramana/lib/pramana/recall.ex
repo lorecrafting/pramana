@@ -289,9 +289,17 @@ defmodule Pramana.Recall do
   end
 
   defp within_work_bucket(pair, limit, opts) do
+    # `nil` AND `[]` BOTH SKIP THE CHECK, and the difference between them is why this needs
+    # saying. `nil` is "every translator", so there is no arm to be missing a vector for.
+    # `[]` is the **no-English control**, where the absence is the point — asking "does this
+    # arm have a translation vector" of an arm defined as having none answers `never
+    # generated` for every case and short-circuits the search, so the floor row comes back
+    # 189/0/0/0 and measures nothing. It did exactly that on this probe's first real use.
+    # `Pramana.Retrieval.RenderingScope` makes the same distinction load-bearing one layer
+    # down.
     translators = Keyword.get(opts, :translators)
 
-    if translators && not has_translation_vector?(pair.chunk.id, translators) do
+    if translators not in [nil, []] and not has_translation_vector?(pair.chunk.id, translators) do
       :never_generated
     else
       search_opts =
