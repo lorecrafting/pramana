@@ -361,6 +361,15 @@ optimistic and not misleading. **This is the number a model arm has to beat**, a
 the last one here that will need a caveat about sampling: `--translators` now varies the
 index instead of the sample, so arms are compared with the query held constant.
 
+**▸ A SECOND MECHANISM WITH THE SAME SIGNATURE, found 2026-09-04 and not yet separated.**
+`Pramana.Embed.@max_length` is 320 tokens, calibrated on the **source** layer (p99 293) and
+never re-derived for the English one. Measured against the tokenizer: `84000` renderings
+have a **median of 875 tokens and 100% exceed the cap**, `patton` 448 and 95.3%,
+`model:mitra` 395 and 90.7%, while segment-anchored `sujato` is 35 and 0%. **A wider anchor
+makes a longer rendering, and a longer rendering is more truncated**, so anchor width and
+embedding truncation predict the same ordering in the table below and neither is isolated.
+Rule 80. `docs/PLAN.md` item 12.
+
 **`on the line` scores whether the retrieved span CONTAINS the whole anchor, so it is
 mostly a function of anchor width** — 84000 anchors English to folios of about seven Degé
 lines, and the chunk that matched is often smaller than that. The column is inversely

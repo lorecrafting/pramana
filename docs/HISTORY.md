@@ -16,6 +16,65 @@ noticed the heading was the problem.
 
 ---
 
+## A constant calibrated on one layer, applied to another — 2026-09-04
+
+Chasing *how* the model English differs from Patton's rather than by how much. It did not
+answer that question and found something larger on the way.
+
+`Pramana.Embed.@max_length` is **320 tokens**, and its comment says why: *"p99 of real
+chunk token lengths is 298; 320 covers everything with minimal padding."* True, and
+measured — of the **source** layer. Against the real tokenizer, 300 vectors per layer:
+
+| layer | median | p90 | p99 | max | over cap |
+|---|---|---|---|---|---|
+| **source** — what the cap was set on | 278 | 288 | 293 | 295 | **0.0%** |
+| translation — `sujato`, segment-anchored | 35 | 84 | 160 | 226 | 0.0% |
+| translation — `model:mitra` | 395 | 450 | 537 | 607 | **90.7%** |
+| translation — `patton` | 448 | 525 | 614 | 683 | **95.3%** |
+| translation — **`84000`** | **875** | 990 | 1138 | 1836 | **100.0%** |
+
+**About 58,500 of 83,897 translation vectors are truncated at embedding time**, ~70%. For
+84000 it is every one of 32,483, at a median of 875 tokens against a cap of 320 — **roughly
+two-thirds of every Tibetan English rendering is absent from the index it exists to be
+searchable in.** The 980,464 source vectors are fine, exactly as the comment promised.
+
+**This is rule 74 applied to a constant instead of to a measurement.** The p99 that
+justified 320 was a p99 of Classical Chinese source chunks; the English layer arrived later
+and the constant went on being true of a population it no longer described. Nothing warned,
+because the truncation is inside the tokenizer and produces a perfectly ordinary vector.
+
+**It is confounded with a published finding, which is the part worth pausing on.**
+`docs/STATUS.md` reports the `on the line` column as *"mostly a function of anchor width"*,
+inversely ordered by width across all three canons exactly — 1.00 segment / 79.0%, 2.01 /
+37.0%, 6.94 / **8.5%**. A wider anchor makes a longer rendering, and a longer rendering is
+more truncated, so **anchor width and embedding truncation predict the same ordering** and
+neither has been isolated. Rule 80. The anchor-width account may well be right; it is no
+longer the only candidate, and Tibetan — the row that carries the claim — is where
+truncation is worst.
+
+**What it does NOT explain is the E1 quality gap**, and saying so matters: `patton` is
+truncated *more* than `model:mitra`, 95.3% against 90.7%, and still scores 23 cases better
+on the within-work metric. Truncation is not the dominant term everywhere, so the fix
+should be measured on one arm before 83,897 vectors are re-embedded.
+
+**Three wrong turns on the way here, all corrected by measuring.** The first was that
+generated English might cover only the head of its chunk: refuted, MITRA renders the whole
+thing. The second was that MITRA is verbose at 5.09 English characters per Chinese
+character against Patton's 1.38 — **that was my own rule-68 bug**, an ad-hoc query joining
+`translations` on `segments.urn` and so dropping every range-anchored Patton rendering.
+Corrected from the vectors themselves, Patton's assembled English is **longer** than
+MITRA's, 1,678 characters against 1,454. The third was reasoning about tokens from
+characters at all, which is why the table above came from the tokenizer.
+
+**And the qualitative read that started it is worth keeping.** Of the 26 cases where Patton
+lands in the top 10 and MITRA does not, three or four are the model reciting a remembered
+**Pāli** parallel instead of translating the Chinese in front of it — one renders a page of
+the Chinese Madhyama Āgama as *"The Middle Length Discourses of the Buddha, Volume I,
+Translated from the Pāli by Bhikkhu Ñāṇamoli and Bhikkhu Bodhi"*, and two reproduce the
+Satipaṭṭhāna stock formula complete with its ellipses. That is a fidelity problem the
+retrieval metric can only see sideways, and it is what the blinded sheet exists to
+characterise.
+
 ## Every model arm is the same arm, on the metric that matters — 2026-09-04
 
 The within-work probe pointed at translation quality as the only lever left. So all six

@@ -859,6 +859,53 @@ look right. Neither has been checked against the code.
     because this stage ran**, which is the number a reader cares about; positions that
     merely shuffled inside the window changed nothing that came back.
 
+12. **▸ THE EMBEDDING CAP WAS CALIBRATED ON THE SOURCE LAYER AND NEVER RE-DERIVED FOR THE
+    ENGLISH ONE. ~70% of translation vectors are truncated.** Found 2026-09-04 while
+    diagnosing the E1 quality gap; it is not that gap's cause, and it is larger.
+
+    `Pramana.Embed.@max_length` is **320**, with the note *"p99 of real chunk token lengths
+    is 298; 320 covers everything with minimal padding."* Measured against the real
+    tokenizer, 300 vectors per layer:
+
+    | layer | median | p90 | p99 | max | over cap |
+    |---|---|---|---|---|---|
+    | **source** — what the cap was set on | 278 | 288 | 293 | 295 | **0.0%** |
+    | translation — `sujato` (segment-anchored) | 35 | 84 | 160 | 226 | 0.0% |
+    | translation — `model:mitra` | 395 | 450 | 537 | 607 | **90.7%** |
+    | translation — `patton` | 448 | 525 | 614 | 683 | **95.3%** |
+    | translation — **`84000`** | **875** | 990 | 1138 | 1836 | **100.0%** |
+
+    The constant fits the source layer exactly as advertised. **English renderings are
+    1.5–3× longer and nobody re-measured.** So a vector for an 875-token 84000 rendering
+    holds its first 320 tokens: **about two-thirds of every Tibetan English rendering is
+    absent from the index it exists to be searchable in.**
+
+    **Population: roughly 58,500 of 83,897 translation vectors**, ~70% — 32,483 from 84000
+    at 100%, ~25,400 from `model:mitra` at 90.7%, the rest small. The 980,464 source
+    vectors are unaffected.
+
+    **It is rule 74 applied to a constant rather than to a measurement**: the validation
+    set is not the population. The p99 that justified 320 was a p99 of Classical Chinese
+    source chunks, and it went on justifying it for English.
+
+    **▸ AND IT IS CONFOUNDED WITH A PUBLISHED FINDING.** `docs/STATUS.md` reports the
+    `on the line` column as "mostly a function of anchor width", inversely ordered by width
+    across all three canons *exactly* — `sc.ms` 1.00 segment scoring 79.0%, `cbeta.T` 2.01
+    scoring 37.0%, `derge.D` 6.94 scoring 8.5%. **A wider anchor produces a longer
+    rendering, which is more truncated**, so anchor width and embedding truncation predict
+    the same ordering and neither has been isolated. Rule 80: a difference is only an
+    effect when one thing differs. The anchor-width account may still be right; it is no
+    longer the only candidate, and the Tibetan row is the one where truncation is worst.
+
+    **What it would cost to fix, unmeasured:** raise the cap for translation vectors and
+    re-embed 83,897 of them. At the tranche's measured 126.8 chunks/s that is ~11 minutes
+    of L4 at the current sequence length, and longer sequences cost more — attention is not
+    linear in length, so budget by measuring one batch rather than by scaling this figure.
+    **What it would BUY is unmeasured and should not be assumed**: `patton` is truncated
+    *more* than `model:mitra` (95.3% against 90.7%) and still scores 23 cases better, so
+    truncation plainly is not the dominant term everywhere. **Measure the gain on one arm
+    before re-embedding the corpus.**
+
 ### Previous session
 
 Previous session ended clean at **81aa830**. That one shipped **§ E1's first slice** — the

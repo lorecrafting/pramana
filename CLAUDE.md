@@ -97,6 +97,7 @@ test goes red.**
 | **sample a file, or size a feature before building it** | 62, and `docs/PROXIES.md` |
 | **publish a number that confirms what you just concluded** | 62 — re-derive it by another method |
 | **fix a constant** — any constant | 41, always |
+| **add a new layer, source or vector kind** | **83** — list every constant fitted to the old population and re-measure it against the new; a comment that stays true can stop being relevant |
 | **finish any capability** — before calling it done | **60**, **79** — a model must be able to reach it, and an invariant that holds only because something crashes does not hold |
 | make anything **optional**, or a dependency degrade | 17 |
 | **generalise** from one case, or reach for a shared helper | 16, 24, 33 |

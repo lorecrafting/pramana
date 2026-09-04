@@ -1049,6 +1049,37 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     made the seed work; this one is remembering what it was.
 
 
+83. **A constant justified by a measurement carries the population it was measured on, and
+    the justification does not travel when a new population arrives.**
+    `Pramana.Embed.@max_length` is 320 tokens and says why in the line beneath it: *"p99 of
+    real chunk token lengths is 298; 320 covers everything with minimal padding."* That was
+    honest, measured, and correct — of the **source** layer, which is Classical Chinese and
+    still has a p99 of 293.
+
+    Then the English layer arrived. Renderings are 1.5–3× longer, and against the real
+    tokenizer **84000's median is 875 tokens with 100% over the cap**, `patton` 448 and
+    95.3%, `model:mitra` 395 and 90.7%. **About 58,500 of 83,897 translation vectors hold
+    only their first 320 tokens** — for the Tibetan English, roughly two-thirds of every
+    rendering is absent from the index it exists to be searchable in.
+
+    **Nothing warned, and nothing could have.** Truncation happens inside the tokenizer and
+    produces a perfectly ordinary vector of the right dimension, which passes every hash,
+    dimension and id check the import performs. The comment stayed true and stopped being
+    relevant, which is worse than a comment that goes false: a false one is a discrepancy
+    somebody eventually notices.
+
+    **This is rule 74 one level down.** That rule says the validation set is not the
+    population, of a *measurement*. This says the same of a *constant*: the number is only
+    as good as the distribution it was fitted to, and a new distribution does not announce
+    itself.
+
+    **The habit: when a new layer, source or kind is added, list the constants that were
+    fitted to the old one and re-measure each against the new.** Batch sizes, sequence
+    lengths, density floors, similarity thresholds, chunk sizes. And where it is cheap,
+    report the percentile beside the constant rather than in a comment written once —
+    a figure that regenerates cannot quietly stop describing anything.
+
+
 ---
 
 ## One-off gotchas
