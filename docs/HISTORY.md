@@ -43,11 +43,25 @@ left is dilution: mean-pooling over 1024 tokens makes the vector a less specific
 representation of any line inside it. **The cap was accidentally acting as a focusing
 mechanism**, and the truncation everyone would call a defect was buying more than it cost.
 
-**So the fix is smaller units, not a bigger window** — one vector per rendering, which
-removes truncation and dilution together. That is the subspan namespace refuted for the
-Chinese earlier the same day, **live again here because the sizing is opposite**:
-`model:mitra` is 1.00 rendering per chunk and has no subspans to build, while an 84000
-chunk vector concatenates several folio renderings into 884 tokens.
+**Smaller units then, not a bigger window — and sizing killed that too, the same
+afternoon.** 84000 averages **1.79 renderings per chunk, max 3**, so splitting yields two
+or three pieces; and an individual rendering is a median of **454 tokens with 97.3% over
+the cap**. Splitting halves the truncation and fixes nothing, while leaving a 454-token
+vector that is still the diluted object the 1024 run showed is worse.
+
+**The confound resolves, and in one direction.** Truncation looked like a rival to the
+published "anchor width" account of the `on the line` column. It is not a rival — **it is
+the mechanism by which anchor width hurts**: 84000 anchors to a folio of ~7 Degé lines, a
+folio renders to ~454 tokens, and 454 tokens neither fits the window nor points at any one
+line inside it. One causal chain.
+
+**And the corpus already contains the evidence for what would work.** `sc.ms` anchors at
+1.00 segment, its renderings are a median of **35 tokens**, none exceed the cap, and it
+scores **79.0% on the line** — the best column here. Fine anchors, short renderings,
+focused vectors. So the Tibetan needs an indexing unit smaller than 84000's own anchor:
+sub-rendering windows, an index artifact with no URN of their own, which is a design
+question rather than a parameter. The result returned is still the chunk, so nothing
+uncitable is served.
 
 **Cost of learning this: 60 vectors, 180 seconds of local embedding, no GPU, nothing
 mutated.** Against re-embedding 83,897 vectors on rented hardware to make retrieval worse.

@@ -913,12 +913,29 @@ look right. Neither has been checked against the code.
     representation of any one line inside it. **The 320-token cut was accidentally acting
     as a focusing mechanism**, and truncation was doing more good than harm.
 
-    **So the fix for the Tibetan is smaller units, not a bigger window** — one vector per
-    rendering rather than one per chunk, which removes the truncation *and* the dilution
-    together. That is the subspan namespace, refuted for the Chinese on 2026-09-04 and
-    **live again here, because the sizing is completely different**: `model:mitra` is 1.00
-    rendering per chunk and has no subspans to build, while an 84000 chunk vector
-    concatenates several folio-sized renderings into 884 tokens.
+    ▸ **AND ONE-VECTOR-PER-RENDERING DOES NOT FIX IT EITHER — sized 2026-09-04, before
+    building.** 84000 averages **1.79 renderings per chunk (max 3)**, so splitting a chunk
+    vector gives two or three pieces, not many. And an individual rendering is a median of
+    **454 tokens with 97.3% over the cap** (p90 555, max 1,132). Splitting halves the
+    truncation, 884 → 454, and leaves 97 of every 100 renderings still cut — while a
+    454-token vector is still the diluted object the 1024 experiment showed is worse.
+
+    **The confound resolves, and in one direction.** `docs/STATUS.md` reads the `on the
+    line` column as "mostly a function of anchor width", and truncation looked like a rival
+    explanation. It is not a rival — **it is the mechanism by which anchor width hurts**:
+    84000 anchors English to a folio of ~7 Degé lines, a folio renders to ~454 tokens, and
+    454 tokens neither fits the window nor points at any one line inside it. One causal
+    chain, not two candidates.
+
+    **The evidence for what would work is already in the corpus.** `sc.ms` anchors at
+    **1.00 segment**, its renderings are a median of **35 tokens**, 0% exceed the cap, and
+    it scores **79.0% on the line** — the best column published here. Fine anchors give
+    short renderings give focused vectors. **So the Tibetan needs an indexing unit smaller
+    than 84000's own anchor**: sub-rendering windows of roughly sentence size, which are an
+    index artifact with no URN of their own and therefore a design question rather than a
+    parameter. The result is still the chunk, so nothing uncitable is ever returned.
+
+    **That is a build, and it is the one E1 experiment left that the evidence supports.**
 
     **What is still true:** ~58,500 vectors are truncated, and for 84000 **51.8% of queries
     have their own words past the cut**, which is a mechanical ceiling. What changed is the
