@@ -16,6 +16,42 @@ noticed the heading was the problem.
 
 ---
 
+## There is no identity-free validation in this corpus, by any route — 2026-09-04
+
+The windowing prototype fixed the Tibetan's unreachable cases, 16 → 0, on a probe that
+scores itself: the query is 84000's English and a window is a substring of it. The obvious
+way past that was the **Pāli**, which has eight human translators and can therefore compare
+one human's words against another's index. It does not need windowing — `sujato` fits the
+cap at a median of 150 tokens — so the plan was to *simulate* 84000's geometry there: pad
+each chunk's `sujato` English with its neighbours' until it reaches ~840 tokens, then query
+with `suddhaso`.
+
+**Built, and the coarse arm came out at a median of 133 characters** — shorter than the
+vectors it was meant to dwarf. Padding added nothing because there was nothing to add.
+
+**The reason closes the question rather than just this attempt.** The 457 chunks `suddhaso`
+and `sujato` share sit in **427 texts averaging 1.9 chunks each** — short Vinaya texts with
+no neighbours. And that is not an unlucky subset: across the whole corpus **only two human
+pairs overlap at all**, `suddhaso × sujato` (457 chunks, 427 texts, 1.9 average) and
+`soma × sujato` (114, 73, 3.2), with a maximum of **16 chunks in any shared text**. Every
+other pair of the eight human translators shares nothing.
+
+**So an identity-free retrieval validation is unavailable everywhere.** Not on the Chinese,
+where `patton` is the only human English. Not on the Tibetan, where `84000` is. Not on the
+Pāli, where two humans overlap only in texts too short to exhibit the problem. The
+`retrieval/*` gold cases inherit it too — 214 of 214 queries are verbatim renderings — and
+`topical` is 49 cases, 9 of them Tibetan.
+
+**What that makes the highest-leverage item on the plan is an acquisition, not a build.** A
+single second English over a canon already held would give a real human ceiling, a
+non-identity denominator for every "% of the human layer's value" figure, a second column
+for the blinded fidelity sheet, and the validation the windowing decision needs. Four
+blocked things, one conversation.
+
+**Cost of establishing this: 457 vectors, 406 s of local embedding, deleted afterwards**,
+corpus verified back at 1,066,026 with none unembedded. Against a 539,218-vector purchase
+justified by a probe that cannot be checked.
+
 ## Truncation was doing more good than harm — 2026-09-04
 
 The 320-token cap drops about two-thirds of every 84000 rendering, and `derge.D` scores

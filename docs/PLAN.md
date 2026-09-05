@@ -989,8 +989,33 @@ look right. Neither has been checked against the code.
     carry the extra vectors.
 
     **So the fair validation needs the spend it is meant to justify.** That is the honest
-    position rather than an ordering problem waiting to be solved, and what breaks it is a
-    second English over Degé — the same unblocking as item 13, and the same conversation.
+    position rather than an ordering problem waiting to be solved.
+
+    ▸ **AND THE WAY AROUND IT WAS TRIED AND DOES NOT EXIST — 2026-09-04.** The idea was to
+    validate on the **Pāli**, which has eight human translators and can therefore compare
+    identity-free, by simulating 84000's geometry there: pad each chunk's `sujato` English
+    with its neighbours' to reach ~840 tokens, then query with `suddhaso`'s words. Built,
+    and the coarse arm came out at a median of **133 characters** — *shorter* than the
+    vectors it was meant to dwarf.
+
+    **The reason is structural and closes the question.** The 457 chunks `suddhaso` and
+    `sujato` share sit in **427 texts, averaging 1.9 chunks each**: short Vinaya texts with
+    no neighbours to pad with. And they are not an unlucky subset —
+    **only two human pairs overlap anywhere in this corpus**, `suddhaso × sujato` (457
+    chunks, 427 texts, 1.9 avg) and `soma × sujato` (114, 73, 3.2 avg), with a maximum of
+    **16 chunks in any shared text**. Every other pair shares nothing.
+
+    **So there is no identity-free validation of the coarse-vector problem anywhere in this
+    corpus, by any route.** Not on the Tibetan, where 84000 is the only English; not on the
+    Pāli, where the two-translator overlap is all short texts. The windowing evidence is
+    what it is — a mechanical 16 → 0 on a probe that scores itself — and it cannot be
+    improved with the data held.
+
+    **The unblock is the same one as item 13 and it is not code**: a second English over a
+    canon this corpus already holds. That single acquisition would give a real human
+    ceiling, a non-identity denominator for every "% of human value" figure, a second column
+    for the fidelity sheet, and the validation this item needs. **Four things, one
+    conversation** — which makes it the highest-leverage item on this plan.
 
     **What is still true:** ~58,500 vectors are truncated, and for 84000 **51.8% of queries
     have their own words past the cut**, which is a mechanical ceiling. What changed is the
