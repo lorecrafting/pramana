@@ -1056,9 +1056,9 @@ Phase 2's SAT normalizer, which is the next thing anyone writes.
     honest, measured, and correct — of the **source** layer, which is Classical Chinese and
     still has a p99 of 293.
 
-    Then the English layer arrived. Renderings are 1.5–3× longer, and against the real
-    tokenizer **84000's median is 875 tokens with 100% over the cap**, `patton` 448 and
-    95.3%, `model:mitra` 395 and 90.7%. **About 58,500 of 83,897 translation vectors hold
+    Then the English layer arrived. Renderings are 1.5–5× longer, and against the real
+    tokenizer **84000's median is 841 tokens with 99.3% over the cap**, `patton` 448 and
+    95.3%, `model:mitra` 383 and 79.7%, while `sujato` is 150 and fits. **About 58,500 of 83,897 translation vectors hold
     only their first 320 tokens** — for the Tibetan English, roughly two-thirds of every
     rendering is absent from the index it exists to be searchable in.
 

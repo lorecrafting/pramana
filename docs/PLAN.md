@@ -870,10 +870,19 @@ look right. Neither has been checked against the code.
     | layer | median | p90 | p99 | max | over cap |
     |---|---|---|---|---|---|
     | **source** — what the cap was set on | 278 | 288 | 293 | 295 | **0.0%** |
-    | translation — `sujato` (segment-anchored) | 35 | 84 | 160 | 226 | 0.0% |
-    | translation — `model:mitra` | 395 | 450 | 537 | 607 | **90.7%** |
+    | translation — `suddhaso` | 39 | 58 | 280 | 292 | 0.0% |
+    | translation — `sujato` | 150 | 229 | 286 | 318 | **0.0%** |
+    | translation — `brahmali` | 199 | 311 | 462 | 615 | 8.7% |
+    | translation — `model:mitra` | 383 | 462 | 529 | 688 | **79.7%** |
     | translation — `patton` | 448 | 525 | 614 | 683 | **95.3%** |
-    | translation — **`84000`** | **875** | 990 | 1138 | 1836 | **100.0%** |
+    | translation — **`84000`** | **841** | 1065 | 1617 | 2013 | **99.3%** |
+
+    **▸ Corrected 2026-09-04, same day.** The first version of this table sampled with
+    `ORDER BY id LIMIT 300` — insertion order, not a sample, for a corpus ingested work by
+    work. `sujato` read 35 tokens where a seeded draw gives **150**, a factor of four, and
+    `model:mitra` read 90.7% over the cap against **79.7%**. The conclusions are unchanged
+    and the direction was never in doubt, but a figure drawn without a seed is an anecdote,
+    which is this project's own standard and I did not apply it.
 
     The constant fits the source layer exactly as advertised. **English renderings are
     1.5–3× longer and nobody re-measured.** So a vector for an 875-token 84000 rendering
