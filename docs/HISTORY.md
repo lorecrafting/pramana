@@ -63,6 +63,29 @@ sub-rendering windows, an index artifact with no URN of their own, which is a de
 question rather than a parameter. The result returned is still the chunk, so nothing
 uncitable is served.
 
+**Prototyped the same day, additively, and it works.** 993 sentence-sized windows over the
+same 60 chunks, under synthetic translator ids so no migration was needed, deleted
+afterwards with the corpus verified back at 1,066,026 vectors:
+
+| same 115 queries, same 60 chunks | rank 1 | top-10 | not in 100 |
+|---|---|---|---|
+| one vector per chunk (today) | 60 | 99 · 86.1% | **16** |
+| sentence windows, ~60 tokens | 54 | 115 · 100.0% | **0** |
+
+**The 16 → 0 is the finding; the 100% is not.** Those cases failed because the words sat
+past the truncation point and were absent from the index — windowing puts them in, which is
+mechanical. But the query is 84000's own English and a window is a literal substring of it,
+so the window arm is flattered more than the chunk arm, whose vector is a superset instead.
+Rule 84, and there is no unflattering query available because 84000 is the only English over
+Degé. **Rank-1 also fell, 60 → 54**: windowing costs a little at the top while fixing the
+tail.
+
+**The full build is a decision, not a task.** 16.6 windows per chunk over 32,483 Degé
+chunks is **539,218 vectors — 50.6% growth in an index of 1,066,026** — and local embedding
+would take about five and a half days at the prototype's measured rate. It needs a
+migration first, and then a validation the prototype cannot give: `evals`' own
+`retrieval/tibetan` cases, whose queries nobody drew from 84000.
+
 **Cost of learning this: 60 vectors, 180 seconds of local embedding, no GPU, nothing
 mutated.** Against re-embedding 83,897 vectors on rented hardware to make retrieval worse.
 

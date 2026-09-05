@@ -935,7 +935,41 @@ look right. Neither has been checked against the code.
     index artifact with no URN of their own and therefore a design question rather than a
     parameter. The result is still the chunk, so nothing uncitable is ever returned.
 
-    **That is a build, and it is the one E1 experiment left that the evidence supports.**
+    ▸ **PROTOTYPED 2026-09-04, ADDITIVELY, AND IT WORKS.** 993 sentence-sized windows over
+    the same 60 chunks — one vector per ~60-token window under synthetic translator ids, so
+    no migration and no mutation, deleted afterwards with the corpus verified back at
+    1,066,026 vectors and none unembedded. Same 115 queries:
+
+    | | rank 1 | top-10 | **not in 100** |
+    |---|---|---|---|
+    | one vector per chunk (today) | 60 | 99 · 86.1% | **16** |
+    | sentence windows, ~60 tokens | 54 | 115 · 100.0% | **0** |
+
+    **The decisive part is the 16 → 0, not the 100%.** Those cases failed because the words
+    were past the truncation point and absent from the index; windowing puts them in, which
+    is mechanical rather than statistical.
+
+    **The 100% is inflated and must not be published as a retrieval figure.** The query is
+    84000's own English and a window is a literal substring of it — rule 84 in its strongest
+    form, and it flatters the window arm more than the chunk arm, whose vector is a superset
+    rather than a substring. **No unflattering query exists**: 84000 is the only English
+    over Degé, which is the same wall as item 13. And **rank-1 fell, 60 → 54**, so windowing
+    costs a little at the top of the ranking while fixing the tail; that is a real cost to
+    watch, not a rounding error.
+
+    **What the full build costs, and why it is a decision rather than a task.** 16.6 windows
+    per chunk over 32,483 Degé chunks is **539,218 new vectors — a 50.6% increase in the
+    whole index**, which is 1,066,026 today. Local embedding is out: 993 windows took 899 s,
+    so 539,218 would be about **five and a half days**. It is a GPU purchase and an index
+    that grows by half for one canon's English.
+
+    **What it needs before that spend, in order.** A migration, because `chunk_vectors` is
+    UNIQUE on `(chunk_id, kind, lang, translator_id)` and CHECKs `kind` against a fixed
+    list — a window needs its own kind and a discriminator, not a synthetic translator id
+    (rules 11, 12, 13, 42). Then the honest validation, which the prototype cannot give:
+    **run it against `evals/`'s `retrieval/tibetan`, 30 of 64 today** — real gold cases with
+    queries nobody drew from 84000, which is the only way past the identity problem here.
+    Prototype on a slice large enough to cover those cases rather than on the whole canon.
 
     **What is still true:** ~58,500 vectors are truncated, and for 84000 **51.8% of queries
     have their own words past the cut**, which is a mechanical ceiling. What changed is the
