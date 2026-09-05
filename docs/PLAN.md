@@ -966,10 +966,22 @@ look right. Neither has been checked against the code.
     **What it needs before that spend, in order.** A migration, because `chunk_vectors` is
     UNIQUE on `(chunk_id, kind, lang, translator_id)` and CHECKs `kind` against a fixed
     list — a window needs its own kind and a discriminator, not a synthetic translator id
-    (rules 11, 12, 13, 42). Then the honest validation, which the prototype cannot give:
-    **run it against `evals/`'s `retrieval/tibetan`, 30 of 64 today** — real gold cases with
-    queries nobody drew from 84000, which is the only way past the identity problem here.
-    Prototype on a slice large enough to cover those cases rather than on the whole canon.
+    (rules 11, 12, 13, 42).
+
+    ▸ **AND THE VALIDATION I PROPOSED DOES NOT EXIST — checked 2026-09-04.** I wrote that
+    it should run against `evals/`'s `retrieval/tibetan`, "whose queries nobody drew from
+    84000". **They are all drawn from 84000**: 214 of 214 `retrieval_translation` queries
+    are verbatim prefixes of a stored rendering, checked rather than sampled. That case
+    type carries the same identity property the prototype does and cannot see past it.
+
+    **The only identity-free Tibetan signal is `topical/tibetan` — nine cases, 1 of 9** —
+    far too small to steer a 539,218-vector purchase on. And building windows only over the
+    gold targets would rig the comparison outright, since only the correct chunks would
+    carry the extra vectors.
+
+    **So the fair validation needs the spend it is meant to justify.** That is the honest
+    position rather than an ordering problem waiting to be solved, and what breaks it is a
+    second English over Degé — the same unblocking as item 13, and the same conversation.
 
     **What is still true:** ~58,500 vectors are truncated, and for 84000 **51.8% of queries
     have their own words past the cut**, which is a mechanical ceiling. What changed is the

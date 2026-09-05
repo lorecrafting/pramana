@@ -576,6 +576,15 @@ works can be filtered by period — as a **bound from the author's lifespan**, s
 `date_basis: authority_lifespan`, answering *which century* and never *which year*. That
 filter reads 1,515 works of 17,281 and says so on every use.
 
+**▸ READ THE 92.7% AS A VERIFICATION SCORE.** Measured 2026-09-04: of the 1,472 gold
+cases, **901 (61%) are `citation_guard` and `provenance`** — the model-independent
+guarantees this project exists for — and **214 of 214 `retrieval_translation` queries are
+verbatim prefixes of a rendering the index holds**, so that type is scored with the query
+inside the thing it searches for (rule 84 prices that at ~15 points). **Only 49 cases, 3.3%,
+ask a question in words nobody drew from the corpus**, and they score **30/49 · 61.2%**.
+The gap between 92.7% and 61.2% is the gap between *can it prove what I quote* and *can it
+answer what I ask*. `docs/PROXIES.md`.
+
 **Eval: 92.7% over 1,472 cases** — 1,364 hits, 0 stale, 0 errored. `evals/baseline.json`
 is the published record and this line is copied from it. **Advanced 2026-09-04**, after a
 clean 33m31s gate over a fixed tree: it had recorded 1,359 / 92.3% since 2026-08-28, and

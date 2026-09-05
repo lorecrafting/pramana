@@ -42,6 +42,45 @@ rules 22, 44 and 54 applied to a filename, and it can no longer be picked up by 
 reaching for "the scorecard". A partial run written to a path that looks like the baseline
 is the thing to avoid recreating: name a narrowed run for what it measured.
 
+**▸ WHAT THE 92.7% IS A SCORE OF — measured 2026-09-04, and it is not what the number
+looks like.** The gold set is 1,472 cases, and its composition decides what the headline
+means:
+
+| file | cases | share | what the query is |
+|---|---|---|---|
+| `citation_guard` | 601 | 40.8% | verification — is this quote real, at this address |
+| `provenance` | 300 | 20.4% | metadata — who composed it, when, in what role |
+| `retrieval_definition` | 232 | 15.8% | a **source phrase**: *I have this quote, where is it from* |
+| `retrieval_translation` | 214 | 14.5% | **a stored rendering, verbatim** |
+| `topical` | **49** | **3.3%** | **a question in the reader's own words** |
+| `translation_rendering` | 40 | 2.7% | |
+| `commentary_gloss` | 32 | 2.2% | |
+| `absence` | 4 | 0.3% | |
+
+**All 214 `retrieval_translation` queries are verbatim prefixes of a rendering the index
+holds** — checked, 214 of 214, not sampled. So that case type is scored the way rule 84
+describes: the query is inside the thing it is searching for. `Pramana.Retrieval.Rerank`
+says as much in prose — *"the query IS the rendering of the expected passage"* — and rule
+84 now puts **~15 points** on what that is worth.
+
+**None of this makes the eval wrong, and the composition matches the thesis.** This project
+exists to establish *warrant*, and **901 of 1,472 cases — 61% — are verification and
+provenance**, which is exactly the guarantee `CLAUDE.md` says is model-independent. A
+citation guard scored at 100% is the headline claim, honestly measured.
+
+**What it does mean is that the headline is a verification score, not a retrieval one**, and
+the two should never be quoted as though the first vouched for the second. **49 cases —
+3.3% — ask a question in words nobody drew from the corpus**, and those score **30/49,
+61.2%**, against an overall 92.7%. The distance between 92.7% and 61.2% is the distance
+between *can it prove what I quote* and *can it answer what I ask*, and this project is
+much better at the first, which is the one it promised.
+
+**A practical consequence, recorded because it bit the same day.** An identity-free
+validation of a retrieval change cannot use `retrieval/*` at all. For the Tibetan the only
+identity-free signal is `topical/tibetan` — **nine cases**, currently 1 of 9 — which is too
+small to steer on. Anything that claims to improve Tibetan retrieval either finds a
+non-84000 English source or reports against a probe it cannot fully trust, and says which.
+
 **3. A mechanism that explains the data is not evidence for the mechanism.** Scaling
 MITRA from 205 to 27,956 chunks moved the controlled rung's columns in opposite
 directions: work-level 81.0% → **94.6%**, on the line 40.0% → **33.2%**. The obvious
