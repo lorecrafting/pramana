@@ -16,6 +16,42 @@ noticed the heading was the problem.
 
 ---
 
+## Truncation was doing more good than harm — 2026-09-04
+
+The 320-token cap drops about two-thirds of every 84000 rendering, and `derge.D` scores
+**8.5% on the line**, the weakest column this project publishes. Those looked like the same
+fact, and the positional test said so: splitting each 84000 chunk vector at the cap,
+**51.8% of queries have their own words in the part that was never embedded** — head
+containment 0.597 against a tail's 0.764. On the Chinese the same test had come back 18–0
+the other way, so this is specific to the canon with folio-sized renderings.
+
+A mechanical ceiling, and an obvious remedy: raise the cap.
+
+**The remedy is wrong, and 54 points wrong.** Priced on 60 vectors before spending anything
+— the same content embedded a second time at 1024 tokens under a temporary translator id,
+both arms restricted to the same 60 chunks so density could not vary, the temporary arm
+deleted afterwards and the corpus verified back at 1,066,026 vectors with none unembedded:
+
+| same 115 queries, same 60 chunks | top-10 | not in 100 |
+|---|---|---|
+| embedded at **320** tokens | **96 · 83.5%** | 19 |
+| embedded at **1024** tokens | **34 · 29.6%** | 61 |
+
+**The model is `BAAI/bge-m3`, unadapted, natively good for 8192 tokens**, so this is not a
+fine-tune pushed outside its regime — the confound was checked and does not apply. What is
+left is dilution: mean-pooling over 1024 tokens makes the vector a less specific
+representation of any line inside it. **The cap was accidentally acting as a focusing
+mechanism**, and the truncation everyone would call a defect was buying more than it cost.
+
+**So the fix is smaller units, not a bigger window** — one vector per rendering, which
+removes truncation and dilution together. That is the subspan namespace refuted for the
+Chinese earlier the same day, **live again here because the sizing is opposite**:
+`model:mitra` is 1.00 rendering per chunk and has no subspans to build, while an 84000
+chunk vector concatenates several folio renderings into 884 tokens.
+
+**Cost of learning this: 60 vectors, 180 seconds of local embedding, no GPU, nothing
+mutated.** Against re-embedding 83,897 vectors on rented hardware to make retrieval worse.
+
 ## The human ceiling was the query matching itself — 2026-09-04
 
 Chasing why 26 cases retrieve for patton and not for MITRA, after truncation had been

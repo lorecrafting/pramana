@@ -897,14 +897,35 @@ look right. Neither has been checked against the code.
     effect when one thing differs. The anchor-width account may still be right; it is no
     longer the only candidate, and the Tibetan row is the one where truncation is worst.
 
-    **What it would cost to fix, unmeasured:** raise the cap for translation vectors and
-    re-embed 83,897 of them. At the tranche's measured 126.8 chunks/s that is ~11 minutes
-    of L4 at the current sequence length, and longer sequences cost more — attention is not
-    linear in length, so budget by measuring one batch rather than by scaling this figure.
-    **What it would BUY is unmeasured and should not be assumed**: `patton` is truncated
-    *more* than `model:mitra` (95.3% against 90.7%) and still scores 23 cases better, so
-    truncation plainly is not the dominant term everywhere. **Measure the gain on one arm
-    before re-embedding the corpus.**
+    ▸ **RAISING THE CAP IS NOT THE FIX. IT IS 54 POINTS WORSE — measured 2026-09-04.**
+
+    The obvious remedy was to raise the cap and re-embed. Priced first on 60 vectors,
+    additively: the same 84000 content embedded a second time at **1024** tokens under a
+    temporary translator id, both arms restricted to the same 60 chunks so density is held,
+    then the temporary arm deleted. Same 115 queries:
+
+        embedded at  320 tokens (today's corpus)   96/115   83.5%   19 not in 100
+        embedded at 1024 tokens                    34/115   29.6%   61 not in 100
+
+    **The model is `BAAI/bge-m3`, unadapted, and natively supports 8192 tokens**, so this
+    is not a fine-tune running outside its regime — 1024 is well inside its design. The
+    mechanism is dilution: mean-pooling over 1024 tokens makes the vector a less specific
+    representation of any one line inside it. **The 320-token cut was accidentally acting
+    as a focusing mechanism**, and truncation was doing more good than harm.
+
+    **So the fix for the Tibetan is smaller units, not a bigger window** — one vector per
+    rendering rather than one per chunk, which removes the truncation *and* the dilution
+    together. That is the subspan namespace, refuted for the Chinese on 2026-09-04 and
+    **live again here, because the sizing is completely different**: `model:mitra` is 1.00
+    rendering per chunk and has no subspans to build, while an 84000 chunk vector
+    concatenates several folio-sized renderings into 884 tokens.
+
+    **What is still true:** ~58,500 vectors are truncated, and for 84000 **51.8% of queries
+    have their own words past the cut**, which is a mechanical ceiling. What changed is the
+    remedy. Do not re-embed at a longer length; **prototype one-vector-per-rendering on
+    84000 and measure it against the 83.5% above.**
+
+    Cost of this experiment: 60 vectors, 180 s of local embedding, no GPU, nothing mutated.
 
 13. **▸ THE "HUMAN CEILING" IS AN IDENTITY MATCH, AND EVERY RECOVERY FIGURE DIVIDES BY IT.**
     Found 2026-09-04. `mix pramana.recall --renderings` samples **human** renderings as

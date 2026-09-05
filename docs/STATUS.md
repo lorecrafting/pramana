@@ -391,6 +391,12 @@ makes a longer rendering, and a longer rendering is more truncated**, so anchor 
 embedding truncation predict the same ordering in the table below and neither is isolated.
 Rule 80. `docs/PLAN.md` item 12.
 
+**And the obvious remedy is refuted: embedding the same content at 1024 tokens instead of
+320 is 54 points WORSE** — 96/115 against 34/115 on 60 held-constant chunks, with an
+unadapted BGE-M3 that natively supports 8192. Mean-pooling over more tokens dilutes; the
+cap was accidentally focusing. The fix for the Tibetan is **smaller units, not a bigger
+window**.
+
 **`on the line` scores whether the retrieved span CONTAINS the whole anchor, so it is
 mostly a function of anchor width** — 84000 anchors English to folios of about seven Degé
 lines, and the chunk that matched is often smaller than that. The column is inversely
