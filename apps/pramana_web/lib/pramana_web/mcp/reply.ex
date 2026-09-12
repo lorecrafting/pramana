@@ -6,19 +6,23 @@ defmodule PramanaWeb.MCP.Reply do
   and you get the same bytes. This records the same thing one layer up, for a **retrieval**:
   `{tool, arguments, bake_id}` is the call that produced this answer.
 
-  ## ▸ WHAT `bake_id` DOES NOT PIN — 2026-09-03
+  ## ▸ WHAT `bake_id` DOES NOT PIN — 2026-09-03, repaired 2026-09-04
 
   This said `{tool, arguments, bake_id}` was **enough to run the query again and get the
-  same answer.** It is not, and had not been since the day before it was written.
+  same answer.** It was not, and had not been since the day before it was written.
   `Pramana.Bake` hashes acquired bytes, normalisation and bake config; it does **not** move
   when renderings are imported or chunks re-embedded, and 27,751 of each landed under an
   unchanged id.
 
-  So the replay record identifies **the call and the source text**, not the index that
-  ranked it. A resolved passage is still byte-identical; a search is not
-  result-identical. Saying otherwise on every one of the tool responses — which is what
-  this module does — teaches a reader to check an id that cannot answer the question.
-  `docs/PLAN.md` item 10 carries the split that would make the original sentence true.
+  **Both ids now ship, because they answer different questions.** `bake_id` identifies the
+  **source text**: resolve a URN against it and the bytes are the same, which is what makes
+  a citation checkable and was never in doubt. `release_id` identifies the **retrieval
+  state** — source plus English layer plus index — and is the one to compare when the
+  question is whether a *search* would return the same thing. `Pramana.Release`.
+
+  `release_id` is `nil` until something stamps one, and that is deliberate: an id invented
+  at read time would differ between two processes reading one corpus, which is worse than
+  admitting there is none.
 
   That is what `docs/IDEAS.md` stars as *"show your work" mode*, in its smallest useful
   form. A model writing a sourced report can attach the `replay` record beside each claim,
@@ -67,6 +71,12 @@ defmodule PramanaWeb.MCP.Reply do
 
     payload
     |> Map.put(:bake_id, Pramana.Bake.current_id())
+    # WHAT ANSWERED, beside what was baked. `bake_id` identifies the source text and moves
+    # only when the corpus is re-acquired or re-normalised; `release_id` moves when the
+    # English layer or the index does, which is what a SEARCH depends on. Both are stamped
+    # because they answer different questions and the first was being read as though it
+    # answered the second. `Pramana.Release`.
+    |> Map.put(:release_id, Pramana.Release.current_id())
     |> Map.put(:replay, %{tool: tool, arguments: normalize(arguments)})
     |> then(&Response.json(Response.tool(), &1))
   end

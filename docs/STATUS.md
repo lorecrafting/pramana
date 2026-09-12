@@ -33,7 +33,7 @@ between the markers; edit the corpus, or run the task.
 | | |
 |---|---|
 | texts | **17,281** |
-| segments | **12,586,964** |
+| segments | **12,581,625** |
 | chunks | **980,464** |
 | vectors | **1,066,026** |
 | renderings | **273,334** |

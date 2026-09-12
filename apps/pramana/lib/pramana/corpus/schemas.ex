@@ -204,6 +204,32 @@ defmodule Pramana.Corpus.Bake do
   end
 end
 
+defmodule Pramana.Corpus.Release do
+  @moduledoc """
+  What produced an answer, as opposed to what produced a passage.
+
+  `Pramana.Bake` identifies the source text and nothing else. This identifies the whole
+  retrieval state — source, English layer, index — and is the id a caller should cite when
+  they mean *this search returned this*. See `Pramana.Release`.
+  """
+  use Ecto.Schema
+
+  @type t :: %__MODULE__{}
+
+  schema "releases" do
+    field :release_id, :string
+    field :source_bake_id, :string
+    field :translation_set_id, :string
+    field :vector_set_id, :string
+    field :translations_count, :integer
+    field :vectors_count, :integer
+    field :embedding_models, {:array, :string}, default: []
+    field :translators, {:array, :string}, default: []
+    field :stamped_at, :utc_datetime_usec
+    timestamps(type: :utc_datetime_usec)
+  end
+end
+
 defmodule Pramana.Corpus.Chunk do
   @moduledoc """
   A retrieval chunk: a window over consecutive segments, and the unit that gets

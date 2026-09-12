@@ -48,7 +48,7 @@ defmodule Pramana.Guard do
   # `:quote_mismatch` — a true failure for a false reason, which is the kind of finding
   # that gets dismissed. Translator ids include `:`, `@` and `+`
   # (`model:claude-opus-5@prompt-v3+glossary-ddb2`).
-  @urn_source "pramana:[a-zA-Z0-9_.\\-]+:[a-zA-Z0-9_.\\-]+(?:@[a-zA-Z0-9_.\\-]+)?" <>
+  @urn_source "pramana:[a-zA-Z0-9_.\\-]+:[a-zA-Z0-9_.\\-]+(?:@[a-zA-Z0-9_.\\-+]+)?" <>
                 "(?:#tr:[a-zA-Z0-9_.\\-]+/[a-zA-Z0-9_.\\-@+:]+)?"
   @urn_pattern Regex.compile!(@urn_source)
   @quoted_citation Regex.compile!(
@@ -73,7 +73,10 @@ defmodule Pramana.Guard do
           # `"source"` or `"translation"`. A caller that requires scripture rather than
           # a rendering can reject on this without re-parsing the URN, and a verified
           # quote of a translation never reads as a verified quote of the text.
-          layer: String.t()
+          layer: String.t(),
+          # Byte offset in the inspected text where this URN occurrence was found.
+          # Present only when the finding was produced by `check_output/1`.
+          source_offset: non_neg_integer() | nil
         }
 
   @doc """
@@ -121,7 +124,8 @@ defmodule Pramana.Guard do
           quoted: quoted_text,
           actual: nil,
           provenance: nil,
-          layer: "source"
+          layer: "source",
+          source_offset: nil
         }
 
       {:ok, span} ->
@@ -175,7 +179,7 @@ defmodule Pramana.Guard do
     finding(urn, span, quoted, verdict)
   end
 
-  defp finding(urn, span, quoted, verdict) do
+  defp finding(urn, span, quoted, verdict, source_offset \\ nil) do
     provenance = Map.get(span, :provenance)
 
     %{
@@ -184,7 +188,8 @@ defmodule Pramana.Guard do
       quoted: quoted,
       actual: span.content,
       provenance: provenance,
-      layer: Map.get(provenance || %{}, :layer, "source")
+      layer: Map.get(provenance || %{}, :layer, "source"),
+      source_offset: source_offset
     }
   end
 
@@ -397,7 +402,10 @@ defmodule Pramana.Guard do
     findings =
       text
       |> citation_pairs()
-      |> Enum.map(fn {urn, quoted} -> check(urn, quoted) end)
+      |> Enum.map(fn {urn, quoted, source_offset} ->
+        finding = check(urn, quoted)
+        %{finding | source_offset: source_offset}
+      end)
 
     failed = Enum.count(findings, &(&1.verdict != :ok))
 
@@ -422,23 +430,51 @@ defmodule Pramana.Guard do
     }
   end
 
-  # Pairs a URN with the quotation immediately preceding it, when one is present in a
-  # recognised form. Returns {urn, quoted_or_nil}.
+  # Pairs every URN occurrence with its associated quoted text, preserving
+  # duplicates and document order. Returns [{urn, quoted_or_nil, byte_offset}].
+  #
+  # Each occurrence is independently tracked by its byte position in the text,
+  # so the same URN repeated at different positions is returned multiple times.
+  # This is the whole point: a valid quotation followed by an invented one at the
+  # same URN must both be found and checked independently.
   defp citation_pairs(text) do
-    quoted_by_urn =
-      @quoted_citation
-      |> Regex.scan(text)
-      # TRIMMED HERE TOO, or the keys stop matching. `extract_urns/1` trims the sentence
-      # punctuation off a URN; this map is keyed by the URN as the pairing regex captured
-      # it, and leaving the period on made every lookup miss. The quotation then read as
-      # absent and the citation was checked for EXISTENCE only — a silent downgrade from
-      # a byte comparison to nothing of the kind, reported as `ok`.
-      #
-      # Rule 41, inside the commit that introduced the trim.
-      |> Map.new(fn [_, quote, urn] -> {trim_sentence_punctuation(urn), quote} end)
+    # Find all quoted citation occurrences with their byte positions (for dedup)
+    quoted_matches_idx = Regex.scan(@quoted_citation, text, return: :index)
 
-    text
-    |> extract_urns()
-    |> Enum.map(fn urn -> {urn, Map.get(quoted_by_urn, urn)} end)
+    quoted_urn_positions =
+      quoted_matches_idx
+      |> Enum.map(fn [_, _, {upos, _ulen}] -> upos end)
+      |> MapSet.new()
+
+    # Build position -> {urn, quote} using string captures (NOT :index slicing)
+    quoted_strings = Regex.scan(@quoted_citation, text)
+
+    quoted_by_pos =
+      quoted_matches_idx
+      |> Enum.zip(quoted_strings)
+      |> Enum.map(fn {[_, _, {upos, _ulen}], [_, quote, urn]} ->
+        {upos, {trim_sentence_punctuation(urn), quote}}
+      end)
+      |> Map.new()
+
+    # Find bare URNs not already part of a quoted citation
+    bare_idx = Regex.scan(@urn_pattern, text, return: :index)
+    bare_strings = Regex.scan(@urn_pattern, text)
+
+    bare_by_pos =
+      bare_idx
+      |> Enum.zip(bare_strings)
+      |> Enum.reject(fn {[{pos, _len}], [_urn_str]} ->
+        MapSet.member?(quoted_urn_positions, pos)
+      end)
+      |> Enum.map(fn {[{pos, _len}], [urn_str]} ->
+        {pos, {trim_sentence_punctuation(urn_str), nil}}
+      end)
+      |> Map.new()
+
+    # Merge in position order — every occurrence, no deduplication
+    Map.merge(quoted_by_pos, bare_by_pos)
+    |> Enum.sort_by(fn {pos, _pair} -> pos end)
+    |> Enum.map(fn {pos, {urn, quote}} -> {urn, quote, pos} end)
   end
 end

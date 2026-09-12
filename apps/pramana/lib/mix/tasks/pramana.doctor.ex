@@ -43,6 +43,7 @@ defmodule Mix.Tasks.Pramana.Doctor do
     Mix.Task.run("app.start")
 
     bake()
+    release()
     corpus()
     sources()
     gaps()
@@ -52,6 +53,47 @@ defmodule Mix.Tasks.Pramana.Doctor do
     migrations()
 
     Mix.shell().info("")
+  end
+
+  # WHAT ANSWERED, beside what was baked. `bake_id` does not move when renderings are
+  # imported or chunks re-embedded — 27,751 of each landed under an unchanged one — so a
+  # search's identity is a different id. A RECORDED id can go stale where a computed one
+  # cannot, which would put the original defect in a new place, so the drift is reported
+  # here rather than trusted. `Pramana.Release`.
+  defp release do
+    heading("release")
+
+    case Pramana.Release.current() do
+      nil ->
+        warn("never stamped — responses carry no release_id. Run `mix pramana.release.stamp`")
+
+      current ->
+        row("release_id", String.slice(current.release_id, 0, 16))
+        row("stamped", "#{current.stamped_at}")
+
+        row(
+          "covers",
+          "#{current.translations_count} rendering(s), #{current.vectors_count} vector(s)"
+        )
+
+        case Pramana.Release.drift() do
+          :current ->
+            ok("stamp still describes the corpus")
+
+          moved ->
+            report_drift(moved)
+        end
+    end
+  end
+
+  defp report_drift(moved) do
+    warn("STALE — the corpus moved since it was stamped:")
+
+    for {key, %{stamped: was, live: now}} <- moved do
+      row("  #{key}", "#{inspect(was)} -> #{inspect(now)}")
+    end
+
+    warn("responses name a release that is not this one. `mix pramana.release.stamp`")
   end
 
   defp bake do

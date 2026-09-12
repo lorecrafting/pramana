@@ -248,5 +248,116 @@ defmodule Pramana.GuardTest do
       assert result.ok?
       assert result.checked == 0
     end
+
+    # ▸ F1 REGRESSION — repeated URNs are assessed independently
+    #
+    # The bug: `check_output/1` built a Map keyed by URN, keeping only the last
+    # associated quote. A fabricated quote followed by a genuine one with the
+    # same URN was silently dropped, and the guard reported `ok? true` for output
+    # containing an unverified invention.
+    #
+    # Fix: every occurrence is tracked by its byte position in the text, so
+    # the same URN appearing multiple times yields one independent finding per
+    # occurrence.
+    test "repeated URN with a fabricated then genuine quote fails on the fabrication", ctx do
+      output = """
+      The sūtra begins 「INVENTED WORDS」【#{ctx.urn}】.
+      It also opens 「#{ctx.content}」【#{ctx.urn}】.
+      """
+
+      result = Guard.check_output(output)
+
+      assert result.checked == 2, "both occurrences must be checked independently"
+      assert result.failed == 1, "the fabricated quote must fail independently"
+      refute result.ok?, "a fabrication in any occurrence must make ok? false"
+
+      assert [
+               %{verdict: :quote_mismatch, source_offset: first_off},
+               %{verdict: :ok, source_offset: second_off}
+             ] = result.findings
+
+      assert first_off < second_off, "findings must be in document order"
+      assert is_integer(first_off) and first_off >= 0
+    end
+
+    test "repeated URN with genuine then fabricated quote fails on the second", ctx do
+      output =
+        "It opens 「#{ctx.content}」【#{ctx.urn}】. " <>
+          "But also claims 「MADE UP TEXT」【#{ctx.urn}】."
+
+      result = Guard.check_output(output)
+
+      assert result.checked == 2
+      assert result.failed == 1
+      refute result.ok?
+
+      assert [
+               %{verdict: :ok, source_offset: first_off},
+               %{verdict: :quote_mismatch, source_offset: second_off}
+             ] = result.findings
+
+      assert first_off < second_off
+    end
+
+    test "repeated URN in separate paragraphs are all independently checked", ctx do
+      output = """
+      First para: 「#{ctx.content}」【#{ctx.urn}】.
+
+      Second para: 「ALSO INVENTED」【#{ctx.urn}】.
+
+      Third para: 「又引」【#{ctx.urn}】.
+      """
+
+      result = Guard.check_output(output)
+
+      assert result.checked == 3
+      assert result.failed == 2
+      assert result.verified_quotes == 1
+
+      assert [
+               %{verdict: :ok},
+               %{verdict: :quote_mismatch},
+               %{verdict: :quote_mismatch}
+             ] = result.findings
+    end
+
+    test "blank and whitespace-only quotes are tracked independently", ctx do
+      output = """
+      Empty 「」【#{ctx.urn}】.
+      Space only 「   」【#{ctx.urn}】.
+      """
+
+      result = Guard.check_output(output)
+
+      # A blank quote becomes `nil` (existence-only check), whitespace trims to
+      # empty which matches any span. Both are tracked as independent occurrences.
+      assert result.checked == 2
+      assert length(result.findings) == 2
+      # At minimum both occurrences are independently tracked with different
+      # source_offsets, and the blank one is reported as existence_only
+      assert [%{source_offset: off1}, %{source_offset: off2}] = result.findings
+      assert off1 < off2
+    end
+  end
+
+  describe "extract_urns/1 — +2 locator suffix" do
+    test "preserves +N locator extension (F1 regression)" do
+      assert Guard.extract_urns("pramana:derge.D:toh1@1.1a.1+2") ==
+               ["pramana:derge.D:toh1@1.1a.1+2"]
+    end
+
+    test "preserves +N in context of prose" do
+      assert Guard.extract_urns("see pramana:derge.D:toh1@1.1a.1+2 for details.") ==
+               ["pramana:derge.D:toh1@1.1a.1+2"]
+    end
+
+    test "multiple +N locators in one paragraph" do
+      text = "first pramana:derge.D:toh1@1.1a.1+2 then pramana:derge.D:toh2@2.1b.3+5"
+
+      assert Guard.extract_urns(text) == [
+               "pramana:derge.D:toh1@1.1a.1+2",
+               "pramana:derge.D:toh2@2.1b.3+5"
+             ]
+    end
   end
 end

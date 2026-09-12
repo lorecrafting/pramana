@@ -64,6 +64,10 @@ what has dates and authority links; the last gate result if one is recorded.
 Highest value per hour of anything here, because it is read-only, needs no design decisions,
 and every future session pays the cost of its absence.
 
+**`mix pramana.release.stamp`** records what the retrieval state was at a moment; `mix
+pramana.doctor` reports whether the recorded stamp still matches the live corpus. See
+`Pramana.Release`.
+
 **▸ BUILT 2026-08-29**, and building it found a defect in something else.
 
 `Inventory.snapshot/0` takes **9.8 seconds**, against ~300 ms for every coverage figure it

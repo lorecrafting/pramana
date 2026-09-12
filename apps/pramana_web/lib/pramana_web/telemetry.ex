@@ -80,12 +80,17 @@ defmodule PramanaWeb.Telemetry do
       # is why `docs/OBSERVABILITY.md` could say the running system was unobserved while a
       # metrics module existed. See `Pramana.Telemetry` for what each event answers.
       summary("pramana.retrieval.search.duration",
+        event_name: "pramana.retrieval.search",
         unit: {:native, :millisecond},
         tags: [:mode, :outcome],
         description: "Retrieval, by mode — and `retrievers` says which arms actually ran"
       ),
-      summary("pramana.retrieval.search.results", description: "Results returned, zero included"),
+      summary("pramana.retrieval.search.results",
+        event_name: "pramana.retrieval.search",
+        measurement: :results,
+        description: "Results returned, zero included"),
       summary("pramana.guard.check.duration",
+        event_name: "pramana.guard.check",
         unit: {:native, :millisecond},
         tags: [:verdict],
         description: "Citation checks by verdict — refusals are the signal"
@@ -103,19 +108,25 @@ defmodule PramanaWeb.Telemetry do
         description: "Citation refusals by verdict — a rising rate is a corpus problem"
       ),
       counter("pramana.coverage.caveat.fired",
+        event_name: "pramana.coverage.caveat",
+        measurement: :fired,
         tags: [:kinds],
         description: "Which gap callers keep hitting — a prioritised acquisition list"
       ),
       counter("pramana.mcp.tool.calls",
+        event_name: "pramana.mcp.tool",
+        measurement: :calls,
         tags: [:tool],
         description: "Which tools a model actually reaches for"
       ),
       summary("pramana.bake.work.duration",
+        event_name: "pramana.bake.work",
         unit: {:native, :millisecond},
         tags: [:outcome],
         description: "Per work, so a slow bake can be attributed"
       ),
       summary("pramana.acquire.fetch.bytes",
+        event_name: "pramana.acquire.fetch",
         tags: [:source, :outcome],
         description: "Bytes fetched — what distinguishes a slow link from a truncated one"
       ),
