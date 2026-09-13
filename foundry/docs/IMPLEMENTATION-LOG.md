@@ -692,6 +692,17 @@ steps.
   excluded from the commit and restored afterward. FR-05 is implemented and reviewed,
   **not deployed**. FR-13/14/17 retain artifact, Git integration and immutable activation;
   FR-22 retains lifecycle acceptance.
+- Integrated commit `7fa3519d633375eec66767be02d3b20de0bc0cdd`, tree
+  `928a59e594c4cf6788b58a3ca393f636a75f8e52`, received independent Astra-medium
+  [integration attestation](fr-05/integration-attestation.md), SHA-256
+  `a6e5facd13a8a764aefff4e7a7c6302e644a96f2cf5fd3e9f4c539efa58eaafa`:
+  **PASS**. All 26 frozen paths and four provenance artifacts match the candidate;
+  only the three expected completion documents differ. The reviewer independently ran
+  23 focused tests with fresh compilation. Coordinator clean-checkout validation ran the
+  wider nine-file set: the first attempt exposed nested Elixir 1.19.5 selection
+  (67/83), the pinned-PATH/external-build attempt exposed two tests' checkout-local
+  `_build` assumption (81/83), and the corrected pinned-PATH/fresh checkout-local build
+  passed **83/83**, seed 507. These superseded attempts did not expose product failures.
 
 ### FR-01 candidate v4 — frozen validation correction
 
