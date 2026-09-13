@@ -566,6 +566,22 @@ steps.
   evidence and exact native session identity, bind fresh cleanup to a pre-start snapshot,
   durably retain every cleanup obligation/result, and keep unresolved resources visible
   and capacity-blocking without absorbing FR-10's full reconciliation redesign.
+- Candidate v2 response SHA-256
+  `f00880a5c1a9ed312428d33e2f05676d0e105513b022e7fe85f4b996d2910640`
+  added strict shell-generation/session identity, pre-start capture, checked pending/result
+  cleanup events and replayed blocking state; its expanded isolated suite passed 83 tests.
+- Renewed Astra-medium review still returned **FAIL**; review-v2 SHA-256
+  `3e145afbec9f725222ef8913ef565f7ad49d5f6f268fd4b2301b7b1c8a6247c2`.
+  Exact hashes matched, but independent probes found three residuals: foreground process
+  identity/generation was discarded so a replacement under the same shell could close;
+  production shutdown deadlocked through RuntimeOwner → subtree → Coordinator →
+  RuntimeOwner ownership verification, wrote no cleanup event, then removed the unclean
+  marker; and cleanup replay restored a stale pre-cleanup status over a newer approved
+  verdict while actual admission did not reserve capacity for unresolved cleanup.
+- V3 correction must retain foreground incarnation evidence, keep the fence query responsive
+  while effect children drain (without early release), preserve the latest independent work
+  verdict, remove blocked work from the ordinary queue and conservatively block admission
+  while cleanup is outstanding. FR-04 remains active and unintegrated.
 
 ### FR-05
 
