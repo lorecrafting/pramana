@@ -4,9 +4,14 @@ defmodule Pramana.AuthorityTest do
   "the same translator" inherits the error silently. So the tests are mostly about what this
   refuses.
   """
-  use ExUnit.Case, async: true
+  use Pramana.DataCase, async: true
 
   alias Pramana.Authority
+  alias Pramana.Corpus.AuthorityPerson
+  alias Pramana.Corpus.AuthorityPlace
+  alias Pramana.Corpus.AuthorityRelation
+  alias Pramana.Corpus.Work
+  alias Pramana.Repo
 
   defp idx(people), do: Authority.index(people)
 
@@ -232,6 +237,258 @@ defmodule Pramana.AuthorityTest do
     test "a record with no dynasty parses, and simply cannot disambiguate" do
       assert [%{dynasty: nil}] =
                Authority.parse_people(~s(<person xml:id="A1"><persName>某</persName></person>))
+    end
+  end
+
+  describe "works/2" do
+    test "returns works attributed to an authority person with pagination" do
+      Repo.insert!(%Work{
+        id: "T0001",
+        title: "長阿含經",
+        attributed_author: "後秦 竺佛念譯",
+        composition_origin: "indic",
+        text_role: "root",
+        authority_id: "A001234",
+        authority_method: "name_and_dynasty",
+        authority_confidence: "probable"
+      })
+
+      Repo.insert!(%Work{
+        id: "T0002",
+        title: "七佛父母姓字經",
+        attributed_author: "後秦 竺佛念譯",
+        composition_origin: "indic",
+        text_role: "root",
+        authority_id: "A001234",
+        authority_method: "name_and_dynasty",
+        authority_confidence: "probable"
+      })
+
+      Repo.insert!(%Work{
+        id: "T0003",
+        title: "別譯雜阿含經",
+        attributed_author: "失譯",
+        authority_id: "A999999"
+      })
+
+      res = Authority.works("A001234")
+      assert res.authority_id == "A001234"
+      assert res.count == 2
+      assert res.returned == 2
+      assert res.bylines == ["後秦 竺佛念譯"]
+      assert length(res.works) == 2
+
+      # Test pagination limit
+      paged = Authority.works("A001234", limit: 1)
+      assert paged.count == 2
+      assert paged.returned == 1
+    end
+  end
+
+  defp insert_person!(attrs) do
+    %AuthorityPerson{}
+    |> Ecto.Changeset.change(Map.put_new(attrs, :source, "dila-authority"))
+    |> Repo.insert!()
+  end
+
+  defp insert_place!(attrs) do
+    %AuthorityPlace{}
+    |> Ecto.Changeset.change(Map.put_new(attrs, :source, "dila-authority"))
+    |> Repo.insert!()
+  end
+
+  defp insert_relation!(attrs) do
+    %AuthorityRelation{}
+    |> Ecto.Changeset.change(Map.put_new(attrs, :source, "dila-authority"))
+    |> Repo.insert!()
+  end
+
+  describe "person/1" do
+    test "returns nil for nonexistent authority id" do
+      assert Authority.person("A_NONEXISTENT") == nil
+    end
+
+    test "returns detailed person record with place, dates, and lineage" do
+      insert_place!(%{
+        id: "PL0001",
+        name: "長安",
+        name_en: "Chang'an",
+        district: "中國-陝西-西安",
+        district_path: ["中國", "陝西", "西安"],
+        country: "關內道",
+        region_name: "關中",
+        lon: 108.9,
+        lat: 34.2,
+        geo_cert: "high"
+      })
+
+      insert_person!(%{
+        id: "A001000",
+        name: "玄奘",
+        names: ["玄奘", "三藏法師"],
+        dynasty: "唐",
+        place_id: "PL0001",
+        place_of_origin: "洛州緱氏",
+        birth_earliest: ~D[0602-01-01],
+        birth_latest: ~D[0602-12-31],
+        birth_note: "約生於仁壽二年",
+        death_earliest: ~D[0664-03-07],
+        death_latest: ~D[0664-03-07],
+        death_note: "麟德元年二月五日示寂",
+        sect: "法相宗",
+        active_at: ["長安", "洛陽"],
+        monk: true,
+        concise: "唐代著名高僧、佛經翻譯家",
+        external_ids: %{"wikidata" => "Q42057"}
+      })
+
+      Repo.insert!(%Work{
+        id: "T0220",
+        title: "大般若波羅蜜多經",
+        attributed_author: "唐 玄奘譯",
+        authority_id: "A001000"
+      })
+
+      p = Authority.person("A001000")
+      assert p != nil
+      assert p.authority_id == "A001000"
+      assert p.name == "玄奘"
+      assert p.also_known_as == ["三藏法師"]
+      assert p.dynasty == "唐"
+      assert p.monk == true
+      assert p.sect == "法相宗"
+      assert p.external_ids == %{"wikidata" => "Q42057"}
+      assert p.works_in_bake == 1
+
+      # Dates range
+      assert p.birth.earliest == ~D[0602-01-01]
+      assert p.birth.latest == ~D[0602-12-31]
+      assert p.birth.exact == false
+      assert p.death.exact == true
+
+      # Place record
+      assert p.place != nil
+      assert p.place.place_id == "PL0001"
+      assert p.place.name == "長安"
+      assert p.place.historical_region == "關內道"
+      assert p.place.lon == 108.9
+      assert p.place.lat == 34.2
+    end
+
+    test "handles person with nil place_id, unresolvable place_id, and unrecorded dates" do
+      insert_person!(%{
+        id: "A002000",
+        name: "無名",
+        place_id: nil,
+        birth_earliest: nil,
+        birth_latest: nil,
+        death_earliest: nil,
+        death_latest: nil
+      })
+
+      p = Authority.person("A002000")
+      assert p.place == nil
+      assert p.birth == nil
+      assert p.death == nil
+
+      # Unresolvable place_id
+      insert_person!(%{
+        id: "A003000",
+        name: "佚名",
+        place_id: "PL_MISSING"
+      })
+
+      p3 = Authority.person("A003000")
+      assert p3.place == nil
+    end
+  end
+
+  describe "lineage/1" do
+    test "retrieves recorded teachers and students" do
+      insert_person!(%{id: "A10", name: "戒賢"})
+      insert_person!(%{id: "A20", name: "玄奘"})
+      insert_person!(%{id: "A30", name: "窺基"})
+
+      Repo.insert!(%AuthorityRelation{
+        person_id: "A20",
+        related_id: "A10",
+        type: "teacher",
+        related_name: "戒賢",
+        source: "dila"
+      })
+
+      Repo.insert!(%AuthorityRelation{
+        person_id: "A20",
+        related_id: "A30",
+        type: "student",
+        related_name: "窺基",
+        source: "dila"
+      })
+
+      lineage = Authority.lineage("A20")
+      assert length(lineage.teachers) == 1
+      assert hd(lineage.teachers).id == "A10"
+      assert hd(lineage.teachers).name == "戒賢"
+
+      assert length(lineage.students) == 1
+      assert hd(lineage.students).id == "A30"
+      assert hd(lineage.students).name == "窺基"
+    end
+  end
+
+  describe "teacher_chain/2" do
+    test "walks teacher lineage upward until no teacher is recorded" do
+      insert_person!(%{id: "T1", name: "師父"})
+      insert_person!(%{id: "T2", name: "徒弟"})
+
+      insert_relation!(%{
+        person_id: "T2",
+        related_id: "T1",
+        type: "teacher",
+        related_name: "師父"
+      })
+
+      res = Authority.teacher_chain("T2")
+      assert res.stopped == :no_teacher_recorded
+      assert res.branched == false
+      assert Enum.map(res.chain, & &1.id) == ["T1"]
+    end
+
+    test "stops at max depth limit" do
+      insert_person!(%{id: "L1", name: "一代"})
+      insert_person!(%{id: "L2", name: "二代"})
+      insert_person!(%{id: "L3", name: "三代"})
+
+      insert_relation!(%{person_id: "L3", related_id: "L2", type: "teacher"})
+      insert_relation!(%{person_id: "L2", related_id: "L1", type: "teacher"})
+
+      res = Authority.teacher_chain("L3", depth: 1)
+      assert res.stopped == :depth
+      assert length(res.chain) == 1
+      assert hd(res.chain).id == "L2"
+    end
+
+    test "detects cycles and flags branching" do
+      insert_person!(%{id: "C1", name: "甲"})
+      insert_person!(%{id: "C2", name: "乙"})
+
+      # Cycle: C1 taught C2, C2 taught C1
+      insert_relation!(%{person_id: "C1", related_id: "C2", type: "teacher"})
+      insert_relation!(%{person_id: "C2", related_id: "C1", type: "teacher"})
+
+      res = Authority.teacher_chain("C1")
+      assert res.stopped == :cycle
+
+      # Branching: person has 2 teachers
+      insert_person!(%{id: "B0", name: "學人"})
+      insert_person!(%{id: "B1", name: "師父一"})
+      insert_person!(%{id: "B2", name: "師父二"})
+
+      insert_relation!(%{person_id: "B0", related_id: "B1", type: "teacher"})
+      insert_relation!(%{person_id: "B0", related_id: "B2", type: "teacher"})
+
+      res_branched = Authority.teacher_chain("B0")
+      assert res_branched.branched == true
     end
   end
 end
