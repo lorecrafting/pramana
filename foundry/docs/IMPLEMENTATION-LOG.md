@@ -765,6 +765,18 @@ steps.
   real RLIMIT_FSIZE SQLite COMMIT I/O error with prior-state preservation. A deterministic
   failed-fsync syscall remains explicitly unproved because Exqlite exposes no VFS fault
   hook. Fresh Astra-high review owns both the corrections and that narrow disposition.
+- Renewed Astra-high review SHA-256
+  `4dab766e7616e40630d2000499319f37ee8216851f5a73f25cf74f6a2c9e8ad4`
+  returned **FAIL** after matching all 22 hashes, independently passing 44 focused tests
+  and reproducing eight defects. R1, ordinary R3 ordering and R9 are corrected; full
+  backup table coverage and real COMMIT I/O failure are also material improvements.
+  Remaining blockers are idempotent-path corruption that does not fence; incompatible
+  admission/start/read body validation; symlink store aliases bypassing gateway/import
+  ownership; stale semantic rejection not retained as an idempotent durable result;
+  unconserved caller-supplied child allocation; a purported reconstruction digest that
+  does not reconstruct projection state; and the still-required attributed sync-failure
+  case. Candidate `b88918d` remains unintegrated. The same implementation owner is making
+  bounded corrections; renewed exact-candidate review remains mandatory.
 
 ### FR-08 preparation
 
