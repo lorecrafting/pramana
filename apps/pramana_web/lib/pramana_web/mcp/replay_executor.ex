@@ -97,16 +97,17 @@ defmodule PramanaWeb.MCP.ReplayExecutor do
   # success carries JSON, so the success clause matched it, tried to decode the message and
   # reported `:tool_returned_unparseable_json` — an error about our parser, for a tool that
   # had refused perfectly clearly.
-  defp decode(%{isError: true} = response), do: {:error, {:tool_error, error_text(response)}}
+  @doc false
+  def decode(%{isError: true} = response), do: {:error, {:tool_error, error_text(response)}}
 
-  defp decode(%{content: [%{"text" => json} | _]}) do
+  def decode(%{content: [%{"text" => json} | _]}) do
     case Jason.decode(json) do
       {:ok, payload} -> {:ok, payload}
       {:error, _} -> {:error, :tool_returned_unparseable_json}
     end
   end
 
-  defp decode(other), do: {:error, {:unexpected_response, other}}
+  def decode(other), do: {:error, {:unexpected_response, other}}
 
   defp error_text(%{content: [%{"text" => text} | _]}), do: text
   defp error_text(_), do: "(no detail)"

@@ -75,5 +75,38 @@ defmodule PramanaWeb.MCP.ReplayExecutorTest do
       assert {:ok, payload} = ReplayExecutor.executor().("survey_corpus", %{query: "一切眾生"})
       assert is_map(payload)
     end
+
+    test "a tool execution that raises an exception returns tool_raised error" do
+      # GetPassage requires :urn in execute/2; calling with empty params causes FunctionClauseError
+      assert {:error, {:tool_raised, msg}} = ReplayExecutor.executor().("get_passage", %{})
+      assert msg =~ "no function clause matching"
+    end
+  end
+
+  describe "decode/1" do
+    test "decodes valid JSON content into map payload" do
+      response = %{content: [%{"text" => ~s({"result": "ok", "count": 42})}]}
+      assert {:ok, %{"result" => "ok", "count" => 42}} = ReplayExecutor.decode(response)
+    end
+
+    test "returns tool_returned_unparseable_json on malformed JSON" do
+      response = %{content: [%{"text" => "{broken json"}]}
+      assert {:error, :tool_returned_unparseable_json} = ReplayExecutor.decode(response)
+    end
+
+    test "decodes error response with detail text" do
+      response = %{isError: true, content: [%{"text" => "Something went wrong"}]}
+      assert {:error, {:tool_error, "Something went wrong"}} = ReplayExecutor.decode(response)
+    end
+
+    test "decodes error response with fallback detail when content is missing text" do
+      response = %{isError: true, content: []}
+      assert {:error, {:tool_error, "(no detail)"}} = ReplayExecutor.decode(response)
+    end
+
+    test "returns unexpected_response for unknown response shapes" do
+      assert {:error, {:unexpected_response, :unknown}} = ReplayExecutor.decode(:unknown)
+      assert {:error, {:unexpected_response, %{}}} = ReplayExecutor.decode(%{})
+    end
   end
 end
