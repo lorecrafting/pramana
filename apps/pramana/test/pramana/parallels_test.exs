@@ -8,7 +8,7 @@ defmodule Pramana.ParallelsTest do
   **relation strength**: `full` and `mentions` are different claims and must never be
   flattened into "related".
   """
-  use Pramana.DataCase, async: true
+  use Pramana.DataCase, async: false
 
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
@@ -258,23 +258,26 @@ defmodule Pramana.ParallelsTest do
 
   describe "resolve_anchor/1" do
     defp setup_cbeta_segment! do
-      Repo.insert!(%Work{id: "T0099", title: "雜阿含經"})
-      Repo.insert!(%Witness{id: "w-cbeta-T", name: "Taisho"})
+      Repo.insert(%Work{id: "T0099", title: "雜阿含經"}, on_conflict: :nothing)
+      Repo.insert(%Witness{id: "w-parallels", name: "Taisho"}, on_conflict: :nothing)
 
-      Repo.insert!(%Source{
-        id: "cbeta",
-        name: "CBETA",
-        license_spdx: "CC0-1.0",
-        license_class: "cc0",
-        commercial_use: true,
-        redistributable: true
-      })
+      Repo.insert(
+        %Source{
+          id: "src-parallels",
+          name: "CBETA",
+          license_spdx: "CC0-1.0",
+          license_class: "cc0",
+          commercial_use: true,
+          redistributable: true
+        },
+        on_conflict: :nothing
+      )
 
       text =
         Repo.insert!(%Text{
           work_id: "T0099",
-          witness_id: "w-cbeta-T",
-          source_id: "cbeta",
+          witness_id: "w-parallels",
+          source_id: "src-parallels",
           urn_prefix: "pramana:cbeta.T:T0099"
         })
 
