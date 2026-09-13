@@ -549,6 +549,23 @@ steps.
   identity do not close, foreign panes in the same temp directory survive, replacement
   processes survive, and the destructive fixed-root recovery script is replaced by an
   isolated model-free fixture. No live pane/daemon/provider probe is authorized.
+- `/root/fr04_impl` produced frozen candidate v1 on isolated branch `repair/fr04`, base
+  `5c69e6c`; candidate artifact SHA-256
+  `cfe3b2a6ff3becec6bcb86a2b5eb8dd1402ff7294a8dbdf5ff8cb341da47cebe`.
+  It removed CWD/hard-coded orphan scans and default-adapter closes, retained FR-03
+  suspensions, routed cleanup data toward checked persistence, and replaced the destructive
+  daemon-recovery fixture. Implementer compile/focused/compatibility evidence passed.
+- Independent Astra-medium reviewer `/root/fr04_review` returned **FAIL**; review SHA-256
+  `369db5d8c513034d4a2aba9eb616177ef03b281f2eb14df81877fb1605d0e124`.
+  All eleven hashes matched and 29 focused tests passed, but adversarial probes reproduced
+  four authority/lifecycle blockers: any nonempty/PID-only/null/CWD process map could
+  authorize close; a post-start-error snapshot could adopt and close a replacement;
+  submit-review and shutdown cleanup could stop without a checked durable receipt; and
+  unresolved cleanup was removed from active state and treated as completed/released.
+- V2 correction is assigned to the same implementer. It must require stable incarnation
+  evidence and exact native session identity, bind fresh cleanup to a pre-start snapshot,
+  durably retain every cleanup obligation/result, and keep unresolved resources visible
+  and capacity-blocking without absorbing FR-10's full reconciliation redesign.
 
 ### FR-05
 
