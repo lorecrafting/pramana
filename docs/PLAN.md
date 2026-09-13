@@ -60,9 +60,10 @@ implementation finding is closed. FR-03 and FR-06 now provide the recorded depen
 evidence required to begin FR-07's durable-store implementation. FR-07 is active on a
 fourth candidate after three independent reviews exposed recurring record-schema and
 path-identity defects. V4 was withdrawn before verdict when self-audit found its executed
-SQLite WAL `xSync` fixture did not yet use the full protected bundle; a bounded v5 correction
-is active. FR-21's focused v3 CI/provenance correction passed renewed independent review and
-is undergoing actual integrated-tree validation. Neither ticket is complete yet.
+SQLite WAL `xSync` fixture did not yet use the full protected bundle. The corrected v5 is
+frozen under Astra-high review. FR-21's focused v3 CI/provenance correction passed renewed
+independent review, is integrated, and passed independent post-integration 432-test
+attestation. FR-21 is complete but not deployed; FR-07 remains incomplete.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence

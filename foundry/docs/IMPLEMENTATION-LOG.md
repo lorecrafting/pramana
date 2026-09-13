@@ -837,6 +837,18 @@ steps.
   same-command retry. Review was interrupted without a verdict. V5 must add both protected
   ordinary/hard-exit fixtures, full-table outcomes and retry, plus the typed ledger startup
   validator; v4 remains immutable rejected history.
+- V5 candidate `ff9cbb725a32e13d4062b570521574f01e00af17`, tree
+  `5055e3687feac8e5a60499b920d8f8b565d07597`, is frozen for the prepared Astra-high
+  reviewer. Implementation commit/tree are `d25a51f8b219a8a49ed9e83b3d97d972058254f3` /
+  `b454a2fd0f4af1669ad02d616bacfd3148630738`; candidate-v5 SHA-256 is
+  `5eb42bbbe4a27e4d58f0c570f532483b23d395730bf733007116dd744011975f`, and all 39
+  implementation-manifest entries matched.
+- Exact-candidate evidence passed warnings-as-errors compilation, 62 focused tests and a
+  fresh 471-test full model-free suite. V5 adds typed ledger-generation validation plus
+  ordinary/hard-exit complete protected-bundle VFS `xSync` fixtures with every authority
+  table checked, no acknowledgment, fencing/recovery and same-command ambiguity-safe retry.
+  The evidence remains explicitly a SQLite VFS error through Exqlite, not a failed kernel
+  `fsync(2)`, power-loss or physical-media claim.
 
 ### FR-08 preparation
 
@@ -937,6 +949,25 @@ steps.
   exact candidate-owned implementation/test/workflow hashes match `f76be70`, while the
   pre-existing dirty root CLI and Coordinator edits remain unstaged and untouched. The ticket
   is not complete until the actual integration commit passes clean-checkout validation.
+- Reviewed FR-21 was integrated as `a0c7a72c173d7d8e9929e6ee235d9ce138afa703`, tree
+  `0437785f9395f7ea261e0d1421cb4aef3fb03ee6`. Its clean detached CI manifest SHA-256
+  `dd63583f406c31369563dee0ebccf6e917e246cc7bef585f3367a95d1cd9c047` binds that exact
+  source/tree before and after, the reviewed runner/workflow hashes, pinned toolchain,
+  locked Hex dependency and generated artifact SHA-256
+  `bea5d7d4187fb15c9cb3a245112a51ba3a25c0468a3db162acf4cf27483b0110`.
+  All six stages passed with 432 tests and one explicit optional recomputation exclusion.
+  Independent post-integration [attestation](fr-21/integration-attestation.md), normalized
+  repository SHA-256 `166ad3620d88af9adff408ec3c62736a916769e4f4d8b308c209413c49752b0a`, returned
+  **PASS**. It matched every candidate runtime/workflow/test blob, the exact 27-path deletion
+  set and the four-doc-only candidate-to-integration delta; CLI was byte-unchanged and no
+  Coordinator/local artifact entered. Its independent full gate also passed 432 tests with
+  one exclusion, manifest SHA-256
+  `63d6989f95aa0eac975aef57fbfa0530ea5934dc49749d550578cea170c86357`.
+  The reviewer's `/tmp` artifact SHA-256 was
+  `7977fa645e08a40d4ccba3546449685b42ce5abb83ffc82de58f975b42714d6e`;
+  repository normalization removed only one extra blank line at EOF and changed no content.
+  FR-21 is implemented, reviewed and integrated; **not deployed**. Provider/live/activation,
+  byte-reproducible escripts and FR-22 lifecycle evidence remain explicitly unclaimed.
 
 ### FR-01 candidate v4 — frozen validation correction
 

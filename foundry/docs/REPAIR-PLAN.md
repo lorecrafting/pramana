@@ -122,7 +122,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-04 | Restrict cleanup to verified owned resources | — | **Complete: reviewed containment** | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | **Complete: reviewed containment** | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
-| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Active: v5 correction after withdrawn v4** | F02, F20, F21 |
+| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Reviewing frozen v5 protected-sync candidate** | F02, F20, F21 |
 | FR-08 | Unify command transitions and replay | FR-07 | Blocked | F07, F16 |
 | FR-09 | Prove OMP execution and presentation contract | FR-01, FR-04, FR-06, FR-15a | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08, FR-09 | Blocked | F08, F09 |
@@ -137,7 +137,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-18 | Make status, board and telemetry reflect real state | FR-08, FR-10, FR-11 | Blocked | F17, F18 |
 | FR-19 | Bound storage and make offline maintenance safe | FR-07, FR-18 | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18 | Blocked | F19 |
-| FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Reviewed: integration validation active** | F23, F24 |
+| FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
 | FR-22 | Prove full lifecycle and reconcile operating docs | FR-11–FR-21 | Blocked | F01–F24 |
 
 ## FR-06 sequencing and supersession
