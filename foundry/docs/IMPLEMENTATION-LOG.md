@@ -751,6 +751,20 @@ steps.
   nonconforming control-character/domain-tag canonical bytes. The candidate remains
   unintegrated and frozen. `/root/fr07_impl` is addressing the exact findings; renewed
   independent review is required.
+- Corrected candidate `b88918dd54094e657f8c6aae839878327c75e4d6`, tree
+  `4f2e7b5c6d17cc80749fb6ad331ff0dffabe633c`, implementation commit
+  `bda425ab6666f367ef6ef1966a6d688d2bd6127f`, is frozen for renewed review.
+  Candidate-v2 SHA-256
+  `5dc0c7bbe8bcf21943b03b27aec092116e602ea515c319a54d7b29b995d26b9a`;
+  response SHA-256
+  `d089de9abaca36e65674218844634944cf33a082734666a8a343ce06cbb65f39`;
+  all 22 implementation-manifest hashes matched. Implementer evidence is 44 focused
+  passes and a fresh full 452/453 run whose sole telemetry timing failure passed its
+  isolated rerun. R1–R7/R9 have claimed behavioral corrections; R8 adds every-table
+  failpoints, multi-table process exits, import interruption/rerun, migration rerun and a
+  real RLIMIT_FSIZE SQLite COMMIT I/O error with prior-state preservation. A deterministic
+  failed-fsync syscall remains explicitly unproved because Exqlite exposes no VFS fault
+  hook. Fresh Astra-high review owns both the corrections and that narrow disposition.
 
 ### FR-08 preparation
 
