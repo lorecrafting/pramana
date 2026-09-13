@@ -2,7 +2,7 @@ defmodule Docs.RoutingTest do
   @moduledoc """
   The documentation's routing layer, checked mechanically.
 
-  `AGENTS.md` is the canonical project reference in an agent's context. `docs/RULES.md` holds 81 rules
+  `AGENTS.md` is the canonical project reference in an agent's context. `docs/RULES.md` holds 84 rules
   learned from real defects here, and for most of this project's life the only pointer to
   them said *"before writing a new source pipeline"* — so a rule about mix tasks, thresholds
   or Ecto queries never fired, because you are not writing a pipeline when you do those.

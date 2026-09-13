@@ -640,6 +640,22 @@ look right. Neither has been checked against the code.
     achieved reached **87.81%**) and `pramana_web` **82** (achieved **94.21%**). Both restoration
     targets were reached and surpassed on 2026-09-13.
 
+   **Documentation & routing sweep — 2026-09-13.** All Markdown files audited for link
+   integrity and cross-document consistency. Synchronized the authoritative rule count across
+   `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `Docs.RoutingTest` (81 → 84 rules, matching `docs/RULES.md`).
+   Updated `docs/` file count in `AGENTS.md` (27 → 29 files) and removed stale line count reference
+   to `docs/STATUS.md`. Synchronized `README.md` corpus table to current authoritative bake numbers
+   (17,281 texts, 16 CBETA collections, 1,066,026 vectors, 273,334 renderings, 76,722 commentary alignments)
+   and added `/inventory` route to `apps/pramana_web/README.md`.
+
+   **Test isolation fix for `:project_root` — 2026-09-13.** Swept all 7 test modules touching
+   `Application.put_env(:pramana, :project_root, root)` (`dila_test`, `cbeta_test`, `lockfile_test`,
+   `archive_test`, `work_list_test`, `worker_test`, `bake_test`). When `prev` was `nil` (default test
+   environment), the previous `on_exit` handler failed to delete the key after `File.rm_rf!(root)`,
+   leaving `:project_root` permanently bound to a deleted temporary directory and causing non-deterministic
+   `{:error, :enoent}` compilation errors in subsequent test runs depending on ExUnit random test shuffle order.
+   Added `else: Application.delete_env(:pramana, :project_root)` across all 7 suites (Rule 41 sweep).
+
    **A test that failed and should have.** The registry check first asserted that every
    declared role's label differs from its key, and `catalogue`'s plain-language name
    legitimately *is* "catalogue". The assertion was wrong, not the code. What replaced it

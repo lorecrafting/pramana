@@ -27,11 +27,11 @@ answer is anchored to the original with its provenance.
 
 ## Resuming work (new session, no context)
 
-1. **`docs/STATUS.md`** — 220 lines, what is true right now
+1. **`docs/STATUS.md`** — what is true right now
 2. **`docs/PLAN.md`** — living task list: what is next, why, what blocks it. Updated in same commit as the work it describes.
 3. **Non-negotiable invariants** (below) — read before acting
 4. **`docs/ROADMAP.md`** — phase structure and completion status
-5. **`docs/RULES.md`** — 81 rules learned from real defects, cited by number
+5. **`docs/RULES.md`** — 84 rules learned from real defects, cited by number
 
 The split exists because they were one file of 3,896 lines where a historical sentence
 read as a current claim.
@@ -41,7 +41,7 @@ read as a current claim.
 | `docs/STATUS.md` | **what is true now** |
 | `docs/PLAN.md` | **what to do next**, and what it is blocked on |
 | `docs/CODE_CONVENTIONS.md` | **coding rules** — Phoenix, Elixir, Ecto, LiveView, forms |
-| `docs/RULES.md` | **81 rules** from real defects, cited by number |
+| `docs/RULES.md` | **84 rules** from real defects, cited by number |
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
@@ -129,7 +129,7 @@ Violating any of these is a bug, not a tradeoff.
 ```
 sources.lock.json          pinned upstream snapshots (commit SHAs, sha256, licenses)
 raw/                       untouched upstream downloads — gitignored, never edited
-docs/                      all project documentation (27 files)
+docs/                      all project documentation (29 files)
 evals/                     gold question sets + scoring harness
 bin/                       utility scripts (pramana-tranche, pramana-mcp, …)
 foundry/                   standalone agentic workflow system (see below)
@@ -254,7 +254,7 @@ remove Python entirely.
 
 ## Rules trigger table
 
-`docs/RULES.md` holds **81 rules, each learned from a real defect here**, cited by
+`docs/RULES.md` holds **84 rules, each learned from a real defect here**, cited by
 number in code and commits. Read the listed rules before starting the activity.
 
 | about to… | read |

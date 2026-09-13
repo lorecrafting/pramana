@@ -25,7 +25,7 @@ the provenance model or the eval harness.
 | **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
 | **6** Deterministic enrichment | ◐ **half, and the last gap is now unblocked** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅, authority linking ✅ (2,374 works, plus places, lineage chains and Wikidata ids). **Translator fingerprinting was "ahead of its data" and no longer is** — Karashima's Dharmarakṣa and Kumārajīva glossaries cover the SAME sūtra, anchored per line, with 4,345 attested absences. See `docs/PLAN.md` § L1 |
 | **7** Research agent + translation | ◐ **report verification shipped**; translation not started, and it is now the critical path | `verify_report` byte-compares every citation in a document and re-runs the retrievals its figures rest on (`docs/PLAN.md` § H). Glossary-pinned generation is one of only two routes to an English layer over the Chinese canon — see the risk section below and § E1 |
-| **8** Web reader | ✅ **shipped early** | five screens, and the public artefact builds |
+| **8** Web reader | ✅ **shipped early** | six screens, and the public artefact builds |
 
 **The shape of the remaining work is not what this roadmap assumed.** It planned eight
 sequential phases; what is actually left is one blocked item (SAT), one half-finished phase

@@ -19,5 +19,5 @@ AGENTS.md → docs/STATUS.md → docs/PLAN.md → (document for what you're doin
 | `AGENTS.md` | Canonical project reference |
 | `docs/STATUS.md` | What is true now |
 | `docs/PLAN.md` | What to do next |
-| `docs/RULES.md` | 81 rules from real defects |
+| `docs/RULES.md` | 84 rules from real defects |
 | `foundry/docs/OBSERVABILITY.md` | Foundry telemetry and health |

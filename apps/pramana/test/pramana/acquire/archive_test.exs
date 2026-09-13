@@ -28,7 +28,10 @@ defmodule Pramana.Acquire.ArchiveTest do
 
     on_exit(fn ->
       File.rm_rf!(root)
-      if prev, do: Application.put_env(:pramana, :project_root, prev)
+
+      if prev,
+        do: Application.put_env(:pramana, :project_root, prev),
+        else: Application.delete_env(:pramana, :project_root)
     end)
 
     %{root: root}

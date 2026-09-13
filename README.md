@@ -24,15 +24,15 @@ document routing, project layout, rules triggers, framework conventions.
 
 | | |
 |---|---|
-| Texts | **17,099** |
-| Segments (citable units) | **12,358,849** |
-| Chinese works (CBETA) | 4,081 across **11 collections** — Taishō 2,471 · 卍續藏 1,230 · 嘉興藏 285 · 漢譯南傳大藏經 38 · seven alternative editions 57 |
+| Texts | **17,281** |
+| Segments (citable units) | **12,581,624** |
+| Chinese works (CBETA) | 4,263 across **16 of 26 collections** — Taishō 2,471 · 卍續藏 1,230 · 嘉興藏 285 · 磧砂藏 101 · 趙城金藏 51 · 漢譯南傳大藏經 38 · 房山石經 27 · seven alternative editions 57 · 国家图书馆藏 2 · 藏外佛教文獻 1 |
 | Pāli works (SuttaCentral) | 8,442 |
 | Tibetan works (Degé Kangyur / Tengyur) | 1,195 / 3,380 |
-| Retrieval chunks | 963,480 |
-| Embedding vectors | **1,020,280** |
-| English renderings | 241,409 by 7 translators, searchable by their own words |
-| Commentary aligned to the line it explains | 27,254 lemmas over 43 work pairs |
+| Retrieval chunks | 980,464 |
+| Embedding vectors | **1,066,026** |
+| English renderings | 273,334 — 244,763 human by 8 translators, 28,571 generated |
+| Commentary aligned to the line it explains | 76,722 lemmas over 100 work pairs |
 | Curated cross-tradition parallels | 407,176 recorded, 24,717 (6.1%) openable |
 | Verbatim quotations between works | 141,073 across 1,301 works |
 | Buddhist reading exceptions | 9,543 over a 44,348-character base |
@@ -41,7 +41,7 @@ Both integrity checks are green: `mix pramana.verify --all` proves the bake is
 **reproducible** from pinned inputs; `mix pramana.integrity` proves it is **complete**.
 `mix pramana.gate` runs both plus format, credo, tests, lockfile census and eval ratchet.
 
-**CBETA is 26 collections and this holds 11.** Every survey response names the absent
+**CBETA is 26 collections and this holds 16.** Every survey response names the absent
 collections, because an empty result otherwise reads as the canon being silent. It says
 the same about **Taishō volumes 56–84** (547 works, not in CBETA), about the **6.1% of
 the parallel graph** whose other end is a witness we do not hold, and about the **1,640
