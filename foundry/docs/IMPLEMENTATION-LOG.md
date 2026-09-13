@@ -704,6 +704,26 @@ steps.
   `_build` assumption (81/83), and the corrected pinned-PATH/fresh checkout-local build
   passed **83/83**, seed 507. These superseded attempts did not expose product failures.
 
+### FR-07
+
+- **Active owner:** `/root/fr07_impl` (Sol-medium), isolated branch/worktree from main
+  commit `debba64`. Prerequisite evidence is satisfied: FR-03 implementation/integration
+  containment and FR-06's independently verified R4a design gate are complete.
+- Scope is the FR-06 SQLite WAL/FULL durable-store and compatibility boundary: pinned
+  in-process binding, protected single write gateway separated from an updatable pure
+  kernel interface, versioned authoritative tables, checked atomic commits, recovery
+  mode, and offline legacy import that retains originals and reports every invalid row.
+  Required evidence includes idempotent before/after-commit lost-reply cases, constraint
+  failures, injected write/capacity/torn/unknown-version failures, oversized import,
+  transactional command/event/projection/intent consistency, and migration rerun safety.
+- Permitted ownership: `foundry/mix.exs`, `foundry/mix.lock`, new store/kernel/import
+  modules and tests, and the minimum application/Coordinator/EventLog/Checkpoint boundary
+  changes required to install the compatibility writer. Documentation/candidate evidence
+  belongs under `foundry/docs/fr-07/`. Existing dirty root CLI/Coordinator unblock work is
+  outside the ticket and must not enter its candidate. Excludes FR-08's complete transition
+  migration, FR-15a protected process isolation, FR-19 operating limits and any live
+  deployment/provider activity.
+
 ### FR-01 candidate v4 — frozen validation correction
 
 - Only the two files authorized for the v3 residual changed: LaunchEligibility SHA-256
