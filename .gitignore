@@ -30,6 +30,11 @@ erl_crash.dump
 # Foundry standalone Mix project build artifacts
 /foundry/_build/
 
+# Foundry runtime state (coordinator logs, handoffs)
+/foundry/local/state/current/
+/foundry/handoffs/
+/foundry/_build/prod/rel/*/tmp/log/
+
 # --- Pramana ---
 # Corpus data is NEVER committed. We publish the pipeline, not the corpus.
 # See CLAUDE.md "Licensing posture".
