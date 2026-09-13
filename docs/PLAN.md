@@ -635,10 +635,10 @@ look right. Neither has been checked against the code.
    rule 78.** "Raise it when coverage rises" applied literally put `pramana` at 84 against
    an achieved 84.26 — a quarter of a point of room, which makes every later commit a
    coverage negotiation whose cheapest win is a test that asserts nothing. A ratchet
-   catches a *regression*; it does not force maximisation. The thresholds now trail
-   achieved coverage: `pramana` **83** and `pramana_web` **82**. Both restoration targets
-   were reached and surpassed on 2026-09-13: `pramana` reached **86.06%** (target 85)
-   and `pramana_web` reached **93.83%** (target 93).
+    catches a *regression*; it does not force maximisation. The thresholds now trail
+    achieved coverage: `pramana` **85** (threshold raised from 83 to 85 on 2026-09-13 after
+    achieved reached **87.81%**) and `pramana_web` **82** (achieved **94.21%**). Both restoration
+    targets were reached and surpassed on 2026-09-13.
 
    **A test that failed and should have.** The registry check first asserted that every
    declared role's label differs from its key, and `catalogue`'s plain-language name

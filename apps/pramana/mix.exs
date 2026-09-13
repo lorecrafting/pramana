@@ -52,14 +52,14 @@ defmodule Pramana.MixProject do
         # that and still lets an honest commit land without buying its way past the gate.
         #
         # So: raise this when achieved coverage rises by more than the margin, and keep
-        # roughly a point of room. Achieved 84.26 on 2026-09-03, after
-        # `Pramana.Provenance` went 9% -> 86% and `Pramana.Publishing.Guard` 36% -> 73% —
-        # both chosen for what they carry rather than for their size, invariant #4's
-        # structural enforcement and the licence refusal at boot. Restoration target 85.
+        # roughly a point of room. Achieved 87.81% on 2026-09-13, after
+        # `Pramana.Authority` (83%), `Pramana.Parallels` (100%), `Pramana.Publishing` (100%),
+        # `Pramana.Elapsed` (100%), `Pramana.Retrieval` (100%), and
+        # `Pramana.Glossary.Anchors` (92%). Ratchet raised to 85, meeting restoration target.
         #
         # NEVER lower it to make a failing run pass. Restoring margin after over-tightening
         # is a different act, and this comment is what makes it one.
-        summary: [threshold: 83],
+        summary: [threshold: 85],
         ignore_modules: [
           ~r/^Mix\.Tasks\./,
           ~r/^Pramana\.Corpus\.[A-Z]/,
