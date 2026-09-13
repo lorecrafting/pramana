@@ -31,7 +31,7 @@ erl_crash.dump
 /foundry/_build/
 
 # Foundry runtime state (coordinator logs, handoffs)
-/foundry/local/state/current/
+/foundry/local/
 /foundry/handoffs/
 /foundry/_build/prod/rel/*/tmp/log/
 
