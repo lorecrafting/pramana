@@ -27,6 +27,9 @@ erl_crash.dump
 
 
 
+# Foundry standalone Mix project build artifacts
+/foundry/_build/
+
 # --- Pramana ---
 # Corpus data is NEVER committed. We publish the pipeline, not the corpus.
 # See CLAUDE.md "Licensing posture".
