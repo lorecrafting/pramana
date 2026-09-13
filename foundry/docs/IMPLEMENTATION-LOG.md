@@ -740,6 +740,17 @@ steps.
   operational retention or deployment. `/root/fr07_review_prep` (Astra-medium), which
   prepared its adversarial checklist without seeing the candidate, now owns independent
   review of this exact frozen revision.
+- Independent review SHA-256
+  `bba396dd837ad06018c460a4dd68223792d536542b7fbdb53cfaea2092597f30`
+  returned **FAIL** with all 15 hashes matched and 31 focused tests passing. Executable
+  probes nevertheless reproduced nine blockers: candidate-forged issued authority;
+  unchecked expected revisions and rejected-event mutation; wrong protected retry lookup
+  ordering; corrupt result bodies that do not fence later writes; import source/manifest
+  alias overwrite and uncaptured-source race; multiple simultaneous store owners; omitted
+  backup tables/reconstruction; incomplete real sync/multi-table crash evidence; and
+  nonconforming control-character/domain-tag canonical bytes. The candidate remains
+  unintegrated and frozen. `/root/fr07_impl` is addressing the exact findings; renewed
+  independent review is required.
 
 ### FR-08 preparation
 
