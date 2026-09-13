@@ -786,6 +786,24 @@ steps.
   checkout without corpus services, name exclusions, identify source/tool/dependency
   inputs, and prohibit paid/provider/live-pane behavior. Later tickets extend the job;
   FR-21 must not claim FR-22 lifecycle completion.
+- `/root/fr21_impl` froze candidate
+  `85a74492959e6db51f4a0f03c218990afb97b0c3`, tree
+  `cc730c6bf3cd7b62a66cc59b754176b16ad98521`; candidate record SHA-256
+  `b3a6e5bb95afbc8032e98afddd44d302cfd41f664767c750dcf8767c94d6c7c2`.
+  Two detached clean-checkout runs each completed all six stages and 426 tests with
+  distinct isolated roots. Provenance manifests SHA-256
+  `577ffa434d86d2cbe934eaf0ce3354ec70f74d52093f4275468b5f1ee64f394e`
+  and `8fbf87e9572c9bf490012e3a63b6315c1b1df57ba3dd1e90224fbe4cade54099`
+  bind each run's source/tree, toolchain, lock entries, receipts, exclusions and generated
+  escript. The first pre-correction clean run exposed two RPC tests' hard-coded build path;
+  the frozen candidate derives the ebin from `Mix.Project.build_path/0` and its focused
+  eight-test non-default-build run passed.
+- The candidate adds a Foundry-only workflow/Elixir runner, pins seven existing format-debt
+  files by byte hash, removes the tracked generated escript and duplicate vendored OWL,
+  retires the absent Python diagnostic, and makes obsolete Python-migration parity fail
+  closed. It does not modify Mix inputs, Coordinator, CLI, startup, durable store or live
+  state. `/root/fr21_review` (Sol-high) is independently reviewing the frozen deletion,
+  portability, isolation and provenance boundary.
 
 ### FR-01 candidate v4 — frozen validation correction
 
