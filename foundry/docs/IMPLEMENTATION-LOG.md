@@ -598,6 +598,18 @@ steps.
   cleanup admission suspension, producing a function-clause error on every blocked tick.
 - The same implementer is making only those status-independent marker and Tick-result
   corrections, after which a new exact manifest and renewed review are required.
+- Response v3 SHA-256
+  `5ecccd64bc98f7421364665a2b35fed9d5d57d7fd93f4e6124604a0bf1ea09a9`
+  made terminal-resource checks status-independent and handled suspended ticks. Independent
+  review v4 SHA-256
+  `9bcc9d294c27bd2ad42462442e460081b8d3ba03222d970bd2dddb38ab81db29`
+  verified those fixes and 99 focused tests, but returned **FAIL** on one remaining
+  multi-role ownership gap: reviewer launch overwrote the assignment-level developer pane;
+  reviewer closure could then hide a developer cleanup deadline and allow clean-marker
+  removal.
+- The bounded next correction must retain separate legacy cleanup entries per role/run/resource,
+  require every owned entry terminal before clean release, and prove sibling/stale receipts
+  cannot settle another entry. Full effect-ledger reconciliation remains FR-10.
 
 ### FR-05
 
