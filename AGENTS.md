@@ -111,6 +111,7 @@ Violating any of these is a bug, not a tradeoff.
 | asked how this compares to another system | `docs/COMPETITIVE.md` |
 | looking for something to build | `docs/IDEAS.md` |
 | planning work that depends on event sourcing | `docs/HARNESS.md` — harness engineering, verifier feedback, multi-agent retrieval |
+| product strategy, market fit, and UI/UX | `docs/PRODUCT_STRATEGY.md` |
 | the SAT request that Phase 2 is blocked on | `docs/sat-request-email.md` |
 
 ### Foundry (agentic workflow / self-healing system)
@@ -129,7 +130,7 @@ Violating any of these is a bug, not a tradeoff.
 ```
 sources.lock.json          pinned upstream snapshots (commit SHAs, sha256, licenses)
 raw/                       untouched upstream downloads — gitignored, never edited
-docs/                      all project documentation (29 files)
+docs/                      all project documentation (30 files)
 evals/                     gold question sets + scoring harness
 bin/                       utility scripts (pramana-tranche, pramana-mcp, …)
 foundry/                   standalone agentic workflow system (see below)

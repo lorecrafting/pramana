@@ -3976,8 +3976,8 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   a normalizer change, which is why it is not bolted onto the diagnostic that found it.
   `doctor` reads the total from the recorded bake instead.
 
-- ~~**Restore coverage to 85 / 93.**~~ ▸ **ACHIEVED 2026-09-13** — both restoration targets met.
-  `pramana` achieved 87.81% (threshold ratcheted to 85), `pramana_web` achieved 94.21% (threshold
+- ~~**Restore coverage to 87 / 93.**~~ ▸ **ACHIEVED 2026-09-13** — both restoration targets met.
+  `pramana` achieved 88.43% (threshold ratcheted to 87), `pramana_web` achieved 94.21% (threshold
   ratcheted to 93).
 
   `docs/CHECKS.md` has always called a coverage regression a gate failure, and the ratchet
@@ -3994,6 +3994,12 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   and the Phase 8 reader LiveViews (`PassageLive`, `WorkLive`, `ReaderComponents`, `SurveyLive`,
   `SearchLive`) brought coverage to 94.21% (threshold: 93). Both targets are now achieved and
   enforced at the gate.
+
+- **Product Strategy, Market Fit & Reader UI/UX Blueprint** ▸ **DOCS 2026-09-13** — `docs/PRODUCT_STRATEGY.md`
+  synthesizes the 3 primary user archetypes (Buddhist Practitioner, Dharma Teacher, Academic Scholar),
+  their information journeys, progressive disclosure UI hierarchy, feature specifications
+  (Answer Canvas, Source Inspector, Rosetta Stone Term Popovers, `/check` Claim Verifier, Scholar's Export Toolkit),
+  and prompt rubric for multi-LLM architectural reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
