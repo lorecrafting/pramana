@@ -103,6 +103,24 @@ defmodule Pramana.ParallelsTest do
                "volpage" => "T ii 875b04–c16 + 876b01–c07"
              }) == nil
     end
+
+    test "returns nil when volpage is nil or unparsable" do
+      assert Anchor.from_entry(%{"acronym" => "T 99", "volpage" => nil}) == nil
+      assert Anchor.from_entry(%{"acronym" => "T 99", "volpage" => "garbage"}) == nil
+    end
+
+    test "returns nil when roman volume is unknown" do
+      assert Anchor.from_entry(%{"acronym" => "T 99", "volpage" => "T unknown 001a01"}) == nil
+    end
+
+    test "returns nil when acronym cannot be parsed" do
+      assert Anchor.from_entry(%{"acronym" => "INVALID", "volpage" => "T ii 001a06"}) == nil
+    end
+
+    test "locator_end returns nil for single-line anchors without page_end" do
+      anchor = Anchor.from_entry(%{"acronym" => "T 99", "volpage" => "T ii 001a06"})
+      assert Anchor.locator_end(anchor) == nil
+    end
   end
 
   describe "flatten/1" do

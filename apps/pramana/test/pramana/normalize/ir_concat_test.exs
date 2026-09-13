@@ -115,5 +115,10 @@ defmodule Pramana.Normalize.IRConcatTest do
       line = %Line{anchor: "0001a01", text: "", gaiji: ["CB00001"]}
       refute Line.blank?(line)
     end
+
+    test "a line with nil content fields is blank" do
+      line = %Line{anchor: "0001a01", text: "", notes: nil, apparatus: nil, gaiji: nil}
+      assert Line.blank?(line)
+    end
   end
 end

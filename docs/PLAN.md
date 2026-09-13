@@ -1277,7 +1277,7 @@ date.
 | reader | **six** LiveView screens — search `/`, inventory `/inventory`, survey `/survey`, passage `/passage`, work `/works/:id`, **check `/check`** |
 | work relations | **389** — 269 `comments_on` · 38 `subcommentary_of` · 82 `parallel_of` (41 pairs). By signal, in ROWS: `title_match` 240, **`shared_text` 66**, `manifest` 1; in distinct source works, 156 / 66 / 1, because one relation asserted by two methods is two rows and that is corroboration rather than duplication |
 | passage parallels | 407,176 recorded · **24,717 openable (6.1%)** — the rest name witnesses this bake does not hold |
-| commentary alignment | **72,120 lemmas over 76 pairs**, attaching commentary to **54,343 root lines** — deterministic, no model. 2026-09-03: the run went from a projected 9 hours to 2 minutes, `String.slice/3` |
+| commentary alignment | **76,722 lemmas over 100 pairs**, attaching commentary to **57,609 root lines** — deterministic, no model. 2026-09-03: the run went from a projected 9 hours to 2 minutes, `String.slice/3` |
 | public exposure | **213,932 rows servable** · 34,697 forbidden by licence · 9,841 withheld pending a publication record (`mix pramana.public.check`) |
 | eval | **92.3% over 1,472 cases** (`evals/baseline.json`) — 0 stale, 0 errored. Not comparable with 93.1%/1,400: the denominator grew by two case types, one scoring 70%. Compare per row |
 | new gold sets | **rendering 70.0%** (40 cases, mean rank 1.68) · **gloss 100%** (32 cases, a regression detector — see below) |
@@ -1287,7 +1287,7 @@ date.
 | noise floor | 1 case same-index · **6 cases across an index rebuild, 4 of them Tibetan** |
 | full gate | **32m22s** — evals 21m14s at 1.2 cases/s, integrity 11m02s, `verify --all` 7m09s over every segment (2026-08-31) |
 | redistributable subset | 13,017 texts · 1.8M segments · 315k vectors |
-| CI | GitHub Actions on every push — compile `--warnings-as-errors`, format, credo, 1,198 tests |
+| CI | GitHub Actions on every push — compile `--warnings-as-errors`, format, credo, 1,862 tests |
 
 **Every retrieval row went DOWN when X landed, and that is not a regression in the
 retrieval system.** 1,230 mostly-commentarial works joined the corpus, and a commentary

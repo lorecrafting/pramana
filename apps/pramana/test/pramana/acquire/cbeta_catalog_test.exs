@@ -138,6 +138,11 @@ defmodule Pramana.Acquire.CBETA.CatalogTest do
     test "is empty for the real convention" do
       assert Catalog.unparsed(tree(["T/T09/T09n0262.xml", "X/X01/X01n0001.xml"])) == []
     end
+
+    test "returns empty list for non-tree map or other types" do
+      assert Catalog.unparsed(%{}) == []
+      assert Catalog.unparsed(nil) == []
+    end
   end
 
   describe "fetch/2" do
@@ -154,6 +159,11 @@ defmodule Pramana.Acquire.CBETA.CatalogTest do
     test "propagates transport errors" do
       fetcher = fn _ -> {:error, :timeout} end
       assert {:error, :timeout} = Catalog.fetch("sha", fetcher: fetcher)
+    end
+
+    test "handles invalid json in response" do
+      fetcher = fn _ -> {:ok, "not json"} end
+      assert {:error, %Jason.DecodeError{}} = Catalog.fetch("sha", fetcher: fetcher)
     end
   end
 end

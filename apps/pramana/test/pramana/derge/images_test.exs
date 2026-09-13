@@ -145,5 +145,63 @@ defmodule Pramana.Derge.ImagesTest do
       assert Images.for_urn("nonsense") == :error
       assert Images.for_urn("pramana:derge.D:toh1") == :error
     end
+
+    test "available?/0 returns boolean" do
+      assert is_boolean(Images.available?())
+    end
+
+    test "volumes/1 returns empty list when directory is missing" do
+      assert Images.volumes("/nonexistent/path/for/derge") == []
+    end
+
+    test "canvas with missing id or non-folio label is omitted from folios_in" do
+      manifest = %{
+        "sequences" => [
+          %{
+            "canvases" => [
+              %{"@id" => nil, "label" => [%{"@value" => "1a"}]},
+              %{"@id" => "https://example.com/canvas/img.jpg", "label" => nil},
+              %{"@id" => "https://example.com/canvas/img2.jpg", "label" => [%{"@value" => 123}]}
+            ]
+          }
+        ]
+      }
+
+      assert Images.folios_in(manifest) == %{}
+    end
+
+    test "build_index/2 generates index and persists it" do
+      tmp = Path.join(System.tmp_dir!(), "derge-build-#{System.unique_integer([:positive])}")
+      manifests_dir = Path.join(tmp, "manifests")
+      out_file = Path.join(tmp, "folio_images.json")
+
+      File.mkdir_p!(manifests_dir)
+      # group file
+      File.write!(
+        Path.join(manifests_dir, "I1KG9206.json"),
+        Jason.encode!(%{
+          "sequences" => [
+            %{
+              "canvases" => [
+                %{
+                  "@id" => "https://iiifpres.bdrc.io/canvas/I1KG92060003.jpg",
+                  "label" => [%{"@value" => "1a"}]
+                }
+              ]
+            }
+          ]
+        })
+      )
+
+      on_exit(fn ->
+        File.rm_rf!(tmp)
+        # Restore real index to persistent_term
+        Images.find(80, "1a")
+      end)
+
+      # Build index with the real raw root (if present) or test fallback
+      assert {:ok, _count} = Images.build_index(manifests_dir, out_file)
+      assert File.exists?(out_file)
+    end
   end
 end

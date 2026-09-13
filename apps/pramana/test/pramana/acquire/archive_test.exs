@@ -128,5 +128,33 @@ defmodule Pramana.Acquire.ArchiveTest do
 
       refute File.exists?(cache_path(sha))
     end
+
+    test "returns extract_failed error when downloaded file cannot be extracted" do
+      sha = "sha#{System.unique_integer([:positive])}"
+
+      assert {:error, {:extract_failed, _reason}} =
+               Archive.fetch("cbeta", sha, ["N/N13/N13n0006.xml"],
+                 repo: "cbeta-org/xml-p5",
+                 downloader: fn _url, target ->
+                   # Write a valid gzip that is NOT a valid tar file
+                   File.write!(target, :zlib.gzip("not a tar archive content"))
+                   :ok
+                 end
+               )
+    end
+
+    test "handles catalogued file absent from archive" do
+      sha = "sha#{System.unique_integer([:positive])}"
+      whole = archive_bytes(sha)
+
+      assert {:ok, []} =
+               Archive.fetch("cbeta", sha, ["absent/file.xml"],
+                 repo: "cbeta-org/xml-p5",
+                 downloader: fn _url, target ->
+                   File.write!(target, whole)
+                   :ok
+                 end
+               )
+    end
   end
 end
