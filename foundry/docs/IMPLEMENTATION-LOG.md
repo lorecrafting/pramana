@@ -759,6 +759,20 @@ steps.
   records the FR-07 handoff capabilities, duplicated mutation paths, acceptance risks and
   implementation order. FR-08 remains blocked and no FR-08 implementation owner exists.
 
+### FR-21
+
+- **Active owner:** `/root/fr21_impl` (Sol-medium), isolated from main commit `8830027`.
+  FR-01, FR-04 and FR-05 have reviewed implementation and clean-checkout integration
+  attestations, so the explicit prerequisites are satisfied. This work may proceed beside
+  FR-07 because ownership is disjoint.
+- Permitted ownership is a Foundry-only CI workflow, a new isolated local CI/provenance
+  runner, FR-21-specific tests and documentation/evidence. It must not edit
+  `foundry/mix.exs`, `foundry/mix.lock`, Coordinator, CLI, startup, durable-store files or
+  the live daemon. The runner must use fresh runtime/TMPDIR state, run twice from a clean
+  checkout without corpus services, name exclusions, identify source/tool/dependency
+  inputs, and prohibit paid/provider/live-pane behavior. Later tickets extend the job;
+  FR-21 must not claim FR-22 lifecycle completion.
+
 ### FR-01 candidate v4 — frozen validation correction
 
 - Only the two files authorized for the v3 residual changed: LaunchEligibility SHA-256
