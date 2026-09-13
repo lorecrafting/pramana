@@ -143,15 +143,21 @@ defmodule PramanaFoundry.Transition do
   end
 
   defp apply_record(record, {:ok, result}) do
-    with {:ok, validated} <- Schema.validate(:event, record),
-         {:ok, projected} <- project(validated, result) do
-      {:cont, {:ok, projected}}
-    else
-      {:error, _reason} ->
-        # Skip invalid or unprojectable events rather than halting rebuild.
-        # This makes the system resilient to one-off corrupt events or events
-        # from a future schema version that don't affect state recovery.
-        {:cont, {:ok, result}}
+    try do
+      with {:ok, validated} <- Schema.validate(:event, record),
+           {:ok, projected} <- project(validated, result) do
+        {:cont, {:ok, projected}}
+      else
+        {:error, reason} -> {:halt, {:error, %{reason: reason, evidence: record}}}
+      end
+    rescue
+      error ->
+        {:halt,
+         {:error, %{reason: {:projection_exception, Exception.message(error)}, evidence: record}}}
+    catch
+      kind, reason ->
+        {:halt,
+         {:error, %{reason: {:projection_failure, kind, inspect(reason)}, evidence: record}}}
     end
   end
 
@@ -238,7 +244,7 @@ defmodule PramanaFoundry.Transition do
     end
   end
 
-defp project(
+  defp project(
          %{"event" => "ticket_enqueued", "task_id" => task_id} = event,
          result
        ) do
@@ -302,7 +308,8 @@ defp project(
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -357,7 +364,8 @@ defp project(
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -381,7 +389,8 @@ defp project(
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -399,6 +408,7 @@ defp project(
         # Handoff was rejected at runtime — re-enqueue with retry budget
         reason = get_in(event, ["attributes", "reason"]) || "invalid_handoff"
         retries = Map.get(assignment, "handoff_retries", 0)
+
         updated =
           assignment
           |> Map.put("status", "queued")
@@ -406,25 +416,30 @@ defp project(
           |> Map.put("error", "invalid handoff: #{reason}")
 
         updated_queue = state["queue"] ++ [task_id]
+
         new_state =
           state
           |> Map.put("assignments", Map.put(state["assignments"], task_id, updated))
           |> Map.put("queue", updated_queue)
+
         proj = %{result.projection | events: [event | result.projection.events]}
         {:ok, %{result | projection: proj, state: new_state}}
       else
         # Handoff was accepted
         now = Map.get(event, "at", iso_now())
-        commit = case handoff do
-          %{"commit" => c} when is_binary(c) -> c
-          _ -> assignment["candidate_commit"]
-        end
 
-        status = cond do
-          is_map(handoff) && Map.get(handoff, "status") == "blocked" -> "blocked"
-          get_in(event, ["attributes", "auto_approved"]) -> "review_approved"
-          true -> "handoff_received"
-        end
+        commit =
+          case handoff do
+            %{"commit" => c} when is_binary(c) -> c
+            _ -> assignment["candidate_commit"]
+          end
+
+        status =
+          cond do
+            is_map(handoff) && Map.get(handoff, "status") == "blocked" -> "blocked"
+            get_in(event, ["attributes", "auto_approved"]) -> "review_approved"
+            true -> "handoff_received"
+          end
 
         updated =
           assignment
@@ -434,25 +449,27 @@ defp project(
           |> Map.put("handoff_received_at", now)
 
         # Restore synthetic review for auto_approved handoffs
-        updated = if get_in(event, ["attributes", "auto_approved"]) do
-          Map.put(updated, "review", %{
-            "verdict" => "approved",
-            "findings" => [],
-            "checks" => get_in(handoff, ["checks"]) || [],
-            "remaining_risks" => get_in(handoff, ["remaining_risks"]) || [],
-            "commit" => commit,
-            "auto_approved" => true
-          })
-        else
-          updated
-        end
+        updated =
+          if get_in(event, ["attributes", "auto_approved"]) do
+            Map.put(updated, "review", %{
+              "verdict" => "approved",
+              "findings" => [],
+              "checks" => get_in(handoff, ["checks"]) || [],
+              "remaining_risks" => get_in(handoff, ["remaining_risks"]) || [],
+              "commit" => commit,
+              "auto_approved" => true
+            })
+          else
+            updated
+          end
 
         new_state = put_in(state, ["assignments", task_id], updated)
         proj = %{result.projection | events: [event | result.projection.events]}
         {:ok, %{result | projection: proj, state: new_state}}
       end
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -475,7 +492,7 @@ defp project(
     rejected = get_in(event, ["attributes", "rejected"]) || false
     now = Map.get(event, "at", iso_now())
 
-if is_map(assignment) do
+    if is_map(assignment) do
       if rejected do
         # Review was rejected at runtime — restore retry or parked state
         reason = get_in(event, ["attributes", "reason"]) || "invalid_review"
@@ -487,9 +504,10 @@ if is_map(assignment) do
             assignment
             |> Map.put("status", "handoff_received")
             |> Map.put("review_retries", review_retry)
-            |> Map.put("error",
-                 "invalid review (retry #{review_retry}/X): #{reason}"
-               )
+            |> Map.put(
+              "error",
+              "invalid review (retry #{review_retry}/X): #{reason}"
+            )
           else
             assignment
             |> Map.put("status", "parked")
@@ -502,42 +520,43 @@ if is_map(assignment) do
       else
         updated =
           case verdict do
-          "approved" ->
-            assignment
-            |> Map.put("status", "review_approved")
-            |> Map.put("review_received_at", now)
-            |> Map.put("correction_count", correction_count)
+            "approved" ->
+              assignment
+              |> Map.put("status", "review_approved")
+              |> Map.put("review_received_at", now)
+              |> Map.put("correction_count", correction_count)
 
-          "correction_needed" ->
-            correction_history = Map.get(assignment, "correction_history", [])
+            "correction_needed" ->
+              correction_history = Map.get(assignment, "correction_history", [])
 
-            record = %{
-              "round" => correction_count + 1,
-              "at" => now
-            }
+              record = %{
+                "round" => correction_count + 1,
+                "at" => now
+              }
 
-            assignment
-            |> Map.put("status", "queued")
-            |> Map.put("correction_count", correction_count + 1)
-            |> Map.put("correction_history", correction_history ++ [record])
+              assignment
+              |> Map.put("status", "queued")
+              |> Map.put("correction_count", correction_count + 1)
+              |> Map.put("correction_history", correction_history ++ [record])
 
-          "changes_requested" ->
-            correction_history = Map.get(assignment, "correction_history", [])
+            "changes_requested" ->
+              correction_history = Map.get(assignment, "correction_history", [])
 
-            record = %{
-              "round" => correction_count + 1,
-              "at" => now
-            }
+              record = %{
+                "round" => correction_count + 1,
+                "at" => now
+              }
 
-            assignment
-            |> Map.put("status", "queued")
-            |> Map.put("correction_count", correction_count + 1)
-            |> Map.put("correction_history", correction_history ++ [record])
+              assignment
+              |> Map.put("status", "queued")
+              |> Map.put("correction_count", correction_count + 1)
+              |> Map.put("correction_history", correction_history ++ [record])
           end
 
         new_state =
           if verdict == "correction_needed" or verdict == "changes_requested" do
             updated_queue = state["queue"] ++ [task_id]
+
             state
             |> put_in(["assignments", task_id], updated)
             |> Map.put("queue", updated_queue)
@@ -549,7 +568,8 @@ if is_map(assignment) do
         {:ok, %{result | projection: proj, state: new_state}}
       end
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -558,7 +578,10 @@ if is_map(assignment) do
          result
        ) do
     commit = get_in(event, ["attributes", "commit"])
-    new_state = put_in(result.state, ["integration"], %{"owner" => task_id, "candidate" => commit})
+
+    new_state =
+      put_in(result.state, ["integration"], %{"owner" => task_id, "candidate" => commit})
+
     proj = %{result.projection | events: [event | result.projection.events]}
     {:ok, %{result | projection: proj, state: new_state}}
   end
@@ -578,7 +601,9 @@ if is_map(assignment) do
     new_state =
       if outcome == "succeeded" do
         commit = get_in(event, ["attributes", "commit"])
-        revision = commit || get_in(assignment, ["candidate_commit"]) || state["accepted_revision"]
+
+        revision =
+          commit || get_in(assignment, ["candidate_commit"]) || state["accepted_revision"]
 
         new_state
         |> put_in(["accepted_revision"], revision)
@@ -610,7 +635,8 @@ if is_map(assignment) do
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -632,7 +658,8 @@ if is_map(assignment) do
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -656,7 +683,8 @@ if is_map(assignment) do
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
-      {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
     end
   end
 
@@ -681,11 +709,8 @@ if is_map(assignment) do
   defp project(%{"event" => event} = record, _result) when event in @authority_events,
     do: projection_error(:missing_authority_identity, record)
 
-  # Catch-all: unknown events are still recorded in the event list
-  # but don't mutate the projection or state.
-  defp project(%{"event" => _event} = event, result) do
-    {:ok, %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
-  end
+  defp project(%{"event" => _event} = event, _result),
+    do: projection_error(:unknown_event_type, event)
 
   # ── Helpers ──
 
@@ -700,8 +725,9 @@ if is_map(assignment) do
          }}
 
       ^identity ->
-        # Same identity is a true duplicate — return event duplication error
-        projection_error(:duplicate_assignment, event)
+        # Same-identity admission is idempotently projectable. Preserve the
+        # authoritative record while retaining the already-established identity.
+        {:ok, %{projection | events: [event | projection.events]}}
 
       _other_identity ->
         # Different identity: supersede with the new identity.
@@ -718,10 +744,17 @@ if is_map(assignment) do
 
   defp infer_completed_status(reason) when is_binary(reason) do
     cond do
-      String.contains?(reason, "handoff") and String.contains?(reason, ":ok") -> "review"
-      String.contains?(reason, "handoff") and String.contains?(reason, "error") -> "handoff_rejected"
-      String.contains?(reason, ":timeout") or String.contains?(reason, "timeout") -> "timed_out"
-      true -> "completed"
+      String.contains?(reason, "handoff") and String.contains?(reason, ":ok") ->
+        "review"
+
+      String.contains?(reason, "handoff") and String.contains?(reason, "error") ->
+        "handoff_rejected"
+
+      String.contains?(reason, ":timeout") or String.contains?(reason, "timeout") ->
+        "timed_out"
+
+      true ->
+        "completed"
     end
   end
 

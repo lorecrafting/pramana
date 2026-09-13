@@ -492,6 +492,40 @@ steps.
 - The same implementation owner is correcting only these findings. FR-03 remains active,
   FR-07 remains blocked, and the changed candidate requires a fresh exact-hash review.
 
+#### FR-03 corrected candidate, review v2 and integration
+
+- Implementation candidate commit `69ede99128b14134cec9bddd728883e56f8cf62c`, tree
+  `8f98de6715a5aa3f4d875a2b6f815bd6a8134c91`, contains exactly 21 reviewed
+  implementation/test paths plus the original review, response and renewed review.
+- The response artifact SHA-256 is
+  `9b41e8c41505e5f6200a96c1fe004137d9b2ffe6cabcd54bd4b3a2b7a5a227e4`.
+  It maps B1–B4, expands exact ownership to the correct Import/EventLog/Transition/status
+  boundaries, records multi-write suspensions and preserves downstream ticket routing.
+- `/root/fr03_v2_review` (fresh Astra-medium reviewer) returned **PASS for immediate
+  FR-03 containment**. Review SHA-256:
+  `2dc7c2ca8cd422fcc33368ec3d16983262f0cd747c54369be2f66550293e4b0e`.
+  All 21 implementation/test hashes matched. Independent adversarial evidence includes
+  same-OS owner kill refusing successor, a slow old child keeping the fence through clean
+  shutdown, actual two-BEAM contention, SIGKILL/bridge-loss conservative recovery,
+  delimiter preservation, strict replay and public recovery inspection.
+- The candidate handles at most one queue item per tick and converts its old post-effect
+  authoritative summary to diagnostics. Automatic legacy startup reconciliation and
+  legacy Git integration are suspended before mutation/effect until FR-07/08 and FR-05
+  supply their transactional owners. No F01–F24 obligation is removed by the suspension.
+- Implementer evidence: clean 73-file warnings-as-errors compilation; focused `56 passed`;
+  strict-replay `32 passed`; Board/Coordinator/FR-01 compatibility `39 passed`. Its serial
+  full run was `346/350`; independent matched candidate/base diagnosis proved the four
+  Board failures identical at PTY width 80. Independent non-TTY full runs were candidate
+  `349/350` and base `324/325`; both failed only the same token benchmark because the
+  deliberately minimal Python PATH lacked `tiktoken`. Full-suite green is not claimed.
+- The implementation uses Elixir for the new runtime/test logic. The pre-existing Python
+  Fence bridge remains the necessary external POSIX `flock` boundary; the duplicate new
+  Python test helper and hard-coded Mix executable were removed.
+- Candidate was applied to main with precise source control handling. The unrelated dirty
+  CLI/Coordinator `unblock_ticket` work was excluded from the reviewed commit, preserved
+  separately during integration and restored afterward. FR-03 is implemented and
+  reviewed, **not deployed**. A clean integrated-tree attestation remains next.
+
 ### FR-04
 
 - `/root/fr04_investigate` found Coordinator cleanup enumerating panes and closing every

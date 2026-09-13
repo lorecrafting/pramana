@@ -11,7 +11,7 @@ defmodule PramanaFoundry.ConsolidatedLog do
   Each record has `source` set to `"coord"`, `"telemetry"`, or `"events"`.
   """
   def tail(count \\ @default_count) do
-    root = Application.get_env(:pramana_foundry, :runtime_root, "/Users/raymondluong/dev/pramana/foundry/local")
+    root = PramanaFoundry.RuntimeRoot.fetch!()
     dir = Path.join(root, "state/current")
 
     sources = [
@@ -30,7 +30,7 @@ defmodule PramanaFoundry.ConsolidatedLog do
   Returns a summary of record counts per source.
   """
   def summary do
-    root = Application.get_env(:pramana_foundry, :runtime_root, "/Users/raymondluong/dev/pramana/foundry/local")
+    root = PramanaFoundry.RuntimeRoot.fetch!()
     dir = Path.join(root, "state/current")
 
     %{

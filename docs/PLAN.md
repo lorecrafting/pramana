@@ -23,7 +23,7 @@ embedded, the reader at six screens.**
 ## Foundry audit follow-up — 2026-09-12
 
 The [Foundry audit](../foundry/docs/AUDIT-2026-09-12.md) is complete as an audit;
-its repairs are not implemented. It assesses the current working tree against the
+its repair backlog is in progress. It assesses the current working tree against the
 single-operator, Pramāṇa-only autonomous workflow contract, including autonomous
 self-update within operator-controlled spending and acceptance policy.
 
@@ -33,12 +33,13 @@ The report includes isolated reproductions, coverage limits and an ordered repai
 
 The executable backlog is now [Foundry repair tickets](../foundry/docs/REPAIR-PLAN.md),
 maintained outside Foundry. FR-01's independently reviewed static containment and
-FR-02's inert Elixir wrapper transport are complete;
+FR-02's inert Elixir wrapper transport and FR-03's independently reviewed startup/
+persistence containment are complete;
 all real automatic model launches are now disabled until FR-09/15a proves the protected
 subscription route. The dependency inventory identifies ready
 containment work and the design decisions required before downstream implementation.
 It includes acceptance evidence, model/context guidance and a fresh-session handoff.
-Other production repair tickets remain unimplemented. FR-06's
+The remaining production repair tickets are not complete. FR-06's
 [independent design review v1](../foundry/docs/FR-06-DESIGN-REVIEW.md) found R1–R5 and
 returned **not ready**. The [v2 workflow contract](../foundry/docs/WORKFLOW-CONTRACT.md)
 and [versioned response](../foundry/docs/fr-06/review-response-v2.md) now specify durable
@@ -54,8 +55,8 @@ without charging a process start that provably never occurred. Pre-intent waitin
 unknown possible start remain distinct. A fresh Astra-high
 [focused independent review](../foundry/docs/fr-06/r4a-focused-review.md) verified the
 exact v3 manifest and returned **PASS**. FR-06's design gate is complete; no
-implementation finding is closed. FR-07 remains blocked on its existing FR-03
-prerequisite.
+implementation finding is closed. FR-03 and FR-06 now provide the recorded dependency
+evidence required to begin FR-07's durable-store implementation.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence

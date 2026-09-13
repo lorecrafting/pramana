@@ -77,7 +77,7 @@ defmodule PramanaFoundry.Improver do
 
   # ── Analysis ──
 
-defp do_analyze(state) do
+  defp do_analyze(state) do
     cycle = state.cycle_count + 1
     IO.puts("\n=== Improver cycle #{cycle} ===")
 
@@ -96,13 +96,17 @@ defp do_analyze(state) do
         {:ok, obs} -> {obs, nil}
         error -> {[], error}
       end
+
     IO.puts("  observations: #{length(observations)}")
 
     # Duration forecast
     forecast_targets = build_forecast_targets(events)
-    forecasts = Enum.map(forecast_targets, fn t ->
-      {t, PramanaFoundry.Telemetry.Forecast.estimate(observations, t)}
-    end)
+
+    forecasts =
+      Enum.map(forecast_targets, fn t ->
+        {t, PramanaFoundry.Telemetry.Forecast.estimate(observations, t)}
+      end)
+
     IO.puts("  forecasts: #{length(forecasts)}")
 
     all_findings =
@@ -135,7 +139,13 @@ defp do_analyze(state) do
 
     # Track current generation for next cycle's comparison
     current_gen = get_coordinator_generation()
-    updated_state = %{state | last_findings: all_findings, cycle_count: cycle, last_generation: current_gen}
+
+    updated_state = %{
+      state
+      | last_findings: all_findings,
+        cycle_count: cycle,
+        last_generation: current_gen
+    }
 
     if new_findings == [] do
       IO.puts("  no new actionable findings")
@@ -143,17 +153,22 @@ defp do_analyze(state) do
     else
       IO.puts("  proposing #{length(new_findings)} hardening ticket(s)")
       gen = get_coordinator_generation()
-      LogStore.append(fp, %{"event" => "proposal", "source" => "improver", "cycle" => cycle,
-        "finding_count" => length(new_findings), "generation" => gen,
-        "fingerprints" => Enum.map(new_findings, & &1.fingerprint)})
+
+      LogStore.append(fp, %{
+        "event" => "proposal",
+        "source" => "improver",
+        "cycle" => cycle,
+        "finding_count" => length(new_findings),
+        "generation" => gen,
+        "fingerprints" => Enum.map(new_findings, & &1.fingerprint)
+      })
+
       propose_findings(new_findings)
       %{updated_state | proposed_fingerprints: updated_fingerprints}
     end
   end
 
   # ── Telemetry reader ──
-
-  
 
   # ── Classifiers ──
 
@@ -453,7 +468,6 @@ defp do_analyze(state) do
 
   # ── Helpers ──
 
-  
   defp get_accepted_revision do
     case Process.whereis(PramanaFoundry.Coordinator) do
       nil ->
@@ -475,12 +489,8 @@ defp do_analyze(state) do
 
   # ── Event log reader ──
 
-  
-
-  
-  
   defp default_findings_path do
-    root = Application.get_env(:pramana_foundry, :runtime_root, "/Users/raymondluong/dev/pramana/foundry/local")
+    root = PramanaFoundry.RuntimeRoot.fetch!()
     Path.join([root, "state", "current", "findings.jsonl"])
   end
 
@@ -505,7 +515,10 @@ defp do_analyze(state) do
   end
 
   defp log_finding(fp, finding, cycle) do
-    LogStore.append(fp, Map.merge(%{"event" => "finding", "source" => "improver", "cycle" => cycle}, finding))
+    LogStore.append(
+      fp,
+      Map.merge(%{"event" => "finding", "source" => "improver", "cycle" => cycle}, finding)
+    )
   end
 
   # ── Stuck-ticket classifier ──
@@ -529,20 +542,25 @@ defp do_analyze(state) do
         case DateTime.from_iso8601(at) do
           {:ok, dt, _} ->
             DateTime.diff(DateTime.utc_now(), dt, :millisecond) > @stuck_queue_ms
-          _ -> false
+
+          _ ->
+            false
         end
       end)
 
     if stuck != [] do
       ids = Enum.map(stuck, & &1.task_id)
-      [%{
-        severity: :high,
-        category: :stuck_tickets,
-        count: length(ids),
-        summary: "#{length(ids)} ticket(s) stuck in queue > #{div(@stuck_queue_ms, 1000)}s",
-        details: "Stuck: #{inspect(ids)}",
-        fingerprint: "stuck/v1/#{Enum.sort(ids)}"
-      }]
+
+      [
+        %{
+          severity: :high,
+          category: :stuck_tickets,
+          count: length(ids),
+          summary: "#{length(ids)} ticket(s) stuck in queue > #{div(@stuck_queue_ms, 1000)}s",
+          details: "Stuck: #{inspect(ids)}",
+          fingerprint: "stuck/v1/#{Enum.sort(ids)}"
+        }
+      ]
     else
       []
     end
@@ -553,22 +571,43 @@ defp do_analyze(state) do
   defp classify_observation_anomalies(observations) do
     censored = Enum.count(observations, & &1["right_censored"])
     completed = Enum.filter(observations, &(not &1["right_censored"]))
-    slow = Enum.filter(completed, fn obs -> is_integer(obs["duration_ms"]) and obs["duration_ms"] > 60_000 end)
 
-    result = if censored > 3 do
-      [%{severity: :medium, category: :running_observations, count: censored,
-        summary: "#{censored} running phase(s) without completion event",
-        details: "Phases started but not completed", fingerprint: "running_obs/v1"}]
-    else
-      []
-    end
+    slow =
+      Enum.filter(completed, fn obs ->
+        is_integer(obs["duration_ms"]) and obs["duration_ms"] > 60_000
+      end)
+
+    result =
+      if censored > 3 do
+        [
+          %{
+            severity: :medium,
+            category: :running_observations,
+            count: censored,
+            summary: "#{censored} running phase(s) without completion event",
+            details: "Phases started but not completed",
+            fingerprint: "running_obs/v1"
+          }
+        ]
+      else
+        []
+      end
 
     if slow != [] do
       ids = Enum.map(slow, & &1["task_id"]) |> Enum.uniq()
       avg_dur = div(Enum.sum(Enum.map(slow, & &1["duration_ms"])), length(slow))
-      [%{severity: :low, category: :slow_phases, count: length(slow),
-        summary: "#{length(slow)} phase(s) exceeded 60s (avg #{div(avg_dur, 1000)}s)",
-        details: "Tasks: #{inspect(ids)}", fingerprint: "slow_phases/v1"} | result]
+
+      [
+        %{
+          severity: :low,
+          category: :slow_phases,
+          count: length(slow),
+          summary: "#{length(slow)} phase(s) exceeded 60s (avg #{div(avg_dur, 1000)}s)",
+          details: "Tasks: #{inspect(ids)}",
+          fingerprint: "slow_phases/v1"
+        }
+        | result
+      ]
     else
       result
     end
@@ -577,14 +616,16 @@ defp do_analyze(state) do
   # ── No-events classifier ──
 
   defp classify_no_events([]) do
-    [%{
-      severity: :medium,
-      category: :no_event_log,
-      count: 0,
-      summary: "Event log empty — phase tracking unavailable",
-      details: "No events found in event log. Observation and Forecast cannot run.",
-      fingerprint: "no_events/v1"
-    }]
+    [
+      %{
+        severity: :medium,
+        category: :no_event_log,
+        count: 0,
+        summary: "Event log empty — phase tracking unavailable",
+        details: "No events found in event log. Observation and Forecast cannot run.",
+        fingerprint: "no_events/v1"
+      }
+    ]
   end
 
   defp classify_no_events(_events), do: []
@@ -597,14 +638,17 @@ defp do_analyze(state) do
     current = get_coordinator_generation()
 
     if current < prev do
-      [%{
-        severity: :critical,
-        category: :coordinator_restart,
-        count: 1,
-        summary: "Coordinator restarted (generation #{prev} → #{current})",
-        details: "The coordinator GenServer crashed and was restarted by the supervisor. Events were replayed.",
-        fingerprint: "coord_restart/v1"
-      }]
+      [
+        %{
+          severity: :critical,
+          category: :coordinator_restart,
+          count: 1,
+          summary: "Coordinator restarted (generation #{prev} → #{current})",
+          details:
+            "The coordinator GenServer crashed and was restarted by the supervisor. Events were replayed.",
+          fingerprint: "coord_restart/v1"
+        }
+      ]
     else
       []
     end
@@ -627,6 +671,7 @@ defp do_analyze(state) do
     |> Enum.filter(&(&1["event"] == "ticket_enqueued"))
     |> Enum.map(fn e ->
       ticket = Map.get(e, "attributes", %{}) |> Map.get("ticket", %{})
+
       %{
         "workload" => Map.get(ticket, "workload", "standard"),
         "risk" => Map.get(ticket, "risk", "workflow_recovery"),
@@ -641,22 +686,45 @@ defp do_analyze(state) do
 
   defp classify_process_memory do
     coord = Process.whereis(PramanaFoundry.Coordinator)
+
     if coord do
       mem = Process.info(coord, :memory)
       qlen = Process.info(coord, :message_queue_len)
       findings = []
 
-      findings = if elem(mem, 1) > 50_000_000 do
-        [%{severity: :low, category: :coordinator_memory, count: 1,
-          summary: "Coordinator using #{div(elem(mem, 1), 1000)} KB memory",
-          details: "Process memory exceeds 500KB threshold", fingerprint: "coord_mem/v1"} | findings]
-      else findings end
+      findings =
+        if elem(mem, 1) > 50_000_000 do
+          [
+            %{
+              severity: :low,
+              category: :coordinator_memory,
+              count: 1,
+              summary: "Coordinator using #{div(elem(mem, 1), 1000)} KB memory",
+              details: "Process memory exceeds 500KB threshold",
+              fingerprint: "coord_mem/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
 
-      findings = if elem(qlen, 1) > 50 do
-        [%{severity: :high, category: :mailbox_backlog, count: elem(qlen, 1),
-          summary: "Coordinator mailbox has #{elem(qlen, 1)} pending messages",
-          details: "Messages queued faster than processed", fingerprint: "mailbox_bl/v1"} | findings]
-      else findings end
+      findings =
+        if elem(qlen, 1) > 50 do
+          [
+            %{
+              severity: :high,
+              category: :mailbox_backlog,
+              count: elem(qlen, 1),
+              summary: "Coordinator mailbox has #{elem(qlen, 1)} pending messages",
+              details: "Messages queued faster than processed",
+              fingerprint: "mailbox_bl/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
 
       findings
     else
@@ -668,14 +736,24 @@ defp do_analyze(state) do
 
   defp classify_task_sup_capacity do
     sup = Process.whereis(PramanaFoundry.TaskSupervisor)
+
     if sup do
       counts = Supervisor.count_children(sup)
       active = counts[:active] || 0
       max = Application.get_env(:pramana_foundry, :max_tasks, 8)
+
       if active >= max - 1 do
-        [%{severity: :medium, category: :task_sup_full, count: active, max: max,
-          summary: "TaskSupervisor at #{active}/#{max} capacity",
-          details: "Near capacity — new task launches may stall", fingerprint: "tasksup_cap/v1"}]
+        [
+          %{
+            severity: :medium,
+            category: :task_sup_full,
+            count: active,
+            max: max,
+            summary: "TaskSupervisor at #{active}/#{max} capacity",
+            details: "Near capacity — new task launches may stall",
+            fingerprint: "tasksup_cap/v1"
+          }
+        ]
       else
         []
       end
@@ -688,18 +766,29 @@ defp do_analyze(state) do
 
   defp classify_duplicate_run_ids do
     coord = Process.whereis(PramanaFoundry.Coordinator)
+
     if coord do
       s = :sys.get_state(coord)
-      run_ids = s.state["assignments"]
+
+      run_ids =
+        s.state["assignments"]
         |> Map.values()
         |> Enum.map(&Map.get(&1, "run_id", ""))
         |> Enum.reject(&(&1 == ""))
 
       dups = run_ids |> Enum.frequencies() |> Enum.filter(fn {_id, count} -> count > 1 end)
+
       if dups != [] do
-        [%{severity: :critical, category: :duplicate_run_ids, count: length(dups),
-          summary: "#{length(dups)} duplicate run_id(s) detected",
-          details: "Duplicate run_ids: #{inspect(dups)}", fingerprint: "dup_rid/v1"}]
+        [
+          %{
+            severity: :critical,
+            category: :duplicate_run_ids,
+            count: length(dups),
+            summary: "#{length(dups)} duplicate run_id(s) detected",
+            details: "Duplicate run_ids: #{inspect(dups)}",
+            fingerprint: "dup_rid/v1"
+          }
+        ]
       else
         []
       end
@@ -712,84 +801,155 @@ defp do_analyze(state) do
 
   defp classify_assignment_consistency do
     coord = Process.whereis(PramanaFoundry.Coordinator)
+
     if coord do
       s = :sys.get_state(coord)
       queue = Map.get(s.state, "queue", [])
       assignments = s.state["assignments"] || %{}
       launched = Map.get(s, :agent_registry) || %{}
       now = DateTime.utc_now()
-      lifecycle = ~w(queued dispatched prompting working queued_correction review ready accepted parked crashed)
+
+      lifecycle =
+        ~w(queued dispatched prompting working queued_correction review ready accepted parked crashed)
 
       # 1. Queue vs assignment status mismatch
       queue_assigns = Enum.filter(queue, &Map.has_key?(assignments, &1))
-      inconsistent = Enum.filter(queue_assigns, fn tid ->
-        status = get_in(assignments, [tid, "status"])
-        status && status != "queued"
-      end)
+
+      inconsistent =
+        Enum.filter(queue_assigns, fn tid ->
+          status = get_in(assignments, [tid, "status"])
+          status && status != "queued"
+        end)
 
       # 2. Launched task refs pointing to missing assignments
-      orphan_launches = Enum.filter(launched, fn {tid, _pid} ->
-        not Map.has_key?(assignments, tid)
-      end)
+      orphan_launches =
+        Enum.filter(launched, fn {tid, _pid} ->
+          not Map.has_key?(assignments, tid)
+        end)
 
       # 3. Tickets stuck in dispatched for > 4 hours (work_timeout_seconds default)
-      stuck_dispatched = Enum.filter(assignments, fn {_tid, a} ->
-        a["status"] == "dispatched" and is_binary(Map.get(a, "dispatched_at")) and
-          case DateTime.from_iso8601(a["dispatched_at"]) do
-            {:ok, dt, _} -> DateTime.diff(now, dt, :second) > 300
-            _ -> false
-          end
-      end)
+      stuck_dispatched =
+        Enum.filter(assignments, fn {_tid, a} ->
+          a["status"] == "dispatched" and is_binary(Map.get(a, "dispatched_at")) and
+            case DateTime.from_iso8601(a["dispatched_at"]) do
+              {:ok, dt, _} -> DateTime.diff(now, dt, :second) > 300
+              _ -> false
+            end
+        end)
 
       # 4. Invalid status values (not in lifecycle)
-      invalid_status = Enum.filter(assignments, fn {_tid, a} ->
-        Map.get(a, "status", "") not in lifecycle
-      end)
+      invalid_status =
+        Enum.filter(assignments, fn {_tid, a} ->
+          Map.get(a, "status", "") not in lifecycle
+        end)
 
       # 5. Skipped vital transitions (handoff/review without preceding status)
-      skipped_transitions = Enum.filter(assignments, fn {_tid, a} ->
-        has_handoff = is_map(Map.get(a, "handoff"))
-        has_review = is_map(Map.get(a, "review"))
-        was_dispatched = a["status"] in ~w(handoff_incoming review pending accepted) or
-          (has_handoff and a["status"] == "accepted")
-        (has_handoff or has_review) and not was_dispatched
-      end)
+      skipped_transitions =
+        Enum.filter(assignments, fn {_tid, a} ->
+          has_handoff = is_map(Map.get(a, "handoff"))
+          has_review = is_map(Map.get(a, "review"))
+
+          was_dispatched =
+            a["status"] in ~w(handoff_incoming review pending accepted) or
+              (has_handoff and a["status"] == "accepted")
+
+          (has_handoff or has_review) and not was_dispatched
+        end)
 
       findings = []
 
-      findings = if inconsistent != [] do
-        [%{severity: :high, category: :inconsistent_state, count: length(inconsistent),
-          summary: "#{length(inconsistent)} ticket(s) in queue but in non-queued status",
-          details: "#{inspect(inconsistent)}", fingerprint: "inconsistent/v1"} | findings]
-      else findings end
+      findings =
+        if inconsistent != [] do
+          [
+            %{
+              severity: :high,
+              category: :inconsistent_state,
+              count: length(inconsistent),
+              summary: "#{length(inconsistent)} ticket(s) in queue but in non-queued status",
+              details: "#{inspect(inconsistent)}",
+              fingerprint: "inconsistent/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
 
-      findings = if orphan_launches != [] do
-        ids = Enum.map(orphan_launches, fn {_ref, {tid, _rid}} -> tid end)
-        [%{severity: :critical, category: :orphan_launches, count: length(ids),
-          summary: "#{length(ids)} launched task(s) with missing assignment",
-          details: "#{inspect(ids)}", fingerprint: "orphan/v1"} | findings]
-      else findings end
+      findings =
+        if orphan_launches != [] do
+          ids = Enum.map(orphan_launches, fn {_ref, {tid, _rid}} -> tid end)
 
-      findings = if stuck_dispatched != [] do
-        ids = Enum.map(stuck_dispatched, fn {tid, _a} -> tid end)
-        [%{severity: :high, category: :stuck_dispatched, count: length(ids),
-          summary: "#{length(ids)} ticket(s) dispatched >5m without handoff",
-          details: "#{inspect(ids)}", fingerprint: "stuck_disp/v1"} | findings]
-      else findings end
+          [
+            %{
+              severity: :critical,
+              category: :orphan_launches,
+              count: length(ids),
+              summary: "#{length(ids)} launched task(s) with missing assignment",
+              details: "#{inspect(ids)}",
+              fingerprint: "orphan/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
 
-      findings = if invalid_status != [] do
-        ids = Enum.map(invalid_status, fn {tid, a} -> "#{tid}=#{a["status"]}" end)
-        [%{severity: :critical, category: :invalid_status, count: length(ids),
-          summary: "#{length(ids)} ticket(s) with unrecognized status",
-          details: "#{inspect(ids)}", fingerprint: "inv_status/v1"} | findings]
-      else findings end
+      findings =
+        if stuck_dispatched != [] do
+          ids = Enum.map(stuck_dispatched, fn {tid, _a} -> tid end)
 
-      findings = if skipped_transitions != [] do
-        ids = Enum.map(skipped_transitions, fn {tid, _a} -> tid end)
-        [%{severity: :critical, category: :skipped_transition, count: length(ids),
-          summary: "#{length(ids)} ticket(s) with handoff/review but no dispatch",
-          details: "#{inspect(ids)}", fingerprint: "skip_trans/v1"} | findings]
-      else findings end
+          [
+            %{
+              severity: :high,
+              category: :stuck_dispatched,
+              count: length(ids),
+              summary: "#{length(ids)} ticket(s) dispatched >5m without handoff",
+              details: "#{inspect(ids)}",
+              fingerprint: "stuck_disp/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
+
+      findings =
+        if invalid_status != [] do
+          ids = Enum.map(invalid_status, fn {tid, a} -> "#{tid}=#{a["status"]}" end)
+
+          [
+            %{
+              severity: :critical,
+              category: :invalid_status,
+              count: length(ids),
+              summary: "#{length(ids)} ticket(s) with unrecognized status",
+              details: "#{inspect(ids)}",
+              fingerprint: "inv_status/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
+
+      findings =
+        if skipped_transitions != [] do
+          ids = Enum.map(skipped_transitions, fn {tid, _a} -> tid end)
+
+          [
+            %{
+              severity: :critical,
+              category: :skipped_transition,
+              count: length(ids),
+              summary: "#{length(ids)} ticket(s) with handoff/review but no dispatch",
+              details: "#{inspect(ids)}",
+              fingerprint: "skip_trans/v1"
+            }
+            | findings
+          ]
+        else
+          findings
+        end
 
       findings
     else

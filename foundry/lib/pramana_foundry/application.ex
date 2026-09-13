@@ -4,12 +4,12 @@ defmodule PramanaFoundry.Application do
 
   @impl true
   def start(_type, _args) do
-    # When running as escript, the CLI main() runs after this.
-    # If the escript command is "board", skip the full supervision tree
-    # (coordinator, improver, etc.) since those run in the daemon.
-    # The board command starts only what it needs.
     args = :init.get_plain_arguments()
-    is_board = "board" in args
+    mix_env = mix_env()
+    test_mode = mix_env == :test
+    mode = if test_mode, do: :daemon, else: startup_mode(args)
+    operator_root = PramanaFoundry.RuntimeRoot.initialize_operator_root!()
+    runtime_root = PramanaFoundry.RuntimeRoot.resolve_and_publish!(mix_env, operator_root)
 
     herdr_cmd = Application.get_env(:pramana_foundry, :herdr_command, "herdr")
     poll_ms = Application.get_env(:pramana_foundry, :poll_seconds, 15) * 1000
@@ -20,10 +20,9 @@ defmodule PramanaFoundry.Application do
 
     IO.puts("PramanaFoundry starting: tick=#{enable_tick} herdr=#{herdr_cmd} poll=#{poll_ms}ms")
 
-    children =
-      if is_board do
-        # Board mode: only OWL LiveScreen support, no coordinator stack
-        IO.puts("  board mode: skipping coordinator/improver stack")
+    runtime_children =
+      if mode == :client do
+        IO.puts("  client mode: skipping coordinator/improver stack")
         []
       else
         [
@@ -36,16 +35,20 @@ defmodule PramanaFoundry.Application do
            name: PramanaFoundry.TaskSupervisor,
            max_children: Application.fetch_env!(:pramana_foundry, :max_tasks)},
           {PramanaFoundry.Coordinator,
-           [herdr_command: herdr_cmd, poll_ms: poll_ms, enable_tick: enable_tick]},
+           [
+             herdr_command: herdr_cmd,
+             poll_ms: poll_ms,
+             enable_tick: enable_tick,
+             require_runtime_owner: not test_mode,
+             telemetry_log_path: Path.join(runtime_root, "state/current/telemetry.jsonl"),
+             event_log_path: Path.join(runtime_root, "state/current/events.jsonl"),
+             coordinator_log_path: Path.join(runtime_root, "state/current/coordinator.jsonl")
+           ]},
           {PramanaFoundry.Improver,
            [
              telemetry_path:
                Path.join(
-                 Application.get_env(
-                   :pramana_foundry,
-                   :runtime_root,
-                   "/Users/raymondluong/dev/pramana/foundry/local"
-                 ),
+                 runtime_root,
                  "state/current/telemetry.jsonl"
                ),
              interval_ms: 300_000
@@ -54,6 +57,34 @@ defmodule PramanaFoundry.Application do
         ]
       end
 
+    children =
+      cond do
+        mode == :client ->
+          []
+
+        test_mode ->
+          runtime_children
+
+        true ->
+          [{PramanaFoundry.RuntimeOwner, runtime_root: runtime_root, children: runtime_children}]
+      end
+
     Supervisor.start_link(children, strategy: :one_for_one, name: PramanaFoundry.Supervisor)
+  end
+
+  @doc false
+  @spec startup_mode([binary()]) :: :daemon | :client
+  def startup_mode(args) do
+    case System.get_env("PRAMANA_STARTUP_MODE") do
+      "daemon" -> :daemon
+      "client" -> :client
+      _ -> if(args == [], do: :daemon, else: :client)
+    end
+  end
+
+  defp mix_env do
+    if Code.ensure_loaded?(Mix) and function_exported?(Mix, :env, 0),
+      do: apply(Mix, :env, []),
+      else: :prod
   end
 end

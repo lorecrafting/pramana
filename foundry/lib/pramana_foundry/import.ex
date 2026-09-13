@@ -19,7 +19,8 @@ defmodule PramanaFoundry.Import do
          :ok <- within_limit(stat.size, limit),
          {:ok, bytes} <- File.read(path),
          :ok <- within_limit(byte_size(bytes), limit),
-         :ok <- valid_utf8(bytes) do
+         :ok <- valid_utf8(bytes),
+         :ok <- terminated_jsonl(bytes) do
       bytes
       |> String.split("\n", trim: true)
       |> Enum.with_index(1)
@@ -53,6 +54,12 @@ defmodule PramanaFoundry.Import do
 
   defp valid_utf8(bytes) do
     if String.valid?(bytes), do: :ok, else: {:error, :invalid_utf8}
+  end
+
+  defp terminated_jsonl(""), do: :ok
+
+  defp terminated_jsonl(bytes) do
+    if :binary.last(bytes) == ?\n, do: :ok, else: {:error, :unterminated_jsonl}
   end
 
   defp error(path, reason), do: {:error, %{reason: reason, evidence: path, source_path: path}}

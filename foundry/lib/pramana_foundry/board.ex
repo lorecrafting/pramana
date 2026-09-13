@@ -172,7 +172,8 @@ defmodule PramanaFoundry.Board do
     case Application.start(:owl) do
       {:ok, _} -> :ok
       {:error, {:already_started, _}} -> :ok
-      {:error, _} -> :ok  # non-fatal
+      # non-fatal
+      {:error, _} -> :ok
     end
   end
 
@@ -286,7 +287,12 @@ defmodule PramanaFoundry.Board do
     new_vs = ViewState.resize(state.view_state, width, height)
     new_state = %{state | view_state: new_vs}
     width = Owl.IO.columns() || 120
-    Owl.LiveScreen.update(:kanban, View.render_kanban(new_state.view_state, new_state.data, width))
+
+    Owl.LiveScreen.update(
+      :kanban,
+      View.render_kanban(new_state.view_state, new_state.data, width)
+    )
+
     {:reply, :ok, new_state}
   end
 
@@ -300,10 +306,12 @@ defmodule PramanaFoundry.Board do
 
   def handle_call(:render_frame, _from, state) do
     width = Owl.IO.columns() || 120
+
     frame =
       View.render_frame(state.view_state, state.data, width)
       |> Owl.Data.to_chardata()
       |> IO.chardata_to_string()
+
     {:reply, frame, state}
   end
 
@@ -319,7 +327,8 @@ defmodule PramanaFoundry.Board do
 
     # Pad or trim to expected height
     lines =
-      (raw_lines ++ List.duplicate(String.duplicate(" ", width), max(0, height - length(raw_lines))))
+      (raw_lines ++
+         List.duplicate(String.duplicate(" ", width), max(0, height - length(raw_lines))))
       |> Enum.take(height)
 
     {:reply, lines, state}
@@ -365,7 +374,13 @@ defmodule PramanaFoundry.Board do
             state.data
           end
 
-        new_state = %{state | view_state: new_vs, data: new_data, findings: FindingsPanel.fetch_findings()}
+        new_state = %{
+          state
+          | view_state: new_vs,
+            data: new_data,
+            findings: FindingsPanel.fetch_findings()
+        }
+
         push_live_screen(new_state)
         {:noreply, new_state}
 
@@ -646,7 +661,7 @@ defmodule PramanaFoundry.Board do
   # Private Helpers
   # ===================================================================
 
-defp fetch_coordinator_data(coordinator, opts) do
+  defp fetch_coordinator_data(coordinator, opts) do
     try do
       state =
         cond do
@@ -687,10 +702,7 @@ defp fetch_coordinator_data(coordinator, opts) do
   end
 
   defp rebuild_from_event_log do
-    root =
-      Application.get_env(:pramana_foundry, :runtime_root,
-        "/Users/raymondluong/dev/pramana/foundry/local"
-      )
+    root = PramanaFoundry.RuntimeRoot.fetch!()
 
     events_path = Path.join(root, "state/current/events.jsonl")
 
@@ -806,10 +818,12 @@ defp fetch_coordinator_data(coordinator, opts) do
               other -> {:escape, "O#{other}"}
             end
 
-          other -> {:escape, other}
+          other ->
+            {:escape, other}
         end
 
-      char -> char
+      char ->
+        char
     end
   end
 

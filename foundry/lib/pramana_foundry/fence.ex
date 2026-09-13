@@ -46,6 +46,11 @@ defmodule PramanaFoundry.Fence do
 
   def acquire(_runtime_root, _name), do: {:error, :invalid_fence}
 
+  @spec owned?(t()) :: boolean()
+  def owned?(%__MODULE__{path: path, port: port, owner: owner}) do
+    Port.info(port) != nil and File.read(path) == {:ok, owner}
+  end
+
   @spec release(t()) :: :ok | {:error, term()}
   def release(%__MODULE__{path: path, port: port, owner: owner}) do
     ownership =

@@ -13,10 +13,7 @@ defmodule PramanaFoundry.Board.FindingsPanel do
   """
   @spec fetch_findings(pos_integer()) :: [map()]
   def fetch_findings(count \\ 15) do
-    root =
-      Application.get_env(:pramana_foundry, :runtime_root,
-        "/Users/raymondluong/dev/pramana/foundry/local"
-      )
+    root = PramanaFoundry.RuntimeRoot.fetch!()
 
     path = Path.join(root, "state/current/findings.jsonl")
 

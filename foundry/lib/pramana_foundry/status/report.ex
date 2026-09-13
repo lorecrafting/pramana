@@ -62,6 +62,8 @@ defmodule PramanaFoundry.Status.Report do
     pm = Map.get(state, "pm", %{})
 
     report = %{
+      "status" => Map.get(state, "status", "running"),
+      "recovery_error" => Map.get(state, "recovery_error"),
       "accepted_revision" => accepted_rev,
       "runtime_implementation_revision" => runtime_rev,
       "revisions_match?" => revisions_match?,

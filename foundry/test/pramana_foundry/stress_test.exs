@@ -39,7 +39,7 @@ defmodule PramanaFoundry.StressTest do
       assert state["assignments"] == %{}
     end
 
-    test "skips schema-invalid events without halting rebuild" do
+    test "fails closed on schema-invalid events" do
       # A valid ticket_enqueued followed by an event with no "event" key
       valid = %{
         "schema_version" => 1,
@@ -79,29 +79,29 @@ defmodule PramanaFoundry.StressTest do
         "evidence" => %{}
       }
 
-      assert {:ok, %{state: state}} = Transition.rebuild([valid, missing_event_field, wrong_type, unknown_fields])
-      # Valid events should be recovered, invalid ones skipped
-      assert Map.has_key?(state["assignments"], "T-STRESS-1")
-      # T-STRESS-2 and T-STRESS-3 should not appear (their events were invalid)
-      refute Map.has_key?(state["assignments"], "T-STRESS-2")
-      refute Map.has_key?(state["assignments"], "T-STRESS-3")
+      assert {:error, _reason} =
+               Transition.rebuild([valid, missing_event_field, wrong_type, unknown_fields])
     end
 
-    test "garbage binary lines are skipped" do
-      base1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-GARBAGE-1", "base_revision" => @base_rev}})
+    test "garbage binary records fail closed" do
+      base1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-GARBAGE-1", "base_revision" => @base_rev}
+        })
+
       e1 = %{base1 | "task_id" => "T-GARBAGE-1"}
 
       # Simulate what happens when a garbage binary line is read from JSONL
       garbage_not_a_map = "this is not a map"
 
-      base2 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-GARBAGE-2", "base_revision" => @base_rev}})
+      base2 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-GARBAGE-2", "base_revision" => @base_rev}
+        })
+
       e2 = %{base2 | "task_id" => "T-GARBAGE-2"}
 
-      assert {:ok, %{state: state}} = Transition.rebuild([e1, garbage_not_a_map, e2])
-      # Both valid events should be recovered despite the garbage in between
-      assert Map.has_key?(state["assignments"], "T-GARBAGE-1")
-      assert Map.has_key?(state["assignments"], "T-GARBAGE-2")
-      assert length(state["queue"]) == 2
+      assert {:error, _reason} = Transition.rebuild([e1, garbage_not_a_map, e2])
     end
   end
 
@@ -112,7 +112,7 @@ defmodule PramanaFoundry.StressTest do
       e1 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e1])
-      # The duplicate should be skipped; state should reflect first admission
+      # The duplicate is idempotently projected; state reflects the same admission.
       assert state["assignments"]["T-STRESS-1"]["status"] == "dispatched"
       assert state["assignments"]["T-STRESS-1"]["run_id"] == "run-1"
       # Queue should have removed this task
@@ -123,9 +123,15 @@ defmodule PramanaFoundry.StressTest do
       e1 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
       base = e1
 
-      retry = %{base | "event" => "launch_retried", "attributes" => %{
-        "retry_count" => 1, "max_retries" => 3, "error_reason" => "launch_failed"
-      }}
+      retry = %{
+        base
+        | "event" => "launch_retried",
+          "attributes" => %{
+            "retry_count" => 1,
+            "max_retries" => 3,
+            "error_reason" => "launch_failed"
+          }
+      }
 
       # Second admit with a DIFFERENT run_id
       e2 = %{base | "run_id" => "run-2", "attributes" => %{"checkout" => "/tmp/w1"}}
@@ -141,15 +147,28 @@ defmodule PramanaFoundry.StressTest do
     test "multiple admit-retry cycles converge to final state" do
       base = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
 
-      r1 = %{base | "event" => "launch_retried", "attributes" => %{
-        "retry_count" => 1, "max_retries" => 3, "error_reason" => "fail"
-      }}
+      r1 = %{
+        base
+        | "event" => "launch_retried",
+          "attributes" => %{
+            "retry_count" => 1,
+            "max_retries" => 3,
+            "error_reason" => "fail"
+          }
+      }
 
       e2 = %{base | "run_id" => "run-2", "attributes" => %{"checkout" => "/tmp/w1"}}
 
-      r2 = %{base | "event" => "launch_retried", "run_id" => "run-2", "attributes" => %{
-        "retry_count" => 2, "max_retries" => 3, "error_reason" => "fail2"
-      }}
+      r2 = %{
+        base
+        | "event" => "launch_retried",
+          "run_id" => "run-2",
+          "attributes" => %{
+            "retry_count" => 2,
+            "max_retries" => 3,
+            "error_reason" => "fail2"
+          }
+      }
 
       e3 = %{base | "run_id" => "run-3", "attributes" => %{"checkout" => "/tmp/w1"}}
 
@@ -162,18 +181,31 @@ defmodule PramanaFoundry.StressTest do
     test "admit then park then admit converges correctly" do
       base = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
 
-      park = %{base | "event" => "launch_parked", "attributes" => %{
-        "retry_count" => 3, "max_retries" => 3, "error_reason" => "max_retries"
-      }}
+      park = %{
+        base
+        | "event" => "launch_parked",
+          "attributes" => %{
+            "retry_count" => 3,
+            "max_retries" => 3,
+            "error_reason" => "max_retries"
+          }
+      }
 
       # After parking, a manual re-enqueue + admit
-      re_enq = %{base | "event" => "ticket_re_enqueued", "attributes" => %{
-        "reason" => "manual", "previous_status" => "parked"
-      }}
+      re_enq = %{
+        base
+        | "event" => "ticket_re_enqueued",
+          "attributes" => %{
+            "reason" => "manual",
+            "previous_status" => "parked"
+          }
+      }
 
       e2 = %{base | "run_id" => "run-2", "attributes" => %{"checkout" => "/tmp/w1"}}
 
-      assert {:ok, %{state: state, projection: proj}} = Transition.rebuild([base, park, re_enq, e2])
+      assert {:ok, %{state: state, projection: proj}} =
+               Transition.rebuild([base, park, re_enq, e2])
+
       assert state["assignments"]["T-STRESS-1"]["status"] == "dispatched"
       assert state["assignments"]["T-STRESS-1"]["run_id"] == "run-2"
     end
@@ -183,14 +215,22 @@ defmodule PramanaFoundry.StressTest do
 
   describe "incomplete lifecycles rebuild correctly" do
     test "just a ticket_enqueued — rebuilt as queued" do
-      e = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       assert {:ok, %{state: state}} = Transition.rebuild([e])
       assert state["assignments"]["T-STRESS-1"]["status"] == "queued"
       assert "T-STRESS-1" in state["queue"]
     end
 
     test "ticket_enqueued then admitted — rebuilt as dispatched" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2])
       assert state["assignments"]["T-STRESS-1"]["status"] == "dispatched"
@@ -198,9 +238,16 @@ defmodule PramanaFoundry.StressTest do
     end
 
     test "full lifecycle: enqueue → admit → handoff → review → integrate" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
-      e3 = event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
+      e3 =
+        event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
       e4 = event("review_received", %{"verdict" => "approved", "correction_count" => 0})
       e5 = event("integration_started", %{"commit" => @commit})
       e6 = event("integration_completed", %{"outcome" => "succeeded", "commit" => @commit})
@@ -212,10 +259,19 @@ defmodule PramanaFoundry.StressTest do
     end
 
     test "enqueue → admit → crash recovers correctly" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
       base = e2
-      e3 = %{base | "event" => "task_crashed", "attributes" => %{"reason" => "agent_crashed: :normal"}}
+
+      e3 = %{
+        base
+        | "event" => "task_crashed",
+          "attributes" => %{"reason" => "agent_crashed: :normal"}
+      }
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3])
       assert state["assignments"]["T-STRESS-1"]["status"] == "crashed"
@@ -224,12 +280,25 @@ defmodule PramanaFoundry.StressTest do
 
     test "integration failure parks the task and preserves revision" do
       original_rev = "original_rev_000000000000000000000000000000000000"
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => original_rev}})
+
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => original_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
-      e3 = event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
+      e3 =
+        event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
       e4 = event("review_received", %{"verdict" => "approved", "correction_count" => 0})
       e5 = event("integration_started", %{"commit" => @commit})
-      e6 = event("integration_completed", %{"outcome" => "failed", "reason" => "check failed: exit 1"})
+
+      e6 =
+        event("integration_completed", %{
+          "outcome" => "failed",
+          "reason" => "check failed: exit 1"
+        })
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3, e4, e5, e6])
       assert state["assignments"]["T-STRESS-1"]["status"] == "parked"
@@ -243,9 +312,16 @@ defmodule PramanaFoundry.StressTest do
 
   describe "mixed transitions and event ordering" do
     test "review with correction_needed restores correction state" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
-      e3 = event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
+      e3 =
+        event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
       e4 = event("review_received", %{"verdict" => "correction_needed", "correction_count" => 0})
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3, e4])
@@ -255,9 +331,16 @@ defmodule PramanaFoundry.StressTest do
     end
 
     test "review with correction_count restores correct value on approve" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
-      e3 = event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
+      e3 =
+        event("handoff_received", %{"handoff" => %{"commit" => @commit, "status" => "completed"}})
+
       e4 = event("review_received", %{"verdict" => "approved", "correction_count" => 2})
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3, e4])
@@ -266,10 +349,19 @@ defmodule PramanaFoundry.StressTest do
     end
 
     test "pane_created sets pane info without changing status" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
+
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
       base = e2
-      e3 = %{base | "event" => "pane_created", "attributes" => %{"pane_id" => "w3:p42", "agent_name" => "pramana-dev-test"}}
+
+      e3 = %{
+        base
+        | "event" => "pane_created",
+          "attributes" => %{"pane_id" => "w3:p42", "agent_name" => "pramana-dev-test"}
+      }
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3])
       assert state["assignments"]["T-STRESS-1"]["pane_id"] == "w3:p42"
@@ -278,16 +370,22 @@ defmodule PramanaFoundry.StressTest do
       assert state["assignments"]["T-STRESS-1"]["status"] == "dispatched"
     end
 
-    test "unknown event types are silently ignored" do
-      e1 = event("ticket_enqueued", %{"ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}})
-      base = e1
-      unknown = %{base | "event" => "completely_unknown_event_type", "attributes" => %{"foo" => "bar"}}
+    test "unknown event types fail strict replay" do
+      e1 =
+        event("ticket_enqueued", %{
+          "ticket" => %{"task_id" => "T-STRESS-1", "base_revision" => @base_rev}
+        })
 
-      assert {:ok, %{state: state, projection: proj}} = Transition.rebuild([e1, unknown])
-      # The known event was handled
-      assert state["assignments"]["T-STRESS-1"]["status"] == "queued"
-      # The unknown event should be in the projection's event list
-      assert length(proj.events) == 2
+      base = e1
+
+      unknown = %{
+        base
+        | "event" => "completely_unknown_event_type",
+          "attributes" => %{"foo" => "bar"}
+      }
+
+      assert {:error, %{reason: %{reason: :unknown_event_type}}} =
+               Transition.rebuild([e1, unknown])
     end
   end
 
@@ -300,6 +398,7 @@ defmodule PramanaFoundry.StressTest do
       events =
         Enum.map(1..5000, fn i ->
           tid = "T-LARGE-#{String.pad_leading("#{i}", 4, "0")}"
+
           %{
             "schema_version" => 1,
             "event" => "ticket_enqueued",

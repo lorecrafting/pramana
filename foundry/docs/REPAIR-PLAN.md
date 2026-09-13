@@ -118,11 +118,11 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 |---|---|---|---|---|
 | FR-01 | Remove automatic paid execution paths | — | **Complete: reviewed static containment** | F01 |
 | FR-02 | Transport CLI arguments as inert data | — | **Complete: reviewed inert transport** | F06 |
-| FR-03 | Fence startup and fail closed on legacy persistence errors | — | Ready: containment | F14, F02 |
+| FR-03 | Fence startup and fail closed on legacy persistence errors | — | **Complete: reviewed containment** | F14, F02 |
 | FR-04 | Restrict cleanup to verified owned resources | — | Ready | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | Ready | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
-| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | Blocked: FR-03 pending; FR-06 complete | F02, F20, F21 |
+| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | Ready: FR-03 and FR-06 complete | F02, F20, F21 |
 | FR-08 | Unify command transitions and replay | FR-07 | Blocked | F07, F16 |
 | FR-09 | Prove OMP execution and presentation contract | FR-01, FR-04, FR-06, FR-15a | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08, FR-09 | Blocked | F08, F09 |
@@ -884,3 +884,17 @@ quotes, backslashes, newlines, Unicode, empty/interpolation-looking data, stdout
 and exit status. General release eval authority remains FR-15a; equivalent historical
 interpolation in `tickets_from_review.sh` and `test_daemon_recovery.sh` remains routed
 to FR-03/04/05. No live daemon/provider was used.
+
+2026-09-12, FR-03: candidate `69ede99128b14134cec9bddd728883e56f8cf62c`
+received an independent [PASS](fr-03/review-v2.md) for immediate F02/F14 containment
+after the original [review](fr-03/review.md) reproduced four blockers and the
+[response](fr-03/review-response.md) corrected them. Startup now admits one fenced
+runtime whose owner contains the effectful subtree; clean release follows subtree
+quiescence, while abrupt/uncertain loss leaves an unclean marker and refuses automatic
+takeover. Unterminated or invalid authoritative history is preserved and enters visible
+recovery through the single strict replay path. Checked legacy writes cannot acknowledge
+or launch after failure. Unsafe automatic startup reconciliation, multi-item tick work
+and legacy Git integration are suspended for FR-07/08 and FR-05 rather than represented
+as atomic. The new fixtures are Elixir; the existing Fence bridge remains the external
+POSIX-lock boundary. This is integrated containment, not deployment or FR-22 lifecycle
+acceptance. FR-07 is now ready because both FR-03 and FR-06 have completion evidence.

@@ -96,7 +96,7 @@ defmodule PramanaFoundry.TransitionTest do
              })
   end
 
-  test "rebuild skips prompt intents whose durable run or role was not admitted" do
+  test "rebuild rejects prompt intents whose durable run or role was not admitted" do
     admitted = %{
       "schema_version" => 1,
       "event" => "assignment_admitted",
@@ -111,20 +111,16 @@ defmodule PramanaFoundry.TransitionTest do
     prompt = %{admitted | "event" => "prompt_intent", "at" => "2026-09-08T00:00:01Z"}
     wrong_run = %{prompt | "run_id" => "run-2"}
 
-    # Mismatched prompt events are skipped rather than halting rebuild
-    assert {:ok, %{projection: proj}} = Transition.rebuild([admitted, wrong_run])
-    assert proj.assignments["T1"] == {"run-1", "developer"}
-    # The mismatched prompt_intent was skipped; only the admission event is in the list
-    assert length(proj.events) == 1
+    assert {:error, %{reason: %{reason: :run_identity_mismatch}}} =
+             Transition.rebuild([admitted, wrong_run])
 
     wrong_role = %{prompt | "role" => "reviewer"}
 
-    assert {:ok, %{projection: proj2}} = Transition.rebuild([admitted, wrong_role])
-    assert proj2.assignments["T1"] == {"run-1", "developer"}
-    assert length(proj2.events) == 1
+    assert {:error, %{reason: %{reason: :role_identity_mismatch}}} =
+             Transition.rebuild([admitted, wrong_role])
   end
 
-test "rebuild skips known authority events with missing identity" do
+  test "rebuild rejects known authority events with missing identity" do
     for event <- ~w(assignment_admitted prompt_intent) do
       incomplete = %{
         "schema_version" => 1,
@@ -134,9 +130,7 @@ test "rebuild skips known authority events with missing identity" do
         "evidence" => %{}
       }
 
-      # Authority events without identity are silently skipped; rebuild continues
-      assert {:ok, %{projection: proj}} = Transition.rebuild([incomplete])
-      assert proj.events == []
+      assert {:error, _reason} = Transition.rebuild([incomplete])
     end
   end
 end

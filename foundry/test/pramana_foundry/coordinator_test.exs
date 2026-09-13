@@ -93,14 +93,19 @@ defmodule PramanaFoundry.CoordinatorTest do
     assert {:ok, _} = Coordinator.receive_review("T-COORD-1", review, skip_git_checks: true)
     assert Coordinator.state()["assignments"]["T-COORD-1"]["status"] == "review_approved"
 
-    # Mock runner that succeeds
-    mock_runner = fn _cmd, _path -> {"ok", 0} end
+    # FR-03 containment suspends the legacy two-write Git path until its outcome
+    # can be represented transactionally by FR-05/FR-07/FR-08.
+    caller = self()
+    mock_runner = fn _cmd, _path -> send(caller, :git_called) end
 
-    assert {:ok, promoted} =
-             Coordinator.integrate("T-COORD-1", runner_fn: mock_runner, skip_git_checks: true)
+    assert {:error, {:suspended_until_transactional_integration, _reason}} =
+             Coordinator.integrate("T-COORD-1",
+               runner_fn: mock_runner,
+               skip_git_checks: true
+             )
 
-    assert promoted["status"] == "integrated"
-    assert Coordinator.state()["accepted_revision"] == @commit
+    refute_receive :git_called
+    assert Coordinator.state()["accepted_revision"] == @base_rev
   end
 
   test "reset_pm_attempts clears PM halt via Coordinator GenServer" do
@@ -144,7 +149,9 @@ defmodule PramanaFoundry.CoordinatorTest do
       "outcome" => "Implemented scheduler"
     }
 
-    assert {:ok, _} = Coordinator.receive_handoff("T-REVIEW-RETRY-1", handoff, skip_git_checks: true)
+    assert {:ok, _} =
+             Coordinator.receive_handoff("T-REVIEW-RETRY-1", handoff, skip_git_checks: true)
+
     assert Coordinator.state()["assignments"]["T-REVIEW-RETRY-1"]["status"] == "handoff_received"
 
     # Submit a malformed review with mismatched run_id
@@ -159,7 +166,8 @@ defmodule PramanaFoundry.CoordinatorTest do
       "checks" => [%{"command" => @check, "exit_code" => 0}]
     }
 
-    assert {:error, _reason} = Coordinator.receive_review("T-REVIEW-RETRY-1", bad_review, skip_git_checks: true)
+    assert {:error, _reason} =
+             Coordinator.receive_review("T-REVIEW-RETRY-1", bad_review, skip_git_checks: true)
 
     # Verify retry: task returns to handoff_received, not parked
     state = Coordinator.state()
@@ -197,7 +205,8 @@ defmodule PramanaFoundry.CoordinatorTest do
       "outcome" => "Implemented scheduler"
     }
 
-    assert {:ok, _} = Coordinator.receive_handoff("T-REVIEW-RETRY-2", handoff, skip_git_checks: true)
+    assert {:ok, _} =
+             Coordinator.receive_handoff("T-REVIEW-RETRY-2", handoff, skip_git_checks: true)
 
     bad_review = %{
       "schema_version" => 1,
