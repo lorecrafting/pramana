@@ -10,8 +10,20 @@ defmodule Pramana.ParallelsTest do
   """
   use Pramana.DataCase, async: true
 
+  alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Source
+  alias Pramana.Corpus.Text
+  alias Pramana.Corpus.TextAnchor
+  alias Pramana.Corpus.Witness
+  alias Pramana.Corpus.Work
   alias Pramana.Parallels
   alias Pramana.Parallels.Anchor
+
+  describe "relations/0" do
+    test "returns SuttaCentral relation types ordered by strength" do
+      assert Parallels.relations() == ["full", "resembling", "sections", "mentions", "retells"]
+    end
+  end
 
   describe "Anchor.from_entry/1" do
     test "reads a plain Taishō volpage" do
@@ -209,6 +221,11 @@ defmodule Pramana.ParallelsTest do
       assert relations == ["full", "resembling"]
     end
 
+    test "anchor/1 returns the stored TextAnchor or nil" do
+      assert %TextAnchor{uid: "sa1", work_id: "T0099"} = Parallels.anchor("sa1")
+      assert Parallels.anchor("nonexistent") == nil
+    end
+
     test "stats separate what is quotable from what is merely known" do
       stats = Parallels.stats()
 
@@ -216,6 +233,114 @@ defmodule Pramana.ParallelsTest do
       assert stats.anchors == 1
       assert stats.resolvable_one_end == 3
       assert stats.by_relation["full"] == 1
+
+      # Add an anchor for the target to test resolvable_both_ends
+      {:ok, _} =
+        Parallels.store_anchors([
+          %{
+            uid: "sn22.51",
+            work_id: "sn22.51",
+            urn: "pramana:sc.ms:sn22.51@1.1",
+            acronym: "SN 22.51",
+            volpage: "PTS SN iii 51"
+          }
+        ])
+
+      {:ok, _} =
+        Parallels.store([
+          %{source_uid: "sa1", target_uid: "sn22.51", relation: "full", partial: false}
+        ])
+
+      updated_stats = Parallels.stats()
+      assert updated_stats.resolvable_both_ends >= 1
+    end
+  end
+
+  describe "resolve_anchor/1" do
+    defp setup_cbeta_segment! do
+      Repo.insert!(%Work{id: "T0099", title: "雜阿含經"})
+      Repo.insert!(%Witness{id: "w-cbeta-T", name: "Taisho"})
+
+      Repo.insert!(%Source{
+        id: "cbeta",
+        name: "CBETA",
+        license_spdx: "CC0-1.0",
+        license_class: "cc0",
+        commercial_use: true,
+        redistributable: true
+      })
+
+      text =
+        Repo.insert!(%Text{
+          work_id: "T0099",
+          witness_id: "w-cbeta-T",
+          source_id: "cbeta",
+          urn_prefix: "pramana:cbeta.T:T0099"
+        })
+
+      Repo.insert!(%Segment{
+        urn: "pramana:cbeta.T:T0099_001@p0001a06",
+        text_id: text.id,
+        content: "如是我聞",
+        content_sha256: "abc",
+        char_start: 0,
+        char_end: 4,
+        byte_start: 0,
+        byte_end: 12,
+        page: "0001",
+        register: "a",
+        line: 6,
+        ordinal: 1
+      })
+    end
+
+    test "resolves SuttaCentral entry against existing text segments" do
+      setup_cbeta_segment!()
+
+      # Point anchor
+      entry = %{
+        "uid" => "sa1",
+        "acronym" => "SA 1",
+        "alt_acronym" => "T 99.1",
+        "volpage" => "T ii 001a06"
+      }
+
+      assert %{
+               uid: "sa1",
+               work_id: "T0099",
+               urn: "pramana:cbeta.T:T0099_001@p0001a06",
+               acronym: "SA 1",
+               volpage: "T ii 001a06"
+             } = Parallels.resolve_anchor(entry)
+
+      # Range anchor
+      range_entry = %{
+        "uid" => "sa1_range",
+        "acronym" => "SA 1",
+        "alt_acronym" => "T 99.1",
+        "volpage" => "T ii 001a06-001a10"
+      }
+
+      assert %{
+               uid: "sa1_range",
+               work_id: "T0099",
+               urn: "pramana:cbeta.T:T0099_001@p0001a06-p0001a10",
+               acronym: "SA 1",
+               volpage: "T ii 001a06-001a10"
+             } = Parallels.resolve_anchor(range_entry)
+
+      # Missing segment returns nil
+      missing_entry = %{
+        "uid" => "sa999",
+        "acronym" => "SA 999",
+        "alt_acronym" => "T 99.999",
+        "volpage" => "T ii 999a01"
+      }
+
+      assert Parallels.resolve_anchor(missing_entry) == nil
+
+      # Invalid entry returns nil
+      assert Parallels.resolve_anchor(%{}) == nil
     end
   end
 end
