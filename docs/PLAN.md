@@ -20,6 +20,69 @@ embedded, the reader at six screens.**
 
 ---
 
+## Foundry audit follow-up — 2026-09-12
+
+The [Foundry audit](../foundry/docs/AUDIT-2026-09-12.md) is complete as an audit;
+its repairs are not implemented. It assesses the current working tree against the
+single-operator, Pramāṇa-only autonomous workflow contract, including autonomous
+self-update within operator-controlled spending and acceptance policy.
+
+The central finding is that live orchestration bypasses existing scheduling, fencing,
+checkpointed effects and check-recovery primitives, while runtime and replay disagree.
+The report includes isolated reproductions, coverage limits and an ordered repair plan.
+
+The executable backlog is now [Foundry repair tickets](../foundry/docs/REPAIR-PLAN.md),
+maintained outside Foundry. Start with FR-01; the dependency inventory identifies ready
+containment work and the design decisions required before downstream implementation.
+It includes acceptance evidence, model/context guidance and a fresh-session handoff.
+Production repair tickets remain unimplemented. FR-06's
+[independent design review v1](../foundry/docs/FR-06-DESIGN-REVIEW.md) found R1–R5 and
+returned **not ready**. The [v2 workflow contract](../foundry/docs/WORKFLOW-CONTRACT.md)
+and [versioned response](../foundry/docs/fr-06/review-response-v2.md) now specify durable
+claim/issue ordering, authentication separated from arbitrary tools, autonomous kernel
+repairs behind a protected verifier, legal result/exit/cleanup transitions, and conserved
+budget generations. The [independent v2 re-review](../foundry/docs/FR-06-DESIGN-REVIEW-V2.md)
+returns **ready after specified corrections**: R1/R2/R3/R5 are resolved at design level;
+the residual R4a identified missing launch-non-start domain recovery. The
+[v3 response](../foundry/docs/fr-06/review-response-v3.md) now proposes that bounded
+correction: developer non-start retains its attempt, reviewer non-start preserves the
+frozen candidate and role, and a separate finite infrastructure allowance bounds retries
+without charging a process start that provably never occurred. Pre-intent waiting and
+unknown possible start remain distinct. A fresh Astra-high
+[focused independent review](../foundry/docs/fr-06/r4a-focused-review.md) verified the
+exact v3 manifest and returned **PASS**. FR-06's design gate is complete; no
+implementation finding is closed. FR-07 remains blocked on its existing FR-03
+prerequisite.
+
+The original contract/storage hashes matched; reversing the documented review-status
+edits reproduced both original plan hashes. The independent review and storage evidence
+remain unchanged. The backlog retains immediate containment, superseded mechanisms and
+every F01–F24 acceptance obligation, with v2 refinements. FR-15a now depends on FR-07/08
+for real protected gateway/ledger tests while remaining independent of FR-15's later PM
+loop. OS isolation and installed OMP support still require implementation proof; no
+policy relaxation or permanent kernel exclusion is authorized. The v2 manifest digest
+and all 13 inputs matched before re-review-status edits; dependency/acceptance routing
+checks passed. The v3 correction preserves both reviews and response v2, adds acceptance
+traces only to FR-08/10/11/12, and refreshes the manifest. FR-01–FR-05 containment can
+proceed meanwhile. No production implementation, runtime probe or model invocation.
+
+Next Foundry work, in dependency order:
+
+1. Protect subscription-only execution, artifact attribution, durable acknowledgement,
+   owned cleanup and accepted-revision activation boundaries.
+2. Unify command/replay state transitions and durable steering controls.
+3. Separate ticket, attempt, execution and pane identity; reconcile before retrying;
+   enforce scheduling/resource policy and review capacity.
+4. Verify real artifacts/check receipts and integrate actual Git candidates.
+5. Complete steering-to-PM admission and bounded subscription switching, then prove
+   immutable release activation and compatible rollback.
+6. Repair board/telemetry/improvement consumers and add isolated Foundry lifecycle CI.
+
+Use the audit's per-stage acceptance evidence, not the existing component-suite pass
+count, to decide completion. Documentation and tests accompany each repair. No paid
+fallback, weakening of mandatory acceptance gates, or increase in Foundry's authority
+may be enabled autonomously. Existing corpus priorities below are unchanged.
+
 ## Start here — session of 2026-09-04
 
 **§ E1's tranche question is CLOSED, and the answer is not the one this file was written to

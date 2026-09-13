@@ -1,5 +1,10 @@
 # Pramāṇa foundry
 
+**Audit, 2026-09-12:** The [architecture and lifecycle audit](docs/AUDIT-2026-09-12.md)
+found that the live execution path bypasses several safeguards described below.
+Treat the following capability list as an implementation inventory, not verified
+end-to-end guarantees. The audit includes reproductions and an ordered repair plan.
+
 **Status: live.** The Elixir OTP release is the sole local dispatcher — Python supervisor
 retired and state archived, self-healing Improver loop active. This standalone Mix project
 supplies the local OTP release/CLI shell, strict schema validation, durable-state and
@@ -21,7 +26,7 @@ The project remains independent of the Phoenix umbrella, Postgres, the research 
   boundaries, parity matrix, cutover, and rollback.
 - [`docs/MIGRATION-TICKETS.md`](docs/MIGRATION-TICKETS.md) — authoritative eight-ticket
   sequence and the bounded contracts for the next two implementation tickets.
-- [`../docs/PLAN.md`](../docs/PLAN.md) — roadmap priority and current admission state.
+- [`../docs/PLAN.md`](../docs/PLAN.md) — project roadmap and Foundry audit follow-up.
 
 ## Tracked layout
 

@@ -1,0 +1,46 @@
+{
+  "python": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+  "sqlite": "3.51.0",
+  "observations": [
+    [
+      "sqlite",
+      "process exit before commit, after commit before reply, same-key retry",
+      "pass"
+    ],
+    [
+      "sqlite",
+      "two-process write exclusion and release",
+      "pass"
+    ],
+    [
+      "journal",
+      "process exit before commit, after commit before reply, same-key retry",
+      "pass"
+    ],
+    [
+      "journal",
+      "two-process write exclusion and release",
+      "pass"
+    ],
+    [
+      "sqlite",
+      "engine capacity error (max_page_count), prior transactions intact",
+      "pass"
+    ],
+    [
+      "sqlite",
+      "consistent backup, migration rollback, unknown application version refusal",
+      "pass"
+    ],
+    [
+      "journal",
+      "short append refuses startup; earlier bytes preserved",
+      "pass"
+    ],
+    [
+      "journal",
+      "unpublished snapshot ignored; interior checksum failure refused",
+      "pass"
+    ]
+  ]
+}
