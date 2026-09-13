@@ -313,6 +313,21 @@ steps.
   authority remains FR-15a and the two other dynamic-source scripts remain explicitly
   routed to FR-03/04/05; neither limitation is represented as closed.
 
+### FR-02 integration
+
+- Integrated commit `21ad6b99a262f143626746f271f1fc4c2256e319`, tree
+  `c652a6b87905a7eb0f2c6447dcf3fae9031d1332`. All four runtime/test hashes match
+  reviewed v2; dirty CLI/Coordinator blobs equal the parent and were excluded.
+- Detached clean-checkout verification fetched pinned Foundry dependencies, force-compiled
+  72 files with warnings as errors and passed the focused/supporting `62` tests at seed
+  `424202`. A root-level `mix deps.get` was invoked once from the wrong working directory
+  before this command; it reported unchanged umbrella dependencies/security notices and
+  produced no tracked diff. It is not FR-02 evidence.
+- Sol-medium post-integration [attestation](fr-02/integration-attestation.md), SHA-256
+  `9f2f58500eb16315b3e05b0af92ae914f5c8d0f4722b3fa9f0811093317a3398`,
+  returned **PASS**. Implemented/reviewed/integrated, not deployed; the running release
+  was not rebuilt or changed by FR-02 integration.
+
 ## Ready-ticket investigations (read-only)
 
 ### FR-02
@@ -344,6 +359,58 @@ steps.
   held-lock and stale-text variants; malformed/oversized/version/I/O histories preserved
   byte-for-byte; and append-failure probes with no acknowledgment or downstream fake
   effect. This is legacy containment only—FR-07/08 retain storage/reducer ownership.
+
+#### FR-03 test-isolation incident
+
+- During implementation in isolated Git worktree `/tmp/pramana-fr03.YeVMZP/tree`, Mix
+  started the OTP application before ExUnit and the committed absolute
+  `config :pramana_foundry, runtime_root: .../foundry/local/` bypassed filesystem/worktree
+  isolation. Coordinator test resets preserve configured log paths. Five focused commands
+  therefore read and may have appended the live `state/current/events.jsonl`; coordinator
+  and telemetry JSONL may also have been written.
+- Observed startup event counts were 1416, 1443, 1444, 1448 and 1452. These are not
+  attributable deltas: the installed daemon was concurrently running, so test versus
+  daemon writes remain **unknown**. A coordinator read-only check later observed 1482
+  lines, 383856 bytes, SHA-256
+  `b7a06bdf5af57350e2d999d9255761c188977bc15df474bb79e548ce9fa376a1`,
+  modified 2026-09-12 21:54:34 local; this is a post-incident observation, not a baseline.
+- The worker stopped immediately on discovery. Read-only process inspection found no
+  FR-03 test process remaining and confirmed the pre-existing release daemon PID 32588
+  had been running since 15:57. No daemon stop/reconfiguration, lock change, deletion,
+  rollback, credential/provider operation or attempt to rewrite live logs occurred.
+- Exact affected commands and limitations are retained in the worker incident report in
+  the coordination transcript. FR-03 stays frozen. Before any further test, the Mix-test
+  application boot itself must resolve a newly created per-process temporary runtime root,
+  and a separate read-only review must prove the absolute configured root is unreachable.
+- Operator authorized direct development-state remediation. The daemon was stopped
+  cleanly; byte-for-byte backups were created as
+  `events.jsonl.pre-fr03-incident-repair-20260912` (SHA-256
+  `4f1eecd843c1354a118145dde0af5340f731a05f068c76f43204b7452e50978f`)
+  and `coordinator.jsonl.pre-fr03-incident-repair-20260912` (SHA-256
+  `7d1d492f3fd7d5d7787ab3616ca158f7cb8b59a09367f2ce246741ce676dc5ad`).
+  Two exact timestamp windows plus the fixed test task IDs identified 44 event records;
+  the same windows identified four off-cadence test `tick_start` coordinator records.
+  Daemon-cadence ticks and three Improver findings were preserved.
+- The repaired logs validate line-by-line as JSON and contain zero matching incident
+  records: events 1454 lines, SHA-256
+  `14bcd1d45e4ecbf62a02ecc9d5c1086747f0cbd4c9ba27b54341c4ad2ff60817`;
+  coordinator 1406 lines, SHA-256
+  `fed299bb77ea18b195291f3a8f35702e9d8bbb5970220ac07c5b7d36e37d2767`.
+  The development daemon restarted successfully as PID 50423. The backups make the
+  cleanup recoverable; no credential, provider or unrelated log was changed.
+
+#### FR-03 isolation preflight v1
+
+- `/root/fr03_isolation_preflight` (Astra-medium) performed static inspection only and
+  returned **FAIL**. The candidate selected a local temporary root but did not publish it
+  to application configuration, so Improver/ConsolidatedLog and direct Coordinator init
+  could still resolve the committed live root. PID-only temp names could collide;
+  subprocesses inherited test mode/provider/tick environment; generated escript output
+  was also present in the worktree diff.
+- No test may resume until one validated exclusively-created root is installed before all
+  child specs, every consumer uses it, subprocesses explicitly clear provider/tick state
+  and exercise intended ownership mode, and a renewed static preflight passes. The
+  generated binary is excluded from the candidate.
 
 ### FR-04
 
