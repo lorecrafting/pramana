@@ -89,4 +89,31 @@ defmodule Pramana.Normalize.IRConcatTest do
       IR.concat([part(81, 1, ["0402c01"]), other])
     end
   end
+
+  describe "Line.blank?/1" do
+    test "a line with no content is blank" do
+      line = %Line{anchor: "0001a01", text: ""}
+      assert Line.blank?(line)
+    end
+
+    test "a line with text is not blank" do
+      line = %Line{anchor: "0001a01", text: "如是我聞"}
+      refute Line.blank?(line)
+    end
+
+    test "a line with only inline notes is not blank (pipeline v2)" do
+      line = %Line{anchor: "0001a01", text: "", notes: ["某氏註"]}
+      refute Line.blank?(line)
+    end
+
+    test "a line with only apparatus is not blank (pipeline v3)" do
+      line = %Line{anchor: "0001a01", text: "", apparatus: [%{choice: "甲"}]}
+      refute Line.blank?(line)
+    end
+
+    test "a line with only gaiji is not blank (pipeline v4)" do
+      line = %Line{anchor: "0001a01", text: "", gaiji: ["CB00001"]}
+      refute Line.blank?(line)
+    end
+  end
 end

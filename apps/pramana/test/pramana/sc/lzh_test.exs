@@ -181,4 +181,31 @@ defmodule Pramana.Sc.LzhTest do
     assert anchors == %{}
     assert report.works_seen == 0
   end
+
+  describe "helper functions" do
+    test "collections/0 returns the known Chinese collections and their work IDs" do
+      cols = Lzh.collections()
+      assert cols["sa"] == "T0099"
+      assert cols["ma"] == "T0026"
+    end
+
+    test "uid_of/1 extracts SuttaCentral UID from file path" do
+      assert Lzh.uid_of("root/lzh/sct/sa/sa379_root-lzh-sct.json") == "sa379"
+      assert Lzh.uid_of("ma222_root-lzh-sct.json") == "ma222"
+    end
+
+    test "compare_form/1 folds variant characters and strips editorial punctuation" do
+      # Parentheses, brackets, colons, and elision dots are stripped; variants folded
+      cleaned = Lzh.compare_form("（一）如是我聞：一時，佛住舍衞國[祇樹]⋯給孤獨園。")
+      assert cleaned == "一如是我聞一时佛住捨衞国祇树給孤独园"
+    end
+
+    test "index/1 returns error when text does not exist" do
+      assert {:error, {:no_such_text, "T9999"}} = Lzh.index("T9999")
+    end
+
+    test "window/2 returns error when sutta marker is absent", %{index: index} do
+      assert {:error, {:no_marker, "九九九"}} = Lzh.window(index, 999)
+    end
+  end
 end

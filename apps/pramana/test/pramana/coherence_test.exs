@@ -157,6 +157,148 @@ defmodule Pramana.CoherenceTest do
     end
   end
 
+  describe "byline_division/0" do
+    test "agrees when Taishō division origin matches author byline provenance" do
+      # Byline "唐 某撰" has composition_origin: "chinese"
+      for n <- 1..25 do
+        work!(
+          "T#{String.pad_leading(to_string(n), 4, "0")}",
+          String.pad_leading(to_string(n), 4, "0"),
+          attributed_author: "唐 某撰",
+          composition_origin: "chinese"
+        )
+      end
+
+      assert %{status: :ok, agreed: 25, total: 25} = Coherence.byline_division()
+    end
+
+    test "fails when bylines systematically disagree with division table" do
+      # Byline "唐 某撰" (chinese) but table says "japanese"
+      for n <- 1..25 do
+        work!(
+          "T#{String.pad_leading(to_string(n), 4, "0")}",
+          String.pad_leading(to_string(n), 4, "0"),
+          attributed_author: "唐 某撰",
+          composition_origin: "japanese"
+        )
+      end
+
+      assert %{status: :failed, agreed: 0, total: 25, detail: detail} =
+               Coherence.byline_division()
+
+      assert length(detail) <= 5
+      assert hd(detail) =~ "table says japanese, byline chinese"
+    end
+
+    test "too few works is undecided" do
+      work!("T0001", "0001", attributed_author: "唐 某撰", composition_origin: "chinese")
+
+      assert %{status: :undecided, agreed: 1, total: 1} = Coherence.byline_division()
+    end
+  end
+
+  describe "commentary_after_root/0" do
+    test "agrees when commentary postdates or is contemporary with root" do
+      now = DateTime.utc_now()
+
+      for n <- 1..25 do
+        c_id = "T#{String.pad_leading(to_string(100 + n), 4, "0")}"
+        r_id = "T#{String.pad_leading(to_string(n), 4, "0")}"
+
+        work!(c_id, "#{100 + n}", attributed_author: "唐 僧撰", composition_origin: "chinese")
+        work!(r_id, "#{n}", attributed_author: "後漢 僧譯", composition_origin: "indic")
+
+        Repo.update_all(from(w in Work, where: w.id == ^c_id),
+          set: [date_end: 800, date_basis: "catalogue"]
+        )
+
+        Repo.update_all(from(w in Work, where: w.id == ^r_id),
+          set: [date_start: 200, date_basis: "catalogue"]
+        )
+
+        c_text = Repo.one!(from t in "texts", where: t.work_id == ^c_id, select: t.id)
+        r_text = Repo.one!(from t in "texts", where: t.work_id == ^r_id, select: t.id)
+
+        Repo.insert_all("commentary_alignments", [
+          %{
+            lemma: "如是我聞一時佛住",
+            lemma_sha256: "sha#{n}",
+            length: 8,
+            commentary_text_id: c_text,
+            commentary_work_id: c_id,
+            commentary_urn: "pramana:cbeta.T:#{c_id}@p0001a01",
+            commentary_char_start: 0,
+            commentary_char_end: 8,
+            root_text_id: r_text,
+            root_work_id: r_id,
+            root_urn: "pramana:cbeta.T:#{r_id}@p0001a01",
+            root_char_start: 0,
+            root_char_end: 8,
+            method: "lemma_match",
+            confidence: "certain",
+            meta: %{},
+            inserted_at: now,
+            updated_at: now
+          }
+        ])
+      end
+
+      assert %{status: :ok, agreed: 25, total: 25} = Coherence.commentary_after_root()
+    end
+
+    test "fails when commentary predates root work" do
+      now = DateTime.utc_now()
+
+      for n <- 1..25 do
+        c_id = "T#{String.pad_leading(to_string(100 + n), 4, "0")}"
+        r_id = "T#{String.pad_leading(to_string(n), 4, "0")}"
+
+        work!(c_id, "#{100 + n}", attributed_author: "漢 僧撰", composition_origin: "chinese")
+        work!(r_id, "#{n}", attributed_author: "唐 僧譯", composition_origin: "indic")
+
+        Repo.update_all(from(w in Work, where: w.id == ^c_id),
+          set: [date_end: 200, date_basis: "catalogue"]
+        )
+
+        Repo.update_all(from(w in Work, where: w.id == ^r_id),
+          set: [date_start: 800, date_basis: "catalogue"]
+        )
+
+        c_text = Repo.one!(from t in "texts", where: t.work_id == ^c_id, select: t.id)
+        r_text = Repo.one!(from t in "texts", where: t.work_id == ^r_id, select: t.id)
+
+        Repo.insert_all("commentary_alignments", [
+          %{
+            lemma: "如是我聞一時佛住",
+            lemma_sha256: "sha#{n}",
+            length: 8,
+            commentary_text_id: c_text,
+            commentary_work_id: c_id,
+            commentary_urn: "pramana:cbeta.T:#{c_id}@p0001a01",
+            commentary_char_start: 0,
+            commentary_char_end: 8,
+            root_text_id: r_text,
+            root_work_id: r_id,
+            root_urn: "pramana:cbeta.T:#{r_id}@p0001a01",
+            root_char_start: 0,
+            root_char_end: 8,
+            method: "lemma_match",
+            confidence: "certain",
+            meta: %{},
+            inserted_at: now,
+            updated_at: now
+          }
+        ])
+      end
+
+      assert %{status: :failed, agreed: 0, total: 25, detail: detail} =
+               Coherence.commentary_after_root()
+
+      assert length(detail) <= 5
+      assert hd(detail) =~ "explains"
+    end
+  end
+
   describe "verdict policy" do
     test "an empty corpus is undecided on every check, never OK" do
       for result <- Coherence.run() do

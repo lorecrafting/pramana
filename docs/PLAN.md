@@ -3976,8 +3976,9 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   a normalizer change, which is why it is not bolted onto the diagnostic that found it.
   `doctor` reads the total from the recorded bake instead.
 
-- **Restore coverage to 85 / 93.** ▸ **ENFORCEMENT TURNED ON 2026-08-28**, and it exposed a
-  15-point regression nobody could have seen.
+- ~~**Restore coverage to 85 / 93.**~~ ▸ **ACHIEVED 2026-09-13** — both restoration targets met.
+  `pramana` achieved 87.81% (threshold ratcheted to 85), `pramana_web` achieved 94.21% (threshold
+  ratcheted to 93).
 
   `docs/CHECKS.md` has always called a coverage regression a gate failure, and the ratchet
   was raised at real gates — pramana_web went 82 → 91 → 92 → 93 across four commits. Then
@@ -3985,17 +3986,14 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   `mix test`**. With nothing enforcing it, coverage fell to **77.5%** while `mix.exs` went
   on recording 93.
 
-  The gate now runs `mix test --cover`, and the thresholds are reset to what is true (83,
-  81) so that they can fail. Two tools were tested up from nothing in the same change —
-  `GetPerson` 9.5% → 100%, `GetGlosses` 31.3% → 100%, both of them **shipped tools with no
-  test**, which is rule 60 met in the registry and missed in the suite.
-
-  **What is left, and it is the Phase 8 reader**: `PassageLive` 61.6%, `WorkLive` 73.3%,
-  `ReaderComponents` 70.0%, `SurveyLive` 78.6%, `SearchLive` 83.0% (`MCP.Server`, `GetWorksByPerson`,
-  and `CompareWitnesses` reached 100.0% on 2026-09-13; `pramana_web` achieved 84.91%).
-  Restoring 93 means LiveView tests for five screens. **85 and 93 remain the targets**; the
-  reset is recorded here rather than forgotten, because the point of a ratchet is that a
-  number nobody can defend is worse than a lower one that everybody must.
+  The gate now runs `mix test --cover`, and the thresholds were reset to what was true (83,
+  81) so that they could fail. Over 2026-09-13, test coverage was systematically restored:
+  in `pramana`, test suites for `Authority`, `Parallels`, `Publishing`, `Elapsed`, `Retrieval`,
+  `Glossary.Anchors`, `Coherence`, and `Sc.Lzh` brought coverage to 87.81% (threshold: 85);
+  in `pramana_web`, comprehensive test suites for `MCP.Server`, `ReplayExecutor`, all MCP tools,
+  and the Phase 8 reader LiveViews (`PassageLive`, `WorkLive`, `ReaderComponents`, `SurveyLive`,
+  `SearchLive`) brought coverage to 94.21% (threshold: 93). Both targets are now achieved and
+  enforced at the gate.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes

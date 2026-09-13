@@ -223,4 +223,55 @@ defmodule Pramana.PublishingTest do
       assert [%{id: "restricted_author", rows: 1, name: "translation layer"}] = audit.forbidden
     end
   end
+
+  describe "Pramana.Publishing.Guard" do
+    alias Pramana.Publishing.Guard
+
+    test "public?/0 reflects PRAMANA_PUBLIC environment variable" do
+      prev = System.get_env("PRAMANA_PUBLIC")
+
+      on_exit(fn ->
+        if prev,
+          do: System.put_env("PRAMANA_PUBLIC", prev),
+          else: System.delete_env("PRAMANA_PUBLIC")
+      end)
+
+      System.delete_env("PRAMANA_PUBLIC")
+      refute Guard.public?()
+      assert is_nil(Guard.child_spec_if_public())
+
+      System.put_env("PRAMANA_PUBLIC", "1")
+      assert Guard.public?()
+      assert %{id: Guard, restart: :temporary} = Guard.child_spec_if_public()
+    end
+
+    test "verify/0 and verify_and_ignore/0 succeed on empty/safe database" do
+      assert Guard.verify() == :ok
+      assert Guard.verify_and_ignore() == :ignore
+    end
+
+    test "verify/0 returns error tuple when forbidden content is present" do
+      Repo.insert!(%Source{
+        id: "cbeta",
+        name: "CBETA",
+        license_spdx: "LicenseRef-CBETA-NC",
+        redistributable: false
+      })
+
+      Repo.insert!(%Witness{id: "T", name: "Taishō"})
+      Repo.insert!(%Work{id: "T0001"})
+
+      Repo.insert!(%Text{
+        work_id: "T0001",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T0001",
+        body: "text",
+        body_sha256: "sha",
+        meta: %{}
+      })
+
+      assert {:error, [%{id: "cbeta"}]} = Guard.verify()
+    end
+  end
 end
