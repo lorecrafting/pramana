@@ -800,6 +800,19 @@ steps.
   validation and path-identity failures have recurred across three reviews, further patching
   is paused for `/root/fr07_schema_path_diagnosis` to define unified write/read/recovery
   schemas and one canonical store-identity algorithm before the next candidate.
+- Focused diagnosis SHA-256
+  `5f1d7d7113a47e5db07219d933b7f60c491ef130e29054b5b36dc040e591c6f7`
+  found no contract ambiguity: admission, write, read, startup and reconstruction must use
+  one record codec and one reducer; store ownership must use one strict path identity that
+  rejects dot-segment and symlink aliases. `/root/fr07_impl` resumed a bounded v4 correction
+  on that design; no candidate is frozen yet.
+- `/root/fr07_fsync_design` (Astra-high) separately established that Exqlite 0.40 can load a
+  connection-scoped test extension on this host. Its report SHA-256 is
+  `d3c2da810a3d44068ed38fdfc878323168e34005dad3c30b0ab3fac4a6a394d7`.
+  The recommended fixture wraps the actual SQLite WAL `xSync` method and returns
+  `SQLITE_IOERR_FSYNC`; this can satisfy FR-07's expressly permitted VFS-fault route if it is
+  implemented, executed and independently reviewed. It proves an attributed VFS sync fault,
+  not a failed physical kernel `fsync` syscall. FR-07 remains unaccepted meanwhile.
 
 ### FR-08 preparation
 
@@ -849,6 +862,12 @@ steps.
   lockfile-only policy. Candidate `85a7449` remains frozen and unintegrated. The same
   implementation owner is correcting these exact portability/provenance failures before
   renewed review.
+- V2 correction commit `4e4acf784742381127bfd54fef49faf957d1c256`, tree
+  `4e95b891f23d8822122acb3d919605b793c64491`, addresses B1–B5 but is not yet the frozen
+  review candidate. Focused checks passed 13 tests with one optional historical tokenizer
+  recomputation excluded; exact-source adversarial setup probes fail closed with manifests.
+  The implementer is adding the durable evidence record and must pass two clean detached
+  runs against that final evidence-bearing tree before independent review begins.
 
 ### FR-01 candidate v4 — frozen validation correction
 

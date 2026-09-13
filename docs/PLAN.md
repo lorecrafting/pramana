@@ -57,7 +57,13 @@ unknown possible start remain distinct. A fresh Astra-high
 [focused independent review](../foundry/docs/fr-06/r4a-focused-review.md) verified the
 exact v3 manifest and returned **PASS**. FR-06's design gate is complete; no
 implementation finding is closed. FR-03 and FR-06 now provide the recorded dependency
-evidence required to begin FR-07's durable-store implementation.
+evidence required to begin FR-07's durable-store implementation. FR-07 is active on a
+fourth candidate after three independent reviews exposed recurring record-schema and
+path-identity defects; a focused diagnosis now requires one codec, one reducer and one
+strict store identity. A separately investigated, test-only SQLite WAL `xSync` fault
+fixture remains required before acceptance. FR-21 is concurrently validating an
+evidence-bearing v2 CI/provenance candidate after its first independent review failed on
+five portability and fail-closed provenance boundaries. Neither ticket is integrated.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence
