@@ -524,7 +524,15 @@ steps.
 - Candidate was applied to main with precise source control handling. The unrelated dirty
   CLI/Coordinator `unblock_ticket` work was excluded from the reviewed commit, preserved
   separately during integration and restored afterward. FR-03 is implemented and
-  reviewed, **not deployed**. A clean integrated-tree attestation remains next.
+  reviewed, **not deployed**.
+- Integrated commit `5c69e6c` received an independent Astra-medium post-integration
+  [attestation](fr-03/integration-attestation.md), SHA-256
+  `c48e89224c93a64fd1e612005b8c6beefbfa2019a2d6c9ee8955a0c3c00db258`:
+  **PASS**. All 24 reviewed candidate paths match the commit and detached checkout; only
+  the three required completion documents were added during integration. The attestor
+  independently reran 23 replay/persistence tests, all passing. The uncommitted unblock
+  additions are absent from the integrated tree. FR-03 completion evidence is final and
+  FR-07 is ready; deployment and FR-22 lifecycle acceptance remain open.
 
 ### FR-04
 
