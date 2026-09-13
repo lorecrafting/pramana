@@ -10,10 +10,17 @@ defmodule Pramana.TranslatorsTest do
   """
   use Pramana.DataCase, async: true
 
+  import Ecto.Query
+
+  alias Pramana.Corpus.GlossaryEntry
+  alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
+  alias Pramana.Corpus.WorkRelation
   alias Pramana.Repo
   alias Pramana.Translators
+
+  doctest Pramana.Translators
 
   defp work!(id, body) do
     Repo.insert!(%Work{id: id, title: id})
@@ -94,6 +101,110 @@ defmodule Pramana.TranslatorsTest do
       work!("A", "入處")
       assert Translators.preferences("A", "nope") == {:error, :not_found}
       assert Translators.preferences("nope", "A") == {:error, :not_found}
+    end
+  end
+
+  describe "normalize_sanskrit/1" do
+    test "normalizes parenthesized variants, tildes, dashes, and whitespace" do
+      assert Translators.normalize_sanskrit("apasmāraka~ (v.l. apasmāra-rūpa~)") == "apasmāraka"
+      assert Translators.normalize_sanskrit("Sukha-vihāra-") == "sukha-vihāra"
+      assert Translators.normalize_sanskrit("  -Dharma-  ") == "dharma"
+    end
+  end
+
+  describe "attested/3" do
+    test "compares lexical choices for shared Sanskrit headwords across glossaries" do
+      Repo.insert!(%Source{
+        id: "dila-glossaries",
+        name: "dila",
+        license_spdx: "CC0-1.0",
+        license_class: "cc0",
+        commercial_use: true,
+        redistributable: true
+      })
+
+      # Entry 1: Agreed headword, brackets stripped
+      Repo.insert!(%GlossaryEntry{
+        gloss_id: "g1",
+        source_id: "dila-glossaries",
+        sanskrit: "prajñā",
+        chinese: "[智慧]",
+        meta: %{"glossary" => "g_a"}
+      })
+
+      Repo.insert!(%GlossaryEntry{
+        gloss_id: "g2",
+        source_id: "dila-glossaries",
+        sanskrit: "prajñā",
+        chinese: "智慧",
+        meta: %{"glossary" => "g_b"}
+      })
+
+      # Entry 2: Diverged headword
+      Repo.insert!(%GlossaryEntry{
+        gloss_id: "g3",
+        source_id: "dila-glossaries",
+        sanskrit: "sukhavatī",
+        chinese: "安樂",
+        meta: %{"glossary" => "g_a"}
+      })
+
+      Repo.insert!(%GlossaryEntry{
+        gloss_id: "g4",
+        source_id: "dila-glossaries",
+        sanskrit: "sukhavatī",
+        chinese: "極樂",
+        meta: %{"glossary" => "g_b"}
+      })
+
+      # Entry 3: Illegible witness mark skipped
+      Repo.insert!(%GlossaryEntry{
+        gloss_id: "g5",
+        source_id: "dila-glossaries",
+        sanskrit: "***",
+        chinese: "空",
+        meta: %{"glossary" => "g_a"}
+      })
+
+      result = Translators.attested("g_a", "g_b", source: "dila-glossaries")
+
+      assert result.terms_a == 2
+      assert result.terms_b == 2
+      assert result.shared == 2
+      assert result.agreed == 1
+      assert result.diverged == 1
+      assert [%{sanskrit: "sukhavatī", a: "安樂", b: "極樂"}] = result.examples
+    end
+  end
+
+  describe "compare_hands/3" do
+    test "returns error when no shared parallel exists between authorities" do
+      assert Translators.compare_hands("A000001", "A000002") == {:error, :no_shared_parallel}
+    end
+
+    test "finds preferences across works connected by parallel_of" do
+      work!("W1", String.duplicate("入處者謂眼入處", 20))
+      work!("W2", String.duplicate("諸入者謂眼根也", 20))
+
+      Repo.update_all(from(w in Work, where: w.id == "W1"), set: [authority_id: "AUTH_1"])
+      Repo.update_all(from(w in Work, where: w.id == "W2"), set: [authority_id: "AUTH_2"])
+
+      %WorkRelation{}
+      |> WorkRelation.changeset(%{
+        source_work_id: "W1",
+        target_work_id: "W2",
+        relation: "parallel_of",
+        method: "manifest",
+        confidence: "certain"
+      })
+      |> Repo.insert!()
+
+      {:ok, %{pairs: pairs, preferences: [top | _]}} =
+        Translators.compare_hands("AUTH_1", "AUTH_2", min_count: 5)
+
+      assert pairs == [{"W1", "W2"}]
+      assert top.term == "入處"
+      assert top.other_count == 0
     end
   end
 end
