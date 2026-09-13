@@ -368,3 +368,20 @@ steps.
   retains lifecycle acceptance.
 - The reviewer removed one extra EOF blank line after the verdict; no review content
   changed. The hash above is the normalized artifact hash and staged diff checks pass.
+
+### FR-01 integration
+
+- Integrated commit `55c6bf5f54649cad0294d8cff9c15f91ed2790c0`, tree
+  `3ac924a02c7a2a370ec9efc2e6e3bdbeef482ace`. Precise staging excluded the pre-existing
+  Coordinator `unblock_ticket` wrapper/handler and the matching dirty CLI changes.
+- Detached clean-checkout verification fetched the pinned dependency set, compiled with
+  warnings as errors, and passed focused `26` plus supporting `44` tests. This verifies
+  the actual committed tree rather than the dirty working tree.
+- Astra-high post-integration [attestation](fr-01/integration-attestation.md), SHA-256
+  `b5349db7156f7c365153c3ab5e660939cc0f91faf333954cefd9a40f48df1753`,
+  returned **PASS**. Eleven source/test files match v5 byte-for-byte; committed Coordinator
+  differs only by omission of the unrelated unblock code, and that omission does not
+  affect the FR-01 conclusions.
+- Implemented, reviewed and integrated; **not deployed**. The running daemon was not
+  stopped, replaced, reconfigured or inspected. FR-01's owning acceptance protocol is
+  the only authority that may later restore its containment, through FR-09/15a evidence.
