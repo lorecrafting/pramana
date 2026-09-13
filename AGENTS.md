@@ -45,6 +45,13 @@ read as a current claim.
 | `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
 | `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
 
+### Key tasks for every session
+
+- `mix pramana.doctor` — check bake state, loaded sources, and missing gaps
+- `mix pramana.gate` — run the full evaluation gate (ratchets baseline)
+- `mix pramana.coherence` — check cross-axis data coherence
+- `mix pramana.recall` — measure retrieval against quotations and parallels
+
 ---
 
 ## Non-negotiable invariants

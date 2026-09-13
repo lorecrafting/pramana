@@ -2,7 +2,7 @@ defmodule Docs.RoutingTest do
   @moduledoc """
   The documentation's routing layer, checked mechanically.
 
-  `CLAUDE.md` is the only file always in an agent's context. `docs/RULES.md` holds 58 rules
+  `AGENTS.md` is the canonical project reference in an agent's context. `docs/RULES.md` holds 81 rules
   learned from real defects here, and for most of this project's life the only pointer to
   them said *"before writing a new source pipeline"* — so a rule about mix tasks, thresholds
   or Ecto queries never fired, because you are not writing a pipeline when you do those.
@@ -17,7 +17,7 @@ defmodule Docs.RoutingTest do
   """
   use ExUnit.Case, async: true
 
-  @claude "CLAUDE.md"
+  @agents "AGENTS.md"
   @rules "docs/RULES.md"
 
   # `__DIR__`-relative, NOT `:project_root`. That key is global application state and other
@@ -41,7 +41,7 @@ defmodule Docs.RoutingTest do
   # instead, because the rows have no blank line between them, and then reports every rule
   # as unrouted. Capture the table itself.
   defp trigger_table do
-    [_, table] = Regex.run(~r/(\| about to….*?)\n\n/s, read!(@claude))
+    [_, table] = Regex.run(~r/(\| about to….*?)\n\n/s, read!(@agents))
     table
   end
 
@@ -52,12 +52,12 @@ defmodule Docs.RoutingTest do
     |> MapSet.new()
   end
 
-  describe "the trigger table in CLAUDE.md" do
+  describe "the trigger table in AGENTS.md" do
     test "points only at rules that exist" do
       dangling = MapSet.difference(cited_numbers(), rule_numbers())
 
       assert MapSet.size(dangling) == 0,
-             "CLAUDE.md routes to rule(s) #{inspect(Enum.sort(dangling))}, which docs/RULES.md " <>
+             "AGENTS.md routes to rule(s) #{inspect(Enum.sort(dangling))}, which docs/RULES.md " <>
                "does not contain. A pointer to a rule that is not there is worse than no pointer: " <>
                "it costs a lookup and returns nothing."
     end
@@ -69,7 +69,7 @@ defmodule Docs.RoutingTest do
 
       assert MapSet.size(unrouted) == 0,
              "rule(s) #{inspect(Enum.sort(unrouted))} exist in docs/RULES.md and no trigger in " <>
-               "CLAUDE.md points at them. Add a row to the trigger table — a rule nobody is " <>
+               "AGENTS.md points at them. Add a row to the trigger table — a rule nobody is " <>
                "routed to fires after the defect rather than before it."
     end
 
@@ -87,20 +87,20 @@ defmodule Docs.RoutingTest do
       # next session does not know exists. Four were unreachable when this was written —
       # `CLOUD.md` among them, which is what a session needs BEFORE renting a GPU.
       #
-      # The count is deliberately not asserted. `CLAUDE.md` said "Twenty-six documents" over
+      # The count is deliberately not asserted. `AGENTS.md` said "Twenty-six documents" over
       # twenty-seven, which is the written-down number this project has corrected more often
       # than any other; the table now says every document is in it, and this makes that true.
-      claude = File.read!(Path.join(@root, "CLAUDE.md"))
+      agents = File.read!(Path.join(@root, "AGENTS.md"))
 
       missing =
         @root
         |> Path.join("docs/*.md")
         |> Path.wildcard()
         |> Enum.map(&Path.basename/1)
-        |> Enum.reject(&String.contains?(claude, &1))
+        |> Enum.reject(&String.contains?(agents, &1))
 
       assert missing == [],
-             "not routed from CLAUDE.md: #{Enum.join(missing, ", ")}"
+             "not routed from AGENTS.md: #{Enum.join(missing, ", ")}"
     end
 
     test "no document states a pipeline version that disagrees with the code" do
@@ -111,7 +111,7 @@ defmodule Docs.RoutingTest do
       # Most written-down figures are caught by reading. This one is small, changes rarely
       # and is quoted in passing, which is the profile of a number that goes stale unnoticed.
       #
-      # The rule enforced is `CLAUDE.md`'s own: **a statement about the past belongs in
+      # The rule enforced is `AGENTS.md`'s own: **a statement about the past belongs in
       # `docs/HISTORY.md`, or carries its date.** A dated mention is history and may say 4
       # forever; an undated one reads as a current claim and must not.
       current = Pramana.Bake.pipeline_version()
@@ -155,14 +155,14 @@ defmodule Docs.RoutingTest do
 
     test "names only documents that exist" do
       missing =
-        ~r/`(docs\/[A-Za-z_]+\.md)`/
-        |> Regex.scan(read!(@claude))
+        ~r/`(docs\/[A-Za-z0-9_.-]+\.md)`/
+        |> Regex.scan(read!(@agents))
         |> Enum.map(fn [_, path] -> path end)
         |> Enum.uniq()
         |> Enum.reject(&File.exists?(Path.join(@root, &1)))
 
       assert missing == [],
-             "CLAUDE.md points at #{inspect(missing)}, which do not exist. The routing table " <>
+             "AGENTS.md points at #{inspect(missing)}, which do not exist. The routing table " <>
                "is the answer to \"where is that written down\"; a wrong answer sends someone " <>
                "to grep, which finds the file that mentions a thing rather than the one that " <>
                "owns it."

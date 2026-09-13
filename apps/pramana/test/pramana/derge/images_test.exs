@@ -58,6 +58,17 @@ defmodule Pramana.Derge.ImagesTest do
       assert folios == %{"1a" => "I1KG91270003.jpg"}
     end
 
+    test "reads IIIF Presentation 3 items with direct string labels" do
+      manifest_v3 = %{
+        "items" => [
+          %{"id" => "https://example.com/canvas/I1KG91270005.jpg", "label" => "2a"},
+          %{"id" => "https://example.com/canvas/I1KG91270006.jpg", "label" => "non-folio"}
+        ]
+      }
+
+      assert Images.folios_in(manifest_v3) == %{"2a" => "I1KG91270005.jpg"}
+    end
+
     test "a manifest with no canvases yields nothing rather than raising" do
       assert Images.folios_in(%{}) == %{}
       assert Images.folios_in(manifest([])) == %{}
@@ -89,6 +100,38 @@ defmodule Pramana.Derge.ImagesTest do
   describe "the links" do
     test "the manifest URL is BDRC's presentation service" do
       assert Images.manifest_url("I1KG9177") == "https://iiifpres.bdrc.io/v:bdr:I1KG9177/manifest"
+    end
+  end
+
+  describe "find/2 and for_urn/1" do
+    test "finds the leaf image for a known volume and folio" do
+      assert {:ok, image} = Images.find(80, "1a")
+      assert image.volume == 80
+      assert image.folio == "1a"
+      assert image.image_group == "I1KG9206"
+      assert image.filename == "I1KG92060003.jpg"
+      assert image.image_url =~ "I1KG92060003.jpg/full/max/0/default.jpg"
+      assert image.info_url =~ "I1KG92060003.jpg/info.json"
+      assert image.manifest_url =~ "I1KG9206/manifest"
+      assert is_binary(image.attribution)
+    end
+
+    test "normalises inserted leaves (x) to the leaf they sit beside" do
+      assert {:ok, image} = Images.find(80, "1xa")
+      assert image.filename == "I1KG92060003.jpg"
+    end
+
+    test "returns :error for nonexistent folio or volume" do
+      assert Images.find(80, "9999z") == :error
+      assert Images.find(9999, "1a") == :error
+    end
+
+    test "for_urn/1 resolves a Derge URN to its woodblock photograph" do
+      assert {:ok, image} = Images.for_urn("pramana:derge.D:toh1@80.1a.1")
+      assert image.filename == "I1KG92060003.jpg"
+
+      assert {:ok, img_x} = Images.for_urn("pramana:derge.D:toh1@80.1xa.1")
+      assert img_x.filename == "I1KG92060003.jpg"
     end
   end
 

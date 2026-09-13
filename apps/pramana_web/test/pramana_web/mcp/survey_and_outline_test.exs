@@ -138,6 +138,12 @@ defmodule PramanaWeb.MCP.SurveyAndOutlineTest do
       assert length(top) == 1
       assert hd(top)["work_id"] == "T0374"
     end
+
+    test "refuses an empty query" do
+      {:reply, response, _} = SurveyCorpus.execute(%{query: "   "}, %{})
+      assert response.isError
+      assert hd(response.content)["text"] =~ "Query is empty"
+    end
   end
 
   describe "get_outline" do

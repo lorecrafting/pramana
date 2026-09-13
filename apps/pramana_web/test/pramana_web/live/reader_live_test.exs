@@ -15,9 +15,16 @@ defmodule PramanaWeb.ReaderLiveTest do
   import Ecto.Query
   import Phoenix.LiveViewTest
 
+  alias Pramana.Corpus.AuthorityPerson
+  alias Pramana.Corpus.AuthorityPlace
+  alias Pramana.Corpus.AuthorityRelation
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text
+  alias Pramana.Corpus.TextParallel
+  alias Pramana.Corpus.Translation
+  alias Pramana.Corpus.Work
+  alias Pramana.Corpus.WorkRelation
   alias Pramana.Normalize.CBETA
   alias Pramana.Repo
 
@@ -214,6 +221,32 @@ defmodule PramanaWeb.ReaderLiveTest do
       # the link someone pastes says only what they actually chose.
       assert_patched(view, ~p"/?#{[limit: "20", mode: "phrase", q: "如是我聞"]}")
     end
+
+    test "clicking clear button resets search to initial state", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
+
+      view
+      |> element("button", "clear")
+      |> render_click()
+
+      assert_patched(view, ~p"/")
+    end
+
+    test "renders matching English translations beside the passage search results", %{conn: conn} do
+      insert_translation!(
+        text: "Thus have I heard the Blessed One was staying in Rajagriha",
+        translator_name: "Leon Hurvitz",
+        translator_id: "hurvitz",
+        method: "human"
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/?#{[q: "Blessed One Rajagriha"]}")
+
+      assert html =~ "Translations using these words"
+      assert html =~ "never citable as the text"
+      assert html =~ "Leon Hurvitz"
+      assert html =~ "pramana:cbeta.T:T0262_001@p0001c17"
+    end
   end
 
   describe "passage" do
@@ -254,6 +287,138 @@ defmodule PramanaWeb.ReaderLiveTest do
 
       refute html =~ "Translations"
       refute html =~ "Parallels"
+    end
+
+    test "refuses when no URN is provided in query params", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/passage")
+
+      assert html =~ "That is not a URN this corpus can parse."
+    end
+
+    test "displays woodblock leaf photograph for a Derge passage", %{conn: conn} do
+      %Work{id: "toh113", title: "Toh 113", composition_origin: "indic", text_role: "root"}
+      |> Repo.insert!()
+
+      text =
+        %Text{
+          work_id: "toh113",
+          source_id: "cbeta",
+          witness_id: "T",
+          urn_prefix: "pramana:derge.D:toh113",
+          meta: %{}
+        }
+        |> Repo.insert!()
+
+      content = "ཨོཾ་མ་ཎི་པདྨེ་ཧཱུྃ།"
+      sha = Base.encode16(:crypto.hash(:sha256, content), case: :lower)
+
+      %Pramana.Corpus.Segment{
+        text_id: text.id,
+        urn: "pramana:derge.D:toh113@80.1a.1",
+        ordinal: 1,
+        char_start: 0,
+        char_end: String.length(content),
+        byte_start: 0,
+        byte_end: byte_size(content),
+        content: content,
+        content_sha256: sha,
+        kind: "prose",
+        meta: %{}
+      }
+      |> Repo.insert!()
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:derge.D:toh113@80.1a.1"]}")
+
+      assert html =~ "Photograph of the woodblock leaf"
+      assert html =~ "Digitised by the Buddhist Digital Resource Center (BDRC)"
+    end
+
+    test "renders translation pool including LLM warning badge (invariant #8)", %{conn: conn} do
+      insert_translation!(
+        text: "Thus have I heard at one time the Buddha was staying.",
+        translator_name: "Leon Hurvitz",
+        translator_id: "hurvitz",
+        method: "human",
+        tier: "t0"
+      )
+
+      insert_translation!(
+        text: "Thus I heard at one time.",
+        translator_name: "Machine Model",
+        translator_id: "model_1",
+        method: "llm",
+        model_id: "test-model",
+        tier: "t1"
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
+
+      assert html =~ "Translations"
+      assert html =~ "2 in en"
+      assert html =~ "Leon Hurvitz"
+      assert html =~ "llm-generated — not citable as source"
+    end
+
+    test "renders parallels including alert for references not held in this bake", %{conn: conn} do
+      insert_parallel!(
+        target_work_id: "T2187",
+        target_urn: "pramana:cbeta.T:T2187_001@p0002a01",
+        target_uid: "t2187",
+        relation: "full",
+        partial: true
+      )
+
+      insert_parallel!(
+        target_work_id: "T9999",
+        target_urn: nil,
+        target_uid: "external_sutta",
+        relation: "full",
+        partial: false
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
+
+      assert html =~ "Parallels"
+      assert html =~ "2 recorded · 1 resolvable here"
+      assert html =~ "1 of these point at texts this bake"
+      assert html =~ "does not hold, so they cannot be opened"
+      assert html =~ "partial"
+    end
+
+    test "renders candidates for alternate translations (異譯本)", %{conn: conn} do
+      insert_work_relation!(evidence: %{"full_parallels" => 15})
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
+
+      assert html =~ "Other works transmitting this material"
+      assert html =~ "Candidates for 異譯本"
+      assert html =~ "T2187"
+      assert html =~ "probable"
+    end
+
+    test "renders sections outline when work has divisions", %{conn: conn} do
+      Repo.update_all(
+        from(t in Text, where: t.work_id == "T0262"),
+        set: [
+          outline: %{
+            "entries" => [
+              %{
+                "type" => "juan",
+                "n" => 1,
+                "level" => 1,
+                "title" => "序品第一",
+                "juan" => 1,
+                "anchor" => "p0001c17"
+              }
+            ]
+          }
+        ]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
+
+      assert html =~ "1 sections in this work"
+      assert html =~ "序品第一"
     end
   end
 
@@ -317,11 +482,56 @@ defmodule PramanaWeb.ReaderLiveTest do
 
       assert html =~ ~s(href="/works/T0262")
     end
+
+    test "renders outline entries with and without anchors", %{conn: conn} do
+      Repo.update_all(
+        from(t in Text, where: t.work_id == "T2187"),
+        set: [
+          outline: %{
+            "entries" => [
+              %{
+                "type" => "juan",
+                "n" => 1,
+                "level" => 1,
+                "title" => "序品第一",
+                "juan" => 1,
+                "anchor" => "p0002a01"
+              },
+              %{
+                "type" => "pin",
+                "n" => 2,
+                "level" => 2,
+                "title" => "無錨段落",
+                "juan" => 1,
+                "anchor" => nil
+              }
+            ]
+          }
+        ]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      assert html =~ "序品第一"
+      assert html =~ "無錨段落"
+      assert html =~ "recorded with no anchor, so it cannot be opened"
+    end
+
+    test "renders shared passages count in alternate works transmitting this material", %{
+      conn: conn
+    } do
+      insert_work_relation!(evidence: %{"full_parallels" => 15})
+
+      {:ok, _view, html} = live(conn, ~p"/works/T0262")
+
+      assert html =~ "Other works transmitting this material"
+      assert html =~ "15 shared passages"
+    end
   end
 
   describe "the hand behind the byline" do
     setup do
-      %Pramana.Corpus.AuthorityPlace{}
+      %AuthorityPlace{}
       |> Ecto.Changeset.change(%{
         id: "PL_KUCHA",
         name: "龜茲",
@@ -329,9 +539,9 @@ defmodule PramanaWeb.ReaderLiveTest do
         country: "西域",
         source: "dila-authority"
       })
-      |> Pramana.Repo.insert!()
+      |> Repo.insert!()
 
-      %Pramana.Corpus.AuthorityPerson{}
+      %AuthorityPerson{}
       |> Ecto.Changeset.change(%{
         id: "A000001",
         name: "鳩摩羅什",
@@ -343,9 +553,9 @@ defmodule PramanaWeb.ReaderLiveTest do
         place_id: "PL_KUCHA",
         source: "dila-authority"
       })
-      |> Pramana.Repo.insert!()
+      |> Repo.insert!()
 
-      %Pramana.Corpus.AuthorityRelation{}
+      %AuthorityRelation{}
       |> Ecto.Changeset.change(%{
         person_id: "A000001",
         related_id: "A000002",
@@ -353,11 +563,11 @@ defmodule PramanaWeb.ReaderLiveTest do
         type: "student",
         source: "dila-authority"
       })
-      |> Pramana.Repo.insert!()
+      |> Repo.insert!()
 
       import Ecto.Query, only: [from: 2]
 
-      Pramana.Repo.update_all(from(w in Pramana.Corpus.Work, where: w.id == "T0262"),
+      Repo.update_all(from(w in Work, where: w.id == "T0262"),
         set: [authority_id: "A000001"]
       )
 
@@ -365,15 +575,49 @@ defmodule PramanaWeb.ReaderLiveTest do
     end
 
     test "names the person, their dates, sect and place", %{conn: conn} do
+      %AuthorityRelation{}
+      |> Ecto.Changeset.change(%{
+        person_id: "A000001",
+        related_id: "A000003",
+        related_name: "卑摩羅叉",
+        type: "teacher",
+        source: "dila-authority"
+      })
+      |> Repo.insert!()
+
       {:ok, _view, html} = live(conn, ~p"/works/T0262")
 
       assert html =~ "鳩摩羅什"
+      assert html =~ "also 羅什"
       assert html =~ "344–413"
       assert html =~ "三論宗"
       assert html =~ "龜茲"
       # The historical region, not only the modern province — 西域 is what a scholar means.
       assert html =~ "西域"
-      assert html =~ "佛陀耶舍"
+      assert html =~ "taught by 卑摩羅叉"
+      assert html =~ "taught 佛陀耶舍"
+    end
+
+    test "a person recorded only by birth prints b. year", %{conn: conn} do
+      %AuthorityPerson{}
+      |> Ecto.Changeset.change(%{
+        id: "A000011",
+        name: "玄奘",
+        birth_earliest: ~D[0602-01-01],
+        death_latest: nil,
+        source: "dila-authority"
+      })
+      |> Repo.insert!()
+
+      Repo.update_all(from(w in Work, where: w.id == "T2187"),
+        set: [authority_id: "A000011"]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/works/T2187")
+
+      assert html =~ "玄奘"
+      assert html =~ "b. 602"
+      refute html =~ "602–"
     end
 
     test "says the identification is an inference, on the page", %{conn: conn} do
@@ -389,18 +633,18 @@ defmodule PramanaWeb.ReaderLiveTest do
     test "an open bound is printed as an open bound", %{conn: conn} do
       # 施護 is recorded only by his death. Printing "1018" alone would assert a birth year
       # nobody recorded; "d. 1018" says what is actually known.
-      %Pramana.Corpus.AuthorityPerson{}
+      %AuthorityPerson{}
       |> Ecto.Changeset.change(%{
         id: "A000009",
         name: "施護",
         death_latest: ~D[1018-01-25],
         source: "dila-authority"
       })
-      |> Pramana.Repo.insert!()
+      |> Repo.insert!()
 
       import Ecto.Query, only: [from: 2]
 
-      Pramana.Repo.update_all(from(w in Pramana.Corpus.Work, where: w.id == "T2187"),
+      Repo.update_all(from(w in Work, where: w.id == "T2187"),
         set: [authority_id: "A000009"]
       )
 
@@ -412,13 +656,13 @@ defmodule PramanaWeb.ReaderLiveTest do
     end
 
     test "a person with no recorded dates shows none, and no empty span", %{conn: conn} do
-      %Pramana.Corpus.AuthorityPerson{}
+      %AuthorityPerson{}
       |> Ecto.Changeset.change(%{id: "A000010", name: "無名", source: "dila-authority"})
-      |> Pramana.Repo.insert!()
+      |> Repo.insert!()
 
       import Ecto.Query, only: [from: 2]
 
-      Pramana.Repo.update_all(from(w in Pramana.Corpus.Work, where: w.id == "T2187"),
+      Repo.update_all(from(w in Work, where: w.id == "T2187"),
         set: [authority_id: "A000010"]
       )
 
@@ -589,6 +833,47 @@ defmodule PramanaWeb.ReaderLiveTest do
 
       refute html =~ "printed lines containing it"
     end
+
+    test "submitting survey form pushes query to URL", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/survey")
+
+      view
+      |> form("form", %{"q" => "如是我聞"})
+      |> render_submit()
+
+      assert_patched(view, ~p"/survey?#{[q: "如是我聞"]}")
+    end
+
+    test "submitting empty or whitespace query resets results", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/survey?#{[q: "如是我聞"]}")
+
+      html =
+        view
+        |> form("form", %{"q" => "   "})
+        |> render_submit()
+
+      refute html =~ "printed lines containing it"
+    end
+
+    test "shows Taishō division breakdown and top works when works have divisions",
+         %{conn: conn} do
+      Repo.update_all(from(w in Work, where: w.id == "T0262"),
+        set: [division: "法華部", division_en: "Lotus Sutra"]
+      )
+
+      Repo.update_all(from(w in Work, where: w.id == "T2187"),
+        set: [division: "續經疏部", division_en: nil]
+      )
+
+      {:ok, _view, html} = live(conn, ~p"/survey?#{[q: "如是我聞"]}")
+
+      assert html =~ "By Taishō division (部)"
+      assert html =~ "法華部"
+      assert html =~ "Lotus Sutra"
+      assert html =~ "續經疏部"
+      assert html =~ "Where it is used most"
+      assert html =~ "T0262"
+    end
   end
 
   describe "the reader's own claims about a passage" do
@@ -655,5 +940,75 @@ defmodule PramanaWeb.ReaderLiveTest do
       assert html =~ "Taishō volumes 56–84"
       assert html =~ "CBETA publishes 26 collections"
     end
+  end
+
+  @default_translation %{
+    anchor_urn: "pramana:cbeta.T:T0262_001@p0001c17",
+    work_id: "T0262",
+    lang: "en",
+    translator_id: "trans_test",
+    translator_name: "Test Translator",
+    tier: "t0",
+    method: "human",
+    text: "Default translation text",
+    license_class: "public-domain",
+    attribution: "Test Attribution"
+  }
+
+  defp insert_translation!(attrs) do
+    params =
+      @default_translation
+      |> Map.merge(Map.new(attrs))
+      |> with_text_sha256()
+      |> with_model_id()
+
+    %Translation{}
+    |> Ecto.Changeset.change(params)
+    |> Repo.insert!()
+  end
+
+  defp with_text_sha256(%{text: text} = params) do
+    sha = Base.encode16(:crypto.hash(:sha256, text), case: :lower)
+    Map.put(params, :text_sha256, sha)
+  end
+
+  defp with_model_id(%{method: "llm"} = params) do
+    Map.put_new(params, :model_id, "test-model")
+  end
+
+  defp with_model_id(params), do: params
+
+  @default_parallel %{
+    source_work_id: "T0262",
+    source_urn: "pramana:cbeta.T:T0262_001@p0001c17",
+    source_uid: "t0262",
+    target_uid: "target_uid",
+    relation: "full",
+    partial: false
+  }
+
+  defp insert_parallel!(attrs) do
+    params = Map.merge(@default_parallel, Map.new(attrs))
+
+    %TextParallel{}
+    |> Ecto.Changeset.change(params)
+    |> Repo.insert!()
+  end
+
+  @default_work_relation %{
+    source_work_id: "T0262",
+    target_work_id: "T2187",
+    relation: "parallel_of",
+    method: "shared_text",
+    confidence: "probable",
+    evidence: %{}
+  }
+
+  defp insert_work_relation!(attrs) do
+    params = Map.merge(@default_work_relation, Map.new(attrs))
+
+    %WorkRelation{}
+    |> WorkRelation.changeset(params)
+    |> Repo.insert!()
   end
 end

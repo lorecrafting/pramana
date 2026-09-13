@@ -70,5 +70,10 @@ defmodule PramanaWeb.MCP.ReplayExecutorTest do
                  "definitely_not_a_declared_field_xyzzy" => 1
                })
     end
+
+    test "handles atom keys in arguments safely" do
+      assert {:ok, payload} = ReplayExecutor.executor().("survey_corpus", %{query: "一切眾生"})
+      assert is_map(payload)
+    end
   end
 end

@@ -26,7 +26,7 @@ defmodule Pramana.Local.NormalizerTest do
 
   defp page!(dir, name, contents), do: File.write!(Path.join([dir, "text", name]), contents)
 
-  defp manifest!(dir, overrides \\ %{}) do
+  defp manifest!(dir, overrides) do
     base = %{
       "id" => "test-text",
       "title" => @title,

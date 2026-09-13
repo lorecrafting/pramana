@@ -241,6 +241,48 @@ defmodule PramanaWeb.MCP.ToolsTest do
       data = payload(response)
       assert data["verdict"] == "not_found"
       assert data["verified"] == false
+      assert data["explanation"] =~ "Do not cite it"
+    end
+
+    test "refuses a malformed URN" do
+      {:reply, response, _frame} =
+        VerifyCitation.execute(
+          %{urn: "not-a-urn", quoted_text: "anything"},
+          %{}
+        )
+
+      data = payload(response)
+      assert data["verdict"] == "bad_urn"
+      assert data["verified"] == false
+      assert data["explanation"] =~ "malformed"
+    end
+
+    test "refuses a generated translation cited as canonical source" do
+      Pramana.Translations.store([
+        %{
+          anchor_urn: @urn,
+          work_id: "T0262",
+          lang: "en",
+          translator_id: "test-llm",
+          tier: "t1",
+          method: "llm",
+          model_id: "buddhist-nlp/gemma-2-mitra-it",
+          text: "Machine generated translation.",
+          redistributable: true,
+          license_class: "cc0"
+        }
+      ])
+
+      {:reply, response, _frame} =
+        VerifyCitation.execute(
+          %{urn: @urn <> "#tr:en/test-llm", quoted_text: "Machine generated translation."},
+          %{}
+        )
+
+      data = payload(response)
+      assert data["verdict"] == "not_citable_as_source"
+      assert data["verified"] == false
+      assert data["explanation"] =~ "generated translation layer"
     end
   end
 
@@ -330,6 +372,34 @@ defmodule PramanaWeb.MCP.ToolsTest do
       # prone to; `count` and `returned` are separate for that reason.
       assert Map.has_key?(data, "count")
       assert Map.has_key?(data, "returned")
+    end
+
+    test "returns works with authority link note when works exist" do
+      Repo.update_all(
+        from(w in Pramana.Corpus.Work, where: w.id == "T0262"),
+        set: [authority_id: "A000527", attributed_author: "鳩摩羅什"]
+      )
+
+      {:reply, response, _} = GetWorksByPerson.execute(%{authority_id: "A000527"}, %{})
+      data = payload(response)
+
+      assert data["count"] == 1
+      assert data["returned"] == 1
+      assert data["note"] =~ "probable"
+    end
+
+    test "notes when count exceeds returned page size" do
+      Repo.update_all(
+        from(w in Pramana.Corpus.Work, where: w.id == "T0262"),
+        set: [authority_id: "A000527", attributed_author: "鳩摩羅什"]
+      )
+
+      {:reply, response, _} = GetWorksByPerson.execute(%{authority_id: "A000527", limit: 0}, %{})
+      data = payload(response)
+
+      assert data["count"] == 1
+      assert data["returned"] == 0
+      assert data["note"] =~ "Raise `limit` for the rest"
     end
   end
 

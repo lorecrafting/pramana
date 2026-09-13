@@ -217,12 +217,17 @@ defmodule Pramana.Derge.Images do
   end
 
   defp load_index do
-    with {:ok, body} <- File.read(@index_path),
-         {:ok, index} <- Jason.decode(body) do
-      :persistent_term.put({__MODULE__, :index}, index)
-      index
-    else
-      _ -> nil
-    end
+    repo_root_path = Path.expand(@index_path, Path.join(__DIR__, "../../../../../"))
+    candidates = [@index_path, repo_root_path]
+
+    Enum.find_value(candidates, fn path ->
+      with {:ok, body} <- File.read(path),
+           {:ok, index} <- Jason.decode(body) do
+        :persistent_term.put({__MODULE__, :index}, index)
+        index
+      else
+        _ -> nil
+      end
+    end)
   end
 end

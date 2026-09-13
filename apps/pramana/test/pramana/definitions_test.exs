@@ -81,7 +81,7 @@ defmodule Pramana.DefinitionsTest do
       assert result.total == 0
       # The formulae tried are still reported: "we looked, in these ways, and found
       # nothing" is a different claim from "we did not look".
-      assert result.formulae_tried != []
+      assert result.formulae_tried == Definitions.formulae()["lzh"]
     end
   end
 

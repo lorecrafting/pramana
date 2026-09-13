@@ -22,6 +22,8 @@ defmodule Pramana.RepairTest do
   <milestone n="1" unit="juan"/>
   <lb n="0001c17"/>如是我聞，一時佛住。
   <lb n="0001c18"/>王舍城耆闍崛山中。
+  <lb n="0001c19"/>佛說妙法蓮華經。
+  <lb n="0001c20"/>佛說妙法蓮華經。
   </body></text></TEI>
   """
 
@@ -75,10 +77,92 @@ defmodule Pramana.RepairTest do
     assert %{actions: [%{state: :no_sources, reason: :not_found}]} = Repair.repair(text)
   end
 
-  # NOT TESTED HERE: `flagged` for a translation quoted as source (invariant #8) and for a
-  # quotation spanning a printed line boundary. Both need corpus state this fixture does
-  # not have — a stored generated rendering, and a quotation genuinely continuous across
-  # two lines — and a test that reached the planner directly would assert the mapping
-  # while proving nothing about what ships. `Pramana.Guard`'s own tests cover the verdicts
-  # those two states are derived from.
+  test "a quotation differing in orthographic variant is relaxed to what is printed" do
+    urn = "pramana:cbeta.T:T0262_001@p0001c19"
+    text = ~s(The chapter begins 「佛説妙法蓮華經」 #{urn}.)
+
+    assert %{
+             text: repaired,
+             actions: [%{state: :quote_relaxed, reason: :orthographic_variant}],
+             repaired?: true
+           } = Repair.repair(text)
+
+    assert repaired =~ "佛說妙法蓮華經。"
+  end
+
+  test "a quotation appearing uniquely at another line has its URN corrected" do
+    text = ~s(The text says 「王舍城耆闍崛山中。」 #{@urn}.)
+
+    assert %{
+             text: repaired,
+             actions: [
+               %{
+                 state: :citation_corrected,
+                 reason: :wrong_address,
+                 replaced_urn: "pramana:cbeta.T:T0262_001@p0001c18"
+               }
+             ],
+             repaired?: true
+           } = Repair.repair(text)
+
+    assert repaired =~ "pramana:cbeta.T:T0262_001@p0001c18"
+    refute repaired =~ @urn
+  end
+
+  test "an ambiguous quotation appearing in multiple places loses its citation" do
+    text = ~s(The text says 「佛說妙法蓮華經。」 #{@urn}.)
+
+    assert %{
+             text: repaired,
+             actions: [%{state: :no_sources, reason: :ambiguous}],
+             repaired?: false
+           } = Repair.repair(text)
+
+    refute repaired =~ @urn
+    assert repaired =~ "The text says"
+  end
+
+  test "a quotation spanning across a line boundary is flagged rather than corrupted" do
+    text = ~s(The text says 「一時佛住王舍城」 #{@urn}.)
+
+    assert %{
+             text: ^text,
+             actions: [%{state: :flagged, reason: :spans_line_boundary}],
+             repaired?: false
+           } = Repair.repair(text)
+  end
+
+  test "a malformed URN is marked no_sources" do
+    text = ~s(The text says 「如是我聞」 [pramana:cbeta:T0262].)
+
+    assert %{actions: [%{state: :no_sources, reason: :bad_urn}]} = Repair.repair(text)
+  end
+
+  test "invariant #8: a generated translation quoted as source is flagged" do
+    alias Pramana.Translations
+
+    {:ok, _} =
+      Translations.store([
+        %{
+          anchor_urn: @urn,
+          work_id: "T0262",
+          lang: "en",
+          translator_id: "model:gpt4",
+          tier: "t1",
+          method: "llm",
+          model_id: "gpt-4",
+          text: "Thus have I heard.",
+          redistributable: true,
+          license_class: "cc0"
+        }
+      ])
+
+    text = ~s(As stated 「Thus have I heard.」 [#{@urn}#tr:en/model:gpt4].)
+
+    assert %{
+             text: ^text,
+             actions: [%{state: :flagged, reason: :not_citable_as_source}],
+             repaired?: false
+           } = Repair.repair(text)
+  end
 end

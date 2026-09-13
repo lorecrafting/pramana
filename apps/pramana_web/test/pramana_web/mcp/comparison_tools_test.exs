@@ -243,6 +243,14 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
 
       assert response.isError
     end
+
+    test "a malformed URN is refused" do
+      {:reply, response, _} =
+        CompareWitnesses.execute(%{urn: "not-a-urn"}, %{})
+
+      assert response.isError
+      assert hd(response.content)["text"] =~ "Malformed URN"
+    end
   end
 
   describe "get_quotations" do

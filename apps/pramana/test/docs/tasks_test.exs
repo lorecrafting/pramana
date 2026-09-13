@@ -2,14 +2,14 @@ defmodule Docs.TasksTest do
   @moduledoc """
   Every mix task is mentioned in at least one document.
 
-  There are tests that a **rule** is reachable from `CLAUDE.md`'s trigger table
+  There are tests that a **rule** is reachable from `AGENTS.md`'s trigger table
   (`Docs.RoutingTest`) and that an **MCP tool** appears in `docs/MCP.md`'s table
   (`PramanaWeb.MCP.DocumentedTest`), because a capability nobody can find has not shipped.
   The write path had no such check, and ten of forty-nine tasks were named in no document at
   all — including six added the same week.
 
   The bar is deliberately low: *mentioned somewhere*. Not every task belongs in the
-  always-in-context file, and demanding that would push forty-nine lines into `CLAUDE.md` and
+  always-in-context file, and demanding that would push forty-nine lines into `AGENTS.md` and
   make it worse. But a task nobody has written a sentence about is one nobody will run, and
   the CLI is the only way anything is written to this corpus (invariant #7).
   """
@@ -28,7 +28,7 @@ defmodule Docs.TasksTest do
   end
 
   defp prose do
-    ["CLAUDE.md", "README.md"]
+    ["AGENTS.md", "CLAUDE.md", "README.md"]
     |> Enum.map(&Path.join(@root, &1))
     |> Enum.concat(Path.wildcard(Path.join(@root, "docs/*.md")))
     |> Enum.map_join("\n", &File.read!/1)
@@ -49,13 +49,13 @@ defmodule Docs.TasksTest do
            """
   end
 
-  test "the tasks a session runs first are in CLAUDE.md, not merely somewhere" do
+  test "the tasks a session runs first are in AGENTS.md, not merely somewhere" do
     # These are the ones a new session needs without being told to look: what state am I in,
     # is it green, and what does a measurement command need to be a measurement.
-    claude = File.read!(Path.join(@root, "CLAUDE.md"))
+    agents = File.read!(Path.join(@root, "AGENTS.md"))
 
     for task <- ~w(pramana.doctor pramana.gate pramana.coherence pramana.recall) do
-      assert String.contains?(claude, task), "#{task} is not in CLAUDE.md"
+      assert String.contains?(agents, task), "#{task} is not in AGENTS.md"
     end
   end
 end

@@ -186,4 +186,64 @@ defmodule Pramana.CommentaryDbTest do
       assert Commentary.glosses_on(@line) == []
     end
   end
+
+  describe "alignment_counts/1" do
+    test "groups alignments by commentary work with lemma and line counts" do
+      align!("pramana:cbeta.T:T0223_001@p0001a01", at: 10)
+      align!("pramana:cbeta.T:T0223_001@p0001a01", at: 30)
+
+      counts = Commentary.alignment_counts("T0223")
+      assert %{"T1509" => %{lemmas: 2, lines: 1}} = counts
+
+      assert Commentary.alignment_counts("T_UNEXPLAINED") == %{}
+    end
+  end
+
+  describe "lemmas_of/2" do
+    test "returns presented lemmas with offsets and metadata ordered by char start" do
+      align!("pramana:cbeta.T:T0223_001@p0001a01", at: 10)
+      align!("pramana:cbeta.T:T0223_001@p0001a01", at: 30)
+
+      lemmas = Commentary.lemmas_of("T1509")
+      assert length(lemmas) == 2
+      [first, second] = lemmas
+      assert first.commentary_offsets.char_start == 10
+      assert second.commentary_offsets.char_start == 30
+      assert first.commentary_work_id == "T1509"
+      assert first.root_work_id == "T0223"
+      assert is_binary(first.lemma_sha256)
+
+      limited = Commentary.lemmas_of("T1509", limit: 1)
+      assert length(limited) == 1
+    end
+  end
+
+  describe "align/3" do
+    test "refuses to align a work with itself" do
+      assert {:error, :same_text} = Commentary.align("T0223", "T0223")
+    end
+
+    test "returns error when either text is not found" do
+      assert {:error, {:not_found, "MISSING"}} = Commentary.align("MISSING", "T0223")
+      assert {:error, {:not_found, "MISSING"}} = Commentary.align("T1509", "MISSING")
+    end
+
+    test "aligns matching commentary and root texts and persists rows" do
+      assert {:ok, report} = Commentary.align("T1509", "T0223")
+      assert report.aligned == true
+      assert report.written >= 1
+
+      # Re-aligning replaces rows idempotently
+      assert {:ok, report2} = Commentary.align("T1509", "T0223")
+      assert report2.written == report.written
+    end
+
+    test "skips persisting when texts do not clear the alignment density gate" do
+      load_long_commentary!()
+      set_role!("T9999", "commentary")
+
+      assert {:skip, report} = Commentary.align("T9999", "T0223")
+      assert report.aligned == false
+    end
+  end
 end
