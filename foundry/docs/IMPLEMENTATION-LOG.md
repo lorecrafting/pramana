@@ -657,6 +657,21 @@ steps.
   real-Git tests must prove stale/wrong/missing evidence and integration attempts change
   neither event/state/ref; a process fixture must prove the disabled watcher invokes no
   child command. No live daemon/provider/Git worktree mutation was performed.
+- `/root/fr05_impl` produced candidate v1 on isolated branch `repair/fr05`, base
+  `64c226c`; candidate artifact SHA-256
+  `b20fcc14863864523f70ea67daf8ec5bb3881037b5239decc9524a97addc1d9c`.
+  It centralizes real Git evidence, removes CLI evidence synthesis, rejects automatic
+  approval and production Git bypasses, suspends promotion/integration/activation, labels
+  historical success unverified, and disables the mutable watcher. Implementer evidence
+  included focused 21/21 and full model-free 420/420 runs plus production compilation.
+- Independent Astra-medium review SHA-256
+  `8324ecbe8c194b056d6b5a8ae5b8e7fafdab77ccc88640d8a771def46b369991`
+  returned **FAIL** despite 61 focused passes. Direct Pipeline `validate_readiness/3`
+  still accepted invented revisions, empty review, auto-approval and nonexistent checkout;
+  public `run_gate_checks/3` still invoked its runner. Direct CLI ticket creation also
+  silently discarded `--auto_approve` and created an event, although the fixed wrapper
+  rejected that shape. The same implementer is correcting only these direct boundaries;
+  FR-05 remains active and unintegrated.
 
 ### FR-01 candidate v4 — frozen validation correction
 
