@@ -412,6 +412,86 @@ steps.
   and exercise intended ownership mode, and a renewed static preflight passes. The
   generated binary is excluded from the candidate.
 
+#### FR-03 isolation preflight v2
+
+- Static-only renewed review confirmed child/root routing, 128-bit exclusive defaults and
+  subprocess mode/environment controls were corrected, but still returned **FAIL**.
+- Remaining blockers: publishing overwrote the configured operator-root rejection anchor;
+  lexical `Path.expand/1` did not prevent an ancestor-symlink alias into operator state;
+  `fetch!/0` had no resolved marker for direct/no-start consumers; and the generated
+  escript still appeared in the unstaged worktree diff.
+- Runtime remains paused. V3 must preserve an immutable operator anchor, canonicalize
+  existing ancestors using Elixir filesystem primitives with bounded cycle handling,
+  reject fetch-before-publication, and remove only the agent-generated binary diff before
+  another static preflight.
+
+#### FR-03 isolation preflight v3 and final hardening
+
+- `/root/fr03_isolation_preflight` (Astra-medium) returned **PASS** for the exact
+  fresh-parent execution protocol. Static inspection confirmed immutable operator and
+  active roots, publication before child startup, exclusive cryptographically random
+  test roots, bounded symlink-ancestor resolution, and explicit subprocess mode and
+  environment isolation. The generated escript is absent from the candidate.
+- A final narrow hardening invalidates `:runtime_root_resolved` as the first executable
+  statement in `resolve_and_publish!/2`, before operator validation, initialization or
+  mismatch checks. Exact frozen hashes are RuntimeRoot
+  `ff8a863a82e835dca42240e66809ba3693dac26cde084d1e2e7bea1944aeea2b`
+  and its test
+  `e1a0846abcee49bcd7ebfa39178626f135eee848c239b8dcf75923d6095ce8f2`.
+- The same reviewer performed a hash-only final static recheck and returned **PASS**:
+  validation and mismatch failures leave `fetch!/0` rejected, including mismatch after
+  a successful prior publication. No Mix task, application, test or live-state access
+  occurred during either review.
+- Limitations: this is static isolation evidence only. An unsupported `mix_env` fails
+  the function guard before body-level invalidation; normal application callers use the
+  supported environments. A private newly created parent mitigates, but cannot eliminate,
+  filesystem symlink time-of-check/time-of-use races. Runtime validation resumes with one
+  focused test under the exact fresh-parent protocol before broader checks.
+- The first runtime command exited 1 before application startup because the ambient shell
+  exposed Elixir 1.19.5 rather than the pinned 1.20.3. A retry through `mise exec` also
+  exited 1 before Mix because mise does not trust the temporary worktree's config through
+  the macOS `/tmp` alias. Neither run exercised candidate code. Subsequent commands used
+  explicit already-installed Elixir 1.20.3/OTP 29 binary paths without changing trust.
+- The first executable isolated check passed `8/8` RuntimeRoot tests, seed `424203`, exit
+  zero. After formatting the 13 owned files, warnings-as-errors compilation passed and
+  the three focused RuntimeRoot/startup/persistence files passed `15/15`, exit zero.
+- Full model-free validation used a new private parent, separate `TMPDIR`, nonexistent
+  Herdr command, tick/provider environment removed, integration excluded, seed `424203`
+  and 120-second per-test timeout. Result: **338 passed, 2 excluded**, exit zero in 56.8
+  seconds. Application startup reported zero recovered events. The development daemon
+  remained alive as PID 50423, and the live state tree contained no fresh-root/test marker.
+- The pinned formatter mechanically reformatted whole touched legacy files, expanding the
+  tracked diff to 1376 additions/738 deletions even though only the same eight source files
+  are owned. This is explicit candidate provenance; independent review must use both exact
+  hashes and whitespace-insensitive views and decide whether the churn itself blocks
+  integration. Candidate remains frozen during Astra-medium durable/startup review.
+
+#### FR-03 independent review v1
+
+- Independent reviewer `/root/fr03_review`; artifact
+  `docs/fr-03/review.md`, SHA-256
+  `8488281e04f347590b94d482bbc9929536e5d0255b5b3dec2e92f44ae5f293f0`.
+  Verdict: **FAIL**. All 13 post-format candidate hashes matched; mechanical formatting
+  churn was not itself classified as an integration blocker.
+- B1: a complete final JSON object without its newline loaded as healthy; public enqueue
+  acknowledged and concatenated the next object, making restart history malformed. The
+  missing-delimiter tail must be rejected and preserved before writes are enabled.
+- B2: stopping RuntimeOwner released the OS fence before the later `:rest_for_one` child
+  quiesced. A successor acquired ownership while the old child still wrote. Abrupt bridge
+  and owner loss need fail-closed takeover evidence; full durable epochs remain FR-10/15a.
+- B3: `Transition.rebuild/2` discarded an unprojectable `prompt_intent`, so invalid
+  authoritative replay became healthy empty running state. Startup must use the one replay
+  implementation strictly and enter recovery rather than forgetting authority.
+- B4: raw state denied mutations in recovery, but public health/status omitted the recovery
+  status and reason. Existing operational inspection must expose both.
+- Independent isolated evidence: supplied focused tests `15 passed`; a model-free Elixir
+  adversarial probe reproduced all four blockers; actual default Mix client inference and
+  explicit client child-free startup passed. The graceful stop test is not killed-owner
+  evidence. Later-write failure branches and useful-prefix recovery still need executable
+  coverage. The avoidable Python bogus-lock helper must become an Elixir fixture.
+- The same implementation owner is correcting only these findings. FR-03 remains active,
+  FR-07 remains blocked, and the changed candidate requires a fresh exact-hash review.
+
 ### FR-04
 
 - `/root/fr04_investigate` found Coordinator cleanup enumerating panes and closing every
