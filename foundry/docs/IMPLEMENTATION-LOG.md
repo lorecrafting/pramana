@@ -862,12 +862,24 @@ steps.
   lockfile-only policy. Candidate `85a7449` remains frozen and unintegrated. The same
   implementation owner is correcting these exact portability/provenance failures before
   renewed review.
-- V2 correction commit `4e4acf784742381127bfd54fef49faf957d1c256`, tree
-  `4e95b891f23d8822122acb3d919605b793c64491`, addresses B1–B5 but is not yet the frozen
-  review candidate. Focused checks passed 13 tests with one optional historical tokenizer
-  recomputation excluded; exact-source adversarial setup probes fail closed with manifests.
-  The implementer is adding the durable evidence record and must pass two clean detached
-  runs against that final evidence-bearing tree before independent review begins.
+- V2 implementation commit `4e4acf784742381127bfd54fef49faf957d1c256`, tree
+  `4e95b891f23d8822122acb3d919605b793c64491`, addresses B1–B5. The frozen evidence-bearing
+  candidate is `1bd381d96d6c58379d1a9586888fca56811bdc4f`, tree
+  `b460f67a25ff19eb71f87234b4b160911b983598`; candidate-v2 and acceptance-v2 SHA-256 are
+  `c2df8bf68a739a453f50980b56e91302c99d4a0b8c04300d936acfdace7ca3a3` and
+  `572412b6bc7805f3c1bb17c6d1b93079eff1c881d88c546ae739c1eecf76d69c`.
+  Focused checks passed 13 tests with one optional historical tokenizer recomputation
+  excluded. Two exact-final detached runs each passed 431 tests with that one exclusion,
+  clean pre/post source and independent roots; manifest SHA-256 values are
+  `f9cfc6da6b95962c60bd721dba42daf88f94e560e158679bd4cf1f6f3aa9d51e` and
+  `890c0ba7e7d8a327eee48850cc226f4fe71929b264eaef9e92d29e5c04e845a8`.
+  Exact-final dirty-source and missing-executable probes, plus clean committed toolchain,
+  missing-project and path-dependency probes, failed at their intended gates with
+  attributable manifests. Generated escript bytes differed between clean builds; each is
+  individually hash-bound and no byte-reproducible packaging claim is made.
+- `/root/fr21_v2_review` (fresh Sol-high) independently owns review of exact candidate
+  `1bd381d`; it must reproduce clean execution, challenge B1–B5 and decide whether the
+  per-build artifact identity satisfies FR-21. Candidate files are frozen meanwhile.
 
 ### FR-01 candidate v4 — frozen validation correction
 
