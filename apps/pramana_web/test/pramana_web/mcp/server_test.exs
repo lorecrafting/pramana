@@ -79,7 +79,10 @@ defmodule PramanaWeb.MCP.ServerTest do
 
     test "handles resources/list request", %{frame: frame} do
       req = %{"jsonrpc" => "2.0", "id" => 2, "method" => "resources/list", "params" => %{}}
-      assert {:reply, %{"resources" => resources}, _updated_frame} = Server.handle_request(req, frame)
+
+      assert {:reply, %{"resources" => resources}, _updated_frame} =
+               Server.handle_request(req, frame)
+
       assert length(resources) == 2
       uris = Enum.map(resources, & &1.uri)
       assert "pramana://guide" in uris

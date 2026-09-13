@@ -380,7 +380,7 @@ one for the same reason — see above.
   `yè, shè`, 般 is `bān, bō`. What is missing is which one applies where.
 - **CC-CEDICT** (`CC-BY-SA-4.0`) —
   `https://www.mdbg.net/chinese/export/cedict/`. Supplies compound readings. Share-alike
-  propagates to `priv/readings/exceptions.tsv`, whose rows record `authority=cc-cedict`.
+  propagates to `apps/pramana/priv/readings/exceptions.tsv`, whose rows record `authority=cc-cedict`.
 
 Neither is corpus text, so neither gets a row in `sources`: that table gates what can be
 *served*, and a dictionary is a build input. Both are pinned in `sources.lock.json` by
