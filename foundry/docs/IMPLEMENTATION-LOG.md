@@ -634,6 +634,13 @@ steps.
   the commit and restored afterward. FR-04 is implemented and independently reviewed,
   **not deployed**. FR-10 retains durable reconciliation, FR-09/15a backend conformance,
   and FR-22 full lifecycle acceptance.
+- Integrated main commit `7d8874a` received independent Astra-medium
+  [attestation](fr-04/integration-attestation.md), SHA-256
+  `63adbbc1d20a2d6e711151eebc1ca2ebd33c3354c21c2b27665e6d36f53fe97c`:
+  **PASS**. All 22 reviewed implementation/test paths and 18 provenance documents are
+  byte-identical between the candidate commit, integrated commit and detached checkout;
+  only the three completion documents were added for integration. Fourteen transition
+  tests independently passed, and the dirty unblock additions are absent from the commit.
 
 ### FR-05
 
