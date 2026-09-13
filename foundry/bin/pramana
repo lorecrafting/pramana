@@ -26,8 +26,14 @@ PROJECT_ROOT="$(dirname "$FOUNDRY_DIR")"
 # 1. Try relative to script (main repo case)
 RELEASE_BIN="$FOUNDRY_DIR/_build/prod/rel/pramana_foundry/bin/pramana_foundry"
 
-# 2. Try env var override
-if [ -n "${PRAMANA_RELEASE:-}" ] && [ -x "$PRAMANA_RELEASE" ]; then
+# 2. Try env var override. An explicit but invalid override is an error; silently
+# falling back could send a command to a different daemon than the caller chose.
+if [ -n "${PRAMANA_RELEASE:-}" ]; then
+  if [ ! -x "$PRAMANA_RELEASE" ]; then
+    echo "Error: PRAMANA_RELEASE is not executable: $PRAMANA_RELEASE" >&2
+    exit 69
+  fi
+
   RELEASE_BIN="$PRAMANA_RELEASE"
 fi
 
@@ -70,39 +76,47 @@ if [ ! -x "$RELEASE_BIN" ]; then
   exit 1
 fi
 
-# ── Encode arguments as safe Elixir list for RPC ──
+# ── Encode arguments as inert data for the fixed RPC entry point ──
 
-# Encode argv into a JSON array, then wrap in brackets for Elixir syntax
+# The decoded JSON envelope is capped at 64 KiB. Its unpadded URL-safe Base64
+# representation stays below 88 KiB, leaving margin under common per-argument
+# operating-system limits. The encoded alphabet cannot terminate the Elixir string
+# or introduce interpolation; the daemon independently validates canonical encoding.
 encode_for_rpc() {
-  python3 -c "
-import sys, json
-args = sys.argv[1:]
-# Build Elixir list literal from JSON-encoded strings
-items = ','.join(json.dumps(a) for a in args)
-print('[' + items + ']')
-" "$@"
+  elixir -e '
+try do
+  raw =
+    %{"version" => 1, "argv" => System.argv()}
+    |> :json.encode()
+    |> IO.iodata_to_binary()
+
+  if byte_size(raw) > 65_536 do
+    IO.puts(:stderr, "Error: RPC argument payload exceeds 65536 bytes")
+    System.halt(64)
+  end
+
+  IO.write(Base.url_encode64(raw, padding: false))
+rescue
+  error ->
+    IO.puts(:stderr, "Error: could not encode RPC arguments: #{Exception.message(error)}")
+    System.halt(65)
+end
+' -- "$@"
 }
 
-# Subcommand that has no args (ticket list, etc.) — pass empty list
-if [ $# -eq 0 ]; then
-  RPC_CODE="PramanaFoundry.CLI.main([])"
+if PAYLOAD=$(encode_for_rpc "$@"); then
+  RPC_CODE="PramanaFoundry.CLI.RPC.run(\"${PAYLOAD}\")"
 else
-  ARGS=$(encode_for_rpc "$@")
-  RPC_CODE="PramanaFoundry.CLI.main($ARGS)"
+  ENCODE_STATUS=$?
+  exit "$ENCODE_STATUS"
 fi
 
 # ── Execute on daemon node via RPC ──
 
-# Capture exit code from rpc command (0 = success, non-zero = connection failure)
-"$RELEASE_BIN" rpc "$RPC_CODE"
-EXIT_CODE=$?
-if [ $EXIT_CODE -ne 0 ]; then
-  echo "Error: could not reach the pramana_foundry daemon" >&2
-  echo "" >&2
-  echo "The daemon may not be running. Start it with:" >&2
-  echo "  bash foundry/bin/pramana-live.sh" >&2
-  echo "" >&2
-  echo "Or check daemon status:" >&2
-  echo "  pramana_foundry health" >&2
-  exit $EXIT_CODE
+# Preserve the release command's stdout, stderr and exact status. A nonzero result
+# may be a command rejection rather than a connection failure, so do not relabel it.
+if "$RELEASE_BIN" rpc "$RPC_CODE"; then
+  exit 0
+else
+  exit $?
 fi

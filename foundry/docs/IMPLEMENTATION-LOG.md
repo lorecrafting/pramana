@@ -5,6 +5,28 @@ ticket, status, and dependency backlog. It records candidate provenance, indepen
 review, integration decisions, executable evidence, limitations, and resumable next
 steps.
 
+## Implementation-language constraint
+
+- Operator direction, 2026-09-12: because this backlog repairs the Elixir supervisor,
+  implement Foundry transport, persistence, orchestration, validation and test fixtures
+  in Elixir wherever technically possible. Do not introduce Python or another language
+  for an internal repair convenience.
+- External processes are permitted only where the contract itself crosses that boundary
+  (for example Git, OS-process acceptance, or the existing Herdr provider CLI), and each
+  use must be explicit, bounded and justified in ticket evidence. FR-02's initial
+  in-progress Python encoder was rejected before candidate freeze/review and is being
+  replaced with an Elixir `System.argv/0` encoder; it is not accepted implementation.
+
+## Review-model policy
+
+- Operator cost/effort adjustment, 2026-09-12: Sol-medium remains the implementation
+  default; use Sol-high for routine independent review, Astra-medium for the first review
+  of authority/persistence/recovery/budget/Git/activation changes, and Astra-high only for
+  FR-22, a cross-cutting contract contradiction, or materially different repeated
+  failures. A narrow isolated recheck may use Sol-medium.
+- This changes review compute, not independence or acceptance rigor. The already completed
+  FR-01/FR-02 Astra-high evidence remains valid and is not rerun merely to relabel effort.
+
 ## Coordination baseline — 2026-09-12
 
 - Coordinator branch: `main`; starting HEAD
@@ -219,6 +241,77 @@ steps.
   staged `git diff --check` reported that historical artifact. It was preserved byte for
   byte rather than silently rewriting the dated audit evidence; candidate runtime diffs
   remain subject to clean diff checks.
+
+### FR-02 candidate v1 — frozen
+
+- Implementer: `/root/fr02_investigate` (Sol-medium), base HEAD
+  `7aecf31c541ab1b1f3de4045ac3c487f6ef0708f`. Ownership remained disjoint from
+  dirty CLI/Coordinator files.
+- Exact hashes: `bin/pramana`
+  `e836621bc5d92c152f7eed2f3c00a4fb93d30b55460955abdc953704a3383e54`;
+  `lib/pramana_foundry/cli/rpc.ex`
+  `eec9bec3224207dec43df31fcc0620aae2f071572305c6b37f119bf9d7df4c59`;
+  `test/pramana_foundry/cli/rpc_test.exs`
+  `7bb444196993fa00af64393045b9f22ca3873f17815706c6a9566ba3f94520e5`;
+  `test/pramana_foundry/rpc_wrapper_test.exs`
+  `5b596d76f71764df51526d7418ca1de8c9c173c9e409987f5e81b3afe40ee26f`.
+- The wrapper now uses Elixir `System.argv/0` to encode a versioned JSON envelope and
+  canonical URL-safe base64 token; user text never enters source. The daemon-side Elixir
+  module enforces size, canonical encoding, UTF-8/NUL, exact envelope and a closed command
+  grammar before dispatch. No Python remains in the candidate.
+- Evidence: warnings-as-errors compile of 72 files; focused RPC/wrapper plus existing CLI
+  suite `59 passed`; owned formatting, shell syntax and whitespace checks passed. Actual
+  wrapper fixtures cover literal metacharacters/Unicode/empty values, 60-KiB and over-limit
+  payloads, malformed shapes, byte-exact streams, status 42, invalid release 69, missing
+  Elixir 127 and unexecutable Elixir 126.
+- No live daemon/provider was used. General release `rpc` remains FR-15a; equivalent
+  interpolation in `tickets_from_review.sh` and `test_daemon_recovery.sh` remains routed
+  to FR-03/04/05. Candidate is frozen for Astra-high authority-boundary review.
+
+### FR-02 independent review v1
+
+- Reviewer: `/root/fr02_review` (Astra-high); review SHA-256
+  `911baf8618cc3853268e383b302bb9dc009e2a33460e0e89e0e126af7ba15340`.
+  Verdict: **FAIL** on two bounded grammar issues; all four hashes matched.
+- The original source-injection defect is corrected. Independent evidence passed 59
+  focused tests, a forced warnings-as-errors compile, formatting/shell syntax and six
+  actual-wrapper/evaluated-dispatch probes.
+- R1: OTP JSON map decoding accepts duplicate envelope members, so ambiguous duplicate
+  `version` or `argv` keys can pass exact-shape validation. R2: the allowlist includes
+  `ticket unblock`, which exists only in preserved dirty user work and not candidate base
+  `7aecf31`; the candidate may not depend on it.
+- Next: detect/reject duplicate JSON object keys using the OTP/Elixir decoder callback
+  interface (not a non-Elixir parser), remove `unblock` from the grammar/tests, rerun the
+  boundary matrix, and obtain renewed independent review.
+
+### FR-02 candidate v2 — frozen correction
+
+- Exact hashes: `bin/pramana`
+  `c1c92fe1c25402d67e0ce6173e196e640e71b47c528878bb164f0318c83e5250`;
+  RPC module `617fb1dc018a70abb9ffd7f97bc7e886db6d217c16ae06ea15ef233d5829b11d`;
+  RPC test `083f11bf59e6f3954e168d8f939c0fe9aa8fbb165e59daf66894d7b95d366617`;
+  wrapper test `77ccefd68a73ac180723591fbaf3c0075e7c9f8bcb5716061c05c8259ee6e761`.
+- OTP `:json.decode/3` object callbacks now retain a per-object map/key set and throw one
+  private exact tag on duplicates before map collapse. Tests cover both key orders,
+  escaped-equivalent spellings and nested object/array cases; an evaluated forged-wrapper
+  probe returns status 65 with no dispatch artifact. `ticket unblock` is now a negative
+  shape and no candidate claim depends on dirty state.
+- Evidence: forced warnings-as-errors compile of 72 files, focused/supporting `62 passed`,
+  owned formatting, shell syntax and whitespace checks exited zero. No Python, live daemon,
+  provider or new dependency. Frozen for narrow independent recheck.
+
+### FR-02 independent review v2
+
+- Reviewer: `/root/fr02_v2_review` (Sol-medium narrow recheck); review SHA-256
+  `a1b80f698a224dd6a506a237bcf31de593a26e6d9498e4fe340ed541d3fbef4d`.
+  Verdict: **PASS**; all four frozen hashes matched.
+- The reviewer independently confirmed duplicate keys reject before dispatch across
+  nested/escaped variants and `ticket unblock` is rejected both by the transport grammar
+  and clean-base CLI. Focused `62 passed`; forced warnings-as-errors compile of 72 files,
+  shell syntax, formatting, diff/whitespace and adversarial probes passed.
+- FR-02 is ready to integrate as Elixir-only inert transport. General release RPC
+  authority remains FR-15a and the two other dynamic-source scripts remain explicitly
+  routed to FR-03/04/05; neither limitation is represented as closed.
 
 ## Ready-ticket investigations (read-only)
 

@@ -36,6 +36,20 @@ automatic execution only with exact backend evidence. FR-16 owns durable quota o
 and bounded switching. Do not treat a model name, available credential or this temporary
 policy as entitlement, and do not change the System capability as an operator workaround.
 
+## Agent command transport
+
+`bin/pramana` treats every user argument as inert data. It invokes Elixir with those values
+only in `System.argv/0`, encodes a bounded versioned JSON envelope as canonical URL-safe
+base64, and sends one fixed `PramanaFoundry.CLI.RPC.run/1` expression to the release.
+The daemon rejects malformed, duplicate-key, oversized, non-UTF-8, NUL-containing and
+unknown command shapes before calling the CLI. The wrapper preserves remote stdout,
+stderr and exit status.
+
+This is FR-02 containment, not a claim that the release's general `rpc` evaluator is a
+safe public authority boundary. Keep access local/protected; FR-15a replaces that general
+evaluation credential. The older maintenance scripts named in the repair plan remain
+disabled/routed to their containment owners until rewritten.
+
 ## Read first
 
 - [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) — telemetry records, health probe,

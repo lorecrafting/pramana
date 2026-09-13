@@ -26,6 +26,10 @@ explicit file/interface ownership; this plan does not itself launch agents.
 ### Product and authority contract
 
 - One operator, one machine, Pramāṇa. Retain a standalone OTP application.
+- Implement supervisor repairs, transport, persistence, orchestration, validation and
+  fixtures in Elixir wherever technically possible. A non-Elixir process is acceptable
+  only when the contract inherently crosses that boundary (for example Git, OS process
+  acceptance, or the existing Herdr provider CLI), and its necessity must be recorded.
 - Lean autonomous execution, including Foundry merge and activation once the
   acceptance and deployment protocols are proved. Temporary containment must name
   the capability it suspends and the ticket that safely restores it.
@@ -74,10 +78,13 @@ contracts. This is an engineering recommendation, not a Foundry model benchmark.
 The [official Sol reference](https://developers.openai.com/api/docs/models/gpt-5.6-sol)
 documents medium reasoning support; it does not prove a success rate for this repo.
 
-Use Astra or more deliberate reasoning for FR-06's shared design and focused review
-of persistence, recovery, integration and deployment. Escalate when a ticket reveals
-an unresolved contract or repeatedly fails meaningful tests; do not keep retrying
-the same implementation or make every documentation edit an expensive review.
+Use Sol-high for routine independent review and Astra-medium for the first review of
+authority, durable storage, recovery, budgets, Git integration and activation work.
+Reserve Astra-high for FR-22's final lifecycle gate, a concrete cross-cutting design
+contradiction, or a candidate that repeatedly fails in materially different ways. Narrow
+rechecks after a reviewer has isolated one defect may use Sol-medium. Escalate when a
+ticket reveals an unresolved contract or repeatedly fails meaningful tests; do not keep
+retrying the same implementation or make every documentation edit an expensive review.
 Model selection does not replace deterministic gates or independent review.
 
 Save this plan and decisions before clearing context. A fresh implementation session
@@ -110,7 +117,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | ID | Deliverable | Depends on | Status | Findings |
 |---|---|---|---|---|
 | FR-01 | Remove automatic paid execution paths | — | **Complete: reviewed static containment** | F01 |
-| FR-02 | Transport CLI arguments as inert data | — | Ready | F06 |
+| FR-02 | Transport CLI arguments as inert data | — | **Complete: reviewed inert transport** | F06 |
 | FR-03 | Fence startup and fail closed on legacy persistence errors | — | Ready: containment | F14, F02 |
 | FR-04 | Restrict cleanup to verified owned resources | — | Ready | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | Ready | F03, F04, F12, F13, F22 |
@@ -867,3 +874,13 @@ integration-tag exclusions. Real OMP subscription/account/billing conformance an
 re-enablement remain FR-09/15a, dynamic switching remains FR-16, and full lifecycle
 acceptance remains FR-22. Candidate hashes and the review chain are retained in
 [IMPLEMENTATION-LOG.md](IMPLEMENTATION-LOG.md).
+
+2026-09-12, FR-02: Elixir-only candidate v2 received an independent
+[PASS](fr-02/review-v2.md). `bin/pramana` now transports user argv as a bounded,
+versioned JSON envelope inside canonical URL-safe base64 to one fixed RPC expression;
+the daemon-side decoder rejects duplicate keys, malformed/oversized/noncanonical data,
+NUL and unknown command shapes before dispatch. Actual-wrapper tests preserve literal
+quotes, backslashes, newlines, Unicode, empty/interpolation-looking data, stdout/stderr
+and exit status. General release eval authority remains FR-15a; equivalent historical
+interpolation in `tickets_from_review.sh` and `test_daemon_recovery.sh` remains routed
+to FR-03/04/05. No live daemon/provider was used.

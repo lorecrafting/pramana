@@ -32,7 +32,8 @@ checkpointed effects and check-recovery primitives, while runtime and replay dis
 The report includes isolated reproductions, coverage limits and an ordered repair plan.
 
 The executable backlog is now [Foundry repair tickets](../foundry/docs/REPAIR-PLAN.md),
-maintained outside Foundry. FR-01's independently reviewed static containment is complete;
+maintained outside Foundry. FR-01's independently reviewed static containment and
+FR-02's inert Elixir wrapper transport are complete;
 all real automatic model launches are now disabled until FR-09/15a proves the protected
 subscription route. The dependency inventory identifies ready
 containment work and the design decisions required before downstream implementation.
