@@ -61,6 +61,11 @@ defmodule PramanaFoundry.Coordinator do
     GenServer.call(__MODULE__, :health)
   end
 
+  @doc "Look up the AgentServer PID for a running agent by task_id."
+  def agent_pid(task_id) do
+    GenServer.call(__MODULE__, {:agent_pid, task_id})
+  end
+
   # ── GenServer callbacks ──
 
   @impl true
@@ -443,6 +448,10 @@ defmodule PramanaFoundry.Coordinator do
     }
 
     {:reply, health, data}
+  end
+
+  def handle_call({:agent_pid, task_id}, _from, %{agent_registry: reg} = data) do
+    {:reply, Map.get(reg, task_id), data}
   end
 
   # ── handle_info ──
