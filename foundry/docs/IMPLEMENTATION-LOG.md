@@ -867,6 +867,23 @@ steps.
   `/root/fr07_v6_diagnosis` (fresh Astra-high) is performing a read-only exhaustive closure
   map across all authoritative reads, startup, backup, import certification, sidecar names and
   live/reconstruction reducer calls before another implementation attempt.
+- Focused v6 diagnosis SHA-256
+  `fc6013eaf46ae39c6966397d4feb1c8d9fb35b8137800e05a0dcd6d88cfea74e` found no contract
+  ambiguity. It specifies one `Authority` retained-read/validation boundary, one common
+  corruption/storage fence, one complete authority/owner/publication path namespace and the
+  existing projection reducer shared by live CAS and reconstruction. Its exhaustive matrix
+  covers all 18 tables, required relations, result/event sequence bounds, every revision
+  family, importer retained-byte completeness and every SQLite sidecar family.
+- The current format cannot detect a coordinated, internally consistent rewrite that erases
+  every protected-membership row; doing so would require a new externally anchored membership
+  witness. The current FR-06/FR-07 contract requires atomic bundles, typed authority,
+  relational completeness and recovery on detected corruption, not resistance to arbitrary
+  trusted raw-SQL history replacement. V6 therefore adds no table or acceptance amendment and
+  records this evidence limit explicitly.
+- `/root/fr07_impl` resumed as the single v6 owner with the diagnosis's bounded production,
+  test and documentation paths. It must implement the entire call-site matrix and Rule-41
+  sweep, retain the independently credited full-row VFS sync proof, and freeze only after
+  format, warnings-as-errors compile, focused and honest full-suite evidence.
 
 ### FR-08 preparation
 

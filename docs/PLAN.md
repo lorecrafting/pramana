@@ -61,8 +61,10 @@ evidence required to begin FR-07's durable-store implementation. FR-07 is active
 fourth candidate after three independent reviews exposed recurring record-schema and
 path-identity defects. V4 was withdrawn before verdict when self-audit found its executed
 SQLite WAL `xSync` fixture did not yet use the full protected bundle. V5 independently passed
-that sync-fault obligation but failed six authority-validation/fencing checks; a fresh focused
-closure diagnosis now precedes another candidate. FR-21's focused v3 CI/provenance correction
+that sync-fault obligation but failed six authority-validation/fencing checks. A fresh focused
+diagnosis found no contract ambiguity and specified one exhaustive retained-authority reader,
+fence, path namespace and shared narrow projection reducer; v6 implementation is active.
+FR-21's focused v3 CI/provenance correction
 passed renewed
 independent review, is integrated, and passed independent post-integration 432-test
 attestation. FR-21 is complete but not deployed; FR-07 remains incomplete.
