@@ -1,3 +1,5 @@
+Code.require_file("../../support/agent_server_fake_runner.ex", __DIR__)
+
 defmodule PramanaFoundry.EngineTest do
   use ExUnit.Case, async: false
 
@@ -6,6 +8,8 @@ defmodule PramanaFoundry.EngineTest do
   alias PramanaFoundry.PM
   alias PramanaFoundry.Quota
   alias PramanaFoundry.Status
+  alias PramanaFoundry.Herdr.Adapter
+  alias PramanaFoundry.AgentServerTest.FakeRunner
 
   @base_rev "d83f8f0cedc34780d25cba452545ce9883d416a5"
   @commit1 "1111222233334444555566667777888899990001"
@@ -14,6 +18,17 @@ defmodule PramanaFoundry.EngineTest do
 
   setup do
     :ok = Coordinator.reset(accepted_revision: @base_rev)
+    policy = FakeRunner.launch_policy()
+
+    :sys.replace_state(Coordinator, fn data ->
+      %{
+        data
+        | herdr_adapter: Adapter.new(FakeRunner),
+          launch_profiles: policy.profiles,
+          launch_role_profiles: policy.role_profiles
+      }
+    end)
+
     :ok
   end
 

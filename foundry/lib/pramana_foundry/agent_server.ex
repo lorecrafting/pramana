@@ -10,6 +10,7 @@ defmodule PramanaFoundry.AgentServer do
   use GenServer, restart: :temporary
 
   alias PramanaFoundry.Herdr.{Adapter, Identity}
+  alias PramanaFoundry.LaunchEligibility
 
   # ── Public API ──
 
@@ -51,14 +52,32 @@ defmodule PramanaFoundry.AgentServer do
 
   @impl true
   def init(opts) do
+    role = Keyword.get(opts, :role, :developer)
+    profiles = Keyword.get(opts, :launch_profiles, %{})
+    profile_name = Keyword.get(opts, :profile)
+    launch_state = Keyword.get(opts, :launch_state, %{})
+    launch_now = Keyword.get(opts, :launch_now, System.system_time(:second))
+    adapter = Keyword.get(opts, :adapter)
+    herdr_opts = Keyword.get(opts, :herdr_opts, [])
+
+    with {:ok, profile} <-
+           LaunchEligibility.resolve(profiles, profile_name, role, launch_state,
+             now: launch_now
+           ),
+         :ok <- Adapter.require_subscription_route(adapter, herdr_opts) do
+      init_authorized(opts, profile)
+    else
+      {:error, reason} -> {:stop, {:launch_blocked, LaunchEligibility.reason(reason)}}
+    end
+  end
+
+  defp init_authorized(opts, profile) do
     task_id = Keyword.fetch!(opts, :task_id)
     run_id = Keyword.fetch!(opts, :run_id)
     checkout = Keyword.fetch!(opts, :checkout)
     adapter = Keyword.fetch!(opts, :adapter)
     coordinator_pid = Keyword.fetch!(opts, :coordinator_pid)
     role = Keyword.get(opts, :role, :developer)  # :developer or :reviewer
-    model = Keyword.get(opts, :model, "openrouter/deepseek/deepseek-v4-flash")
-    approval_mode = Keyword.get(opts, :approval_mode, "yolo")
     herdr_timeout_ms = Keyword.get(opts, :herdr_timeout_ms, 30_000)
     work_timeout_ms = Keyword.get(opts, :work_timeout_ms, :timer.minutes(30))
     telemetry_path = Keyword.get(opts, :telemetry_path)
@@ -80,8 +99,7 @@ defmodule PramanaFoundry.AgentServer do
       terminal_id: nil,
       agent_name: agent_name,
       identity: nil,
-      model: model,
-      approval_mode: approval_mode,
+      profile: profile,
       herdr_timeout_ms: herdr_timeout_ms,
       work_timeout_ms: work_timeout_ms,
       timeout_ref: nil,
@@ -379,6 +397,7 @@ defmodule PramanaFoundry.AgentServer do
   defp do_launch(state) do
     adapter = state.adapter
     checkout = state.checkout
+    profile = state.profile
     timeout_ms = state.herdr_timeout_ms
     herdr_opts = state.herdr_opts
     task_id = state.task_id
@@ -387,7 +406,13 @@ defmodule PramanaFoundry.AgentServer do
     # Step 1: Split pane
     pane_start = now_timestamp()
 
-    case Adapter.split_pane(adapter, checkout, "right", %{}, Keyword.merge([timeout_ms: timeout_ms], herdr_opts)) do
+    case Adapter.split_pane(
+           adapter,
+           checkout,
+           "right",
+           %{},
+           Keyword.merge([timeout_ms: timeout_ms], herdr_opts)
+         ) do
       {:ok, pane_info} ->
         pane_id = pane_info[:pane_id] || pane_info["pane_id"]
         terminal_id = pane_info[:terminal_id] || pane_info["terminal_id"]
@@ -400,8 +425,11 @@ defmodule PramanaFoundry.AgentServer do
         agent_start = now_timestamp()
 
         case Adapter.start_agent(adapter, state.agent_name, "omp", pane_id, timeout_ms, [
-               "--model", state.model,
-               "--approval-mode", state.approval_mode
+               "--profile", profile.account,
+               "--provider", profile.provider,
+               "--model", profile.model,
+               "--thinking", profile.reasoning,
+               "--approval-mode", profile.approval_mode
              ], Keyword.merge([timeout_ms: timeout_ms + 5_000], herdr_opts)) do
           {:ok, result} ->
             agent_duration = elapsed_ms(agent_start)

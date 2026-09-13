@@ -17,6 +17,7 @@ defmodule PramanaFoundry.Coordinator do
   alias PramanaFoundry.Effects.Checkpoint
   alias PramanaFoundry.Coordinator.Tick
   alias PramanaFoundry.LogStore
+  alias PramanaFoundry.LaunchEligibility
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -79,6 +80,20 @@ defmodule PramanaFoundry.Coordinator do
     enable_tick = Keyword.get(opts, :enable_tick, false)
     max_launch_retries = Keyword.get(opts, :max_launch_retries, 3)
     max_work_retries = Keyword.get(opts, :max_work_retries, 2)
+    launch_profiles =
+      Keyword.get(
+        opts,
+        :launch_profiles,
+        Application.get_env(:pramana_foundry, :launch_profiles, %{})
+      )
+    launch_now_fn = Keyword.get(opts, :launch_now_fn, fn -> System.system_time(:second) end)
+    launch_role_profiles =
+      Keyword.get(
+        opts,
+        :launch_role_profiles,
+        Application.get_env(:pramana_foundry, :launch_role_profiles, %{})
+      )
+    herdr_opts = Keyword.get(opts, :herdr_opts, [])
 
     telemetry_path =
       Keyword.get(opts, :telemetry_log_path) ||
@@ -168,6 +183,10 @@ defmodule PramanaFoundry.Coordinator do
          telemetry_path: telemetry_path,
          event_log_path: event_log_path,
          coordinator_log_path: coordinator_log_path,
+         launch_profiles: launch_profiles,
+         launch_role_profiles: launch_role_profiles,
+         launch_now_fn: launch_now_fn,
+         herdr_opts: herdr_opts,
          agent_registry: %{}
        }}
     end
@@ -263,8 +282,11 @@ defmodule PramanaFoundry.Coordinator do
             new_run_id = :crypto.strong_rand_bytes(8) |> :binary.encode_hex()
             supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
             checkout = get_in(state, ["assignments", task_id, "ticket", "checkout"])
+            profile_result = resolve_reviewer_profile(data, new_state, task_id)
 
-            if is_pid(supervisor) and is_binary(checkout) and Tick.herdr_available?() do
+            if is_pid(supervisor) and is_binary(checkout) and Tick.herdr_available?() and
+                 match?({:ok, _}, profile_result) do
+              {:ok, profile} = profile_result
               child_spec = %{
                 id: "#{task_id}-review",
                 start: {PramanaFoundry.AgentServer, :start_link, [[
@@ -274,9 +296,14 @@ defmodule PramanaFoundry.Coordinator do
                   checkout: checkout,
                   adapter: data.herdr_adapter,
                   coordinator_pid: self(),
+                  profile: profile.name,
+                  launch_profiles: data.launch_profiles,
+                  launch_state: new_state,
+                  launch_now: data.launch_now_fn.(),
                   handoff_data: handoff,
                   herdr_timeout_ms: data.herdr_timeout,
-                  telemetry_path: data.telemetry_path
+                  telemetry_path: data.telemetry_path,
+                  herdr_opts: data.herdr_opts
                 ]]},
                 restart: :temporary
               }
@@ -293,7 +320,7 @@ defmodule PramanaFoundry.Coordinator do
                   {new_state, data.agent_registry}
               end
             else
-              {new_state, data.agent_registry}
+              block_reviewer_if_ineligible(data, new_state, task_id, profile_result)
             end
           else
             {new_state, data.agent_registry}
@@ -493,7 +520,11 @@ defmodule PramanaFoundry.Coordinator do
             self(),
             event_log_path,
             data.telemetry_path,
-            max_launch_retries
+            max_launch_retries,
+            profiles: data.launch_profiles,
+            role_profiles: data.launch_role_profiles,
+            now: data.launch_now_fn.(),
+            herdr_opts: data.herdr_opts
           )
 
         # Classify tick results for the tick_processed event
@@ -535,6 +566,14 @@ defmodule PramanaFoundry.Coordinator do
               "outcome" => "launch_failed",
               "reason" => inspect(reason)
             })
+          {:launch_blocked, id, reason} ->
+            IO.puts("  tick: launch blocked #{id}: #{reason}")
+            emit_telemetry(Map.get(data, :telemetry_path), "agent_launch", %{
+              "task_id" => id,
+              "phase" => "agent_launch",
+              "outcome" => "blocked",
+              "reason" => reason
+            })
           {:error, id, reason} -> IO.puts("  tick: error #{id}: #{inspect(reason)}")
           {:no_assignment, _id} -> :ok
           {:launched, id} -> IO.puts("  tick: launched #{id}")
@@ -552,7 +591,36 @@ defmodule PramanaFoundry.Coordinator do
     end
   end
 
-  def handle_info({:agent_launched, task_id, :ok, info}, %{state: state, event_log_path: event_log_path} = data) do
+  def handle_info({:agent_launched, task_id, _result, _info} = message, data) do
+    if reviewer_launch_blocked?(data.state, task_id) do
+      {:noreply, drop_agent_registry(data, task_id)}
+    else
+      handle_agent_launched(message, data)
+    end
+  end
+
+  def handle_info({:agent_completed, task_id, _run_id, _reason, _info} = message, data) do
+    if reviewer_launch_blocked?(data.state, task_id) do
+      {:noreply, drop_agent_registry(data, task_id)}
+    else
+      handle_agent_completed(message, data)
+    end
+  end
+
+  def handle_info({:agent_crashed, task_id, _run_id, _reason, _info} = message, data) do
+    if reviewer_launch_blocked?(data.state, task_id) do
+      {:noreply, drop_agent_registry(data, task_id)}
+    else
+      handle_agent_crashed(message, data)
+    end
+  end
+
+  def handle_info(msg, data) do
+    IO.puts("  coordinator unexpected msg: #{inspect(msg)}")
+    {:noreply, data}
+  end
+
+  defp handle_agent_launched({:agent_launched, task_id, :ok, info}, %{state: state, event_log_path: event_log_path} = data) do
     IO.puts("  Agent launched for #{task_id}: pane=#{info[:pane_id]} name=#{info[:agent_name]}")
     new_state =
       state
@@ -581,7 +649,7 @@ defmodule PramanaFoundry.Coordinator do
     {:noreply, %{data | state: new_state}}
   end
 
-  def handle_info({:agent_launched, task_id, {:error, stage, reason}, _info}, %{state: state, event_log_path: event_log_path, max_launch_retries: max_retries} = data) do
+  defp handle_agent_launched({:agent_launched, task_id, {:error, stage, reason}, _info}, %{state: state, event_log_path: event_log_path, max_launch_retries: max_retries} = data) do
     IO.puts("  Agent launch failed for #{task_id} at #{stage}: #{inspect(reason)}")
 
     current_retries = get_in(state, ["assignments", task_id, "launch_retries"]) || 0
@@ -658,7 +726,7 @@ defmodule PramanaFoundry.Coordinator do
     end
   end
 
-  def handle_info({:agent_completed, task_id, run_id, reason, _info}, %{state: state, event_log_path: event_log_path, telemetry_path: telemetry_path} = data) do
+  defp handle_agent_completed({:agent_completed, task_id, run_id, reason, _info}, %{state: state, event_log_path: event_log_path, telemetry_path: telemetry_path} = data) do
     IO.puts("  Agent completed #{task_id}: #{inspect(reason)}")
 
     # Write-ahead: record completion event before state mutation
@@ -704,7 +772,7 @@ defmodule PramanaFoundry.Coordinator do
     {:noreply, %{data | state: new_state, agent_registry: new_registry}}
   end
 
-  def handle_info({:agent_crashed, task_id, run_id, reason, info}, %{state: state, event_log_path: event_log_path} = data) do
+  defp handle_agent_crashed({:agent_crashed, task_id, run_id, reason, info}, %{state: state, event_log_path: event_log_path} = data) do
     IO.puts("  Agent crashed #{task_id}: #{inspect(reason)}")
 
     # Write-ahead: record crash event before state mutation
@@ -759,12 +827,21 @@ defmodule PramanaFoundry.Coordinator do
     end
   end
 
-  def handle_info(msg, data) do
-    IO.puts("  coordinator unexpected msg: #{inspect(msg)}")
-    {:noreply, data}
+  # ── Private helpers ──
+
+  defp reviewer_launch_blocked?(state, task_id) do
+    case get_in(state, ["assignments", task_id]) do
+      %{"status" => "blocked", "blocked_role" => "reviewer"} -> true
+      _ -> false
+    end
   end
 
-  # ── Private helpers ──
+  defp drop_agent_registry(data, task_id) do
+    new_registry = data.agent_registry
+      |> Map.drop([task_id])
+      |> Map.delete("#{task_id}-review")
+    %{data | agent_registry: new_registry}
+  end
 
   defp formatted_now do
     DateTime.utc_now() |> DateTime.to_iso8601()
@@ -783,8 +860,11 @@ defmodule PramanaFoundry.Coordinator do
     previous_error = get_in(new_state, ["assignments", task_id, "error"]) || "invalid review"
 
     supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
+    profile_result = resolve_reviewer_profile(data, new_state, task_id)
 
-    if is_pid(supervisor) and is_binary(checkout) and is_map(handoff) and Tick.herdr_available?() do
+    if is_pid(supervisor) and is_binary(checkout) and is_map(handoff) and
+         Tick.herdr_available?() and match?({:ok, _}, profile_result) do
+      {:ok, profile} = profile_result
       handoff_data = Map.put(handoff, "previous_error", previous_error)
 
       child_spec = %{
@@ -796,9 +876,14 @@ defmodule PramanaFoundry.Coordinator do
           checkout: checkout,
           adapter: data.herdr_adapter,
           coordinator_pid: self(),
+          profile: profile.name,
+          launch_profiles: data.launch_profiles,
+          launch_state: new_state,
+          launch_now: data.launch_now_fn.(),
           handoff_data: handoff_data,
           herdr_timeout_ms: data.herdr_timeout,
-          telemetry_path: data.telemetry_path
+          telemetry_path: data.telemetry_path,
+          herdr_opts: data.herdr_opts
         ]]},
         restart: :temporary
       }
@@ -814,16 +899,46 @@ defmodule PramanaFoundry.Coordinator do
           {data, new_state}
       end
     else
-      reason = cond do
-        not is_pid(supervisor) -> "no_assignment_supervisor"
-        not is_binary(checkout) -> "no_checkout"
-        not is_map(handoff) -> "no_handoff_data"
-        true -> "herdr_unavailable(no_HERDR_ENV)"
+      case profile_result do
+        {:error, _reason} ->
+          {blocked_state, registry} =
+            block_reviewer_if_ineligible(data, new_state, task_id, profile_result)
+          {%{data | agent_registry: registry}, blocked_state}
+
+        {:ok, _profile} ->
+          reason = cond do
+            not is_pid(supervisor) -> "no_assignment_supervisor"
+            not is_binary(checkout) -> "no_checkout"
+            not is_map(handoff) -> "no_handoff_data"
+            true -> "herdr_unavailable(no_HERDR_ENV)"
+          end
+          IO.puts("  Cannot launch reviewer retry for #{task_id}: #{reason}")
+          {data, new_state}
       end
-      IO.puts("  Cannot launch reviewer retry for #{task_id}: #{reason}")
-      {data, new_state}
     end
   end
+
+  defp resolve_reviewer_profile(data, state, task_id) do
+    with :ok <- Adapter.require_subscription_route(data.herdr_adapter, data.herdr_opts),
+         {:ok, profile_name} <-
+           LaunchEligibility.select_profile(
+             get_in(state, ["assignments", task_id, "ticket", "reviewer_profile"]),
+             data.launch_role_profiles,
+             :reviewer
+           ) do
+      LaunchEligibility.resolve(data.launch_profiles, profile_name, :reviewer, state,
+        now: data.launch_now_fn.())
+    end
+  end
+
+  defp block_reviewer_if_ineligible(data, state, task_id, {:error, reason}) do
+    blocked_reason = LaunchEligibility.reason(reason)
+    IO.puts("  Cannot launch reviewer for #{task_id}: #{blocked_reason}")
+    {Tick.block_assignment(state, task_id, :reviewer, blocked_reason), data.agent_registry}
+  end
+
+  defp block_reviewer_if_ineligible(data, state, _task_id, {:ok, _profile}),
+    do: {state, data.agent_registry}
 
   # ── Orphan pane cleanup ──
 

@@ -31,6 +31,21 @@ defmodule PramanaFoundry.AgentServerTest do
     }
   }
 
+  @launch_profiles %{
+    "test-subscription" => %{
+      "provider" => "test-provider",
+      "account" => "test-account",
+      "billing_class" => "subscription",
+      "subscription_authorized" => true,
+      "automatic_roles" => ["developer", "reviewer", "pm"],
+      "quota_status" => "available",
+      "model" => "subscription/test-model",
+      "allowed_models" => ["subscription/test-model"],
+      "approval_mode" => "write",
+      "reasoning" => "medium"
+    }
+  }
+
   setup do
     # Unique ETS table per test (name based on test process pid)
     table_name = :"ets_#{System.unique_integer([:positive])}"
@@ -82,6 +97,8 @@ defmodule PramanaFoundry.AgentServerTest do
         checkout: "/tmp/test-checkout",
         adapter: adapter,
         coordinator_pid: opts[:coordinator_pid] || self(),
+        profile: "test-subscription",
+        launch_profiles: @launch_profiles,
         herdr_timeout_ms: opts[:herdr_timeout_ms] || 1000,
         work_timeout_ms: opts[:work_timeout_ms] || 600_000,
         herdr_opts: [ets_table: table]

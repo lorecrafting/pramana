@@ -32,10 +32,12 @@ checkpointed effects and check-recovery primitives, while runtime and replay dis
 The report includes isolated reproductions, coverage limits and an ordered repair plan.
 
 The executable backlog is now [Foundry repair tickets](../foundry/docs/REPAIR-PLAN.md),
-maintained outside Foundry. Start with FR-01; the dependency inventory identifies ready
+maintained outside Foundry. FR-01's independently reviewed static containment is complete;
+all real automatic model launches are now disabled until FR-09/15a proves the protected
+subscription route. The dependency inventory identifies ready
 containment work and the design decisions required before downstream implementation.
 It includes acceptance evidence, model/context guidance and a fresh-session handoff.
-Production repair tickets remain unimplemented. FR-06's
+Other production repair tickets remain unimplemented. FR-06's
 [independent design review v1](../foundry/docs/FR-06-DESIGN-REVIEW.md) found R1–R5 and
 returned **not ready**. The [v2 workflow contract](../foundry/docs/WORKFLOW-CONTRACT.md)
 and [versioned response](../foundry/docs/fr-06/review-response-v2.md) now specify durable

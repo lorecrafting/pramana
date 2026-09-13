@@ -109,7 +109,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 
 | ID | Deliverable | Depends on | Status | Findings |
 |---|---|---|---|---|
-| FR-01 | Remove automatic paid execution paths | — | Ready | F01 |
+| FR-01 | Remove automatic paid execution paths | — | **Complete: reviewed static containment** | F01 |
 | FR-02 | Transport CLI arguments as inert data | — | Ready | F06 |
 | FR-03 | Fence startup and fail closed on legacy persistence errors | — | Ready: containment | F14, F02 |
 | FR-04 | Restrict cleanup to verified owned resources | — | Ready | F05, F23 |
@@ -855,3 +855,15 @@ verification of the refreshed manifest, plus FR-03.** This entry does not certif
 [review](fr-06/r4a-focused-review.md) returned **PASS** against the exact v3 manifest
 and resolved R4a at design level. FR-06's design gate is complete. No production
 implementation finding closed; FR-07 still waits for FR-03 completion evidence.
+
+2026-09-12, FR-01: candidate v5 received an independent Astra-high
+[PASS](fr-01/review-v5.md) for static containment. Every current automatic developer
+and reviewer path requires the common validated policy plus an enforced subscription
+route capability; the production System runner deliberately reports that capability as
+unsupported, so no real automatic model launch is currently possible. PM eligibility is
+covered although no PM model caller exists. Model-free focused, supporting, adversarial
+and full-suite acceptance passed; the final isolated full run reported 323 passed and 2
+integration-tag exclusions. Real OMP subscription/account/billing conformance and safe
+re-enablement remain FR-09/15a, dynamic switching remains FR-16, and full lifecycle
+acceptance remains FR-22. Candidate hashes and the review chain are retained in
+[IMPLEMENTATION-LOG.md](IMPLEMENTATION-LOG.md).

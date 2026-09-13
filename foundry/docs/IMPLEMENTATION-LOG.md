@@ -207,3 +207,164 @@ steps.
   whole-string validation under Rule 41, add public-boundary probes, freeze v4, and
   return it to the same independent reviewer. No architecture or lifecycle change is
   authorized by this correction.
+
+## Integration record
+
+- Commit `5179f34` (`docs(foundry): establish repair baseline and FR-06 gate`) records
+  the dated audit, authoritative repair plan and workflow contract, complete FR-06
+  design/review chain, focused R4a PASS, project-plan/README routing, and this
+  coordination log. It contains no FR-01 runtime source and no unrelated CLI or review
+  scratch artifacts.
+- The audit probe artifact retains one pre-existing trailing space at line 3, so a
+  staged `git diff --check` reported that historical artifact. It was preserved byte for
+  byte rather than silently rewriting the dated audit evidence; candidate runtime diffs
+  remain subject to clean diff checks.
+
+## Ready-ticket investigations (read-only)
+
+### FR-02
+
+- `/root/fr02_investigate` confirmed a disjoint implementation can own only
+  `bin/pramana`, a new inert RPC decoder/dispatcher module, and new wrapper-boundary
+  tests. The current `cli.ex` SHA-256 is
+  `27728e8be65d71ba482ed97bb73700546ebafa85caed6a5d5e3fe7a73240beed`;
+  its sole pre-existing `ticket unblock` diff remains excluded.
+- The proposed boundary is a versioned JSON argv envelope encoded as canonical URL-safe
+  base64, and passed to one fixed Elixir expression. The decoder must enforce exact
+  keys, command shapes, a size bound and literal UTF-8/NUL rules before calling CLI.
+  Actual-wrapper tests must preserve arbitrary inert bytes, stdout/stderr and exit status.
+- Equivalent dynamic Elixir construction also exists in `bin/tickets_from_review.sh`
+  and `bin/test_daemon_recovery.sh`; those overlap FR-03/04/05 and remain routed
+  residuals rather than silently expanding FR-02. General release RPC authority remains
+  FR-15a.
+
+### FR-03
+
+- `/root/fr03_investigate` confirmed FR-03 is ready but overlaps FR-01's Coordinator and
+  Tick candidate, so implementation waits for FR-01 integration. FR-06 is complete;
+  FR-03 completion will unblock FR-07.
+- The trace found Fence unused by production startup, startup converting every event-log
+  error to an empty history, and **21** unchecked authoritative checkpoint appends across
+  Coordinator/Tick. FR-03 must use one startup owner/fence, effect-free direct/offline
+  modes, visible recovery-required state, and persist-before-apply/ack/effect behavior.
+- Acceptance requires two real isolated BEAM processes contending on one temporary root;
+  held-lock and stale-text variants; malformed/oversized/version/I/O histories preserved
+  byte-for-byte; and append-failure probes with no acknowledgment or downstream fake
+  effect. This is legacy containment only—FR-07/08 retain storage/reducer ownership.
+
+### FR-04
+
+- `/root/fr04_investigate` found Coordinator cleanup enumerating panes and closing every
+  untracked pane under `/private/tmp`, while persisted legacy records carry only pane/name
+  and AgentServer cleanup bypasses its injected adapter to close by pane ID. This cannot
+  establish ownership and can destroy foreign resources.
+- FR-04 should follow FR-03 because it overlaps Coordinator/AgentServer and unresolved
+  cleanup reporting needs FR-03's checked persistence boundary. The bounded containment
+  disables CWD-based orphan scans, requires full expected identity (or the exact fresh
+  split receipt before launch completion), and records unresolved cleanup without a
+  guessed close. FR-10 retains durable effect ownership/restart reconciliation.
+- Acceptance must prove exact identity closes, changed terminal/session/name and missing
+  identity do not close, foreign panes in the same temp directory survive, replacement
+  processes survive, and the destructive fixed-root recovery script is replaced by an
+  isolated model-free fixture. No live pane/daemon/provider probe is authorized.
+
+### FR-05
+
+- `/root/fr05_investigate` traced synthesized CLI artifact identities, production
+  `skip_git_checks`, nonexistent checkout success, `auto_approve` in admission/runtime/
+  replay, memory-only integration, legacy success replay into `accepted_revision`, and
+  mutable-source restart in `bin/pramana-live.sh`.
+- Containment must reject auto-approve, stop synthesizing evidence, reject production
+  bypass/missing Git facts, suspend integration before intent/effect, preserve legacy
+  success only as an unverified historical claim, and make the source watcher refuse
+  activation. FR-13/14/17 own restoration of artifact verification, Git integration and
+  immutable activation; status revision labels remain non-authoritative presentation.
+- FR-05 overlaps dirty CLI/Coordinator files and waits for FR-01 integration. Isolated
+  real-Git tests must prove stale/wrong/missing evidence and integration attempts change
+  neither event/state/ref; a process fixture must prove the disabled watcher invokes no
+  child command. No live daemon/provider/Git worktree mutation was performed.
+
+### FR-01 candidate v4 — frozen validation correction
+
+- Only the two files authorized for the v3 residual changed: LaunchEligibility SHA-256
+  `f8cfdf6e15a106344d8c28f58648b91fe8a6ad4906f6684d5d70dc78d03e5c2a`
+  and autonomous-launch test SHA-256
+  `438e40876401d89c1d4ca28f139beb7c5f30abaa354880f5c18cd243920c4673`.
+  The implementer's full twelve-file candidate diff digest is
+  `4354806d15a8cf5dc6a0158fd15c0a533cc27988ca264478df9adbd4be1fa090`.
+- The correction validates proper lists before enumeration and uses exact whole-string,
+  valid-UTF-8, unchanged-trim identity checks. Boundary tests cover improper/nested
+  lists, terminal-newline and invalid-UTF-8 selectors, arbitrary containers/options,
+  stable denial, and zero fake calls through resolve, Tick, AgentServer, initial review,
+  and retry review.
+- Implementer evidence: focused `25 passed`, the reviewer's supporting set `44 passed`,
+  warnings-as-errors compilation, focused formatting, and runtime diff checks all exited
+  zero. Production automatic launches remain disabled pending FR-09/15a.
+- Candidate v4 is frozen for renewed Astra-high review. The documentation-only baseline
+  commit advanced HEAD from the v3 review to `5179f34`; it did not change any of the
+  twelve candidate source/test files.
+
+### FR-01 independent review v4
+
+- Reviewer: `/root/fr01_review` (Astra-high); review SHA-256
+  `4aa1ee7ab844c58bcca05c22ac0394be716af8be182183a7c53eedfdad688e91`.
+  Verdict: **FAIL**; all twelve frozen hashes matched.
+- The original improper-list/newline residuals are resolved, and an adversarial 460-call
+  arbitrary-term matrix produced no raises. One strict-shape blocker remains:
+  `only_known_fields/2` uses `nil` as both the `Enum.find/2` no-match sentinel and a
+  possible unknown map key. An otherwise valid profile containing `nil => :invalid`
+  therefore launches at every fake-backed application boundary and can mask a second
+  unknown field.
+- B1/B3 remain resolved and the production System runner remains unsupported. Independent
+  focused `25 passed`, supporting `44 passed`, warnings-as-errors compilation and runtime
+  diff checks passed. The residual is a malformed-policy rejection failure, not a real
+  provider-spending path.
+- Next: replace sentinel-based field discovery with an unambiguous total fold, sweep every
+  analogous find/sentinel use in LaunchEligibility, add masking/boundary regressions, and
+  obtain renewed independent review. This is the final focused parser-design correction;
+  architecture and lifecycle changes remain out of scope.
+
+### FR-01 candidate v5 — frozen sentinel correction
+
+- Only the two authorized files changed from v4: LaunchEligibility SHA-256
+  `ca331865be61be90e80d775631fff3e2fb3a94cccd12e30db6359bd221a8c70f`
+  and autonomous-launch test SHA-256
+  `8bc2350cd1e09c61a8c71e534786d49ee68c3447e24cd6c8ad94247bfca63391`.
+  The implementer's twelve-file candidate diff digest is
+  `ae9467860ab353b1c5a9d817af7246286117ef1efd08ad4654c98961b9cf713d`;
+  coordinator verification reproduced both changed-file hashes.
+- Unknown-field validation now uses an all-fields predicate and stable generic error, so
+  no key value can collide with a search sentinel. Nil-alone, nil-plus-credential,
+  tuple, struct and improper-list keys are covered through resolve and every launch
+  boundary with zero fake calls.
+- Rule-41 sweep: remaining finds over role mappings/cooldowns return `{key, value}`
+  tuples, the required-field find searches a fixed non-nil string list, and profile
+  reduction uses tagged `:ok` versus error tuples.
+- Implementer evidence: focused `26 passed`, supporting `44 passed`, warnings-as-errors
+  compilation, two-file formatting and runtime diff checks all exited zero. Candidate v5
+  is frozen for renewed Astra-high review.
+
+### FR-01 independent review v5 and coordinator acceptance
+
+- Reviewer: `/root/fr01_review` (Astra-high); review SHA-256
+  `88e23eeaf3d852df469fac85d7c97156cc4e32923e9ff1b832971df5583e4bf2`.
+  Verdict: **PASS for static containment**; all twelve hashes matched. B1/B2/B3 are
+  resolved and real automatic execution remains disabled pending FR-09/15a.
+- Independent evidence: focused `26 passed`, supporting `44 passed`, 184 actual-boundary
+  malformed-key checks, 138 resolver role checks and the prior 460-term-position matrix;
+  all denials had stable reasons and zero fake-adapter calls. Compile and diff checks
+  passed. The reviewer found no ambiguous sentinel in the new policy parser.
+- Coordinator full run 1 used an isolated application but the default `/tmp`; result
+  `316/323`, 2 exclusions, 7 failures. Six relocation fixtures collided with stale
+  `crash-test-*` directories after VM unique-counter reuse, and the known Python token
+  benchmark exceeded its 60-second timeout. This nonzero run is retained as harness
+  evidence, not classified as FR-01 acceptance.
+- Coordinator full run 2 changed the setup, not the candidate: fresh isolated `TMPDIR`,
+  isolated runtime root, nonexistent Herdr command, tick disabled, integration tag
+  excluded, seed `424201`, timeout 120 seconds. Result: **323 passed, 2 excluded**, exit 0
+  in 79.8 seconds. No provider, live daemon, credentials or activation was used.
+- FR-01 is complete only for static containment. Real subscription conformance and
+  protected re-enablement remain FR-09/15a; durable quota/switching remains FR-16; FR-22
+  retains lifecycle acceptance.
+- The reviewer removed one extra EOF blank line after the verdict; no review content
+  changed. The hash above is the normalized artifact hash and staged diff checks pass.

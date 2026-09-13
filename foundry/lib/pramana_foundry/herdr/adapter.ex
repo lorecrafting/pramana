@@ -23,6 +23,35 @@ defmodule PramanaFoundry.Herdr.Adapter do
     %__MODULE__{runner_mod: runner_mod, command: command}
   end
 
+  @doc "Whether this backend enforces the selected route as subscription-only."
+  @spec subscription_route_enforced?(t(), keyword()) :: boolean()
+  def subscription_route_enforced?(adapter, opts \\ [])
+
+  def subscription_route_enforced?(%__MODULE__{runner_mod: runner_mod}, opts) do
+    case Code.ensure_loaded(runner_mod) do
+      {:module, ^runner_mod} ->
+        function_exported?(runner_mod, :subscription_route_capability, 1) and
+          runner_mod.subscription_route_capability(opts) == :enforced
+
+      _ ->
+        false
+    end
+  rescue
+    _ -> false
+  catch
+    _, _ -> false
+  end
+
+  def subscription_route_enforced?(_adapter, _opts), do: false
+
+  @spec require_subscription_route(t(), keyword()) ::
+          :ok | {:error, :subscription_route_not_enforced}
+  def require_subscription_route(adapter, opts \\ []) do
+    if subscription_route_enforced?(adapter, opts),
+      do: :ok,
+      else: {:error, :subscription_route_not_enforced}
+  end
+
   @spec split_pane(t(), binary(), binary(), map(), keyword()) ::
           {:ok, %{pane_id: binary(), terminal_id: binary()}} | {:error, term()}
   def split_pane(adapter, cwd, direction, env, opts \\ []) do

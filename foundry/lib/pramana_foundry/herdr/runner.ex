@@ -8,6 +8,9 @@ defmodule PramanaFoundry.Herdr.Runner do
   @type result :: %{stdout: binary(), stderr: binary(), exit_status: non_neg_integer()}
 
   @callback run(argv(), keyword()) :: {:ok, result()} | {:error, term()}
+  @callback subscription_route_capability(keyword()) :: :enforced | :unsupported
+
+  @optional_callbacks subscription_route_capability: 1
 
   @spec decode_json(result()) :: {:ok, term()} | {:error, {:invalid_json, result()}}
   def decode_json(%{stdout: stdout} = result) do
@@ -25,6 +28,9 @@ defmodule PramanaFoundry.Herdr.Runner.System do
   @moduledoc "Real Herdr runner. Requires HERDR_ENV=1, matching the Python backend."
 
   @behaviour PramanaFoundry.Herdr.Runner
+
+  @impl true
+  def subscription_route_capability(_opts), do: :unsupported
 
   @impl true
   def run(argv, opts) when is_list(argv) and argv != [] do

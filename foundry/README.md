@@ -18,6 +18,24 @@ self-healing Improver, full system metrics, health probes, and structured observ
 The project remains independent of the Phoenix umbrella, Postgres, the research corpus, and
 `priv/embed/`.
 
+## Automatic execution containment
+
+FR-01 is implemented as fail-closed static containment. Automatic developer, reviewer and
+PM eligibility requires an explicit plain-map policy naming the OMP profile, provider,
+account, subscription billing authorization, exact allowed model, reasoning and approval
+mode, authorized roles, quota state and any provider cooldown. Missing, malformed, paid,
+exhausted, unknown or cooled-down policy blocks before pane creation. The temporary inputs
+are the `:pramana_foundry` application keys `:launch_profiles` and
+`:launch_role_profiles`; Coordinator options of the same names exist for isolated tests.
+
+Configuration alone cannot enable a real launch. The production Herdr System runner
+deliberately reports subscription-route enforcement as unsupported, because installed OMP
+profile selection does not itself prove account/billing isolation or exclude API-key
+fallback. FR-09 and FR-15a own that protected conformance boundary and may restore real
+automatic execution only with exact backend evidence. FR-16 owns durable quota observation
+and bounded switching. Do not treat a model name, available credential or this temporary
+policy as entitlement, and do not change the System capability as an operator workaround.
+
 ## Read first
 
 - [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) — telemetry records, health probe,

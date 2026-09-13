@@ -1,7 +1,11 @@
+Code.require_file("../support/agent_server_fake_runner.ex", __DIR__)
+
 defmodule PramanaFoundry.CoordinatorTest do
   use ExUnit.Case, async: false
 
   alias PramanaFoundry.Coordinator
+  alias PramanaFoundry.Herdr.Adapter
+  alias PramanaFoundry.AgentServerTest.FakeRunner
 
   @base_rev "d83f8f0cedc34780d25cba452545ce9883d416a5"
   @commit "2222333344445555666677778888999900001111"
@@ -9,7 +13,21 @@ defmodule PramanaFoundry.CoordinatorTest do
 
   setup do
     :ok = Coordinator.reset(accepted_revision: @base_rev)
+    install_launch_fixture()
     :ok
+  end
+
+  defp install_launch_fixture do
+    policy = FakeRunner.launch_policy()
+
+    :sys.replace_state(Coordinator, fn data ->
+      %{
+        data
+        | herdr_adapter: Adapter.new(FakeRunner),
+          launch_profiles: policy.profiles,
+          launch_role_profiles: policy.role_profiles
+      }
+    end)
   end
 
   test "coordinator handles pause, resume, and request_stop" do

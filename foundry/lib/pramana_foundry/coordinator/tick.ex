@@ -9,12 +9,25 @@ defmodule PramanaFoundry.Coordinator.Tick do
 
   alias PramanaFoundry.Coordinator.State, as: CoordState
   alias PramanaFoundry.Effects.Checkpoint
+  alias PramanaFoundry.Herdr.Adapter
+  alias PramanaFoundry.LaunchEligibility
 
   @doc """
   Process the queue: admit queued assignments and start AgentServer children.
   Returns `{new_state, new_registry, log}`.
   """
-  def process_queue(queue, state, agent_registry, adapter, timeout_ms, coordinator_pid, event_log_path, telemetry_path \\ nil, max_launch_retries \\ 3) do
+  def process_queue(
+        queue,
+        state,
+        agent_registry,
+        adapter,
+        timeout_ms,
+        coordinator_pid,
+        event_log_path,
+        telemetry_path \\ nil,
+        max_launch_retries \\ 3,
+        launch_opts \\ []
+      ) do
     Enum.reduce(queue, {state, agent_registry, []}, fn task_id, {s, reg, log} ->
       existing = get_in(s, ["assignments", task_id])
 
@@ -25,11 +38,27 @@ defmodule PramanaFoundry.Coordinator.Tick do
         existing && existing["status"] == "queued" ->
           run_id = :crypto.strong_rand_bytes(8) |> :binary.encode_hex()
           checkout = get_in(existing, ["ticket", "checkout"])
+          profiles = Keyword.get(launch_opts, :profiles, %{})
+          role_profiles = Keyword.get(launch_opts, :role_profiles, %{})
+          now = Keyword.get(launch_opts, :now, System.system_time(:second))
 
-          case CoordState.admit_assignment(s, task_id, run_id, "developer", %{}) do
-            {:ok, _assign, ns} ->
+          herdr_opts = Keyword.get(launch_opts, :herdr_opts, [])
+
+          with :ok <- Adapter.require_subscription_route(adapter, herdr_opts),
+               {:ok, profile_name} <-
+                 LaunchEligibility.select_profile(
+                   get_in(existing, ["ticket", "profile"]),
+                   role_profiles,
+                   :developer
+                 ),
+               {:ok, profile} <-
+                 LaunchEligibility.resolve(profiles, profile_name, :developer, s, now: now),
+               {:ok, _assign, ns} <-
+                 CoordState.admit_assignment(s, task_id, run_id, "developer", %{
+                   "profile" => profile.name
+                 }) do
               Checkpoint.append(event_log_path, "assignment_admitted", task_id, run_id,
-                "developer", %{"checkout" => checkout})
+                "developer", %{"checkout" => checkout, "profile" => profile.name})
 
               supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
 
@@ -44,9 +73,15 @@ defmodule PramanaFoundry.Coordinator.Tick do
                     checkout: checkout,
                     adapter: adapter,
                     coordinator_pid: coordinator_pid,
+                    role: :developer,
+                    profile: profile.name,
+                    launch_profiles: profiles,
+                    launch_state: s,
+                    launch_now: now,
                     herdr_timeout_ms: timeout_ms,
                     telemetry_path: telemetry_path,
-                    handoff_data: %{"previous_error" => prev_error}
+                    handoff_data: %{"previous_error" => prev_error},
+                    herdr_opts: herdr_opts
                   ]]},
                   restart: :temporary
                 }
@@ -102,8 +137,11 @@ defmodule PramanaFoundry.Coordinator.Tick do
                 {retried, reg, [{:launch_failed, task_id, reason} | log]}
               end
 
+          else
             {:error, reason} ->
-              {s, reg, [{:error, task_id, reason} | log]}
+              blocked_reason = LaunchEligibility.reason(reason)
+              blocked = block_assignment(s, task_id, :developer, blocked_reason)
+              {blocked, reg, [{:launch_blocked, task_id, blocked_reason} | log]}
           end
 
         true ->
@@ -144,5 +182,17 @@ defmodule PramanaFoundry.Coordinator.Tick do
         "max_launch_retries(#{max_retries})"
       )
     end
+  end
+
+  @doc false
+  def block_assignment(state, task_id, role, reason) do
+    message = "automatic #{role} launch blocked: #{reason}"
+
+    state
+    |> put_in(["assignments", task_id, "status"], "blocked")
+    |> put_in(["assignments", task_id, "blocked_role"], to_string(role))
+    |> put_in(["assignments", task_id, "blocker"], message)
+    |> put_in(["assignments", task_id, "error"], message)
+    |> Map.update!("queue", &List.delete(&1, task_id))
   end
 end
