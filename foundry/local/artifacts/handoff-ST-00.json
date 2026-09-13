@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "task_id": "ST-00",
+  "run_id": "C8E5539BCC5DEED1",
+  "status": "completed",
+  "assigned_base": "c8ede6a17323c080124aa4512a83494b537648a5",
+  "commit": "d4e8eea4053f6779408de91683e3adbd8c43dcd0",
+  "changed_files": [],
+  "reproduction_evidence": {
+    "investigation": "Recovery handoff for ST-00 (workflow_recovery stress test, stress 0). Previous run crashed with :normal during pane cleanup (pane identity changed after agent finished). Checkout state verified: HEAD at d4e8eea, base c8ede6a accepted. No uncommitted changes relevant to scope. Required checks executed and passed.",
+    "checks_run": "Required checks: echo ok (passed). No integration checks required for this workload class."
+  },
+  "checks": [
+    {
+      "command": ["echo", "ok"],
+      "exit_code": 0
+    }
+  ],
+  "remaining_risks": [
+    "Checkout has uncommitted deletions (automation handoffs, evals) and untracked foundry/ directory — scope is workflow_recovery stress test, no effect on codebase",
+    "Previous run C8E5539BCC5DEED1 crashed due to pane identity mismatch during cleanup, not task failure. This is a coordinator lifecycle issue, not a code defect"
+  ],
+  "outcome": "Recovered ST-00 assignment (stress 0): verified checkout state, executed required checks, system survives. No code changes needed — pure workflow_recovery stress test completed successfully."
+}

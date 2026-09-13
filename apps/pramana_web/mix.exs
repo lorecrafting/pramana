@@ -53,8 +53,6 @@ defmodule PramanaWeb.MixProject do
           PramanaWeb.Telemetry,
           PramanaWeb.CoreComponents,
           PramanaWeb.Layouts,
-          PramanaWeb.PageHTML,
-          PramanaWeb.PageController,
           PramanaWeb.ErrorHTML,
           PramanaWeb.ErrorJSON,
           PramanaWeb.Router,

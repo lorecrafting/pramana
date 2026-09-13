@@ -1,0 +1,104 @@
+defmodule PramanaFoundry.Status.Report do
+  @moduledoc """
+  Generates system status reports exposing running implementation revision separately from
+  accepted/source revision, and detecting visible revision disagreement.
+  """
+
+  @runtime_rev_key :pramana_runtime_implementation_revision
+  @developer_owner_states ~w(dispatched prompting working queued_correction)
+
+  @doc """
+  Gets the currently loaded runtime implementation revision.
+  """
+  def runtime_implementation_revision do
+    Application.get_env(:pramana_foundry, @runtime_rev_key) || resolve_initial_revision()
+  end
+
+  @doc """
+  Sets the runtime implementation revision (e.g. at runtime boot or for tests).
+  """
+  def set_runtime_implementation_revision(revision) when is_binary(revision) do
+    Application.put_env(:pramana_foundry, @runtime_rev_key, revision)
+    revision
+  end
+
+  @doc """
+  Simulates controlled restart reconciliation by updating runtime implementation revision
+  to the given accepted revision.
+  """
+  def reconcile_runtime_implementation_revision(accepted_revision)
+      when is_binary(accepted_revision) do
+    set_runtime_implementation_revision(accepted_revision)
+  end
+
+  @doc """
+  Generates a comprehensive status report from the current state.
+  """
+  def generate(state, opts \\ []) do
+    accepted_rev = Map.get(state, "accepted_revision")
+
+    runtime_rev =
+      Keyword.get(opts, :runtime_implementation_revision, runtime_implementation_revision())
+
+    revisions_match? = accepted_rev == runtime_rev
+
+    assignments = Map.get(state, "assignments", %{})
+
+    active_workers =
+      assignments
+      |> Map.values()
+      |> Enum.filter(fn a -> Map.get(a, "status") in @developer_owner_states end)
+      |> Enum.map(fn a ->
+        %{
+          "task_id" => get_in(a, ["ticket", "task_id"]) || Map.get(a, "task_id"),
+          "run_id" => Map.get(a, "run_id"),
+          "role" => Map.get(a, "role", "developer"),
+          "profile" => get_in(a, ["ticket", "profile"]) || Map.get(a, "configured_profile"),
+          "status" => Map.get(a, "status")
+        }
+      end)
+
+    integration = Map.get(state, "integration", %{})
+    pm = Map.get(state, "pm", %{})
+
+    report = %{
+      "accepted_revision" => accepted_rev,
+      "runtime_implementation_revision" => runtime_rev,
+      "revisions_match?" => revisions_match?,
+      "paused" => Map.get(state, "paused", false),
+      "stop_requested" => Map.get(state, "stop_requested", false),
+      "queue" => Map.get(state, "queue", []),
+      "active_workers" => active_workers,
+      "integration" => %{
+        "owner" => Map.get(integration, "owner"),
+        "candidate" => Map.get(integration, "candidate")
+      },
+      "pm" => %{
+        "status" => Map.get(pm, "status", "idle"),
+        "planning_attempt_halt" => Map.get(pm, "planning_attempt_halt")
+      }
+    }
+
+    if not revisions_match? and is_binary(accepted_rev) and is_binary(runtime_rev) do
+      Map.put(
+        report,
+        "revision_disagreement",
+        "running implementation #{runtime_rev} differs from accepted #{accepted_rev}; controlled restart required"
+      )
+    else
+      report
+    end
+  end
+
+  defp resolve_initial_revision do
+    case System.cmd("git", ["rev-parse", "HEAD"], stderr_to_stdout: true) do
+      {head, 0} ->
+        rev = String.trim(head)
+        set_runtime_implementation_revision(rev)
+        rev
+
+      _ ->
+        "0000000000000000000000000000000000000000"
+    end
+  end
+end

@@ -1,18 +1,21 @@
 # PramanaWeb
 
-To start your Phoenix server:
+Phoenix web application for the Pramāṇa corpus — MCP endpoint, LiveView reader, and
+the `/check` citation verification screen.
 
-* Run `mix setup` to install and setup dependencies
-* Start Phoenix endpoint with `mix phx.server`
+## Starting the server
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+```bash
+mix phx.server                  # http://localhost:4000
+PRAMANA_EMBEDDING=1 mix phx.server  # enables BGE-M3 hybrid search (~80 s load, ~2.2 GB)
+```
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+## Key routes
 
-## Learn more
+- `/` — search, bucketed by composition origin and text role
+- `/survey?q=…` — every occurrence counted, with concentration
+- `/passage?urn=…` — a line in its context, with variants, translations, parallels
+- `/works/:id` — a work's structure, leading with provenance
+- `/check` — paste a claim, get a verdict list (`verify_report` surface)
 
-* Official website: https://www.phoenixframework.org/
-* Guides: https://hexdocs.pm/phoenix/overview.html
-* Docs: https://hexdocs.pm/phoenix
-* Forum: https://elixirforum.com/c/phoenix-forum
-* Source: https://github.com/phoenixframework/phoenix
+See [`docs/READER.md`](../docs/READER.md) for full documentation.

@@ -73,7 +73,9 @@ jobs:
           elixir-version: "1.20.3-otp-29"
 
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned to the same 1.83.0 as the Dockerfile — a NIF that compiles today and
+      # not tomorrow is the least debuggable class of build failure.
+      - uses: dtolnay/rust-toolchain@1.83.0
 
       - name: Install pg_bigm
         # NOT pg_trgm, which ships with Postgres. `pg_bigm` indexes BIGRAMS, and the
@@ -94,6 +96,7 @@ jobs:
           path: |
             deps
             _build
+            priv/plts
             ~/.cargo
             apps/pramana_native/native/pramana_native/target
           key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
@@ -108,5 +111,18 @@ jobs:
       - run: mix format --check-formatted
 
       - run: mix credo --strict
+
+      - name: Deps audit
+        run: mix deps.audit
+
+      - name: Dialyzer
+        run: mix dialyzer
+
+      - name: Cargo audit
+        run: |
+          if ! command -v cargo-audit &>/dev/null; then
+            cargo install cargo-audit --locked
+          fi
+          cargo audit
 
       - run: mix test

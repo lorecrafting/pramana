@@ -1,7 +1,7 @@
 # Observability — what this system can and cannot tell you about itself
 
-Audited 2026-08-29. **This document is findings and a plan; almost none of it is built.**
-Where something exists it says so.
+Audited 2026-08-29. Updated 2026-09-12. **All five plan items below are built.**
+The headline has been corrected from a stale "almost none" — see § Plan for what each does.
 
 ## The one-line summary
 

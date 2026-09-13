@@ -1,157 +1,0 @@
-=== --only retrieval --tradition pali start 11:16:21
-[info] Falling back to 1 / sqrt(x) for f32 false
-  10/150 cases · 25s elapsed · ~6m01s left      20/150 cases · 48s elapsed · ~5m17s left      30/150 cases · 1m02s elapsed · ~4m09s left      40/150 cases · 1m16s elapsed · ~3m31s left      50/150 cases · 1m42s elapsed · ~3m24s left      60/150 cases · 1m51s elapsed · ~2m47s left      70/150 cases · 2m22s elapsed · ~2m42s left      80/150 cases · 2m36s elapsed · ~2m17s left      90/150 cases · 3m06s elapsed · ~2m04s left      100/150 cases · 3m16s elapsed · ~1m38s left      110/150 cases · 3m36s elapsed · ~1m19s left      120/150 cases · 3m55s elapsed · ~59s left      130/150 cases · 4m29s elapsed · ~41s left      140/150 cases · 4m48s elapsed · ~21s left      150/150 cases · 5m21s elapsed · ~0.0s left    
-pramana evals — 150 case(s) in 321.5s
-  scored:  150   hits 81   misses 69
-  stale:   0   (premises no longer hold; excluded from the rate)
-  overall: 54.0%
-
-
-    BY CASE TYPE
-      retrieval        54.0%  (81/150)  mean rank 3.11
-
-    BY TRADITION
-      pali             54.0%  (81/150)  mean rank 3.11
-
-    BY CASE TYPE x TRADITION
-      retrieval / pali             54.0%  (81/150)  mean rank 3.11
-
-
-
-
-
-
-    FAILURES
-      [retrieval] tr-065
-        query: “Certainly not, venerable sir, there is no conversation between them, they go because of the door.”
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-067
-        query: ‘Your Majesty, there is a lotus pond on the slopes of the Himalayas, by a large grove of <i lang='pi' translate='no'>sakhua</i> trees. They’ve settled there.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-068
-        query: A resolution may be a majority decision, or it may not be a majority decision.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-072
-        query: When he had completed the probation, while deserving the trial period, he committed one unconcealed offense of intentional emission of semen.
-        %{rank: 11, beyond_k: 10}
-      [retrieval] tr-075
-        query: which it does. The legal procedure is legitimate, irreversible, and fit to stand. The Sangha gives him the simultaneous probation legitimately,
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-077
-        query: This was said by the Buddha, the Perfected One: that is what I heard.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-080
-        query: “I feel inspired to speak, Blessed One! I feel inspired to speak, Holy One!”
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-082
-        query: If the other person is fully ordained, but he does not perceive him as such, and he scares him, he commits an offense entailing confession.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-083
-        query: ‘It’s incredible and amazing that you, the venerable spirit Janavasabha, should say:
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-088
-        query: “Sir, could it be that someone gives a gift and it is not very fruitful or beneficial,
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-089
-        query: The sections based on three items, four items, five items, six items, seven items, eight items, and nine items are to be expanded in the same way.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-091
-        query: So greed, relishing, affection, infatuation, thirst, passion, attachment, and craving for sensual pleasures linger on inside.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-092
-        query: No one should visit him except the one who brings him almsfood.
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-097
-        query: That’s how a mendicant directly knows … an end of suffering in this very life.”
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-      [retrieval] tr-099
-        query: ‘What’s the gratification, the drawback, and the escape when it comes to sights …
-        %{retrieved: [%{span: %{...}, ...}, ...]}
-
-
-  ran 150 case(s) in 5m21s (0.5 cases/s)
-
-=== --only retrieval --tradition pali end 11:21:52 elapsed 331s exit 0
-=== --only topical start 11:21:52
-[info] Falling back to 1 / sqrt(x) for f32 false
-  10/49 cases · 45s elapsed · ~2m58s left      20/49 cases · 1m35s elapsed · ~2m19s left      30/49 cases · 2m49s elapsed · ~1m48s left      40/49 cases · 5m47s elapsed · ~1m18s left      49/49 cases · 6m34s elapsed · ~0.0s left    
-pramana evals — 49 case(s) in 395.0s
-  scored:  49   hits 21   misses 28
-  stale:   0   (premises no longer hold; excluded from the rate)
-  overall: 42.9%
-
-
-    BY CASE TYPE
-      topical          42.9%  (21/49)  mean rank 2.52
-
-    BY TRADITION
-      chinese          0.0%  (0/12)
-      chinese-native   100.0%  (12/12)  mean rank 1.25
-      pali             56.3%  (9/16)  mean rank 4.22
-      tibetan          0.0%  (0/9)
-
-    BY CASE TYPE x TRADITION
-      topical / chinese            0.0%  (0/12)
-      topical / chinese-native     100.0%  (12/12)  mean rank 1.25
-      topical / pali               56.3%  (9/16)  mean rank 4.22
-      topical / tibetan            0.0%  (0/9)
-
-    ANSWERED FROM ANY TRADITION   72.7%  (8/11 topics)
-      unanswered: divine-abidings, eightfold-path, loving-kindness
-
-
-
-
-
-    FAILURES
-      [topical] top-003
-        query: What is the noble eightfold path?
-        %{retrieved: ["pramana:sc.ms:sn45.77@1.6-1.7", "pramana:sc.ms:ds2.3.2@121.2-123.1", ...]}
-      [topical] top-010
-        query: What are the divine abidings?
-        %{retrieved: ["pramana:sc.ms:mn49@5.5-5.8", "pramana:sc.ms:patthana1.16@10.1-12.1", ...]}
-      [topical] top-011
-        query: What is clinging to rules and observances?
-        %{retrieved: ["pramana:sc.ms:patthana1.4@28.1-30.1", "pramana:sc.ms:dhp375@1-4", ...]}
-      [topical] top-012
-        query: How should loving-kindness be developed?
-        %{retrieved: ["pramana:sc.ms:an6.13@1.9-2.7", "pramana:sc.ms:sn20.5@2.1-2.6", ...]}
-      [topical] top-013
-        query: What does it mean to develop the faculties?
-        %{retrieved: ["pramana:sc.ms:ds2.3.2@121.2-123.1", "pramana:sc.ms:sn35.154@2.6-2.7", ...]}
-      [topical] top-014
-        query: Are beings the owners of their actions?
-        %{retrieved: ["pramana:sc.ms:ds2.3.2@121.2-123.1", "pramana:sc.ms:an10.216@10.3-11.4", ...]}
-      [topical] top-015
-        query: What is craving, and how does it lead to rebirth?
-        %{rank: 11, beyond_k: 10}
-      [topical] top-017
-        query: What are the four noble truths?
-        %{retrieved: ["pramana:sc.ms:patthana1.16@10.1-12.1", "pramana:sc.ms:dhp190@1-4", ...]}
-      [topical] top-018
-        query: What is the noble eightfold path?
-        %{retrieved: ["pramana:sc.ms:sn45.77@1.6-1.7", "pramana:sc.ms:ds2.3.2@121.2-123.1", ...]}
-      [topical] top-019
-        query: What are the four foundations of mindfulness?
-        %{retrieved: ["pramana:sc.ms:patthana1.16@10.1-12.1", "pramana:sc.ms:sn47.23@3.7-3.8", ...]}
-      [topical] top-020
-        query: What are the seven factors of awakening?
-        %{retrieved: ["pramana:sc.ms:patthana1.16@10.1-12.1", "pramana:sc.ms:an10.102@1.10-1.11", ...]}
-      [topical] top-021
-        query: What is dependent origination?
-        %{retrieved: ["pramana:sc.ms:sn23.45@1.1", "pramana:sc.ms:sn23.33@1.1", ...]}
-      [topical] top-022
-        query: What are the six sense bases?
-        %{retrieved: ["pramana:sc.ms:patthana1.16@10.1-12.1", "pramana:sc.ms:sn12.89@1.1", ...]}
-      [topical] top-023
-        query: How is mindfulness of breathing taught?
-        %{retrieved: ["pramana:sc.ms:an1.491@1.1", "pramana:sc.ms:an1.567@1.1", ...]}
-      [topical] top-024
-        query: What are the four immeasurable minds?
-        %{retrieved: ["pramana:sc.ms:patthana1.16@10.1-12.1", "pramana:sc.ms:an4.126@2.7-2.8", ...]}
-
-
-  ran 49 case(s) in 6m34s (0.1 cases/s)
-
-=== --only topical end 11:28:36 elapsed 404s exit 0
-=== VALIDATION DONE 11:28:36

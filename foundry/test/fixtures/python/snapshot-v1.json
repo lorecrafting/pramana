@@ -1,0 +1,16 @@
+{
+  "accepted_revision": null,
+  "assignments": {},
+  "generation": 0,
+  "integration": {"candidate": null, "owner": null},
+  "paused": false,
+  "pm": {"attempts_by_revision": {}, "consecutive_rejections_by_revision": {}, "proposal_history": [], "status": "idle"},
+  "queue": [],
+  "scheduler": {"dirty": true, "dirty_reasons": ["startup"], "enqueue_sequence": 0, "plan_revision": 0},
+  "schema_version": 1,
+  "status": "new",
+  "steering": [],
+  "stop_requested": false,
+  "supervisor": {},
+  "updated_at": "2026-09-08T00:00:00Z"
+}

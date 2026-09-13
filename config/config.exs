@@ -80,10 +80,10 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# Import environment specific config. This must remain at the bottom
-# of this file so it overrides the configuration defined above.
-import_config "#{config_env()}.exs"
-
 # EXLA compiles Nx to native code; without it embedding runs on the pure-Elixir
 # backend and is orders of magnitude slower.
 config :nx, :default_backend, EXLA.Backend
+
+# Import environment specific config. This must remain at the bottom
+# of this file so it overrides the configuration defined above.
+import_config "#{config_env()}.exs"

@@ -1,0 +1,105 @@
+
+=====
+===== LOGGING STARTED Sat Sep 12 13:48:54 HST 2026
+=====
+PramanaFoundry starting: tick=true herdr=/opt/homebrew/bin/herdr poll=15000ms
+  event log: 0 events, 0 assignments recovered
+Coordinator init: tick=true poll=15000ms (COORDINATOR_TICK=1 via env)
+  herdr_command=/opt/homebrew/bin/herdr herdr_timeout=30000ms
+Improver init: interval=300000ms
+HardeningPM init: interval=600000ms
+  tick: started AgentServer FIX-1 (#PID<0.844.0>)
+  tick: started AgentServer FIX-STALE (#PID<0.845.0>)
+  tick: launched FIX-1
+  tick: launched FIX-STALE
+    split pane: w3:p3M (26ms)
+    split pane: w3:p3N (72ms)
+    agent started: pramana-dev-3031c49a (4482ms)
+    agent started: pramana-dev-320377ca (4483ms)
+    prompted: FIX-STALE (338ms)
+  Agent pramana-dev-320377ca launched on pane w3:p3N for FIX-STALE
+  telemetry validation error: {:missing_fields, ["command"]}
+  Agent launched for FIX-STALE: pane=w3:p3N name=pramana-dev-320377ca
+    prompted: FIX-1 (395ms)
+  Agent pramana-dev-3031c49a launched on pane w3:p3M for FIX-1
+  telemetry validation error: {:missing_fields, ["command"]}
+  Agent launched for FIX-1: pane=w3:p3M name=pramana-dev-3031c49a
+
+=== Improver cycle 1 ===
+  consolidated: 412 records
+  telemetry: 0  events: 25
+  observations: 0
+  forecasts: 1
+[31m
+13:53:56.101 [error] GenServer PramanaFoundry.Improver terminating
+** (ArgumentError) errors were found at the given arguments:
+
+  * 1st argument: invalid system info item
+
+    :erlang.system_info(:ets_data)
+    (pramana_foundry 0.1.0) lib/pramana_foundry/system_metrics.ex:43: PramanaFoundry.SystemMetrics.system/0
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:489: PramanaFoundry.Improver.log_metrics/1
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:134: PramanaFoundry.Improver.do_analyze/1
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:68: PramanaFoundry.Improver.handle_info/2
+    (stdlib 8.0.3) gen_server.erl:2434: :gen_server.try_handle_info/3
+    (stdlib 8.0.3) gen_server.erl:2420: :gen_server.handle_msg/3
+    (stdlib 8.0.3) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Last message: :analyze
+State: %{timer_ref: #Reference<0.3459696318.1877213185.131396>, interval_ms: 300000, cycle_count: 0, last_generation: 0, proposed_fingerprints: MapSet.new([]), findings_path: "/Users/raymondluong/dev/pramana/foundry/local/state/current/findings.jsonl", last_findings: [], metrics_history: []}[0m
+Improver init: interval=300000ms
+
+=== HardeningPM cycle 1 ===
+  queue: []
+  hardening tickets in queue: 0
+  hardening assignments: 0
+  elaborated 0 ticket(s)
+
+=== Improver cycle 1 ===
+  consolidated: 452 records
+  telemetry: 0  events: 45
+  observations: 0
+  forecasts: 1
+  [HIGH] stuck_dispatched: 2 ticket(s) dispatched >5m without handoff
+         ["FIX-1", "FIX-STALE"]
+[31m
+13:58:56.111 [error] GenServer PramanaFoundry.Improver terminating
+** (ArgumentError) errors were found at the given arguments:
+
+  * 1st argument: invalid system info item
+
+    :erlang.system_info(:ets_data)
+    (pramana_foundry 0.1.0) lib/pramana_foundry/system_metrics.ex:43: PramanaFoundry.SystemMetrics.system/0
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:489: PramanaFoundry.Improver.log_metrics/1
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:134: PramanaFoundry.Improver.do_analyze/1
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:68: PramanaFoundry.Improver.handle_info/2
+    (stdlib 8.0.3) gen_server.erl:2434: :gen_server.try_handle_info/3
+    (stdlib 8.0.3) gen_server.erl:2420: :gen_server.handle_msg/3
+    (stdlib 8.0.3) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Last message: :analyze
+State: %{timer_ref: #Reference<0.3459696318.1877213185.131671>, interval_ms: 300000, cycle_count: 0, last_generation: 0, proposed_fingerprints: MapSet.new([]), findings_path: "/Users/raymondluong/dev/pramana/foundry/local/state/current/findings.jsonl", last_findings: [], metrics_history: []}[0m
+Improver init: interval=300000ms
+
+=== Improver cycle 1 ===
+  consolidated: 492 records
+  telemetry: 0  events: 65
+  observations: 0
+  forecasts: 1
+  [HIGH] stuck_dispatched: 2 ticket(s) dispatched >5m without handoff
+         ["FIX-1", "FIX-STALE"]
+[31m
+14:03:56.148 [error] GenServer PramanaFoundry.Improver terminating
+** (ArgumentError) errors were found at the given arguments:
+
+  * 1st argument: invalid system info item
+
+    :erlang.system_info(:ets_data)
+    (pramana_foundry 0.1.0) lib/pramana_foundry/system_metrics.ex:43: PramanaFoundry.SystemMetrics.system/0
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:489: PramanaFoundry.Improver.log_metrics/1
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:134: PramanaFoundry.Improver.do_analyze/1
+    (pramana_foundry 0.1.0) lib/pramana_foundry/improver.ex:68: PramanaFoundry.Improver.handle_info/2
+    (stdlib 8.0.3) gen_server.erl:2434: :gen_server.try_handle_info/3
+    (stdlib 8.0.3) gen_server.erl:2420: :gen_server.handle_msg/3
+    (stdlib 8.0.3) proc_lib.erl:333: :proc_lib.init_p_do_apply/3
+Last message: :analyze
+State: %{timer_ref: #Reference<0.3459696318.1877213185.131780>, interval_ms: 300000, cycle_count: 0, last_generation: 0, proposed_fingerprints: MapSet.new([]), findings_path: "/Users/raymondluong/dev/pramana/foundry/local/state/current/findings.jsonl", last_findings: [], metrics_history: []}[0m
+Improver init: interval=300000ms

@@ -87,7 +87,6 @@ defmodule PramanaWeb.PassageLive do
            apparatus: nil,
            glosses: [],
            gloss_total: 0,
-           gloss_total: 0,
            edition_link: nil,
            page_image: nil,
            error: reason

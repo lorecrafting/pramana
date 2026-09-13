@@ -1,449 +1,352 @@
-This is a web application written using the Phoenix web framework.
-
-## Project guidelines
-
-- Use `mix precommit` alias when you are done with all changes and fix any pending issues
-- Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
-
-### Phoenix v1.8 guidelines
-
-- **Always** begin your LiveView templates with `<Layouts.app flash={@flash} ...>` which wraps all inner content
-- The `MyAppWeb.Layouts` module is aliased in the `my_app_web.ex` file, so you can use it without needing to alias it again
-- Anytime you run into errors with no `current_scope` assign:
-  - You failed to follow the Authenticated Routes guidelines, or you failed to pass `current_scope` to `<Layouts.app>`
-  - **Always** fix the `current_scope` error by moving your routes to the proper `live_session` and ensure you pass `current_scope` as needed
-- Phoenix v1.8 moved the `<.flash_group>` component to the `Layouts` module. You are **forbidden** from calling `<.flash_group>` outside of the `layouts.ex` module
-- Out of the box, `core_components.ex` imports an `<.icon name="hero-x-mark" class="w-5 h-5"/>` component for hero icons. **Always** use the `<.icon>` component for icons, **never** use `Heroicons` modules or similar
-- **Always** use the imported `<.input>` component for form inputs from `core_components.ex` when available. `<.input>` is imported and using it will save steps and prevent errors
-- If you override the default input classes (`<.input class="myclass px-2 py-1 rounded-lg">)`) class with your own values, no default classes are inherited, so your
-custom classes must fully style the input
-
-### JS and CSS guidelines
-
-- **Use Tailwind CSS classes and custom CSS rules** to create polished, responsive, and visually stunning interfaces.
-- Tailwindcss v4 **no longer needs a tailwind.config.js** and uses a new import syntax in `app.css`:
-
-      @import "tailwindcss" source(none);
-      @source "../css";
-      @source "../js";
-      @source "../../lib/my_app_web";
-
-- **Always use and maintain this import syntax** in the app.css file for projects generated with `phx.new`
-- **Never** use `@apply` when writing raw css
-- **Always** manually write your own tailwind-based components instead of using daisyUI for a unique, world-class design
-- Out of the box **only the app.js and app.css bundles are supported**
-  - You cannot reference an external vendor'd script `src` or link `href` in the layouts
-  - You must import the vendor deps into app.js and app.css to use them
-  - **Never write inline <script>custom js</script> tags within templates**
-
-### UI/UX & design guidelines
-
-- **Produce world-class UI designs** with a focus on usability, aesthetics, and modern design principles
-- Implement **subtle micro-interactions** (e.g., button hover effects, and smooth transitions)
-- Ensure **clean typography, spacing, and layout balance** for a refined, premium look
-- Focus on **delightful details** like hover effects, loading states, and smooth page transitions
-
-
-<!-- usage-rules-start -->
-
-<!-- phoenix:elixir-start -->
-## Elixir guidelines
-
-- Elixir lists **do not support index based access via the access syntax**
-
-  **Never do this (invalid)**:
-
-      i = 0
-      mylist = ["blue", "green"]
-      mylist[i]
-
-  Instead, **always** use `Enum.at`, pattern matching, or `List` for index based list access, ie:
-
-      i = 0
-      mylist = ["blue", "green"]
-      Enum.at(mylist, i)
-
-- Elixir variables are immutable, but can be rebound, so for block expressions like `if`, `case`, `cond`, etc
-  you *must* bind the result of the expression to a variable if you want to use it and you CANNOT rebind the result inside the expression, ie:
-
-      # INVALID: we are rebinding inside the `if` and the result never gets assigned
-      if connected?(socket) do
-        socket = assign(socket, :val, val)
-      end
-
-      # VALID: we rebind the result of the `if` to a new variable
-      socket =
-        if connected?(socket) do
-          assign(socket, :val, val)
-        end
-
-- **Never** nest multiple modules in the same file as it can cause cyclic dependencies and compilation errors
-- **Never** use map access syntax (`changeset[:field]`) on structs as they do not implement the Access behaviour by default. For regular structs, you **must** access the fields directly, such as `my_struct.field` or use higher level APIs that are available on the struct if they exist, `Ecto.Changeset.get_field/2` for changesets
-- Elixir's standard library has everything necessary for date and time manipulation. Familiarize yourself with the common `Time`, `Date`, `DateTime`, and `Calendar` interfaces by accessing their documentation as necessary. **Never** install additional dependencies unless asked or for date/time parsing (which you can use the `date_time_parser` package)
-- Don't use `String.to_atom/1` on user input (memory leak risk)
-- Predicate function names should not start with `is_` and should end in a question mark. Names like `is_thing` should be reserved for guards
-- Elixir's builtin OTP primitives like `DynamicSupervisor` and `Registry`, require names in the child spec, such as `{DynamicSupervisor, name: MyApp.MyDynamicSup}`, then you can use `DynamicSupervisor.start_child(MyApp.MyDynamicSup, child_spec)`
-- Use `Task.async_stream(collection, callback, options)` for concurrent enumeration with back-pressure. The majority of times you will want to pass `timeout: :infinity` as option
-
-## Mix guidelines
-
-- Read the docs and options before using tasks (by using `mix help task_name`)
-- To debug test failures, run tests in a specific file with `mix test test/my_test.exs` or run all previously failed tests with `mix test --failed`
-- `mix deps.clean --all` is **almost never needed**. **Avoid** using it unless you have good reason
-
-## Test guidelines
-
-- **Always use `start_supervised!/1`** to start processes in tests as it guarantees cleanup between tests
-- **Avoid** `Process.sleep/1` and `Process.alive?/1` in tests
-  - Instead of sleeping to wait for a process to finish, **always** use `Process.monitor/1` and assert on the DOWN message:
-
-      ref = Process.monitor(pid)
-      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}
-
-   - Instead of sleeping to synchronize before the next call, **always** use `_ = :sys.get_state/1` to ensure the process has handled prior messages
-<!-- phoenix:elixir-end -->
-
-<!-- phoenix:phoenix-start -->
-## Phoenix guidelines
-
-- Remember Phoenix router `scope` blocks include an optional alias which is prefixed for all routes within the scope. **Always** be mindful of this when creating routes within a scope to avoid duplicate module prefixes.
-
-- You **never** need to create your own `alias` for route definitions! The `scope` provides the alias, ie:
-
-      scope "/admin", AppWeb.Admin do
-        pipe_through :browser
-
-        live "/users", UserLive, :index
-      end
-
-  the UserLive route would point to the `AppWeb.Admin.UserLive` module
-
-- `Phoenix.View` no longer is needed or included with Phoenix, don't use it
-<!-- phoenix:phoenix-end -->
-
-<!-- phoenix:ecto-start -->
-## Ecto Guidelines
-
-- **Always** preload Ecto associations in queries when they'll be accessed in templates, ie a message that needs to reference the `message.user.email`
-- Remember `import Ecto.Query` and other supporting modules when you write `seeds.exs`
-- `Ecto.Schema` fields always use the `:string` type, even for `:text`, columns, ie: `field :name, :string`
-- `Ecto.Changeset.validate_number/2` **DOES NOT SUPPORT the `:allow_nil` option**. By default, Ecto validations only run if a change for the given field exists and the change value is not nil, so such as option is never needed
-- You **must** use `Ecto.Changeset.get_field(changeset, :field)` to access changeset fields
-- Fields which are set programmatically, such as `user_id`, must not be listed in `cast` calls or similar for security purposes. Instead they must be explicitly set when creating the struct
-- **Always** invoke `mix ecto.gen.migration migration_name_using_underscores` when generating migration files, so the correct timestamp and conventions are applied
-<!-- phoenix:ecto-end -->
-
-<!-- phoenix:html-start -->
-## Phoenix HTML guidelines
-
-- Phoenix templates **always** use `~H` or .html.heex files (known as HEEx), **never** use `~E`
-- **Always** use the imported `Phoenix.Component.form/1` and `Phoenix.Component.inputs_for/1` function to build forms. **Never** use `Phoenix.HTML.form_for` or `Phoenix.HTML.inputs_for` as they are outdated
-- When building forms **always** use the already imported `Phoenix.Component.to_form/2` (`assign(socket, form: to_form(...))` and `<.form for={@form} id="msg-form">`), then access those forms in the template via `@form[:field]`
-- **Always** add unique DOM IDs to key elements (like forms, buttons, etc) when writing templates, these IDs can later be used in tests (`<.form for={@form} id="product-form">`)
-- For "app wide" template imports, you can import/alias into the `my_app_web.ex`'s `html_helpers` block, so they will be available to all LiveViews, LiveComponent's, and all modules that do `use MyAppWeb, :html` (replace "my_app" by the actual app name)
-
-- Elixir supports `if/else` but **does NOT support `if/else if` or `if/elsif`**. **Never use `else if` or `elseif` in Elixir**, **always** use `cond` or `case` for multiple conditionals.
-
-  **Never do this (invalid)**:
-
-      <%= if condition do %>
-        ...
-      <% else if other_condition %>
-        ...
-      <% end %>
-
-  Instead **always** do this:
-
-      <%= cond do %>
-        <% condition -> %>
-          ...
-        <% condition2 -> %>
-          ...
-        <% true -> %>
-          ...
-      <% end %>
-
-- HEEx require special tag annotation if you want to insert literal curly's like `{` or `}`. If you want to show a textual code snippet on the page in a `<pre>` or `<code>` block you *must* annotate the parent tag with `phx-no-curly-interpolation`:
-
-      <code phx-no-curly-interpolation>
-        let obj = {key: "val"}
-      </code>
-
-  Within `phx-no-curly-interpolation` annotated tags, you can use `{` and `}` without escaping them, and dynamic Elixir expressions can still be used with `<%= ... %>` syntax
-
-- HEEx class attrs support lists, but you must **always** use list `[...]` syntax. You can use the class list syntax to conditionally add classes, **always do this for multiple class values**:
-
-      <a class={[
-        "px-2 text-white",
-        @some_flag && "py-5",
-        if(@other_condition, do: "border-red-500", else: "border-blue-100"),
-        ...
-      ]}>Text</a>
-
-  and **always** wrap `if`'s inside `{...}` expressions with parens, like done above (`if(@other_condition, do: "...", else: "...")`)
-
-  and **never** do this, since it's invalid (note the missing `[` and `]`):
-
-      <a class={
-        "px-2 text-white",
-        @some_flag && "py-5"
-      }> ...
-      => Raises compile syntax error on invalid HEEx attr syntax
-
-- **Never** use `<% Enum.each %>` or non-for comprehensions for generating template content, instead **always** use `<%= for item <- @collection do %>`
-- HEEx HTML comments use `<%!-- comment --%>`. **Always** use the HEEx HTML comment syntax for template comments (`<%!-- comment --%>`)
-- HEEx allows interpolation via `{...}` and `<%= ... %>`, but the `<%= %>` **only** works within tag bodies. **Always** use the `{...}` syntax for interpolation within tag attributes, and for interpolation of values within tag bodies. **Always** interpolate block constructs (if, cond, case, for) within tag bodies using `<%= ... %>`.
-
-  **Always** do this:
-
-      <div id={@id}>
-        {@my_assign}
-        <%= if @some_block_condition do %>
-          {@another_assign}
-        <% end %>
-      </div>
-
-  and **Never** do this – the program will terminate with a syntax error:
-
-      <%!-- THIS IS INVALID NEVER EVER DO THIS --%>
-      <div id="<%= @invalid_interpolation %>">
-        {if @invalid_block_construct do}
-        {end}
-      </div>
-<!-- phoenix:html-end -->
-
-<!-- phoenix:liveview-start -->
-## Phoenix LiveView guidelines
-
-- **Never** use the deprecated `live_redirect` and `live_patch` functions, instead **always** use the `<.link navigate={href}>` and  `<.link patch={href}>` in templates, and `push_navigate` and `push_patch` functions LiveViews
-- **Avoid LiveComponent's** unless you have a strong, specific need for them
-- LiveViews should be named like `AppWeb.WeatherLive`, with a `Live` suffix. When you go to add LiveView routes to the router, the default `:browser` scope is **already aliased** with the `AppWeb` module, so you can just do `live "/weather", WeatherLive`
-
-### LiveView streams
-
-- **Always** use LiveView streams for collections for assigning regular lists to avoid memory ballooning and runtime termination with the following operations:
-  - basic append of N items - `stream(socket, :messages, [new_msg])`
-  - resetting stream with new items - `stream(socket, :messages, [new_msg], reset: true)` (e.g. for filtering items)
-  - prepend to stream - `stream(socket, :messages, [new_msg], at: -1)`
-  - deleting items - `stream_delete(socket, :messages, msg)`
-
-- When using the `stream/3` interfaces in the LiveView, the LiveView template must 1) always set `phx-update="stream"` on the parent element, with a DOM id on the parent element like `id="messages"` and 2) consume the `@streams.stream_name` collection and use the id as the DOM id for each child. For a call like `stream(socket, :messages, [new_msg])` in the LiveView, the template would be:
-
-      <div id="messages" phx-update="stream">
-        <div :for={{id, msg} <- @streams.messages} id={id}>
-          {msg.text}
-        </div>
-      </div>
-
-- LiveView streams are *not* enumerable, so you cannot use `Enum.filter/2` or `Enum.reject/2` on them. Instead, if you want to filter, prune, or refresh a list of items on the UI, you **must refetch the data and re-stream the entire stream collection, passing reset: true**:
-
-      def handle_event("filter", %{"filter" => filter}, socket) do
-        # re-fetch the messages based on the filter
-        messages = list_messages(filter)
-
-        {:noreply,
-         socket
-         |> assign(:messages_empty?, messages == [])
-         # reset the stream with the new messages
-         |> stream(:messages, messages, reset: true)}
-      end
-
-- LiveView streams *do not support counting or empty states*. If you need to display a count, you must track it using a separate assign. For empty states, you can use Tailwind classes:
-
-      <div id="tasks" phx-update="stream">
-        <div class="hidden only:block">No tasks yet</div>
-        <div :for={{id, task} <- @streams.tasks} id={id}>
-          {task.name}
-        </div>
-      </div>
-
-  The above only works if the empty state is the only HTML block alongside the stream for-comprehension.
-
-- When updating an assign that should change content inside any streamed item(s), you MUST re-stream the items
-  along with the updated assign:
-
-      def handle_event("edit_message", %{"message_id" => message_id}, socket) do
-        message = Chat.get_message!(message_id)
-        edit_form = to_form(Chat.change_message(message, %{content: message.content}))
-
-        # re-insert message so @editing_message_id toggle logic takes effect for that stream item
-        {:noreply,
-         socket
-         |> stream_insert(:messages, message)
-         |> assign(:editing_message_id, String.to_integer(message_id))
-         |> assign(:edit_form, edit_form)}
-      end
-
-  And in the template:
-
-      <div id="messages" phx-update="stream">
-        <div :for={{id, message} <- @streams.messages} id={id} class="flex group">
-          {message.username}
-          <%= if @editing_message_id == message.id do %>
-            <%!-- Edit mode --%>
-            <.form for={@edit_form} id="edit-form-#{message.id}" phx-submit="save_edit">
-              ...
-            </.form>
-          <% end %>
-        </div>
-      </div>
-
-- **Never** use the deprecated `phx-update="append"` or `phx-update="prepend"` for collections
-
-### LiveView JavaScript interop
-
-- Remember anytime you use `phx-hook="MyHook"` and that JS hook manages its own DOM, you **must** also set the `phx-update="ignore"` attribute
-- **Always** provide an unique DOM id alongside `phx-hook` otherwise a compiler error will be raised
-
-LiveView hooks come in two flavors, 1) colocated js hooks for "inline" scripts defined inside HEEx,
-and 2) external `phx-hook` annotations where JavaScript object literals are defined and passed to the `LiveSocket` constructor.
-
-#### Inline colocated js hooks
-
-**Never** write raw embedded `<script>` tags in heex as they are incompatible with LiveView.
-Instead, **always use a colocated js hook script tag (`:type={Phoenix.LiveView.ColocatedHook}`)
-when writing scripts inside the template**:
-
-    <input type="text" name="user[phone_number]" id="user-phone-number" phx-hook=".PhoneNumber" />
-    <script :type={Phoenix.LiveView.ColocatedHook} name=".PhoneNumber">
-      export default {
-        mounted() {
-          this.el.addEventListener("input", e => {
-            let match = this.el.value.replace(/\D/g, "").match(/^(\d{3})(\d{3})(\d{4})$/)
-            if(match) {
-              this.el.value = `${match[1]}-${match[2]}-${match[3]}`
-            }
-          })
-        }
-      }
-    </script>
-
-- colocated hooks are automatically integrated into the app.js bundle
-- colocated hooks names **MUST ALWAYS** start with a `.` prefix, i.e. `.PhoneNumber`
-
-#### External phx-hook
-
-External JS hooks (`<div id="myhook" phx-hook="MyHook">`) must be placed in `assets/js/` and passed to the
-LiveSocket constructor:
-
-    const MyHook = {
-      mounted() { ... }
-    }
-    let liveSocket = new LiveSocket("/live", Socket, {
-      hooks: { MyHook }
-    });
-
-#### Pushing events between client and server
-
-Use LiveView's `push_event/3` when you need to push events/data to the client for a phx-hook to handle.
-**Always** return or rebind the socket on `push_event/3` when pushing events:
-
-    # re-bind socket so we maintain event state to be pushed
-    socket = push_event(socket, "my_event", %{...})
-
-    # or return the modified socket directly:
-    def handle_event("some_event", _, socket) do
-      {:noreply, push_event(socket, "my_event", %{...})}
-    end
-
-Pushed events can then be picked up in a JS hook with `this.handleEvent`:
-
-    mounted() {
-      this.handleEvent("my_event", data => console.log("from server:", data));
-    }
-
-Clients can also push an event to the server and receive a reply with `this.pushEvent`:
-
-    mounted() {
-      this.el.addEventListener("click", e => {
-        this.pushEvent("my_event", { one: 1 }, reply => console.log("got reply from server:", reply));
-      })
-    }
-
-Where the server handled it via:
-
-    def handle_event("my_event", %{"one" => 1}, socket) do
-      {:reply, %{two: 2}, socket}
-    end
-
-### LiveView tests
-
-- `Phoenix.LiveViewTest` module and `LazyHTML` (included) for making your assertions
-- Form tests are driven by `Phoenix.LiveViewTest`'s `render_submit/2` and `render_change/2` functions
-- Come up with a step-by-step test plan that splits major test cases into small, isolated files. You may start with simpler tests that verify content exists, gradually add interaction tests
-- **Always reference the key element IDs you added in the LiveView templates in your tests** for `Phoenix.LiveViewTest` functions like `element/2`, `has_element/2`, selectors, etc
-- **Never** tests again raw HTML, **always** use `element/2`, `has_element/2`, and similar: `assert has_element?(view, "#my-form")`
-- Instead of relying on testing text content, which can change, favor testing for the presence of key elements
-- Focus on testing outcomes rather than implementation details
-- Be aware that `Phoenix.Component` functions like `<.form>` might produce different HTML than expected. Test against the output HTML structure, not your mental model of what you expect it to be
-- When facing test failures with element selectors, add debug statements to print the actual HTML, but use `LazyHTML` selectors to limit the output, ie:
-
-      html = render(view)
-      document = LazyHTML.from_fragment(html)
-      matches = LazyHTML.filter(document, "your-complex-selector")
-      IO.inspect(matches, label: "Matches")
-
-### Form handling
-
-#### Creating a form from params
-
-If you want to create a form based on `handle_event` params:
-
-    def handle_event("submitted", params, socket) do
-      {:noreply, assign(socket, form: to_form(params))}
-    end
-
-When you pass a map to `to_form/1`, it assumes said map contains the form params, which are expected to have string keys.
-
-You can also specify a name to nest the params:
-
-    def handle_event("submitted", %{"user" => user_params}, socket) do
-      {:noreply, assign(socket, form: to_form(user_params, as: :user))}
-    end
-
-#### Creating a form from changesets
-
-When using changesets, the underlying data, form params, and errors are retrieved from it. The `:as` option is automatically computed too. E.g. if you have a user schema:
-
-    defmodule MyApp.Users.User do
-      use Ecto.Schema
-      ...
-    end
-
-And then you create a changeset that you pass to `to_form`:
-
-    %MyApp.Users.User{}
-    |> Ecto.Changeset.change()
-    |> to_form()
-
-Once the form is submitted, the params will be available under `%{"user" => user_params}`.
-
-In the template, the form form assign can be passed to the `<.form>` function component:
-
-    <.form for={@form} id="todo-form" phx-change="validate" phx-submit="save">
-      <.input field={@form[:field]} type="text" />
-    </.form>
-
-Always give the form an explicit, unique DOM ID, like `id="todo-form"`.
-
-#### Avoiding form errors
-
-**Always** use a form assigned via `to_form/2` in the LiveView, and the `<.input>` component in the template. In the template **always access forms this**:
-
-    <%!-- ALWAYS do this (valid) --%>
-    <.form for={@form} id="my-form">
-      <.input field={@form[:field]} type="text" />
-    </.form>
-
-And **never** do this:
-
-    <%!-- NEVER do this (invalid) --%>
-    <.form for={@changeset} id="my-form">
-      <.input field={@changeset[:field]} type="text" />
-    </.form>
-
-- You are FORBIDDEN from accessing the changeset in the template as it will cause errors
-- **Never** use `<.form let={f} ...>` in the template, instead **always use `<.form for={@form} ...>`**, then drive all form references from the form assign as in `@form[:field]`. The UI should **always** be driven by a `to_form/2` assigned in the LiveView module that is derived from a changeset
-<!-- phoenix:liveview-end -->
-
-<!-- usage-rules-end -->
+# Pramāṇa — Project Guide
+
+*pramāṇa* (प्रमाण) — "valid means of knowledge," the Buddhist epistemological
+tradition of Dignāga and Dharmakīrti. The name is the thesis: this system exists to
+establish **warrant** for a claim about a text, not merely to retrieve one.
+
+**This is the canonical project reference for every agent.** Read the resuming-work
+section first, then route to the specific doc for what you are about to do.
+
+---
+
+## The one idea
+
+The corpus is **baked** into an immutable, content-addressed artifact. The LLM is a
+swappable reader that never touches the database — it goes through a retrieval API
+whose every response is URN-addressed and byte-verifiable.
+
+If you remember nothing else: **the model is not trusted to cite correctly. The
+citation guard re-resolves every URN and byte-compares the quoted span.** That check
+is deterministic and model-independent.
+
+**English-first for an English-speaking reader, and that is the strategy rather than a
+feature.** The reader asks in English; the canons stay in their own languages; every
+answer is anchored to the original with its provenance.
+
+---
+
+## Resuming work (new session, no context)
+
+1. **`docs/STATUS.md`** — 220 lines, what is true right now
+2. **`docs/PLAN.md`** — living task list: what is next, why, what blocks it. Updated in same commit as the work it describes.
+3. **Non-negotiable invariants** (below) — read before acting
+4. **`docs/ROADMAP.md`** — phase structure and completion status
+5. **`docs/RULES.md`** — 81 rules learned from real defects, cited by number
+
+The split exists because they were one file of 3,896 lines where a historical sentence
+read as a current claim.
+
+| | |
+|---|---|
+| `docs/STATUS.md` | **what is true now** |
+| `docs/PLAN.md` | **what to do next**, and what it is blocked on |
+| `docs/CODE_CONVENTIONS.md` | **coding rules** — Phoenix, Elixir, Ecto, LiveView, forms |
+| `docs/RULES.md` | **81 rules** from real defects, cited by number |
+| `docs/HISTORY.md` | **what happened**, in order. True of its date, not of today |
+| `docs/PROXIES.md` | why every cheap evaluation proxy lied, and what it cost |
+
+---
+
+## Non-negotiable invariants
+
+Violating any of these is a bug, not a tradeoff.
+
+1. **No unattributed text ever leaves the API.** Every returned span carries
+   `urn`, `char_start`, `char_end`, `sha256`, and its full provenance record.
+2. **Never invent citation IDs.** Adopt each tradition's existing citation grammar
+   (Taishō page/register/line, SuttaCentral segment IDs, Derge folio/side/line) and
+   wrap it in a URN. Scholars must be able to check us against a print edition.
+3. **`raw/` is append-only and never edited.** Every fix happens in a normalizer with
+   a test. If a bake can't be reproduced from `sources.lock.json`, it's not a bake.
+4. **Provenance is multi-axis, never a single `source` string.** See
+   `docs/ARCHITECTURE.md`. A Japanese Kamakura-era commentary must never be
+   presentable as an Indian sūtra — enforced structurally in the tool response shape,
+   not by prompting.
+5. **Deterministic before probabilistic.** If an alignment, parallel, or quotation
+   link can be found by string/table/structure matching, do that. The LLM handles
+   only the residual, and its output is labeled with lower confidence.
+6. **Every retrieval change runs against `evals/`.** Recall@k and citation accuracy
+   are published numbers, not vibes.
+7. **The MCP surface is read-only. Tools read; the CLI writes.** Never add an ingest
+   or mutation tool. If a model could write to the corpus, reproducibility from
+   `sources.lock.json` is gone.
+8. **A machine translation is never citable as source.** Generated text is a layer
+   over a source anchor, never a top-level URN, and the citation guard rejects any
+   quote resolving to `method != human` presented as canonical.
+
+---
+
+## Which document to open, by what you are doing
+
+### Main project (Pramana retrieval pipeline)
+
+| Doing… | Open |
+|---|---|
+| starting a session, orienting | `docs/STATUS.md`, then `docs/PLAN.md` |
+| **understanding what's in this repo** | `AGENTS.md` § "Repo architecture" — umbrella vs foundry, Rust, Python, why each exists |
+| **adding a text source** | `docs/ADDING_TEXTS.md`, `docs/SOURCES.md` |
+| **writing new Phoenix/Elixir code** | `docs/CODE_CONVENTIONS.md` — framework rules, form patterns, LiveView streams, Ecto |
+| changing **retrieval** | `docs/ARCHITECTURE.md`; run `evals/` |
+| changing **embeddings** or renting a GPU | `docs/EMBEDDING.md`, `docs/GPU_RUNBOOK.md` |
+| touching the **MCP surface** | `docs/MCP.md` |
+| touching the **reader** | `docs/READER.md` |
+| **translations** or generated text | `docs/LAYERS.md`, `docs/TRANSLATION.md` |
+| **commentary / parallels / quotations** | `docs/COMMENTARY.md` |
+| anything **public or licensed** | `docs/DEPLOY.md`, `mix pramana.public.check` |
+| a **phase gate**, or "am I done" | `docs/CHECKS.md` |
+| local setup, Postgres, toolchain | `docs/DEV_ENV.md`, `docs/ELIXIR.md` |
+| **debugging**, or wondering why nothing can tell you what happened | `docs/OBSERVABILITY.md` |
+| wondering **why** something is the way it is | `docs/HISTORY.md`; if measurement, `docs/PROXIES.md` |
+| changing **how a model reads the corpus** | `docs/AGENT_MODELS.md` |
+| wondering whether an idea was already tried | `docs/PLAN.md` § "Rejected, with evidence" |
+| onboarding a person, or explaining the project | `docs/PRIMER.md`, `README.md` |
+| renting a GPU | `docs/CLOUD.md` |
+| asked how this compares to another system | `docs/COMPETITIVE.md` |
+| looking for something to build | `docs/IDEAS.md` |
+| planning work that depends on event sourcing | `docs/HARNESS.md` — harness engineering, verifier feedback, multi-agent retrieval |
+| the SAT request that Phase 2 is blocked on | `docs/sat-request-email.md` |
+
+### Foundry (agentic workflow / self-healing system)
+
+| Doing… | Open |
+|---|---|
+| understanding the foundry subproject | `foundry/README.md` |
+| telemetry, health probes, system metrics | `foundry/docs/OBSERVABILITY.md` |
+| migration from Python supervisor | `foundry/docs/MIGRATION.md` |
+| implementation tickets | `foundry/docs/MIGRATION-TICKETS.md` |
+
+---
+
+## Project layout
+
+```
+sources.lock.json          pinned upstream snapshots (commit SHAs, sha256, licenses)
+raw/                       untouched upstream downloads — gitignored, never edited
+docs/                      all project documentation (27 files)
+evals/                     gold question sets + scoring harness
+bin/                       utility scripts (pramana-tranche, pramana-mcp, …)
+foundry/                   standalone agentic workflow system (see below)
+apps/
+  pramana/                 CORE DOMAIN — no Phoenix dependency
+    lib/pramana/
+      urn/                 URN parse, resolve, verify — the foundation
+      corpus/              Ecto schemas + loader
+      acquire/             fetchers, catalog, bulk archive, lockfile
+      normalize/           Saxy streaming TEI/XML -> canonical IR
+      segment/             IR -> citable units via native citation grammars
+      retrieval/           lexical, semantic, hybrid, survey, rerank
+      bake/                Oban orchestration, workers, pipeline version
+      guard.ex             post-generation citation verification
+      enrich/              alignment, quotation graph
+      docs/                figure generation, doc sync
+  pramana_web/             Phoenix — MCP endpoint, LiveView reader
+  pramana_native/          Rustler NIFs: CJK segmentation (jieba-rs)
+priv/embed/                Python sidecar — model inference ONLY
+```
+
+### Foundry subproject (`foundry/`)
+
+A standalone Mix project for autonomous agent orchestration, self-healing, and
+workflow automation. **Deliberately decoupled from the umbrella** — its sole
+dependency is `owl` for terminal rendering. It has zero coupling to Postgres, the
+corpus, `priv/embed/`, or any umbrella app (`pramana`, `pramana_web`,
+`pramana_native`).
+
+**Why not umbrella it?** Foundry-only work (agent dispatch, health probes, kanban
+board) should need nothing but Elixir + OWL. Umbrella membership would pull the
+full toolchain — Postgres, Rust/jieba-rs, Python sidecar — for every compile,
+losing the fast 2-second dev loop. If they ever need to share a schema, a shared
+`pramana_core` Hex/git dep costs less than coupling the build. See § "Repo
+architecture" below.
+
+```
+foundry/
+  mix.exs                  standalone OTP app + escript
+  README.md                overview, runtime deps, configuration
+  docs/
+    OBSERVABILITY.md        telemetry records, health probe, system metrics, CLI diag
+    MIGRATION.md            destination architecture from Python supervisor
+    MIGRATION-TICKETS.md    eight-ticket implementation sequence
+  lib/pramana_foundry/
+    agent_server.ex         GenServer per agent (launch, timeout, handoff)
+    coordinator.ex          central state machine with health probe
+    coordinator/tick.ex     queue processing via DynamicSupervisor
+    improver.ex             self-healing loop (14 classifiers, PM proposals)
+    hardening_pm.ex         PM for IMPRV-* hardening tickets
+    system_metrics.ex       VM and per-process metrics collection
+    consolidated_log.ex     merged view of all structured logs
+    telemetry/              record validation, store, observation, forecast
+    herdr/                  typed adapter for the Herdr agent CLI
+    effects/                checkpointed launch, prompt, process lifecycle
+    board/                  terminal kanban dashboard
+    cli.ex                  CLI commands: health, agents, metrics, logs, board
+  test/                     235 tests
+```
+
+---
+
+## Repo architecture: umbrella vs standalone
+
+This repo holds **two independent Elixir projects** plus Rust and Python companions.
+Understanding their boundaries saves confusion on first open.
+
+```
+┌──────────────────────────────────────────┐
+│  Umbrella  (apps/)                       │
+│  mix.exs → apps_path: "apps"            │
+│                                          │
+│  apps/pramana/          core domain      │
+│  apps/pramana_web/      Phoenix MCP/UI   │
+│  apps/pramana_native/   Rustler jieba    │
+│                                          │
+│  Needs: Postgres 18 + pgvector,          │
+│         Rust toolchain, Python sidecar   │
+│  Release: ships both apps together       │
+└──────────────────────────────────────────┘
+
+┌──────────────────────────────────────────┐
+│  Foundry  (foundry/)                      │
+│  standalone OTP app + escript            │
+│  zero corpus deps                        │
+│                                          │
+│  Deps: owl (terminal rendering)          │
+│  Needs: nothing but Elixir               │
+│  CLI: `pramana_foundry health|board|…`   │
+└──────────────────────────────────────────┘
+```
+
+**The foundry is decoupled by design** (see § Foundry subproject above). It does
+not share code with the umbrella; if it ever needs to, use a shared Hex/git dep
+rather than umbrella coupling.
+
+Two more non-Elixir components live in the repo (detailed in `docs/ELIXIR.md` §
+"Three deliberate exceptions"):
+
+| Component | Where | What | Needed? |
+|---|---|---|---|
+| **Rustler NIF** | `apps/pramana_native/` | CJK word segmentation (`jieba-rs`). Runs in-process at bake and query time | **Yes** — must be in the BEAM for performance; no Elixir equivalent |
+| **Rust port binary** | `native/quotations/` | Suffix-array text-reuse detection for the quotation graph. Multi-GB working set | **Yes** — too large for the BEAM; runs as a bake stage |
+| **Python sidecar** | `priv/embed/` | Model inference: BGE-M3 embeddings + generative translation | **Yes** — no viable BEAM alternative for the ML. Does tensor math only, never touches the database or corpus directly |
+
+---
+
+## Stack
+
+**Elixir 1.20.3 / OTP 29.0.5 · Phoenix 1.8.11 · Ecto · PostgreSQL 18 + pgvector
+(HNSW) + pg_bigm · Oban · Saxy · Req · Rustler.** Toolchain versions are pinned
+exactly in `mise.toml`.
+
+**Foundry stack:** Elixir 1.20+, OWL (terminal rendering), Herdr CLI (Python agent
+launcher), DynamicSupervisor + GenServer for agent lifecycle.
+
+### Three deliberate exceptions (from `docs/ELIXIR.md`)
+
+The Rust and Python components are documented in the table at § "Repo architecture"
+above. `docs/ELIXIR.md` has the full rationale for each, including the ladder to
+remove Python entirely.
+
+## Rules trigger table
+
+`docs/RULES.md` holds **81 rules, each learned from a real defect here**, cited by
+number in code and commits. Read the listed rules before starting the activity.
+
+| about to… | read |
+|---|---|
+| write or change a **normalizer / ingest** | 1, 2, 3, 23, 27, 28, 29, 45, 46, 48, 50, 51, 52, 53, 55, 56, 59, 71 |
+| write a **mix task** or add a CLI option | 4, 8, 57, 66 |
+| add a **filter, option or mode** | 4, 5, 6, 26, 36, **75** |
+| write an **Ecto query** or touch performance | 9, 14, 15, 19, 21, 25, 34, 38, 39, 40, 67 |
+| **compare, split or match a URN** | 68 |
+| report a **coverage figure or any ratio** | 22, 31, 44, 54, 69, 74, **77**, **80** |
+| **rank or weight by a graph** | 72, 73 |
+| choose a **threshold**, or build a benchmark | 7, 18, 30, 32, 35, 37, 47, 49, 54, 67, **74**, **78** |
+| **re-run a measurement** | **82** |
+| **compare arms**, or quote a ceiling | **84** |
+| **make something faster** | 40, 47, **70**, **76** |
+| change a **schema, enum or registry** | 11, 12, 13, 42 |
+| **acquire** or cache anything from upstream | 10, 43, 58, 64 |
+| **delete** anything, or write `on_conflict` | 9, 20, 71 |
+| **concatenate rows** into one string | 71 |
+| edit **docs with a script** | 8 |
+| **commit**, when another session may be working the same branch | **81** |
+| **derive a value** from another | 61 |
+| **store a hash of inputs** as an id | 64 |
+| **instrument** anything | 65 |
+| **check whether something passed** | 8, 63 |
+| **sample a file, or size a feature before building it** | 62 |
+| **publish a number that confirms what you just concluded** | 62 |
+| **fix a constant** — any constant | 41, always |
+| **add a new layer, source or vector kind** | **83** |
+| **finish any capability** | **60**, **79** |
+| make anything **optional**, or a dependency degrade | 17 |
+| **generalise** from one case | 16, 24, 33 |
+
+### The four that keep re-earning themselves
+
+- **41** — a rule written after a fix does not sweep for the other instances. Cited in 16 files.
+- **8** — a scripted patch that reports success may have done nothing. Eight occurrences.
+- **1** — a buffered element that can span a line must be split at that line.
+- **68** — a URN comparison is a parser. Join on columns that cannot be ranges.
+
+---
+
+## Keeping the documentation true
+
+1. **Never write down a number the code computes** — generate it. Corpus counts live in
+   `<!-- figures:key -->` blocks; `mix pramana.docs.figures --write` regenerates them.
+   Measurements (Retrieval@10 is 74.9%) must never go in a generated block — the test is:
+   *would a second run of the same command change it?*
+2. **A statement about the past belongs in `docs/HISTORY.md`, or carries its date.**
+3. **A new rule is not finished until a trigger points at it.** Add it to `docs/RULES.md`
+   *and* to the trigger table above.
+4. **`docs/PLAN.md` changes in the same commit as the work.**
+5. **When a doc and the code disagree, the code wins — then fix the doc in that commit.**
+6. **Verify a scripted doc edit by grepping for the new text.**
+7. **Publish the gap, not just the total.**
+8. **A claim about what is POSSIBLE must say whether it was measured.** Mark untested as untested.
+
+---
+
+## Framework conventions
+
+**IF WRITING CODE, READ `docs/CODE_CONVENTIONS.md`.** It contains framework-specific
+conventions for Phoenix v1.8, Elixir, Ecto, LiveView, JS/CSS, and forms — rules
+every new file must follow.
+
+This file is derived from `mix phx.new` scaffolding and can be regenerated:
+
+```bash
+mix pramana.docs.framework  # regenerates docs/CODE_CONVENTIONS.md from source
+```
+
+Key rules that apply everywhere:
+- No `String.to_atom/1` on user input
+- No index-based access on lists (`mylist[i]` invalid — use `Enum.at/2`)
+- Never nest multiple modules in the same file
+- Always use `start_supervised!/1` in tests
+- Avoid `Process.sleep/1` in tests — use `Process.monitor/1` and `assert_receive`
+- Use `stream/3` for collections in LiveViews
+- Use `<.input>` component for forms, never pass a changeset directly to `<.form>`
+
+---
+
+## Foundry: observability quick-reference
+
+The foundry writes three structured JSONL logs to `foundry/local/state/current/`:
+
+| Log | File | Content |
+|---|---|---|
+| Coordinator log | `coordinator.jsonl` | Lifecycle events (tick, agent launch/completed/crash) |
+| Telemetry log | `telemetry.jsonl` | Structured command records with durations |
+| Findings log | `findings.jsonl` | Improver findings + `metrics_snapshot` events |
+
+CLI diagnostics (`pramana_foundry` escript):
+```bash
+pramana_foundry health           # JSON health report
+pramana_foundry agents           # List running agents with metrics
+pramana_foundry metrics          # System metrics overview
+pramana_foundry logs tail N      # Consolidated log tail
+pramana_foundry board            # Terminal kanban dashboard
+```
+
+See `foundry/docs/OBSERVABILITY.md` for the full reference.

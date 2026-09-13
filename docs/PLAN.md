@@ -1248,6 +1248,84 @@ gates stop meaning anything.
 
 ---
 
+## Deferred — after event sourcing rearchitecture
+
+**Harness engineering.** Everything between the model weights and the world:
+the loop, the tools, the sub-agents, and the verification layer.
+
+The DAIR.AI Harness Engineering paper collection (21 papers, 2019–2026) and the
+surrounding discourse validate Pramana's architecture: the model IS a swappable reader,
+and the citation guard, provenance tracking, MCP surface and retrieval pipeline ARE the
+harness. The collection's headline — *the same weight file scores 30% or 95% on the same
+benchmark depending on what surrounds it* — is the design thesis this project was built on.
+
+**What the collection reveals as gaps**, all deferred until the event-sourcing
+rearchitecture lands because every item produces event streams that need a home:
+
+1. **Verifier feedback loop.** The guard diagnoses failures in five granular categories
+   (`:editorial_punctuation`, `:orthographic_variant`, `:spans_line_boundary`,
+   `:wrong_address`, `:absent_from_corpus`). None feeds back into monitoring, model-arm
+   comparison, or eval-case generation. After event sourcing: `GuardVerdictEmitted` → per-
+   translator reliability projections → automated threshold alerts and eval case proposals.
+
+2. **Eval coverage & auto-generation.** No gold case covers every guard failure mode. No
+   eval case is generated from a real-world verification failure. `mix pramana.evals.generate`
+   scans guard failures and proposes cases; `mix pramana.evals.coverage` reports untested
+   failure modes. Both need the verifier feedback loop (item 1) to operate.
+
+3. **Task-length chain evals.** Single-turn scores miss multi-step capability. The corpus
+   supports multi-tool chains (search → get_commentaries → get_glosses → verify_citation).
+   `evals/gold/chain_*.jsonl` records canonical chains; the survival rate across N steps is
+   a harness-quality measure the current evals cannot see.
+
+4. **Translator citation reliability.** A human translator whose renderings fail the guard
+   90% of the time is indistinguishable from one who passes every time. Project from guard
+   verdict events onto per-translator and per-layer trust scores, surfaced on `get_person`
+   and in MCP responses.
+
+5. **Retrieval parameter optimisation.** RRF k, reranker window, fusion weights, embedding
+   cap — every parameter was set once and never re-derived. `mix pramana.retrieval.tune`
+   searches over a bounded space, scoring each config against the evals. After event sourcing:
+   trial lifecycle events, vote-winning config promoted automatically, eval gate refuses
+   degrading changes.
+
+6. **Retrieval plans.** Multi-tool protocols expressed as JSON templates — a "bhūmi
+   investigation" defined once and run deterministically. `Pramana.Retrieval.Plan` is
+   stateless and can be built before event sourcing; verification re-execution is the
+   event-sourced half.
+
+7. **Multi-agent routing.** Three structurally different canons share one hybrid search
+   with one parameter set. Canon-specialized sub-agents, a routing agent, and a weighted
+   fuser produce better cross-canon retrieval than a single index.
+
+8. **Meta-harness self-optimisation.** The harness searches over its own retrieval and
+   prompt-assembly code — the code of the harness itself being the thing edited. Depends
+   on parameter optimisation (item 5) maturing first.
+
+**Full design in `docs/HARNESS.md`.** Every item includes event schemas, projections,
+migration path from current code, and acceptance criteria. The implementation order after
+event sourcing is:
+
+| # | Work | Depends on | What it produces |
+|---|---|---|---|
+| H1 | Guard feedback loop | Event sourcing (events) | `GuardVerdictEmitted`, per-translator reliability |
+| H2 | Eval coverage & auto-generation | H1 | `EvalCoverage`, `mix pramana.evals.generate` |
+| H3 | Task-length chain evals | Event sourcing (agent events) | Chain gold sets, survival score |
+| H4 | Translator citation reliability | H1 | Trust scores surfaced on tools |
+| H5 | Retrieval parameter optimisation | Event sourcing | `mix pramana.retrieval.tune` |
+| H6 | Retrieval plans | None (JSON templates) | `Pramana.Retrieval.Plan` |
+| H7 | Multi-agent routing | H6 + Event sourcing | Router, Fuser, per-canon sub-agents |
+| H8 | Meta-harness self-optimisation | H5 | Six tiers from parameter search to meta-meta |
+| **H9** | L2 — prompt & tool-description evolution | H1 guard verdicts | GEPA-style trace reader for `pramana://guide` |
+| **H10** | L3 — skill composition | H6 plan runner | Auto-discovery of tool sequences from MCP tools |
+| **H11** | L4 — architectural search | H1–H3, release_id | Coding agent rewrites retrieval pipeline |
+| **H12** | L5 — continual online adaptation | L4 stable | Per-query bounded parameter adaptation |
+| **H13** | L6 — meta-meta-harness | L5 + eval set stable | Archive-based evolution of the meta-harness itself |
+
+**H6 can start before event sourcing** — it is stateless JSON processing.
+
+---
+
 ## Now
 
 ### A. Work-level `parallel_of` — ▸ DONE 2026-08-24

@@ -88,7 +88,8 @@ defmodule PramanaWeb.Telemetry do
       summary("pramana.retrieval.search.results",
         event_name: "pramana.retrieval.search",
         measurement: :results,
-        description: "Results returned, zero included"),
+        description: "Results returned, zero included"
+      ),
       summary("pramana.guard.check.duration",
         event_name: "pramana.guard.check",
         unit: {:native, :millisecond},

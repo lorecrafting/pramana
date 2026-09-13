@@ -11,13 +11,10 @@
 //! does not belong inside the BEAM VM.
 
 use jieba_rs::Jieba;
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 
 /// Loading jieba's dictionary is expensive, so do it once per VM rather than per call.
-fn jieba() -> &'static Jieba {
-    static JIEBA: OnceLock<Jieba> = OnceLock::new();
-    JIEBA.get_or_init(Jieba::new)
-}
+static JIEBA: LazyLock<Jieba> = LazyLock::new(Jieba::new);
 
 /// Segments Chinese text into words.
 ///
@@ -26,7 +23,7 @@ fn jieba() -> &'static Jieba {
 /// stall unrelated work across the node.
 #[rustler::nif(schedule = "DirtyCpu")]
 fn segment(text: &str) -> Vec<String> {
-    jieba()
+    JIEBA
         .cut(text, false)
         .into_iter()
         .map(String::from)
@@ -39,7 +36,7 @@ fn segment(text: &str) -> Vec<String> {
 /// index, not for displaying a tokenization to a user.
 #[rustler::nif(schedule = "DirtyCpu")]
 fn segment_for_search(text: &str) -> Vec<String> {
-    jieba()
+    JIEBA
         .cut_for_search(text, false)
         .into_iter()
         .map(String::from)
