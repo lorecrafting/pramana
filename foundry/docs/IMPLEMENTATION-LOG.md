@@ -723,6 +723,23 @@ steps.
   outside the ticket and must not enter its candidate. Excludes FR-08's complete transition
   migration, FR-15a protected process isolation, FR-19 operating limits and any live
   deployment/provider activity.
+- `/root/fr07_impl` froze candidate
+  `d99799e46577d24ca178ac67dea12ce2b250ee87`, tree
+  `2fc76e2316ddef5ab2c27b0879bbf0ee90d28757`; implementation commit
+  `53738a005eefac1cd30376243767ccbcd9b472db`, tree
+  `a6ddde723739ddb7aaf26391fc469d54fc803193`. Candidate artifact SHA-256
+  `79a5ded644517b294a67e3e3e7a214b97f3ee518d448b8e39929e846e794b4e9`
+  records 15 verified path hashes, 31 focused/compatibility passes and an 84-file
+  warnings-as-errors compile. A fresh-root full run returned 439/440 due to one unrelated
+  telemetry scheduler-timing assertion; its immediate isolated rerun passed. An earlier
+  fresh-root run passed 440/440 before the final protected-read check, so it is retained
+  only as superseded evidence. Dependency source directories remain untracked/excluded.
+- The candidate pins Exqlite 0.40.0 and implements the store/gateway/kernel/import in
+  Elixir over the required in-process SQLite NIF. It explicitly does not claim a
+  controllable VFS fsync/power-loss test, host isolation, full mutation migration,
+  operational retention or deployment. `/root/fr07_review_prep` (Astra-medium), which
+  prepared its adversarial checklist without seeing the candidate, now owns independent
+  review of this exact frozen revision.
 
 ### FR-08 preparation
 
