@@ -357,15 +357,45 @@ defmodule PramanaFoundry.StressTest do
       e2 = event("assignment_admitted", %{"checkout" => "/tmp/w1"})
       base = e2
 
+      cleanup_identity = %{
+        "name" => "pramana-dev-test",
+        "pane_id" => "w3:p42",
+        "terminal_id" => "term-42",
+        "session" => %{"source" => "agent_session", "value" => "session-42"}
+      }
+
+      presentation_identity = %{
+        "pane_id" => "w3:p42",
+        "terminal_id" => "term-42",
+        "process_identity" => %{
+          "pane_id" => "w3:p42",
+          "terminal_id" => "term-42",
+          "shell_pid" => 101,
+          "started_at" => "fixture-1",
+          "foreground_pid" => 202,
+          "foreground_started_at" => "foreground-fixture-1"
+        }
+      }
+
       e3 = %{
         base
         | "event" => "pane_created",
-          "attributes" => %{"pane_id" => "w3:p42", "agent_name" => "pramana-dev-test"}
+          "attributes" => %{
+            "pane_id" => "w3:p42",
+            "agent_name" => "pramana-dev-test",
+            "cleanup_identity" => cleanup_identity,
+            "presentation_identity" => presentation_identity
+          }
       }
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3])
       assert state["assignments"]["T-STRESS-1"]["pane_id"] == "w3:p42"
       assert state["assignments"]["T-STRESS-1"]["agent_name"] == "pramana-dev-test"
+      assert state["assignments"]["T-STRESS-1"]["cleanup_identity"] == cleanup_identity
+
+      assert state["assignments"]["T-STRESS-1"]["presentation_identity"] ==
+               presentation_identity
+
       # Status stays dispatched — no terminal event written yet
       assert state["assignments"]["T-STRESS-1"]["status"] == "dispatched"
     end

@@ -19,6 +19,8 @@ defmodule PramanaFoundry.Coordinator do
   alias PramanaFoundry.LogStore
   alias PramanaFoundry.LaunchEligibility
   alias PramanaFoundry.RuntimeRoot
+  alias PramanaFoundry.RuntimeLease
+  alias PramanaFoundry.Cleanup
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -63,6 +65,9 @@ defmodule PramanaFoundry.Coordinator do
     GenServer.call(__MODULE__, :health)
   end
 
+  def record_cleanup(phase, attributes),
+    do: GenServer.call(__MODULE__, {:record_cleanup, phase, attributes})
+
   @doc "Look up the AgentServer PID for a running agent by task_id."
   def agent_pid(task_id) do
     GenServer.call(__MODULE__, {:agent_pid, task_id})
@@ -72,6 +77,8 @@ defmodule PramanaFoundry.Coordinator do
 
   @impl true
   def init(opts) do
+    Process.flag(:trap_exit, true)
+
     accepted_rev =
       Keyword.get(opts, :accepted_revision, "c8ede6a17323c080124aa4512a83494b537648a5")
 
@@ -151,30 +158,18 @@ defmodule PramanaFoundry.Coordinator do
                  Transition.rebuild(events, accepted_revision: accepted_rev) do
             if startup_reconciliation_required?(recovered_state) do
               throw(
-                {:persistence_failed,
+                {:persistence_failed_with_state,
                  {:legacy_startup_reconciliation_suspended,
-                  "FR-03 containment requires FR-07/FR-08 recovery transactions"}}
+                  "FR-03 containment requires FR-07/FR-08 recovery transactions"},
+                 recovered_state, projection}
               )
             end
 
             recovered_state = reenqueue_stale_dispatched(recovered_state, events, event_log_path)
 
-            recovered_state =
-              recover_inflight_agents(
-                recovered_state,
-                events,
-                event_log_path,
-                adapter,
-                herdr_timeout
-              )
-
             IO.puts(
               "  event log: #{length(events)} events, #{map_size(Map.get(recovered_state, "assignments", %{}))} assignments recovered"
             )
-
-            if process_has_herdr_env?() do
-              cleanup_orphan_panes(adapter, recovered_state, herdr_timeout)
-            end
 
             tick_ref = if enable_tick, do: Process.send_after(self(), :tick, poll_ms), else: nil
 
@@ -217,6 +212,29 @@ defmodule PramanaFoundry.Coordinator do
             {:error, reason} -> throw({:persistence_failed, {:invalid_replay, reason}})
           end
         catch
+          :throw, {:persistence_failed_with_state, reason, recovered_state, projection} ->
+            recovery_state =
+              recovered_state
+              |> Map.put("status", "recovery_required")
+              |> Map.put("recovery_error", inspect(reason))
+
+            {:ok,
+             coordinator_data(recovery_state, projection, nil, adapter, opts,
+               poll_ms: poll_ms,
+               herdr_timeout: herdr_timeout,
+               max_launch_retries: max_launch_retries,
+               max_work_retries: max_work_retries,
+               telemetry_path: telemetry_path,
+               event_log_path: event_log_path,
+               coordinator_log_path: coordinator_log_path,
+               launch_profiles: launch_profiles,
+               launch_role_profiles: launch_role_profiles,
+               launch_now_fn: launch_now_fn,
+               herdr_opts: herdr_opts,
+               require_runtime_owner: require_runtime_owner,
+               recovery_error: reason
+             )}
+
           :throw, {:persistence_failed, reason} ->
             recovery_state = recovery_state(accepted_rev, reason)
 
@@ -555,19 +573,75 @@ defmodule PramanaFoundry.Coordinator do
     {:reply, Map.get(reg, task_id), data}
   end
 
+  def handle_call({:record_cleanup, phase, attributes}, _from, data)
+      when phase in [:pending, :result] and is_map(attributes) do
+    event = if phase == :pending, do: "cleanup_pending", else: "cleanup_result"
+    task_id = Map.get(attributes, "task_id", "")
+    run_id = Map.get(attributes, "execution_id", "")
+    role = Map.get(attributes, "role", "")
+
+    apply_cleanup =
+      if phase == :pending,
+        do: &Cleanup.apply_pending/2,
+        else: &Cleanup.apply_result/2
+
+    with {:ok, next_state} <- apply_cleanup.(data.state, attributes) do
+      persist_call(
+        data,
+        event,
+        task_id,
+        run_id,
+        role,
+        durable_cleanup_attributes(attributes),
+        fn ->
+          {:reply, :ok, %{data | state: next_state}}
+        end
+      )
+    else
+      {:error, reason} -> {:reply, {:error, reason}, data}
+    end
+  end
+
+  def handle_call({:record_cleanup, :resource, attributes}, _from, data)
+      when is_map(attributes) do
+    attributes = ensure_resource_id(attributes)
+    task_id = Map.get(attributes, "task_id", "")
+    run_id = Map.get(attributes, "execution_id", "")
+    role = Map.get(attributes, "role", "")
+
+    with {:ok, registered_state} <- Cleanup.register_resource(data.state, attributes) do
+      next_state = project_resource_compatibility(registered_state, attributes)
+
+      persist_call(
+        data,
+        "pane_created",
+        task_id,
+        run_id,
+        role,
+        pane_created_attributes(attributes),
+        fn -> {:reply, :ok, %{data | state: next_state}} end
+      )
+    else
+      {:error, reason} ->
+        {:reply, {:error, {:recovery_required, reason}}, enter_recovery(data, reason)}
+    end
+  end
+
   # ── handle_info ──
 
   @impl true
   def handle_info(:tick, %{recovery_error: reason} = data) when not is_nil(reason),
     do: {:noreply, data}
 
-  def handle_info({event, task_id, _run_id, _reason, _info}, %{recovery_error: reason} = data)
+  def handle_info({event, task_id, _run_id, _reason, info}, %{recovery_error: reason} = data)
       when event in [:agent_completed, :agent_crashed] and not is_nil(reason),
-      do: {:noreply, drop_agent_registry(data, task_id)}
+      do: {:noreply, maybe_drop_after_cleanup(data, task_id, info)}
 
-  def handle_info({:agent_launched, task_id, _result, _info}, %{recovery_error: reason} = data)
-      when not is_nil(reason),
-      do: {:noreply, drop_agent_registry(data, task_id)}
+  def handle_info({:agent_launched, task_id, _result, info}, %{recovery_error: reason} = data)
+      when not is_nil(reason) do
+    data = preserve_unregistered_launch_resource(data, info)
+    {:noreply, maybe_drop_after_cleanup(data, task_id, info)}
+  end
 
   def handle_info(
         :tick,
@@ -576,9 +650,7 @@ defmodule PramanaFoundry.Coordinator do
           poll_ms: poll_ms,
           agent_registry: agent_registry,
           event_log_path: event_log_path,
-          max_launch_retries: max_launch_retries,
-          herdr_adapter: adapter,
-          herdr_timeout: herdr_timeout
+          max_launch_retries: max_launch_retries
         } = data
       ) do
     case ensure_runtime_owner(data) do
@@ -588,15 +660,6 @@ defmodule PramanaFoundry.Coordinator do
       :ok ->
         tick_ref = Process.send_after(self(), :tick, poll_ms)
         data = %{data | tick_ref: tick_ref}
-
-        # Periodic orphan pane cleanup: every ~16 ticks (~4 minutes at 15s poll)
-        # Scans Herdr panes and closes any not tracked by current assignments.
-        tick_count = data[:tick_count] || 0
-        data = put_in(data, [:tick_count], tick_count + 1)
-
-        if rem(tick_count, 16) == 0 and Map.get(state, "paused", false) == false do
-          cleanup_orphan_panes(adapter, state, herdr_timeout)
-        end
 
         LogStore.append(Map.get(data, :coordinator_log_path), %{
           "event" => "tick_start",
@@ -644,6 +707,14 @@ defmodule PramanaFoundry.Coordinator do
             |> Enum.each(fn
               {:skipped, _id, _status} ->
                 :ok
+
+              {:admission_suspended, :cleanup_outstanding} ->
+                LogStore.append(Map.get(data, :coordinator_log_path), %{
+                  "event" => "tick_admission_suspended",
+                  "source" => "coordinator",
+                  "reason" => "cleanup_outstanding",
+                  "queue_size" => length(Map.get(new_state, "queue", []))
+                })
 
               {:admitted, id} ->
                 IO.puts("  tick: admitted #{id}")
@@ -730,48 +801,45 @@ defmodule PramanaFoundry.Coordinator do
     {:noreply, data}
   end
 
+  @impl true
+  def terminate(reason, data) do
+    if Map.get(data, :require_runtime_owner, false) and clean_shutdown?(reason) and
+         safe_clean_shutdown_state?(data.state) do
+      try do
+        RuntimeLease.allow_clean_release()
+      catch
+        :exit, _reason -> :ok
+      end
+    end
+
+    :ok
+  end
+
   defp handle_agent_launched({:agent_launched, task_id, :ok, info}, %{state: state} = data) do
     IO.puts("  Agent launched for #{task_id}: pane=#{info[:pane_id]} name=#{info[:agent_name]}")
 
-    new_state =
-      state
-      |> put_in(["assignments", task_id, "dispatched_at"], formatted_now())
-      |> put_in(["assignments", task_id, "pane_id"], info[:pane_id])
-      |> put_in(["assignments", task_id, "agent_name"], info[:agent_name])
+    LogStore.append(Map.get(data, :coordinator_log_path), %{
+      "event" => "agent_launched",
+      "source" => "coordinator",
+      "task_id" => task_id,
+      "pane" => info[:pane_id],
+      "agent" => info[:agent_name]
+    })
 
-    run_id = get_in(state, ["assignments", task_id, "run_id"]) || "pending"
+    emit_telemetry(Map.get(data, :telemetry_path), "agent_launch", %{
+      "task_id" => task_id,
+      "phase" => "launch",
+      "outcome" => "dispatched",
+      "agent" => info[:agent_name],
+      "pane" => info[:pane_id]
+    })
 
-    persist_info(
-      data,
-      "pane_created",
-      task_id,
-      run_id,
-      "developer",
-      %{"pane_id" => info[:pane_id], "agent_name" => info[:agent_name]},
-      fn ->
-        LogStore.append(Map.get(data, :coordinator_log_path), %{
-          "event" => "agent_launched",
-          "source" => "coordinator",
-          "task_id" => task_id,
-          "pane" => info[:pane_id],
-          "agent" => info[:agent_name]
-        })
-
-        emit_telemetry(Map.get(data, :telemetry_path), "agent_launch", %{
-          "task_id" => task_id,
-          "phase" => "launch",
-          "outcome" => "dispatched",
-          "agent" => info[:agent_name],
-          "pane" => info[:pane_id]
-        })
-
-        {:noreply, %{data | state: new_state}}
-      end
-    )
+    new_state = put_in(state, ["assignments", task_id, "dispatched_at"], formatted_now())
+    {:noreply, %{data | state: new_state}}
   end
 
   defp handle_agent_launched(
-         {:agent_launched, task_id, {:error, stage, reason}, _info},
+         {:agent_launched, task_id, {:error, stage, reason}, info},
          %{state: state, max_launch_retries: max_retries} = data
        ) do
     IO.puts("  Agent launch failed for #{task_id} at #{stage}: #{inspect(reason)}")
@@ -781,6 +849,35 @@ defmodule PramanaFoundry.Coordinator do
     run_id = get_in(state, ["assignments", task_id, "run_id"]) || "pending"
 
     cond do
+      cleanup_outstanding?(state, task_id) or unresolved_cleanup_receipt?(info) ->
+        persist_info(
+          data,
+          "launch_parked",
+          task_id,
+          run_id,
+          "developer",
+          Map.merge(
+            %{
+              "retry_count" => current_retries,
+              "max_retries" => max_retries,
+              "stage" => to_string(stage),
+              "error_reason" => "cleanup unresolved after launch failure: #{inspect(reason)}"
+            },
+            cleanup_attributes(info)
+          ),
+          fn ->
+            new_state =
+              state
+              |> Cleanup.preserve_work_status(task_id, "launch_failed")
+              |> put_in(
+                ["assignments", task_id, "error"],
+                "cleanup unresolved after launch failure: #{inspect(reason)}"
+              )
+
+            {:noreply, %{data | state: new_state}}
+          end
+        )
+
       new_retries <= max_retries ->
         IO.puts("  Re-enqueueing #{task_id} for retry #{new_retries}/#{max_retries}")
 
@@ -791,12 +888,15 @@ defmodule PramanaFoundry.Coordinator do
           task_id,
           run_id,
           "developer",
-          %{
-            "retry_count" => new_retries,
-            "max_retries" => max_retries,
-            "stage" => to_string(stage),
-            "error_reason" => "launch_failed: #{stage}: #{inspect(reason)}"
-          },
+          Map.merge(
+            %{
+              "retry_count" => new_retries,
+              "max_retries" => max_retries,
+              "stage" => to_string(stage),
+              "error_reason" => "launch_failed: #{stage}: #{inspect(reason)}"
+            },
+            cleanup_attributes(info)
+          ),
           fn ->
             new_state =
               state
@@ -848,12 +948,15 @@ defmodule PramanaFoundry.Coordinator do
           task_id,
           run_id,
           "developer",
-          %{
-            "retry_count" => new_retries,
-            "max_retries" => max_retries,
-            "stage" => to_string(stage),
-            "error_reason" => "max_launch_retries(#{max_retries}): #{stage}: #{inspect(reason)}"
-          },
+          Map.merge(
+            %{
+              "retry_count" => new_retries,
+              "max_retries" => max_retries,
+              "stage" => to_string(stage),
+              "error_reason" => "max_launch_retries(#{max_retries}): #{stage}: #{inspect(reason)}"
+            },
+            cleanup_attributes(info)
+          ),
           fn ->
             new_state =
               state
@@ -895,7 +998,7 @@ defmodule PramanaFoundry.Coordinator do
   end
 
   defp handle_agent_completed(
-         {:agent_completed, task_id, run_id, reason, _info},
+         {:agent_completed, task_id, run_id, reason, info},
          %{state: state, telemetry_path: telemetry_path} = data
        ) do
     IO.puts("  Agent completed #{task_id}: #{inspect(reason)}")
@@ -907,40 +1010,40 @@ defmodule PramanaFoundry.Coordinator do
       task_id,
       run_id,
       "developer",
-      %{
-        "reason" => inspect(reason)
-      },
+      Map.merge(%{"reason" => inspect(reason)}, cleanup_attributes(info)),
       fn ->
-        new_state =
+        work_status =
           case reason do
             {:handoff, :ok} ->
               # If status is already "review_approved" (from coordinator's receive_review),
               # don't overwrite — the review already went through.
-              current = get_in(state, ["assignments", task_id, "status"])
+              current = current_work_status(state, task_id)
 
               if current in ~w(review_approved review) do
-                state
+                current
               else
-                put_in(state, ["assignments", task_id, "status"], "review")
+                "review"
               end
 
             {:handoff, {:error, _}} ->
               # Handoff was rejected. If the task was already re-enqueued by the
               # handoff handler (auto-retry), don't overwrite that status.
-              current = get_in(state, ["assignments", task_id, "status"])
+              current = current_work_status(state, task_id)
 
               if current == "queued" do
-                state
+                current
               else
-                put_in(state, ["assignments", task_id, "status"], "handoff_rejected")
+                "handoff_rejected"
               end
 
             {:error, _r} ->
-              put_in(state, ["assignments", task_id, "status"], "failed")
+              "failed"
 
             _ ->
-              put_in(state, ["assignments", task_id, "status"], "completed")
+              "completed"
           end
+
+        new_state = Cleanup.preserve_work_status(state, task_id, work_status)
 
         emit_telemetry(telemetry_path, "agent_completed", %{
           "task_id" => task_id,
@@ -951,9 +1054,9 @@ defmodule PramanaFoundry.Coordinator do
         })
 
         new_registry =
-          data.agent_registry
-          |> Map.drop([task_id])
-          |> Map.delete("#{task_id}-review")
+          if cleanup_outstanding?(new_state, task_id),
+            do: data.agent_registry,
+            else: drop_registry_entries(data.agent_registry, task_id)
 
         {:noreply, %{data | state: new_state, agent_registry: new_registry}}
       end
@@ -973,67 +1076,79 @@ defmodule PramanaFoundry.Coordinator do
       task_id,
       run_id,
       "developer",
-      %{
-        "reason" => inspect(reason),
-        "pane" => Map.get(info, :pane_id, "")
-      },
+      Map.merge(
+        %{
+          "reason" => inspect(reason),
+          "pane" => Map.get(info, :pane_id, "")
+        },
+        cleanup_attributes(info)
+      ),
       fn ->
         current_work_retries = get_in(state, ["assignments", task_id, "work_retries"]) || 0
         new_retries = current_work_retries + 1
         max_work_retries = Map.get(data, :max_work_retries, 2)
 
-        if new_retries <= max_work_retries do
-          IO.puts(
-            "  Re-enqueueing #{task_id} after crash (work retry #{new_retries}/#{max_work_retries})"
-          )
-
+        if cleanup_outstanding?(state, task_id) or unresolved_cleanup_receipt?(info) do
           new_state =
             state
-            |> put_in(["assignments", task_id, "status"], "queued")
-            |> put_in(["assignments", task_id, "work_retries"], new_retries)
-            |> put_in(["assignments", task_id, "error"], "agent_crashed: #{inspect(reason)}")
-            |> Map.update!("queue", fn q -> q ++ [task_id] end)
+            |> Cleanup.preserve_work_status(task_id, "crashed")
+            |> put_in(["assignments", task_id, "error"], "cleanup unresolved: #{inspect(reason)}")
 
-          emit_telemetry(Map.get(data, :telemetry_path), "agent_crash", %{
-            "task_id" => task_id,
-            "run_id" => run_id,
-            "phase" => "crash",
-            "outcome" => "retry",
-            "reason" => inspect(reason)
-          })
-
-          new_registry =
-            data.agent_registry
-            |> Map.drop([task_id])
-            |> Map.delete("#{task_id}-review")
-
-          {:noreply, %{data | state: new_state, agent_registry: new_registry}}
+          {:noreply, %{data | state: new_state}}
         else
-          IO.puts("  Parking #{task_id} after #{new_retries} crashes (max #{max_work_retries})")
-
-          new_state =
-            state
-            |> put_in(["assignments", task_id, "status"], "crashed")
-            |> put_in(["assignments", task_id, "work_retries"], new_retries)
-            |> put_in(
-              ["assignments", task_id, "error"],
-              "agent_crashed(#{max_work_retries}): #{inspect(reason)}"
+          if new_retries <= max_work_retries do
+            IO.puts(
+              "  Re-enqueueing #{task_id} after crash (work retry #{new_retries}/#{max_work_retries})"
             )
 
-          emit_telemetry(Map.get(data, :telemetry_path), "agent_crash", %{
-            "task_id" => task_id,
-            "run_id" => run_id,
-            "phase" => "crash",
-            "outcome" => "parked",
-            "reason" => inspect(reason)
-          })
+            new_state =
+              state
+              |> put_in(["assignments", task_id, "status"], "queued")
+              |> put_in(["assignments", task_id, "work_retries"], new_retries)
+              |> put_in(["assignments", task_id, "error"], "agent_crashed: #{inspect(reason)}")
+              |> Map.update!("queue", fn q -> q ++ [task_id] end)
 
-          new_registry =
-            data.agent_registry
-            |> Map.drop([task_id])
-            |> Map.delete("#{task_id}-review")
+            emit_telemetry(Map.get(data, :telemetry_path), "agent_crash", %{
+              "task_id" => task_id,
+              "run_id" => run_id,
+              "phase" => "crash",
+              "outcome" => "retry",
+              "reason" => inspect(reason)
+            })
 
-          {:noreply, %{data | state: new_state, agent_registry: new_registry}}
+            new_registry =
+              data.agent_registry
+              |> Map.drop([task_id])
+              |> Map.delete("#{task_id}-review")
+
+            {:noreply, %{data | state: new_state, agent_registry: new_registry}}
+          else
+            IO.puts("  Parking #{task_id} after #{new_retries} crashes (max #{max_work_retries})")
+
+            new_state =
+              state
+              |> put_in(["assignments", task_id, "status"], "crashed")
+              |> put_in(["assignments", task_id, "work_retries"], new_retries)
+              |> put_in(
+                ["assignments", task_id, "error"],
+                "agent_crashed(#{max_work_retries}): #{inspect(reason)}"
+              )
+
+            emit_telemetry(Map.get(data, :telemetry_path), "agent_crash", %{
+              "task_id" => task_id,
+              "run_id" => run_id,
+              "phase" => "crash",
+              "outcome" => "parked",
+              "reason" => inspect(reason)
+            })
+
+            new_registry =
+              data.agent_registry
+              |> Map.drop([task_id])
+              |> Map.delete("#{task_id}-review")
+
+            {:noreply, %{data | state: new_state, agent_registry: new_registry}}
+          end
         end
       end
     )
@@ -1054,6 +1169,19 @@ defmodule PramanaFoundry.Coordinator do
     })
   end
 
+  defp cleanup_attributes(%{cleanup: %{status: status} = cleanup}) do
+    %{
+      "cleanup_status" => to_string(status),
+      "cleanup_reason" => cleanup_reason(cleanup)
+    }
+  end
+
+  defp cleanup_attributes(_info),
+    do: %{"cleanup_status" => "unresolved", "cleanup_reason" => ":missing_cleanup_receipt"}
+
+  defp cleanup_reason(%{reason: reason}), do: inspect(reason)
+  defp cleanup_reason(_cleanup), do: nil
+
   defp recovery_state(accepted_rev, reason) do
     CoordState.new(accepted_revision: accepted_rev)
     |> Map.put("status", "recovery_required")
@@ -1064,7 +1192,9 @@ defmodule PramanaFoundry.Coordinator do
     state
     |> Map.get("assignments", %{})
     |> Map.values()
-    |> Enum.any?(fn assignment -> Map.get(assignment, "status") in ~w(dispatched crashed) end)
+    |> Enum.any?(fn assignment ->
+      Map.get(assignment, "status") in ~w(dispatched crashed cleanup_pending cleanup_blocked)
+    end)
   end
 
   defp persist_call(data, event, task_id, run_id, role, attributes, continuation) do
@@ -1099,6 +1229,64 @@ defmodule PramanaFoundry.Coordinator do
     end
   end
 
+  defp project_resource_compatibility(state, attributes) do
+    task_id = attributes["task_id"]
+
+    state
+    |> put_in(["assignments", task_id, "pane_id"], attributes["pane_id"])
+    |> put_in(["assignments", task_id, "agent_name"], attributes["agent_name"])
+    |> put_in(
+      ["assignments", task_id, "cleanup_identity"],
+      cleanup_identity_attributes(attributes)
+    )
+    |> put_in(
+      ["assignments", task_id, "presentation_identity"],
+      attributes["presentation_identity"]
+    )
+  end
+
+  defp pane_created_attributes(attributes) do
+    event_attributes = %{
+      "execution_id" => attributes["execution_id"],
+      "role" => attributes["role"],
+      "resource_id" => attributes["resource_id"],
+      "pane_id" => attributes["pane_id"],
+      "agent_name" => attributes["agent_name"],
+      "verification_status" =>
+        if(is_map(attributes["presentation_identity"]), do: "verified", else: "unverified"),
+      "cleanup_identity" => cleanup_identity_attributes(attributes),
+      "presentation_identity" => attributes["presentation_identity"]
+    }
+
+    if is_nil(attributes["presentation_identity"]),
+      do: Map.delete(event_attributes, "presentation_identity"),
+      else: event_attributes
+  end
+
+  defp cleanup_identity_attributes(attributes) do
+    identity = %{
+      "name" => attributes["agent_name"],
+      "pane_id" => attributes["pane_id"],
+      "terminal_id" => attributes["terminal_id"],
+      "session" => attributes["session"]
+    }
+
+    if is_nil(attributes["session"]), do: Map.delete(identity, "session"), else: identity
+  end
+
+  defp ensure_resource_id(%{"role" => role, "execution_id" => execution_id} = attributes)
+       when is_binary(role) and is_binary(execution_id),
+       do: Map.put_new(attributes, "resource_id", role <> ":" <> execution_id)
+
+  defp ensure_resource_id(attributes), do: attributes
+
+  defp durable_cleanup_attributes(attributes) do
+    Enum.reduce(~w(session observed_session presentation_identity), attributes, fn field,
+                                                                                   durable ->
+      if is_nil(Map.get(durable, field)), do: Map.delete(durable, field), else: durable
+    end)
+  end
+
   defp startup_append_or_halt(path, event, task_id, run_id, role, attributes) do
     case Checkpoint.append(path, event, task_id, run_id, role, attributes) do
       {:ok, _record} -> :ok
@@ -1127,6 +1315,14 @@ defmodule PramanaFoundry.Coordinator do
       |> Map.put("status", "recovery_required")
       |> Map.put("recovery_error", inspect(reason))
 
+    if Map.get(data, :require_runtime_owner, false) do
+      try do
+        RuntimeLease.inhibit_clean_release(reason)
+      catch
+        :exit, _reason -> :ok
+      end
+    end
+
     %{data | state: state, recovery_error: reason, tick_ref: nil}
   end
 
@@ -1138,13 +1334,63 @@ defmodule PramanaFoundry.Coordinator do
   end
 
   defp drop_agent_registry(data, task_id) do
-    new_registry =
-      data.agent_registry
-      |> Map.drop([task_id])
-      |> Map.delete("#{task_id}-review")
+    new_registry = drop_registry_entries(data.agent_registry, task_id)
 
     %{data | agent_registry: new_registry}
   end
+
+  defp maybe_drop_after_cleanup(data, task_id, info) do
+    if cleanup_outstanding?(data.state, task_id) or unresolved_cleanup_receipt?(info),
+      do: data,
+      else: drop_agent_registry(data, task_id)
+  end
+
+  defp preserve_unregistered_launch_resource(data, %{
+         resource_registered: false,
+         resource: resource
+       })
+       when is_map(resource) do
+    case Cleanup.register_resource(data.state, resource) do
+      {:ok, state} -> %{data | state: state}
+      {:error, _reason} -> data
+    end
+  end
+
+  defp preserve_unregistered_launch_resource(data, _info), do: data
+
+  defp drop_registry_entries(registry, task_id) do
+    registry
+    |> Map.drop([task_id])
+    |> Map.delete("#{task_id}-review")
+  end
+
+  defp cleanup_outstanding?(state, task_id),
+    do:
+      state
+      |> get_in(["assignments", task_id])
+      |> Cleanup.assignment_outstanding?()
+
+  defp current_work_status(state, task_id) do
+    assignment = get_in(state, ["assignments", task_id]) || %{}
+
+    if Cleanup.assignment_outstanding?(assignment),
+      do: Map.get(assignment, "work_status", Map.get(assignment, "status")),
+      else: Map.get(assignment, "status")
+  end
+
+  defp unresolved_cleanup_receipt?(%{cleanup: %{status: status}}),
+    do: status not in [:closed, :not_required]
+
+  defp unresolved_cleanup_receipt?(_info), do: true
+
+  defp safe_clean_shutdown_state?(state) do
+    Map.get(state, "status", "running") != "recovery_required" and
+      Cleanup.all_owned_resources_terminal?(state)
+  end
+
+  defp clean_shutdown?(:shutdown), do: true
+  defp clean_shutdown?({:shutdown, _reason}), do: true
+  defp clean_shutdown?(_reason), do: false
 
   defp formatted_now do
     DateTime.utc_now() |> DateTime.to_iso8601()
@@ -1254,180 +1500,6 @@ defmodule PramanaFoundry.Coordinator do
 
   defp block_reviewer_if_ineligible(data, state, _task_id, {:ok, _profile}),
     do: {state, data.agent_registry}
-
-  # ── Orphan pane cleanup ──
-
-  defp cleanup_orphan_panes(adapter, state, timeout_ms) do
-    tracked_panes =
-      Map.get(state, "assignments", %{})
-      |> Map.values()
-      |> Enum.map(&Map.get(&1, "pane_id", ""))
-      |> Enum.reject(&(&1 == ""))
-      |> MapSet.new()
-
-    case PramanaFoundry.Herdr.Runner.System.run(
-           [adapter.command, "pane", "list"],
-           timeout_ms: timeout_ms
-         ) do
-      {:ok, %{stdout: stdout}} ->
-        case :json.decode(stdout) do
-          %{"result" => %{"panes" => panes}} when is_list(panes) ->
-            orphans =
-              Enum.filter(panes, fn p ->
-                pane_id = Map.get(p, "pane_id", "")
-                cwd = Map.get(p, "foreground_cwd", "")
-                tracked = MapSet.member?(tracked_panes, pane_id)
-
-                not tracked and
-                  pane_id not in ~w(w3:p1 w3:p0) and
-                  String.starts_with?(cwd, "/private/tmp")
-              end)
-
-            if orphans != [] do
-              ids = Enum.map(orphans, & &1["pane_id"])
-              IO.puts("  cleanup: closing #{length(orphans)} orphaned pane(s): #{inspect(ids)}")
-
-              Enum.each(orphans, fn p ->
-                PramanaFoundry.Herdr.Runner.System.run(
-                  [adapter.command, "pane", "close", p["pane_id"]],
-                  timeout_ms: timeout_ms
-                )
-              end)
-            end
-
-          _ ->
-            IO.puts("  cleanup: could not parse pane list")
-        end
-
-      {:error, reason} ->
-        IO.puts("  cleanup: pane list failed: #{inspect(reason)}")
-    end
-  end
-
-  # ── Inflight agent recovery ──
-
-  defp recover_inflight_agents(state, events, event_log_path, adapter, timeout_ms) do
-    pane_created = Enum.filter(events, fn e -> Map.get(e, "event") == "pane_created" end)
-
-    if pane_created == [] do
-      state
-    else
-      IO.puts("  inflight: checking #{length(pane_created)} pane(s) for recoverable handoffs")
-
-      Enum.reduce(pane_created, state, fn event, acc_state ->
-        task_id = Map.get(event, "task_id", "")
-        pane_id = get_in(event, ["attributes", "pane_id"]) || ""
-        run_id = Map.get(event, "run_id", "pending")
-        assignment = get_in(acc_state, ["assignments", task_id])
-        status = Map.get(assignment, "status", "")
-
-        if status not in ~w(dispatched) do
-          acc_state
-        else
-          case PramanaFoundry.Herdr.Runner.System.run(
-                 [adapter.command, "pane", "get", pane_id],
-                 timeout_ms: timeout_ms
-               ) do
-            {:ok, %{stdout: stdout}} ->
-              case :json.decode(stdout) do
-                %{"result" => %{"pane" => _pane}} ->
-                  read_inflight_pane(
-                    acc_state,
-                    event_log_path,
-                    task_id,
-                    run_id,
-                    pane_id,
-                    adapter,
-                    timeout_ms
-                  )
-
-                _ ->
-                  IO.puts("    inflight: pane #{pane_id} (#{task_id}) gone")
-                  acc_state
-              end
-
-            {:error, _} ->
-              IO.puts("    inflight: pane #{pane_id} (#{task_id}) unreachable")
-              acc_state
-          end
-        end
-      end)
-    end
-  end
-
-  defp read_inflight_pane(state, event_log_path, task_id, run_id, pane_id, adapter, timeout_ms) do
-    IO.puts("    inflight: reading pane #{pane_id} (#{task_id})")
-
-    case PramanaFoundry.Herdr.Runner.System.run(
-           [adapter.command, "pane", "read", pane_id],
-           timeout_ms: timeout_ms
-         ) do
-      {:ok, %{stdout: output}} when is_binary(output) and output != "" ->
-        handoff_data = find_handoff_in_output(output)
-
-        case handoff_data do
-          nil ->
-            IO.puts("    inflight: no handoff found in pane #{pane_id} (#{task_id})")
-            state
-
-          handoff ->
-            IO.puts("    inflight: recovered handoff for #{task_id}")
-
-            case PramanaFoundry.Coordinator.State.receive_handoff(state, task_id, handoff, []) do
-              {:ok, _assignment, new_state} ->
-                IO.puts("    inflight: handoff accepted for #{task_id}")
-
-                startup_append_or_halt(
-                  event_log_path,
-                  "handoff_recovered",
-                  task_id,
-                  run_id,
-                  "developer",
-                  %{"pane_id" => pane_id, "handoff" => handoff}
-                )
-
-                new_state
-
-              {:error, reason, _new_state} ->
-                IO.puts("    inflight: handoff rejected for #{task_id}: #{inspect(reason)}")
-                state
-            end
-        end
-
-      _ ->
-        IO.puts("    inflight: could not read pane #{pane_id} (#{task_id})")
-        state
-    end
-  end
-
-  defp find_handoff_in_output(output) do
-    output
-    |> String.split("\n")
-    |> Enum.find_value(:none, fn line ->
-      trimmed = String.trim(line)
-
-      if String.starts_with?(trimmed, "{") and String.ends_with?(trimmed, "}") do
-        decoded = safe_json_decode(trimmed)
-
-        if is_map(decoded) and
-             (Map.has_key?(decoded, "outcome") or Map.has_key?(decoded, "commit")) do
-          decoded
-        else
-          :none
-        end
-      end
-    end)
-    |> case do
-      :none -> nil
-      found -> found
-    end
-  end
-
-  defp safe_json_decode(line) do
-    :json.decode(line)
-  rescue
-    _ -> nil
-  end
 
   # ── Stale dispatch recovery ──
 

@@ -52,6 +52,10 @@ defmodule PramanaFoundry.AgentServer do
 
   @impl true
   def init(opts) do
+    # Supervisor shutdown must enter terminate/2 so the checked cleanup obligation
+    # can be recorded while the Coordinator remains alive during bounded drain.
+    Process.flag(:trap_exit, true)
+
     role = Keyword.get(opts, :role, :developer)
     profiles = Keyword.get(opts, :launch_profiles, %{})
     profile_name = Keyword.get(opts, :profile)
@@ -61,9 +65,7 @@ defmodule PramanaFoundry.AgentServer do
     herdr_opts = Keyword.get(opts, :herdr_opts, [])
 
     with {:ok, profile} <-
-           LaunchEligibility.resolve(profiles, profile_name, role, launch_state,
-             now: launch_now
-           ),
+           LaunchEligibility.resolve(profiles, profile_name, role, launch_state, now: launch_now),
          :ok <- Adapter.require_subscription_route(adapter, herdr_opts) do
       init_authorized(opts, profile)
     else
@@ -77,12 +79,19 @@ defmodule PramanaFoundry.AgentServer do
     checkout = Keyword.fetch!(opts, :checkout)
     adapter = Keyword.fetch!(opts, :adapter)
     coordinator_pid = Keyword.fetch!(opts, :coordinator_pid)
-    role = Keyword.get(opts, :role, :developer)  # :developer or :reviewer
+    # :developer or :reviewer
+    role = Keyword.get(opts, :role, :developer)
     herdr_timeout_ms = Keyword.get(opts, :herdr_timeout_ms, 30_000)
     work_timeout_ms = Keyword.get(opts, :work_timeout_ms, :timer.minutes(30))
     telemetry_path = Keyword.get(opts, :telemetry_path)
-    handoff_data = Keyword.get(opts, :handoff_data, %{})  # context for reviewer
+    # context for reviewer
+    handoff_data = Keyword.get(opts, :handoff_data, %{})
     herdr_opts = Keyword.get(opts, :herdr_opts, [])
+
+    cleanup_record_fn =
+      Keyword.get(opts, :cleanup_record_fn, fn phase, attributes ->
+        GenServer.call(coordinator_pid, {:record_cleanup, phase, attributes}, herdr_timeout_ms)
+      end)
 
     prefix = if role == :reviewer, do: "pramana-review-", else: "pramana-dev-"
     agent_name = "#{prefix}#{String.slice(run_id, 0, 8) |> String.downcase()}"
@@ -97,6 +106,7 @@ defmodule PramanaFoundry.AgentServer do
       phase: :launching,
       pane_id: nil,
       terminal_id: nil,
+      presentation_identity: nil,
       agent_name: agent_name,
       identity: nil,
       profile: profile,
@@ -112,7 +122,10 @@ defmodule PramanaFoundry.AgentServer do
       step_timings: %{},
       # Handoff tracking for review cycle
       handoff_artifact: nil,
-      handoff_attempt: 0
+      handoff_attempt: 0,
+      cleanup_result: nil,
+      cleanup_resource_registered: false,
+      cleanup_record_fn: cleanup_record_fn
     }
 
     send(self(), :launch)
@@ -129,12 +142,16 @@ defmodule PramanaFoundry.AgentServer do
     case do_launch(state) do
       {:ok, launched_state} ->
         launched_state = %{launched_state | agent_name: launched_state.identity.name}
-        IO.puts("  Agent #{launched_state.agent_name} launched on pane #{launched_state.pane_id} for #{launched_state.task_id}")
+
+        IO.puts(
+          "  Agent #{launched_state.agent_name} launched on pane #{launched_state.pane_id} for #{launched_state.task_id}"
+        )
 
         timeout_ref = Process.send_after(self(), :work_timeout, launched_state.work_timeout_ms)
         launched_state = %{launched_state | timeout_ref: timeout_ref, launched: true}
 
         duration_ms = elapsed_ms(launched_state.launch_start)
+
         emit_telemetry(launched_state.telemetry_path, "agent_launch", %{
           "task_id" => launched_state.task_id,
           "run_id" => launched_state.run_id,
@@ -146,21 +163,30 @@ defmodule PramanaFoundry.AgentServer do
           "steps" => launched_state.step_timings
         })
 
-        send(launched_state.coordinator_pid, {:agent_launched, launched_state.task_id, :ok, %{
-          pane_id: launched_state.pane_id,
-          agent_name: launched_state.agent_name
-        }})
+        send(
+          launched_state.coordinator_pid,
+          {:agent_launched, launched_state.task_id, :ok,
+           %{
+             execution_id: launched_state.run_id,
+             role: to_string(launched_state.role),
+             pane_id: launched_state.pane_id,
+             agent_name: launched_state.agent_name,
+             cleanup_identity: persisted_identity(launched_state.identity),
+             presentation_identity: persisted_presentation(launched_state.presentation_identity)
+           }}
+        )
 
         {:noreply, launched_state}
 
-      {:error, stage, reason, pane_id, state_after_failure} ->
-        IO.puts("  Agent launch failed at #{stage} for #{state_after_failure.task_id}: #{inspect(reason)}")
+      {:error, stage, reason, _pane_id, state_after_failure} ->
+        IO.puts(
+          "  Agent launch failed at #{stage} for #{state_after_failure.task_id}: #{inspect(reason)}"
+        )
 
-        if is_binary(pane_id) do
-          cleanup_pane(adapter, pane_id, herdr_timeout_ms)
-        end
+        cleanup_result = cleanup_pane(state_after_failure, adapter, herdr_timeout_ms)
 
         duration_ms = elapsed_ms(state_after_failure.launch_start)
+
         emit_telemetry(state_after_failure.telemetry_path, "agent_launch", %{
           "task_id" => state_after_failure.task_id,
           "run_id" => state_after_failure.run_id,
@@ -171,9 +197,18 @@ defmodule PramanaFoundry.AgentServer do
           "duration_ms" => duration_ms
         })
 
-        send(state_after_failure.coordinator_pid, {:agent_launched, state_after_failure.task_id, {:error, stage, reason}, %{}})
+        send(
+          state_after_failure.coordinator_pid,
+          {:agent_launched, state_after_failure.task_id, {:error, stage, reason},
+           %{
+             cleanup: cleanup_result,
+             resource: cleanup_obligation(state_after_failure),
+             resource_registered: state_after_failure.cleanup_resource_registered
+           }}
+        )
 
-        {:stop, {:launch_failed, stage, reason}, state_after_failure}
+        {:stop, {:launch_failed, stage, reason},
+         %{state_after_failure | cleanup_result: cleanup_result}}
     end
   end
 
@@ -181,9 +216,7 @@ defmodule PramanaFoundry.AgentServer do
   def handle_info(:work_timeout, state) do
     IO.puts("  Agent #{state.agent_name} timed out after #{state.work_timeout_ms}ms")
 
-    if is_binary(state.pane_id) do
-      cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
-    end
+    cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
 
     emit_telemetry(state.telemetry_path, "agent_timeout", %{
       "task_id" => state.task_id,
@@ -195,18 +228,22 @@ defmodule PramanaFoundry.AgentServer do
       "work_timeout_ms" => state.work_timeout_ms
     })
 
-    send(state.coordinator_pid, {:agent_completed, state.task_id, state.run_id, :timeout, %{pane_id: state.pane_id}})
+    send(
+      state.coordinator_pid,
+      {:agent_completed, state.task_id, state.run_id, :timeout,
+       %{pane_id: state.pane_id, cleanup: cleanup_result}}
+    )
 
-    {:stop, :shutdown, state}
+    {:stop, :shutdown, %{state | cleanup_result: cleanup_result}}
   end
 
   @impl true
   def handle_info(:review_timeout, state) do
-    IO.puts("  Agent #{state.agent_name} review timeout for #{state.task_id} — no review received")
+    IO.puts(
+      "  Agent #{state.agent_name} review timeout for #{state.task_id} — no review received"
+    )
 
-    if is_binary(state.pane_id) do
-      cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
-    end
+    cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
 
     emit_telemetry(state.telemetry_path, "agent_review_timeout", %{
       "task_id" => state.task_id,
@@ -217,9 +254,13 @@ defmodule PramanaFoundry.AgentServer do
       "pane" => state.pane_id
     })
 
-    send(state.coordinator_pid, {:agent_completed, state.task_id, state.run_id, :review_timeout, %{pane_id: state.pane_id}})
+    send(
+      state.coordinator_pid,
+      {:agent_completed, state.task_id, state.run_id, :review_timeout,
+       %{pane_id: state.pane_id, cleanup: cleanup_result}}
+    )
 
-    {:stop, :shutdown, state}
+    {:stop, :shutdown, %{state | cleanup_result: cleanup_result}}
   end
 
   # Receive correction findings from reviewer and re-prompt the agent
@@ -234,14 +275,16 @@ defmodule PramanaFoundry.AgentServer do
     The reviewer has requested corrections to your previous handoff.
 
     Findings to address:
-    #{Enum.map_join(findings, "\n", &("- #{&1}"))}
+    #{Enum.map_join(findings, "\n", &"- #{&1}")}
 
     Review the findings above, fix each one in the checkout, then re-run checks.
     When all findings are addressed, submit an updated handoff with the new commit.
     """
 
     case Adapter.prompt(state.adapter, state.identity, correction_prompt,
-           timeout_ms: state.herdr_timeout_ms, wait: false) do
+           timeout_ms: state.herdr_timeout_ms,
+           wait: false
+         ) do
       {:ok, _} ->
         IO.puts("    correction prompt sent to #{state.agent_name}")
         # Reset work timeout for the correction work
@@ -259,13 +302,15 @@ defmodule PramanaFoundry.AgentServer do
   def handle_info(:review_approved, state) do
     IO.puts("  Agent #{state.agent_name} review approved for #{state.task_id} — cleaning up")
 
-    if is_binary(state.pane_id) do
-      cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
-    end
+    cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
 
-    send(state.coordinator_pid, {:agent_completed, state.task_id, state.run_id, {:handoff, :ok}, %{pane_id: state.pane_id}})
+    send(
+      state.coordinator_pid,
+      {:agent_completed, state.task_id, state.run_id, {:handoff, :ok},
+       %{pane_id: state.pane_id, cleanup: cleanup_result}}
+    )
 
-    {:stop, :normal, state}
+    {:stop, :normal, %{state | cleanup_result: cleanup_result}}
   end
 
   @impl true
@@ -282,7 +327,9 @@ defmodule PramanaFoundry.AgentServer do
 
   @impl true
   def handle_call({:submit_review, review_data, opts}, _from, state) do
-    IO.puts("  Agent #{state.agent_name} review submitted for #{state.task_id} (role=#{state.role})")
+    IO.puts(
+      "  Agent #{state.agent_name} review submitted for #{state.task_id} (role=#{state.role})"
+    )
 
     result =
       case apply(PramanaFoundry.Coordinator, :receive_review, [state.task_id, review_data, opts]) do
@@ -302,14 +349,14 @@ defmodule PramanaFoundry.AgentServer do
       :ok ->
         # Review approved — both agents clean up
         # (the coordinator already updated state via receive_review)
-        cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
-        {:stop, :normal, :ok, state}
+        cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
+        {:stop, :normal, :ok, %{state | cleanup_result: cleanup_result}}
 
       :review_rejected ->
         # Review rejected (correction_needed) — keep reviewers alive for next cycle?
         # For now, just clean up and stop. Developer stays alive for corrections.
-        cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
-        {:stop, :normal, {:error, :review_rejected}, state}
+        cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
+        {:stop, :normal, {:error, :review_rejected}, %{state | cleanup_result: cleanup_result}}
     end
   end
 
@@ -342,38 +389,59 @@ defmodule PramanaFoundry.AgentServer do
         review_timeout = Process.send_after(self(), :review_timeout, :timer.minutes(10))
 
         {:reply, :ok,
-         %{state | phase: :pending_review, timeout_ref: review_timeout,
-           handoff_data: handoff_data, handoff_attempt: (state.handoff_attempt || 0) + 1}}
+         %{
+           state
+           | phase: :pending_review,
+             timeout_ref: review_timeout,
+             handoff_data: handoff_data,
+             handoff_attempt: (state.handoff_attempt || 0) + 1
+         }}
 
       :handoff_rejected ->
         # Handoff rejected — re-enqueue via coordinator, clean up pane, terminate.
         # The coordinator auto-re-enqueues with retry budget.
         if is_binary(state.pane_id) do
-          cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
+          cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
+          state = %{state | cleanup_result: cleanup_result}
+
+          send(
+            state.coordinator_pid,
+            {:agent_completed, state.task_id, state.run_id, {:handoff, {:error, :rejected}},
+             %{pane_id: state.pane_id, cleanup: cleanup_result}}
+          )
+
+          {:stop, :normal, {:error, :handoff_rejected}, state}
+        else
+          cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
+          state = %{state | cleanup_result: cleanup_result}
+
+          send(
+            state.coordinator_pid,
+            {:agent_completed, state.task_id, state.run_id, {:handoff, {:error, :rejected}},
+             %{pane_id: state.pane_id, cleanup: cleanup_result}}
+          )
+
+          {:stop, :normal, {:error, :handoff_rejected}, state}
         end
-
-        send(state.coordinator_pid, {:agent_completed, state.task_id, state.run_id,
-          {:handoff, {:error, :rejected}}, %{pane_id: state.pane_id}})
-
-        {:stop, :normal, {:error, :handoff_rejected}, state}
     end
   end
 
   @impl true
   def terminate(reason, state) do
-    if state.launched and is_binary(state.pane_id) do
+    if state.launched and is_binary(state.pane_id) and is_nil(state.cleanup_result) do
       cond do
         reason == :normal ->
-          # Normal stop — handler already cleaned up the pane, nothing to do
-          :ok
+          # Handler-initiated normal stops already carry cleanup_result. A direct
+          # normal stop still needs the same checked cleanup gateway.
+          cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
 
         reason == :shutdown ->
           # Supervisor shutdown (e.g. terminal-state cleanup) — clean up leaky pane
-          cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
+          cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
 
         true ->
           # Abnormal exit — clean up pane AND notify coordinator of crash
-          cleanup_pane(state.adapter, state.pane_id, state.herdr_timeout_ms)
+          cleanup_result = cleanup_pane(state, state.adapter, state.herdr_timeout_ms)
 
           emit_telemetry(state.telemetry_path, "agent_crash", %{
             "task_id" => state.task_id,
@@ -384,8 +452,11 @@ defmodule PramanaFoundry.AgentServer do
             "pane" => state.pane_id
           })
 
-          send(state.coordinator_pid, {:agent_crashed, state.task_id, state.run_id, reason,
-            %{pane_id: state.pane_id}})
+          send(
+            state.coordinator_pid,
+            {:agent_crashed, state.task_id, state.run_id, reason,
+             %{pane_id: state.pane_id, cleanup: cleanup_result}}
+          )
       end
     end
 
@@ -416,21 +487,84 @@ defmodule PramanaFoundry.AgentServer do
       {:ok, pane_info} ->
         pane_id = pane_info[:pane_id] || pane_info["pane_id"]
         terminal_id = pane_info[:terminal_id] || pane_info["terminal_id"]
+
+        state = %{
+          state
+          | pane_id: pane_id,
+            terminal_id: terminal_id
+        }
+
         pane_duration = elapsed_ms(pane_start)
         IO.puts("    split pane: #{pane_id} (#{pane_duration}ms)")
 
         step_timings = Map.put(state.step_timings, :pane_split_ms, pane_duration)
 
+        state =
+          case record_cleanup(state, :resource, cleanup_obligation(state)) do
+            :ok ->
+              %{state | cleanup_resource_registered: true}
+
+            {:error, reason} ->
+              throw({
+                :launch_error,
+                :cleanup_resource_registration_failed,
+                reason,
+                pane_id,
+                state
+              })
+          end
+
+        state =
+          case Adapter.capture_presentation(
+                 adapter,
+                 %{pane_id: pane_id, terminal_id: terminal_id},
+                 Keyword.merge([timeout_ms: timeout_ms], herdr_opts)
+               ) do
+            {:ok, presentation_identity} ->
+              %{state | presentation_identity: presentation_identity}
+
+            {:error, reason} ->
+              throw({:launch_error, :presentation_identity_failed, reason, pane_id, state})
+          end
+
+        state =
+          case record_cleanup(state, :resource, cleanup_obligation(state)) do
+            :ok ->
+              state
+
+            {:error, reason} ->
+              throw({
+                :launch_error,
+                :cleanup_resource_registration_failed,
+                reason,
+                pane_id,
+                state
+              })
+          end
+
         # Step 2: Start agent
         agent_start = now_timestamp()
 
-        case Adapter.start_agent(adapter, state.agent_name, "omp", pane_id, timeout_ms, [
-               "--profile", profile.account,
-               "--provider", profile.provider,
-               "--model", profile.model,
-               "--thinking", profile.reasoning,
-               "--approval-mode", profile.approval_mode
-             ], Keyword.merge([timeout_ms: timeout_ms + 5_000], herdr_opts)) do
+        case Adapter.start_agent(
+               adapter,
+               state.agent_name,
+               "omp",
+               pane_id,
+               timeout_ms,
+               [
+                 "--profile",
+                 profile.account,
+                 "--provider",
+                 profile.provider,
+                 "--model",
+                 profile.model,
+                 "--thinking",
+                 profile.reasoning,
+                 "--approval-mode",
+                 profile.approval_mode
+               ],
+               Keyword.merge([timeout_ms: timeout_ms + 5_000], herdr_opts)
+             ) do
           {:ok, result} ->
             agent_duration = elapsed_ms(agent_start)
             IO.puts("    agent started: #{state.agent_name} (#{agent_duration}ms)")
@@ -439,51 +573,30 @@ defmodule PramanaFoundry.AgentServer do
 
             case Identity.from_agent(agent_data) do
               {:ok, identity} ->
-                prompt_start = now_timestamp()
+                expected = %{name: state.agent_name, pane_id: pane_id, terminal_id: terminal_id}
 
-                role_file = if state.role == :reviewer, do: "reviewer.md", else: "developer.md"
+                if Identity.matches_requested?(identity, expected) do
+                  state = %{state | identity: identity}
 
-                prompt_text = cond do
-                  state.role == :reviewer ->
-                    handoff = state.handoff_data
-                    files = Enum.join(Map.get(handoff, "changed_files", []), ", ")
-                    outcome = Map.get(handoff, "outcome", "")
-                    prev_error = Map.get(handoff, "previous_error", "")
-                    error_block = if prev_error != "", do: "\nPrevious review attempt failed: #{prev_error}\nFix these issues before submitting.", else: ""
-                    """
-                    Read and follow foundry/roles/reviewer.md (role file).
-                    Review the completed assignment #{task_id}.
-                    RUN_ID: #{run_id}
-                    Checkout: #{checkout}
-                    Handoff commit: #{Map.get(handoff, "commit", "?")}
-                    Changed files: #{files}
-                    Outcome: #{outcome}
-                    #{error_block}
-                    When you have completed your review, submit the review artifact
-                    (verdict, findings, checks, remaining_risks) to the coordinator.
-                    """
-                  true ->
-                    prev_error = Map.get(state.handoff_data, "previous_error", "")
-                    error_block = if prev_error != "", do: "\nPrevious attempt failed with: #{prev_error}\nAddress these issues before submitting handoff.", else: ""
-                    """
-                    Read and follow foundry/roles/#{role_file} (role file).
-                    Execute assignment #{task_id}.
-                    RUN_ID: #{run_id}
-                    Work in checkout #{checkout}.
-                    Complete the work, run required checks, then submit the handoff.#{error_block}
-                    """
-                end
+                  case record_cleanup(state, :resource, cleanup_obligation(state)) do
+                    :ok ->
+                      prompt_agent(
+                        state,
+                        adapter,
+                        task_id,
+                        run_id,
+                        checkout,
+                        timeout_ms,
+                        herdr_opts,
+                        pane_id: pane_id,
+                        step_timings: step_timings
+                      )
 
-                case Adapter.prompt(adapter, identity, prompt_text, Keyword.merge([timeout_ms: timeout_ms, wait: false], herdr_opts)) do
-                  {:ok, _} ->
-                    prompt_duration = elapsed_ms(prompt_start)
-                    IO.puts("    prompted: #{task_id} (#{prompt_duration}ms)")
-                    step_timings = Map.put(step_timings, :prompt_ms, prompt_duration)
-                    {:ok, %{state | pane_id: pane_id, terminal_id: terminal_id, identity: identity, step_timings: step_timings}}
-
-                  {:error, reason} ->
-                    IO.puts("    prompt error: #{inspect(reason)}")
-                    {:error, :prompt_failed, reason, pane_id, state}
+                    {:error, reason} ->
+                      {:error, :cleanup_resource_enrichment_failed, reason, pane_id, state}
+                  end
+                else
+                  {:error, :agent_identity_mismatch, :identity_mismatch, pane_id, state}
                 end
 
               {:error, reason} ->
@@ -501,22 +614,256 @@ defmodule PramanaFoundry.AgentServer do
         {:error, :pane_split_failed, reason, nil, state}
     end
   catch
+    :throw, {:launch_error, stage, reason, pane_id, failed_state} ->
+      {:error, stage, reason, pane_id, failed_state}
+
     kind, error ->
       IO.puts("    launch_agent CRASHED #{kind}: #{inspect(error)}")
       {:error, :launch_crashed, {kind, error}, nil, state}
   end
 
+  defp prompt_agent(state, adapter, task_id, run_id, checkout, timeout_ms, herdr_opts, opts) do
+    pane_id = Keyword.fetch!(opts, :pane_id)
+    step_timings = Keyword.fetch!(opts, :step_timings)
+    prompt_start = now_timestamp()
+
+    role_file =
+      if state.role == :reviewer, do: "reviewer.md", else: "developer.md"
+
+    prompt_text =
+      cond do
+        state.role == :reviewer ->
+          handoff = state.handoff_data
+          files = Enum.join(Map.get(handoff, "changed_files", []), ", ")
+          outcome = Map.get(handoff, "outcome", "")
+          prev_error = Map.get(handoff, "previous_error", "")
+
+          error_block =
+            if prev_error != "",
+              do:
+                "\nPrevious review attempt failed: #{prev_error}\nFix these issues before submitting.",
+              else: ""
+
+          """
+          Read and follow foundry/roles/reviewer.md (role file).
+          Review the completed assignment #{task_id}.
+          RUN_ID: #{run_id}
+          Checkout: #{checkout}
+          Handoff commit: #{Map.get(handoff, "commit", "?")}
+          Changed files: #{files}
+          Outcome: #{outcome}
+          #{error_block}
+          When you have completed your review, submit the review artifact
+          (verdict, findings, checks, remaining_risks) to the coordinator.
+          """
+
+        true ->
+          prev_error = Map.get(state.handoff_data, "previous_error", "")
+
+          error_block =
+            if prev_error != "",
+              do:
+                "\nPrevious attempt failed with: #{prev_error}\nAddress these issues before submitting handoff.",
+              else: ""
+
+          """
+          Read and follow foundry/roles/#{role_file} (role file).
+          Execute assignment #{task_id}.
+          RUN_ID: #{run_id}
+          Work in checkout #{checkout}.
+          Complete the work, run required checks, then submit the handoff.#{error_block}
+          """
+      end
+
+    case Adapter.prompt(
+           adapter,
+           state.identity,
+           prompt_text,
+           Keyword.merge([timeout_ms: timeout_ms, wait: false], herdr_opts)
+         ) do
+      {:ok, _} ->
+        prompt_duration = elapsed_ms(prompt_start)
+        IO.puts("    prompted: #{task_id} (#{prompt_duration}ms)")
+        step_timings = Map.put(step_timings, :prompt_ms, prompt_duration)
+        {:ok, %{state | step_timings: step_timings}}
+
+      {:error, reason} ->
+        IO.puts("    prompt error: #{inspect(reason)}")
+        {:error, :prompt_failed, reason, pane_id, state}
+    end
+  end
+
   # ── Pane cleanup ──
 
-  defp cleanup_pane(adapter, pane_id, timeout_ms, _opts \\ []) do
-    case PramanaFoundry.Herdr.Runner.System.run(
-           [adapter.command, "pane", "close", pane_id],
-           timeout_ms: timeout_ms
-         ) do
-      {:ok, _} -> IO.puts("    cleaned up pane #{pane_id}")
-      {:error, {:not_found, _}} -> IO.puts("    pane #{pane_id} already gone")
-      {:error, reason} -> IO.puts("    pane cleanup for #{pane_id} failed: #{inspect(reason)}")
+  defp cleanup_pane(state, adapter, timeout_ms) do
+    opts = Keyword.merge([timeout_ms: timeout_ms], state.herdr_opts)
+
+    obligation = cleanup_obligation(state)
+
+    result =
+      if state.cleanup_resource_registered or is_nil(state.pane_id) do
+        cleanup_registered_pane(state, adapter, opts, obligation)
+      else
+        {:error, :cleanup_resource_not_registered}
+      end
+
+    case result do
+      {:ok, :not_required} ->
+        emit_cleanup(state, "not_required", nil)
+        %{status: :not_required}
+
+      {:ok, _} ->
+        IO.puts("    cleaned up owned pane #{state.pane_id}")
+        emit_cleanup(state, "closed", nil)
+        %{status: :closed}
+
+      {:error, reason} ->
+        IO.puts("    cleanup unresolved for pane #{inspect(state.pane_id)}: #{inspect(reason)}")
+        emit_cleanup(state, "unresolved", reason)
+        %{status: :unresolved, reason: reason}
     end
+  end
+
+  defp cleanup_registered_pane(state, adapter, opts, obligation) do
+    result =
+      case record_cleanup(state, :pending, obligation) do
+        :ok ->
+          cleanup_result = attempt_cleanup(state, adapter, opts)
+
+          result_attributes =
+            Map.merge(obligation, %{
+              "status" => cleanup_status(cleanup_result),
+              "reason" => cleanup_result_reason(cleanup_result)
+            })
+
+          case record_cleanup(state, :result, result_attributes) do
+            :ok -> cleanup_result
+            {:error, reason} -> {:error, {:cleanup_result_persistence_failed, reason}}
+          end
+
+        {:error, reason} ->
+          {:error, {:cleanup_pending_persistence_failed, reason}}
+      end
+
+    result
+  end
+
+  defp record_cleanup(state, phase, attributes) do
+    case state.cleanup_record_fn.(phase, attributes) do
+      :ok -> :ok
+      {:ok, _record} -> :ok
+      {:error, reason} -> {:error, reason}
+      other -> {:error, {:invalid_cleanup_persistence_result, other}}
+    end
+  rescue
+    error -> {:error, {:cleanup_persistence_exception, Exception.message(error)}}
+  catch
+    kind, reason -> {:error, {:cleanup_persistence_exit, kind, reason}}
+  end
+
+  defp cleanup_obligation(state) do
+    %{
+      "task_id" => state.task_id,
+      "execution_id" => state.run_id,
+      "role" => to_string(state.role),
+      "resource_id" => to_string(state.role) <> ":" <> state.run_id,
+      "pane_id" => state.pane_id,
+      "terminal_id" => state.terminal_id,
+      "session" => persisted_session(state.identity && state.identity.session),
+      "observed_session" => observed_session(state.identity && state.identity.session),
+      "agent_name" => state.agent_name,
+      "presentation_identity" => persisted_presentation(state.presentation_identity)
+    }
+  end
+
+  defp cleanup_status({:ok, :not_required}), do: "not_required"
+  defp cleanup_status({:ok, _result}), do: "closed"
+  defp cleanup_status({:error, _reason}), do: "unresolved"
+  defp cleanup_result_reason({:ok, _result}), do: nil
+  defp cleanup_result_reason({:error, reason}), do: inspect(reason)
+
+  defp attempt_cleanup(state, adapter, opts) do
+    cond do
+      is_nil(state.pane_id) ->
+        {:ok, :not_required}
+
+      not is_nil(state.identity) and not is_nil(state.presentation_identity) ->
+        Adapter.close_pane(adapter, state.identity, state.presentation_identity, opts)
+
+      is_nil(state.identity) and not is_nil(state.presentation_identity) ->
+        Adapter.close_fresh_pane(adapter, state.presentation_identity, opts)
+
+      true ->
+        {:error, :missing_cleanup_identity}
+    end
+  rescue
+    error -> {:error, {:cleanup_exception, Exception.message(error)}}
+  catch
+    kind, reason -> {:error, {:cleanup_throw, kind, reason}}
+  end
+
+  defp emit_cleanup(state, outcome, reason) do
+    emit_telemetry(state.telemetry_path, "resource_cleanup", %{
+      "task_id" => state.task_id,
+      "run_id" => state.run_id,
+      "phase" => "cleanup",
+      "outcome" => outcome,
+      "reason" => if(reason, do: inspect(reason)),
+      "agent" => state.agent_name,
+      "pane" => state.pane_id
+    })
+  end
+
+  defp persisted_identity(identity) do
+    %{
+      "name" => identity.name,
+      "pane_id" => identity.pane_id,
+      "terminal_id" => identity.terminal_id,
+      "session" => persisted_session(identity.session)
+    }
+  end
+
+  defp persisted_session(%{
+         source: :agent_session,
+         value: value,
+         terminal_id: terminal_id,
+         agent: agent
+       })
+       when is_binary(value) and value != "" and is_binary(terminal_id) and terminal_id != "" and
+              is_binary(agent) and agent != "" do
+    %{
+      "source" => "agent_session",
+      "value" => value,
+      "terminal_id" => terminal_id,
+      "agent" => agent
+    }
+  end
+
+  defp persisted_session(_session), do: nil
+
+  defp observed_session(nil), do: nil
+
+  defp observed_session(session) do
+    inspect(session, limit: 20, printable_limit: 500, charlists: :as_lists)
+  rescue
+    _error -> "#UninspectableSession"
+  end
+
+  defp persisted_presentation(nil), do: nil
+
+  defp persisted_presentation(identity) do
+    %{
+      "pane_id" => identity.pane_id,
+      "terminal_id" => identity.terminal_id,
+      "process_identity" => %{
+        "pane_id" => identity.process_identity.pane_id,
+        "terminal_id" => identity.process_identity.terminal_id,
+        "shell_pid" => identity.process_identity.shell_pid,
+        "started_at" => identity.process_identity.started_at,
+        "foreground_pid" => identity.process_identity.foreground_pid,
+        "foreground_started_at" => identity.process_identity.foreground_started_at
+      }
+    }
   end
 
   # ── Telemetry ──
@@ -525,6 +872,7 @@ defmodule PramanaFoundry.AgentServer do
 
   defp emit_telemetry(log_path, phase, attrs) when is_binary(log_path) do
     now = DateTime.utc_now() |> DateTime.to_iso8601()
+
     record = %{
       "record_id" => :crypto.strong_rand_bytes(8) |> :binary.encode_hex(),
       "record_type" => "command",
@@ -542,11 +890,12 @@ defmodule PramanaFoundry.AgentServer do
       "resource_class" => "workflow"
     }
 
-    record = if steps = Map.get(attrs, "steps") do
-      Map.put(record, "step_timings", steps)
-    else
-      record
-    end
+    record =
+      if steps = Map.get(attrs, "steps") do
+        Map.put(record, "step_timings", steps)
+      else
+        record
+      end
 
     case PramanaFoundry.Telemetry.Telemetry.validate(record) do
       {:ok, validated} ->
@@ -555,6 +904,7 @@ defmodule PramanaFoundry.AgentServer do
           :duplicate -> :ok
           {:error, reason} -> IO.puts("  telemetry append error: #{inspect(reason)}")
         end
+
       {:error, reason} ->
         IO.puts("  telemetry validation error: #{inspect(reason)}")
     end

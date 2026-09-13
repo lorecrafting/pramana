@@ -154,6 +154,147 @@ defmodule PramanaFoundry.RuntimeStartupBoundaryTest do
     assert File.read!(log) == before
   end
 
+  test "production topology drains checked cleanup before releasing its fence", %{root: root} do
+    {output, status} = run_cleanup_fixture(root <> "-success", "success")
+
+    assert status == 0
+    assert output =~ ~s(mode: "success")
+    assert output =~ ~s(cleanup_events: ["cleanup_pending", "cleanup_result"])
+    assert output =~ "close_called: true"
+    assert output =~ "unclean_marker: false"
+  end
+
+  test "production launch boundary registers split ownership before start and resolves by exact evidence",
+       %{root: root} do
+    {unchanged, unchanged_status} =
+      run_cleanup_fixture(root <> "-start-timeout-unchanged", "start_timeout_unchanged")
+
+    assert unchanged_status == 0, unchanged
+    assert unchanged =~ ~s(mode: "start_timeout_unchanged")
+    assert unchanged =~ ~s(cleanup_events: ["cleanup_pending", "cleanup_result"])
+    assert unchanged =~ "resource_events: 2"
+    assert unchanged =~ ~s(resource_status: "closed")
+    assert unchanged =~ ~s(durable_resource_status: "closed")
+    assert unchanged =~ "start_called: true"
+    assert unchanged =~ "close_called: true"
+    assert unchanged =~ "unclean_marker: false"
+
+    {replaced, replaced_status} =
+      run_cleanup_fixture(root <> "-start-timeout-replaced", "start_timeout_replaced")
+
+    assert replaced_status == 0, replaced
+    assert replaced =~ ~s(mode: "start_timeout_replaced")
+    assert replaced =~ ~s(cleanup_events: ["cleanup_pending", "cleanup_result"])
+    assert replaced =~ "resource_events: 2"
+    assert replaced =~ ~s(resource_status: "unresolved")
+    assert replaced =~ ~s(durable_resource_status: "unresolved")
+    assert replaced =~ "start_called: true"
+    assert replaced =~ "close_called: false"
+    assert replaced =~ "unclean_marker: true"
+  end
+
+  test "unverified split receipt survives malformed initial process capture", %{root: root} do
+    for mode <- ~w(capture_pid_only capture_missing_generation) do
+      {output, status} = run_cleanup_fixture(root <> "-" <> mode, mode)
+
+      assert status == 0, output
+      assert output =~ ~s(mode: "#{mode}")
+      assert output =~ ~s(cleanup_events: ["cleanup_pending", "cleanup_result"])
+      assert output =~ "resource_events: 1"
+      assert output =~ ~s(resource_status: "unresolved")
+      assert output =~ ~s(verification_status: "unverified")
+      assert output =~ ~s(durable_resource_status: "unresolved")
+      assert output =~ ~s(durable_verification_status: "unverified")
+      assert output =~ "cleanup_outstanding: true"
+      assert output =~ "durable_cleanup_outstanding: true"
+      assert output =~ "start_called: false"
+      assert output =~ "close_called: false"
+      assert output =~ "unclean_marker: true"
+    end
+  end
+
+  test "checked split registration failure prevents start and retains the fence", %{root: root} do
+    {output, status} =
+      run_cleanup_fixture(root <> "-registration-failure", "registration_failure")
+
+    assert status == 0, output
+    assert output =~ ~s(mode: "registration_failure")
+    assert output =~ "cleanup_events: []"
+    assert output =~ "resource_events: 0"
+    assert output =~ ~s(resource_status: "unverified")
+    assert output =~ ~s(verification_status: "unverified")
+    assert output =~ "durable_resource_status: nil"
+    assert output =~ "start_called: false"
+    assert output =~ "close_called: false"
+    assert output =~ "unclean_marker: true"
+  end
+
+  test "production topology preserves fail-closed evidence across cleanup failures and deadline",
+       %{
+         root: root
+       } do
+    for {mode, expected_events, close_called} <- [
+          {"pending_failure", "cleanup_events: []", false},
+          {"result_failure", ~s(cleanup_events: ["cleanup_pending"]), true},
+          {"deadline", ~s(cleanup_events: ["cleanup_pending"]), false}
+        ] do
+      {output, status} = run_cleanup_fixture(root <> "-" <> mode, mode)
+
+      assert status == 0, output
+      assert output =~ ~s(mode: "#{mode}")
+      assert output =~ expected_events
+      assert output =~ "close_called: #{close_called}"
+      assert output =~ "unclean_marker: true"
+      assert [elapsed] = Regex.run(~r/elapsed_ms: (\d+)/, output, capture: :all_but_first)
+      assert String.to_integer(elapsed) < 2_000
+    end
+  end
+
+  test "pre-pending AgentServer deadline retains unclean evidence for a non-dispatched verdict",
+       %{
+         root: root
+       } do
+    {output, status} =
+      run_cleanup_fixture(root <> "-pre-pending-deadline", "pre_pending_deadline")
+
+    assert status == 0, output
+    assert output =~ ~s(mode: "pre_pending_deadline")
+    assert output =~ "cleanup_events: []"
+    assert output =~ "close_called: false"
+    assert output =~ "unclean_marker: true"
+    assert [elapsed] = Regex.run(~r/elapsed_ms: (\d+)/, output, capture: :all_but_first)
+    assert String.to_integer(elapsed) < 2_000
+  end
+
+  test "a reviewer close cannot hide a developer killed before its cleanup receipt", %{root: root} do
+    {output, status} =
+      run_two_resource_fixture(root <> "-two-resource-deadline", "developer_deadline")
+
+    assert status == 0, output
+    assert output =~ ~s(mode: "developer_deadline")
+    assert output =~ ~s(developer_status: "owned")
+    assert output =~ ~s(reviewer_status: "closed")
+    assert output =~ "developer_closed: false"
+    assert output =~ "reviewer_closed: true"
+    assert output =~ "unclean_marker: true"
+  end
+
+  test "both role close orders permit clean release only after both terminal receipts", %{
+    root: root
+  } do
+    for mode <- ~w(developer_first reviewer_first) do
+      {output, status} = run_two_resource_fixture(root <> "-" <> mode, mode)
+
+      assert status == 0, output
+      assert output =~ ~s(mode: "#{mode}")
+      assert output =~ ~s(developer_status: "closed")
+      assert output =~ ~s(reviewer_status: "closed")
+      assert output =~ "developer_closed: true"
+      assert output =~ "reviewer_closed: true"
+      assert output =~ "unclean_marker: false"
+    end
+  end
+
   defp start_owner(root) do
     Port.open(
       {:spawn_executable, mix_executable!()},
@@ -196,6 +337,26 @@ defmodule PramanaFoundry.RuntimeStartupBoundaryTest do
     System.cmd(mix_executable!(), ["run", "--no-start", "-e", code],
       cd: File.cwd!(),
       env: env(root, "daemon", false),
+      stderr_to_stdout: true
+    )
+  end
+
+  defp run_cleanup_fixture(root, mode) do
+    System.cmd(
+      mix_executable!(),
+      ["run", "--no-start", "test/support/runtime_cleanup_fixture.exs"],
+      cd: File.cwd!(),
+      env: [{"FR04_SHUTDOWN_MODE", mode} | env(root, "daemon", true)],
+      stderr_to_stdout: true
+    )
+  end
+
+  defp run_two_resource_fixture(root, mode) do
+    System.cmd(
+      mix_executable!(),
+      ["run", "--no-start", "test/support/runtime_two_resource_fixture.exs"],
+      cd: File.cwd!(),
+      env: [{"FR04_TWO_RESOURCE_MODE", mode} | env(root, "daemon", true)],
       stderr_to_stdout: true
     )
   end

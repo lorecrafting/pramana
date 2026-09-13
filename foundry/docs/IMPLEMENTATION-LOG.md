@@ -610,6 +610,30 @@ steps.
 - The bounded next correction must retain separate legacy cleanup entries per role/run/resource,
   require every owned entry terminal before clean release, and prove sibling/stale receipts
   cannot settle another entry. Full effect-ledger reconciliation remains FR-10.
+- Reviews v5–v8 each retained a concrete newly reproduced residual rather than accepting
+  test totals: mismatched pending could overwrite a sibling; a successful split followed
+  by start timeout lacked pre-start registration; malformed first process identity lost
+  the split obligation; and a closed reviewer could clear the global flag while an
+  unverified developer resource remained. Their artifact SHA-256 values are respectively
+  `35e66ef185e9943768d11268de73fab5a709a219110cf18754133c50674be4de`,
+  `3f6a61921cff8a301540a8790acba34329207520ce581f8a85a9c2be0bd90f76`,
+  `a1cc23f5f1ffcdc94edaa1a322bbf8b79daba1faa1647d35fd25d294fbd73559`
+  and `559728790b3f1819e89360f8b2d145eaeca136911448cf8a27119dd17239b1bf`.
+- Final response v8 SHA-256
+  `ff22d148d3e67d4e2dacf6af17092f0a18659604ed19bb938690457e96a60c20`
+  centralizes outstanding-resource calculation across registration, pending/result,
+  replay, Coordinator and Tick. Final independent review v9 SHA-256
+  `27bd38279004dac58896358ce74f0ff5677d91ba287fb36ea114cb9a411f19c0`
+  returned **PASS**: all 22 implementation/test hashes matched and 43 focused adversarial
+  cases passed, including both multi-role ordering permutations and stale/sibling refusal.
+- The reviewed candidate commit is `cd77de43475b1fbb4ef600384817b3f2434c6b4d`, tree
+  `0f6e75a1a5abf258d25b0f9d45749c29e7231b30`, containing the 22 paths and full
+  review provenance. Implementer final evidence included 115 focused tests, a forced
+  warnings-as-errors 76-file compile and the isolated recovery wrapper.
+- Applied to main with the unrelated dirty CLI/Coordinator unblock additions excluded from
+  the commit and restored afterward. FR-04 is implemented and independently reviewed,
+  **not deployed**. FR-10 retains durable reconciliation, FR-09/15a backend conformance,
+  and FR-22 full lifecycle acceptance.
 
 ### FR-05
 

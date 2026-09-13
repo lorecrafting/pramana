@@ -89,6 +89,23 @@ defmodule PramanaFoundry.Herdr.Identity do
 
   def session_matches?(_expected, _live), do: false
 
+  @doc "Destructive cleanup requires one exact, non-empty native backend session."
+  @spec cleanup_session?(session_token()) :: boolean()
+  def cleanup_session?(%{
+        source: :agent_session,
+        value: value,
+        terminal_id: terminal_id,
+        agent: agent
+      }) do
+    non_empty_binary?(value) and non_empty_binary?(terminal_id) and non_empty_binary?(agent)
+  end
+
+  def cleanup_session?(_session), do: false
+
+  @spec cleanup_session_matches?(session_token(), session_token()) :: boolean()
+  def cleanup_session_matches?(expected, live),
+    do: cleanup_session?(expected) and expected == live
+
   @spec require_object(term(), binary()) :: {:ok, map()} | {:error, {:not_an_object, binary()}}
   def require_object(value, _label) when is_map(value), do: {:ok, value}
   def require_object(_value, label), do: {:error, {:not_an_object, label}}

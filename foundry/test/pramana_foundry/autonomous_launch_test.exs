@@ -667,7 +667,7 @@ defmodule PramanaFoundry.AutonomousLaunchTest do
     assert get_in(new_state, ["assignments", "T-DEV-ALLOW", "configured_profile"]) ==
              @profile_name
 
-    assert_receive {:agent_launched, "T-DEV-ALLOW", :ok, _info}, 2_000
+    assert_agent_launched("T-DEV-ALLOW")
     assert_profile_argv(ctx.table)
     terminate_registered(registry)
   end
@@ -703,7 +703,7 @@ defmodule PramanaFoundry.AutonomousLaunchTest do
           herdr_opts: [ets_table: ctx.table]
         )
 
-      assert_receive {:agent_launched, ^task_id, :ok, _info}, 2_000
+      assert_agent_launched(task_id)
       start_argv = Enum.find(calls(ctx.table), &match?(["herdr", "agent", "start" | _], &1))
       assert argv_value(start_argv, "--profile") == account
       assert argv_value(start_argv, "--provider") == "test-provider"
@@ -788,7 +788,7 @@ defmodule PramanaFoundry.AutonomousLaunchTest do
           assert calls(ctx.table) == []
 
         :launched ->
-          assert_receive {:agent_launched, ^task_id, :ok, _info}, 2_000
+          assert_agent_launched(task_id)
           assert_profile_argv(ctx.table)
           terminate_registered(returned.agent_registry)
       end
@@ -909,7 +909,7 @@ defmodule PramanaFoundry.AutonomousLaunchTest do
           assert calls(ctx.table) == []
 
         :launched ->
-          assert_receive {:agent_launched, ^task_id, :ok, _info}, 2_000
+          assert_agent_launched(task_id)
           assert_profile_argv(ctx.table)
           terminate_registered(returned.agent_registry)
       end
@@ -920,6 +920,19 @@ defmodule PramanaFoundry.AutonomousLaunchTest do
     ticket = ticket(task_id, profile)
     {:ok, state} = State.enqueue_ticket(State.new(accepted_revision: @base_rev), ticket)
     state
+  end
+
+  defp assert_agent_launched(task_id) do
+    receive do
+      {:"$gen_call", from, {:record_cleanup, :resource, _attributes}} ->
+        GenServer.reply(from, :ok)
+        assert_agent_launched(task_id)
+
+      {:agent_launched, ^task_id, :ok, info} ->
+        info
+    after
+      2_000 -> flunk("agent #{task_id} did not launch")
+    end
   end
 
   defp disallowed_cases do
@@ -1139,13 +1152,32 @@ defmodule PramanaFoundry.AutonomousLaunchTest do
       ["herdr", "pane", "split" | _] ->
         PramanaFoundry.AgentServerTest.FakeRunner.json(@pane_split_result)
 
-      ["herdr", "agent", "start" | _] ->
+      ["herdr", "agent", "start", name | _] ->
         PramanaFoundry.AgentServerTest.FakeRunner.json(%{
-          "result" => %{"agent" => @ready_agent}
+          "result" => %{"agent" => Map.put(@ready_agent, "name", name)}
         })
 
-      ["herdr", "agent", "get", "fr01-agent"] ->
-        PramanaFoundry.AgentServerTest.FakeRunner.json(%{"agent" => @ready_agent})
+      ["herdr", "agent", "get", name] ->
+        PramanaFoundry.AgentServerTest.FakeRunner.json(%{
+          "agent" => Map.put(@ready_agent, "name", name)
+        })
+
+      ["herdr", "pane", "get", "pane-fr01"] ->
+        PramanaFoundry.AgentServerTest.FakeRunner.json(%{
+          "pane" => %{"pane_id" => "pane-fr01", "terminal_id" => "term-fr01"}
+        })
+
+      ["herdr", "pane", "process-info", "--pane", "pane-fr01"] ->
+        PramanaFoundry.AgentServerTest.FakeRunner.json(%{
+          "process_info" => %{
+            "pane_id" => "pane-fr01",
+            "terminal_id" => "term-fr01",
+            "shell_pid" => 101,
+            "started_at" => "fixture-generation-1",
+            "foreground_pid" => 202,
+            "foreground_started_at" => "fixture-foreground-generation-1"
+          }
+        })
 
       ["herdr", "agent", "prompt" | _] ->
         PramanaFoundry.AgentServerTest.FakeRunner.json(%{"ok" => true})

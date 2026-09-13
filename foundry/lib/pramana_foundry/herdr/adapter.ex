@@ -4,6 +4,13 @@ defmodule PramanaFoundry.Herdr.Adapter do
   operation (prompt, interrupt/stop, close) re-inspects the live agent and refuses to
   act unless the exact name, pane, terminal, and session identity still match what the
   caller expects, mirroring the same guard the Python backend enforces before `stop`.
+
+  Destructive pane cleanup additionally requires a backend process-incarnation
+  contract: `pane_id` and `terminal_id` linked to the inspected pane, a positive
+  `shell_pid`, a non-empty opaque `started_at` shell generation, a positive
+  `foreground_pid`, and a non-empty opaque `foreground_started_at` generation.
+  PID-only or synthetic observation-time evidence is unsupported and therefore
+  preserves the resource.
   """
 
   alias PramanaFoundry.Herdr.{Argv, Identity, Runner}
@@ -16,6 +23,11 @@ defmodule PramanaFoundry.Herdr.Adapter do
           pane_id: binary(),
           terminal_id: binary(),
           session: Identity.session_token()
+        }
+  @type presentation_identity :: %{
+          pane_id: binary(),
+          terminal_id: binary(),
+          process_identity: map()
         }
 
   @spec new(module(), binary()) :: t()
@@ -128,10 +140,39 @@ defmodule PramanaFoundry.Herdr.Adapter do
     end
   end
 
-  @spec close_pane(t(), expected_identity(), keyword()) :: {:ok, term()} | {:error, term()}
-  def close_pane(adapter, expected, opts \\ []) do
-    with {:ok, pane} <- inspect_pane(adapter, expected.pane_id, opts),
-         :ok <- pane_still_matches(pane, expected),
+  @doc "Captures the pane/process identity that must still match before cleanup."
+  @spec capture_presentation(t(), %{pane_id: binary(), terminal_id: binary()}, keyword()) ::
+          {:ok, presentation_identity()} | {:error, term()}
+  def capture_presentation(adapter, expected, opts \\ []) do
+    with :ok <- require_fresh_pane_identity(expected),
+         {:ok, inspected} <- inspect_pane(adapter, expected.pane_id, opts),
+         :ok <- pane_still_matches(inspected, expected),
+         {:ok, process_identity} <-
+           process_identity(inspected.process_info, expected.pane_id, expected.terminal_id) do
+      {:ok, Map.put(expected, :process_identity, process_identity)}
+    end
+  end
+
+  @spec close_pane(t(), expected_identity(), presentation_identity(), keyword()) ::
+          {:ok, term()} | {:error, term()}
+  def close_pane(adapter, expected, presentation, opts \\ []) do
+    with :ok <- require_complete_identity(expected),
+         :ok <- require_presentation_identity(presentation),
+         :ok <- verify_cleanup_identity(adapter, expected, opts),
+         {:ok, pane} <- inspect_pane(adapter, expected.pane_id, opts),
+         :ok <- presentation_still_matches(pane, presentation),
+         {:ok, args} <- Argv.pane_close(expected.pane_id) do
+      call(adapter, args, opts)
+    end
+  end
+
+  @doc "Closes only a still-matching pre-agent process incarnation captured immediately after split."
+  @spec close_fresh_pane(t(), presentation_identity(), keyword()) ::
+          {:ok, term()} | {:error, term()}
+  def close_fresh_pane(adapter, expected, opts \\ []) do
+    with :ok <- require_presentation_identity(expected),
+         {:ok, pane} <- inspect_pane(adapter, expected.pane_id, opts),
+         :ok <- presentation_still_matches(pane, expected),
          {:ok, args} <- Argv.pane_close(expected.pane_id) do
       call(adapter, args, opts)
     end
@@ -148,6 +189,76 @@ defmodule PramanaFoundry.Herdr.Adapter do
 
   defp pane_still_matches(_pane, _expected), do: {:error, :pane_identity_changed}
 
+  defp presentation_still_matches(%{process_info: process_info} = inspected, expected) do
+    with :ok <- pane_still_matches(inspected, expected),
+         {:ok, live_identity} <-
+           process_identity(process_info, expected.pane_id, expected.terminal_id) do
+      if live_identity == expected.process_identity,
+        do: :ok,
+        else: {:error, :pane_process_identity_changed}
+    end
+  end
+
+  defp require_complete_identity(%{
+         name: name,
+         pane_id: pane_id,
+         terminal_id: terminal_id,
+         session: session
+       })
+       when is_binary(name) and name != "" and is_binary(pane_id) and pane_id != "" and
+              is_binary(terminal_id) and terminal_id != "" do
+    if Identity.cleanup_session?(session), do: :ok, else: {:error, :missing_cleanup_identity}
+  end
+
+  defp require_complete_identity(_expected), do: {:error, :missing_cleanup_identity}
+
+  defp require_fresh_pane_identity(%{pane_id: pane_id, terminal_id: terminal_id})
+       when is_binary(pane_id) and pane_id != "" and is_binary(terminal_id) and
+              terminal_id != "",
+       do: :ok
+
+  defp require_fresh_pane_identity(_expected), do: {:error, :missing_cleanup_identity}
+
+  defp require_presentation_identity(%{
+         pane_id: pane_id,
+         terminal_id: terminal_id,
+         process_identity: process_identity
+       })
+       when is_binary(pane_id) and pane_id != "" and is_binary(terminal_id) and
+              terminal_id != "" and is_map(process_identity),
+       do: :ok
+
+  defp require_presentation_identity(_expected), do: {:error, :missing_cleanup_identity}
+
+  defp process_identity(
+         %{
+           "pane_id" => pane_id,
+           "terminal_id" => terminal_id,
+           "shell_pid" => shell_pid,
+           "started_at" => started_at,
+           "foreground_pid" => foreground_pid,
+           "foreground_started_at" => foreground_started_at
+         },
+         pane_id,
+         terminal_id
+       )
+       when is_integer(shell_pid) and shell_pid > 0 and is_binary(started_at) and
+              started_at != "" and is_integer(foreground_pid) and foreground_pid > 0 and
+              is_binary(foreground_started_at) and foreground_started_at != "" do
+    {:ok,
+     %{
+       pane_id: pane_id,
+       terminal_id: terminal_id,
+       shell_pid: shell_pid,
+       started_at: started_at,
+       foreground_pid: foreground_pid,
+       foreground_started_at: foreground_started_at
+     }}
+  end
+
+  defp process_identity(_process_info, _pane_id, _terminal_id),
+    do: {:error, :missing_process_incarnation}
+
   @doc "Re-inspects the live agent and confirms it still matches `expected` exactly."
   @spec verify_identity(t(), expected_identity(), keyword()) :: :ok | {:error, term()}
   def verify_identity(adapter, expected, opts \\ []) do
@@ -157,6 +268,21 @@ defmodule PramanaFoundry.Herdr.Adapter do
           {:error, :identity_mismatch}
 
         not Identity.session_matches?(expected.session, identity.session) ->
+          {:error, :session_mismatch}
+
+        true ->
+          :ok
+      end
+    end
+  end
+
+  defp verify_cleanup_identity(adapter, expected, opts) do
+    with {:ok, identity} <- inspect_agent(adapter, expected.name, opts) do
+      cond do
+        not Identity.matches_requested?(identity, expected) ->
+          {:error, :identity_mismatch}
+
+        not Identity.cleanup_session_matches?(expected.session, identity.session) ->
           {:error, :session_mismatch}
 
         true ->

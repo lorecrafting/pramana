@@ -44,6 +44,11 @@ defmodule PramanaFoundry.Status.Report do
 
     assignments = Map.get(state, "assignments", %{})
 
+    cleanup_resources =
+      Map.new(assignments, fn {task_id, assignment} ->
+        {task_id, Map.get(assignment, "cleanup_resources", %{})}
+      end)
+
     active_workers =
       assignments
       |> Map.values()
@@ -71,6 +76,7 @@ defmodule PramanaFoundry.Status.Report do
       "stop_requested" => Map.get(state, "stop_requested", false),
       "queue" => Map.get(state, "queue", []),
       "active_workers" => active_workers,
+      "cleanup_resources" => cleanup_resources,
       "integration" => %{
         "owner" => Map.get(integration, "owner"),
         "candidate" => Map.get(integration, "candidate")

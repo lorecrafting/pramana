@@ -27,10 +27,6 @@ defmodule PramanaFoundry.Application do
       else
         [
           {Registry, keys: :unique, name: PramanaFoundry.Registry},
-          {DynamicSupervisor,
-           name: PramanaFoundry.AssignmentSupervisor,
-           strategy: :one_for_one,
-           max_children: Application.fetch_env!(:pramana_foundry, :max_assignments)},
           {Task.Supervisor,
            name: PramanaFoundry.TaskSupervisor,
            max_children: Application.fetch_env!(:pramana_foundry, :max_tasks)},
@@ -44,6 +40,13 @@ defmodule PramanaFoundry.Application do
              event_log_path: Path.join(runtime_root, "state/current/events.jsonl"),
              coordinator_log_path: Path.join(runtime_root, "state/current/coordinator.jsonl")
            ]},
+          # The coordinator is deliberately started before the assignment supervisor.
+          # Reverse-order shutdown therefore leaves its checked persistence gateway
+          # available while AgentServer terminate callbacks record cleanup receipts.
+          {DynamicSupervisor,
+           name: PramanaFoundry.AssignmentSupervisor,
+           strategy: :one_for_one,
+           max_children: Application.fetch_env!(:pramana_foundry, :max_assignments)},
           {PramanaFoundry.Improver,
            [
              telemetry_path:

@@ -119,7 +119,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-01 | Remove automatic paid execution paths | — | **Complete: reviewed static containment** | F01 |
 | FR-02 | Transport CLI arguments as inert data | — | **Complete: reviewed inert transport** | F06 |
 | FR-03 | Fence startup and fail closed on legacy persistence errors | — | **Complete: reviewed containment** | F14, F02 |
-| FR-04 | Restrict cleanup to verified owned resources | — | Ready | F05, F23 |
+| FR-04 | Restrict cleanup to verified owned resources | — | **Complete: reviewed containment** | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | Ready | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | Ready: FR-03 and FR-06 complete | F02, F20, F21 |
@@ -898,3 +898,15 @@ and legacy Git integration are suspended for FR-07/08 and FR-05 rather than repr
 as atomic. The new fixtures are Elixir; the existing Fence bridge remains the external
 POSIX-lock boundary. This is integrated containment, not deployment or FR-22 lifecycle
 acceptance. FR-07 is now ready because both FR-03 and FR-06 have completion evidence.
+
+2026-09-13, FR-04: candidate `cd77de43475b1fbb4ef600384817b3f2434c6b4d`
+received independent [PASS](fr-04/review-v9.md) after an adversarial review chain retained
+in `docs/fr-04/`. Destructive cleanup now requires exact pane, terminal, native-session,
+shell-generation and foreground-generation evidence; split ownership is durably recorded
+before agent start, unverified/unknown resources are preserved, and developer/reviewer
+resources remain distinct in a bounded role/execution inventory. Cleanup pending/results
+use FR-03's checked gateway. Outstanding cleanup blocks admission and clean fence release;
+all owned resources must have matching terminal evidence. CWD inference, hard-coded pane
+exceptions, default-adapter close and the destructive fixed-root recovery fixture are gone.
+This is immediate F05/F23 containment, not FR-10 reconciliation or atomic backend
+compare-and-close; no live backend/provider or deployment was exercised.

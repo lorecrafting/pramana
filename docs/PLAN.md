@@ -33,8 +33,8 @@ The report includes isolated reproductions, coverage limits and an ordered repai
 
 The executable backlog is now [Foundry repair tickets](../foundry/docs/REPAIR-PLAN.md),
 maintained outside Foundry. FR-01's independently reviewed static containment and
-FR-02's inert Elixir wrapper transport and FR-03's independently reviewed startup/
-persistence containment are complete;
+FR-02's inert Elixir wrapper transport, FR-03's independently reviewed startup/
+persistence containment, and FR-04's verified-owned cleanup containment are complete;
 all real automatic model launches are now disabled until FR-09/15a proves the protected
 subscription route. The dependency inventory identifies ready
 containment work and the design decisions required before downstream implementation.

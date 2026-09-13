@@ -9,6 +9,7 @@ defmodule PramanaFoundry.Transition do
   """
 
   alias PramanaFoundry.Coordinator.State, as: CoordState
+  alias PramanaFoundry.Cleanup
   alias PramanaFoundry.Schema
 
   @roles ~w(developer reviewer pm)
@@ -48,6 +49,8 @@ defmodule PramanaFoundry.Transition do
   | `integration_completed` | Releases integration lock; updates accepted_revision on success |
   | `task_completed` | Updates assignment status based on outcome (completed/review/handoff_rejected/failed) |
   | `task_crashed` | Sets assignment status to crashed |
+  | `cleanup_pending` | Retains an attributable outstanding cleanup obligation and capacity |
+  | `cleanup_result` | Resolves only an exact obligation identity; otherwise keeps cleanup blocked |
   | `pm_proposal_created` | Records PM proposal state |
   | `prompt_intent` | Records prompt delivery identity (for idempotency) |
   """
@@ -319,6 +322,10 @@ defmodule PramanaFoundry.Transition do
        ) do
     pane_id = get_in(event, ["attributes", "pane_id"])
     agent_name = get_in(event, ["attributes", "agent_name"])
+    cleanup_identity = get_in(event, ["attributes", "cleanup_identity"])
+    presentation_identity = get_in(event, ["attributes", "presentation_identity"])
+    execution_id = get_in(event, ["attributes", "execution_id"]) || event["run_id"]
+    role = get_in(event, ["attributes", "role"]) || event["role"]
 
     state = result.state
     assignment = get_in(state, ["assignments", task_id])
@@ -328,10 +335,39 @@ defmodule PramanaFoundry.Transition do
         assignment
         |> Map.put("pane_id", pane_id)
         |> Map.put("agent_name", agent_name)
+        |> Map.put("cleanup_identity", cleanup_identity)
+        |> Map.put("presentation_identity", presentation_identity)
 
-      new_state = put_in(state, ["assignments", task_id], updated)
-      proj = %{result.projection | events: [event | result.projection.events]}
-      {:ok, %{result | projection: proj, state: new_state}}
+      state_with_latest = put_in(state, ["assignments", task_id], updated)
+
+      resource = %{
+        "task_id" => task_id,
+        "execution_id" => execution_id,
+        "role" => role,
+        "pane_id" => pane_id,
+        "terminal_id" => get_in(cleanup_identity, ["terminal_id"]),
+        "session" => get_in(cleanup_identity, ["session"]),
+        "observed_session" => nil,
+        "agent_name" => agent_name,
+        "presentation_identity" => presentation_identity
+      }
+
+      resource =
+        case get_in(event, ["attributes", "resource_id"]) do
+          resource_id when is_binary(resource_id) -> Map.put(resource, "resource_id", resource_id)
+          _missing -> resource
+        end
+
+      resource =
+        case get_in(event, ["attributes", "verification_status"]) do
+          status when is_binary(status) -> Map.put(resource, "verification_status", status)
+          _missing -> resource
+        end
+
+      with {:ok, new_state} <- Cleanup.register_resource(state_with_latest, resource) do
+        proj = %{result.projection | events: [event | result.projection.events]}
+        {:ok, %{result | projection: proj, state: new_state}}
+      end
     else
       {:ok,
        %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
@@ -348,18 +384,22 @@ defmodule PramanaFoundry.Transition do
     error = get_in(event, ["attributes", "error_reason"]) || "launch_retried"
 
     if is_map(assignment) do
-      updated =
-        assignment
-        |> Map.put("status", "queued")
-        |> Map.put("launch_retries", retries)
-        |> Map.put("error", error)
-
-      updated_queue = state["queue"] ++ [task_id]
-
       new_state =
-        state
-        |> Map.put("assignments", Map.put(state["assignments"], task_id, updated))
-        |> Map.put("queue", updated_queue)
+        if Cleanup.assignment_outstanding?(assignment) do
+          state
+          |> Cleanup.preserve_work_status(task_id, "queued")
+          |> put_in(["assignments", task_id, "error"], error)
+        else
+          updated =
+            assignment
+            |> Map.put("status", "queued")
+            |> Map.put("launch_retries", retries)
+            |> Map.put("error", error)
+
+          state
+          |> Map.put("assignments", Map.put(state["assignments"], task_id, updated))
+          |> Map.put("queue", state["queue"] ++ [task_id])
+        end
 
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
@@ -379,13 +419,12 @@ defmodule PramanaFoundry.Transition do
     error = get_in(event, ["attributes", "error_reason"]) || "max_launch_retries"
 
     if is_map(assignment) do
-      updated =
-        assignment
-        |> Map.put("status", "parked")
-        |> Map.put("launch_retries", retries)
-        |> Map.put("error", error)
+      new_state =
+        state
+        |> Cleanup.preserve_work_status(task_id, "parked")
+        |> put_in(["assignments", task_id, "launch_retries"], retries)
+        |> put_in(["assignments", task_id, "error"], error)
 
-      new_state = put_in(state, ["assignments", task_id], updated)
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
@@ -630,8 +669,7 @@ defmodule PramanaFoundry.Transition do
 
     if is_map(assignment) do
       status = infer_completed_status(reason)
-      updated = Map.put(assignment, "status", status)
-      new_state = put_in(state, ["assignments", task_id], updated)
+      new_state = Cleanup.preserve_work_status(state, task_id, status)
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
@@ -649,12 +687,11 @@ defmodule PramanaFoundry.Transition do
     reason = get_in(event, ["attributes", "reason"]) || "unknown"
 
     if is_map(assignment) do
-      updated =
-        assignment
-        |> Map.put("status", "crashed")
-        |> Map.put("error", "agent_crashed: #{reason}")
+      new_state =
+        state
+        |> Cleanup.preserve_work_status(task_id, "crashed")
+        |> put_in(["assignments", task_id, "error"], "agent_crashed: #{reason}")
 
-      new_state = put_in(state, ["assignments", task_id], updated)
       proj = %{result.projection | events: [event | result.projection.events]}
       {:ok, %{result | projection: proj, state: new_state}}
     else
@@ -691,6 +728,24 @@ defmodule PramanaFoundry.Transition do
   defp project(%{"event" => "tick_processed"} = event, result) do
     proj = %{result.projection | events: [event | result.projection.events]}
     {:ok, %{result | projection: proj}}
+  end
+
+  defp project(%{"event" => "cleanup_pending"} = event, result) do
+    with {:ok, state} <- Cleanup.apply_pending(result.state, event["attributes"] || %{}) do
+      projection = %{result.projection | events: [event | result.projection.events]}
+      {:ok, %{result | projection: projection, state: state}}
+    else
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp project(%{"event" => "cleanup_result"} = event, result) do
+    with {:ok, state} <- Cleanup.apply_result(result.state, event["attributes"] || %{}) do
+      projection = %{result.projection | events: [event | result.projection.events]}
+      {:ok, %{result | projection: projection, state: state}}
+    else
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp project(

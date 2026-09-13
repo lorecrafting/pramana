@@ -8,6 +8,7 @@ defmodule PramanaFoundry.Coordinator.Tick do
   """
 
   alias PramanaFoundry.Coordinator.State, as: CoordState
+  alias PramanaFoundry.Cleanup
   alias PramanaFoundry.Effects.Checkpoint
   alias PramanaFoundry.Herdr.Adapter
   alias PramanaFoundry.LaunchEligibility
@@ -30,161 +31,175 @@ defmodule PramanaFoundry.Coordinator.Tick do
       ) do
     append_fn = Keyword.get(launch_opts, :append_fn, &Checkpoint.append/6)
 
-    # FR-03 containment: one admission/effect chain per tick. Processing a second
-    # ticket after a first child starts cannot be rolled back honestly when the
-    # later legacy append fails; FR-07/FR-08 own transactional batches.
-    queue
-    |> Enum.take(1)
-    |> Enum.reduce({state, agent_registry, []}, fn task_id, {s, reg, log} ->
-      existing = get_in(s, ["assignments", task_id])
+    if outstanding_cleanup?(state) do
+      filtered_queue =
+        Enum.reject(queue, fn task_id ->
+          state
+          |> get_in(["assignments", task_id])
+          |> Cleanup.assignment_outstanding?()
+        end)
 
-      cond do
-        existing && existing["status"] != "queued" ->
-          {s, reg, [{:skipped, task_id, existing["status"]} | log]}
+      {%{state | "queue" => filtered_queue}, agent_registry,
+       [{:admission_suspended, :cleanup_outstanding}]}
+    else
+      # FR-03 containment: one admission/effect chain per tick. Processing a second
+      # ticket after a first child starts cannot be rolled back honestly when the
+      # later legacy append fails; FR-07/FR-08 own transactional batches.
+      queue
+      |> Enum.take(1)
+      |> Enum.reduce({state, agent_registry, []}, fn task_id, {s, reg, log} ->
+        existing = get_in(s, ["assignments", task_id])
 
-        existing && existing["status"] == "queued" ->
-          run_id = :crypto.strong_rand_bytes(8) |> :binary.encode_hex()
-          checkout = get_in(existing, ["ticket", "checkout"])
-          profiles = Keyword.get(launch_opts, :profiles, %{})
-          role_profiles = Keyword.get(launch_opts, :role_profiles, %{})
-          now = Keyword.get(launch_opts, :now, System.system_time(:second))
+        cond do
+          existing && existing["status"] != "queued" ->
+            {s, reg, [{:skipped, task_id, existing["status"]} | log]}
 
-          herdr_opts = Keyword.get(launch_opts, :herdr_opts, [])
+          existing && existing["status"] == "queued" ->
+            run_id = :crypto.strong_rand_bytes(8) |> :binary.encode_hex()
+            checkout = get_in(existing, ["ticket", "checkout"])
+            profiles = Keyword.get(launch_opts, :profiles, %{})
+            role_profiles = Keyword.get(launch_opts, :role_profiles, %{})
+            now = Keyword.get(launch_opts, :now, System.system_time(:second))
 
-          with :ok <- Adapter.require_subscription_route(adapter, herdr_opts),
-               {:ok, profile_name} <-
-                 LaunchEligibility.select_profile(
-                   get_in(existing, ["ticket", "profile"]),
-                   role_profiles,
-                   :developer
-                 ),
-               {:ok, profile} <-
-                 LaunchEligibility.resolve(profiles, profile_name, :developer, s, now: now),
-               {:ok, _assign, ns} <-
-                 CoordState.admit_assignment(s, task_id, run_id, "developer", %{
-                   "profile" => profile.name
-                 }) do
-            persist_or_halt(
-              append_fn,
-              event_log_path,
-              "assignment_admitted",
-              task_id,
-              run_id,
-              "developer",
-              %{"checkout" => checkout, "profile" => profile.name}
-            )
+            herdr_opts = Keyword.get(launch_opts, :herdr_opts, [])
 
-            supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
-
-            if is_pid(supervisor) and is_binary(checkout) and herdr_available?() do
-              prev_error = get_in(ns, ["assignments", task_id, "error"]) || ""
-
-              child_spec = %{
-                id: task_id,
-                start:
-                  {PramanaFoundry.AgentServer, :start_link,
-                   [
-                     [
-                       task_id: task_id,
-                       run_id: run_id,
-                       checkout: checkout,
-                       adapter: adapter,
-                       coordinator_pid: coordinator_pid,
-                       role: :developer,
-                       profile: profile.name,
-                       launch_profiles: profiles,
-                       launch_state: s,
-                       launch_now: now,
-                       herdr_timeout_ms: timeout_ms,
-                       telemetry_path: telemetry_path,
-                       handoff_data: %{"previous_error" => prev_error},
-                       herdr_opts: herdr_opts
-                     ]
-                   ]},
-                restart: :temporary
-              }
-
-              case DynamicSupervisor.start_child(supervisor, child_spec) do
-                {:ok, pid} when is_pid(pid) ->
-                  IO.puts("  tick: started AgentServer #{task_id} (#{inspect(pid)})")
-                  {ns, Map.put(reg, task_id, pid), [{:launched, task_id} | log]}
-
-                {:error, {:already_started, _}} ->
-                  IO.puts("  tick: agent already started for #{task_id}")
-                  {ns, reg, [{:skipped, task_id, "already_started"} | log]}
-
-                {:error, reason} ->
-                  IO.puts("  tick: DynamicSupervisor failed for #{task_id}: #{inspect(reason)}")
-                  current_retries = get_in(ns, ["assignments", task_id, "launch_retries"]) || 0
-                  next_retries = current_retries + 1
-
-                  event_name =
-                    if next_retries <= max_launch_retries,
-                      do: "launch_retried",
-                      else: "launch_parked"
-
-                  persist_or_halt(
-                    append_fn,
-                    event_log_path,
-                    event_name,
-                    task_id,
-                    run_id,
-                    "developer",
-                    %{
-                      "retry_count" => next_retries,
-                      "max_retries" => max_launch_retries,
-                      "stage" => "dynamic_supervisor",
-                      "error_reason" => "DynamicSupervisor: #{inspect(reason)}"
-                    }
-                  )
-
-                  retried = apply_launch_retry(task_id, ns, max_launch_retries)
-                  {retried, reg, [{:launch_failed, task_id, :dynamic_supervisor_error} | log]}
-              end
-            else
-              reason =
-                cond do
-                  not is_pid(supervisor) -> "no_assignment_supervisor"
-                  not is_binary(checkout) -> "no_checkout"
-                  true -> "herdr_unavailable(no_HERDR_ENV)"
-                end
-
-              IO.puts("  Cannot launch #{task_id}: #{reason}")
-              current_retries = get_in(ns, ["assignments", task_id, "launch_retries"]) || 0
-              next_retries = current_retries + 1
-
-              event_name =
-                if next_retries <= max_launch_retries, do: "launch_retried", else: "launch_parked"
-
+            with :ok <- Adapter.require_subscription_route(adapter, herdr_opts),
+                 {:ok, profile_name} <-
+                   LaunchEligibility.select_profile(
+                     get_in(existing, ["ticket", "profile"]),
+                     role_profiles,
+                     :developer
+                   ),
+                 {:ok, profile} <-
+                   LaunchEligibility.resolve(profiles, profile_name, :developer, s, now: now),
+                 {:ok, _assign, ns} <-
+                   CoordState.admit_assignment(s, task_id, run_id, "developer", %{
+                     "profile" => profile.name
+                   }) do
               persist_or_halt(
                 append_fn,
                 event_log_path,
-                event_name,
+                "assignment_admitted",
                 task_id,
                 run_id,
                 "developer",
-                %{
-                  "retry_count" => next_retries,
-                  "max_retries" => max_launch_retries,
-                  "stage" => "pre_launch",
-                  "error_reason" => reason
-                }
+                %{"checkout" => checkout, "profile" => profile.name}
               )
 
-              retried = apply_launch_retry(task_id, ns, max_launch_retries)
-              {retried, reg, [{:launch_failed, task_id, reason} | log]}
-            end
-          else
-            {:error, reason} ->
-              blocked_reason = LaunchEligibility.reason(reason)
-              blocked = block_assignment(s, task_id, :developer, blocked_reason)
-              {blocked, reg, [{:launch_blocked, task_id, blocked_reason} | log]}
-          end
+              supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
 
-        true ->
-          {s, reg, [{:no_assignment, task_id} | log]}
-      end
-    end)
+              if is_pid(supervisor) and is_binary(checkout) and herdr_available?() do
+                prev_error = get_in(ns, ["assignments", task_id, "error"]) || ""
+
+                child_spec = %{
+                  id: task_id,
+                  start:
+                    {PramanaFoundry.AgentServer, :start_link,
+                     [
+                       [
+                         task_id: task_id,
+                         run_id: run_id,
+                         checkout: checkout,
+                         adapter: adapter,
+                         coordinator_pid: coordinator_pid,
+                         role: :developer,
+                         profile: profile.name,
+                         launch_profiles: profiles,
+                         launch_state: s,
+                         launch_now: now,
+                         herdr_timeout_ms: timeout_ms,
+                         telemetry_path: telemetry_path,
+                         handoff_data: %{"previous_error" => prev_error},
+                         herdr_opts: herdr_opts
+                       ]
+                     ]},
+                  restart: :temporary
+                }
+
+                case DynamicSupervisor.start_child(supervisor, child_spec) do
+                  {:ok, pid} when is_pid(pid) ->
+                    IO.puts("  tick: started AgentServer #{task_id} (#{inspect(pid)})")
+                    {ns, Map.put(reg, task_id, pid), [{:launched, task_id} | log]}
+
+                  {:error, {:already_started, _}} ->
+                    IO.puts("  tick: agent already started for #{task_id}")
+                    {ns, reg, [{:skipped, task_id, "already_started"} | log]}
+
+                  {:error, reason} ->
+                    IO.puts("  tick: DynamicSupervisor failed for #{task_id}: #{inspect(reason)}")
+                    current_retries = get_in(ns, ["assignments", task_id, "launch_retries"]) || 0
+                    next_retries = current_retries + 1
+
+                    event_name =
+                      if next_retries <= max_launch_retries,
+                        do: "launch_retried",
+                        else: "launch_parked"
+
+                    persist_or_halt(
+                      append_fn,
+                      event_log_path,
+                      event_name,
+                      task_id,
+                      run_id,
+                      "developer",
+                      %{
+                        "retry_count" => next_retries,
+                        "max_retries" => max_launch_retries,
+                        "stage" => "dynamic_supervisor",
+                        "error_reason" => "DynamicSupervisor: #{inspect(reason)}"
+                      }
+                    )
+
+                    retried = apply_launch_retry(task_id, ns, max_launch_retries)
+                    {retried, reg, [{:launch_failed, task_id, :dynamic_supervisor_error} | log]}
+                end
+              else
+                reason =
+                  cond do
+                    not is_pid(supervisor) -> "no_assignment_supervisor"
+                    not is_binary(checkout) -> "no_checkout"
+                    true -> "herdr_unavailable(no_HERDR_ENV)"
+                  end
+
+                IO.puts("  Cannot launch #{task_id}: #{reason}")
+                current_retries = get_in(ns, ["assignments", task_id, "launch_retries"]) || 0
+                next_retries = current_retries + 1
+
+                event_name =
+                  if next_retries <= max_launch_retries,
+                    do: "launch_retried",
+                    else: "launch_parked"
+
+                persist_or_halt(
+                  append_fn,
+                  event_log_path,
+                  event_name,
+                  task_id,
+                  run_id,
+                  "developer",
+                  %{
+                    "retry_count" => next_retries,
+                    "max_retries" => max_launch_retries,
+                    "stage" => "pre_launch",
+                    "error_reason" => reason
+                  }
+                )
+
+                retried = apply_launch_retry(task_id, ns, max_launch_retries)
+                {retried, reg, [{:launch_failed, task_id, reason} | log]}
+              end
+            else
+              {:error, reason} ->
+                blocked_reason = LaunchEligibility.reason(reason)
+                blocked = block_assignment(s, task_id, :developer, blocked_reason)
+                {blocked, reg, [{:launch_blocked, task_id, blocked_reason} | log]}
+            end
+
+          true ->
+            {s, reg, [{:no_assignment, task_id} | log]}
+        end
+      end)
+    end
   end
 
   @doc "Check if Herdr is available in the running environment."
@@ -239,4 +254,6 @@ defmodule PramanaFoundry.Coordinator.Tick do
       {:error, reason} -> throw({:persistence_failed, reason})
     end
   end
+
+  defp outstanding_cleanup?(state), do: Cleanup.outstanding?(state)
 end
