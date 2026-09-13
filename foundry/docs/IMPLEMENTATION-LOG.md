@@ -884,6 +884,20 @@ steps.
   test and documentation paths. It must implement the entire call-site matrix and Rule-41
   sweep, retain the independently credited full-row VFS sync proof, and freeze only after
   format, warnings-as-errors compile, focused and honest full-suite evidence.
+- Two read-only Sol-medium implementation-support probes ran concurrently against the mutable
+  v6 tree without editing it. The relation probe report SHA-256 is
+  `961bc020e70d0219e1b6cf2c9e55a8a64e3965c690ec7b86a2de258aa73577ed`; its executable
+  probe SHA-256 is `af73ddc42830d0e385e223bada28fb1f0f5da7e5fc2ccc1246b1d1641473dd52`.
+  It passed targeted codec/global-relation/reducer behavior but reproduced three scoped-read
+  gaps: unknown `sqlite_sequence`, a corrupt earlier projection carrier, and a second related
+  reservation could remain invisible to live reads while global backup validation caught them.
+- The path/import probe passed 29 of 30 targeted cases and reproduced pre-existing recovered-
+  artifact namespace admission, deterministic publication-temp rerun failure, broad recovery
+  deletion of an unrelated matching temp file, direct `Database.initialize/2` sidecar removal,
+  and unbounded retained legacy materialization. Its session then terminated under a platform
+  cybersecurity safety filter before producing a formal report; these are recorded as delivered
+  implementation findings, **not** as a completed independent review. The sole writer owns
+  exact regression coverage and resolution before freeze.
 
 ### FR-08 preparation
 
