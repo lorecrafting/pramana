@@ -59,9 +59,9 @@ exact v3 manifest and returned **PASS**. FR-06's design gate is complete; no
 implementation finding is closed. FR-03 and FR-06 now provide the recorded dependency
 evidence required to begin FR-07's durable-store implementation. FR-07 is active on a
 fourth candidate after three independent reviews exposed recurring record-schema and
-path-identity defects; a focused diagnosis now requires one codec, one reducer and one
-strict store identity. A separately investigated, test-only SQLite WAL `xSync` fault
-fixture remains required before acceptance. FR-21's evidence-bearing v2 CI/provenance
+path-identity defects; the unified v4 candidate, including an executed test-only SQLite
+WAL `xSync` fault fixture, is frozen under Astra-high review. FR-21's evidence-bearing v2
+CI/provenance
 candidate passed an independent 431-test detached run and resolved four of five prior
 blockers; its remaining F24 error-contract mismatch for an unwritable manifest path has a
 frozen, focused v3 correction under renewed independent review. Neither ticket is integrated.

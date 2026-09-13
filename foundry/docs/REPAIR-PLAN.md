@@ -122,7 +122,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-04 | Restrict cleanup to verified owned resources | — | **Complete: reviewed containment** | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | **Complete: reviewed containment** | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
-| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Active: v4 unified codec/path correction plus VFS sync-fault fixture** | F02, F20, F21 |
+| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Reviewing frozen v4 unified candidate** | F02, F20, F21 |
 | FR-08 | Unify command transitions and replay | FR-07 | Blocked | F07, F16 |
 | FR-09 | Prove OMP execution and presentation contract | FR-01, FR-04, FR-06, FR-15a | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08, FR-09 | Blocked | F08, F09 |

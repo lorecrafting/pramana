@@ -813,6 +813,24 @@ steps.
   `SQLITE_IOERR_FSYNC`; this can satisfy FR-07's expressly permitted VFS-fault route if it is
   implemented, executed and independently reviewed. It proves an attributed VFS sync fault,
   not a failed physical kernel `fsync` syscall. FR-07 remains unaccepted meanwhile.
+- Unified v4 candidate `8d2447e73dd29fdacc797ddea7fd47ab32299efe`, tree
+  `2c8467430faf53d0aa676048ddd963ed727296db`, is frozen for Astra-high review; implementation
+  commit/tree are `257671e083908901390d622b6c6bfd4df2f3b9a8` /
+  `ea6f7c10b19e42dea61c341f0a8ee51a40b07d09`. Candidate-v4 SHA-256 is
+  `8f61ce89e14cadd0827c812aa64da9cab3876ccf409d0978ea85c6262a262f65`; all 37 manifest
+  entries matched for the implementer. Fetched dependency directories are untracked and
+  excluded from the candidate.
+- Pinned warnings-as-errors compilation passed, a fresh focused suite passed 60 tests, and
+  the exact frozen-source fresh full suite passed 469. The test-only native shim loaded into
+  the actual Exqlite connection and produced one attributed WAL `xSync`
+  `SQLITE_IOERR_FSYNC (1034)` in ordinary and hard-exit fixtures, with no acknowledgment,
+  recovery fencing, complete reconstruction/backup and ambiguity-safe retry. This remains
+  VFS-fault evidence, not a physical-medium or kernel-`fsync` claim.
+- Prepared Astra-high reviewer `/root/fr07_v4_review_prep` owns exact-candidate review using
+  checklist SHA-256 `4e3b5a2c00708a99830b951d86e26a0e344a9f7ea808f3e6e46cab3dceaabda2`.
+  After freeze, the implementer disclosed that startup may lack a typed semantic validator
+  for an injected unsupported child ledger-generation row. The candidate was not changed;
+  the reviewer must independently probe and disposition this risk.
 
 ### FR-08 preparation
 
