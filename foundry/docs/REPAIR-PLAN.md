@@ -137,7 +137,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-18 | Make status, board and telemetry reflect real state | FR-08, FR-10, FR-11 | Blocked | F17, F18 |
 | FR-19 | Bound storage and make offline maintenance safe | FR-07, FR-18 | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18 | Blocked | F19 |
-| FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Active: correcting one v2 review blocker** | F23, F24 |
+| FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Reviewing focused v3 correction** | F23, F24 |
 | FR-22 | Prove full lifecycle and reconcile operating docs | FR-11–FR-21 | Blocked | F01–F24 |
 
 ## FR-06 sequencing and supersession

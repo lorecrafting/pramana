@@ -892,6 +892,16 @@ steps.
   infrastructure contract. The same implementation owner is making the smallest correction:
   return 70, identify path/reason once, add the executable boundary regression, and obtain
   renewed independent review. Candidate `1bd381d` remains unintegrated.
+- Focused v3 correction `f76be70955452e378274e1784886b57bf618f033`, tree
+  `c49c7fc89f4aab6c561c61df4936192424100390`, is frozen. Its delta from reviewed v2 is
+  only `ci.ex`, `ci_test.exs` and three FR-21 review/evidence documents; the nonblocking
+  CLI wording suggestion was excluded because main carries unrelated CLI edits. The v2
+  review is preserved byte-for-byte at SHA-256 `f9477b3497dc925eabd97a05b5af4806c523c071ef5f1f071fe10f87a124c64f`.
+- Exact-candidate focused/non-regression evidence passed 14 tests with the optional Python
+  recomputation excluded. The adversarial pre-existing `provenance.json/` directory now
+  exits 70, reports the exact destination and `:eisdir` once, leaves no regular manifest or
+  artifact, and preserves clean source. The same independent Sol-high reviewer is checking
+  only this correction and regressions of already accepted B1/B2/B4/B5 behavior.
 
 ### FR-01 candidate v4 — frozen validation correction
 

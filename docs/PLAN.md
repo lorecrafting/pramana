@@ -63,9 +63,8 @@ path-identity defects; a focused diagnosis now requires one codec, one reducer a
 strict store identity. A separately investigated, test-only SQLite WAL `xSync` fault
 fixture remains required before acceptance. FR-21's evidence-bearing v2 CI/provenance
 candidate passed an independent 431-test detached run and resolved four of five prior
-blockers, but review found one remaining F24 error-contract mismatch when the manifest path
-itself is unwritable. A bounded correction and renewed review are active. Neither ticket is
-integrated.
+blockers; its remaining F24 error-contract mismatch for an unwritable manifest path has a
+frozen, focused v3 correction under renewed independent review. Neither ticket is integrated.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence
