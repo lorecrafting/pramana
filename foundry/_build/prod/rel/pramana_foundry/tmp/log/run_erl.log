@@ -1,8 +1,8 @@
-run_erl [31522] Sat Sep 12 13:48:54 2026
+run_erl [13449] Sat Sep 12 15:44:51 2026
 Args before exec of shell:
-run_erl [31522] Sat Sep 12 13:48:54 2026
+run_erl [13449] Sat Sep 12 15:44:51 2026
 argv[0] = sh
-run_erl [31522] Sat Sep 12 13:48:54 2026
+run_erl [13449] Sat Sep 12 15:44:51 2026
 argv[1] = -c
-run_erl [31522] Sat Sep 12 13:48:54 2026
+run_erl [13449] Sat Sep 12 15:44:51 2026
 argv[2] =  /Users/raymondluong/dev/pramana/foundry/_build/prod/rel/pramana_foundry/releases/0\.1\.0/\.\./\.\./erts-17\.0\.5/bin/erl -noshell -s elixir start_cli -mode embedded -setcookie GPCIGHODLBUEJLJSWEBEG2FFL6NQ5BHVRTUIAOBHYYF5Q4J2KDYA\=\=\=\= -sname pramana_foundry -config /Users/raymondluong/dev/pramana/foundry/_build/prod/rel/pramana_foundry/releases/0\.1\.0/sys -boot /Users/raymondluong/dev/pramana/foundry/_build/prod/rel/pramana_foundry/releases/0\.1\.0/start -boot_var RELEASE_LIB /Users/raymondluong/dev/pramana/foundry/_build/prod/rel/pramana_foundry/lib -args_file /Users/raymondluong/dev/pramana/foundry/_build/prod/rel/pramana_foundry/releases/0\.1\.0/vm\.args -extra --no-halt

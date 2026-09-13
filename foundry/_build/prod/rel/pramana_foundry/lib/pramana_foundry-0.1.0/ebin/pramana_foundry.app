@@ -11,6 +11,7 @@
                         'Elixir.PramanaFoundry.Board.View',
                         'Elixir.PramanaFoundry.Board.ViewState',
                         'Elixir.PramanaFoundry.CLI',
+                        'Elixir.PramanaFoundry.CLI.Validators',
                         'Elixir.PramanaFoundry.Checks.Adoption',
                         'Elixir.PramanaFoundry.Checks.Runner',
                         'Elixir.PramanaFoundry.Checks.Status',
