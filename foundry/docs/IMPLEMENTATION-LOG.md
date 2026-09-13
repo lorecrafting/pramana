@@ -566,7 +566,7 @@ steps.
   evidence and exact native session identity, bind fresh cleanup to a pre-start snapshot,
   durably retain every cleanup obligation/result, and keep unresolved resources visible
   and capacity-blocking without absorbing FR-10's full reconciliation redesign.
-- Candidate v2 response SHA-256
+- Candidate v2 draft response SHA-256
   `f00880a5c1a9ed312428d33e2f05676d0e105513b022e7fe85f4b996d2910640`
   added strict shell-generation/session identity, pre-start capture, checked pending/result
   cleanup events and replayed blocking state; its expanded isolated suite passed 83 tests.
@@ -582,6 +582,22 @@ steps.
   while effect children drain (without early release), preserve the latest independent work
   verdict, remove blocked work from the ordinary queue and conservatively block admission
   while cleanup is outstanding. FR-04 remains active and unintegrated.
+- The next freeze announcement was invalid: the implementer corrected two additional
+  AgentServer exits after drafting the response and reported its stale digest. Review
+  stopped before executable attestation. The refreshed response SHA-256 was
+  `1d5f4e0b01a4579c6095fa7f5919aa7bfcd4b9e8a24aff5d7279ea8a55badcf1`,
+  and all 20 refreshed manifest entries then matched independently. This provenance error
+  is retained; no review is claimed for the stale identity.
+- Independent review v3 still returned **FAIL**; artifact SHA-256
+  `131b848c17fb95308b501f12b9752e97592abd32cbdaa891d2c54ad37fcc8fa2`.
+  Foreground-incarnation checks and the former synchronous owner deadlock were corrected,
+  and 96 focused tests passed. Two bounded residuals were reproduced with actual isolated
+  runtime components: a shutdown deadline on a `handoff_received` AgentServer could yield
+  no cleanup event, remove the unclean marker and admit a successor because clean-state
+  validation was status-specific; and Coordinator lacked a clause for Tick's deliberate
+  cleanup admission suspension, producing a function-clause error on every blocked tick.
+- The same implementer is making only those status-independent marker and Tick-result
+  corrections, after which a new exact manifest and renewed review are required.
 
 ### FR-05
 
