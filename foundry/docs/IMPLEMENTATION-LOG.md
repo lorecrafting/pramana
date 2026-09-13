@@ -828,6 +828,16 @@ steps.
   closed. It does not modify Mix inputs, Coordinator, CLI, startup, durable store or live
   state. `/root/fr21_review` (Sol-high) is independently reviewing the frozen deletion,
   portability, isolation and provenance boundary.
+- Independent Sol-high review SHA-256
+  `da11d18a4cfe7f7842ccb9309e63f6dbb8319b41967c5f0e30fb723c86eac36c`
+  returned **FAIL**, despite independently reproducing two clean 426/426 six-stage runs.
+  Five concrete blockers remain: an undeclared ambient Python/tiktoken dependency in the
+  default suite; dirty/untracked source can enter a passing escript without byte identity;
+  setup failures may omit or materially truncate provenance; OTP 29.0.1 is accepted as
+  the exact 29.0.5 policy; and path/unlocked dependency sources can evade the stated
+  lockfile-only policy. Candidate `85a7449` remains frozen and unintegrated. The same
+  implementation owner is correcting these exact portability/provenance failures before
+  renewed review.
 
 ### FR-01 candidate v4 — frozen validation correction
 
