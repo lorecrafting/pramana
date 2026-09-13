@@ -789,6 +789,17 @@ steps.
   suite. V2-R4a/R4b/R6/R2a/R2b/R7 claim executable corrections and R8 prior/full-content
   assertions were strengthened. The attributed failed-fsync case remains explicitly
   unavailable/unpassed. Astra-high renewed review is active against this exact revision.
+- V3 review SHA-256
+  `b5f7fe402404d8d8e9a41d55a779b56035ce1c39faf4515b82874d88cd9489e6`
+  returned **FAIL** after all 25 hashes matched, 49 focused tests passed independently and
+  seven targeted probes ran. Three narrower blockers remain: an omitted optional result
+  field commits but fails first read/reopen; an event-only projection transition commits
+  but fails reconstruction; and a symlink-parent plus `..` path can bind the owner lock to
+  a different database identity than SQLite, allowing a second writer/importer. The
+  attributed failed-fsync acceptance remains separately unavailable. Because compatible
+  validation and path-identity failures have recurred across three reviews, further patching
+  is paused for `/root/fr07_schema_path_diagnosis` to define unified write/read/recovery
+  schemas and one canonical store-identity algorithm before the next candidate.
 
 ### FR-08 preparation
 
