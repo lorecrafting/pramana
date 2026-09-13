@@ -520,10 +520,23 @@ if is_map(assignment) do
             |> Map.put("status", "queued")
             |> Map.put("correction_count", correction_count + 1)
             |> Map.put("correction_history", correction_history ++ [record])
+
+          "changes_requested" ->
+            correction_history = Map.get(assignment, "correction_history", [])
+
+            record = %{
+              "round" => correction_count + 1,
+              "at" => now
+            }
+
+            assignment
+            |> Map.put("status", "queued")
+            |> Map.put("correction_count", correction_count + 1)
+            |> Map.put("correction_history", correction_history ++ [record])
           end
 
         new_state =
-          if verdict == "correction_needed" do
+          if verdict == "correction_needed" or verdict == "changes_requested" do
             updated_queue = state["queue"] ++ [task_id]
             state
             |> put_in(["assignments", task_id], updated)

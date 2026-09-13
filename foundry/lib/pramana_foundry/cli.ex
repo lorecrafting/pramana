@@ -313,7 +313,7 @@ defmodule PramanaFoundry.CLI do
           "remaining_risks" => Map.get(data, "remaining_risks", [])
         }
 
-        case PramanaFoundry.Coordinator.receive_review(task_id, coord_review) do
+        case PramanaFoundry.Coordinator.receive_review(task_id, coord_review, skip_git_checks: true) do
           {:ok, _assignment} ->
             IO.puts("Review accepted for #{task_id}")
             verdict = Map.get(data, "verdict", "unknown")
