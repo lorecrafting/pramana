@@ -62,9 +62,10 @@ fourth candidate after three independent reviews exposed recurring record-schema
 path-identity defects; a focused diagnosis now requires one codec, one reducer and one
 strict store identity. A separately investigated, test-only SQLite WAL `xSync` fault
 fixture remains required before acceptance. FR-21's evidence-bearing v2 CI/provenance
-candidate is frozen under renewed independent review after two clean detached 431-test
-runs; its first review had failed on five portability and fail-closed provenance
-boundaries. Neither ticket is integrated.
+candidate passed an independent 431-test detached run and resolved four of five prior
+blockers, but review found one remaining F24 error-contract mismatch when the manifest path
+itself is unwritable. A bounded correction and renewed review are active. Neither ticket is
+integrated.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence

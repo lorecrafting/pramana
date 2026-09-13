@@ -880,6 +880,18 @@ steps.
 - `/root/fr21_v2_review` (fresh Sol-high) independently owns review of exact candidate
   `1bd381d`; it must reproduce clean execution, challenge B1–B5 and decide whether the
   per-build artifact identity satisfies FR-21. Candidate files are frozen meanwhile.
+- Fresh independent review SHA-256
+  `f9477b3497dc925eabd97a05b5af4806c523c071ef5f1f071fe10f87a124c64f`
+  returned **FAIL** with one remaining FR-21/F24 blocker in the B3 family. The reviewer
+  independently passed 431 tests with one declared exclusion and found B1, B2, B4 and B5
+  resolved. Per-build artifact hashes satisfy FR-21; differing escript bytes remain an
+  honest non-blocking reproducible-build limitation.
+- The remaining case creates the requested output directory but makes `provenance.json`
+  itself an unwritable directory. The runner fails closed, but retries the impossible write,
+  returns setup exit 2 and omits the destination path, contradicting its documented exit-70
+  infrastructure contract. The same implementation owner is making the smallest correction:
+  return 70, identify path/reason once, add the executable boundary regression, and obtain
+  renewed independent review. Candidate `1bd381d` remains unintegrated.
 
 ### FR-01 candidate v4 — frozen validation correction
 
