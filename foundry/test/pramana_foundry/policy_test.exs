@@ -3,9 +3,11 @@ defmodule PramanaFoundry.PolicyTest do
 
   alias PramanaFoundry.{Parity, Preparation}
 
-  test "shadow mode has no Herdr or live-state capability" do
-    assert {:ok, %{herdr_calls: 0, live_state_writes: 0}} = Parity.shadow(%{"task" => "T1"})
-    assert {:error, :effects_forbidden_in_shadow_mode} = Parity.shadow(%{}, herdr: fn -> :bad end)
+  test "retired Python parity fails closed instead of reporting vacuous equality" do
+    assert {:error, :retired_python_migration_parity} = Parity.shadow(%{"task" => "T1"})
+
+    assert %{status: :retired, reason: :retired_python_migration_parity} =
+             Parity.compare_fixture(:snapshot, "unused")
   end
 
   test "workflow-only preparation omits umbrella and database commands" do

@@ -6,9 +6,11 @@
 > `PramanaWorkflow`, and `workflow/` below refer to the same codebase at its
 > current location.
 
-**Status: migration complete.** The Elixir OTP release (`pramana_foundry`) is the sole
-local dispatcher. The Python supervisor and board have been retired — state archived,
-wrappers removed, smoke check installed at `bin/pramana-retire-smoke`.
+**Historical status recorded 2026-09-08: migration declared complete.** The Elixir OTP
+release (`pramana_foundry`) was reported as the sole local dispatcher. The Python supervisor
+and board were reported retired, with state archived, wrappers removed and a smoke check at
+`bin/pramana-retire-smoke`. The 2026-09-12 audit and `REPAIR-PLAN.md` govern current
+implementation and acceptance status.
 
 The standalone Mix project supplies the local OTP release/CLI shell, strict schema
 validation, durable-state and fencing, typed Herdr adapter, checkpointed OS-child/check
@@ -19,8 +21,8 @@ local BEAM inspection, journaled workspace relocation, cutover facade, soak/rest
 harness, and a self-healing Improver loop that reads telemetry and creates hardening
 tickets.
 
-`docs/PLAN.md` owns priority. [`MIGRATION-TICKETS.md`](MIGRATION-TICKETS.md) owns the ordered
-migration inventory and bounded next-ticket contracts.
+`REPAIR-PLAN.md` owns current priority and repair dependencies. The historical
+[`MIGRATION-TICKETS.md`](MIGRATION-TICKETS.md) retains the ordered migration inventory.
 
 ## Boundary and destination
 
@@ -192,7 +194,12 @@ Production rollback consumes the latest Elixir state only through a tested compa
 it must not silently restore an older accepted revision. Python runtime and wrappers remain
 until soak and restart evidence makes retirement safe.
 
-## Executable parity matrix
+## Historical executable parity matrix (dated 2026-09-08)
+
+This matrix recorded the migration plan and evidence vocabulary used before the
+2026-09-12 audit. It is not a statement that every row is implemented or currently
+exercised. FR-21 retired the absent Python executable-parity harness on 2026-09-13;
+current lifecycle closure is tracked by `REPAIR-PLAN.md` and belongs to FR-22.
 
 Each row is a required observable contract. “Fixture” means disposable repositories and fake
 backends; “live” means a bounded real Herdr/provider path. Later ticket admission must map each

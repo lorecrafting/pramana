@@ -18,6 +18,14 @@ self-healing Improver, full system metrics, health probes, and structured observ
 The project remains independent of the Phoenix umbrella, Postgres, the research corpus, and
 `priv/embed/`.
 
+## Independent CI and build provenance
+
+The [Foundry-only CI job](docs/CI.md) runs from this directory with fresh dependency, build,
+temporary and runtime roots. It compiles with warnings as errors, enforces all new formatting,
+runs the model-free suite and emits source/tool/dependency/escript provenance. It starts no
+corpus service, live daemon, Herdr pane or provider session. Real-provider and activation
+evidence remain explicit downstream acceptance, not implied by a green CI job.
+
 ## Acceptance and activation containment
 
 FR-05 disables legacy promotion and mutable-source activation. Public handoff and review
@@ -112,8 +120,10 @@ foundry/
 ```
 
 Source, tests, role templates, schemas, migration design, sanitized milestone records, and
-pinned dependencies belong in Git. Live state, transcripts, config, caches, logs, releases,
-temporary files, worktrees, and provider authentication do not.
+the dependency lockfile belong in Git. Hex dependency sources and generated executables are
+restored from the lockfile/source and identified by the CI provenance manifest; they do not
+belong in Git. Live state, transcripts, config, caches, logs, releases, temporary files,
+worktrees, and provider authentication do not.
 
 The fixed runtime root is `/Users/raymondluong/dev/pramana/foundry/local/`. It is local to
 the original project checkout and ignored by Git; it must never be derived from the current
@@ -157,7 +167,6 @@ See `config/config.exs`. Key values:
 
 ```bash
 pramana_foundry validate KIND PATH    # Validate a schema
-pramana_foundry shadow PATH            # Shadow an existing checkout
 pramana_foundry runtime-root           # Print runtime root path
 pramana_foundry health                 # Structured health report (JSON)
 pramana_foundry agents                 # List running agents with metrics
@@ -168,6 +177,9 @@ pramana_foundry board                  # Terminal kanban dashboard
 pramana_foundry telemetry-status PATH  # Telemetry status projection
 pramana_foundry telemetry-export ...   # Export telemetry as JSONL/CSV
 ```
+
+The former `shadow` Python-migration parity route is retired and fails closed. Sanitized
+legacy fixtures test import compatibility only; they do not prove current runtime parity.
 
 ## Observability
 

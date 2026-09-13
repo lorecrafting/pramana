@@ -831,6 +831,12 @@ steps.
   After freeze, the implementer disclosed that startup may lack a typed semantic validator
   for an injected unsupported child ledger-generation row. The candidate was not changed;
   the reviewer must independently probe and disposition this risk.
+- The implementer then withdrew v4 before verdict after finding a second definite mismatch:
+  the sync fixture exercised an ordinary transaction rather than the required complete
+  protected claim/reservation/ledger bundle, and its ordinary reopen branch omitted the
+  same-command retry. Review was interrupted without a verdict. V5 must add both protected
+  ordinary/hard-exit fixtures, full-table outcomes and retry, plus the typed ledger startup
+  validator; v4 remains immutable rejected history.
 
 ### FR-08 preparation
 
@@ -920,6 +926,17 @@ steps.
   exits 70, reports the exact destination and `:eisdir` once, leaves no regular manifest or
   artifact, and preserves clean source. The same independent Sol-high reviewer is checking
   only this correction and regressions of already accepted B1/B2/B4/B5 behavior.
+- Renewed focused review [record](fr-21/review-v3.md), SHA-256
+  `de1cf2bbe9cefdf391850a005fc54cf6b75d673095fca7fa486a355c9ebc9b42`, returned
+  **PASS** for exact candidate `f76be70`. Its detached reproducer returned 70, printed the
+  full manifest path and `:eisdir` exactly once, left no manifest/artifact/temp file and
+  retained clean source. Independent focused evidence passed 14 tests with one declared
+  exclusion, the CI file passed 10, and compile/format passed. Existing B1/B2/B4/B5 behavior
+  remained intact. Provider/live/activation/integration/FR-22 evidence remains excluded.
+- The reviewed net candidate is being integrated without its no-net intermediate CLI history;
+  exact candidate-owned implementation/test/workflow hashes match `f76be70`, while the
+  pre-existing dirty root CLI and Coordinator edits remain unstaged and untouched. The ticket
+  is not complete until the actual integration commit passes clean-checkout validation.
 
 ### FR-01 candidate v4 — frozen validation correction
 

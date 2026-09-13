@@ -149,7 +149,7 @@ defmodule PramanaFoundry.RPCWrapperTest do
   end
 
   test "actual wrapper reaches server-side empty and unknown-shape rejection", ctx do
-    ebin = Path.expand("../../_build/test/lib/pramana_foundry/ebin", __DIR__)
+    ebin = app_ebin()
 
     Enum.each([[], ["unknown", "literal " <> <<35>> <> "{1 + 1}"]], fn argv ->
       {output, status} =
@@ -190,7 +190,7 @@ defmodule PramanaFoundry.RPCWrapperTest do
           {"RPC_RECORD_DISPATCH", "1"},
           {"RPC_REAL_ELIXIR", System.find_executable("elixir")},
           {"RPC_REAL_PATH", System.fetch_env!("PATH")},
-          {"RPC_EBIN", Path.expand("../../_build/test/lib/pramana_foundry/ebin", __DIR__)},
+          {"RPC_EBIN", app_ebin()},
           {"RPC_EVAL_RECORDER", ctx.eval_recorder},
           {"RPC_DISPATCH_CAPTURE", dispatch_capture}
         ],
@@ -271,5 +271,9 @@ defmodule PramanaFoundry.RPCWrapperTest do
   defp token!(rpc_code) do
     [_, token] = Regex.run(@rpc_pattern, rpc_code)
     token
+  end
+
+  defp app_ebin do
+    Path.join([Mix.Project.build_path(), "lib", "pramana_foundry", "ebin"])
   end
 end

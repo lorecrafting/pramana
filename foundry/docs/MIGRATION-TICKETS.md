@@ -5,12 +5,17 @@
 > All references to `pramana_workflow` and `PramanaWorkflow` below refer to the same
 > codebase reorganized.
 
-**Status: migration complete.** All 8 tickets in the ordered chain are implemented.
-WF-ELIXIR-CUTOVER-02 and WF-ELIXIR-RETIRE-01 were executed live: the Python supervisor
-was drained, its state imported (27 records, SHA-256 verified), soak run (20 iterations,
-zero crashes), and the Python runtime retired (wrappers removed, state archived, smoke
-check installed). The Elixir OTP release (`pramana_workflow`) is the sole local
-dispatcher, with an active self-healing Improver loop.
+**Historical status recorded 2026-09-08: migration declared complete.** All 8 tickets in
+the ordered chain were reported implemented. WF-ELIXIR-CUTOVER-02 and
+WF-ELIXIR-RETIRE-01 were reported executed live: the Python supervisor was drained, its
+state imported (27 records, SHA-256 verified), soak run (20 iterations, zero crashes), and
+the Python runtime retired (wrappers removed, state archived, smoke check installed). The
+Elixir OTP release (`pramana_workflow`) was reported as the sole local dispatcher, with an
+active self-healing Improver loop.
+
+The 2026-09-12 audit found that these migration-ticket claims did not establish the repaired
+end-to-end lifecycle. `REPAIR-PLAN.md`, not this historical ticket list, is authoritative for
+current completion. FR-21 retired the absent Python parity executable on 2026-09-13.
 
 All implementation after this bounded architecture ticket returns to the configured
 subscription-backed Sol/medium developer and separate Sol/medium reviewer profiles. Do not

@@ -29,6 +29,9 @@ erl_crash.dump
 
 # Foundry standalone Mix project build artifacts
 /foundry/_build/
+/foundry/deps/
+/foundry/pramana_foundry
+/foundry/ci-artifacts/
 
 # Foundry runtime state (coordinator logs, handoffs)
 /foundry/local/
