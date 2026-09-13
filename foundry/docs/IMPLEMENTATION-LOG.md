@@ -724,6 +724,13 @@ steps.
   migration, FR-15a protected process isolation, FR-19 operating limits and any live
   deployment/provider activity.
 
+### FR-08 preparation
+
+- `/root/fr08_investigate` completed a read-only mutation/replay inventory while FR-07
+  implementation proceeds. The concise durable [investigation](fr-08/investigation.md)
+  records the FR-07 handoff capabilities, duplicated mutation paths, acceptance risks and
+  implementation order. FR-08 remains blocked and no FR-08 implementation owner exists.
+
 ### FR-01 candidate v4 — frozen validation correction
 
 - Only the two files authorized for the v3 residual changed: LaunchEligibility SHA-256
