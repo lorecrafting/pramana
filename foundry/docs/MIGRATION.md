@@ -115,22 +115,19 @@ change provider or billing mode. No premium or billed fallback is implied.
 
 ## Review, integration, and revision visibility
 
-Independent review is bound to the exact candidate commit. The reviewer cannot mutate the
-candidate. Required review commands appear exactly once, in order, with numeric exit status
-zero; stale, malformed, incomplete, duplicate, unexpected, or failed evidence parks the
-candidate. Two bounded correction rounds are allowed before parking. Integration is globally
-serial in an isolated candidate and cannot move the accepted revision unless every declared
-gate succeeds. A failed combined check preserves the prior accepted revision and evidence.
-The final precommit and applicable corpus gates remain supervisor-owned when assigned as
-integration-only checks.
+FR-05 provides fail-closed containment only: submitted identities are no longer synthesized,
+auto-approval and production Git bypasses are rejected, and legacy integration cannot start.
+FR-13 and FR-14 must establish the exact-candidate review/check and serialized Git guarantees
+designed here before promotion is restored. FR-17 separately restores immutable activation.
 
 Every status and board view must display both:
 
 - the source/accepted revision from which runtime code is available; and
 - the implementation revision actually loaded by the running Python process or BEAM release.
 
-Promoting source does not activate a running image. A mismatch is visible and restart remains
-an explicit controlled operation.
+These revision values are presentation-only labels. They do not prove accepted source,
+loaded code, a build manifest, deployment, or activation. FR-17 replaces the disabled raw
+source watcher with controller-selected immutable builds and checked rollback.
 
 ## Board and inspection
 

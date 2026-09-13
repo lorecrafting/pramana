@@ -8,6 +8,8 @@ defmodule PramanaFoundry.Assignments.Handoff do
   @blocked_fields ~w(schema_version task_id run_id status reason diagnostic_evidence)
   @max_blocked_handoff_bytes 64 * 1024
 
+  alias PramanaFoundry.GitEvidence
+
   @spec validate(map(), map(), map(), keyword()) :: {:ok, map()} | {:error, String.t()}
   def validate(handoff, ticket, assignment, opts \\ [])
 
@@ -178,65 +180,6 @@ defmodule PramanaFoundry.Assignments.Handoff do
   defp validate_clean_checkout(handoff, ticket, opts) do
     checkout = Keyword.get(opts, :checkout, ticket["checkout"])
 
-    cond do
-      is_nil(checkout) ->
-        :ok
-
-      Keyword.get(opts, :skip_git_checks, false) ->
-        :ok
-
-      File.dir?(checkout) ->
-        # 1. Verify git status --porcelain has ZERO uncommitted or untracked changes
-        case System.cmd("git", ["status", "--porcelain"], cd: checkout, stderr_to_stdout: true) do
-          {"", 0} ->
-            # 2. Verify HEAD == commit
-            case System.cmd("git", ["rev-parse", "HEAD"], cd: checkout, stderr_to_stdout: true) do
-              {head, 0} ->
-                actual_head = String.trim(head)
-
-                if actual_head != handoff["commit"] do
-                  {:error,
-                   "task checkout HEAD does not equal handoff commit: #{actual_head} != #{handoff["commit"]}"}
-                else
-                  # 3. Verify recorded commit is the sole difference from accepted base
-                  base = handoff["assigned_base"]
-
-                  case System.cmd("git", ["rev-list", "--count", "#{base}..HEAD"],
-                         cd: checkout,
-                         stderr_to_stdout: true
-                       ) do
-                    {count_str, 0} ->
-                      case Integer.parse(String.trim(count_str)) do
-                        {1, ""} ->
-                          :ok
-
-                        {n, ""} ->
-                          {:error,
-                           "task checkout has #{n} commits beyond base (expected exactly 1)"}
-
-                        _ ->
-                          {:error, "unexpected rev-list output: #{count_str}"}
-                      end
-
-                    {err, _} ->
-                      {:error, "git rev-list failed: #{err}"}
-                  end
-                end
-
-              {err, _} ->
-                {:error, "git rev-parse HEAD failed: #{err}"}
-            end
-
-          {dirty, 0} ->
-            {:error,
-             "task checkout has uncommitted or untracked changes: #{String.slice(dirty, 0, 200)}"}
-
-          {err, _} ->
-            {:error, "git status check failed: #{err}"}
-        end
-
-      true ->
-        :ok
-    end
+    GitEvidence.validate_checkout(checkout, handoff["commit"], handoff["assigned_base"], opts)
   end
 end

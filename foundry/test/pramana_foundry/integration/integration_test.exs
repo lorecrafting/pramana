@@ -18,21 +18,14 @@ defmodule PramanaFoundry.IntegrationTest do
     "handoff" => %{"commit" => @cand_rev}
   }
 
-  describe "serial singleton owner" do
-    test "allows single owner, rejects concurrent second candidate" do
+  describe "suspended public boundary" do
+    test "owner acquisition and release are effect-free refusals" do
       state = %{"accepted_revision" => @base_rev, "integration" => %{}}
 
-      assert {:ok, state_owned} = Integration.acquire_owner(state, "T1", @cand_rev)
-      assert state_owned["integration"]["owner"] == "T1"
-
-      assert {:error, :integration_busy} =
-               Integration.acquire_owner(state_owned, "T2", "other-commit")
-
-      # Releasing owner allows next
-      state_released = Integration.release_owner(state_owned, "T1")
-      assert state_released["integration"]["owner"] == nil
-
-      assert {:ok, _} = Integration.acquire_owner(state_released, "T2", "other-commit")
+      assert {:error, message} = Integration.acquire_owner(state, "T1", @cand_rev)
+      assert message =~ "integration is suspended before effects"
+      assert {:error, ^message} = Integration.release_owner(state, "T1")
+      assert state == %{"accepted_revision" => @base_rev, "integration" => %{}}
     end
   end
 
@@ -40,24 +33,24 @@ defmodule PramanaFoundry.IntegrationTest do
     test "pause blocks promotion" do
       state = %{"accepted_revision" => @base_rev, "paused" => true}
       assert {:error, msg} = Integration.validate_readiness(state, @assignment)
-      assert msg =~ "promotion blocked: supervisor is paused"
+      assert msg =~ "integration is suspended before effects"
     end
 
     test "stop blocks promotion" do
       state = %{"accepted_revision" => @base_rev, "stop_requested" => true}
       assert {:error, msg} = Integration.validate_readiness(state, @assignment)
-      assert msg =~ "promotion blocked: stop requested"
+      assert msg =~ "integration is suspended before effects"
     end
 
     test "stale candidate base revision parks/rejects" do
       state = %{"accepted_revision" => "new-advanced-base-rev"}
       assert {:error, msg} = Integration.validate_readiness(state, @assignment)
-      assert msg =~ "stale candidate"
+      assert msg =~ "integration is suspended before effects"
     end
   end
 
   describe "combined gate checks and failure" do
-    test "gate check failure preserves accepted revision and parks assignment" do
+    test "gate checks and failure mutation refuse before runner or state effects" do
       state = %{
         "accepted_revision" => @base_rev,
         "assignments" => %{"T1" => @assignment},
@@ -69,40 +62,37 @@ defmodule PramanaFoundry.IntegrationTest do
         ["mise", "exec", "--", "mix", "precommit"]
       ]
 
-      # Mock runner that fails the second check
-      failing_runner = fn
-        ["sh", "-c", _], _path -> {"ok", 0}
-        ["mise" | _], _path -> {"precommit failed", 1}
+      runner = fn command, path ->
+        send(self(), {:runner_invoked, command, path})
+        {"unexpected", 0}
       end
 
-      assert {:error, {:check_failed, _cmd, 1, _output}} =
-               Integration.run_gate_checks("/tmp/cand", checks, failing_runner)
+      assert {:error, message} = Integration.run_gate_checks("/tmp/cand", checks, runner)
+      assert message =~ "integration is suspended before effects"
+      refute_received {:runner_invoked, _, _}
 
-      # Fail integration
-      assert {:ok, updated_state, updated_assignment} =
+      assert {:error, ^message} =
                Integration.fail_integration(state, @assignment, "gate precommit failed")
 
-      # Accepted revision is strictly preserved!
-      assert updated_state["accepted_revision"] == @base_rev
-      assert updated_assignment["status"] == "parked"
-      assert updated_state["integration"]["owner"] == nil
+      assert state["accepted_revision"] == @base_rev
+      assert state["assignments"]["T1"] == @assignment
+      assert state["integration"]["owner"] == "T1"
     end
   end
 
   describe "promotion and stop gating" do
-    test "successful promotion advances accepted revision" do
+    test "legacy memory-only promotion is suspended without advancing accepted revision" do
       state = %{
         "accepted_revision" => @base_rev,
         "assignments" => %{"T1" => @assignment},
         "integration" => %{"owner" => "T1", "candidate" => @cand_rev}
       }
 
-      assert {:ok, promoted_state, promoted_assignment} =
-               Integration.promote_candidate(state, @assignment)
-
-      assert promoted_state["accepted_revision"] == @cand_rev
-      assert promoted_assignment["status"] == "integrated"
-      assert promoted_state["integration"]["owner"] == nil
+      assert {:error, message} = Integration.promote_candidate(state, @assignment)
+      assert message =~ "integration is suspended before effects"
+      assert state["accepted_revision"] == @base_rev
+      assert state["assignments"]["T1"]["status"] == "review_approved"
+      assert state["integration"]["owner"] == "T1"
     end
 
     test "candidate cannot be promoted from success evidence observed during or after stop" do
@@ -114,7 +104,7 @@ defmodule PramanaFoundry.IntegrationTest do
       }
 
       assert {:error, msg} = Integration.promote_candidate(state, @assignment)
-      assert msg =~ "cannot be promoted from success evidence observed during or after a stop"
+      assert msg =~ "integration is suspended before effects"
     end
   end
 end

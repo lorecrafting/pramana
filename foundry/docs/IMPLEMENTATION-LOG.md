@@ -672,6 +672,26 @@ steps.
   silently discarded `--auto_approve` and created an event, although the fixed wrapper
   rejected that shape. The same implementer is correcting only these direct boundaries;
   FR-05 remains active and unintegrated.
+- Corrected candidate artifact SHA-256
+  `45c2b19413cb4f4eb32469c35cf4a1c1bc0fd90e8e4f982cb58783c6a4386c5d`;
+  response SHA-256
+  `66a1a3bdcc95e3b262e1ef1d7e6f66a65e6e9dd2ac1dcddf4b40afb16db3fee9`.
+  All six public Pipeline operations now suspend before effects, and direct ticket-create
+  parsing rejects forbidden, unknown, duplicate, missing and normalized auto-approve
+  options before Coordinator access.
+- Renewed independent review v2 SHA-256
+  `d6f3a0be3e09522e015c87c50c94dd8f45ae214f39a6cb71d83b74677c54fc5e`
+  returned **PASS for FR-05 containment**. All 26 hashes matched; 83 focused tests,
+  production no-start probes covering six Pipeline and fourteen CLI refusals, both Git
+  bypass refusals, and isolated real-Git identity/ancestry/staleness probes passed.
+- Reviewed candidate commit `5bc8c1ca81bfe65dff2b40a164ea8e12e2424f80`, tree
+  `7e698647144b055a850142601b1cd46cf803af05`, contains exactly the 26 paths plus
+  four provenance artifacts. Implementer evidence includes focused `63 passed`, full
+  model-free `422 passed`, and forced 77-file warnings-as-errors compilation.
+- Applied precisely to main; the unrelated dirty CLI/Coordinator unblock additions were
+  excluded from the commit and restored afterward. FR-05 is implemented and reviewed,
+  **not deployed**. FR-13/14/17 retain artifact, Git integration and immutable activation;
+  FR-22 retains lifecycle acceptance.
 
 ### FR-01 candidate v4 — frozen validation correction
 

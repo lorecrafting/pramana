@@ -471,10 +471,14 @@ defmodule PramanaFoundry.CoordinatorTest do
     assert {:ok, _} = Coordinator.receive_handoff("T-COORD-1", handoff, skip_git_checks: true)
     assert Coordinator.state()["assignments"]["T-COORD-1"]["status"] == "handoff_received"
 
+    :sys.replace_state(Coordinator, fn data ->
+      put_in(data, [:state, "assignments", "T-COORD-1", "reviewer_run_id"], "review-c-1")
+    end)
+
     # Receive approved review
     review = %{
       "schema_version" => 1,
-      "run_id" => "run-c-1",
+      "run_id" => "review-c-1",
       "task_id" => "T-COORD-1",
       "commit" => @commit,
       "verdict" => "approved",

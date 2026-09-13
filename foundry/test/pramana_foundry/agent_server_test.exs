@@ -557,6 +557,10 @@ defmodule PramanaFoundry.AgentServerTest do
 
       assert_receive {:agent_launched, ^task_id, :ok, _}, 2_000
 
+      :sys.replace_state(Coordinator, fn data ->
+        put_in(data, [:state, "assignments", task_id, "reviewer_run_id"], "RUNTEST")
+      end)
+
       review = %{
         "schema_version" => 1,
         "run_id" => "RUNTEST",

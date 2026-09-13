@@ -8,6 +8,8 @@ defmodule PramanaFoundry.CLI do
   alias PramanaFoundry.Status.TelemetryStatus
   alias PramanaFoundry.Telemetry.Store
 
+  @ticket_create_options ~w(--title --priority --scope --acceptance)
+
   def main(["validate", kind, path]) do
     case validate(kind, path) do
       {:ok, value} -> IO.puts(:json.format(value))
@@ -83,8 +85,9 @@ defmodule PramanaFoundry.CLI do
     case PramanaFoundry.Coordinator.health() do
       %{} = report ->
         IO.puts(:json.format(report))
+
       _ ->
-        IO.puts( "coordinator not available")
+        IO.puts("coordinator not available")
     end
   end
 
@@ -93,7 +96,9 @@ defmodule PramanaFoundry.CLI do
     IO.puts("Active agents: #{agents["count"]}")
 
     Enum.each(agents["agents"], fn agent ->
-      IO.puts("  PID: #{agent["pid"]}  Memory: #{div(agent["memory_bytes"], 1024)}KB  Mailbox: #{agent["mailbox_depth"]}  Reductions: #{agent["reductions"]}")
+      IO.puts(
+        "  PID: #{agent["pid"]}  Memory: #{div(agent["memory_bytes"], 1024)}KB  Mailbox: #{agent["mailbox_depth"]}  Reductions: #{agent["reductions"]}"
+      )
     end)
   end
 
@@ -102,19 +107,33 @@ defmodule PramanaFoundry.CLI do
     per_proc = PramanaFoundry.SystemMetrics.per_process()
 
     IO.puts("=== System ===")
-    IO.puts("Memory: #{div(system["total_memory_bytes"], 1_048_576)}MB total / #{div(system["processes_memory_bytes"], 1_048_576)}MB processes")
-    IO.puts("Processes: #{system["process_count"]}/#{system["process_limit"]}  Atoms: #{system["atom_count"]}/#{system["atom_limit"]}")
+
+    IO.puts(
+      "Memory: #{div(system["total_memory_bytes"], 1_048_576)}MB total / #{div(system["processes_memory_bytes"], 1_048_576)}MB processes"
+    )
+
+    IO.puts(
+      "Processes: #{system["process_count"]}/#{system["process_limit"]}  Atoms: #{system["atom_count"]}/#{system["atom_limit"]}"
+    )
+
     IO.puts("Run queue: #{system["run_queue_length"]}  ETS tables: #{system["ets_table_count"]}")
-    IO.puts("Uptime: #{div(system["uptime_seconds"], 86_400)}d #{div(rem(system["uptime_seconds"], 86_400), 3600)}h")
+
+    IO.puts(
+      "Uptime: #{div(system["uptime_seconds"], 86_400)}d #{div(rem(system["uptime_seconds"], 86_400), 3600)}h"
+    )
 
     IO.puts("\n=== Per-Process ===")
+
     Enum.each(per_proc, fn {name, metrics} ->
-      IO.puts("  #{inspect(name)}: #{div(metrics["memory_bytes"], 1024)}KB  Mailbox: #{metrics["mailbox_depth"]}  Reductions: #{metrics["reductions"]}")
+      IO.puts(
+        "  #{inspect(name)}: #{div(metrics["memory_bytes"], 1024)}KB  Mailbox: #{metrics["mailbox_depth"]}  Reductions: #{metrics["reductions"]}"
+      )
     end)
   end
 
   def main(["logs", "tail", count]) do
     n = String.to_integer(count)
+
     PramanaFoundry.ConsolidatedLog.tail(n)
     |> Enum.each(fn r ->
       at = Map.get(r, "at", "?") |> String.slice(0, 19)
@@ -142,9 +161,7 @@ defmodule PramanaFoundry.CLI do
 
   def main(["handoff", "submit", task_id, "--handoff-path", path]) do
     with {:ok, data} <- Validators.validate_json_file(path),
-         :ok <- Validators.validate_task_id(task_id),
-         :ok <- Validators.validate_handoff(data) do
-      # Read coordinator state to build the correct handoff schema
+         :ok <- Validators.validate_task_id(task_id) do
       coord_state = PramanaFoundry.Coordinator.state()
       assignment = get_in(coord_state, ["assignments", task_id])
 
@@ -156,25 +173,6 @@ defmodule PramanaFoundry.CLI do
           fix: "Use pramana ticket create to create the ticket, then submit the handoff"
         })
       else
-        ticket = assignment["ticket"]
-        run_id = assignment["run_id"]
-        base_revision = ticket["base_revision"] || coord_state["accepted_revision"]
-
-        # Transform agent's simple format into coordinator's strict schema
-        coord_handoff = %{
-          "schema_version" => 1,
-          "task_id" => task_id,
-          "run_id" => run_id,
-          "assigned_base" => base_revision,
-          "commit" => Map.get(data, "commit", ""),
-          "changed_files" => Map.get(data, "changed_files", []),
-          "reproduction_evidence" => to_evidence(data),
-          "checks" => [],
-          "remaining_risks" => Map.get(data, "unresolved_issues", []),
-          "status" => Map.get(data, "outcome", "completed"),
-          "outcome" => Map.get(data, "outcome", "completed")
-        }
-
         # If the developer AgentServer is still alive, route through it so it
         # transitions to :pending_review and waits for review outcome.
         # Otherwise fall back to direct coordinator call (agent already exited).
@@ -183,9 +181,9 @@ defmodule PramanaFoundry.CLI do
         result =
           if is_pid(agent_pid) and Process.alive?(agent_pid) do
             IO.puts("Routing handoff through AgentServer #{inspect(agent_pid)} for #{task_id}")
-            PramanaFoundry.AgentServer.handoff(agent_pid, coord_handoff, skip_git_checks: true)
+            PramanaFoundry.AgentServer.handoff(agent_pid, data)
           else
-            PramanaFoundry.Coordinator.receive_handoff(task_id, coord_handoff, skip_git_checks: true)
+            PramanaFoundry.Coordinator.receive_handoff(task_id, data)
           end
 
         case result do
@@ -198,14 +196,18 @@ defmodule PramanaFoundry.CLI do
           {:ok, _assignment} ->
             IO.puts("Handoff accepted for #{task_id}")
             IO.puts("")
-            IO.puts("Next step: the agent has exited. Use pramana ticket status #{task_id} to check on review")
+
+            IO.puts(
+              "Next step: the agent has exited. Use pramana ticket status #{task_id} to check on review"
+            )
 
           {:error, reason, _new_state} ->
             abort(%{
               error: "handoff_rejected",
               task_id: task_id,
               reason: reason,
-              fix: "Correct the issues above and resubmit with: pramana handoff submit #{task_id} --handoff-path #{path}"
+              fix:
+                "Correct the issues above and resubmit with: pramana handoff submit #{task_id} --handoff-path #{path}"
             })
 
           {:error, reason} ->
@@ -213,40 +215,29 @@ defmodule PramanaFoundry.CLI do
               error: "handoff_rejected",
               task_id: task_id,
               reason: reason,
-              fix: "Correct the issues above and resubmit with: pramana handoff submit #{task_id} --handoff-path #{path}"
+              fix:
+                "Correct the issues above and resubmit with: pramana handoff submit #{task_id} --handoff-path #{path}"
             })
         end
       end
     else
-      {:error, messages} when is_list(messages) ->
-        Enum.each(messages, &IO.puts( &1))
-        abort(%{
-          error: "handoff_validation_failed",
-          task_id: task_id,
-          fix: "Read the errors above, fix the handoff file at #{path}, then resubmit"
-        })
       {:error, message} when is_binary(message) ->
-        IO.puts( message)
+        IO.puts(message)
+
         abort(%{
           error: "handoff_validation_failed",
           task_id: task_id,
-          fix: "Fix the issue above and resubmit with: pramana handoff submit #{task_id} --handoff-path #{path}"
-        })
-      {:error, reason} ->
-        abort(%{
-          error: "handoff_submit_failed",
-          task_id: task_id,
-          reason: reason,
-          fix: "Check that the daemon is running and the task_id is correct"
+          fix:
+            "Fix the issue above and resubmit with: pramana handoff submit #{task_id} --handoff-path #{path}"
         })
     end
   end
 
   def main(["handoff", "submit", _task_id | _args]) do
-    IO.puts( "usage: pramana handoff submit TASK_ID --handoff-path PATH")
-    IO.puts( "")
-    IO.puts( "Example:")
-    IO.puts( "  pramana handoff submit FIX-42 --handoff-path ./handoff.json")
+    IO.puts("usage: pramana handoff submit TASK_ID --handoff-path PATH")
+    IO.puts("")
+    IO.puts("Example:")
+    IO.puts("  pramana handoff submit FIX-42 --handoff-path ./handoff.json")
     raise "usage error"
   end
 
@@ -271,22 +262,20 @@ defmodule PramanaFoundry.CLI do
       end
     else
       true ->
-        IO.puts( "usage: pramana handoff block TASK_ID --reason 'why blocked'")
+        IO.puts("usage: pramana handoff block TASK_ID --reason 'why blocked'")
         raise "usage error"
     end
   end
 
   def main(["handoff", subcmd | _]) do
-    IO.puts( "Unknown handoff command: #{subcmd}")
-    IO.puts( "Available: submit, block")
+    IO.puts("Unknown handoff command: #{subcmd}")
+    IO.puts("Available: submit, block")
     raise "usage error"
   end
 
   def main(["review", "submit", task_id, "--review-path", path]) do
     with {:ok, data} <- Validators.validate_json_file(path),
-         :ok <- Validators.validate_task_id(task_id),
-         :ok <- Validators.validate_review(data) do
-      # Read coordinator state to build the correct review schema
+         :ok <- Validators.validate_task_id(task_id) do
       coord_state = PramanaFoundry.Coordinator.state()
       assignment = get_in(coord_state, ["assignments", task_id])
 
@@ -298,22 +287,7 @@ defmodule PramanaFoundry.CLI do
           fix: "Use pramana handoff submit first, then submit the review"
         })
       else
-        handoff_commit = get_in(assignment, ["handoff", "commit"]) || ""
-        run_id = assignment["run_id"]
-
-        # Transform agent's simple format into coordinator's strict schema
-        coord_review = %{
-          "schema_version" => 1,
-          "task_id" => task_id,
-          "run_id" => run_id,
-          "commit" => handoff_commit,
-          "verdict" => Map.get(data, "verdict", "approved"),
-          "findings" => Map.get(data, "findings", []),
-          "checks" => [],
-          "remaining_risks" => Map.get(data, "remaining_risks", [])
-        }
-
-        case PramanaFoundry.Coordinator.receive_review(task_id, coord_review, skip_git_checks: true) do
+        case PramanaFoundry.Coordinator.receive_review(task_id, data) do
           {:ok, _assignment} ->
             IO.puts("Review accepted for #{task_id}")
             verdict = Map.get(data, "verdict", "unknown")
@@ -321,7 +295,10 @@ defmodule PramanaFoundry.CLI do
             case verdict do
               "approved" ->
                 IO.puts("")
-                IO.puts("Next step: integrate with: pramana ticket integrate #{task_id}")
+
+                IO.puts(
+                  "Promotion is suspended until FR-13/FR-14 provide verified evidence and Git integration"
+                )
 
               "changes_requested" ->
                 IO.puts("")
@@ -350,74 +327,68 @@ defmodule PramanaFoundry.CLI do
         end
       end
     else
-      {:error, messages} when is_list(messages) ->
-        Enum.each(messages, &IO.puts( &1))
-        abort(%{
-          error: "review_validation_failed",
-          task_id: task_id,
-          fix: "Fix the review file at #{path}, then resubmit"
-        })
       {:error, message} when is_binary(message) ->
-        IO.puts( message)
+        IO.puts(message)
+
         abort(%{
           error: "review_validation_failed",
           task_id: task_id,
-          fix: "Fix the issue above and resubmit with: pramana review submit #{task_id} --review-path #{path}"
+          fix:
+            "Fix the issue above and resubmit with: pramana review submit #{task_id} --review-path #{path}"
         })
-      {:error, reason} ->
-        abort(%{error: "review_submit_failed", task_id: task_id, reason: reason})
     end
   end
 
   def main(["review", "submit", _task_id | _args]) do
-    IO.puts( "usage: pramana review submit TASK_ID --review-path PATH")
-    IO.puts( "")
-    IO.puts( "Example:")
-    IO.puts( "  pramana review submit FIX-42 --review-path ./review.json")
+    IO.puts("usage: pramana review submit TASK_ID --review-path PATH")
+    IO.puts("")
+    IO.puts("Example:")
+    IO.puts("  pramana review submit FIX-42 --review-path ./review.json")
     raise "usage error"
   end
 
   def main(["review", subcmd | _]) do
-    IO.puts( "Unknown review command: #{subcmd}")
-    IO.puts( "Available: submit")
+    IO.puts("Unknown review command: #{subcmd}")
+    IO.puts("Available: submit")
     raise "usage error"
   end
 
-  def main(["ticket", "create", "--title", title, "--priority", priority | rest]) do
-    # Read coordinator's accepted revision from state
-    coord_state = PramanaFoundry.Coordinator.state()
-    accepted_revision = Map.get(coord_state, "accepted_revision", "c8ede6a17323c080124aa4512a83494b537648a5")
+  def main(["ticket", "create" | args]) do
+    with {:ok, options} <- parse_ticket_create_options(args),
+         {:ok, title} <- fetch_ticket_create_option(options, "--title"),
+         {:ok, priority} <- fetch_ticket_create_option(options, "--priority") do
+      coord_state = PramanaFoundry.Coordinator.state()
 
-    # Parse additional key=value pairs from rest
-    extra =
-      rest
-      |> Enum.chunk_every(2)
-      |> Enum.filter(fn [k, _v] -> String.starts_with?(k, "--") end)
-      |> Enum.into(%{}, fn ["--" <> key, val] -> {key, val} end)
+      accepted_revision =
+        Map.get(coord_state, "accepted_revision", "c8ede6a17323c080124aa4512a83494b537648a5")
 
-    scope = extra["scope"] || "**"
-    acceptance = extra["acceptance"] || "verify handoff meets criteria"
-    suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
-    task_id = "T-#{:os.system_time(:second)}-#{suffix}"
+      scope = Map.get(options, "--scope", "**")
+      acceptance = Map.get(options, "--acceptance", "verify handoff meets criteria")
+      suffix = :crypto.strong_rand_bytes(4) |> Base.encode16(case: :lower)
+      task_id = "T-#{:os.system_time(:second)}-#{suffix}"
 
-    ticket = %{
-      "task_id" => task_id,
-      "title" => title,
-      "priority" => priority,
-      "base_revision" => accepted_revision,
-      "scope" => String.split(scope, ",") |> Enum.map(&String.trim/1),
-      "acceptance_criteria" => [acceptance]
-    }
+      ticket = %{
+        "task_id" => task_id,
+        "title" => title,
+        "priority" => priority,
+        "base_revision" => accepted_revision,
+        "scope" => String.split(scope, ",") |> Enum.map(&String.trim/1),
+        "acceptance_criteria" => [acceptance]
+      }
 
-    case PramanaFoundry.Coordinator.enqueue_ticket(ticket) do
-      :ok ->
-        IO.puts("Ticket created: #{task_id}")
-        IO.puts("  Title: #{title}")
-        IO.puts("  Priority: #{priority}")
-        IO.puts("  Task ID: #{task_id}")
-        IO.puts("")
-        IO.puts("Next step: the coordinator will dispatch this ticket to a developer")
+      case PramanaFoundry.Coordinator.enqueue_ticket(ticket) do
+        :ok ->
+          IO.puts("Ticket created: #{task_id}")
+          IO.puts("  Title: #{title}")
+          IO.puts("  Priority: #{priority}")
+          IO.puts("  Task ID: #{task_id}")
+          IO.puts("")
+          IO.puts("Next step: the coordinator will dispatch this ticket to a developer")
 
+        {:error, reason} ->
+          abort(%{error: "ticket_create_failed", reason: reason})
+      end
+    else
       {:error, reason} ->
         abort(%{error: "ticket_create_failed", reason: reason})
     end
@@ -432,6 +403,7 @@ defmodule PramanaFoundry.CLI do
         nil ->
           # Check queue
           queue = Map.get(state, "queue", [])
+
           if task_id in queue do
             IO.puts("Task #{task_id}: queued (waiting for dispatch)")
           else
@@ -461,6 +433,7 @@ defmodule PramanaFoundry.CLI do
 
             "handoff_received" ->
               IO.puts("  Handoff received, awaiting review")
+
               if is_map(handoff) do
                 IO.puts("  Outcome: #{Map.get(handoff, "outcome", "?")}")
               end
@@ -497,7 +470,7 @@ defmodule PramanaFoundry.CLI do
       end
     else
       {:error, msg} ->
-        IO.puts( msg)
+        IO.puts(msg)
         raise "usage error"
     end
   end
@@ -535,39 +508,39 @@ defmodule PramanaFoundry.CLI do
       end
     else
       {:error, msg} ->
-        IO.puts( msg)
+        IO.puts(msg)
         raise "usage error"
     end
   end
 
   def main(["ticket", subcmd | _]) do
-    IO.puts( "Unknown ticket command: #{subcmd}")
-    IO.puts( "Available: create, status, list, integrate")
+    IO.puts("Unknown ticket command: #{subcmd}")
+    IO.puts("Available: create, status, list, integrate")
     raise "usage error"
   end
 
   def main(["handoff" | _args]) do
-    IO.puts( "usage: pramana handoff submit|block ...")
-    IO.puts( "")
-    IO.puts( "Commands:")
-    IO.puts( "  handoff submit TASK_ID --handoff-path PATH   Submit a completed handoff")
-    IO.puts( "  handoff block TASK_ID --reason TEXT           Block a task")
+    IO.puts("usage: pramana handoff submit|block ...")
+    IO.puts("")
+    IO.puts("Commands:")
+    IO.puts("  handoff submit TASK_ID --handoff-path PATH   Submit a completed handoff")
+    IO.puts("  handoff block TASK_ID --reason TEXT           Block a task")
     raise "usage error"
   end
 
   def main(["review" | _args]) do
-    IO.puts( "usage: pramana review submit TASK_ID --review-path PATH")
+    IO.puts("usage: pramana review submit TASK_ID --review-path PATH")
     raise "usage error"
   end
 
   def main(["ticket" | _args]) do
-    IO.puts( "usage: pramana ticket create|status|list|integrate ...")
-    IO.puts( "")
-    IO.puts( "Commands:")
-    IO.puts( "  ticket create --title TITLE --priority P0|P1|P2|P3  Create a new ticket")
-    IO.puts( "  ticket status TASK_ID                                Show ticket status")
-    IO.puts( "  ticket list                                          List all tickets")
-    IO.puts( "  ticket integrate TASK_ID                             Integrate approved work")
+    IO.puts("usage: pramana ticket create|status|list|integrate ...")
+    IO.puts("")
+    IO.puts("Commands:")
+    IO.puts("  ticket create --title TITLE --priority P0|P1|P2|P3  Create a new ticket")
+    IO.puts("  ticket status TASK_ID                                Show ticket status")
+    IO.puts("  ticket list                                          List all tickets")
+    IO.puts("  ticket integrate TASK_ID                             Integrate approved work")
     raise "usage error"
   end
 
@@ -579,15 +552,63 @@ defmodule PramanaFoundry.CLI do
   end
 
   defp abort(error) do
-    raise "CLI error (#{error[:error] || "unknown"}): #{error[:reason] || error[:fix] || :json.encode(error)}"
+    detail = error[:reason] || error[:fix] || :json.encode(error)
+    detail = if is_binary(detail), do: detail, else: inspect(detail)
+    raise "CLI error (#{error[:error] || "unknown"}): #{detail}"
   end
 
-  defp to_evidence(data) do
-    case Map.get(data, "evidence") do
-      list when is_list(list) and list != [] ->
-        %{"evidence" => list, "summary" => Map.get(data, "summary", "")}
-      _ ->
-        %{"summary" => Map.get(data, "summary", "")}
+  defp parse_ticket_create_options(args), do: parse_ticket_create_options(args, %{})
+
+  defp parse_ticket_create_options([], options), do: {:ok, options}
+
+  defp parse_ticket_create_options([option, value | rest], options) do
+    cond do
+      auto_approve_option?(option) ->
+        {:error, "auto_approve is forbidden; independent review is mandatory"}
+
+      option not in @ticket_create_options ->
+        {:error, "unknown ticket create option: #{inspect(option)}"}
+
+      Map.has_key?(options, option) ->
+        {:error, "duplicate ticket create option: #{option}"}
+
+      String.starts_with?(value, "--") ->
+        {:error, "missing value for ticket create option: #{option}"}
+
+      true ->
+        parse_ticket_create_options(rest, Map.put(options, option, value))
     end
+  end
+
+  defp parse_ticket_create_options([option], _options) do
+    if auto_approve_option?(option) do
+      {:error, "auto_approve is forbidden; independent review is mandatory"}
+    else
+      {:error, "missing value for ticket create option: #{inspect(option)}"}
+    end
+  end
+
+  defp fetch_ticket_create_option(options, option) do
+    case Map.fetch(options, option) do
+      {:ok, value} when is_binary(value) ->
+        if String.trim(value) == "" do
+          {:error, "ticket create option #{option} cannot be empty"}
+        else
+          {:ok, value}
+        end
+
+      :error ->
+        {:error, "missing required ticket create option: #{option}"}
+    end
+  end
+
+  defp auto_approve_option?(option) when is_binary(option) do
+    option
+    |> String.split("=", parts: 2)
+    |> List.first()
+    |> String.trim_leading("-")
+    |> String.downcase()
+    |> String.replace(["-", "_"], "")
+    |> Kernel.==("autoapprove")
   end
 end

@@ -359,67 +359,61 @@ defmodule PramanaFoundry.Coordinator do
 
     case CoordState.receive_handoff(state, task_id, handoff, opts) do
       {:ok, assignment, new_state} ->
-        auto_approve = get_in(state, ["assignments", task_id, "ticket", "auto_approve"]) || false
         attrs = %{"handoff" => handoff}
-        attrs = if auto_approve, do: Map.put(attrs, "auto_approved", true), else: attrs
 
         persist_call(data, "handoff_received", task_id, run_id, "developer", attrs, fn ->
-          # Launch reviewer if not auto_approve
+          new_run_id = :crypto.strong_rand_bytes(8) |> :binary.encode_hex()
+
+          supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
+          checkout = get_in(state, ["assignments", task_id, "ticket", "checkout"])
+          profile_result = resolve_reviewer_profile(data, new_state, task_id)
+
           {final_state, final_registry} =
-            if not auto_approve do
-              new_run_id = :crypto.strong_rand_bytes(8) |> :binary.encode_hex()
-              supervisor = Process.whereis(PramanaFoundry.AssignmentSupervisor)
-              checkout = get_in(state, ["assignments", task_id, "ticket", "checkout"])
-              profile_result = resolve_reviewer_profile(data, new_state, task_id)
+            if is_pid(supervisor) and is_binary(checkout) and Tick.herdr_available?() and
+                 match?({:ok, _}, profile_result) do
+              {:ok, profile} = profile_result
 
-              if is_pid(supervisor) and is_binary(checkout) and Tick.herdr_available?() and
-                   match?({:ok, _}, profile_result) do
-                {:ok, profile} = profile_result
-
-                child_spec = %{
-                  id: "#{task_id}-review",
-                  start:
-                    {PramanaFoundry.AgentServer, :start_link,
+              child_spec = %{
+                id: "#{task_id}-review",
+                start:
+                  {PramanaFoundry.AgentServer, :start_link,
+                   [
                      [
-                       [
-                         task_id: task_id,
-                         run_id: new_run_id,
-                         role: :reviewer,
-                         checkout: checkout,
-                         adapter: data.herdr_adapter,
-                         coordinator_pid: self(),
-                         profile: profile.name,
-                         launch_profiles: data.launch_profiles,
-                         launch_state: new_state,
-                         launch_now: data.launch_now_fn.(),
-                         handoff_data: handoff,
-                         herdr_timeout_ms: data.herdr_timeout,
-                         telemetry_path: data.telemetry_path,
-                         herdr_opts: data.herdr_opts
-                       ]
-                     ]},
-                  restart: :temporary
-                }
+                       task_id: task_id,
+                       run_id: new_run_id,
+                       role: :reviewer,
+                       checkout: checkout,
+                       adapter: data.herdr_adapter,
+                       coordinator_pid: self(),
+                       profile: profile.name,
+                       launch_profiles: data.launch_profiles,
+                       launch_state: new_state,
+                       launch_now: data.launch_now_fn.(),
+                       handoff_data: handoff,
+                       herdr_timeout_ms: data.herdr_timeout,
+                       telemetry_path: data.telemetry_path,
+                       herdr_opts: data.herdr_opts
+                     ]
+                   ]},
+                restart: :temporary
+              }
 
-                case DynamicSupervisor.start_child(supervisor, child_spec) do
-                  {:ok, pid} when is_pid(pid) ->
-                    IO.puts("  Launched reviewer #{new_run_id} for #{task_id} (#{inspect(pid)})")
-                    # Store reviewer's run_id on the assignment so review validation
-                    # can accept the reviewer's identity
-                    state_with_run_id =
-                      put_in(new_state, ["assignments", task_id, "reviewer_run_id"], new_run_id)
+              case DynamicSupervisor.start_child(supervisor, child_spec) do
+                {:ok, pid} when is_pid(pid) ->
+                  IO.puts("  Launched reviewer #{new_run_id} for #{task_id} (#{inspect(pid)})")
+                  # Store reviewer's run_id on the assignment so review validation
+                  # can accept the reviewer's identity
+                  state_with_run_id =
+                    put_in(new_state, ["assignments", task_id, "reviewer_run_id"], new_run_id)
 
-                    {state_with_run_id, Map.put(data.agent_registry, "#{task_id}-review", pid)}
+                  {state_with_run_id, Map.put(data.agent_registry, "#{task_id}-review", pid)}
 
-                  {:error, reason} ->
-                    IO.puts("  Failed to launch reviewer for #{task_id}: #{inspect(reason)}")
-                    {new_state, data.agent_registry}
-                end
-              else
-                block_reviewer_if_ineligible(data, new_state, task_id, profile_result)
+                {:error, reason} ->
+                  IO.puts("  Failed to launch reviewer for #{task_id}: #{inspect(reason)}")
+                  {new_state, data.agent_registry}
               end
             else
-              {new_state, data.agent_registry}
+              block_reviewer_if_ineligible(data, new_state, task_id, profile_result)
             end
 
           {:reply, {:ok, assignment},
@@ -521,7 +515,8 @@ defmodule PramanaFoundry.Coordinator do
     {:reply,
      {:error,
       {:suspended_until_transactional_integration,
-       "FR-03 containment; FR-05/FR-07/FR-08 own truthful Git result settlement"}}, data}
+       "FR-05 containment: no intent, check, Git effect, or accepted-state change; FR-13/FR-14 restore verified promotion"}},
+     data}
   end
 
   def handle_call({:apply_pm_proposals, proposals, opts}, _from, %{state: state} = data) do

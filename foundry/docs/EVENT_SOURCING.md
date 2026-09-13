@@ -97,11 +97,11 @@ role}) and `prompt_intents` (MapSet of delivered prompts).
 | `launch_retried` | Re-enqueues, increments retry count |
 | `launch_parked` | Sets status to parked with reason |
 | `pane_created` | Records pane_id and agent_name on assignment |
-| `handoff_received` | Sets status to handoff_received or review_approved (auto) |
+| `handoff_received` | Sets status to handoff_received; auto-approved history is rejected |
 | `handoff_recovered` | Same as handoff_received (recovery-only) |
 | `review_received` | Sets review_approved or re-queues for correction |
 | `integration_started` | Acquires integration owner lock |
-| `integration_completed` | Releases lock; updates accepted_revision on success |
+| `integration_completed` | Releases a legacy lock; a success becomes an explicit unverified historical claim and cannot update accepted_revision |
 | `task_completed` | Maps completion reason to status |
 | `task_crashed` | Sets status to crashed with error |
 | `assignment_parked` | Sets status to parked with blocker |
@@ -124,8 +124,8 @@ role}) and `prompt_intents` (MapSet of delivered prompts).
 
 ## 3. Deterministic gates
 
-Every gate below is a hard Elixir check, not an LLM prompt. None of them are
-skippable at runtime — they protect against LLM hallucination and human error.
+The checks below describe legacy containment. They are not complete acceptance evidence;
+FR-13 owns immutable artifacts, controller receipts and full-diff scope verification.
 
 | Gate | What it checks | Where |
 |---|---|---|
@@ -136,11 +136,10 @@ skippable at runtime — they protect against LLM hallucination and human error.
 | **Handoff git check** | checkout HEAD must be a descendant of assigned_base | `validate_clean_checkout` |
 | **Handoff scope** | changed_files must be within ticket scope | `validate_changed_files` |
 | **Handoff checks** | every required_check must have been run with exit_code | `validate_checks` |
-| **Review identity** | task_id, run_id, commit must match handoff | `Reviews.Artifact.validate` |
+| **Review identity** | task_id and commit match; run_id is the separately issued reviewer identity | `Reviews.Artifact.validate` |
 | **Review checks** | checks must match ticket.review_required_checks | `validate_checks` |
 | **Review checkout** | checkout HEAD must match accepted_revision | `validate_checkout_consistency` |
-| **Integration ready** | status must be review_approved, review artifact must exist | `Integration.Pipeline.validate_readiness` |
-| **Integration lock** | only one candidate at a time | `Integration.Pipeline.acquire_owner` |
+| **Legacy integration** | unconditionally suspended before intent, check, Git and state effects | `Coordinator.integrate`, `CoordState.integrate_candidate` |
 | **Correction limit** | max corrections (from ticket.corrections.max, default 2) | `Correction.handle_review` |
 | **Launch retry budget** | max_launch_retries (default 3), then parked | Coordinator opts + tick |
 | **Work retry budget** | max_work_retries (default 2), then parked | Coordinator opts |
@@ -214,7 +213,11 @@ This is implemented in:
 Without this feedback, a hallucinating agent produces the same malformed artifact
 on every retry until it exhausts the retry budget and gets parked permanently.
 
-Quick checklist for testing a full lifecycle against a running daemon:
+The former live lifecycle recipe is intentionally unavailable. FR-13/FR-14/FR-17 restore
+verified evidence, Git promotion and immutable activation; FR-22 owns the final executable
+lifecycle proof. Until then, submission may reach review but cannot promote or activate.
+
+Historical pre-containment checklist (not executable acceptance guidance):
 
 ```
 1. Create a checkout with proper git history
@@ -225,8 +228,8 @@ Quick checklist for testing a full lifecycle against a running daemon:
    → dev enters pending_review, reviewer launched automatically
 6. Submit review: AgentServer.submit_review(reviewer_pid, %{...valid review...})
    → or Coordinator.receive_review(task_id, review) if reviewer pane not tracked
-7. Integrate: Coordinator.integrate(task_id, runner_fn: mock, skip_git_checks: true)
-8. Verify: state shows integrated, accepted_revision updated, both panes gone
+7. Legacy integration is suspended; no bypass or map-only promotion is accepted
+8. Revision labels in status are presentation-only, not acceptance evidence
 ```
 
 ---

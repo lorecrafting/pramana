@@ -46,12 +46,13 @@ defmodule PramanaFoundry.ReviewsTest do
     }
     @assignment %{
       "run_id" => "run-1",
+      "reviewer_run_id" => "reviewer-run-1",
       "handoff" => %{"commit" => "commit-sha-1234"}
     }
 
     @valid_review %{
       "schema_version" => 1,
-      "run_id" => "run-1",
+      "run_id" => "reviewer-run-1",
       "task_id" => "T1",
       "commit" => "commit-sha-1234",
       "verdict" => "approved",
@@ -63,12 +64,18 @@ defmodule PramanaFoundry.ReviewsTest do
     }
 
     test "validates schema-compliant approved review artifact" do
-      assert {:ok, _} = Reviews.validate_artifact(@valid_review, @ticket, @assignment)
+      assert {:ok, _} =
+               Reviews.validate_artifact(@valid_review, @ticket, @assignment,
+                 skip_git_checks: true
+               )
     end
 
     test "rejects review artifact with unexpected fields" do
       bad_review = Map.put(@valid_review, "extra_field", "forbidden")
-      assert {:error, msg} = Reviews.validate_artifact(bad_review, @ticket, @assignment)
+
+      assert {:error, msg} =
+               Reviews.validate_artifact(bad_review, @ticket, @assignment, skip_git_checks: true)
+
       assert msg =~ "fields must be exactly"
     end
 
@@ -80,7 +87,11 @@ defmodule PramanaFoundry.ReviewsTest do
           ]
       }
 
-      assert {:error, msg} = Reviews.validate_artifact(bad_checks_review, @ticket, @assignment)
+      assert {:error, msg} =
+               Reviews.validate_artifact(bad_checks_review, @ticket, @assignment,
+                 skip_git_checks: true
+               )
+
       assert msg =~ "review checks must exactly match review_required_checks"
     end
 
@@ -92,39 +103,62 @@ defmodule PramanaFoundry.ReviewsTest do
           ]
       }
 
-      assert {:error, msg} = Reviews.validate_artifact(failed_check_review, @ticket, @assignment)
+      assert {:error, msg} =
+               Reviews.validate_artifact(failed_check_review, @ticket, @assignment,
+                 skip_git_checks: true
+               )
+
       assert msg =~ "cannot contain non-zero exit_code"
     end
 
     test "rejects review artifact when task_id or run_id mismatch" do
       mismatched_run = %{@valid_review | "run_id" => "other-run"}
-      assert {:error, msg} = Reviews.validate_artifact(mismatched_run, @ticket, @assignment)
+
+      assert {:error, msg} =
+               Reviews.validate_artifact(mismatched_run, @ticket, @assignment,
+                 skip_git_checks: true
+               )
+
       assert msg =~ "run_id mismatch"
     end
 
     test "accepts review with run_id matching reviewer_run_id on assignment" do
       assignment = Map.merge(@assignment, %{"reviewer_run_id" => "reviewer-run-42"})
       review = %{@valid_review | "run_id" => "reviewer-run-42"}
-      assert {:ok, _} = Reviews.validate_artifact(review, @ticket, assignment)
+
+      assert {:ok, _} =
+               Reviews.validate_artifact(review, @ticket, assignment, skip_git_checks: true)
     end
 
-    test "accepts review with run_id matching handoff run_id" do
-      assignment = Map.merge(@assignment, %{
-        "run_id" => "developer-run",
-        "handoff" => %{"commit" => "commit-sha-1234", "run_id" => "handoff-run-99"}
-      })
+    test "rejects review with only the developer handoff run_id" do
+      assignment =
+        Map.merge(@assignment, %{
+          "run_id" => "developer-run",
+          "handoff" => %{"commit" => "commit-sha-1234", "run_id" => "handoff-run-99"}
+        })
+        |> Map.delete("reviewer_run_id")
+
       review = %{@valid_review | "run_id" => "handoff-run-99"}
-      assert {:ok, _} = Reviews.validate_artifact(review, @ticket, assignment)
+
+      assert {:error, msg} =
+               Reviews.validate_artifact(review, @ticket, assignment, skip_git_checks: true)
+
+      assert msg =~ "independently issued reviewer run_id"
     end
 
     test "rejects review when run_id matches none of assignment/handoff/reviewer" do
-      assignment = Map.merge(@assignment, %{
-        "run_id" => "dev-1",
-        "reviewer_run_id" => "reviewer-1",
-        "handoff" => %{"commit" => "commit-sha-1234", "run_id" => "handoff-1"}
-      })
+      assignment =
+        Map.merge(@assignment, %{
+          "run_id" => "dev-1",
+          "reviewer_run_id" => "reviewer-1",
+          "handoff" => %{"commit" => "commit-sha-1234", "run_id" => "handoff-1"}
+        })
+
       review = %{@valid_review | "run_id" => "completely-unknown"}
-      assert {:error, msg} = Reviews.validate_artifact(review, @ticket, assignment)
+
+      assert {:error, msg} =
+               Reviews.validate_artifact(review, @ticket, assignment, skip_git_checks: true)
+
       assert msg =~ "run_id mismatch"
     end
   end

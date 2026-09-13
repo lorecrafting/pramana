@@ -37,7 +37,10 @@ defmodule PramanaFoundry.AssignmentsTest do
 
   describe "validate_handoff/4 completed" do
     test "validates compliant completed handoff" do
-      assert {:ok, _} = Assignments.validate_handoff(@completed_handoff, @ticket, @assignment)
+      assert {:ok, _} =
+               Assignments.validate_handoff(@completed_handoff, @ticket, @assignment,
+                 skip_git_checks: true
+               )
     end
 
     test "rejects handoff when changed file is outside scope" do

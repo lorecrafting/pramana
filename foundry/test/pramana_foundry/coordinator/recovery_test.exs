@@ -33,7 +33,8 @@ defmodule PramanaFoundry.RecoveryTest do
     }
 
     # Rebuilding Transition projection from records
-    assert {:ok, %{projection: proj, state: recovered_state}} = Transition.rebuild([admit_event, prompt_event])
+    assert {:ok, %{projection: proj, state: recovered_state}} =
+             Transition.rebuild([admit_event, prompt_event])
 
     # Planning prompt again after restart returns reconcile_prompt effect, NOT deliver_prompt!
     assert {:ok, %{effects: [%{type: :reconcile_prompt, run_id: "run-rec-1"}]}} =
@@ -138,8 +139,9 @@ defmodule PramanaFoundry.RecoveryTest do
     assert state["integration"]["owner"] == "T-INT-1"
     assert state["integration"]["candidate"] == @commit
 
-    # Another candidate cannot integrate
-    assert {:error, :integration_busy} =
-             Integration.acquire_owner(state, "T-INT-2", "other-commit")
+    # FR-05 refuses the legacy public owner boundary before changing replayed state.
+    assert {:error, reason} = Integration.acquire_owner(state, "T-INT-2", "other-commit")
+    assert reason =~ "integration is suspended before effects"
+    assert state["integration"]["owner"] == "T-INT-1"
   end
 end

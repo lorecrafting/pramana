@@ -42,11 +42,11 @@ defmodule PramanaFoundry.Transition do
   | `pane_created` | Records pane_id and agent_name on the assignment |
   | `launch_retried` | Re-enqueues and increments retry count |
   | `launch_parked` | Sets assignment status to parked with max retries reason |
-  | `handoff_received` | Sets assignment status to handoff_received with candidate commit |
+  | `handoff_received` | Sets assignment status to handoff_received; auto approval is rejected |
   | `handoff_recovered` | Same as handoff_received (recovery-time alternative) |
   | `review_received` | Updates assignment to review_approved or re-queues for correction |
   | `integration_started` | Acquires integration owner lock |
-  | `integration_completed` | Releases integration lock; updates accepted_revision on success |
+  | `integration_completed` | Releases a legacy lock; success is retained only as an unverified claim |
   | `task_completed` | Updates assignment status based on outcome (completed/review/handoff_rejected/failed) |
   | `task_crashed` | Sets assignment status to crashed |
   | `cleanup_pending` | Retains an attributable outstanding cleanup obligation and capacity |
@@ -255,35 +255,39 @@ defmodule PramanaFoundry.Transition do
     ticket = get_in(event, ["attributes", "ticket"]) || %{}
     now = Map.get(event, "at", iso_now())
 
-    # If this task_id already exists, update the ticket data but don't re-queue
-    if Map.has_key?(state["assignments"], task_id) do
-      existing = state["assignments"][task_id]
-      updated_assignment = Map.put(existing, "ticket", ticket)
-      new_assignments = Map.put(state["assignments"], task_id, updated_assignment)
-      new_state = Map.put(state, "assignments", new_assignments)
+    cond do
+      Map.has_key?(ticket, "auto_approve") ->
+        projection_error(:forbidden_auto_approve, event)
 
-      proj = %{result.projection | events: [event | result.projection.events]}
-      {:ok, %{result | projection: proj, state: new_state}}
-    else
-      assignment = %{
-        "ticket" => ticket,
-        "task_id" => task_id,
-        "status" => "queued",
-        "queued_at" => now,
-        "launch_retries" => 0,
-        "error" => nil
-      }
+      Map.has_key?(state["assignments"], task_id) ->
+        existing = state["assignments"][task_id]
+        updated_assignment = Map.put(existing, "ticket", ticket)
+        new_assignments = Map.put(state["assignments"], task_id, updated_assignment)
+        new_state = Map.put(state, "assignments", new_assignments)
 
-      updated_assignments = Map.put(state["assignments"], task_id, assignment)
-      updated_queue = state["queue"] ++ [task_id]
+        proj = %{result.projection | events: [event | result.projection.events]}
+        {:ok, %{result | projection: proj, state: new_state}}
 
-      new_state =
-        state
-        |> Map.put("assignments", updated_assignments)
-        |> Map.put("queue", updated_queue)
+      true ->
+        assignment = %{
+          "ticket" => ticket,
+          "task_id" => task_id,
+          "status" => "queued",
+          "queued_at" => now,
+          "launch_retries" => 0,
+          "error" => nil
+        }
 
-      proj = %{result.projection | events: [event | result.projection.events]}
-      {:ok, %{result | projection: proj, state: new_state}}
+        updated_assignments = Map.put(state["assignments"], task_id, assignment)
+        updated_queue = state["queue"] ++ [task_id]
+
+        new_state =
+          state
+          |> Map.put("assignments", updated_assignments)
+          |> Map.put("queue", updated_queue)
+
+        proj = %{result.projection | events: [event | result.projection.events]}
+        {:ok, %{result | projection: proj, state: new_state}}
     end
   end
 
@@ -442,73 +446,10 @@ defmodule PramanaFoundry.Transition do
     handoff = get_in(event, ["attributes", "handoff"])
     rejected = get_in(event, ["attributes", "rejected"]) || false
 
-    if is_map(assignment) do
-      if rejected do
-        # Handoff was rejected at runtime — re-enqueue with retry budget
-        reason = get_in(event, ["attributes", "reason"]) || "invalid_handoff"
-        retries = Map.get(assignment, "handoff_retries", 0)
-
-        updated =
-          assignment
-          |> Map.put("status", "queued")
-          |> Map.put("handoff_retries", retries + 1)
-          |> Map.put("error", "invalid handoff: #{reason}")
-
-        updated_queue = state["queue"] ++ [task_id]
-
-        new_state =
-          state
-          |> Map.put("assignments", Map.put(state["assignments"], task_id, updated))
-          |> Map.put("queue", updated_queue)
-
-        proj = %{result.projection | events: [event | result.projection.events]}
-        {:ok, %{result | projection: proj, state: new_state}}
-      else
-        # Handoff was accepted
-        now = Map.get(event, "at", iso_now())
-
-        commit =
-          case handoff do
-            %{"commit" => c} when is_binary(c) -> c
-            _ -> assignment["candidate_commit"]
-          end
-
-        status =
-          cond do
-            is_map(handoff) && Map.get(handoff, "status") == "blocked" -> "blocked"
-            get_in(event, ["attributes", "auto_approved"]) -> "review_approved"
-            true -> "handoff_received"
-          end
-
-        updated =
-          assignment
-          |> Map.put("handoff", handoff || %{})
-          |> Map.put("candidate_commit", commit)
-          |> Map.put("status", status)
-          |> Map.put("handoff_received_at", now)
-
-        # Restore synthetic review for auto_approved handoffs
-        updated =
-          if get_in(event, ["attributes", "auto_approved"]) do
-            Map.put(updated, "review", %{
-              "verdict" => "approved",
-              "findings" => [],
-              "checks" => get_in(handoff, ["checks"]) || [],
-              "remaining_risks" => get_in(handoff, ["remaining_risks"]) || [],
-              "commit" => commit,
-              "auto_approved" => true
-            })
-          else
-            updated
-          end
-
-        new_state = put_in(state, ["assignments", task_id], updated)
-        proj = %{result.projection | events: [event | result.projection.events]}
-        {:ok, %{result | projection: proj, state: new_state}}
-      end
+    if get_in(event, ["attributes", "auto_approved"]) do
+      projection_error(:forbidden_auto_approve, event)
     else
-      {:ok,
-       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+      project_handoff(event, result, state, assignment, handoff, rejected, task_id)
     end
   end
 
@@ -633,20 +574,33 @@ defmodule PramanaFoundry.Transition do
     state = result.state
     assignment = get_in(state, ["assignments", task_id])
 
+    integration = Map.get(state, "integration", %{})
+
     new_state =
-      state
-      |> put_in(["integration"], %{"owner" => nil, "candidate" => nil})
+      put_in(
+        state,
+        ["integration"],
+        Map.merge(integration, %{"owner" => nil, "candidate" => nil})
+      )
 
     new_state =
       if outcome == "succeeded" do
         commit = get_in(event, ["attributes", "commit"])
 
-        revision =
-          commit || get_in(assignment, ["candidate_commit"]) || state["accepted_revision"]
+        claim = %{
+          "task_id" => task_id,
+          "commit" => commit || get_in(assignment, ["candidate_commit"]),
+          "at" => Map.get(event, "at"),
+          "outcome" => "succeeded",
+          "verification" => "legacy_unverified"
+        }
+
+        claims = Map.get(integration, "legacy_unverified_claims", [])
 
         new_state
-        |> put_in(["accepted_revision"], revision)
-        |> put_in(["assignments", task_id, "status"], "integrated")
+        |> put_in(["integration", "legacy_unverified_claims"], claims ++ [claim])
+        |> put_in(["assignments", task_id, "status"], "integration_unverified")
+        |> put_in(["assignments", task_id, "legacy_unverified_integration_claim"], claim)
       else
         reason = get_in(event, ["attributes", "reason"]) || "integration_failed"
 
@@ -768,6 +722,56 @@ defmodule PramanaFoundry.Transition do
     do: projection_error(:unknown_event_type, event)
 
   # ── Helpers ──
+
+  defp project_handoff(event, result, state, assignment, handoff, rejected, task_id) do
+    if is_map(assignment) do
+      if rejected do
+        reason = get_in(event, ["attributes", "reason"]) || "invalid_handoff"
+        retries = Map.get(assignment, "handoff_retries", 0)
+
+        updated =
+          assignment
+          |> Map.put("status", "queued")
+          |> Map.put("handoff_retries", retries + 1)
+          |> Map.put("error", "invalid handoff: #{reason}")
+
+        new_state =
+          state
+          |> Map.put("assignments", Map.put(state["assignments"], task_id, updated))
+          |> Map.put("queue", state["queue"] ++ [task_id])
+
+        proj = %{result.projection | events: [event | result.projection.events]}
+        {:ok, %{result | projection: proj, state: new_state}}
+      else
+        now = Map.get(event, "at", iso_now())
+
+        commit =
+          case handoff do
+            %{"commit" => candidate} when is_binary(candidate) -> candidate
+            _ -> assignment["candidate_commit"]
+          end
+
+        status =
+          if is_map(handoff) && Map.get(handoff, "status") == "blocked",
+            do: "blocked",
+            else: "handoff_received"
+
+        updated =
+          assignment
+          |> Map.put("handoff", handoff || %{})
+          |> Map.put("candidate_commit", commit)
+          |> Map.put("status", status)
+          |> Map.put("handoff_received_at", now)
+
+        new_state = put_in(state, ["assignments", task_id], updated)
+        proj = %{result.projection | events: [event | result.projection.events]}
+        {:ok, %{result | projection: proj, state: new_state}}
+      end
+    else
+      {:ok,
+       %{result | projection: %{result.projection | events: [event | result.projection.events]}}}
+    end
+  end
 
   defp project_assignment(event, projection, identity) do
     case Map.get(projection.assignments, event["task_id"]) do

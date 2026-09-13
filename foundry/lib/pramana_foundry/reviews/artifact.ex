@@ -6,6 +6,8 @@ defmodule PramanaFoundry.Reviews.Artifact do
   @required_fields ~w(schema_version run_id task_id commit verdict findings checks remaining_risks)
   @allowed_verdicts ~w(approved rejected changes_requested)
 
+  alias PramanaFoundry.GitEvidence
+
   @spec validate(map(), map(), map(), keyword()) :: {:ok, map()} | {:error, String.t()}
   def validate(review, ticket, assignment, opts \\ [])
 
@@ -26,11 +28,12 @@ defmodule PramanaFoundry.Reviews.Artifact do
         {:error,
          "review task_id mismatch: expected #{ticket["task_id"]}, got #{review["task_id"]}"}
 
-      review["run_id"] != assignment["run_id"] and
-          review["run_id"] != get_in(assignment, ["handoff", "run_id"]) and
-          review["run_id"] != Map.get(assignment, "reviewer_run_id") ->
+      not is_binary(assignment["reviewer_run_id"]) ->
+        {:error, "review requires an independently issued reviewer run_id"}
+
+      review["run_id"] != assignment["reviewer_run_id"] ->
         {:error,
-         "review run_id mismatch: expected #{assignment["run_id"] || "?"}, got #{review["run_id"]}"}
+         "review run_id mismatch: expected #{assignment["reviewer_run_id"]}, got #{review["run_id"]}"}
 
       review["commit"] != get_in(assignment, ["handoff", "commit"]) and
           review["commit"] != Map.get(assignment, "candidate_commit") ->
@@ -103,42 +106,6 @@ defmodule PramanaFoundry.Reviews.Artifact do
   defp validate_checkout_consistency(review, ticket, opts) do
     checkout = Keyword.get(opts, :checkout, ticket["checkout"])
 
-    cond do
-      is_nil(checkout) ->
-        :ok
-
-      Keyword.get(opts, :skip_git_checks, false) ->
-        :ok
-
-      File.dir?(checkout) ->
-        case System.cmd("git", ["rev-parse", "HEAD"], cd: checkout, stderr_to_stdout: true) do
-          {head, 0} ->
-            actual_head = String.trim(head)
-
-            if actual_head != review["commit"] do
-              {:error, "review invalidated because checkout changed after reviewed commit"}
-            else
-              case System.cmd("git", ["status", "--porcelain"],
-                     cd: checkout,
-                     stderr_to_stdout: true
-                   ) do
-                {"", 0} ->
-                  :ok
-
-                {_dirty, 0} ->
-                  {:error, "review invalidated because checkout has uncommitted changes"}
-
-                {err, _} ->
-                  {:error, "git status check failed: #{err}"}
-              end
-            end
-
-          {err, _} ->
-            {:error, "git rev-parse HEAD failed: #{err}"}
-        end
-
-      true ->
-        :ok
-    end
+    GitEvidence.validate_checkout(checkout, review["commit"], ticket["base_revision"], opts)
   end
 end

@@ -14,6 +14,7 @@ defmodule PramanaFoundry.StatusTest do
       assert report["accepted_revision"] == @orig_rev
       assert report["runtime_implementation_revision"] == @orig_rev
       assert report["revisions_match?"] == true
+      assert report["revision_labels_authoritative?"] == false
       refute Map.has_key?(report, "revision_disagreement")
     end
 

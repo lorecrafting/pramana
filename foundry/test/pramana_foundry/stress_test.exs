@@ -253,8 +253,9 @@ defmodule PramanaFoundry.StressTest do
       e6 = event("integration_completed", %{"outcome" => "succeeded", "commit" => @commit})
 
       assert {:ok, %{state: state}} = Transition.rebuild([e1, e2, e3, e4, e5, e6])
-      assert state["assignments"]["T-STRESS-1"]["status"] == "integrated"
-      assert state["accepted_revision"] == @commit
+      assert state["assignments"]["T-STRESS-1"]["status"] == "integration_unverified"
+      assert state["accepted_revision"] != @commit
+      assert get_in(state, ["integration", "legacy_unverified_claims"]) != []
       assert state["integration"]["owner"] == nil
     end
 

@@ -81,6 +81,9 @@ defmodule PramanaFoundry.PM.Proposal do
         not is_map(ticket) ->
           {:error, "#{op} ticket must be an object"}
 
+        Map.has_key?(ticket, "auto_approve") ->
+          {:error, "#{op} ticket auto_approve is forbidden; independent review is mandatory"}
+
         ticket["base_revision"] != state["accepted_revision"] ->
           {:error, "#{op} ticket base does not equal accepted revision"}
 
@@ -127,6 +130,9 @@ defmodule PramanaFoundry.PM.Proposal do
 
         not is_map(ticket) ->
           {:error, "amended ticket must be an object"}
+
+        Map.has_key?(ticket, "auto_approve") ->
+          {:error, "amended ticket auto_approve is forbidden; independent review is mandatory"}
 
         ticket["task_id"] != task_id ->
           {:error, "amended ticket must retain its task ID"}

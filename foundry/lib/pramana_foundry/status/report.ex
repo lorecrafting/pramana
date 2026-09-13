@@ -1,7 +1,9 @@
 defmodule PramanaFoundry.Status.Report do
   @moduledoc """
-  Generates system status reports exposing running implementation revision separately from
-  accepted/source revision, and detecting visible revision disagreement.
+  Generates presentation-only revision labels for operational inspection.
+
+  These labels are not acceptance, build, deployment, or activation evidence. FR-17
+  supplies the immutable accepted-build protocol.
   """
 
   @runtime_rev_key :pramana_runtime_implementation_revision
@@ -23,8 +25,8 @@ defmodule PramanaFoundry.Status.Report do
   end
 
   @doc """
-  Simulates controlled restart reconciliation by updating runtime implementation revision
-  to the given accepted revision.
+  Updates the presentation label used by legacy restart tests. This does not activate,
+  verify, or select code.
   """
   def reconcile_runtime_implementation_revision(accepted_revision)
       when is_binary(accepted_revision) do
@@ -72,6 +74,7 @@ defmodule PramanaFoundry.Status.Report do
       "accepted_revision" => accepted_rev,
       "runtime_implementation_revision" => runtime_rev,
       "revisions_match?" => revisions_match?,
+      "revision_labels_authoritative?" => false,
       "paused" => Map.get(state, "paused", false),
       "stop_requested" => Map.get(state, "stop_requested", false),
       "queue" => Map.get(state, "queue", []),

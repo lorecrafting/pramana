@@ -18,6 +18,21 @@ self-healing Improver, full system metrics, health probes, and structured observ
 The project remains independent of the Phoenix umbrella, Postgres, the research corpus, and
 `priv/embed/`.
 
+## Acceptance and activation containment
+
+FR-05 disables legacy promotion and mutable-source activation. Public handoff and review
+commands preserve the submitted artifact identities verbatim, require an existing Git
+checkout, and cannot request the production Git-check bypass. `auto_approve` is rejected
+at admission, runtime, PM and replay boundaries; reviews require a separately issued
+reviewer run identity. The legacy integration command stops before intent, check, Git or
+state effects. Historical `integration_completed/succeeded` records are retained only as
+explicit `legacy_unverified` claims and cannot advance `accepted_revision`.
+
+`bin/pramana-live.sh`, `bin/tickets_from_review.sh` and `bin/live_test.exs` are disabled.
+FR-13 restores controller-verified artifact/check evidence, FR-14 restores protected Git
+promotion, and FR-17 restores immutable accepted-build activation and rollback. Status
+revision values remain presentation-only labels, not acceptance or activation evidence.
+
 ## Automatic execution containment
 
 FR-01 is implemented as fail-closed static containment. Automatic developer, reviewer and

@@ -107,13 +107,13 @@ defmodule PramanaFoundry.EngineTest do
 
     assert {:ok, _} = Coordinator.receive_handoff("WF-TASK-1", handoff1, skip_git_checks: true)
 
-    # First candidate acquires integration owner
+    # FR-05 suspends the legacy public owner boundary before state effects.
     state = Coordinator.state()
-    assert {:ok, state_owned} = Integration.acquire_owner(state, "WF-TASK-1", @commit1)
+    assert {:error, reason} = Integration.acquire_owner(state, "WF-TASK-1", @commit1)
+    assert reason =~ "integration is suspended before effects"
+    assert Coordinator.state() == state
 
-    # Second candidate is blocked while first is integrating (singleton serial owner)
-    assert {:error, :integration_busy} =
-             Integration.acquire_owner(state_owned, "WF-TASK-2", @commit2)
+    assert {:error, ^reason} = Integration.acquire_owner(state, "WF-TASK-2", @commit2)
   end
 
   test "transactional PM proposal batches apply all-or-none" do

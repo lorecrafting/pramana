@@ -120,7 +120,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-02 | Transport CLI arguments as inert data | — | **Complete: reviewed inert transport** | F06 |
 | FR-03 | Fence startup and fail closed on legacy persistence errors | — | **Complete: reviewed containment** | F14, F02 |
 | FR-04 | Restrict cleanup to verified owned resources | — | **Complete: reviewed containment** | F05, F23 |
-| FR-05 | Contain acceptance and mutable-source activation bypasses | — | Ready | F03, F04, F12, F13, F22 |
+| FR-05 | Contain acceptance and mutable-source activation bypasses | — | **Complete: reviewed containment** | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | Ready: FR-03 and FR-06 complete | F02, F20, F21 |
 | FR-08 | Unify command transitions and replay | FR-07 | Blocked | F07, F16 |
@@ -910,3 +910,15 @@ all owned resources must have matching terminal evidence. CWD inference, hard-co
 exceptions, default-adapter close and the destructive fixed-root recovery fixture are gone.
 This is immediate F05/F23 containment, not FR-10 reconciliation or atomic backend
 compare-and-close; no live backend/provider or deployment was exercised.
+
+2026-09-13, FR-05: candidate `5bc8c1ca81bfe65dff2b40a164ea8e12e2424f80`
+received independent [PASS](fr-05/review-v2.md) after its original
+[review](fr-05/review.md) found and the [response](fr-05/review-response.md) closed
+two direct-boundary bypasses. CLI submissions no longer synthesize artifact, revision,
+check or reviewer identity; automatic approval and production Git-check bypasses fail
+closed. Every public legacy Pipeline/integration operation refuses before runner, state,
+filesystem, Git ref or cleanup effects. Replayed legacy integration success is retained
+only as an unverified historical claim and cannot advance the authoritative accepted
+revision. The mutable-source watcher invokes no child and exits 78. This is containment,
+not FR-13 artifact custody, FR-14 integration or FR-17 immutable activation; none is
+deployed or re-enabled.
