@@ -849,6 +849,24 @@ steps.
   table checked, no acknowledgment, fencing/recovery and same-command ambiguity-safe retry.
   The evidence remains explicitly a SQLite VFS error through Exqlite, not a failed kernel
   `fsync(2)`, power-loss or physical-media claim.
+- Astra-high v5 review SHA-256
+  `e5d838581d3dd76156798ec4423cba99a3b21090037afa2d90ebc653cd6811fa`
+  returned **FAIL** after matching all 39 hashes, passing 62 focused tests and running nine
+  characterization probes. Six blockers remain: missing result/invalid committed-sequence
+  authority can reopen or continue unfenced; a non-map proposal result crashes before codec
+  validation; backup accepts an owner-journal sidecar pathname later removed by SQLite;
+  typed ledger semantics are not shared with live revision reads; import rerun can certify a
+  manifest after its retained records disappear; and live projection SQL does not share the
+  diagnosis-required reducer with reconstruction.
+- The review independently strengthened and **passed** the protected VFS `xSync` evidence:
+  both absent and complete recovery outcomes were observed, retried and matched a full-row
+  18-table oracle. The separate full suite passed 470/471; its sole saved-benchmark equality
+  failure is unchanged pre-FR-21 code and is not attributed to storage. Candidate `ff9cbb7`
+  remains rejected and unintegrated.
+- Because the same validator/fencing boundary remained incomplete after the prior diagnosis,
+  `/root/fr07_v6_diagnosis` (fresh Astra-high) is performing a read-only exhaustive closure
+  map across all authoritative reads, startup, backup, import certification, sidecar names and
+  live/reconstruction reducer calls before another implementation attempt.
 
 ### FR-08 preparation
 
