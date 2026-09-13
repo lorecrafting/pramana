@@ -777,6 +777,18 @@ steps.
   does not reconstruct projection state; and the still-required attributed sync-failure
   case. Candidate `b88918d` remains unintegrated. The same implementation owner is making
   bounded corrections; renewed exact-candidate review remains mandatory.
+- V3 candidate `f4a77de4ab3795716b00f807b4cd659e602654c4`, tree
+  `8a38dcae936d536a71b55a1327836087fb51e4b9`, implementation commit
+  `5f3af472a3c59f2ad3dcbaae6d448145869ba9ca`, is frozen. Candidate-v3 SHA-256
+  `00400c9d445fd96287e5a6848362e3519cad75087f19dc16c235968856b9ff6a`;
+  exact preserved review-v2 SHA-256
+  `4dab766e7616e40630d2000499319f37ee8216851f5a73f25cf74f6a2c9e8ad4`;
+  response-v2 SHA-256
+  `9e0e2be78603b2069961d8b363cd50715a0d58d53f48910ceaa8790f8ac92556`.
+  Implementer evidence is 49 focused passes and a genuinely fresh **458 passed** full
+  suite. V2-R4a/R4b/R6/R2a/R2b/R7 claim executable corrections and R8 prior/full-content
+  assertions were strengthened. The attributed failed-fsync case remains explicitly
+  unavailable/unpassed. Astra-high renewed review is active against this exact revision.
 
 ### FR-08 preparation
 
