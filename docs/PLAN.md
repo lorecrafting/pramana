@@ -3995,11 +3995,11 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   `SearchLive`) brought coverage to 94.21% (threshold: 93). Both targets are now achieved and
   enforced at the gate.
 
-- **Product Strategy, Market Fit & Reader UI/UX Blueprint** ▸ **DOCS 2026-09-13** — `docs/PRODUCT_STRATEGY.md`
+- **Product Strategy, Market Fit & Systems Architecture Blueprint** ▸ **DOCS 2026-09-13** — `docs/PRODUCT_STRATEGY.md`
   synthesizes the 3 primary user archetypes (Buddhist Practitioner, Dharma Teacher, Academic Scholar),
-  their information journeys, progressive disclosure UI hierarchy, feature specifications
-  (Answer Canvas, Source Inspector, Rosetta Stone Term Popovers, `/check` Claim Verifier, Scholar's Export Toolkit),
-  and prompt rubric for multi-LLM architectural reviews.
+  their progressive disclosure UI hierarchy, core features (Answer Canvas, Source Inspector, Rosetta Stone Popovers,
+  `/check` Claim Verifier, Scholar's Export Toolkit), the tripartite systems architecture (Harness ⊃ Graph ⊃ Loop ⊃ Model),
+  the four anti-pattern mitigations, and prompt rubric for multi-LLM architectural reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes

@@ -133,17 +133,93 @@ and dumbing down technical data for scholars. The solution is **progressive disc
 
 ---
 
-## 6. Prompt for Multi-Model Review
+## 6. Systems Architecture: Harness, Graph, and Loop Engineering
+
+*(Source reference: Industry architectural dispatch on agent reliability by ~marfin, referencing production patterns for autonomous systems, Claude Code harnesses, and failure diagnosis; Telegram archive: `https://t.me/+-e0O9zoaMvQ1NjAy`).*
+
+### The Core Thesis: Three Non-Competing Production Layers
+
+A common industry failure mode is treating **Harness Engineering**, **Graph Engineering**, and **Loop Engineering** as competing paradigms. In an authoritative epistemic system like Pramāṇa, they form three nested, interdependent layers surrounding the model:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                          HARNESS LAYER                                 │
+│  (Environment, Sandboxes, State Persistence, Tool Caching)             │
+│                                                                        │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │                         GRAPH LAYER                            │   │
+│   │   (Topology, Parallel Fan-Out, Routing, Sync Joins)            │   │
+│   │                                                                │   │
+│   │   ┌────────────────────────────────────────────────────────┐   │   │
+│   │   │                      LOOP LAYER                        │   │   │
+│   │   │  (Evidence Checks, Deterministic Guards, Retry Rules)  │   │   │
+│   │   │                                                        │   │   │
+│   │   │   ┌────────────────────────────────────────────────┐   │   │   │
+│   │   │   │                    MODEL                       │   │   │   │
+│   │   │   │  (Swappable Reasoning & Synthesis Engine)       │   │   │   │
+│   │   │   └────────────────────────────────────────────────┘   │   │   │
+│   │   └────────────────────────────────────────────────────────┘   │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### The Four Anti-Patterns Addressed
+
+| Anti-Pattern | Description | How Pramāṇa / Foundry Prevents It |
+|---|---|---|
+| **1. Looping on Confidence** | Relying on model text assertions ("I verified this") rather than deterministic signals. | **Invariant #1 & #8:** Model is never trusted to self-certify. Post-generation `Pramana.Guard` independently resolves URNs and byte-verifies spans against the immutable bake. |
+| **2. Noisy Harness Context** | Dumping raw repositories or massive outputs into prompt context, burning tokens and inducing hallucinations. | Targeted read tools, physical pagination (Taishō line/register, Derge folio), and **Diagnostic Compacting** for test/compiler feedback. |
+| **3. Unconstrained Graph Cycles** | Retry loops without hard attempt limits or escalation policies. | Hard iteration ceilings, circuit breakers, and bounded token budgets across all agent loops. |
+| **4. Forcing Deterministic Work into Models** | Burning LLM tokens on string parsing, deduplication, or alignment. | **Invariant #5:** "Deterministic before probabilistic." Native Rustler NIF (`jieba-rs`) for CJK tokenization, suffix-arrays for text reuse, exact rolling windows for root-commentary alignments. |
+
+---
+
+### Mapping to Pramāṇa's Dual-Harness Architecture
+
+Pramāṇa operates two distinct, specialized harnesses that both implement this 3-layer architecture:
+
+#### A. The Product Harness (Canonical Philological Reader)
+1. **Harness Layer**:
+   - **Content-Addressed Bake:** Corpus immutable artifact (`sources.lock.json`, SHA-256 byte addressing).
+   - **Postgres + pgvector:** Native physical edition coordinate mapping (Taishō/Derge/SC).
+   - **Read-Only MCP Surface:** Read-only retrieval endpoints; models are strictly prohibited from mutating corpus state.
+2. **Graph Layer (Multi-Canon Concurrency)**:
+   - **Scoper Node:** Analyzes English user queries and extracts doctrinal entities.
+   - **Parallel Fan-Out:** Concurrently queries 3 dedicated canonical sub-retrievers:
+     - `Sub-Retriever A`: Early Pāli Canon (SuttaCentral)
+     - `Sub-Retriever B`: East Asian Mahāyāna Canon (CBETA / Taishō)
+     - `Sub-Retriever C`: Indo-Tibetan Vajrayāna Canon (84000 / Degé Kangyur & Tengyur)
+   - **Sync Join Gate:** Aggregates multi-tradition evidence, reconciles parallels, and constructs the unified passage graph.
+3. **Loop Layer**:
+   - Post-synthesis citation verification via `Pramana.Guard`. If a cited span fails byte-level verification, the claim is rejected or re-routed before rendering to the user.
+
+#### B. The Builder Harness (Foundry Agent Automation)
+1. **Harness Layer**:
+   - **State Persistence:** SQLite WAL with sync-fault fixtures and durable execution fences (FR-06/FR-07).
+   - **Tool Read State Hashing:** SHA-256 content hashing on file reads. If a file has not changed since an agent last inspected it, returns a compact cache receipt rather than consuming context window tokens.
+   - **Isolated Workspaces:** Ephemeral git worktrees per agent task to eliminate cross-agent workspace collisions.
+2. **Graph Layer**:
+   - OTP `DynamicSupervisor` managing agent trees, ticket dependency DAGs, and reviewer handoffs.
+3. **Loop Layer**:
+   - **Diagnostic Compactor:** Deterministic parser that condenses raw ExUnit/compiler failure outputs into structured, minimal diffs (failing file:line, expected vs. actual, top 5 stack frames).
+   - **Adversarial Red-Team Verifier (Stage 5):** Before merging a candidate ticket or PR, an adversarial subagent actively synthesizes edge-case breaking tests (e.g., `nil` inputs, malformed URNs, empty collections) to verify the patch under attack.
+
+---
+
+## 7. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
-> "Review this Product Strategy & UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from three perspectives:
+> "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
+> Critique it from four perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
 >    English-speaking practitioner who does not know Classical Chinese or Tibetan? Where is friction introduced?
 > 3. **Competitive Differentiation & Viral PMF:** Does the `/check` claim verification screen and
 >    scholar export toolkit provide a defensible moat against generic frontier LLM wrappers (Perplexity, ChatGPT)
->    and existing archives (CBETA, SuttaCentral)?"
+>    and existing archives (CBETA, SuttaCentral)?
+> 4. **Harness, Graph, and Loop Systems Architecture:** Evaluate the tripartite separation (Harness ⊃ Graph ⊃ Loop ⊃ Model)
+>    and the four anti-pattern mitigations. Does the multi-canon parallel fan-out (Pāli/Chinese/Tibetan) and the
+>    adversarial red-team verification gate provide adequate protection against production agent failure modes?"
