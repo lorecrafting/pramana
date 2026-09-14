@@ -815,13 +815,143 @@ Both are unified under the **4-Level BEAM Memory Hierarchy**:
 
 ---
 
-## 12. Prompt for Multi-Model Review
+---
+
+## 12. The Canonical Citation & Exegetical Lineage Graph: Subcommentaries, Commentaries, and Root Sūtras
+
+### The Philological Problem: Lineage Chains vs. Flat Conflation
+
+In Buddhist intellectual history, texts are rarely read in isolation. Ideas evolve through an unbroken **exegetical lineage chain**:
+
+$$\text{Modern Commentary} \xrightarrow{\text{explains}} \text{Subcommentary (Ṭīkā / 鈔)} \xrightarrow{\text{explains}} \text{Commentary (Bhāṣya / 疏)} \xrightarrow{\text{explains}} \text{Root Sūtra (經)}$$
+
+* **The Failure of Generic LLMs:** Frontier models conflate historical layers into a flat, anachronistic soup. An Indian 4th-century Mahāyāna sūtra, a Tang-dynasty 7th-century Tiantai commentary, a Song-dynasty subcommentary, and a 20th-century reformist treatise are blended as if they were written yesterday by the same author.
+* **The Pramāṇa Distinction:** Canonical roles are formally categorized and CHECK-constrained:
+  * **`root`**: Canonical sūtras (經, scripture attributed to the Buddha).
+  * **`treatise`**: Independent systematic treatises (論 / Śāstra, e.g., Nāgārjuna’s *Mūlamadhyamakakārikā*, Vasubandhu’s *Abhidharmakośa*).
+  * **`commentary`**: A work written specifically to explain a root text (釋 / 疏 / Bhāṣya).
+  * **`subcommentary`**: A commentary on a commentary (鈔 / 記 / Ṭīkā).
+
+---
+
+### Three Corpus-Mining Extraction Techniques (Deterministic Before Probabilistic)
+
+Classical Buddhist literature lacks modern hyperlinks or standardized footnote numbers. However, texts cite their predecessors through **three discoverable, structured mechanisms**:
+
+```
+                       Three Exegetical Link Types
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │ 1. STRUCTURAL EXEGESIS (科文 / Ke-wen Lemma Glosses)                        │
+ │    Commentary embeds a short phrase from the sūtra, followed by explanation:│
+ │    「如是我聞」者，表佛自說...                                               │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │ 2. EXPLICIT NAMED CITATIONS (Quotation Formulas)                            │
+ │    Commentary cites a third-party text by name:                             │
+ │    如《智度論》云：「...」 / 《大品經》說：「...」                           │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │ 3. VERBATIM TEXT REUSE (Silent Suffix-Array Overlaps)                       │
+ │    Commentary quotes a 15-character passage from a sūtra without naming it. │
+ └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Technique 1: Exegetical Lemma-and-Gloss (科文) Parsing (Line-to-Line)
+- **The Mechanism:** When a classical commentary explains a sūtra line-by-line, it extracts an exact phrase (lemma) from the root text and immediately glosses it.
+- **The Invariant:** **Uniqueness, not similarity (Rule 38).** If a 6- to 8-character lemma window occurs *exactly once* in the root sūtra, it forms an unambiguous, deterministic byte-addressed link.
+- **Multi-Hop Chaining:** When subcommentary $C_2$ (a 鈔) quotes commentary $C_1$ (a 疏), and $C_1$ quotes Sūtra $S$, the pipeline chains the links:
+  $$C_2 \xrightarrow{\text{lemma}} C_1 \xrightarrow{\text{lemma}} S$$
+- **Current Scale in Pramāṇa:** **72,120 lemma alignments across 76 pairs**, linking commentaries to **54,343 distinct root lines** (`mix pramana.commentary.align`).
+
+#### Technique 2: Formulaic Citation Mining (Regex & Citation Grammar)
+- **The Mechanism:** Authors cite external treatises using formalized grammatical quotation markers:
+  * **Classical Chinese:** `如《...》云` / `《...》說` / `經云` / `論云` / `釋曰`
+  * **Tibetan:** `... zhes gsungs so` / `... zhes bya ba` / `... zhes 'byung ba`
+  * **Pāli:** `vuttañhetaṃ bhagavatā ...` / `yathāha ...`
+- **The Pipeline:** The extractor mines `《Title》云：[quote]` $\to$ resolves the title to a canonical Work URN $\to$ locates the quoted span in the target work $\to$ generates a directional `quotes` edge with exact character offsets.
+
+#### Technique 3: Suffix-Array Text Reuse Engine (`native/quotations/`)
+- **The Mechanism:** When an author silently borrows or quotes 15+ characters without explicit citation markers, our Rust port binary uses suffix arrays to index verbatim text reuse across 100M+ characters.
+- **Directionality:** Edge direction is derived from canonical roles: if Work A (`commentary`) shares a 20-character span with Work B (`root`), the edge is **A $\xrightarrow{\text{quotes}}$ B**.
+- **Current Scale in Pramāṇa:** **141,073 verbatim text reuses** already indexed.
+
+---
+
+### Graph Storage & Query Architecture (PostgreSQL 18)
+
+Combing 100M+ characters with suffix arrays and lemma alignment takes minutes during the bake pipeline. In contrast, LiveView user queries must return in **<20ms**. Therefore, all relations are **pre-computed and indexed as a directed graph in PostgreSQL 18**:
+
+```sql
+-- Work-level lineage graph
+CREATE TABLE work_relations (
+    id UUID PRIMARY KEY,
+    source_work_id VARCHAR NOT NULL REFERENCES works(id), -- Commentary / Subcommentary
+    target_work_id VARCHAR NOT NULL REFERENCES works(id), -- What it explains / cites
+    relation VARCHAR NOT NULL,                            -- 'comments_on', 'subcommentary_of', 'quotes'
+    method VARCHAR NOT NULL,                              -- 'title_match', 'lemma_match', 'shared_text', 'formula'
+    confidence VARCHAR NOT NULL,                          -- 'certain', 'probable', 'asserted'
+    evidence JSONB                                        -- Character offsets, matched lemma text
+);
+
+-- Passage-level micro-citations (Exact Line to Line)
+CREATE TABLE passage_citations (
+    id UUID PRIMARY KEY,
+    source_urn VARCHAR NOT NULL,                          -- e.g., urn:cts:cbeta:T1820.0001:1a05 (Commentary Line)
+    target_urn VARCHAR NOT NULL,                          -- e.g., urn:cts:cbeta:T0026.0001:12b04 (Root Sūtra Line)
+    citation_type VARCHAR NOT NULL,                       -- 'lemma_gloss', 'named_quote', 'reuse'
+    char_start INT,
+    char_end INT
+);
+```
+
+#### Recursive Lineage Traversal (PostgreSQL Recursive CTEs)
+When a user clicks on any canonical line, PostgreSQL traverses the full lineage chain in <5ms:
+
+```sql
+WITH RECURSIVE lineage AS (
+    -- Direct commentaries on the sūtra line
+    SELECT source_urn, target_urn, citation_type, 1 AS depth
+    FROM passage_citations
+    WHERE target_urn = 'urn:cts:cbeta:T0026.0001:12b04'
+
+    UNION ALL
+
+    -- Subcommentaries explaining those commentaries
+    SELECT pc.source_urn, pc.target_urn, pc.citation_type, l.depth + 1
+    FROM passage_citations pc
+    JOIN lineage l ON pc.target_urn = l.source_urn
+)
+SELECT * FROM lineage ORDER BY depth;
+```
+
+---
+
+### The Scholar & Reader UX: The Exegetical Accordion
+
+In Pramāṇa Web’s Dual-Pane Source Inspector, selecting any sūtra passage dynamically renders the downstream lineage tree:
+
+```
+ [ Root Sūtra: Diamond Sūtra (T0235 @ 748c18) ]
+   │
+   ├── 📜 6th c. Indian Commentary: Vasubandhu (T1511 @ 775a02)
+   │     "Here the Bodhisattva enters the first bhūmi..."
+   │     └── 🔍 8th c. Chinese Subcommentary: Kuiji (T1816 @ 12a04)
+   │           "Vasubandhu emphasizes the non-dual aspect here because..."
+   │
+   └── 📜 7th c. Tiantai Commentary: Zhiyi (T1698 @ 34b12)
+         "This represents the perfect and sudden contemplation..."
+```
+
+* **Epistemic Provenance Badges:** Each card is stamped with its century, tradition (Yogācāra, Tiantai, Madhyamaka), translation author, and matching confidence (`lemma_match · Certain`).
+* **Cross-Tradition Synthesis:** Prevents sectarian confusion by making the historical divergence of interpretations explicit and verifiable.
+
+---
+
+## 13. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from nine perspectives:
+> Critique it from ten perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -851,4 +981,7 @@ use the following prompt:
 >    (L1 Active Scratchpad [<500 tokens], L2 Task Decision Ledger [Markdown on Disk], L3 Institutional Rule Memory [`docs/RULES.md`],
 >    and L4 Epistemic Corpus Graph [PostgreSQL 18 URNs]). Does the virtual memory concept (pointers in context, payloads on disk,
 >    just-in-time paging, and lossless distillation) effectively solve the context window token economic tax while ensuring
->    both autonomous coding agents and human Buddhist scholars maintain durable research trails across sessions?"
+>    both autonomous coding agents and human Buddhist scholars maintain durable research trails across sessions?
+> 10. **Canonical Citation & Exegetical Lineage Graph:** Evaluate the multi-tier lineage graph linking subcommentaries,
+>     commentaries, and root sūtras. Does the combination of lemma-and-gloss (科文) parsing, formulaic citation mining,
+>     and suffix-array text reuse provide an authoritative mechanism to trace doctrinal evolution without anachronistic conflation?"
