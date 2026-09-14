@@ -945,13 +945,194 @@ In Pramāṇa Web’s Dual-Pane Source Inspector, selecting any sūtra passage d
 
 ---
 
-## 13. Prompt for Multi-Model Review
+## 13. Deep Analysis of Mem0 & Native Tri-Signal Memory Fusion for BEAM / PostgreSQL 18
+
+### Architectural Anatomy of Mem0 (`mem0.ai`)
+
+[Mem0](https://mem0.ai/) provides an autonomous memory layer between LLM agents and data storage. Rather than stuffing full conversation transcripts into context windows or relying on raw semantic chunk retrieval, Mem0 organizes memory around a **three-stage lifecycle**:
+
+```
+                       The Mem0 Continuous Memory Cycle
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │ 1. FACT EXTRACTION (Per-Turn Ingestion)                                     │
+ │    Extracts atomic declarative facts, entity relations, and user preferences │
+ │    from user-agent message pairs.                                           │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │ 2. CONSOLIDATION (Reconciliation & Temporal Indexing)                       │
+ │    Resolves incoming assertions against historical memory without           │
+ │    destructive overwrites (Single-Pass ADD-Only v3 algorithm).              │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │ 3. MULTI-SIGNAL RETRIEVAL (Fused Scoring)                                   │
+ │    Fuses dense vector similarity, sparse BM25 token matching, knowledge     │
+ │    graph traversal, and exponential temporal decay.                         │
+ └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### The April 2026 v3 Algorithmic Shift
+Mem0 achieved breakthrough results on public memory benchmarks—scoring **92.5 on LoCoMo** (+21 points over v2), **94.4 on LongMemEval** (+27 points, with **98.2** on assistant memory recall), and **64.1 on BEAM (1M tokens)**—by discarding naive memory assumptions in favor of two critical principles:
+
+1. **Single-Pass ADD-Only Extraction (Immutable Fact Ledger):**
+   * *The Failure of CRUD Memory:* Prior iterations attempted LLM-driven `UPDATE` and `DELETE` actions over stored memory rows. In practice, this caused catastrophic forgetting, race conditions in multi-agent execution, and hallucinated memory erasures.
+   * *The ADD-Only Solution:* Incoming facts are **never destructively edited or deleted**. Memory is treated as an append-only event stream. When a fact changes, a new fact is appended with a `supersedes` relation and temporal timestamp. Old facts are decayed rather than deleted, preserving full auditability.
+2. **First-Class Agent-Generated Facts (Why Assistant Recall Reached 98.2%):**
+   * Most memory architectures record only user inputs and preferences.
+   * Mem0 recognized that autonomous agents spend most of their compute interacting with tools, compilers, and test runners. In v3, **agent execution outcomes, verified invariants, tool receipts, and failure post-mortems are indexed as first-class memory nodes**. When a sibling or subsequent agent resumes work, it recalls what worked and what failed without re-executing expensive checks.
+
+---
+
+### Critical Evaluation: The SaaS Trap vs. Native BEAM / PostgreSQL 18
+
+Mem0's commercial product requires either a paid cloud SaaS subscription or the operational overhead of running a distributed polyglot stack: Qdrant/Milvus for vector embeddings, plus Neo4j/Graphiti for knowledge graphs.
+
+For Pramāṇa and Foundry, introducing an external memory SaaS violates our core security, determinism, and reproducibility invariants. Instead, **PostgreSQL 18 and the BEAM natively execute the complete Mem0 memory model within a single ACID engine**:
+
+| Signal / Feature | Mem0 Polyglot Stack | Pramāṇa & Foundry Native PostgreSQL 18 |
+|---|---|---|
+| **Semantic Vector Match** | Qdrant / Milvus (HNSW) | `pgvector` HNSW index with BGE-M3 (1024d embeddings) |
+| **Exact Lexical Match** | BM25 / OpenSearch | `pg_bigm` character trigrams + PostgreSQL full-text search (`tsvector`) |
+| **Entity / Relation Graph** | Neo4j / Graphiti (Cypher) | Native relational tables with PostgreSQL Recursive CTEs (`WITH RECURSIVE`) |
+| **Temporal Decay Scoring** | Proprietary Python ranker | Deterministic SQL scoring function in Ecto |
+| **Event Ledger** | Cloud API | Append-only SQLite WAL / PostgreSQL event tables (`events.jsonl` / `agent_facts`) |
+| **Infrastructure Cost** | Enterprise SaaS / 3 DB clusters | **$0 additional cost**; already running in primary BEAM/Ecto pool |
+
+#### The Tri-Signal Scoring Formula
+When a Foundry agent or Pramāṇa reader initiates a memory recall, PostgreSQL evaluates all three signals and applies temporal decay in a single indexed query:
+
+$$\text{Relevance} = w_v \cdot (1 - \text{cosine\_distance}) + w_k \cdot \text{bigm\_similarity} + w_g \cdot \frac{1}{1 + \text{graph\_depth}} - \lambda \cdot \ln(1 + \Delta t)$$
+
+Where:
+* $w_v, w_k, w_g$ are tunable signal weights (e.g., $0.45, 0.35, 0.20$).
+* $\Delta t$ is elapsed time (in hours or commits) since the fact was recorded.
+* $\lambda$ is the decay constant, ensuring fresh facts rank above stale historical context while pinned rules have $\lambda = 0$.
+
+---
+
+### Epistemic Warrant: Pramāṇa's Differentiator (Grounded vs. Hallucinated Memory)
+
+While Mem0 excels at conversational personalization, its fundamental vulnerability in mission-critical environments is **unverified probabilistic fact extraction**:
+* If an LLM extracts a fact such as `"The Diamond Sūtra asserts that the self is eternal"` or `"The test suite passes with flag --fast"`, Mem0 blindly stores it as truth.
+* Over long sessions, corrupted or hallucinated facts permanently pollute the memory graph, degrading subsequent agent reasoning.
+
+#### Pramāṇa's Epistemic Memory Gate
+In accordance with Invariant 1 (*no unattributed text leaves the API*) and Rule 3 (*append-only with tests*), no memory fact is admitted into Pramāṇa's long-term storage without passing a **Deterministic Epistemic Gate**:
+
+```
+                       Pramāṇa Epistemic Memory Gate
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │ Raw Fact Candidate (Extracted by Agent or Scholar)                          │
+ └──────────────────────────────────────┬──────────────────────────────────────┘
+                                        │
+                                        ▼
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │ Epistemic Validator (Rule-Bound Warrant Check)                              │
+ │                                                                             │
+ │  * Canonical Text Assertion? ──► Re-resolve CTS URN & verify byte span.    │
+ │  * Test/Compiler Status?     ──► Verify zero exit code from runner receipt. │
+ │  * Code Rule / Architecture? ──► Verify against docs/RULES.md / AST node.   │
+ └──────────────────────────────────────┬──────────────────────────────────────┘
+                                        │
+                         ┌──────────────┴──────────────┐
+                         ▼                             ▼
+                 [ PASS: Warranted ]          [ FAIL: Unwarranted ]
+                         │                             │
+                         ▼                             ▼
+                 Persist to L2/L3               Reject Fact or
+              (Status: :verified)        Tag as Probe/Hypothesis Only
+```
+
+1. **Canonical Citations:** Any fact making claims about corpus passages must carry a CTS URN (`urn:cts:cbeta:T0235...`). The gate re-resolves the URN and byte-compares the text before admitting the memory.
+2. **Tool & Test Receipts:** An agent claiming a fix worked cannot record `"FR-07 sync fault is fixed"` unless accompanied by a deterministic execution receipt (`exit_code: 0`, test output hash).
+3. **Institutional Rules:** Any cross-session engineering memory must map to a numbered rule in `docs/RULES.md` and a trigger condition in `AGENTS.md`.
+
+---
+
+### Concrete Architecture & Ecto Schemas for Foundry & Pramāṇa
+
+#### 1. Immutable Fact Schema (`pramana_foundry`)
+
+```elixir
+defmodule PramanaFoundry.Memory.Fact do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  schema "agent_facts" do
+    field :scope, :string                  # "session", "agent", "task", "institutional"
+    field :subject_entity, :string         # e.g., "FR-07", "Exqlite", "Rule 41", "T0235"
+    field :predicate, :string              # e.g., "requires_vfs_extension", "cites_sutra"
+    field :object_assertion, :string       # Descriptive factual payload
+    field :provenance_urn, :string         # URN, commit SHA, or execution receipt hash
+    field :status, :string, default: "verified" # "verified", "hypothesis", "deprecated"
+    field :embedding, Pgvector.Ecto.Vector # 1024d BGE-M3 dense vector
+    field :superseded_by_id, :binary_id    # Reference to newer fact (no mutable UPDATEs)
+    field :pinned, :boolean, default: false
+
+    timestamps(type: :utc_datetime)
+  end
+
+  def changeset(fact, attrs) do
+    fact
+    |> cast(attrs, [:scope, :subject_entity, :predicate, :object_assertion,
+                    :provenance_urn, :status, :embedding, :superseded_by_id, :pinned])
+    |> validate_required([:scope, :subject_entity, :predicate, :object_assertion, :provenance_urn])
+    |> validate_inclusion(:status, ["verified", "hypothesis", "deprecated"])
+  end
+end
+```
+
+#### 2. Native Multi-Signal Ecto Retrieval Query
+
+```elixir
+defmodule PramanaFoundry.Memory.Retriever do
+  import Ecto.Query
+  alias Pramana.Repo
+  alias PramanaFoundry.Memory.Fact
+
+  @doc """
+  Fused retrieval combining vector distance, pg_bigm lexical match, and temporal decay.
+  """
+  def recall(query_text, query_vector, opts \\ []) do
+    scope = Keyword.get(opts, :scope, "agent")
+    limit = Keyword.get(opts, :limit, 5)
+
+    # Hybrid SQL query in PostgreSQL 18
+    from(f in Fact,
+      where: f.scope == ^scope and is_nil(f.superseded_by_id),
+      order_by: [
+        desc: fragment(
+          """
+          (0.50 * (1 - (? <=> ?))) +
+          (0.35 * bigm_similarity(?, ?)) -
+          (0.15 * ln(1 + EXTRACT(EPOCH FROM (NOW() - ?)) / 3600.0))
+          """,
+          f.embedding, ^query_vector,
+          f.object_assertion, ^query_text,
+          f.inserted_at
+        )
+      ],
+      limit: ^limit
+    )
+    |> Repo.all()
+  end
+end
+```
+
+#### 3. Agent Tooling Interface (`remember_fact` & `recall_facts`)
+
+* `remember_fact(entity, predicate, assertion, provenance_urn)`:
+  Validates the provenance URN/receipt via the Epistemic Gate. If valid, generates a BGE-M3 embedding via `priv/embed/` sidecar and appends the fact to `agent_facts`.
+* `recall_facts(query, entity_filter \\ nil)`:
+  Executes the hybrid vector + trigram + graph CTE search, returning up to 5 authoritative, high-density facts (<300 tokens total) to inject directly into the L1 active scratchpad.
+
+---
+
+## 14. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from ten perspectives:
+> Critique it from eleven perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -984,4 +1165,10 @@ use the following prompt:
 >    both autonomous coding agents and human Buddhist scholars maintain durable research trails across sessions?
 > 10. **Canonical Citation & Exegetical Lineage Graph:** Evaluate the multi-tier lineage graph linking subcommentaries,
 >     commentaries, and root sūtras. Does the combination of lemma-and-gloss (科文) parsing, formulaic citation mining,
->     and suffix-array text reuse provide an authoritative mechanism to trace doctrinal evolution without anachronistic conflation?"
+>     and suffix-array text reuse provide an authoritative mechanism to trace doctrinal evolution without anachronistic conflation?
+> 11. **Mem0 Analysis & Native PostgreSQL Memory Fusion:** Evaluate the critique of Mem0's memory layer architecture and
+>     the native implementation of its v3 single-pass ADD-only algorithm inside BEAM and PostgreSQL 18. Does the combination
+>     of tri-signal scoring (`pgvector` + `pg_bigm` + recursive CTE graph traversal + temporal decay) and deterministic
+>     epistemic verification (byte-addressed CTS URNs and test-trace pointers) provide superior reliability and cost
+>     efficiency compared to external proprietary memory SaaS?"
+

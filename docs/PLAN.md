@@ -4009,7 +4009,9 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   the 4-Level BEAM Memory Hierarchy (virtual memory pointer paging, building our own brain via Postgres 18 and Markdown ledgers, L1 scratchpad
   to L4 corpus graph duality between developer memory and scholar research trails), the Canonical Citation & Exegetical Lineage Graph
   (multi-tier linkage of subcommentaries $\to$ commentaries $\to$ root sūtras, 科文 lemma-and-gloss extraction, formulaic quotation mining,
-  suffix-array reuse, and PostgreSQL 18 recursive CTEs for the Exegetical Accordion), and the 10-dimension prompt rubric for multi-LLM reviews.
+  suffix-array reuse, and PostgreSQL 18 recursive CTEs for the Exegetical Accordion), the Deep Analysis of Mem0 & Native Tri-Signal Memory Fusion
+  (single-pass ADD-only extraction, first-class agent assertions, `pgvector` + `pg_bigm` + recursive CTE graph + temporal decay scoring in PostgreSQL 18,
+  and deterministic epistemic gating against hallucinated memory), and the 11-dimension prompt rubric for multi-LLM reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
