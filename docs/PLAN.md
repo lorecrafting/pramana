@@ -4002,9 +4002,11 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   the four anti-pattern mitigations, the composable agent middleware pipeline ("Plug for Agents"), the 4-layer compounding
   self-improving system (Primitives ⊃ Orchestration ⊃ Memory ⊃ Self-Improvement), the full Elixir Vibe ecosystem architecture
   (epistemic warrant meets computational warrant, witness & repair loops, AST-mediated reading/writing vs flat text dumps,
-  Elixir Vibe's dedicated AST tool family `ex_ast` rewrite plans, `ex_dna` clone anti-unification, `exograph` structural index,
-  `ex_slop`, `reach`, `phoenix_replay` 8KB session replays, `pi-elixir`/`vibe` 3-primitive agent surfaces, and `llm_proxy`),
-  and the 7-dimension prompt rubric for multi-LLM reviews.
+  `ex_ast`, `ex_dna`, `exograph`, `ex_slop`, `reach`, `phoenix_replay` 8KB session replays, `pi-elixir`/`vibe`, `llm_proxy`),
+  the Six-Layer Agent Operating System (bounded task contracts eliminating silent task substitution, context compiler progressive disclosure,
+  permissioned tool gateway with structured observation payloads, 4-way memory partition [FACTS/DECISIONS/STATE/LESSONS], deterministic
+  evidence gates, 4-bucket failure taxonomy [Map/Tool/Permission/Test], and the efficiency ratio $\frac{\text{accepted outputs}}{\text{human review minutes}}$),
+  and the 8-dimension prompt rubric for multi-LLM reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes

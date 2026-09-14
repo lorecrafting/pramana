@@ -538,13 +538,155 @@ The answer is **yes, but through an AST-mediated interface, not raw AST storage*
 
 ---
 
-## 10. Prompt for Multi-Model Review
+## 10. The Six-Layer Agent Operating System: Harness Engineering for Production Reliability
+
+*(Source reference: Industry dispatch by `@iiiichigo_chan`, referencing OpenAI Codex Harness Engineering and Anthropic Context/Tool Engineering).*
+
+### The Paradigm Shift: Prompt $\to$ Context $\to$ Harness
+
+A fundamental law of autonomous agent engineering:
+> **"A better prompt can improve one answer. A better harness improves every run."**  
+> *"If your agent can reason but still forgets constraints, chooses the wrong tool, skips verification, or loops until the budget is exhausted, the model is not the whole problem. The environment around the model is underspecified."*
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                          MODEL                              │
+│              Proposes the next probabilistic action         │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                         HARNESS                             │
+│  Translates Contracts • Compiles Context • Authorizes Tools  │
+│  Stores Durable State • Collects Evidence • Recovers Traces │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The model supplies probabilistic reasoning; the harness turns that reasoning into controlled, repeatable, warrant-backed execution. When OpenAI built an internal product with zero manually written lines of code (1M LOC, 1,500 merged PRs in 5 months), early progress stalled not because Codex lacked intelligence, but because the environment lacked structure, observable feedback, and enforceable rules.
+
+---
+
+### The Six-Layer Minimum Viable Harness
+
+```
+                             The 6-Layer Operating System
+  1. CONTRACT     Bounded inputs, constraints, done_when & escalate_when
+  2. COMPILER     Progressive disclosure: map -> specs -> active artifacts
+  3. GATEWAY      Authorize -> Execute -> Structured Observation (no terminal vomit)
+  4. MEMORY       Separate FACTS, DECISIONS, STATE, and LESSONS
+  5. EVIDENCE     Deterministic checks first; independent verifier second
+  6. RECOVERY     Classify failures into: Map, Tool, Permission, or Test
+```
+
+#### Layer 1: The Bounded Task Contract (Eliminating Silent Task Substitution)
+- **The Problem:** When given open-ended natural language, agents succumb to **Silent Task Substitution**—they quietly solve an easier version of the prompt, ignore inconvenient edge cases, and declare victory.
+- **The Upgrade:** Before model invocation, the harness translates the user request into an immutable, structured contract:
+  ```yaml
+  task_id: TICKET-104
+  goal: Add locator_end calculation for fragment URNs
+  inputs:
+    - apps/pramana/lib/pramana/urn.ex
+    - test/pramana/urn_test.exs
+  constraints:
+    - preserve existing public URN parser API
+    - do not modify schema or sources.lock.json
+    - strictly forbidden from staging foundry/ files (Rule 81)
+  deliverable:
+    type: pull_request
+  done_when:
+    - mix test apps/pramana/test/pramana/urn_test.exs passes
+    - mix format --check-formatted exits 0
+    - mix pramana.gate baseline unchanged or improved
+  escalate_when:
+    - requires modifying URN syntax grammar
+    - test fails 3 times for the same reason
+    - requested behavior conflicts with a documented rule in docs/RULES.md
+  ```
+- **Invariant:** *"Looks good"* is never an acceptable stop condition. An execution terminates only when every predicate in `done_when` is satisfied.
+
+#### Layer 2: The Context Compiler ("A Map, Not a Manual")
+- **The Problem:** Dumping full transcripts, entire documentation files, and massive prompt manuals consumes finite context budgets and increases hallucination (Anti-Pattern #2: *"Noisy Context Bloat"*).
+- **The Upgrade:** Treat context as a just-in-time compilation pipeline following **progressive disclosure**:
+  ```
+  AGENTS.md (Root Project Map)
+    └── docs/STATUS.md (System Ground Truth)
+          └── docs/RULES.md (Triggered Rule Entries)
+                └── Task-Specific Spec & Active Diffs
+  ```
+- **Principle:** *The conversation is not your database, and the system prompt is not your filing cabinet.* The root guide provides pointers; tools fetch deeper layers only when relevant.
+
+#### Layer 3: Permissioned Tool Gateway & Structured Observations
+- **The Problem:** Unmediated tool execution allows agents to execute destructive commands. Furthermore, tools that dump 500 lines of raw terminal output poison model attention.
+- **The Upgrade:**
+  1. **Permission Ladder (Propose $\to$ Authorize $\to$ Execute $\to$ Record):**
+     * `automatic`: Read-only file inspection, `mix test` runs in isolated workspaces.
+     * `approval_required`: Public git pushes, database migrations, deleting persistent cache.
+  2. **Structured Observations:** Tools parse output before returning to the model:
+     ```json
+     {
+       "status": "failed",
+       "tool": "mix test",
+       "failing_tests": 1,
+       "location": "test/pramana/urn_test.exs:42",
+       "reason": "Assertion with == failed",
+       "evidence": {
+         "expected": "urn:cts:cbeta:T0001.0001:1a01-1a05",
+         "actual": "urn:cts:cbeta:T0001.0001:1a01"
+       },
+       "retryable": true
+     }
+     ```
+     The agent receives a compact, actionable witness rather than scrolling through hundreds of lines of passing test output.
+
+#### Layer 4: Externalized Durable State & The 4-Way Memory Partition
+- **The Problem:** Storing critical state exclusively in conversation history makes long-running sessions fragile. When context limits force compaction or an agent crashes, decisions are lost.
+- **The Upgrade:** Partition state into four distinct lifecycles:
+
+| Memory Tier | Content & Purpose | Lifecycle | Storage Location |
+|---|---|---|---|
+| **`FACTS`** | Immutable project invariants, URN grammars, schemas | Permanent across all sessions | `AGENTS.md`, `docs/STATUS.md` |
+| **`DECISIONS`** | Architectural choices made *during this specific task* | Survives context compaction & resets | `task/decisions.md` |
+| **`STATE`** | Current step, active artifacts, open risks, next action | Ephemeral; updated per step | `state/current.json` |
+| **`LESSONS`** | Recurring failure patterns turned into permanent rules | Permanent; compounds all future runs | `docs/RULES.md` |
+
+*Benefit:* An agent can suffer a total context reset or hand work over to a different model without forgetting why an architectural choice was made 20 steps prior.
+
+#### Layer 5: Evidence Gates (Deterministic Verification First)
+- **The Model produces an artifact; the Environment produces evidence; the Harness decides acceptance.**
+- Deterministic checks always precede probabilistic reviews:
+  * **Code:** `mix test` + `mix format` + `mix credo` + `mix pramana.gate`.
+  * **Research / Domain:** Post-generation URN re-resolution + byte-level quotation verification (Pramāṇa Guard).
+  * **UI:** Pure-state LiveView session delta replay (`phoenix_replay`).
+- **Independent Verifier:** High-stakes tasks route the final artifact to an independent verifier subagent with fresh context and adversarial instructions (eliminating Maker-Grader bias).
+
+#### Layer 6: Trace & Recovery Loop (The 4-Bucket Failure Taxonomy)
+- When a task fails, never retry blindly with an emotional prompt (*"Are you sure? Try harder!"*).
+- Classify the failure and convert it into permanent infrastructure:
+  1. **Missing Context?** $\to$ Update the **Map** (`AGENTS.md` / routing table).
+  2. **Fragile Tool?** $\to$ Upgrade the **Tool** (e.g. replace regex replacement with `ex_ast`).
+  3. **Unauthorized Action?** $\to$ Enforce a **Permission Guardrail** (e.g. Rule 81 git hooks).
+  4. **Weak Verification?** $\to$ Add a **Deterministic Test** to CI.
+
+---
+
+### The North-Star Metric: Efficiency Ratio
+
+Harness engineering rejects vanity metrics (tokens generated, tool calls executed, raw PRs opened). The single metric that matters in production agent engineering is:
+
+$$\text{Harness Efficiency} = \frac{\text{Accepted Outputs}}{\text{Human Review Minutes}}$$
+
+* If an agent generates 1,000 lines of code autonomously, but an engineer must spend 45 minutes manually auditing it because the harness produced no verifiable proof, **efficiency is zero**.
+* If an agent generates 100 lines of code accompanied by an AST diff, a passing gate receipt, and verified URN citations so that human review takes **60 seconds**, **efficiency has scaled 10x**.
+
+---
+
+## 11. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from seven perspectives:
+> Critique it from eight perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -566,4 +708,7 @@ use the following prompt:
 >    AST clone anti-unification (`ex_dna`), whole-program causality (`reach`), 8 KB LiveView session replays (`phoenix_replay`),
 >    the 3-tool minimal agent surface (`pi-elixir`/`vibe`), and the dedicated AST toolchain (`ex_ast` with rewrite plans and conflict detection)—provide
 >    a defensible structural advantage over generic text-based agent environments? Evaluate specifically the distinction between
->    AST-mediated interaction (retaining `.ex` files on disk while mediating reads/writes through AST projections) versus raw AST serialization."
+>    AST-mediated interaction (retaining `.ex` files on disk while mediating reads/writes through AST projections) versus raw AST serialization.
+> 8. **Six-Layer Agent Operating System & Efficiency Ratio:** Evaluate the 6-layer harness OS (Task Contract, Context Compiler, Permissioned Gateway,
+>    4-Way Memory Partition [FACTS/DECISIONS/STATE/LESSONS], Evidence Gates, and the 4-Bucket Failure Taxonomy [Map/Tool/Permission/Test]).
+>    Does measuring $\frac{\text{Accepted Outputs}}{\text{Human Review Minutes}}$ establish a realistic framework for production autonomous development?"
