@@ -1126,13 +1126,104 @@ end
 
 ---
 
-## 14. Prompt for Multi-Model Review
+---
+
+## 14. Two Brains, Two Architectures: The Decoupled Memory Divide
+
+Pramāṇa and Foundry cannot share a single memory system. Attempting to unify them under one database or memory framework violates the core architectural invariants of the repository (`AGENTS.md`). They serve two fundamentally different entities with conflicting latency, dependency, and cognitive requirements:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                         TWO BRAINS, TWO MISSIONS                                 │
+├────────────────────────────────────────┬─────────────────────────────────────────┤
+│ 🛠️ THE FOUNDRY BRAIN (The Engineer)    │ 📜 THE PRAMĀṆA BRAIN (The Scholar)      │
+│ • Autonomous software developer        │ • Canonical Buddhist researcher & reader │
+│ • Fast, procedural, deterministic      │ • Deep, semantic, multi-canon relational│
+│ • Zero external dependencies (Elixir)  │ • Heavy ML & DB (Postgres 18, pgvector) │
+│ • Operates on ASTs, Git SHAs, exit 0   │ • Operates on CTS URNs, lemmas, lineages│
+└────────────────────────────────────────┴─────────────────────────────────────────┘
+```
+
+### Architectural Contrast
+
+| Dimension | 🛠️ The Foundry Brain (Agent / Workflow) | 📜 The Pramāṇa Brain (Corpus / Reader) |
+|---|---|---|
+| **Consumer** | Autonomous coding subagents & self-healing supervisor | English-speaking Buddhist scholars, translators, practitioners |
+| **Cognitive Mode** | **Procedural & Cybernetic:** *Action $\to$ Test Gate $\to$ Failure Post-Mortem $\to$ Rule.* | **Hermeneutic & Philological:** *Query $\to$ Multi-Canon Alignment $\to$ Exegetical Lineage $\to$ Warrant.* |
+| **Primary Data Objects** | File paths, AST nodes, compiler warnings, Git commit SHAs, test exit codes (`0` vs `1`). | Canonical CTS URNs (`urn:cts:cbeta:T0235...`), Chinese character lemmas (科文), Pāli segments. |
+| **Storage Substrate** | **Zero-Dependency Local Disk:** SQLite WAL, `events.jsonl`, `task/decisions.md`, `docs/RULES.md`. | **Relational & Vector Database:** PostgreSQL 18 (`pgvector` HNSW, `pg_bigm`), Rustler NIFs, BGE-M3 sidecar. |
+| **External Dependencies** | **Zero:** BEAM + OWL only. No Postgres, no Python, no GPU required. | **Full Toolchain:** PostgreSQL 18, pgvector, Rust toolchain, Python sidecar. |
+| **Lookup Latency** | **Sub-millisecond (<1ms):** In-memory ETS / BEAM process state; cannot wait on DB pools. | **Interactive (<20ms–150ms):** Hybrid vector similarity + character trigrams + graph CTEs. |
+| **Best Architectural Model** | **Letta (Virtual Memory Paging) + CoALA (Procedural Rules):** Bounded scratchpad (<500 tok) with disk-backed paging. | **Zep / Graphiti (Bi-Temporal Knowledge Graph) + HippoRAG (Associative PageRank):** Deep lineage walking. |
+| **Lifecycle** | Ephemeral task scratchpads (<24 hrs) $\to$ Compounding institutional rules (`docs/RULES.md`, permanent). | Immutable baked corpus artifacts (centuries old) $\to$ Durable user research trails (weeks/months). |
+
+### Brain 1: The Foundry Brain (The Engineer's Brain)
+* **The Zero-Dependency Invariant (`AGENTS.md`):** Foundry is decoupled by design to preserve a 2-second development and test cycle. Forcing Foundry to connect to PostgreSQL 18 or Python embedding models would break standalone agent execution and offline test gates.
+* **Storage & Retrieval:** Operates via append-only JSONL event streams (`events.jsonl`), Markdown task ledgers (`task/decisions.md`), and the 84 numbered rules in `docs/RULES.md`. Lookups are in-memory (ETS) or direct file reads.
+* **Failure Compounding:** Failures are clustered by the Improver agent and distilled into permanent procedural invariants.
+
+### Brain 2: The Pramāṇa Brain (The Scholar's Brain)
+* **The Canonical Epistemic Invariant:** Operates over 12.5 million text segments across Chinese, Pāli, and Tibetan canons.
+* **Storage & Retrieval:** Runs on PostgreSQL 18 with `pgvector` HNSW indexes (1024d BGE-M3 embeddings), `pg_bigm` for exact Sino-Tibetan character trigrams, and recursive CTEs over `work_relations` and `passage_citations`.
+* **Scholarly Persistence:** Preserves human research trails (`UserTrail` schemas) linked to immutable, content-addressed CTS URNs.
+
+### The Sacred Interface Boundary
+The two brains never share database connections, memory tables, or state files:
+1. **Foundry reads Pramāṇa only as a client:** When a Foundry agent tests retrieval performance or runs the gate (`mix pramana.gate`), it interacts strictly through the CLI or read-only MCP server. It never mutates corpus tables.
+2. **Pramāṇa never depends on Foundry:** The reader, search engine, and citation guard deploy cleanly as a Phoenix release with zero knowledge of Foundry's agent supervisor.
+
+---
+
+## 15. "Memory is the Wrong Abstraction": Event Sourcing, Read-Time Compilation, and Context Asymmetry
+
+A central flaw in many agent frameworks (early Mem0, naive LangChain memory) is treating "memory" as an active, anthropomorphic mental diary where an LLM periodically summarizes what happened.
+
+Industry critique (e.g., Dustin Goerndt / `@thorstone137`):
+> *"Memory is the wrong abstraction full stop. I save everything… Qualitative ML processes relevance to the present day work as it’s needed.. High level planning requires the most advanced context engineering.. With that, most routine requires little to none.."*
+
+This critique crystallizes three fundamental design principles that Pramāṇa and Foundry enforce:
+
+### 1. The Anti-Pattern of Write-Time Lossy Summarization
+* When an agent writes to memory by prompting an LLM to *"summarize key facts"*, the summarizer discards critical technical precision: exact URN coordinates (`urn:cts:cbeta:T0235.0001:748c18`), precise compiler error traces, or exact function argument shapes.
+* The summarizer introduces hallucinations and irreversible compression artifacts.
+* **Pramāṇa / Foundry Rule:** **Never summarize at write-time.** Memory is not a lossy notebook; it is an immutable audit log.
+
+### 2. "Save Everything": Raw Event Sourcing
+* **Pramāṇa Invariant (Rule 3):** `raw/` is append-only and never edited. Every canonical text is preserved down to the character byte.
+* **Foundry Invariant (`events.jsonl`):** Every coordinator tick, agent command, git diff, compiler stderr, and test receipt is appended to an immutable event stream. Nothing is destructively updated. If an agent loops or fails, the supervisor does not consult a lossy summary—it replays the raw event log.
+
+### 3. Read-Time Compilation via Qualitative Retrieval
+* Relevance is an epistemic function of the *current active question*, not an intrinsic property of the past event.
+* Instead of storing pre-filtered "memories", the system executes **Read-Time Qualitative Compilation**:
+  $$\text{Relevance} = f(\text{Raw Immutable Archive}, \text{Current Active Contract})$$
+* When an agent or scholar begins a task, the Context Compiler scans the raw archive using hybrid scoring (vectors + trigrams + graph proximity) and projects a surgical, high-density context (<500 tokens) into the model's active window.
+
+### 4. Context Engineering Asymmetry
+Agent operations exhibit extreme cognitive asymmetry between planning and execution:
+
+```
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │ HIGH-LEVEL PLANNING (Coordinator, PM, Architect)                            │
+ │ • Needs heavy context engineering: Bounded task contracts, system metrics,  │
+ │   RULES.md triggers, dependency graphs, and multi-canon fan-out targets.    │
+ ├─────────────────────────────────────────────────────────────────────────────┤
+ │ ROUTINE EXECUTION (Worker Subagent, Refactorer, Test Fixer)                 │
+ │ • Needs virtually ZERO memory: Narrow file target, test command, compiler   │
+ │   error output. Injects no historical noise, preventing cognitive thrashing.│
+ └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Overloading a routine coding subagent with historical chat logs or unrelated project memories causes **cognitive thrashing**—the model gets distracted by previous discarded hypotheses. Routine workers require radical context isolation.
+
+---
+
+## 16. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from eleven perspectives:
+> Critique it from thirteen perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -1170,5 +1261,14 @@ use the following prompt:
 >     the native implementation of its v3 single-pass ADD-only algorithm inside BEAM and PostgreSQL 18. Does the combination
 >     of tri-signal scoring (`pgvector` + `pg_bigm` + recursive CTE graph traversal + temporal decay) and deterministic
 >     epistemic verification (byte-addressed CTS URNs and test-trace pointers) provide superior reliability and cost
->     efficiency compared to external proprietary memory SaaS?"
+>     efficiency compared to external proprietary memory SaaS?
+> 12. **Two Brains, Two Architectures (Decoupled Memory Divide):** Evaluate the architectural necessity of splitting the
+>     memory system into two independent engines: the zero-dependency, local-disk, sub-millisecond Foundry Brain (procedural/code)
+>     versus the PostgreSQL 18, `pgvector`/`pg_bigm`, multi-canon Pramāṇa Brain (hermeneutic/philological). Does this strict
+>     isolation preserve the fast development loop while preventing cross-domain architectural contamination?
+> 13. **'Memory is the Wrong Abstraction' (Event Sourcing & Context Asymmetry):** Evaluate the critique against write-time
+>     lossy summarization in favor of raw event sourcing ('Save everything') combined with read-time qualitative context
+>     compilation. Does enforcing context engineering asymmetry—heavy context for high-level planning versus radical context
+>     isolation for routine execution—effectively eliminate cognitive thrashing in autonomous coding agents?"
+
 
