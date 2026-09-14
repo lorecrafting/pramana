@@ -4006,7 +4006,8 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   the Six-Layer Agent Operating System (bounded task contracts eliminating silent task substitution, context compiler progressive disclosure,
   permissioned tool gateway with structured observation payloads, 4-way memory partition [FACTS/DECISIONS/STATE/LESSONS], deterministic
   evidence gates, 4-bucket failure taxonomy [Map/Tool/Permission/Test], and the efficiency ratio $\frac{\text{accepted outputs}}{\text{human review minutes}}$),
-  and the 8-dimension prompt rubric for multi-LLM reviews.
+  the 4-Level BEAM Memory Hierarchy (virtual memory pointer paging, building our own brain via Postgres 18 and Markdown ledgers, L1 scratchpad
+  to L4 corpus graph duality between developer memory and scholar research trails), and the 9-dimension prompt rubric for multi-LLM reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes

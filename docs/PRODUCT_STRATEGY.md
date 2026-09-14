@@ -680,13 +680,148 @@ $$\text{Harness Efficiency} = \frac{\text{Accepted Outputs}}{\text{Human Review 
 
 ---
 
-## 11. Prompt for Multi-Model Review
+## 11. Agent & Scholar Memory Architecture: The 4-Level BEAM Memory Hierarchy
+
+### The Industry Memory Landscape: Why Gen 1 & Gen 2 Fail
+
+Agent systems in the industry have evolved through three distinct generations of memory architecture:
+
+```
+ Generation 1: Transcript Dumps (2023)
+   "Dump the entire chat history until the context window explodes."
+   ❌ Quadratic token cost, context rot, model forgets early instructions.
+
+ Generation 2: Naive Vector RAG (2024–2025)
+   "Chunk past chat turns into embeddings, retrieve top-5 by cosine similarity."
+   ❌ Fails for logic. Semantic similarity is not causal. If you ask
+      "what did we decide about the nil guard in step 2?", vector search returns
+      10 generic mentions of "nil" instead of the specific architectural decision.
+
+ Generation 3: Structured, Tiered Memory Systems (2026 SOTA)
+   (OpenAI Codex harness, Letta/MemGPT, Anthropic, LangGraph)
+   ✅ Treats memory like an Operating System: Pointers in context, durable data on disk,
+      and deterministic distillation loops.
+```
+
+---
+
+### The Virtual Memory Principle for LLMs: Pointers & Projections, Not Payloads
+
+The fundamental challenge of agent memory is an economic dilemma: **How do you give an agent access to gigabytes of past experience and project knowledge without paying an unsustainable context token tax?**
+
+The solution is modeled after **Virtual Memory in an Operating System**:
+
+```
+ ┌─────────────────────────────────────────────────────────────┐
+ │            ACTIVE CONTEXT WINDOW (<500 tokens)              │
+ │  • Task Contract (goal, constraints, done_when)             │
+ │  • Active State (current step, open risks)                  │
+ │  • Index of Memory Pointers:                                │
+ │    - DECISION_01: [nil-guard on locator_end]               │
+ │    - DECISION_02: [Postgres 18 iterative scan]              │
+ │    - WARNING_01:  [Rule 81: do not stage foundry/]          │
+ └──────────────────────────────┬──────────────────────────────┘
+                                │ "Page In" on-demand
+                                ▼
+ ┌─────────────────────────────────────────────────────────────┐
+ │                DURABLE STORAGE (Megabytes)                  │
+ │  • task/decisions.md (full rationale, alternatives tried)   │
+ │  • runs/traces.jsonl (complete execution receipts)          │
+ │  • PostgreSQL (pgvector + full-text search)                 │
+ └─────────────────────────────────────────────────────────────┘
+```
+
+#### Three Mechanisms that Keep Context Small:
+1. **Pointers, Not Payloads ("Paging In"):**
+   * The model’s working prompt never holds the full text of past decisions. It receives a compact **index of 5 bullet points** (~50 tokens).
+   * If the agent needs details on `DECISION_01`, it invokes `read_memory(DECISION_01)`, loads 15 lines into the prompt for that turn, and unloads it once executed.
+2. **Lossy Execution vs. Lossless Distillation:**
+   * Running `mix test`, editing files, and inspecting diffs produces **10,000+ tokens** of raw terminal logs.
+   * When a step concludes, a background routine distills the event into a 25-token durable record:
+     > *"Step 3 complete: added nil-guard to `Pramana.Anchor.locator_end/1`. 12 unit tests pass."*
+   * The 10,000-token trace flushes to disk (`traces.jsonl`); only the 25-token distilled sentence enters the session state.
+3. **AST & Knowledge Graph Projections:**
+   * Instead of stuffing 1,500 lines of module source code into memory, the agent references the module interface graph (`CodeMap.reflect` / `Reach`), querying specific function ASTs only when editing.
+
+---
+
+### Building Our Own Brain vs. External SaaS
+
+Pramāṇa rejects external proprietary vector SaaS dependencies (Pinecone, Mem0, Zep Cloud) for agent memory. Building our own brain inside the BEAM and PostgreSQL is dramatically simpler, cheaper, and more robust:
+
+* **Zero New Infrastructure:** The umbrella already runs **PostgreSQL 18 with `pgvector`** (HNSW index) and **`pg_bigm`**, plus Elixir/OTP and Oban.
+* **Complete Inspectability:** When an agent makes an unexpected choice, engineers do not query a black-box vector database. They inspect plain Markdown (`task/decisions.md`) or query Ecto schemas.
+* **Deterministic URN Alignment:** Pramāṇa’s core invariant is byte-addressed CTS URN provenance. Generic SaaS memory tools cannot parse Taishō page/register/line coordinates or SuttaCentral segment IDs.
+
+---
+
+### The 4-Level BEAM Memory Hierarchy
+
+Pramāṇa and Foundry serve two memory consumers:
+1. **The Foundry Agent (Developer Memory):** Needs to remember task contracts, previous test failures, and architectural choices across hours of autonomous coding.
+2. **The Pramāṇa Reader (Scholar Research Memory):** Needs to preserve scholarly research trails, comparative notes, and cross-canon parallel links over weeks of inquiry.
+
+Both are unified under the **4-Level BEAM Memory Hierarchy**:
+
+```
+ ┌─────────────────────────────────────────────────────────────┐
+ │ L1: ACTIVE SCRATCHPAD (In-Context Working Memory, <500 tok) │
+ │     Task Contract + Active Step + Memory Pointer Index      │
+ ├─────────────────────────────────────────────────────────────┤
+ │ L2: TASK DECISION LEDGER (Session Memory, Markdown on Disk) │
+ │     task/decisions.md + state/current.json                  │
+ ├─────────────────────────────────────────────────────────────┤
+ │ L3: INSTITUTIONAL RULE MEMORY (Cross-Session Compounding)   │
+ │     docs/RULES.md (84 rules) + AGENTS.md trigger table      │
+ ├─────────────────────────────────────────────────────────────┤
+ │ L4: EPISTEMIC CORPUS GRAPH (Canonical Knowledge Base)       │
+ │     PostgreSQL 18: URN texts, parallels, and alignments     │
+ └─────────────────────────────────────────────────────────────┘
+```
+
+#### Level 1: Active Scratchpad (In-Context Working Memory)
+* **What it is:** Injected into the model’s context on every turn (~200–400 tokens).
+* **Contents:** Active Task Contract (`goal`, `constraints`, `done_when`), current step, open risks, and pointer index to L2.
+* **Invariant:** Size is strictly capped and constant; it never expands with conversation length.
+
+#### Level 2: Task Decision Ledger (Session Memory)
+* **What it is:** A structured file on disk (`task/decisions.md` or `state/current.json`).
+* **Contents:** Architectural decisions made during the current task, hypotheses tested, and failed approaches (preventing looping).
+* **Lifecycle:** Survives context compaction, process crashes, and model swaps. If context limits are exceeded, the conversation transcript is safely cleared; the agent reboots, reads `decisions.md`, and resumes execution seamlessly.
+
+#### Level 3: Institutional Rule Memory (Cross-Session Compounding)
+* **What it is:** Permanent project memory that grows smarter after every resolved defect.
+* **Pramāṇa Implementation:** Documented in [`docs/RULES.md`](file:///Users/raymondluong/dev/pramana/docs/RULES.md) (84 rules) and the trigger table in [`AGENTS.md`](file:///Users/raymondluong/dev/pramana/AGENTS.md).
+* **Self-Healing Automation:** When Foundry’s improver agent resolves an issue, it automatically distills the failure into a numbered rule in `docs/RULES.md` and binds it to a trigger in `AGENTS.md`. Future sessions consult this index before touching code.
+
+#### Level 4: Epistemic Corpus & Graph Memory
+* **What it is:** The immutable canonical knowledge store and scholarly research state.
+* **Pramāṇa Implementation:**
+  * Byte-addressed URN passages in PostgreSQL 18.
+  * Relational graph tables (`parallel_works`, `commentary_alignments`).
+  * Hybrid retrieval: `pg_bigm` for exact Sino-Tibetan/Pāli character matching + `pgvector` HNSW index for English semantic concepts.
+* **For Scholars (Pramāṇa Web):** User research trails (saved URN notebooks, comparative notes) are stored as Ecto records linked to canonical URNs, exportable via the Scholar’s Export Toolkit.
+
+---
+
+### Implementation Blueprint for Pramāṇa & Foundry
+
+| Component | Functionality | Location |
+|---|---|---|
+| **1. Task State File** | Stores active step, decisions, and open risks as structured JSON | `foundry/local/state/task_state.json` |
+| **2. Memory Tool** | 2 lightweight agent tools: `remember_decision(topic, rationale)` and `read_decision(topic)` | `foundry/lib/pramana_foundry/tools/memory.ex` |
+| **3. Context Compactor** | Before context compaction, summarizes completed steps into `decisions.md` and flushes raw tool calls | `foundry/lib/pramana_foundry/effects/compact.ex` |
+| **4. Scholar Research Trails** | `UserTrail` schema in `pramana` letting scholars preserve URN research trails across sessions | `apps/pramana/lib/pramana/corpus/trail.ex` |
+
+---
+
+## 12. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from eight perspectives:
+> Critique it from nine perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -711,4 +846,9 @@ use the following prompt:
 >    AST-mediated interaction (retaining `.ex` files on disk while mediating reads/writes through AST projections) versus raw AST serialization.
 > 8. **Six-Layer Agent Operating System & Efficiency Ratio:** Evaluate the 6-layer harness OS (Task Contract, Context Compiler, Permissioned Gateway,
 >    4-Way Memory Partition [FACTS/DECISIONS/STATE/LESSONS], Evidence Gates, and the 4-Bucket Failure Taxonomy [Map/Tool/Permission/Test]).
->    Does measuring $\frac{\text{Accepted Outputs}}{\text{Human Review Minutes}}$ establish a realistic framework for production autonomous development?"
+>    Does measuring $\frac{\text{Accepted Outputs}}{\text{Human Review Minutes}}$ establish a realistic framework for production autonomous development?
+> 9. **Agent & Scholar Memory Architecture (The 4-Level BEAM Hierarchy):** Evaluate the 4-level memory hierarchy
+>    (L1 Active Scratchpad [<500 tokens], L2 Task Decision Ledger [Markdown on Disk], L3 Institutional Rule Memory [`docs/RULES.md`],
+>    and L4 Epistemic Corpus Graph [PostgreSQL 18 URNs]). Does the virtual memory concept (pointers in context, payloads on disk,
+>    just-in-time paging, and lossless distillation) effectively solve the context window token economic tax while ensuring
+>    both autonomous coding agents and human Buddhist scholars maintain durable research trails across sessions?"
