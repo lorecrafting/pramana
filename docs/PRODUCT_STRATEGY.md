@@ -407,6 +407,40 @@ In generic web stacks (Python, TypeScript, Node), boundaries between client and 
 
 ---
 
+### Reading & Writing via AST vs. Flat Textfiles: The Crucial Distinction
+
+A natural question arises in agent harness design: **Should the agent read and write directly to the AST rather than text files?**
+
+The answer is **yes, but through an AST-mediated interface, not raw AST storage**:
+
+```
+ ┌─────────────────┐       AST Outline (~150 tokens)        ┌─────────────────┐
+ │                 │ ─────────────────────────────────────> │                 │
+ │   Disk Files    │                                        │   Agent (LLM)   │
+ │     (.ex)       │ <───────────────────────────────────── │                 │
+ │                 │   Targeted Code Block + AST Pattern    │                 │
+ └─────────────────┘   (e.g., `ExAST.rewrite_plan/3`)       └─────────────────┘
+          ▲                                                          │
+          │                     Sourceror / ExAST                    │
+          └──────────────────────────────────────────────────────────┘
+                         • Validates AST syntax in-memory
+                         • Slices & splices AST node
+                         • Preserves comments & layout
+```
+
+#### Why Storing or Emitting Raw AST Directly Fails
+1. **Token Bloat:** A 1-line function (`def add(a, b), do: a + b`) is ~8 tokens in Elixir text, but ~45 tokens as an Erlang AST tuple (`{:def, [line: 1], [{:add, [], [{:a, [], nil}, {:b, [], nil}]}, [do: {:+, [line: 1], [{:a, [], nil}, {:b, [], nil}]}]]}`).
+2. **Model Training Distribution:** Frontier LLMs (Claude, Gemini, GPT) are trained on trillions of tokens of natural, high-level code. Forcing an LLM to output raw AST tuples degrades reasoning and causes bracket-matching errors.
+3. **Loss of Developer Tooling:** Git, GitHub PR reviews, and CI systems require standard text diffs. Storing binary or serialized ASTs destroys human collaboration.
+
+#### Why AST-Mediated Interaction Wins
+* **When Reading (Context Compression):** Instead of dumping 1,500 lines of flat text (~4,500 tokens), the agent reads an **`AST.outline`** (~150 tokens) listing module declarations, `@doc` strings, typespecs, and function heads. The agent only expands the specific AST subtree it intends to inspect.
+* **When Diffing (Semantic Focus):** `AST.diff` eliminates whitespace and formatting noise, reporting only semantic function modifications (`Modified: Work.by_id/1`).
+* **When Writing (Eliminating Rule 8):** In flat text editing, a single indentation or whitespace mismatch causes `replace_file_content` or `patch` to fail silently. In AST editing, patterns match structure, not strings.
+* **In-Memory Syntactic Gating:** If an agent's replacement snippet contains a syntax error, the AST parser refutes it *before it touches disk*, returning an immediate **witness** error without corrupting the workspace.
+
+---
+
 ### Six Strategic Building Blocks Adopted for Pramāṇa & Foundry
 
 ```
@@ -464,14 +498,27 @@ In generic web stacks (Python, TypeScript, Node), boundaries between client and 
 - **The Upgrade:** **`llm_proxy`** provides a self-hosted, OTP-supervised gateway with unified API routing, automatic fallback cascades, token budget enforcement, API key rotation, and OpenTelemetry spans.
 - **Pramāṇa Integration:** Removes sidecar complexity, allowing Foundry to dynamically route tasks across price/capability tiers (e.g. Gemini 2.5 Flash for fast lint/repair, Claude Opus/Mythos for hard architectural proofs) under native BEAM supervision.
 
-#### 6. Structural AST Pattern Search & Rewrite (`ex_ast` via `Sourceror`)
-- **The Blindness:** Rule 8 warns: *"A scripted patch that reports success may have done nothing... Prefer a real edit over a Python string replace."* Text-based regex edits break on whitespace, indentation, or argument reordering.
-- **The Upgrade:** Foundry agents use AST pattern matching:
-  ```elixir
-  ast edit Logger.debug(_) → Logger.info(_) apps/pramana/lib --dry-run
-  ast grep def locator_end(_) do _ end apps/pramana/lib
-  ```
-- **Pramāṇa Integration:** Eliminates edit failures by ensuring every proposed modification is syntactically valid before touching the filesystem.
+#### 6. Elixir Vibe's Dedicated AST Tool Suite: `ex_ast`, `ex_dna`, and `exograph`
+- **The Tool Family:** Elixir Vibe created its own purpose-built AST toolchain specifically for machine-checked, agent-assisted development:
+  1. **`ex_ast` (Search, Replace, and Diff by AST Pattern):**
+     - Uses plain Elixir syntax as patterns: variables capture (`expr`), `_` is a wildcard, `...` matches variable-length calls/blocks, and `^name` matches literal variables.
+     - Rich Query DSL:
+       ```elixir
+       import ExAST.Query
+       from("def handle_event(event, _, _) do ... end")
+       |> where(^event == :click or ^event == :keydown)
+       ```
+     - Previewed rewrites with conflict detection:
+       ```elixir
+       ExAST.rewrite_plan(source, "IO.inspect(expr, _)", "Logger.debug(inspect(expr))")
+       #=> %ExAST.Rewriter.Plan{replacements: [...], conflicts: []}
+       ```
+     - Eliminates Rule 8 (*patch reported success but did nothing*) because the rewrite matches AST structures rather than raw strings.
+  2. **`ex_dna` (Structural Clone Detection via AST Anti-Unification):**
+     - Detects structural duplicates across files and computes the canonical least general generalization to recommend the exact shared function extraction.
+  3. **`exograph` (Ecosystem-Wide Structural Code Intelligence):**
+     - Indexes all published Hex packages into AST graphs, allowing agents to search open-source implementations by shape rather than reinventing algorithms.
+- **Pramāṇa Integration:** Foundry equips worker and improver agents with `ex_ast` rewrite plans, ensuring all automated refactorings are verified for conflict freedom before disk commits.
 
 ---
 
@@ -479,7 +526,9 @@ In generic web stacks (Python, TypeScript, Node), boundaries between client and 
 
 | System Dimension | Current Pramāṇa / Foundry Stack | With Full Elixir Vibe Architecture |
 |---|---|---|
+| **Code Reading** | Flat 1,500-line text dumps (~4,500 tokens) | `AST.outline` / `CodeMap.reflect` (~150 tokens) |
 | **Code Editing** | Text/regex replacement (vulnerable to Rule 8 failures) | `ex_ast` structural rewrites (whitespace & formatting invariant) |
+| **Rewrite Safety**| Blind text replacement | `ExAST.rewrite_plan/3` with previewed conflict detection |
 | **Agent Tool Surface** | Shell commands & bespoke CLI flags | 3 composable primitives (`eval`, `ast_search`, `ast_rewrite`) via `pi-elixir` |
 | **CI Linting** | `mix credo --strict`, Dialyzer | `vibe_kit` + `ex_slop` (catches AI narrator comments & blanket rescues) |
 | **Code Clones** | Manual discovery | `ex_dna` AST clone anti-unification with computed extraction signatures |
@@ -515,5 +564,6 @@ use the following prompt:
 > 7. **Elixir Vibe Ecosystem & Computational Warrant:** Evaluate the adoption of the Elixir Vibe architectural standard
 >    ('Don't wait for smarter models — build the environment that pushes back'). Do the six building blocks—anti-slop linting (`ex_slop`),
 >    AST clone anti-unification (`ex_dna`), whole-program causality (`reach`), 8 KB LiveView session replays (`phoenix_replay`),
->    the 3-tool minimal agent surface (`pi-elixir`/`vibe`), and the native BEAM model gateway (`llm_proxy`)—provide a defensible
->    structural advantage over generic text-based agent environments?"
+>    the 3-tool minimal agent surface (`pi-elixir`/`vibe`), and the dedicated AST toolchain (`ex_ast` with rewrite plans and conflict detection)—provide
+>    a defensible structural advantage over generic text-based agent environments? Evaluate specifically the distinction between
+>    AST-mediated interaction (retaining `.ex` files on disk while mediating reads/writes through AST projections) versus raw AST serialization."
