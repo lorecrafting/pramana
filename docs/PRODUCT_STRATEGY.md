@@ -305,13 +305,90 @@ As noted by Runkle, **Task-Harness Fit** is how tightly the harness matches the 
 
 ---
 
-## 8. Prompt for Multi-Model Review
+## 8. The 4-Layer Compounding System: Self-Improving Agent Roadmap
+
+*(Source reference: Industry technical dispatch on autonomous agent systems, Anthropic Fable 5 launch documentation, Parameter Golf, and Continual Learning Bench 1.0 experiments; Substack: `movez.substack.com`).*
+
+### The Core Thesis: Self-Improvement is a System Property, Not Weight Learning
+
+True production self-improvement does not mean recursive model weight retraining (RSI). Instead: **the model remains frozen and stateless, while the environment, memory, rules, and verifiers around it compound run-over-run.** Every session writes verified facts into state, sharpens procedural skills with observed failure modes, and distills post-mortems into deterministic rules.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                   LAYER 4 · SELF-IMPROVEMENT LAYER                     │
+│  Independent Verifier Sub-Agents, Vision UI Checks, Rule Distillation  │
+│                                  │                                     │
+│                                  ▼ (writes lessons back)               │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │                     LAYER 3 · MEMORY LAYER                     │   │
+│   │   State Files (STATUS.md), Rules (RULES.md), Skills, Lockfiles │   │
+│   │                              │                                 │   │
+│   │                              ▼ (informs next session)          │   │
+│   │   ┌────────────────────────────────────────────────────────┐   │   │
+│   │   │               LAYER 2 · ORCHESTRATION LAYER            │   │   │
+│   │   │  Goal Loops, Dynamic Workflows, Routines, Supervisors  │   │   │
+│   │   │                          │                             │   │   │
+│   │   │                          ▼ (dispatches)                │   │   │
+│   │   │   ┌────────────────────────────────────────────────┐   │   │   │
+│   │   │   │              LAYER 1 · PRIMITIVES              │   │   │   │
+│   │   │   │  Models (Pro/Flash/Haiku), Worktrees, Tools    │   │   │   │
+│   │   │   └────────────────────────────────────────────────┘   │   │   │
+│   │   └────────────────────────────────────────────────────────┘   │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Audit: What Pramāṇa & Foundry Already Do vs. Gaps to Close
+
+| 14-Step Roadmap Primitive | Status in Pramāṇa / Foundry | Current Implementation & Concrete Upgrade |
+|---|---|---|
+| **01. Days-Long Autonomy** | 🔄 In Progress (Foundry) | Foundry uses OTP `DynamicSupervisor` and tick loops for background execution. FR-01–FR-07 establish durable state fencing. |
+| **02. System Compounding** | ✅ Core Thesis | Invariant #3, #5, #8: Model is swappable; corpus artifacts, tests, and rules compound. |
+| **03. 4-Layer Stack** | ✅ Active | Mapped explicitly across umbrella apps (`pramana`, `pramana_web`, `foundry`). |
+| **04. Cost-Capability Routing** | ⚠️ Partial | **Upgrade:** Formally route tasks: Orchestrator (Pro) -> Workers (Flash) -> Graders/Verifiers (Flash-Lite / Haiku). |
+| **05. Goal / Outcomes Criteria** | ✅ Active | Deterministic gates (`mix pramana.gate`) with ratcheted coverage thresholds and non-negotiable assertions. |
+| **06. Verifier Beats Self-Critique** | ⚠️ Partial | **Upgrade:** In Foundry, separate maker from grader. A fresh verifier subagent with zero maker reasoning evaluates PR diffs against rubrics. |
+| **07. Dynamic Workflows** | ✅ Active | Multi-canon parallel fan-out (Pāli, Chinese, Tibetan) joining at the cross-tradition synthesizer. |
+| **08. Worktree Isolation** | ✅ Active | Rule 81 branch isolation; subagent `Workspace: :branch | :share` isolation prevents file collisions. |
+| **09. Background Routines** | ✅ Active | Oban background queues for bakes and scheduled cron timers. |
+| **10. 5-Stage Memory Progression** | ✅ Production Standard | **Fail → Investigate → Verify → Distill → Consult**: The foundational mechanism behind `docs/RULES.md`. |
+| **11. Compounding State Files** | ✅ Production Standard | `docs/STATUS.md` (what is true now), `docs/PLAN.md` (living task list updated in same commit), `docs/RULES.md` (84 rules). |
+| **12. Procedural Compounding** | ✅ Active | Rules trigger table in `AGENTS.md` and `docs/CODE_CONVENTIONS.md` updated with real post-mortem findings. |
+| **13. Vision UI Self-Check** | ❌ Missing | **Upgrade:** Headless browser rendering of Phase 8 reader LiveViews checked by vision models for CJK text alignment. |
+| **14. Safety & Policy Fallbacks** | ✅ Active | Read-only MCP surface; machine translations strictly prohibited from canonical citation (`method: :human` guard). |
+
+---
+
+### The Two Critical Upgrades Adopted
+
+#### A. The Independent Verifier Sub-Agent (Maker != Grader)
+Anthropic's empirical research confirms that a model evaluating its own work suffers from self-preferential bias: it follows its own reasoning path and overlooks blind spots.
+- **The Upgrade in Foundry:** When an agent finishes drafting code for a ticket, it **cannot** mark the ticket complete.
+- The coordinator spawns an **Independent Verifier Sub-Agent** with a clean context window containing *only*:
+  1. The original ticket specification and acceptance criteria.
+  2. The Git patch diff.
+  3. The test execution command (`mix test`).
+- The verifier attempts to attack edge cases and verify acceptance without exposure to the maker's exploratory narrative.
+
+#### B. The 5-Stage Memory Progression Protocol
+Pramāṇa enforces the 5-stage progression across all engineering sessions:
+1. **Fail:** The system encounters a bug or test regression (e.g., `<note>` spanning line breaks).
+2. **Investigate:** Isolate the failure mechanism without guessing (reproduce via isolated script).
+3. **Verify:** Confirm the diagnosis with empirical measurement (e.g., 10,590 dropped lines).
+4. **Distill:** Convert the finding into a general rule in `docs/RULES.md` and add it to the trigger table in `AGENTS.md`.
+5. **Consult:** Every new agent session reads `AGENTS.md` and consults the trigger table *before* writing code.
+
+---
+
+## 9. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from five perspectives:
+> Critique it from six perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -324,4 +401,7 @@ use the following prompt:
 >    adversarial red-team verification gate provide adequate protection against production agent failure modes?
 > 5. **Composable Agent Middleware Pipeline:** Evaluate the adaptation of the LangChain middleware pattern ('Plug for Agents')
 >    to Elixir/OTP. Are the four intercept hooks (before_model, after_model, before_tool, after_tool), the speculative
->    stream verification in LiveView, and the diagnostic compactor effectively structured for production resilience?"
+>    stream verification in LiveView, and the diagnostic compactor effectively structured for production resilience?
+> 6. **Self-Improving Compounding Stack:** Evaluate the 4-layer compound architecture (Primitives -> Orchestration -> Memory -> Self-Improvement)
+>    and the 5-stage memory progression (Fail -> Investigate -> Verify -> Distill -> Consult). Does the independent verifier subagent
+>    and the cost-capability routing matrix effectively eliminate maker bias and token waste in long-running sessions?"

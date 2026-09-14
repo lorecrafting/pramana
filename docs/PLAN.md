@@ -3999,7 +3999,8 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   synthesizes the 3 primary user archetypes (Buddhist Practitioner, Dharma Teacher, Academic Scholar),
   their progressive disclosure UI hierarchy, core features (Answer Canvas, Source Inspector, Rosetta Stone Popovers,
   `/check` Claim Verifier, Scholar's Export Toolkit), the tripartite systems architecture (Harness ⊃ Graph ⊃ Loop ⊃ Model),
-  the four anti-pattern mitigations, the composable agent middleware pipeline ("Plug for Agents"), and prompt rubric for multi-LLM reviews.
+  the four anti-pattern mitigations, the composable agent middleware pipeline ("Plug for Agents"), the 4-layer compounding
+  self-improving system (Primitives ⊃ Orchestration ⊃ Memory ⊃ Self-Improvement), and prompt rubric for multi-LLM reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
