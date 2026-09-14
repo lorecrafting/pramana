@@ -1312,13 +1312,73 @@ We provide the exact architectural guarantees that monastic institutions (84000,
 
 ---
 
-## 17. Prompt for Multi-Model Review
+---
+
+## 17. Multiplayer Agent Harnesses & Scoped Security Postures: Lessons from YC's QM
+
+### Architectural Evaluation of YC's QM (`yc-software/qm`)
+
+Y Combinator's software group published [`yc-software/qm`](https://github.com/yc-software/qm), an open-source **multiplayer agent harness** designed for collaborative team environments across Slack and the web. 
+
+While most agent harnesses (Claude Code, OpenCode, Codex) are designed as single-user local CLI tools, `qm` tackles the challenges of **organization-scale deployment**: multi-user coordination, scoped memory, containerized sandboxes, and permission hierarchies.
+
+```
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│                          4 KEY PATTERNS ADOPTED FROM YC's QM                      │
+├──────────────────────────┬──────────────────────────┬─────────────────────────────┤
+│ 🛡️ 3-Tier Security       │ 🗂️ Scoped Memory & Tools │ 🚀 Skill Promotion Pipeline │
+│ Strict · Auto · Isolated │ Personal ➔ Room ➔ Org    │ Sandbox ➔ Gate ➔ Global     │
+├──────────────────────────┴──────────────────────────┴─────────────────────────────┤
+│ 👥 Multiplayer Collaborative Canvases (For Pramāṇa Scholar Circles)               │
+└───────────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Technology Assessment: Why We Retain the BEAM
+* `qm` is implemented in **TypeScript / Node.js (Fastify, Vite, Lit)**.
+* We reject importing `qm`'s codebase or moving away from Elixir. In the BEAM ecosystem, **Phoenix LiveView, Phoenix PubSub, and Phoenix Presence** provide real-time collaborative state, lightweight WebSocket channels, and preemptive actor supervision natively, eliminating the need for Node.js process managers or external message brokers.
+
+---
+
+### The Four Architectural Patterns Adopted into Foundry & Pramāṇa
+
+#### 1. The Three-Tier Security Posture Hierarchy (`strict` / `auto` / `isolated`)
+In `qm`, every agent execution environment operates under an explicit, enforceable security posture:
+* **`--posture strict`:** Every tool call modifying state pauses for human operator approval. Applied during schema migrations, release deployments, and budget limit changes.
+* **`--posture auto` (Default):** The agent runs autonomously, but an external gateway intercepts and enforces strict invariant fences (e.g., FR-02 inert transport, Rule 81 file locking). Commands violating policy (editing `cli.ex` or `coordinator.ex`, recursive deletes) return `{:error, :permission_denied}` immediately.
+* **`--posture isolated`:** Autonomous execution restricted strictly to isolated Git worktrees (`Workspace: :branch`) with zero write access to parent repository directories.
+
+#### 2. Scoped Memory Boundaries (Personal $\to$ Project $\to$ Institutional)
+`qm` prevents memory pollution by enforcing hard boundaries between scopes:
+* **Personal Scope:** The subagent's local working registers and in-context scratchpad (L1, <500 tokens).
+* **Project / Room Scope:** The durable decision ledger for an active ticket or sūtra translation session (`task/decisions.md`, L2). Survives context compaction within the ticket, but is hidden from unrelated tasks.
+* **Institutional / Org Scope:** Universal engineering rules (`docs/RULES.md`, L3) and canonical corpus texts (PostgreSQL 18, L4).
+
+This boundary prevents cognitive thrashing: an agent fixing a Phoenix CSS bug in `pramana_web` is never exposed to ephemeral debugging logs from a Rustler CJK tokenization task in `pramana_native`.
+
+#### 3. The Skill Promotion Lifecycle
+In `qm`, custom agent tools and skills do not become global automatically:
+1. An agent drafts a repair script or test probe in its **local worktree branch**.
+2. The script is evaluated across the active task.
+3. It is promoted to **global tooling** and numbered rules in `docs/RULES.md` **only after passing an independent verifier gate** and being integrated by the Hardening PM.
+
+This guarantees the **Fail $\to$ Investigate $\to$ Verify $\to$ Distill $\to$ Consult** invariant.
+
+#### 4. Multiplayer Scholastic Translation Circles (Pramāṇa Web)
+Monastic translation organizations (such as **84000**) and academic research teams rarely work alone; they operate as **translation committees**:
+* Leveraging **Phoenix Presence and LiveView Streams**, Pramāṇa Web supports **Collaborative Translation Rooms**:
+  * Multiple scholars join a shared sūtra passage simultaneously.
+  * Scholar A highlights a phrase; Scholar B immediately sees Kuiji’s 8th-century subcommentary appear in their side-by-side inspector.
+  * An embedded **Pramāṇa Research Clerk** sits in the channel, asynchronously retrieving parallels, resolving variant characters, and checking draft translations against the Citation Guard without interrupting the human committee.
+
+---
+
+## 18. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from fourteen perspectives:
+> Critique it from fifteen perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -1369,7 +1429,13 @@ use the following prompt:
 >     retrieval, and presentation layer that consumes upstream artifacts (Dharmamitra's MITRA-E embeddings, BDRC's 2026 OCR datasets)
 >     rather than training generative translation models. Does enforcing Invariant 8 (machine translations never citable as source),
 >     byte-addressed CTS URN re-resolution, and print-edition facsimile linking address the ethical and authority concerns
->     raised by monastic institutions (84000, SuttaCentral/Bhikkhu Sujato)?"
+>     raised by monastic institutions (84000, SuttaCentral/Bhikkhu Sujato)?
+> 15. **Multiplayer Harness Design & Scoped Security Postures:** Evaluate the adaptation of YC's QM patterns into Pramāṇa
+>     and Foundry. Does the three-tier security posture hierarchy (`strict` / `auto` / `isolated`), the scoped memory partition
+>     (Personal ➔ Project ➔ Institutional), the skill promotion lifecycle, and the Phoenix Presence-based collaborative
+>     translation circles effectively scale the system from a single-operator terminal tool to team-level autonomous development
+>     and monastic translation committee workflows?"
+
 
 
 

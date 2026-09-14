@@ -4015,7 +4015,9 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   Foundry Brain vs PostgreSQL 18/ML multi-canon Pramāṇa Brain), the critique of 'Memory as the Wrong Abstraction' (raw event sourcing 'save everything',
   read-time qualitative context compilation, and context engineering asymmetry between planning and execution), the Ecosystem Positioning &
   Integration Strategy (consuming Dharmamitra's MITRA-E embeddings and BDRC's 2026 OCR datasets as the trusted verification and retrieval harness,
-  resolving 84000 and SuttaCentral/Bhikkhu Sujato's monastic authority dilemma via Invariant 8 and deterministic CTS URN re-resolution), and the 14-dimension prompt rubric for multi-LLM reviews.
+  resolving 84000 and SuttaCentral/Bhikkhu Sujato's monastic authority dilemma via Invariant 8 and deterministic CTS URN re-resolution), the Multiplayer
+  Agent Harness & Scoped Security Postures (adapting YC QM's three-tier security postures [`strict`/`auto`/`isolated`], scoped memory isolation
+  [Personal ➔ Project ➔ Institutional], skill promotion pipeline, and Phoenix Presence-based collaborative translation rooms), and the 15-dimension prompt rubric for multi-LLM reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
