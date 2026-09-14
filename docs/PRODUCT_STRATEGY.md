@@ -382,56 +382,110 @@ Pramāṇa enforces the 5-stage progression across all engineering sessions:
 
 ---
 
-## 9. BEAM-Native Agent Capabilities: Structural AST Editing & Runtime Introspection
+## 9. The Elixir Vibe Ecosystem: BEAM-Native Verification, Anti-Slop Linting & Replay
 
-*(Source reference: Elixir Vibe project, `pi-elixir` by Mario Zechner & Elixir community; GitHub: `https://github.com/elixir-vibe/pi-elixir`).*
+*(Source reference: Elixir Vibe project, `https://github.com/elixir-vibe`, and living standard `https://github.com/elixir-vibe/building-blocks` by Mario Zechner & Elixir community).*
 
-### The Core Thesis: Agents on the BEAM Have an Unfair Advantage
+### The Core Thesis: Epistemic Warrant Meets Computational Warrant
 
-Most industry agent harnesses treat code as arbitrary character sequences: they use regular expressions, line-by-line string matching, and bash grep. When indentation shifts by one space, the tool fails. When a function spans 50 lines, the agent reads all 50 lines just to discover what changed.
+The Elixir Vibe initiative is grounded in a foundational realization that mirrors Pramāṇa's core philosophy:
 
-In the Elixir and Erlang (BEAM) ecosystem, agents have access to **first-class homoiconic AST representations and live runtime introspection**. Rather than treating code as raw text or guessing at system health from log files, an agent can operate directly on AST trees and query the running BEAM supervision hierarchy.
+> **"Don't wait for smarter models — build the environment that pushes back."**  
+> *"AI generates the surface of software without its structure... An agent is exactly as good as the refutations its environment can produce."*
+
+* **Pramāṇa (Epistemic Warrant):** The model is never trusted to cite accurately. Every URN is re-resolved, every span is byte-compared against the canonical corpus, and machine translations are barred from top-level citations.
+* **Elixir Vibe (Computational Warrant):** The model is never trusted to self-critique or write flawless code. Instead of waiting for larger models, we build a BEAM-native environment equipped with deterministic **witnesses** (failures that carry their own minimal proof) and **repairs** (mechanical fixes derived directly from the witness).
 
 ---
 
-### Four Key Capabilities Adopted for Pramāṇa & Foundry
+### The Witness & Repair Loop
 
-#### 1. Structural AST Editing via `ExAST` (Eliminating Brittle String Edits)
-- **The Problem:** Rule 8 in our codebase warns: *"A scripted patch that reports success may have done nothing... Prefer a real edit over a Python string replace."* Exact string replacements frequently fail due to trivial formatting, line wrapping, or argument reordering.
-- **The Upgrade:** Equip Foundry worker agents with structural AST pattern matching via **`ExAST`** (`ast grep` and `ast edit`) and **`Sourceror`**:
+As articulated in *Building Blocks for the Future Web*:
+> *"A rejection without a witness teaches nothing and costs a guess; a rejection with a witness is an instruction."*
+
+In generic web stacks (Python, TypeScript, Node), boundaries between client and server, static analysis, and runtime state cause witnesses to die. On the BEAM, homoiconic ASTs, supervised actor lifecycles, and pure functional UI state enable a complete **generate $\to$ refute with witness $\to$ repair $\to$ re-check** loop.
+
+---
+
+### Six Strategic Building Blocks Adopted for Pramāṇa & Foundry
+
+```
+                             Elixir Vibe Ecosystem
+ ┌─────────────────────────────────────────────────────────────────────────────┐
+ │  QUALITY & LINTING      │  ARCHITECTURE & REPLAY   │  AGENT RUNTIMES        │
+ │  • ex_slop (AI slop)    │  • reach (causality)     │  • pi-elixir (3 tools) │
+ │  • ex_dna (AST clones)  │  • phoenix_replay (8KB)  │  • vibe (OTP agent)    │
+ │  • ex_ast (sourceror)   │  • exograph (ecosystem)  │  • llm_proxy (LiteLLM) │
+ └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 1. AI-Generated Code Quality & Anti-Slop (`ex_slop` & `ex_dna` via `vibe_kit`)
+- **The Blindness:** Classical linters encode what *human experts* reject (e.g. style conventions). LLMs fail completely differently: they emit **narrator comments** (restating the next line of code in English), blanket `try/rescue` blocks that silently swallow critical crashes, redundant identity pipes, and subtle copy-pasted helper functions with renamed variables.
+- **The Upgrade:**
+  - **`ex_slop`**: 40+ Credo checks specifically targeting patterns machine generators over-produce and experienced BEAM developers never write.
+  - **`ex_dna`**: AST-level clone detection. It computes the *least general generalization* (anti-unification) across duplicated code fragments, outputting the algebraically canonical shared function extraction (`build_changeset/2`) rather than leaving the repair to guesswork.
+- **Pramāṇa Integration:** Incorporated directly into `mix pramana.gate` to ensure agent-authored PRs maintain idiomatic Elixir quality without human babysitting.
+
+#### 2. Whole-Program Causality & Architectural Boundary Enforcement (`reach`)
+- **The Blindness:** Agents operating across umbrella apps easily violate boundary invariants—e.g. calling Phoenix from core domain logic or coupling Foundry to Postgres.
+- **The Upgrade:** **`Reach`** builds a whole-program dependence graph across function calls, data structures, side effects, and OTP processes, answering *"What breaks if I change this?"* with an exact mathematical proof path.
+- **Pramāṇa Integration:** Turns architectural diagrams into compilation failures:
+  - `apps/pramana` (Core Domain) $\to$ strictly forbidden from importing `apps/pramana_web` or `Phoenix`.
+  - `foundry/` $\to$ strictly forbidden from coupling to Postgres or umbrella apps.
+
+#### 3. Kilobyte-Scale LiveView Session Recording & Replay (`phoenix_replay`)
+- **The Blindness:** When a scholar reports a reader UI glitch, missing URN popover, or alignment misalignment in Phase 8 LiveViews (`PassageLive`, `WorkLive`), debugging requires reproducing DOM state from vague descriptions. Client-side recording tools (rrweb, LogRocket) require megabytes of DOM mutation bundles and present privacy hazards.
+- **The Upgrade:** Because LiveView templates are pure functions of server state (`assigns $\to$ HTML`), there is zero client-side DOM to record. **`PhoenixReplay`** attaches as an `on_mount` hook:
   ```elixir
-  # Structural AST rewrite — formatting and whitespace insensitive
+  live_session :default, on_mount: [PhoenixReplay.Recorder] do
+    live "/reader/:urn", PassageLive
+  end
+  ```
+  It captures solely event tuples and assigns deltas. A 30-second user interaction session costs **~8 KB on disk** (ETF, gzipped).
+- **Pramāṇa Integration:** Replay is re-evaluation. Bug reports from scholars or automated LiveView tests are captured as deterministic 8 KB test fixtures that can be scrubbed frame-by-frame or re-evaluated in CI.
+
+#### 4. Minimal Primitive Agent Surface ("The Smallness is the Design" via `pi-elixir` & `vibe`)
+- **The Blindness:** Tool sprawl. Conventional agent harnesses expose 40+ flat, bespoke tools, consuming context window tokens just by listing their definitions and preventing agents from combining tools.
+- **The Upgrade:** **`pi-elixir`** reduces the agent interface to **3 primitive tools**:
+  1. `elixir_eval`: A stateful BEAM notebook session inside the live application runtime.
+  2. `ast_search`: Structural code pattern queries (`ast grep`).
+  3. `ast_rewrite`: Structural code transformations (`ast edit`).
+- **The Insight:** *Tool sprawl is a context tax; APIs compose for free.* Through the single `elixir_eval` door, an agent composes first-class Elixir APIs:
+  ```elixir
+  # Composing APIs inside one eval turn:
+  Repo.all(from w in Work, where: w.canon == :lzh, limit: 5)
+  CodeMap.context("Pramana.Anchor.locator_end/1")
+  Supervisor.which_children(PramanaFoundry.Supervisor)
+  ```
+- **Pramāṇa Integration:** Foundry worker agents wield the full power of BEAM OTP without context token bloat.
+
+#### 5. BEAM-Native Multi-Provider LLM Gateway (`llm_proxy`)
+- **The Blindness:** Managing provider diversity (Gemini, Claude, OpenAI, local Ollama) typically drags in Python services (LiteLLM) or brittle custom wrappers.
+- **The Upgrade:** **`llm_proxy`** provides a self-hosted, OTP-supervised gateway with unified API routing, automatic fallback cascades, token budget enforcement, API key rotation, and OpenTelemetry spans.
+- **Pramāṇa Integration:** Removes sidecar complexity, allowing Foundry to dynamically route tasks across price/capability tiers (e.g. Gemini 2.5 Flash for fast lint/repair, Claude Opus/Mythos for hard architectural proofs) under native BEAM supervision.
+
+#### 6. Structural AST Pattern Search & Rewrite (`ex_ast` via `Sourceror`)
+- **The Blindness:** Rule 8 warns: *"A scripted patch that reports success may have done nothing... Prefer a real edit over a Python string replace."* Text-based regex edits break on whitespace, indentation, or argument reordering.
+- **The Upgrade:** Foundry agents use AST pattern matching:
+  ```elixir
   ast edit Logger.debug(_) → Logger.info(_) apps/pramana/lib --dry-run
   ast grep def locator_end(_) do _ end apps/pramana/lib
   ```
-- **Benefit:** Edits are guaranteed to be syntactically valid Elixir; formatting differences never cause patch failures.
+- **Pramāṇa Integration:** Eliminates edit failures by ensuring every proposed modification is syntactically valid before touching the filesystem.
 
-#### 2. Syntax-Aware Diff Summaries (`AST.diff` & `CodeMap.reflect`)
-- **The Problem:** Dumping a 500-line textual `git diff` into an agent's prompt window triggers Anti-Pattern #2 (*"Noisy Harness Context"*), exhausting context budgets and introducing hallucination risk.
-- **The Upgrade:** Before inspecting raw lines, the Verifier or Reviewer agent calls `AST.diff(changed: true)`:
-  ```elixir
-  # Structural AST delta
-  Modified: Pramana.Anchor.locator_end/1 (added nil volpage guard clause)
-  Unchanged: Pramana.Anchor.from_entry/1, locator_start/1
-  ```
-- **Benefit:** Focuses the reviewer agent's cognitive attention solely on semantic function-level alterations, saving thousands of tokens per PR review.
+---
 
-#### 3. Live BEAM Runtime Introspection (Ask the VM, Don't Guess)
-- **The Problem:** When an OTP process hangs, an Oban queue stalls, or a GenServer mailbox grows unbounded in Foundry, agents traditionally guess by reading source files.
-- **The Upgrade:** Expose a safe, stateful `elixir_eval` interface connected to the running BEAM node:
-  ```elixir
-  Supervisor.which_children(PramanaFoundry.Supervisor)
-  Process.info(pid, [:status, :message_queue_len, :current_stacktrace])
-  Application.get_env(:pramana, :database)
-  ```
-- **Benefit:** Resolves complex concurrency, process crash, and state synchronization issues in seconds using runtime ground truth.
+### Systems Comparison: Pramāṇa Today vs. With Elixir Vibe Ecosystem
 
-#### 4. Declarative Architectural Boundary Enforcement (`Reach`)
-- **The Problem:** Pramāṇa enforces strict isolation invariants:
-  - `apps/pramana` (Core Domain) must **never** call `apps/pramana_web` or `Phoenix`.
-  - `foundry/` must **never** couple to umbrella apps or Postgres.
-- **The Upgrade:** Integrate **`Reach`** (static architectural layer and dependency smell checker) into `mix pramana.gate`.
-- **Benefit:** Boundary violations are caught deterministically at compilation time rather than through manual code review.
+| System Dimension | Current Pramāṇa / Foundry Stack | With Full Elixir Vibe Architecture |
+|---|---|---|
+| **Code Editing** | Text/regex replacement (vulnerable to Rule 8 failures) | `ex_ast` structural rewrites (whitespace & formatting invariant) |
+| **Agent Tool Surface** | Shell commands & bespoke CLI flags | 3 composable primitives (`eval`, `ast_search`, `ast_rewrite`) via `pi-elixir` |
+| **CI Linting** | `mix credo --strict`, Dialyzer | `vibe_kit` + `ex_slop` (catches AI narrator comments & blanket rescues) |
+| **Code Clones** | Manual discovery | `ex_dna` AST clone anti-unification with computed extraction signatures |
+| **Architecture Gates** | Manual code review & directory conventions | `reach` dependency graph (fails build on boundary violations) |
+| **UI Bug Reproduction**| Manual browser inspection / Playwright logs | `phoenix_replay` (~8 KB typed session ETF logs with instant scrubber) |
+| **LLM Orchestration** | Direct HTTP clients / Python sidecars | `llm_proxy` (OTP-supervised failover, budgets, and routing) |
 
 ---
 
@@ -458,6 +512,8 @@ use the following prompt:
 > 6. **Self-Improving Compounding Stack:** Evaluate the 4-layer compound architecture (Primitives -> Orchestration -> Memory -> Self-Improvement)
 >    and the 5-stage memory progression (Fail -> Investigate -> Verify -> Distill -> Consult). Does the independent verifier subagent
 >    and the cost-capability routing matrix effectively eliminate maker bias and token waste in long-running sessions?
-> 7. **BEAM-Native Agent Tooling:** Evaluate the adoption of structural AST editing (`ExAST`), syntax-aware diffing (`AST.diff`),
->    live BEAM runtime introspection, and declarative architectural boundary enforcement (`Reach`). Does treating Elixir as
->    an introspectable AST and actor system provide a defensible productivity advantage over generic string-replacement tools?"
+> 7. **Elixir Vibe Ecosystem & Computational Warrant:** Evaluate the adoption of the Elixir Vibe architectural standard
+>    ('Don't wait for smarter models — build the environment that pushes back'). Do the six building blocks—anti-slop linting (`ex_slop`),
+>    AST clone anti-unification (`ex_dna`), whole-program causality (`reach`), 8 KB LiveView session replays (`phoenix_replay`),
+>    the 3-tool minimal agent surface (`pi-elixir`/`vibe`), and the native BEAM model gateway (`llm_proxy`)—provide a defensible
+>    structural advantage over generic text-based agent environments?"
