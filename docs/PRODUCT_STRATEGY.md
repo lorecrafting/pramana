@@ -1372,13 +1372,95 @@ Monastic translation organizations (such as **84000**) and academic research tea
 
 ---
 
-## 18. Prompt for Multi-Model Review
+---
+
+## 18. Empirical Loop Failure Modes & Proactive Bounds: Lessons from IAL-Scan & 36,000 Repositories
+
+*(Source reference: arXiv:2609.00050, 'Towards Agentic Cloud Engineering: Graph and Loop Engineering with a Zero-Trust Agent Harness', Lulla et al. repository scan of 36,710 repos, and the IAL-Scan empirical study of 6,549 LLM agent repositories).*
+
+While industry discourse often describes agent loops in theoretical terms, two large-scale empirical studies of open-source agent repositories reveal the actual mechanics of how autonomous loops operate—and how they catastrophic fail.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                             THE EMPIRICAL ANATOMY OF LOOP FAILURES                               │
+├────────────────────────────────┬────────────────────────────────┬────────────────────────────────┤
+│ 🚫 MISSING STRONG BOUND (100%) │ 🔁 TOOL-CONTROLLED RETRY(41.2%)│ 🤖 MODEL TERMINATION (38.2%)   │
+│ No outer cap covering the full │ Outer loop runs free while     │ Letting the failing model      │
+│ feedback cycle.                │ inner tool call has a limit.   │ decide when it is done.        │
+├────────────────────────────────┴────────────────────────────────┴────────────────────────────────┤
+│ 📈 STATE GROWTH AMPLIFIERS (27.9%): Appending retry errors into history ➔ 272k Pricing Cliff     │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### The Four Empirical Findings & Their Architectural Mitigations
+
+#### 1. The "Green Pipeline, Zero Work" Trap (The xpk Anomaly & Rule 8)
+* **The Empirical Finding:** In `AI-Hypercomputer/xpk`, an hourly automated triage workflow logged **6,290 consecutive successful green runs with zero agent executions**. Its issue-search filter matched nothing on every run. The pipeline showed 100% green health on dashboards for months while zero actual work was performed.
+* **The Principle:** *"A successful run is weak evidence that anything actually happened."* (Directly validating Pramāṇa's **Rule 8**: *A scripted patch that reports success may have done nothing*).
+* **The Architectural Fix (Non-Empty Activity Invariant):**
+  * An automated loop, health check, or test gate must **never** return `status: :ok` if zero work units, test assertions, or items were processed.
+  * If an issue search or candidate filter matches zero items, the loop must explicitly return `{:status, :idle_no_op, reason: :empty_match}` and emit an idle telemetry event. A run with 0 assertions is barred from incrementing the "healthy operational run" metric.
+
+#### 2. The Root Causes of Infinite Agentic Loops (IAL-Scan Findings)
+The IAL-Scan study analyzed 6,549 agent repositories (33.4M lines of code) and confirmed 68 live Infinite Agentic Loops across 47 projects (91.9% precision), resulting in **95.6% API cost exhaustion** and **95.6% denial of service**:
+
+* **Flaw A: Model-Controlled Termination (38.2%):** Letting the LLM output determine when the loop exits (e.g., `if response.tool_calls or response.content: return`). When a model generates malformed output or loops, the prompt nudges it to retry, triggering an unbounded cycle.
+  * *Pramāṇa / Foundry Fix:* **The exit condition is never decided by model output.** Termination is governed exclusively by **deterministic evidence gates** (`exit_code: 0`, passing test receipts, or verified CTS URN resolution).
+* **Flaw B: Unbounded Outer Feedback Paths (41.2%):** Frameworks like LangGraph and AutoGen place `max_turns` on an inner model call, but the outer evaluator or conditional edge loop (`add_conditional_edges`) runs free without a global cycle cap.
+  * *Pramāṇa / Foundry Fix:* The outer state machine (`Coordinator`) enforces a strict, monotonically decreasing **Global Budget Clock** (maximum tool executions, maximum BEAM wall-clock seconds, and token ceilings).
+
+#### 3. Proactive Bounds vs. Reactive Bounds
+Most frameworks handle loop exhaustion **reactively**: when a step limit is exceeded (e.g., recursion limit reached), the system throws an unhandled exception, crashes the process, and destroys all intermediate progress.
+
+```
+Reactive Handling:   Loop Step 999 ──► Step 1000 ──► [CRASH: GraphRecursionError] ──► Discard All State
+Proactive Handling:  Loop Step 998 ──► Check: remaining_steps <= 2 ──► Route to: [Checkpoint & Degrade]
+```
+
+* **The Proactive Pattern Adopted in Foundry:**
+  * The state machine tracks `remaining_steps` and `remaining_budget`.
+  * When `remaining_steps <= 2`, the coordinator **proactively redirects the agent to a `checkpoint_and_degrade` node**.
+  * The agent is forbidden from launching new speculative tasks; it must immediately save partial diffs, commit passing unit tests, write a structured failure post-mortem into `task/decisions.md`, and exit cleanly. Valid work is preserved.
+
+#### 4. State Growth Amplifiers & The Token Pricing Cliff
+* In 27.9% of IAL failures, agents appended previous failed responses and error messages into `state["messages"]` on every retry.
+* In frontier models (such as GPT-6 Astra), prompts crossing **272K input tokens are billed at 2x input and 1.5x output** for the entire request, turning an uncompacted loop into an exponential pricing catastrophe.
+* **Reducer Discipline (Overwrite vs. Merge):**
+  * Merging reducers (`append_list`) must never be used for retry error buffers.
+  * In Foundry, when a subagent retries a failed step, the error buffer is updated with **explicit overwrite semantics** (`{:overwrite, compact_diagnostic}`). The failed 2,000-line stack trace is discarded; only the 15-line distilled diagnostic and target file diff are preserved.
+
+---
+
+### Clarifying Agent Coordination: Agents-as-Tools vs. Handoffs
+
+To prevent coordination ambiguity (where multiple agents narrate the same task), Foundry enforces a strict boundary between two coordination modes:
+
+| Coordination Mode | Mechanism | Ownership | Best Use Case |
+|---|---|---|---|
+| **Agents-as-Tools** | Coordinator calls subagent as a function; subagent runs bounded query and returns JSON. | Coordinator retains turn ownership; subagent has no direct access to user or outer loop. | Research lookups, AST analysis (`ex_ast`), CJK tokenization queries. |
+| **Handoffs** | Coordinator routes workflow to a specialized role agent via state graph edge. | Specialist agent assumes full turn ownership until reaching an evidence gate. | Developer agent executing a feature branch $\to$ Independent Reviewer evaluating candidate PR. |
+
+---
+
+### Unattended Autonomous Execution Rules (The Astra Profile)
+Frontier reasoning models (like GPT-6 Astra) ask clarifying questions by default. In an interactive chat, this is helpful; in an autonomous overnight run (`/goal` or background tick), it halts progress.
+
+For unattended nodes, Foundry's Task Contract injects an explicit execution mandate:
+1. **Contextual Inference:** Infer ambiguous intent from existing codebase conventions, tests, and `docs/RULES.md`. Do not pause for clarification unless an action is irreversible (destructive DB dropped, production credentials modified).
+2. **Follow-Through to Evidence Gate:** Do not stop until a deterministic test passes or an invariant is verified.
+3. **Precedence:** Explicit Task Contract instructions take absolute precedence over generic system prompt defaults.
+
+---
+
+## 19. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from fifteen perspectives:
+> Critique it from sixteen perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -1434,7 +1516,13 @@ use the following prompt:
 >     and Foundry. Does the three-tier security posture hierarchy (`strict` / `auto` / `isolated`), the scoped memory partition
 >     (Personal ➔ Project ➔ Institutional), the skill promotion lifecycle, and the Phoenix Presence-based collaborative
 >     translation circles effectively scale the system from a single-operator terminal tool to team-level autonomous development
->     and monastic translation committee workflows?"
+>     and monastic translation committee workflows?
+> 16. **Empirical Loop Failure Modes & Proactive Graph Bounds:** Evaluate the incorporation of empirical findings from
+>     IAL-Scan (6,549 repos) and Lulla et al. (36,710 repos). Does enforcing proactive bounds (routing to `checkpoint_and_degrade`
+>     when `remaining_steps <= 2`), the non-empty activity gate (eliminating the xpk 6,290-run false-green failure mode),
+>     reducer overwrite discipline on retries, and strict distinction between agents-as-tools versus handoffs effectively
+>     eliminate infinite agentic loops and pricing-cliff cost exhaustion?"
+
 
 
 

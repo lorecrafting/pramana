@@ -4017,7 +4017,10 @@ local bake, import, and index rebuild, and never run an eval concurrently with a
   Integration Strategy (consuming Dharmamitra's MITRA-E embeddings and BDRC's 2026 OCR datasets as the trusted verification and retrieval harness,
   resolving 84000 and SuttaCentral/Bhikkhu Sujato's monastic authority dilemma via Invariant 8 and deterministic CTS URN re-resolution), the Multiplayer
   Agent Harness & Scoped Security Postures (adapting YC QM's three-tier security postures [`strict`/`auto`/`isolated`], scoped memory isolation
-  [Personal ➔ Project ➔ Institutional], skill promotion pipeline, and Phoenix Presence-based collaborative translation rooms), and the 15-dimension prompt rubric for multi-LLM reviews.
+  [Personal ➔ Project ➔ Institutional], skill promotion pipeline, and Phoenix Presence-based collaborative translation rooms), the Empirical Loop Failure Modes &
+  Proactive Graph Bounds (incorporating IAL-Scan findings across 6,549 repos and Lulla et al. across 36,710 repos: 100% missing strong bound, 41.2% tool retry,
+  38.2% model termination; proactive bounds via `remaining_steps <= 2` routing to `checkpoint_and_degrade`, eliminating the xpk 6,290-run false-green trap with
+  non-empty activity gates, reducer overwrite discipline on retry to prevent the 272k token pricing cliff, and explicit agents-as-tools vs. handoffs), and the 16-dimension prompt rubric for multi-LLM reviews.
 
 - **The gate cost/coverage question is settled for now** (20m52s), but if it creeps back
   above ~1h, revisit — and do **not** resolve it by lowering the gate's depth, which makes
