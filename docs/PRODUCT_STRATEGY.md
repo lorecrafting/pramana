@@ -1217,13 +1217,108 @@ Overloading a routine coding subagent with historical chat logs or unrelated pro
 
 ---
 
-## 16. Prompt for Multi-Model Review
+---
+
+## 16. Ecosystem Positioning & Integration Strategy: The Trusted Verification Consumer
+
+### The Ecosystem Landscape: Three Incompatible Camps
+
+The Buddhist digital humanities and canonical AI space is fractured across three distinct groups:
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   THE BUDDHIST AI ECOSYSTEM                                      │
+├────────────────────────────────┬────────────────────────────────┬────────────────────────────────┤
+│ 🤖 THE MODEL BUILDERS          │ 📚 THE DATASET CURATORS        │ 🧘 THE LINEAGE KEEPERS         │
+│ • Dharmamitra (UC Berkeley)    │ • BDRC (Buddhist Digital       │ • 84000: Translating the       │
+│ • Monlam AI (Dharamshala)      │   Resource Center)             │   Words of the Buddha          │
+│ • Kumarajiva Project           │ • SuttaCentral (Bhikkhu Sujato)│ • Monastic Sangha & Lineages   │
+│   (Khyentse Foundation)        │ • CBETA (Chinese Electronic    │                                │
+│                                │   Tripitaka Collection)        │                                │
+│ Mission: Train LLMs to         │ Mission: Digitize manuscripts, │ Mission: Preserve doctrinal    │
+│ translate ancient languages.   │ OCR woodblocks, release data.  │ integrity & human lineage.     │
+└────────────────────────────────┴────────────────────────────────┴────────────────────────────────┘
+```
+
+#### The Central Doctrinal Dilemma
+A profound theological and ethical dispute has emerged between the model builders and the monastic lineage keepers:
+* **84000’s Strict AI Policy:** Formally bans AI from drafting or publishing canonical scripture. Restricts LLMs exclusively to assistive terminology research, citing the necessity of human realization, ethical alignment, and living lineage transmission.
+* **Bhikkhu Sujato’s SuttaCentral Critique:** In *"Machine translations of suttas are the wrong solution for the wrong problem"*, Sujato argues that AI translations strip away the transformative, meditative internalization of the Dhamma, replacing authentic lineage insight with prompt-engineered echo chambers that reinforce modern sectarian confirmation bias.
+* **Academic Evaluation (Oxford DSH, Sept 2026):** Phophichit & Metzger benchmarked flagship LLMs on the Majjhima Nikāya, finding that unconstrained commercial models frequently flatten doctrinal subtleties unless tethered to rigid reference baselines.
+
+---
+
+### Pramāṇa's Strategic Thesis: Partner as Consumer, Do Not Compete on Model Training
+
+Pramāṇa does **not** compete with Dharmamitra or Monlam AI on training translation models, nor with BDRC on scanning woodblocks. Instead:
+
+> **Pramāṇa is the Verification, Retrieval Harness, and Trusted Presentation Layer that solves the Monastic Lineage Dilemma.**
+
+We provide the exact architectural guarantees that monastic institutions (84000, SuttaCentral) demand before they can trust digital tools:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                          PRAMĀṆA'S FOUR EPISTEMIC GUARANTEES                           │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1. INVARIANT 8: Machine translations are NEVER citable as canonical source.           │
+│    Generated text is strictly an ephemeral layer (`tier: t1`). The Citation Guard     │
+│    rejects any citation where `method != :human`.                                      │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 2. DETERMINISTIC CITATION GUARD: Re-resolves CTS URNs and byte-compares quoted spans   │
+│    against immutable print edition coordinates (Taishō line, Derge folio).             │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 3. MULTI-AXIS EXEGETICAL LINEAGE GRAPH: Prevents flat anachronism by tracing           │
+│    Subcommentary (鈔) ➔ Commentary (疏) ➔ Root Sūtra (經) across 2,000 years.          │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│ 4. FACSIMILE GROUNDING: Links digital text directly to BDRC IIIF woodblock scans       │
+│    (`iiif.bdrc.io`), allowing scholars to verify every line against the physical page. │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Concrete Integration Roadmap: Ingesting Upstream Innovations
+
+```
+                                  The Ingestion Architecture
+ ┌───────────────────────────────────────────────┬───────────────────────────────────────────────┐
+ │ TRACK 1: DHARMAMITRA MITRA-E (Embeddings)     │ TRACK 2: BDRC 2026 DATASETS (Archival OCR)    │
+ ├───────────────────────────────────────────────┼───────────────────────────────────────────────┤
+ │ • Current: 27,956 MITRA translation renderings│ • Current: Degé Kangyur IIIF scans linked via │
+ │   ingested as English layer (`tier: t1`).     │   `Pramana.Derge.Images` (W4CZ5369).          │
+ │ • Next: 496-case parallel probe to evaluate   │ • Next: Pin BDRC Feb 2026 open OCR dataset in │
+ │   `gemma-2-mitra-e` (9B) vs BGE-M3.           │   `sources.lock.json` (`raw/bdrc-ocr/`).      │
+ │ • GPU batch embedding run (RunPod A100).     │ • Stream into canonical CTS URNs with         │
+ │ • PostgreSQL 18 multi-vector HNSW index.      │   bounding-box IIIF coordinate links.         │
+ └───────────────────────────────────────────────┴───────────────────────────────────────────────┘
+```
+
+#### Track 1: Setting Up MITRA-E Cross-Lingual Embeddings
+1. **Benchmark via the 496-Case Parallel Probe:** Run `evals/parallel_probes.json` comparing BGE-M3 against `buddhist-nlp/gemma-2-mitra-e`. Only authorize GPU spend if cross-lingual Sanskrit/Tibetan/Chinese Recall@10 shows statistically significant gains (Rule 84).
+2. **GPU Cloud Batch Run (`docs/GPU_RUNBOOK.md`):** Rent a cloud A100 for ~3.5 hours to embed the Tibetan Kangyur/Tengyur and CBETA collections with MITRA-E.
+3. **Multi-Vector Schema in PostgreSQL 18:**
+   * English queries evaluate against BGE-M3 (1024d) vectors.
+   * Sanskrit, Tibetan, and Sino-Tibetan parallel queries evaluate against MITRA-E (3584d) vectors.
+
+#### Track 2: Ingesting BDRC’s 2026 Open OCR Datasets
+1. **Pinning in `sources.lock.json`:** Pin BDRC’s February 28, 2026 open dataset release (SHA-256 and commit hash) into `sources.lock.json` and download raw files to `raw/bdrc-ocr/` (Rule 3).
+2. **Streaming Normalizer (`Pramana.Normalize.BDRCOCR`):** Stream transcriptions, filter OCR noise (`confidence >= 0.85`), and wrap each line into canonical CTS URNs:
+   `urn:cts:bdrc:W22084.vol01.folio:1a01`
+3. **The Tri-Pane Scholar Reader (LiveView UX):**
+   * **Top Left:** High-resolution woodblock photo served live from BDRC IIIF API (`iiif.bdrc.io`).
+   * **Top Right:** BDRC OCR / Etext transcription with exact character offsets.
+   * **Bottom Left:** 84000 human translation (primary canonical authority).
+   * **Bottom Right:** MITRA assistant rendering (stamped `method: :machine`, non-citable).
+
+---
+
+## 17. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from thirteen perspectives:
+> Critique it from fourteen perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -1269,6 +1364,12 @@ use the following prompt:
 > 13. **'Memory is the Wrong Abstraction' (Event Sourcing & Context Asymmetry):** Evaluate the critique against write-time
 >     lossy summarization in favor of raw event sourcing ('Save everything') combined with read-time qualitative context
 >     compilation. Does enforcing context engineering asymmetry—heavy context for high-level planning versus radical context
->     isolation for routine execution—effectively eliminate cognitive thrashing in autonomous coding agents?"
+>     isolation for routine execution—effectively eliminate cognitive thrashing in autonomous coding agents?
+> 14. **Ecosystem Positioning & Epistemic Verification Consumer:** Evaluate Pramāṇa's positioning as the verification,
+>     retrieval, and presentation layer that consumes upstream artifacts (Dharmamitra's MITRA-E embeddings, BDRC's 2026 OCR datasets)
+>     rather than training generative translation models. Does enforcing Invariant 8 (machine translations never citable as source),
+>     byte-addressed CTS URN re-resolution, and print-edition facsimile linking address the ethical and authority concerns
+>     raised by monastic institutions (84000, SuttaCentral/Bhikkhu Sujato)?"
+
 
 
