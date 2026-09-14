@@ -382,13 +382,66 @@ Pramāṇa enforces the 5-stage progression across all engineering sessions:
 
 ---
 
-## 9. Prompt for Multi-Model Review
+## 9. BEAM-Native Agent Capabilities: Structural AST Editing & Runtime Introspection
+
+*(Source reference: Elixir Vibe project, `pi-elixir` by Mario Zechner & Elixir community; GitHub: `https://github.com/elixir-vibe/pi-elixir`).*
+
+### The Core Thesis: Agents on the BEAM Have an Unfair Advantage
+
+Most industry agent harnesses treat code as arbitrary character sequences: they use regular expressions, line-by-line string matching, and bash grep. When indentation shifts by one space, the tool fails. When a function spans 50 lines, the agent reads all 50 lines just to discover what changed.
+
+In the Elixir and Erlang (BEAM) ecosystem, agents have access to **first-class homoiconic AST representations and live runtime introspection**. Rather than treating code as raw text or guessing at system health from log files, an agent can operate directly on AST trees and query the running BEAM supervision hierarchy.
+
+---
+
+### Four Key Capabilities Adopted for Pramāṇa & Foundry
+
+#### 1. Structural AST Editing via `ExAST` (Eliminating Brittle String Edits)
+- **The Problem:** Rule 8 in our codebase warns: *"A scripted patch that reports success may have done nothing... Prefer a real edit over a Python string replace."* Exact string replacements frequently fail due to trivial formatting, line wrapping, or argument reordering.
+- **The Upgrade:** Equip Foundry worker agents with structural AST pattern matching via **`ExAST`** (`ast grep` and `ast edit`) and **`Sourceror`**:
+  ```elixir
+  # Structural AST rewrite — formatting and whitespace insensitive
+  ast edit Logger.debug(_) → Logger.info(_) apps/pramana/lib --dry-run
+  ast grep def locator_end(_) do _ end apps/pramana/lib
+  ```
+- **Benefit:** Edits are guaranteed to be syntactically valid Elixir; formatting differences never cause patch failures.
+
+#### 2. Syntax-Aware Diff Summaries (`AST.diff` & `CodeMap.reflect`)
+- **The Problem:** Dumping a 500-line textual `git diff` into an agent's prompt window triggers Anti-Pattern #2 (*"Noisy Harness Context"*), exhausting context budgets and introducing hallucination risk.
+- **The Upgrade:** Before inspecting raw lines, the Verifier or Reviewer agent calls `AST.diff(changed: true)`:
+  ```elixir
+  # Structural AST delta
+  Modified: Pramana.Anchor.locator_end/1 (added nil volpage guard clause)
+  Unchanged: Pramana.Anchor.from_entry/1, locator_start/1
+  ```
+- **Benefit:** Focuses the reviewer agent's cognitive attention solely on semantic function-level alterations, saving thousands of tokens per PR review.
+
+#### 3. Live BEAM Runtime Introspection (Ask the VM, Don't Guess)
+- **The Problem:** When an OTP process hangs, an Oban queue stalls, or a GenServer mailbox grows unbounded in Foundry, agents traditionally guess by reading source files.
+- **The Upgrade:** Expose a safe, stateful `elixir_eval` interface connected to the running BEAM node:
+  ```elixir
+  Supervisor.which_children(PramanaFoundry.Supervisor)
+  Process.info(pid, [:status, :message_queue_len, :current_stacktrace])
+  Application.get_env(:pramana, :database)
+  ```
+- **Benefit:** Resolves complex concurrency, process crash, and state synchronization issues in seconds using runtime ground truth.
+
+#### 4. Declarative Architectural Boundary Enforcement (`Reach`)
+- **The Problem:** Pramāṇa enforces strict isolation invariants:
+  - `apps/pramana` (Core Domain) must **never** call `apps/pramana_web` or `Phoenix`.
+  - `foundry/` must **never** couple to umbrella apps or Postgres.
+- **The Upgrade:** Integrate **`Reach`** (static architectural layer and dependency smell checker) into `mix pramana.gate`.
+- **Benefit:** Boundary violations are caught deterministically at compilation time rather than through manual code review.
+
+---
+
+## 10. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from six perspectives:
+> Critique it from seven perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -404,4 +457,7 @@ use the following prompt:
 >    stream verification in LiveView, and the diagnostic compactor effectively structured for production resilience?
 > 6. **Self-Improving Compounding Stack:** Evaluate the 4-layer compound architecture (Primitives -> Orchestration -> Memory -> Self-Improvement)
 >    and the 5-stage memory progression (Fail -> Investigate -> Verify -> Distill -> Consult). Does the independent verifier subagent
->    and the cost-capability routing matrix effectively eliminate maker bias and token waste in long-running sessions?"
+>    and the cost-capability routing matrix effectively eliminate maker bias and token waste in long-running sessions?
+> 7. **BEAM-Native Agent Tooling:** Evaluate the adoption of structural AST editing (`ExAST`), syntax-aware diffing (`AST.diff`),
+>    live BEAM runtime introspection, and declarative architectural boundary enforcement (`Reach`). Does treating Elixir as
+>    an introspectable AST and actor system provide a defensible productivity advantage over generic string-replacement tools?"
