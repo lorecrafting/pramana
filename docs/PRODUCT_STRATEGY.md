@@ -206,13 +206,112 @@ Pramāṇa operates two distinct, specialized harnesses that both implement this
 
 ---
 
-## 7. Prompt for Multi-Model Review
+## 7. Implementation Mechanism: The Composable Agent Middleware Pipeline ("Plug for Agents")
+
+*(Source reference: Sydney Runkle, "How to Build a Custom Agent Harness", LangChain Blog, June 3, 2026; `https://www.langchain.com/blog/how-to-build-a-custom-agent-harness`).*
+
+### From Theory to Mechanism: `Agent = Model + Harness`
+
+While the tripartite taxonomy (Harness ⊃ Graph ⊃ Loop ⊃ Model) establishes the macro-architecture, the **Composable Agent Middleware Pipeline** provides the concrete software engineering pattern to implement it cleanly without turning agent runners into monolithic God objects.
+
+The core design principle: **The base agent runner is intentionally minimal. All domain policies, guardrails, state caching, and diagnostics are injected via composable middleware modules** that intercept execution at four deterministic lifecycle hooks:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        AGENT EXECUTION LIFECYCLE                       │
+│                                                                        │
+│   [Input Request]                                                      │
+│          │                                                             │
+│          ▼                                                             │
+│   ┌──────────────┐   → Context Compaction, Dynamic Prompt Shaping,     │
+│   │ before_model │     History Pruning                                 │
+│   └──────┬───────┘                                                     │
+│          ▼                                                             │
+│   ┌──────────────┐                                                     │
+│   │  MODEL CALL  │   → Swappable LLM Inference                         │
+│   └──────┬───────┘                                                     │
+│          ▼                                                             │
+│   ┌──────────────┐   → Citation Extraction, Schema Guardrails,         │
+│   │ after_model  │     Format Verification                             │
+│   └──────┬───────┘                                                     │
+│          ▼                                                             │
+│   ┌──────────────┐   → Tool Call Limits, Permission Checks,            │
+│   │ before_tool  │     SHA-256 State-Hash Tool Caching                 │
+│   └──────┬───────┘                                                     │
+│          ▼                                                             │
+│   ┌──────────────┐                                                     │
+│   │  TOOL EXEC   │   → Bash Command, Database Query, MCP Tool Call     │
+│   └──────┬───────┘                                                     │
+│          ▼                                                             │
+│   ┌──────────────┐   → Diagnostic Compacting (ExUnit/Compiler Diffs),  │
+│   │  after_tool  │     Error Sanitization, Cache Store                 │
+│   └──────┬───────┘                                                     │
+│          │                                                             │
+│          ▼                                                             │
+│   [Result / Loop Feedback]                                             │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### The Elixir/OTP Advantage: The "Plug" Pattern for Agents
+
+In Python frameworks like LangChain, middleware is implemented via async callbacks or class inheritance. In the Elixir/BEAM ecosystem, this maps directly to the idiomatic **`Plug`** architecture:
+
+```elixir
+# Conceptual Foundry Agent Pipeline
+defmodule PramanaFoundry.AgentPipeline do
+  def run(execution_state) do
+    execution_state
+    |> Middleware.StateHash.call()
+    |> Middleware.BudgetCap.call()
+    |> Middleware.DynamicContext.call()
+    |> AgentRunner.invoke_model()
+    |> Middleware.DiagnosticCompactor.call()
+    |> Middleware.Guardrails.call()
+  end
+end
+```
+
+The BEAM provides distinct production advantages over Python event loops:
+1. **Fault Isolation:** If a middleware check crashes or times out, it crashes an isolated process supervised by `DynamicSupervisor`; other concurrent subagents continue unaffected.
+2. **True Preemptive Concurrency:** Thousands of subagents run in parallel without the GIL or async/await blocking.
+3. **Immutability:** Agent state transitions are pure data structures, ensuring replayability and audit trail integrity.
+
+---
+
+### Key Capabilities Enabled by Middleware in Pramāṇa
+
+#### 1. Speculative Stream Interception in LiveView (Product Harness)
+In `PramanaWeb.SearchLive`, the LLM streams English synthesis tokens directly to the user's browser.
+- **The Stream Middleware:** An asynchronous stream transformer intercepts citation URNs (e.g., `[T0262 @ p0001c19]`) in flight.
+- **Speculative Verification:** The moment a URN pattern is recognized in the token stream, the middleware asynchronously fires `Pramana.Guard` to byte-verify the referenced span against Postgres *while the model is still typing the rest of the sentence*.
+- By the time the user finishes reading the sentence, the citation badge already displays its verified green receipt.
+
+#### 2. Diagnostic Compacting in Developer Loops (Builder Harness)
+When autonomous subagents execute tests or builds in Foundry:
+- **Raw Tool Output:** `mix test` or `mix dialyzer` failures can generate 2,000+ lines of stack traces and stdout, instantly exhausting token budgets and polluting prompt context (Anti-Pattern #2).
+- **The Compactor Middleware:** Intercepts non-zero shell exit codes and deterministically extracts:
+  - Exact failing file and line number (`apps/pramana/lib/...:42`).
+  - Expected vs. actual assertion diff.
+  - Top 5 stack frames, stripping all framework noise.
+  - Injects a compact, high-density 15-line diagnostic back into the model loop.
+
+#### 3. Context Compaction & Editing Middleware (Multi-Turn Research)
+- In multi-turn retrieval or code investigation, once a subagent accomplishes an intermediate milestone, the middleware compacts previous raw tool outputs into structured summary records (`"Inspected T0262; confirmed chapter 2 locator at p0005b12"`), discarding the thousands of intermediate raw JSON bytes.
+
+#### 4. Task-Harness Fit: Pramāṇa's Epistemic Moat
+As noted by Runkle, **Task-Harness Fit** is how tightly the harness matches the specific demands, failure modes, and invariants of the domain:
+- Generic harnesses have zero task-harness fit for Buddhist philosophy: they do not understand Taishō line/register coordinates, Derge folios, Sanskrit diacritics, or Pāli-Chinese parallel alignments.
+- Pramāṇa delivers **100% Task-Harness Fit**: the harness deterministically resolves physical coordinates, aligns cross-lingual parallels, and byte-verifies claims, relieving the model of all philological bookkeeping.
+
+---
+
+## 8. Prompt for Multi-Model Review
 
 When reviewing this specification with other models (Claude, Gemini, OpenAI, open-weights),
 use the following prompt:
 
 > "Review this Product Strategy, Systems Architecture, and UI/UX specification for Pramāṇa (`docs/PRODUCT_STRATEGY.md`).
-> Critique it from four perspectives:
+> Critique it from five perspectives:
 > 1. **Epistemic & Philological Rigor:** Does this design uphold the non-negotiable invariants
 >    (no unattributed text, print edition coordinates, machine translations never cited as source)?
 > 2. **User Experience & Cognitive Load:** Is the progressive disclosure model intuitive for an
@@ -222,4 +321,7 @@ use the following prompt:
 >    and existing archives (CBETA, SuttaCentral)?
 > 4. **Harness, Graph, and Loop Systems Architecture:** Evaluate the tripartite separation (Harness ⊃ Graph ⊃ Loop ⊃ Model)
 >    and the four anti-pattern mitigations. Does the multi-canon parallel fan-out (Pāli/Chinese/Tibetan) and the
->    adversarial red-team verification gate provide adequate protection against production agent failure modes?"
+>    adversarial red-team verification gate provide adequate protection against production agent failure modes?
+> 5. **Composable Agent Middleware Pipeline:** Evaluate the adaptation of the LangChain middleware pattern ('Plug for Agents')
+>    to Elixir/OTP. Are the four intercept hooks (before_model, after_model, before_tool, after_tool), the speculative
+>    stream verification in LiveView, and the diagnostic compactor effectively structured for production resilience?"
