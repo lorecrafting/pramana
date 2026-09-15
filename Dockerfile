@@ -28,7 +28,7 @@ RUN apt-get update -y && \
 # debuggable class of build failure, and this project pins its Elixir toolchain for the
 # same reason.
 ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
-RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.83.0 --profile minimal
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
 
 WORKDIR /app
 RUN mix local.hex --force && mix local.rebar --force

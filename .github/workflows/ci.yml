@@ -75,7 +75,7 @@ jobs:
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
       # Pinned to the same 1.83.0 as the Dockerfile — a NIF that compiles today and
       # not tomorrow is the least debuggable class of build failure.
-      - uses: dtolnay/rust-toolchain@1.83.0
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Install pg_bigm
         # NOT pg_trgm, which ships with Postgres. `pg_bigm` indexes BIGRAMS, and the
