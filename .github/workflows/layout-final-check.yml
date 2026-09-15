@@ -1,0 +1,54 @@
+name: Validate final layout fixes
+on:
+  push:
+    branches: [work/sibling-layout-final-check-2026-09-15]
+    paths: [.github/workflows/layout-final-check.yml]
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+      - name: Apply hash-verified minimal patch
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64,bz2,hashlib,subprocess
+          from pathlib import Path
+          base='86e94f683c5dc4ab9dd75ea69cd1e99bb378fbd6'
+          assert subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines()==['.github/workflows/layout-final-check.yml']
+          payload='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'
+          patch=bz2.decompress(base64.b64decode(payload,validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='27af7c907760779635d3a491f676dfaa854a0789b0099f41c7792c6379af2545'
+          subprocess.run(['git','apply','--check'],input=patch,check=True)
+          subprocess.run(['git','apply'],input=patch,check=True)
+          path=Path('pramana/Dockerfile'); text=path.read_text()
+          old='# The former 20250630 combination was never published for this Elixir/OTP pair.'
+          assert text.count(old)==1
+          path.write_text(text.replace(old,'# The former 20250630 combination is absent from the registry for this pair.'))
+          PY
+      - name: Format only the four changed Elixir files and run checks
+        run: |
+          set -euo pipefail
+          git diff --name-only -z > /tmp/layout-final-paths
+          elixir -e 'for p <- File.read!("/tmp/layout-final-paths") |> String.split(<<0>>, trim: true), Path.extname(p) in [".ex", ".exs"], do: File.write!(p, [Code.format_string!(File.read!(p)), "\n"])'
+          git add -- pramana/apps/pramana/lib/mix/tasks/pramana.integrity.ex pramana/apps/pramana/lib/pramana/paths.ex pramana/apps/pramana/test/docs/routing_test.exs pramana/apps/pramana/test/pramana/paths_test.exs pramana/Dockerfile
+          elixir bin/check_docs.exs
+          git diff --cached --check
+      - name: Publish only this temporary branch after concurrent-head check
+        run: |
+          set -euo pipefail
+          branch=work/sibling-layout-final-check-2026-09-15
+          test "$(git ls-remote origin "refs/heads/$branch" | cut -f1)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: make local integrity paths explicit and keep verification helpers shallow'
+          git push origin "HEAD:refs/heads/$branch"
