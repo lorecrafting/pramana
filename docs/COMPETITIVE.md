@@ -1,5 +1,7 @@
 # What Exists, and What We Do Better
 
+> Research snapshot, not a fresh competitor capability/pricing audit. External comparisons below require current primary-source verification before being used for product decisions.
+
 ## fojin (`xr843/fojin`)
 
 Created March 2026 · 329★ · Apache-2.0 · `fojin.app`

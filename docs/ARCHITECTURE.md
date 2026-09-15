@@ -1,257 +1,126 @@
-# Architecture — How the Sources Get Baked
+# Pramāṇa architecture
 
-This is the answer to "how would the sources be baked, and how do we decouple the
-LLM from them."
+Current implementation reference, checked against source at the documentation-audit
+baseline. It describes code, not the state of a running database. See
+[the repository map](REPO_MAP.md) for the separate Foundry system and
+[the retained original design](records/architecture-design.md) for proposals and history.
 
-Everything here is **implementation-independent** — the URN scheme, the provenance
-axes, the bake, and the citation guard are design, not code. For how it maps onto
-Elixir/Phoenix (and the three components that deliberately aren't Elixir), see
-`ELIXIR.md`.
+## Pipeline and ownership
 
-## The bake in one line
+`acquire → normalize → segment → enrich → index → record identity`
 
-`acquire → normalize → segment → enrich → index → freeze`
+Acquisition and loading have filesystem, network and database effects. Transformation
+stages are intended to be deterministic; the whole pipeline is not a collection of
+pure functions. The CLI owns mutations. MCP and the reader call the core domain.
 
-Each stage is pure and re-runnable. The output of the final stage is a **bake**: an
-immutable, content-addressed corpus snapshot with an ID that every answer cites.
-
----
-
-## Stage 0 — Acquire
-
-Downloads pinned upstream snapshots into `raw/`. Nothing is ever edited here.
-
-Everything is recorded in `sources.lock.json`:
-
-```json
-{
-  "bake_schema": 1,
-  "sources": [
-    {
-      "id": "cbeta",
-      "upstream": "https://github.com/cbeta-org/xml-p5",
-      "pin": { "type": "git", "commit": "a1b2c3d..." },
-      "retrieved_at": "2026-08-13T00:00:00Z",
-      "license": { "spdx": "LicenseRef-CBETA-NC", "commercial_use": false },
-      "files_sha256": "sha256:...",
-      "file_count": 4821
-    }
-  ]
-}
-```
-
-Git-hosted sources (CBETA, SuttaCentral, 84000) pin to a commit SHA. Dump-based
-sources (SAT, OpenPecha) pin to a dated archive plus its hash. **If you can't pin
-it, you can't bake it** — an unpinnable source gets an explicit `pin.type: "mutable"`
-flag and its content is marked lower-confidence.
-
----
-
-## Stage 1 — Normalize
-
-Every source's native format (TEI P5, bilara JSON, 84000 TEI, OCR text) is converted
-to one canonical intermediate representation. This stage is where most real
-engineering time goes, and where quiet data corruption happens.
-
-What must survive normalization:
-
-| Feature | Why it matters |
-|---|---|
-| `<lb/>` line breaks | Taishō page/register/line **is** the citation. Lose these, lose citability. |
-| `<juan>` fascicle marks | Traditional fascicle (卷) divisions used in all secondary literature |
-| `<lg>/<l>` verse structure | Verse vs. prose changes both chunking and translation |
-| `<app>/<lem>/<rdg>` | Variant readings across Song/Yuan/Ming/Koryŏ witnesses — a shipped feature |
-| `<note>` | Editorial and translator notes, kept separable from body text |
-| Gaiji `<g ref="#CB01234"/>` | ~30k rare glyphs; map to Unicode via the gaiji table or keep a stable placeholder |
-
-Traps that have bitten every project in this space:
-
-- **Unicode normalization on CJK.** Do *not* blanket-NFC CJK. Han variant characters
-  are semantically meaningful in a critical edition. Store the original codepoint;
-  keep a separate normalized field for matching.
-- **Editorial punctuation.** CBETA's punctuation was added by modern editors and is
-  absent from the witness. Retain it, but flag it, so nobody cites it as original.
-- **Tibetan segmentation.** Tibetan has no word spaces, only syllable dots (tsheg)
-  and clause markers (shad). Naive splitting produces garbage.
-
----
-
-## Stage 2 — Segment
-
-The decision that determines whether this project is trustworthy:
-
-> **The citable unit is edition-anchored, not chunker-derived.**
-
-Everyone else chunks by token count and then has to invent an ID. That ID means
-nothing to a scholar and can't be checked against a printed page. Instead, adopt each
-tradition's existing citation grammar and wrap it in a URN (the scheme is borrowed
-from CTS/CITE in classics):
-
-```
-pramana:cbeta.T:T0262_009@p0037a13-p0037b02     Lotus Sūtra, Kumārajīva, T vol.9
-pramana:sat.T:T2688_001@p0783b12                 Nichiren-school comm., T vol.84
-pramana:sc.pali:mn1:1.1                          Mūlapariyāya Sutta, segment 1.1
-pramana:84000.kangyur:toh113@F.1.b.1             Derge Kangyur, folio 1b line 1
-```
-
-Retrieval chunks are then *windows over* these anchors, and a chunk's URN is a range
-of real citation points. A chunk can be re-resolved to the exact characters it came
-from, which is what makes the citation guard possible.
-
-Two-level indexing: embed ~200–400 token windows for recall, but return the
-containing structural unit (verse, gāthā, commentary gloss) for readability.
-
----
-
-## Stage 3 — Enrich
-
-Where we beat the competition. **Deterministic methods first.**
-
-- **Quotation graph.** Commentaries quote root texts verbatim. Run suffix-array /
-  n-gram matching across the full corpus to find reuse. Over ~250M characters this
-  is a large but entirely tractable batch job — and it yields a real citation
-  network with zero LLM involvement. Powers "show me every text that quotes this
-  passage of the Lotus Sūtra."
-- **Cross-canon parallels from existing scholarship.** SuttaCentral's `sc-data`
-  already contains thousands of hand-curated Āgama↔Nikāya parallels, free and CC0.
-  Ingest them rather than rediscovering them with embeddings.
-- **Term correspondence tables.** The *Mahāvyutpatti* is a canonical
-  Sanskrit–Tibetan term dictionary; 84000 publishes a Skt–Tib–Eng glossary; DDB
-  covers Chinese Buddhist terms. These give exact, citable cross-lingual anchors.
-- **Commentary structure parsing.** Commentaries follow lemma-and-gloss form (科文):
-  quote a phrase, then explain it. Parsing that structure yields root↔commentary
-  alignment *deterministically*.
-- **Multiple-translation alignment (異譯本).** Many works were translated into
-  Chinese 2–6 times (the Lotus Sūtra three times). Aligning these is high-value and
-  unique to the Chinese canon — see ROADMAP.
-- **Authority linking.** DILA person/place/time authority DB, BDRC RIDs, Wikidata
-  Q-IDs for people, places, and dates.
-
-The LLM is used **only for the residual** after all of the above, and anything it
-produces is stored with `method: "llm"` and a confidence score, so it can be
-filtered out or re-verified independently.
-
----
-
-## Stage 4 — Index
-
-**One Postgres.** Text, provenance, embeddings, and FTS in a single ACID store, so
-that this composes in one query plan:
-
-```sql
--- "semantically similar, but only Indic-origin root texts"
-WHERE composition_origin = 'indic' AND text_role = 'root'
-ORDER BY embedding <=> :query_vec
-```
-
-That predicate-plus-vector query is the single most important thing this system
-does. Splitting the vector store from the metadata store makes it awkward, which is
-why we don't.
-
-- **Embeddings:** BGE-M3. Multilingual, 8192 context, and it emits dense + sparse +
-  ColBERT vectors in one pass — hybrid retrieval without a second model.
-- **Multi-vector per segment.** Embed (a) the source text, (b) an English gloss,
-  (c) generated hypothetical questions. Cross-lingual retrieval over Classical
-  Chinese with a general multilingual model is genuinely weak — `tripitaka-mcp`
-  concedes exactly this about Pāli. Embedding a translation alongside the original
-  is the cheapest large win available.
-- **Lexical:** `pg_bigm` for Chinese/Japanese (no whitespace — `pg_trgm` and
-  `to_tsvector` assumptions break); Postgres FTS with per-language configs for
-  Latin-script and transliterated text.
-- **Fusion:** Reciprocal Rank Fusion over dense + sparse + lexical.
-
----
-
-## Stage 5 — Freeze
-
-```
-bake_id = sha256(sources.lock.json + pipeline_version + bake_config)
-```
-
-`Pramana.Bake` implements this, and `bake_id` is stamped on API and MCP responses.
-Two people with the same id hold byte-identical corpora, so a citation is reproducible
-years later — the real meaning of "decoupled."
-
-Bump `pipeline_version` whenever a change alters normalization or segmentation
-**output**; not for refactors or new query paths, which leave the corpus identical.
-Erring lax is the dangerous direction: two different corpora sharing an id means a
-citation that verified yesterday can fail today with nothing to point at.
-
-**Current limit, stated plainly.** `segments` carries no `bake_id` and the loader
-replaces rows in place, so there is exactly **one current bake** at a time. Bakes do
-not coexist, and re-baking does not leave old citations resolvable against the older
-bake. Acceptable while a single corpus is being built, and cheap to change later (a
-nullable column is not a table rewrite) — but the docs must not claim more than the
-code does.
-
----
-
-## The provenance model
-
-**Provenance is several orthogonal axes, never one `source` field.** This is what
-makes the Taishō problem tractable.
-
-| Axis | Values | Example |
+| Stage | Source of truth | Contract |
 |---|---|---|
-| `witness` | Taishō, Koryŏ, Song, Derge, Dunhuang ms. | Which printed/physical edition |
-| — | — | *(`text_role` says what a text IS; `composition_origin` says where it came from. A Chinese translation of an Indian sūtra is `indic` + `root`, not "translation" — how it arrived is already answered by origin.)* |
-| `work` | stable work ID (FRBR-style) | The abstract text, across all its versions |
-| `composition_origin` | indic, chinese, japanese, tibetan, korean | Where it was *composed* |
-| `text_role` | root, treatise, commentary, subcommentary, apocryphon, catalogue, history, translation, conflation | What the text **is** |
-| `division` | 阿含部, 般若部, 經疏部, 疑似部 … | The Taishō's own 部 classification |
-| `attributed_author` | + `attribution_confidence` | Much of the canon is pseudepigraphic |
-| `date_range` | earliest/latest | Composition or translation date |
-| `license_class` | cc0, cc-by-sa, nc, restricted | Drives redistribution gating |
+| Acquire | [Acquisition modules](../apps/pramana/lib/pramana/acquire/), [source registry](../apps/pramana/lib/pramana/sources.ex), [lockfile](../sources.lock.json) | Preserve upstream snapshots and hashes; do not edit `raw/` in place |
+| Normalize | [Normalizers](../apps/pramana/lib/pramana/normalize/) | Preserve citable structure, editorial apparatus and source distinctions |
+| Segment | [Segmenters](../apps/pramana/lib/pramana/segment/), [URN parser](../apps/pramana/lib/pramana/urn.ex) | Adopt supported source anchors; distinguish derived addressing |
+| Enrich | Commentary, quotations, translations, readings and authority modules in the core | Method and confidence travel with inferred or generated material |
+| Index/retrieve | [Retrieval](../apps/pramana/lib/pramana/retrieval.ex), [hybrid](../apps/pramana/lib/pramana/retrieval/hybrid.ex) | Lexical and dense semantic retrieval, rank fusion and optional reranking; report which arms ran |
+| Verify | [Citation guard](../apps/pramana/lib/pramana/guard.ex), verification/integrity tasks | Re-resolve source citations; separate reproducibility, completeness and interpretation |
 
-### Your Taishō requirement, solved
+PostgreSQL holds the text, provenance, relational layers and vectors. The CJK Rustler
+NIF supplies segmentation. The separate Rust quotation scanner uses **seed-and-extend**
+and JSONL files; Elixir imports results into Postgres. Python helpers perform batch
+inference/training and artifact transfer, not corpus queries or normalization.
 
-CBETA covers Taishō vols **1–55 and 85**. SAT covers **1–85**. The delta —
-vols **56–84** — is precisely the Japanese-composed sectarian corpus (Shingon,
-Tendai, Nichiren, Zen). So there is a **mechanical rule**, not a heuristic:
+BGE-M3 capabilities are not all implemented retrieval modes. The current hybrid path
+uses lexical and dense semantic results; sparse/ColBERT generation, hypothetical
+questions and other design ideas must not be inferred from the model's capability list.
+Without an available embedding serving or embedded rows, hybrid can fall back to
+lexical and reports that limitation. [Embedding](EMBEDDING.md) owns that workflow.
 
+## Addresses and provenance
+
+The implemented URN grammar is:
+
+```text
+pramana:<source>.<witness>:<work>[@<locator>[-<end>]][#tr:<lang>/<translator>]
 ```
-volume 56..84  →  composition_origin = japanese, text_role = commentary
-```
 
-In practice this is now applied at finer resolution through the **division table**
-(`Pramana.Taisho.Divisions`), which maps Taishō *text numbers* to 部 and derives origin
-and role from them — 續經疏部 (2185–2700) and 悉曇部 (2701–2731) are precisely the works
-in vols 56–84. CBETA ships no classification markup, so the table was assembled from
-two independent published contents listings and is **validated against the corpus**:
-every division's numbers must fall inside its stated volumes, checked over all 2,471
-works before any write. Populated result: 1,781 indic, 555 chinese, 57 apocrypha, and
-135 left deliberately unattributed.
+For example, `pramana:cbeta.T:T0262_009@p0037a13` uses an edition line anchor.
+`pramana:sc.ms:mn1@1.1` illustrates the SuttaCentral source/witness and locator shape.
+Parsing an example does not establish that it resolves in a particular database.
+A rendering fragment identifies a translation of an anchor, not a new source work.
 
-Same axis cleanly handles the 疑偽部 (apocrypha, T2865–2920): Chinese-composed texts
-that *present themselves* as Indian translations —
-`composition_origin = chinese, text_role = apocryphon`.
+[Corpus schemas](../apps/pramana/lib/pramana/corpus/schemas.ex), the source registry
+and source-specific classifiers own the fields. Composition origin, text role,
+attribution confidence, date basis, addressing and licensing are distinct axes.
+A Chinese rendering of an Indic root work is not given a `translation` text role
+merely because its language changed. Local manifests support roles including `root`,
+`treatise`, `commentary`, `subcommentary`, `apocryphon`, `catalogue`, `history` and `conflation`.
 
-Two enforcement layers, and the second is the one that matters:
+Grouped results make provenance visible. They do not guarantee that a classifier or
+catalogue attribution is correct, nor can a tool prevent a model from ignoring a bucket.
+[Invariants](pramana/INVARIANTS.md) state the constraints without treating them as proof.
 
-1. Filterable: `origin != japanese` is one SQL predicate.
-2. **Structural.** Retrieval results are returned *grouped by origin and role*, so a
-   Kamakura-period Nichiren commentary arrives in a visibly different bucket than a
-   Kumārajīva translation. The model cannot flatten them into one undifferentiated
-   pile, because the tool response was never flat. Prompting for this would be a
-   suggestion; shaping the response makes it a property of the system.
+## Identity and replay
 
----
+[Pramana.Bake](../apps/pramana/lib/pramana/bake.ex) hashes the lockfile-derived inputs,
+pipeline version and bake configuration. This is **source input identity**. Reproducing
+source bytes also requires using those inputs and the matching pipeline correctly,
+then validating the result; an ID alone cannot attest a manually altered database.
 
-## The decoupling contract
+The current loader replaces rows. Segments have no per-row bake identity supporting
+coexistent historic snapshots. Re-baking does not preserve a queryable older database.
+Retain the actual inputs and backups needed to reconstruct or inspect an older result.
 
-The boundary between corpus and model is a hard interface:
+[Pramana.Release](../apps/pramana/lib/pramana/release.ex) already implements a separate
+retrieval stamp. It records source identity, translation/vector counts, translator IDs
+and embedding model names. `mix pramana.release.stamp` writes it;
+`mix pramana.doctor` can report its status. **This is not a content hash of all
+renderings and vectors.** Same-count edits, search-code/default changes and some other
+state changes can be invisible. Its current drift comparison also omits source identity.
+Do not advertise a matching `release_id` as a byte-complete retrieval snapshot.
 
-**The LLM never sees the database.** It sees retrieval tools that guarantee:
+[MCP Reply](../apps/pramana_web/lib/pramana_web/mcp/reply.ex) places `bake_id`,
+`release_id` and the caller's non-null arguments in successful JSON replies.
+`release_id` may be null until stamped. Error replies carry `bake_id` and replay
+arguments but currently omit `release_id`. Omitted defaults are not pinned by the
+replay record. **Re-runnable is not a promise of identical results.**
 
-1. Every span returns `urn`, `char_start`, `char_end`, `sha256`, provenance.
-2. `verify(urn, quoted_text) -> bool` re-resolves and byte-compares.
-3. No tool returns text without attribution.
-4. Responses are structured data, never pre-formatted prose. (This is also what
-   makes a fojin-style web reader cheap to add later — the UI becomes a renderer.)
+## Citation verification, precisely
 
-**The citation guard runs after generation, outside the model:** extract every URN
-from the output, re-resolve it against the bake, byte-compare quoted spans, and flag
-or reject mismatches. It is deterministic and works with *any* model — Claude today,
-a local model tomorrow, something else in three years — with no change to the corpus.
+The guard resolves a supplied URN and checks byte-substring containment for recognized
+quoted text after trimming it. In free-form output, recognized quotation formats have
+bounded matching; other detected URNs can receive existence-only checks. It does not
+compare every sentence in an answer, establish entailment, or prove corpus-wide absence.
+Inspect the breakdown of checked citations and refusals, not just an `ok?` boolean.
 
-That is the decoupling. The bake is the durable asset; the model is a commodity.
+Generated renderings are not canonical source evidence. Human translations are also
+labelled as renderings rather than merged into the original source. Translation
+fidelity, historical attribution and interpretation remain separate questions.
+[Translation](TRANSLATION.md) and [MCP](MCP.md) describe the relevant interfaces.
+
+## What is implemented versus proposed
+
+Work relations, passage-level commentary alignment, translation pools, reading
+exceptions, authority linking, the reader and report checking have implementations.
+Their presence does not establish complete corpus coverage or successful live acceptance.
+A query-time translation cache/promotion service is not established by a proposed schema;
+`translation_candidates` is not a current Ecto schema. An `index` versus `reader` purpose
+policy is a design distinction, not an enforced column-level isolation guarantee.
+
+Use [testing](TESTING.md) for evidence requirements, [status](STATUS.md) for the recorded
+corpus snapshot, and the appropriate [plan section](PLAN_INDEX.md) for future work.
+
+## Historical section bookmarks
+
+These links preserve older references; their targets are explicitly historical/design material.
+
+| Earlier section |
+|---|
+| <a id="architecture--how-the-sources-get-baked"></a>[Architecture — How the Sources Get Baked](records/architecture-design.md#architecture--how-the-sources-get-baked) |
+| <a id="the-bake-in-one-line"></a>[The bake in one line](records/architecture-design.md#the-bake-in-one-line) |
+| <a id="stage-0--acquire"></a>[Stage 0 — Acquire](records/architecture-design.md#stage-0--acquire) |
+| <a id="stage-1--normalize"></a>[Stage 1 — Normalize](records/architecture-design.md#stage-1--normalize) |
+| <a id="stage-2--segment"></a>[Stage 2 — Segment](records/architecture-design.md#stage-2--segment) |
+| <a id="stage-3--enrich"></a>[Stage 3 — Enrich](records/architecture-design.md#stage-3--enrich) |
+| <a id="stage-4--index"></a>[Stage 4 — Index](records/architecture-design.md#stage-4--index) |
+| <a id="stage-5--freeze"></a>[Stage 5 — Freeze](records/architecture-design.md#stage-5--freeze) |
+| <a id="the-provenance-model"></a>[The provenance model](records/architecture-design.md#the-provenance-model) |
+| <a id="your-taishō-requirement-solved"></a>[Your Taishō requirement, solved](records/architecture-design.md#your-taishō-requirement-solved) |
+| <a id="the-decoupling-contract"></a>[The decoupling contract](records/architecture-design.md#the-decoupling-contract) |

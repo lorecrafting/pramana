@@ -1,171 +1,250 @@
 defmodule Docs.RoutingTest do
   @moduledoc """
-  The documentation's routing layer, checked mechanically.
+  Documentation routing checks without application, database or model dependencies.
 
-  `AGENTS.md` is the canonical project reference in an agent's context. `docs/RULES.md` holds 84 rules
-  learned from real defects here, and for most of this project's life the only pointer to
-  them said *"before writing a new source pipeline"* — so a rule about mix tasks, thresholds
-  or Ecto queries never fired, because you are not writing a pipeline when you do those.
-
-  The evidence that this matters is rule 8, "a scripted patch that reports success may have
-  done nothing": recorded after five occurrences, then hit twice more in a single session
-  **while writing rules about not doing it**. The rule was written down and not routed to.
-
-  So the trigger table is now load-bearing, and a load-bearing table needs a test. These
-  assert the two ways it can rot: a rule nobody is sent to, and a pointer to a rule that
-  does not exist.
+  The root is a router, not an eager copy of every reference. Reachability, relative
+  inline links, ATX/explicit anchors, rule coverage and entry budgets are checked.
+  This intentionally is not a full Markdown renderer or external-link availability test.
   """
   use ExUnit.Case, async: true
 
-  @agents "AGENTS.md"
-  @rules "docs/RULES.md"
-
-  # `__DIR__`-relative, NOT `:project_root`. That key is global application state and other
-  # async tests repoint it at temp directories — the flake this repo records as
-  # "async: true plus put_env(:project_root) invalidates the corpus tests". Reading it here
-  # made both assertions below pass vacuously against an empty file, which is the failure
-  # mode a test about routing must not have.
   @root Path.expand("../../../..", __DIR__)
+  @triggers "docs/agents/RULE_TRIGGERS.md"
+  @historical_exception {"foundry/docs/AUDIT-2026-09-12.md", "../pramana_diagnose.py#L116"}
 
   defp read!(path), do: @root |> Path.join(path) |> File.read!()
 
+  defp documents do
+    {output, status} = System.cmd("git", ["ls-files", "-z"], cd: @root)
+    assert status == 0
+
+    output
+    |> String.split(<<0>>, trim: true)
+    |> Enum.filter(&(Path.extname(&1) in [".md", ".mdx"]))
+  end
+
+  defp unfenced(text) do
+    {lines, _fence} =
+      text
+      |> String.split("\n")
+      |> Enum.map_reduce(nil, fn line, fence ->
+        case Regex.run(~r/^\s{0,3}(`{3,}|~{3,})/, line) do
+          [_, marker] ->
+            char = String.first(marker)
+            width = String.length(marker)
+
+            next =
+              case fence do
+                nil -> {char, width}
+                {^char, opened} when width >= opened -> nil
+                other -> other
+              end
+
+            {"", next}
+
+          nil ->
+            {if(fence, do: "", else: line), fence}
+        end
+      end)
+
+    Enum.join(lines, "\n")
+  end
+
+  defp anchors(text) do
+    explicit =
+      ~r/<a\s+(?:id|name)=["']([^"']+)["']/
+      |> Regex.scan(unfenced(text))
+      |> Enum.map(fn [_, id] -> id end)
+
+    {ids, _seen} =
+      text
+      |> unfenced()
+      |> String.split("\n")
+      |> Enum.reduce({[], %{}}, fn line, {ids, seen} ->
+        case Regex.run(~r/^\#{1,6}\s+(.+?)(?:\s+\#+)?\s*$/u, line) do
+          [_, heading] ->
+            slug =
+              heading
+              |> String.replace(~r/<[^>]+>/u, "")
+              |> String.replace(~r/!?\[([^\]]+)\]\([^)]*\)/u, "\\1")
+              |> String.downcase()
+              |> String.replace(~r/[^\p{L}\p{N}_\- ]/u, "")
+              |> String.replace(" ", "-")
+
+            count = Map.get(seen, slug, 0)
+            id = if count == 0, do: slug, else: "#{slug}-#{count}"
+            {[id | ids], Map.put(seen, slug, count + 1)}
+
+          nil ->
+            {ids, seen}
+        end
+      end)
+
+    MapSet.new(explicit ++ ids)
+  end
+
+  defp links(path) do
+    ~r/\[[^\]\n]*\]\(([^\s)]+)\)/u
+    |> Regex.scan(unfenced(read!(path)))
+    |> Enum.map(fn [_, target] -> target end)
+    |> Enum.reject(&Regex.match?(~r/^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/)/, &1))
+  end
+
+  defp destination(path, target) do
+    [file | fragment] = String.split(target, "#", parts: 2)
+    file = URI.decode(file)
+
+    absolute =
+      Path.expand(
+        if(file == "", do: Path.basename(path), else: file),
+        Path.join(@root, Path.dirname(path))
+      )
+
+    {Path.relative_to(absolute, @root), List.first(fragment)}
+  end
+
+  defp line_fragment?(fragment, text) do
+    case Regex.run(~r/^L(\d+)(?:-L(\d+))?$/, fragment) do
+      nil ->
+        false
+
+      [_, first] ->
+        String.to_integer(first) in 1..length(String.split(text, "\n"))
+
+      [_, first, last] ->
+        start = String.to_integer(first)
+        finish = String.to_integer(last)
+        start >= 1 and finish >= start and finish <= length(String.split(text, "\n"))
+    end
+  end
+
+  defp link_problem(path, target) do
+    {dest, fragment} = destination(path, target)
+    absolute = Path.join(@root, dest)
+
+    cond do
+      not File.exists?(absolute) ->
+        {path, target}
+
+      fragment in [nil, ""] or Path.extname(dest) not in [".md", ".mdx"] ->
+        nil
+
+      true ->
+        text = File.read!(absolute)
+        decoded = URI.decode(fragment)
+
+        if MapSet.member?(anchors(text), decoded) or line_fragment?(decoded, text),
+          do: nil,
+          else: {path, target}
+    end
+  end
+
+  defp visit([], reached, _docs), do: reached
+
+  defp visit([path | rest], reached, docs) do
+    if MapSet.member?(reached, path) do
+      visit(rest, reached, docs)
+    else
+      next =
+        path
+        |> links()
+        |> Enum.map(fn target -> elem(destination(path, target), 0) end)
+        |> Enum.filter(&MapSet.member?(docs, &1))
+
+      visit(next ++ rest, MapSet.put(reached, path), docs)
+    end
+  end
+
   defp rule_numbers do
-    ~r/^(\d+)\. \*\*/m
-    |> Regex.scan(read!(@rules))
-    |> Enum.map(fn [_, n] -> String.to_integer(n) end)
-    |> MapSet.new()
+    @root
+    |> Path.join("docs/rules/*.md")
+    |> Path.wildcard()
+    |> Enum.flat_map(fn path ->
+      ~r/^(\d+)\. \*\*/m
+      |> Regex.scan(File.read!(path))
+      |> Enum.map(fn [_, number] -> String.to_integer(number) end)
+    end)
   end
 
-  # The table runs from its header row to the first blank line. The obvious non-greedy
-  # pattern — `\| about to….*?\n\n(.*?)\n\n` — captures the paragraph AFTER the table
-  # instead, because the rows have no blank line between them, and then reports every rule
-  # as unrouted. Capture the table itself.
-  defp trigger_table do
-    [_, table] = Regex.run(~r/(\| about to….*?)\n\n/s, read!(@agents))
-    table
-  end
+  defp trigger_numbers do
+    [_, table] = Regex.run(~r/(\| about to….*?)\n\n/su, read!(@triggers))
 
-  defp cited_numbers do
     ~r/\b(\d{1,2})\b/
-    |> Regex.scan(trigger_table())
-    |> Enum.map(fn [_, n] -> String.to_integer(n) end)
+    |> Regex.scan(table)
+    |> Enum.map(fn [_, number] -> String.to_integer(number) end)
     |> MapSet.new()
   end
 
-  describe "the trigger table in AGENTS.md" do
-    test "points only at rules that exist" do
-      dangling = MapSet.difference(cited_numbers(), rule_numbers())
+  test "the provider-neutral entry remains a small router" do
+    text = read!("AGENTS.md")
+    assert length(String.split(text, "\n")) <= 60
+    assert byte_size(text) <= 4000
+    assert String.contains?(text, "docs/agents/WORKFLOW.md")
+    assert String.contains?(text, "foundry/docs/README.md")
+  end
 
-      assert MapSet.size(dangling) == 0,
-             "AGENTS.md routes to rule(s) #{inspect(Enum.sort(dangling))}, which docs/RULES.md " <>
-               "does not contain. A pointer to a rule that is not there is worse than no pointer: " <>
-               "it costs a lookup and returns nothing."
-    end
-
-    # THE ONE THAT ACTUALLY BITES. A rule can be written, numbered, committed — and never
-    # read, because nothing sends anyone to it at the moment it applies.
-    test "reaches every rule from at least one trigger" do
-      unrouted = MapSet.difference(rule_numbers(), cited_numbers())
-
-      assert MapSet.size(unrouted) == 0,
-             "rule(s) #{inspect(Enum.sort(unrouted))} exist in docs/RULES.md and no trigger in " <>
-               "AGENTS.md points at them. Add a row to the trigger table — a rule nobody is " <>
-               "routed to fires after the defect rather than before it."
-    end
-
-    test "is not empty, so a failed regex cannot pass both tests vacuously" do
-      # Both assertions above are satisfied by two empty sets, which is what a renamed
-      # heading would produce.
-      assert MapSet.size(rule_numbers()) > 40
-      assert MapSet.size(cited_numbers()) > 40
+  test "provider shims import only the shared router" do
+    for file <- ["CLAUDE.md", "GEMINI.md"] do
+      text = read!(file)
+      assert length(String.split(text, "\n")) <= 12
+      assert byte_size(text) <= 800
+      assert Regex.scan(~r/^@([^\n]+)$/m, text) == [["@AGENTS.md", "AGENTS.md"]]
     end
   end
 
-  describe "the document routing table" do
-    test "reaches every document in docs/" do
-      # The same rule as rules, tools and tasks: a document nobody is routed to is one the
-      # next session does not know exists. Four were unreachable when this was written —
-      # `CLOUD.md` among them, which is what a session needs BEFORE renting a GPU.
-      #
-      # The count is deliberately not asserted. `AGENTS.md` said "Twenty-six documents" over
-      # twenty-seven, which is the written-down number this project has corrected more often
-      # than any other; the table now says every document is in it, and this makes that true.
-      agents = File.read!(Path.join(@root, "AGENTS.md"))
+  test "every tracked Markdown document is reachable from the shared router" do
+    docs = MapSet.new(documents())
+    assert MapSet.size(docs) > 100
+    reached = visit(["AGENTS.md"], MapSet.new(), docs)
+    assert MapSet.difference(docs, reached) == MapSet.new()
+  end
 
-      missing =
-        @root
-        |> Path.join("docs/*.md")
-        |> Path.wildcard()
-        |> Enum.map(&Path.basename/1)
-        |> Enum.reject(&String.contains?(agents, &1))
+  test "relative links and fragments resolve, with one named historical exception" do
+    problems =
+      for path <- documents(),
+          target <- links(path),
+          problem = link_problem(path, target),
+          problem != nil,
+          do: problem
 
-      assert missing == [],
-             "not routed from AGENTS.md: #{Enum.join(missing, ", ")}"
-    end
+    # This audit record intentionally points to a removed legacy diagnostic.
+    # Keep the exception narrow; remove it if the record acquires a valid historical link.
+    assert Enum.uniq(problems) == [@historical_exception]
+  end
 
-    test "no document states a pipeline version that disagrees with the code" do
-      # `docs/STATUS.md` said "pipeline | v4" in its corpus table and "`pipeline_version` is
-      # **5**" eleven lines later — one file contradicting itself about the number that says
-      # whether two corpora are comparable at all.
-      #
-      # Most written-down figures are caught by reading. This one is small, changes rarely
-      # and is quoted in passing, which is the profile of a number that goes stale unnoticed.
-      #
-      # The rule enforced is `AGENTS.md`'s own: **a statement about the past belongs in
-      # `docs/HISTORY.md`, or carries its date.** A dated mention is history and may say 4
-      # forever; an undated one reads as a current claim and must not.
-      current = Pramana.Bake.pipeline_version()
-      historical = ~w(HISTORY.md PROXIES.md)
-      version = ~r/pipeline[_ ]?version[^0-9\n]{0,16}(\d+)|pipeline \| \*{0,2}v(\d+)/i
-      dated = ~r/\d{4}-\d{2}-\d{2}/
+  test "numbered rules remain unique, contiguous and routed" do
+    numbers = rule_numbers()
+    assert length(numbers) > 40
+    assert Enum.sort(numbers) == Enum.to_list(1..Enum.max(numbers))
+    assert MapSet.new(numbers) == trigger_numbers()
+  end
 
-      wrong =
-        @root
-        |> Path.join("docs/*.md")
-        |> Path.wildcard()
-        |> Enum.reject(&(Path.basename(&1) in historical))
-        |> Enum.flat_map(fn path ->
-          path
-          |> File.read!()
-          |> String.split("\n")
-          |> Enum.flat_map(fn line ->
-            case Regex.run(version, line) do
-              nil ->
-                []
+  test "rule links retain stable IDs" do
+    index = anchors(read!("docs/RULES.md"))
+    for number <- rule_numbers(), do: assert(MapSet.member?(index, "rule-#{number}"))
+  end
 
-              captures ->
-                stated = Enum.find(tl(captures), &(&1 not in [nil, ""]))
+  test "current top-level docs do not state an undated wrong pipeline version" do
+    [_, current] =
+      Regex.run(~r/@pipeline_version\s+"(\d+)"/, read!("apps/pramana/lib/pramana/bake.ex"))
 
-                if stated == current or Regex.match?(dated, line),
-                  do: [],
-                  else: [{Path.basename(path), stated, String.slice(line, 0, 70)}]
-            end
-          end)
-        end)
+    pattern = ~r/pipeline[_ ]?version[^0-9\n]{0,16}(\d+)|pipeline \| \*{0,2}v(\d+)/i
 
-      assert wrong == [],
-             """
-             These lines state a pipeline version other than #{current}, undated:
+    wrong =
+      @root
+      |> Path.join("docs/*.md")
+      |> Path.wildcard()
+      |> Enum.reject(&(Path.basename(&1) in ["HISTORY.md", "PROXIES.md", "PRODUCT_STRATEGY.md"]))
+      |> Enum.flat_map(fn path ->
+        for line <- String.split(File.read!(path), "\n"),
+            captures = Regex.run(pattern, line),
+            captures != nil,
+            stated = Enum.find(tl(captures), &(&1 not in [nil, ""])),
+            stated != current,
+            not Regex.match?(~r/\d{4}-\d{2}-\d{2}/, line),
+            do: {Path.relative_to(path, @root), stated, line}
+      end)
 
-             #{Enum.map_join(wrong, "\n", fn {doc, v, line} -> "    #{doc} says #{v}: #{line}" end)}
-
-             Give the sentence its date, or move it to docs/HISTORY.md.
-             """
-    end
-
-    test "names only documents that exist" do
-      missing =
-        ~r/`(docs\/[A-Za-z0-9_.-]+\.md)`/
-        |> Regex.scan(read!(@agents))
-        |> Enum.map(fn [_, path] -> path end)
-        |> Enum.uniq()
-        |> Enum.reject(&File.exists?(Path.join(@root, &1)))
-
-      assert missing == [],
-             "AGENTS.md points at #{inspect(missing)}, which do not exist. The routing table " <>
-               "is the answer to \"where is that written down\"; a wrong answer sends someone " <>
-               "to grep, which finds the file that mentions a thing rather than the one that " <>
-               "owns it."
-    end
+    assert wrong == []
   end
 end

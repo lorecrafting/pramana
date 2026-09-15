@@ -1,23 +1,6 @@
-# GEMINI.md — Pramāṇa
+# Gemini CLI entry point
 
-This project uses **`AGENTS.md`** as its canonical reference. Read it first.
+@AGENTS.md
 
-`AGENTS.md` contains: project overview, non-negotiable invariants, document routing
-table, project layout (including the foundry/ subproject), rules trigger table, and
-framework conventions.
-
-## Session start
-
-```
-AGENTS.md → docs/STATUS.md → docs/PLAN.md → (document for what you're doing)
-```
-
-## Key docs
-
-| Doc | What |
-|---|---|
-| `AGENTS.md` | Canonical project reference |
-| `docs/STATUS.md` | What is true now |
-| `docs/PLAN.md` | What to do next |
-| `docs/RULES.md` | 84 rules from real defects |
-| `foundry/docs/OBSERVABILITY.md` | Foundry telemetry and health |
+The imported guide is shared across providers. Follow its task-specific links;
+do not load every linked document into context.

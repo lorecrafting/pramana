@@ -1,7 +1,9 @@
 # Framework Conventions
 
-Framework-specific coding conventions for the Pramāṇa project. These apply to every
-file and are checked by CI (`mix credo --strict`, `mix format --check-formatted`).
+Repository coding conventions, not a claim that every guideline is mechanically enforced.
+Elixir guidance applies to the relevant Elixir project; Phoenix, Ecto, HEEx and LiveView
+guidance applies only where those frameworks are used, not to unrelated Foundry code.
+This file is maintained by hand. See [testing](TESTING.md) for the actual checks.
 
 <!-- phoenix:elixir-start -->
 ## Elixir guidelines
@@ -29,12 +31,12 @@ file and are checked by CI (`mix credo --strict`, `mix format --check-formatted`
           assign(socket, :val, val)
         end
 
-- **Never** nest multiple modules in the same file as it can cause cyclic dependencies and compilation errors
-- **Never** use map access syntax (`changeset[:field]`) on structs as they do not implement the Access behaviour. For structs, access fields directly (`my_struct.field`) or use higher-level APIs (`Ecto.Changeset.get_field/2`)
+- Prefer one independently maintained module per file. Existing grouped schemas and nested helper modules are exceptions; multiple modules in a file are not inherently a compilation error.
+- Do not assume an arbitrary struct implements Access. Use direct fields (`my_struct.field`) or the struct's supported API; use `Ecto.Changeset.get_field/2` for changeset fields.
 - Don't use `String.to_atom/1` on user input (memory leak risk)
 - Predicate function names should not start with `is_` and should end in a question mark. Names like `is_thing` should be reserved for guards
 - Named OTP processes require names in child specs: `{DynamicSupervisor, name: MyApp.MyDynamicSup}`
-- Use `Task.async_stream(collection, callback, options)` for concurrent enumeration with back-pressure. The majority of times you will want to pass `timeout: :infinity`
+- Use bounded concurrency and explicit timeout/cancellation policy with `Task.async_stream/3`. Choose `timeout: :infinity` only when the operation has another justified lifecycle bound; it is not a universal default.
 
 ## Mix guidelines
 

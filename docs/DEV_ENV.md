@@ -1,232 +1,96 @@
-# Dev Environment
+# Development setup
 
-## Do we need Docker? Not yet, and not for Postgres.
+Choose the system first. [Foundry](../foundry/docs/CI.md) has an isolated model-free
+build; it does not need the Pramāṇa database or inference environment below.
+These are repository-derived instructions, not evidence that setup ran in this audit.
 
-Postgres + pgvector runs natively on macOS via Homebrew, which is what this project
-uses for Phases 0–1:
+## Pramāṇa prerequisites
 
-```bash
-brew install postgresql@18 pgvector
-brew services start postgresql@18
-export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"
-```
+Use [mise.toml](../mise.toml) for the exact Erlang/Elixir toolchain. The umbrella also
+needs Rust for `pramana_native` and PostgreSQL with the `vector` and `pg_bigm`
+extension binaries installed on the **server**. `pg_bigm` is not `pg_trgm`.
+See [umbrella CI](../.github/workflows/ci.yml) for the currently exercised extension
+installation recipe; [Dockerfile](../Dockerfile) builds the application release,
+not the database server.
 
-No VM, no daemon, ~2s start, survives reboot. For local development this is strictly
-lighter than any container option.
+Do not create extensions in a database that has not been created. Install the server
+extension packages first; the application's migrations create the required extensions.
+Development credentials must be allowed to create the development/test databases and
+install those extensions, or an operator must provision them separately.
 
-**The reason this matters more here than in a normal project:** the bake reads
-hundreds of thousands of TEI files out of `raw/`. Container filesystem mounts on macOS
-are the slowest part of every container runtime — virtiofs/gRPC-FUSE overhead on a
-workload of many small files is severe. Running Postgres *and* the bake natively
-avoids that entirely. Containerize the parts that don't touch `raw/`.
-
-## Where containers do become necessary
-
-1. **`pg_bigm`** — the bigram index for Chinese. Not in Homebrew, but it builds
-   cleanly from source against Homebrew Postgres 18.4 in under a minute, so the
-   database stays native:
-
-   ```bash
-   git clone --depth 1 --branch v1.2-20250903 https://github.com/pgbigm/pg_bigm.git
-   cd pg_bigm
-   export PATH="/opt/homebrew/opt/postgresql@18/bin:$PATH"   # for pg_config
-   make USE_PGXS=1 && make USE_PGXS=1 install
-   psql -d pramana_dev -c "CREATE EXTENSION pg_bigm;"
-   ```
-
-   Verify it tokenizes CJK: `SELECT show_bigm('如是我聞');` should return
-   `{如是,我聞,是我,"聞 "," 如"}`. No `shared_preload_libraries` change is needed.
-2. **The Python embed sidecar** (Phase 1+) — BGE-M3, and nothing else. This is the
-   real container use case: an isolated Python/Torch environment we don't want
-   polluting the host. (It was scoped to carry Tibetan `botok` too; that dependency was
-   never taken and the plan is withdrawn — see `docs/ELIXIR.md`.)
-3. **CI and deployment** — reproducible bakes elsewhere.
-
-## Container runtimes on macOS, ranked for this project
-
-| Runtime | Verdict |
-|---|---|
-| **OrbStack** | Best macOS experience. Sub-second start, markedly lower RAM/CPU than Docker Desktop, and the **fastest filesystem** of the options — which is the metric that matters here. Drop-in `docker`/`docker compose` CLI compatibility. Free for personal/non-commercial use; **commercial use requires a paid license**, which given this project's open-source non-commercial posture likely doesn't apply to you. |
-| **Colima** | Free and fully OSS, Lima-based. `colima start --vm-type vz --mount-type virtiofs` gets respectable performance. CLI-only. The right pick if you want zero licensing questions ever. |
-| **Podman** | Daemonless and rootless, free/OSS. Good security story. Slightly more friction with compose files (`podman-compose`). |
-| **Rancher Desktop** | Free/OSS, bundles k3s. Heavier; only worth it if you want local Kubernetes. |
-| **Docker Desktop** | Heaviest, and licensing cost at organization scale. No reason to choose it here. |
-
-**Recommendation:** stay native through Phase 1. When the embed sidecar lands, install
-**OrbStack** (free for this use case, best small-file performance). Choose **Colima**
-instead if staying strictly OSS matters more than filesystem speed.
-
-## Other ways to run Postgres for dev
-
-- **Postgres.app** — GUI, easy version switching, bundles many extensions. Pleasant if
-  you prefer a GUI, but you'd still install pgvector separately, and it's no lighter
-  than Homebrew.
-- **Separate test database** — Ecto already does this (`pramana_test`). No extra
-  tooling needed; don't reach for testcontainers here.
-- **Hosted (Neon, Supabase, RDS)** — all support pgvector. A poor fit for local
-  development against a 250M-character bake (egress, latency, cost), but a reasonable
-  target for the eventual public demo, which serves only the CC0/CC-BY subset.
-- **Embedded/ephemeral Postgres** — not worth it; the extensions we need (pgvector,
-  pg_bigm) make a managed local install simpler.
-
-## Postgres tuning — TRIED AND REVERTED 2026-08-29, do not reapply without reading this
-
-Homebrew ships `postgresql@18` with server defaults written for a much smaller machine, and
-nothing in this repo changes them. Measured on 2026-08-29: `shared_buffers` **128 MB**,
-`random_page_cost` **4.0**, `work_mem` **4 MB**, `maintenance_work_mem` **64 MB**. The
-`random_page_cost` default assumes a spinning disk and actively steers the planner away from
-index scans on an SSD.
-
-**This block was applied on 2026-08-29 and removed the same day.** It produced no
-measurable gain on any workload here and is the prime suspect in taking `mix pramana.verify
---all` from ~6 min of actual work to **46m48s** by pushing a 16 GB machine into swap — see
-`docs/PLAN.md` § "Rejected, with evidence". It is kept here as a record of what was tried,
-**not as a recipe**. The database is back on stock defaults.
-
-Config lives at `/opt/homebrew/var/postgresql@18/postgresql.conf`. **Append the block below
-rather than editing existing lines** — later settings win, so appending is a change you can
-revert by deleting it, and back the file up first.
-
-```conf
-# --- BEGIN pramana tuning ---
-# 16 GB machine that ALSO holds a 2.2 GB BGE-M3 model inside the BEAM, so these sit below
-# the usual fractions: 2 GB rather than the customary 25%.
-shared_buffers = 2GB
-effective_cache_size = 6GB          # planner hint only, allocates nothing
-work_mem = 16MB                     # per sort NODE per connection; the dev pool is 25
-maintenance_work_mem = 512MB        # index builds — what the HNSW rebuild runs in
-random_page_cost = 1.1              # NVMe, not the spinning disk 4.0 assumes
-effective_io_concurrency = 200
-max_parallel_workers_per_gather = 4 # max_worker_processes is 8
-# --- END pramana tuning ---
-```
-
-Then `brew services restart postgresql@18` — `shared_buffers` needs a restart, not a reload,
-so **never apply this while a bake, an eval run or a measurement is in flight.**
-
-**It could once have re-rolled a seeded sample; it cannot now.** `random()` is volatile and
-evaluated per row, so which value a row draws depended on the order rows reached it, and a
-changed plan could therefore draw a different sample from the same seed. Applying this block
-on 2026-08-29 did **not** move the sample — which was briefly read as evidence that the
-worry was imaginary. It was not: the tuning was simply too small a plan change. Forcing
-`enable_indexscan=off` moved it immediately, while the hash ordering that replaced it held
-identical across five planner configurations.
-
-Sampling now orders on `md5(salt || id)` — see `Pramana.Sampling` — so a seeded figure no
-longer depends on the server's configuration at all, and this section is a record of a
-tuning that was tried and withdrawn rather than a caveat you still have to reason about.
-
-## `too_many_connections` looks like a failing test, and is not — 2026-09-02
-
-`mix pramana.gate --quick` failed on its **test** step in 4 s with
-
-    FATAL 53300 (too_many_connections) sorry, too many clients already
-
-and the same suite passed standalone. Nothing was wrong with the code.
-
-`config/dev.exs` sets `pool_size: 25`, Postgres ships `max_connections = 100`, and **every
-long-lived process holds a full dev pool**. Two `mix pramana.mcp.stdio` servers and a
-`mix phx.server` is 52 connections before any test runs; the umbrella test env then wants
-`System.schedulers_online() * 2` per app plus Oban's notifier, across three apps.
-
-**The symptom is the problem.** The gate reports its test step failed, which reads as a
-regression in the code you just wrote, and the actual cause is a session left running in
-another terminal. Check before debugging:
+From the repository root:
 
 ```bash
-psql postgres -c "select datname, count(*) from pg_stat_activity group by 1 order by 2 desc"
-ps aux | grep '[b]eam.smp'   # each mcp.stdio / phx.server holds pool_size connections
+mise install
+mise exec -- mix deps.get
+mise exec -- mix compile
+(cd apps/pramana && mise exec -- mix ecto.setup)
+mise exec -- mix phx.server
 ```
 
-Then stop a server you are not using, or raise `max_connections`. **Do not lower
-`pool_size` in `config/dev.exs` to make it fit** — 25 is what makes the bake and the eval
-runs fast.
+`mix ecto.setup` is a core-app alias that creates/migrates the configured database and runs its seeds;
+it is **not** a corpus download. An empty reader is expected until sources are acquired
+and ingested. Inspect [the source workflows](SOURCES.md) and [CLI index](CLI.md) rather
+than assuming one bake command loads every tradition. Acquiring sources requires their
+licenses, network access, storage and explicit operator intent.
 
-### ▸ REFINED the same day, after it happened again during a full gate
+## Database configuration
 
-The paragraph above called this "a *concurrent sessions* problem rather than a per-process
-one", and that is half right. It recurred on the full gate: `FAILED test (45s)` with all
-1,567 tests passing, and 2,090 lines of `Oban.Notifiers.Postgres failed to connect` around
-the real cause.
+| Environment | Source | Important settings |
+|---|---|---|
+| Development | [config/dev.exs](../config/dev.exs) | `PGUSER` (otherwise OS user), `PGPASSWORD`, `PGHOST`, `PRAMANA_DATABASE` (otherwise `pramana_dev`) |
+| Test | [config/test.exs](../config/test.exs) | Separate test database and sandbox settings; inspect this file before targeting any server |
+| Production | [config/runtime.exs](../config/runtime.exs) | Required `DATABASE_URL` and `SECRET_KEY_BASE`; `PHX_HOST`, `PORT`, `POOL_SIZE` and other runtime settings |
 
-**Both halves are true, and only one of them is anybody's fault.** `mix pramana.bake` and
-`mix pramana.evals` genuinely use 25 connections and should keep them. `mix
-pramana.mcp.stdio` cannot: stdio serialises requests over a single stream and every MCP
-tool handler runs sequential `Repo` calls on the caller's process — nothing in that path
-fans out. It held 25 connections to use one, for the whole length of an editor session,
-and two editors made that 50 of the server's 100.
+Do not point tests or a public bake at a research database by accident. Do not export
+`MIX_ENV=test` or `MIX_ENV=prod` globally for unrelated commands. Use per-command settings.
+`PRAMANA_SQL_LOG=1` enables development SQL logging; avoid exposing sensitive queries
+or credentials in shared logs.
 
-So **that task now sets its own `pool_size: 4`** before `app.start`, which is a different
-change from lowering the shared constant: a long-lived process's share of a finite budget
-should be what it can use, not what the heaviest job needs. `mix phx.server` keeps the
-full pool, because an HTTP transport really does serve concurrent requests.
-
-The diagnosis above stands and the commands are still the first thing to run — the
-per-process fix buys headroom, it does not make a stock `max_connections = 100` unlimited.
-
-## A long run died of `tcp recv (idle): closed`, and Postgres was not the cause — 2026-09-03
-
-**Unexplained, recorded so the next occurrence is the second data point rather than the
-first.** `mix pramana.recall --renderings --sample 1670` died 25 minutes in, at case ~175
-of 1,670:
-
-    ** (DBConnection.ConnectionError) tcp recv (idle): closed
-        (pramana) lib/pramana/retrieval/lexical.ex:396
-
-**What was ruled out.** Postgres had been up 4 days and did not restart. No OOM, no jetsam
-kill, swap at 1.2 GB of 2 GB. `idle_session_timeout`, `idle_in_transaction_session_timeout`
-and `tcp_keepalives_idle` are all `0`. Connections were 45 of `max_connections = 100`, so
-this is **not** the `too_many_connections` failure above. The server log shows three
-pooled backends cancelled within 10 ms of each other with `could not send data to client:
-Broken pipe` then `connection to client lost` — the signature of the **client** going away
-first. Postgres was the victim.
-
-**What it cost, and the two cheap mitigations.** One `async_stream` task raising takes the
-whole run with it, so 25 minutes of a 1,670-case measurement produced no scorecard. A
-re-run passed the same case without incident, so it is not data-dependent.
-
-- **Detach a long measurement**: `nohup env PRAMANA_EMBEDDING=1 mix pramana.recall ... > out.txt 2>&1 &`.
-  Outside any harness or terminal lifecycle, nothing but the OS can interrupt it.
-- **Never pipe the run through `tail`.** `recall` prints its summary **first** and the
-  hit/miss samples after, so `| tail -25` discards precisely the numbers the run existed
-  to produce. Redirect the whole stream to a file and read it there.
-
-The progress lines make a partial run salvageable: `--sample 1670` takes the whole
-population in random order, so an interrupted `found/N` is an unbiased estimate rather
-than a head-of-list slice.
-
-## Toolchain pinning
-
-`mise.toml` pins exact Erlang/Elixir versions project-locally, deliberately not
-`latest` — the reproducibility discipline that governs the corpus bake should govern
-the build too. Note that mise requires `mise trust` before a project config takes
-effect; without it, the global config silently wins.
-
-### Verify the pin is actually in effect
-
-A pin that is not applied looks exactly like a pin that is, which is the whole problem.
+## Embeddings are optional at server startup
 
 ```bash
-elixir --version        # must read 1.20.3, not whatever is on PATH
+PRAMANA_EMBEDDING=1 mise exec -- mix phx.server
 ```
 
-**Check the compiler, not `mise current`.** `mise current` reports what the config
-*says*; it happily prints `1.20.3-otp-29` while a shell without the shims on `PATH`
-builds with something else. That drift is silent — the build succeeds, and only the PLT
-filename (`dialyxir_erlang-29.0.5_elixir-1.19.5.plt`) gives it away.
+This opts into model loading; it also requires the expected local model artifacts and
+compatible vectors in the chosen database. Without it, hybrid retrieval can fall back
+to lexical and reports which retrievers actually ran. Loading a model is not evidence
+that every source has been indexed. [Embedding](EMBEDDING.md) covers the artifact path.
 
-Shims are typically absent in non-interactive shells (scripts, CI steps, tool-driven
-sessions), because activation happens in an interactive shell profile. There, prefix
-explicitly:
+Python is needed for the relevant batch inference/training helpers under `priv/embed/`,
+including translation—not for every database command or Foundry model-free check.
+No standalone HTTP `/embed` daemon is configured by this setup guide.
 
-```bash
-mise exec -- mix test
-```
+## Checks and troubleshooting
 
-### Do not put `MIX_ENV` in `mise.toml`
+Use [testing](TESTING.md) for documentation-only, umbrella, Foundry and corpus checks.
+For a loaded research database, `mix pramana.doctor` reports source and retrieval-state
+facts; read its warnings rather than treating command completion as a health attestation.
 
-`mix test` sets `MIX_ENV=test` only when it is not *already* set. An `[env]` entry
-pinning `MIX_ENV = "dev"` — even though dev is Mix's own default, so it looks like a
-no-op — makes the whole suite run against the dev repo, which has no
-`Ecto.Adapters.SQL.Sandbox` pool. The failure surfaces as a confusing sandbox error in
-`test_helper.exs`, far from its cause.
+Before changing PostgreSQL memory or connection settings, measure the active workload
+and memory available to all concurrent processes. The old laptop-tuning recipe was
+explicitly reverted and is **not** a default to copy. Provider/database-hosting prices
+and free-tier terms in older notes are not current setup requirements.
+
+[Historical local setup and tuning notes](records/development-environment.md) are kept
+for diagnosis, including the rejected settings; do not execute them as current guidance.
+
+## Historical section bookmarks
+
+These links preserve older references; their targets are explicitly historical/design material.
+
+| Earlier section |
+|---|
+| <a id="dev-environment"></a>[Dev Environment](records/development-environment.md#dev-environment) |
+| <a id="do-we-need-docker-not-yet-and-not-for-postgres"></a>[Do we need Docker? Not yet, and not for Postgres.](records/development-environment.md#do-we-need-docker-not-yet-and-not-for-postgres) |
+| <a id="where-containers-do-become-necessary"></a>[Where containers do become necessary](records/development-environment.md#where-containers-do-become-necessary) |
+| <a id="container-runtimes-on-macos-ranked-for-this-project"></a>[Container runtimes on macOS, ranked for this project](records/development-environment.md#container-runtimes-on-macos-ranked-for-this-project) |
+| <a id="other-ways-to-run-postgres-for-dev"></a>[Other ways to run Postgres for dev](records/development-environment.md#other-ways-to-run-postgres-for-dev) |
+| <a id="postgres-tuning--tried-and-reverted-2026-08-29-do-not-reapply-without-reading-this"></a>[Postgres tuning — TRIED AND REVERTED 2026-08-29, do not reapply without reading this](records/development-environment.md#postgres-tuning--tried-and-reverted-2026-08-29-do-not-reapply-without-reading-this) |
+| <a id="too_many_connections-looks-like-a-failing-test-and-is-not--2026-09-02"></a>[`too_many_connections` looks like a failing test, and is not — 2026-09-02](records/development-environment.md#too_many_connections-looks-like-a-failing-test-and-is-not--2026-09-02) |
+| <a id="-refined-the-same-day-after-it-happened-again-during-a-full-gate"></a>[▸ REFINED the same day, after it happened again during a full gate](records/development-environment.md#-refined-the-same-day-after-it-happened-again-during-a-full-gate) |
+| <a id="a-long-run-died-of-tcp-recv-idle-closed-and-postgres-was-not-the-cause--2026-09-03"></a>[A long run died of `tcp recv (idle): closed`, and Postgres was not the cause — 2026-09-03](records/development-environment.md#a-long-run-died-of-tcp-recv-idle-closed-and-postgres-was-not-the-cause--2026-09-03) |
+| <a id="toolchain-pinning"></a>[Toolchain pinning](records/development-environment.md#toolchain-pinning) |
+| <a id="verify-the-pin-is-actually-in-effect"></a>[Verify the pin is actually in effect](records/development-environment.md#verify-the-pin-is-actually-in-effect) |
+| <a id="do-not-put-mix_env-in-misetoml"></a>[Do not put `MIX_ENV` in `mise.toml`](records/development-environment.md#do-not-put-mix_env-in-misetoml) |
