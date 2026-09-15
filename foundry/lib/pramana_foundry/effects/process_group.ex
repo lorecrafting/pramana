@@ -93,9 +93,14 @@ defmodule PramanaFoundry.Effects.ProcessGroup do
   @spec gone?(pos_integer()) :: boolean()
   def gone?(pid) do
     case identity(pid) do
-      {:error, :not_found} -> true
-      {:ok, %{command: "<defunct>"}} -> true
-      _ -> false
+      {:error, :not_found} ->
+        true
+
+      {:ok, %{command: command}} when is_binary(command) ->
+        String.contains?(command, "defunct")
+
+      _ ->
+        false
     end
   end
 
