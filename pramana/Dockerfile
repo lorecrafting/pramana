@@ -1,9 +1,8 @@
-# Pramāṇa — a public deployment.
+# Pramāṇa — build from the repository root with: docker build -f pramana/Dockerfile pramana
 #
 # Two stages: a builder with the full Elixir/Rust toolchain, and a runtime image holding a
-# release and nothing else. The release carries no Mix, so a deployed node cannot acquire,
-# bake or ingest — `CLAUDE.md` invariant #7 becomes a property of the image rather than a
-# rule the router has to enforce.
+# release and nothing else. Omitting Mix removes CLI tasks, not database write
+# authority; the deployment still needs an appropriately restricted database role.
 #
 # The corpus is NOT in this image and never will be. We publish the pipeline, not the
 # corpus; the database is external and is built by `mix pramana.public.bake`. See
@@ -24,9 +23,8 @@ RUN apt-get update -y && \
     apt-get install -y build-essential git curl ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Pinned rather than `stable`: a NIF that compiled yesterday and not today is the least
-# debuggable class of build failure, and this project pins its Elixir toolchain for the
-# same reason.
+# Retains the current stable Rust selection. The BEAM pins are unchanged; a Rust
+# pin is a separate dependency-policy decision.
 ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
 
@@ -39,9 +37,9 @@ COPY mix.exs mix.lock ./
 COPY apps/pramana/mix.exs apps/pramana/
 COPY apps/pramana_web/mix.exs apps/pramana_web/
 COPY apps/pramana_native/mix.exs apps/pramana_native/
+COPY config config
 RUN mix deps.get --only prod && mix deps.compile
 
-COPY config config
 COPY apps apps
 RUN mix compile
 

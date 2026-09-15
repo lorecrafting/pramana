@@ -17,4 +17,4 @@ The development dashboard is separate and enabled only with development routes.
 The LiveViews call domain functions directly rather than reimplementing retrieval or
 calling their own HTTP MCP endpoint.
 
-[Reader](../../docs/READER.md) · [MCP](../../docs/MCP.md) · [Testing](../../docs/TESTING.md)
+[Reader](../../docs/READER.md) · [MCP](../../docs/MCP.md) · [Testing](../../../docs/TESTING.md)

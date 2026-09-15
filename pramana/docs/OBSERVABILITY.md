@@ -1,7 +1,7 @@
 # Pramāṇa observability
 
 Current source reference. This is distinct from
-[Foundry observability](../foundry/docs/OBSERVABILITY.md). The original audit's
+[Foundry observability](../../foundry/docs/OBSERVABILITY.md). The original audit's
 "no domain telemetry" findings are [historical](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md), not
 the current implementation.
 
@@ -49,14 +49,14 @@ module. Any such feature needs an explicit privacy, access and retention policy.
 
 ## Verification
 
-Use [testing](TESTING.md) for code checks and corpus acceptance. Check a real deployment's
+Use [testing](../../docs/TESTING.md) for code checks and corpus acceptance. Check a real deployment's
 handlers, exporters and retention before claiming it is monitored. The documentation
 audit inspected the implementation; it did not observe a running service or provider.
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

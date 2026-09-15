@@ -69,12 +69,12 @@ Likewise, `glossary_compliance` and `consensus_score` fields do not prove that a
 end-to-end scoring/promotion workflow is populated or enforced. Define and test that
 workflow before relying on it. Model agreement alone is not evidence of correctness.
 
-[Layers](LAYERS.md) · [GPU runbook](GPU_RUNBOOK.md) · [Testing](TESTING.md)
+[Layers](LAYERS.md) · [GPU runbook](GPU_RUNBOOK.md) · [Testing](../../docs/TESTING.md)
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

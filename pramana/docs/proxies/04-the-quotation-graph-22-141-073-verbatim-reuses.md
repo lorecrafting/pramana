@@ -1,7 +1,7 @@
 # Why every proxy lied — chapter 4
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../PROXIES.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../PROXIES.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### The quotation graph (#22) — 141,073 verbatim reuses
 

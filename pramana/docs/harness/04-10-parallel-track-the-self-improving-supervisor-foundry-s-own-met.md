@@ -1,7 +1,7 @@
 # Harness Engineering — Planning — chapter 4
 
 > Design/research note. Proposed commands and guarantees are not shipped capabilities unless current source and acceptance evidence establish them.
-> [Contents](../HARNESS.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HARNESS.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ## 10. Parallel Track: the Self-Improving Supervisor (Foundry's Own Meta-Harness)
 

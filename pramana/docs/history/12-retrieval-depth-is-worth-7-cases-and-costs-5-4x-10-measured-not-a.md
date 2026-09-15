@@ -1,7 +1,7 @@
 # Project history — chapter 12
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../HISTORY.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HISTORY.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### Retrieval depth is worth +7 cases and costs 5.4x (#10) — measured, not adopted
 

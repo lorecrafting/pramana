@@ -9,7 +9,7 @@ require choosing the same vendor for all three.
 | Embedding / translation batches | Current row/token counts, model/artifact compatibility, measured throughput, source-data transfer rights, storage and egress, spend limit, timeout and cleanup |
 | Research app and database | Dataset size, memory and connection budget, durable storage, extensions, backups/restore, networking and permitted data exposure |
 | Model-backed research | Harness/tool compatibility, data handling, quality measured on the task, token/subscription billing terms |
-| Foundry execution | Its explicit account/billing/launch policy and backend conformance; see [Foundry](../foundry/docs/README.md) |
+| Foundry execution | Its explicit account/billing/launch policy and backend conformance; see [Foundry](../../foundry/docs/README.md) |
 
 Pramāṇa can serve lexical queries without GPU inference. Semantic query embedding
 has a CPU-serving path; whether it meets a deployment's latency and memory targets is
@@ -34,7 +34,7 @@ as historical research only; its prices and vendor rankings were not refreshed i
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

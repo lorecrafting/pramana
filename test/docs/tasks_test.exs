@@ -4,11 +4,11 @@ defmodule Docs.TasksTest do
   Historical/design examples are not assumed to be implemented commands.
   """
   use ExUnit.Case, async: true
-  @root Path.expand("../../../..", __DIR__)
+  @root Path.expand("../..", __DIR__)
 
   defp tasks do
     @root
-    |> Path.join("apps/*/lib/mix/tasks/*.ex")
+    |> Path.join("pramana/apps/*/lib/mix/tasks/*.ex")
     |> Path.wildcard()
     |> Enum.map(&Path.basename(&1, ".ex"))
     |> MapSet.new()
@@ -17,7 +17,7 @@ defmodule Docs.TasksTest do
   test "the CLI index matches actual task modules in both directions" do
     documented =
       @root
-      |> Path.join("docs/CLI.md")
+      |> Path.join("pramana/docs/CLI.md")
       |> File.read!()
       |> then(&Regex.scan(~r/^\| \[`mix (pramana\.[a-z0-9_.]+)`\]/m, &1))
       |> Enum.map(fn [_, task] -> task end)
@@ -31,9 +31,8 @@ defmodule Docs.TasksTest do
     proposed = ~w(PLAN.md PRODUCT_STRATEGY.md)
 
     unknown =
-      @root
-      |> Path.join("docs/*.md")
-      |> Path.wildcard()
+      ["docs/*.md", "pramana/docs/*.md"]
+      |> Enum.flat_map(&Path.wildcard(Path.join(@root, &1)))
       |> Enum.reject(&(Path.basename(&1) in proposed))
       |> Enum.flat_map(fn path ->
         ~r/\bmix (pramana\.[a-z][a-z0-9_.]*)/
@@ -48,7 +47,7 @@ defmodule Docs.TasksTest do
 
   test "session diagnostics are discoverable without bloating the router" do
     testing = File.read!(Path.join(@root, "docs/TESTING.md"))
-    cli = File.read!(Path.join(@root, "docs/CLI.md"))
+    cli = File.read!(Path.join(@root, "pramana/docs/CLI.md"))
 
     for task <- ~w(pramana.doctor pramana.gate pramana.coherence pramana.recall) do
       assert String.contains?(testing <> cli, task)

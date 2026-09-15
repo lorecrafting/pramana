@@ -2,9 +2,9 @@
 
 These generated blocks are retained from the audited source commit `75a56c13ebafa0ab7e67f2cf12f47ad84aad2ebc`.
 They were not regenerated against a live database in this documentation audit.
-Run the relevant [checks](TESTING.md) against the intended database to establish its state.
+Run the relevant [checks](../../docs/TESTING.md) against the intended database to establish its state.
 
-[Current architecture](ARCHITECTURE.md) · [Plan navigation](PLAN_INDEX.md) · [Recorded details](status/DETAILS.md)
+[Current architecture](ARCHITECTURE.md) · [Plan navigation](../../docs/PLAN_INDEX.md) · [Recorded details](status/DETAILS.md)
 
 ## The corpus
 

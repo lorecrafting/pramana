@@ -6,7 +6,7 @@ not a requirement that every reader model use the same provider.
 
 ## What is implemented
 
-[The embedding modules](../apps/pramana/lib/pramana/embed/) own local serving and
+[The embedding modules](../apps/pramana/lib/pramana/embed) own local serving and
 transfer. [Chunk vectors](../apps/pramana/lib/pramana/corpus/schemas.ex) are separate
 from source segments and chunks. The [hybrid retriever](../apps/pramana/lib/pramana/retrieval/hybrid.ex)
 fuses lexical and semantic results and can rerank using stored renderings. It reports
@@ -48,12 +48,12 @@ laptop timings, old corpus sizes, truncation observations and vendor estimates.
 They are not a forecast for the current dataset. Measure throughput on the actual
 candidate and check current billing/transfer terms before launching a batch.
 
-[Testing](TESTING.md) · [Cloud decisions](CLOUD.md) · [Proxy-study history](PROXIES.md)
+[Testing](../../docs/TESTING.md) · [Cloud decisions](CLOUD.md) · [Proxy-study history](PROXIES.md)
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

@@ -1,7 +1,7 @@
 # Harness Engineering — Planning — chapter 3
 
 > Design/research note. Proposed commands and guarantees are not shipped capabilities unless current source and acceptance evidence establish them.
-> [Contents](../HARNESS.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HARNESS.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### Acceptance
 

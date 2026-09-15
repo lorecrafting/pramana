@@ -1,7 +1,7 @@
 # Why every proxy lied — chapter 3
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../PROXIES.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../PROXIES.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### The Pāli chunk-size fix left 6.3% still truncated (#21)
 

@@ -2,7 +2,7 @@
 
 A guided introduction, divided into small chapters. Start at chapter 1, or use the topic links; agents should not preload this tutorial.
 
-[Documentation](README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](TESTING.md)
+[Documentation](../../docs/README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](../../docs/TESTING.md)
 
 ## Chapters
 

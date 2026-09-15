@@ -16,7 +16,7 @@ existing references in code, reviews and older documents.
 3. **Treat `raw/` as append-only source evidence.** Do not patch acquired text in
    place. Correct the normalizer with a regression test and record reproducible
    inputs. Source identity is not a frozen retrieval index: see
-   [identity and replay](../ARCHITECTURE.md#identity-and-replay).
+   [identity and replay](ARCHITECTURE.md#identity-and-replay).
 4. **Provenance is multi-axis.** Keep composition origin, role, attribution
    confidence, addressing and licensing separate. Structural buckets expose those
    distinctions; they cannot prove the metadata is correct or stop a reader from
@@ -37,7 +37,7 @@ existing references in code, reviews and older documents.
 
 ## What citation verification establishes
 
-[The guard implementation](../../apps/pramana/lib/pramana/guard.ex) re-resolves
+[The guard implementation](../apps/pramana/lib/pramana/guard.ex) re-resolves
 recognized citations. Quote checking uses byte-substring containment after trimming
 the supplied quotation; it is not whole-passage equality. Some detected citations
 receive an existence-only check. Inspect verified-quote, existence-only and refusal
@@ -47,5 +47,5 @@ The guard does **not** prove interpretation, doctrinal correctness, exhaustive c
 coverage, metadata truth, or the faithfulness of a translation. Absence from the
 loaded corpus does not prove that a passage was fabricated.
 
-See [MCP](../MCP.md), [architecture](../ARCHITECTURE.md) and
-[testing](../TESTING.md) for current surfaces and verification limits.
+See [MCP](MCP.md), [architecture](ARCHITECTURE.md) and
+[testing](../../docs/TESTING.md) for current surfaces and verification limits.

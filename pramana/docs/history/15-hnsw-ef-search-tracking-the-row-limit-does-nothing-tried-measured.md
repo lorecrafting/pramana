@@ -1,7 +1,7 @@
 # Project history — chapter 15
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../HISTORY.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HISTORY.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### `hnsw.ef_search` tracking the row limit does nothing — tried, measured, reverted
 

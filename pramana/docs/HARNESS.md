@@ -2,7 +2,7 @@
 
 Design and research material, not an execution queue. In particular, Foundry repair work is owned by its repair plan, not by proposals here.
 
-[Documentation](README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](TESTING.md)
+[Documentation](../../docs/README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](../../docs/TESTING.md)
 
 ## Chapters
 

@@ -1,6 +1,6 @@
 # Rules that generalize
 
-Stable numbered lessons from defects. Use [activity triggers](agents/RULE_TRIGGERS.md)
+Stable numbered lessons from defects. Use [activity triggers](../../docs/agents/RULE_TRIGGERS.md)
 to choose what to read; do not load the entire collection into every session.
 The rule bodies and their evidence are retained, including historical measurements.
 

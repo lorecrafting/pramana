@@ -17,6 +17,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VENV="$ROOT/priv/embed/.venv"
+cd "$ROOT"
 
 if [ ! -x "$VENV/bin/modal" ]; then
   echo "Modal is not installed in $VENV" >&2

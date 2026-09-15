@@ -1,7 +1,7 @@
 # Primer: What This System Is, How It Works, and What Everything Is Called — chapter 4
 
 > Learning chapter. Corpus figures are recorded examples, not a live inventory; current contracts are in the architecture guide.
-> [Contents](../PRIMER.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../PRIMER.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### Addressing levels
 

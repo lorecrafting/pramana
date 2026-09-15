@@ -1,7 +1,7 @@
 # Primer: What This System Is, How It Works, and What Everything Is Called — chapter 5
 
 > Learning chapter. Corpus figures are recorded examples, not a live inventory; current contracts are in the architecture guide.
-> [Contents](../PRIMER.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../PRIMER.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ## 16. Licensing, and why it is a column
 
@@ -194,7 +194,7 @@ blocked on SAT. Recording that honestly is worth more than a green tag.
 
 ### The invariants
 
-The stable eight constraints live in [the shared invariants](../pramana/INVARIANTS.md).
+The stable eight constraints live in [the shared invariants](../INVARIANTS.md).
 This abbreviated learning summary is not a second authoritative policy:
 
 1. **No unattributed text ever leaves the API.** Every returned span carries its URN,
