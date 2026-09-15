@@ -27,28 +27,24 @@ defmodule Docs.RoutingTest do
     {lines, _fence} =
       text
       |> String.split("\n")
-      |> Enum.map_reduce(nil, fn line, fence ->
-        case Regex.run(~r/^\s{0,3}(`{3,}|~{3,})/, line) do
-          [_, marker] ->
-            char = String.first(marker)
-            width = String.length(marker)
-
-            next =
-              case fence do
-                nil -> {char, width}
-                {^char, opened} when width >= opened -> nil
-                other -> other
-              end
-
-            {"", next}
-
-          nil ->
-            {if(fence, do: "", else: line), fence}
-        end
-      end)
+      |> Enum.map_reduce(nil, &unfenced_line/2)
 
     Enum.join(lines, "\n")
   end
+
+  defp unfenced_line(line, fence) do
+    case Regex.run(~r/^\s{0,3}(`{3,}|~{3,})/, line) do
+      [_, marker] ->
+        {"", next_fence(fence, String.first(marker), String.length(marker))}
+
+      nil ->
+        {if(fence, do: "", else: line), fence}
+    end
+  end
+
+  defp next_fence(nil, char, width), do: {char, width}
+  defp next_fence({char, opened}, char, width) when width >= opened, do: nil
+  defp next_fence(fence, _char, _width), do: fence
 
   defp anchors(text) do
     explicit =
@@ -60,27 +56,29 @@ defmodule Docs.RoutingTest do
       text
       |> unfenced()
       |> String.split("\n")
-      |> Enum.reduce({[], %{}}, fn line, {ids, seen} ->
-        case Regex.run(~r/^\#{1,6}\s+(.+?)(?:\s+\#+)?\s*$/u, line) do
-          [_, heading] ->
-            slug =
-              heading
-              |> String.replace(~r/<[^>]+>/u, "")
-              |> String.replace(~r/!?\[([^\]]+)\]\([^)]*\)/u, "\\1")
-              |> String.downcase()
-              |> String.replace(~r/[^\p{L}\p{N}_\- ]/u, "")
-              |> String.replace(" ", "-")
-
-            count = Map.get(seen, slug, 0)
-            id = if count == 0, do: slug, else: "#{slug}-#{count}"
-            {[id | ids], Map.put(seen, slug, count + 1)}
-
-          nil ->
-            {ids, seen}
-        end
-      end)
+      |> Enum.reduce({[], %{}}, &heading_anchor/2)
 
     MapSet.new(explicit ++ ids)
+  end
+
+  defp heading_anchor(line, {ids, seen}) do
+    case Regex.run(~r/^\#{1,6}\s+(.+?)(?:\s+\#+)?\s*$/u, line) do
+      [_, heading] ->
+        slug =
+          heading
+          |> String.replace(~r/<[^>]+>/u, "")
+          |> String.replace(~r/!?\[([^\]]+)\]\([^)]*\)/u, "\\1")
+          |> String.downcase()
+          |> String.replace(~r/[^\p{L}\p{N}_\- ]/u, "")
+          |> String.replace(" ", "-")
+
+        count = Map.get(seen, slug, 0)
+        id = if count == 0, do: slug, else: "#{slug}-#{count}"
+        {[id | ids], Map.put(seen, slug, count + 1)}
+
+      nil ->
+        {ids, seen}
+    end
   end
 
   defp links(path) do

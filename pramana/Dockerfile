@@ -13,7 +13,7 @@
 ARG ELIXIR_VERSION=1.20.3
 ARG OTP_VERSION=29.0.5
 # Both matching tags were checked against the public registry on 2026-09-15.
-# The former 20250630 combination was never published for this Elixir/OTP pair.
+# The former 20250630 combination is absent from the registry for this pair.
 ARG DEBIAN_VERSION=bookworm-20260824-slim
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="debian:${DEBIAN_VERSION}"
