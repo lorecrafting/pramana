@@ -1,6 +1,6 @@
 # Language and runtime boundaries
 
-[The repository map](REPO_MAP.md) owns the overall layout. The umbrella uses Elixir
+[The repository map](../../docs/REPO_MAP.md) owns the overall layout. The umbrella uses Elixir
 for corpus/domain logic and Phoenix for the reader/MCP transport. Foundry is a
 separate OTP project with its own lifecycle and dependencies.
 
@@ -12,7 +12,7 @@ from these rules. Domain code uses Ecto/PostgreSQL; the core also uses Phoenix P
 without depending on the Phoenix web application itself.
 
 The [Mix manifests](../mix.exs), [core manifest](../apps/pramana/mix.exs),
-[web manifest](../apps/pramana_web/mix.exs) and [toolchain pin](../mise.toml)
+[web manifest](../apps/pramana_web/mix.exs) and [toolchain pin](../../mise.toml)
 are the authoritative dependency/version records. Old spike results are not current
 library-support guarantees.
 
@@ -36,12 +36,12 @@ Foundry in the umbrella or inference helpers in its model-free checks.
 
 [Historical language/tooling assessment](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/language-and-runtime-design.md)
 retains the spikes, rejected alternatives and earlier interface sketches.
-[Architecture](ARCHITECTURE.md) · [Embedding](EMBEDDING.md) · [Testing](TESTING.md)
+[Architecture](ARCHITECTURE.md) · [Embedding](EMBEDDING.md) · [Testing](../../docs/TESTING.md)
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

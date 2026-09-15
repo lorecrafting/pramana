@@ -3,7 +3,7 @@
 Repository coding conventions, not a claim that every guideline is mechanically enforced.
 Elixir guidance applies to the relevant Elixir project; Phoenix, Ecto, HEEx and LiveView
 guidance applies only where those frameworks are used, not to unrelated Foundry code.
-This file is maintained by hand. See [testing](TESTING.md) for the actual checks.
+This file is maintained by hand. See [testing](../../docs/TESTING.md) for the actual checks.
 
 <!-- phoenix:elixir-start -->
 ## Elixir guidelines

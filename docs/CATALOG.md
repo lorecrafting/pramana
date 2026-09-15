@@ -1,132 +1,140 @@
 # Documentation catalog
 
-A lookup directory of tracked Markdown documents. Start at the [human index](README.md)
-or [agent router](../AGENTS.md), then open only the topic needed. Titles do not establish
-currentness: read each document's scope. Foundry acceptance/repair records and product
-strategy retain their separate owners.
+Start at the [human index](README.md) or [agent router](../AGENTS.md), then open
+only the needed topic. This catalog is a lookup directory, not mandatory context.
+Titles do not establish currentness: read each document's scope and evidence limits.
+The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cutover.
 
-[Original-file audit inventory](audits/2026-09-15/INVENTORY.md) records treatment and limits.
-
-## Entry points and current topic guides
+## Repository routing and policy
 
 - [`AGENTS.md`](../AGENTS.md)
 - [`CLAUDE.md`](../CLAUDE.md)
 - [`GEMINI.md`](../GEMINI.md)
 - [`README.md`](../README.md)
-- [`apps/pramana/README.md`](../apps/pramana/README.md)
-- [`apps/pramana/priv/variants/PROVENANCE.md`](../apps/pramana/priv/variants/PROVENANCE.md)
-- [`apps/pramana_native/README.md`](../apps/pramana_native/README.md)
-- [`apps/pramana_web/README.md`](../apps/pramana_web/README.md)
-- [`docs/ADDING_TEXTS.md`](ADDING_TEXTS.md)
-- [`docs/AGENT_MODELS.md`](AGENT_MODELS.md)
-- [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)
 - [`docs/CATALOG.md`](CATALOG.md)
-- [`docs/CHECKS.md`](CHECKS.md)
-- [`docs/CLI.md`](CLI.md)
-- [`docs/CLOUD.md`](CLOUD.md)
-- [`docs/CODE_CONVENTIONS.md`](CODE_CONVENTIONS.md)
-- [`docs/COMMENTARY.md`](COMMENTARY.md)
-- [`docs/COMPETITIVE.md`](COMPETITIVE.md)
-- [`docs/DEPLOY.md`](DEPLOY.md)
-- [`docs/DEV_ENV.md`](DEV_ENV.md)
-- [`docs/ELIXIR.md`](ELIXIR.md)
-- [`docs/EMBEDDING.md`](EMBEDDING.md)
-- [`docs/GPU_RUNBOOK.md`](GPU_RUNBOOK.md)
-- [`docs/HARNESS.md`](HARNESS.md)
-- [`docs/HISTORY.md`](HISTORY.md)
-- [`docs/IDEAS.md`](IDEAS.md)
-- [`docs/LAYERS.md`](LAYERS.md)
+- [`docs/LAYOUT_MIGRATION.md`](LAYOUT_MIGRATION.md)
 - [`docs/MAINTAINING_DOCS.md`](MAINTAINING_DOCS.md)
-- [`docs/MCP.md`](MCP.md)
-- [`docs/OBSERVABILITY.md`](OBSERVABILITY.md)
-- [`docs/PLAN.md`](PLAN.md)
-- [`docs/PLAN_INDEX.md`](PLAN_INDEX.md)
-- [`docs/PRIMER.md`](PRIMER.md)
-- [`docs/PRODUCT_STRATEGY.md`](PRODUCT_STRATEGY.md)
-- [`docs/PROXIES.md`](PROXIES.md)
-- [`docs/READER.md`](READER.md)
 - [`docs/README.md`](README.md)
+- [`docs/REPOSITORY_STRUCTURE.md`](REPOSITORY_STRUCTURE.md)
 - [`docs/REPO_MAP.md`](REPO_MAP.md)
-- [`docs/ROADMAP.md`](ROADMAP.md)
-- [`docs/RULES.md`](RULES.md)
-- [`docs/SOURCES.md`](SOURCES.md)
-- [`docs/STATUS.md`](STATUS.md)
+- [`docs/RETIRED_FILES.md`](RETIRED_FILES.md)
 - [`docs/TESTING.md`](TESTING.md)
-- [`docs/TRANSLATION.md`](TRANSLATION.md)
 - [`docs/agents/RULE_TRIGGERS.md`](agents/RULE_TRIGGERS.md)
 - [`docs/agents/WORKFLOW.md`](agents/WORKFLOW.md)
-- [`docs/pramana/INVARIANTS.md`](pramana/INVARIANTS.md)
-- [`docs/sat-request-email.md`](sat-request-email.md)
-
-## Documentation audit evidence
-
 - [`docs/audits/2026-09-15/INVENTORY.md`](audits/2026-09-15/INVENTORY.md)
 - [`docs/audits/2026-09-15/README.md`](audits/2026-09-15/README.md)
 
-## Learning and focused-reference chapters
+## Shared strategy and planning
 
-- [`docs/checks/01-every-task.md`](checks/01-every-task.md)
-- [`docs/checks/02-what-ci-can-prove-and-what-it-cannot.md`](checks/02-what-ci-can-prove-and-what-it-cannot.md)
-- [`docs/checks/03-periodic-every-3-phases.md`](checks/03-periodic-every-3-phases.md)
-- [`docs/primer/01-table-of-contents.md`](primer/01-table-of-contents.md)
-- [`docs/primer/02-4-the-pipeline-end-to-end.md`](primer/02-4-the-pipeline-end-to-end.md)
-- [`docs/primer/03-vectors-from-scratch.md`](primer/03-vectors-from-scratch.md)
-- [`docs/primer/04-addressing-levels.md`](primer/04-addressing-levels.md)
-- [`docs/primer/05-16-licensing-and-why-it-is-a-column.md`](primer/05-16-licensing-and-why-it-is-a-column.md)
-- [`docs/primer/06-postgresql-and-its-extensions.md`](primer/06-postgresql-and-its-extensions.md)
-- [`docs/rules/01-38.md`](rules/01-38.md)
-- [`docs/rules/39-59.md`](rules/39-59.md)
-- [`docs/rules/60-68.md`](rules/60-68.md)
-- [`docs/rules/69-75.md`](rules/69-75.md)
-- [`docs/rules/76-83.md`](rules/76-83.md)
-- [`docs/rules/84-84.md`](rules/84-84.md)
-- [`docs/rules/GOTCHAS.md`](rules/GOTCHAS.md)
+- [`docs/PLAN.md`](PLAN.md)
+- [`docs/PLAN_INDEX.md`](PLAN_INDEX.md)
+- [`docs/PRODUCT_STRATEGY.md`](PRODUCT_STRATEGY.md)
+- [`docs/ROADMAP.md`](ROADMAP.md)
+- [`docs/strategy/DECISIONS.md`](strategy/DECISIONS.md)
+- [`docs/strategy/FOUNDRY.md`](strategy/FOUNDRY.md)
+- [`docs/strategy/PRAMANA.md`](strategy/PRAMANA.md)
+- [`docs/strategy/RECONCILIATION.md`](strategy/RECONCILIATION.md)
+- [`docs/strategy/RESEARCH.md`](strategy/RESEARCH.md)
+- [`docs/strategy/ROADMAP.md`](strategy/ROADMAP.md)
+- [`docs/strategy/VALIDATION.md`](strategy/VALIDATION.md)
 
-## Historical, design and recorded-status chapters
+## Pramana guides
 
-- [`docs/harness/01-1-verifiers-as-the-moat-a-feedback-loop-from-guard-verdicts.md`](harness/01-1-verifiers-as-the-moat-a-feedback-loop-from-guard-verdicts.md)
-- [`docs/harness/02-what-is-missing.md`](harness/02-what-is-missing.md)
-- [`docs/harness/03-acceptance.md`](harness/03-acceptance.md)
-- [`docs/harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md`](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md)
-- [`docs/harness/05-references.md`](harness/05-references.md)
-- [`docs/history/01-there-is-no-identity-free-validation-in-this-corpus-by-any-route-.md`](history/01-there-is-no-identity-free-validation-in-this-corpus-by-any-route-.md)
-- [`docs/history/02-every-model-arm-is-the-same-arm-on-the-metric-that-matters-2026-0.md`](history/02-every-model-arm-is-the-same-arm-on-the-metric-that-matters-2026-0.md)
-- [`docs/history/03-the-figures-measured-without-isolation-re-run-2026-09-03.md`](history/03-the-figures-measured-without-isolation-re-run-2026-09-03.md)
-- [`docs/history/04-the-chinese-canon-answers-an-english-question-for-the-first-time-.md`](history/04-the-chinese-canon-answers-an-english-question-for-the-first-time-.md)
-- [`docs/history/05-three-from-the-landscape-list-and-a-defect-they-found-2026-09-02.md`](history/05-three-from-the-landscape-list-and-a-defect-they-found-2026-09-02.md)
-- [`docs/history/06-announcements-as-they-were-written.md`](history/06-announcements-as-they-were-written.md)
-- [`docs/history/07-phase-1-gate-findings-13.md`](history/07-phase-1-gate-findings-13.md)
-- [`docs/history/08-the-free-gloss-experiment-43-stage-a-and-why-stage-b-should-not-p.md`](history/08-the-free-gloss-experiment-43-stage-a-and-why-stage-b-should-not-p.md)
-- [`docs/history/09-the-derge-ingest-21-the-edition-is-the-unit-and-the-header-is-not.md`](history/09-the-derge-ingest-21-the-edition-is-the-unit-and-the-header-is-not.md)
-- [`docs/history/10-the-kangyur-has-its-names-21-and-the-metadata-is-cc0-where-the-te.md`](history/10-the-kangyur-has-its-names-21-and-the-metadata-is-cc0-where-the-te.md)
-- [`docs/history/11-the-tengyur-21-the-release-that-says-nothing-about-works.md`](history/11-the-tengyur-21-the-release-that-says-nothing-about-works.md)
-- [`docs/history/12-retrieval-depth-is-worth-7-cases-and-costs-5-4x-10-measured-not-a.md`](history/12-retrieval-depth-is-worth-7-cases-and-costs-5-4x-10-measured-not-a.md)
-- [`docs/history/13-what-the-fix-did-to-the-depth-question-10.md`](history/13-what-the-fix-did-to-the-depth-question-10.md)
-- [`docs/history/14-a-search-took-41-seconds-and-38-of-them-were-texts-body-again-10.md`](history/14-a-search-took-41-seconds-and-38-of-them-were-texts-body-again-10.md)
-- [`docs/history/15-hnsw-ef-search-tracking-the-row-limit-does-nothing-tried-measured.md`](history/15-hnsw-ef-search-tracking-the-row-limit-does-nothing-tried-measured.md)
-- [`docs/history/16-the-gold-set-was-too-blunt-to-decide-with-14-249-1-400-cases.md`](history/16-the-gold-set-was-too-blunt-to-decide-with-14-249-1-400-cases.md)
-- [`docs/proxies/01-three-ways-to-publish-a-number-that-answers-a-different-question-.md`](proxies/01-three-ways-to-publish-a-number-that-answers-a-different-question-.md)
-- [`docs/proxies/02-the-graph-works-as-a-candidate-generator-and-two-proxies-inside-i.md`](proxies/02-the-graph-works-as-a-candidate-generator-and-two-proxies-inside-i.md)
-- [`docs/proxies/03-the-p-li-chunk-size-fix-left-6-3-still-truncated-21.md`](proxies/03-the-p-li-chunk-size-fix-left-6-3-still-truncated-21.md)
-- [`docs/proxies/04-the-quotation-graph-22-141-073-verbatim-reuses.md`](proxies/04-the-quotation-graph-22-141-073-verbatim-reuses.md)
-- [`docs/proxies/05-versions-on-the-page-and-the-collections-gap-c-2026-08-27.md`](proxies/05-versions-on-the-page-and-the-collections-gap-c-2026-08-27.md)
-- [`docs/proxies/06-the-gate-over-17-004-texts-2026-08-27.md`](proxies/06-the-gate-over-17-004-texts-2026-08-27.md)
-- [`docs/proxies/07-four-numbers-for-one-field-three-of-them-mine-2026-08-28.md`](proxies/07-four-numbers-for-one-field-three-of-them-mine-2026-08-28.md)
-- [`docs/status/DETAILS.md`](status/DETAILS.md)
-- [`docs/status/chapters/01-introduction.md`](status/chapters/01-introduction.md)
-- [`docs/status/chapters/02-english-first-and-one-canon-is-not-reachable-that-way-yet.md`](status/chapters/02-english-first-and-one-canon-is-not-reachable-that-way-yet.md)
-- [`docs/status/chapters/03-what-it-can-do.md`](status/chapters/03-what-it-can-do.md)
-- [`docs/status/chapters/04-phases.md`](status/chapters/04-phases.md)
+- [`pramana/docs/ADDING_TEXTS.md`](../pramana/docs/ADDING_TEXTS.md)
+- [`pramana/docs/AGENT_MODELS.md`](../pramana/docs/AGENT_MODELS.md)
+- [`pramana/docs/ARCHITECTURE.md`](../pramana/docs/ARCHITECTURE.md)
+- [`pramana/docs/CHECKS.md`](../pramana/docs/CHECKS.md)
+- [`pramana/docs/CLI.md`](../pramana/docs/CLI.md)
+- [`pramana/docs/CLOUD.md`](../pramana/docs/CLOUD.md)
+- [`pramana/docs/CODE_CONVENTIONS.md`](../pramana/docs/CODE_CONVENTIONS.md)
+- [`pramana/docs/COMMENTARY.md`](../pramana/docs/COMMENTARY.md)
+- [`pramana/docs/COMPETITIVE.md`](../pramana/docs/COMPETITIVE.md)
+- [`pramana/docs/DEPLOY.md`](../pramana/docs/DEPLOY.md)
+- [`pramana/docs/DEV_ENV.md`](../pramana/docs/DEV_ENV.md)
+- [`pramana/docs/ELIXIR.md`](../pramana/docs/ELIXIR.md)
+- [`pramana/docs/EMBEDDING.md`](../pramana/docs/EMBEDDING.md)
+- [`pramana/docs/GPU_RUNBOOK.md`](../pramana/docs/GPU_RUNBOOK.md)
+- [`pramana/docs/HARNESS.md`](../pramana/docs/HARNESS.md)
+- [`pramana/docs/HISTORY.md`](../pramana/docs/HISTORY.md)
+- [`pramana/docs/IDEAS.md`](../pramana/docs/IDEAS.md)
+- [`pramana/docs/INVARIANTS.md`](../pramana/docs/INVARIANTS.md)
+- [`pramana/docs/LAYERS.md`](../pramana/docs/LAYERS.md)
+- [`pramana/docs/MCP.md`](../pramana/docs/MCP.md)
+- [`pramana/docs/OBSERVABILITY.md`](../pramana/docs/OBSERVABILITY.md)
+- [`pramana/docs/PRIMER.md`](../pramana/docs/PRIMER.md)
+- [`pramana/docs/PROXIES.md`](../pramana/docs/PROXIES.md)
+- [`pramana/docs/READER.md`](../pramana/docs/READER.md)
+- [`pramana/docs/README.md`](../pramana/docs/README.md)
+- [`pramana/docs/RULES.md`](../pramana/docs/RULES.md)
+- [`pramana/docs/SOURCES.md`](../pramana/docs/SOURCES.md)
+- [`pramana/docs/STATUS.md`](../pramana/docs/STATUS.md)
+- [`pramana/docs/TRANSLATION.md`](../pramana/docs/TRANSLATION.md)
+- [`pramana/docs/checks/01-every-task.md`](../pramana/docs/checks/01-every-task.md)
+- [`pramana/docs/checks/02-what-ci-can-prove-and-what-it-cannot.md`](../pramana/docs/checks/02-what-ci-can-prove-and-what-it-cannot.md)
+- [`pramana/docs/checks/03-periodic-every-3-phases.md`](../pramana/docs/checks/03-periodic-every-3-phases.md)
+- [`pramana/docs/primer/01-table-of-contents.md`](../pramana/docs/primer/01-table-of-contents.md)
+- [`pramana/docs/primer/02-4-the-pipeline-end-to-end.md`](../pramana/docs/primer/02-4-the-pipeline-end-to-end.md)
+- [`pramana/docs/primer/03-vectors-from-scratch.md`](../pramana/docs/primer/03-vectors-from-scratch.md)
+- [`pramana/docs/primer/04-addressing-levels.md`](../pramana/docs/primer/04-addressing-levels.md)
+- [`pramana/docs/primer/05-16-licensing-and-why-it-is-a-column.md`](../pramana/docs/primer/05-16-licensing-and-why-it-is-a-column.md)
+- [`pramana/docs/primer/06-postgresql-and-its-extensions.md`](../pramana/docs/primer/06-postgresql-and-its-extensions.md)
+- [`pramana/docs/rules/01-38.md`](../pramana/docs/rules/01-38.md)
+- [`pramana/docs/rules/39-59.md`](../pramana/docs/rules/39-59.md)
+- [`pramana/docs/rules/60-68.md`](../pramana/docs/rules/60-68.md)
+- [`pramana/docs/rules/69-75.md`](../pramana/docs/rules/69-75.md)
+- [`pramana/docs/rules/76-83.md`](../pramana/docs/rules/76-83.md)
+- [`pramana/docs/rules/84-84.md`](../pramana/docs/rules/84-84.md)
+- [`pramana/docs/rules/GOTCHAS.md`](../pramana/docs/rules/GOTCHAS.md)
+- [`pramana/docs/sat-request-email.md`](../pramana/docs/sat-request-email.md)
 
-## Retired material and repository layout
+## Pramana history and studies
 
-[Retired files](RETIRED_FILES.md) records removed snapshots and experiments with
-immutable recovery links. They are no longer part of the current-file catalog.
-[Repository structure](REPOSITORY_STRUCTURE.md) assesses current ownership and the
-conditions for a future sibling-project layout.
+- [`pramana/docs/harness/01-1-verifiers-as-the-moat-a-feedback-loop-from-guard-verdicts.md`](../pramana/docs/harness/01-1-verifiers-as-the-moat-a-feedback-loop-from-guard-verdicts.md)
+- [`pramana/docs/harness/02-what-is-missing.md`](../pramana/docs/harness/02-what-is-missing.md)
+- [`pramana/docs/harness/03-acceptance.md`](../pramana/docs/harness/03-acceptance.md)
+- [`pramana/docs/harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md`](../pramana/docs/harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md)
+- [`pramana/docs/harness/05-references.md`](../pramana/docs/harness/05-references.md)
+- [`pramana/docs/history/01-there-is-no-identity-free-validation-in-this-corpus-by-any-route-.md`](../pramana/docs/history/01-there-is-no-identity-free-validation-in-this-corpus-by-any-route-.md)
+- [`pramana/docs/history/02-every-model-arm-is-the-same-arm-on-the-metric-that-matters-2026-0.md`](../pramana/docs/history/02-every-model-arm-is-the-same-arm-on-the-metric-that-matters-2026-0.md)
+- [`pramana/docs/history/03-the-figures-measured-without-isolation-re-run-2026-09-03.md`](../pramana/docs/history/03-the-figures-measured-without-isolation-re-run-2026-09-03.md)
+- [`pramana/docs/history/04-the-chinese-canon-answers-an-english-question-for-the-first-time-.md`](../pramana/docs/history/04-the-chinese-canon-answers-an-english-question-for-the-first-time-.md)
+- [`pramana/docs/history/05-three-from-the-landscape-list-and-a-defect-they-found-2026-09-02.md`](../pramana/docs/history/05-three-from-the-landscape-list-and-a-defect-they-found-2026-09-02.md)
+- [`pramana/docs/history/06-announcements-as-they-were-written.md`](../pramana/docs/history/06-announcements-as-they-were-written.md)
+- [`pramana/docs/history/07-phase-1-gate-findings-13.md`](../pramana/docs/history/07-phase-1-gate-findings-13.md)
+- [`pramana/docs/history/08-the-free-gloss-experiment-43-stage-a-and-why-stage-b-should-not-p.md`](../pramana/docs/history/08-the-free-gloss-experiment-43-stage-a-and-why-stage-b-should-not-p.md)
+- [`pramana/docs/history/09-the-derge-ingest-21-the-edition-is-the-unit-and-the-header-is-not.md`](../pramana/docs/history/09-the-derge-ingest-21-the-edition-is-the-unit-and-the-header-is-not.md)
+- [`pramana/docs/history/10-the-kangyur-has-its-names-21-and-the-metadata-is-cc0-where-the-te.md`](../pramana/docs/history/10-the-kangyur-has-its-names-21-and-the-metadata-is-cc0-where-the-te.md)
+- [`pramana/docs/history/11-the-tengyur-21-the-release-that-says-nothing-about-works.md`](../pramana/docs/history/11-the-tengyur-21-the-release-that-says-nothing-about-works.md)
+- [`pramana/docs/history/12-retrieval-depth-is-worth-7-cases-and-costs-5-4x-10-measured-not-a.md`](../pramana/docs/history/12-retrieval-depth-is-worth-7-cases-and-costs-5-4x-10-measured-not-a.md)
+- [`pramana/docs/history/13-what-the-fix-did-to-the-depth-question-10.md`](../pramana/docs/history/13-what-the-fix-did-to-the-depth-question-10.md)
+- [`pramana/docs/history/14-a-search-took-41-seconds-and-38-of-them-were-texts-body-again-10.md`](../pramana/docs/history/14-a-search-took-41-seconds-and-38-of-them-were-texts-body-again-10.md)
+- [`pramana/docs/history/15-hnsw-ef-search-tracking-the-row-limit-does-nothing-tried-measured.md`](../pramana/docs/history/15-hnsw-ef-search-tracking-the-row-limit-does-nothing-tried-measured.md)
+- [`pramana/docs/history/16-the-gold-set-was-too-blunt-to-decide-with-14-249-1-400-cases.md`](../pramana/docs/history/16-the-gold-set-was-too-blunt-to-decide-with-14-249-1-400-cases.md)
+- [`pramana/docs/proxies/01-three-ways-to-publish-a-number-that-answers-a-different-question-.md`](../pramana/docs/proxies/01-three-ways-to-publish-a-number-that-answers-a-different-question-.md)
+- [`pramana/docs/proxies/02-the-graph-works-as-a-candidate-generator-and-two-proxies-inside-i.md`](../pramana/docs/proxies/02-the-graph-works-as-a-candidate-generator-and-two-proxies-inside-i.md)
+- [`pramana/docs/proxies/03-the-p-li-chunk-size-fix-left-6-3-still-truncated-21.md`](../pramana/docs/proxies/03-the-p-li-chunk-size-fix-left-6-3-still-truncated-21.md)
+- [`pramana/docs/proxies/04-the-quotation-graph-22-141-073-verbatim-reuses.md`](../pramana/docs/proxies/04-the-quotation-graph-22-141-073-verbatim-reuses.md)
+- [`pramana/docs/proxies/05-versions-on-the-page-and-the-collections-gap-c-2026-08-27.md`](../pramana/docs/proxies/05-versions-on-the-page-and-the-collections-gap-c-2026-08-27.md)
+- [`pramana/docs/proxies/06-the-gate-over-17-004-texts-2026-08-27.md`](../pramana/docs/proxies/06-the-gate-over-17-004-texts-2026-08-27.md)
+- [`pramana/docs/proxies/07-four-numbers-for-one-field-three-of-them-mine-2026-08-28.md`](../pramana/docs/proxies/07-four-numbers-for-one-field-three-of-them-mine-2026-08-28.md)
+- [`pramana/docs/status/DETAILS.md`](../pramana/docs/status/DETAILS.md)
+- [`pramana/docs/status/chapters/01-introduction.md`](../pramana/docs/status/chapters/01-introduction.md)
+- [`pramana/docs/status/chapters/02-english-first-and-one-canon-is-not-reachable-that-way-yet.md`](../pramana/docs/status/chapters/02-english-first-and-one-canon-is-not-reachable-that-way-yet.md)
+- [`pramana/docs/status/chapters/03-what-it-can-do.md`](../pramana/docs/status/chapters/03-what-it-can-do.md)
+- [`pramana/docs/status/chapters/04-phases.md`](../pramana/docs/status/chapters/04-phases.md)
 
-## Foundry — protected references and new navigation
+## Pramana code-adjacent references
 
+- [`pramana/AGENTS.md`](../pramana/AGENTS.md)
+- [`pramana/README.md`](../pramana/README.md)
+- [`pramana/apps/pramana/README.md`](../pramana/apps/pramana/README.md)
+- [`pramana/apps/pramana/priv/variants/PROVENANCE.md`](../pramana/apps/pramana/priv/variants/PROVENANCE.md)
+- [`pramana/apps/pramana_native/README.md`](../pramana/apps/pramana_native/README.md)
+- [`pramana/apps/pramana_web/README.md`](../pramana/apps/pramana_web/README.md)
+
+## Foundry project and execution records
+
+- [`foundry/AGENTS.md`](../foundry/AGENTS.md)
 - [`foundry/README.md`](../foundry/README.md)
 - [`foundry/docs/AUDIT-2026-09-12.md`](../foundry/docs/AUDIT-2026-09-12.md)
 - [`foundry/docs/CI.md`](../foundry/docs/CI.md)
@@ -199,19 +207,4 @@ conditions for a future sibling-project layout.
 - [`foundry/roles/reviewer.md`](../foundry/roles/reviewer.md)
 - [`foundry/roles/steerer.md`](../foundry/roles/steerer.md)
 
-## Other inventoried text
-
-[Reader robots.txt](../apps/pramana_web/priv/static/robots.txt) is a static asset, not an authorization boundary.
-
-## Product strategy chapters
-
-The [strategy overview](PRODUCT_STRATEGY.md) owns strategic routing. These chapters
-are proposals and evidence records, not active execution tickets.
-
-- [`docs/strategy/PRAMANA.md`](strategy/PRAMANA.md)
-- [`docs/strategy/FOUNDRY.md`](strategy/FOUNDRY.md)
-- [`docs/strategy/ROADMAP.md`](strategy/ROADMAP.md)
-- [`docs/strategy/VALIDATION.md`](strategy/VALIDATION.md)
-- [`docs/strategy/DECISIONS.md`](strategy/DECISIONS.md)
-- [`docs/strategy/RESEARCH.md`](strategy/RESEARCH.md)
-- [`docs/strategy/RECONCILIATION.md`](strategy/RECONCILIATION.md)
+[Reader robots.txt](../pramana/apps/pramana_web/priv/static/robots.txt) is a static asset, not an authorization boundary.

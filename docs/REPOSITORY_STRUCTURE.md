@@ -4,6 +4,14 @@
 [Repository map](REPO_MAP.md) · [Cleanup and recovery](RETIRED_FILES.md) ·
 [Product strategy](PRODUCT_STRATEGY.md)
 
+## Migration status
+
+The sibling-layout PR now implements the tracked-source portion of this proposal:
+Pramāṇa under `pramana/`, unchanged Foundry location under `foundry/`, and a neutral
+repository root. See [the current map](REPO_MAP.md) and [cutover/rollback](LAYOUT_MIGRATION.md).
+The review below records the pre-migration baseline and remains the rationale;
+it is not a claim that a live checkout, database or accepted release was relocated.
+
 ## Decision: valid now, clearer as siblings later
 
 The current arrangement is technically sound: **a Pramāṇa umbrella at the repository
@@ -14,8 +22,8 @@ release and CI. Root `mix` commands are not a build/test entry point for both pr
 
 For two independently evolving products, a neutral root with `pramana/` and `foundry/`
 as siblings is the preferred eventual organization. It makes ownership, working
-directories and later extraction easier to understand. **Do not perform that move in
-this cleanup or during active repair work.** It is a path-contract migration, not a
+directories and later extraction easier to understand. **The cleanup PR did not perform that move.** The separately requested migration
+PR is reviewable now; coordinate its live cutover with active repair work. It is a path-contract migration, not a
 correctness fix or a prerequisite for shipping either product.
 
 Do not move Foundry into `apps/foundry/` to make the tree look symmetrical. Umbrella
@@ -42,7 +50,7 @@ to package independent projects; none is required merely because two projects sh
 | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `bin/check_docs.exs` | Shared routing and documentation checks; keep small and independent of either live runtime |
 | `docs/` | Currently mixed: shared navigation/strategy and Pramāṇa references; Foundry's detailed contracts remain under `foundry/docs/` |
 
-The [three child Mix files](../apps) point to the root build/config/deps/lock paths.
+The [three child Mix files](../pramana/apps) point to the root build/config/deps/lock paths.
 [Foundry's Mix file](../foundry/mix.exs) does not. Its
 [boundary tests](../foundry/test/pramana_foundry/boundary_test.exs) and
 [CI workflow](../.github/workflows/foundry-ci.yml) explicitly support independence.
@@ -55,7 +63,7 @@ Pramāṇa; Foundry uses its own directory and CI. Keep this explicit in task ro
 The shared documentation checker is the deliberate repository-wide exception.
 
 **Root and project paths are conflated in some tooling.** Pramāṇa's
-[configuration](../config/config.exs) defines its project root relative to `config/`.
+[configuration](../pramana/config/config.exs) defines its project root relative to `config/`.
 The MCP wrapper is selected by [`.mcp.json`](../.mcp.json), while documentation tests
 and figure generation assume repository-relative `docs/`. A sibling migration must
 distinguish Git root, project root, documentation root and runtime/data root.
@@ -84,7 +92,7 @@ and historical sections only with that owner after repair closure. The existing
 broad `*review*.json` ignore rule also deserves that owner's retention review; this
 PR does not unignore potentially private local files as an incidental cleanup.
 
-## Proposed eventual layout — not implemented here
+## Proposed layout from the original review
 
 ```text
 repository/
@@ -115,7 +123,7 @@ checkout location and operator runtime root unless a separately reviewed operati
 migration explicitly changes them. Moving Pramāṇa's tracked files alone need not
 move Foundry's directory or its runtime root.
 
-## Requirements for a later structural PR
+## Requirements carried into the structural PR
 
 Proceed after repair acceptance, or under a separately agreed coordination window
 with the repair owner. First map every consumer of repository and project paths:

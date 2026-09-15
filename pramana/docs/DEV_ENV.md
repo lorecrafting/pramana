@@ -1,15 +1,15 @@
 # Development setup
 
-Choose the system first. [Foundry](../foundry/docs/CI.md) has an isolated model-free
+Choose the system first. [Foundry](../../foundry/docs/CI.md) has an isolated model-free
 build; it does not need the Pramāṇa database or inference environment below.
 These are repository-derived instructions, not evidence that setup ran in this audit.
 
 ## Pramāṇa prerequisites
 
-Use [mise.toml](../mise.toml) for the exact Erlang/Elixir toolchain. The umbrella also
+Use [mise.toml](../../mise.toml) for the exact Erlang/Elixir toolchain. The umbrella also
 needs Rust for `pramana_native` and PostgreSQL with the `vector` and `pg_bigm`
 extension binaries installed on the **server**. `pg_bigm` is not `pg_trgm`.
-See [umbrella CI](../.github/workflows/ci.yml) for the currently exercised extension
+See [umbrella CI](../../.github/workflows/ci.yml) for the currently exercised extension
 installation recipe; [Dockerfile](../Dockerfile) builds the application release,
 not the database server.
 
@@ -18,10 +18,11 @@ extension packages first; the application's migrations create the required exten
 Development credentials must be allowed to create the development/test databases and
 install those extensions, or an operator must provision them separately.
 
-From the repository root:
+From the repository root, enter the Pramāṇa project:
 
 ```bash
 mise install
+cd pramana
 mise exec -- mix deps.get
 mise exec -- mix compile
 (cd apps/pramana && mise exec -- mix ecto.setup)
@@ -64,7 +65,7 @@ No standalone HTTP `/embed` daemon is configured by this setup guide.
 
 ## Checks and troubleshooting
 
-Use [testing](TESTING.md) for documentation-only, umbrella, Foundry and corpus checks.
+Use [testing](../../docs/TESTING.md) for documentation-only, umbrella, Foundry and corpus checks.
 For a loaded research database, `mix pramana.doctor` reports source and retrieval-state
 facts; read its warnings rather than treating command completion as a health attestation.
 
@@ -79,7 +80,7 @@ for diagnosis, including the rejected settings; do not execute them as current g
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

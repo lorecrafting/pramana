@@ -30,7 +30,9 @@ artifacts; an empty vector set is not a configured semantic-search deployment.
 
 ## Release configuration
 
-[Dockerfile](../Dockerfile) builds the application release; it does not bundle the
+From the Git root use `docker build -f pramana/Dockerfile -t pramana:local pramana`.
+From `pramana/`, use `docker build -t pramana:local .`.
+The [Dockerfile](../Dockerfile) builds the application release; it does not bundle the
 research corpus. [runtime.exs](../config/runtime.exs) owns production configuration.
 Set `DATABASE_URL` to the intended public database, provide a strong `SECRET_KEY_BASE`,
 and configure host, network exposure and TLS appropriately for the hosting environment.
@@ -43,7 +45,7 @@ operations, backups, restore tests and an explicit deployment/rollback procedure
 
 ## Acceptance is broader than build success
 
-Run the relevant [checks](TESTING.md) against the actual candidate and target database.
+Run the relevant [checks](../../docs/TESTING.md) against the actual candidate and target database.
 Inspect `/inventory`, source visibility, direct URN resolution, the reader and MCP
 surfaces. Test query limits and capacity before exposing them. Read-only endpoints can
 still consume expensive resources and are not automatically safe from abuse.
@@ -59,7 +61,7 @@ retained as a record, not a current hosting recommendation.
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

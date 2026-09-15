@@ -2,7 +2,7 @@
 
 Dated evidence, not a description of the running system. Entries retain the observations and reversals that motivated later changes.
 
-[Documentation](README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](TESTING.md)
+[Documentation](../../docs/README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](../../docs/TESTING.md)
 
 ## Chapters
 

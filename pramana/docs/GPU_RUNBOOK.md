@@ -1,6 +1,6 @@
 # Batch inference runbook
 
-Run from the Pramāṇa repository root. These commands touch a database, write artifacts
+Run from the Pramāṇa project root (`pramana/` inside the repository). These commands touch a database, write artifacts
 and may lead to paid external compute. Review the source licenses, target database,
 artifact paths and spend authorization before proceeding. No GPU job was launched
 by the documentation audit.
@@ -34,7 +34,7 @@ owns the round-trip checks.
 
 ## 3. Run the selected inference helper
 
-Inspect the relevant helper under [priv/embed](../priv/embed/) before launching it:
+Inspect the relevant helper under [priv/embed](../priv/embed) before launching it:
 `embed_gpu.py`, `modal_embed.py`, `modal_train_tibetan.py`,
 `modal_probe_adapter.py`, or `modal_translate.py`. They have different purposes and
 CLI options. This runbook intentionally does not invent one universal provider command.
@@ -69,7 +69,7 @@ output is not a translation artifact. [Translation](TRANSLATION.md) explains the
 
 Inspect import accepted/rejected counts. Refresh the retrieval stamp deliberately with
 `mix pramana.release.stamp` and inspect `mix pramana.doctor`; a stamp is not a substitute
-for content validation or evaluation. Run the relevant [retrieval checks](TESTING.md)
+for content validation or evaluation. Run the relevant [retrieval checks](../../docs/TESTING.md)
 with the intended model loaded, preserve the result artifacts, and review any baseline
 change separately. Confirm remote jobs/resources have ended according to the provider's
 actual billing model.
@@ -81,7 +81,7 @@ current operating guarantees.
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

@@ -36,11 +36,12 @@ defmodule Pramana.Docs.Sync do
   @close "<!-- /figures -->"
 
   @doc "Every document holding at least one generated block."
-  @spec documents(String.t()) :: [String.t()]
-  def documents(root) do
-    root
-    |> Path.join("docs/*.md")
-    |> Path.wildcard()
+  @spec documents(String.t() | [String.t()]) :: [String.t()]
+  def documents(roots) do
+    roots
+    |> List.wrap()
+    |> Enum.flat_map(fn root -> Path.wildcard(Path.join(root, "docs/*.md")) end)
+    |> Enum.uniq()
     |> Enum.filter(&(File.read!(&1) =~ @open))
     |> Enum.sort()
   end

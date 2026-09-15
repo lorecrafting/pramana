@@ -1,7 +1,7 @@
 # Why every proxy lied — chapter 5
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../PROXIES.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../PROXIES.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### Versions on the page, and the collections gap (C) — 2026-08-27
 

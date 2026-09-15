@@ -2,7 +2,7 @@
 
 **The current integration surface is MCP tools.** This design note records alternatives
 and limitations, not universal claims about model capabilities. The reader can change
-without changing the [source-attribution and verification constraints](pramana/INVARIANTS.md).
+without changing the [source-attribution and verification constraints](INVARIANTS.md).
 A decision this central should have its alternatives written down rather than assumed.
 
 Nothing here is scheduled. `docs/PLAN.md` is what is next; this is the shape of a choice.
@@ -81,7 +81,7 @@ anyone builds on this paragraph.*
 |---|---|
 | **Classic RAG** — stuff context, generate | Loses survey, parallels, and the model's ability to decide it needs more. It invites exactly the failure `PLAN` item D documents: five plausible near-misses, none about the question, read as an answer. `survey_corpus` exists because top-k structurally cannot answer *how often, and where*. |
 | **Using model memory instead of retrieved evidence** | A memorized passage is not sufficient source evidence. Fine-tuning itself does not violate attribution if the system still retrieves and verifies citations. The recorded Tibetan embedding experiment in [PROXIES](PROXIES.md) warns against proxy-only acceptance; it does not establish that all domain fine-tuning fails. |
-| **Coupling the corpus to one model** | Gives up the property that makes the guard worth having. [the shared invariants](pramana/INVARIANTS.md): *the model is not trusted to cite correctly.* A design that trusts a particular model is a design that has to be re-validated on every model change. |
+| **Coupling the corpus to one model** | Gives up the property that makes the guard worth having. [the shared invariants](INVARIANTS.md): *the model is not trusted to cite correctly.* A design that trusts a particular model is a design that has to be re-validated on every model change. |
 
 ---
 
@@ -95,7 +95,7 @@ has — and still assert something the passage does not support. Everything abov
 frontier.
 
 The project already knows prompting is not enough here. `survey_corpus` carries a note
-telling models to run it before claiming anything about frequency, and [the shared invariants](pramana/INVARIANTS.md) says in
+telling models to run it before claiming anything about frequency, and [the shared invariants](INVARIANTS.md) says in
 the same breath that invariants are **"enforced structurally in the tool response shape, not
 by prompting"**. Those two sentences are in tension, and the tension is unresolved.
 

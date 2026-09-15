@@ -49,7 +49,8 @@ defmodule Mix.Tasks.Pramana.Docs.Figures do
       # meaning false. The check then crashed instead of reporting staleness — found by
       # editing a figure to a wrong value on purpose, which is the only way to learn that
       # a check can fail.
-      check(File.cwd!(), Figures.blocks(), opts[:write] == true)
+      roots = Application.fetch_env!(:pramana, :documentation_roots)
+      check(roots, Figures.blocks(), opts[:write] == true)
     else
       Mix.shell().info("""
 

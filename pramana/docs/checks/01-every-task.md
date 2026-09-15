@@ -1,11 +1,11 @@
 # Checks and Gates — chapter 1
 
 > Topic reference. Historical measurements retain their original scope; use the current architecture and testing guides for operational guarantees.
-> [Contents](../CHECKS.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../CHECKS.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 # Checks and Gates
 
-> For the current command matrix and exact evidence limits, start with [TESTING.md](../TESTING.md).
+> For the current command matrix and exact evidence limits, start with [TESTING.md](../../../docs/TESTING.md).
 > The detailed rationale below includes historical incidents; old counts/timings are not current acceptance evidence.
 
 The discipline that keeps this stable across many sessions. Tasks reference this file

@@ -8,47 +8,55 @@ defmodule Docs.RoutingTest do
   """
   use ExUnit.Case, async: true
 
-  @root Path.expand("../../../..", __DIR__)
+  @root Path.expand("../..", __DIR__)
   @triggers "docs/agents/RULE_TRIGGERS.md"
   @historical_exception {"foundry/docs/AUDIT-2026-09-12.md", "../pramana_diagnose.py#L116"}
 
   defp read!(path), do: @root |> Path.join(path) |> File.read!()
 
-  defp documents do
+  defp tracked_files do
     {output, status} = System.cmd("git", ["ls-files", "-z"], cd: @root)
     assert status == 0
 
     output
     |> String.split(<<0>>, trim: true)
-    |> Enum.filter(&(Path.extname(&1) in [".md", ".mdx"]))
+  end
+
+  defp documents do
+    Enum.filter(tracked_files(), &(Path.extname(&1) in [".md", ".mdx"]))
+  end
+
+  defp tracked_paths do
+    tracked_files()
+    |> Enum.flat_map(fn file ->
+      parts = Path.split(file)
+      Enum.map(1..length(parts), &Path.join(Enum.take(parts, &1)))
+    end)
+    |> MapSet.new()
   end
 
   defp unfenced(text) do
     {lines, _fence} =
       text
       |> String.split("\n")
-      |> Enum.map_reduce(nil, fn line, fence ->
-        case Regex.run(~r/^\s{0,3}(`{3,}|~{3,})/, line) do
-          [_, marker] ->
-            char = String.first(marker)
-            width = String.length(marker)
-
-            next =
-              case fence do
-                nil -> {char, width}
-                {^char, opened} when width >= opened -> nil
-                other -> other
-              end
-
-            {"", next}
-
-          nil ->
-            {if(fence, do: "", else: line), fence}
-        end
-      end)
+      |> Enum.map_reduce(nil, &mask_line/2)
 
     Enum.join(lines, "\n")
   end
+
+  defp mask_line(line, fence) do
+    case Regex.run(~r/^\s{0,3}(`{3,}|~{3,})/, line) do
+      [_, marker] ->
+        {"", next_fence({String.first(marker), String.length(marker)}, fence)}
+
+      nil ->
+        {if(fence, do: "", else: line), fence}
+    end
+  end
+
+  defp next_fence(marker, nil), do: marker
+  defp next_fence({char, width}, {char, opened}) when width >= opened, do: nil
+  defp next_fence(_marker, fence), do: fence
 
   defp anchors(text) do
     explicit =
@@ -60,27 +68,31 @@ defmodule Docs.RoutingTest do
       text
       |> unfenced()
       |> String.split("\n")
-      |> Enum.reduce({[], %{}}, fn line, {ids, seen} ->
-        case Regex.run(~r/^\#{1,6}\s+(.+?)(?:\s+\#+)?\s*$/u, line) do
-          [_, heading] ->
-            slug =
-              heading
-              |> String.replace(~r/<[^>]+>/u, "")
-              |> String.replace(~r/!?\[([^\]]+)\]\([^)]*\)/u, "\\1")
-              |> String.downcase()
-              |> String.replace(~r/[^\p{L}\p{N}_\- ]/u, "")
-              |> String.replace(" ", "-")
-
-            count = Map.get(seen, slug, 0)
-            id = if count == 0, do: slug, else: "#{slug}-#{count}"
-            {[id | ids], Map.put(seen, slug, count + 1)}
-
-          nil ->
-            {ids, seen}
-        end
-      end)
+      |> Enum.reduce({[], %{}}, &heading_anchor/2)
 
     MapSet.new(explicit ++ ids)
+  end
+
+  defp heading_anchor(line, {ids, seen}) do
+    case Regex.run(~r/^\#{1,6}\s+(.+?)(?:\s+\#+)?\s*$/u, line) do
+      [_, heading] ->
+        slug = heading_slug(heading)
+        count = Map.get(seen, slug, 0)
+        id = if count == 0, do: slug, else: "#{slug}-#{count}"
+        {[id | ids], Map.put(seen, slug, count + 1)}
+
+      nil ->
+        {ids, seen}
+    end
+  end
+
+  defp heading_slug(heading) do
+    heading
+    |> String.replace(~r/<[^>]+>/u, "")
+    |> String.replace(~r/!?\[([^\]]+)\]\([^)]*\)/u, "\\1")
+    |> String.downcase()
+    |> String.replace(~r/[^\p{L}\p{N}_\- ]/u, "")
+    |> String.replace(" ", "-")
   end
 
   defp links(path) do
@@ -118,12 +130,12 @@ defmodule Docs.RoutingTest do
     end
   end
 
-  defp link_problem(path, target) do
+  defp link_problem(path, target, tracked) do
     {dest, fragment} = destination(path, target)
     absolute = Path.join(@root, dest)
 
     cond do
-      not File.exists?(absolute) ->
+      not MapSet.member?(tracked, dest) or not File.exists?(absolute) ->
         {path, target}
 
       fragment in [nil, ""] or Path.extname(dest) not in [".md", ".mdx"] ->
@@ -157,7 +169,7 @@ defmodule Docs.RoutingTest do
 
   defp rule_numbers do
     @root
-    |> Path.join("docs/rules/*.md")
+    |> Path.join("pramana/docs/rules/*.md")
     |> Path.wildcard()
     |> Enum.flat_map(fn path ->
       ~r/^(\d+)\. \*\*/m
@@ -200,10 +212,12 @@ defmodule Docs.RoutingTest do
   end
 
   test "relative links and fragments resolve, with one named historical exception" do
+    tracked = tracked_paths()
+
     problems =
       for path <- documents(),
           target <- links(path),
-          problem = link_problem(path, target),
+          problem = link_problem(path, target, tracked),
           problem != nil,
           do: problem
 
@@ -220,20 +234,22 @@ defmodule Docs.RoutingTest do
   end
 
   test "rule links retain stable IDs" do
-    index = anchors(read!("docs/RULES.md"))
+    index = anchors(read!("pramana/docs/RULES.md"))
     for number <- rule_numbers(), do: assert(MapSet.member?(index, "rule-#{number}"))
   end
 
   test "current top-level docs do not state an undated wrong pipeline version" do
     [_, current] =
-      Regex.run(~r/@pipeline_version\s+"(\d+)"/, read!("apps/pramana/lib/pramana/bake.ex"))
+      Regex.run(
+        ~r/@pipeline_version\s+"(\d+)"/,
+        read!("pramana/apps/pramana/lib/pramana/bake.ex")
+      )
 
     pattern = ~r/pipeline[_ ]?version[^0-9\n]{0,16}(\d+)|pipeline \| \*{0,2}v(\d+)/i
 
     wrong =
-      @root
-      |> Path.join("docs/*.md")
-      |> Path.wildcard()
+      ["docs/*.md", "pramana/docs/*.md"]
+      |> Enum.flat_map(&Path.wildcard(Path.join(@root, &1)))
       |> Enum.reject(&(Path.basename(&1) in ["HISTORY.md", "PROXIES.md", "PRODUCT_STRATEGY.md"]))
       |> Enum.flat_map(fn path ->
         for line <- String.split(File.read!(path), "\n"),

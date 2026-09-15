@@ -15,7 +15,7 @@ defmodule PramanaWeb.MCP.DocumentedTest do
   """
   use ExUnit.Case, async: true
 
-  # Deliberately the repository root, not `:project_root`: that setting is rebound by
+  # Deliberately the source project root, not the mutable `:project_root`: that setting is rebound by
   # acquisition tests to a temporary directory, and a docs assertion that silently reads an
   # empty tmpdir passes for the wrong reason.
   @root Path.expand("../../../../..", __DIR__)

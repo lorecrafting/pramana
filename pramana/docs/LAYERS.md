@@ -10,14 +10,14 @@ already-held source belongs in the translation pool instead of duplicating that 
 |---|---|---|
 | Translation pool | [Translations](../apps/pramana/lib/pramana/translations.ex), [schema](../apps/pramana/lib/pramana/corpus/schemas.ex) | Anchored renderings with method, tier, attribution and selection policy; not an immutable per-bake table |
 | Reading exceptions and character readings | [Readings](../apps/pramana/lib/pramana/readings.ex) | Exceptions plus stored character readings; recognized scheme names do not imply complete dictionaries for every scheme |
-| Tibetan Wylie rendering | [Reading modules](../apps/pramana/lib/pramana/readings/) | Separate deterministic transliteration path; not a claim of complete phonetic translation |
+| Tibetan Wylie rendering | [Reading modules](../apps/pramana/lib/pramana/readings) | Separate deterministic transliteration path; not a claim of complete phonetic translation |
 | Work/passage commentary relations | [Commentary](../apps/pramana/lib/pramana/commentary.ex), [relations](../apps/pramana/lib/pramana/relations.ex) | Work relations and accepted lemma alignments are distinct evidence |
 | Local source ingestion | [Manifest validation](../apps/pramana/lib/pramana/local/manifest.ex) | Required provenance, conservative licensing and declared addressing |
 
 A rendering is addressed as `<source-anchor>#tr:<lang>/<translator-id>`.
 A source citation and a human rendering citation answer different questions.
 Generated text must not be accepted as canonical source evidence; see
-[the invariants](pramana/INVARIANTS.md) and [translation contracts](TRANSLATION.md).
+[the invariants](INVARIANTS.md) and [translation contracts](TRANSLATION.md).
 
 ## Reading coverage is not a capability list
 
@@ -53,7 +53,7 @@ implemented service. In particular, the current code does not establish a
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

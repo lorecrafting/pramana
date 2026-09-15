@@ -26,3 +26,14 @@ node_modules/
 # Neither path is a Dockerfile COPY input. Git ignores do not filter Docker context.
 .git/
 foundry/
+
+# Local-only material must not become build input via COPY apps/config.
+**/.env
+**/.env.*
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+priv/embed/.venv/
+sources/local/*/text/
+sources/local/*/raw/
+apps/*/priv/native/

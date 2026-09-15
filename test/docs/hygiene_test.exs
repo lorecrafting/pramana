@@ -8,22 +8,27 @@ defmodule Docs.HygieneTest do
   """
   use ExUnit.Case, async: true
 
-  @root Path.expand("../../../..", __DIR__)
+  @root Path.expand("../..", __DIR__)
 
   test "generated outputs are ignored without hiding ordinary evidence inputs" do
     ignored = [
       "foundry/cover/index.html",
+      "pramana/raw",
+      "pramana/priv/models",
+      "pramana/sources/local/example/text",
+      "pramana/_build/test/a.beam",
+      "raw/legacy.xml",
       "foundry/doc/index.html",
-      "priv/embed/__pycache__/probe.cpython-313.pyc",
+      "pramana/priv/embed/__pycache__/probe.cpython-313.pyc",
       "foundry/docs/investigation/__pycache__/probe.pyc"
     ]
 
     visible = [
       "foundry/docs/investigation/manifest.json",
       "foundry/test/fixtures/telemetry/records-v1.jsonl",
-      "evals/gold/retrieval_translation.jsonl",
-      "evals/baseline.json",
-      "sources.lock.json"
+      "pramana/evals/gold/retrieval_translation.jsonl",
+      "pramana/evals/baseline.json",
+      "pramana/sources.lock.json"
     ]
 
     for {paths, expected} <- [{ignored, 0}, {visible, 1}], path <- paths do
@@ -40,7 +45,7 @@ defmodule Docs.HygieneTest do
   test "the Pramana Docker context explicitly excludes the independent system and Git" do
     patterns =
       @root
-      |> Path.join(".dockerignore")
+      |> Path.join("pramana/.dockerignore")
       |> File.read!()
       |> String.split("\n")
       |> Enum.map(&String.trim/1)

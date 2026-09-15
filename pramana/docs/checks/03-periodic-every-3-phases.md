@@ -1,7 +1,7 @@
 # Checks and Gates — chapter 3
 
 > Topic reference. Historical measurements retain their original scope; use the current architecture and testing guides for operational guarantees.
-> [Contents](../CHECKS.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../CHECKS.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ## Periodic (every ~3 phases)
 
