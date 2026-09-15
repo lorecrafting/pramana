@@ -1,149 +1,60 @@
-# Pramāṇa
+# Pramāṇa and Foundry
 
-A citation-grounded retrieval substrate for the Buddhist canon, where **every quotation
-can be mechanically proven to exist, in that form, at that place in a real printed
-edition** — and where a Japanese-composed commentary can never be handed back as if it
-were an Indian sūtra.
+Two independent systems share this repository:
 
-*Pramāṇa* (प्रमाण) is Sanskrit for "valid means of knowledge": the branch of Indian
-philosophy concerned with how one knows a claim is true. That is the design brief.
+**Pramāṇa** is an English-first, citation-grounded research substrate for Buddhist
+texts. It retrieves original-language passages with provenance and checkable addresses,
+keeps renderings distinct from source text, and provides deterministic citation checks.
+A valid quotation does not by itself prove an interpretation or exhaustive corpus coverage.
 
-**It is English-first.** You ask in English. The canons stay in Pāli, Classical Chinese and
-Tibetan, and every answer comes back anchored to the original — with its provenance, and with
-a citation you can check.
+**Foundry** is a standalone Elixir/OTP agent-execution and maintenance system. It has
+its own build, state, lifecycle contracts and repair program. Its implementation
+inventory is not an end-to-end guarantee that every live execution path is enabled
+or verified.
 
-New to the project? **[`docs/PRIMER.md`](docs/PRIMER.md)** explains it from the ground up —
-no prior knowledge of Elixir, search systems, or Buddhist studies assumed.
+## Start here
 
-**For AI agents: [`AGENTS.md`](AGENTS.md)** is the canonical project reference — invariants,
-document routing, project layout, rules triggers, framework conventions.
-
----
-
-## The corpus
-
-| | |
+| Reader | Entry point |
 |---|---|
-| Texts | **17,281** |
-| Segments (citable units) | **12,581,624** |
-| Chinese works (CBETA) | 4,263 across **16 of 26 collections** — Taishō 2,471 · 卍續藏 1,230 · 嘉興藏 285 · 磧砂藏 101 · 趙城金藏 51 · 漢譯南傳大藏經 38 · 房山石經 27 · seven alternative editions 57 · 国家图书馆藏 2 · 藏外佛教文獻 1 |
-| Pāli works (SuttaCentral) | 8,442 |
-| Tibetan works (Degé Kangyur / Tengyur) | 1,195 / 3,380 |
-| Retrieval chunks | 980,464 |
-| Embedding vectors | **1,066,026** |
-| English renderings | 273,334 — 244,763 human by 8 translators, 28,571 generated |
-| Commentary aligned to the line it explains | 76,722 lemmas over 100 work pairs |
-| Curated cross-tradition parallels | 407,176 recorded, 24,717 (6.1%) openable |
-| Verbatim quotations between works | 141,073 across 1,301 works |
-| Buddhist reading exceptions | 9,543 over a 44,348-character base |
+| Understand the repository | [Documentation index](docs/README.md) and [system map](docs/REPO_MAP.md) |
+| Learn Pramāṇa from the ground up | [Chaptered primer](docs/PRIMER.md) |
+| Set up Pramāṇa | [Development environment](docs/DEV_ENV.md) |
+| Use research tools or the reader | [MCP](docs/MCP.md) and [reader](docs/READER.md) |
+| Work on Foundry | [Foundry overview](foundry/README.md) and [documentation](foundry/docs/README.md) |
+| Contribute with any model provider | [AGENTS.md](AGENTS.md), the shared routing entry point |
 
-Both integrity checks are green: `mix pramana.verify --all` proves the bake is
-**reproducible** from pinned inputs; `mix pramana.integrity` proves it is **complete**.
-`mix pramana.gate` runs both plus format, credo, tests, lockfile census and eval ratchet.
+## Pramāṇa's boundary
 
-**CBETA is 26 collections and this holds 16.** Every survey response names the absent
-collections, because an empty result otherwise reads as the canon being silent. It says
-the same about **Taishō volumes 56–84** (547 works, not in CBETA), about the **6.1% of
-the parallel graph** whose other end is a witness we do not hold, and about the **1,640
-texts a `role:` filter cannot reach** because only the Taishō has a 部 division table.
+The root is an Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF,
+standalone Rust text-reuse scanner and Python inference/training helpers.
+The MCP surface is read-only; ingestion and other corpus mutations are CLI operations.
+The reader has search, inventory, survey, passage, work and report-checking screens.
+See the source-backed [architecture](docs/ARCHITECTURE.md), [CLI index](docs/CLI.md)
+and [testing guide](docs/TESTING.md), rather than duplicate tool/version counts here.
 
----
+Source records cover Chinese, Pāli and Tibetan material, but neither corpus nor index
+coverage is complete. [STATUS.md](docs/STATUS.md) contains generated figures from the
+recorded database snapshot. Those figures and previously recorded evaluation outcomes
+were **not** re-measured by the documentation audit. `mix pramana.doctor` and the
+appropriate corpus checks report the state of the database actually connected.
 
-## Measured retrieval quality
+`bake_id` identifies declared source inputs; the implemented retrieval stamp has
+[count-based limitations](docs/ARCHITECTURE.md#identity-and-replay). This is not an
+immutable, coexistent-snapshot database or a guarantee of identical search replay.
 
-Produced by `mix pramana.evals` over the gold set in [`evals/`](evals/).
+## Foundry's boundary
 
-| case type | pass | total | rate |
-|---|---|---|---|
-| retrieval | 27 | 40 | 67.5% |
-| topical | 34 | 40 | 85.0% |
-| guard | 58 | 58 | 100% |
-| integrity | all green | | |
-| coverage caveat | 23 | 33 | 69.7% |
+Foundry is not an umbrella app and does not require the research corpus for its
+model-free build/tests. Its README describes current execution containment.
+Resume repair work from the [repair plan](foundry/docs/REPAIR-PLAN.md), not from the
+historical migration-ticket sequence. Provider-neutral repository guidance does not
+bypass launch authorization, billing isolation or backend conformance.
 
-All five are scored independently and gated as a ratchet. See `docs/PLAN.md` § E and
-`docs/PROXIES.md` for what each measures and what the limitations are.
+## Data and publication
 
----
+**Publish the pipeline, not an assumed right to redistribute every ingested source.**
+Sources and translations have distinct license metadata. `raw/` and live runtime state
+are not tracked. A public deployment needs the intended dataset, verified permissions
+and the [public deployment checks](docs/DEPLOY.md).
 
-## What it does
-
-- **Addresses everything by URN.** `pramana:cbeta.T:T0262_009@p0037a13` is a physical
-  location on a library shelf. Citation ids are never invented.
-- **Verifies quotations deterministically.** The citation guard re-resolves every URN and
-  byte-compares the quoted span, outside the model and after generation.
-- **Keeps provenance structural.** Composition origin, text role, attribution confidence
-  and addressing level are separate typed fields that travel into every result.
-- **Treats translation as a pool, not a winner.** Callers supply a selection policy.
-  A rendering has no top-level URN — it is addressed as a fragment of the source it renders.
-- **States what it does not have.** Every survey response names absent collections and
-  volumes — because silence would read as the tradition having nothing to say.
-- **Says how close its best answer was.** Semantic search returns nearest neighbours
-  whatever the distance. Every hybrid response reports the top similarity and a band.
-
----
-
-## Quickstart
-
-### 1. Prerequisites
-- **Erlang & Elixir**: Pinned in [`mise.toml`](mise.toml) (Erlang 29.0.5, Elixir 1.20.3)
-- **PostgreSQL 18** with `pgvector` and `pg_bigm` (see [`docs/DEV_ENV.md`](docs/DEV_ENV.md))
-- **Rust toolchain** (for CJK segmentation NIF)
-
-### 2. Setup & Compile
-```bash
-mix deps.get
-mix compile
-mix ecto.setup
-```
-
-### 3. Acquire & Bake Data
-The corpus is content-addressed and pinned in [`sources.lock.json`](sources.lock.json). Acquire and bake the texts:
-```bash
-mix pramana.acquire_all       # downloads upstream sources to raw/
-mix pramana.bake_all          # normalizes & segments Chinese works
-mix pramana.sc.ingest         # ingests SuttaCentral Pāli root texts
-mix pramana.sc.translations   # loads aligned English translations
-```
-
-For query embeddings, download the fine-tuned BGE-M3 weights (see [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md)):
-```bash
-mix pramana.embed.fetch_model # pulls weights into priv/models/ from storage
-```
-
----
-
-## Reading it as a person
-
-```bash
-mix phx.server                        # http://localhost:4000
-PRAMANA_EMBEDDING=1 mix phx.server    # loads BGE-M3 (~80 s, ~2.2 GB) for hybrid search
-```
-
-| | |
-|---|---|
-| `/` | search, **bucketed by composition origin and text role** |
-| `/survey?q=…` | every occurrence counted, with concentration |
-| `/passage?urn=…` | a line in its context, with variants, translations, parallels, woodblock |
-| `/works/:id` | a work's structure, leading with provenance |
-
-See [`docs/READER.md`](docs/READER.md). The reader renders only — it computes nothing
-about the corpus.
-
----
-
-## Stack
-
-Elixir/Phoenix umbrella · PostgreSQL 18 (pgvector, pg_bigm) · BGE-M3 on a rented L4 via
-Modal · 17 read-only MCP tools · Phoenix LiveView reader with five screens. Detailed
-stack and toolchain in `AGENTS.md` § Stack. Foundry (agentic workflow system) in
-`foundry/README.md`.
-
----
-
-## Licensing
-
-**We publish the pipeline, not the corpus.** Sources carry different terms — CBETA is
-non-commercial, SuttaCentral's Pāli root is Public Domain. `license_class` and
-`redistributable` are structured columns a query can enforce. `raw/` is gitignored.
-See `docs/DEPLOY.md` for the public deployment contract.
+[Documentation audit and limitations](docs/audits/2026-09-15/README.md)

@@ -4,7 +4,7 @@
 
 | what | how often | mechanism |
 |---|---|---|
-| **A new canonical source** (SAT, bilara, 84000) | rare | one file per work → three `Pramana.Pipeline` behaviours + a registry entry; otherwise a dedicated `mix pramana.<source>.ingest`. Both add a `Pramana.Sources` entry. See `CLAUDE.md` |
+| **A new canonical source** (SAT, bilara, 84000) | rare | one file per work → three `Pramana.Pipeline` behaviours + a registry entry; otherwise a dedicated `mix pramana.<source>.ingest`. Both add a `Pramana.Sources` entry. See [the source invariants](pramana/INVARIANTS.md) |
 | | | **First, group the file list by work id and look at the groups larger than one.** "One file per work" is a claim about the source, not a default: three of four sources here break it, and CBETA breaks it in one collection out of two. A work loaded once per file keeps whichever file finished last, resolves, and verifies clean — see `Pramana.Bake.WorkList` and `IR.concat/1`. |
 | **A one-off text** (a modern commentary, a translation, a teacher's talks) | often | drop a folder with a manifest, run one command |
 | **A correction or annotation** to existing text | often | a *layer* over the bake, never an edit to it |
@@ -37,8 +37,8 @@ Worth stating plainly, because it is tempting and it would quietly break the pro
 **The MCP surface is read-only, deliberately.** If a model could add texts to the corpus:
 
 - The corpus would stop being reproducible from `sources.lock.json` — invariant #3 gone.
-- `bake_id` would stop determining contents, so two people with the same id could hold
-  different corpora.
+- Uncontrolled writes would break the link between declared source inputs and loaded text.
+  `bake_id` already does not freeze all derived retrieval state; see [architecture](ARCHITECTURE.md#identity-and-replay).
 - An agent could introduce text that is later cited as canonical.
 - **Prompt injection becomes corpus poisoning.** Text from a locally-added source is
   already treated as untrusted input (`docs/CHECKS.md`); letting a model *write* that
@@ -185,8 +185,9 @@ what did the extraction and how confident it is, the same way `attribution_confi
 does — an OCR'd text and a hand-proofread one are not the same evidence, and search
 results should be able to say which they are.
 
-Your `~/dev/huangnianzu-translation` already has `scripts_split_pages.py` and a
-proofreading workflow for exactly this text. **Read it before writing ours** (task #34).
+The original operator used an external `huangnianzu-translation` checkout and a
+`scripts_split_pages.py` proofreading workflow. Those files are **not supplied by this
+repository**. Inspect available extraction evidence instead of assuming that local path exists.
 
 ---
 
@@ -209,4 +210,5 @@ for anyone who is not the author of this document. Two rules if it happens:
 - **Then:** a folder plus a manifest, `validate` then `add`.
 - **MCP: read-only, permanently.** Agents query the corpus; humans build it.
 - **GUI: eventually, to author manifests** — never to mutate the corpus directly.
-- Adding text always produces a **new `bake_id`**, because it is a different corpus.
+- Changed source inputs can change `bake_id`; repeating the same validated inputs need not.
+  Identity does not by itself prove that all writes completed or all prior citations remain resolvable.

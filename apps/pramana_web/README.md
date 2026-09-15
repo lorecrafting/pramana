@@ -1,22 +1,20 @@
-# PramanaWeb
+# Pramāṇa web
 
-Phoenix web application for the Pramāṇa corpus — MCP endpoint, LiveView reader, and
-the `/check` citation verification screen.
+Phoenix MCP transport and LiveView reader over the core research domain.
+Run the server from the repository root after [setup](../../docs/DEV_ENV.md).
 
-## Starting the server
+| Route | Purpose |
+|---|---|
+| `/` | Search grouped by provenance |
+| `/inventory` | Corpus inventory and gaps |
+| `/survey` | Scoped occurrence counts |
+| `/passage` | Source context, renderings and related evidence |
+| `/works/:work_id` | Work structure and provenance |
+| `/check` | Citation and declared-replay checking |
+| `/mcp` | MCP transport, outside the browser pipeline |
 
-```bash
-mix phx.server                  # http://localhost:4000
-PRAMANA_EMBEDDING=1 mix phx.server  # enables BGE-M3 hybrid search (~80 s load, ~2.2 GB)
-```
+The development dashboard is separate and enabled only with development routes.
+The LiveViews call domain functions directly rather than reimplementing retrieval or
+calling their own HTTP MCP endpoint.
 
-## Key routes
-
-- `/` — search, bucketed by composition origin and text role
-- `/inventory` — what is in this bake, and what is not
-- `/survey?q=…` — every occurrence counted, with concentration
-- `/passage?urn=…` — a line in its context, with variants, translations, parallels
-- `/works/:id` — a work's structure, leading with provenance
-- `/check` — paste a claim, get a verdict list (`verify_report` surface)
-
-See [`docs/READER.md`](../../docs/READER.md) for full documentation.
+[Reader](../../docs/READER.md) · [MCP](../../docs/MCP.md) · [Testing](../../docs/TESTING.md)

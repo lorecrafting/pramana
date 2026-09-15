@@ -1,5 +1,7 @@
 # Commentaries, Treatises, and Linking Them to What They Explain
 
+> Implementation and dated research notes. Current code distinguishes Chinese grapheme and Tibetan syllable alignment, with source-specific acceptance gates; paragraphs describing earlier floors are historical, not the active policy. See `Pramana.Commentary` and its tests.
+
 ## First, the terminology, because it matters for the schema
 
 "Śāstra" is not the general word for commentary. The canon distinguishes several
@@ -163,7 +165,7 @@ Three points carry the weight:
 **`method` and `confidence` follow the same discipline as everything else.** A relation
 asserted by a catalogue or a source manifest is not the same claim as one an LLM
 inferred from similarity, and the difference must survive into the answer. Deterministic
-first, LLM only for the residual, always labelled — `CLAUDE.md` invariant #5.
+first, LLM only for the residual, always labelled — [the shared invariants](pramana/INVARIANTS.md) invariant #5.
 
 **Relations chain.** A sub-commentary comments on a commentary which comments on a
 sūtra. Modelling that as a graph rather than a single `parent_id` is what lets you walk
@@ -201,7 +203,7 @@ piece it needs is already built:
 - `date_start` / `date_end` — on `works`, **and populated since 2026-08-28**, so "modern" is
   `date_start > 1900` rather than a new flag. This bullet said "already on `works`" while
   those columns were null for all 17,281 texts: true of the schema, false of the corpus, and
-  the exact shape of doc failure `CLAUDE.md` § *Keeping the documentation true* exists for.
+  the exact shape of doc failure [the shared invariants](pramana/INVARIANTS.md) § *Keeping the documentation true* exists for.
 
   **Read `date_basis` with them.** The 1,515 populated today are `authority_lifespan` —
   bounds derived from the attributed person's life, answering *which century* and never

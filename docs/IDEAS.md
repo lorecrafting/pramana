@@ -1,5 +1,7 @@
 # Feature Ideas
 
+> Idea backlog, not an implementation inventory or approved execution queue. Check code and the owning plan before treating an idea as shipped or scheduled.
+
 A backlog, not a plan. Nothing here is committed; `docs/ROADMAP.md` is the committed
 scope. Marked **★** where the value-to-effort ratio is unusually good, mostly because
 the feature falls out of infrastructure we're building anyway.

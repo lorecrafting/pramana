@@ -1,5 +1,7 @@
 # Correspondence with the SAT Daizōkyō Text Database Committee
 
+> Draft correspondence and supporting notes, not a sent message or evidence of permission. Verify recipient, licensing scope and current acquisition status before use.
+
 **Status: the first request was SENT on 2026-08-15.** No reply as of 2026-08-29. Note it
 landed during Obon, when Japanese universities are largely closed, so fourteen days is not
 yet a silence worth reading into. The follow-up below is drafted for **mid-September** and
