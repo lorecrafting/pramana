@@ -1,0 +1,23 @@
+name: Inspect pinned toolchain images
+on:
+  push:
+    branches: [work/sibling-layout-snapshot-2026-09-15]
+    paths: [.github/workflows/layout-registry-check.yml]
+permissions:
+  contents: read
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read matching public image tags without credentials
+        run: |
+          python - <<'PY'
+          import json, urllib.request, urllib.parse
+          for repository, prefix in [('hexpm/elixir', '1.20.3-erlang-29.0.5-debian-bookworm'), ('hexpm/elixir', '1.20.3-erlang-29.0.5-debian'), ('library/debian', 'bookworm-')]:
+              query=urllib.parse.urlencode({'page_size':100,'name':prefix,'ordering':'last_updated'})
+              url=f'https://hub.docker.com/v2/repositories/{repository}/tags?{query}'
+              with urllib.request.urlopen(url,timeout=30) as response:
+                  data=json.load(response)
+              print(json.dumps({'repository':repository,'prefix':prefix,'count':data.get('count'),'next':data.get('next'),'tags':[{'name':x['name'],'digest':x.get('digest')} for x in data['results']]},indent=2))
+          PY
