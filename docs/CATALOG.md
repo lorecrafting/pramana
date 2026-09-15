@@ -118,26 +118,12 @@ strategy retain their separate owners.
 - [`docs/status/chapters/03-what-it-can-do.md`](status/chapters/03-what-it-can-do.md)
 - [`docs/status/chapters/04-phases.md`](status/chapters/04-phases.md)
 
-## Superseded guide records — not current procedure
+## Retired material and repository layout
 
-- [`docs/records/architecture-design.md`](records/architecture-design.md)
-- [`docs/records/cloud-pricing-2026-08-14.md`](records/cloud-pricing-2026-08-14.md)
-- [`docs/records/deployment-notes.md`](records/deployment-notes.md)
-- [`docs/records/development-environment.md`](records/development-environment.md)
-- [`docs/records/embedding-measurements.md`](records/embedding-measurements.md)
-- [`docs/records/gpu-runbook-measurements.md`](records/gpu-runbook-measurements.md)
-- [`docs/records/gpu-runbook-measurements/01-a-long-tranche-detach-it-and-supervise-it-by-asking-modal.md`](records/gpu-runbook-measurements/01-a-long-tranche-detach-it-and-supervise-it-by-asking-modal.md)
-- [`docs/records/gpu-runbook-measurements/02-index-build-cost-at-scale-measured-2026-08-27.md`](records/gpu-runbook-measurements/02-index-build-cost-at-scale-measured-2026-08-27.md)
-- [`docs/records/gpu-runbook-measurements/03-4-verify.md`](records/gpu-runbook-measurements/03-4-verify.md)
-- [`docs/records/language-and-runtime-design.md`](records/language-and-runtime-design.md)
-- [`docs/records/layer-design.md`](records/layer-design.md)
-- [`docs/records/mcp-interface-notes.md`](records/mcp-interface-notes.md)
-- [`docs/records/mcp-interface-notes/01-tools.md`](records/mcp-interface-notes/01-tools.md)
-- [`docs/records/mcp-interface-notes/02-errors.md`](records/mcp-interface-notes/02-errors.md)
-- [`docs/records/observability-audit.md`](records/observability-audit.md)
-- [`docs/records/translation-design-and-experiments.md`](records/translation-design-and-experiments.md)
-- [`docs/records/translation-design-and-experiments/01-the-reframe.md`](records/translation-design-and-experiments/01-the-reframe.md)
-- [`docs/records/translation-design-and-experiments/02-the-promotion-pipeline.md`](records/translation-design-and-experiments/02-the-promotion-pipeline.md)
+[Retired files](RETIRED_FILES.md) records removed snapshots and experiments with
+immutable recovery links. They are no longer part of the current-file catalog.
+[Repository structure](REPOSITORY_STRUCTURE.md) assesses current ownership and the
+conditions for a future sibling-project layout.
 
 ## Foundry — protected references and new navigation
 

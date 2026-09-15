@@ -2,7 +2,7 @@
 
 Current source reference. This is distinct from
 [Foundry observability](../foundry/docs/OBSERVABILITY.md). The original audit's
-"no domain telemetry" findings are [historical](records/observability-audit.md), not
+"no domain telemetry" findings are [historical](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md), not
 the current implementation.
 
 ## Implemented observations
@@ -55,19 +55,20 @@ audit inspected the implementation; it did not observe a running service or prov
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="observability--what-this-system-can-and-cannot-tell-you-about-itself"></a>[Observability — what this system can and cannot tell you about itself](records/observability-audit.md#observability--what-this-system-can-and-cannot-tell-you-about-itself) |
-| <a id="the-one-line-summary"></a>[The one-line summary](records/observability-audit.md#the-one-line-summary) |
-| <a id="what-the-audit-found"></a>[What the audit found](records/observability-audit.md#what-the-audit-found) |
-| <a id="what-is-already-good-and-worth-not-breaking"></a>[What is already good, and worth not breaking](records/observability-audit.md#what-is-already-good-and-worth-not-breaking) |
-| <a id="the-cost-measured-on-this-project-rather-than-argued"></a>[The cost, measured on this project rather than argued](records/observability-audit.md#the-cost-measured-on-this-project-rather-than-argued) |
-| <a id="plan-cheapest-first"></a>[Plan, cheapest first](records/observability-audit.md#plan-cheapest-first) |
-| <a id="1-mix-pramanadoctor--the-state-a-session-needs-in-one-command"></a>[1. `mix pramana.doctor` — the state a session needs, in one command](records/observability-audit.md#1-mix-pramanadoctor--the-state-a-session-needs-in-one-command) |
-| <a id="2-domain-telemetry-at-five-boundaries---built-2026-08-29"></a>[2. Domain telemetry at five boundaries — ▸ BUILT 2026-08-29](records/observability-audit.md#2-domain-telemetry-at-five-boundaries---built-2026-08-29) |
-| <a id="3-an-oban-failure-handler---built-2026-08-29"></a>[3. An Oban failure handler — ▸ BUILT 2026-08-29](records/observability-audit.md#3-an-oban-failure-handler---built-2026-08-29) |
-| <a id="4-structured-errors-on-the-mcp-surface---built-2026-08-29"></a>[4. Structured errors on the MCP surface — ▸ BUILT 2026-08-29](records/observability-audit.md#4-structured-errors-on-the-mcp-surface---built-2026-08-29) |
-| <a id="5-guard-refusals-and-caveat-counts---built-2026-08-29"></a>[5. Guard refusals and caveat counts — ▸ BUILT 2026-08-29](records/observability-audit.md#5-guard-refusals-and-caveat-counts---built-2026-08-29) |
-| <a id="what-this-deliberately-does-not-propose"></a>[What this deliberately does not propose](records/observability-audit.md#what-this-deliberately-does-not-propose) |
+| <a id="observability--what-this-system-can-and-cannot-tell-you-about-itself"></a>[Observability — what this system can and cannot tell you about itself](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#observability--what-this-system-can-and-cannot-tell-you-about-itself) |
+| <a id="the-one-line-summary"></a>[The one-line summary](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#the-one-line-summary) |
+| <a id="what-the-audit-found"></a>[What the audit found](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#what-the-audit-found) |
+| <a id="what-is-already-good-and-worth-not-breaking"></a>[What is already good, and worth not breaking](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#what-is-already-good-and-worth-not-breaking) |
+| <a id="the-cost-measured-on-this-project-rather-than-argued"></a>[The cost, measured on this project rather than argued](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#the-cost-measured-on-this-project-rather-than-argued) |
+| <a id="plan-cheapest-first"></a>[Plan, cheapest first](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#plan-cheapest-first) |
+| <a id="1-mix-pramanadoctor--the-state-a-session-needs-in-one-command"></a>[1. `mix pramana.doctor` — the state a session needs, in one command](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#1-mix-pramanadoctor--the-state-a-session-needs-in-one-command) |
+| <a id="2-domain-telemetry-at-five-boundaries---built-2026-08-29"></a>[2. Domain telemetry at five boundaries — ▸ BUILT 2026-08-29](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#2-domain-telemetry-at-five-boundaries---built-2026-08-29) |
+| <a id="3-an-oban-failure-handler---built-2026-08-29"></a>[3. An Oban failure handler — ▸ BUILT 2026-08-29](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#3-an-oban-failure-handler---built-2026-08-29) |
+| <a id="4-structured-errors-on-the-mcp-surface---built-2026-08-29"></a>[4. Structured errors on the MCP surface — ▸ BUILT 2026-08-29](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#4-structured-errors-on-the-mcp-surface---built-2026-08-29) |
+| <a id="5-guard-refusals-and-caveat-counts---built-2026-08-29"></a>[5. Guard refusals and caveat counts — ▸ BUILT 2026-08-29](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#5-guard-refusals-and-caveat-counts---built-2026-08-29) |
+| <a id="what-this-deliberately-does-not-propose"></a>[What this deliberately does not propose](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md#what-this-deliberately-does-not-propose) |

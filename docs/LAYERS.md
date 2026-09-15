@@ -42,7 +42,7 @@ and a repeated identical import always require or produce different identities.
 
 ## Design material that is not a runtime guarantee
 
-[The retained layer design](records/layer-design.md) includes broader reading schemes,
+[The retained layer design](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md) includes broader reading schemes,
 translation quality workflows and candidate-cache ideas. A schema sketch is not an
 implemented service. In particular, the current code does not establish a
 `translation_candidates` cache/promotion service or enforced separation of all
@@ -52,20 +52,21 @@ implemented service. In particular, the current code does not establish a
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="layers-translations-readings-and-locally-added-texts"></a>[Layers: Translations, Readings, and Locally-Added Texts](records/layer-design.md#layers-translations-readings-and-locally-added-texts) |
-| <a id="1-translation-layers"></a>[1. Translation layers](records/layer-design.md#1-translation-layers) |
-| <a id="the-invariant-that-makes-this-safe"></a>[The invariant that makes this safe](records/layer-design.md#the-invariant-that-makes-this-safe) |
-| <a id="why-this-also-improves-retrieval"></a>[Why this also improves retrieval](records/layer-design.md#why-this-also-improves-retrieval) |
-| <a id="terminology-consistent-translation"></a>[Terminology-consistent translation](records/layer-design.md#terminology-consistent-translation) |
-| <a id="2-reading-layers-pinyin-and-friends"></a>[2. Reading layers (pinyin and friends)](records/layer-design.md#2-reading-layers-pinyin-and-friends) |
-| <a id="the-trap-generic-pinyin-is-wrong-for-buddhist-texts"></a>[The trap: generic pinyin is wrong for Buddhist texts](records/layer-design.md#the-trap-generic-pinyin-is-wrong-for-buddhist-texts) |
-| <a id="storage"></a>[Storage](records/layer-design.md#storage) |
-| <a id="3-locally-added-texts-one-off-commentaries"></a>[3. Locally-added texts (one-off commentaries)](records/layer-design.md#3-locally-added-texts-one-off-commentaries) |
-| <a id="why-huang-nianzu-is-the-ideal-test-case"></a>[Why Huang Nianzu is the ideal test case](records/layer-design.md#why-huang-nianzu-is-the-ideal-test-case) |
-| <a id="how-you-actually-add-one"></a>[How you actually add one](records/layer-design.md#how-you-actually-add-one) |
-| <a id="citation-grammar-for-local-texts"></a>[Citation grammar for local texts](records/layer-design.md#citation-grammar-for-local-texts) |
-| <a id="roadmap-placement"></a>[Roadmap placement](records/layer-design.md#roadmap-placement) |
+| <a id="layers-translations-readings-and-locally-added-texts"></a>[Layers: Translations, Readings, and Locally-Added Texts](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#layers-translations-readings-and-locally-added-texts) |
+| <a id="1-translation-layers"></a>[1. Translation layers](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#1-translation-layers) |
+| <a id="the-invariant-that-makes-this-safe"></a>[The invariant that makes this safe](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#the-invariant-that-makes-this-safe) |
+| <a id="why-this-also-improves-retrieval"></a>[Why this also improves retrieval](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#why-this-also-improves-retrieval) |
+| <a id="terminology-consistent-translation"></a>[Terminology-consistent translation](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#terminology-consistent-translation) |
+| <a id="2-reading-layers-pinyin-and-friends"></a>[2. Reading layers (pinyin and friends)](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#2-reading-layers-pinyin-and-friends) |
+| <a id="the-trap-generic-pinyin-is-wrong-for-buddhist-texts"></a>[The trap: generic pinyin is wrong for Buddhist texts](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#the-trap-generic-pinyin-is-wrong-for-buddhist-texts) |
+| <a id="storage"></a>[Storage](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#storage) |
+| <a id="3-locally-added-texts-one-off-commentaries"></a>[3. Locally-added texts (one-off commentaries)](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#3-locally-added-texts-one-off-commentaries) |
+| <a id="why-huang-nianzu-is-the-ideal-test-case"></a>[Why Huang Nianzu is the ideal test case](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#why-huang-nianzu-is-the-ideal-test-case) |
+| <a id="how-you-actually-add-one"></a>[How you actually add one](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#how-you-actually-add-one) |
+| <a id="citation-grammar-for-local-texts"></a>[Citation grammar for local texts](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#citation-grammar-for-local-texts) |
+| <a id="roadmap-placement"></a>[Roadmap placement](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/layer-design.md#roadmap-placement) |

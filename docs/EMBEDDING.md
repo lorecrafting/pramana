@@ -43,7 +43,7 @@ Do not advance a baseline without reviewing per-case/per-tradition movements.
 
 ## Measurements and cost
 
-[Historical measurements](records/embedding-measurements.md) preserve the original
+[Historical measurements](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md) preserve the original
 laptop timings, old corpus sizes, truncation observations and vendor estimates.
 They are not a forecast for the current dataset. Measure throughput on the actual
 candidate and check current billing/transfer terms before launching a batch.
@@ -52,17 +52,18 @@ candidate and check current billing/transfer terms before launching a batch.
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="embedding-where-to-run-it-and-what-it-costs"></a>[Embedding: Where To Run It, and What It Costs](records/embedding-measurements.md#embedding-where-to-run-it-and-what-it-costs) |
-| <a id="measured-not-estimated"></a>[Measured, not estimated](records/embedding-measurements.md#measured-not-estimated) |
-| <a id="the-corpus-in-the-units-that-determine-cost"></a>[The corpus, in the units that determine cost](records/embedding-measurements.md#the-corpus-in-the-units-that-determine-cost) |
-| <a id="option-a--rent-a-gpu-recommended"></a>[Option A — rent a GPU (recommended)](records/embedding-measurements.md#option-a--rent-a-gpu-recommended) |
-| <a id="option-b--hosted-embedding-api"></a>[Option B — hosted embedding API](records/embedding-measurements.md#option-b--hosted-embedding-api) |
-| <a id="the-deciding-factor-is-reproducibility"></a>[The deciding factor is reproducibility](records/embedding-measurements.md#the-deciding-factor-is-reproducibility) |
-| <a id="practical-plan"></a>[Practical plan](records/embedding-measurements.md#practical-plan) |
-| <a id="open-question"></a>[Open question](records/embedding-measurements.md#open-question) |
-| <a id="measured-what-the-320-token-window-truncates"></a>[Measured: what the 320-token window truncates](records/embedding-measurements.md#measured-what-the-320-token-window-truncates) |
-| <a id="the-tasks"></a>[The tasks](records/embedding-measurements.md#the-tasks) |
+| <a id="embedding-where-to-run-it-and-what-it-costs"></a>[Embedding: Where To Run It, and What It Costs](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#embedding-where-to-run-it-and-what-it-costs) |
+| <a id="measured-not-estimated"></a>[Measured, not estimated](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#measured-not-estimated) |
+| <a id="the-corpus-in-the-units-that-determine-cost"></a>[The corpus, in the units that determine cost](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#the-corpus-in-the-units-that-determine-cost) |
+| <a id="option-a--rent-a-gpu-recommended"></a>[Option A — rent a GPU (recommended)](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#option-a--rent-a-gpu-recommended) |
+| <a id="option-b--hosted-embedding-api"></a>[Option B — hosted embedding API](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#option-b--hosted-embedding-api) |
+| <a id="the-deciding-factor-is-reproducibility"></a>[The deciding factor is reproducibility](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#the-deciding-factor-is-reproducibility) |
+| <a id="practical-plan"></a>[Practical plan](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#practical-plan) |
+| <a id="open-question"></a>[Open question](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#open-question) |
+| <a id="measured-what-the-320-token-window-truncates"></a>[Measured: what the 320-token window truncates](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#measured-what-the-320-token-window-truncates) |
+| <a id="the-tasks"></a>[The tasks](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/embedding-measurements.md#the-tasks) |

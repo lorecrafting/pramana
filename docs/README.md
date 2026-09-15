@@ -1,6 +1,8 @@
 # Documentation
 
 Two systems, one repository. Start with the [repository map](REPO_MAP.md).
+See [the structure review](REPOSITORY_STRUCTURE.md) for current ownership and the
+proposed sibling-project layout after repair acceptance.
 For model-assisted changes, [AGENTS.md](../AGENTS.md) routes every provider through
 [the same workflow](agents/WORKFLOW.md); it is deliberately not a manual or eager reading list.
 
@@ -59,8 +61,9 @@ or supersede Foundry repair authority.
 [ideas](IDEAS.md), [competitive research](COMPETITIVE.md) and the
 [SAT correspondence draft](sat-request-email.md) are not executable commitments.
 
-[History](HISTORY.md), [proxy studies](PROXIES.md), and retained historical/design
-sections preserve their context and negative results. The [rule index](RULES.md)
+[History](HISTORY.md) and [proxy studies](PROXIES.md) retain incident context and
+negative results. Superseded guide copies and unreferenced experiments are indexed
+in [retired files](RETIRED_FILES.md), with immutable Git-history recovery links. The [rule index](RULES.md)
 keeps stable rule numbers while splitting the long bodies into focused pages.
 
 ## Complete catalog and audit trail

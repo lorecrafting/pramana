@@ -28,21 +28,22 @@ or operator-state backup.
 
 [Embedding workflow](EMBEDDING.md) · [GPU runbook](GPU_RUNBOOK.md) · [Deployment](DEPLOY.md)
 
-[The 2026-08-14 pricing comparison](records/cloud-pricing-2026-08-14.md) is retained
+[The 2026-08-14 pricing comparison](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md) is retained
 as historical research only; its prices and vendor rankings were not refreshed in this audit.
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="cloud-what-to-rent-for-which-job"></a>[Cloud: What To Rent, For Which Job](records/cloud-pricing-2026-08-14.md#cloud-what-to-rent-for-which-job) |
-| <a id="first-these-are-three-different-jobs-with-three-different-answers"></a>[First: these are three different jobs, with three different answers](records/cloud-pricing-2026-08-14.md#first-these-are-three-different-jobs-with-three-different-answers) |
-| <a id="job-a--batch-embedding-289179-chunks-once"></a>[Job A — batch embedding: 289,179 chunks, once](records/cloud-pricing-2026-08-14.md#job-a--batch-embedding-289179-chunks-once) |
-| <a id="why-aws-and-gcp-lose-this-one"></a>[Why AWS and GCP lose this one](records/cloud-pricing-2026-08-14.md#why-aws-and-gcp-lose-this-one) |
-| <a id="recommendation-for-job-a-modal"></a>[Recommendation for job A: Modal](records/cloud-pricing-2026-08-14.md#recommendation-for-job-a-modal) |
-| <a id="job-b--hosting-the-app-later-if-it-goes-public"></a>[Job B — hosting the app (later, if it goes public)](records/cloud-pricing-2026-08-14.md#job-b--hosting-the-app-later-if-it-goes-public) |
-| <a id="job-c--llm-inference-for-the-research-agent-phase-7"></a>[Job C — LLM inference for the research agent (Phase 7)](records/cloud-pricing-2026-08-14.md#job-c--llm-inference-for-the-research-agent-phase-7) |
-| <a id="cli-control-since-you-asked"></a>[CLI control, since you asked](records/cloud-pricing-2026-08-14.md#cli-control-since-you-asked) |
-| <a id="bottom-line"></a>[Bottom line](records/cloud-pricing-2026-08-14.md#bottom-line) |
+| <a id="cloud-what-to-rent-for-which-job"></a>[Cloud: What To Rent, For Which Job](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#cloud-what-to-rent-for-which-job) |
+| <a id="first-these-are-three-different-jobs-with-three-different-answers"></a>[First: these are three different jobs, with three different answers](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#first-these-are-three-different-jobs-with-three-different-answers) |
+| <a id="job-a--batch-embedding-289179-chunks-once"></a>[Job A — batch embedding: 289,179 chunks, once](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#job-a--batch-embedding-289179-chunks-once) |
+| <a id="why-aws-and-gcp-lose-this-one"></a>[Why AWS and GCP lose this one](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#why-aws-and-gcp-lose-this-one) |
+| <a id="recommendation-for-job-a-modal"></a>[Recommendation for job A: Modal](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#recommendation-for-job-a-modal) |
+| <a id="job-b--hosting-the-app-later-if-it-goes-public"></a>[Job B — hosting the app (later, if it goes public)](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#job-b--hosting-the-app-later-if-it-goes-public) |
+| <a id="job-c--llm-inference-for-the-research-agent-phase-7"></a>[Job C — LLM inference for the research agent (Phase 7)](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#job-c--llm-inference-for-the-research-agent-phase-7) |
+| <a id="cli-control-since-you-asked"></a>[CLI control, since you asked](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#cli-control-since-you-asked) |
+| <a id="bottom-line"></a>[Bottom line](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/cloud-pricing-2026-08-14.md#bottom-line) |

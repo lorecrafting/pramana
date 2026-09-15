@@ -73,24 +73,25 @@ and memory available to all concurrent processes. The old laptop-tuning recipe w
 explicitly reverted and is **not** a default to copy. Provider/database-hosting prices
 and free-tier terms in older notes are not current setup requirements.
 
-[Historical local setup and tuning notes](records/development-environment.md) are kept
+[Historical local setup and tuning notes](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md) are kept
 for diagnosis, including the rejected settings; do not execute them as current guidance.
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="dev-environment"></a>[Dev Environment](records/development-environment.md#dev-environment) |
-| <a id="do-we-need-docker-not-yet-and-not-for-postgres"></a>[Do we need Docker? Not yet, and not for Postgres.](records/development-environment.md#do-we-need-docker-not-yet-and-not-for-postgres) |
-| <a id="where-containers-do-become-necessary"></a>[Where containers do become necessary](records/development-environment.md#where-containers-do-become-necessary) |
-| <a id="container-runtimes-on-macos-ranked-for-this-project"></a>[Container runtimes on macOS, ranked for this project](records/development-environment.md#container-runtimes-on-macos-ranked-for-this-project) |
-| <a id="other-ways-to-run-postgres-for-dev"></a>[Other ways to run Postgres for dev](records/development-environment.md#other-ways-to-run-postgres-for-dev) |
-| <a id="postgres-tuning--tried-and-reverted-2026-08-29-do-not-reapply-without-reading-this"></a>[Postgres tuning — TRIED AND REVERTED 2026-08-29, do not reapply without reading this](records/development-environment.md#postgres-tuning--tried-and-reverted-2026-08-29-do-not-reapply-without-reading-this) |
-| <a id="too_many_connections-looks-like-a-failing-test-and-is-not--2026-09-02"></a>[`too_many_connections` looks like a failing test, and is not — 2026-09-02](records/development-environment.md#too_many_connections-looks-like-a-failing-test-and-is-not--2026-09-02) |
-| <a id="-refined-the-same-day-after-it-happened-again-during-a-full-gate"></a>[▸ REFINED the same day, after it happened again during a full gate](records/development-environment.md#-refined-the-same-day-after-it-happened-again-during-a-full-gate) |
-| <a id="a-long-run-died-of-tcp-recv-idle-closed-and-postgres-was-not-the-cause--2026-09-03"></a>[A long run died of `tcp recv (idle): closed`, and Postgres was not the cause — 2026-09-03](records/development-environment.md#a-long-run-died-of-tcp-recv-idle-closed-and-postgres-was-not-the-cause--2026-09-03) |
-| <a id="toolchain-pinning"></a>[Toolchain pinning](records/development-environment.md#toolchain-pinning) |
-| <a id="verify-the-pin-is-actually-in-effect"></a>[Verify the pin is actually in effect](records/development-environment.md#verify-the-pin-is-actually-in-effect) |
-| <a id="do-not-put-mix_env-in-misetoml"></a>[Do not put `MIX_ENV` in `mise.toml`](records/development-environment.md#do-not-put-mix_env-in-misetoml) |
+| <a id="dev-environment"></a>[Dev Environment](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#dev-environment) |
+| <a id="do-we-need-docker-not-yet-and-not-for-postgres"></a>[Do we need Docker? Not yet, and not for Postgres.](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#do-we-need-docker-not-yet-and-not-for-postgres) |
+| <a id="where-containers-do-become-necessary"></a>[Where containers do become necessary](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#where-containers-do-become-necessary) |
+| <a id="container-runtimes-on-macos-ranked-for-this-project"></a>[Container runtimes on macOS, ranked for this project](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#container-runtimes-on-macos-ranked-for-this-project) |
+| <a id="other-ways-to-run-postgres-for-dev"></a>[Other ways to run Postgres for dev](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#other-ways-to-run-postgres-for-dev) |
+| <a id="postgres-tuning--tried-and-reverted-2026-08-29-do-not-reapply-without-reading-this"></a>[Postgres tuning — TRIED AND REVERTED 2026-08-29, do not reapply without reading this](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#postgres-tuning--tried-and-reverted-2026-08-29-do-not-reapply-without-reading-this) |
+| <a id="too_many_connections-looks-like-a-failing-test-and-is-not--2026-09-02"></a>[`too_many_connections` looks like a failing test, and is not — 2026-09-02](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#too_many_connections-looks-like-a-failing-test-and-is-not--2026-09-02) |
+| <a id="-refined-the-same-day-after-it-happened-again-during-a-full-gate"></a>[▸ REFINED the same day, after it happened again during a full gate](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#-refined-the-same-day-after-it-happened-again-during-a-full-gate) |
+| <a id="a-long-run-died-of-tcp-recv-idle-closed-and-postgres-was-not-the-cause--2026-09-03"></a>[A long run died of `tcp recv (idle): closed`, and Postgres was not the cause — 2026-09-03](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#a-long-run-died-of-tcp-recv-idle-closed-and-postgres-was-not-the-cause--2026-09-03) |
+| <a id="toolchain-pinning"></a>[Toolchain pinning](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#toolchain-pinning) |
+| <a id="verify-the-pin-is-actually-in-effect"></a>[Verify the pin is actually in effect](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#verify-the-pin-is-actually-in-effect) |
+| <a id="do-not-put-mix_env-in-misetoml"></a>[Do not put `MIX_ENV` in `mise.toml`](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/development-environment.md#do-not-put-mix_env-in-misetoml) |

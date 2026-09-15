@@ -1,5 +1,9 @@
 # Repository map: two systems
 
+The current root is Pramāṇa’s umbrella, not a parent Mix build for both systems.
+See [the structure review](REPOSITORY_STRUCTURE.md) for the ownership audit and
+why a sibling layout is a separate post-repair migration, not a cleanup rename.
+
 ## Pramāṇa: research substrate
 
 The root [Mix project](../mix.exs) is an Elixir umbrella. Its primary interfaces are
@@ -14,8 +18,8 @@ read-only MCP tools and a Phoenix LiveView reader over the same core domain.
 | `priv/embed/` | Python inference/training and Modal batch helpers | Receives exported text/tensors and returns artifacts; not a second corpus database layer |
 | `config/` | Umbrella runtime and environment configuration | Development and production database variables differ |
 | `sources.lock.json` | Source acquisition records | Not a complete backup of all mutable database state |
-| `evals/` | Gold cases, baselines and recorded experiment artifacts | A recorded result is evidence for its configuration and date |
-| `bin/` | Local command wrappers and diagnostics | Some legacy Foundry wrappers are intentionally disabled |
+| `evals/` | Active gold cases and evaluation baseline | Retired one-off experiments are indexed in [retired files](RETIRED_FILES.md); do not delete the active baseline as generated junk |
+| `bin/` | Pramāṇa wrappers and the shared documentation check | Foundry commands and intentionally disabled compatibility wrappers live under `foundry/bin/` |
 
 The BEAM toolchain is pinned in [mise.toml](../mise.toml). Application dependencies
 and coverage thresholds belong to the relevant `mix.exs` files; avoid copying their

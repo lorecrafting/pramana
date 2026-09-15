@@ -3,7 +3,7 @@
 Current implementation reference, checked against source at the documentation-audit
 baseline. It describes code, not the state of a running database. See
 [the repository map](REPO_MAP.md) for the separate Foundry system and
-[the retained original design](records/architecture-design.md) for proposals and history.
+[the retained original design](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md) for proposals and history.
 
 ## Pipeline and ownership
 
@@ -109,18 +109,19 @@ corpus snapshot, and the appropriate [plan section](PLAN_INDEX.md) for future wo
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="architecture--how-the-sources-get-baked"></a>[Architecture — How the Sources Get Baked](records/architecture-design.md#architecture--how-the-sources-get-baked) |
-| <a id="the-bake-in-one-line"></a>[The bake in one line](records/architecture-design.md#the-bake-in-one-line) |
-| <a id="stage-0--acquire"></a>[Stage 0 — Acquire](records/architecture-design.md#stage-0--acquire) |
-| <a id="stage-1--normalize"></a>[Stage 1 — Normalize](records/architecture-design.md#stage-1--normalize) |
-| <a id="stage-2--segment"></a>[Stage 2 — Segment](records/architecture-design.md#stage-2--segment) |
-| <a id="stage-3--enrich"></a>[Stage 3 — Enrich](records/architecture-design.md#stage-3--enrich) |
-| <a id="stage-4--index"></a>[Stage 4 — Index](records/architecture-design.md#stage-4--index) |
-| <a id="stage-5--freeze"></a>[Stage 5 — Freeze](records/architecture-design.md#stage-5--freeze) |
-| <a id="the-provenance-model"></a>[The provenance model](records/architecture-design.md#the-provenance-model) |
-| <a id="your-taishō-requirement-solved"></a>[Your Taishō requirement, solved](records/architecture-design.md#your-taishō-requirement-solved) |
-| <a id="the-decoupling-contract"></a>[The decoupling contract](records/architecture-design.md#the-decoupling-contract) |
+| <a id="architecture--how-the-sources-get-baked"></a>[Architecture — How the Sources Get Baked](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#architecture--how-the-sources-get-baked) |
+| <a id="the-bake-in-one-line"></a>[The bake in one line](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#the-bake-in-one-line) |
+| <a id="stage-0--acquire"></a>[Stage 0 — Acquire](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#stage-0--acquire) |
+| <a id="stage-1--normalize"></a>[Stage 1 — Normalize](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#stage-1--normalize) |
+| <a id="stage-2--segment"></a>[Stage 2 — Segment](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#stage-2--segment) |
+| <a id="stage-3--enrich"></a>[Stage 3 — Enrich](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#stage-3--enrich) |
+| <a id="stage-4--index"></a>[Stage 4 — Index](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#stage-4--index) |
+| <a id="stage-5--freeze"></a>[Stage 5 — Freeze](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#stage-5--freeze) |
+| <a id="the-provenance-model"></a>[The provenance model](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#the-provenance-model) |
+| <a id="your-taishō-requirement-solved"></a>[Your Taishō requirement, solved](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#your-taishō-requirement-solved) |
+| <a id="the-decoupling-contract"></a>[The decoupling contract](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md#the-decoupling-contract) |

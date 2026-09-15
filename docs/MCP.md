@@ -100,26 +100,27 @@ it is not a client of that HTTP endpoint. External edition URLs are convenience
 links with their own verification metadata, not replacements for stored citation
 addresses or proof that a third-party page remains available.
 
-[Reader](READER.md) · [Testing](TESTING.md) · [Historical interface notes](records/mcp-interface-notes.md)
+[Reader](READER.md) · [Testing](TESTING.md) · [Historical interface notes](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md)
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="the-mcp-surface"></a>[The MCP Surface](records/mcp-interface-notes.md#the-mcp-surface) |
-| <a id="an-english-question-needs-search_translations-not-search"></a>[An English question needs `search_translations`, not `search`](records/mcp-interface-notes.md#an-english-question-needs-search_translations-not-search) |
-| <a id="translations-never-arrive-in-text"></a>[Translations never arrive in `text`](records/mcp-interface-notes.md#translations-never-arrive-in-text) |
-| <a id="comparison-keeps-its-two-kinds-apart"></a>[Comparison keeps its two kinds apart](records/mcp-interface-notes.md#comparison-keeps-its-two-kinds-apart) |
-| <a id="quotations-are-found-not-judged"></a>[Quotations are found, not judged](records/mcp-interface-notes.md#quotations-are-found-not-judged) |
-| <a id="readings-say-where-each-one-came-from"></a>[Readings say where each one came from](records/mcp-interface-notes.md#readings-say-where-each-one-came-from) |
-| <a id="variants-name-the-witness-and-the-witness-is-per-text"></a>[Variants name the witness, and the witness is per text](records/mcp-interface-notes.md#variants-name-the-witness-and-the-witness-is-per-text) |
-| <a id="definitions-are-quoted-not-composed"></a>[Definitions are quoted, not composed](records/mcp-interface-notes.md#definitions-are-quoted-not-composed) |
-| <a id="resources"></a>[Resources](records/mcp-interface-notes.md#resources) |
-| <a id="honesty-fields"></a>[Honesty fields](records/mcp-interface-notes.md#honesty-fields) |
-| <a id="errors"></a>[Errors](records/mcp-interface-notes.md#errors) |
-| <a id="verifying-a-whole-report-not-just-a-quotation"></a>[Verifying a whole report, not just a quotation](records/mcp-interface-notes.md#verifying-a-whole-report-not-just-a-quotation) |
-| <a id="reader-deep-links"></a>[Reader deep-links](records/mcp-interface-notes.md#reader-deep-links) |
-| <a id="transports"></a>[Transports](records/mcp-interface-notes.md#transports) |
-| <a id="semantic-search-is-opt-in"></a>[Semantic search is opt-in](records/mcp-interface-notes.md#semantic-search-is-opt-in) |
+| <a id="the-mcp-surface"></a>[The MCP Surface](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#the-mcp-surface) |
+| <a id="an-english-question-needs-search_translations-not-search"></a>[An English question needs `search_translations`, not `search`](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#an-english-question-needs-search_translations-not-search) |
+| <a id="translations-never-arrive-in-text"></a>[Translations never arrive in `text`](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#translations-never-arrive-in-text) |
+| <a id="comparison-keeps-its-two-kinds-apart"></a>[Comparison keeps its two kinds apart](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#comparison-keeps-its-two-kinds-apart) |
+| <a id="quotations-are-found-not-judged"></a>[Quotations are found, not judged](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#quotations-are-found-not-judged) |
+| <a id="readings-say-where-each-one-came-from"></a>[Readings say where each one came from](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#readings-say-where-each-one-came-from) |
+| <a id="variants-name-the-witness-and-the-witness-is-per-text"></a>[Variants name the witness, and the witness is per text](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#variants-name-the-witness-and-the-witness-is-per-text) |
+| <a id="definitions-are-quoted-not-composed"></a>[Definitions are quoted, not composed](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#definitions-are-quoted-not-composed) |
+| <a id="resources"></a>[Resources](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#resources) |
+| <a id="honesty-fields"></a>[Honesty fields](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#honesty-fields) |
+| <a id="errors"></a>[Errors](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#errors) |
+| <a id="verifying-a-whole-report-not-just-a-quotation"></a>[Verifying a whole report, not just a quotation](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#verifying-a-whole-report-not-just-a-quotation) |
+| <a id="reader-deep-links"></a>[Reader deep-links](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#reader-deep-links) |
+| <a id="transports"></a>[Transports](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#transports) |
+| <a id="semantic-search-is-opt-in"></a>[Semantic search is opt-in](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md#semantic-search-is-opt-in) |

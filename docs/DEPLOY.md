@@ -53,18 +53,19 @@ A source lockfile alone does not back up mutable translation/index data, local-o
 assets, operator configuration or database state. Preserve what a restore actually needs.
 
 No production deployment or live licensing gate was run as part of the documentation
-audit. [Historical deployment notes and price tables](records/deployment-notes.md) are
+audit. [Historical deployment notes and price tables](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md) are
 retained as a record, not a current hosting recommendation.
 
 ## Historical section bookmarks
 
-These links preserve older references; their targets are explicitly historical/design material.
+These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
+See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|
-| <a id="deploying-a-public-pramāṇa"></a>[Deploying a public Pramāṇa](records/deployment-notes.md#deploying-a-public-pramāṇa) |
-| <a id="the-three-properties-that-make-this-safe"></a>[The three properties that make this safe](records/deployment-notes.md#the-three-properties-that-make-this-safe) |
-| <a id="one-route-to-decide-about-before-a-public-deploy--check"></a>[One route to decide about before a public deploy — `/check`](records/deployment-notes.md#one-route-to-decide-about-before-a-public-deploy--check) |
-| <a id="build-it"></a>[Build it](records/deployment-notes.md#build-it) |
-| <a id="what-it-costs-to-host-honestly"></a>[What it costs to host, honestly](records/deployment-notes.md#what-it-costs-to-host-honestly) |
-| <a id="what-it-cannot-do-yet"></a>[What it cannot do yet](records/deployment-notes.md#what-it-cannot-do-yet) |
+| <a id="deploying-a-public-pramāṇa"></a>[Deploying a public Pramāṇa](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#deploying-a-public-pramāṇa) |
+| <a id="the-three-properties-that-make-this-safe"></a>[The three properties that make this safe](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#the-three-properties-that-make-this-safe) |
+| <a id="one-route-to-decide-about-before-a-public-deploy--check"></a>[One route to decide about before a public deploy — `/check`](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#one-route-to-decide-about-before-a-public-deploy--check) |
+| <a id="build-it"></a>[Build it](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#build-it) |
+| <a id="what-it-costs-to-host-honestly"></a>[What it costs to host, honestly](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#what-it-costs-to-host-honestly) |
+| <a id="what-it-cannot-do-yet"></a>[What it cannot do yet](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#what-it-cannot-do-yet) |

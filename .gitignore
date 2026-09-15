@@ -84,3 +84,12 @@ sources.public.lock.json
 
 # Temporary review artifacts
 *review*.json
+
+# Generated outputs of the independent Foundry Mix project, not review evidence.
+/foundry/cover/
+/foundry/doc/
+
+# Python bytecode caches can also be created by retained investigation scripts.
+__pycache__/
+*.pyc
+*.pyo
