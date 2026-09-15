@@ -94,7 +94,7 @@ defmodule Mix.Tasks.Pramana.Sc.Chinese do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
 
     unless File.dir?(Path.join(root, "root/lzh")) do
       Mix.raise("no root/lzh under #{root} — widen the sparse checkout, see the moduledoc")
@@ -231,7 +231,7 @@ defmodule Mix.Tasks.Pramana.Sc.Chinese do
       license_class: license.class,
       redistributable: license.redistributable,
       attribution: license.attribution,
-      source_file: Path.relative_to(file, File.cwd!()),
+      source_file: Pramana.Paths.record_source(file),
       meta:
         ordinals(anchor, %{
           "publication" => license.publication_id,

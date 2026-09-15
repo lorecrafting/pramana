@@ -45,8 +45,8 @@ defmodule Mix.Tasks.Pramana.Sat.Metadata do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    {:ok, catalogue} = SAT.catalogue(@index)
-    File.mkdir_p!(@out)
+    {:ok, catalogue} = SAT.catalogue(Pramana.Paths.data(@index))
+    File.mkdir_p!(Pramana.Paths.data(@out))
 
     outstanding = Enum.reject(catalogue, fn {w, v} -> File.exists?(path(w, v)) end)
     targets = if opts[:limit], do: Enum.take(outstanding, opts[:limit]), else: outstanding
@@ -100,7 +100,8 @@ defmodule Mix.Tasks.Pramana.Sat.Metadata do
     end
   end
 
-  defp path(work, volume), do: Path.join(@out, "#{work}_#{volume}_manifest.json")
+  defp path(work, volume),
+    do: Path.join(Pramana.Paths.data(@out), "#{work}_#{volume}_manifest.json")
 
   defp report([], _total), do: Mix.shell().info("\n  nothing fetched\n")
 

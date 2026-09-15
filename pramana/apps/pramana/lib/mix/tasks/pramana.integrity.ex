@@ -70,7 +70,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    texts = Repo.all(from t in Text, order_by: t.work_id) |> maybe_limit(opts[:limit])
+    texts = Repo.all(from(t in Text, order_by: t.work_id)) |> maybe_limit(opts[:limit])
 
     if texts == [], do: Mix.raise("nothing baked yet — run `mix pramana.bake_all` first")
 
@@ -97,7 +97,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     # such envelope — its markup IS its text — so it is checked by the per-work
     # addressability check above and by `mix pramana.verify`, not here.
     if Enum.any?(texts, &(&1.source_id == "derge")) do
-      {:ok, volumes} = Edition.volumes_at(@derge_root)
+      {:ok, volumes} = Edition.volumes_at(Pramana.Paths.data(@derge_root))
       {:ok, reconciliation} = Edition.reconcile(volumes)
 
       unexplained =
@@ -177,11 +177,11 @@ defmodule Mix.Tasks.Pramana.Integrity do
   defp check_text(%{source_id: "sc"} = text, totals) do
     # `Path.expand/1` for the same reason as `cbeta_paths/2`: relative since 2026-09-03,
     # absolute in rows baked before it, and this must read both without a re-bake.
-    {:ok, json} = File.read(Path.expand(text.meta["source_file"]))
+    {:ok, json} = File.read(Pramana.Paths.source(text.meta["source_file"]))
     {:ok, irs} = Bilara.normalize_file(json, witness: text.witness_id)
     ir = Enum.find(irs, &(&1.work_id == text.work_id))
 
-    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    segments = Repo.one(from(s in Segment, where: s.text_id == ^text.id, select: count(s.id)))
     blank = Enum.count(ir.lines, &(&1.text == ""))
     printed = length(ir.lines) - blank
 
@@ -216,7 +216,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     {:ok, manifest} = LocalManifest.load(dir)
     {:ok, ir} = LocalNormalizer.normalize(dir, manifest: manifest)
 
-    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    segments = Repo.one(from(s in Segment, where: s.text_id == ^text.id, select: count(s.id)))
     blank = Enum.count(ir.lines, &blank?/1)
     printed = length(ir.lines) - blank
 
@@ -258,13 +258,14 @@ defmodule Mix.Tasks.Pramana.Integrity do
     lb = bodies |> Enum.map(&count(&1, "<lb ")) |> Enum.sum()
     g_raw = bodies |> Enum.map(&count(&1, "<g ")) |> Enum.sum()
 
-    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    segments = Repo.one(from(s in Segment, where: s.text_id == ^text.id, select: count(s.id)))
 
     meta_gaiji =
       Repo.one(
-        from s in Segment,
+        from(s in Segment,
           where: s.text_id == ^text.id and fragment("? \\? 'gaiji'", s.meta),
           select: coalesce(sum(fragment("jsonb_array_length(? -> 'gaiji')", s.meta)), 0)
+        )
       ) || 0
 
     blank = Enum.count(ir.lines, &blank?/1)
@@ -306,7 +307,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     text.meta["source_file"]
     |> String.split(" ", trim: true)
     |> Enum.map(fn path ->
-      source = File.read!(path)
+      source = File.read!(Pramana.Paths.source(path))
       {volume_of(path, source, normalizer), source}
     end)
     |> Enum.sort_by(&elem(&1, 0))
@@ -330,7 +331,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
   defp check_derge(text, totals, normalizer) do
     {:ok, ir} = rederive_derge(text, normalizer)
 
-    segments = Repo.one(from s in Segment, where: s.text_id == ^text.id, select: count(s.id))
+    segments = Repo.one(from(s in Segment, where: s.text_id == ^text.id, select: count(s.id)))
     blank = Enum.count(ir.lines, &blank?/1)
     printed = length(ir.lines) - blank
 
@@ -375,7 +376,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
       # Both shapes: rows baked before 2026-09-03 hold an absolute path, and a re-bake is
       # not required to read them. `Path.expand/1` leaves an absolute path alone and
       # resolves a relative one against the repository, which is where a mix task runs.
-      paths when length(paths) == length(volumes) -> Enum.map(paths, &Path.expand/1)
+      paths when length(paths) == length(volumes) -> Enum.map(paths, &Pramana.Paths.source/1)
       # A recorded list that does not match the volume count is a text baked before the
       # two were kept in step; fall back rather than pair them up wrongly.
       _ -> Enum.map(volumes, &raw_path(text, &1))

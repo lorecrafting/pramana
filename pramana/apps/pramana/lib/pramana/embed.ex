@@ -106,7 +106,7 @@ defmodule Pramana.Embed do
   def weights_source do
     cond do
       not adapted?() -> {:ok, {:hf, @base_model}}
-      File.dir?(@local_model_dir) -> {:ok, {:local, @local_model_dir}}
+      File.dir?(local_model_dir()) -> {:ok, {:local, local_model_dir()}}
       true -> {:error, :adapted_weights_missing}
     end
   end
@@ -117,7 +117,7 @@ defmodule Pramana.Embed do
 
   @doc "Where adapted weights are expected on disk."
   @spec local_model_dir() :: String.t()
-  def local_model_dir, do: @local_model_dir
+  def local_model_dir, do: Pramana.Paths.data(@local_model_dir)
 
   @doc """
   Builds an `Nx.Serving` for the embedding model.
@@ -266,10 +266,11 @@ defmodule Pramana.Embed do
   # recorded would be expensive guesswork.
   defp pending_query(opts) do
     query =
-      from v in ChunkVector,
+      from(v in ChunkVector,
         where:
           is_nil(v.embedding) or v.embedding_model != ^@model or
             (not is_nil(v.embedding_max_length) and v.embedding_max_length != ^@max_length)
+      )
 
     query
     |> filter_kind(opts[:kind])
@@ -285,11 +286,12 @@ defmodule Pramana.Embed do
   def redo_query_for_export(opts) do
     source = Keyword.fetch!(opts, :source)
 
-    from v in ChunkVector,
+    from(v in ChunkVector,
       join: c in Chunk,
       on: c.id == v.chunk_id,
       join: t in assoc(c, :text),
       where: t.source_id == ^source
+    )
   end
 
   # A vector kind is worth embedding separately: `source` vectors are the corpus, and a
@@ -301,13 +303,14 @@ defmodule Pramana.Embed do
   defp filter_division(query, nil), do: query
 
   defp filter_division(query, division) do
-    from v in query,
+    from(v in query,
       join: c in Chunk,
       on: c.id == v.chunk_id,
       join: t in assoc(c, :text),
       join: w in Pramana.Corpus.Work,
       on: w.id == t.work_id,
       where: w.division == ^division
+    )
   end
 
   defp embed_batch(serving, batch) do

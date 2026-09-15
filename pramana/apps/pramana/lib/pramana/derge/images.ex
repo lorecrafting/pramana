@@ -61,7 +61,7 @@ defmodule Pramana.Derge.Images do
   to the volume number, which happens to work and is not a fact about anything.
   """
   @spec volumes(Path.t()) :: [{pos_integer(), String.t()}]
-  def volumes(root \\ @derge_root) do
+  def volumes(root \\ Pramana.Paths.data(@derge_root)) do
     case Edition.volumes_at(root) do
       {:ok, found} ->
         found
@@ -139,7 +139,10 @@ defmodule Pramana.Derge.Images do
   volume, folio and filename, which is all a link requires.
   """
   @spec build_index(Path.t(), Path.t()) :: {:ok, non_neg_integer()}
-  def build_index(manifests \\ @manifests_root, out \\ @index_path) do
+  def build_index(
+        manifests \\ Pramana.Paths.data(@manifests_root),
+        out \\ Pramana.Paths.project(@index_path)
+      ) do
     index =
       for {volume, group} <- volumes(),
           {:ok, manifest} <- [read_manifest(manifests, group)],
@@ -217,8 +220,11 @@ defmodule Pramana.Derge.Images do
   end
 
   defp load_index do
-    repo_root_path = Path.expand(@index_path, Path.join(__DIR__, "../../../../../"))
-    candidates = [@index_path, repo_root_path]
+    # Docker includes the tracked index in application priv for release lookup.
+    candidates = [
+      Pramana.Paths.project(@index_path),
+      Application.app_dir(:pramana, "priv/derge/folio_images.json")
+    ]
 
     Enum.find_value(candidates, fn path ->
       with {:ok, body} <- File.read(path),

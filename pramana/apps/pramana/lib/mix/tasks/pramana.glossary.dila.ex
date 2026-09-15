@@ -130,7 +130,7 @@ defmodule Mix.Tasks.Pramana.Glossary.Dila do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
     wanted = selected(opts[:only])
 
     unless File.dir?(root) do

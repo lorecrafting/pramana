@@ -1,5 +1,10 @@
 # Public deployment boundary
 
+**Source layout:** run Mix commands from `pramana/`. Build the image from the
+repository root with `docker build -t pramana ./pramana` (or `docker build -t pramana .`
+inside the product). The context excludes the sibling Foundry project by construction.
+[Layout migration](../../docs/LAYOUT_MIGRATION.md) describes existing data and rollback.
+
 This repository publishes a pipeline, not automatic redistribution rights to every
 source it can ingest. Source and translation license metadata are policy inputs;
 publication requires checking the actual applicable rights and conditions.
@@ -43,7 +48,7 @@ operations, backups, restore tests and an explicit deployment/rollback procedure
 
 ## Acceptance is broader than build success
 
-Run the relevant [checks](TESTING.md) against the actual candidate and target database.
+Run the relevant [checks](../../docs/TESTING.md) against the actual candidate and target database.
 Inspect `/inventory`, source visibility, direct URN resolution, the reader and MCP
 surfaces. Test query limits and capacity before exposing them. Read-only endpoints can
 still consume expensive resources and are not automatically safe from abuse.
@@ -59,7 +64,7 @@ retained as a record, not a current hosting recommendation.
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

@@ -1,7 +1,7 @@
 # Project history — chapter 3
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../HISTORY.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HISTORY.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ## The figures measured without isolation, re-run — 2026-09-03
 

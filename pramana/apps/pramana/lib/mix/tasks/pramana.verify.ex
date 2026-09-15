@@ -135,24 +135,25 @@ defmodule Mix.Tasks.Pramana.Verify do
   end
 
   defp sources_for(nil) do
-    Repo.all(from t in Text, select: t.source_id, distinct: true, order_by: t.source_id)
+    Repo.all(from(t in Text, select: t.source_id, distinct: true, order_by: t.source_id))
   end
 
   defp sources_for(source), do: [source]
 
   # Loads one chunk's bodies in a single query. See `@chunk`.
   defp load_texts(ids) do
-    Repo.all(from t in Text, where: t.id in ^ids, order_by: t.id, preload: [:work])
+    Repo.all(from(t in Text, where: t.id in ^ids, order_by: t.id, preload: [:work]))
   end
 
   # Counted through the SAME scope the run used, so the denominator cannot drift from the
   # numerator when `--source` narrows it.
   defp available_segments(source) do
     query =
-      from s in Segment,
+      from(s in Segment,
         join: t in Text,
         on: t.id == s.text_id,
         select: count(s.id)
+      )
 
     query
     |> then(fn q -> if source, do: where(q, [_s, t], t.source_id == ^source), else: q end)
@@ -301,7 +302,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   # One bilara file holds several works, so the work id alone cannot find its source.
   # The path is recorded at ingest for exactly this reason.
   defp reproduce_bilara(%{meta: %{"source_file" => path}} = text) when is_binary(path) do
-    with {:ok, json} <- File.read(path),
+    with {:ok, json} <- File.read(Pramana.Paths.source(path)),
          {:ok, irs} <- Bilara.normalize_file(json, witness: text.witness_id) do
       pick_work(irs, text.work_id, path)
     end
@@ -340,7 +341,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   end
 
   defp read_volume(path, normalizer) do
-    case File.read(path) do
+    case File.read(Pramana.Paths.source(path)) do
       {:ok, source} -> named(source, path, normalizer)
       {:error, reason} -> {:error, {:raw_unreadable, path, reason}}
     end
@@ -373,7 +374,10 @@ defmodule Mix.Tasks.Pramana.Verify do
   end
 
   defp reproduce_local(text) do
-    dir = Path.join(["sources", "local", String.replace_prefix(text.source_id, "local-", "")])
+    dir =
+      Pramana.Paths.project(
+        Path.join(["sources", "local", String.replace_prefix(text.source_id, "local-", "")])
+      )
 
     with {:ok, manifest} <- load_manifest(dir) do
       LocalNormalizer.normalize(dir, manifest: manifest)
@@ -415,7 +419,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   end
 
   defp read_raw(path) do
-    case File.read(path) do
+    case File.read(Pramana.Paths.source(path)) do
       {:ok, xml} -> {:ok, xml}
       {:error, reason} -> {:error, {:raw_unreadable, path, reason}}
     end
@@ -434,7 +438,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   end
 
   defp load_segments(text, :all, _seed) do
-    Repo.all(from s in Segment, where: s.text_id == ^text.id, order_by: s.ordinal)
+    Repo.all(from(s in Segment, where: s.text_id == ^text.id, order_by: s.ordinal))
   end
 
   # SEEDABLE, BECAUSE AN UNSEEDED SPOT CHECK CANNOT BE COMPARED WITH THE ONE BEFORE IT.
@@ -445,7 +449,7 @@ defmodule Mix.Tasks.Pramana.Verify do
   # `--all` remains the honest default for a published figure; the seed makes a *sample*
   # reproducible, which is a weaker and still useful thing.
   defp load_segments(text, n, seed) do
-    base = from s in Segment, where: s.text_id == ^text.id, limit: ^n
+    base = from(s in Segment, where: s.text_id == ^text.id, limit: ^n)
 
     base
     |> seeded_order(seed)

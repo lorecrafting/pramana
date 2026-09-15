@@ -108,7 +108,7 @@ defmodule Mix.Tasks.Pramana.Local.Add do
     }
 
     attrs =
-      if Repo.exists?(from w in Work, where: w.id == ^target) do
+      if Repo.exists?(from(w in Work, where: w.id == ^target)) do
         Map.put(attrs, :target_work_id, target)
       else
         Map.put(attrs, :target_work_ref, target)
@@ -136,7 +136,7 @@ defmodule Mix.Tasks.Pramana.Local.Add do
   end
 
   defp lock_entry(manifest, dir) do
-    text_dir = Path.join(dir, "text")
+    text_dir = Pramana.Paths.local_text_dir(dir)
 
     files =
       Enum.map(manifest.files, fn rel ->
@@ -163,7 +163,7 @@ defmodule Mix.Tasks.Pramana.Local.Add do
 
       {:ok, previous} ->
         old = Map.new(previous["files"] || [], &{&1["path"], &1["sha256"]})
-        text_dir = Path.join(dir, "text")
+        text_dir = Pramana.Paths.local_text_dir(dir)
 
         changed =
           Enum.filter(manifest.files, fn rel ->

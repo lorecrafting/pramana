@@ -1,5 +1,9 @@
 # Translation: implemented pool and proposed workflows
 
+**Working directory:** `pramana/` for the commands and source-relative paths below.
+Shared policy and the active plan remain at repository `docs/`. Existing corpus,
+models and virtualenvs are not moved: see [layout migration](../../docs/LAYOUT_MIGRATION.md).
+
 There is no single winning translation in the data model. The implemented pool keeps
 renderings anchored to source passages and lets callers supply a selection policy.
 This document separates that implementation from the larger
@@ -69,12 +73,12 @@ Likewise, `glossary_compliance` and `consensus_score` fields do not prove that a
 end-to-end scoring/promotion workflow is populated or enforced. Define and test that
 workflow before relying on it. Model agreement alone is not evidence of correctness.
 
-[Layers](LAYERS.md) · [GPU runbook](GPU_RUNBOOK.md) · [Testing](TESTING.md)
+[Layers](LAYERS.md) · [GPU runbook](GPU_RUNBOOK.md) · [Testing](../../docs/TESTING.md)
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

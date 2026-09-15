@@ -79,7 +79,7 @@ defmodule Mix.Tasks.Pramana.Bake do
         source_file:
           pipeline
           |> raw_paths(source, config, volumes, number)
-          |> Enum.map_join(" ", &Path.relative_to(&1, File.cwd!())),
+          |> Enum.map_join(" ", &Pramana.Paths.record_source(&1)),
         # THE CANON, not `pipeline.witness`. That registry field is a static "T", which was
         # indistinguishable from correct while the Taishō was the only CBETA collection
         # held. Baking a single X work through this path produced

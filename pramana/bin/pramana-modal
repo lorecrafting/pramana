@@ -16,15 +16,36 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV="$ROOT/priv/embed/.venv"
+DATA_ROOT="${PRAMANA_DATA_ROOT-$ROOT}"
+if [[ "$DATA_ROOT" != /* ]]; then
+  echo "PRAMANA_DATA_ROOT must be an absolute path" >&2
+  exit 2
+fi
+VENV="${PRAMANA_MODAL_VENV-$DATA_ROOT/priv/embed/.venv}"
+if [[ "$VENV" != /* ]]; then
+  echo "PRAMANA_MODAL_VENV must be an absolute path" >&2
+  exit 2
+fi
 
 if [ ! -x "$VENV/bin/modal" ]; then
   echo "Modal is not installed in $VENV" >&2
   echo >&2
   echo "Create it with:" >&2
-  echo "  /opt/homebrew/bin/python3 -m venv priv/embed/.venv" >&2
-  echo "  priv/embed/.venv/bin/pip install modal" >&2
+  echo "  python3 -m venv \"$VENV\"" >&2
+  echo "  \"$VENV/bin/pip\" install modal" >&2
   exit 1
 fi
 
-exec "$VENV/bin/modal" "$@"
+# Legacy root calls used `run priv/embed/name.py`; preserve that narrow alias
+# without changing arbitrary user paths or the working directory.
+args=("$@")
+for i in "${!args[@]}"; do
+  case "${args[$i]}" in
+    priv/embed/*.py)
+      if [ ! -e "${args[$i]}" ] && [ -f "$ROOT/${args[$i]}" ]; then
+        args[$i]="$ROOT/${args[$i]}"
+      fi
+      ;;
+  esac
+done
+exec "$VENV/bin/modal" "${args[@]}"

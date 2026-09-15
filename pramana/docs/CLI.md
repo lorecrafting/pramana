@@ -1,10 +1,14 @@
 # Pramāṇa CLI index
 
+**Working directory:** `pramana/` for the commands and source-relative paths below.
+Shared policy and the active plan remain at repository `docs/`. Existing corpus,
+models and virtualenvs are not moved: see [layout migration](../../docs/LAYOUT_MIGRATION.md).
+
 Commands are derived from task modules at the audit baseline, not from a design wish list.
 Use `mix help TASK` for current flags and prerequisites. These are **not all read-only**:
 ingestion, imports, acquisition, stamping, indexing and acceptance can mutate state or
 use paid services. Read the task before executing it. Foundry uses its separate
-[CLI and workflow contracts](../foundry/docs/README.md).
+[CLI and workflow contracts](../../foundry/docs/README.md).
 
 | Task | Source summary |
 |---|---|
@@ -71,5 +75,5 @@ use paid services. Read the task before executing it. Foundry uses its separate
 | [`mix pramana.witnesses.import`](../apps/pramana/lib/mix/tasks/pramana.witnesses.import.ex) | Records each text's witness sigla from its own pinned TEI header |
 | [`mix pramana.mcp.stdio`](../apps/pramana_web/lib/mix/tasks/pramana.mcp.stdio.ex) | Runs the Pramāṇa MCP server over stdio |
 
-This table establishes discoverability, not successful execution. [Testing](TESTING.md)
+This table establishes discoverability, not successful execution. [Testing](../../docs/TESTING.md)
 separates source-only checks from corpus and provider acceptance.

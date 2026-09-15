@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Run a Pramana command from its project root; every argument is inert argv data.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ "$#" -eq 0 ]; then
+  echo "usage: bin/pramana <command> [args...] (for example: bin/pramana mix test)" >&2
+  exit 2
+fi
+cd "$ROOT/pramana"
+exec "$@"

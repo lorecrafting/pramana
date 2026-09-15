@@ -20,7 +20,7 @@ defmodule Pramana.Normalize.CBETACorpusTest do
   @path "raw/cbeta/T/T09/T09n0262.xml"
 
   setup_all do
-    root = Application.get_env(:pramana, :project_root) || File.cwd!()
+    root = Pramana.Paths.data_root()
     xml = root |> Path.join(@path) |> File.read!()
     {:ok, ir} = CBETA.normalize(xml, work_id: "T0262", canon: "T", volume: 9, number: "0262")
     {:ok, xml: xml, ir: ir}

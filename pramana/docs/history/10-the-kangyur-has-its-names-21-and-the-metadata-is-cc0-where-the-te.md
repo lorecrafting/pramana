@@ -1,7 +1,7 @@
 # Project history — chapter 10
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../HISTORY.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HISTORY.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### The Kangyur has its names (#21) — and the metadata is CC0 where the text is not
 

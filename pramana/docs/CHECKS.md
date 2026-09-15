@@ -2,7 +2,7 @@
 
 Open only the chapter relevant to the task. The original heading links below are retained for callers and older documents.
 
-[Documentation](README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](TESTING.md)
+[Documentation](../../docs/README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](../../docs/TESTING.md)
 
 ## Chapters
 

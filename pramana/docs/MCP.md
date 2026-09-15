@@ -2,7 +2,7 @@
 
 Read-only research tools over the Pramāṇa domain. Registration lives in
 [server.ex](../apps/pramana_web/lib/pramana_web/mcp/server.ex); parameter schemas
-live in the [tool modules](../apps/pramana_web/lib/pramana_web/mcp/tools/).
+live in the [tool modules](../apps/pramana_web/lib/pramana_web/mcp/tools).
 Use discovery for exact schemas rather than treating prose examples as exhaustive.
 
 ## Tools
@@ -83,7 +83,7 @@ does not address all the state limitations above. Inspect the [report implementa
 
 A failure to find wording in the loaded corpus is not proof of fabrication. A genuine
 quotation is not proof of the attached interpretation. Generated text is not canonical
-source evidence; [the invariants](pramana/INVARIANTS.md) make these distinctions explicit.
+source evidence; [the invariants](INVARIANTS.md) make these distinctions explicit.
 
 ## Resources and transports
 
@@ -91,7 +91,7 @@ The registered resources describe the corpus guide and inventory. Resource capab
 advertisement and registration must both exist; inspect `server.ex` for current names.
 
 Stdio uses [bin/pramana-mcp](../bin/pramana-mcp) and the checked-in
-[.mcp.json](../.mcp.json) client example. The wrapper keeps build output off protocol
+[.mcp.json](../../.mcp.json) client example. The wrapper keeps build output off protocol
 stdout. Other clients/harnesses need their own supported configuration; provider choice
 alone does not imply that `.mcp.json` is automatically loaded.
 
@@ -100,12 +100,12 @@ it is not a client of that HTTP endpoint. External edition URLs are convenience
 links with their own verification metadata, not replacements for stored citation
 addresses or proof that a third-party page remains available.
 
-[Reader](READER.md) · [Testing](TESTING.md) · [Historical interface notes](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md)
+[Reader](READER.md) · [Testing](../../docs/TESTING.md) · [Historical interface notes](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/mcp-interface-notes.md)
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

@@ -42,7 +42,7 @@ defmodule Pramana.Local.Normalizer do
   @impl Pramana.Pipeline.Normalizer
   def normalize(dir, opts) do
     with {:ok, manifest} <- load_manifest(dir, opts) do
-      text_dir = Path.join(dir, "text")
+      text_dir = Pramana.Paths.local_text_dir(dir)
 
       lines =
         Enum.map(manifest.files, fn rel ->
@@ -72,7 +72,7 @@ defmodule Pramana.Local.Normalizer do
   @doc "How many running heads `normalize/2` would strip. Reported by the add task."
   @spec stripped_running_heads(Path.t(), Manifest.t()) :: non_neg_integer()
   def stripped_running_heads(dir, manifest) do
-    text_dir = Path.join(dir, "text")
+    text_dir = Pramana.Paths.local_text_dir(dir)
 
     Enum.count(manifest.files, fn rel ->
       {_line, dropped?} = to_line(rel, File.read!(Path.join(text_dir, rel)), manifest)

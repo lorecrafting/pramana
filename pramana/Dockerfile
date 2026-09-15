@@ -1,9 +1,9 @@
 # Pramāṇa — a public deployment.
 #
 # Two stages: a builder with the full Elixir/Rust toolchain, and a runtime image holding a
-# release and nothing else. The release carries no Mix, so a deployed node cannot acquire,
-# bake or ingest — `CLAUDE.md` invariant #7 becomes a property of the image rather than a
-# rule the router has to enforce.
+# release and nothing else. Mix commands do not ship. Database roles and the read-only
+# API contract still enforce access; removing Mix is not a database write prohibition.
+# Build from the repository with: docker build -t pramana ./pramana
 #
 # The corpus is NOT in this image and never will be. We publish the pipeline, not the
 # corpus; the database is external and is built by `mix pramana.public.bake`. See
@@ -24,9 +24,8 @@ RUN apt-get update -y && \
     apt-get install -y build-essential git curl ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Pinned rather than `stable`: a NIF that compiled yesterday and not today is the least
-# debuggable class of build failure, and this project pins its Elixir toolchain for the
-# same reason.
+# Rust remains selected as stable, matching the existing CI policy. Pinning its
+# exact version is separate reproducibility work, not silently changed by this move.
 ENV RUSTUP_HOME=/opt/rustup CARGO_HOME=/opt/cargo PATH=/opt/cargo/bin:$PATH
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
 
@@ -39,11 +38,13 @@ COPY mix.exs mix.lock ./
 COPY apps/pramana/mix.exs apps/pramana/
 COPY apps/pramana_web/mix.exs apps/pramana_web/
 COPY apps/pramana_native/mix.exs apps/pramana_native/
+COPY config config
 RUN mix deps.get --only prod && mix deps.compile
 
-COPY config config
 COPY apps apps
-RUN mix compile
+# This small tracked lookup is release metadata; corpus/manifests stay external.
+COPY priv/derge/folio_images.json apps/pramana/priv/derge/folio_images.json
+RUN mix compile --warnings-as-errors
 
 # Digested assets, so the release serves them with cache headers and a content hash.
 RUN mix assets.deploy

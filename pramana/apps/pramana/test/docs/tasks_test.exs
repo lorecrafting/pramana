@@ -47,7 +47,7 @@ defmodule Docs.TasksTest do
   end
 
   test "session diagnostics are discoverable without bloating the router" do
-    testing = File.read!(Path.join(@root, "docs/TESTING.md"))
+    testing = File.read!(Path.join(@root, "../docs/TESTING.md"))
     cli = File.read!(Path.join(@root, "docs/CLI.md"))
 
     for task <- ~w(pramana.doctor pramana.gate pramana.coherence pramana.recall) do

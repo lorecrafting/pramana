@@ -1,7 +1,7 @@
 # Project history — chapter 13
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../HISTORY.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../HISTORY.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ### What the fix did to the depth question (#10)
 

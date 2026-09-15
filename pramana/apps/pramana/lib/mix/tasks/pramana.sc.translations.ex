@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
     publications = publications(root)
     files = files(root, opts)
 
@@ -379,7 +379,7 @@ defmodule Mix.Tasks.Pramana.Sc.Translations do
       license_class: license.class,
       redistributable: license.redistributable,
       attribution: license.attribution,
-      source_file: Path.relative_to(file, File.cwd!()),
+      source_file: Pramana.Paths.record_source(file),
       meta: %{
         "publication" => license.publication_id,
         "root" => root,

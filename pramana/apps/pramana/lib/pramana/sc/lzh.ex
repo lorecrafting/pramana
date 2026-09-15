@@ -119,7 +119,7 @@ defmodule Pramana.Sc.Lzh do
   """
   @spec anchors(keyword()) :: {map(), map()}
   def anchors(opts \\ []) do
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
     only = Keyword.get(opts, :only)
 
     files =

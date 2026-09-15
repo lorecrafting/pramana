@@ -1,7 +1,7 @@
 # Why every proxy lied — chapter 2
 
 > Historical evidence. Statements and commands below describe their recorded context, not current operating instructions.
-> [Contents](../PROXIES.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../PROXIES.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ## The graph works as a candidate generator, and two proxies inside it lied — 2026-09-02
 

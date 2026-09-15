@@ -1,5 +1,9 @@
 # Pramāṇa and Foundry
 
+This product is the Mix umbrella in `pramana/`. Run its commands from this
+directory. [Existing-checkout migration](../docs/LAYOUT_MIGRATION.md) ·
+[Product documentation](docs/README.md) · [Repository home](../README.md)
+
 Two independent systems share this repository:
 
 **Pramāṇa** is an English-first, citation-grounded research substrate for Buddhist
@@ -16,21 +20,21 @@ or verified.
 
 | Reader | Entry point |
 |---|---|
-| Understand the repository | [Documentation index](docs/README.md) and [system map](docs/REPO_MAP.md) |
+| Understand the repository | [Documentation index](../docs/README.md) and [system map](../docs/REPO_MAP.md) |
 | Learn Pramāṇa from the ground up | [Chaptered primer](docs/PRIMER.md) |
 | Set up Pramāṇa | [Development environment](docs/DEV_ENV.md) |
 | Use research tools or the reader | [MCP](docs/MCP.md) and [reader](docs/READER.md) |
-| Work on Foundry | [Foundry overview](foundry/README.md) and [documentation](foundry/docs/README.md) |
-| Contribute with any model provider | [AGENTS.md](AGENTS.md), the shared routing entry point |
+| Work on Foundry | [Foundry overview](../foundry/README.md) and [documentation](../foundry/docs/README.md) |
+| Contribute with any model provider | [AGENTS.md](../AGENTS.md), the shared routing entry point |
 
 ## Pramāṇa's boundary
 
-The root is an Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF,
+This product root is an Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF,
 standalone Rust text-reuse scanner and Python inference/training helpers.
 The MCP surface is read-only; ingestion and other corpus mutations are CLI operations.
 The reader has search, inventory, survey, passage, work and report-checking screens.
 See the source-backed [architecture](docs/ARCHITECTURE.md), [CLI index](docs/CLI.md)
-and [testing guide](docs/TESTING.md), rather than duplicate tool/version counts here.
+and [testing guide](../docs/TESTING.md), rather than duplicate tool/version counts here.
 
 Source records cover Chinese, Pāli and Tibetan material, but neither corpus nor index
 coverage is complete. [STATUS.md](docs/STATUS.md) contains generated figures from the
@@ -46,7 +50,7 @@ immutable, coexistent-snapshot database or a guarantee of identical search repla
 
 Foundry is not an umbrella app and does not require the research corpus for its
 model-free build/tests. Its README describes current execution containment.
-Resume repair work from the [repair plan](foundry/docs/REPAIR-PLAN.md), not from the
+Resume repair work from the [repair plan](../foundry/docs/REPAIR-PLAN.md), not from the
 historical migration-ticket sequence. Provider-neutral repository guidance does not
 bypass launch authorization, billing isolation or backend conformance.
 
@@ -57,4 +61,4 @@ Sources and translations have distinct license metadata. `raw/` and live runtime
 are not tracked. A public deployment needs the intended dataset, verified permissions
 and the [public deployment checks](docs/DEPLOY.md).
 
-[Documentation audit and limitations](docs/audits/2026-09-15/README.md)
+[Documentation audit and limitations](../docs/audits/2026-09-15/README.md)

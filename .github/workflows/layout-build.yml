@@ -1,0 +1,52 @@
+name: Pramana layout build
+on:
+  pull_request:
+    paths:
+      - "pramana/**"
+      - ".github/workflows/layout-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "pramana/**"
+      - ".github/workflows/layout-build.yml"
+permissions:
+  contents: read
+concurrency:
+  group: layout-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check independent native crates at their actual project paths
+        run: |
+          cargo test --locked --manifest-path pramana/native/quotations/Cargo.toml
+          cargo check --locked --manifest-path pramana/apps/pramana_native/native/pramana_native/Cargo.toml
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build assets, NIF and release from the isolated product context
+        run: docker build --tag pramana-layout:${{ github.sha }} ./pramana
+      - name: Inspect packaged assets and execute the release NIF without a database
+        run: |
+          docker run --rm --entrypoint /app/bin/pramana \
+            -e DATABASE_URL=ecto://unused:unused@127.0.0.1/unused \
+            -e SECRET_KEY_BASE=layout-smoke-not-a-secret-012345678901234567890123456789012345678901234567890 \
+            pramana-layout:${{ github.sha }} eval '
+              text = "如是我聞 བོད་";
+              if PramanaNative.echo(text) != text, do: raise("native round trip failed");
+              Jason.decode!(File.read!(Application.app_dir(:pramana, "priv/derge/folio_images.json")));
+              assets = Application.app_dir(:pramana_web, "priv/static/cache_manifest.json");
+              Jason.decode!(File.read!(assets));
+              if File.exists?("/app/foundry") or File.exists?("/app/raw"), do: raise("unexpected sibling/data");
+              IO.puts("release NIF, folio metadata and asset manifest verified without application startup")
+            '

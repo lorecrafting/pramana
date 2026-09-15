@@ -1,5 +1,9 @@
 # Sources
 
+**Working directory:** `pramana/` for the commands and source-relative paths below.
+Shared policy and the active plan remain at repository `docs/`. Existing corpus,
+models and virtualenvs are not moved: see [layout migration](../../docs/LAYOUT_MIGRATION.md).
+
 > Source catalog plus dated acquisition notes. A listed upstream is not necessarily acquired, licensed for your intended use, or fully ingested. Check the source registry, lockfile, task code and the actual database; external terms and remote availability were not reverified by the documentation audit.
 
 All four traditions land in v1. Ordered by ingest difficulty — do them in this order,
@@ -294,7 +298,7 @@ one of them is freely redistributable and the other is not.
 **`84000` — Translating the Words of the Buddha** (`CC-BY-NC-ND-3.0`)
 - `https://github.com/84000/data-tei` — TEI, plus an API and an RDF metadata export
 - Kangyur/Tengyur **English translations**, Toh numbers, Derge folio references. A
-  `translation` layer, never a source: [the shared invariants](pramana/INVARIANTS.md) invariant #7.
+  `translation` layer, never a source: [the shared invariants](INVARIANTS.md) invariant #7.
 - Ships a **Skt–Tib–Eng glossary** — a direct cross-lingual anchor for alignment
 - Coverage is partial and growing; treat completeness as a moving target
 - **The first ND source in this corpus.** `sources.derivatives` exists because of it —
