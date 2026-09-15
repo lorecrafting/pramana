@@ -29,8 +29,6 @@ jobs:
           changed = set(subprocess.check_output(['git','diff','--name-only',moved,'HEAD'], text=True).splitlines())
           assert changed <= allowed, f'Unexpected source changes: {changed - allowed}'
           parts = [Path(f'.github/layout-replay-part{i}.b64').read_text().strip() for i in range(1,4)]
-          # One known transport-only duplicate was identified by the complete blob hash.
-          # The decoded reviewed program must still match the exact local SHA-256.
           assert parts[1].count('VKFiK1WF') == 1
           parts[1] = parts[1].replace('VKFiK1WF', 'VKFi1WF')
           source = bz2.decompress(base64.b64decode(''.join(parts), validate=True))
@@ -38,6 +36,23 @@ jobs:
           script = Path('/tmp/layout-replay.py')
           script.write_bytes(source)
           subprocess.run(['python',str(script)], check=True)
+          # Directory links need prefix relocation in addition to the file map.
+          fixes = {
+            'docs/audits/2026-09-15/README.md': [('](../../../native/quotations)', '](../../../pramana/native/quotations)'), ('](../../../priv/embed)', '](../../../pramana/priv/embed)')],
+            'docs/strategy/RECONCILIATION.md': [('](../../native/quotations/)', '](../../pramana/native/quotations/)')],
+            'pramana/apps/pramana_native/README.md': [('](../../../apps/pramana_native/native/pramana_native)', '](native/pramana_native)'), ('](../../../native/quotations)', '](../../native/quotations)')],
+            'pramana/docs/ARCHITECTURE.md': [('](../../apps/pramana/lib/pramana/'+p+')', '](../apps/pramana/lib/pramana/'+p+')') for p in ['acquire','normalize','segment']],
+            'pramana/docs/EMBEDDING.md': [('](../../apps/pramana/lib/pramana/embed)', '](../apps/pramana/lib/pramana/embed)')],
+            'pramana/docs/GPU_RUNBOOK.md': [('](../../priv/embed)', '](../priv/embed)')],
+            'pramana/docs/LAYERS.md': [('](../../apps/pramana/lib/pramana/readings)', '](../apps/pramana/lib/pramana/readings)')],
+            'pramana/docs/MCP.md': [('](../../apps/pramana_web/lib/pramana_web/mcp/tools)', '](../apps/pramana_web/lib/pramana_web/mcp/tools)')]
+          }
+          for name, edits in fixes.items():
+              path=Path(name); text=path.read_text()
+              for old,new in edits:
+                  assert text.count(old)==1, (name,old)
+                  text=text.replace(old,new)
+              path.write_text(text)
           subprocess.run(['git','diff','--exit-code','--','.github/workflows'], check=True)
           PY
       - name: Stage owned paths and format only changed Elixir files
