@@ -1,0 +1,29 @@
+name: Layout source snapshot
+on:
+  push:
+    branches: [audit/sibling-layout-source-2026-09-15]
+    paths: [.github/workflows/layout-source-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Archive reviewed baseline only, without executing project code
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/layout-source"
+          git archive --format=tar 8d4e8ee5513dc631538f638fdf53e0678c8dc370 > "$RUNNER_TEMP/layout-source/source.tar"
+          git ls-tree -r -z 8d4e8ee5513dc631538f638fdf53e0678c8dc370 > "$RUNNER_TEMP/layout-source/tree.nul"
+          git bundle create "$RUNNER_TEMP/layout-source/source.bundle" --all
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sibling-layout-source
+          path: ${{ runner.temp }}/layout-source
+          retention-days: 1
+          if-no-files-found: error
