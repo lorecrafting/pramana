@@ -524,7 +524,7 @@ defmodule PramanaFoundry.CLI do
       end
     else
       {:error, msg} ->
-        IO.puts( msg)
+        IO.puts(msg)
         raise "usage error"
     end
   end

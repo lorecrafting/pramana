@@ -66,7 +66,14 @@ defmodule PramanaFoundry.SystemMetrics do
         nil
 
       pid ->
-        info = Process.info(pid, [:memory, :message_queue_len, :reductions, :heap_size, :total_heap_size])
+        info =
+          Process.info(pid, [
+            :memory,
+            :message_queue_len,
+            :reductions,
+            :heap_size,
+            :total_heap_size
+          ])
 
         %{
           "pid" => inspect(pid),

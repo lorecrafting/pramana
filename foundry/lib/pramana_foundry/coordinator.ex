@@ -321,7 +321,11 @@ defmodule PramanaFoundry.Coordinator do
     {:reply, :ok, %{data | state: CoordState.request_stop(state)}}
   end
 
-  def handle_call({:unblock_ticket, task_id}, _from, %{state: state, event_log_path: event_log_path} = data) do
+  def handle_call(
+        {:unblock_ticket, task_id},
+        _from,
+        %{state: state, event_log_path: event_log_path} = data
+      ) do
     assignment = get_in(state, ["assignments", task_id])
 
     cond do
@@ -329,8 +333,8 @@ defmodule PramanaFoundry.Coordinator do
         {:reply, {:error, "unknown assignment: #{task_id}"}, data}
 
       assignment["status"] != "parked" ->
-        {:reply,
-         {:error, "task #{task_id} is not parked (status: #{assignment["status"]})"}, data}
+        {:reply, {:error, "task #{task_id} is not parked (status: #{assignment["status"]})"},
+         data}
 
       true ->
         run_id = Map.get(assignment, "run_id", "pending")

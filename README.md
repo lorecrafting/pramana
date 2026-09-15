@@ -83,6 +83,36 @@ All five are scored independently and gated as a ratchet. See `docs/PLAN.md` § 
 
 ---
 
+## Quickstart
+
+### 1. Prerequisites
+- **Erlang & Elixir**: Pinned in [`mise.toml`](mise.toml) (Erlang 29.0.5, Elixir 1.20.3)
+- **PostgreSQL 18** with `pgvector` and `pg_bigm` (see [`docs/DEV_ENV.md`](docs/DEV_ENV.md))
+- **Rust toolchain** (for CJK segmentation NIF)
+
+### 2. Setup & Compile
+```bash
+mix deps.get
+mix compile
+mix ecto.setup
+```
+
+### 3. Acquire & Bake Data
+The corpus is content-addressed and pinned in [`sources.lock.json`](sources.lock.json). Acquire and bake the texts:
+```bash
+mix pramana.acquire_all       # downloads upstream sources to raw/
+mix pramana.bake_all          # normalizes & segments Chinese works
+mix pramana.sc.ingest         # ingests SuttaCentral Pāli root texts
+mix pramana.sc.translations   # loads aligned English translations
+```
+
+For query embeddings, download the fine-tuned BGE-M3 weights (see [`docs/GPU_RUNBOOK.md`](docs/GPU_RUNBOOK.md)):
+```bash
+mix pramana.embed.fetch_model # pulls weights into priv/models/ from storage
+```
+
+---
+
 ## Reading it as a person
 
 ```bash
