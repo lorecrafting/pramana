@@ -1,0 +1,26 @@
+name: Layout validation toolchain
+on:
+  push:
+    branches: [audit/sibling-layout-source-2026-09-15]
+    paths: [.github/workflows/layout-toolchain.yml]
+permissions:
+  contents: read
+jobs:
+  toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+          install-hex: false
+          install-rebar: false
+      - name: Package the pinned validation toolchain, no project or credentials
+        run: tar -czf "$RUNNER_TEMP/layout-beam.tar.gz" -C "$(dirname "$INSTALL_DIR_FOR_OTP")" otp elixir
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: layout-beam
+          path: ${{ runner.temp }}/layout-beam.tar.gz
+          retention-days: 1
+          if-no-files-found: error
