@@ -50,7 +50,10 @@ Repository provider-neutrality does not rewrite their launch/billing or repair c
 
 [Plan navigation](PLAN_INDEX.md) opens specific sections of the unchanged shared
 [plan](PLAN.md). [Roadmap](ROADMAP.md) describes phases, not runtime guarantees.
-[Product strategy](PRODUCT_STRATEGY.md) is intentionally outside this audit's substantive scope.
+[Product strategy](PRODUCT_STRATEGY.md) proposes the post-repair direction for both systems.
+Its [strategic roadmap](strategy/ROADMAP.md), [decision register](strategy/DECISIONS.md) and
+[research register](strategy/RESEARCH.md) inform later planning; they do not admit tickets
+or supersede Foundry repair authority.
 
 [Model-reader alternatives](AGENT_MODELS.md), [harness proposals](HARNESS.md),
 [ideas](IDEAS.md), [competitive research](COMPETITIVE.md) and the
