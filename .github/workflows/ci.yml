@@ -12,7 +12,7 @@
 #
 # So the split is honest rather than incidental:
 #
-#   here          format, credo, 1,158 tests            ~4 min, every push
+#   here          format, credo, tests, dependency checks
 #   on a machine  mix pramana.gate                      verify, integrity, evals, lockfile
 #                 with the bake
 #
@@ -35,6 +35,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: pramana
 
     services:
       postgres:
@@ -73,8 +77,8 @@ jobs:
           elixir-version: "1.20.3-otp-29"
 
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
-      # Pinned to the same 1.83.0 as the Dockerfile — a NIF that compiles today and
-      # not tomorrow is the least debuggable class of build failure.
+      # Existing policy is floating stable, also used by the Dockerfile.
+      # An exact Rust pin is a separate reproducibility decision.
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install pg_bigm
@@ -94,13 +98,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            deps
-            _build
-            priv/plts
+            pramana/deps
+            pramana/_build
+            pramana/priv/plts
             ~/.cargo
-            apps/pramana_native/native/pramana_native/target
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+            pramana/apps/pramana_native/native/pramana_native/target
+            pramana/native/quotations/target
+          key: ${{ runner.os }}-pramana-sibling-v1-${{ hashFiles('pramana/mix.lock', 'pramana/**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-pramana-sibling-v1-
 
       - run: mix deps.get
 
@@ -111,6 +116,8 @@ jobs:
       - run: mix format --check-formatted
 
       - run: mix credo --strict
+
+      - run: mix test
 
       - name: Deps audit
         run: mix deps.audit
@@ -123,6 +130,5 @@ jobs:
           if ! command -v cargo-audit &>/dev/null; then
             cargo install cargo-audit --locked
           fi
-          cargo audit
-
-      - run: mix test
+          (cd apps/pramana_native/native/pramana_native && cargo audit)
+          (cd native/quotations && cargo audit)
