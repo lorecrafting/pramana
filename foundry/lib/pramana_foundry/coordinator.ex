@@ -324,7 +324,7 @@ defmodule PramanaFoundry.Coordinator do
   def handle_call(
         {:unblock_ticket, task_id},
         _from,
-        %{state: state, event_log_path: event_log_path} = data
+        %{state: state} = data
       ) do
     assignment = get_in(state, ["assignments", task_id])
 
@@ -338,11 +338,6 @@ defmodule PramanaFoundry.Coordinator do
 
       true ->
         run_id = Map.get(assignment, "run_id", "pending")
-
-        Checkpoint.append(event_log_path, "ticket_re_enqueued", task_id, run_id, "system", %{
-          "reason" => "manual_unblock",
-          "previous_status" => "parked"
-        })
 
         updated =
           assignment
@@ -358,7 +353,18 @@ defmodule PramanaFoundry.Coordinator do
           |> Map.put("assignments", Map.put(state["assignments"], task_id, updated))
           |> Map.put("queue", updated_queue)
 
-        {:reply, :ok, %{data | state: new_state}}
+        persist_call(
+          data,
+          "ticket_re_enqueued",
+          task_id,
+          run_id,
+          "system",
+          %{
+            "reason" => "manual_unblock",
+            "previous_status" => "parked"
+          },
+          fn -> {:reply, :ok, %{data | state: new_state}} end
+        )
     end
   end
 
