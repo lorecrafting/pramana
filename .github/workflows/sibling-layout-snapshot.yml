@@ -1,0 +1,28 @@
+name: Sibling layout source snapshot
+on:
+  push:
+    branches: [work/sibling-layout-snapshot-2026-09-15]
+    paths: [.github/workflows/sibling-layout-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Capture committed source without running project code
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/layout-source"
+          git bundle create "$RUNNER_TEMP/layout-source/repository.bundle" HEAD
+          git rev-parse HEAD > "$RUNNER_TEMP/layout-source/commit.txt"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sibling-layout-source
+          path: ${{ runner.temp }}/layout-source
+          retention-days: 1
+          if-no-files-found: error
