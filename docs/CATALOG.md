@@ -216,3 +216,16 @@ strategy retain their separate owners.
 ## Other inventoried text
 
 [Reader robots.txt](../apps/pramana_web/priv/static/robots.txt) is a static asset, not an authorization boundary.
+
+## Product strategy chapters
+
+The [strategy overview](PRODUCT_STRATEGY.md) owns strategic routing. These chapters
+are proposals and evidence records, not active execution tickets.
+
+- [`docs/strategy/PRAMANA.md`](strategy/PRAMANA.md)
+- [`docs/strategy/FOUNDRY.md`](strategy/FOUNDRY.md)
+- [`docs/strategy/ROADMAP.md`](strategy/ROADMAP.md)
+- [`docs/strategy/VALIDATION.md`](strategy/VALIDATION.md)
+- [`docs/strategy/DECISIONS.md`](strategy/DECISIONS.md)
+- [`docs/strategy/RESEARCH.md`](strategy/RESEARCH.md)
+- [`docs/strategy/RECONCILIATION.md`](strategy/RECONCILIATION.md)
