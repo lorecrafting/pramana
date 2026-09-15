@@ -1,0 +1,26 @@
+[
+  {
+    "name": "small_worker",
+    "canonical": {"schema_version": 1, "task_id": "T1", "run_id": "r1", "role": "developer", "assignment_path": "/state/a.json", "ticket": {"scope": ["workflow/**"], "required_checks": [["mix", "test"]], "evidence": ["short"]}, "historical_snapshot": [{"event": "queued", "detail": "retained only in canonical durable authority"}]},
+    "projection": {"projection_version": 1, "task_id": "T1", "run_id": "r1", "role": "developer", "assignment_path": "/state/a.json", "ticket": {"scope": ["workflow/**"], "required_checks": [["mix", "test"]], "evidence": ["short"]}},
+    "required_projection_paths": ["task_id", "run_id", "role", "assignment_path", "ticket.scope", "ticket.required_checks", "ticket.evidence"]
+  },
+  {
+    "name": "large_pm_history_heavy",
+    "canonical": {"schema_version": 1, "task_id": "PM", "run_id": "pm1", "role": "pm", "accepted_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "proposal_path": "/state/p.json", "allowed_operations": ["create", "park"], "planning_context": {"queue": ["T1", "T2"], "assignments": [{"task_id": "T1", "history": ["queued with extensive historical evidence and repeated scheduling diagnostics", "blocked with extensive historical evidence and repeated scheduling diagnostics", "recovered with extensive historical evidence and repeated scheduling diagnostics"]}, {"task_id": "T2", "history": ["queued with extensive historical evidence and repeated scheduling diagnostics", "reviewed with extensive historical evidence and repeated scheduling diagnostics", "integrated with extensive historical evidence and repeated scheduling diagnostics"]}]}},
+    "projection": {"projection_version": 1, "task_id": "PM", "run_id": "pm1", "role": "pm", "accepted_revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "proposal_path": "/state/p.json", "allowed_operations": ["create", "park"], "planning_context": {"queue": ["T1", "T2"], "assignment_summaries": [{"task_id": "T1"}, {"task_id": "T2"}]}},
+    "required_projection_paths": ["task_id", "run_id", "role", "accepted_revision", "proposal_path", "allowed_operations", "planning_context.queue"]
+  },
+  {
+    "name": "blocked_recovery",
+    "canonical": {"schema_version": 1, "task_id": "T2", "run_id": "r2", "role": "developer", "status": "blocked", "reason": "immutable scope prevents completion", "diagnostic_evidence": ["exact observed evidence", "prior attempt evidence retained in canonical record"], "artifact_history": [{"path": "/archive/one", "digest": "aaaaaaaa"}, {"path": "/archive/two", "digest": "bbbbbbbb"}]},
+    "projection": {"projection_version": 1, "task_id": "T2", "run_id": "r2", "role": "developer", "status": "blocked", "reason": "immutable scope prevents completion", "diagnostic_evidence": ["exact observed evidence"]},
+    "required_projection_paths": ["task_id", "run_id", "role", "status", "reason", "diagnostic_evidence"]
+  },
+  {
+    "name": "review_record",
+    "canonical": {"schema_version": 1, "task_id": "T3", "run_id": "r3", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "verdict": "approved", "findings": [], "checks": [{"command": ["mix", "test"], "exit_code": 0}], "remaining_risks": []},
+    "projection": {"schema_version": 1, "projection_version": 1, "task_id": "T3", "run_id": "r3", "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "verdict": "approved", "findings": [], "checks": [{"command": ["mix", "test"], "exit_code": 0}], "remaining_risks": []},
+    "required_projection_paths": ["task_id", "run_id", "commit", "verdict", "findings", "checks", "remaining_risks"]
+  }
+]

@@ -1,0 +1,236 @@
+defmodule Pramana.Evals.Case do
+  @moduledoc """
+  One gold-set question, and what a correct answer to it looks like.
+
+  Cases are JSONL — one per line — so a malformed case fails alone rather than taking the
+  file with it, and a diff names exactly which question changed.
+
+  Every case carries a `source` field naming **how its expected answer was established**.
+  That is not documentation: a published number is only meaningful if a reader can see
+  where the ground truth came from, and a case whose provenance is "someone thought so"
+  should be visible as such next to one whose provenance is SuttaCentral's curated
+  parallels.
+  """
+
+  @type type ::
+          :retrieval
+          | :topical
+          | :quote_verify
+          | :quote_reject
+          | :provenance
+          | :absence
+          | :rendering
+          | :gloss
+
+  @type t :: %__MODULE__{
+          id: String.t(),
+          type: type(),
+          query: String.t() | nil,
+          urn: String.t() | nil,
+          quote: String.t() | nil,
+          expect_urns: [String.t()],
+          expect_contains: [String.t()],
+          expect_provenance: map(),
+          forbid_works: [String.t()],
+          expect_empty: boolean(),
+          # Every hit must carry this composition origin. Tests a provenance FILTER
+          # directly, rather than through whether the corpus happens to hold anything the
+          # filter admits — see the absence cases in `evals/gold/absence.jsonl`.
+          expect_origin: [String.t()],
+          k: pos_integer(),
+          search_opts: keyword(),
+          tradition: String.t() | nil,
+          # Links cases that ask the SAME question of different canons, so "was the user
+          # answered at all" can be computed without losing "is this canon reachable".
+          topic: String.t() | nil,
+          adversarial: boolean(),
+          source: String.t() | nil,
+          note: String.t() | nil,
+          origin: {String.t(), pos_integer()}
+        }
+
+  defstruct [
+    :id,
+    :type,
+    :query,
+    :urn,
+    :quote,
+    :tradition,
+    :topic,
+    :source,
+    :note,
+    :origin,
+    expect_urns: [],
+    expect_contains: [],
+    expect_provenance: %{},
+    forbid_works: [],
+    expect_empty: false,
+    expect_origin: [],
+    k: 10,
+    search_opts: [],
+    adversarial: false
+  ]
+
+  # Literal atoms, for the reason given at `@provenance_keys`: `String.to_existing_atom/1`
+  # depends on what the VM has already loaded, which makes it a load-order bug waiting to
+  # happen rather than a validation.
+  @type_map %{
+    "retrieval" => :retrieval,
+    "topical" => :topical,
+    "quote_verify" => :quote_verify,
+    "quote_reject" => :quote_reject,
+    "provenance" => :provenance,
+    "absence" => :absence,
+    # Does an English question reach the translation layer? Scored separately from
+    # `retrieval` because it asks a different thing: not "find the passage" but "find the
+    # rendering that uses these words", whose answer is a rendering and is never citable
+    # as the passage. Folding it into `retrieval` would average a source-citation number
+    # together with a paraphrase-lookup number and publish the mean.
+    "rendering" => :rendering,
+    # Does the deterministic 科文 alignment attach the expected commentary to this root
+    # line? The claim is exact, so a miss is a real miss rather than a ranking question —
+    # there is no k here.
+    #
+    # A REGRESSION DETECTOR, NOT A QUALITY MEASUREMENT, and the difference must not be lost
+    # when the number is read. These cases are derived from the alignment's own output,
+    # because no mechanical ground truth exists for which commentary explains which line —
+    # that is a scholar's judgement and the corpus does not record it. So 100% means "the
+    # alignment still says what it said", never "the alignment is right". It will catch a
+    # normalizer change that shifts offsets or a re-bake that drops a pair, which is worth
+    # having; it cannot tell you the method works. What can, and did, is the null set: 0 of
+    # 120 unrelated pairs cleared the density floor. See `Pramana.Commentary`.
+    "gloss" => :gloss
+  }
+
+  @types Map.keys(@type_map)
+
+  @doc "The recognised case types."
+  @spec types() :: [String.t()]
+  def types, do: @types
+
+  @doc "The atom for a case-type name."
+  @spec type_atom(String.t()) :: type()
+  def type_atom(name), do: Map.fetch!(@type_map, name)
+
+  @doc """
+  Parses one JSONL line into a case, raising with the file and line on bad input.
+
+  Raising rather than skipping: a gold set that silently drops the cases it cannot parse
+  reports a score over fewer questions than it claims, which is a quiet way to make a
+  number look better than it is.
+  """
+  @spec parse!(String.t(), String.t(), pos_integer()) :: t()
+  def parse!(line, path, line_number) do
+    data = Jason.decode!(line)
+    type_name = fetch!(data, "type", path, line_number)
+
+    type =
+      case Map.fetch(@type_map, type_name) do
+        {:ok, type} ->
+          type
+
+        :error ->
+          raise ArgumentError, "#{path}:#{line_number}: unknown case type #{inspect(type_name)}"
+      end
+
+    %__MODULE__{
+      id: fetch!(data, "id", path, line_number),
+      type: type,
+      query: data["query"],
+      urn: data["urn"],
+      quote: data["quote"],
+      expect_urns: List.wrap(data["expect_urns"] || data["expect_urn"]),
+      # A topical case asserts that a returned passage CONTAINS this term, rather than
+      # naming anchors. "Where does the canon discuss the four noble truths" has hundreds
+      # of correct answers; listing them all would be unwieldy and listing one would be
+      # arbitrary. The term is the ground truth, and a reader can check it by searching
+      # for the same string.
+      expect_contains: List.wrap(data["expect_contains"]),
+      expect_provenance: atomize(data["expect_provenance"] || %{}),
+      forbid_works: List.wrap(data["forbid_works"] || []),
+      expect_empty: data["expect_empty"] == true,
+      expect_origin: List.wrap(data["expect_origin"] || []),
+      k: data["k"] || 10,
+      search_opts: search_opts(data["search_opts"] || %{}),
+      tradition: data["tradition"],
+      topic: data["topic"],
+      adversarial: data["adversarial"] == true,
+      source: data["source"],
+      note: data["note"],
+      origin: {path, line_number}
+    }
+  end
+
+  defp fetch!(data, key, path, line) do
+    case Map.fetch(data, key) do
+      {:ok, value} -> value
+      :error -> raise ArgumentError, "#{path}:#{line}: missing #{inspect(key)}"
+    end
+  end
+
+  # Provenance keys are atoms in a span, and the gold set is JSON. Mapped through LITERAL
+  # atoms rather than `String.to_existing_atom/1`, which is the third time this codebase
+  # has been caught by that function: it raises unless the atom already exists, and
+  # whether it exists depends on which modules the VM happens to have loaded — so the
+  # same input works after a search and fails on a cold start. A literal map creates the
+  # atoms at compile time and cannot be surprised. It also keeps the property that
+  # matters: gold-set data can never mint an atom.
+  @provenance_keys %{
+    "composition_origin" => :composition_origin,
+    "text_role" => :text_role,
+    "attribution_confidence" => :attribution_confidence,
+    "addressing" => :addressing,
+    "division" => :division,
+    "source" => :source,
+    "witness" => :witness,
+    "license_class" => :license_class,
+    "work_id" => :work_id
+  }
+
+  defp atomize(map) do
+    Map.new(map, fn {k, v} ->
+      case Map.fetch(@provenance_keys, k) do
+        {:ok, key} -> {key, v}
+        :error -> raise ArgumentError, "unknown provenance key #{inspect(k)} in gold case"
+      end
+    end)
+  end
+
+  # Search options likewise: an explicit map, because `String.to_existing_atom/1` on a
+  # caller-supplied key has crashed this codebase twice on module load order.
+  @search_keys %{
+    "origin" => :origin,
+    "role" => :role,
+    "division" => :division,
+    "work_id" => :work_id,
+    "exclude_origin" => :exclude_origin,
+    "redistributable_only" => :redistributable_only,
+    "license_class" => :license_class,
+    "vector_kinds" => :vector_kinds,
+    "mode" => :mode,
+    "lexical_only" => :lexical_only,
+    "semantic_only" => :semantic_only
+  }
+
+  defp search_opts(map) do
+    Enum.map(map, fn {k, v} ->
+      case Map.fetch(@search_keys, k) do
+        {:ok, key} -> {key, decode_value(key, v)}
+        :error -> raise ArgumentError, "unknown search option #{inspect(k)} in gold case"
+      end
+    end)
+  end
+
+  # `mode` is an atom in the retriever's API and a string in JSON.
+  defp decode_value(:mode, value) when is_binary(value) do
+    case value do
+      "auto" -> :auto
+      "phrase" -> :phrase
+      "ngram" -> :ngram
+      "terms" -> :terms
+      other -> raise ArgumentError, "unknown search mode #{inspect(other)} in gold case"
+    end
+  end
+
+  defp decode_value(_key, value), do: value
+end

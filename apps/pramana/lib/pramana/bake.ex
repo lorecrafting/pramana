@@ -1,0 +1,182 @@
+defmodule Pramana.Bake do
+  @moduledoc """
+  Bake identity: `bake_id = sha256(sources.lock + pipeline_version + config)`.
+
+  See `docs/ARCHITECTURE.md`, "Stage 5 — Freeze". Two people with the same `bake_id` hold
+  byte-identical **source text**, which is what makes a citation reproducible years later.
+
+  ## ▸ WHAT IT DOES NOT IDENTIFY — 2026-09-03
+
+  This said "two people with the same `bake_id` hold byte-identical corpora", full stop,
+  and that stopped being true. The id hashes **acquired bytes, normalisation and bake
+  config**. It does not move when renderings are imported or when chunks are re-embedded,
+  and on 2026-09-03 **27,751 `model:mitra` renderings and 27,751 translation vectors landed
+  under an unchanged id** — so two holders of one `bake_id` can answer the same query
+  differently.
+
+  **A citation still resolves to the same bytes; a retrieval does not return the same
+  results.** The sentence is corrected rather than deleted because the promise was being
+  made in three places at once, including to models: `PramanaWeb.MCP.Reply` stamps this id
+  on every tool response and the MCP guide tells a model to cite it for reproducibility.
+  Both now say which half they mean.
+
+  Splitting source identity from retrieval-release identity — `source_bake_id`,
+  `translation_set_id`, `vector_set_id`, `release_id` — is unplanned work and a
+  prerequisite for anything public. `docs/PLAN.md` item 10.
+
+  ## pipeline_version
+
+  Bump `@pipeline_version` whenever a change alters the **output** of normalization or
+  segmentation — different text, different offsets, different anchors. Do *not* bump it
+  for refactors, added tests, or new query paths, which leave the corpus identical.
+
+  Getting this wrong in the lax direction is the dangerous one: two different corpora
+  sharing an id means a citation that verified yesterday can fail today with nothing to
+  point at. When in doubt, bump.
+
+  ## Honest scope, as of Phase 1
+
+  `segments` carries no `bake_id`, and the loader replaces rows in place. So there is
+  exactly **one current bake** at a time; bakes do not coexist, and re-baking does not
+  leave old citations resolvable. That is acceptable while a single corpus is being
+  built and is cheap to change later (a nullable column in Postgres is not a rewrite) —
+  but it must not be described as more than it is.
+  """
+
+  import Ecto.Query
+
+  alias Pramana.Acquire.Lockfile
+  alias Pramana.Corpus.Bake, as: BakeSchema
+  alias Pramana.Corpus.Segment
+  alias Pramana.Corpus.Text
+  alias Pramana.Repo
+
+  # Bump when normalization or segmentation OUTPUT changes. History:
+  #   1 — initial: CBETA TEI -> IR -> Taisho line segments
+  #   2 — segment note-only lines instead of dropping them. A line whose printed
+  #       content is entirely an inline note now gets a URN (empty content, note in
+  #       meta); only genuinely blank lines are skipped. Recovers 5,213 printed lines
+  #       and 266,547 characters that had been unreachable.
+  #   3 — split a <note> that spans <lb/> across the lines it covers, instead of
+  #       attributing all of it to the line where it closes. Intermediate lines were
+  #       left with no text and no note, so v2 still dropped them.
+  #   4 — a work that runs across several printed volumes is ASSEMBLED before loading
+  #       instead of baked once per file, and its lines carry the volume they were
+  #       printed in. Six CBETA X works were keeping one of their two volumes, with
+  #       which one decided by job scheduling — so v3 could not even promise that two
+  #       bakes of one lockfile agreed with each other. Changes the body of those six
+  #       and adds `meta["volume"]` to their segments; every other text is unchanged.
+  #       Also: a line whose entire printed content is one rare character now gets a
+  #       URN. Gaiji were missing from the segmenter's blank test, and a gaiji-only line
+  #       has empty text because gaiji are a mapping rather than a substitution, so it
+  #       matched "nothing was printed here" exactly. One line in the whole CBETA
+  #       corpus — X0575 0966b12, 䦚 — and it is the kind of content a reader cannot
+  #       reconstruct from anything else.
+  # 5 — 2026-08-28. Provenance is pipeline output, and it changed: the volume fallback is
+  # Taishō-only now, so 122 X works stop being labelled `japanese` with
+  # `text_role: commentary` by Taishō volume numbering they never used. Not normalization or
+  # segmentation — no segment moved — but *when in doubt, bump*: two corpora that disagree
+  # about who composed 122 works must not share a `bake_id`.
+  @pipeline_version "5"
+
+  @doc "The current pipeline version."
+  @spec pipeline_version() :: String.t()
+  def pipeline_version, do: @pipeline_version
+
+  @doc """
+  Computes the bake id for the current lockfile and configuration.
+
+  Deterministic: the same lockfile, pipeline version and config always give the same
+  id, and any change to upstream bytes changes it through the lockfile's per-source
+  `files_sha256`.
+  """
+  @spec bake_id(map()) :: {:ok, String.t(), String.t()} | {:error, term()}
+  def bake_id(config \\ %{}) do
+    with {:ok, lock} <- Lockfile.read() do
+      lock_digest = canonical_digest(lock)
+
+      id =
+        [lock_digest, @pipeline_version, canonical_digest(config)]
+        |> Enum.join("\n")
+        |> sha256()
+
+      {:ok, id, lock_digest}
+    end
+  end
+
+  @doc """
+  Records the current bake, replacing the row if this exact bake is re-run.
+
+  Re-running an identical bake is idempotent by construction: same inputs, same id,
+  same row.
+  """
+  @spec record(map()) :: {:ok, BakeSchema.t()} | {:error, term()}
+  def record(config \\ %{}) do
+    with {:ok, id, lock_digest} <- bake_id(config) do
+      bake = %BakeSchema{
+        id: id,
+        pipeline_version: @pipeline_version,
+        sources_lock_sha256: lock_digest,
+        config: config,
+        built_at: DateTime.utc_now(),
+        stats: stats()
+      }
+
+      {:ok,
+       Repo.insert!(bake,
+         on_conflict: {:replace, [:built_at, :stats, :config, :updated_at]},
+         conflict_target: :id
+       )}
+    end
+  end
+
+  @doc "The most recently built bake, or nil if nothing has been baked."
+  @spec current() :: BakeSchema.t() | nil
+  def current do
+    Repo.one(from b in BakeSchema, order_by: [desc: b.built_at], limit: 1)
+  end
+
+  @doc """
+  The current bake id, for stamping onto API and MCP responses.
+
+  An answer that cannot name the corpus it came from is not reproducible.
+  """
+  @spec current_id() :: String.t() | nil
+  def current_id do
+    case current() do
+      nil -> nil
+      bake -> bake.id
+    end
+  end
+
+  @doc "Counts describing what is in the corpus right now."
+  @spec stats() :: map()
+  def stats do
+    %{
+      "texts" => Repo.aggregate(Text, :count),
+      "segments" => Repo.aggregate(Segment, :count),
+      # READS THE STORED COUNT. Summing `length(body)` makes Postgres detoast every text —
+      # 9.8 s over this corpus, paid by the reader's `/inventory` page on every load. The
+      # column is written with the body in the same transaction, so it cannot drift; a row
+      # from before the column existed contributes nothing until
+      # `mix pramana.texts.count_chars` fills it, which is visible rather than silent because
+      # the total is reported beside the text count.
+      "chars" => Repo.one(from t in Text, select: coalesce(sum(t.char_count), 0)) || 0
+    }
+  end
+
+  # Sorted-key JSON so that map ordering, which is not stable in Elixir, cannot change
+  # a bake id. Two identical lockfiles must always digest the same.
+  defp canonical_digest(term), do: term |> canonicalize() |> Jason.encode!() |> sha256()
+
+  defp canonicalize(map) when is_map(map) and not is_struct(map) do
+    map
+    |> Enum.sort_by(fn {k, _v} -> to_string(k) end)
+    |> Enum.map(fn {k, v} -> [to_string(k), canonicalize(v)] end)
+  end
+
+  defp canonicalize(list) when is_list(list), do: Enum.map(list, &canonicalize/1)
+  defp canonicalize(other), do: other
+
+  defp sha256(binary), do: :crypto.hash(:sha256, binary) |> Base.encode16(case: :lower)
+end

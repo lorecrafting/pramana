@@ -1,0 +1,26 @@
+# Buddhist forms that CC-CEDICT does not carry at all.
+#
+# A general Chinese dictionary records the modern language. It has 般若 and 南無, because
+# those entered ordinary speech, but it has no entry for 迦葉, 舍利弗, 舍衛 or 般涅槃 —
+# names that occur tens of thousands of times in the canon and nowhere else. That gap is
+# structural, not an oversight, and it is the reason a Buddhist reading dictionary has to
+# exist separately.
+#
+# NOTHING HERE IS INVENTED. Every syllable below is a reading Unihan already attests for
+# that character (kHanyuPinyin / kXHC1983 / kTGHZ2013 / kHanyuPinlu); the entry only says
+# WHICH attested reading applies to this form. `mix pramana.readings.build` re-checks
+# every line against Unihan and refuses to write a file if any syllable is unattested, so
+# a typo here fails the build rather than entering the corpus as a fact.
+#
+# form	reading	basis
+迦葉	jiā shè	葉 is attested shè; the conventional reading of Mahākāśyapa's name
+舍利弗	shè lì fú	舍 is attested shè in transliteration; Śāriputra
+舍衛	shè wèi	舍 shè; Śrāvastī
+毘舍離	pí shè lí	舍 shè; Vaiśālī
+阿闍世	ā shé shì	闍 is attested shé, not the ordinary dū; Ajātaśatru
+般涅槃	bō niè pán	般 is attested bō, as in 般若; parinirvāṇa
+摩訶般若	mó hē bō rě	般若 compounded; mahāprajñā
+般若波羅蜜	bō rě bō luó mì	般若 compounded; prajñāpāramitā
+目犍連	mù qián lián	犍 is attested qián; Maudgalyāyana
+刹那	chà nà	刹 is attested chà, not the commoner shā; kṣaṇa
+剎那	chà nà	the 剎 variant of the same word, which is the form CBETA prints

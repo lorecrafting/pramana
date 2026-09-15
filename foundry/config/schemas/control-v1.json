@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pramana-workflow/control-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "created_at", "payload"],
+  "properties": {"action": {"enum": ["pause", "resume", "steer", "stop"]}, "created_at": {"type": "string", "minLength": 1}, "payload": {}}
+}

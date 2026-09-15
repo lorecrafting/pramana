@@ -1,0 +1,69 @@
+{
+  "adversarial": {
+    "hits": 0,
+    "rate": null,
+    "scored": 0
+  },
+  "answered_any_tradition": {
+    "answered": 0,
+    "rate": 0.0,
+    "topics": 11
+  },
+  "by_type": {
+    "retrieval": {
+      "hits": 257,
+      "rate": 85.1,
+      "scored": 302
+    },
+    "topical": {
+      "hits": 0,
+      "rate": null,
+      "scored": 0
+    }
+  },
+  "by_type_tradition": {
+    "retrieval/chinese": {
+      "hits": 223,
+      "rate": 96.1,
+      "scored": 232
+    },
+    "retrieval/pali": {
+      "hits": 4,
+      "rate": 66.7,
+      "scored": 6
+    },
+    "retrieval/tibetan": {
+      "hits": 30,
+      "rate": 46.9,
+      "scored": 64
+    },
+    "topical/chinese": {
+      "hits": 0,
+      "rate": null,
+      "scored": 0
+    },
+    "topical/chinese-native": {
+      "hits": 0,
+      "rate": null,
+      "scored": 0
+    },
+    "topical/pali": {
+      "hits": 0,
+      "rate": null,
+      "scored": 0
+    },
+    "topical/tibetan": {
+      "hits": 0,
+      "rate": null,
+      "scored": 0
+    }
+  },
+  "errors": 193,
+  "overall": {
+    "hits": 257,
+    "rate": 85.1,
+    "scored": 302
+  },
+  "stale": 0,
+  "total": 495
+}

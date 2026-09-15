@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pramana-workflow/snapshot-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "generation", "status", "paused", "stop_requested", "supervisor", "assignments", "queue", "steering", "accepted_revision", "integration", "scheduler", "pm", "updated_at"],
+  "properties": {"schema_version": {"const": 1}, "generation": {"type": "integer", "minimum": 0}, "status": {"type": "string"}, "paused": {"type": "boolean"}, "stop_requested": {"type": "boolean"}, "supervisor": {"type": "object"}, "assignments": {"type": "object"}, "queue": {"type": "array"}, "steering": {"type": "array"}, "accepted_revision": {"type": ["string", "null"]}, "integration": {"type": "object"}, "scheduler": {"type": "object"}, "pm": {"type": "object"}, "updated_at": {"type": "string"}, "audit": {"type": "object"}}
+}

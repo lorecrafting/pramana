@@ -1,0 +1,58 @@
+# Buddhist-vocabulary reading test set.
+#
+# Half the rows are forms a per-character method gets WRONG, half are controls it gets
+# RIGHT. The controls are the point: a test set of only hard cases would show that the
+# dictionary fires, not that it fires in the right places. A dictionary that "corrected"
+# 菩薩 or 涅槃 — which need no correction — would be worse than none.
+#
+# `naive` is Unihan's kMandarin reading applied character by character, which is what a
+# generic pinyin library does. It is recorded here so the comparison is reproducible and
+# so a change in Unicode shows up as a test failure rather than a silent drift.
+#
+# form	expected	naive	corpus_occurrences
+般若	bō rě	bān ruò	63463
+南無	nā mó	nán wú	19181
+迦葉	jiā shè	jiā yè	14157
+阿闍梨	ā shé lí	ā dū lí	2943
+三藏	sān zàng	sān cáng	15617
+大乘	dà shèng	dà chéng	24490
+舍利	shè lì	shě lì	31331
+阿難	ē nán	ā nán	23805
+伽藍	qié lán	jiā lán	1951
+僧伽	sēng qié	sēng jiā	8122
+地獄	dì yù	de yù	17951
+供養	gòng yǎng	gōng yǎng	40100
+相應	xiāng yìng	xiāng yīng	37515
+差別	chā bié	chà bié	28077
+般若波羅蜜	bō rě bō luó mì	bān ruò bō luó mì	41615
+舍利弗	shè lì fú	shě lì fú	13931
+舍衛	shè wèi	shě wèi	6629
+般涅槃	bō niè pán	bān niè pán	5449
+阿闍世	ā shé shì	ā dū shì	1339
+目犍連	mù qián lián	mù jiān lián	496
+毘舍離	pí shè lí	pí shě lí	702
+剎那	chà nà	shā nà	7165
+摩訶般若	mó hē bō rě	mó hē bān ruò	794
+菩提	pú tí	pú tí	82561
+涅槃	niè pán	niè pán	49525
+比丘	bǐ qiū	bǐ qiū	105190
+比丘尼	bǐ qiū ní	bǐ qiū ní	15769
+菩薩	pú sà	pú sà	240969
+三昧	sān mèi	sān mèi	33226
+沙門	shā mén	shā mén	31394
+陀羅尼	tuó luó ní	tuó luó ní	15590
+波羅蜜	bō luó mì	bō luó mì	72697
+阿羅漢	ā luó hàn	ā luó hàn	15882
+摩訶	mó hē	mó hē	71246
+世尊	shì zūn	shì zūn	94549
+如來	rú lái	rú lái	112165
+眾生	zhòng shēng	zhòng shēng	132626
+因緣	yīn yuán	yīn yuán	46748
+法師	fǎ shī	fǎ shī	13683
+功德	gōng dé	gōng dé	42824
+布施	bù shī	bù shī	17535
+智慧	zhì huì	zhì huì	25056
+解脫	jiě tuō	jiě tuō	54242
+煩惱	fán nǎo	fán nǎo	41615
+精進	jīng jìn	jīng jìn	23124
+禪定	chán dìng	chán dìng	6468

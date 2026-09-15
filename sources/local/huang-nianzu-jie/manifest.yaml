@@ -1,0 +1,72 @@
+id: huang-nianzu-jie
+title: 佛說大乘無量壽莊嚴清淨平等覺經解
+title_en: Commentary on the Sūtra of Immeasurable Life
+author: 黃念祖
+
+format: text
+
+provenance:
+  composition_origin: chinese
+  text_role: commentary
+  date_range: [1981, 1984]
+  attribution_confidence: certain
+
+# What this text explains. Feeds work_relations (task #36).
+#
+# NOT "the Infinite Life Sūtra". It comments on 夏蓮居's 會集本 — a 1930s CONFLATION
+# that merges the five surviving Chinese translations into one continuous text. Its
+# canonical status is genuinely contested: widely used in modern Pure Land practice,
+# and rejected by other scholars precisely because it is a modern editorial composite
+# rather than a translation from an Indic original.
+#
+# A flat `source` field would have served this as "the Infinite Life Sūtra", which is
+# exactly the collapse this project exists to prevent. The conflation is modelled as its
+# own witness with text_role `conflation`, so a reader is told what they are reading.
+comments_on:
+  work: xia-lianju-conflation
+  relation: comments_on
+  confidence: certain
+  method: manifest
+  note: >-
+    夏蓮居會集本, 1932–1946. A conflation of the five extant Chinese translations of the
+    Larger Sukhāvatīvyūha, not itself a translation. Canonical status contested.
+
+citation:
+  grammar: page
+  addressing: edition_page
+  # Short, meaningful components so a citation reads well:
+  #   pramana:local-huang-nianzu-jie.1990-cn:jie@p0100
+  # witness = the printing we extracted; work = the commentary itself.
+  witness_id: 1990-cn
+  work_id: jie
+  anchor_source: >-
+    Page numbers printed in the running head of each page of the 1990s Chinese edition,
+    written in Chinese numerals with ○ (U+25CB) for zero. Body pages run 1–837; the
+    table of contents (1–7) and preface (1–4) restart numbering and are kept as separate
+    sequences rather than renumbered.
+
+extraction:
+  method: pdf-text-layer
+  confidence: probable
+  tool: scripts_split_pages.py
+  source_file: 佛說大乘無量壽莊嚴清淨平等覺經解+(黃念祖居士).pdf
+  verified_on: 2026-08-05
+  note: >-
+    Split verified gapless against the PDF: 837 body pages, numbered 1–837, no gaps and
+    no duplicates. An earlier pass was SILENTLY LOSSY — the book writes zero as ○
+    (U+25CB) while the splitter only recognised 〇 (U+3007), so ~158 pages were mis-cut
+    with no error raised, and front-matter numbering restarts overwrote body pages 1–7.
+    Confidence is `probable` rather than `certain` because the text layer has not been
+    proofread character-by-character against the printed page.
+
+license:
+  class: restricted
+  redistributable: false
+  note: >-
+    Modern work, in copyright. Held for personal study only. Excluded from any public
+    surface and from any redistributed corpus — this project publishes the pipeline,
+    not the corpus.
+
+source_note: >-
+  Extracted in ~/dev/huangnianzu-translation, which also holds an in-progress English
+  translation and a glossary (task #34).

@@ -1,0 +1,43 @@
+{
+  "adversarial": {
+    "hits": 0,
+    "rate": null,
+    "scored": 0
+  },
+  "answered_any_tradition": {
+    "answered": 0,
+    "rate": null,
+    "topics": 0
+  },
+  "by_type": {
+    "retrieval": {
+      "hits": 334,
+      "rate": 74.9,
+      "scored": 446
+    }
+  },
+  "by_type_tradition": {
+    "retrieval/chinese": {
+      "hits": 228,
+      "rate": 98.3,
+      "scored": 232
+    },
+    "retrieval/pali": {
+      "hits": 82,
+      "rate": 54.7,
+      "scored": 150
+    },
+    "retrieval/tibetan": {
+      "hits": 24,
+      "rate": 37.5,
+      "scored": 64
+    }
+  },
+  "overall": {
+    "hits": 334,
+    "rate": 74.9,
+    "scored": 446
+  },
+  "stale": 0,
+  "total": 446
+}

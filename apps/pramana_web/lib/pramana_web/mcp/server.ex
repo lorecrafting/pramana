@@ -1,0 +1,50 @@
+defmodule PramanaWeb.MCP.Server do
+  @moduledoc """
+  The MCP surface over the baked corpus.
+
+  This is the decoupling boundary from `docs/ARCHITECTURE.md`: the model never touches
+  the database, only these tools, and every tool returns URN-addressed structured data
+  it can independently verify. Any model can drive it — swapping models changes
+  nothing about the corpus.
+
+  Served over Streamable HTTP at `/mcp` and over stdio via `mix pramana.mcp.stdio`.
+  """
+
+  use Anubis.Server,
+    name: "pramana",
+    version: "0.1.0",
+    capabilities: [:tools, :resources]
+
+  component(PramanaWeb.MCP.Tools.Search)
+  component(PramanaWeb.MCP.Tools.SurveyCorpus)
+  component(PramanaWeb.MCP.Tools.GetPassage)
+  component(PramanaWeb.MCP.Tools.GetOutline)
+  component(PramanaWeb.MCP.Tools.GetCommentaries)
+  # Which LINE a commentary explains, not merely which work. Deterministic 科文 alignment.
+  component(PramanaWeb.MCP.Tools.GetGlosses)
+  component(PramanaWeb.MCP.Tools.GetCommentaryOutline)
+  component(PramanaWeb.MCP.Tools.CompareTranslators)
+  # One identity across spellings. A byline is a string; this is the person it denotes.
+  component(PramanaWeb.MCP.Tools.GetWorksByPerson)
+  component(PramanaWeb.MCP.Tools.GetPerson)
+  # The tool for an English phrase. `Search` reads source text and answers an English
+  # question with source-language n-gram noise; this reads the renderings.
+  component(PramanaWeb.MCP.Tools.SearchTranslations)
+  component(PramanaWeb.MCP.Tools.GetParallels)
+  component(PramanaWeb.MCP.Tools.GetQuotations)
+  component(PramanaWeb.MCP.Tools.GetReadings)
+  component(PramanaWeb.MCP.Tools.CompareVersions)
+  component(PramanaWeb.MCP.Tools.CompareWitnesses)
+  component(PramanaWeb.MCP.Tools.DefineFromCanon)
+  component(PramanaWeb.MCP.Tools.VerifyCitation)
+  component(PramanaWeb.MCP.Tools.VerifyReport)
+
+  # Resources, not tools: guidance and inventory are things to READ about the corpus,
+  # not operations to perform on it. Exposing them teaches a model to use the
+  # provenance filters that distinguish this project, rather than defaulting past them.
+  component(PramanaWeb.MCP.Resources.Guide)
+  component(PramanaWeb.MCP.Resources.Inventory)
+
+  @impl true
+  def init(_client_info, frame), do: {:ok, frame}
+end

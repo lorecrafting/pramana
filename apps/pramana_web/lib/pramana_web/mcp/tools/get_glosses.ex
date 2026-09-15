@@ -1,0 +1,106 @@
+defmodule PramanaWeb.MCP.Tools.GetGlosses do
+  @moduledoc """
+  Which commentaries explain **this line**, found by lemma match.
+
+  `get_commentaries` answers which work explains a work. That is the easy half.
+  `docs/COMMENTARY.md` calls this one "the single highest-value piece of the feature":
+  land on a dense canonical line and be handed the layers of explanation attached to *that
+  line*, each labelled with when and where it was written.
+
+  ## Deterministic, and the method says so
+
+  A Chinese commentary quotes a phrase of its root and then glosses it, so the alignment is
+  already written in the text. A lemma anchors where its 8-character window occurs **exactly
+  once** in the root — a property of the root, measured, not a similarity score. `method` is
+  A response says how many glosses exist, not only how many it returned. `returned`,
+  `total` and `truncated` travel with every reply, because twenty of 109 and twenty of
+  twenty are otherwise the same list — and 27 root lines in the corpus carry more than the
+  default 20, one of them 109. Raise `limit` to see the rest. Truncation keeps the longest
+  lemmas, so it is the most substantial glosses that survive it.
+
+  `lemma_match` and `confidence` is `probable`: the lemma is certain, and that this
+  commentary is glossing *this* occurrence rather than quoting the phrase in passing is an
+  inference.
+
+  ## Nothing here is quotable as the root text
+
+  Each result names the commentary passage's own URN, which is where its text lives. To
+  read it you fetch it like any other passage, under the same guard and the same
+  provenance. `CLAUDE.md`'s rule holds unchanged: pulling a commentary in because it
+  explains a sūtra must never let it be quoted *as* the sūtra.
+
+  ## Absence here is thin evidence, and the response says which kind
+
+  Only 43 of 89 asserted `comments_on` pairs clear the alignment's density floor. A pair
+  below it is **not a refuted relation** — a commentary may paraphrase its root, and 47 of
+  them do — so an empty result means "no commentary quotes this line verbatim", never "no
+  commentary explains it". The note says so, because a caller cannot tell those apart from
+  an empty list.
+  """
+
+  use Anubis.Server.Component, type: :tool
+
+  alias Pramana.Commentary
+  alias PramanaWeb.MCP.Reply
+
+  @note "Found by verbatim lemma match. An empty result means no commentary QUOTES this " <>
+          "line, not that none explains it — a commentary that paraphrases is invisible " <>
+          "to this method, and 47 of 89 asserted pairs are that. Nothing here is citable " <>
+          "as the root text."
+
+  schema do
+    field(:urn, :string,
+      required: true,
+      description: "A root passage URN, e.g. pramana:cbeta.T:T0235_001@p0748c17."
+    )
+
+    field(:limit, :integer, description: "Maximum glosses to return (default 20).")
+  end
+
+  @impl true
+  def execute(%{urn: urn} = params, frame) do
+    limit = params[:limit] || 20
+    glosses = Commentary.glosses_on(urn, limit: limit)
+    total = Commentary.gloss_count(urn)
+
+    payload = %{
+      root_urn: urn,
+      glosses: Enum.map(glosses, &present/1),
+      commentaries: glosses |> Enum.map(& &1.commentary_work_id) |> Enum.uniq(),
+      # THE GAP, NOT JUST WHAT FITS. Twenty of 109 and twenty of twenty are the same list,
+      # and a caller that cannot tell them apart will read the first as complete. Rules 22,
+      # 44 and 54; `Commentary.gloss_count/1`.
+      returned: length(glosses),
+      total: total,
+      truncated: total > length(glosses),
+      method: "lemma_match",
+      note: @note,
+      bake_id: Pramana.Bake.current_id()
+    }
+
+    {:reply, Reply.json("get_glosses", params, payload), frame}
+  end
+
+  defp present(g) do
+    %{
+      # The commentary's OWN address, first. A caller reading this needs to know where the
+      # explanation lives before it needs the words that matched.
+      commentary_urn: g.commentary_urn,
+      commentary_work_id: g.commentary_work_id,
+      title: g.commentary_title,
+      attributed_author: g.commentary_author,
+      composition_origin: g.composition_origin,
+      lemma: g.lemma,
+      # A lemma is a verbatim quotation of the root line, so it travels with what verifies
+      # it. Invariant #1: no unattributed text leaves the API, and this tool re-shapes the
+      # domain's map rather than passing it through — so a field added there reaches a
+      # caller only if it is added here too, which is how this went missing.
+      lemma_sha256: g.lemma_sha256,
+      length: g.length,
+      root_offsets: g.root_offsets,
+      commentary_offsets: g.commentary_offsets,
+      method: g.method,
+      confidence: g.confidence
+    }
+  end
+end
