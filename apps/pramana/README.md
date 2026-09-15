@@ -1,9 +1,11 @@
-# Pramana
+# Pramāṇa core
 
-Core domain library for the Pramāṇa corpus pipeline. No Phoenix dependency.
+Core domain for acquisition, normalization, corpus schemas, citations, retrieval,
+enrichment, evaluation and generated documentation figures.
 
-Owns: URN resolution, corpus schemas and loader, acquire/normalize/segment/retrieval,
-bake orchestration, citation guard, enrichment pipelines (alignment, quotation graph),
-and doc figure generation.
+This umbrella application does not own the web UI. It uses Phoenix PubSub but does
+not depend on the Phoenix web framework. Foundry is a separate Mix project, not a
+child of this application or the umbrella.
 
-See umbrella `mix.exs` at the repo root and `AGENTS.md` for the full project layout.
+[Repository map](../../docs/REPO_MAP.md) · [Architecture](../../docs/ARCHITECTURE.md) ·
+[Setup](../../docs/DEV_ENV.md) · [Testing](../../docs/TESTING.md)

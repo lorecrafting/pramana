@@ -1,5 +1,7 @@
 # The Reader
 
+> Implementation reference with recorded examples. Numerical corpus/timing examples below were not re-measured in the documentation audit; routes are checked against the router.
+
 The human surface. `mix phx.server`, then `/`.
 
 ```
@@ -238,4 +240,6 @@ that came in. The repaired text sits behind a disclosure, never replacing what w
 
 - Anything that writes. The MCP surface is read-only by invariant #7 and so is this; the
   CLI is the write path.
-- A commentary↔root alignment view. Phase 6, and the domain does not have it yet either.
+- A dedicated commentary↔root alignment view beyond the current passage/outline surfaces.
+  The domain **does** already have `Pramana.Commentary` and passage-level alignments;
+  a missing UI must not be described as missing domain functionality.

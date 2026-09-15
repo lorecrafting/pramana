@@ -1,5 +1,7 @@
 # Roadmap
 
+> Phase-planning record, not runtime acceptance evidence. For current code contracts use the documentation index; for active work use PLAN and Foundry REPAIR-PLAN. Corpus counts and historical completion claims require their original evidence.
+
 Decisions locked: open-source self-hosted · all four traditions in v1 ·
 Postgres+pgvector single DB · MCP + HTTP API first · **Elixir/Phoenix**
 (see `docs/ELIXIR.md`).

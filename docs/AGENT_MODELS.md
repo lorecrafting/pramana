@@ -1,9 +1,9 @@
 # How a model reads this corpus
 
-**The current answer is MCP tools, and this file records why, what the alternatives are, and
-what none of them fix.** It exists because "the LLM is a swappable reader that goes through
-a retrieval API" is the second sentence of `CLAUDE.md`'s one idea, and a decision that
-central should have its alternatives written down rather than assumed.
+**The current integration surface is MCP tools.** This design note records alternatives
+and limitations, not universal claims about model capabilities. The reader can change
+without changing the [source-attribution and verification constraints](pramana/INVARIANTS.md).
+A decision this central should have its alternatives written down rather than assumed.
 
 Nothing here is scheduled. `docs/PLAN.md` is what is next; this is the shape of a choice.
 
@@ -35,7 +35,9 @@ constrained generation constrains the token distribution so that only a well-for
 only a *resolvable* — URN can be produced at all. Proven in adjacent domains: JSON-schema
 constrained output, SQL generation, `outlines`, llama.cpp GBNF.
 
-**Strictly stronger than checking afterwards**, and the most interesting idea here.
+**Complementary to checking afterwards.** A grammar can enforce citation syntax;
+restricting generation to validated candidates can also prevent some nonexistent IDs.
+Neither proves that the quoted bytes match or that the claim follows from them.
 
 **The limit is architectural.** It needs logit access or explicit provider support, so it
 works with a self-hosted model and not through an API that exposes only tool schemas. That
@@ -78,8 +80,8 @@ anyone builds on this paragraph.*
 | model | why not |
 |---|---|
 | **Classic RAG** — stuff context, generate | Loses survey, parallels, and the model's ability to decide it needs more. It invites exactly the failure `PLAN` item D documents: five plausible near-misses, none about the question, read as an answer. `survey_corpus` exists because top-k structurally cannot answer *how often, and where*. |
-| **Fine-tuning a domain model** | The Tibetan LoRA is the evidence: every proxy improved — 19× on discrimination — and the gold set said **0%**. See `docs/PROXIES.md`. Worse, it conflicts with **invariant #1**: a memorised passage is not attributable, so a model that knows the Taishō by heart is a model whose citations cannot be checked. |
-| **Coupling the corpus to one model** | Gives up the property that makes the guard worth having. `CLAUDE.md`: *the model is not trusted to cite correctly.* A design that trusts a particular model is a design that has to be re-validated on every model change. |
+| **Using model memory instead of retrieved evidence** | A memorized passage is not sufficient source evidence. Fine-tuning itself does not violate attribution if the system still retrieves and verifies citations. The recorded Tibetan embedding experiment in [PROXIES](PROXIES.md) warns against proxy-only acceptance; it does not establish that all domain fine-tuning fails. |
+| **Coupling the corpus to one model** | Gives up the property that makes the guard worth having. [the shared invariants](pramana/INVARIANTS.md): *the model is not trusted to cite correctly.* A design that trusts a particular model is a design that has to be re-validated on every model change. |
 
 ---
 
@@ -93,11 +95,11 @@ has — and still assert something the passage does not support. Everything abov
 frontier.
 
 The project already knows prompting is not enough here. `survey_corpus` carries a note
-telling models to run it before claiming anything about frequency, and `CLAUDE.md` says in
+telling models to run it before claiming anything about frequency, and [the shared invariants](pramana/INVARIANTS.md) says in
 the same breath that invariants are **"enforced structurally in the tool response shape, not
 by prompting"**. Those two sentences are in tension, and the tension is unresolved.
 
-Two structural moves would close it, both consistent with the invariants:
+Two proposed measures could reduce this gap, without establishing complete inferential correctness:
 
 - **A frequency claim should require a survey.** A response asserting "this appears
   throughout the Āgamas" carries a `survey_corpus` result or is refused. Enforceable in the
