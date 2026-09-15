@@ -17,45 +17,50 @@ jobs:
         with:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
-      - name: Verify and apply the reviewed deterministic source migration
+      - name: Verify and apply reviewed source migration
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import base64, bz2, hashlib, subprocess
-          moved = '672dc4a4687973ddf7805c5c4a05f3d426c1e846'
-          allowed = {'.github/workflows/ci.yml', '.github/workflows/layout-build.yml', '.github/workflows/layout-prepare.yml'}
+          import base64, bz2, hashlib, subprocess, re, posixpath
+          moved='672dc4a4687973ddf7805c5c4a05f3d426c1e846'
+          allowed={'.github/workflows/ci.yml','.github/workflows/layout-build.yml','.github/workflows/layout-prepare.yml'}
           allowed.update(f'.github/layout-replay-part{i}.b64' for i in range(1,4))
-          changed = set(subprocess.check_output(['git','diff','--name-only',moved,'HEAD'], text=True).splitlines())
-          assert changed <= allowed, f'Unexpected source changes: {changed - allowed}'
-          parts = [Path(f'.github/layout-replay-part{i}.b64').read_text().strip() for i in range(1,4)]
-          assert parts[1].count('VKFiK1WF') == 1
-          parts[1] = parts[1].replace('VKFiK1WF', 'VKFi1WF')
-          source = bz2.decompress(base64.b64decode(''.join(parts), validate=True))
-          assert hashlib.sha256(source).hexdigest() == 'e2ab18fae3f8d9756fa2b5afba892cb6b3f80acad073d36b542a21d2f56031d4'
-          script = Path('/tmp/layout-replay.py')
-          script.write_bytes(source)
-          subprocess.run(['python',str(script)], check=True)
-          # Directory links need prefix relocation in addition to the file map.
-          fixes = {
-            'docs/audits/2026-09-15/README.md': [('](../../../native/quotations)', '](../../../pramana/native/quotations)'), ('](../../../priv/embed)', '](../../../pramana/priv/embed)')],
-            'docs/strategy/RECONCILIATION.md': [('](../../native/quotations/)', '](../../pramana/native/quotations/)')],
-            'pramana/apps/pramana_native/README.md': [('](../../../apps/pramana_native/native/pramana_native)', '](native/pramana_native)'), ('](../../../native/quotations)', '](../../native/quotations)')],
-            'pramana/docs/ARCHITECTURE.md': [('](../../apps/pramana/lib/pramana/'+p+')', '](../apps/pramana/lib/pramana/'+p+')') for p in ['acquire','normalize','segment']],
-            'pramana/docs/EMBEDDING.md': [('](../../apps/pramana/lib/pramana/embed)', '](../apps/pramana/lib/pramana/embed)')],
-            'pramana/docs/GPU_RUNBOOK.md': [('](../../priv/embed)', '](../priv/embed)')],
-            'pramana/docs/LAYERS.md': [('](../../apps/pramana/lib/pramana/readings)', '](../apps/pramana/lib/pramana/readings)')],
-            'pramana/docs/MCP.md': [('](../../apps/pramana_web/lib/pramana_web/mcp/tools)', '](../apps/pramana_web/lib/pramana_web/mcp/tools)')]
-          }
-          for name, edits in fixes.items():
-              path=Path(name); text=path.read_text()
-              for old,new in edits:
-                  assert text.count(old)==1, (name,old)
-                  text=text.replace(old,new)
-              path.write_text(text)
-          subprocess.run(['git','diff','--exit-code','--','.github/workflows'], check=True)
+          changed=set(subprocess.check_output(['git','diff','--name-only',moved,'HEAD'],text=True).splitlines())
+          assert changed <= allowed, changed-allowed
+          parts=[Path(f'.github/layout-replay-part{i}.b64').read_text().strip() for i in range(1,4)]
+          assert parts[1].count('VKFiK1WF')==1
+          parts[1]=parts[1].replace('VKFiK1WF','VKFi1WF')
+          source=bz2.decompress(base64.b64decode(''.join(parts),validate=True))
+          assert hashlib.sha256(source).hexdigest()=='e2ab18fae3f8d9756fa2b5afba892cb6b3f80acad073d36b542a21d2f56031d4'
+          script=Path('/tmp/layout-replay.py'); script.write_bytes(source)
+          subprocess.run(['python',str(script)],check=True)
+          files=subprocess.check_output(['git','ls-files'],text=True).splitlines()
+          count=0
+          for name in files:
+              if not name.endswith('.md') or name.startswith('foundry/') or name in ('docs/PLAN.md','docs/ROADMAP.md'):continue
+              p=Path(name)
+              if not p.exists():continue
+              text=p.read_text()
+              def fix(m):
+                  global count
+                  target=m[1]
+                  if re.match(r'^(?:[a-zA-Z][\w+.-]*:|/)',target):return m[0]
+                  path,sep,fragment=target.partition('#')
+                  dest=posixpath.normpath(posixpath.join(posixpath.dirname(name),path))
+                  if dest.split('/')[0] not in ('apps','native','priv','config','rel','evals','sources'):return m[0]
+                  new='pramana/'+dest
+                  if not any(f==new or f.startswith(new+'/') for f in files):return m[0]
+                  replacement=posixpath.relpath(new,posixpath.dirname(name))+(sep+fragment if sep else '')
+                  count+=1
+                  a=m.start(1)-m.start(0);b=m.end(1)-m.start(0)
+                  return m[0][:a]+replacement+m[0][b:]
+              new=re.sub(r'\[[^\]\n]*\]\(([^\s)]+)\)',fix,text)
+              if new!=text:p.write_text(new)
+          assert count==12,count
+          subprocess.run(['git','diff','--exit-code','--','.github/workflows'],check=True)
           PY
-      - name: Stage owned paths and format only changed Elixir files
+      - name: Stage owned paths, format changed Elixir and verify protected files
         run: |
           set -euo pipefail
           git add -- pramana bin docs .gitignore .mcp.json AGENTS.md README.md foundry/AGENTS.md
@@ -65,13 +70,12 @@ jobs:
           python - <<'PY'
           import subprocess
           base='8d4e8ee5513dc631538f638fdf53e0678c8dc370'
-          original=subprocess.check_output(['git','ls-tree','-r','--name-only',base,'--','foundry'],text=True).splitlines()
-          original += ['docs/PLAN.md','docs/ROADMAP.md']
-          for p in original:
-              assert subprocess.check_output(['git','show',f'{base}:{p}']) == subprocess.check_output(['git','show',f':{p}']), p
-          print(f'{len(original)} protected paths byte-identical')
+          paths=subprocess.check_output(['git','ls-tree','-r','--name-only',base,'--','foundry'],text=True).splitlines()+['docs/PLAN.md','docs/ROADMAP.md']
+          for p in paths:
+              assert subprocess.check_output(['git','show',f'{base}:{p}'])==subprocess.check_output(['git','show',f':{p}']),p
+          print(f'{len(paths)} protected paths byte-identical')
           PY
-      - name: Run model-free source, documentation and wrapper checks
+      - name: Model-free source, documentation and wrapper checks
         run: |
           set -euo pipefail
           elixir bin/check_docs.exs
@@ -85,7 +89,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'refactor: validate explicit sibling project and data paths'
           git push origin "HEAD:refs/heads/$branch"
-      - name: Capture candidate source and any uncommitted changes
+      - name: Capture candidate source and uncommitted changes
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/layout-result"
