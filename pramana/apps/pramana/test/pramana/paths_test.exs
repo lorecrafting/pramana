@@ -40,6 +40,19 @@ defmodule Pramana.PathsTest do
     assert Paths.project("sources.lock.json") == Path.join(project, "sources.lock.json")
   end
 
+  test "tracked local manifest lookup does not follow caller working directory", %{
+    root: root,
+    project: project
+  } do
+    elsewhere = Path.join(root, "unrelated caller")
+    File.mkdir_p!(elsewhere)
+
+    File.cd!(elsewhere, fn ->
+      relative = Path.join(["sources", "local", "example"])
+      assert Paths.project(relative) == Path.join(project, relative)
+    end)
+  end
+
   test "external data changes raw paths, not tracked source paths", %{
     root: root,
     project: project

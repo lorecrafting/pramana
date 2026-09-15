@@ -90,12 +90,7 @@ defmodule Pramana.Paths do
     if File.regular?(Path.join(parent, "AGENTS.md")) and File.dir?(Path.join(parent, "foundry")) do
       legacy =
         Enum.filter(["raw", "priv/models", "priv/embed/.venv", "sources/local"], fn path ->
-          case File.ls(Path.join(parent, path)) do
-            {:ok, []} -> false
-            {:ok, _entries} -> true
-            {:error, :enoent} -> false
-            {:error, _reason} -> true
-          end
+          nonempty_or_unreadable?(Path.join(parent, path))
         end)
 
       if legacy != [] do
@@ -109,5 +104,14 @@ defmodule Pramana.Paths do
     end
 
     :ok
+  end
+
+  defp nonempty_or_unreadable?(path) do
+    case File.ls(path) do
+      {:ok, []} -> false
+      {:ok, _entries} -> true
+      {:error, :enoent} -> false
+      {:error, _reason} -> true
+    end
   end
 end

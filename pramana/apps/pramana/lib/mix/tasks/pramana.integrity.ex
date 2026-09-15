@@ -212,7 +212,7 @@ defmodule Mix.Tasks.Pramana.Integrity do
     do: check_derge(text, totals, Pramana.Normalize.Derge)
 
   defp check_text(%{source_id: "local-" <> id} = text, totals) do
-    dir = Path.join(["sources", "local", id])
+    dir = Pramana.Paths.project(Path.join(["sources", "local", id]))
     {:ok, manifest} = LocalManifest.load(dir)
     {:ok, ir} = LocalNormalizer.normalize(dir, manifest: manifest)
 
