@@ -1,16 +1,20 @@
 # Keeping documentation accurate and small
 
+Pramāṇa source and maintained product guides now live under `pramana/`.
+See [the migration guide](LAYOUT_MIGRATION.md) for command roots and existing data.
+Old root-level product-guide pages are compatibility links, not duplicate policy.
+
 ## One owner for each kind of fact
 
 | Fact | Owner |
 |---|---|
 | Agent entry and task routing | [AGENTS.md](../AGENTS.md), [shared workflow](agents/WORKFLOW.md) |
 | System boundaries | [Repository map](REPO_MAP.md) and each actual Mix project |
-| Current public research API | [MCP](MCP.md), registered tools, tool schemas and tests |
+| Current public research API | [MCP](../pramana/docs/MCP.md), registered tools, tool schemas and tests |
 | Operating checks | [Testing](TESTING.md), then the implementation of each check |
-| Corpus counts | Generated blocks in [STATUS](STATUS.md) / [PLAN](PLAN.md), from a named database |
+| Corpus counts | Generated blocks in [STATUS](../pramana/docs/STATUS.md) / [PLAN](PLAN.md), from a named database |
 | Next work | [PLAN](PLAN.md); Foundry repair ordering belongs to [REPAIR-PLAN](../foundry/docs/REPAIR-PLAN.md) |
-| Historical observations | [History](HISTORY.md), [proxy studies](PROXIES.md), dated review evidence |
+| Historical observations | [History](../pramana/docs/HISTORY.md), [proxy studies](../pramana/docs/PROXIES.md), dated review evidence |
 | Product choices under discussion | [PRODUCT_STRATEGY](PRODUCT_STRATEGY.md); not a shipped-feature inventory |
 
 Do not maintain a second authoritative copy in a model-specific instruction file.
@@ -45,14 +49,14 @@ fragments, entry-point budgets, rule triggers, and registered task/tool document
 They do not prove scientific truth, prose accuracy, external URL availability or
 runtime guarantees. Historical exceptions must name a specific link and reason.
 
-The figure generator scans only top-level `docs/*.md` and rewrites only its marked
+The figure generator scans only repository `docs/*.md` and `pramana/docs/*.md` and rewrites only its marked
 blocks. It does not update arbitrary prose or regenerate framework conventions.
 **There is no `pramana.docs.framework` task.** Framework guidance is maintained by
 hand against the code and upstream documentation.
 
 When a command can be destructive, paid or unavailable, state that beside the command.
 A command mentioned in a proposal is not necessarily implemented. Link a documented
-operating command to its task source or [the CLI index](CLI.md).
+operating command to its task source or [the CLI index](../pramana/docs/CLI.md).
 
 ## Audits
 

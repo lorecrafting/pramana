@@ -92,11 +92,14 @@ defmodule Docs.SyncTest do
 
   describe "documents/1" do
     test "finds only the documents that actually carry a block" do
-      root = Path.expand("../../../..", __DIR__)
+      root = Path.expand("../../../../..", __DIR__)
       docs = Sync.documents(root)
 
       assert Enum.all?(docs, &(File.read!(&1) =~ "<!-- figures:"))
       assert Enum.any?(docs, &String.ends_with?(&1, "STATUS.md"))
+      assert Path.join(root, "pramana/docs/STATUS.md") in docs
+      assert Path.join(root, "docs/PLAN.md") in docs
+      refute Path.join(root, "docs/STATUS.md") in docs
     end
   end
 end

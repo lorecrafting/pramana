@@ -17,7 +17,7 @@ defmodule Pramana.Segment.TaishoCorpusTest do
   alias Pramana.URN
 
   setup_all do
-    root = Application.get_env(:pramana, :project_root) || File.cwd!()
+    root = Pramana.Paths.data_root()
     xml = root |> Path.join("raw/cbeta/T/T09/T09n0262.xml") |> File.read!()
     {:ok, ir} = CBETA.normalize(xml, work_id: "T0262", canon: "T", volume: 9, number: "0262")
     {:ok, segments} = Taisho.segments(ir, source: "cbeta", witness: "T")

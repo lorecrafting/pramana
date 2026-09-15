@@ -51,7 +51,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Glossary do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
 
     files =
       root
@@ -64,7 +64,8 @@ defmodule Mix.Tasks.Pramana.Kangyur.Glossary do
 
     Mix.shell().info("#{if opts[:dry_run], do: "DRY RUN — ", else: ""}#{length(files)} file(s)")
 
-    works = MapSet.new(Repo.all(from t in Text, where: t.source_id == "derge", select: t.work_id))
+    works =
+      MapSet.new(Repo.all(from(t in Text, where: t.source_id == "derge", select: t.work_id)))
 
     # The glossary rows reference the source, and 84000's translations live in a table
     # that does not — so nothing had yet recorded its licence in `sources`.
@@ -86,7 +87,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Glossary do
     {:ok, entries} = Glossary.parse(xml)
 
     work_id = work_id(parsed, works)
-    rows = Enum.map(entries, &row(&1, work_id, Path.relative_to(path, File.cwd!())))
+    rows = Enum.map(entries, &row(&1, work_id, Pramana.Paths.record_source(path)))
     rows = Enum.reject(rows, &empty_row?/1)
 
     unless dry_run?, do: store(rows)
@@ -174,7 +175,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Glossary do
 
     stats =
       Repo.one(
-        from g in GlossaryEntry,
+        from(g in GlossaryEntry,
           select: %{
             sanskrit: count(g.sanskrit),
             tibetan: count(g.tibetan),
@@ -183,15 +184,17 @@ defmodule Mix.Tasks.Pramana.Kangyur.Glossary do
             attested_sanskrit:
               fragment("count(*) filter (where ? = 'source')", g.sanskrit_attestation)
           }
+        )
       )
 
     distinct =
       Repo.one(
-        from g in GlossaryEntry,
+        from(g in GlossaryEntry,
           select: %{
             sanskrit: fragment("count(distinct ?)", g.sanskrit),
             tibetan: fragment("count(distinct ?)", g.tibetan)
           }
+        )
       )
 
     Mix.shell().info("""

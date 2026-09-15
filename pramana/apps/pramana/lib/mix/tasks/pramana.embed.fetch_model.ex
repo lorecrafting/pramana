@@ -78,19 +78,10 @@ defmodule Mix.Tasks.Pramana.Embed.FetchModel do
     end)
   end
 
-  # In an umbrella a task's cwd is not reliably the repo root, so a relative
-  # "bin/pramana-modal" fails with :enoent. Walk up until it is found rather than assuming.
+  # The project root is explicit; the caller may be an umbrella child or worktree.
   defp modal_cli do
-    File.cwd!()
-    |> Path.expand()
-    |> Stream.iterate(&Path.dirname/1)
-    |> Enum.take_while(&(&1 != "/"))
-    |> Enum.map(&Path.join(&1, "bin/pramana-modal"))
-    |> Enum.find(&File.exists?/1)
-    |> case do
-      nil -> Mix.raise("could not find bin/pramana-modal above #{File.cwd!()}")
-      path -> path
-    end
+    path = Pramana.Paths.project("bin/pramana-modal")
+    if File.regular?(path), do: path, else: Mix.raise("missing project Modal wrapper: #{path}")
   end
 
   # The check that matters is not "did something download" but "can Bumblebee load it and

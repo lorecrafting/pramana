@@ -50,7 +50,7 @@ defmodule Mix.Tasks.Pramana.Sc.Ingest do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
     files = files(root, opts[:limit])
 
     if files == [],
@@ -91,7 +91,7 @@ defmodule Mix.Tasks.Pramana.Sc.Ingest do
   defp ingest(file, acc, dry_run?) do
     case Bilara.normalize_file(File.read!(file), witness: @witness) do
       {:ok, irs} ->
-        relative = Path.relative_to(file, File.cwd!())
+        relative = Pramana.Paths.record_source(file)
         Enum.reduce(irs, acc, &tally(&1, &2, dry_run?, relative))
 
       {:error, reason} ->

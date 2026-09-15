@@ -93,3 +93,26 @@ sources.public.lock.json
 __pycache__/
 *.pyc
 *.pyo
+
+# Sibling Pramana project. Old root rules above remain for operator-owned data
+# kept in place through PRAMANA_DATA_ROOT; this does not migrate or delete it.
+/pramana/_build/
+/pramana/deps/
+/pramana/cover/
+/pramana/apps/*/cover/
+/pramana/doc/
+/pramana/.fetch
+/pramana/.elixir_ls/
+/pramana/tmp/
+/pramana/raw/
+/pramana/bake/out/
+/pramana/priv/embed/.venv/
+/pramana/priv/embed/models/
+/pramana/priv/models/
+/pramana/priv/plts/
+/pramana/priv/train/
+/pramana/apps/pramana_native/native/**/target/
+/pramana/apps/pramana_native/priv/native/
+/pramana/native/quotations/target/
+/pramana/sources/local/*/text/
+/pramana/sources/local/*/raw/

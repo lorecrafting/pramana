@@ -1,15 +1,15 @@
 # Development setup
 
-Choose the system first. [Foundry](../foundry/docs/CI.md) has an isolated model-free
+Choose the system first. [Foundry](../../foundry/docs/CI.md) has an isolated model-free
 build; it does not need the Pramāṇa database or inference environment below.
 These are repository-derived instructions, not evidence that setup ran in this audit.
 
 ## Pramāṇa prerequisites
 
-Use [mise.toml](../mise.toml) for the exact Erlang/Elixir toolchain. The umbrella also
+Use [mise.toml](../../mise.toml) for the exact Erlang/Elixir toolchain. The umbrella also
 needs Rust for `pramana_native` and PostgreSQL with the `vector` and `pg_bigm`
 extension binaries installed on the **server**. `pg_bigm` is not `pg_trgm`.
-See [umbrella CI](../.github/workflows/ci.yml) for the currently exercised extension
+See [umbrella CI](../../.github/workflows/ci.yml) for the currently exercised extension
 installation recipe; [Dockerfile](../Dockerfile) builds the application release,
 not the database server.
 
@@ -18,7 +18,7 @@ extension packages first; the application's migrations create the required exten
 Development credentials must be allowed to create the development/test databases and
 install those extensions, or an operator must provision them separately.
 
-From the repository root:
+From the Pramāṇa project root (`cd pramana` from the repository root):
 
 ```bash
 mise install
@@ -34,13 +34,18 @@ and ingested. Inspect [the source workflows](SOURCES.md) and [CLI index](CLI.md)
 than assuming one bake command loads every tradition. Acquiring sources requires their
 licenses, network access, storage and explicit operator intent.
 
+Existing operators: read [the source-layout migration](../../docs/LAYOUT_MIGRATION.md)
+and choose `PRAMANA_DATA_ROOT` explicitly before using legacy corpus/model files.
+Tracked manifests and the source lockfile are under this project; data stays where
+it already exists. Tests ignore the operator data-root environment for fixture safety.
+
 ## Database configuration
 
 | Environment | Source | Important settings |
 |---|---|---|
 | Development | [config/dev.exs](../config/dev.exs) | `PGUSER` (otherwise OS user), `PGPASSWORD`, `PGHOST`, `PRAMANA_DATABASE` (otherwise `pramana_dev`) |
 | Test | [config/test.exs](../config/test.exs) | Separate test database and sandbox settings; inspect this file before targeting any server |
-| Production | [config/runtime.exs](../config/runtime.exs) | Required `DATABASE_URL` and `SECRET_KEY_BASE`; `PHX_HOST`, `PORT`, `POOL_SIZE` and other runtime settings |
+| Production | [config/runtime.exs](../config/runtime.exs) | Required `DATABASE_URL` and `SECRET_KEY_BASE`; `APP_HOST`, `PORT`, `POOL_SIZE` and other runtime settings |
 
 Do not point tests or a public bake at a research database by accident. Do not export
 `MIX_ENV=test` or `MIX_ENV=prod` globally for unrelated commands. Use per-command settings.
@@ -64,7 +69,7 @@ No standalone HTTP `/embed` daemon is configured by this setup guide.
 
 ## Checks and troubleshooting
 
-Use [testing](TESTING.md) for documentation-only, umbrella, Foundry and corpus checks.
+Use [testing](../../docs/TESTING.md) for documentation-only, umbrella, Foundry and corpus checks.
 For a loaded research database, `mix pramana.doctor` reports source and retrieval-state
 facts; read its warnings rather than treating command completion as a health attestation.
 
@@ -79,7 +84,7 @@ for diagnosis, including the rejected settings; do not execute them as current g
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

@@ -199,12 +199,12 @@ defmodule Mix.Tasks.Pramana.Readings.Build do
   end
 
   defp write!(name, lines) do
-    File.mkdir_p!(@out)
-    File.write!(Path.join(@out, name), Enum.join(lines, "\n") <> "\n")
+    File.mkdir_p!(Pramana.Paths.project(@out))
+    File.write!(Pramana.Paths.project(Path.join(@out, name)), Enum.join(lines, "\n") <> "\n")
   end
 
   defp path!(relative) do
-    expanded = Path.expand(relative, File.cwd!())
+    expanded = Pramana.Paths.source(relative)
     unless File.exists?(expanded), do: Mix.raise("missing #{relative} — see docs/SOURCES.md")
     expanded
   end

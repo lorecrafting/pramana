@@ -12,7 +12,6 @@ _build/
 apps/pramana_native/native/**/target/
 priv/plts/
 priv/models/
-priv/derge/
 
 # IDE junk, OS metadata:
 .elixir_ls/
@@ -26,3 +25,14 @@ node_modules/
 # Neither path is a Dockerfile COPY input. Git ignores do not filter Docker context.
 .git/
 foundry/
+
+# Build with `docker build ./pramana`, never the repository root. Only the
+# tracked folio-image metadata in priv/derge is included, not source text/models.
+sources/local/*/text/
+sources/local/*/raw/
+priv/embed/.venv/
+priv/embed/models/
+priv/train/
+**/__pycache__/
+**/*.pyc
+native/quotations/target/

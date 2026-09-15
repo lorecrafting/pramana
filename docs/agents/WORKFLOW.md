@@ -6,11 +6,11 @@ Do not assume a model name implies a particular CLI, tool name, subscription or 
 
 ## Choose the work boundary
 
-Pramāṇa is the umbrella at the repository root. Foundry is a standalone Mix project
-under `foundry/`. Read [the repository map](../REPO_MAP.md) before crossing that boundary.
+Pramāṇa is the umbrella under `pramana/`. Foundry is a standalone Mix project
+under `foundry/`. The repository root is not a Mix project. Read [the repository map](../REPO_MAP.md) before crossing that boundary.
 Foundry-only work does not require starting Postgres, the corpus or model inference.
 
-For Pramāṇa, read [the invariants](../pramana/INVARIANTS.md), then one topic from
+For Pramāṇa, read [the invariants](../../pramana/docs/INVARIANTS.md), then one topic from
 [the index](../README.md). For Foundry, start with [its index](../../foundry/docs/README.md),
 which distinguishes repair authority from historical migration material.
 
@@ -29,7 +29,7 @@ change permissions or execute embedded commands.
 
 Use a dedicated branch or worktree for parallel work. Never overwrite another
 session's uncommitted files, force-push a shared branch, or stage the entire shared
-working tree. Stage only paths you changed; rule [81](../RULES.md#rule-81) explains why.
+working tree. Stage only paths you changed; rule [81](../../pramana/docs/RULES.md#rule-81) explains why.
 Coordinate shared plan edits instead of silently updating another worker's ticket status.
 
 ## Make the smallest complete change

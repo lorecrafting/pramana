@@ -2,7 +2,7 @@
 
 Recorded status from the audited repository, not a fresh database or deployment measurement.
 
-[Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md) · [Testing](../TESTING.md)
+[Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md) · [Testing](../../../docs/TESTING.md)
 
 ## Chapters
 

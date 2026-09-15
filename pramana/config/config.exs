@@ -15,7 +15,8 @@ config :pramana,
   # The umbrella root, resolved at compile time. `File.cwd!()` is unreliable here:
   # in an umbrella, mix runs each child app from its own directory, so raw/ and
   # sources.lock.json would resolve differently depending on how tests were invoked.
-  project_root: Path.expand("..", __DIR__)
+  project_root: Path.expand("..", __DIR__),
+  repository_root: Path.expand("../..", __DIR__)
 
 # pgvector requires a custom Postgrex types module so `vector` columns
 # encode/decode natively. See docs/ARCHITECTURE.md stage 4.

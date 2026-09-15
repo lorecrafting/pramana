@@ -38,9 +38,8 @@ defmodule Pramana.Docs.Sync do
   @doc "Every document holding at least one generated block."
   @spec documents(String.t()) :: [String.t()]
   def documents(root) do
-    root
-    |> Path.join("docs/*.md")
-    |> Path.wildcard()
+    ["docs/*.md", "pramana/docs/*.md"]
+    |> Enum.flat_map(fn pattern -> Path.wildcard(Path.join(root, pattern)) end)
     |> Enum.filter(&(File.read!(&1) =~ @open))
     |> Enum.sort()
   end

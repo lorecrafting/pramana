@@ -9,7 +9,7 @@ Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
 
 | Task | Read next |
 |---|---|
-| Pramāṇa: corpus, retrieval, MCP, reader | [Pramāṇa invariants](docs/pramana/INVARIANTS.md), then the relevant topic in [the documentation index](docs/README.md) |
+| Pramāṇa: corpus, retrieval, MCP, reader | [Pramāṇa invariants](pramana/docs/INVARIANTS.md), then the relevant topic in [Pramāṇa documentation](pramana/docs/README.md) |
 | Foundry: agent coordination and lifecycle | [Foundry documentation](foundry/docs/README.md); use its repair plan and current ticket evidence before touching execution paths |
 | Documentation or repository orientation | [Documentation index](docs/README.md), [repository map](docs/REPO_MAP.md), [documentation maintenance](docs/MAINTAINING_DOCS.md) |
 

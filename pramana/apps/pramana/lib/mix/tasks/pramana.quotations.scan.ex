@@ -64,7 +64,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     # Absolute: `System.cmd/3` resolves a bare name against PATH and does NOT resolve a
     # relative path, so "native/..." fails with :enoent even though File.exists? just
     # said otherwise.
-    binary = Path.expand(@binary, File.cwd!())
+    binary = Pramana.Paths.project(@binary)
 
     unless File.exists?(binary) do
       Mix.raise("scanner not built — run: cd native/quotations && cargo build --release")

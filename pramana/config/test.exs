@@ -1,5 +1,9 @@
 import Config
 
+# Fixture roots must win over an operator's PRAMANA_DATA_ROOT. Acquisition tests
+# replace :project_root with an owned temporary directory; never write to live raw/.
+config :pramana, data_root: :project
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

@@ -1,7 +1,7 @@
 # Checks and Gates — chapter 2
 
 > Topic reference. Historical measurements retain their original scope; use the current architecture and testing guides for operational guarantees.
-> [Contents](../CHECKS.md) · [Documentation](../README.md) · [Current architecture](../ARCHITECTURE.md)
+> [Contents](../CHECKS.md) · [Documentation](../../../docs/README.md) · [Current architecture](../ARCHITECTURE.md)
 
 ## What CI can prove, and what it cannot
 

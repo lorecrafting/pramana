@@ -3,7 +3,7 @@
 # rather than silently passing. A test that quietly asserts nothing is worse than no
 # test: it reads as green forever.
 corpus_available? =
-  [Application.get_env(:pramana, :project_root) || File.cwd!(), "raw", "cbeta"]
+  [Pramana.Acquire.Lockfile.raw_dir(), "cbeta"]
   |> Path.join()
   |> File.dir?()
 

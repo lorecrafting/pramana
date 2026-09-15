@@ -2,7 +2,7 @@
 
 Current implementation reference, checked against source at the documentation-audit
 baseline. It describes code, not the state of a running database. See
-[the repository map](REPO_MAP.md) for the separate Foundry system and
+[the repository map](../../docs/REPO_MAP.md) for the separate Foundry system and
 [the retained original design](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md) for proposals and history.
 
 ## Pipeline and ownership
@@ -15,9 +15,9 @@ pure functions. The CLI owns mutations. MCP and the reader call the core domain.
 
 | Stage | Source of truth | Contract |
 |---|---|---|
-| Acquire | [Acquisition modules](../apps/pramana/lib/pramana/acquire/), [source registry](../apps/pramana/lib/pramana/sources.ex), [lockfile](../sources.lock.json) | Preserve upstream snapshots and hashes; do not edit `raw/` in place |
-| Normalize | [Normalizers](../apps/pramana/lib/pramana/normalize/) | Preserve citable structure, editorial apparatus and source distinctions |
-| Segment | [Segmenters](../apps/pramana/lib/pramana/segment/), [URN parser](../apps/pramana/lib/pramana/urn.ex) | Adopt supported source anchors; distinguish derived addressing |
+| Acquire | [Acquisition modules](../apps/pramana/lib/pramana/acquire), [source registry](../apps/pramana/lib/pramana/sources.ex), [lockfile](../sources.lock.json) | Preserve upstream snapshots and hashes; do not edit `raw/` in place |
+| Normalize | [Normalizers](../apps/pramana/lib/pramana/normalize) | Preserve citable structure, editorial apparatus and source distinctions |
+| Segment | [Segmenters](../apps/pramana/lib/pramana/segment), [URN parser](../apps/pramana/lib/pramana/urn.ex) | Adopt supported source anchors; distinguish derived addressing |
 | Enrich | Commentary, quotations, translations, readings and authority modules in the core | Method and confidence travel with inferred or generated material |
 | Index/retrieve | [Retrieval](../apps/pramana/lib/pramana/retrieval.ex), [hybrid](../apps/pramana/lib/pramana/retrieval/hybrid.ex) | Lexical and dense semantic retrieval, rank fusion and optional reranking; report which arms ran |
 | Verify | [Citation guard](../apps/pramana/lib/pramana/guard.ex), verification/integrity tasks | Re-resolve source citations; separate reproducibility, completeness and interpretation |
@@ -55,7 +55,7 @@ merely because its language changed. Local manifests support roles including `ro
 
 Grouped results make provenance visible. They do not guarantee that a classifier or
 catalogue attribution is correct, nor can a tool prevent a model from ignoring a bucket.
-[Invariants](pramana/INVARIANTS.md) state the constraints without treating them as proof.
+[Invariants](INVARIANTS.md) state the constraints without treating them as proof.
 
 ## Identity and replay
 
@@ -104,13 +104,13 @@ A query-time translation cache/promotion service is not established by a propose
 `translation_candidates` is not a current Ecto schema. An `index` versus `reader` purpose
 policy is a design distinction, not an enforced column-level isolation guarantee.
 
-Use [testing](TESTING.md) for evidence requirements, [status](STATUS.md) for the recorded
+Use [testing](../../docs/TESTING.md) for evidence requirements, [status](STATUS.md) for the recorded
 corpus snapshot, and the appropriate [plan section](PLAN_INDEX.md) for future work.
 
 ## Historical section bookmarks
 
 These bookmarks open the retained pre-cleanup revision in Git history, not current instructions.
-See [retired files](RETIRED_FILES.md) for recovery and offline-access limits.
+See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access limits.
 
 | Earlier section |
 |---|

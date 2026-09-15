@@ -62,7 +62,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Catalogue do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
     files = root |> Path.join("*.rdf") |> Path.wildcard() |> Enum.sort()
 
     if files == [], do: Mix.raise("no RDF under #{root} — see the moduledoc")
@@ -74,9 +74,10 @@ defmodule Mix.Tasks.Pramana.Kangyur.Catalogue do
     works =
       MapSet.new(
         Repo.all(
-          from t in Text,
+          from(t in Text,
             where: t.source_id in ["derge", "derge-tengyur"],
             select: t.work_id
+          )
         )
       )
 

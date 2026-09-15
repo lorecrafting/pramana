@@ -28,7 +28,7 @@ Pramāṇa utility or require an elaborate platform before the first product tes
 | 2. Personas/JTBD | Retain three audiences, prioritize a repeatable teacher/writer/study job as a hypothesis. [Pramāṇa](PRAMANA.md#customer-and-job) |
 | 3. Progressive disclosure | Merge into one scoped find/inspect/assess/reuse workflow. [Pramāṇa](PRAMANA.md#one-complete-workflow) |
 | 4. Feature specifications | Combine evidence canvas, inspector and export; narrow checker verdicts; defer large glossary/graph/collaboration expansion. [Roadmap](ROADMAP.md) |
-| 5. Architectural alignment | Replace speculative module mappings with current reference links and missing-behavior checks. [Pramāṇa](PRAMANA.md), [Architecture](../ARCHITECTURE.md) |
+| 5. Architectural alignment | Replace speculative module mappings with current reference links and missing-behavior checks. [Pramāṇa](PRAMANA.md), [Architecture](../../pramana/docs/ARCHITECTURE.md) |
 | 6. Harness/graph/loop | Consolidate responsibilities; do not assert implemented multi-canon fan-out or immutable retrieval state. [Foundry](FOUNDRY.md#one-operating-model-not-several-overlapping-stacks) |
 | 7. Composable middleware | Retain modularity, but subordinate it to accepted authority; treat stream checks/compaction as candidates. [Foundry](FOUNDRY.md), I-P2/I-F1 |
 | 8. Four-layer compounding | Fold into verified lessons and independent acceptance; remove unsupported active/shipped labels. [Foundry](FOUNDRY.md), [Validation](VALIDATION.md) |
@@ -64,13 +64,13 @@ Pramāṇa utility or require an elaborate platform before the first product tes
 
 ## Corrections to implementation language
 
-The current [architecture](../ARCHITECTURE.md) distinguishes input bake identity,
+The current [architecture](../../pramana/docs/ARCHITECTURE.md) distinguishes input bake identity,
 mutable loaded state and coarse retrieval stamps. Do not advertise immutable replay
 from those IDs alone. The current citation guard checks recognized quotations and
 URN existence; it is not a clause-level doctrinal fact checker. Original `urn:cts:`
 examples are not the repository's implemented `pramana:` grammar.
 
-The [Rust quotation implementation](../../native/quotations/) is described in the
+The [Rust quotation implementation](../../pramana/native/quotations) is described in the
 current architecture as seed-and-extend, not the notebook's asserted suffix-array
 production path. Proposed `passage_citations`, `UserTrail`, direct Foundry Ecto
 memory and automatic multi-canon orchestration are not accepted as existing code

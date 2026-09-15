@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Translations do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
-    root = Keyword.get(opts, :root, @default_root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(@default_root) end)
     files = root |> newest_per_work() |> take(opts[:limit])
 
     if files == [], do: Mix.raise("no translations under #{root} — see the moduledoc")
@@ -183,7 +183,7 @@ defmodule Mix.Tasks.Pramana.Kangyur.Translations do
 
   defp ingest({path, parsed}, tally, dry_run?) do
     {:ok, split} = Folios.split(parsed)
-    relative = Path.relative_to(path, File.cwd!())
+    relative = Pramana.Paths.record_source(path)
 
     tally = %{tally | unplaced: tally.unplaced + split.unplaced}
 

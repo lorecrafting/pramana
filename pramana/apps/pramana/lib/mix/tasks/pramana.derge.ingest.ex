@@ -114,7 +114,7 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
 
     collection = collection(opts[:collection])
-    root = Keyword.get(opts, :root, collection.root)
+    root = Keyword.get_lazy(opts, :root, fn -> Pramana.Paths.data(collection.root) end)
     volumes = root |> discover(collection) |> limit(opts[:limit])
 
     Mix.shell().info(
@@ -224,7 +224,7 @@ defmodule Mix.Tasks.Pramana.Derge.Ingest do
     )
   end
 
-  defp relative(path), do: Path.relative_to(path, File.cwd!())
+  defp relative(path), do: Pramana.Paths.record_source(path)
 
   defp provenance(%{work_id: "dkar-chag-" <> _}, _collection) do
     %{

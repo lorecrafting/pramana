@@ -1,10 +1,14 @@
 # Adding Your Own Texts
 
+**Working directory:** `pramana/` for the commands and source-relative paths below.
+Shared policy and the active plan remain at repository `docs/`. Existing corpus,
+models and virtualenvs are not moved: see [layout migration](../../docs/LAYOUT_MIGRATION.md).
+
 ## Three different things, three different answers
 
 | what | how often | mechanism |
 |---|---|---|
-| **A new canonical source** (SAT, bilara, 84000) | rare | one file per work → three `Pramana.Pipeline` behaviours + a registry entry; otherwise a dedicated `mix pramana.<source>.ingest`. Both add a `Pramana.Sources` entry. See [the source invariants](pramana/INVARIANTS.md) |
+| **A new canonical source** (SAT, bilara, 84000) | rare | one file per work → three `Pramana.Pipeline` behaviours + a registry entry; otherwise a dedicated `mix pramana.<source>.ingest`. Both add a `Pramana.Sources` entry. See [the source invariants](INVARIANTS.md) |
 | | | **First, group the file list by work id and look at the groups larger than one.** "One file per work" is a claim about the source, not a default: three of four sources here break it, and CBETA breaks it in one collection out of two. A work loaded once per file keeps whichever file finished last, resolves, and verifies clean — see `Pramana.Bake.WorkList` and `IR.concat/1`. |
 | **A one-off text** (a modern commentary, a translation, a teacher's talks) | often | drop a folder with a manifest, run one command |
 | **A correction or annotation** to existing text | often | a *layer* over the bake, never an edit to it |

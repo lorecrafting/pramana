@@ -25,10 +25,10 @@ defmodule Pramana.Acquire.Lockfile do
 
   @doc "The `raw/` directory. Append-only; never edited, never committed."
   @spec raw_dir() :: String.t()
-  def raw_dir, do: Path.join(root(), "raw")
+  def raw_dir, do: Pramana.Paths.data("raw")
 
   defp root do
-    Application.get_env(:pramana, :project_root) || File.cwd!()
+    Pramana.Paths.project_root()
   end
 
   @doc """

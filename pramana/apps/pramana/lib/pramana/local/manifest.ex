@@ -234,7 +234,7 @@ defmodule Pramana.Local.Manifest do
   end
 
   defp check_text_dir(errors, dir) do
-    text_dir = Path.join(dir, "text")
+    text_dir = Pramana.Paths.local_text_dir(dir)
 
     cond do
       not File.dir?(text_dir) -> ["no `text/` directory at #{text_dir}" | errors]
@@ -294,7 +294,7 @@ defmodule Pramana.Local.Manifest do
       extraction: map["extraction"],
       comments_on: map["comments_on"],
       source_note: map["source_note"],
-      files: files(Path.join(dir, "text"))
+      files: files(Pramana.Paths.local_text_dir(dir))
     }
   end
 
