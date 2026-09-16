@@ -32,7 +32,9 @@ gate does not automatically adopt improvements. Do not lower a baseline to hide 
 
 ## Generated figures and live evidence
 
-`mix pramana.docs.figures` checks marked blocks in top-level `docs/*.md`.
+`mix pramana.docs.figures` checks marked blocks in `pramana/docs/*.md` and the
+shared root `docs/*.md`, using explicitly configured documentation roots rather than
+the shell working directory.
 `--write` regenerates those blocks. Unmarked prose is not synchronized by that task.
 On an empty corpus the task reports **not checked / not written** and returns normally;
 its zero exit status is not a corpus verification result.

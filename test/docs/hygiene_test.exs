@@ -53,5 +53,7 @@ defmodule Docs.HygieneTest do
 
     assert "foundry/" in patterns
     assert ".git/" in patterns
+    assert "apps/pramana_native/native/**/target/" in patterns
+    assert "native/quotations/target/" in patterns
   end
 end

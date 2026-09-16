@@ -10,6 +10,7 @@ sources.public.lock.json
 deps/
 _build/
 apps/pramana_native/native/**/target/
+native/quotations/target/
 priv/plts/
 priv/models/
 priv/derge/
