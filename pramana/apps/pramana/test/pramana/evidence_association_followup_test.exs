@@ -113,7 +113,12 @@ defmodule Pramana.EvidenceAssociationFollowupTest do
 
   test "report verifies a SuttaCentral-looking literal without rewriting its evidence bytes" do
     original = "「mn1:1.1」 [#{@sc_urn}]"
-    result = Report.verify(original, executor: fn _, _ -> flunk("no replay expected") end, bake_id: "b")
+
+    result =
+      Report.verify(original,
+        executor: fn _, _ -> flunk("no replay expected") end,
+        bake_id: "b"
+      )
 
     assert result.status == :verified
     assert result.ok?
@@ -125,7 +130,12 @@ defmodule Pramana.EvidenceAssociationFollowupTest do
 
   test "report preserves a Taisho-looking literal cited by a different canonical witness" do
     original = "「T. 262, 6a23」 [#{@literal_urn}]"
-    result = Report.verify(original, executor: fn _, _ -> flunk("no replay expected") end, bake_id: "b")
+
+    result =
+      Report.verify(original,
+        executor: fn _, _ -> flunk("no replay expected") end,
+        bake_id: "b"
+      )
 
     assert result.status == :verified
     assert result.ok?
@@ -137,7 +147,12 @@ defmodule Pramana.EvidenceAssociationFollowupTest do
 
   test "an outer foreign citation still canonicalizes and verifies its quotation" do
     original = "「如是我聞一時佛住」 T. 262, 6a23"
-    result = Report.verify(original, executor: fn _, _ -> flunk("no replay expected") end, bake_id: "b")
+
+    result =
+      Report.verify(original,
+        executor: fn _, _ -> flunk("no replay expected") end,
+        bake_id: "b"
+      )
 
     assert result.status == :verified
     assert result.ok?
