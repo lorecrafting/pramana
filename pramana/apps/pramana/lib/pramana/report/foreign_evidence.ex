@@ -84,7 +84,9 @@ defmodule Pramana.Report.ForeignEvidence do
 
   defp exact_at?(text, start, expected) when is_binary(expected) do
     length = byte_size(expected)
-    start >= 0 and start + length <= byte_size(text) and binary_part(text, start, length) == expected
+
+    start >= 0 and start + length <= byte_size(text) and
+      binary_part(text, start, length) == expected
   end
 
   defp mapped_length(item, :rewritten), do: byte_size(item.urn)
