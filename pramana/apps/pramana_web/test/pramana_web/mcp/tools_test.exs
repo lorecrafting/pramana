@@ -223,12 +223,13 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert data["actual"] == "鳩摩羅什奉　詔譯"
 
       # And WHY. A single altered character puts the phrase nowhere in the bake, which is
-      # the one of five reasons that is actually a fabrication — as opposed to punctuation
+      # a completed search with no replacement, not a proof of fabrication — as opposed to punctuation
       # the editor added, or a real phrase cited at the wrong line. This assertion used to
       # read `explanation =~ "does not appear"`, the generic sentence returned for all of
       # them.
-      assert data["reason"] == "absent_from_corpus"
-      assert data["explanation"] =~ "fabrication"
+      assert data["reason"] == "not_found_in_search"
+      assert data["explanation"] =~ "does not establish"
+      assert data["search_status"] == "no_match"
     end
 
     test "reports a fabricated URN rather than returning a plausible answer" do
@@ -413,5 +414,15 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert data["replay"]["tool"] == "get_passage"
       assert data["replay"]["arguments"]["context_before"] == 1
     end
+  end
+
+  test "a blank quote is explicitly existence-only, never a verified quotation" do
+    {:reply, response, _} = VerifyCitation.execute(%{urn: @urn, quoted_text: "   "}, %{})
+    data = payload(response)
+    assert data["verdict"] == "ok"
+    assert data["verification"] == "existence_only"
+    assert data["verified"] == false
+    assert data["quoted"] == nil
+    assert data["explanation"] =~ "no nonblank quotation was verified"
   end
 end

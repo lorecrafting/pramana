@@ -319,7 +319,11 @@ defmodule Pramana.CoverageTest do
 
       assert coverage.collections_held == 2
       assert Enum.sort(coverage.held) == ["T", "X"]
-      assert coverage.works_held == 3707
+      assert coverage.works_held == 2
+      assert coverage.catalogue_works_in_represented_collections == 3707
+      assert coverage.completeness == :partial
+      assert Enum.find(coverage.by_collection, &(&1.id == "T")).works_loaded == 1
+      assert Enum.find(coverage.by_collection, &(&1.id == "X")).works_loaded == 1
     end
 
     # NAMED, not coded. A reader who knows this canon knows it as 嘉興大藏經; being told
@@ -568,6 +572,84 @@ defmodule Pramana.CoverageTest do
                Enum.find(Coverage.derivations(), &(&1.what == "commentary alignment"))
 
       assert unit =~ "pair"
+    end
+  end
+
+  describe "loaded identities rather than catalogue totals" do
+    test "one work per collection does not establish complete holdings" do
+      for collection <- Collections.all() do
+        load_collection!(collection.id, "fixture-#{collection.id}")
+      end
+
+      coverage = Coverage.cbeta()
+      assert coverage.collections_represented == length(Collections.all())
+      assert coverage.works_held == length(Collections.all())
+      assert coverage.works_held < coverage.works_published
+      assert coverage.missing == []
+      assert coverage.completeness == :partial
+      refute Enum.any?(coverage.by_collection, &(&1.completeness == :complete))
+      assert coverage.note =~ "not proven complete"
+      assert Coverage.caveat() =~ "not proven complete"
+    end
+
+    test "even equality with a catalogue count is unknown without expected identities" do
+      # One small real catalogue collection, but deliberately unrelated work identities.
+      smallest = Enum.min_by(Collections.all(), & &1.works)
+      assert smallest.works > 0
+      for n <- 1..smallest.works, do: load_collection!(smallest.id, "fixture-#{n}")
+
+      item = Enum.find(Coverage.cbeta().by_collection, &(&1.id == smallest.id))
+      assert item.works_loaded == item.works_expected
+      assert item.completeness == :unknown
+    end
+
+    test "uncatalogued loaded collections are visible and not reported as no Chinese material" do
+      load_collection!("UNLISTED", "unknown-work")
+      coverage = Coverage.cbeta()
+      assert coverage.works_held == 1
+      assert coverage.collections_held == 1
+      assert coverage.catalogued_collections_represented == 0
+      assert coverage.uncatalogued_collections == %{"UNLISTED" => 1}
+      assert coverage.held == ["UNLISTED"]
+      assert coverage.note =~ "UNLISTED"
+      refute coverage.note =~ "NO Chinese Buddhist canon"
+    end
+
+    test "one work held in two collections counts once in the corpus total" do
+      load_collection!("T", "shared-work")
+      load_collection!("X", "shared-work")
+      coverage = Coverage.cbeta()
+      assert coverage.works_held == 1
+      assert coverage.collections_represented == 2
+      assert Enum.find(coverage.by_collection, &(&1.id == "T")).works_loaded == 1
+      assert Enum.find(coverage.by_collection, &(&1.id == "X")).works_loaded == 1
+    end
+
+    defp load_collection!(witness, work_id) do
+      Repo.insert!(
+        %Pramana.Corpus.Source{
+          id: "cbeta",
+          name: "fixture",
+          license_spdx: "LicenseRef-CBETA-NC",
+          license_class: "nc",
+          commercial_use: false,
+          redistributable: false
+        },
+        on_conflict: :nothing
+      )
+
+      Repo.insert!(%Pramana.Corpus.Witness{id: witness, name: witness}, on_conflict: :nothing)
+      Repo.insert!(%Pramana.Corpus.Work{id: work_id, title: work_id}, on_conflict: :nothing)
+
+      Pramana.CorpusFixtures.text!(
+        %{
+          work_id: work_id,
+          source_id: "cbeta",
+          witness_id: witness,
+          urn_prefix: "pramana:cbeta.#{witness}:#{work_id}"
+        },
+        [{"pramana:cbeta.#{witness}:#{work_id}@1", "測試文字"}]
+      )
     end
   end
 end

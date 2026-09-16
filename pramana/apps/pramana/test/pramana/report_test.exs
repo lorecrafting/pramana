@@ -104,8 +104,10 @@ defmodule Pramana.ReportTest do
           bake_id: "bake-1"
         )
 
-      assert [%{status: :verified, detail: detail}] = result.replays
+      assert [%{status: :executed, detail: detail}] = result.replays
       assert detail =~ "no value asserted"
+      assert result.status == :incomplete
+      refute result.ok?
     end
 
     test "a malformed block prevents ok?, because its claim went unchecked" do
@@ -162,7 +164,8 @@ defmodule Pramana.ReportTest do
       result = Report.verify(markdown, executor: executor(%{}), bake_id: "b")
 
       assert result.unsourced_figures != []
-      assert result.ok?
+      assert result.status == :no_checkable_evidence
+      refute result.ok?
     end
   end
 
@@ -184,6 +187,142 @@ defmodule Pramana.ReportTest do
 
       refute result.citations.ok?
       refute result.ok?
+    end
+  end
+
+  describe "one authoritative status" do
+    test "zero checkable evidence cannot be reported as verified" do
+      result = Report.verify("A confident assertion.", executor: executor(%{}), bake_id: "b")
+      assert result.status == :no_checkable_evidence
+      refute result.ok?
+      assert result.counts.verified_quotes == 0
+      assert result.counts.verified_replays == 0
+      assert result.summary =~ "not a pass"
+    end
+
+    test "a replay execution error is incomplete rather than a failed claim" do
+      result =
+        Report.verify(fenced(~s({"tool":"search","arguments":{},"assert":{"total":1}})),
+          executor: fn _, _ -> raise "private failure details" end,
+          bake_id: "b"
+        )
+
+      assert result.status == :incomplete
+      assert result.counts.replay_errors == 1
+      assert [%{status: :error, detail: detail}] = result.replays
+      refute detail =~ "private failure details"
+      refute result.ok?
+    end
+
+    test "recognized but unresolved foreign evidence prevents a mixed report from passing" do
+      markdown =
+        fenced(~s({"tool":"count","arguments":{},"assert":{"total":1}})) <>
+          "\n\nSee T. 262, 99a1."
+
+      result =
+        Report.verify(markdown, executor: executor(%{"count" => %{total: 1}}), bake_id: "b")
+
+      assert result.counts.verified_replays == 1
+      assert result.counts.unresolved_foreign == 1
+      assert result.status == :incomplete
+      refute result.ok?
+    end
+
+    test "an asserted failure remains failed even when other evidence is incomplete" do
+      markdown =
+        fenced(~s({"tool":"count","arguments":{},"assert":{"total":2}})) <>
+          "\n\nSee T. 262, 99a1."
+
+      result =
+        Report.verify(markdown, executor: executor(%{"count" => %{total: 1}}), bake_id: "b")
+
+      assert result.status == :failed
+      assert result.counts.unresolved_foreign == 1
+      assert result.counts.replay_failures == 1
+    end
+
+    test "an unsourced-figure warning alone does not turn checked evidence into a failure" do
+      markdown =
+        "There are 7 possibilities.\n\n" <>
+          fenced(~s({"tool":"count","arguments":{},"assert":{"total":1}}))
+
+      result =
+        Report.verify(markdown, executor: executor(%{"count" => %{total: 1}}), bake_id: "b")
+
+      assert result.status == :verified
+      assert result.ok?
+      assert result.unsourced_figures != []
+    end
+
+    test "a recorded bake cannot replay against an unstamped database" do
+      markdown = fenced(~s({"tool":"count","arguments":{},"bake_id":"old","assert":{"total":1}}))
+
+      result =
+        Report.verify(markdown, executor: fn _, _ -> flunk("must not run") end, bake_id: nil)
+
+      assert result.status == :incomplete
+      assert [%{status: :unverifiable}] = result.replays
+    end
+  end
+
+  describe "untrusted replay assertions" do
+    test "non-map assertions and invalid identity types are rejected before executing" do
+      for value <- [nil, false, 1, "text", [], [1]] do
+        markdown = fenced(Jason.encode!(%{tool: "count", arguments: %{}, assert: value}))
+
+        result =
+          Report.verify(markdown,
+            executor: fn _, _ -> flunk("invalid assertion executed") end,
+            bake_id: "b"
+          )
+
+        assert [%{reason: :invalid_assertions}] = result.malformed
+        assert result.status == :incomplete
+      end
+
+      for id <- [1, %{}, []] do
+        markdown = fenced(Jason.encode!(%{tool: "count", arguments: %{}, bake_id: id}))
+        assert [%{reason: :invalid_bake_id}] = Report.parse(markdown).malformed
+      end
+    end
+
+    test "empty path components are rejected" do
+      for path <- ["", ".total", "total.", "nested..total"] do
+        markdown = fenced(Jason.encode!(%{tool: "count", arguments: %{}, assert: %{path => 1}}))
+        assert [%{reason: :invalid_assertion_path}] = Report.parse(markdown).malformed
+      end
+    end
+
+    test "missing fields do not satisfy explicit null, including nested paths" do
+      for payload <- [%{}, %{"nested" => nil}, %{"nested" => %{}}] do
+        markdown = fenced(~s({"tool":"count","arguments":{},"assert":{"nested.value":null}}))
+        result = Report.verify(markdown, executor: executor(%{"count" => payload}), bake_id: "b")
+        assert result.status == :failed
+        assert [%{mismatches: [%{actual_present: false, expected: nil}]}] = result.replays
+      end
+    end
+
+    test "explicit null and false are preserved, with string keys taking precedence over atom keys" do
+      markdown =
+        fenced(~s({"tool":"count","arguments":{},"assert":{"nested.value":null,"enabled":false}}))
+
+      payload = %{"nested" => %{"value" => nil}, "enabled" => false, enabled: true}
+      result = Report.verify(markdown, executor: executor(%{"count" => payload}), bake_id: "b")
+      assert result.status == :verified
+      assert result.ok?
+    end
+
+    test "unterminated replay evidence cannot disappear beside valid evidence" do
+      markdown =
+        fenced(~s({"tool":"count","arguments":{},"assert":{"total":1}})) <>
+          "\n\n```pramana-replay\n{unfinished"
+
+      result =
+        Report.verify(markdown, executor: executor(%{"count" => %{total: 1}}), bake_id: "b")
+
+      assert result.counts.verified_replays == 1
+      assert [%{reason: :unterminated_replay}] = result.malformed
+      assert result.status == :incomplete
     end
   end
 end

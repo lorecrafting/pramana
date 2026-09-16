@@ -77,7 +77,7 @@ defmodule PramanaWeb.CheckLiveTest do
       |> form("form", report: "The sūtra opens 「如是我聞一時佛住」 (#{@urn}).")
       |> render_submit()
 
-    assert html =~ "Every claim this can check held"
+    assert html =~ "All checkable quotations and asserted replay values verified"
     assert html =~ "byte-compared against the text"
   end
 
@@ -89,7 +89,7 @@ defmodule PramanaWeb.CheckLiveTest do
       |> form("form", report: "The sūtra opens 「如是我聞一時佛說」 (#{@urn}).")
       |> render_submit()
 
-    assert html =~ "Something did not hold"
+    assert html =~ "At least one citation or asserted replay value did not hold"
     assert html =~ "the corpus has"
   end
 
@@ -125,7 +125,7 @@ defmodule PramanaWeb.CheckLiveTest do
 
     assert html =~ "unverifiable"
     assert html =~ "cannot be re-run here"
-    refute html =~ "Every claim this can check held"
+    refute html =~ "All checkable quotations and asserted replay values verified"
   end
 
   test "a replay block nobody can parse prevents a pass rather than being dropped", %{
@@ -145,7 +145,7 @@ defmodule PramanaWeb.CheckLiveTest do
 
     assert html =~ "Evidence that could not be read"
     assert html =~ "invalid_json"
-    refute html =~ "Every claim this can check held"
+    refute html =~ "All checkable quotations and asserted replay values verified"
   end
 
   test "figures with no citation are listed as a prompt, not as a verdict", %{conn: conn} do
@@ -204,5 +204,26 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, _view, html} = live(conn, ~p"/")
 
     assert html =~ ~s(href="/check")
+  end
+
+  test "the reader exposes the same no-evidence status as the API", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/check")
+    view |> form("form", report: "A confident assertion.") |> render_submit()
+
+    assert has_element?(
+             view,
+             ~s(#verification-result[data-status="no_checkable_evidence"]),
+             "not a pass"
+           )
+
+    refute has_element?(view, ~s(#verification-result[data-status="verified"]))
+  end
+
+  test "unresolved foreign evidence is incomplete, not a green report", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/check")
+    report = ~s("如是我聞一時佛住" [#{@urn}]. T. 262, 99a1.)
+    view |> form("form", report: report) |> render_submit()
+    assert has_element?(view, ~s(#verification-result[data-status="incomplete"]), "incomplete")
+    refute has_element?(view, ~s(#verification-result[data-status="verified"]))
   end
 end

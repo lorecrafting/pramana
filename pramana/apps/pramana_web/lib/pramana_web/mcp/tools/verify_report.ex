@@ -39,6 +39,10 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
     Reporting a changed corpus as a false report is how a checker teaches people to ignore
     it.
   - `error` — the tool is unknown or raised.
+  - `executed` — the call ran but no value was asserted; it does not verify a claim.
+
+  The overall `status` is `verified`, `failed`, `incomplete`, or `no_checkable_evidence`.
+  `ok?` is true only for `verified`; the summary and the reader use that same status.
 
   `unsourced_figures` is a **heuristic warning list, never a verdict**: paragraphs carrying a
   number with no citation and no replay record. It reads, it does not judge — a check that
@@ -73,6 +77,10 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
     payload =
       result
+      |> Map.update!(
+        :foreign,
+        &Enum.map(&1, fn found -> Map.update!(found, :reason, &wire_reason/1) end)
+      )
       |> Map.put(:runnable_tools, ReplayExecutor.tools())
       # DIAGNOSIS SERVES A CALLER WHO CHECKS; REPAIR SERVES THE ONE WHO DOES NOT, and that
       # is most of them. `docs/PLAN.md` L3. Nothing here writes to the corpus — it rewrites
@@ -88,7 +96,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
   # and a summary that opens with "0 failures" invites exactly that misreading.
   # WHY the citations failed, in the note, because the reason changes what the author does
   # next. `:wrong_address` means the words are real and the URN is not — a reference to
-  # correct. `:absent_from_corpus` is the only one of the five that is a fabrication.
+  # correct. A completed no-match search does not establish fabrication.
   defp reasons(findings) do
     counts =
       findings
@@ -104,15 +112,26 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
     end
   end
 
+  defp wire_reason(reason) when is_tuple(reason) do
+    [code | details] = Tuple.to_list(reason)
+    %{code: code, details: details}
+  end
+
+  defp wire_reason(reason), do: reason
+
   defp note(result) do
     counts = Enum.frequencies_by(result.replays, & &1.status)
     unverifiable = Map.get(counts, :unverifiable, 0)
 
     [
-      if(result.citations.checked == 0 and result.replays == [],
+      result.summary,
+      if(result.counts.unresolved_foreign > 0,
         do:
-          "Nothing in this report was checkable: no citations and no replay records. That " <>
-            "is not a pass — it is an unsourced document."
+          "#{result.counts.unresolved_foreign} recognized citation(s) in another scheme could not be resolved."
+      ),
+      if(result.counts.unasserted_replays > 0,
+        do:
+          "#{result.counts.unasserted_replays} replay(s) executed without verifying any asserted value."
       ),
       if(unverifiable > 0,
         do:
@@ -139,9 +158,6 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
       )
     ]
     |> Enum.reject(&is_nil/1)
-    |> case do
-      [] -> "Every citation byte-compared and every replay record re-derived against this bake."
-      lines -> Enum.join(lines, " ")
-    end
+    |> Enum.join(" ")
   end
 end

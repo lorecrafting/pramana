@@ -170,4 +170,51 @@ defmodule Pramana.ReleaseTest do
       assert ids.vector_set_id == stamped.vector_set_id
     end
   end
+
+  describe "explicit release selection" do
+    test "returning from A through B to A selects A without rewriting its original stamp" do
+      {:ok, a} = Release.stamp()
+      rendering!("5.1")
+      {:ok, b} = Release.stamp()
+      refute a.release_id == b.release_id
+      assert Release.current_id() == b.release_id
+      Repo.delete_all(Pramana.Corpus.Translation)
+      {:ok, a_again} = Release.stamp()
+      assert a_again == a
+      assert Release.current() == a
+      assert Release.current_id() == a.release_id
+      assert Release.drift() == :current
+      assert Repo.aggregate(Pramana.Corpus.Release, :count) == 2
+      assert Repo.aggregate(Pramana.Release.Selection, :count) == 1
+      assert Repo.get!(Pramana.Corpus.Release, b.id) == b
+    end
+
+    test "readers do not invent a selection from a timestamp or historical row" do
+      {:ok, a} = Release.stamp()
+      Repo.delete_all(Pramana.Release.Selection)
+      assert Release.current() == nil
+      assert Release.current_id() == nil
+      assert Release.drift() == :unstamped
+      assert Repo.get!(Pramana.Corpus.Release, a.id) == a
+      assert Repo.aggregate(Pramana.Release.Selection, :count) == 0
+      {:ok, ^a} = Release.stamp()
+      assert Release.current() == a
+    end
+
+    test "release insertion and selection roll back together" do
+      {:ok, a} = Release.stamp()
+      rendering!("6.1")
+
+      assert {:error, :abort_fixture} =
+               Repo.transaction(fn ->
+                 {:ok, b} = Release.stamp()
+                 refute b.release_id == a.release_id
+                 assert Release.current() == b
+                 Repo.rollback(:abort_fixture)
+               end)
+
+      assert Release.current() == a
+      assert Repo.aggregate(Pramana.Corpus.Release, :count) == 1
+    end
+  end
 end

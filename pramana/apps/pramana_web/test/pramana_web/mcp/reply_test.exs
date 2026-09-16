@@ -168,4 +168,20 @@ defmodule PramanaWeb.MCP.ReplyTest do
              }
     end
   end
+
+  test "both reply paths attach the selected A stamp after A to B to A" do
+    a_bake = bake!("a", ~U[2026-01-01 00:00:00.000000Z])
+    {:ok, a} = Release.stamp()
+    b_bake = bake!("b", ~U[2026-01-02 00:00:00.000000Z])
+    {:ok, b} = Release.stamp()
+    refute a.release_id == b.release_id
+    Pramana.Repo.delete!(b_bake)
+    {:ok, ^a} = Release.stamp()
+
+    for reply <- replies() do
+      data = decode(reply)
+      assert data["release_id"] == a.release_id
+      assert data["bake_id"] == a_bake.id
+    end
+  end
 end

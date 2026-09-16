@@ -32,33 +32,42 @@ defmodule PramanaWeb.MCP.Tools.VerifyCitation do
     payload = %{
       urn: finding.urn,
       verdict: finding.verdict,
-      verified: finding.verdict == :ok,
+      verified: finding.verdict == :ok and finding.quoted != nil,
+      verification:
+        if(finding.verdict == :ok and finding.quoted == nil,
+          do: :existence_only,
+          else: :quotation
+        ),
       quoted: finding.quoted,
       actual: finding.actual,
       provenance: finding.provenance,
       reason: finding[:reason],
       found_at: finding[:found_at],
-      explanation: finding[:explanation] || explain(finding.verdict)
+      search_status: finding[:search_status],
+      explanation: finding[:explanation] || explain(finding)
     }
 
     {:reply, Reply.json("verify_citation", params, payload), frame}
   end
 
-  defp explain(:ok), do: "The quoted text appears verbatim at this URN."
+  defp explain(%{verdict: :ok, quoted: nil}),
+    do: "Only the existence of this URN was checked; no nonblank quotation was verified."
+
+  defp explain(%{verdict: :ok}), do: "The quoted text appears verbatim at this URN."
 
   # Only reached when the diagnosis declined to be more specific, which it does not for a
   # mismatch — kept so the tool still answers if `diagnose/1` ever returns nothing.
-  defp explain(:quote_mismatch),
+  defp explain(%{verdict: :quote_mismatch}),
     do:
       "This URN exists, but the quoted text does not appear in it. Compare against " <>
         "`actual` and correct the quotation, or cite a different passage."
 
-  defp explain(:not_found),
+  defp explain(%{verdict: :not_found}),
     do: "No passage exists at this URN in the current bake. Do not cite it."
 
-  defp explain(:bad_urn), do: "The URN is malformed and addresses nothing."
+  defp explain(%{verdict: :bad_urn}), do: "The URN is malformed and addresses nothing."
 
-  defp explain(:not_citable_as_source),
+  defp explain(%{verdict: :not_citable_as_source}),
     do:
       "This is a generated translation layer, not source text. Cite the source anchor " <>
         "it renders instead."

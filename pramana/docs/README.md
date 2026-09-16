@@ -20,3 +20,6 @@ Foundry or product strategy use [the repository index](../../docs/README.md).
 and live-provider evidence. The existing [active plan](../../docs/PLAN.md) and
 [engineering phase record](../../docs/ROADMAP.md) remain shared pending their owners'
 reconciliation; this source move does not renumber or complete their work.
+
+[Evidence-integrity behavior](EVIDENCE_INTEGRITY.md) documents report statuses,
+occurrence-safe repair, actual holdings, complete citation coordinates and release selection.
