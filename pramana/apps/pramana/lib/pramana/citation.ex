@@ -49,6 +49,7 @@ defmodule Pramana.Citation do
 
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.EvidenceInput
   alias Pramana.Repo
 
   @typedoc "A citation found in prose, and what it resolves to."
@@ -269,33 +270,28 @@ defmodule Pramana.Citation do
   left exactly as written — rewriting it to something that does not resolve would turn a
   citation nobody could place into a citation that looks fabricated.
   """
-  # A caller may mask non-prose regions with equal-length bytes before scanning.
-  # Resolve only that view, but amend the original document so replay JSON is untouched.
   @spec rewrite(String.t(), keyword()) :: {String.t(), [found()]}
   def rewrite(text, opts \\ []) when is_binary(text) do
-    scan_text = Keyword.get(opts, :scan_text, text)
-
-    if not is_binary(scan_text) or byte_size(scan_text) != byte_size(text),
-      do: raise(ArgumentError, "citation scan view must preserve byte length")
-
-    found = scan(scan_text)
-
-    for found <- found do
-      if binary_part(text, found.source_offset, found.source_length) != found.matched,
-        do: raise(ArgumentError, "citation scan view changed a matched citation")
-    end
-
-    rewritten =
-      found
-      |> Enum.filter(& &1.urn)
-      |> Enum.sort_by(& &1.source_offset, :desc)
-      |> Enum.reduce(text, fn found, acc ->
-        finish = found.source_offset + found.source_length
-
-        binary_part(acc, 0, found.source_offset) <>
-          found.urn <>
-          binary_part(acc, finish, byte_size(acc) - finish)
+    found =
+      text
+      |> EvidenceInput.regions(opts)
+      |> Enum.flat_map(fn {offset, region} ->
+        Enum.map(scan(region), &Map.update!(&1, :source_offset, fn pos -> pos + offset end))
       end)
+
+    edits =
+      for found <- found, found.urn != nil do
+        %{
+          range: %{
+            byte_start: found.source_offset,
+            byte_end: found.source_offset + found.source_length
+          },
+          before: found.matched,
+          after: found.urn
+        }
+      end
+
+    rewritten = EvidenceInput.apply_edits(text, edits)
 
     {rewritten, found}
   end

@@ -28,6 +28,7 @@ defmodule Pramana.Guard do
   """
 
   alias Pramana.Corpus
+  alias Pramana.EvidenceInput
   alias Pramana.Punctuation
   alias Pramana.Retrieval.Lexical
   alias Pramana.Retrieval.Variants
@@ -56,6 +57,14 @@ defmodule Pramana.Guard do
                        "[\u300d\u300f\"\u201d]\\s*[\\[\u3010(]?\\s*(" <> @urn_source <> ")",
                      "u"
                    )
+
+  @wrapped_citation Regex.compile!(
+                      "([\\[（(【])\\s*(" <> @urn_source <> ")\\s*([\\]）)】])",
+                      "u"
+                    )
+  @opened_citation Regex.compile!("([\\[（(【])\\s*(" <> @urn_source <> ")", "u")
+  @closing_wrapper ~r/\A\s*[\]）)】]/u
+  @wrappers %{"[" => "]", "(" => ")", "（" => "）", "【" => "】"}
 
   @type verdict ::
           :ok
@@ -246,6 +255,12 @@ defmodule Pramana.Guard do
 
   defp classify(quoted, actual, finding, search) do
     cond do
+      Punctuation.strip(quoted) == "" ->
+        %{
+          reason: :empty_quote,
+          explanation: "No substantive quotation remains after removing editorial punctuation."
+        }
+
       Punctuation.same_but_for_punctuation?(quoted, actual) or
           String.contains?(Punctuation.strip(actual), Punctuation.strip(quoted)) ->
         %{
@@ -412,7 +427,7 @@ defmodule Pramana.Guard do
   prose actually emits. Anything unrecognised is checked for existence only, and the
   finding says so, rather than being reported as verified.
   """
-  @spec check_output(String.t()) :: %{
+  @spec check_output(String.t(), keyword()) :: %{
           findings: [finding()],
           ok?: boolean(),
           checked: non_neg_integer(),
@@ -421,10 +436,10 @@ defmodule Pramana.Guard do
           existence_only: non_neg_integer(),
           translations: non_neg_integer()
         }
-  def check_output(text) when is_binary(text) do
+  def check_output(text, opts \\ []) when is_binary(text) do
     findings =
       text
-      |> occurrences()
+      |> occurrences(opts)
       |> Enum.map(fn occurrence ->
         check(occurrence.urn, occurrence.quoted)
         |> Map.merge(%{source_offset: occurrence.urn_range.byte_start, occurrence: occurrence})
@@ -460,23 +475,51 @@ defmodule Pramana.Guard do
   range excludes its quotation marks; a citation range includes only a matching
   citation wrapper, never surrounding prose or document-wide whitespace.
   """
-  @spec occurrences(String.t()) :: [map()]
-  def occurrences(text) when is_binary(text) do
+  @spec occurrences(String.t(), keyword()) :: [map()]
+  def occurrences(text, opts \\ []) when is_binary(text) do
+    text
+    |> EvidenceInput.regions(opts)
+    |> Enum.flat_map(fn {offset, region} ->
+      region |> region_occurrences() |> Enum.map(&shift_occurrence(&1, offset))
+    end)
+  end
+
+  # Three bounded regex passes per region. No whole-prefix scan per citation.
+  defp region_occurrences(text) do
     quoted =
       @quoted_citation
       |> Regex.scan(text, return: :index)
-      |> Map.new(fn [_, quote_range, {pos, _} = urn_range] ->
-        {pos, occurrence(text, urn_range, quote_range)}
-      end)
+      |> Map.new(fn [_, quote_range, {pos, _}] -> {pos, quote_range} end)
+
+    wrappers = wrapper_ranges(text)
+
+    openings =
+      @opened_citation
+      |> Regex.scan(text, return: :index)
+      |> MapSet.new(fn [_, _, {pos, _}] -> pos end)
 
     @urn_pattern
     |> Regex.scan(text, return: :index)
     |> Enum.map(fn [{pos, _} = urn_range] ->
-      Map.get_lazy(quoted, pos, fn -> occurrence(text, urn_range, nil) end)
+      occurrence(text, urn_range, Map.get(quoted, pos), Map.get(wrappers, pos), openings)
     end)
   end
 
-  defp occurrence(text, {pos, length}, quote_range) do
+  defp wrapper_ranges(text) do
+    @wrapped_citation
+    |> Regex.scan(text, return: :index)
+    |> Enum.reduce(%{}, fn [whole, opening, {pos, len}, closing], acc ->
+      open = binary_part(text, elem(opening, 0), elem(opening, 1))
+      close = binary_part(text, elem(closing, 0), elem(closing, 1))
+      raw = binary_part(text, pos, len)
+
+      if @wrappers[open] == close and trim_sentence_punctuation(raw) == raw,
+        do: Map.put(acc, pos, byte_range(whole)),
+        else: acc
+    end)
+  end
+
+  defp occurrence(text, {pos, length}, quote_range, wrapper, openings) do
     urn = text |> binary_part(pos, length) |> trim_sentence_punctuation()
     urn_range = %{byte_start: pos, byte_end: pos + byte_size(urn)}
 
@@ -485,27 +528,29 @@ defmodule Pramana.Guard do
       quoted: if(quote_range, do: binary_part(text, elem(quote_range, 0), elem(quote_range, 1))),
       urn_range: urn_range,
       quote_range: byte_range(quote_range),
-      citation_range: citation_range(text, urn_range)
+      citation_range: wrapper || urn_range,
+      unpaired_wrapper?:
+        is_nil(wrapper) and
+          (MapSet.member?(openings, pos) or
+             Regex.match?(
+               @closing_wrapper,
+               binary_part(text, pos + length, byte_size(text) - pos - length)
+             ))
     }
   end
 
   defp byte_range(nil), do: nil
   defp byte_range({pos, length}), do: %{byte_start: pos, byte_end: pos + length}
 
-  defp citation_range(text, %{byte_start: first, byte_end: last} = range) do
-    before = text |> binary_part(0, first) |> String.trim_trailing()
-    after_urn = binary_part(text, last, byte_size(text) - last)
-    after_trimmed = String.trim_leading(after_urn)
-    open = String.last(before)
-    close = %{"[" => "]", "(" => ")", "（" => "）", "【" => "】"}[open]
-
-    if close && String.starts_with?(after_trimmed, close) do
-      %{
-        byte_start: byte_size(before) - byte_size(open),
-        byte_end: last + byte_size(after_urn) - byte_size(after_trimmed) + byte_size(close)
-      }
-    else
-      range
-    end
+  defp shift_occurrence(occurrence, offset) do
+    occurrence
+    |> Map.update!(:urn_range, &shift_range(&1, offset))
+    |> Map.update!(:quote_range, &shift_range(&1, offset))
+    |> Map.update!(:citation_range, &shift_range(&1, offset))
   end
+
+  defp shift_range(nil, _offset), do: nil
+
+  defp shift_range(range, offset),
+    do: %{byte_start: range.byte_start + offset, byte_end: range.byte_end + offset}
 end

@@ -59,9 +59,14 @@ defmodule Pramana.Release do
   A again without rewriting its original stamp timestamp. This is selection, not
   deployment or a content-complete fingerprint.
   """
+  # Database-local advisory namespace "PRAM", key 1 = release-stamp writer.
+  # Held to the outer transaction boundary; old writers must be drained at cutover.
+  @stamp_lock [0x5052414D, 1]
+
   @spec stamp() :: {:ok, Schema.t()}
   def stamp do
     Repo.transaction(fn ->
+      Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", @stamp_lock)
       facts = facts()
       ids = ids_for(facts)
 

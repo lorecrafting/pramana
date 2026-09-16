@@ -9,11 +9,14 @@ defmodule Pramana.Repair do
   at that address, not the truth or origin of the quotation.
 
   The original document and an explicit edit plan are returned beside the amended
-  text. Edits are validated against the original bytes and applied right-to-left.
+  text. Edits are validated against the original bytes and assembled from the original bytes.
   Neither source corpus data nor the caller's saved document is mutated.
   """
 
+  alias Pramana.EvidenceInput
   alias Pramana.Guard
+  alias Pramana.Repair.Intervals
+  alias Pramana.Repair.Quote
   alias Pramana.Report
 
   @type action :: %{
@@ -34,10 +37,27 @@ defmodule Pramana.Repair do
   @doc "Repairs recognized citation occurrences; returns original, text, actions, edits and counts."
   @spec repair(String.t(), keyword()) :: map()
   def repair(markdown, opts \\ []) when is_binary(markdown) do
+    case EvidenceInput.check(markdown) do
+      :ok ->
+        repair_bounded(markdown, opts)
+
+      {:error, refusal} ->
+        %{
+          original: markdown,
+          text: markdown,
+          actions: [],
+          edits: [],
+          counts: %{},
+          repaired?: false,
+          refusal: refusal
+        }
+    end
+  end
+
+  defp repair_bounded(markdown, opts) do
     planned =
       markdown
-      |> Report.mask_replays()
-      |> Guard.check_output()
+      |> Guard.check_output(regions: Report.prose_regions(markdown))
       |> Map.fetch!(:findings)
       |> Enum.map(&Guard.diagnose(&1, opts))
       |> Enum.map(fn finding ->
@@ -60,6 +80,16 @@ defmodule Pramana.Repair do
     }
   end
 
+  defp plan(%{occurrence: %{unpaired_wrapper?: true}, verdict: verdict} = finding)
+       when verdict != :ok do
+    action(
+      finding,
+      :flagged,
+      :unpaired_wrapper,
+      "The citation wrapper is incomplete within its prose region."
+    )
+  end
+
   defp plan(%{verdict: :ok, quoted: nil} = finding),
     do: action(finding, :existence_only, nil, "Only the existence of this address was checked.")
 
@@ -67,7 +97,24 @@ defmodule Pramana.Repair do
 
   defp plan(%{verdict: :quote_mismatch, reason: reason} = finding)
        when reason in [:editorial_punctuation, :orthographic_variant] do
-    action(finding, :quote_relaxed, reason, "This quotation now reads as the edition prints it.")
+    case Quote.align(finding.actual, finding.quoted, reason) do
+      {:ok, replacement} ->
+        finding
+        |> action(
+          :quote_relaxed,
+          reason,
+          "Aligned this quotation to the edition's exact subspan."
+        )
+        |> Map.put(:replacement_quote, replacement)
+
+      {:error, refusal} ->
+        action(
+          finding,
+          :flagged,
+          refusal,
+          "No unique substantive source subspan was established."
+        )
+    end
   end
 
   defp plan(%{verdict: :quote_mismatch, reason: :wrong_address, found_at: [urn]} = finding) do
@@ -161,7 +208,7 @@ defmodule Pramana.Repair do
   defp edit_for(finding, action, original) do
     change =
       case action.state do
-        :quote_relaxed -> {finding.occurrence.quote_range, finding.actual}
+        :quote_relaxed -> {finding.occurrence.quote_range, action.replacement_quote}
         :citation_corrected -> {finding.occurrence.urn_range, action.replaced_urn}
         :no_sources -> {finding.occurrence.citation_range, ""}
         _ -> nil
@@ -182,19 +229,22 @@ defmodule Pramana.Repair do
     end
   end
 
-  # An edit must not alter another occurrence's quotation, even if that other
-  # occurrence is already verified and needs no edit. Compare semantic ranges,
-  # not just two write ranges, and flag both sides before applying anything.
   defp reject_overlaps(planned) do
-    Enum.map(planned, fn {action, edit, occurrence} ->
-      collision? =
-        Enum.any?(planned, fn {other, candidate, other_occurrence} ->
-          other.source_offset != action.source_offset &&
-            (touches_occurrence?(edit, other_occurrence) ||
-               touches_occurrence?(candidate, occurrence))
-        end)
+    writes =
+      for {action, edit, _} <- planned,
+          edit != nil,
+          do: interval(edit.range, action.source_offset)
 
-      if collision? do
+    scopes =
+      for {action, _, occurrence} <- planned,
+          range <- [occurrence.quote_range, occurrence.citation_range],
+          range != nil,
+          do: interval(range, action.source_offset)
+
+    conflicts = Intervals.conflicts(writes, scopes)
+
+    Enum.map(planned, fn {action, edit, _} ->
+      if MapSet.member?(conflicts, action.source_offset) do
         {%{
            action
            | state: :flagged,
@@ -208,27 +258,7 @@ defmodule Pramana.Repair do
     end)
   end
 
-  defp touches_occurrence?(nil, _occurrence), do: false
+  defp interval(range, owner), do: {range.byte_start, range.byte_end, owner}
 
-  defp touches_occurrence?(edit, occurrence) do
-    overlaps?(edit.range, occurrence.quote_range) ||
-      overlaps?(edit.range, occurrence.citation_range)
-  end
-
-  defp overlaps?(_range, nil), do: false
-
-  defp overlaps?(left, right),
-    do: left.byte_start < right.byte_end && right.byte_start < left.byte_end
-
-  defp apply_edits(original, edits) do
-    edits
-    |> Enum.sort_by(& &1.range.byte_start, :desc)
-    |> Enum.reduce(original, fn edit, text ->
-      %{byte_start: first, byte_end: last} = edit.range
-      # Ranges originate in the guard's scan of this exact string, not a new parse.
-      expected = binary_part(text, first, last - first)
-      if expected != edit.before, do: raise(ArgumentError, "citation edit bytes changed")
-      binary_part(text, 0, first) <> edit.after <> binary_part(text, last, byte_size(text) - last)
-    end)
-  end
+  defp apply_edits(original, edits), do: EvidenceInput.apply_edits(original, edits)
 end

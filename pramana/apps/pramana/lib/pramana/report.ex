@@ -64,6 +64,7 @@ defmodule Pramana.Report do
 
   alias Pramana.Bake
   alias Pramana.Citation
+  alias Pramana.EvidenceInput
   alias Pramana.Guard
 
   @type status :: :verified | :failed | :incomplete | :no_checkable_evidence
@@ -103,51 +104,45 @@ defmodule Pramana.Report do
     markdown |> parse_document() |> Map.take([:replays, :malformed])
   end
 
-  @doc "Masks replay fences with equal-length bytes for prose citation scanning; original offsets survive."
-  @spec mask_replays(String.t()) :: String.t()
-  def mask_replays(markdown) when is_binary(markdown),
-    do: markdown |> parse_document() |> Map.fetch!(:citation_text)
+  @doc "Prose regions in original UTF-8 bytes. Replay fences, including malformed ones, are boundaries."
+  @spec prose_regions(String.t()) :: [map()]
+  def prose_regions(markdown) when is_binary(markdown),
+    do: markdown |> parse_document() |> Map.fetch!(:regions)
 
   defp parse_document(markdown) do
+    initial = %{replays: [], malformed: [], open: nil, regions: [], prose_start: 0, offset: 0}
+
     parsed =
       markdown
       |> String.split("\n")
       |> Enum.with_index(1)
-      |> Enum.reduce(%{replays: [], malformed: [], open: nil, prose: []}, &parse_line/2)
+      |> Enum.reduce(initial, &parse_line/2)
       |> close_unterminated()
+      |> close_prose(byte_size(markdown))
 
     %{
       replays: Enum.reverse(parsed.replays),
       malformed: Enum.reverse(parsed.malformed),
-      citation_text: parsed.prose |> Enum.reverse() |> Enum.join("\n")
+      regions: Enum.reverse(parsed.regions)
     }
   end
 
   defp parse_line({text, line}, acc) do
-    opening? = Regex.match?(@opening, text)
-    acc = record_prose(acc, text, opening?)
+    next_offset = acc.offset + byte_size(text) + 1
+    acc = consume_line(acc, text, line, next_offset)
+    %{acc | offset: next_offset}
+  end
 
+  defp consume_line(acc, text, line, next_offset) do
     cond do
-      opening? ->
-        acc = close_unterminated(acc)
-        %{acc | open: %{line: line, body: []}}
+      Regex.match?(@opening, text) ->
+        acc = acc |> close_prose(acc.offset) |> close_unterminated()
+        %{acc | open: %{line: line, body: []}, prose_start: nil}
 
-      acc.open && Regex.match?(@closing, text) ->
-        json = acc.open.body |> Enum.reverse() |> Enum.join("\n")
+      acc.open != nil and Regex.match?(@closing, text) ->
+        acc |> decode_block() |> Map.put(:prose_start, next_offset)
 
-        case decode(json, acc.open.line) do
-          {:ok, replay} ->
-            %{acc | replays: [replay | acc.replays], open: nil}
-
-          {:error, reason} ->
-            %{
-              acc
-              | malformed: [%{line: acc.open.line, reason: reason} | acc.malformed],
-                open: nil
-            }
-        end
-
-      acc.open ->
+      acc.open != nil ->
         put_in(acc, [:open, :body], [text | acc.open.body])
 
       true ->
@@ -155,11 +150,24 @@ defmodule Pramana.Report do
     end
   end
 
-  # Replay arguments and asserted values are data, not additional prose citations.
-  # Mask bytes, not graphemes, so every following citation keeps its exact offset.
-  defp record_prose(acc, text, opening?) do
-    prose = if opening? or acc.open != nil, do: String.duplicate(" ", byte_size(text)), else: text
-    %{acc | prose: [prose | acc.prose]}
+  defp decode_block(acc) do
+    json = acc.open.body |> Enum.reverse() |> Enum.join("\n")
+
+    case decode(json, acc.open.line) do
+      {:ok, replay} ->
+        %{acc | replays: [replay | acc.replays], open: nil}
+
+      {:error, reason} ->
+        %{acc | malformed: [%{line: acc.open.line, reason: reason} | acc.malformed], open: nil}
+    end
+  end
+
+  defp close_prose(%{prose_start: nil} = acc, _last), do: acc
+
+  defp close_prose(acc, last) do
+    if acc.prose_start < last,
+      do: %{acc | regions: [%{byte_start: acc.prose_start, byte_end: last} | acc.regions]},
+      else: acc
   end
 
   defp close_unterminated(%{open: nil} = acc), do: acc
@@ -216,11 +224,17 @@ defmodule Pramana.Report do
   """
   @spec verify(String.t(), keyword()) :: map()
   def verify(markdown, opts \\ []) when is_binary(markdown) do
+    case EvidenceInput.check(markdown) do
+      :ok -> verify_bounded(markdown, opts)
+      {:error, refusal} -> refused(markdown, refusal)
+    end
+  end
+
+  defp verify_bounded(markdown, opts) do
     executor = Keyword.fetch!(opts, :executor)
     current_bake = Keyword.get_lazy(opts, :bake_id, &Bake.current_id/0)
 
-    %{replays: all_replays, malformed: malformed, citation_text: citation_text} =
-      parse_document(markdown)
+    %{replays: all_replays, malformed: malformed, regions: regions} = parse_document(markdown)
 
     # A REPORT IS UNTRUSTED INPUT AND EVERY REPLAY IS A QUERY. A document carrying ten
     # thousand fenced blocks would otherwise turn a verification request into a denial of
@@ -244,12 +258,11 @@ defmodule Pramana.Report do
     # Done HERE and not inside `Guard.check_output/1` on purpose: that function is also
     # the MCP `verify_citation` tool and the path 601 eval cases run through, and this
     # needs to change what a REPORT check sees without touching either.
-    {resolved, foreign} = Citation.rewrite(markdown, scan_text: citation_text)
+    {resolved, foreign} = Citation.rewrite(markdown, regions: regions)
 
     citations =
       resolved
-      |> mask_replays()
-      |> Guard.check_output()
+      |> Guard.check_output(regions: prose_regions(resolved))
       |> Map.update!(:findings, fn findings -> Enum.map(findings, &Guard.diagnose/1) end)
 
     results = Enum.map(replays, &check_replay(&1, executor, current_bake))
@@ -284,6 +297,45 @@ defmodule Pramana.Report do
       skipped: length(skipped),
       unsourced_figures: unsourced_figures(markdown),
       bake_id: current_bake
+    }
+  end
+
+  defp refused(markdown, refusal) do
+    %{
+      status: :incomplete,
+      ok?: false,
+      summary: "Report input refused; nothing was checked and no partial pass was produced.",
+      refusal: refusal,
+      counts: %{
+        verified_quotes: 0,
+        existence_only: 0,
+        citation_failures: 0,
+        unresolved_foreign: 0,
+        verified_replays: 0,
+        unasserted_replays: 0,
+        replay_failures: 0,
+        replay_errors: 0,
+        unverifiable_replays: 0,
+        malformed_replays: 0,
+        skipped_replays: 0
+      },
+      citations: %{
+        ok?: false,
+        checked: 0,
+        failed: 0,
+        verified_quotes: 0,
+        existence_only: 0,
+        translations: 0,
+        findings: [],
+        offset_basis: :resolved_text
+      },
+      resolved_text: markdown,
+      foreign: [],
+      replays: [],
+      malformed: [],
+      skipped: 0,
+      unsourced_figures: [],
+      bake_id: nil
     }
   end
 

@@ -61,6 +61,7 @@ defmodule PramanaWeb.CheckLive do
   """
   use PramanaWeb, :live_view
 
+  alias Pramana.EvidenceInput
   alias Pramana.Repair
   alias Pramana.Report
   alias PramanaWeb.MCP.ReplayExecutor
@@ -72,10 +73,10 @@ defmodule PramanaWeb.CheckLive do
   # truncated — a silently shortened report would be reported as verified on the half that
   # was read, which is rule 4 in the place it would do the most damage.
   #
-  # **This is the only limit there is.** Phoenix's `:max_frame_size` defaults to
+  # **Transport buffering is still not bounded here.** Phoenix's `:max_frame_size` defaults to
   # `:infinity` and the endpoint does not set it, so nothing at the transport bounds a
   # paste before it arrives here. Checked rather than assumed.
-  @max_bytes 200_000
+  @max_bytes EvidenceInput.max_bytes()
 
   # Held as a string rather than written into the template: HEEx reads `{` as
   # interpolation, and a JSON example is mostly braces.
