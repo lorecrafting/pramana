@@ -2,113 +2,70 @@ defmodule PramanaWeb.MCP.Reply do
   @moduledoc """
   Every tool response carries the call that produced it.
 
-  A URN is a reproducible citation of a **passage**: resolve it against the same `bake_id`
-  and you get the same bytes. This records the same thing one layer up, for a **retrieval**:
-  `{tool, arguments, bake_id}` is the call that produced this answer.
+  Successful and error JSON bodies both include `bake_id`, `release_id` and
+  `replay: %{tool: tool, arguments: arguments}`. Arguments retain the caller's supplied
+  non-null values, not resolved defaults. MCP errors remain errors at the protocol level.
 
-  ## ▸ WHAT `bake_id` DOES NOT PIN — 2026-09-03, repaired 2026-09-04
+  ## Recorded provenance, not a frozen snapshot
 
-  This said `{tool, arguments, bake_id}` was **enough to run the query again and get the
-  same answer.** It was not, and had not been since the day before it was written.
-  `Pramana.Bake` hashes acquired bytes, normalisation and bake config; it does **not** move
-  when renderings are imported or chunks re-embedded, and 27,751 of each landed under an
-  unchanged id.
+  `bake_id` is the current source-input identity. `release_id` is the most recently
+  recorded retrieval stamp, summarizing source identity and translation/vector counts
+  and translator/model names. Each is `nil` until its corresponding record exists.
 
-  **Both ids now ship, because they answer different questions.** `bake_id` identifies the
-  **source text**: resolve a URN against it and the bytes are the same, which is what makes
-  a citation checkable and was never in doubt. `release_id` identifies the **retrieval
-  state** — source plus English layer plus index — and is the one to compare when the
-  question is whether a *search* would return the same thing. `Pramana.Release`.
-
-  `release_id` is `nil` until something stamps one, and that is deliberate: an id invented
-  at read time would differ between two processes reading one corpus, which is worse than
-  admitting there is none.
-
-  That is what `docs/IDEAS.md` stars as *"show your work" mode*, in its smallest useful
-  form. A model writing a sourced report can attach the `replay` record beside each claim,
-  and a reader can check not only that the quotation is real but that the search which found
-  it was the search the report says it was.
+  Reading response metadata never creates or refreshes a stamp. If the corpus has
+  changed since stamping, the recorded release can be stale; `Pramana.Release.drift/0`
+  reports changes in the tracked facts. These lookups do not create a transactional
+  snapshot of the tool execution or promise identical results when replayed. Same-count
+  content changes, changed defaults and changed code are not all captured by the stamp.
 
   ## Stateless on purpose
 
-  No session, no trace table, no accumulation. `CLAUDE.md` invariant #7 says the MCP surface
-  is read-only — *tools read, the CLI writes* — and a per-session trace would be a write
-  path from the model's side of the boundary, however benign. A response that describes
-  itself needs neither.
-
-  ## It also makes `bake_id` uniform
-
-  Nine of the fifteen tools attached `bake_id` and six did not, each building it inline.
-  `survey_corpus` was among the six, which is the worst of them: it is the tool whose whole
-  purpose is to support a claim about *how often*, and a count without the corpus it counted
-  is not evidence of anything.
+  No session, trace table or accumulation. The MCP surface is read-only — tools read,
+  the CLI writes. Success and error paths share one provenance helper so their metadata
+  contract cannot diverge through separately maintained field lists.
   """
 
   alias Anubis.Server.Response
 
   @doc """
-  Wraps a payload with the call that produced it and the corpus that answered.
+  Wraps a payload with the call that produced it and the recorded corpus identities.
 
-  `arguments` is what the caller actually passed, not the tool's defaults: the point is to
-  reproduce *this* answer, and a default that changes later would silently reproduce a
-  different one.
-
-  Tool and arguments come **before** the payload so a call reads as *this tool, these
-  arguments, this result* — and so the fifteen existing `Response.json(Response.tool(), …)`
-  calls could be converted by inserting a prefix, rather than by finding the closing paren
-  of a payload that spans thirty lines.
+  `arguments` is what the caller actually passed, not the tool's defaults. Metadata
+  supplied by a payload is overwritten by the authoritative lookups below.
   """
   @spec json(String.t(), map(), map()) :: Response.t()
   def json(tool, arguments, payload) when is_binary(tool) and is_map(payload) do
-    # THE SURFACE THE WHOLE THESIS RESTS ON, AND IT WAS UNOBSERVED. Every tool builds its
-    # response here, so this is the one place that sees them all.
-    #
-    # A COUNT, not a duration: this runs after the work, and timing a tool properly needs a
-    # hook around `execute/2` that the server does not currently expose. Which tools are
-    # called and how often is most of the value and was previously zero; the honest thing is
-    # to report what is measured rather than a duration that would be the time to build a map.
+    # A count of calls, not the duration of tool execution: the tool has already run.
     Pramana.Telemetry.emit([:pramana, :mcp, :tool], %{calls: 1}, %{tool: tool})
 
     payload
-    |> Map.put(:bake_id, Pramana.Bake.current_id())
-    # WHAT ANSWERED, beside what was baked. `bake_id` identifies the source text and moves
-    # only when the corpus is re-acquired or re-normalised; `release_id` moves when the
-    # English layer or the index does, which is what a SEARCH depends on. Both are stamped
-    # because they answer different questions and the first was being read as though it
-    # answered the second. `Pramana.Release`.
-    |> Map.put(:release_id, Pramana.Release.current_id())
-    |> Map.put(:replay, %{tool: tool, arguments: normalize(arguments)})
+    |> with_provenance(tool, arguments)
     |> then(&Response.json(Response.tool(), &1))
   end
 
   @doc """
   An error a model can branch on, not only read.
 
-  Nineteen error paths across seventeen tools were each a hand-written sentence. Prose is the
-  right thing to *show* a caller and the wrong thing to give it as a contract: a model cannot
-  distinguish "this URN does not exist" from "this work is not in the bake" from "your query
-  was empty" without matching on English, which changes whenever someone improves the wording.
-
-  So an error carries a **`reason`** — a stable, snake_case atom naming the failure — beside
-  the sentence, and the sentence stays as good as it was. It also carries `bake_id` and
-  `replay`, because a failure is as much a fact about a corpus as a result is: "no passage at
-  this URN" is true of *this* bake and may be false of the next.
-
-  The payload is JSON in the error body rather than bare text, so the same parse works
-  whether a call succeeded or failed.
+  The JSON error body preserves the stable reason and human-readable message beside
+  the same `bake_id`, `release_id` and replay metadata as a successful response.
+  The MCP response retains its error flag; metadata does not turn failure into success.
   """
   @spec error(String.t(), map(), atom(), String.t()) :: Response.t()
   def error(tool, arguments, reason, message)
       when is_binary(tool) and is_atom(reason) and is_binary(message) do
     Pramana.Telemetry.emit([:pramana, :mcp, :tool], %{calls: 1}, %{tool: tool, error: reason})
 
-    %{
-      error: %{reason: reason, message: message},
-      bake_id: Pramana.Bake.current_id(),
-      replay: %{tool: tool, arguments: normalize(arguments)}
-    }
+    %{error: %{reason: reason, message: message}}
+    |> with_provenance(tool, arguments)
     |> Jason.encode!()
     |> then(&Response.error(Response.tool(), &1))
+  end
+
+  defp with_provenance(payload, tool, arguments) do
+    payload
+    |> Map.put(:bake_id, Pramana.Bake.current_id())
+    |> Map.put(:release_id, Pramana.Release.current_id())
+    |> Map.put(:replay, %{tool: tool, arguments: normalize(arguments)})
   end
 
   # Struct-free and atom-keyed, so the record round-trips through JSON as what was sent.

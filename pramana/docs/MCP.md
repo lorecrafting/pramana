@@ -58,9 +58,15 @@ alignment evidence; absence of an alignment does not refute the work-level relat
 ## Honesty fields and replay
 
 [Reply](../apps/pramana_web/lib/pramana_web/mcp/reply.ex) attaches `bake_id`,
-`release_id` and `replay: {tool, arguments}` to successful JSON replies. The release
-value can be null until stamped. Error JSON includes source identity and replay
-arguments but currently does not include `release_id`.
+`release_id` and `replay: {tool, arguments}` to both successful and error JSON replies
+through one shared helper. Both identity keys are present even when their values are
+null: no recorded bake means `bake_id: null`, and no recorded release means
+`release_id: null`. Errors retain their MCP error flag, reason and message.
+
+These are read-only lookups. A reply does not create or refresh a release stamp;
+`release_id` remains the most recently recorded stamp even when tracked source or
+derived facts have changed. `Pramana.Release.drift/0` reports those differences.
+The lookups do not provide a transactional snapshot of the preceding tool execution.
 
 Source identity does not freeze all derived data. The current release stamp hashes
 counts and model/translator identities, not every vector/rendering byte, and the

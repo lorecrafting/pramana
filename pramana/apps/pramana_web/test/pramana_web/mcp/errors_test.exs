@@ -12,6 +12,7 @@ defmodule PramanaWeb.MCP.ErrorsTest do
   use Pramana.DataCase, async: true
 
   alias Anubis.Server.Response
+  alias Pramana.Release
   alias PramanaWeb.MCP.Tools.GetPassage
   alias PramanaWeb.MCP.Tools.GetPerson
   alias PramanaWeb.MCP.Tools.Search
@@ -48,11 +49,12 @@ defmodule PramanaWeb.MCP.ErrorsTest do
   end
 
   test "a failure names the corpus it is a fact about" do
-    # "No passage at this URN" is true of THIS bake and may be false of the next, so a
-    # failure carries `bake_id` and `replay` exactly as a result does.
+    # Failures carry source identity, the recorded release and replay just as results do.
+    {:ok, stamped} = Release.stamp()
     {_, body} = call(GetPassage, %{urn: "pramana:cbeta.T:T9999_001@p0001a01"})
 
     assert Map.has_key?(body, "bake_id")
+    assert body["release_id"] == stamped.release_id
     assert body["replay"]["tool"] == "get_passage"
     assert body["replay"]["arguments"]["urn"] == "pramana:cbeta.T:T9999_001@p0001a01"
   end
@@ -69,5 +71,37 @@ defmodule PramanaWeb.MCP.ErrorsTest do
     {_, body} = call(GetPerson, %{authority_id: "A_NOPE"})
 
     assert body["error"]["reason"] == "unknown_authority_id"
+  end
+
+  test "tool error paths preserve null release identity until explicitly stamped" do
+    for {module, params} <- [
+          {GetPassage, %{urn: "not-a-urn"}},
+          {Search, %{query: ""}},
+          {GetPerson, %{authority_id: "A_NOPE"}}
+        ] do
+      {response, body} = call(module, params)
+      assert response.isError
+      assert Map.fetch!(body, "release_id") == nil
+    end
+
+    assert Release.current() == nil
+  end
+
+  test "tool error paths use the recorded release without changing their error semantics" do
+    {:ok, stamped} = Release.stamp()
+
+    for {module, params, reason} <- [
+          {GetPassage, %{urn: "not-a-urn"}, "bad_urn"},
+          {Search, %{query: ""}, "empty_query"},
+          {GetPerson, %{authority_id: "A_NOPE"}, "unknown_authority_id"}
+        ] do
+      {response, body} = call(module, params)
+      assert response.isError
+      assert body["release_id"] == stamped.release_id
+      assert body["error"]["reason"] == reason
+    end
+
+    assert Release.current() == stamped
+    assert Pramana.Repo.aggregate(Pramana.Corpus.Release, :count) == 1
   end
 end

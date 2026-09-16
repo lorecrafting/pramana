@@ -73,14 +73,19 @@ retrieval stamp. It records source identity, translation/vector counts, translat
 and embedding model names. `mix pramana.release.stamp` writes it;
 `mix pramana.doctor` can report its status. **This is not a content hash of all
 renderings and vectors.** Same-count edits, search-code/default changes and some other
-state changes can be invisible. Its current drift comparison also omits source identity.
-Do not advertise a matching `release_id` as a byte-complete retrieval snapshot.
+state changes can be invisible. The drift comparison includes `source_bake_id` and all
+derived facts used for stamping, excluding only the observation timestamp. It reports
+source identities appearing, disappearing or changing even when counts are unchanged;
+it never refreshes the stamp. `:current` means those tracked facts agree, not that every
+byte is unchanged. Do not advertise a matching `release_id` as a byte-complete snapshot.
 
 [MCP Reply](../apps/pramana_web/lib/pramana_web/mcp/reply.ex) places `bake_id`,
-`release_id` and the caller's non-null arguments in successful JSON replies.
-`release_id` may be null until stamped. Error replies carry `bake_id` and replay
-arguments but currently omit `release_id`. Omitted defaults are not pinned by the
-replay record. **Re-runnable is not a promise of identical results.**
+`release_id` and the caller's non-null arguments in both successful and error JSON replies.
+Both identity keys remain present with null values until their records exist. A reply
+reads the most recently recorded release, even if stale; it does not stamp automatically
+or create a transactional snapshot of tool execution. Error responses retain their MCP
+error flag, reason and message. Omitted defaults are not pinned by the replay record.
+**Re-runnable is not a promise of identical results.**
 
 ## Citation verification, precisely
 

@@ -1,15 +1,13 @@
 defmodule Pramana.ReleaseTest do
   @moduledoc """
-  What answered, as distinct from what was baked.
+  Recorded source identity and derived-state facts.
 
-  **The defect this fixes has already happened.** 27,751 renderings and 27,751 vectors were
-  imported under an unchanged `bake_id`, while `PramanaWeb.MCP.Reply` stamped that id on
-  every response of nineteen tools and promised it was enough to reproduce an answer. These
-  tests pin the property that makes `release_id` worth having: **it moves when retrieval
-  moves, and `bake_id` does not.**
+  These tests exercise stamps and drift using isolated database fixtures. They do not
+  establish byte-complete content identity or historical retrieval reproducibility.
   """
   use Pramana.DataCase, async: true
 
+  alias Pramana.Corpus.Bake, as: BakeSchema
   alias Pramana.Release
   alias Pramana.Translations
 
@@ -28,6 +26,15 @@ defmodule Pramana.ReleaseTest do
           license_class: "cc0"
         }
       ])
+  end
+
+  defp bake!(digit, built_at) do
+    Pramana.Repo.insert!(%BakeSchema{
+      id: String.duplicate(digit, 64),
+      pipeline_version: Pramana.Bake.pipeline_version(),
+      sources_lock_sha256: String.duplicate("c", 64),
+      built_at: built_at
+    })
   end
 
   describe "stamp/0" do
@@ -56,8 +63,7 @@ defmodule Pramana.ReleaseTest do
     end
 
     test "the SOURCE id does not move when only the English layer does" do
-      # The division of labour: a citation stays reproducible from `source_bake_id` alone,
-      # and that claim never depended on the index. Importing English must not disturb it.
+      # Derived-data changes must not alter the source-input identity.
       {:ok, before} = Release.stamp()
       rendering!("2.1")
       {:ok, after_import} = Release.stamp()
@@ -89,6 +95,66 @@ defmodule Pramana.ReleaseTest do
       assert %{translations_count: %{stamped: stamped, live: live}} = drift
       assert live == stamped + 1
     end
+
+    test "reports a source-only change without refreshing the recorded release" do
+      before = bake!("a", ~U[2026-01-01 00:00:00.000000Z])
+      {:ok, stamped} = Release.stamp()
+      after_bake = bake!("b", ~U[2026-01-02 00:00:00.000000Z])
+
+      assert Release.drift() == %{
+               source_bake_id: %{stamped: before.id, live: after_bake.id}
+             }
+
+      assert Release.current() == stamped
+      assert Pramana.Repo.aggregate(Pramana.Corpus.Release, :count) == 1
+
+      {:ok, refreshed} = Release.stamp()
+      refute refreshed.release_id == stamped.release_id
+      assert refreshed.source_bake_id == after_bake.id
+      assert refreshed.translation_set_id == stamped.translation_set_id
+      assert refreshed.vector_set_id == stamped.vector_set_id
+      assert Release.drift() == :current
+    end
+
+    test "reports a source identity appearing after a source-less stamp" do
+      {:ok, stamped} = Release.stamp()
+      assert stamped.source_bake_id == nil
+      bake = bake!("a", ~U[2026-01-01 00:00:00.000000Z])
+
+      assert Release.drift() == %{source_bake_id: %{stamped: nil, live: bake.id}}
+    end
+
+    test "reports a source identity disappearing rather than treating nil as unchanged" do
+      bake = bake!("a", ~U[2026-01-01 00:00:00.000000Z])
+      {:ok, _} = Release.stamp()
+      Pramana.Repo.delete!(bake)
+
+      assert Release.drift() == %{source_bake_id: %{stamped: bake.id, live: nil}}
+    end
+
+    test "a newer build timestamp for the same source identity is not drift" do
+      bake = bake!("a", ~U[2026-01-01 00:00:00.000000Z])
+      {:ok, _} = Release.stamp()
+
+      bake
+      |> Ecto.Changeset.change(built_at: ~U[2026-01-02 00:00:00.000000Z])
+      |> Pramana.Repo.update!()
+
+      assert Release.drift() == :current
+    end
+
+    test "reports source and derived changes together" do
+      before = bake!("a", ~U[2026-01-01 00:00:00.000000Z])
+      {:ok, stamped} = Release.stamp()
+      after_bake = bake!("b", ~U[2026-01-02 00:00:00.000000Z])
+      rendering!("4.1")
+
+      assert Release.drift() == %{
+               source_bake_id: %{stamped: before.id, live: after_bake.id},
+               translations_count: %{stamped: stamped.translations_count, live: 1},
+               translators: %{stamped: stamped.translators, live: ["sujato"]}
+             }
+    end
   end
 
   describe "ids/0" do
@@ -97,7 +163,7 @@ defmodule Pramana.ReleaseTest do
       ids = Release.ids()
 
       # One definition of what the ids are made of. It was briefly two — a private digest
-      # for stamping and a public one for reporting — and that is how a stamped id stops
+      # for stamping and `ids/0` for reporting — and that is how a stamped id stops
       # matching the id a check computes. Rule 41.
       assert ids.release_id == stamped.release_id
       assert ids.translation_set_id == stamped.translation_set_id
