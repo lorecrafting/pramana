@@ -1,6 +1,11 @@
 name: Phoenix Agent Rules Watch
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/upstream-agent-rules.yml"
+      - "bin/sync_agent_conventions.exs"
+      - "docs/agents/code-conventions/UPSTREAM.exs"
   schedule:
     - cron: "23 17 1 * *"
   workflow_dispatch:
@@ -10,7 +15,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: phoenix-agent-rules-watch
+  group: phoenix-agent-rules-watch-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -49,7 +54,7 @@ jobs:
           esac
 
       - name: Open or refresh upstream-review issue
-        if: steps.watch.outputs.changed == 'true'
+        if: github.event_name != 'pull_request' && steps.watch.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           WATCH_REPORT: ${{ steps.watch.outputs.report }}
