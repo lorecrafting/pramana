@@ -23,7 +23,7 @@ defmodule PramanaWeb.CheckLive do
   assistants, and there is nowhere to take it. **Nothing here asks you to trust a model of
   ours** — the checks are byte comparisons and re-executed counts.
 
-  ## Three verdicts, not two, and the third is the reason this is worth building
+  ## One overall status, with detailed evidence outcomes
 
   `failed` and `unverifiable` are rendered differently and must never be collapsed. A
   replay recorded against another `bake_id` **cannot be re-run here**; the corpus changed,
@@ -51,7 +51,8 @@ defmodule PramanaWeb.CheckLive do
 
   ## Counting, with the denominator
 
-  The summary never says "verified". It says how many citations were byte-compared, how many
+  The summary distinguishes verified, failed, incomplete and no checkable evidence. It also
+  says how many citations were byte-compared, how many
   were only checked for **existence** because no quotation was attached, and how many
   quotations were of a *translation* rather than of the text. Three citations verified across
   three renderings of one Pāli line is a very different claim from three verified quotes of
@@ -60,6 +61,7 @@ defmodule PramanaWeb.CheckLive do
   """
   use PramanaWeb, :live_view
 
+  alias Pramana.EvidenceInput
   alias Pramana.Repair
   alias Pramana.Report
   alias PramanaWeb.MCP.ReplayExecutor
@@ -71,10 +73,10 @@ defmodule PramanaWeb.CheckLive do
   # truncated — a silently shortened report would be reported as verified on the half that
   # was read, which is rule 4 in the place it would do the most damage.
   #
-  # **This is the only limit there is.** Phoenix's `:max_frame_size` defaults to
+  # **Transport buffering is still not bounded here.** Phoenix's `:max_frame_size` defaults to
   # `:infinity` and the endpoint does not set it, so nothing at the transport bounds a
   # paste before it arrives here. Checked rather than assumed.
-  @max_bytes 200_000
+  @max_bytes EvidenceInput.max_bytes()
 
   # Held as a string rather than written into the template: HEEx reads `{` as
   # interpolation, and a JSON example is mostly braces.
@@ -224,16 +226,17 @@ defmodule PramanaWeb.CheckLive do
   # what a reader should act on.
   defp verdict(assigns) do
     ~H"""
-    <section class={[
-      "rounded-lg p-4",
-      @result.ok? && "bg-success/10 border border-success/30",
-      !@result.ok? && "bg-error/10 border border-error/30"
-    ]}>
-      <div class="font-semibold">
-        {if @result.ok?,
-          do: "Every claim this can check held.",
-          else: "Something did not hold."}
-      </div>
+    <section
+      id="verification-result"
+      data-status={@result.status}
+      class={[
+        "rounded-lg p-4 border",
+        @result.status == :verified && "bg-success/10 border-success/30",
+        @result.status == :failed && "bg-error/10 border-error/30",
+        @result.status in [:incomplete, :no_checkable_evidence] && "bg-warning/10 border-warning/30"
+      ]}
+    >
+      <div class="font-semibold">{@result.summary}</div>
       <p class="mt-1 text-sm text-base-content/70">{summary(@result)}</p>
       <p class="mt-2 text-xs text-base-content/60">
         This checks warrant, not meaning: whether a passage says what was quoted and whether
@@ -387,11 +390,14 @@ defmodule PramanaWeb.CheckLive do
   # the claim is not refuted and it does not pass either, and collapsing those two into one
   # red badge is precisely the mistake `Pramana.Report` was written to avoid.
   defp replay_class(:verified), do: "border-base-300"
-  defp replay_class(:unverifiable), do: "border-warning/40 bg-warning/5"
+
+  defp replay_class(status) when status in [:unverifiable, :executed, :error],
+    do: "border-warning/40 bg-warning/5"
+
   defp replay_class(_), do: "border-error/40 bg-error/5"
 
   defp replay_badge(:verified), do: "badge-success"
-  defp replay_badge(:unverifiable), do: "badge-warning"
+  defp replay_badge(status) when status in [:unverifiable, :executed, :error], do: "badge-warning"
   defp replay_badge(_), do: "badge-error"
 
   attr :entries, :list, required: true
@@ -438,6 +444,7 @@ defmodule PramanaWeb.CheckLive do
         <li :for={a <- @repair.actions} class="flex flex-wrap items-baseline gap-2">
           <span class={["badge badge-sm", repair_badge(a.state)]}>{a.state}</span>
           <code class="font-mono text-xs">{a.urn}</code>
+          <span class="text-xs text-base-content/50">byte {a.source_offset}</span>
           <span :if={a.detail} class="text-xs text-base-content/70">{a.detail}</span>
         </li>
       </ul>

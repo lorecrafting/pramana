@@ -8,8 +8,8 @@ defmodule PramanaWeb.MCP.Reply do
 
   ## Recorded provenance, not a frozen snapshot
 
-  `bake_id` is the current source-input identity. `release_id` is the most recently
-  recorded retrieval stamp, summarizing source identity and translation/vector counts
+  `bake_id` is the current source-input identity. `release_id` is the explicitly
+  selected retrieval stamp, summarizing source identity and translation/vector counts
   and translator/model names. Each is `nil` until its corresponding record exists.
 
   Reading response metadata never creates or refreshes a stamp. If the corpus has

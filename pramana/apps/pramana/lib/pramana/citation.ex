@@ -49,6 +49,7 @@ defmodule Pramana.Citation do
 
   alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
+  alias Pramana.EvidenceInput
   alias Pramana.Repo
 
   @typedoc "A citation found in prose, and what it resolves to."
@@ -56,7 +57,9 @@ defmodule Pramana.Citation do
           matched: String.t(),
           scheme: :taisho | :suttacentral,
           urn: String.t() | nil,
-          reason: term() | nil
+          reason: term() | nil,
+          source_offset: non_neg_integer(),
+          source_length: pos_integer()
         }
 
   # SAT and CBETA's own form: work, volume, page, register, line, all fixed width.
@@ -76,55 +79,79 @@ defmodule Pramana.Citation do
   @doc """
   Finds every foreign citation in a block of prose and resolves what it can.
 
-  Returns one entry per distinct citation, each carrying the text that matched so a caller
+  Returns one entry per citation occurrence, each carrying the text that matched so a caller
   can point at it, and `reason` when it did not resolve. Nothing is silently dropped —
   a citation this corpus cannot place is exactly what a reader needs told.
   """
   @spec scan(String.t()) :: [found()]
   def scan(text) when is_binary(text) do
     (scan_taisho(text) ++ scan_suttacentral(text))
-    |> Enum.uniq_by(& &1.matched)
+    |> Enum.sort_by(&{&1.source_offset, -&1.source_length})
+    |> Enum.reduce({[], 0}, fn found, {kept, finish} ->
+      if found.source_offset < finish,
+        do: {kept, finish},
+        else: {[found | kept], found.source_offset + found.source_length}
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  defp captures(pattern, text) do
+    pattern
+    |> Regex.scan(text, return: :index)
+    |> Enum.map(fn [whole | captures] ->
+      values =
+        Enum.map(captures, fn
+          {-1, 0} -> ""
+          {pos, len} -> binary_part(text, pos, len)
+        end)
+
+      {whole, values}
+    end)
   end
 
   defp scan_taisho(text) do
     sat =
-      @sat
-      |> Regex.scan(text)
-      |> Enum.map(fn [matched, work, _volume, page, register, line] ->
-        {matched, work, page, register, "", line}
+      Enum.map(captures(@sat, text), fn {range, [work, volume, page, register, line]} ->
+        {range, work, volume, page, register, "", line}
       end)
 
     print =
-      @print
-      |> Regex.scan(text)
-      |> Enum.map(fn [matched, work, page, register, sign, line] ->
-        {matched, work, page, register, sign, line}
+      Enum.map(captures(@print, text), fn {range, [work, page, register, sign, line]} ->
+        {range, work, "", page, register, sign, line}
       end)
 
-    (sat ++ print)
-    |> Enum.uniq_by(fn {matched, _, _, _, _, _} -> matched end)
-    |> Enum.map(&resolve_taisho/1)
+    Enum.map(sat ++ print, &resolve_taisho(&1, text))
   end
 
-  defp resolve_taisho({matched, work, page, register, sign, line}) do
-    work_id = "T" <> String.pad_leading(work, 4, "0")
-
+  defp resolve_taisho({{pos, len}, work, volume, page, register, sign, line}, text) do
     address = %{
-      work_id: work_id,
+      work_id: "T" <> String.pad_leading(work, 4, "0"),
+      volume: if(volume == "", do: nil, else: String.to_integer(volume)),
       page: String.pad_leading(page, 4, "0"),
       register: register,
       line: String.to_integer(line),
       from_foot: sign == "-"
     }
 
+    base = %{
+      matched: binary_part(text, pos, len),
+      scheme: :taisho,
+      source_offset: pos,
+      source_length: len
+    }
+
     case taisho_urn(address) do
-      {:ok, urn} -> %{matched: matched, scheme: :taisho, urn: urn, reason: nil}
-      {:error, reason} -> %{matched: matched, scheme: :taisho, urn: nil, reason: reason}
+      {:ok, urn} -> Map.merge(base, %{urn: urn, reason: nil})
+      {:error, reason} -> Map.merge(base, %{urn: nil, reason: reason})
     end
   end
 
   @doc """
   Resolves a parsed Taishō address to the URN of the line it names.
+
+  Supplied volume coordinates are enforced, including per-segment volume metadata.
+  Multiple matches return an ambiguity error, never the first row.
 
   Goes through `segments.page`, `register` and `line` rather than building a URN string,
   because **the juan is in our URN and not in the citation**. Assuming juan 1 would be
@@ -133,56 +160,97 @@ defmodule Pramana.Citation do
   """
   @spec taisho_urn(map()) :: {:ok, String.t()} | {:error, term()}
   def taisho_urn(%{work_id: work_id} = address) do
-    line = line_number(address)
+    with {:ok, volume} <- volume_number(Map.get(address, :volume)),
+         query = address_query(address, volume),
+         {:ok, line} <- line_number(query, address) do
+      candidates =
+        Repo.all(
+          from([s, _t] in query,
+            where: s.line == ^line,
+            select: s.urn,
+            distinct: true,
+            order_by: s.urn,
+            limit: 2
+          )
+        )
 
-    query =
-      from s in Segment,
-        join: t in Text,
-        on: t.id == s.text_id,
-        where:
-          t.work_id == ^work_id and t.source_id == "cbeta" and
-            s.page == ^address.page and s.register == ^address.register and s.line == ^line,
-        select: s.urn,
-        limit: 1
+      case candidates do
+        [urn] ->
+          {:ok, urn}
 
-    case Repo.one(query) do
-      nil -> {:error, {:no_such_line, work_id, address.page, address.register, line}}
-      urn -> {:ok, urn}
+        [] when is_nil(volume) ->
+          {:error, {:no_such_line, work_id, address.page, address.register, line}}
+
+        [] ->
+          {:error,
+           {:no_such_line_in_volume, work_id, volume, address.page, address.register, line}}
+
+        _ ->
+          {:error, {:ambiguous_address, work_id, address.page, address.register, line}}
+      end
     end
   end
 
-  # `27b-1` is the LAST line of the register, `-6` the sixth from last. Verified against
-  # the text in `Pramana.Glossary.Anchors`; the last line is read from the corpus rather
-  # than assumed to be 29, because the final page of a work is short.
-  defp line_number(%{from_foot: false} = address), do: address.line
+  defp volume_number(nil), do: {:ok, nil}
+  defp volume_number(volume) when is_integer(volume) and volume > 0, do: {:ok, volume}
+  defp volume_number(_), do: {:error, :invalid_volume}
 
-  defp line_number(%{from_foot: true} = address) do
+  defp address_query(address, volume) do
     query =
-      from s in Segment,
+      from(s in Segment,
         join: t in Text,
         on: t.id == s.text_id,
         where:
-          t.work_id == ^address.work_id and t.source_id == "cbeta" and
-            s.page == ^address.page and s.register == ^address.register,
-        select: max(s.line)
+          t.work_id == ^address.work_id and t.source_id == "cbeta" and t.witness_id == "T" and
+            s.page == ^address.page and s.register == ^address.register
+      )
 
-    case Repo.one(query) do
-      nil -> address.line
-      last -> last - address.line + 1
+    if volume do
+      from([s, t] in query,
+        where:
+          fragment("COALESCE(?->>'volume', ?)", s.meta, t.volume) == ^Integer.to_string(volume)
+      )
+    else
+      query
     end
   end
+
+  # The foot belongs to a particular printed register. Do not compute a maximum
+  # across two volumes/texts and pretend it identified one unambiguous address.
+  defp line_number(query, %{from_foot: true} = address) do
+    registers =
+      Repo.all(
+        from([s, t] in query,
+          group_by: [s.text_id, fragment("COALESCE(?->>'volume', ?)", s.meta, t.volume)],
+          select: max(s.line),
+          order_by: [s.text_id, fragment("COALESCE(?->>'volume', ?)", s.meta, t.volume)],
+          limit: 2
+        )
+      )
+
+    case registers do
+      [] -> {:ok, address.line}
+      [last] when is_integer(last) -> {:ok, last - address.line + 1}
+      _ -> {:error, {:ambiguous_register, address.work_id, address.page, address.register}}
+    end
+  end
+
+  defp line_number(_query, address), do: {:ok, address.line}
 
   defp scan_suttacentral(text) do
-    @suttacentral
-    |> Regex.scan(text)
-    |> Enum.map(fn [matched, work, locator] ->
+    Enum.map(captures(@suttacentral, text), fn {{pos, len}, [work, locator]} ->
       urn = "pramana:sc.ms:#{work}@#{locator}"
 
-      if segment_exists?(urn) do
-        %{matched: matched, scheme: :suttacentral, urn: urn, reason: nil}
-      else
-        %{matched: matched, scheme: :suttacentral, urn: nil, reason: {:no_such_segment, urn}}
-      end
+      found = %{
+        matched: binary_part(text, pos, len),
+        scheme: :suttacentral,
+        source_offset: pos,
+        source_length: len
+      }
+
+      if segment_exists?(urn),
+        do: Map.merge(found, %{urn: urn, reason: nil}),
+        else: Map.merge(found, %{urn: nil, reason: {:no_such_segment, urn}})
     end)
   end
 
@@ -191,30 +259,39 @@ defmodule Pramana.Citation do
   # a citation would put false findings into the checker, which is the one place this
   # project cannot afford them.
   defp segment_exists?(urn) do
-    Repo.exists?(from s in Segment, where: s.urn == ^urn)
+    Repo.exists?(from(s in Segment, where: s.urn == ^urn))
   end
 
   @doc """
   Rewrites foreign citations in prose as `pramana:` URNs, leaving the rest alone.
 
-  Used by `Pramana.Guard.check_output/1` so a document citing the Taishō the way an
+  Used by `Pramana.Report.verify/2` so a document citing the Taishō the way an
   article cites it is checked rather than silently passed. An unresolvable citation is
   left exactly as written — rewriting it to something that does not resolve would turn a
   citation nobody could place into a citation that looks fabricated.
   """
-  @spec rewrite(String.t()) :: {String.t(), [found()]}
-  def rewrite(text) when is_binary(text) do
-    found = scan(text)
-
-    rewritten =
-      found
-      |> Enum.filter(& &1.urn)
-      # Longest first: `T0262_.09.0006a23` contains a substring that `@print` also
-      # matches, and replacing the short one first would corrupt the long one.
-      |> Enum.sort_by(&String.length(&1.matched), :desc)
-      |> Enum.reduce(text, fn %{matched: matched, urn: urn}, acc ->
-        String.replace(acc, matched, urn)
+  @spec rewrite(String.t(), keyword()) :: {String.t(), [found()]}
+  def rewrite(text, opts \\ []) when is_binary(text) do
+    found =
+      text
+      |> EvidenceInput.regions(opts)
+      |> Enum.flat_map(fn {offset, region} ->
+        Enum.map(scan(region), &Map.update!(&1, :source_offset, fn pos -> pos + offset end))
       end)
+
+    edits =
+      for found <- found, found.urn != nil do
+        %{
+          range: %{
+            byte_start: found.source_offset,
+            byte_end: found.source_offset + found.source_length
+          },
+          before: found.matched,
+          after: found.urn
+        }
+      end
+
+    rewritten = EvidenceInput.apply_edits(text, edits)
 
     {rewritten, found}
   end

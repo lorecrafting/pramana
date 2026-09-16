@@ -104,4 +104,92 @@ defmodule Pramana.CitationTest do
       assert {^original, []} = Citation.rewrite(original)
     end
   end
+
+  describe "complete coordinates and ambiguity" do
+    test "a supplied wrong volume cannot resolve through the matching work and page" do
+      assert [%{urn: nil, reason: {:no_such_line_in_volume, "T0262", 10, "0006", "a", 23}}] =
+               Citation.scan("T0262_.10.0006a23")
+
+      assert [%{urn: "pramana:cbeta.T:T0262_001@p0006a23"}] =
+               Citation.scan("T0262_.09.0006a23")
+    end
+
+    test "volume omission stays supported without manufacturing a coordinate" do
+      assert [%{urn: "pramana:cbeta.T:T0262_001@p0006a23"}] =
+               Citation.scan("T0262.0006a23")
+
+      assert [%{urn: nil, reason: :invalid_volume}] = Citation.scan("T0262_.00.0006a23")
+    end
+
+    test "two printed locations with the same short address are ambiguous" do
+      load_repeated_page!()
+
+      assert [%{urn: nil, reason: {:ambiguous_address, "T0262", "0006", "a", 23}}] =
+               Citation.scan("T. 262, 6a23")
+
+      assert [%{urn: nil, reason: {:ambiguous_register, "T0262", "0006", "a"}}] =
+               Citation.scan("T. 262, 6a-1")
+    end
+
+    test "per-segment volume disambiguates a text spanning printed volumes" do
+      load_repeated_page!()
+
+      assert [%{urn: "pramana:cbeta.T:T0262_001@p0006a23"}] =
+               Citation.scan("T0262_.09.0006a23")
+
+      assert [%{urn: "pramana:cbeta.T:T0262_002@p0006a23"}] =
+               Citation.scan("T0262_.10.0006a23")
+
+      assert {:ok, "pramana:cbeta.T:T0262_002@p0006a23"} =
+               Citation.taisho_urn(%{
+                 work_id: "T0262",
+                 volume: 10,
+                 page: "0006",
+                 register: "a",
+                 line: 1,
+                 from_foot: true
+               })
+    end
+
+    test "a volume does not turn duplicate matches within that volume into one result" do
+      load_repeated_page!()
+      Repo.update_all(Pramana.Corpus.Segment, set: [meta: %{"volume" => 9}])
+
+      assert [%{urn: nil, reason: {:ambiguous_address, "T0262", "0006", "a", 23}}] =
+               Citation.scan("T0262_.09.0006a23")
+    end
+
+    defp load_repeated_page! do
+      xml =
+        String.replace(@xml, "</body>", """
+        <milestone n="2" unit="juan"/>
+        <lb n="0006a23"/>另一印本頁面
+        </body>
+        """)
+
+      {:ok, ir} = CBETA.normalize(xml, work_id: "T0262", canon: "T", volume: 9, number: "0262")
+      {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T")
+      Repo.update_all(Pramana.Corpus.Text, set: [volume: "9-10"])
+      Repo.update_all(Pramana.Corpus.Segment, set: [meta: %{"volume" => 9}])
+
+      Repo.update_all(from(s in Pramana.Corpus.Segment, where: s.juan == 2),
+        set: [meta: %{"volume" => 10}]
+      )
+    end
+  end
+
+  test "rewriting repeated foreign citations preserves unrelated Unicode and wrong coordinates" do
+    input = "🙂 e\u0301: T0262_.09.0006a23, T0262_.10.0006a23; T0262_.09.0006a23."
+    urn = "pramana:cbeta.T:T0262_001@p0006a23"
+    assert {rewritten, [first, wrong, repeated]} = Citation.rewrite(input)
+    assert rewritten == "🙂 e\u0301: #{urn}, T0262_.10.0006a23; #{urn}."
+    assert first.urn == repeated.urn
+    assert wrong.urn == nil
+    assert first.source_offset < wrong.source_offset
+    assert wrong.source_offset < repeated.source_offset
+
+    for item <- [first, wrong, repeated] do
+      assert binary_part(input, item.source_offset, item.source_length) == item.matched
+    end
+  end
 end

@@ -75,17 +75,20 @@ defmodule Mix.Tasks.Pramana.DoctorTest do
       stats: %{"chars" => 12_345}
     })
 
-    Repo.insert!(%Pramana.Corpus.Release{
-      release_id: "rel-1234567890abcdef",
-      source_bake_id: "bake-1234567890abcdef",
-      translation_set_id: "tset-1",
-      vector_set_id: "vset-1",
-      translations_count: 0,
-      vectors_count: 0,
-      embedding_models: [],
-      translators: [],
-      stamped_at: now
-    })
+    release =
+      Repo.insert!(%Pramana.Corpus.Release{
+        release_id: "rel-1234567890abcdef",
+        source_bake_id: "bake-1234567890abcdef",
+        translation_set_id: "tset-1",
+        vector_set_id: "vset-1",
+        translations_count: 0,
+        vectors_count: 0,
+        embedding_models: [],
+        translators: [],
+        stamped_at: now
+      })
+
+    Repo.insert!(%Pramana.Release.Selection{id: 1, release_id: release.id, selected_at: now})
 
     output = capture_io(fn -> Doctor.run([]) end)
 
@@ -100,17 +103,20 @@ defmodule Mix.Tasks.Pramana.DoctorTest do
   test "reports drift when the corpus has moved since the release was stamped" do
     now = DateTime.utc_now()
 
-    Repo.insert!(%Pramana.Corpus.Release{
-      release_id: "rel-1234567890abcdef",
-      source_bake_id: "bake-old",
-      translation_set_id: "tset-1",
-      vector_set_id: "vset-1",
-      translations_count: 42,
-      vectors_count: 0,
-      embedding_models: [],
-      translators: [],
-      stamped_at: now
-    })
+    release =
+      Repo.insert!(%Pramana.Corpus.Release{
+        release_id: "rel-1234567890abcdef",
+        source_bake_id: "bake-old",
+        translation_set_id: "tset-1",
+        vector_set_id: "vset-1",
+        translations_count: 42,
+        vectors_count: 0,
+        embedding_models: [],
+        translators: [],
+        stamped_at: now
+      })
+
+    Repo.insert!(%Pramana.Release.Selection{id: 1, release_id: release.id, selected_at: now})
 
     output = capture_io(fn -> Doctor.run([]) end)
 

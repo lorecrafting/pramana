@@ -9,7 +9,7 @@ defmodule Pramana.GuardDiagnoseTest do
 
   The two verdicts that change how a refusal reads get the most attention here:
   `:wrong_address`, where the model found real text and mis-cited it, and
-  `:absent_from_corpus`, which is the only one of the five that is a fabrication.
+  `:not_found_in_search`, which does not establish fabrication.
   """
   use Pramana.DataCase, async: false
 
@@ -71,14 +71,16 @@ defmodule Pramana.GuardDiagnoseTest do
 
     assert finding.reason == :wrong_address
     assert "pramana:cbeta.T:T0262_001@p0001c18" in finding.found_at
-    assert finding.explanation =~ "the text is real"
+    assert finding.search_status == :matched
+    assert finding.explanation =~ "replacement must be checked"
   end
 
-  test "words that are nowhere in the bake are the fabrication case" do
+  test "a completed no-match search reports its limits without alleging fabrication" do
     finding = @first |> Guard.check("這段文字根本不存在於藏經之中") |> Guard.diagnose()
 
-    assert finding.reason == :absent_from_corpus
-    assert finding.explanation =~ "only one"
+    assert finding.reason == :not_found_in_search
+    assert finding.search_status == :no_match
+    assert finding.explanation =~ "does not establish"
   end
 
   test "cheap punctuation diagnosis performs no query, while a wrong-address diagnosis does" do
@@ -93,5 +95,32 @@ defmodule Pramana.GuardDiagnoseTest do
     assert finding.reason == :wrong_address
     assert queries != [], "the positive control must establish that query capture is attached"
     assert Enum.any?(queries, &String.contains?(&1, "segments"))
+  end
+
+  test "returned errors, raised failures and malformed results are unavailable searches, not absence" do
+    finding = Guard.check(@first, "這段文字未能查明")
+
+    for search <- [
+          fn _, _ -> {:error, :timeout} end,
+          fn _, _ -> raise "internal database failure" end,
+          fn _, _ -> {:ok, :unexpected} end
+        ] do
+      result = Guard.diagnose(finding, search: search)
+      assert result.verdict == :quote_mismatch
+      assert result.reason == :search_unavailable
+      assert result.search_status == :unavailable
+      refute result.explanation =~ "internal database failure"
+      refute Map.has_key?(result, :found_at)
+    end
+  end
+
+  test "a completed empty result is different from the unavailable-search cases" do
+    result =
+      @first
+      |> Guard.check("這段文字未能查明")
+      |> Guard.diagnose(search: fn _, _ -> {:ok, %{results: []}} end)
+
+    assert result.reason == :not_found_in_search
+    assert result.search_status == :no_match
   end
 end

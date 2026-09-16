@@ -28,6 +28,7 @@ defmodule Pramana.Guard do
   """
 
   alias Pramana.Corpus
+  alias Pramana.EvidenceInput
   alias Pramana.Punctuation
   alias Pramana.Retrieval.Lexical
   alias Pramana.Retrieval.Variants
@@ -57,6 +58,14 @@ defmodule Pramana.Guard do
                      "u"
                    )
 
+  @wrapped_citation Regex.compile!(
+                      "([\\[（(【])\\s*(" <> @urn_source <> ")\\s*([\\]）)】])",
+                      "u"
+                    )
+  @opened_citation Regex.compile!("([\\[（(【])\\s*(" <> @urn_source <> ")", "u")
+  @closed_citation Regex.compile!("(" <> @urn_source <> ")\\s*[\\]）)】]", "u")
+  @wrappers %{"[" => "]", "(" => ")", "（" => "）", "【" => "】"}
+
   @type verdict ::
           :ok
           | :bad_urn
@@ -76,7 +85,8 @@ defmodule Pramana.Guard do
           layer: String.t(),
           # Byte offset in the inspected text where this URN occurrence was found.
           # Present only when the finding was produced by `check_output/1`.
-          source_offset: non_neg_integer() | nil
+          source_offset: non_neg_integer() | nil,
+          occurrence: map() | nil
         }
 
   @doc """
@@ -122,7 +132,8 @@ defmodule Pramana.Guard do
           actual: nil,
           provenance: nil,
           layer: "source",
-          source_offset: nil
+          source_offset: nil,
+          occurrence: nil
         }
 
       {:ok, span} ->
@@ -188,7 +199,8 @@ defmodule Pramana.Guard do
       actual: span.content,
       provenance: provenance,
       layer: Map.get(provenance || %{}, :layer, "source"),
-      source_offset: source_offset
+      source_offset: source_offset,
+      occurrence: nil
     }
   end
 
@@ -204,14 +216,15 @@ defmodule Pramana.Guard do
       :orthographic_variant    the words match under this corpus's variant classes
       :spans_line_boundary     the quote runs past this line into the next
       :wrong_address           the text is real and this URN is not where it lives
-      :absent_from_corpus      these words are nowhere in the bake
+      :not_found_in_search    a completed search found no replacement here
+      :search_unavailable     the diagnostic search could not be completed
 
   ## The one that inverts the usual reading
 
   **`:wrong_address` is not a hallucination.** The model found real text and cited the wrong
   line for it, which indicts *addressing* — or retrieval, for handing back a span whose URN
-  did not travel with it. `:absent_from_corpus` is the fabrication case, and it is the only
-  one of the five that is.
+  did not travel with it. A completed no-match search is limited to the material and
+  search method used; it never proves fabrication. A search error is not a no-match result.
 
   ## And the one that is arguably not an error at all
 
@@ -222,21 +235,32 @@ defmodule Pramana.Guard do
   `:quote_mismatch` alongside a fabrication trains people to ignore the guard.
 
   Checked cheapest first, and the corpus is only consulted once the free string comparisons
-  have failed.
+  have failed. The optional `:search` function supplies the diagnostic search boundary;
+  by default it is the ordinary lexical phrase search.
   """
-  @spec diagnose(map()) :: map()
-  def diagnose(%{verdict: :quote_mismatch, quoted: quoted, actual: actual} = finding)
+  @spec diagnose(map(), keyword()) :: map()
+  def diagnose(finding, opts \\ [])
+
+  def diagnose(%{verdict: :quote_mismatch, quoted: quoted, actual: actual} = finding, opts)
       when is_binary(quoted) and is_binary(actual) do
-    Map.merge(finding, classify(String.trim(quoted), actual, finding))
+    search = Keyword.get(opts, :search, &Lexical.search/2)
+    Map.merge(finding, classify(String.trim(quoted), actual, finding, search))
+  rescue
+    # The mismatch at the cited address is still known. A failed diagnostic query
+    # establishes nothing about whether a replacement exists elsewhere.
+    _error -> Map.merge(finding, search_unavailable())
   end
 
-  # Every other verdict is already specific. `:not_found` and `:bad_urn` say what is wrong
-  # with the address, and `:not_citable_as_source` says the layer is wrong — none of them is
-  # improved by asking how the characters differ.
-  def diagnose(finding), do: Map.put(finding, :reason, nil)
+  def diagnose(finding, _opts), do: Map.put(finding, :reason, nil)
 
-  defp classify(quoted, actual, finding) do
+  defp classify(quoted, actual, finding, search) do
     cond do
+      Punctuation.strip(quoted) == "" ->
+        %{
+          reason: :empty_quote,
+          explanation: "No substantive quotation remains after removing editorial punctuation."
+        }
+
       Punctuation.same_but_for_punctuation?(quoted, actual) or
           String.contains?(Punctuation.strip(actual), Punctuation.strip(quoted)) ->
         %{
@@ -266,7 +290,7 @@ defmodule Pramana.Guard do
         }
 
       true ->
-        elsewhere(quoted)
+        elsewhere(quoted, search)
     end
   end
 
@@ -322,31 +346,46 @@ defmodule Pramana.Guard do
 
   defp in_span?(span, needle), do: span.content |> Punctuation.strip() |> String.contains?(needle)
 
-  # The corpus is asked exactly once, and only here. A phrase search over the bigram index
-  # answers "do these words exist anywhere" in milliseconds; the answer changes the verdict
-  # from a fabrication to a misfiled citation, which is the difference between distrusting a
-  # model and correcting a reference.
-  defp elsewhere(quoted) do
+  # Search results are diagnostic candidates, not proof of fabrication or of an
+  # exhaustive corpus. Keep completed no-match searches separate from failed ones.
+  defp elsewhere(quoted, search) do
     stripped = Punctuation.strip(quoted)
 
-    case Lexical.search(stripped, mode: :phrase, limit: 3) do
+    case search.(stripped, mode: :phrase, limit: 3) do
       {:ok, %{results: [%{span: span} | _] = results}} ->
         %{
           reason: :wrong_address,
-          found_at: Enum.map(results, & &1.span.urn),
+          search_status: :matched,
+          found_at: Enum.map(results, & &1.span.urn) |> Enum.uniq(),
           explanation:
-            "These words are in the corpus, at #{span.urn} — this URN is not where they " <>
-              "live. That indicts the address rather than the quotation: the text is real."
+            "The search found candidate text at #{span.urn}; it does not match the cited " <>
+              "address. The text is real, but a replacement must be checked against the " <>
+              "exact quotation before changing the citation."
+        }
+
+      {:ok, %{results: []}} ->
+        %{
+          reason: :not_found_in_search,
+          search_status: :no_match,
+          explanation:
+            "The quotation does not match this cited passage. A completed phrase search " <>
+              "found no replacement in the loaded corpus. This does not establish that " <>
+              "the passage was fabricated or that it is absent from other editions or sources."
         }
 
       _ ->
-        %{
-          reason: :absent_from_corpus,
-          explanation:
-            "These words appear nowhere in this bake. Of the five ways a quotation can " <>
-              "fail, this is the only one that is a fabrication."
-        }
+        search_unavailable()
     end
+  end
+
+  defp search_unavailable do
+    %{
+      reason: :search_unavailable,
+      search_status: :unavailable,
+      explanation:
+        "The quotation does not match this cited passage, but the diagnostic search " <>
+          "could not be completed. No conclusion about a replacement or absence was established."
+    }
   end
 
   @doc """
@@ -388,7 +427,7 @@ defmodule Pramana.Guard do
   prose actually emits. Anything unrecognised is checked for existence only, and the
   finding says so, rather than being reported as verified.
   """
-  @spec check_output(String.t()) :: %{
+  @spec check_output(String.t(), keyword()) :: %{
           findings: [finding()],
           ok?: boolean(),
           checked: non_neg_integer(),
@@ -397,13 +436,13 @@ defmodule Pramana.Guard do
           existence_only: non_neg_integer(),
           translations: non_neg_integer()
         }
-  def check_output(text) when is_binary(text) do
+  def check_output(text, opts \\ []) when is_binary(text) do
     findings =
       text
-      |> citation_pairs()
-      |> Enum.map(fn {urn, quoted, source_offset} ->
-        finding = check(urn, quoted)
-        %{finding | source_offset: source_offset}
+      |> occurrences(opts)
+      |> Enum.map(fn occurrence ->
+        check(occurrence.urn, occurrence.quoted)
+        |> Map.merge(%{source_offset: occurrence.urn_range.byte_start, occurrence: occurrence})
       end)
 
     failed = Enum.count(findings, &(&1.verdict != :ok))
@@ -429,51 +468,97 @@ defmodule Pramana.Guard do
     }
   end
 
-  # Pairs every URN occurrence with its associated quoted text, preserving
-  # duplicates and document order. Returns [{urn, quoted_or_nil, byte_offset}].
-  #
-  # Each occurrence is independently tracked by its byte position in the text,
-  # so the same URN repeated at different positions is returned multiple times.
-  # This is the whole point: a valid quotation followed by an invented one at the
-  # same URN must both be found and checked independently.
-  defp citation_pairs(text) do
-    # Find all quoted citation occurrences with their byte positions (for dedup)
-    quoted_matches_idx = Regex.scan(@quoted_citation, text, return: :index)
+  @doc """
+  Recognized citation occurrences with half-open UTF-8 byte ranges in the ORIGINAL input.
 
-    quoted_urn_positions =
-      quoted_matches_idx
-      |> Enum.map(fn [_, _, {upos, _ulen}] -> upos end)
-      |> MapSet.new()
-
-    # Build position -> {urn, quote} using string captures (NOT :index slicing)
-    quoted_strings = Regex.scan(@quoted_citation, text)
-
-    quoted_by_pos =
-      quoted_matches_idx
-      |> Enum.zip(quoted_strings)
-      |> Enum.map(fn {[_, _, {upos, _ulen}], [_, quote, urn]} ->
-        {upos, {trim_sentence_punctuation(urn), quote}}
-      end)
-      |> Map.new()
-
-    # Find bare URNs not already part of a quoted citation
-    bare_idx = Regex.scan(@urn_pattern, text, return: :index)
-    bare_strings = Regex.scan(@urn_pattern, text)
-
-    bare_by_pos =
-      bare_idx
-      |> Enum.zip(bare_strings)
-      |> Enum.reject(fn {[{pos, _len}], [_urn_str]} ->
-        MapSet.member?(quoted_urn_positions, pos)
-      end)
-      |> Enum.map(fn {[{pos, _len}], [urn_str]} ->
-        {pos, {trim_sentence_punctuation(urn_str), nil}}
-      end)
-      |> Map.new()
-
-    # Merge in position order — every occurrence, no deduplication
-    Map.merge(quoted_by_pos, bare_by_pos)
-    |> Enum.sort_by(fn {pos, _pair} -> pos end)
-    |> Enum.map(fn {pos, {urn, quote}} -> {urn, quote, pos} end)
+  One parser owns both checking and editing. Repeated URNs remain distinct. A quote
+  range excludes its quotation marks; a citation range includes only a matching
+  citation wrapper, never surrounding prose or document-wide whitespace.
+  """
+  @spec occurrences(String.t(), keyword()) :: [map()]
+  def occurrences(text, opts \\ []) when is_binary(text) do
+    text
+    |> EvidenceInput.regions(opts)
+    |> Enum.flat_map(fn {offset, region} ->
+      region |> region_occurrences() |> Enum.map(&shift_occurrence(&1, offset))
+    end)
   end
+
+  # Bounded regex passes per region. No whole-prefix or whole-suffix scan per citation.
+  defp region_occurrences(text) do
+    quoted =
+      @quoted_citation
+      |> Regex.scan(text, return: :index)
+      |> Map.new(fn [_, quote_range, {pos, _}] -> {pos, quote_range} end)
+
+    wrappers = wrapper_ranges(text)
+
+    openings =
+      @opened_citation
+      |> Regex.scan(text, return: :index)
+      |> MapSet.new(fn [_, _, {pos, _}] -> pos end)
+
+    closings =
+      @closed_citation
+      |> Regex.scan(text, return: :index)
+      |> MapSet.new(fn [_, {pos, _}] -> pos end)
+
+    @urn_pattern
+    |> Regex.scan(text, return: :index)
+    |> Enum.map(fn [{pos, _} = urn_range] ->
+      occurrence(
+        text,
+        urn_range,
+        Map.get(quoted, pos),
+        Map.get(wrappers, pos),
+        openings,
+        closings
+      )
+    end)
+  end
+
+  defp wrapper_ranges(text) do
+    @wrapped_citation
+    |> Regex.scan(text, return: :index)
+    |> Enum.reduce(%{}, fn [whole, opening, {pos, len}, closing], acc ->
+      open = binary_part(text, elem(opening, 0), elem(opening, 1))
+      close = binary_part(text, elem(closing, 0), elem(closing, 1))
+      raw = binary_part(text, pos, len)
+
+      if @wrappers[open] == close and trim_sentence_punctuation(raw) == raw,
+        do: Map.put(acc, pos, byte_range(whole)),
+        else: acc
+    end)
+  end
+
+  defp occurrence(text, {pos, length}, quote_range, wrapper, openings, closings) do
+    urn = text |> binary_part(pos, length) |> trim_sentence_punctuation()
+    urn_range = %{byte_start: pos, byte_end: pos + byte_size(urn)}
+
+    %{
+      urn: urn,
+      quoted: if(quote_range, do: binary_part(text, elem(quote_range, 0), elem(quote_range, 1))),
+      urn_range: urn_range,
+      quote_range: byte_range(quote_range),
+      citation_range: wrapper || urn_range,
+      unpaired_wrapper?:
+        is_nil(wrapper) and
+          (MapSet.member?(openings, pos) or MapSet.member?(closings, pos))
+    }
+  end
+
+  defp byte_range(nil), do: nil
+  defp byte_range({pos, length}), do: %{byte_start: pos, byte_end: pos + length}
+
+  defp shift_occurrence(occurrence, offset) do
+    occurrence
+    |> Map.update!(:urn_range, &shift_range(&1, offset))
+    |> Map.update!(:quote_range, &shift_range(&1, offset))
+    |> Map.update!(:citation_range, &shift_range(&1, offset))
+  end
+
+  defp shift_range(nil, _offset), do: nil
+
+  defp shift_range(range, offset),
+    do: %{byte_start: range.byte_start + offset, byte_end: range.byte_end + offset}
 end

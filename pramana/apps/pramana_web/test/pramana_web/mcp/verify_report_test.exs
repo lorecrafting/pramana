@@ -49,7 +49,8 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
     payload = json("Some prose with no evidence in it.")
 
     assert payload["note"] =~ "not a pass"
-    assert payload["note"] =~ "unsourced document"
+    assert payload["status"] == "no_checkable_evidence"
+    refute payload["ok?"]
   end
 
   test "a real quotation byte-compares" do
@@ -94,7 +95,8 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
     """
 
     assert [replay] = json(report)["replays"]
-    assert replay["status"] == "verified"
+    assert replay["status"] == "executed"
+    assert json(report)["status"] == "incomplete"
     assert replay["tool"] == "get_outline"
   end
 
@@ -122,5 +124,48 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
 
     assert "survey_corpus" in tools
     assert "search" in tools
+  end
+
+  test "an unresolved scholarly citation prevents a valid quotation from making the report green" do
+    payload = json(~s("鳩摩羅什奉　詔譯" [#{@urn}]. Also T. 262, 99a1.))
+    assert payload["citations"]["verified_quotes"] == 1
+    assert payload["status"] == "incomplete"
+    assert payload["counts"]["unresolved_foreign"] == 1
+    refute payload["ok?"]
+    assert payload["note"] =~ "could not be resolved"
+  end
+
+  test "an existing bare URN is not a verified quotation or a complete report" do
+    payload = json("See #{@urn}.")
+    assert payload["status"] == "incomplete"
+    assert payload["counts"]["existence_only"] == 1
+    refute payload["ok?"]
+  end
+
+  test "a real asserted get_passage replay is not also counted as a bare citation" do
+    report =
+      "```pramana-replay\n" <>
+        Jason.encode!(%{tool: "get_passage", arguments: %{urn: @urn}, assert: %{urn: @urn}}) <>
+        "\n```"
+
+    payload = json(report)
+    assert payload["status"] == "verified"
+    assert payload["ok?"]
+    assert payload["citations"]["checked"] == 0
+    assert payload["counts"]["verified_replays"] == 1
+    assert payload["resolved_text"] == report
+  end
+
+  test "invalid assertion types return a structured incomplete result, not an exception" do
+    payload =
+      json("""
+      ```pramana-replay
+      {"tool":"search","arguments":{},"assert":42}
+      ```
+      """)
+
+    assert payload["status"] == "incomplete"
+    assert [%{"reason" => "invalid_assertions"}] = payload["malformed"]
+    refute payload["ok?"]
   end
 end

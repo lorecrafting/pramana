@@ -5,7 +5,9 @@ defmodule Mix.Tasks.Pramana.Public.CheckTest do
   Verifies that the public check Mix task correctly formats and presents
   the licensing audit across safe, forbidden, and withheld scenarios.
   """
-  use Pramana.DataCase, async: true
+  # The real CLI invokes app.start, which changes Mix's process-global project/cwd
+  # while traversing the umbrella. Keep it away from the parallel test loader.
+  use Pramana.DataCase, async: false
 
   import ExUnit.CaptureIO
 

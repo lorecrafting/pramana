@@ -10,6 +10,7 @@ defmodule Pramana.RepairTest do
   use Pramana.DataCase, async: false
 
   alias Pramana.Corpus.Loader
+  alias Pramana.Guard
   alias Pramana.Normalize.CBETA
   alias Pramana.Repair
 
@@ -62,7 +63,7 @@ defmodule Pramana.RepairTest do
 
   # THE REFUSAL THAT MATTERS MOST. Nothing supports it, so the citation goes and the
   # sentence stays — the prose may still be worth saying, and the citation was the lie.
-  test "a fabricated quotation loses its citation and keeps its prose" do
+  test "a mismatching quotation with no searched replacement loses only its unsupported citation" do
     text = ~s(The text says 「這是完全捏造的句子」 #{@urn}.)
 
     assert %{actions: [%{state: :no_sources}], text: repaired} = Repair.repair(text)
@@ -109,17 +110,16 @@ defmodule Pramana.RepairTest do
     refute repaired =~ @urn
   end
 
-  test "an ambiguous quotation appearing in multiple places loses its citation" do
+  test "an ambiguous quotation is flagged without changing the document" do
     text = ~s(The text says 「佛說妙法蓮華經。」 #{@urn}.)
 
     assert %{
              text: repaired,
-             actions: [%{state: :no_sources, reason: :ambiguous}],
+             actions: [%{state: :flagged, reason: :ambiguous}],
              repaired?: false
            } = Repair.repair(text)
 
-    refute repaired =~ @urn
-    assert repaired =~ "The text says"
+    assert repaired == text
   end
 
   test "a quotation spanning across a line boundary is flagged rather than corrupted" do
@@ -164,5 +164,129 @@ defmodule Pramana.RepairTest do
              actions: [%{state: :flagged, reason: :not_citable_as_source}],
              repaired?: false
            } = Repair.repair(text)
+  end
+
+  test "deleting an unsupported occurrence preserves a correct use of the same URN and all other bytes" do
+    first = "前文🙂 e\u0301  「如是我聞，一時佛住。」【#{@urn}】\n\n"
+    second = "後文  「這是完全捏造的句子」【#{@urn}】。  保留空白\n"
+    original = first <> second
+    result = Repair.repair(original)
+
+    assert result.original == original
+    assert result.text == first <> "後文  「這是完全捏造的句子」。  保留空白\n"
+    assert [%{state: :verified}, %{state: :no_sources}] = result.actions
+    assert [edit] = result.edits
+    assert edit.before == "【#{@urn}】"
+    assert edit.after == ""
+
+    assert binary_part(
+             original,
+             edit.range.byte_start,
+             edit.range.byte_end - edit.range.byte_start
+           ) == edit.before
+
+    assert result.repaired?
+  end
+
+  test "correcting one address does not rewrite another valid occurrence" do
+    good = "「如是我聞，一時佛住。」 #{@urn}. "
+    wrong = "「王舍城耆闍崛山中。」 #{@urn}."
+    result = Repair.repair(good <> wrong)
+
+    assert result.text == good <> "「王舍城耆闍崛山中。」 pramana:cbeta.T:T0262_001@p0001c18."
+    assert [%{state: :verified}, %{state: :citation_corrected}] = result.actions
+    assert length(result.edits) == 1
+  end
+
+  test "quotation replacement changes only the quoted occurrence, not identical unrelated prose" do
+    original = "如是我聞一時佛住\n「如是我聞一時佛住」 [#{@urn}].\n如是我聞一時佛住"
+    result = Repair.repair(original)
+    assert result.text == "如是我聞一時佛住\n「如是我聞，一時佛住。」 [#{@urn}].\n如是我聞一時佛住"
+  end
+
+  test "different-length edits use original offsets and apply without shifting the other edit" do
+    original = "🙂「如是我聞一時佛住」 (#{@urn})。\n「這是完全捏造的句子」【#{@urn}】。"
+    result = Repair.repair(original)
+    assert result.text == "🙂「如是我聞，一時佛住。」 (#{@urn})。\n「這是完全捏造的句子」。"
+    assert length(result.edits) == 2
+  end
+
+  test "a failed diagnostic search never authorizes deletion" do
+    original = "「這段文字未能查明」 #{@urn}"
+    result = Repair.repair(original, search: fn _, _ -> {:error, :timeout} end)
+    assert result.text == original
+    assert result.edits == []
+    assert [%{state: :flagged, reason: :search_unavailable}] = result.actions
+  end
+
+  test "a search candidate must verify the original quotation before changing its address" do
+    original = "「王舍城，耆闍崛山中」 #{@urn}"
+    result = Repair.repair(original)
+    assert result.text == original
+    assert [%{state: :flagged, reason: :replacement_not_exact}] = result.actions
+  end
+
+  test "nested citation edits are flagged rather than applied in a destructive order" do
+    inner = "pramana:cbeta:T0262"
+    outer = "pramana:cbeta.T:T8888_001@p0001a01"
+    Repo.insert!(%Pramana.Corpus.Work{id: "T8888"})
+
+    Pramana.CorpusFixtures.text!(
+      %{
+        work_id: "T8888",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T8888"
+      },
+      [{outer, "Note #{inner}"}]
+    )
+
+    # The supported editorial mark is full-width, not ASCII comma. Establish
+    # that a quote replacement really overlaps the nested citation deletion.
+    original = ~s("Note， #{inner}" [#{outer}])
+
+    assert %{verdict: :quote_mismatch, reason: :editorial_punctuation} =
+             outer |> Guard.check("Note， #{inner}") |> Guard.diagnose()
+
+    result = Repair.repair(original)
+    assert result.text == original
+    assert result.edits == []
+    assert length(result.actions) == 2
+    assert Enum.all?(result.actions, &(&1.reason == :overlapping_edits))
+  end
+
+  test "an inner deletion cannot invalidate a verified outer quotation that needs no edit" do
+    inner = "pramana:cbeta:T0262"
+    outer = "pramana:cbeta.T:T8888_001@p0001a01"
+    quoted = "Note #{inner}"
+    Repo.insert!(%Pramana.Corpus.Work{id: "T8888"})
+
+    Pramana.CorpusFixtures.text!(
+      %{
+        work_id: "T8888",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T8888"
+      },
+      [{outer, quoted}]
+    )
+
+    assert Guard.verify(outer, quoted)
+    assert %{verdict: :bad_urn} = Guard.check(inner)
+    original = ~s("#{quoted}" [#{outer}])
+    result = Repair.repair(original)
+
+    assert result.text == original
+    assert result.edits == []
+    assert length(result.actions) == 2
+    assert Enum.all?(result.actions, &(&1.reason == :overlapping_edits))
+    assert Guard.verify(outer, quoted)
+  end
+
+  test "a bare address is existence-only, not a verified quotation" do
+    original = "See #{@urn}."
+
+    assert %{text: ^original, actions: [%{state: :existence_only}], edits: []} =
+             Repair.repair(original)
   end
 end

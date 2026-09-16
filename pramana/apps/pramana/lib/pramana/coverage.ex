@@ -99,7 +99,7 @@ defmodule Pramana.Coverage do
   @spec taisho() :: map()
   def taisho do
     present =
-      Repo.all(from t in Text, where: t.witness_id == "T", select: t.volume, distinct: true)
+      Repo.all(from(t in Text, where: t.witness_id == "T", select: t.volume, distinct: true))
       |> Enum.flat_map(&parse_volume/1)
       |> MapSet.new()
 
@@ -180,79 +180,120 @@ defmodule Pramana.Coverage do
   defp pad(n), do: String.pad_leading(Integer.to_string(n), 4, "0")
 
   @doc """
-  Which CBETA collections are in the bake, and which are not.
+  Actual loaded CBETA works and represented collections, beside catalogue expectations.
 
-  Computed from the witnesses actually loaded against the pinned catalogue, so it stops
-  saying this as collections land. A collection with no name here has not been acquired:
-  each CBETA file states its own collection in `<sourceDesc>`, and rather than guess what
-  a two-letter code expands to, the name arrives with the files. See
-  `Pramana.Cbeta.Collections`.
+  Counts come from stored works, not catalogue totals. The catalogue provides expectations
+  and names separately; an uncatalogued loaded collection remains visible rather than being
+  silently dropped. Representing every collection does not establish completeness within it.
+  See `Pramana.Cbeta.Collections` for the pinned expectations.
   """
   @spec cbeta() :: map()
   def cbeta do
-    held =
+    loaded =
       Repo.all(
-        from t in Text, where: t.source_id == "cbeta", select: t.witness_id, distinct: true
+        from(t in Text,
+          where: t.source_id == "cbeta",
+          group_by: t.witness_id,
+          select: {t.witness_id, count(t.work_id, :distinct)}
+        )
       )
-      |> MapSet.new()
+      |> Map.new()
 
-    {present, missing} = Enum.split_with(Collections.all(), &MapSet.member?(held, &1.id))
+    by_collection =
+      Enum.map(Collections.all(), fn collection ->
+        n = Map.get(loaded, collection.id, 0)
+
+        collection
+        |> Map.put(:works_loaded, n)
+        |> Map.put(:works_expected, collection.works)
+        |> Map.put(:completeness, collection_completeness(n, collection.works))
+      end)
+
+    {present, missing} = Enum.split_with(by_collection, &(&1.works_loaded > 0))
+
+    works =
+      Repo.one(
+        from(t in Text, where: t.source_id == "cbeta", select: count(t.work_id, :distinct))
+      )
+
+    known = MapSet.new(Enum.map(by_collection, & &1.id))
+    uncatalogued = loaded |> Enum.reject(fn {id, _} -> MapSet.member?(known, id) end) |> Map.new()
 
     %{
-      collections_held: length(present),
-      collections_published: length(Collections.all()),
-      held: Enum.map(present, & &1.id),
+      # Compatibility name: held means represented, not completely ingested.
+      collections_held: map_size(loaded),
+      collections_represented: map_size(loaded),
+      catalogued_collections_represented: length(present),
+      collections_published: length(by_collection),
+      held: loaded |> Map.keys() |> Enum.sort(),
       missing: Enum.map(missing, &Map.take(&1, [:id, :works, :name, :name_en])),
-      works_held: Enum.sum(Enum.map(present, & &1.works)),
+      works_held: works,
       works_published: Collections.total_works(),
+      catalogue_works_in_represented_collections: Enum.sum(Enum.map(present, & &1.works)),
+      by_collection: by_collection,
+      uncatalogued_collections: uncatalogued,
+      completeness:
+        if(Enum.any?(by_collection, &(&1.completeness != :unknown)), do: :partial, else: :unknown),
       catalogue_pin: Collections.pin(),
-      note: cbeta_note(present, missing)
+      note: holdings_note(present, missing, uncatalogued, works)
     }
   end
 
-  @doc """
-  The CBETA coverage sentence for a given held/missing split.
+  defp holdings_note(present, missing, uncatalogued, works) do
+    representation =
+      if present == [] and map_size(uncatalogued) > 0 do
+        "No pinned-catalogue collection is represented; other CBETA-labelled collections are loaded. " <>
+          "Their expected holdings and completeness are unknown."
+      else
+        cbeta_note(present, missing)
+      end
 
-  Public so the wording can be tested without a corpus: this is the sentence a reader of
-  the public artefact sees in place of the Chinese canon, and it was wrong for as long as
-  nothing exercised the empty case.
-  """
+    unknown =
+      if map_size(uncatalogued) > 0 do
+        ids = uncatalogued |> Map.keys() |> Enum.sort() |> Enum.join(", ")
+        " Uncatalogued loaded collections: #{ids}; their works are included in the loaded total."
+      else
+        ""
+      end
+
+    representation <> " Actually loaded: #{works} distinct CBETA work(s)." <> unknown
+  end
+
+  # Counts below the catalogue establish a shortfall; equal (or larger) counts
+  # cannot prove the expected identities are present. No state here means complete.
+  defp collection_completeness(0, _expected), do: :not_loaded
+  defp collection_completeness(loaded, expected) when loaded < expected, do: :partial
+  defp collection_completeness(_loaded, _expected), do: :unknown
+
+  @doc "A representation caveat for a catalogue split; it never infers complete ingestion."
   @spec cbeta_note_for([map()], [map()]) :: String.t()
   def cbeta_note_for(present, missing), do: cbeta_note(present, missing)
 
-  defp cbeta_note(_present, []), do: "Every CBETA collection is loaded."
+  defp cbeta_note(present, []) do
+    "All #{length(present)} CBETA collections are represented, not proven complete. " <>
+      "Completeness remains unassessed without checking the expected work identities; " <>
+      "catalogue counts are not loaded holdings."
+  end
 
-  # HOLDING NONE OF IT IS THE LARGEST GAP, NOT AN ABSENT TOPIC.
-  #
-  # A bake with no CBETA at all — the public artefact is exactly this — needs the plainest
-  # statement there is, and the list-of-what-is-missing sentence below is the wrong shape
-  # for it: it renders as "this bake holds 0: ." and then recites 26 collections a reader
-  # never expected to be there. Say the one thing that matters instead.
   defp cbeta_note([], missing) do
     "This bake holds NO Chinese Buddhist canon. All #{length(missing)} CBETA collections " <>
-      "and #{Enum.sum(Enum.map(missing, & &1.works))} works are absent, so there is no " <>
-      "Chinese material here to find — an empty result for a Chinese query means the text " <>
-      "is not in this bake and says nothing about the canon. Acquire with " <>
+      "are unrepresented; the pinned catalogue lists #{Enum.sum(Enum.map(missing, & &1.works))} works. " <>
+      "An empty result here says nothing about the canon. Acquire with " <>
       "`mix pramana.acquire_all --source cbeta --canon <ID>`."
   end
 
   defp cbeta_note(present, missing) do
-    absent_works = Enum.sum(Enum.map(missing, & &1.works))
-
-    # NAMED, not coded. A reader who knows this canon knows it as 嘉興大藏經, and being told
-    # that "J (287)" is missing asks them to decode an abbreviation before they can tell
-    # whether the gap matters to them.
     top =
       missing
+      |> Enum.sort_by(& &1.works, :desc)
       |> Enum.take(5)
-      |> Enum.map_join("; ", fn c -> "#{c.id} #{c.name} (#{c.works} works)" end)
+      |> Enum.map_join("; ", fn c -> "#{c.id} #{c.name} (#{c.works} catalogue works)" end)
 
-    "CBETA publishes #{length(present) + length(missing)} collections and this bake holds " <>
-      "#{length(present)}: #{Enum.map_join(present, ", ", & &1.id)}. " <>
-      "#{length(missing)} collections and #{absent_works} works are NOT loaded — largest first: " <>
-      "#{top}. An absence of results from those collections means they are not in this " <>
-      "bake; it does NOT mean the canon is silent. Acquire one with " <>
-      "`mix pramana.acquire_all --source cbeta --canon <ID>`."
+    "CBETA publishes #{length(present) + length(missing)} collections; " <>
+      "#{length(present)} are represented here: #{Enum.map_join(present, ", ", & &1.id)}. " <>
+      "#{length(missing)} collections are NOT loaded — largest first: #{top}. " <>
+      "Representation is not completeness, and an empty result does NOT mean the canon is silent. " <>
+      "Acquire with `mix pramana.acquire_all --source cbeta --canon <ID>`."
   end
 
   @doc """
@@ -317,12 +358,7 @@ defmodule Pramana.Coverage do
   # `collections_held: 0` used to return nil here, on the reading that a bake with no CBETA
   # was a bake CBETA had nothing to say about. That is exactly backwards: holding none of it
   # is the largest gap there is, and it was the one case this stayed quiet about.
-  defp cbeta_caveat do
-    case cbeta() do
-      %{missing: [], collections_held: n} when n > 0 -> nil
-      %{note: note} -> note
-    end
-  end
+  defp cbeta_caveat, do: cbeta().note
 
   @doc """
   How far each DERIVATION has got, against the inputs it could reach.
@@ -527,13 +563,14 @@ defmodule Pramana.Coverage do
 
     unroled =
       Repo.all(
-        from t in Text,
+        from(t in Text,
           join: w in Work,
           on: w.id == t.work_id,
           where: is_nil(w.text_role),
           group_by: t.witness_id,
           order_by: [desc: count(t.id)],
           select: {t.witness_id, count(t.id)}
+        )
       )
 
     missing = Enum.reduce(unroled, 0, fn {_w, n}, acc -> acc + n end)
@@ -587,12 +624,13 @@ defmodule Pramana.Coverage do
 
     absent =
       Repo.all(
-        from p in "text_parallels",
+        from(p in "text_parallels",
           where: is_nil(p.source_work_id),
           group_by: fragment("regexp_replace(?, \'[0-9].*$\', \'\')", p.source_uid),
           order_by: [desc: count(p.id)],
           limit: 6,
           select: {fragment("regexp_replace(?, \'[0-9].*$\', \'\')", p.source_uid), count(p.id)}
+        )
       )
 
     %{
@@ -634,11 +672,12 @@ defmodule Pramana.Coverage do
     # print.
     numbers =
       Repo.all(
-        from t in Text,
+        from(t in Text,
           where:
             t.source_id in ["derge", "derge-tengyur"] and
               fragment("? ~ '^toh[0-9]+'", t.work_id),
           select: fragment("(regexp_replace(?, '^toh([0-9]+).*$', '\\1'))::int", t.work_id)
+        )
       )
 
     kangyur = Enum.count(numbers, &(&1 in @kangyur_toh))

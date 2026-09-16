@@ -48,29 +48,58 @@ defmodule Pramana.Release do
   alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Release, as: Schema
   alias Pramana.Corpus.Translation
+  alias Pramana.Release.Selection
   alias Pramana.Repo
 
   @doc """
   Records the current retrieval state and returns it.
 
-  Idempotent by digest: stamping twice with nothing changed returns the existing row rather
-  than accumulating identical ones, because a release list where most entries are duplicates
-  is a list nobody reads.
+  Idempotent by digest: immutable release rows are reused. The selected release is
+  recorded separately and atomically, so returning from state A to B to A selects
+  A again without rewriting its original stamp timestamp. This is selection, not
+  deployment or a content-complete fingerprint.
   """
+  # Database-local advisory namespace "PRAM", key 1 = release-stamp writer.
+  # Held to the outer transaction boundary; old writers must be drained at cutover.
+  @stamp_lock [0x5052414D, 1]
+
   @spec stamp() :: {:ok, Schema.t()}
   def stamp do
-    facts = facts()
-    ids = ids_for(facts)
+    Repo.transaction(fn ->
+      Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", @stamp_lock)
+      facts = facts()
+      ids = ids_for(facts)
 
-    case Repo.one(from r in Schema, where: r.release_id == ^ids.release_id) do
-      nil -> Repo.insert(struct(Schema, Map.merge(facts, ids)), returning: true)
-      existing -> {:ok, existing}
-    end
+      # ON CONFLICT makes concurrent creation of one digest safe; read it back
+      # because an ignored insert does not return the existing row's identity.
+      Repo.insert!(struct(Schema, Map.merge(facts, ids)),
+        on_conflict: :nothing,
+        conflict_target: [:release_id]
+      )
+
+      release = Repo.get_by!(Schema, release_id: ids.release_id)
+
+      Repo.insert!(%Selection{id: 1, release_id: release.id, selected_at: DateTime.utc_now()},
+        on_conflict: {:replace, [:release_id, :selected_at]},
+        conflict_target: [:id]
+      )
+
+      release
+    end)
   end
 
-  @doc "The most recent stamp, or `nil` when nothing has been stamped yet."
+  @doc "The explicitly selected release, or nil before the first stamp. Reading never selects or refreshes it."
   @spec current() :: Schema.t() | nil
-  def current, do: Repo.one(from r in Schema, order_by: [desc: r.stamped_at], limit: 1)
+  def current do
+    Repo.one(
+      from(selection in Selection,
+        join: release in Schema,
+        on: release.id == selection.release_id,
+        where: selection.id == 1,
+        select: release
+      )
+    )
+  end
 
   @doc """
   The id to put on an answer, or `nil` when no release has been stamped.
@@ -121,11 +150,11 @@ defmodule Pramana.Release do
       translations_count: Repo.aggregate(Translation, :count),
       vectors_count: Repo.aggregate(ChunkVector, :count),
       embedding_models:
-        Repo.all(from v in ChunkVector, distinct: true, select: v.embedding_model)
+        Repo.all(from(v in ChunkVector, distinct: true, select: v.embedding_model))
         |> Enum.reject(&is_nil/1)
         |> Enum.sort(),
       translators:
-        Repo.all(from t in Translation, distinct: true, select: t.translator_id)
+        Repo.all(from(t in Translation, distinct: true, select: t.translator_id))
         |> Enum.reject(&is_nil/1)
         |> Enum.sort(),
       stamped_at: DateTime.utc_now()
