@@ -138,7 +138,9 @@ defmodule Pramana.AgentConventionSync do
     end
 
     if tag_target_drift? do
-      IO.puts("TAG TARGET DRIFT: recorded #{manifest.source_commit} -> current #{resolved_commit}")
+      IO.puts(
+        "TAG TARGET DRIFT: recorded #{manifest.source_commit} -> current #{resolved_commit}"
+      )
     end
 
     report_snapshot(manifest.source_commit, resolved_commit)
@@ -354,8 +356,11 @@ defmodule Pramana.AgentConventionSync do
 
   defp auth_args do
     case System.get_env("PRAMANA_GITHUB_TOKEN") do
-      token when is_binary(token) and token != "" -> ["--header", "Authorization: Bearer #{token}"]
-      _ -> []
+      token when is_binary(token) and token != "" ->
+        ["--header", "Authorization: Bearer #{token}"]
+
+      _ ->
+        []
     end
   end
 
