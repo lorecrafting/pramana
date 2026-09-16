@@ -266,7 +266,8 @@ defmodule Pramana.Report do
       |> Guard.check_output(regions: prose_regions(resolved))
       |> Map.update!(:findings, fn findings -> Enum.map(findings, &Guard.diagnose/1) end)
 
-    foreign_counts = ForeignEvidence.counts(foreign, resolved, citations.findings)
+    foreign_evidence = ForeignEvidence.classify(foreign, resolved, citations.findings)
+    foreign_counts = foreign_evidence.counts
     results = Enum.map(replays, &check_replay(&1, executor, current_bake))
     replay_counts = Enum.frequencies_by(results, & &1.status)
 
@@ -276,6 +277,7 @@ defmodule Pramana.Report do
       citation_failures: citations.failed,
       unresolved_foreign: foreign_counts.unresolved,
       unchecked_foreign: foreign_counts.unchecked,
+      literal_foreign: foreign_counts.literal,
       verified_replays: Map.get(replay_counts, :verified, 0),
       unasserted_replays: Map.get(replay_counts, :executed, 0),
       replay_failures: Map.get(replay_counts, :failed, 0),
@@ -294,7 +296,7 @@ defmodule Pramana.Report do
       counts: counts,
       citations: Map.put(citations, :offset_basis, :resolved_text),
       resolved_text: resolved,
-      foreign: foreign,
+      foreign: foreign_evidence.foreign,
       replays: results,
       malformed: malformed,
       skipped: length(skipped),
@@ -315,6 +317,7 @@ defmodule Pramana.Report do
         citation_failures: 0,
         unresolved_foreign: 0,
         unchecked_foreign: 0,
+        literal_foreign: 0,
         verified_replays: 0,
         unasserted_replays: 0,
         replay_failures: 0,
