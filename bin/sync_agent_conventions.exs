@@ -5,7 +5,9 @@ defmodule Pramana.AgentConventionSync do
   @conventions_dir Path.join(@root, "docs/agents/code-conventions")
   @manifest_path Path.join(@conventions_dir, "UPSTREAM.exs")
   @lock_path Path.join(@root, "pramana/mix.lock")
-  @contents_base "https://api.github.com/repos/phoenixframework/phoenix/contents"
+  @repo_api "https://api.github.com/repos/phoenixframework/phoenix"
+  @contents_base "#{@repo_api}/contents"
+  @commits_base "#{@repo_api}/commits"
   @http_marker "\n__PRAMANA_HTTP_STATUS__:"
 
   def main(args) do
@@ -29,15 +31,21 @@ defmodule Pramana.AgentConventionSync do
       %{
         phoenix_version: version,
         source_tag: tag,
+        source_commit: source_commit,
         reviewed_at: reviewed_at,
         local_files: local_files,
         source_roots: source_roots,
         versioned_sources: versioned_sources,
-        main_watch: %{reviewed_at: main_reviewed_at, sources: main_sources}
+        main_watch: %{
+          reviewed_at: main_reviewed_at,
+          source_commit: main_source_commit,
+          sources: main_sources
+        }
       }
-      when is_binary(version) and is_binary(tag) and is_binary(reviewed_at) and
-             is_list(local_files) and is_list(source_roots) and is_map(versioned_sources) and
-             is_binary(main_reviewed_at) and is_map(main_sources) ->
+      when is_binary(version) and is_binary(tag) and is_binary(source_commit) and
+             is_binary(reviewed_at) and is_list(local_files) and is_list(source_roots) and
+             is_map(versioned_sources) and is_binary(main_reviewed_at) and
+             is_binary(main_source_commit) and is_map(main_sources) ->
         manifest
 
       _ ->
@@ -67,6 +75,8 @@ defmodule Pramana.AgentConventionSync do
         manifest.source_tag != expected_tag,
         "Expected source_tag #{expected_tag}, found #{inspect(manifest.source_tag)}."
       )
+      |> add_sha_error("source_commit", manifest.source_commit)
+      |> add_sha_error("main_watch.source_commit", manifest.main_watch.source_commit)
       |> add_date_error("reviewed_at", manifest.reviewed_at)
       |> add_date_error("main_watch.reviewed_at", manifest.main_watch.reviewed_at)
       |> add_root_errors(manifest.source_roots)
@@ -110,15 +120,28 @@ defmodule Pramana.AgentConventionSync do
     IO.puts("Reviewing Phoenix #{tag} usage rules against the recorded convention baseline.")
     IO.puts("This command never overwrites local convention files.\n")
 
-    {diff, fetch_errors} =
+    {resolved_commit, diff, fetch_errors} =
       compare_sources(tag, manifest.source_roots, manifest.versioned_sources)
 
-    if manifest.phoenix_version != locked do
+    lock_drift? = manifest.phoenix_version != locked
+    tag_metadata_drift? = manifest.source_tag != tag
+    tag_target_drift? = resolved_commit != nil and manifest.source_commit != resolved_commit
+
+    if lock_drift? do
       IO.puts(
         "LOCK DRIFT: reviewed Phoenix #{manifest.phoenix_version} -> locked Phoenix #{locked}"
       )
     end
 
+    if tag_metadata_drift? do
+      IO.puts("TAG METADATA DRIFT: recorded #{manifest.source_tag} -> expected #{tag}")
+    end
+
+    if tag_target_drift? do
+      IO.puts("TAG TARGET DRIFT: recorded #{manifest.source_commit} -> current #{resolved_commit}")
+    end
+
+    report_snapshot(manifest.source_commit, resolved_commit)
     report_diff(diff)
     report_fetch_errors(fetch_errors)
 
@@ -126,10 +149,11 @@ defmodule Pramana.AgentConventionSync do
       fetch_errors != [] ->
         System.halt(1)
 
-      manifest.phoenix_version != locked or diff?(diff) ->
+      lock_drift? or tag_metadata_drift? or tag_target_drift? or diff?(diff) ->
         IO.puts(
-          "\nSemantic review required. Review added/removed rule files and changed blobs, " <>
-            "update local conventions as appropriate, then advance UPSTREAM.exs deliberately."
+          "\nSemantic review required. Review tag/version provenance, added/removed rule files " <>
+            "and changed blobs; update local conventions as appropriate, then advance " <>
+            "UPSTREAM.exs deliberately."
         )
 
         System.halt(2)
@@ -143,9 +167,10 @@ defmodule Pramana.AgentConventionSync do
     ensure_curl!()
     IO.puts("Checking Phoenix main usage rules against the reviewed early-warning baseline.\n")
 
-    {diff, fetch_errors} =
+    {resolved_commit, diff, fetch_errors} =
       compare_sources("main", manifest.source_roots, manifest.main_watch.sources)
 
+    report_snapshot(manifest.main_watch.source_commit, resolved_commit)
     report_diff(diff)
     report_fetch_errors(fetch_errors)
 
@@ -167,9 +192,9 @@ defmodule Pramana.AgentConventionSync do
   end
 
   defp compare_sources(ref, roots, expected_sources) do
-    case ensure_ref_exists(ref) do
-      :ok ->
-        {actual_sources, errors} = fetch_inventory(ref, roots)
+    case resolve_ref(ref) do
+      {:ok, commit_sha} ->
+        {actual_sources, errors} = fetch_inventory(commit_sha, roots)
 
         diff =
           if errors == [] do
@@ -178,24 +203,41 @@ defmodule Pramana.AgentConventionSync do
             empty_diff()
           end
 
-        {diff, errors}
+        {commit_sha, diff, errors}
 
       {:error, reason} ->
-        {empty_diff(), [{"ref #{ref}", reason}]}
+        {nil, empty_diff(), [{"ref #{ref}", reason}]}
     end
   end
 
-  defp ensure_ref_exists(ref) do
-    case fetch_contents(ref, "") do
-      {:ok, :missing} -> {:error, "GitHub ref #{ref} does not exist or is inaccessible"}
-      {:ok, _root_entries} -> :ok
-      {:error, reason} -> {:error, reason}
+  defp resolve_ref(ref) do
+    url = "#{@commits_base}/#{URI.encode(ref)}"
+
+    case http_get(url) do
+      {:ok, 200, body} ->
+        with {:ok, decoded} <- decode_json(body),
+             %{"sha" => sha} when is_binary(sha) <- decoded,
+             true <- valid_git_sha?(sha) do
+          {:ok, sha}
+        else
+          false -> {:error, "GitHub returned an invalid commit SHA for #{ref}"}
+          _ -> {:error, "GitHub commit response for #{ref} did not contain a SHA"}
+        end
+
+      {:ok, 404, _body} ->
+        {:error, "GitHub ref #{ref} does not exist or is inaccessible"}
+
+      {:ok, status, _body} ->
+        {:error, "GitHub API HTTP #{status} while resolving #{ref}"}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
-  defp fetch_inventory(ref, roots) do
+  defp fetch_inventory(commit_sha, roots) do
     Enum.reduce(roots, {%{}, []}, fn root, {inventory, errors} ->
-      case fetch_directory(ref, root) do
+      case fetch_directory(commit_sha, root) do
         {:ok, entries} ->
           {Map.merge(inventory, entries), errors}
 
@@ -206,8 +248,8 @@ defmodule Pramana.AgentConventionSync do
     |> then(fn {inventory, errors} -> {inventory, Enum.reverse(errors)} end)
   end
 
-  defp fetch_directory(ref, path) do
-    case fetch_contents(ref, path) do
+  defp fetch_directory(commit_sha, path) do
+    case fetch_contents(commit_sha, path) do
       {:ok, :missing} ->
         {:ok, %{}}
 
@@ -215,7 +257,7 @@ defmodule Pramana.AgentConventionSync do
         Enum.reduce_while(entries, {:ok, %{}}, fn entry, {:ok, inventory} ->
           case entry do
             %{"type" => "dir", "path" => child} when is_binary(child) ->
-              case fetch_directory(ref, child) do
+              case fetch_directory(commit_sha, child) do
                 {:ok, child_entries} ->
                   {:cont, {:ok, Map.merge(inventory, child_entries)}}
 
@@ -240,11 +282,11 @@ defmodule Pramana.AgentConventionSync do
     end
   end
 
-  defp fetch_contents(ref, path) do
+  defp fetch_contents(commit_sha, path) do
     encoded_path =
       path
       |> String.split("/")
-      |> Enum.map_join("/", &URI.encode_www_form/1)
+      |> Enum.map_join("/", &URI.encode/1)
 
     contents_url =
       if encoded_path == "" do
@@ -253,47 +295,44 @@ defmodule Pramana.AgentConventionSync do
         "#{@contents_base}/#{encoded_path}"
       end
 
-    url = "#{contents_url}?ref=#{URI.encode_www_form(ref)}"
+    url = "#{contents_url}?ref=#{URI.encode_www_form(commit_sha)}"
 
     case http_get(url) do
-      {:ok, 200, body} ->
-        try do
-          {:ok, :json.decode(body)}
-        rescue
-          error -> {:error, "invalid GitHub API JSON: #{Exception.message(error)}"}
-        end
+      {:ok, 200, body} -> decode_json(body)
+      {:ok, 404, _body} -> {:ok, :missing}
+      {:ok, status, _body} -> {:error, "GitHub API HTTP #{status}"}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
-      {:ok, 404, _body} ->
-        {:ok, :missing}
-
-      {:ok, status, _body} ->
-        {:error, "GitHub API HTTP #{status}"}
-
-      {:error, reason} ->
-        {:error, reason}
+  defp decode_json(body) do
+    try do
+      {:ok, :json.decode(body)}
+    rescue
+      error -> {:error, "invalid GitHub API JSON: #{Exception.message(error)}"}
     end
   end
 
   defp http_get(url) do
-    args = [
-      "--silent",
-      "--show-error",
-      "--location",
-      "--connect-timeout",
-      "10",
-      "--max-time",
-      "30",
-      "--retry",
-      "2",
-      "--retry-all-errors",
-      "--header",
-      "Accept: application/vnd.github+json",
-      "--header",
-      "User-Agent: pramana-agent-convention-watch",
-      "--write-out",
-      "#{@http_marker}%{http_code}",
-      url
-    ]
+    args =
+      [
+        "--silent",
+        "--show-error",
+        "--location",
+        "--connect-timeout",
+        "10",
+        "--max-time",
+        "30",
+        "--retry",
+        "2",
+        "--retry-all-errors",
+        "--header",
+        "Accept: application/vnd.github+json",
+        "--header",
+        "X-GitHub-Api-Version: 2022-11-28",
+        "--header",
+        "User-Agent: pramana-agent-convention-watch"
+      ] ++ auth_args() ++ ["--write-out", "#{@http_marker}%{http_code}", url]
 
     case System.cmd("curl", args, stderr_to_stdout: true) do
       {output, 0} ->
@@ -310,6 +349,13 @@ defmodule Pramana.AgentConventionSync do
 
       {message, status} ->
         {:error, "curl exit #{status}: #{String.trim(message)}"}
+    end
+  end
+
+  defp auth_args do
+    case System.get_env("PRAMANA_GITHUB_TOKEN") do
+      token when is_binary(token) and token != "" -> ["--header", "Authorization: Bearer #{token}"]
+      _ -> []
     end
   end
 
@@ -351,6 +397,13 @@ defmodule Pramana.AgentConventionSync do
 
   defp diff?(%{added: added, removed: removed, changed: changed}) do
     added != [] or removed != [] or changed != []
+  end
+
+  defp report_snapshot(recorded_commit, resolved_commit) do
+    if resolved_commit do
+      IO.puts("Recorded upstream snapshot: #{recorded_commit}")
+      IO.puts("Resolved upstream snapshot: #{resolved_commit}\n")
+    end
   end
 
   defp report_diff(diff) do
@@ -400,6 +453,10 @@ defmodule Pramana.AgentConventionSync do
     end
   end
 
+  defp add_sha_error(errors, label, value) do
+    add_if(errors, not valid_git_sha?(value), "#{label} must be a 40-character Git SHA.")
+  end
+
   defp add_root_errors(errors, roots) do
     errors
     |> add_if(roots == [], "No upstream source_roots are recorded.")
@@ -416,6 +473,15 @@ defmodule Pramana.AgentConventionSync do
   end
 
   defp add_local_file_errors(errors, local_files) do
+    actual_files =
+      @conventions_dir
+      |> Path.join("**/*.md")
+      |> Path.wildcard()
+      |> Enum.map(&Path.relative_to(&1, @conventions_dir))
+      |> Enum.sort()
+
+    recorded_files = Enum.filter(local_files, &is_binary/1) |> Enum.sort()
+
     errors
     |> add_if(local_files == [], "No local convention files are recorded.")
     |> add_if(
@@ -424,16 +490,21 @@ defmodule Pramana.AgentConventionSync do
     )
     |> then(fn acc ->
       Enum.reduce(local_files, acc, fn relative, inner ->
-        cond do
-          not safe_relative_path?(relative) ->
-            ["Invalid convention file path #{inspect(relative)}." | inner]
-
-          not File.regular?(Path.join(@conventions_dir, relative)) ->
-            ["Missing convention file #{relative}." | inner]
-
-          true ->
-            inner
-        end
+        add_if(
+          inner,
+          not safe_relative_path?(relative),
+          "Invalid convention file path #{inspect(relative)}."
+        )
+      end)
+    end)
+    |> then(fn acc ->
+      Enum.reduce(actual_files -- recorded_files, acc, fn relative, inner ->
+        ["Unrecorded local convention file #{relative}." | inner]
+      end)
+    end)
+    |> then(fn acc ->
+      Enum.reduce(recorded_files -- actual_files, acc, fn relative, inner ->
+        ["Manifest references missing local convention file #{relative}." | inner]
       end)
     end)
   end
@@ -504,9 +575,9 @@ defmodule Pramana.AgentConventionSync do
       elixir bin/sync_agent_conventions.exs --review
       elixir bin/sync_agent_conventions.exs --watch-main
 
-    --check       Network-free CI guard: locked Phoenix version must match reviewed metadata.
-    --review      Compare the locked Phoenix tag's rule inventory/blobs with the reviewed baseline.
-    --watch-main  Compare Phoenix main's rule inventory/blobs with the early-warning baseline.
+    --check       Network-free CI guard: lock, local inventory and reviewed metadata must agree.
+    --review      Resolve the locked Phoenix tag once, then compare its rule inventory/blobs.
+    --watch-main  Resolve Phoenix main once, then compare its rule inventory/blobs.
     """)
 
     System.halt(status)

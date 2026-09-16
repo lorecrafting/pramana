@@ -22,8 +22,9 @@ to ordinary Elixir work.
 The Phoenix-derived guidance is **reviewed**, not blindly vendored. Local rules may
 intentionally differ where this repository has stronger lifecycle, safety, testing or
 structural requirements. [`UPSTREAM.exs`](UPSTREAM.exs) records the Phoenix version
-locked by `pramana/mix.lock`, the complete reviewed file/blob inventory under the watched
-Phoenix usage-rule directories, and a separate inventory baseline for Phoenix `main`.
+locked by `pramana/mix.lock`, the exact reviewed upstream commit and complete file/blob
+inventory under the watched Phoenix usage-rule directories, the complete local Markdown
+convention inventory, and a separate exact snapshot baseline for Phoenix `main`.
 
 From the Git root:
 
@@ -32,22 +33,24 @@ elixir bin/sync_agent_conventions.exs --check
 ```
 
 is deterministic and network-free. It fails when the locked Phoenix version and the
-reviewed convention metadata diverge or the manifest is structurally incomplete. After
-an intentional Phoenix upgrade, run:
+reviewed convention metadata diverge, a local convention file is missing from the
+manifest, or the manifest is structurally incomplete. After an intentional Phoenix
+upgrade, run:
 
 ```sh
 elixir bin/sync_agent_conventions.exs --review
 ```
 
-to compare the newly locked version with the reviewed upstream directory inventory.
-That command uses the network and **does not overwrite local conventions**; added,
-removed or changed upstream rule files require semantic review before `UPSTREAM.exs`
-is advanced.
+to resolve the newly locked Phoenix tag once to an immutable commit and compare that
+snapshot with the reviewed upstream directory inventory. That command uses the network
+and **does not overwrite local conventions**; tag movement, added/removed rule files or
+changed upstream blobs require semantic review before `UPSTREAM.exs` is advanced.
 
-The scheduled upstream watcher runs `--watch-main` against the same directory roots.
-Phoenix `main` is an early-warning feed, not compatibility authority: drift opens or
-refreshes a maintenance issue but does not alter agent instructions. The watcher does
-not auto-close that review issue when a baseline changes; closure remains part of the
-human semantic-review workflow.
+The scheduled upstream watcher similarly resolves Phoenix `main` once and reads every
+watched directory at that immutable commit, avoiding torn inventories if `main` advances
+mid-run. Phoenix `main` is an early-warning feed, not compatibility authority: usage-rule
+drift opens or refreshes a maintenance issue but does not alter agent instructions. The
+watcher does not auto-close that review issue when a baseline changes; closure remains
+part of the human semantic-review workflow.
 
 [Shared workflow](../WORKFLOW.md) · [Testing](../../TESTING.md)

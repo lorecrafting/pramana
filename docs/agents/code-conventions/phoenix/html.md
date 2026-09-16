@@ -10,6 +10,10 @@ layout/authenticated-route conventions apply.
   `Phoenix.HTML.form_for` or `Phoenix.HTML.inputs_for` APIs.
 - Build form assigns with `to_form/2`, pass them as `<.form for={@form} ...>`, and
   access fields through `@form[:field]`.
+- Use Pramāṇa's imported `<.input>` component for ordinary form inputs when it supports
+  the control being built instead of duplicating the generated component behavior.
+- Supplying a custom `class` to the generated `<.input>` replaces its default classes;
+  fully style that override rather than assuming the defaults will be merged in.
 - Give key elements such as forms and buttons unique, stable DOM IDs so tests and
   LiveView behavior can target them reliably.
 - Put app-wide template imports/aliases in the web module's `html_helpers` block.

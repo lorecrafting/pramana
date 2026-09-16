@@ -39,6 +39,10 @@ jobs:
 
       - name: Compare Phoenix main agent guidance
         id: watch
+        env:
+          # PR code gets no API credential. Scheduled/manual runs use their read-only
+          # job token so the monthly watch does not depend on anonymous rate limits.
+          PRAMANA_GITHUB_TOKEN: ${{ github.event_name != 'pull_request' && github.token || '' }}
         shell: bash
         run: |
           set +e
@@ -80,7 +84,7 @@ jobs:
         run: |
           title="Phoenix agent usage rules changed upstream"
           number="$(
-            gh issue list --state open --limit 100 --json number,title \
+            gh issue list --state open --search "$title in:title" --limit 100 --json number,title \
               --jq '.[] | select(.title == "Phoenix agent usage rules changed upstream") | .number' \
               | head -n 1
           )"
