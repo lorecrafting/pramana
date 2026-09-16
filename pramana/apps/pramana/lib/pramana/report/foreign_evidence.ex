@@ -1,11 +1,15 @@
 defmodule Pramana.Report.ForeignEvidence do
   @moduledoc false
 
+  @type role :: :checked | :literal | :unresolved | :unchecked
+
   @type counts :: %{
           unresolved: non_neg_integer(),
           unchecked: non_neg_integer(),
           literal: non_neg_integer()
         }
+
+  @type result :: %{counts: counts(), foreign: [map()]}
 
   @doc """
   Classifies foreign-citation occurrences after report canonicalization.
@@ -19,18 +23,26 @@ defmodule Pramana.Report.ForeignEvidence do
   matched bytes occur at the reconstructed output offset, that occurrence is `unchecked`
   rather than being allowed to disappear into a verified report.
   """
-  @spec counts([map()], String.t(), [map()]) :: counts()
-  def counts(foreign, resolved, findings) when is_list(foreign) and is_binary(resolved) do
+  @spec classify([map()], String.t(), [map()]) :: result()
+  def classify(foreign, resolved, findings) when is_list(foreign) and is_binary(resolved) do
     initial = %{
       counts: %{unresolved: 0, unchecked: 0, literal: 0},
+      foreign: [],
       shift: 0,
       ranges: quote_ranges(findings)
     }
 
-    foreign
-    |> Enum.reduce(initial, &classify_occurrence(&1, &2, resolved))
-    |> Map.fetch!(:counts)
+    classified = Enum.reduce(foreign, initial, &classify_occurrence(&1, &2, resolved))
+
+    %{
+      counts: classified.counts,
+      foreign: Enum.reverse(classified.foreign)
+    }
   end
+
+  @spec counts([map()], String.t(), [map()]) :: counts()
+  def counts(foreign, resolved, findings),
+    do: classify(foreign, resolved, findings).counts
 
   defp quote_ranges(findings) do
     findings
@@ -51,10 +63,12 @@ defmodule Pramana.Report.ForeignEvidence do
     mapped_end = mapped_start + mapped_length(item, rewrite_state)
     ranges = Enum.drop_while(state.ranges, &(&1.byte_end <= mapped_start))
     covered? = rewrite_state == :preserved and covered?(mapped_start, mapped_end, ranges)
+    role = role(item, rewrite_state, covered?)
 
     %{
       state
-      | counts: classify(state.counts, item, rewrite_state, covered?),
+      | counts: bump(state.counts, role),
+        foreign: [Map.put(item, :evidence_role, role) | state.foreign],
         shift: shifted(state.shift, item, rewrite_state),
         ranges: ranges
     }
@@ -86,12 +100,13 @@ defmodule Pramana.Report.ForeignEvidence do
   defp covered?(first, last, [range | _]),
     do: range.byte_start <= first and last <= range.byte_end
 
-  defp classify(counts, _item, :rewritten, _covered?), do: counts
-  defp classify(counts, _item, :preserved, true), do: Map.update!(counts, :literal, &(&1 + 1))
+  defp role(_item, :rewritten, _covered?), do: :checked
+  defp role(_item, :preserved, true), do: :literal
+  defp role(%{urn: nil}, :preserved, false), do: :unresolved
+  defp role(_item, _rewrite_state, _covered?), do: :unchecked
 
-  defp classify(counts, %{urn: nil}, :preserved, false),
-    do: Map.update!(counts, :unresolved, &(&1 + 1))
-
-  defp classify(counts, _item, _state, _covered?),
-    do: Map.update!(counts, :unchecked, &(&1 + 1))
+  defp bump(counts, :literal), do: Map.update!(counts, :literal, &(&1 + 1))
+  defp bump(counts, :unresolved), do: Map.update!(counts, :unresolved, &(&1 + 1))
+  defp bump(counts, :unchecked), do: Map.update!(counts, :unchecked, &(&1 + 1))
+  defp bump(counts, :checked), do: counts
 end
