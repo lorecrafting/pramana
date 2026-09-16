@@ -43,22 +43,13 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
   end
 
   test "a resolved foreign token in an unpaired literal quote keeps a mixed report incomplete" do
-    original = """
-    "T. 262, 6a23" is a citation label.
+    original =
+      ~s("T. 262, 6a23" is a citation label. 「如是我聞一時佛住」 [#{@cbeta_urn}])
 
-    ```pramana-replay
-    {"tool":"count","arguments":{},"assert":{"total":1}}
-    ```
-    """
+    result = verify(original)
 
-    result =
-      Report.verify(original,
-        executor: fn "count", %{} -> {:ok, %{total: 1}} end,
-        bake_id: "b"
-      )
-
-    assert result.citations.verified_quotes == 0
-    assert result.counts.verified_replays == 1
+    assert result.citations.verified_quotes == 1
+    assert [%{quoted: "如是我聞一時佛住", verdict: :ok}] = result.citations.findings
     assert result.counts.unresolved_foreign == 0
     assert result.counts.unchecked_foreign == 1
     assert result.counts.literal_foreign == 0
