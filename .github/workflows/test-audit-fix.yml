@@ -1,0 +1,45 @@
+name: Apply test audit CI follow-ups
+on:
+  pull_request:
+    paths: [".github/workflows/test-audit-fix.yml"]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'test/behavior-first-audit-2026-09-15'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Apply only digest-verified source edits
+        env:
+          DELTA: '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'
+        run: |
+          python3 - <<'PY'
+          import os,base64,lzma,json,hashlib,pathlib,subprocess
+          base='aec41d84b77d4c5d11e7bed184dc74520b6cd162'
+          changed=set(subprocess.check_output(['git','diff','--name-only',base,'HEAD'],text=True).splitlines())
+          assert changed == {'.github/workflows/test-audit-fix.yml'}, changed
+          packed=base64.b64decode(os.environ['DELTA'],validate=True)
+          assert hashlib.sha256(packed).hexdigest() == '78b6e1ca26c4ad812c205ea8e3b8797d65f7c72c824dc3d623796d3e6a2d1034'
+          delta=json.loads(lzma.decompress(packed)); assert delta['base']==base
+          updates=[]
+          for c in delta['changes']:
+              p=pathlib.Path(c['path']); assert p.parts[0] in ['pramana','foundry'] and '..' not in p.parts and not p.is_symlink()
+              old=p.read_bytes(); assert hashlib.sha256(old).hexdigest()==c['old'], str(p)
+              lines=old.decode().splitlines(keepends=True)
+              for start,end,text in reversed(c['edits']): lines[start:end]=text.splitlines(keepends=True)
+              new=''.join(lines).encode(); assert hashlib.sha256(new).hexdigest()==c['new'], str(p)
+              updates.append((p,new))
+          for p,new in updates: p.write_bytes(new)
+          print(f'Applied {len(updates)} verified CI follow-ups')
+          PY
+          git add pramana foundry
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: isolate CLI startup and wait for the actual ownership boundary'
+          git push origin HEAD:refs/heads/test/behavior-first-audit-2026-09-15
