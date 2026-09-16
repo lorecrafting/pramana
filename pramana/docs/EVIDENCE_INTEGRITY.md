@@ -23,7 +23,12 @@ flagged rather than partially deleted.
 Multiple candidate addresses, overlapping edits, unavailable diagnosis and candidates
 that fail exact quotation verification are flagged without changing that occurrence.
 An edit inside another citation's quotation is also refused, even when that outer
-quotation already verifies and needs no edit of its own.
+quotation already verifies and needs no edit of its own. Before returning a deletion,
+repair assembles the proposed output once and reparses its citation associations. Original
+citation/quotation offsets are mapped through the edit plan with one cumulative sweep; if
+a deletion would attach that deleted citation's quotation to another surviving citation,
+the deletion is refused as `citation_rebinding`. This protects semantic association even
+when the byte ranges themselves do not overlap, without restoring per-occurrence rescans.
 `no_sources` means the citation provides no verified support here; it does not assert
 that the quotation was invented. Bare/blank quotations receive `existence_only`, not
 `verified`. Repair still handles the recognized Pramāṇa citation grammar, not arbitrary
@@ -76,7 +81,11 @@ transport frame-size limit or a complete denial-of-service defense: individual r
 queries still have their own cost and the corpus is not copied into the checker.
 
 `foreign` contains each original citation occurrence and its original-input offsets.
-Citation findings after foreign-address rewriting use `citations.offset_basis =
+Resolved foreign addresses that appear **inside literal quotation bodies** remain in
+that metadata but are not canonicalized in `resolved_text`; those bytes are the evidence
+that the guard must compare with the cited witness. Foreign citations outside quotation
+bodies still rewrite normally, including an outer foreign citation attached to a literal
+quotation. Citation findings after foreign-address rewriting use `citations.offset_basis =
 resolved_text`; their ranges refer to the returned `resolved_text`, not the original
 string. Repair's ranges always refer to its returned `original`.
 MCP foreign-resolution tuple reasons become `{code, details}` objects for JSON.
@@ -180,12 +189,15 @@ and [Read Committed](https://www.postgresql.org/docs/18/transaction-iso.html#XAC
 
 Focused regression cases cover repeated/multibyte edits, unavailable searches, complete
 and incomplete reports, missing/null assertions, partial holdings, wrong/ambiguous
-volumes, A → B → A selection, and actual migration backfill SQL. Fresh database migrations,
-application tests, formatting and static analysis are checked in CI. The dedicated
-`release_acceptance_test.exs` uses disposable empty schemas and a separate four-connection
-pool to run actual history/selection migrations up/down/up. Its controlled writer test
-observes distinct PostgreSQL backend IDs and a waiting advisory lock before releasing
-the first stamper. It does not infer concurrency from a sleep or shared Sandbox owner.
+volumes, A → B → A selection, and actual migration backfill SQL. The follow-up association
+regressions also cover deletion-induced quote rebinding, repeated addresses with multibyte
+prefixes, literal SuttaCentral/Taishō address text, and an outer foreign citation that must
+still canonicalize. Fresh database migrations, application tests, formatting and static
+analysis are checked in CI. The dedicated `release_acceptance_test.exs` uses disposable
+empty schemas and a separate four-connection pool to run actual history/selection
+migrations up/down/up. Its controlled writer test observes distinct PostgreSQL backend IDs
+and a waiting advisory lock before releasing the first stamper. It does not infer
+concurrency from a sleep or shared Sandbox owner.
 
 Boundary regressions exercise real domain, MCP and reader paths, including CRLF and
 malformed fences. Pure interval checks compare against an independent all-pairs oracle.
