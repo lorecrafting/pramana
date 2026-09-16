@@ -1,0 +1,34 @@
+name: Evidence workspace snapshot
+
+on:
+  push:
+    branches: [fix/evidence-integrity-2026-09-15]
+    paths: [.github/workflows/evidence-workspace.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Export tracked source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/evidence-workspace"
+          mkdir -p "$out"
+          git rev-parse HEAD > "$out/revision.txt"
+          git rev-parse HEAD^{tree} > "$out/tree.txt"
+          git archive HEAD | gzip > "$out/source.tar.gz"
+          (cd "$out" && sha256sum source.tar.gz > SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: evidence-workspace
+          path: ${{ runner.temp }}/evidence-workspace
+          retention-days: 1
+          if-no-files-found: error
