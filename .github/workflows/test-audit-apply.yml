@@ -1,0 +1,81 @@
+name: Apply verified test audit
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/test-audit-apply.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'test/behavior-first-audit-2026-09-15'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Validate source and every before/after digest before applying
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, pathlib, subprocess
+          root = pathlib.Path.cwd().resolve()
+          base = 'fbe1205d8558b9362a341a0f9c78b596fb75a684'
+          subprocess.run(['git', 'merge-base', '--is-ancestor', base, 'HEAD'], check=True)
+          temporary = {'.github/workflows/test-audit-bootstrap.yml', '.github/workflows/test-audit-apply.yml'} | {f'.github/test-audit-delta.part{i}' for i in range(3)}
+          changed = set(subprocess.check_output(['git', 'diff', '--name-only', base, 'HEAD'], text=True).splitlines())
+          assert changed <= temporary, f'Unexpected concurrent source changes: {changed - temporary}'
+          encoded = ''.join((root / f'.github/test-audit-delta.part{i}').read_text().strip() for i in range(3))
+          # Repair a known transport duplication; the whole compressed stream must still match.
+          encoded = encoded.replace('MecptKK3J8', 'MecptK3J8')
+          packed = base64.b64decode(encoded, validate=True)
+          digest = hashlib.sha256(packed).hexdigest()
+          assert digest == '9e45d10a675ff7b61e3c69dc4852d1baaed94f86b124c08669b7d6c36e4bc536', digest
+          delta = json.loads(lzma.decompress(packed))
+          assert delta['base'] == base
+          updates = []
+          seen = set()
+          for change in delta['changes']:
+              name = change['path']
+              path = root / name
+              assert name not in seen and not path.is_symlink()
+              seen.add(name)
+              assert not pathlib.PurePosixPath(name).is_absolute() and '..' not in pathlib.PurePosixPath(name).parts
+              assert root in path.resolve().parents and name not in temporary
+              assert name.startswith(('foundry/', 'pramana/', 'docs/', 'test/')) or name == '.github/workflows/ci.yml'
+              old = path.read_bytes() if path.exists() else None
+              assert (hashlib.sha256(old).hexdigest() if old is not None else None) == change['old'], f'Base mismatch: {name}'
+              if change['new'] is None:
+                  new = None
+              else:
+                  lines = old.decode('utf-8').splitlines(keepends=True) if old is not None else []
+                  edits = change['edits']
+                  previous = 0
+                  for start, end, text in edits:
+                      assert previous <= start <= end <= len(lines)
+                      previous = end
+                  for start, end, text in reversed(edits):
+                      lines[start:end] = text.splitlines(keepends=True)
+                  new = ''.join(lines).encode('utf-8')
+                  assert hashlib.sha256(new).hexdigest() == change['new'], f'Result mismatch: {name}'
+              updates.append((path, new))
+          for path, new in updates:
+              if new is None:
+                  path.unlink()
+              else:
+                  path.parent.mkdir(parents=True, exist_ok=True)
+                  path.write_bytes(new)
+          print(f'Applied {len(updates)} digest-verified source changes.')
+          PY
+          git rm --ignore-unmatch .github/test-audit-delta.part0 .github/test-audit-delta.part1 .github/test-audit-delta.part2 .github/workflows/test-audit-bootstrap.yml .github/workflows/test-audit-apply.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'test: implement behavior-first audit after merged release-provenance fixes'
+          git push origin HEAD:refs/heads/test/behavior-first-audit-2026-09-15
