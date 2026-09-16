@@ -65,6 +65,7 @@ defmodule Pramana.Repair do
         {action, edit_for(finding, action, markdown), finding.occurrence}
       end)
       |> reject_overlaps()
+      |> reject_rebindings(markdown)
 
     actions = Enum.map(planned, &elem(&1, 0))
     edits = planned |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1)
@@ -243,7 +244,7 @@ defmodule Pramana.Repair do
 
     conflicts = Intervals.conflicts(writes, scopes)
 
-    Enum.map(planned, fn {action, edit, _} ->
+    Enum.map(planned, fn {action, edit, occurrence} ->
       if Map.has_key?(conflicts, action.source_offset) do
         {%{
            action
@@ -251,9 +252,99 @@ defmodule Pramana.Repair do
              reason: :overlapping_edits,
              detail:
                "An edit would change another citation or its quotation; review both manually."
-         }, nil}
+         }, nil, occurrence}
       else
-        {action, edit}
+        {action, edit, occurrence}
+      end
+    end)
+  end
+
+  # Deleting one citation can make a quotation that belonged to it become syntactically
+  # adjacent to the next surviving citation. The edit ranges do not overlap, but the
+  # amended document would then assert a different quotation/citation pair than the one
+  # that was diagnosed. Reparse the proposed output once and map surviving URN starts
+  # through the original edit deltas; refuse only the deletion that owned the newly
+  # attached quotation.
+  defp reject_rebindings(planned, original) do
+    edits = planned |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1)
+
+    if edits == [] do
+      planned
+    else
+      candidate = apply_edits(original, edits)
+
+      actual_by_offset =
+        candidate
+        |> Guard.occurrences(regions: Report.prose_regions(candidate))
+        |> Map.new(&{&1.urn_range.byte_start, &1})
+
+      culprits =
+        Enum.reduce(planned, MapSet.new(), fn {action, edit, occurrence}, acc ->
+          if removed?(action, edit) do
+            acc
+          else
+            offset = shifted_offset(occurrence.urn_range.byte_start, edits)
+
+            case Map.get(actual_by_offset, offset) do
+              %{quoted: actual_quote} = actual
+              when actual_quote != expected_quote(action, occurrence) ->
+                case deleted_quote_owner(actual, planned, edits) do
+                  nil -> acc
+                  source_offset -> MapSet.put(acc, source_offset)
+                end
+
+              _ ->
+                acc
+            end
+          end
+        end)
+
+      Enum.map(planned, fn {action, edit, occurrence} ->
+        if MapSet.member?(culprits, action.source_offset) do
+          {%{
+             action
+             | state: :flagged,
+               reason: :citation_rebinding,
+               detail:
+                 "Removing this citation would attach its quotation to another citation; review manually."
+           }, nil, occurrence}
+        else
+          {action, edit, occurrence}
+        end
+      end)
+    end
+  end
+
+  defp removed?(%{state: :no_sources}, edit), do: edit != nil
+  defp removed?(_action, _edit), do: false
+
+  defp expected_quote(%{state: :quote_relaxed, replacement_quote: replacement}, _occurrence),
+    do: replacement
+
+  defp expected_quote(_action, occurrence), do: occurrence.quoted
+
+  defp deleted_quote_owner(%{quote_range: nil}, _planned, _edits), do: nil
+
+  defp deleted_quote_owner(actual, planned, edits) do
+    Enum.find_value(planned, fn
+      {%{state: :no_sources, source_offset: source_offset}, edit,
+       %{quote_range: %{byte_start: quote_start}}}
+      when not is_nil(edit) ->
+        if shifted_offset(quote_start, edits) == actual.quote_range.byte_start,
+          do: source_offset,
+          else: nil
+
+      _ ->
+        nil
+    end)
+  end
+
+  defp shifted_offset(original_offset, edits) do
+    Enum.reduce(edits, original_offset, fn edit, shifted ->
+      if edit.range.byte_end <= original_offset do
+        shifted + byte_size(edit.after) - (edit.range.byte_end - edit.range.byte_start)
+      else
+        shifted
       end
     end)
   end
