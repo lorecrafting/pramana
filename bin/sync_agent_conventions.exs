@@ -191,10 +191,10 @@ defmodule Pramana.AgentConventionSync do
   defp report_changes(changes) do
     IO.puts("Changed upstream source blobs:")
 
-    Enum.each(changes, fn {path, before, after} ->
+    Enum.each(changes, fn {path, recorded_sha, current_sha} ->
       IO.puts("  - #{path}")
-      IO.puts("      recorded: #{before}")
-      IO.puts("      current:  #{after}")
+      IO.puts("      recorded: #{recorded_sha}")
+      IO.puts("      current:  #{current_sha}")
     end)
   end
 
