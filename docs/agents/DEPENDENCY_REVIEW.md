@@ -47,17 +47,30 @@ ambiguous file paths. Example from the Git root, after the successful compile ab
 ```sh
 (
   set -eu
+  found=0
   for app in pramana/apps/*; do
     test -f "$app/mix.exs" || continue
+    found=1
+    manifest="pramana/_build/test/lib/$(basename "$app")/.mix/compile.elixir"
+    if ! test -s "$manifest"; then
+      printf 'Compiler evidence unavailable for %s: missing %s; recompile first\n' "$app" "$manifest" >&2
+      exit 1
+    fi
     printf '\nApplication: %s\n' "$app"
     (cd "$app" && MIX_ENV=test mix xref callers Pramana.Release --no-compile)
   done
+  if test "$found" -eq 0; then
+    printf 'Compiler evidence unavailable: run from the Git root with Pramāṇa apps present\n' >&2
+    exit 1
+  fi
 )
 ```
 
 Replace `Pramana.Release` with the actual module under review. `callers` reports
 referring **files**, labelled `compile`, `export` or `runtime`, not a complete
 function/arity-level call graph. Keep the application heading with each path.
+The manifest guard uses this repository's standard test build paths; it catches
+missing/empty manifests, not stale or corrupt ones. Fresh compilation is still required.
 No output can mean no recorded references, an unknown module or unsuitable/stale
 scope; first locate the definition and verify the compilation context. It never
 proves that deletion is safe. `callers` and `trace` cannot run at the umbrella root.
@@ -108,18 +121,33 @@ new project dependencies or second call-graph implementation. Inside the artifac
 
 | File | Meaning |
 |---|---|
-| `metadata.json` | Actual checkout SHA/tree, run/attempt, timestamp, environment, tools, application roots and explicit limits |
+| `metadata.json` | Schema v2: checkout SHA/tree, run/attempt, environment, tools, application roots, per-app status and limits |
+| `source-files.paths0` | NUL-delimited tracked path inventory used to generate the checksum manifest and validate source membership |
 | `source-files.sha256` | Hashes of tracked Pramāṇa files, `mise.toml` and the producing workflow, relative to the Git root |
 | `toolchain.txt` | Actual Mix/Elixir/BEAM version output |
 | `<app>/graph.json` | Native file-to-file dependency map; names are relative to that app, not the Git root |
+| `<app>/elixir-sources.json` | Files enumerated from the app's configured `elixirc_paths`, independently of graph node count |
 | `<app>/stats.txt` | Native per-app dependency statistics |
 | `<app>/compile-connected-cycles.txt` | Native compile-connected cycle report; no cycles is a valid result |
 
 The collector requires clean unchanged source, the expected checkout SHA and
-nonempty compiled manifests/graphs. It validates graph labels, target nodes and
-source-file existence. Reports are not reused from a cache, written into source,
-or uploaded if collection fails. Artifact retention is seven days; retain relevant
-findings and their evidence references in the PR, not a permanent graph dump.
+nonempty compiled manifests. Every graph source and configured Elixir source must
+be an app-local, tracked regular file in the exact checksum inventory. Symlinks,
+ignored/generated and external sources are explicitly unsupported: collection fails
+rather than giving unrecorded input a revision stamp. Graph labels/targets are checked.
+
+A successfully compiled app with no configured `.ex` inputs can have `{}` as its
+graph; schema v2 records `status: "no_elixir_sources"` and zero nodes/edges. A graph
+that is empty despite configured sources is rejected, not called not-applicable.
+Source enumeration uses `mix run --no-start --no-compile --no-listeners` and the
+current Mix configuration; it does not start applications or recompile inputs.
+
+Reports are not reused from a cache, written into source, or uploaded if collection
+fails. The tracked-file hashes are not a complete build attestation: arbitrary
+compile-time external resources, dependency bytes and dynamic environment inputs
+are not certified by this bundle. Do not append post-compilation hashes for generated
+sources and call that proof of what was compiled. Artifact retention is seven days;
+retain relevant findings and their evidence references in the PR, not a permanent dump.
 
 On a pull request, the actual checkout can be GitHub's synthetic merge commit.
 Compare `metadata.json` to the candidate/base being reviewed; do not call a graph
