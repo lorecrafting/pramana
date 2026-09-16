@@ -5,9 +5,9 @@ defmodule Pramana.Release do
   ## The problem this exists for
 
   `Pramana.Bake` hashes `[lock_digest, pipeline_version, config]` — acquired bytes,
-  normalisation, bake settings. That is the right identity for a **passage**: resolve a URN
-  against the same `bake_id` and the text is byte-identical, which is what makes a citation
-  checkable years later.
+  normalisation, bake settings. That identifies source inputs, not a frozen database.
+  Reproducing passage bytes requires those inputs and the matching pipeline; loaded
+  rows can change and historical snapshots are not retained by these identities.
 
   **It is the wrong identity for a retrieval, and on 2026-09-03 that stopped being
   theoretical.** 27,751 renderings and 27,751 vectors were imported under an unchanged
@@ -19,17 +19,16 @@ defmodule Pramana.Release do
   import runs against the same id and a different index, and can fail while blaming the
   report rather than the corpus.
 
-  ## Three things move independently, so three ids
+  ## Three components and one combined stamp
 
-    * `source_bake_id` — `Pramana.Bake`'s id, unchanged and still the passage's identity.
+    * `source_bake_id` — `Pramana.Bake`'s source-input identity.
     * `translation_set_id` — the English layer: how many renderings, by whom.
     * `vector_set_id` — the index: how many vectors, of what kinds, from which model.
-    * `release_id` — a digest of those three, and the only one that answers *what produced
-      this answer*.
+    * `release_id` — a digest of those three recorded components.
 
-  **A citation is still reproducible from `source_bake_id` alone.** That claim never
-  depended on the index, and nothing here weakens it. What `release_id` adds is the ability
-  to say a *search* was or was not run against the same state.
+  The translation and vector identities summarize counts and translator/model names,
+  not content. Same-count edits and changes to retrieval code or defaults may be invisible.
+  Matching `release_id` values do not establish identical answers or historical replay.
 
   ## Stamped, not computed
 
@@ -37,10 +36,10 @@ defmodule Pramana.Release do
   vectors per request is not that, so a release is **recorded** when something changes it —
   exactly as a bake is.
 
-  A recorded fact can go stale where a computed one cannot, which would reproduce the
-  original defect in a new place. So `drift/0` compares the stamp against what is live and
-  `mix pramana.doctor` reports it: **the failure mode is visible rather than silent**, which
-  is the only difference that ever mattered here.
+  A recorded fact can go stale where a computed one cannot. `drift/0` compares the
+  recorded source identity, counts and translator/model names with their live values;
+  `mix pramana.doctor` reports differences. This detects drift in those facts, not all
+  possible content changes. Reading a stamp or checking drift never refreshes it.
   """
 
   import Ecto.Query
@@ -88,11 +87,12 @@ defmodule Pramana.Release do
   end
 
   @doc """
-  Whether the stamp still describes the corpus, and in what respect it does not.
+  Whether the recorded source identity and derived facts still match their live values.
 
-  Returns `:unstamped`, `:current`, or a map naming each fact that moved. **This is the
-  check that keeps a recorded id from repeating the defect it was built to fix** — a stamp
-  nobody refreshes is exactly a `bake_id` that does not move.
+  Returns `:unstamped`, `:current`, or a map naming each fact that moved, including
+  `:source_bake_id`. Only the observation timestamp is excluded from comparison.
+  `:current` does not establish byte-complete content identity or identical retrieval.
+  This check does not write or refresh a release stamp.
   """
   @spec drift() :: :unstamped | :current | map()
   def drift do
@@ -101,22 +101,20 @@ defmodule Pramana.Release do
         :unstamped
 
       release ->
-        live = facts()
+        live = Map.delete(facts(), :stamped_at)
 
         moved =
-          for key <- [:translations_count, :vectors_count, :embedding_models, :translators],
-              Map.get(live, key) != Map.get(release, key),
+          for {key, value} <- live,
+              value != Map.fetch!(release, key),
               into: %{},
-              do: {key, %{stamped: Map.get(release, key), live: Map.get(live, key)}}
+              do: {key, %{stamped: Map.fetch!(release, key), live: value}}
 
         if moved == %{}, do: :current, else: moved
     end
   end
 
-  # The facts a release is a digest OF. Counts and identities rather than content hashes:
-  # hashing 273,334 rendering texts per stamp would make stamping the expensive thing, and
-  # what a caller needs to know is whether the state they are looking at is the one that
-  # answered, not to re-derive it.
+  # Counts and identities rather than content hashes. This keeps stamping bounded by
+  # aggregate queries, but same-count content changes can retain the same digest.
   defp facts do
     %{
       source_bake_id: Bake.current_id(),
