@@ -46,7 +46,8 @@ is advanced.
 
 The scheduled upstream watcher runs `--watch-main` against the same directory roots.
 Phoenix `main` is an early-warning feed, not compatibility authority: drift opens or
-refreshes a maintenance issue but does not alter agent instructions. Once a reviewed
-baseline catches up, the next scheduled/manual watcher run closes that maintenance issue.
+refreshes a maintenance issue but does not alter agent instructions. The watcher does
+not auto-close that review issue when a baseline changes; closure remains part of the
+human semantic-review workflow.
 
 [Shared workflow](../WORKFLOW.md) · [Testing](../../TESTING.md)
