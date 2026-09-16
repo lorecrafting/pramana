@@ -51,6 +51,8 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
     assert result.citations.verified_quotes == 1
     assert result.counts.unresolved_foreign == 0
     assert result.counts.unchecked_foreign == 1
+    assert result.counts.literal_foreign == 0
+    assert [%{matched: "T. 262, 6a23", evidence_role: :unchecked}] = result.foreign
     assert result.status == :incomplete
     refute result.ok?
   end
@@ -62,9 +64,11 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
     assert result.citations.verified_quotes == 1
     assert result.counts.unresolved_foreign == 0
     assert result.counts.unchecked_foreign == 0
+    assert result.counts.literal_foreign == 1
     assert result.status == :verified
     assert result.ok?
-    assert [%{matched: "T. 262, 99a1", urn: nil}] = result.foreign
+
+    assert [%{matched: "T. 262, 99a1", urn: nil, evidence_role: :literal}] = result.foreign
   end
 
   test "literal classification survives when the outer citation is foreign and rewritten" do
@@ -75,6 +79,13 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
     assert result.citations.verified_quotes == 1
     assert result.counts.unresolved_foreign == 0
     assert result.counts.unchecked_foreign == 0
+    assert result.counts.literal_foreign == 1
+
+    assert [
+             %{matched: "T. 262, 99a1", evidence_role: :literal},
+             %{matched: "T. 8889, 1a1", evidence_role: :checked}
+           ] = result.foreign
+
     assert result.status == :verified
     assert result.ok?
   end
@@ -90,6 +101,7 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
     assert result.citations.existence_only == 1
     assert result.counts.unresolved_foreign == 0
     assert result.counts.unchecked_foreign == 0
+    assert result.counts.literal_foreign == 1
     assert result.status == :incomplete
   end
 
