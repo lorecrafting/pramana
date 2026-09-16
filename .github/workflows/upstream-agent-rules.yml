@@ -61,7 +61,10 @@ jobs:
           esac
 
   maintain-issue:
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      needs.compare.outputs.changed == 'true'
     needs: compare
     permissions:
       issues: write
@@ -70,10 +73,9 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
-      WATCH_CHANGED: ${{ needs.compare.outputs.changed }}
       WATCH_REPORT: ${{ needs.compare.outputs.report }}
     steps:
-      - name: Open, refresh or close upstream-review issue
+      - name: Open or refresh upstream-review issue
         shell: bash
         run: |
           title="Phoenix agent usage rules changed upstream"
@@ -83,25 +85,21 @@ jobs:
               | head -n 1
           )"
 
-          if [ "$WATCH_CHANGED" = "true" ]; then
-            {
-              echo "Phoenix's \`main\` agent guidance differs from the reviewed early-warning baseline."
-              echo
-              echo "This is **not** an instruction to copy \`main\` into Pramāṇa. Compatibility remains"
-              echo "the Phoenix version locked in \`pramana/mix.lock\`. Review added/removed rule files"
-              echo "and changed blobs, decide whether any local convention should change, and advance"
-              echo "\`docs/agents/code-conventions/UPSTREAM.exs\` only after that review."
-              echo
-              echo '```text'
-              printf '%s\n' "$WATCH_REPORT"
-              echo '```'
-            } > /tmp/phoenix-agent-rules.md
+          {
+            echo "Phoenix's \`main\` agent guidance differs from the reviewed early-warning baseline."
+            echo
+            echo "This is **not** an instruction to copy \`main\` into Pramāṇa. Compatibility remains"
+            echo "the Phoenix version locked in \`pramana/mix.lock\`. Review added/removed rule files"
+            echo "and changed blobs, decide whether any local convention should change, and advance"
+            echo "\`docs/agents/code-conventions/UPSTREAM.exs\` only after that review."
+            echo
+            echo '```text'
+            printf '%s\n' "$WATCH_REPORT"
+            echo '```'
+          } > /tmp/phoenix-agent-rules.md
 
-            if [ -n "$number" ]; then
-              gh issue edit "$number" --body-file /tmp/phoenix-agent-rules.md
-            else
-              gh issue create --title "$title" --body-file /tmp/phoenix-agent-rules.md
-            fi
-          elif [ -n "$number" ]; then
-            gh issue close "$number" --reason completed
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file /tmp/phoenix-agent-rules.md
+          else
+            gh issue create --title "$title" --body-file /tmp/phoenix-agent-rules.md
           fi
