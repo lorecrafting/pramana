@@ -21,6 +21,11 @@ jobs:
         with:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
+      - name: Fetch the locked public Foundry dependency
+        working-directory: foundry
+        run: |
+          mix local.hex --force
+          mix deps.get --check-locked
       - name: Export only tracked source and public toolchains
         shell: bash
         run: |
@@ -33,7 +38,9 @@ jobs:
           elixir_root="$(dirname "$(dirname "$(readlink -f "$(command -v elixir)")")")"
           tar -czf "$out/otp.tar.gz" -C "$otp_root" .
           tar -czf "$out/elixir.tar.gz" -C "$elixir_root" .
-          (cd "$out" && sha256sum source.tar.gz otp.tar.gz elixir.tar.gz > SHA256SUMS)
+          tar -czf "$out/foundry-deps.tar.gz" -C foundry deps
+          tar -czf "$out/mix-archives.tar.gz" -C "$HOME/.mix" archives
+          (cd "$out" && sha256sum *.tar.gz > SHA256SUMS)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: test-audit-bootstrap
