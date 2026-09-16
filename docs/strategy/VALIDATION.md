@@ -84,7 +84,7 @@ Each model, retrieval, context or tooling experiment records:
 Do not compare moving indexes, reuse the test set for tuning, or declare a new
 embedding superior from a different corpus/denominator. Public MITRA or memory
 benchmarks identify candidates, not expected local gains. [Testing](../TESTING.md),
-[proxy studies](../PROXIES.md) and PLAN's rejected experiments constrain interpretation.
+[proxy studies](../../pramana/docs/PROXIES.md) and PLAN's rejected experiments constrain interpretation.
 
 For memory/context pilots, test missing or stale receipts, context reset, superseded
 decisions and scope leakage—not just recall of a friendly example. For source graphs,

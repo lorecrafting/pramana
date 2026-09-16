@@ -12,7 +12,7 @@
 #
 # So the split is honest rather than incidental:
 #
-#   here          format, credo, 1,158 tests            ~4 min, every push
+#   here          format, credo, application/native tests and release build
 #   on a machine  mix pramana.gate                      verify, integrity, evals, lockfile
 #                 with the bake
 #
@@ -25,6 +25,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 # A second push to the same branch makes the first run irrelevant. Cancelling it is not
 # just thrift: two runs of the same suite against one Postgres service is contention, and
 # this project has already learned that contention invalidates timings.
@@ -35,6 +38,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: pramana
 
     services:
       postgres:
@@ -73,8 +80,8 @@ jobs:
           elixir-version: "1.20.3-otp-29"
 
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
-      # Pinned to the same 1.83.0 as the Dockerfile — a NIF that compiles today and
-      # not tomorrow is the least debuggable class of build failure.
+      # Rust remains the existing floating stable selection. Pinning it is a
+      # separate toolchain decision, not a hidden change in this path migration.
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Install pg_bigm
@@ -94,35 +101,64 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            deps
-            _build
-            priv/plts
+            pramana/deps
+            pramana/_build
+            pramana/priv/plts
             ~/.cargo
-            apps/pramana_native/native/pramana_native/target
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+            pramana/apps/pramana_native/native/pramana_native/target
+            pramana/native/quotations/target
+          key: ${{ runner.os }}-pramana-layout-v2-${{ hashFiles('pramana/mix.lock', 'pramana/**/Cargo.lock', 'mise.toml') }}
+          restore-keys: ${{ runner.os }}-pramana-layout-v2-
 
       - run: mix deps.get
 
       # Warnings-as-errors on the project's own code. A warning that nobody has to fix is
       # a warning everybody stops reading.
-      - run: mix compile --warnings-as-errors
+      - id: compile
+        run: mix compile --warnings-as-errors
 
       - run: mix format --check-formatted
 
       - run: mix credo --strict
 
+      - name: Lint shared repository checks with the same rules
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: mix credo --strict --files-included '../test/**/*.exs' --files-included '../bin/*.exs'
+
       - name: Deps audit
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix deps.audit
 
       - name: Dialyzer
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix dialyzer
 
       - name: Cargo audit
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: |
           if ! command -v cargo-audit &>/dev/null; then
             cargo install cargo-audit --locked
           fi
-          cargo audit
+          cargo audit --file apps/pramana_native/native/pramana_native/Cargo.lock
+          cargo audit --file native/quotations/Cargo.lock
 
-      - run: mix test
+      - name: Test native quotation companion
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: cargo test --locked --manifest-path native/quotations/Cargo.toml
+
+      # Collect migration acceptance even when a separate quality check fails.
+      # No continue-on-error: preceding failures still fail this job.
+      - name: Test the Pramana umbrella
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: mix test
+
+      - name: Build production assets and release without starting it
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        env:
+          MIX_ENV: prod
+          DATABASE_URL: ecto://postgres:postgres@localhost/pramana_build_only
+          SECRET_KEY_BASE: build-only-not-used-to-start-a-server-00000000000000000000000000000000
+        run: |
+          mix deps.get --only prod
+          mix assets.deploy
+          mix release

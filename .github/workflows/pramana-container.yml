@@ -1,0 +1,26 @@
+name: Pramana container
+on:
+  pull_request:
+    paths:
+      - "pramana/**"
+      - ".github/workflows/pramana-container.yml"
+  push:
+    branches: [main]
+    paths:
+      - "pramana/**"
+      - ".github/workflows/pramana-container.yml"
+permissions:
+  contents: read
+concurrency:
+  group: pramana-container-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Build only the Pramana project context; no image push or service start
+        run: docker build --progress=plain -f pramana/Dockerfile -t pramana:ci pramana

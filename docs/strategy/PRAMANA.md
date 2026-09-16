@@ -38,7 +38,7 @@ Choose the pilot scope at G1 using real tasks and the recorded corpus limitation
 | A Tibetan collection | Fit for an Indo-Tibetan study cohort and commentary-oriented work | English access, missing witnesses/titles, translation alignment and a qualified evaluator |
 | A Chinese collection | Potentially valuable English-discovery gap and rich commentarial material | Whether selected tasks are findable and readable without presenting generated glosses as authoritative translations |
 
-These are selection hypotheses, not comparative benchmark results. [STATUS](../STATUS.md)
+These are selection hypotheses, not comparative benchmark results. [STATUS](../../pramana/docs/STATUS.md)
 is a dated snapshot, not the live database. Choose the narrowest source scope that
 supports the job; do not require an entire canon to be equally complete.
 
@@ -49,8 +49,8 @@ not a deletion of existing APIs or a new promise that every comparison works.
 ## One complete workflow
 
 **Scope → find → inspect → assess → reuse.** Reuse the existing search, passage,
-work and check surfaces. The [reader reference](../READER.md) and [MCP reference](../MCP.md)
-own implemented routes; the [architecture](../ARCHITECTURE.md) owns their limits.
+work and check surfaces. The [reader reference](../../pramana/docs/READER.md) and [MCP reference](../../pramana/docs/MCP.md)
+own implemented routes; the [architecture](../../pramana/docs/ARCHITECTURE.md) owns their limits.
 
 1. **Scope and find.** Accept a question, terms or a quotation. Display active
    collections, retrieval mode and meaningful coverage gaps. A zero result means
@@ -84,7 +84,7 @@ must not receive a verified badge; buffer checked units or label them pending.
 
 The existing guard does **not** solve all five questions. An existence-only check
 is not a verified quotation. An output with no recognized citations is not wholly
-verified. [Architecture](../ARCHITECTURE.md#citation-verification-precisely) describes
+verified. [Architecture](../../pramana/docs/ARCHITECTURE.md#citation-verification-precisely) describes
 current checking; I-P2 supplies the proposed presentation and acceptance contract.
 
 Replace “85% canonical” and “unattested/spurious” scores with precise states such
@@ -101,7 +101,7 @@ human renderings, machine aids and user notes separate in both display and stora
 A generated search gloss may help discovery without becoming publishable scripture
 or an approved reading translation. Initial partner deployments should be able to
 operate without generated reading aids; any later opt-in needs explicit labeling
-and the partner's rules. [Translation](../TRANSLATION.md) distinguishes implemented
+and the partner's rules. [Translation](../../pramana/docs/TRANSLATION.md) distinguishes implemented
 behavior from proposed purpose-based controls.
 
 Source licensing, display, export, model processing and hosting permissions must
