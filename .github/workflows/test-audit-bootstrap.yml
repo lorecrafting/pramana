@@ -1,0 +1,42 @@
+name: Test audit bootstrap
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [".github/workflows/test-audit-bootstrap.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    if: github.head_ref == 'test/behavior-first-audit-2026-09-15'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+      - name: Export only tracked source and public toolchains
+        shell: bash
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/test-audit-bootstrap"
+          mkdir -p "$out"
+          git rev-parse HEAD > "$out/revision.txt"
+          git archive HEAD | gzip > "$out/source.tar.gz"
+          otp_root="$(erl -noshell -eval 'io:format("~s", [code:root_dir()]), halt().')"
+          elixir_root="$(dirname "$(dirname "$(readlink -f "$(command -v elixir)")")")"
+          tar -czf "$out/otp.tar.gz" -C "$otp_root" .
+          tar -czf "$out/elixir.tar.gz" -C "$elixir_root" .
+          (cd "$out" && sha256sum source.tar.gz otp.tar.gz elixir.tar.gz > SHA256SUMS)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: test-audit-bootstrap
+          path: ${{ runner.temp }}/test-audit-bootstrap
+          retention-days: 1
+          if-no-files-found: error
