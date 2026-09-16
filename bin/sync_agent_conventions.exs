@@ -385,7 +385,11 @@ defmodule Pramana.AgentConventionSync do
     |> add_if(length(Enum.uniq(roots)) != length(roots), "source_roots contains duplicates.")
     |> then(fn acc ->
       Enum.reduce(roots, acc, fn root, inner ->
-        add_if(inner, not safe_relative_path?(root), "Invalid upstream source root #{inspect(root)}.")
+        add_if(
+          inner,
+          not safe_relative_path?(root),
+          "Invalid upstream source root #{inspect(root)}."
+        )
       end)
     end)
   end
