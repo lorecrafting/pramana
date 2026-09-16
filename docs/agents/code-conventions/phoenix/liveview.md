@@ -1,7 +1,8 @@
 # Phoenix LiveView conventions
 
-Applies to Pramāṇa LiveView processes, streams, hooks, forms and LiveView tests.
-Also read [Phoenix HTML](html.md) and the shared [Elixir conventions](../elixir.md).
+Applies to Pramāṇa LiveView pages, processes, streams, hooks, forms and LiveView tests.
+Also read [Phoenix core](core.md), [Phoenix HTML](html.md) and the shared
+[Elixir conventions](../elixir.md).
 
 ## LiveView behavior
 

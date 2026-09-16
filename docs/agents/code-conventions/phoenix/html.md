@@ -1,7 +1,9 @@
 # Phoenix HTML and HEEx conventions
 
-Applies to Pramāṇa HEEx templates, components and forms. Add the
-[LiveView conventions](liveview.md) when the template participates in live behavior.
+Applies to Pramāṇa HEEx templates, components and forms. Also read the shared
+[Elixir conventions](../elixir.md). Add the [LiveView conventions](liveview.md) when
+the template participates in live behavior, and [Phoenix core](core.md) when generated
+layout/authenticated-route conventions apply.
 
 - Use `~H` or `.html.heex` for Phoenix templates, not legacy `~E`.
 - Build forms with `Phoenix.Component.form/1` and `inputs_for/1`, not the retired

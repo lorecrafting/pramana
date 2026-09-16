@@ -5,7 +5,8 @@ defmodule Pramana.AgentConventionSync do
   @conventions_dir Path.join(@root, "docs/agents/code-conventions")
   @manifest_path Path.join(@conventions_dir, "UPSTREAM.exs")
   @lock_path Path.join(@root, "pramana/mix.lock")
-  @raw_base "https://raw.githubusercontent.com/phoenixframework/phoenix"
+  @contents_base "https://api.github.com/repos/phoenixframework/phoenix/contents"
+  @http_marker "\n__PRAMANA_HTTP_STATUS__:"
 
   def main(args) do
     manifest = load_manifest!()
@@ -24,11 +25,24 @@ defmodule Pramana.AgentConventionSync do
   defp load_manifest! do
     {manifest, _binding} = Code.eval_file(@manifest_path)
 
-    unless is_map(manifest) do
-      abort("Expected #{@manifest_path} to evaluate to a map.")
-    end
+    case manifest do
+      %{
+        phoenix_version: version,
+        source_tag: tag,
+        reviewed_at: reviewed_at,
+        local_files: local_files,
+        source_roots: source_roots,
+        versioned_sources: versioned_sources,
+        main_watch: %{reviewed_at: main_reviewed_at, sources: main_sources}
+      }
+      when is_binary(version) and is_binary(tag) and is_binary(reviewed_at) and
+             is_list(local_files) and is_list(source_roots) and is_map(versioned_sources) and
+             is_binary(main_reviewed_at) and is_map(main_sources) ->
+        manifest
 
-    manifest
+      _ ->
+        abort("Expected #{@manifest_path} to contain the complete agent-convention manifest.")
+    end
   end
 
   defp locked_phoenix_version! do
@@ -53,14 +67,19 @@ defmodule Pramana.AgentConventionSync do
         manifest.source_tag != expected_tag,
         "Expected source_tag #{expected_tag}, found #{inspect(manifest.source_tag)}."
       )
-      |> add_missing_files(manifest.local_files)
-      |> add_if(
-        map_size(manifest.versioned_sources) == 0,
-        "No versioned Phoenix upstream sources are recorded."
+      |> add_date_error("reviewed_at", manifest.reviewed_at)
+      |> add_date_error("main_watch.reviewed_at", manifest.main_watch.reviewed_at)
+      |> add_root_errors(manifest.source_roots)
+      |> add_local_file_errors(manifest.local_files)
+      |> add_source_map_errors(
+        "versioned_sources",
+        manifest.versioned_sources,
+        manifest.source_roots
       )
-      |> add_if(
-        map_size(manifest.main_watch.sources) == 0,
-        "No Phoenix main watcher sources are recorded."
+      |> add_source_map_errors(
+        "main_watch.sources",
+        manifest.main_watch.sources,
+        manifest.source_roots
       )
 
     if errors == [] do
@@ -91,8 +110,8 @@ defmodule Pramana.AgentConventionSync do
     IO.puts("Reviewing Phoenix #{tag} usage rules against the recorded convention baseline.")
     IO.puts("This command never overwrites local convention files.\n")
 
-    {changes, fetch_errors} =
-      compare_sources(tag, manifest.versioned_sources)
+    {diff, fetch_errors} =
+      compare_sources(tag, manifest.source_roots, manifest.versioned_sources)
 
     if manifest.phoenix_version != locked do
       IO.puts(
@@ -100,17 +119,17 @@ defmodule Pramana.AgentConventionSync do
       )
     end
 
-    report_changes(changes)
+    report_diff(diff)
     report_fetch_errors(fetch_errors)
 
     cond do
       fetch_errors != [] ->
         System.halt(1)
 
-      manifest.phoenix_version != locked or changes != [] ->
+      manifest.phoenix_version != locked or diff?(diff) ->
         IO.puts(
-          "\nSemantic review required. Update local convention files as appropriate, then " <>
-            "advance UPSTREAM.exs deliberately."
+          "\nSemantic review required. Review added/removed rule files and changed blobs, " <>
+            "update local conventions as appropriate, then advance UPSTREAM.exs deliberately."
         )
 
         System.halt(2)
@@ -124,17 +143,17 @@ defmodule Pramana.AgentConventionSync do
     ensure_curl!()
     IO.puts("Checking Phoenix main usage rules against the reviewed early-warning baseline.\n")
 
-    {changes, fetch_errors} =
-      compare_sources("main", manifest.main_watch.sources)
+    {diff, fetch_errors} =
+      compare_sources("main", manifest.source_roots, manifest.main_watch.sources)
 
-    report_changes(changes)
+    report_diff(diff)
     report_fetch_errors(fetch_errors)
 
     cond do
       fetch_errors != [] ->
         System.halt(1)
 
-      changes != [] ->
+      diff?(diff) ->
         IO.puts(
           "\nPhoenix main changed. Treat this as a review signal only; do not auto-adopt " <>
             "main into the locked project conventions."
@@ -147,73 +166,295 @@ defmodule Pramana.AgentConventionSync do
     end
   end
 
-  defp compare_sources(ref, sources) do
-    Enum.reduce(Enum.sort(sources), {[], []}, fn {path, expected_sha}, {changes, errors} ->
-      case fetch(ref, path) do
-        {:ok, body} ->
-          actual_sha = git_blob_sha(body)
+  defp compare_sources(ref, roots, expected_sources) do
+    {actual_sources, errors} = fetch_inventory(ref, roots)
 
-          if actual_sha == expected_sha do
-            {changes, errors}
-          else
-            {[{path, expected_sha, actual_sha} | changes], errors}
-          end
-
-        {:error, reason} ->
-          {changes, [{path, reason} | errors]}
+    diff =
+      if errors == [] do
+        source_diff(expected_sources, actual_sources)
+      else
+        empty_diff()
       end
-    end)
-    |> then(fn {changes, errors} ->
-      {Enum.reverse(changes), Enum.reverse(errors)}
-    end)
+
+    {diff, errors}
   end
 
-  defp fetch(ref, path) do
-    url = "#{@raw_base}/#{ref}/#{path}"
+  defp fetch_inventory(ref, roots) do
+    Enum.reduce(roots, {%{}, []}, fn root, {inventory, errors} ->
+      case fetch_directory(ref, root) do
+        {:ok, entries} ->
+          {Map.merge(inventory, entries), errors}
 
-    case System.cmd(
-           "curl",
-           ["--fail", "--silent", "--show-error", "--location", url],
-           stderr_to_stdout: true
-         ) do
-      {body, 0} -> {:ok, body}
-      {message, status} -> {:error, "curl exit #{status}: #{String.trim(message)}"}
+        {:error, reason} ->
+          {inventory, [{root, reason} | errors]}
+      end
+    end)
+    |> then(fn {inventory, errors} -> {inventory, Enum.reverse(errors)} end)
+  end
+
+  defp fetch_directory(ref, path) do
+    case fetch_contents(ref, path) do
+      {:ok, :missing} ->
+        {:ok, %{}}
+
+      {:ok, entries} when is_list(entries) ->
+        Enum.reduce_while(entries, {:ok, %{}}, fn entry, {:ok, inventory} ->
+          case entry do
+            %{"type" => "dir", "path" => child} when is_binary(child) ->
+              case fetch_directory(ref, child) do
+                {:ok, child_entries} ->
+                  {:cont, {:ok, Map.merge(inventory, child_entries)}}
+
+                {:error, reason} ->
+                  {:halt, {:error, "#{child}: #{reason}"}}
+              end
+
+            %{"path" => child, "sha" => sha, "type" => type}
+            when is_binary(child) and is_binary(sha) and is_binary(type) ->
+              {:cont, {:ok, Map.put(inventory, child, sha)}}
+
+            other ->
+              {:halt, {:error, "unexpected GitHub contents entry #{inspect(other)}"}}
+          end
+        end)
+
+      {:ok, other} ->
+        {:error, "expected a directory listing, got #{inspect(other)}"}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
-  defp git_blob_sha(body) do
-    :crypto.hash(:sha, ["blob ", Integer.to_string(byte_size(body)), <<0>>, body])
-    |> Base.encode16(case: :lower)
+  defp fetch_contents(ref, path) do
+    encoded_path =
+      path
+      |> String.split("/")
+      |> Enum.map_join("/", &URI.encode_www_form/1)
+
+    url = "#{@contents_base}/#{encoded_path}?ref=#{URI.encode_www_form(ref)}"
+
+    case http_get(url) do
+      {:ok, 200, body} ->
+        try do
+          {:ok, :json.decode(body)}
+        rescue
+          error -> {:error, "invalid GitHub API JSON: #{Exception.message(error)}"}
+        end
+
+      {:ok, 404, _body} ->
+        {:ok, :missing}
+
+      {:ok, status, _body} ->
+        {:error, "GitHub API HTTP #{status}"}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
-  defp report_changes([]), do: IO.puts("No source blob changes detected.")
+  defp http_get(url) do
+    args = [
+      "--silent",
+      "--show-error",
+      "--location",
+      "--connect-timeout",
+      "10",
+      "--max-time",
+      "30",
+      "--retry",
+      "2",
+      "--retry-all-errors",
+      "--header",
+      "Accept: application/vnd.github+json",
+      "--header",
+      "User-Agent: pramana-agent-convention-watch",
+      "--write-out",
+      "#{@http_marker}%{http_code}",
+      url
+    ]
 
-  defp report_changes(changes) do
-    IO.puts("Changed upstream source blobs:")
+    case System.cmd("curl", args, stderr_to_stdout: true) do
+      {output, 0} ->
+        case String.split(output, @http_marker, parts: 2) do
+          [body, status_text] ->
+            case Integer.parse(String.trim(status_text)) do
+              {status, ""} -> {:ok, status, body}
+              _ -> {:error, "curl returned an invalid HTTP status"}
+            end
 
-    Enum.each(changes, fn {path, recorded_sha, current_sha} ->
+          _ ->
+            {:error, "curl response did not include an HTTP status"}
+        end
+
+      {message, status} ->
+        {:error, "curl exit #{status}: #{String.trim(message)}"}
+    end
+  end
+
+  defp source_diff(expected, actual) do
+    expected_paths = Map.keys(expected) |> MapSet.new()
+    actual_paths = Map.keys(actual) |> MapSet.new()
+
+    added =
+      actual_paths
+      |> MapSet.difference(expected_paths)
+      |> Enum.sort()
+      |> Enum.map(fn path -> {path, Map.fetch!(actual, path)} end)
+
+    removed =
+      expected_paths
+      |> MapSet.difference(actual_paths)
+      |> Enum.sort()
+      |> Enum.map(fn path -> {path, Map.fetch!(expected, path)} end)
+
+    changed =
+      expected_paths
+      |> MapSet.intersection(actual_paths)
+      |> Enum.sort()
+      |> Enum.flat_map(fn path ->
+        recorded_sha = Map.fetch!(expected, path)
+        current_sha = Map.fetch!(actual, path)
+
+        if recorded_sha == current_sha do
+          []
+        else
+          [{path, recorded_sha, current_sha}]
+        end
+      end)
+
+    %{added: added, removed: removed, changed: changed}
+  end
+
+  defp empty_diff, do: %{added: [], removed: [], changed: []}
+
+  defp diff?(%{added: added, removed: removed, changed: changed}) do
+    added != [] or removed != [] or changed != []
+  end
+
+  defp report_diff(diff) do
+    if diff?(diff) do
+      report_pairs("Added upstream source files:", diff.added, "current")
+      report_pairs("Removed upstream source files:", diff.removed, "recorded")
+
+      if diff.changed != [] do
+        IO.puts("Changed upstream source blobs:")
+
+        Enum.each(diff.changed, fn {path, recorded_sha, current_sha} ->
+          IO.puts("  - #{path}")
+          IO.puts("      recorded: #{recorded_sha}")
+          IO.puts("      current:  #{current_sha}")
+        end)
+      end
+    else
+      IO.puts("No source inventory or blob changes detected.")
+    end
+  end
+
+  defp report_pairs(_heading, [], _label), do: :ok
+
+  defp report_pairs(heading, entries, label) do
+    IO.puts(heading)
+
+    Enum.each(entries, fn {path, sha} ->
       IO.puts("  - #{path}")
-      IO.puts("      recorded: #{recorded_sha}")
-      IO.puts("      current:  #{current_sha}")
+      IO.puts("      #{label}: #{sha}")
     end)
   end
 
   defp report_fetch_errors([]), do: :ok
 
   defp report_fetch_errors(errors) do
-    IO.puts(:stderr, "\nUnable to fetch upstream sources:")
+    IO.puts(:stderr, "\nUnable to fetch upstream source inventory:")
 
     Enum.each(errors, fn {path, reason} ->
       IO.puts(:stderr, "  - #{path}: #{reason}")
     end)
   end
 
-  defp add_missing_files(errors, local_files) do
-    Enum.reduce(local_files, errors, fn relative, acc ->
-      path = Path.join(@conventions_dir, relative)
-      add_if(acc, not File.regular?(path), "Missing convention file #{relative}.")
+  defp add_date_error(errors, label, value) do
+    case Date.from_iso8601(value) do
+      {:ok, _date} -> errors
+      {:error, _reason} -> ["#{label} must be an ISO date, found #{inspect(value)}." | errors]
+    end
+  end
+
+  defp add_root_errors(errors, roots) do
+    errors
+    |> add_if(roots == [], "No upstream source_roots are recorded.")
+    |> add_if(length(Enum.uniq(roots)) != length(roots), "source_roots contains duplicates.")
+    |> then(fn acc ->
+      Enum.reduce(roots, acc, fn root, inner ->
+        add_if(inner, not safe_relative_path?(root), "Invalid upstream source root #{inspect(root)}.")
+      end)
     end)
   end
+
+  defp add_local_file_errors(errors, local_files) do
+    errors
+    |> add_if(local_files == [], "No local convention files are recorded.")
+    |> add_if(
+      length(Enum.uniq(local_files)) != length(local_files),
+      "local_files contains duplicates."
+    )
+    |> then(fn acc ->
+      Enum.reduce(local_files, acc, fn relative, inner ->
+        cond do
+          not safe_relative_path?(relative) ->
+            ["Invalid convention file path #{inspect(relative)}." | inner]
+
+          not File.regular?(Path.join(@conventions_dir, relative)) ->
+            ["Missing convention file #{relative}." | inner]
+
+          true ->
+            inner
+        end
+      end)
+    end)
+  end
+
+  defp add_source_map_errors(errors, label, sources, roots) do
+    errors
+    |> add_if(map_size(sources) == 0, "No #{label} entries are recorded.")
+    |> then(fn acc ->
+      Enum.reduce(sources, acc, fn {path, sha}, inner ->
+        cond do
+          not is_binary(path) or not safe_relative_path?(path) ->
+            ["#{label} contains invalid path #{inspect(path)}." | inner]
+
+          not source_under_roots?(path, roots) ->
+            ["#{label} path #{path} is outside source_roots." | inner]
+
+          not valid_git_sha?(sha) ->
+            ["#{label} path #{path} has invalid blob SHA #{inspect(sha)}." | inner]
+
+          true ->
+            inner
+        end
+      end)
+    end)
+    |> then(fn acc ->
+      Enum.reduce(roots, acc, fn root, inner ->
+        has_source? = Enum.any?(Map.keys(sources), &source_under_root?(&1, root))
+        add_if(inner, not has_source?, "#{label} has no recorded sources under #{root}.")
+      end)
+    end)
+  end
+
+  defp source_under_roots?(path, roots), do: Enum.any?(roots, &source_under_root?(path, &1))
+
+  defp source_under_root?(path, root) do
+    path == root or String.starts_with?(path, root <> "/")
+  end
+
+  defp safe_relative_path?(path) when is_binary(path) do
+    path != "" and Path.type(path) == :relative and ".." not in Path.split(path)
+  end
+
+  defp safe_relative_path?(_path), do: false
+
+  defp valid_git_sha?(sha) when is_binary(sha), do: String.match?(sha, ~r/\A[0-9a-f]{40}\z/)
+  defp valid_git_sha?(_sha), do: false
 
   defp add_if(errors, true, message), do: [message | errors]
   defp add_if(errors, false, _message), do: errors
@@ -237,8 +478,8 @@ defmodule Pramana.AgentConventionSync do
       elixir bin/sync_agent_conventions.exs --watch-main
 
     --check       Network-free CI guard: locked Phoenix version must match reviewed metadata.
-    --review      Compare the locked Phoenix tag with reviewed upstream blobs; never overwrites.
-    --watch-main  Compare Phoenix main with the early-warning baseline; exit 2 on drift.
+    --review      Compare the locked Phoenix tag's rule inventory/blobs with the reviewed baseline.
+    --watch-main  Compare Phoenix main's rule inventory/blobs with the early-warning baseline.
     """)
 
     System.halt(status)

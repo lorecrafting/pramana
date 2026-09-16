@@ -30,7 +30,7 @@ exceptions retained deliberately.
   `Task.async_stream/3`. Choose `timeout: :infinity` only when another justified
   lifecycle bound exists; it is not a universal default.
 
-## Mix guidelines
+## Mix and project guidelines
 
 - Read task documentation and options before invoking unfamiliar tasks with
   `mix help task_name`.
@@ -38,6 +38,11 @@ exceptions retained deliberately.
   rerun previously failed tests with `mix test --failed`.
 - `mix deps.clean --all` is almost never needed; avoid it unless there is a specific
   reason.
+- **Pramāṇa only:** prefer the existing `Req` dependency for HTTP rather than adding a
+  second HTTP client or using `:httpc` ad hoc without a documented need.
+- **Pramāṇa only:** the umbrella has a `mix precommit` convenience alias, but validation
+  is governed by [`docs/TESTING.md`](../../TESTING.md). Do not treat `mix precommit` as
+  proof of corpus, live-provider or other checks it does not run.
 
 ## ExUnit and process-test guidelines
 
