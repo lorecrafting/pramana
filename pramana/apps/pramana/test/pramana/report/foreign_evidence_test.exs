@@ -19,12 +19,13 @@ defmodule Pramana.Report.ForeignEvidenceTest do
 
   test "an unresolved preserved token covered by a Guard quote is literal content" do
     matched = "T. 262, 99a1"
+    quote_start = byte_size("「")
 
     foreign = [
       %{
         matched: matched,
         urn: nil,
-        source_offset: 1,
+        source_offset: quote_start,
         source_length: byte_size(matched)
       }
     ]
@@ -32,7 +33,10 @@ defmodule Pramana.Report.ForeignEvidenceTest do
     findings = [
       %{
         occurrence: %{
-          quote_range: %{byte_start: 1, byte_end: 1 + byte_size(matched)}
+          quote_range: %{
+            byte_start: quote_start,
+            byte_end: quote_start + byte_size(matched)
+          }
         }
       }
     ]
