@@ -1,0 +1,45 @@
+name: Layout test diagnostics
+on:
+  push:
+    branches: [audit/sibling-layout-source-2026-09-15]
+    paths: [.github/workflows/layout-test-diagnostics.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download the existing failed job log; do not execute project code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/layout-test-diagnostics"
+          curl --fail --silent --show-error --location \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/lorecrafting/pramana/actions/jobs/104611694019/logs \
+            --output "$RUNNER_TEMP/layout-test-diagnostics/job.log"
+          python3 - <<'PY'
+          import os, pathlib, re
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])/'layout-test-diagnostics'
+          lines = (root/'job.log').read_text(encoding='utf-8-sig').splitlines()
+          ranges = []
+          for i,line in enumerate(lines):
+              if re.search(r'\b1\)|setup_all|Postgrex.Error|invalid,|failure,|Result:|\*\* \(', line):
+                  if 'warning:' not in line:
+                      ranges.append((max(0,i-3),min(len(lines),i+35)))
+          selected = sorted({j for a,b in ranges for j in range(a,b)})
+          text = '\n'.join(f'{i+1}: {lines[i]}' for i in selected)
+          (root/'failures.txt').write_text(text+'\n')
+          print(text[:18000])
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: layout-test-diagnostics
+          path: ${{ runner.temp }}/layout-test-diagnostics
+          retention-days: 1
+          if-no-files-found: error
