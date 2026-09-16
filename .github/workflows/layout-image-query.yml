@@ -1,0 +1,32 @@
+name: Layout image verification
+on:
+  push:
+    branches: [audit/sibling-layout-source-2026-09-15]
+    paths: [.github/workflows/layout-image-query.yml]
+permissions:
+  contents: read
+jobs:
+  tags:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query public upstream image tags for the unchanged BEAM versions
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request
+          urls = [
+            'https://hub.docker.com/v2/repositories/hexpm/elixir/tags?page_size=30&name=1.20.3-erlang-29.0.5-debian-bookworm',
+            'https://builds.hex.pm/builds/docker/hexpm-elixir-1.20.3-erlang-29.0.5.txt',
+          ]
+          for url in urls:
+            print('SOURCE:', url)
+            try:
+              raw = urllib.request.urlopen(url, timeout=30).read().decode()
+              if 'hub.docker' in url:
+                d = json.loads(raw)
+                print(json.dumps({'count':d.get('count'), 'next':d.get('next'), 'tags':[{'name':v['name'],'digest':v.get('digest'),'status':v.get('tag_status'),'images':[{'architecture':i.get('architecture'),'digest':i.get('digest'),'status':i.get('status')} for i in v.get('images',[])]} for v in d.get('results',[])]}, indent=2))
+              else:
+                print(raw[:10000])
+            except Exception as e:
+              print(type(e).__name__, str(e))
+          PY
