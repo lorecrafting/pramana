@@ -77,10 +77,9 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
     payload =
       result
-      |> Map.update!(
-        :foreign,
-        &Enum.map(&1, fn found -> Map.update!(found, :reason, &wire_reason/1) end)
-      )
+      |> Map.update!(:foreign, fn citations ->
+        Enum.map(citations, fn found -> Map.update!(found, :reason, &wire_reason/1) end)
+      end)
       |> Map.put(:runnable_tools, ReplayExecutor.tools())
       # DIAGNOSIS SERVES A CALLER WHO CHECKS; REPAIR SERVES THE ONE WHO DOES NOT, and that
       # is most of them. `docs/PLAN.md` L3. Nothing here writes to the corpus — it rewrites

@@ -71,7 +71,8 @@ defmodule Pramana.GuardDiagnoseTest do
 
     assert finding.reason == :wrong_address
     assert "pramana:cbeta.T:T0262_001@p0001c18" in finding.found_at
-    assert finding.explanation =~ "the text is real"
+    assert finding.search_status == :matched
+    assert finding.explanation =~ "replacement must be checked"
   end
 
   test "a completed no-match search reports its limits without alleging fabrication" do
