@@ -63,7 +63,7 @@ defmodule Pramana.Guard do
                       "u"
                     )
   @opened_citation Regex.compile!("([\\[（(【])\\s*(" <> @urn_source <> ")", "u")
-  @closing_wrapper ~r/\A\s*[\]）)】]/u
+  @closed_citation Regex.compile!("(" <> @urn_source <> ")\\s*[\\]）)】]", "u")
   @wrappers %{"[" => "]", "(" => ")", "（" => "）", "【" => "】"}
 
   @type verdict ::
@@ -484,7 +484,7 @@ defmodule Pramana.Guard do
     end)
   end
 
-  # Three bounded regex passes per region. No whole-prefix scan per citation.
+  # Bounded regex passes per region. No whole-prefix or whole-suffix scan per citation.
   defp region_occurrences(text) do
     quoted =
       @quoted_citation
@@ -498,10 +498,15 @@ defmodule Pramana.Guard do
       |> Regex.scan(text, return: :index)
       |> MapSet.new(fn [_, _, {pos, _}] -> pos end)
 
+    closings =
+      @closed_citation
+      |> Regex.scan(text, return: :index)
+      |> MapSet.new(fn [_, {pos, _}] -> pos end)
+
     @urn_pattern
     |> Regex.scan(text, return: :index)
     |> Enum.map(fn [{pos, _} = urn_range] ->
-      occurrence(text, urn_range, Map.get(quoted, pos), Map.get(wrappers, pos), openings)
+      occurrence(text, urn_range, Map.get(quoted, pos), Map.get(wrappers, pos), openings, closings)
     end)
   end
 
@@ -519,7 +524,7 @@ defmodule Pramana.Guard do
     end)
   end
 
-  defp occurrence(text, {pos, length}, quote_range, wrapper, openings) do
+  defp occurrence(text, {pos, length}, quote_range, wrapper, openings, closings) do
     urn = text |> binary_part(pos, length) |> trim_sentence_punctuation()
     urn_range = %{byte_start: pos, byte_end: pos + byte_size(urn)}
 
@@ -531,11 +536,7 @@ defmodule Pramana.Guard do
       citation_range: wrapper || urn_range,
       unpaired_wrapper?:
         is_nil(wrapper) and
-          (MapSet.member?(openings, pos) or
-             Regex.match?(
-               @closing_wrapper,
-               binary_part(text, pos + length, byte_size(text) - pos - length)
-             ))
+          (MapSet.member?(openings, pos) or MapSet.member?(closings, pos))
     }
   end
 

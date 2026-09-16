@@ -14,7 +14,9 @@ measure = fn fun ->
   samples |> Enum.sort() |> Enum.at(2)
 end
 
-IO.puts("citations,bytes,occurrences_us,disjoint_conflicts_us,nested_conflicts_us,edits_us")
+IO.puts(
+  "citations,bytes,occurrences_us,bare_occurrences_us,disjoint_conflicts_us,nested_conflicts_us,edits_us"
+)
 
 for count <- [500, 1_000, 2_000, 4_000] do
   token = "[pramana:cbeta.T:T0262_001@p0001a01]\n"
@@ -36,8 +38,10 @@ for count <- [500, 1_000, 2_000, 4_000] do
 
   true = Pramana.EvidenceInput.apply_edits(text, edits) == String.duplicate("\n", count)
   parse = measure.(fn -> Pramana.Guard.occurrences(text) end)
+  bare = String.duplicate("pramana:cbeta.T:T0262_001@p0001a01 漢\n", count)
+  bare_parse = measure.(fn -> Pramana.Guard.occurrences(bare) end)
   disjoint = measure.(fn -> Pramana.Repair.Intervals.conflicts(scopes, scopes) end)
   nested_time = measure.(fn -> Pramana.Repair.Intervals.conflicts(nested, nested) end)
   render = measure.(fn -> Pramana.EvidenceInput.apply_edits(text, edits) end)
-  IO.puts("#{count},#{byte_size(text)},#{parse},#{disjoint},#{nested_time},#{render}")
+  IO.puts("#{count},#{byte_size(text)},#{parse},#{bare_parse},#{disjoint},#{nested_time},#{render}")
 end

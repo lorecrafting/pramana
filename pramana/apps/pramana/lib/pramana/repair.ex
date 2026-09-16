@@ -244,7 +244,7 @@ defmodule Pramana.Repair do
     conflicts = Intervals.conflicts(writes, scopes)
 
     Enum.map(planned, fn {action, edit, _} ->
-      if MapSet.member?(conflicts, action.source_offset) do
+      if Map.has_key?(conflicts, action.source_offset) do
         {%{
            action
            | state: :flagged,

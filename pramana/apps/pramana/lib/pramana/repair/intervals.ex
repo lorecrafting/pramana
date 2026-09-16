@@ -9,11 +9,13 @@ defmodule Pramana.Repair.Intervals do
 
   @type interval :: {non_neg_integer(), non_neg_integer(), term()}
 
-  @spec conflicts([interval()], [interval()]) :: MapSet.t()
-  def conflicts([], _scopes), do: MapSet.new()
+  @type owners :: %{optional(term()) => true}
+
+  @spec conflicts([interval()], [interval()]) :: owners()
+  def conflicts([], _scopes), do: %{}
 
   def conflicts(writes, scopes) do
-    MapSet.union(intersecting_owners(writes, scopes), intersecting_owners(scopes, writes))
+    Map.merge(intersecting_owners(writes, scopes), intersecting_owners(scopes, writes))
   end
 
   defp intersecting_owners(queries, candidates) do
@@ -21,11 +23,11 @@ defmodule Pramana.Repair.Intervals do
 
     queries
     |> Enum.sort_by(&elem(&1, 1))
-    |> Enum.reduce({candidates, [], MapSet.new()}, fn {first, last, owner},
-                                                      {pending, best, ids} ->
+    |> Enum.reduce({candidates, [], %{}}, fn {first, last, owner},
+                                          {pending, best, ids} ->
       {pending, best} = advance(pending, best, last)
       overlaps = Enum.any?(best, fn {finish, other} -> other != owner and finish > first end)
-      ids = if first < last and overlaps, do: MapSet.put(ids, owner), else: ids
+      ids = if first < last and overlaps, do: Map.put(ids, owner, true), else: ids
       {pending, best, ids}
     end)
     |> elem(2)
