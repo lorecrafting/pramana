@@ -66,6 +66,7 @@ defmodule Pramana.Report do
   alias Pramana.Citation
   alias Pramana.EvidenceInput
   alias Pramana.Guard
+  alias Pramana.Report.ForeignEvidence
 
   @type status :: :verified | :failed | :incomplete | :no_checkable_evidence
 
@@ -219,8 +220,8 @@ defmodule Pramana.Report do
   `executor` receives `{tool, arguments}` and returns the tool's payload. Pass
   `bake_id:` to override what the replays are compared against; it defaults to the
   current bake. `status` is authoritative and `ok?` is true only for `:verified`.
-  Existence-only citations, unresolved foreign addresses, unasserted replays and
-  unavailable evidence make a report incomplete. With no evidence it is not a pass.
+  Existence-only citations, unresolved or unchecked foreign addresses, unasserted replays
+  and unavailable evidence make a report incomplete. With no evidence it is not a pass.
   """
   @spec verify(String.t(), keyword()) :: map()
   def verify(markdown, opts \\ []) when is_binary(markdown) do
@@ -265,6 +266,8 @@ defmodule Pramana.Report do
       |> Guard.check_output(regions: prose_regions(resolved))
       |> Map.update!(:findings, fn findings -> Enum.map(findings, &Guard.diagnose/1) end)
 
+    foreign_evidence = ForeignEvidence.classify(foreign, resolved, citations.findings)
+    foreign_counts = foreign_evidence.counts
     results = Enum.map(replays, &check_replay(&1, executor, current_bake))
     replay_counts = Enum.frequencies_by(results, & &1.status)
 
@@ -272,7 +275,9 @@ defmodule Pramana.Report do
       verified_quotes: citations.verified_quotes,
       existence_only: citations.existence_only,
       citation_failures: citations.failed,
-      unresolved_foreign: Enum.count(foreign, &is_nil(&1.urn)),
+      unresolved_foreign: foreign_counts.unresolved,
+      unchecked_foreign: foreign_counts.unchecked,
+      literal_foreign: foreign_counts.literal,
       verified_replays: Map.get(replay_counts, :verified, 0),
       unasserted_replays: Map.get(replay_counts, :executed, 0),
       replay_failures: Map.get(replay_counts, :failed, 0),
@@ -291,7 +296,7 @@ defmodule Pramana.Report do
       counts: counts,
       citations: Map.put(citations, :offset_basis, :resolved_text),
       resolved_text: resolved,
-      foreign: foreign,
+      foreign: foreign_evidence.foreign,
       replays: results,
       malformed: malformed,
       skipped: length(skipped),
@@ -311,6 +316,8 @@ defmodule Pramana.Report do
         existence_only: 0,
         citation_failures: 0,
         unresolved_foreign: 0,
+        unchecked_foreign: 0,
+        literal_foreign: 0,
         verified_replays: 0,
         unasserted_replays: 0,
         replay_failures: 0,
@@ -341,9 +348,9 @@ defmodule Pramana.Report do
 
   defp overall_status(counts) do
     incomplete =
-      counts.existence_only + counts.unresolved_foreign + counts.unasserted_replays +
-        counts.replay_errors + counts.unverifiable_replays + counts.malformed_replays +
-        counts.skipped_replays
+      counts.existence_only + counts.unresolved_foreign + counts.unchecked_foreign +
+        counts.unasserted_replays + counts.replay_errors + counts.unverifiable_replays +
+        counts.malformed_replays + counts.skipped_replays
 
     cond do
       counts.citation_failures + counts.replay_failures > 0 -> :failed

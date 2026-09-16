@@ -52,9 +52,15 @@ defmodule Pramana.Guard do
   @urn_source "pramana:[a-zA-Z0-9_.\\-]+:[a-zA-Z0-9_.\\-]+(?:@[a-zA-Z0-9_.\\-+]+)?" <>
                 "(?:#tr:[a-zA-Z0-9_.\\-]+/[a-zA-Z0-9_.\\-@+:]+)?"
   @urn_pattern Regex.compile!(@urn_source)
+
+  # Pair delimiters deliberately. Treating every recognized closing delimiter as valid for
+  # every opener lets the closing ASCII quote in `"label" ... 「quote」 [urn]` become a new
+  # opener and swallow the Chinese quote. Branch-reset keeps the capture shape identical:
+  # quote body is capture 1 and the URN remains capture 2 below.
+  @quoted_body_source ~S/(?|「([^」]{1,400})」|『([^』]{1,400})』|"([^"]{1,400})"|“([^”]{1,400})”)/
   @quoted_citation Regex.compile!(
-                     "[\u300c\u300e\"\u201c]([^\u300d\u300f\"\u201d]{1,400})" <>
-                       "[\u300d\u300f\"\u201d]\\s*[\\[\u3010(]?\\s*(" <> @urn_source <> ")",
+                     @quoted_body_source <>
+                       "\\s*[\\[\u3010(]?\\s*(" <> @urn_source <> ")",
                      "u"
                    )
 

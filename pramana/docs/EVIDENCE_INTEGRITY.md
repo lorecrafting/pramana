@@ -80,12 +80,18 @@ truncated into a pass. The reader retains its preflight size message. This is no
 transport frame-size limit or a complete denial-of-service defense: individual replay
 queries still have their own cost and the corpus is not copied into the checker.
 
-`foreign` contains each original citation occurrence and its original-input offsets.
-Resolved foreign addresses that appear **inside literal quotation bodies** remain in
-that metadata but are not canonicalized in `resolved_text`; those bytes are the evidence
-that the guard must compare with the cited witness. Foreign citations outside quotation
-bodies still rewrite normally, including an outer foreign citation attached to a literal
-quotation. Citation findings after foreign-address rewriting use `citations.offset_basis =
+`foreign` contains every foreign-looking occurrence found in original prose, with its
+original-input offsets. Foreign-looking bytes inside literal quotation bodies are never
+canonicalized before quotation verification. After rewriting, report verification maps
+those original offsets through the actual rewrite edits and compares them with the Guard's
+exact checked quotation ranges. A protected occurrence covered by such a range is literal
+source content, not independent foreign evidence, regardless of whether that inner-looking
+address itself resolves. An uncovered protected address that resolves is counted as
+`unchecked_foreign`; an uncovered address that does not resolve is `unresolved_foreign`.
+Either count makes a mixed report `incomplete`, so quotation marks alone cannot make
+recognized evidence disappear from the verdict. Foreign citations outside quotation bodies
+still rewrite normally, including an outer foreign citation attached to a literal quotation.
+Citation findings after foreign-address rewriting use `citations.offset_basis =
 resolved_text`; their ranges refer to the returned `resolved_text`, not the original
 string. Repair's ranges always refer to its returned `original`.
 MCP foreign-resolution tuple reasons become `{code, details}` objects for JSON.
@@ -189,15 +195,17 @@ and [Read Committed](https://www.postgresql.org/docs/18/transaction-iso.html#XAC
 
 Focused regression cases cover repeated/multibyte edits, unavailable searches, complete
 and incomplete reports, missing/null assertions, partial holdings, wrong/ambiguous
-volumes, A → B → A selection, and actual migration backfill SQL. The follow-up association
-regressions also cover deletion-induced quote rebinding, repeated addresses with multibyte
-prefixes, literal SuttaCentral/Taishō address text, and an outer foreign citation that must
-still canonicalize. Fresh database migrations, application tests, formatting and static
-analysis are checked in CI. The dedicated `release_acceptance_test.exs` uses disposable
-empty schemas and a separate four-connection pool to run actual history/selection
-migrations up/down/up. Its controlled writer test observes distinct PostgreSQL backend IDs
-and a waiting advisory lock before releasing the first stamper. It does not infer
-concurrency from a sleep or shared Sandbox owner.
+volumes, A → B → A selection, and actual migration backfill SQL. The association
+regressions cover deletion-induced quote rebinding, repeated addresses with multibyte
+prefixes, literal SuttaCentral/Taishō address text, outer foreign citation rewriting,
+resolved protected text with no attached citation, unresolved address-like source text
+inside a checked quote, and cumulative offset shifts before later literal quotations.
+Fresh database migrations, application tests, formatting and static analysis are checked
+in CI. The dedicated `release_acceptance_test.exs` uses disposable empty schemas and a
+separate four-connection pool to run actual history/selection migrations up/down/up. Its
+controlled writer test observes distinct PostgreSQL backend IDs and a waiting advisory
+lock before releasing the first stamper. It does not infer concurrency from a sleep or
+shared Sandbox owner.
 
 Boundary regressions exercise real domain, MCP and reader paths, including CRLF and
 malformed fences. Pure interval checks compare against an independent all-pairs oracle.
