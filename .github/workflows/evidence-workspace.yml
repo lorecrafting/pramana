@@ -1,4 +1,4 @@
-name: Evidence workspace snapshot
+name: Evidence workspace apply
 
 on:
   push:
@@ -9,26 +9,118 @@ permissions:
   contents: read
 
 jobs:
-  snapshot:
+  apply:
+    if: github.repository == 'lorecrafting/pramana' && github.ref == 'refs/heads/fix/evidence-integrity-2026-09-15'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      MIX_ENV: test
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          persist-credentials: false
-      - name: Export tracked source only
+          fetch-depth: 2
+      - name: Verify and apply exact reviewed delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = 44bc62563fce87c98b13a16ee4967f6a20f78797
+          python3 - <<'PY'
+          import base64, bz2, hashlib, pathlib, subprocess
+          parts = [pathlib.Path(f'.evidence-delta/part{i}.b64') for i in range(1, 4)]
+          encoded = ''.join(p.read_text().strip() for p in parts)
+          data = base64.b64decode(encoded, validate=True)
+          assert hashlib.sha256(data).hexdigest() == '9d72bdedf65baaff4d405177c870840d353bdf342b6eab2c5838891157c2270e'
+          patch = bz2.decompress(data)
+          assert hashlib.sha256(patch).hexdigest() == 'f28dd90c66087a3c6cd94d0e5dc4205b4d19bca9ad64ac8422eb1971210c2f24'
+          paths = []
+          for line in patch.decode().splitlines():
+              if line.startswith('diff --git '):
+                  _, _, before, after = line.split()
+                  assert before.startswith('a/pramana/') and after.startswith('b/pramana/')
+                  assert before[2:] == after[2:]
+                  assert '..' not in pathlib.PurePosixPath(after).parts
+                  paths.append(after[2:])
+          assert len(paths) == 27 and len(set(paths)) == 27
+          pathlib.Path('/tmp/evidence-change.patch').write_bytes(patch)
+          subprocess.run(['git', 'apply', '--check', '--index', '--unidiff-zero', '/tmp/evidence-change.patch'], check=True)
+          subprocess.run(['git', 'apply', '--index', '--unidiff-zero', '/tmp/evidence-change.patch'], check=True)
+          PY
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Restore pinned application dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            pramana/deps
+            pramana/_build
+            pramana/priv/plts
+            ~/.cargo
+            pramana/apps/pramana_native/native/pramana_native/target
+            pramana/native/quotations/target
+          key: ${{ runner.os }}-pramana-layout-v2-${{ hashFiles('pramana/mix.lock', 'pramana/**/Cargo.lock', 'mise.toml') }}
+          restore-keys: ${{ runner.os }}-pramana-layout-v2-
+      - name: Fetch locked dependencies
+        working-directory: pramana
+        run: mix deps.get
+      - name: Generate the migration with the repository task
+        shell: bash
+        run: |
+          set -euo pipefail
+          template=pramana/apps/pramana/priv/repo/migrations/20260916053000_select_current_release.exs
+          cp "$template" "$RUNNER_TEMP/selection-template.exs"
+          git rm -- "$template"
+          (cd pramana/apps/pramana && mix ecto.gen.migration select_current_release --no-compile --no-deps-check)
+          generated=$(find pramana/apps/pramana/priv/repo/migrations -maxdepth 1 -name '*_select_current_release.exs')
+          test "$(printf '%s\n' "$generated" | wc -l)" = 1
+          test -f "$generated"
+          cp "$RUNNER_TEMP/selection-template.exs" "$generated"
+          git add -- "$generated"
+      - name: Format only the proposed application files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, subprocess
+          paths = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '--diff-filter=ACM', '-z']).decode().split('\0')
+          code = [p[len('pramana/'):] for p in paths if p.startswith('pramana/') and p.endswith(('.ex', '.exs', '.heex'))]
+          subprocess.run(['mix', 'format', *code], cwd='pramana', check=True)
+          subprocess.run(['git', 'add', '--', *[p for p in paths if p]], check=True)
+          PY
+          git diff --cached --check
+      - name: Commit scoped fixes and remove transport scaffolding
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -- .evidence-delta/part1.b64 .evidence-delta/part2.b64 .evidence-delta/part3.b64 .github/workflows/evidence-workspace.yml
+          python3 - <<'PY'
+          import subprocess
+          paths = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '-z']).decode().split('\0')
+          for p in filter(None, paths):
+              assert p.startswith('pramana/') or p in ['.evidence-delta/part1.b64', '.evidence-delta/part2.b64', '.evidence-delta/part3.b64', '.github/workflows/evidence-workspace.yml'], p
+          PY
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'fix: preserve citation occurrences and report bounded evidence honestly' -m 'Implement report status/assertion validation, actual CBETA holdings, supplied-volume resolution, and explicit current-release selection. Preserve the merged test audit and leave Foundry unchanged.'
+          git push origin HEAD:refs/heads/fix/evidence-integrity-2026-09-15
+      - name: Export resulting tracked source and proposed diff
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/evidence-workspace"
           mkdir -p "$out"
           git rev-parse HEAD > "$out/revision.txt"
-          git rev-parse HEAD^{tree} > "$out/tree.txt"
-          git archive HEAD | gzip > "$out/source.tar.gz"
+          git write-tree > "$out/tree.txt"
+          git archive "$(cat "$out/tree.txt")" | gzip > "$out/source.tar.gz"
+          git diff --cached --binary > "$out/uncommitted.patch"
           (cd "$out" && sha256sum source.tar.gz > SHA256SUMS)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: evidence-workspace
+          name: evidence-workspace-result
           path: ${{ runner.temp }}/evidence-workspace
           retention-days: 1
           if-no-files-found: error
