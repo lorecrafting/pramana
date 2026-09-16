@@ -21,6 +21,13 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`docs/TESTING.md`](TESTING.md)
 - [`docs/agents/RULE_TRIGGERS.md`](agents/RULE_TRIGGERS.md)
 - [`docs/agents/WORKFLOW.md`](agents/WORKFLOW.md)
+- [`docs/agents/code-conventions/README.md`](agents/code-conventions/README.md)
+- [`docs/agents/code-conventions/elixir.md`](agents/code-conventions/elixir.md)
+- [`docs/agents/code-conventions/phoenix/assets.md`](agents/code-conventions/phoenix/assets.md)
+- [`docs/agents/code-conventions/phoenix/core.md`](agents/code-conventions/phoenix/core.md)
+- [`docs/agents/code-conventions/phoenix/ecto.md`](agents/code-conventions/phoenix/ecto.md)
+- [`docs/agents/code-conventions/phoenix/html.md`](agents/code-conventions/phoenix/html.md)
+- [`docs/agents/code-conventions/phoenix/liveview.md`](agents/code-conventions/phoenix/liveview.md)
 - [`docs/audits/2026-09-15/INVENTORY.md`](audits/2026-09-15/INVENTORY.md)
 - [`docs/audits/2026-09-15/README.md`](audits/2026-09-15/README.md)
 
