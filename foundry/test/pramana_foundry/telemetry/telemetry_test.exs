@@ -120,27 +120,39 @@ defmodule PramanaFoundry.Telemetry.TelemetryTest do
     assert_receive {:instrumented_exit, %{"outcome" => "exit"}}
   end
 
-  test "instrumentation emission cannot delay the observed action" do
+  test "the observed action returns while instrumentation is blocked" do
     parent = self()
-    release = make_ref()
+    token = make_ref()
 
-    assert :action_result ==
-             Telemetry.observe(
-               fn -> :action_result end,
-               fn _ ->
-                 send(parent, {:emitter_started, self()})
+    caller =
+      start_supervised!(
+        {Task,
+         fn ->
+           result =
+             Telemetry.observe(fn -> :action_result end, fn _ ->
+               send(parent, {:emitter_started, token, self()})
 
-                 receive do
-                   {:release, ^release} -> :ok
-                 after
-                   100 -> send(parent, :emitter_delayed_action)
-                 end
+               receive do
+                 {:release, ^token} -> send(parent, {:emitter_released, token})
+               after
+                 5_000 -> :timeout
                end
-             )
+             end)
 
-    assert_receive {:emitter_started, emitter}
-    refute_receive :emitter_delayed_action
-    send(emitter, {:release, release})
+           send(parent, {:action_returned, token, result})
+         end}
+      )
+
+    assert_receive {:emitter_started, ^token, emitter}, 1_000
+    on_exit(fn -> send(emitter, {:release, token}) end)
+    monitor = Process.monitor(emitter)
+
+    # If observe waits on emission, this cannot arrive before the release below.
+    assert_receive {:action_returned, ^token, :action_result}, 1_000
+    send(emitter, {:release, token})
+    assert_receive {:emitter_released, ^token}, 1_000
+    assert_receive {:DOWN, ^monitor, :process, ^emitter, :normal}, 1_000
+    assert is_pid(caller)
   end
 
   test "JSONL storage is durable and idempotent; exports remain sanitized" do

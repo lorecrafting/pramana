@@ -28,7 +28,10 @@ defmodule Pramana.PipelineTest do
     # Catches a source registered with a module that does not actually implement the
     # contract — the failure mode a registry invites.
     test "every registered pipeline's modules implement their behaviours" do
-      for source <- Pipeline.sources() do
+      sources = Pipeline.sources()
+      assert sources != []
+
+      for source <- sources do
         {:ok, c} = Pipeline.for_source(source)
 
         assert implements?(c.acquirer, Pipeline.Acquirer),
@@ -42,15 +45,30 @@ defmodule Pramana.PipelineTest do
       end
     end
 
-    test "acquirers export the whole callback set" do
-      {:ok, c} = Pipeline.for_source("cbeta")
-      # function_exported?/3 answers false for a module that simply is not loaded yet,
-      # which would make this test pass or fail by load order rather than by fact.
-      Code.ensure_loaded!(c.acquirer)
+    test "all registered pipeline modules export their complete required callback sets" do
+      assert Pipeline.sources() != []
 
-      assert function_exported?(c.acquirer, :pin, 1)
-      assert function_exported?(c.acquirer, :fetch, 3)
-      assert function_exported?(c.acquirer, :raw_path, 1)
+      for source <- Pipeline.sources() do
+        {:ok, config} = Pipeline.for_source(source)
+
+        for {module, behaviour} <- [
+              {config.acquirer, Pipeline.Acquirer},
+              {config.normalizer, Pipeline.Normalizer},
+              {config.segmenter, Pipeline.Segmenter}
+            ] do
+          Code.ensure_loaded!(module)
+
+          required =
+            behaviour.behaviour_info(:callbacks) -- behaviour.behaviour_info(:optional_callbacks)
+
+          assert required != []
+
+          for {name, arity} <- required do
+            assert function_exported?(module, name, arity),
+                   "#{inspect(module)} lacks #{name}/#{arity}"
+          end
+        end
+      end
     end
   end
 

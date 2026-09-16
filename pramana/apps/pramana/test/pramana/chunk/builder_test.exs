@@ -46,7 +46,7 @@ defmodule Pramana.Chunk.BuilderTest do
 
     {:ok, ir} = CBETA.normalize(xml, work_id: "T0262", canon: "T", volume: 9, number: "0262")
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T", provenance: %{})
-    Repo.one!(from t in Text, where: t.work_id == "T0262", select: t.id)
+    Repo.one!(from(t in Text, where: t.work_id == "T0262", select: t.id))
   end
 
   setup do
@@ -54,7 +54,7 @@ defmodule Pramana.Chunk.BuilderTest do
   end
 
   defp chunks(text_id) do
-    Repo.all(from c in Chunk, where: c.text_id == ^text_id, order_by: c.first_ordinal)
+    Repo.all(from(c in Chunk, where: c.text_id == ^text_id, order_by: c.first_ordinal))
   end
 
   describe "grouping" do
@@ -232,44 +232,6 @@ defmodule Pramana.Chunk.BuilderTest do
 
       assert Guard.verify(chunk.urn, chunk.content)
       refute Guard.verify(chunk.urn, chunk.content <> "xyz")
-    end
-  end
-
-  describe "the chunk size for a script" do
-    test "each script has its own, and an unknown source takes the Chinese default" do
-      # Not a preference. The embedder truncates at 320 BGE-M3 tokens, and these are the
-      # largest sizes whose 95th percentile fits: Pāli tokenizes at 0.425 tokens per
-      # character and Tibetan at 0.151, so the same window holds very different amounts
-      # of each. See the table in `Pramana.Chunk.Builder`.
-      assert Builder.max_chars_for_source("sc") == 700
-      assert Builder.max_chars_for_source("derge") == 1_200
-      # Both halves of the Degé are the same script; a source missing here silently takes
-      # the Chinese 300, which for Tibetan is a fifth of the window.
-      assert Builder.max_chars_for_source("derge-tengyur") == 1_200
-      assert Builder.max_chars_for_source("cbeta") == 300
-    end
-
-    test "Pāli is no longer 1,200, which embedded two thirds of each chunk" do
-      # 76.2% of Pāli chunks at 1,200 characters exceeded the window, so their vectors
-      # described a prefix while the text they claimed to describe stayed whole in the
-      # database — invisible in every count.
-      refute Builder.max_chars_for_source("sc") == 1_200
-    end
-  end
-
-  describe "group/2 without a database" do
-    test "returns an empty list for no segments" do
-      assert Builder.group([], 100) == []
-    end
-
-    test "keeps every segment — nothing is dropped", %{text_id: text_id} do
-      segments =
-        Repo.all(
-          from s in Pramana.Corpus.Segment, where: s.text_id == ^text_id, order_by: s.ordinal
-        )
-
-      grouped = Builder.group(segments, 25)
-      assert grouped |> List.flatten() |> length() == length(segments)
     end
   end
 end

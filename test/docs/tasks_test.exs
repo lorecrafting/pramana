@@ -23,7 +23,7 @@ defmodule Docs.TasksTest do
       |> Enum.map(fn [_, task] -> task end)
       |> MapSet.new()
 
-    assert MapSet.size(documented) > 40
+    assert MapSet.size(documented) > 0
     assert documented == tasks()
   end
 

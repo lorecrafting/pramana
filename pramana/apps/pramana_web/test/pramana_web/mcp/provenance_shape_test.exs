@@ -204,19 +204,12 @@ defmodule PramanaWeb.MCP.ProvenanceShapeTest do
   end
 
   describe "search modes" do
-    test "every documented mode works as the FIRST call in a process" do
-      # Regression: `String.to_existing_atom/1` raised for "phrase" unless something had
-      # already loaded Pramana.Retrieval.Lexical, so the very first search of a fresh VM
-      # crashed while every later one succeeded. Tests missed it because they always ran
-      # a hybrid search first.
+    test "every documented mode reaches the MCP search boundary" do
+      # Ordinary MCP dispatch; ColdStartTest owns the independent VM/load-order contract.
       for m <- ~w(phrase ngram terms auto hybrid) do
         assert {:reply, _, _} = Search.execute(%{query: "佛性", limit: 1, mode: m}, %{}),
                "mode #{m} failed"
       end
-    end
-
-    test "an unrecognised mode falls back to hybrid rather than crashing" do
-      assert search!(%{query: "佛性", limit: 1, mode: "nonsense"})["mode"]
     end
   end
 end

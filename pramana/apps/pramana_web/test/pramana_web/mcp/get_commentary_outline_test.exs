@@ -8,7 +8,7 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
   about the corpus — a gap in a list of divisions is exactly the shape a reader mistakes
   for an absence in the canon, so the reply says which it is.
   """
-  use PramanaWeb.ConnCase, async: true
+  use Pramana.DataCase, async: true
 
   import Ecto.Query
 
@@ -25,9 +25,11 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
   </titleStmt></fileDesc></teiHeader>
   <text><body>
   <milestone n="1" unit="juan"/>
-  <lb n="0001a01"/>如是我聞一時佛住王舍城
+  <lb n="0001a01"/>如是我聞
+  <lb n="0001a02"/>一時佛住王舍城
   <milestone n="2" unit="juan"/>
-  <lb n="0002a01"/>復次舍利弗菩薩摩訶薩
+  <lb n="0002a01"/>復次舍利
+  <lb n="0002a02"/>弗菩薩摩訶薩
   </body></text></TEI>
   """
 
@@ -37,7 +39,7 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
   </titleStmt></fileDesc></teiHeader>
   <text><body>
   <milestone n="1" unit="juan"/>
-  <lb n="0057a01"/>釋曰如是我聞一時佛住王舍城者
+  <lb n="0057a01"/>釋曰如是我聞一時佛住王舍城者復次舍利弗菩薩摩訶薩
   </body></text></TEI>
   """
 
@@ -56,41 +58,44 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
   end
 
   defp align!(juan_line) do
-    [root, commentary] =
-      Enum.map(["T0223", "T1509"], fn work ->
-        Repo.one!(from(t in Text, where: t.work_id == ^work))
-      end)
+    range =
+      juan_line <>
+        "-" <>
+        (juan_line |> String.split("@") |> List.last() |> String.replace_suffix("01", "02"))
 
-    segment =
-      Repo.one!(
-        from(s in Pramana.Corpus.Segment,
-          where: s.text_id == ^root.id and s.urn == ^juan_line
-        )
-      )
+    {:ok, span} = Pramana.Corpus.resolve(range)
+    lemma = String.slice(span.content, 0, 8)
+    root = Repo.get_by!(Pramana.Corpus.Segment, urn: juan_line)
+    commentary = Repo.get_by!(Pramana.Corpus.Segment, urn: "pramana:cbeta.T:T1509_001@p0057a01")
+    {byte_offset, _} = :binary.match(commentary.content, lemma)
 
-    lemma = String.slice(segment.content, 0, 8)
+    commentary_offset =
+      commentary.char_start + String.length(binary_part(commentary.content, 0, byte_offset))
 
-    %CommentaryAlignment{}
-    |> Ecto.Changeset.change(%{
-      lemma: lemma,
-      lemma_sha256: Base.encode16(:crypto.hash(:sha256, lemma), case: :lower),
-      length: String.length(lemma),
-      commentary_text_id: commentary.id,
-      commentary_work_id: "T1509",
-      commentary_urn: "pramana:cbeta.T:T1509_001@p0057a01",
-      commentary_char_start: 2,
-      commentary_char_end: 10,
-      root_text_id: root.id,
-      root_work_id: "T0223",
-      # A RANGE, which is the ordinary case: most lemmas cross a printed line break, and
-      # joining segments on URN equality dropped 58% of a real commentary's alignments.
-      root_urn: juan_line <> "-p9999z99",
-      root_char_start: segment.char_start,
-      root_char_end: segment.char_start + 8,
-      method: "lemma_match",
-      confidence: "probable"
-    })
-    |> Repo.insert!()
+    # Source body contains a newline at the printed break; the address spans that break.
+    root_end = root.char_start + String.length(lemma) + 1
+    root_work = Repo.get!(Text, root.text_id)
+    commentary_work = Repo.get!(Text, commentary.text_id)
+
+    Repo.insert!(
+      struct!(CommentaryAlignment, %{
+        lemma: lemma,
+        lemma_sha256: Pramana.CorpusFixtures.sha256(lemma),
+        length: String.length(lemma),
+        commentary_text_id: commentary.text_id,
+        commentary_work_id: commentary_work.work_id,
+        commentary_urn: commentary.urn,
+        commentary_char_start: commentary_offset,
+        commentary_char_end: commentary_offset + String.length(lemma),
+        root_text_id: root.text_id,
+        root_work_id: root_work.work_id,
+        root_urn: range,
+        root_char_start: root.char_start,
+        root_char_end: root_end,
+        method: "lemma_match",
+        confidence: "probable"
+      })
+    )
   end
 
   test "reports the juan a commentary works over, and the lemma counts in each" do

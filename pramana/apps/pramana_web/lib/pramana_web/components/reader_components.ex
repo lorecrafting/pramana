@@ -33,8 +33,8 @@ defmodule PramanaWeb.ReaderComponents do
   matters. The edition reference — Taishō volume, page, register, line — comes second and
   is what makes the claim checkable against print.
   """
-  attr :provenance, :map, required: true
-  attr :class, :string, default: nil
+  attr(:provenance, :map, required: true)
+  attr(:class, :string, default: nil)
 
   def provenance_line(assigns) do
     ~H"""
@@ -96,7 +96,7 @@ defmodule PramanaWeb.ReaderComponents do
   page, register and line, and that legibility is the whole point of adopting each
   tradition's grammar instead of minting ids.
   """
-  attr :span, :map, required: true
+  attr(:span, :map, required: true)
 
   def citation(assigns) do
     ~H"""
@@ -120,10 +120,10 @@ defmodule PramanaWeb.ReaderComponents do
   — CBETA's X collection is baked, lexically searchable and carries no vectors, which a
   chunk-level coverage figure of 100% happily concealed.
   """
-  attr :coverage, :map, default: nil
-  attr :caveat, :string, default: nil
-  attr :retrievers, :list, default: nil
-  attr :confidence, :map, default: nil
+  attr(:coverage, :map, default: nil)
+  attr(:caveat, :string, default: nil)
+  attr(:retrievers, :list, default: nil)
+  attr(:confidence, :map, default: nil)
 
   def coverage_note(assigns) do
     ~H"""
@@ -175,15 +175,18 @@ defmodule PramanaWeb.ReaderComponents do
   with nothing on it. Those exist: one line in the whole CBETA corpus is the single
   character 䦚 and nothing else.
   """
-  attr :span, :map, required: true
-  attr :focus, :boolean, default: false
+  attr(:span, :map, required: true)
+  attr(:focus, :boolean, default: false)
 
   def passage_line(assigns) do
     ~H"""
-    <div class={[
-      "flex gap-3 rounded px-2 py-1",
-      @focus && "bg-primary/10 ring-1 ring-primary/30"
-    ]}>
+    <div
+      data-focus={to_string(@focus)}
+      class={[
+        "flex gap-3 rounded px-2 py-1",
+        @focus && "bg-primary/10 ring-1 ring-primary/30"
+      ]}
+    >
       <span class="w-24 shrink-0 pt-1 font-mono text-xs text-base-content/40">
         {locator(@span)}
       </span>
@@ -200,7 +203,7 @@ defmodule PramanaWeb.ReaderComponents do
     """
   end
 
-  attr :meta, :map, default: %{}
+  attr(:meta, :map, default: %{})
 
   defp line_meta(assigns) do
     ~H"""

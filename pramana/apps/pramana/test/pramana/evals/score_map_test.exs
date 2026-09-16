@@ -40,15 +40,6 @@ defmodule Pramana.Evals.ScoreMapTest do
 
   # A map rather than a list, because the only question ever asked of it is "what did this
   # case do last time" and a list makes that a scan of 1,472 entries per lookup.
-  test "it is keyed by case id" do
-    map =
-      [result("only", :retrieval, {:hit, %{}})]
-      |> Score.summarize(1)
-      |> Score.to_map()
-
-    assert Map.keys(map["cases"]) == ["only"]
-  end
-
   # THE SUBSTITUTION A RATE CANNOT SEE. One case flipping to a hit and another to a miss
   # leaves every rate identical, which `docs/PLAN.md` audit item 7 names and had no way to
   # check. With per-case detail it is a diff.

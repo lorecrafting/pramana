@@ -61,14 +61,16 @@ defmodule PramanaWeb.MCP.ReplayExecutorTest do
       assert {:error, {:unknown_tool, "rm_rf"}} = ReplayExecutor.executor().("rm_rf", %{})
     end
 
-    test "an argument key no tool declares is dropped, not converted to an atom" do
-      # `to_existing_atom`: a report must not be able to grow the atom table by naming
-      # arbitrary keys.
-      assert {:ok, _} =
-               ReplayExecutor.executor().("survey_corpus", %{
-                 "query" => "一切眾生",
-                 "definitely_not_a_declared_field_xyzzy" => 1
-               })
+    test "unknown argument keys are dropped without allocating atoms" do
+      key = "replay_unknown_" <> Base.url_encode64(:crypto.strong_rand_bytes(24), padding: false)
+      assert_raise ArgumentError, fn -> String.to_existing_atom(key) end
+
+      assert {:ok, payload} =
+               ReplayExecutor.executor().("survey_corpus", %{"query" => "一切眾生", key => 1})
+
+      assert payload["replay"]["tool"] == "survey_corpus"
+      refute Map.has_key?(payload["replay"]["arguments"], key)
+      assert_raise ArgumentError, fn -> String.to_existing_atom(key) end
     end
 
     test "handles atom keys in arguments safely" do

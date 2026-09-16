@@ -21,11 +21,8 @@ defmodule PramanaWeb.MCP.DocumentedTest do
   @root Path.expand("../../../../..", __DIR__)
 
   defp registered do
-    @root
-    |> Path.join("apps/pramana_web/lib/pramana_web/mcp/server.ex")
-    |> File.read!()
-    |> then(&Regex.scan(~r/component\(PramanaWeb\.MCP\.Tools\.(\w+)\)/, &1))
-    |> Enum.map(fn [_, module] -> Macro.underscore(module) end)
+    PramanaWeb.MCP.Server.__components__(:tool)
+    |> Enum.map(& &1.name)
     |> MapSet.new()
   end
 
@@ -47,6 +44,8 @@ defmodule PramanaWeb.MCP.DocumentedTest do
   end
 
   test "every registered tool is in the table" do
+    assert MapSet.size(registered()) > 0
+    assert MapSet.size(documented()) > 0
     missing = MapSet.difference(registered(), documented())
 
     assert MapSet.size(missing) == 0,

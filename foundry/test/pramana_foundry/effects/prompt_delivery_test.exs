@@ -35,8 +35,17 @@ defmodule PramanaFoundry.Effects.PromptDeliveryTest do
     adapter: adapter
   } do
     FakeRunner.install(fn
-      ["herdr", "agent", "get", "dev-1"] -> FakeRunner.json(%{"agent" => @ready_agent})
-      ["herdr", "agent", "prompt", "dev-1", "please continue"] -> FakeRunner.json(%{"ok" => true})
+      ["herdr", "agent", "get", "dev-1"] ->
+        FakeRunner.json(%{"agent" => @ready_agent})
+
+      ["herdr", "agent", "prompt", "dev-1", "please continue"] ->
+        assert {:ok, %{"event" => "prompt_intent"}} =
+                 Checkpoint.matching(log_path, "prompt_intent", "T1", "R1", "developer")
+
+        assert {:ok, nil} =
+                 Checkpoint.matching(log_path, "prompt_delivered", "T1", "R1", "developer")
+
+        FakeRunner.json(%{"ok" => true})
     end)
 
     assert {:ok, :delivered} =
@@ -148,5 +157,29 @@ defmodule PramanaFoundry.Effects.PromptDeliveryTest do
 
     assert {:ok, events} = Checkpoint.events(log_path)
     assert Enum.map(events, & &1["event"]) == ["prompt_intent"]
+  end
+
+  test "an unreadable checkpoint prevents prompt delivery", %{
+    log_path: log_path,
+    adapter: adapter
+  } do
+    File.mkdir_p!(log_path)
+
+    FakeRunner.install(fn command ->
+      flunk("effect before durable intent: #{inspect(command)}")
+    end)
+
+    assert {:error, _} =
+             PromptDelivery.deliver(
+               log_path,
+               "T1",
+               "R1",
+               "developer",
+               adapter,
+               @expected,
+               "continue"
+             )
+
+    assert FakeRunner.calls() == []
   end
 end

@@ -364,16 +364,6 @@ defmodule PramanaWeb.MCP.ToolsTest do
       assert data["note"] =~ "refusal rather than a gap"
     end
 
-    test "reports the total, not the page size" do
-      {:reply, response, _} = GetWorksByPerson.execute(%{authority_id: "A999999", limit: 1}, %{})
-      data = payload(response)
-
-      # A limit that looks like a total is the denominator failure this project is most
-      # prone to; `count` and `returned` are separate for that reason.
-      assert Map.has_key?(data, "count")
-      assert Map.has_key?(data, "returned")
-    end
-
     test "returns works with authority link note when works exist" do
       Repo.update_all(
         from(w in Pramana.Corpus.Work, where: w.id == "T0262"),

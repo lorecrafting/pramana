@@ -66,7 +66,7 @@ defmodule Repository.LayoutTest do
     assert Pramana.Docs.Sync.documents([@project, @root, @project]) == paths
   end
 
-  test "Git root stays the same from either product directory, including a worktree" do
+  test "Git root stays the same from either product directory" do
     for dir <- [@root, @project, Path.join(@root, "foundry")] do
       {out, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"], cd: dir)
       assert String.trim(out) == @root

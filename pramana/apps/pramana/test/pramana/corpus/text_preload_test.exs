@@ -132,7 +132,13 @@ defmodule Pramana.Corpus.TextPreloadTest do
       :telemetry.detach(handler)
     end
 
-    drain([])
+    queries = drain([])
+    assert queries != [], "no SQL captured: a broken observation must not pass"
+
+    assert Enum.any?(queries, &String.contains?(&1, ~s(FROM "segments"))),
+           "expected a segment query, got: #{inspect(queries)}"
+
+    queries
   end
 
   defp drain(acc) do

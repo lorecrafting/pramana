@@ -40,7 +40,7 @@ defmodule PramanaFoundry.Status.Report do
     accepted_rev = Map.get(state, "accepted_revision")
 
     runtime_rev =
-      Keyword.get(opts, :runtime_implementation_revision, runtime_implementation_revision())
+      Keyword.get_lazy(opts, :runtime_implementation_revision, &runtime_implementation_revision/0)
 
     revisions_match? = accepted_rev == runtime_rev
 

@@ -29,6 +29,7 @@ defmodule Mix.Tasks.Pramana.Evals.CompareTest do
   defp write!(name, card) do
     path = Path.join(System.tmp_dir!(), "#{name}-#{System.unique_integer([:positive])}.json")
     File.write!(path, Jason.encode!(card))
+    on_exit(fn -> File.rm(path) end)
     path
   end
 

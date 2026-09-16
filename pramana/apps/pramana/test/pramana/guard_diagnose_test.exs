@@ -81,9 +81,17 @@ defmodule Pramana.GuardDiagnoseTest do
     assert finding.explanation =~ "only one"
   end
 
-  test "the corpus is consulted only after the free comparisons fail" do
-    # Ordering is the whole cost model: punctuation and variants are string work, the
-    # boundary check is one window, and the phrase search happens once, last.
-    assert reason(@first, "如是我聞，") == :editorial_punctuation
+  test "cheap punctuation diagnosis performs no query, while a wrong-address diagnosis does" do
+    cheap = Guard.check(@first, "如是我聞，")
+    expensive = Guard.check(@first, "王舍城耆闍崛山中")
+
+    {finding, queries} = Pramana.QueryCapture.capture(fn -> Guard.diagnose(cheap) end)
+    assert finding.reason == :editorial_punctuation
+    assert queries == []
+
+    {finding, queries} = Pramana.QueryCapture.capture(fn -> Guard.diagnose(expensive) end)
+    assert finding.reason == :wrong_address
+    assert queries != [], "the positive control must establish that query capture is attached"
+    assert Enum.any?(queries, &String.contains?(&1, "segments"))
   end
 end

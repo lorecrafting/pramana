@@ -60,15 +60,22 @@ defmodule PramanaFoundry.Checks.RunnerTest do
     assert completion["returncode"] == 0
   end
 
-  test "a check's own identity (pid, process group, start time, command) is published and matches ps",
+  test "the published child PID is bound to its launch token and owns a separate process group",
        %{
          spec: build_spec
        } do
-    spec = build_spec.(["sh", "-c", "sleep 1"])
+    spec = build_spec.(["sh", "-c", "sleep 2; true"])
     assert {:ok, _port} = Runner.launch(spec)
     assert {:ok, pid} = Runner.await_child_pid(spec)
+    published = spec.identity_path |> File.read!() |> :json.decode()
+    assert published == %{"launch_token" => spec.launch_token, "child_pid" => pid}
+
     assert {:ok, identity} = ProcessGroup.identity(pid)
     assert identity.pid == pid
+    assert identity.process_group_id == pid
+    assert identity.started_at != ""
+    assert identity.command =~ "sleep 2"
+    assert :ok = Runner.terminate(spec, identity, "test complete")
     _ = await_completion(spec, 3_000)
   end
 

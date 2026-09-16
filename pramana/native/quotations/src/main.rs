@@ -257,3 +257,60 @@ fn extend(
         ],
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn work(name: &str, text: &str) -> Work {
+        Work { name: name.into(), chars: text.chars().collect() }
+    }
+
+    #[test]
+    fn shared_passage_is_one_maximal_match_with_character_offsets() {
+        let shared = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳";
+        let works = vec![
+            work("root", &format!("𤦲{shared}終")),
+            work("commentary", &format!("😀{shared}止")),
+        ];
+        let found = find_matches(&works, &build_seed_index(&works), 12);
+        assert_eq!(found.len(), 1);
+        let matched = &found[0];
+        assert_eq!(matched.text, shared);
+        assert_eq!(matched.length, shared.chars().count());
+        assert_eq!(matched.occurrences.len(), 2);
+        for occurrence in &matched.occurrences {
+            assert_eq!(occurrence.start, 1); // Not the four-byte UTF-8 prefix width.
+            assert_eq!(occurrence.end, 1 + shared.chars().count());
+            let source = works.iter().find(|w| w.name == occurrence.work).unwrap();
+            let extracted: String = source.chars[occurrence.start..occurrence.end].iter().collect();
+            assert_eq!(extracted, shared);
+        }
+    }
+
+    #[test]
+    fn repetition_inside_one_work_is_not_cross_work_reuse() {
+        let works = vec![work("one", "甲乙丙丁戊己庚辛壬癸子丑中甲乙丙丁戊己庚辛壬癸子丑")];
+        assert!(!build_seed_index(&works).is_empty());
+        assert!(find_matches(&works, &build_seed_index(&works), 12).is_empty());
+    }
+
+    #[test]
+    fn minimum_match_length_is_an_inclusive_boundary() {
+        let works = vec![work("a", "甲乙丙丁戊己庚辛壬癸子丑"), work("b", "甲乙丙丁戊己庚辛壬癸子丑")];
+        let index = build_seed_index(&works);
+        assert_eq!(find_matches(&works, &index, 12).len(), 1);
+        assert!(find_matches(&works, &index, 13).is_empty());
+        assert!(find_matches(&[], &build_seed_index(&[]), 12).is_empty());
+    }
+
+    #[test]
+    fn boilerplate_frequency_cutoff_discards_only_above_the_limit() {
+        let mut works: Vec<Work> = (0..MAX_SEED_FREQ)
+            .map(|n| work(&format!("w{n}"), "甲乙丙丁戊己庚辛壬癸子丑"))
+            .collect();
+        assert_eq!(build_seed_index(&works).len(), 1);
+        works.push(work("over", "甲乙丙丁戊己庚辛壬癸子丑"));
+        assert!(build_seed_index(&works).is_empty());
+    }
+}

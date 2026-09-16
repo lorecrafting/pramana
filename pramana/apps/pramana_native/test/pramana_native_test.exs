@@ -36,9 +36,17 @@ defmodule PramanaNativeTest do
   end
 
   describe "segment_for_search/1" do
-    test "emits at least as many tokens as plain segmentation" do
-      text = "摩訶迦葉無量等眾"
-      assert length(PramanaNative.segment_for_search(text)) >= length(PramanaNative.segment(text))
+    test "search mode emits compound subwords that normal segmentation omits" do
+      text = "中国科学院"
+      plain = PramanaNative.segment(text)
+      search = PramanaNative.segment_for_search(text)
+
+      assert Enum.join(plain) == text
+      assert "中国科学院" in plain
+      refute "科学" in plain
+      assert "科学" in search
+      assert "学院" in search
+      assert "科学院" in search
     end
   end
 end

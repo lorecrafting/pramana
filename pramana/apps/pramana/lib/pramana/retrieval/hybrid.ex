@@ -139,10 +139,27 @@ defmodule Pramana.Retrieval.Hybrid do
 
   def search(_, _), do: {:error, :bad_query}
 
-  defp run(query, opts) do
+  @doc "The bounded candidate budgets used by a search, available for cost inspection."
+  @spec candidate_depths(keyword()) :: %{
+          limit: integer(),
+          lexical: integer(),
+          semantic: integer(),
+          rerank: integer()
+        }
+  def candidate_depths(opts) do
     limit = validated_limit(opts)
-    lexical_depth = arm_depth(opts, :lexical_depth, limit, @lexical_multiplier)
-    semantic_depth = arm_depth(opts, :semantic_depth, limit, @semantic_multiplier)
+
+    %{
+      limit: limit,
+      lexical: arm_depth(opts, :lexical_depth, limit, @lexical_multiplier),
+      semantic: arm_depth(opts, :semantic_depth, limit, @semantic_multiplier),
+      rerank: rerank_depth(opts, limit)
+    }
+  end
+
+  defp run(query, opts) do
+    %{limit: limit, lexical: lexical_depth, semantic: semantic_depth, rerank: rerank_depth} =
+      candidate_depths(opts)
 
     lexical = if opts[:semantic_only], do: [], else: lexical_ranking(query, opts, lexical_depth)
     scored_semantic = semantic_ranking(query, opts, semantic_depth)
@@ -156,7 +173,7 @@ defmodule Pramana.Retrieval.Hybrid do
       # Rerank over a WIDER slice than the caller asked for, then cut. Reordering only
       # the top `limit` cannot promote anything from below it, and the whole gain is
       # candidates sitting at ranks 11-50 (median 37).
-      |> Enum.take(rerank_depth(opts, limit))
+      |> Enum.take(rerank_depth)
       |> Enum.map(&decorate/1)
 
     {reordered, rerank} = maybe_rerank(candidates, query, opts)
@@ -568,13 +585,14 @@ defmodule Pramana.Retrieval.Hybrid do
   defp chunk_urns_for_segments(segment_urns) do
     rows =
       Repo.all(
-        from s in Segment,
+        from(s in Segment,
           join: c in Chunk,
           on:
             c.text_id == s.text_id and s.ordinal >= c.first_ordinal and
               s.ordinal <= c.last_ordinal,
           where: s.urn in ^segment_urns,
           select: {s.urn, c.urn}
+        )
       )
       |> Map.new()
 

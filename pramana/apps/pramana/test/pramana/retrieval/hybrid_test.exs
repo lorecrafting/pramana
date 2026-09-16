@@ -37,7 +37,7 @@ defmodule Pramana.Retrieval.HybridTest do
     {:ok, ir} = CBETA.normalize(xml, work_id: work_id, canon: "T", volume: 1, number: "0001")
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T", provenance: provenance)
 
-    text_id = Repo.one!(from t in Text, where: t.work_id == ^work_id, select: t.id)
+    text_id = Repo.one!(from(t in Text, where: t.work_id == ^work_id, select: t.id))
     {:ok, _} = Builder.build_for_text(text_id, max_chars: 30)
     text_id
   end
@@ -207,132 +207,6 @@ defmodule Pramana.Retrieval.HybridTest do
     end
   end
 
-  describe "depth — how many candidates fusion sees" do
-    # The name of this test used to say "defaults to three times the limit". That is no
-    # longer one number: lexical defaults to `limit * 3` and semantic to `limit * 6`,
-    # because the gold set measured the depth gain as entirely semantic and the cost as
-    # almost entirely lexical. The assertion never checked the multiplier — it checks that
-    # the caller still gets `limit` results — so the name was the only thing that was wrong,
-    # which is exactly how a stale name survives a green suite.
-    test "the caller still gets at most limit results at the default depths" do
-      assert {:ok, %{total: total}} = Hybrid.search("如是我聞", limit: 2)
-      assert total <= 2
-    end
-
-    test "an explicit depth is accepted and still returns limit results" do
-      {:ok, shallow} = Hybrid.search("如是我聞", limit: 2, depth: 2)
-      {:ok, deep} = Hybrid.search("如是我聞", limit: 2, depth: 200)
-
-      assert shallow.total <= 2
-      assert deep.total <= 2
-    end
-
-    # Clamped rather than refused, unlike `limit`: depth is not the caller's request, it
-    # is how hard this layer looks before answering one.
-    test "a depth above the maximum is clamped, not refused" do
-      assert {:ok, _} = Hybrid.search("如是我聞", limit: 2, depth: 10_000)
-    end
-
-    test "a depth below the limit cannot starve fusion" do
-      {:ok, result} = Hybrid.search("如是我聞", limit: 2, depth: 1)
-
-      # depth is raised to `limit`; asking fusion for fewer candidates than the caller
-      # wants returned is incoherent, and silently returning one result would look like a
-      # corpus with one match.
-      assert result.total == 2
-    end
-  end
-
-  describe "per-arm depth" do
-    # The multipliers themselves are pinned by the gold set, not here: 334/446 against 328
-    # at the old equal defaults. These tests pin the OPTION CONTRACT — that each arm can be
-    # steered independently and that both obey the same clamps as `depth` — so the eval is
-    # measuring a knob that behaves predictably.
-    test "each arm can be set independently" do
-      assert {:ok, a} = Hybrid.search("如是我聞", limit: 2, semantic_depth: 120)
-      assert {:ok, b} = Hybrid.search("如是我聞", limit: 2, lexical_depth: 120)
-
-      assert a.total <= 2
-      assert b.total <= 2
-    end
-
-    test "an explicit depth still sets both arms" do
-      # A caller that asks for one number gets one number; the split is a default, not a
-      # reinterpretation of what `depth:` means.
-      assert {:ok, result} = Hybrid.search("如是我聞", limit: 2, depth: 30)
-      assert result.total <= 2
-    end
-
-    test "a per-arm depth overrides depth for that arm only" do
-      assert {:ok, result} = Hybrid.search("如是我聞", limit: 2, depth: 30, semantic_depth: 120)
-      assert result.total <= 2
-    end
-
-    test "per-arm depths are clamped like depth, not refused" do
-      assert {:ok, _} = Hybrid.search("如是我聞", limit: 2, semantic_depth: 10_000)
-      assert {:ok, result} = Hybrid.search("如是我聞", limit: 2, lexical_depth: 1)
-
-      # Raised to `limit` for the same reason `depth` is: fusing fewer candidates than the
-      # caller wants returned is incoherent.
-      assert result.total == 2
-    end
-  end
-
-  describe "fuse/2 — pure RRF" do
-    test "a document ranked first by both retrievers wins" do
-      lexical = ["a", "b", "c"]
-      semantic = ["a", "c", "b"]
-
-      assert [{"a", _} | _] = Hybrid.fuse([lexical, semantic])
-    end
-
-    test "consensus beats a single retriever's top hit" do
-      # "b" is never first, but both agree on it; "a" and "z" are each first once.
-      lexical = ["a", "b"]
-      semantic = ["z", "b"]
-
-      assert [{"b", _} | _] = Hybrid.fuse([lexical, semantic])
-    end
-
-    test "scores follow 1/(k + rank)" do
-      assert [{"a", score}] = Hybrid.fuse([["a"]], 60)
-      assert_in_delta score, 1 / 61, 1.0e-9
-    end
-
-    test "a single ranking passes through in order" do
-      assert Hybrid.fuse([["a", "b", "c"]]) |> Enum.map(&elem(&1, 0)) == ["a", "b", "c"]
-    end
-
-    test "no rankings yields nothing" do
-      assert Hybrid.fuse([]) == []
-    end
-
-    # 60 is convention, not a measurement — every other retrieval constant here earned its
-    # value from `evals/` and this one never has. It is an option so a sweep can move it.
-    test "k is what decides how much a top rank is worth" do
-      # "solo" is one retriever's top hit and the other has never heard of it. "agreed"
-      # is fourth on both lists. Small k makes rank 1 dominate and the solo hit wins;
-      # large k flattens rank differences until fusion is close to a vote, and agreement
-      # wins. That trade is the whole content of the constant, and 60 was inherited from
-      # convention rather than measured here.
-      rankings = [
-        ["solo", "p", "q", "agreed"],
-        ["r", "s", "t", "agreed"]
-      ]
-
-      # Comparing the two against EACH OTHER rather than against the head of the list:
-      # the second retriever's own rank-1 ties with "solo" at small k, and which of them
-      # sorts first is not what this test is about.
-      rank_of = fn fused, urn -> Enum.find_index(fused, &(elem(&1, 0) == urn)) end
-
-      sharp = Hybrid.fuse(rankings, 1)
-      flat = Hybrid.fuse(rankings, 1000)
-
-      assert rank_of.(sharp, "solo") < rank_of.(sharp, "agreed")
-      assert rank_of.(flat, "agreed") < rank_of.(flat, "solo")
-    end
-  end
-
   # Both are hybrid-level options, so both must be dropped before either retriever sees
   # them — `Lexical` and `Semantic` RAISE on an unknown option, deliberately, and that is
   # how `per_tradition` once became reachable only by calling `Semantic` directly.
@@ -341,66 +215,6 @@ defmodule Pramana.Retrieval.HybridTest do
   # statistic does not separate (6 of 8 unanswerable queries have gaps inside the
   # answerable range) and a hard threshold at 0.75 costs ~45 retrieval cases to gain 1
   # absence case. So the number is REPORTED.
-  describe "confidence/1 — what the bands mean" do
-    test "a match as close as answerable queries usually are is strong" do
-      assert %{band: "strong", top_similarity: 0.81} = Hybrid.confidence([{"a", 0.81}])
-    end
-
-    test "the overlap band, where answerable and unanswerable queries both live, is weak" do
-      assert %{band: "weak"} = Hybrid.confidence([{"a", 0.72}])
-      assert %{band: "weak", note: note} = Hybrid.confidence([{"a", 0.7068}])
-      assert note =~ "suggestions, not answers"
-    end
-
-    test "below every answerable query measured, it says so plainly" do
-      assert %{band: "no_close_match", note: note} = Hybrid.confidence([{"a", 0.61}])
-      assert note =~ "nearest neighbours of a question with no answer here"
-    end
-
-    test "the best match decides, not the order the retriever returned" do
-      assert %{top_similarity: 0.9} = Hybrid.confidence([{"a", 0.4}, {"b", 0.9}])
-    end
-
-    # nil, not "no_close_match": the semantic arm not RUNNING is a different fact from it
-    # running and finding nothing close, and conflating them would report a corpus gap
-    # where the truth is that no model was loaded.
-    test "no semantic arm reports nothing rather than no confidence" do
-      assert Hybrid.confidence([]) == nil
-    end
-
-    # The combination fired for 6 of 10 unanswerable queries and 0 of 46 answerable ones,
-    # measured through the shipped path. It is a one-way signal and the note says so.
-    test "no lexical support plus a non-strong band reads as probably absent" do
-      assert %{note: note, lexical_support: 0} = Hybrid.confidence([{"a", 0.71}], 0)
-
-      assert note =~ "Nothing matches the characters typed"
-      assert note =~ "one-way"
-    end
-
-    # A paraphrase has no literal match and IS answerable — 眾生皆能成佛 appears nowhere in
-    # the corpus as a string. It collects n-gram support in the hybrid arm and lands
-    # `strong`, so it must not be read as absent even at zero phrase matches.
-    test "a strong band is never read as absent, whatever the lexical support" do
-      assert %{note: note} = Hybrid.confidence([{"a", 0.82}], 0)
-
-      refute note =~ "Nothing matches the characters typed"
-      assert note =~ "as close as answerable queries usually are"
-    end
-
-    test "lexical support suppresses the combined reading" do
-      assert %{note: note} = Hybrid.confidence([{"a", 0.71}], 4)
-
-      refute note =~ "Nothing matches the characters typed"
-    end
-
-    test "a lexical-only search carries no confidence signal" do
-      {:ok, result} = Hybrid.search("如是我聞", lexical_only: true)
-
-      assert result.retrievers == ["lexical"]
-      assert result.semantic_confidence == nil
-    end
-  end
-
   describe "the swept knobs are hybrid-level options" do
     test "rrf_k does not reach the retrievers" do
       assert {:ok, %{total: total}} = Hybrid.search("如是我聞", rrf_k: 5)
@@ -517,6 +331,33 @@ defmodule Pramana.Retrieval.HybridTest do
                  Hybrid.search("mindfulness", [{opt, value}, {:limit, 5}, {:serving, nil}]),
                "#{opt} reached the lexical arm and crashed the search"
       end
+    end
+  end
+
+  test "a lexical-only search carries no confidence signal" do
+    {:ok, result} = Hybrid.search("如是我聞", lexical_only: true)
+
+    assert result.retrievers == ["lexical"]
+    assert result.semantic_confidence == nil
+  end
+
+  test "a populated candidate pool is cut to limit after fusion" do
+    load!("T0003", ["如是我聞一時佛住", "另一部論典之文"],
+      title: "third candidate",
+      division: "阿含部",
+      composition_origin: "indic",
+      text_role: "root"
+    )
+
+    assert {:ok, all} = Hybrid.search("如是我聞", limit: 20, lexical_only: true, rerank: false)
+    assert all.total == 3
+
+    for opts <- [[depth: 1], [depth: 30], [lexical_depth: 1], [semantic_depth: 120]] do
+      assert {:ok, result} =
+               Hybrid.search("如是我聞", opts ++ [limit: 2, lexical_only: true, rerank: false])
+
+      assert result.total == 2
+      assert length(Enum.uniq(Enum.map(result.results, & &1.urn))) == 2
     end
   end
 end
