@@ -282,16 +282,24 @@ defmodule Pramana.Repair do
       deleted_quote_owners = deleted_quote_owners(planned, offset_map)
 
       culprits =
-        Enum.reduce(planned, MapSet.new(), fn entry, acc ->
-          case rebinding_culprit(entry, offset_map, actual_by_offset, deleted_quote_owners) do
-            nil -> acc
-            source_offset -> MapSet.put(acc, source_offset)
-          end
-        end)
+        rebinding_culprits(planned, offset_map, actual_by_offset, deleted_quote_owners)
 
       Enum.map(planned, &reject_rebinding(&1, culprits))
     end
   end
+
+  defp rebinding_culprits(planned, offset_map, actual_by_offset, deleted_quote_owners) do
+    Enum.reduce(planned, MapSet.new(), fn entry, acc ->
+      entry
+      |> rebinding_culprit(offset_map, actual_by_offset, deleted_quote_owners)
+      |> add_rebinding_culprit(acc)
+    end)
+  end
+
+  defp add_rebinding_culprit(nil, culprits), do: culprits
+
+  defp add_rebinding_culprit(source_offset, culprits),
+    do: MapSet.put(culprits, source_offset)
 
   defp association_offsets(planned) do
     Enum.flat_map(planned, fn {_action, _edit, occurrence} ->
@@ -331,7 +339,8 @@ defmodule Pramana.Repair do
   defp deleted_quote_owners(planned, offset_map) do
     Enum.reduce(planned, %{}, fn
       {%{state: :no_sources, source_offset: source_offset}, edit,
-       %{quote_range: %{byte_start: quote_start}}}, acc
+       %{quote_range: %{byte_start: quote_start}}},
+      acc
       when not is_nil(edit) ->
         Map.put(acc, Map.fetch!(offset_map, quote_start), source_offset)
 
