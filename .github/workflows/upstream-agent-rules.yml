@@ -1,0 +1,82 @@
+name: Phoenix Agent Rules Watch
+
+on:
+  schedule:
+    - cron: "23 17 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: phoenix-agent-rules-watch
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+
+      - name: Compare Phoenix main agent guidance
+        id: watch
+        shell: bash
+        run: |
+          set +e
+          report="$(elixir bin/sync_agent_conventions.exs --watch-main 2>&1)"
+          status=$?
+          set -e
+
+          printf '%s\n' "$report"
+          {
+            echo "report<<EOF"
+            printf '%s\n' "$report"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          case "$status" in
+            0) echo "changed=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "changed=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$status" ;;
+          esac
+
+      - name: Open or refresh upstream-review issue
+        if: steps.watch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WATCH_REPORT: ${{ steps.watch.outputs.report }}
+        shell: bash
+        run: |
+          title="Phoenix agent usage rules changed upstream"
+          number="$(
+            gh issue list --state open --limit 100 --json number,title \
+              --jq '.[] | select(.title == "Phoenix agent usage rules changed upstream") | .number' \
+              | head -n 1
+          )"
+
+          {
+            echo "Phoenix's \`main\` agent guidance differs from the reviewed early-warning baseline."
+            echo
+            echo "This is **not** an instruction to copy \`main\` into Pramāṇa. Compatibility remains"
+            echo "the Phoenix version locked in \`pramana/mix.lock\`. Review the upstream changes,"
+            echo "decide whether any local convention should change, and advance"
+            echo "\`docs/agents/code-conventions/UPSTREAM.exs\` only after that review."
+            echo
+            echo '```text'
+            printf '%s\n' "$WATCH_REPORT"
+            echo '```'
+          } > /tmp/phoenix-agent-rules.md
+
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file /tmp/phoenix-agent-rules.md
+          else
+            gh issue create --title "$title" --body-file /tmp/phoenix-agent-rules.md
+          fi

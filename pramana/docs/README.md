@@ -12,7 +12,7 @@ Foundry or product strategy use [the repository index](../../docs/README.md).
 | Change source or retrieval behavior | [Invariants](INVARIANTS.md), [rules](RULES.md), [shared rule triggers](../../docs/agents/RULE_TRIGGERS.md) |
 | Add sources | [Catalog](SOURCES.md), [ingestion](ADDING_TEXTS.md), [CLI](CLI.md) |
 | Work with renderings or relationships | [Layers](LAYERS.md), [translation](TRANSLATION.md), [commentary](COMMENTARY.md) |
-| Build, test or publish | [Conventions](CODE_CONVENTIONS.md), [language boundaries](ELIXIR.md), [checks](CHECKS.md), [deployment](DEPLOY.md) |
+| Build, test or publish | [Shared code conventions](../../docs/agents/code-conventions/README.md), [language boundaries](ELIXIR.md), [checks](CHECKS.md), [deployment](DEPLOY.md) |
 | Model or GPU work | [Embeddings](EMBEDDING.md), [GPU runbook](GPU_RUNBOOK.md), [cloud decisions](CLOUD.md) |
 | Diagnose or understand past decisions | [Observability](OBSERVABILITY.md), [history](HISTORY.md), [proxy studies](PROXIES.md) |
 

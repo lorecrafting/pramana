@@ -25,7 +25,7 @@ For model-assisted changes, [AGENTS.md](../AGENTS.md) routes every provider thro
 | Work | Read |
 |---|---|
 | Change source/retrieval behavior | [Invariants](../pramana/docs/INVARIANTS.md), [architecture](../pramana/docs/ARCHITECTURE.md), [rule triggers](agents/RULE_TRIGGERS.md) |
-| Write code | Applicable [conventions](../pramana/docs/CODE_CONVENTIONS.md), [language boundaries](../pramana/docs/ELIXIR.md) |
+| Write code | [Code-convention router](agents/code-conventions/README.md), then only the applicable language/framework files; [language boundaries](../pramana/docs/ELIXIR.md) |
 | Run checks | [Testing](TESTING.md), then [detailed check rationale](../pramana/docs/CHECKS.md) |
 | Work on embeddings or batch inference | [Embeddings](../pramana/docs/EMBEDDING.md), [GPU runbook](../pramana/docs/GPU_RUNBOOK.md), [compute decisions](../pramana/docs/CLOUD.md) |
 | Diagnose behavior | [Pramāṇa observability](../pramana/docs/OBSERVABILITY.md) |

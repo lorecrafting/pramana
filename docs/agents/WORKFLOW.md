@@ -15,9 +15,9 @@ For Pramāṇa, read [the invariants](../../pramana/docs/INVARIANTS.md), then on
 which distinguishes repair authority from historical migration material.
 
 Use [rule triggers](RULE_TRIGGERS.md) for the activity you are undertaking, not the
-entire rule collection. When writing code, read the applicable portions of
-[code conventions](../../pramana/docs/CODE_CONVENTIONS.md); Phoenix/Ecto/LiveView rules do not apply
-to unrelated Foundry code.
+entire rule collection. When writing code, use the
+[code-convention router](code-conventions/README.md) and load only the files that apply
+to the code being changed.
 
 ## Before editing
 
