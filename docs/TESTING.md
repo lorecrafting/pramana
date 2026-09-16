@@ -81,6 +81,33 @@ isolated runner executes independently, without Pramāṇa dependencies.
 [Cutover and rollback](LAYOUT_MIGRATION.md) describes checks for an existing corpus
 and task worktrees. Do not substitute model-free structure tests for those checks.
 
+## Compiler dependency evidence
+
+[The dependency review runbook](agents/DEPENDENCY_REVIEW.md) owns local commands,
+application scope, interpretation and reviewer handoff. Pramāṇa CI exports native
+`xref` JSON, statistics and compile-connected cycle reports after successful forced
+compilation. It requires graph/configured Elixir sources to be app-local tracked
+regular files in the checksum inventory, checks dependency labels and source stability,
+and records genuinely source-free apps as `no_elixir_sources` rather than failures.
+Ignored/generated, symlinked and external sources are unsupported. It uploads a
+seven-day schema-v2 artifact stamped with
+the actual checkout SHA/tree, build environment and source hashes. A report from
+a PR merge checkout is not automatically a report for the head commit alone.
+
+Graph generation/schema failures remain visible CI failures, but there are no
+node-count, dependency-count or cycle-count acceptance thresholds. An uploaded
+artifact can coexist with failing tests elsewhere in the run. Graphs never select
+or exclude tests and do not replace the normal checks above. No Foundry job or
+repair acceptance behavior is changed.
+
+The maintained [collector regressions](../test/xref_collector_test.py) run with
+`python3 test/xref_collector_test.py` from the Git root. They require Bash, Git and
+the pinned Elixir/Mix but no Python packages, Mix dependencies or database. CI runs
+them after BEAM setup. The tests execute the actual workflow collector and runbook
+caller loop in temporary native Mix fixtures, including stale ignored input,
+symlinks, external inputs, zero-source scopes and missing manifests. Their fixture
+applications deliberately cannot start. They do not replace the application suite.
+
 ## Behavior-first test maintenance
 
 See the [test audit implementation and execution boundaries](TEST_AUDIT.md) for

@@ -79,6 +79,10 @@ jobs:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
 
+      # Real compiler fixtures; no project dependencies, runtime or database access.
+      - name: Test xref evidence boundaries
+        run: python3 ../test/xref_collector_test.py
+
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
       # Rust remains the existing floating stable selection. Pinning it is a
       # separate toolchain decision, not a hidden change in this path migration.
@@ -120,6 +124,133 @@ jobs:
       - run: mix format --check-formatted
 
       - run: mix credo --strict
+
+      # Advisory dependency evidence, not a graph-size/cycle ratchet or test selector.
+      # Reuse only the manifests just rebuilt above; never resurrect a cached graph.
+      - name: Export compiler dependency reports
+        id: xref
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        env:
+          XREF_REPORT_DIR: ${{ runner.temp }}/pramana-xref-${{ github.run_id }}-${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$MIX_ENV" = test
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          mkdir "$XREF_REPORT_DIR"
+          (
+            cd "$(git rev-parse --show-toplevel)"
+            git ls-files -z -- pramana mise.toml .github/workflows/ci.yml |
+              sort -z > "$XREF_REPORT_DIR/source-files.paths0"
+            xargs -0 sha256sum < "$XREF_REPORT_DIR/source-files.paths0" > "$XREF_REPORT_DIR/source-files.sha256"
+          )
+          mix --version > "$XREF_REPORT_DIR/toolchain.txt"
+          for app in apps/*; do
+            test -f "$app/mix.exs" || continue
+            name="$(basename "$app")"
+            if ! test -s "_build/$MIX_ENV/lib/$name/.mix/compile.elixir"; then
+              printf 'Compiler evidence unavailable for %s: missing compile.elixir manifest\n' "$name" >&2
+              exit 1
+            fi
+            mkdir "$XREF_REPORT_DIR/$name"
+            (
+              cd "$app"
+              export XREF_APP_REPORT="$XREF_REPORT_DIR/$name"
+              # Enumerate configured .ex inputs, not just files that emitted modules.
+              # This distinguishes a real no-source app from lost graph evidence.
+              mix run --no-start --no-compile --no-listeners -e '
+              paths = Mix.Project.config()[:elixirc_paths] || ["lib"]
+              sources = Mix.Utils.extract_files(paths, [:ex]) |> Enum.sort()
+              File.write!(Path.join(System.fetch_env!("XREF_APP_REPORT"), "elixir-sources.json"), JSON.encode!(sources) <> "\n")
+              '
+              mix xref graph --no-compile --format json --output "$XREF_REPORT_DIR/$name/graph.json"
+              mix xref graph --no-compile --format stats > "$XREF_REPORT_DIR/$name/stats.txt"
+              mix xref graph --no-compile --format cycles --label compile-connected > "$XREF_REPORT_DIR/$name/compile-connected-cycles.txt"
+            )
+          done
+          elixir -e '
+          root = System.fetch_env!("XREF_REPORT_DIR")
+          inventory = Path.join(root, "source-files.paths0") |> File.read!() |> String.split(<<0>>, trim: true) |> MapSet.new()
+          {repo_root, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"])
+          repo_root = String.trim(repo_root)
+          validate_source = fn source, dir ->
+            unless is_binary(source) and Path.type(source) == :relative and
+                     Path.relative_to(Path.expand(source, dir), Path.expand(dir)) == source,
+              do: raise("Out-of-scope compiler source: #{inspect(source)}")
+            relative = Path.join(["pramana", dir, source])
+            unless MapSet.member?(inventory, relative),
+              do: raise("Uninventoried compiler source: #{relative}; ignored/generated inputs are unsupported")
+            # Check every component: a tracked symlink is not tracked target bytes.
+            components = Enum.scan(Path.split(relative), repo_root, fn part, parent -> Path.join(parent, part) end)
+            regular_path = Enum.all?(components, fn path ->
+              case File.lstat(path) do
+                {:ok, %{type: type}} when type in [:directory, :regular] -> true
+                _ -> false
+              end
+            end)
+            unless regular_path and File.regular?(Path.join(repo_root, relative)),
+              do: raise("Non-regular or symlinked compiler source: #{relative}")
+          end
+          projects = Path.wildcard("apps/*/mix.exs") |> Enum.sort()
+          if projects == [], do: raise("No umbrella applications found")
+          scopes = Enum.map(projects, fn project ->
+            dir = Path.dirname(project)
+            name = Path.basename(dir)
+            graph = Path.join([root, name, "graph.json"]) |> File.read!() |> JSON.decode!()
+            unless is_map(graph), do: raise("Invalid graph: #{name}")
+            sources = Path.join([root, name, "elixir-sources.json"]) |> File.read!() |> JSON.decode!()
+            unless is_list(sources), do: raise("Invalid source inventory: #{name}")
+            Enum.each(Enum.uniq(sources ++ Map.keys(graph)), &validate_source.(&1, dir))
+            if map_size(graph) == 0 and sources != [],
+              do: raise("Empty graph despite configured Elixir sources: #{name}")
+            Enum.each(graph, fn {source, sinks} ->
+              unless source in sources and is_map(sinks),
+                do: raise("Invalid source node in #{name}: #{inspect(source)}")
+              Enum.each(sinks, fn {sink, label} ->
+                unless Map.has_key?(graph, sink) and label in ["compile", "export", "runtime"],
+                  do: raise("Invalid dependency in #{name}: #{inspect({sink, label})}")
+              end)
+            end)
+            %{
+              app: name, source_root: "pramana/#{dir}", graph: "#{name}/graph.json",
+              status: if(sources == [], do: "no_elixir_sources", else: "collected"),
+              elixir_sources: "#{name}/elixir-sources.json",
+              nodes: map_size(graph), edges: Enum.sum(Enum.map(graph, fn {_, sinks} -> map_size(sinks) end))
+            }
+          end)
+          {tree, 0} = System.cmd("git", ["rev-parse", "HEAD^{tree}"])
+          metadata = %{
+            schema_version: 2, source_sha: System.fetch_env!("GITHUB_SHA"), source_tree: String.trim(tree),
+            run_id: System.fetch_env!("GITHUB_RUN_ID"), run_attempt: System.fetch_env!("GITHUB_RUN_ATTEMPT"),
+            generated_at: DateTime.to_iso8601(DateTime.utc_now()), mix_env: System.fetch_env!("MIX_ENV"),
+            elixir: System.version(), otp_release: System.otp_release(), scopes: scopes,
+            compile_command: "mix compile --force --warnings-as-errors (preceding CI step)",
+            graph_command: "mix xref graph --no-compile --format json",
+            limitations: ["Only inventoried tracked regular source files inside each app are supported",
+              "Per-app file dependencies only; cross-app edges are not included",
+              "Not a complete function, dynamic-dispatch, message or test-coverage graph",
+              "No Foundry, Rust-body, Python, corpus or live-runtime analysis",
+              "Generation success is not architectural approval or test acceptance"]
+          }
+          File.write!(Path.join(root, "metadata.json"), JSON.encode!(metadata) <> "\n")
+          Enum.each(scopes, fn scope -> IO.puts("#{scope.app}: #{scope.nodes} files, #{scope.edges} edges") end)
+          '
+          (
+            cd "$(git rev-parse --show-toplevel)"
+            sha256sum --check --status "$XREF_REPORT_DIR/source-files.sha256"
+          )
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload compiler dependency reports
+        if: ${{ !cancelled() && steps.xref.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pramana-xref-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pramana-xref-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Lint shared repository checks with the same rules
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
