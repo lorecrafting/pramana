@@ -15,8 +15,8 @@ defmodule Pramana.EvidenceAssociationFollowupTest do
   alias Pramana.CorpusFixtures
   alias Pramana.Normalize.CBETA
   alias Pramana.Repair
-  alias Pramana.Report
   alias Pramana.Repo
+  alias Pramana.Report
 
   @cbeta_urn "pramana:cbeta.T:T0262_001@p0006a23"
   @sc_urn "pramana:sc.ms:mn1@1.1"
