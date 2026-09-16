@@ -28,11 +28,9 @@ jobs:
           checkout = pathlib.Path.cwd()
           workflow = (checkout / '.github/workflows/ci.yml').read_text()
           section = workflow.split('      - name: Export compiler dependency reports\n', 1)[1]
-          body = section.split('        run: |\n', 1)[1].split('\n      - name: Upload compiler dependency reports', 1)[0]
-          collector = textwrap.dedent(body)
+          collector = textwrap.dedent(section.split('        run: |\n', 1)[1].split('\n      - name: Upload compiler dependency reports', 1)[0])
           runbook = (checkout / 'docs/agents/DEPENDENCY_REVIEW.md').read_text()
-          caller_section = runbook.split('## Find callers across the application boundary\n', 1)[1]
-          caller_command = caller_section.split('```sh\n', 1)[1].split('```', 1)[0]
+          caller_command = runbook.split('## Find callers across the application boundary\n', 1)[1].split('```sh\n', 1)[1].split('```', 1)[0]
           work = pathlib.Path(tempfile.mkdtemp(prefix='pr10-review-', dir=os.environ['RUNNER_TEMP']))
           print('Candidate: 734541768db1afda902867cf47f16730f1bc564b', flush=True)
           print('Collector SHA256:', hashlib.sha256(collector.encode()).hexdigest(), flush=True)
@@ -44,20 +42,26 @@ jobs:
           def put(path, text):
               path.parent.mkdir(parents=True, exist_ok=True)
               path.write_text(text)
-          def fixture(name, paths='["lib"]', empty=False):
+          summary = []
+          for name in ['baseline', 'outside-app', 'ignored-generated', 'empty-application']:
               root = work / name
               project = root / 'pramana'
               app = project / 'apps/demo'
+              paths = '["lib"]'
+              if name == 'outside-app':
+                  paths = '["lib", Path.expand("../../../outside", __DIR__)]'
+                  put(root / 'outside/external.ex', 'defmodule Review.External do\n  def run, do: Pramana.Release.current_id()\nend\n')
+              if name == 'ignored-generated':
+                  paths = '["lib", "generated"]'
+                  put(app / 'generated/generated.ex', 'defmodule Review.Generated do\n  def run, do: Pramana.Release.current_id()\nend\n')
               put(project / 'mix.exs', 'defmodule Review.Umbrella do\n  use Mix.Project\n  def project, do: [apps_path: "apps", version: "0.1.0"]\nend\n')
               put(app / 'mix.exs', f'defmodule Review.Demo.MixProject do\n  use Mix.Project\n  def project, do: [app: :demo, version: "0.1.0", build_path: "../../_build", deps_path: "../../deps", lockfile: "../../mix.lock", elixirc_paths: {paths}]\nend\n')
-              if not empty:
+              if name != 'empty-application':
                   put(app / 'lib/target.ex', 'defmodule Pramana.Release do\n  def current_id, do: "fixture"\nend\n')
                   put(app / 'lib/caller.ex', 'defmodule Review.Caller do\n  def run, do: Pramana.Release.current_id()\nend\n')
               put(root / '.gitignore', '**/_build/\n**/deps/\n**/generated/\n')
               put(root / 'mise.toml', '[tools]\nelixir = "1.20.3-otp-29"\nerlang = "29.0.5"\n')
               put(root / '.github/workflows/ci.yml', workflow)
-              return root, project, app
-          def commit_compile(root, project):
               run(['git', 'init', '-q'], root)
               run(['git', 'config', 'user.name', 'isolated-review-fixture'], root)
               run(['git', 'config', 'user.email', 'fixture@example.invalid'], root)
@@ -66,13 +70,17 @@ jobs:
               env = os.environ.copy()
               env['MIX_ENV'] = 'test'
               env['GITHUB_SHA'] = run(['git', 'rev-parse', 'HEAD'], root).stdout.strip()
-              env['XREF_REPORT_DIR'] = str(work / ('reports-' + root.name))
+              env['XREF_REPORT_DIR'] = str(work / ('reports-' + name))
               p = run(['mix', 'compile', '--force', '--warnings-as-errors'], project, env)
-              print(f'COMPILE {root.name}: exit {p.returncode}\n{p.stdout}', flush=True)
-              return env
-          def collect(root, project, env):
+              print(f'COMPILE {name}: exit {p.returncode}\n{p.stdout}', flush=True)
+              if name == 'ignored-generated':
+                  put(app / 'generated/generated.ex', 'defmodule Review.Generated do\n  def run, do: :changed_after_compile\nend\n')
+                  assert run(['git', 'status', '--porcelain'], root).stdout == ''
+              if name == 'empty-application':
+                  p = run(['mix', 'xref', 'graph', '--no-compile', '--format', 'json', '--output', '-'], app, env, check=False)
+                  print('EMPTY NATIVE XREF:', p.returncode, p.stdout, flush=True)
               p = run(['bash', '-c', collector], project, env, check=False)
-              result = {'case': root.name, 'collector_exit': p.returncode, 'output': p.stdout}
+              result = {'case': name, 'collector_exit': p.returncode, 'output': p.stdout}
               reports = pathlib.Path(env['XREF_REPORT_DIR'])
               graph_path = reports / 'demo/graph.json'
               if graph_path.exists():
@@ -80,47 +88,23 @@ jobs:
               hashes = reports / 'source-files.sha256'
               if hashes.exists() and 'graph' in result:
                   hashed_paths = {line.split('  ', 1)[1] for line in hashes.read_text().splitlines()}
-                  absent = []
-                  for source in result['graph']:
-                      resolved = (project / 'apps/demo' / source).resolve()
-                      rel = os.path.relpath(resolved, root)
-                      if rel not in hashed_paths:
-                          absent.append(rel)
-                  result['graph_sources_without_hashes'] = absent
+                  result['graph_sources_without_hashes'] = [os.path.relpath((app / source).resolve(), root) for source in result['graph'] if os.path.relpath((app / source).resolve(), root) not in hashed_paths]
               print(json.dumps(result, indent=2), flush=True)
-              return result
-          root, project, app = fixture('baseline')
-          env = commit_compile(root, project)
-          baseline = collect(root, project, env)
-          assert baseline['collector_exit'] == 0
-          calls = run(['bash', '-c', caller_command], root, env)
-          assert 'lib/caller.ex' in calls.stdout
-          print('BASELINE CALLERS:', calls.stdout, flush=True)
-          root, project, app = fixture('outside-app', '["lib", "../../../outside"]')
-          put(root / 'outside/external.ex', 'defmodule Review.External do\n  def run, do: Pramana.Release.current_id()\nend\n')
-          env = commit_compile(root, project)
-          outside = collect(root, project, env)
-          root, project, app = fixture('ignored-generated', '["lib", "generated"]')
-          put(app / 'generated/generated.ex', 'defmodule Review.Generated do\n  def run, do: Pramana.Release.current_id()\nend\n')
-          env = commit_compile(root, project)
-          # Change only an ignored compiler input after compilation. HEAD/status do not reveal it.
-          put(app / 'generated/generated.ex', 'defmodule Review.Generated do\n  def run, do: :changed_after_compile\nend\n')
-          assert run(['git', 'status', '--porcelain'], root).stdout == ''
-          ignored = collect(root, project, env)
-          root, project, app = fixture('empty-application', empty=True)
-          env = commit_compile(root, project)
-          native_graph = run(['mix', 'xref', 'graph', '--no-compile', '--format', 'json', '--output', '-'], app, env, check=False)
-          print('EMPTY NATIVE XREF:', native_graph.returncode, native_graph.stdout, flush=True)
-          empty = collect(root, project, env)
-          # Preserve the original repository checkout; every compile above was in /tmp fixtures.
+              summary.append(result)
+              if name == 'baseline':
+                  assert result['collector_exit'] == 0
+                  p = run(['bash', '-c', caller_command], root, env)
+                  assert 'lib/caller.ex' in p.stdout
+                  print('BASELINE CALLERS:', p.stdout, flush=True)
+                  manifest = project / '_build/test/lib/demo/.mix/compile.elixir'
+                  manifest.rename(manifest.with_name('saved.compile.elixir'))
+                  p = run(['bash', '-c', caller_command], root, env, check=False)
+                  print('MISSING-MANIFEST CALLER LOOP:', p.returncode, repr(p.stdout), flush=True)
           assert run(['git', 'rev-parse', 'HEAD'], checkout).stdout.strip() == '734541768db1afda902867cf47f16730f1bc564b'
           assert run(['git', 'status', '--porcelain'], checkout).stdout == ''
           print('Original candidate checkout unchanged.', flush=True)
-          summary = {'baseline': baseline, 'outside': outside, 'ignored': ignored, 'empty': empty}
-          (work / 'results.json').write_text(json.dumps(summary, indent=2))
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
-              f.write('## PR #10 adversarial compiler fixtures\n\nCandidate `734541768db1afda902867cf47f16730f1bc564b`; exact collector extracted from its workflow. No application, corpus, Foundry or provider was started. See job logs for full native output.\n\n')
-              f.write('|Case|Collector exit|Graph sources without source hashes|\n|---|---:|---|\n')
-              for result in summary.values():
-                  f.write(f"|{result['case']}|{result['collector_exit']}|{result.get('graph_sources_without_hashes', 'not collected')}|\n")
+              f.write('## PR #10 adversarial compiler fixtures\n\nExact candidate collector; real Elixir 1.20.3 / OTP 29.0.5. No product runtime, database, Foundry or provider started. Full native output is in the job log.\n\n|Case|Collector exit|Graph sources without source hashes|\n|---|---:|---|\n')
+              for r in summary:
+                  f.write(f"|{r['case']}|{r['collector_exit']}|{r.get('graph_sources_without_hashes', 'not collected')}|\n")
           PY
