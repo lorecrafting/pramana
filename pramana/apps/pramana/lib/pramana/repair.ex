@@ -271,10 +271,11 @@ defmodule Pramana.Repair do
     if edits == [] do
       planned
     else
+      candidate = apply_edits(original, edits)
+
       actual_by_offset =
-        original
-        |> apply_edits(edits)
-        |> Guard.occurrences(regions: Report.prose_regions(apply_edits(original, edits)))
+        candidate
+        |> Guard.occurrences(regions: Report.prose_regions(candidate))
         |> Map.new(&{&1.urn_range.byte_start, &1})
 
       culprits =
@@ -304,18 +305,19 @@ defmodule Pramana.Repair do
     end
   end
 
-  defp reject_rebinding({action, _edit, occurrence}, culprits)
-       when is_map_key(culprits, action.source_offset) do
-    {%{
-       action
-       | state: :flagged,
-         reason: :citation_rebinding,
-         detail:
-           "Removing this citation would attach its quotation to another citation; review manually."
-     }, nil, occurrence}
+  defp reject_rebinding({action, _edit, occurrence} = entry, culprits) do
+    if MapSet.member?(culprits, action.source_offset) do
+      {%{
+         action
+         | state: :flagged,
+           reason: :citation_rebinding,
+           detail:
+             "Removing this citation would attach its quotation to another citation; review manually."
+       }, nil, occurrence}
+    else
+      entry
+    end
   end
-
-  defp reject_rebinding(entry, _culprits), do: entry
 
   defp expected_quote(%{state: :quote_relaxed, replacement_quote: replacement}, _occurrence),
     do: replacement
