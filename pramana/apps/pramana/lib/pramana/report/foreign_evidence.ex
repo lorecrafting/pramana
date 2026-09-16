@@ -1,7 +1,11 @@
 defmodule Pramana.Report.ForeignEvidence do
   @moduledoc false
 
-  @type counts :: %{unresolved: non_neg_integer(), unchecked: non_neg_integer()}
+  @type counts :: %{
+          unresolved: non_neg_integer(),
+          unchecked: non_neg_integer(),
+          literal: non_neg_integer()
+        }
 
   @doc """
   Classifies foreign-citation occurrences after report canonicalization.
@@ -26,10 +30,10 @@ defmodule Pramana.Report.ForeignEvidence do
       |> Enum.sort_by(& &1.byte_start)
 
     {counts, _state} =
-      Enum.reduce(foreign, {%{unresolved: 0, unchecked: 0}, {0, quote_ranges}}, fn item,
-                                                                                 {counts,
-                                                                                  {shift,
-                                                                                   ranges}} ->
+      Enum.reduce(foreign, {%{unresolved: 0, unchecked: 0, literal: 0}, {0, quote_ranges}}, fn item,
+                                                                                             {counts,
+                                                                                              {shift,
+                                                                                               ranges}} ->
         mapped_start = item.source_offset + shift
         rewritten? = rewritten?(item, resolved, mapped_start)
         mapped_length = if rewritten?, do: byte_size(item.urn), else: item.source_length
@@ -60,7 +64,7 @@ defmodule Pramana.Report.ForeignEvidence do
     do: range.byte_start <= first and last <= range.byte_end
 
   defp classify(counts, _item, true, _covered?), do: counts
-  defp classify(counts, _item, false, true), do: counts
+  defp classify(counts, _item, false, true), do: Map.update!(counts, :literal, &(&1 + 1))
   defp classify(counts, %{urn: nil}, false, false), do: Map.update!(counts, :unresolved, &(&1 + 1))
 
   defp classify(counts, %{urn: urn}, false, false) when is_binary(urn),
