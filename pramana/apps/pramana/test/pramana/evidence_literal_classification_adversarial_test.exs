@@ -7,6 +7,7 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
   """
   use Pramana.DataCase, async: false
 
+  alias Pramana.Citation
   alias Pramana.Corpus.Loader
   alias Pramana.Normalize.CBETA
   alias Pramana.Report
@@ -56,6 +57,14 @@ defmodule Pramana.EvidenceLiteralClassificationAdversarialTest do
     assert [%{matched: "T. 262, 6a23", evidence_role: :unchecked}] = result.foreign
     assert result.status == :incomplete
     refute result.ok?
+  end
+
+  test "a stray ASCII quote cannot protect a foreign citation through a later Chinese closer" do
+    original = ~s(label" T. 262, 6a23 「not related」)
+    {rewritten, found} = Citation.rewrite(original)
+
+    assert rewritten == ~s(label" #{@cbeta_urn} 「not related」)
+    assert [%{matched: "T. 262, 6a23", urn: @cbeta_urn}] = found
   end
 
   test "an unresolved foreign-looking token inside a checked canonical quote is literal content" do
