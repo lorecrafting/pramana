@@ -65,6 +65,7 @@ defmodule Pramana.Repair do
         {action, edit_for(finding, action, markdown), finding.occurrence}
       end)
       |> reject_overlaps()
+      |> reject_rebindings(markdown)
 
     actions = Enum.map(planned, &elem(&1, 0))
     edits = planned |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1)
@@ -243,7 +244,7 @@ defmodule Pramana.Repair do
 
     conflicts = Intervals.conflicts(writes, scopes)
 
-    Enum.map(planned, fn {action, edit, _} ->
+    Enum.map(planned, fn {action, edit, occurrence} ->
       if Map.has_key?(conflicts, action.source_offset) do
         {%{
            action
@@ -251,12 +252,141 @@ defmodule Pramana.Repair do
              reason: :overlapping_edits,
              detail:
                "An edit would change another citation or its quotation; review both manually."
-         }, nil}
+         }, nil, occurrence}
       else
-        {action, edit}
+        {action, edit, occurrence}
       end
     end)
   end
+
+  # Deleting one citation can make a quotation that belonged to it become syntactically
+  # adjacent to the next surviving citation. The edit ranges do not overlap, but the
+  # amended document would then assert a different quotation/citation pair than the one
+  # that was diagnosed. Reparse the proposed output once and map all relevant original
+  # offsets with one cumulative edit sweep; refuse only the deletion that owned the newly
+  # attached quotation.
+  defp reject_rebindings(planned, original) do
+    edits = planned |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1)
+
+    if edits == [] do
+      planned
+    else
+      candidate = apply_edits(original, edits)
+      offset_map = shifted_offset_map(association_offsets(planned), edits)
+
+      actual_by_offset =
+        candidate
+        |> Guard.occurrences(regions: Report.prose_regions(candidate))
+        |> Map.new(&{&1.urn_range.byte_start, &1})
+
+      deleted_quote_owners = deleted_quote_owners(planned, offset_map)
+
+      culprits =
+        rebinding_culprits(planned, offset_map, actual_by_offset, deleted_quote_owners)
+
+      Enum.map(planned, &reject_rebinding(&1, culprits))
+    end
+  end
+
+  defp rebinding_culprits(planned, offset_map, actual_by_offset, deleted_quote_owners) do
+    Enum.reduce(planned, MapSet.new(), fn entry, acc ->
+      entry
+      |> rebinding_culprit(offset_map, actual_by_offset, deleted_quote_owners)
+      |> add_rebinding_culprit(acc)
+    end)
+  end
+
+  defp add_rebinding_culprit(nil, culprits), do: culprits
+
+  defp add_rebinding_culprit(source_offset, culprits),
+    do: MapSet.put(culprits, source_offset)
+
+  defp association_offsets(planned) do
+    Enum.flat_map(planned, fn {_action, _edit, occurrence} ->
+      case occurrence.quote_range do
+        %{byte_start: quote_start} -> [occurrence.urn_range.byte_start, quote_start]
+        nil -> [occurrence.urn_range.byte_start]
+      end
+    end)
+  end
+
+  defp shifted_offset_map(offsets, edits) do
+    sorted_edits = Enum.sort_by(edits, & &1.range.byte_end)
+
+    {mapped, _pending, _shift} =
+      offsets
+      |> Enum.uniq()
+      |> Enum.sort()
+      |> Enum.reduce({%{}, sorted_edits, 0}, fn offset, {acc, pending, shift} ->
+        {pending, shift} = consume_edits_before(pending, offset, shift)
+        {Map.put(acc, offset, offset + shift), pending, shift}
+      end)
+
+    mapped
+  end
+
+  defp consume_edits_before([], _offset, shift), do: {[], shift}
+
+  defp consume_edits_before([edit | rest] = pending, offset, shift) do
+    if edit.range.byte_end <= offset do
+      delta = byte_size(edit.after) - (edit.range.byte_end - edit.range.byte_start)
+      consume_edits_before(rest, offset, shift + delta)
+    else
+      {pending, shift}
+    end
+  end
+
+  defp deleted_quote_owners(planned, offset_map) do
+    Enum.reduce(planned, %{}, fn
+      {%{state: :no_sources, source_offset: source_offset}, edit,
+       %{quote_range: %{byte_start: quote_start}}},
+      acc
+      when not is_nil(edit) ->
+        Map.put(acc, Map.fetch!(offset_map, quote_start), source_offset)
+
+      _entry, acc ->
+        acc
+    end)
+  end
+
+  defp rebinding_culprit(
+         {%{state: :no_sources}, edit, _occurrence},
+         _offset_map,
+         _actual,
+         _deleted_quote_owners
+       )
+       when not is_nil(edit),
+       do: nil
+
+  defp rebinding_culprit({action, _edit, occurrence}, offset_map, actual, deleted_quote_owners) do
+    offset = Map.fetch!(offset_map, occurrence.urn_range.byte_start)
+    expected = expected_quote(action, occurrence)
+
+    case Map.get(actual, offset) do
+      %{quoted: ^expected} -> nil
+      %{quote_range: %{byte_start: quote_start}} -> Map.get(deleted_quote_owners, quote_start)
+      _ -> nil
+    end
+  end
+
+  defp reject_rebinding({action, _edit, occurrence} = entry, culprits) do
+    if MapSet.member?(culprits, action.source_offset) do
+      {%{
+         action
+         | state: :flagged,
+           reason: :citation_rebinding,
+           detail:
+             "Removing this citation would attach its quotation to another citation; review manually."
+       }, nil, occurrence}
+    else
+      entry
+    end
+  end
+
+  defp expected_quote(%{state: :quote_relaxed, replacement_quote: replacement}, _occurrence),
+    do: replacement
+
+  defp expected_quote(_action, occurrence), do: occurrence.quoted
 
   defp interval(range, owner), do: {range.byte_start, range.byte_end, owner}
 

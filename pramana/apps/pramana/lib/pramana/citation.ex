@@ -76,6 +76,11 @@ defmodule Pramana.Citation do
   # Anchored to a word boundary at both ends so it cannot eat part of a URN.
   @suttacentral ~r/\b([a-z][a-z0-9-]*\d[a-z0-9.-]*):(\d+(?:\.\d+)+)\b/
 
+  # Preserve literal source-evidence bytes. Foreign-looking strings inside the same
+  # quotation delimiters the Guard recognizes are still returned as metadata, but they
+  # are not canonicalized before the Guard compares that quotation with its witness.
+  @literal_quotation ~r/[「『"“]([^」』"”]{1,400})[」』"”]/u
+
   @doc """
   Finds every foreign citation in a block of prose and resolves what it can.
 
@@ -269,30 +274,62 @@ defmodule Pramana.Citation do
   article cites it is checked rather than silently passed. An unresolvable citation is
   left exactly as written — rewriting it to something that does not resolve would turn a
   citation nobody could place into a citation that looks fabricated.
+
+  A foreign-looking address inside a literal quotation is reported in the returned
+  metadata but is not rewritten. The quotation bytes are evidence and must remain what
+  the author actually supplied when the Guard compares them with the cited witness.
   """
   @spec rewrite(String.t(), keyword()) :: {String.t(), [found()]}
   def rewrite(text, opts \\ []) when is_binary(text) do
+    regions = EvidenceInput.regions(text, opts)
+
     found =
-      text
-      |> EvidenceInput.regions(opts)
-      |> Enum.flat_map(fn {offset, region} ->
+      Enum.flat_map(regions, fn {offset, region} ->
         Enum.map(scan(region), &Map.update!(&1, :source_offset, fn pos -> pos + offset end))
       end)
 
-    edits =
-      for found <- found, found.urn != nil do
-        %{
-          range: %{
-            byte_start: found.source_offset,
-            byte_end: found.source_offset + found.source_length
-          },
-          before: found.matched,
-          after: found.urn
-        }
-      end
-
+    edits = rewrite_edits(found, quotation_ranges(regions))
     rewritten = EvidenceInput.apply_edits(text, edits)
 
     {rewritten, found}
+  end
+
+  defp quotation_ranges(regions) do
+    Enum.flat_map(regions, fn {offset, region} ->
+      @literal_quotation
+      |> Regex.scan(region, return: :index)
+      |> Enum.map(fn [_, {pos, length}] ->
+        %{byte_start: offset + pos, byte_end: offset + pos + length}
+      end)
+    end)
+  end
+
+  defp rewrite_edits(found, quote_ranges) do
+    {edits, _ranges} =
+      Enum.map_reduce(found, quote_ranges, fn item, ranges ->
+        ranges = Enum.drop_while(ranges, &(&1.byte_end <= item.source_offset))
+        edit = if item.urn != nil and not quoted?(item, ranges), do: rewrite_edit(item)
+        {edit, ranges}
+      end)
+
+    Enum.reject(edits, &is_nil/1)
+  end
+
+  defp quoted?(_item, []), do: false
+
+  defp quoted?(item, [range | _]) do
+    finish = item.source_offset + item.source_length
+    range.byte_start < finish and item.source_offset < range.byte_end
+  end
+
+  defp rewrite_edit(found) do
+    %{
+      range: %{
+        byte_start: found.source_offset,
+        byte_end: found.source_offset + found.source_length
+      },
+      before: found.matched,
+      after: found.urn
+    }
   end
 end
