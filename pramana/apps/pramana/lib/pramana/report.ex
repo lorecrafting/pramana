@@ -100,19 +100,38 @@ defmodule Pramana.Report do
           malformed: [%{line: pos_integer(), reason: term()}]
         }
   def parse(markdown) when is_binary(markdown) do
+    markdown |> parse_document() |> Map.take([:replays, :malformed])
+  end
+
+  @doc "Masks replay fences with equal-length bytes for prose citation scanning; original offsets survive."
+  @spec mask_replays(String.t()) :: String.t()
+  def mask_replays(markdown) when is_binary(markdown),
+    do: markdown |> parse_document() |> Map.fetch!(:citation_text)
+
+  defp parse_document(markdown) do
     parsed =
       markdown
       |> String.split("\n")
       |> Enum.with_index(1)
-      |> Enum.reduce(%{replays: [], malformed: [], open: nil}, &parse_line/2)
+      |> Enum.reduce(%{replays: [], malformed: [], open: nil, prose: []}, &parse_line/2)
       |> close_unterminated()
 
-    %{replays: Enum.reverse(parsed.replays), malformed: Enum.reverse(parsed.malformed)}
+    %{
+      replays: Enum.reverse(parsed.replays),
+      malformed: Enum.reverse(parsed.malformed),
+      citation_text: parsed.prose |> Enum.reverse() |> Enum.join("\n")
+    }
   end
 
   defp parse_line({text, line}, acc) do
+    opening? = Regex.match?(@opening, text)
+    # Replay arguments and asserted values are data, not additional prose citations.
+    # Mask bytes, not graphemes, so every following citation keeps its exact offset.
+    prose = if opening? or acc.open != nil, do: String.duplicate(" ", byte_size(text)), else: text
+    acc = %{acc | prose: [prose | acc.prose]}
+
     cond do
-      Regex.match?(@opening, text) ->
+      opening? ->
         acc = close_unterminated(acc)
         %{acc | open: %{line: line, body: []}}
 
@@ -196,7 +215,9 @@ defmodule Pramana.Report do
     executor = Keyword.fetch!(opts, :executor)
     current_bake = Keyword.get_lazy(opts, :bake_id, &Bake.current_id/0)
 
-    %{replays: all_replays, malformed: malformed} = parse(markdown)
+    %{replays: all_replays, malformed: malformed, citation_text: citation_text} =
+      parse_document(markdown)
+
     # A REPORT IS UNTRUSTED INPUT AND EVERY REPLAY IS A QUERY. A document carrying ten
     # thousand fenced blocks would otherwise turn a verification request into a denial of
     # service against the corpus. Excess records are reported as skipped rather than
@@ -219,10 +240,11 @@ defmodule Pramana.Report do
     # Done HERE and not inside `Guard.check_output/1` on purpose: that function is also
     # the MCP `verify_citation` tool and the path 601 eval cases run through, and this
     # needs to change what a REPORT check sees without touching either.
-    {resolved, foreign} = Citation.rewrite(markdown)
+    {resolved, foreign} = Citation.rewrite(markdown, scan_text: citation_text)
 
     citations =
       resolved
+      |> mask_replays()
       |> Guard.check_output()
       |> Map.update!(:findings, fn findings -> Enum.map(findings, &Guard.diagnose/1) end)
 
@@ -350,14 +372,15 @@ defmodule Pramana.Report do
     if mismatches == [] do
       %{status: :verified, detail: "#{map_size(asserted)} value(s) re-derived", mismatches: []}
     else
-      detail =
-        Enum.map_join(mismatches, "; ", fn mismatch ->
-          actual = if mismatch.actual_present, do: inspect(mismatch.actual), else: "<missing>"
-          "#{mismatch.path}: report says #{inspect(mismatch.expected)}, corpus says #{actual}"
-        end)
+      detail = Enum.map_join(mismatches, "; ", &mismatch_description/1)
 
       %{status: :failed, detail: detail, mismatches: mismatches}
     end
+  end
+
+  defp mismatch_description(mismatch) do
+    actual = if mismatch.actual_present, do: inspect(mismatch.actual), else: "<missing>"
+    "#{mismatch.path}: report says #{inspect(mismatch.expected)}, corpus says #{actual}"
   end
 
   defp dig(value, []), do: {:ok, value}

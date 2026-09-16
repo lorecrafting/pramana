@@ -14,6 +14,7 @@ defmodule Pramana.Repair do
   """
 
   alias Pramana.Guard
+  alias Pramana.Report
 
   @type action :: %{
           urn: String.t(),
@@ -35,6 +36,7 @@ defmodule Pramana.Repair do
   def repair(markdown, opts \\ []) when is_binary(markdown) do
     planned =
       markdown
+      |> Report.mask_replays()
       |> Guard.check_output()
       |> Map.fetch!(:findings)
       |> Enum.map(&Guard.diagnose(&1, opts))

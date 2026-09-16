@@ -11,7 +11,7 @@ defmodule Pramana.ReleaseSelectionMigrationTest do
                Path.expand("../../priv/repo/migrations/*_select_current_release.exs", __DIR__)
              )
              |> List.first()
-  Code.require_file(@migration)
+  unless Code.ensure_loaded?(SelectCurrentRelease), do: Code.require_file(@migration)
 
   test "the upgrade selects the latest legacy row once and preserves both records" do
     a = old_release!("a", ~U[2026-01-01 00:00:00.000000Z])

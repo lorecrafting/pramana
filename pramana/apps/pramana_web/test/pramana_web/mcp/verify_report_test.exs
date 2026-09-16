@@ -142,8 +142,28 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
     refute payload["ok?"]
   end
 
+  test "a real asserted get_passage replay is not also counted as a bare citation" do
+    report =
+      "```pramana-replay\n" <>
+        Jason.encode!(%{tool: "get_passage", arguments: %{urn: @urn}, assert: %{urn: @urn}}) <>
+        "\n```"
+
+    payload = json(report)
+    assert payload["status"] == "verified"
+    assert payload["ok?"]
+    assert payload["citations"]["checked"] == 0
+    assert payload["counts"]["verified_replays"] == 1
+    assert payload["resolved_text"] == report
+  end
+
   test "invalid assertion types return a structured incomplete result, not an exception" do
-    payload = json("```pramana-replay\n{\"tool\":\"search\",\"arguments\":{},\"assert\":42}\n```")
+    payload =
+      json("""
+      ```pramana-replay
+      {"tool":"search","arguments":{},"assert":42}
+      ```
+      """)
+
     assert payload["status"] == "incomplete"
     assert [%{"reason" => "invalid_assertions"}] = payload["malformed"]
     refute payload["ok?"]

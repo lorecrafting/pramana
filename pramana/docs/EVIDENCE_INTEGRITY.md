@@ -54,6 +54,9 @@ by the status. Unsourced-figure detection remains a heuristic warning, not a ver
 Replay `assert` must be a map with nonempty dotted paths. Missing paths differ from
 explicit JSON null; false values are preserved. Invalid JSON, invalid assertions and
 unterminated replay fences are reported, not dropped. At most 25 replays execute.
+Replay JSON is treated as replay data, not scanned again as prose quotations or
+foreign citations, and repair never edits it. Masking preserves byte offsets and
+leaves the original JSON intact.
 
 `foreign` contains each original citation occurrence and its original-input offsets.
 Citation findings after foreign-address rewriting use `citations.offset_basis =

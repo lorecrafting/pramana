@@ -269,9 +269,21 @@ defmodule Pramana.Citation do
   left exactly as written — rewriting it to something that does not resolve would turn a
   citation nobody could place into a citation that looks fabricated.
   """
-  @spec rewrite(String.t()) :: {String.t(), [found()]}
-  def rewrite(text) when is_binary(text) do
-    found = scan(text)
+  # A caller may mask non-prose regions with equal-length bytes before scanning.
+  # Resolve only that view, but amend the original document so replay JSON is untouched.
+  @spec rewrite(String.t(), keyword()) :: {String.t(), [found()]}
+  def rewrite(text, opts \\ []) when is_binary(text) do
+    scan_text = Keyword.get(opts, :scan_text, text)
+
+    if not is_binary(scan_text) or byte_size(scan_text) != byte_size(text),
+      do: raise(ArgumentError, "citation scan view must preserve byte length")
+
+    found = scan(scan_text)
+
+    for found <- found do
+      if binary_part(text, found.source_offset, found.source_length) != found.matched,
+        do: raise(ArgumentError, "citation scan view changed a matched citation")
+    end
 
     rewritten =
       found
