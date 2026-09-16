@@ -336,7 +336,11 @@ defmodule PramanaWeb.SearchLive do
           mode or a different orthographic form.
         </p>
 
-        <section :if={@renderings} id="translation-results" class="space-y-2 rounded-lg border border-base-300 p-3">
+        <section
+          :if={@renderings}
+          id="translation-results"
+          class="space-y-2 rounded-lg border border-base-300 p-3"
+        >
           <h2 class="flex items-baseline gap-2">
             <span class="font-semibold">Translations using these words</span>
             <span class="text-sm text-base-content/60">
@@ -369,7 +373,11 @@ defmodule PramanaWeb.SearchLive do
             <span class="text-sm text-base-content/60">{group.count}</span>
           </h2>
 
-          <article :for={hit <- group.results} data-source-urn={hit.span.urn} class="space-y-1 rounded-lg bg-base-200/40 p-3">
+          <article
+            :for={hit <- group.results}
+            data-source-urn={hit.span.urn}
+            class="space-y-1 rounded-lg bg-base-200/40 p-3"
+          >
             <p class="text-lg leading-relaxed break-words">{hit.span.content}</p>
             <.provenance_line provenance={hit.span.provenance} />
             <.citation span={hit.span} />

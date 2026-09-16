@@ -39,7 +39,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 
 /// Characters hashed as a seed. Short enough that a real quotation is very unlikely to
 /// lack one, long enough that random collisions between unrelated passages are rare.

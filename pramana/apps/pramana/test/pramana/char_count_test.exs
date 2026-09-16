@@ -6,7 +6,11 @@ defmodule Pramana.CharCountTest do
   by the reader's `/inventory` page on every load. A stored count is only worth having if it
   cannot drift from the body and if it counts the right unit, so both are pinned here.
   """
-  use Pramana.DataCase, async: true
+  # Mix task startup changes process-global project/cwd state. Do not run it while
+  # the parallel test loader is still requiring other files.
+  use Pramana.DataCase, async: false
+
+  alias Mix.Tasks.Pramana.Texts.CountChars
 
   import Ecto.Query
 
@@ -104,6 +108,6 @@ defmodule Pramana.CharCountTest do
   end
 
   defp run_backfill do
-    ExUnit.CaptureIO.capture_io(fn -> Mix.Tasks.Pramana.Texts.CountChars.run([]) end)
+    ExUnit.CaptureIO.capture_io(fn -> CountChars.run([]) end)
   end
 end

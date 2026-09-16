@@ -19,9 +19,14 @@ defmodule Pramana.Retrieval.DateFilterTest do
   """
   use Pramana.DataCase, async: false
 
+  alias Pramana.Chunk.Builder
+  alias Pramana.Chunk.Vectors
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Loader
+  alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Coverage
+  alias Pramana.Embed
   alias Pramana.Normalize.CBETA
   alias Pramana.Repo
   alias Pramana.Retrieval.Lexical
@@ -108,15 +113,15 @@ defmodule Pramana.Retrieval.DateFilterTest do
   describe "the other retriever honours the same options" do
     # Synthetic vectors exercise actual SQL filtering without a model or a provider.
     test "Semantic returns the exact dated subset, including one-sided and unknown bounds" do
-      for text <- Repo.all(Pramana.Corpus.Text) do
-        {:ok, 1} = Pramana.Chunk.Builder.build_for_text(text.id, max_chars: 100)
-        {:ok, 1} = Pramana.Chunk.Vectors.build_source(text.id)
+      for text <- Repo.all(Text) do
+        {:ok, 1} = Builder.build_for_text(text.id, max_chars: 100)
+        {:ok, 1} = Vectors.build_source(text.id)
       end
 
       vector = [1.0 | List.duplicate(0.0, 1023)]
 
-      Repo.update_all(Pramana.Corpus.ChunkVector,
-        set: [embedding: Pgvector.new(vector), embedding_model: Pramana.Embed.model()]
+      Repo.update_all(ChunkVector,
+        set: [embedding: Pgvector.new(vector), embedding_model: Embed.model()]
       )
 
       for {opts, expected} <- [

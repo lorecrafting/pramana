@@ -13,6 +13,7 @@ defmodule Pramana.Corpus.LoaderSourceTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Source
   alias Pramana.Normalize.Bilara
+  alias Pramana.Normalize.CBETA
   alias Pramana.Repo
   alias Pramana.Segment.SegmentId
 
@@ -72,7 +73,7 @@ defmodule Pramana.Corpus.LoaderSourceTest do
       "<TEI><text><body><milestone n=\"1\" unit=\"juan\"/><lb n=\"0001a01\"/>如是我聞</body></text></TEI>"
 
     {:ok, ir} =
-      Pramana.Normalize.CBETA.normalize(xml,
+      CBETA.normalize(xml,
         work_id: "T0099",
         canon: "T",
         volume: 2,

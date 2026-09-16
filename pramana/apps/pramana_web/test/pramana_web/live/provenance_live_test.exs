@@ -3,9 +3,9 @@ defmodule PramanaWeb.ReaderProvenanceLiveTest do
   import Ecto.Query
   import Phoenix.LiveViewTest
   import PramanaWeb.ReaderFixtures
-  alias Pramana.Embed.Serving
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text
+  alias Pramana.Embed.Serving
   alias Pramana.Normalize.CBETA
   alias Pramana.Repo
   setup :load_reader_fixture

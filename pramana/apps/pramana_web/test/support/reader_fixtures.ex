@@ -1,8 +1,8 @@
 defmodule PramanaWeb.ReaderFixtures do
   @moduledoc "Two contrasting source works and opt-in reader relationships."
   alias Pramana.Corpus.Loader
-  alias Pramana.Corpus.Translation
   alias Pramana.Corpus.TextParallel
+  alias Pramana.Corpus.Translation
   alias Pramana.Corpus.WorkRelation
   alias Pramana.Normalize.CBETA
   alias Pramana.Repo

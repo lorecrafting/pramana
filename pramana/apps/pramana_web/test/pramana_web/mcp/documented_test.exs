@@ -15,13 +15,15 @@ defmodule PramanaWeb.MCP.DocumentedTest do
   """
   use ExUnit.Case, async: true
 
+  alias PramanaWeb.MCP.Server
+
   # Deliberately the source project root, not the mutable `:project_root`: that setting is rebound by
   # acquisition tests to a temporary directory, and a docs assertion that silently reads an
   # empty tmpdir passes for the wrong reason.
   @root Path.expand("../../../../..", __DIR__)
 
   defp registered do
-    PramanaWeb.MCP.Server.__components__(:tool)
+    Server.__components__(:tool)
     |> Enum.map(& &1.name)
     |> MapSet.new()
   end

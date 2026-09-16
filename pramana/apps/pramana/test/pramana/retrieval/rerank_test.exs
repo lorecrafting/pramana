@@ -10,6 +10,8 @@ defmodule Pramana.Retrieval.RerankTest do
   """
   use Pramana.DataCase, async: true
 
+  alias Pramana.CorpusFixtures
+
   import Ecto.Query
 
   alias Pramana.Corpus.Chunk
@@ -40,7 +42,7 @@ defmodule Pramana.Retrieval.RerankTest do
     Repo.insert!(%Work{id: "mn1", title: "Mūlapariyāya"})
 
     %{text: text} =
-      Pramana.CorpusFixtures.text!(
+      CorpusFixtures.text!(
         %{
           work_id: "mn1",
           source_id: "sc",

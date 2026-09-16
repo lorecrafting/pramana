@@ -1,5 +1,8 @@
 defmodule Pramana.Tengyur.TitleTaskTest do
-  use Pramana.DataCase, async: true
+  # Actual Mix task startup must not race the parallel test-file loader.
+  use Pramana.DataCase, async: false
+
+  alias Mix.Tasks.Pramana.Tengyur.Titles, as: TitlesTask
   alias Pramana.Corpus.Work
   alias Pramana.Repo
 
@@ -48,5 +51,5 @@ defmodule Pramana.Tengyur.TitleTaskTest do
   end
 
   defp run(args),
-    do: ExUnit.CaptureIO.capture_io(fn -> Mix.Tasks.Pramana.Tengyur.Titles.run(args) end)
+    do: ExUnit.CaptureIO.capture_io(fn -> TitlesTask.run(args) end)
 end
