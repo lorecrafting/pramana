@@ -167,16 +167,30 @@ defmodule Pramana.AgentConventionSync do
   end
 
   defp compare_sources(ref, roots, expected_sources) do
-    {actual_sources, errors} = fetch_inventory(ref, roots)
+    case ensure_ref_exists(ref) do
+      :ok ->
+        {actual_sources, errors} = fetch_inventory(ref, roots)
 
-    diff =
-      if errors == [] do
-        source_diff(expected_sources, actual_sources)
-      else
-        empty_diff()
-      end
+        diff =
+          if errors == [] do
+            source_diff(expected_sources, actual_sources)
+          else
+            empty_diff()
+          end
 
-    {diff, errors}
+        {diff, errors}
+
+      {:error, reason} ->
+        {empty_diff(), [{"ref #{ref}", reason}]}
+    end
+  end
+
+  defp ensure_ref_exists(ref) do
+    case fetch_contents(ref, "") do
+      {:ok, :missing} -> {:error, "GitHub ref #{ref} does not exist or is inaccessible"}
+      {:ok, _root_entries} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp fetch_inventory(ref, roots) do
@@ -232,7 +246,14 @@ defmodule Pramana.AgentConventionSync do
       |> String.split("/")
       |> Enum.map_join("/", &URI.encode_www_form/1)
 
-    url = "#{@contents_base}/#{encoded_path}?ref=#{URI.encode_www_form(ref)}"
+    contents_url =
+      if encoded_path == "" do
+        @contents_base
+      else
+        "#{@contents_base}/#{encoded_path}"
+      end
+
+    url = "#{contents_url}?ref=#{URI.encode_www_form(ref)}"
 
     case http_get(url) do
       {:ok, 200, body} ->
@@ -447,9 +468,11 @@ defmodule Pramana.AgentConventionSync do
 
   defp source_under_roots?(path, roots), do: Enum.any?(roots, &source_under_root?(path, &1))
 
-  defp source_under_root?(path, root) do
+  defp source_under_root?(path, root) when is_binary(path) and is_binary(root) do
     path == root or String.starts_with?(path, root <> "/")
   end
+
+  defp source_under_root?(_path, _root), do: false
 
   defp safe_relative_path?(path) when is_binary(path) do
     path != "" and Path.type(path) == :relative and ".." not in Path.split(path)
