@@ -79,7 +79,7 @@ defmodule Pramana.Citation do
   # Preserve literal source-evidence bytes. Foreign-looking strings inside the same
   # quotation delimiters the Guard recognizes are still returned as metadata, but they
   # are not canonicalized before the Guard compares that quotation with its witness.
-  @literal_quotation ~r/[\u300c\u300e"\u201c]([^\u300d\u300f"\u201d]{1,400})[\u300d\u300f"\u201d]/u
+  @literal_quotation ~r/[「『"“]([^」』"”]{1,400})[」』"”]/u
 
   @doc """
   Finds every foreign citation in a block of prose and resolves what it can.
