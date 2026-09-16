@@ -1,4 +1,8 @@
-# The directory Mix will write compiled artifacts to.
+# Shared ignores and legacy local-data protection.
+# Current Pramāṇa outputs are scoped by pramana/.gitignore. The old root patterns
+# below intentionally remain during cutover/rollback: ignored local data was not
+# relocated by the source migration. Never clean it with git clean -fdx.
+# The directory Mix used to write compiled artifacts to.
 /_build/
 
 # If you run "mix test --cover", coverage assets end up here. The leading slash
@@ -84,3 +88,12 @@ sources.public.lock.json
 
 # Temporary review artifacts
 *review*.json
+
+# Generated outputs of the independent Foundry Mix project, not review evidence.
+/foundry/cover/
+/foundry/doc/
+
+# Python bytecode caches can also be created by retained investigation scripts.
+__pycache__/
+*.pyc
+*.pyo
