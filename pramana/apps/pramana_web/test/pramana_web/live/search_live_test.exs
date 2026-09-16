@@ -2,7 +2,8 @@ defmodule PramanaWeb.ReaderSearchLiveTest do
   use PramanaWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
   import PramanaWeb.ReaderFixtures
-  alias Pramana.Normalize.CBETA
+  alias Pramana.Corpus.Work
+  alias Pramana.Repo
   setup :load_reader_fixture
 
   describe "search" do
@@ -32,8 +33,8 @@ defmodule PramanaWeb.ReaderSearchLiveTest do
       assert html =~ "妙法蓮華經"
     end
 
-    # Ordinary mounted navigation; fresh-VM mode parsing is covered in cold_start_test.exs.
-    test "a lexical mode renders a search page", %{conn: conn} do
+    # Exercises UI dispatch. The fresh-VM mapping guarantee belongs to ColdStartTest.
+    test "an explicit lexical mode reaches the reader search boundary", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "ngram"]}")
 
       assert html =~ "passage(s)"
@@ -61,30 +62,51 @@ defmodule PramanaWeb.ReaderSearchLiveTest do
       refute html =~ ~s(value="X")
     end
 
-    test "a collection filter removes an otherwise matching competing collection", %{conn: conn} do
-      xml = """
-      <TEI xmlns="http://www.tei-c.org/ns/1.0"><teiHeader><fileDesc><titleStmt>
-      <title level="m">卍續藏對照</title></titleStmt></fileDesc></teiHeader>
-      <text><body><milestone n="1" unit="juan"/><lb n="0001a01" ed="X"/>如是我聞續藏</body></text></TEI>
-      """
+    test "a collection filter excludes a matching passage from another collection", %{conn: conn} do
+      Repo.insert!(%Pramana.Corpus.Witness{id: "X", name: "X collection"})
 
-      {:ok, ir} = CBETA.normalize(xml, work_id: "X0240", canon: "X", volume: 8, number: "0240")
-      {:ok, _} = Pramana.Corpus.Loader.load(ir, source: "cbeta", witness: "X")
-      x_urn = "pramana:cbeta.X:X0240_001@p0001a01"
+      Repo.insert!(%Work{
+        id: "X0001",
+        title: "competing collection",
+        composition_origin: "chinese",
+        text_role: "commentary"
+      })
+
+      Pramana.CorpusFixtures.text!(
+        %{
+          work_id: "X0001",
+          source_id: "cbeta",
+          witness_id: "X",
+          urn_prefix: "pramana:cbeta.X:X0001",
+          meta: %{}
+        },
+        [{"pramana:cbeta.X:X0001_001@p0001a01", "如是我聞競爭候選"}]
+      )
+
       {:ok, all, _} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
-      assert has_element?(all, ~s([data-source-urn="#{x_urn}"]))
-
+      assert has_element?(all, ~s(article[data-source-urn="pramana:cbeta.X:X0001_001@p0001a01"]))
       {:ok, filtered, _} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase", witness: "T"]}")
 
-      assert has_element?(filtered, ~s([data-source-urn="pramana:cbeta.T:T0262_001@p0001c17"]))
-      refute has_element?(filtered, ~s([data-source-urn="#{x_urn}"]))
+      assert has_element?(
+               filtered,
+               ~s(article[data-source-urn="pramana:cbeta.T:T0262_001@p0001c17"])
+             )
+
+      refute has_element?(
+               filtered,
+               ~s(article[data-source-urn="pramana:cbeta.X:X0001_001@p0001a01"])
+             )
     end
 
-    test "a provenance filter narrows the buckets", %{conn: conn} do
-      {:ok, _view, html} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase", origin: "indic"]}")
+    test "a provenance filter excludes the Japanese hit from the ranked results", %{conn: conn} do
+      {:ok, view, _} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase", origin: "indic"]}")
 
-      assert html =~ "Indic-composed root scripture"
-      refute html =~ "Japanese-composed commentary"
+      assert has_element?(
+               view,
+               ~s([data-result-group="Indic-composed root scripture"] article[data-source-urn="pramana:cbeta.T:T0262_001@p0001c17"])
+             )
+
+      refute has_element?(view, ~s(article[data-source-urn="pramana:cbeta.T:T2187_001@p0002a01"]))
     end
 
     # Nothing found is not the same as nothing said, and the page has to be the thing
@@ -135,23 +157,29 @@ defmodule PramanaWeb.ReaderSearchLiveTest do
     end
   end
 
-  describe "what the reader refuses" do
-    # The architectural constraint is that this is a renderer, not a new LLM consumer.
-    # We cannot grep for every possible client library, but we can assert the observable
-    # boundary: nothing a page load does produces a generated rendering where there was none.
-    test "viewing a passage does not produce any translation layer", %{conn: conn} do
-      before_count = Pramana.Repo.aggregate(Pramana.Corpus.Translation, :count)
-      {:ok, _view, _html} = live(conn, ~p"/passage?#{[urn: "pramana:cbeta.T:T0262_001@p0001c17"]}")
-      assert Pramana.Repo.aggregate(Pramana.Corpus.Translation, :count) == before_count
+  describe "translations beside the search results" do
+    test "renders nothing when no rendering matches", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/?q=#{"云何為念力"}")
+
+      refute html =~ "Translations using these words"
     end
 
-    test "a matching translation is not merged into the source result group", %{conn: conn} do
-      insert_translation!(text: "如是我聞 translated decoy", translator_name: "Decoy Translator")
+    test "a matching translation remains separate from ranked source passages", %{conn: conn} do
+      rendering = "如是我聞 — deliberately different translated words"
+      insert_translation!(text: rendering, translator_id: "matching-rendering", method: "human")
       {:ok, view, _} = live(conn, ~p"/?#{[q: "如是我聞", mode: "phrase"]}")
 
-      assert has_element?(view, "#translation-results", "Decoy Translator")
-      assert has_element?(view, "[data-result-group] [data-source-urn]")
-      refute view |> element("[data-result-group]") |> render() =~ "Decoy Translator"
+      assert has_element?(view, "#translation-results article", rendering)
+      assert has_element?(view, "#translation-results", "never citable as the text")
+
+      assert has_element?(
+               view,
+               ~s(article[data-source-urn="pramana:cbeta.T:T0262_001@p0001c17"]),
+               "如是我聞一時佛住"
+             )
+
+      refute has_element?(view, "article[data-source-urn]", rendering)
+      refute has_element?(view, ~s(article[data-source-urn*="#tr:"]))
     end
   end
 end

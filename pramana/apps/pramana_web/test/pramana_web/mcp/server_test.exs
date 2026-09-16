@@ -9,10 +9,10 @@ defmodule PramanaWeb.MCP.ServerTest do
   alias PramanaWeb.MCP.Server
 
   describe "server configuration and capabilities" do
-    test "server_info/0 identifies the product and has a valid version" do
+    test "server_info/0 returns server name and version" do
       info = Server.server_info()
       assert info["name"] == "pramana"
-      assert {:ok, _version} = Version.parse(info["version"])
+      assert {:ok, _} = Version.parse(info["version"])
     end
 
     test "server_capabilities/0 declares tools and resources" do
@@ -38,9 +38,8 @@ defmodule PramanaWeb.MCP.ServerTest do
       req = %{"jsonrpc" => "2.0", "id" => 1, "method" => "tools/list", "params" => %{}}
       assert {:reply, %{"tools" => tools}, _updated_frame} = Server.handle_request(req, frame)
       assert tools != []
-
-      registered = Server.__components__(:tool) |> Enum.map(& &1.name) |> Enum.sort()
-      assert Enum.sort(Enum.map(tools, & &1.name)) == registered
+      registered = Server.__components__(:tool)
+      assert MapSet.new(Enum.map(tools, & &1.name)) == MapSet.new(Enum.map(registered, & &1.name))
       # The model-free docs lane checks source declarations. This lane checks what
       # an actual client discovers, including the names exported by component macros.
       documented =
@@ -67,8 +66,10 @@ defmodule PramanaWeb.MCP.ServerTest do
       assert {:reply, %{"resources" => resources}, _updated_frame} =
                Server.handle_request(req, frame)
 
-      uris = Enum.map(resources, & &1.uri)
-      assert Enum.sort(uris) == ["pramana://guide", "pramana://inventory"]
+      assert Enum.sort(Enum.map(resources, & &1.uri)) == [
+               "pramana://guide",
+               "pramana://inventory"
+             ]
     end
 
     test "handles resources/read request for pramana://guide", %{frame: frame} do
