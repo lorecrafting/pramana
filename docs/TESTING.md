@@ -81,6 +81,22 @@ isolated runner executes independently, without Pramāṇa dependencies.
 [Cutover and rollback](LAYOUT_MIGRATION.md) describes checks for an existing corpus
 and task worktrees. Do not substitute model-free structure tests for those checks.
 
+## Compiler dependency evidence
+
+[The dependency review runbook](agents/DEPENDENCY_REVIEW.md) owns local commands,
+application scope, interpretation and reviewer handoff. Pramāṇa CI exports native
+`xref` JSON, statistics and compile-connected cycle reports after successful forced
+compilation. It validates nonempty per-app graphs, dependency labels, referenced
+source files and source stability, then uploads a seven-day artifact stamped with
+the actual checkout SHA/tree, build environment and source hashes. A report from
+a PR merge checkout is not automatically a report for the head commit alone.
+
+Graph generation/schema failures remain visible CI failures, but there are no
+node-count, dependency-count or cycle-count acceptance thresholds. An uploaded
+artifact can coexist with failing tests elsewhere in the run. Graphs never select
+or exclude tests and do not replace the normal checks above. No Foundry job or
+repair acceptance behavior is changed.
+
 ## Behavior-first test maintenance
 
 See the [test audit implementation and execution boundaries](TEST_AUDIT.md) for

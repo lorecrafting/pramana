@@ -44,6 +44,16 @@ Foundry model selection is not entitlement. Its current launch policies, billing
 containment and backend conformance remain authoritative; provider-neutral prose
 must never be used to bypass them.
 
+## Dependency-aware Pramāṇa changes
+
+Before changing or deleting a shared Elixir module, public interface or compile-time
+macro, use the [dependency review runbook](DEPENDENCY_REVIEW.md) to identify affected
+files. Record scope/revision and inspect the actual callers before implementing;
+reviewers recheck the candidate independently. This is targeted context, not a
+mandatory graph build for every task or permission to skip tests. CI publishes
+revision-labelled per-app reports; missing edges do not establish no impact.
+Foundry repair ownership and execution policies are unchanged.
+
 ## Validate and report
 
 Use [the check appropriate to the subsystem](../TESTING.md). Never claim an unrun

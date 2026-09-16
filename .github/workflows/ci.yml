@@ -121,6 +121,92 @@ jobs:
 
       - run: mix credo --strict
 
+      # Advisory dependency evidence, not a graph-size/cycle ratchet or test selector.
+      # Reuse only the manifests just rebuilt above; never resurrect a cached graph.
+      - name: Export compiler dependency reports
+        id: xref
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        env:
+          XREF_REPORT_DIR: ${{ runner.temp }}/pramana-xref-${{ github.run_id }}-${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$MIX_ENV" = test
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          mkdir "$XREF_REPORT_DIR"
+          (
+            cd "$(git rev-parse --show-toplevel)"
+            git ls-files -z -- pramana mise.toml .github/workflows/ci.yml |
+              sort -z | xargs -0 sha256sum > "$XREF_REPORT_DIR/source-files.sha256"
+          )
+          mix --version > "$XREF_REPORT_DIR/toolchain.txt"
+          for app in apps/*; do
+            test -f "$app/mix.exs" || continue
+            name="$(basename "$app")"
+            test -s "_build/$MIX_ENV/lib/$name/.mix/compile.elixir"
+            mkdir "$XREF_REPORT_DIR/$name"
+            (
+              cd "$app"
+              mix xref graph --no-compile --format json --output "$XREF_REPORT_DIR/$name/graph.json"
+              mix xref graph --no-compile --format stats > "$XREF_REPORT_DIR/$name/stats.txt"
+              mix xref graph --no-compile --format cycles --label compile-connected > "$XREF_REPORT_DIR/$name/compile-connected-cycles.txt"
+            )
+          done
+          elixir -e '
+          root = System.fetch_env!("XREF_REPORT_DIR")
+          projects = Path.wildcard("apps/*/mix.exs") |> Enum.sort()
+          if projects == [], do: raise("No umbrella applications found")
+          scopes = Enum.map(projects, fn project ->
+            dir = Path.dirname(project)
+            name = Path.basename(dir)
+            graph = Path.join([root, name, "graph.json"]) |> File.read!() |> JSON.decode!()
+            unless is_map(graph) and map_size(graph) > 0, do: raise("Empty graph: #{name}")
+            Enum.each(graph, fn {source, sinks} ->
+              unless is_binary(source) and is_map(sinks) and File.regular?(Path.join(dir, source)),
+                do: raise("Invalid source node in #{name}: #{inspect(source)}")
+              Enum.each(sinks, fn {sink, label} ->
+                unless Map.has_key?(graph, sink) and label in ["compile", "export", "runtime"],
+                  do: raise("Invalid dependency in #{name}: #{inspect({sink, label})}")
+              end)
+            end)
+            %{
+              app: name, source_root: "pramana/#{dir}", graph: "#{name}/graph.json",
+              nodes: map_size(graph), edges: Enum.sum(Enum.map(graph, fn {_, sinks} -> map_size(sinks) end))
+            }
+          end)
+          {tree, 0} = System.cmd("git", ["rev-parse", "HEAD^{tree}"])
+          metadata = %{
+            schema_version: 1, source_sha: System.fetch_env!("GITHUB_SHA"), source_tree: String.trim(tree),
+            run_id: System.fetch_env!("GITHUB_RUN_ID"), run_attempt: System.fetch_env!("GITHUB_RUN_ATTEMPT"),
+            generated_at: DateTime.to_iso8601(DateTime.utc_now()), mix_env: System.fetch_env!("MIX_ENV"),
+            elixir: System.version(), otp_release: System.otp_release(), scopes: scopes,
+            compile_command: "mix compile --force --warnings-as-errors (preceding CI step)",
+            graph_command: "mix xref graph --no-compile --format json",
+            limitations: ["Per-app file dependencies only; cross-app edges are not included",
+              "Not a complete function, dynamic-dispatch, message or test-coverage graph",
+              "No Foundry, Rust-body, Python, corpus or live-runtime analysis",
+              "Generation success is not architectural approval or test acceptance"]
+          }
+          File.write!(Path.join(root, "metadata.json"), JSON.encode!(metadata) <> "\n")
+          Enum.each(scopes, fn scope -> IO.puts("#{scope.app}: #{scope.nodes} files, #{scope.edges} edges") end)
+          '
+          (
+            cd "$(git rev-parse --show-toplevel)"
+            sha256sum --check --status "$XREF_REPORT_DIR/source-files.sha256"
+          )
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload compiler dependency reports
+        if: ${{ !cancelled() && steps.xref.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pramana-xref-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pramana-xref-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Lint shared repository checks with the same rules
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix credo --strict --files-included '../test/**/*.exs' --files-included '../bin/*.exs'
