@@ -271,52 +271,51 @@ defmodule Pramana.Repair do
     if edits == [] do
       planned
     else
-      candidate = apply_edits(original, edits)
-
       actual_by_offset =
-        candidate
-        |> Guard.occurrences(regions: Report.prose_regions(candidate))
+        original
+        |> apply_edits(edits)
+        |> Guard.occurrences(regions: Report.prose_regions(apply_edits(original, edits)))
         |> Map.new(&{&1.urn_range.byte_start, &1})
 
       culprits =
-        Enum.reduce(planned, MapSet.new(), fn {action, edit, occurrence}, acc ->
-          if removed?(action, edit) do
-            acc
-          else
-            offset = shifted_offset(occurrence.urn_range.byte_start, edits)
-
-            case Map.get(actual_by_offset, offset) do
-              %{quoted: actual_quote} = actual
-              when actual_quote != expected_quote(action, occurrence) ->
-                case deleted_quote_owner(actual, planned, edits) do
-                  nil -> acc
-                  source_offset -> MapSet.put(acc, source_offset)
-                end
-
-              _ ->
-                acc
-            end
+        Enum.reduce(planned, MapSet.new(), fn entry, acc ->
+          case rebinding_culprit(entry, planned, edits, actual_by_offset) do
+            nil -> acc
+            source_offset -> MapSet.put(acc, source_offset)
           end
         end)
 
-      Enum.map(planned, fn {action, edit, occurrence} ->
-        if MapSet.member?(culprits, action.source_offset) do
-          {%{
-             action
-             | state: :flagged,
-               reason: :citation_rebinding,
-               detail:
-                 "Removing this citation would attach its quotation to another citation; review manually."
-           }, nil, occurrence}
-        else
-          {action, edit, occurrence}
-        end
-      end)
+      Enum.map(planned, &reject_rebinding(&1, culprits))
     end
   end
 
-  defp removed?(%{state: :no_sources}, edit), do: edit != nil
-  defp removed?(_action, _edit), do: false
+  defp rebinding_culprit({%{state: :no_sources}, edit, _occurrence}, _planned, _edits, _actual)
+       when not is_nil(edit),
+       do: nil
+
+  defp rebinding_culprit({action, _edit, occurrence}, planned, edits, actual_by_offset) do
+    offset = shifted_offset(occurrence.urn_range.byte_start, edits)
+    expected = expected_quote(action, occurrence)
+
+    case Map.get(actual_by_offset, offset) do
+      %{quoted: ^expected} -> nil
+      nil -> nil
+      actual -> deleted_quote_owner(actual, planned, edits)
+    end
+  end
+
+  defp reject_rebinding({action, _edit, occurrence}, culprits)
+       when is_map_key(culprits, action.source_offset) do
+    {%{
+       action
+       | state: :flagged,
+         reason: :citation_rebinding,
+         detail:
+           "Removing this citation would attach its quotation to another citation; review manually."
+     }, nil, occurrence}
+  end
+
+  defp reject_rebinding(entry, _culprits), do: entry
 
   defp expected_quote(%{state: :quote_relaxed, replacement_quote: replacement}, _occurrence),
     do: replacement
