@@ -1,6 +1,7 @@
 %{
   phoenix_version: "1.8.11",
   source_tag: "v1.8.11",
+  source_commit: "a9866540bb79587b03abdd2c3e6d3d2eb386afaf",
   reviewed_at: "2026-09-16",
   local_files: [
     "README.md",
@@ -27,6 +28,7 @@
   },
   main_watch: %{
     reviewed_at: "2026-09-16",
+    source_commit: "0e02edbe0c6dfdc130fe2212fe34a2623cb6605b",
     sources: %{
       "usage-rules/ecto.md" => "fa1fc7751f3e9cd38ab079032c556b082fbc6462",
       "usage-rules/elixir.md" => "ef97775d44a2c0031f818f08cb785b7fdd89b2f0",
