@@ -23,8 +23,7 @@ defmodule Pramana.Repair.Intervals do
 
     queries
     |> Enum.sort_by(&elem(&1, 1))
-    |> Enum.reduce({candidates, [], %{}}, fn {first, last, owner},
-                                          {pending, best, ids} ->
+    |> Enum.reduce({candidates, [], %{}}, fn {first, last, owner}, {pending, best, ids} ->
       {pending, best} = advance(pending, best, last)
       overlaps = Enum.any?(best, fn {finish, other} -> other != owner and finish > first end)
       ids = if first < last and overlaps, do: Map.put(ids, owner, true), else: ids

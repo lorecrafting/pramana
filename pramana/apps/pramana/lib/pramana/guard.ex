@@ -506,7 +506,14 @@ defmodule Pramana.Guard do
     @urn_pattern
     |> Regex.scan(text, return: :index)
     |> Enum.map(fn [{pos, _} = urn_range] ->
-      occurrence(text, urn_range, Map.get(quoted, pos), Map.get(wrappers, pos), openings, closings)
+      occurrence(
+        text,
+        urn_range,
+        Map.get(quoted, pos),
+        Map.get(wrappers, pos),
+        openings,
+        closings
+      )
     end)
   end
 
