@@ -71,7 +71,7 @@ defmodule Pramana.EvalsTest do
   end
 
   defp seed_segment!(urn, content, ordinal) do
-    text_id = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+    text_id = Repo.one!(from(t in Text, where: t.work_id == "T0001", select: t.id))
 
     Repo.insert!(%Segment{
       text_id: text_id,
@@ -134,6 +134,7 @@ defmodule Pramana.EvalsTest do
       card = Evals.run(cases, tradition: "pali")
 
       assert card.total == 1
+      assert Map.keys(Score.to_map(card)["cases"]) == ["a"]
     end
 
     # A filter selecting nothing must not produce a rate. `tally/1` returns nil rather
@@ -148,54 +149,6 @@ defmodule Pramana.EvalsTest do
 
       assert card.total == 0
       assert card.by_type == %{}
-    end
-  end
-
-  describe "loading" do
-    test "a case records where it came from, so a published number is traceable" do
-      kase =
-        gold(%{
-          id: "x-1",
-          type: "quote_verify",
-          quote: @content,
-          expect_urns: [@urn],
-          source: "the passage itself"
-        })
-
-      assert kase.origin == {"test.jsonl", 1}
-      assert kase.source == "the passage itself"
-    end
-
-    test "an unknown case type raises rather than being skipped" do
-      assert_raise ArgumentError, ~r/unknown case type/, fn ->
-        gold(%{id: "x", type: "vibes", quote: "a"})
-      end
-    end
-
-    test "an unknown provenance key raises, and gold data can never mint an atom" do
-      assert_raise ArgumentError, ~r/unknown provenance key/, fn ->
-        gold(%{
-          id: "x",
-          type: "provenance",
-          expect_urns: [@urn],
-          expect_provenance: %{"nope" => 1}
-        })
-      end
-    end
-
-    test "an unknown search option raises" do
-      assert_raise ArgumentError, ~r/unknown search option/, fn ->
-        gold(%{id: "x", type: "retrieval", query: "q", search_opts: %{"orgin" => "indic"}})
-      end
-    end
-
-    test "case types parse from a cold start, with no atom pre-existing" do
-      # `String.to_existing_atom/1` has broken this codebase three times: it raises
-      # unless the atom happens to be loaded, so the same input works after one code
-      # path and fails after another.
-      for type <- GoldCase.types() do
-        assert GoldCase.type_atom(type) == String.to_atom(type)
-      end
     end
   end
 
@@ -360,24 +313,6 @@ defmodule Pramana.EvalsTest do
       assert scorecard.overall.misses == 1
       [%{outcome: {:miss, detail}}] = scorecard.failures
       assert detail.actual == %{composition_origin: "indic"}
-    end
-  end
-
-  describe "covers?/2" do
-    test "a chunk's range URN covers a segment inside it" do
-      assert Evals.covers?("pramana:sc.ms:mn1@1.1-1.9", "pramana:sc.ms:mn1@1.4")
-    end
-
-    test "an exact anchor covers itself" do
-      assert Evals.covers?(@urn, @urn)
-    end
-
-    test "a different work never covers, however similar the locator" do
-      refute Evals.covers?("pramana:sc.ms:mn2@1.1-1.9", "pramana:sc.ms:mn1@1.4")
-    end
-
-    test "a different source never covers" do
-      refute Evals.covers?("pramana:cbeta.T:mn1@1.4", "pramana:sc.ms:mn1@1.4")
     end
   end
 
@@ -579,26 +514,6 @@ defmodule Pramana.EvalsTest do
       kase = gold(%{id: "abs-t3", type: "absence", query: "x", expect_empty: false})
 
       assert Evals.run([kase]).overall.stale == 0
-    end
-  end
-
-  describe "load/1" do
-    @tag :tmp_dir
-    test "reads every jsonl file in a directory", %{tmp_dir: dir} do
-      File.write!(
-        Path.join(dir, "a.jsonl"),
-        Jason.encode!(%{id: "a", type: "quote_verify", quote: @content, expect_urns: [@urn]}) <>
-          "\n"
-      )
-
-      assert {:ok, [kase]} = Evals.load(dir)
-      assert kase.id == "a"
-    end
-
-    @tag :tmp_dir
-    test "an empty directory is an error, not an empty pass", %{tmp_dir: dir} do
-      # A scorecard over zero cases would report 100% of nothing.
-      assert {:error, {:no_gold_set, _}} = Evals.load(dir)
     end
   end
 

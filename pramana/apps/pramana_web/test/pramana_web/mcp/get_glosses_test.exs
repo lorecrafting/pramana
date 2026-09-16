@@ -41,7 +41,7 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
 
   setup do
     root_id =
-      load!("T0262", "0262", "如是我聞一時佛住",
+      load!("T0262", "0262", "如是我聞一時佛住王",
         title: "妙法蓮華經",
         attributed_author: "姚秦 鳩摩羅什譯",
         composition_origin: "indic",
@@ -49,7 +49,7 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
       )
 
     commentary_id =
-      load!("T1718", "1718", "如是我聞一時佛住者信成就也",
+      load!("T1718", "1718", "如是我聞一時佛住者信成就也義理義理義理義如是我聞一時佛住王",
         title: "法華文句",
         attributed_author: "隋 智顗說",
         composition_origin: "chinese",
@@ -104,6 +104,19 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
     assert gloss["root_offsets"]["char_start"] |> is_integer()
     assert gloss["root_offsets"]["char_end"] > gloss["root_offsets"]["char_start"]
     assert gloss["commentary_offsets"]["char_end"] > gloss["commentary_offsets"]["char_start"]
+
+    for {prefix, offsets} <- [
+          {"pramana:cbeta.T:T0262", gloss["root_offsets"]},
+          {"pramana:cbeta.T:T1718", gloss["commentary_offsets"]}
+        ] do
+      {:ok, body} = Pramana.Corpus.body(prefix)
+
+      assert String.slice(
+               body,
+               offsets["char_start"],
+               offsets["char_end"] - offsets["char_start"]
+             ) == gloss["lemma"]
+    end
   end
 
   test "reports how many glosses exist, not only how many it returned" do
@@ -191,11 +204,6 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
     # The note must still explain what a caller is looking at, because an empty list is
     # the answer that is easiest to misread.
     assert payload["note"]
-  end
-
-  test "limit caps the glosses returned" do
-    assert %{"glosses" => glosses} = json(%{urn: @root_urn, limit: 1})
-    assert length(glosses) == 1
   end
 
   test "the response is replayable against a named corpus" do

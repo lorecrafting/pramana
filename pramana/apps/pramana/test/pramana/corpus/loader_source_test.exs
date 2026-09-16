@@ -13,6 +13,7 @@ defmodule Pramana.Corpus.LoaderSourceTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Source
   alias Pramana.Normalize.Bilara
+  alias Pramana.Normalize.CBETA
   alias Pramana.Repo
   alias Pramana.Segment.SegmentId
 
@@ -58,25 +59,32 @@ defmodule Pramana.Corpus.LoaderSourceTest do
     refute source.name == "stale name"
   end
 
-  test "a restricted source is never widened by a re-ingest" do
+  test "re-ingest replaces stale permissive source rights with the registry's restrictions" do
     Repo.insert!(%Source{
-      id: "sc",
-      name: "sc",
-      license_spdx: "CC-PDM-1.0",
-      license_class: "public-domain",
+      id: "cbeta",
+      name: "stale permissive row",
+      license_spdx: "CC0-1.0",
+      license_class: "cc0",
       commercial_use: true,
       redistributable: true
     })
 
-    {:ok, _} = load!("mn1", [])
+    xml =
+      "<TEI><text><body><milestone n=\"1\" unit=\"juan\"/><lb n=\"0001a01\"/>如是我聞</body></text></TEI>"
 
-    # The registry, not the row, decides — so the assertion that matters is that the row
-    # equals the registry after a load, whichever direction that moves it.
-    {:ok, definition} = Pramana.Sources.fetch("sc")
-    source = Repo.get!(Source, "sc")
+    {:ok, ir} =
+      CBETA.normalize(xml,
+        work_id: "T0099",
+        canon: "T",
+        volume: 2,
+        number: "0099"
+      )
 
-    assert source.license_class == definition.license.class
-    assert source.redistributable == definition.license.redistributable
+    assert {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T")
+    source = Repo.get!(Source, "cbeta")
+    assert source.license_class == "nc"
+    refute source.redistributable
+    refute source.commercial_use
   end
 
   test "the file a work came from is recorded, so verify can re-derive it" do

@@ -6,7 +6,11 @@ defmodule Pramana.CharCountTest do
   by the reader's `/inventory` page on every load. A stored count is only worth having if it
   cannot drift from the body and if it counts the right unit, so both are pinned here.
   """
-  use Pramana.DataCase, async: true
+  # Mix task startup changes process-global project/cwd state. Do not run it while
+  # the parallel test loader is still requiring other files.
+  use Pramana.DataCase, async: false
+
+  alias Mix.Tasks.Pramana.Texts.CountChars
 
   import Ecto.Query
 
@@ -26,7 +30,7 @@ defmodule Pramana.CharCountTest do
     {:ok, ir} = CBETA.normalize(xml, work_id: work_id, canon: "T", volume: 1, number: "0001")
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T", provenance: %{})
 
-    Repo.one!(from t in Text, where: t.work_id == ^work_id)
+    Repo.one!(from(t in Text, where: t.work_id == ^work_id))
   end
 
   test "counts CHARACTERS, not bytes" do
@@ -39,39 +43,71 @@ defmodule Pramana.CharCountTest do
     assert text.char_count < byte_size(text.body)
   end
 
-  test "is written with the body, so it cannot drift" do
-    # Not a cache: there is no moment at which the body exists and the count does not, which
-    # is the whole reason this is a column rather than something with invalidation.
-    text = load!("T0002", "如是我聞一時佛住")
-
-    assert text.char_count == String.length(text.body)
-  end
-
   test "a re-load updates it rather than leaving the old value" do
     # `on_conflict: {:replace, …}` must list it. A body that changed under a stale count is
     # exactly the drift a stored derived value is supposed to be immune to.
     load!("T0003", "短")
-    reloaded = load!("T0003", "長長長長長長長長")
+    reloaded = load!("T0003", "e\u0301e\u0301")
 
     assert reloaded.char_count == String.length(reloaded.body)
     assert reloaded.char_count > 1
   end
 
-  test "the backfill agrees with what the loader would have written" do
-    # Postgres `char_length` and Elixir `String.length/1` must return the same number, or a
-    # backfilled row and a freshly loaded one disagree about the same text.
-    text = load!("T0004", "如是我聞，一時佛住王舍城")
-    Repo.update_all(from(t in Text, where: t.id == ^text.id), set: [char_count: nil])
+  test "the actual backfill agrees with the loader for combining characters without rewriting bytes" do
+    for {id, body} <- [{"T0004", "e\u0301"}, {"T0005", "ཀི་ཀྲ"}, {"T0006", "如是我聞"}] do
+      text = load!(id, body)
+      expected = text.char_count
+      Repo.update_all(from(t in Text, where: t.id == ^text.id), set: [char_count: nil])
 
-    Repo.update_all(
-      from(t in Text,
-        where: t.id == ^text.id,
-        update: [set: [char_count: fragment("char_length(body)")]]
-      ),
-      []
+      run_backfill()
+      filled = Repo.get!(Text, text.id)
+      assert filled.char_count == expected
+      assert filled.char_count == String.length(filled.body)
+      assert filled.body == text.body
+      assert filled.body_sha256 == text.body_sha256
+    end
+  end
+
+  test "backfill crosses a batch boundary, preserves populated counts, and is idempotent" do
+    template = load!("T0100", "e\u0301")
+    existing = Repo.get!(Text, template.id)
+    now = DateTime.utc_now()
+
+    Repo.insert_all(
+      Pramana.Corpus.Work,
+      for n <- 1..501 do
+        %{id: "backfill-#{n}", title: "fixture", inserted_at: now, updated_at: now}
+      end
     )
 
-    assert Repo.one!(from t in Text, where: t.id == ^text.id, select: t.char_count) ==
-             String.length(text.body)
+    rows =
+      for n <- 1..501 do
+        %{
+          work_id: "backfill-#{n}",
+          source_id: template.source_id,
+          witness_id: template.witness_id,
+          urn_prefix: "pramana:cbeta.T:backfill-#{n}",
+          body: "e\u0301",
+          body_sha256: Base.encode16(:crypto.hash(:sha256, "e\u0301"), case: :lower),
+          char_count: nil,
+          meta: %{},
+          inserted_at: now,
+          updated_at: now
+        }
+      end
+
+    Repo.insert_all(Text, rows)
+    assert run_backfill() =~ "filled 501"
+    assert Repo.aggregate(from(t in Text, where: is_nil(t.char_count)), :count) == 0
+
+    assert Repo.all(from(t in Text, where: t.id != ^template.id, select: t.char_count)) ==
+             List.duplicate(1, 501)
+
+    assert Repo.get!(Text, template.id) == existing
+    assert run_backfill() =~ "filled 0"
+  end
+
+  defp run_backfill do
+    ExUnit.CaptureIO.capture_io(fn -> CountChars.run([]) end)
   end
 end

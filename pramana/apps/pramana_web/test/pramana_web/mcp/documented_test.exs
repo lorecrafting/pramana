@@ -1,7 +1,8 @@
 defmodule PramanaWeb.MCP.DocumentedTest do
   @moduledoc """
-  Every registered tool appears in `docs/MCP.md`'s table, and every row of that table is a
-  registered tool.
+  Every source-declared tool appears in `docs/MCP.md`'s table, and every row of that table
+  is declared. This file also runs in the dependency-free repository check. The application
+  suite separately compares the runtime tools/list result with the documented names.
 
   `docs/MCP.md` says it of itself — *"a tool that is not in its table is a tool a model will
   not find"* — and nothing enforced it. This is the same failure `Docs.RoutingTest` exists
@@ -20,13 +21,23 @@ defmodule PramanaWeb.MCP.DocumentedTest do
   # empty tmpdir passes for the wrong reason.
   @root Path.expand("../../../../..", __DIR__)
 
-  defp registered do
-    @root
-    |> Path.join("apps/pramana_web/lib/pramana_web/mcp/server.ex")
-    |> File.read!()
-    |> then(&Regex.scan(~r/component\(PramanaWeb\.MCP\.Tools\.(\w+)\)/, &1))
-    |> Enum.map(fn [_, module] -> Macro.underscore(module) end)
-    |> MapSet.new()
+  defp declared do
+    ast =
+      @root
+      |> Path.join("apps/pramana_web/lib/pramana_web/mcp/server.ex")
+      |> File.read!()
+      |> Code.string_to_quoted!()
+
+    {_ast, names} =
+      Macro.prewalk(ast, [], fn
+        {:component, _, [{:__aliases__, _, [:PramanaWeb, :MCP, :Tools, name]}]} = node, acc ->
+          {node, [name |> Atom.to_string() |> Macro.underscore() | acc]}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    MapSet.new(names)
   end
 
   # Scoped to the table under `| tool | for |`, not to every backticked table cell in the
@@ -46,19 +57,21 @@ defmodule PramanaWeb.MCP.DocumentedTest do
     |> MapSet.new()
   end
 
-  test "every registered tool is in the table" do
-    missing = MapSet.difference(registered(), documented())
+  test "every source-declared tool is in the table" do
+    assert MapSet.size(declared()) > 0
+    assert MapSet.size(documented()) > 0
+    missing = MapSet.difference(declared(), documented())
 
     assert MapSet.size(missing) == 0,
            "not in docs/MCP.md's table: #{Enum.join(missing, ", ")}. A tool a model cannot " <>
              "find is a tool that has not shipped (rule 60)."
   end
 
-  test "every tool named in the table is registered" do
-    stale = MapSet.difference(documented(), registered())
+  test "every tool named in the table is source-declared" do
+    stale = MapSet.difference(documented(), declared())
 
     assert MapSet.size(stale) == 0,
-           "documented in docs/MCP.md but not registered in server.ex: " <>
+           "documented in docs/MCP.md but not declared in server.ex: " <>
              "#{Enum.join(stale, ", ")}. A promised tool that errors is worse than a " <>
              "missing one."
   end

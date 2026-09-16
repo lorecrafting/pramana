@@ -433,10 +433,36 @@ defmodule PramanaWeb.MCP.ComparisonToolsTest do
       # A Chinese sūtra chanted in a Japanese temple is read with 呉音, and in a Korean
       # one with Sino-Korean. The scheme selects the convention; the text does not
       # change, and neither does what is citable.
-      for {scheme, _} <- [{"on-yomi", "ja"}, {"kun-yomi", "ja"}, {"mccune-reischauer", "ko"}] do
+      for {scheme, language} <- [
+            {"on-yomi", "ja"},
+            {"kun-yomi", "ja"},
+            {"mccune-reischauer", "ko"}
+          ] do
+        expected = "reading-#{language}-#{scheme}"
+
+        {:ok, _} =
+          Pramana.Readings.store([
+            %{
+              form: "般若波羅蜜",
+              lang: language,
+              scheme: scheme,
+              reading: expected,
+              status: "verified"
+            },
+            %{
+              form: "般若波羅蜜",
+              lang: "lzh",
+              scheme: scheme,
+              reading: "wrong-language",
+              status: "verified"
+            }
+          ])
+
         data = call!(GetReadings, %{urn: urn, scheme: scheme})
         assert data["scheme"] == scheme
-        assert data["text"] != ""
+        assert data["reading"] =~ expected
+        refute data["reading"] =~ "wrong-language"
+        assert Enum.any?(data["tokens"], &(&1["form"] == "般若波羅蜜" and &1["reading"] == expected))
       end
     end
 

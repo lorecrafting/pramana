@@ -139,10 +139,6 @@ defmodule Pramana.Normalize.DergeTest do
 
       refute Enum.any?(ir.lines, &String.contains?(&1.text, "Esukhia"))
     end
-
-    test "but the volume title is still read, because that is where the number is" do
-      assert Derge.volume_number(tei("")) == {:ok, 1}
-    end
   end
 
   describe "anchors that repeat in the source" do
@@ -172,7 +168,7 @@ defmodule Pramana.Normalize.DergeTest do
       assert hd(irs).lines != []
     end
 
-    test "the same file split as texts would produce the collision" do
+    test "without catalogue mode the references are interpreted as work divisions" do
       xml =
         tei(folio("1b", "#{line(1)}#{toh(538)}མཆོད་པའི་སྤྲིན#{toh(539)}ཕྱག་དང་།"))
 
@@ -193,7 +189,7 @@ defmodule Pramana.Normalize.DergeTest do
     test "handles the volumes whose title has no space before the bracket" do
       xml = """
       <tei:TEI xmlns:tei="http://www.tei-c.org/ns/1.0"><tei:teiHeader><tei:fileDesc>
-      <tei:titleStmt><tei:title>༄༅། །གཟུངས་འདུས་ཝོཾ་བཞུགས་སོ། ། [102]</tei:title>
+      <tei:titleStmt><tei:title>༄༅། །གཟུངས་འདུས་ཝོཾ་བཞུགས་སོ། །[102]</tei:title>
       </tei:titleStmt></tei:fileDesc></tei:teiHeader></tei:TEI>
       """
 

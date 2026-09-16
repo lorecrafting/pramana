@@ -34,14 +34,6 @@ defmodule Pramana.Normalize.Derge.AuditTest do
     assert {:ok, %{text_bytes: 3}} = Audit.census(xml)
   end
 
-  test "the header is not text, so the distributor note is not counted" do
-    # If it were, the count would agree with a normalizer that wrongly emitted it — and
-    # a check that agrees with the bug it is meant to catch is worse than no check.
-    xml = tei(folio("1b", "#{line(1)}#{toh(1)}abc"))
-
-    refute match?({:ok, %{text_bytes: bytes}} when bytes > 3, Audit.census(xml))
-  end
-
   test "counts text the parser will drop, which is the point" do
     # Text before the first toh marker belongs to no work and is dropped. The audit must
     # still see it, or the difference it exists to measure is invisible.

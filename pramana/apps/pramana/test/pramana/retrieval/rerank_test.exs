@@ -12,12 +12,12 @@ defmodule Pramana.Retrieval.RerankTest do
 
   import Ecto.Query
 
+  alias Pramana.Chunk.Builder
   alias Pramana.Corpus.Chunk
-  alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
-  alias Pramana.Corpus.Text
   alias Pramana.Corpus.Witness
   alias Pramana.Corpus.Work
+  alias Pramana.CorpusFixtures
   alias Pramana.Repo
   alias Pramana.Retrieval.Rerank
   alias Pramana.Translations
@@ -41,43 +41,19 @@ defmodule Pramana.Retrieval.RerankTest do
     Repo.insert!(%Witness{id: "ms", name: "Mahāsaṅgīti"})
     Repo.insert!(%Work{id: "mn1", title: "Mūlapariyāya"})
 
-    text =
-      Repo.insert!(%Text{
-        work_id: "mn1",
-        source_id: "sc",
-        witness_id: "ms",
-        urn_prefix: "pramana:sc.ms:mn1",
-        body: "Evaṁ me sutaṁ",
-        body_sha256: "x",
-        meta: %{}
-      })
+    %{text: text} =
+      CorpusFixtures.text!(
+        %{
+          work_id: "mn1",
+          source_id: "sc",
+          witness_id: "ms",
+          urn_prefix: "pramana:sc.ms:mn1",
+          meta: %{}
+        },
+        [{@chunk_urn, "Evaṁ me sutaṁ"}]
+      )
 
-    Repo.insert!(%Segment{
-      text_id: text.id,
-      urn: @chunk_urn,
-      ordinal: 0,
-      content: "Evaṁ me sutaṁ",
-      content_sha256: "y",
-      char_start: 0,
-      char_end: 13,
-      byte_start: 0,
-      byte_end: 13,
-      meta: %{}
-    })
-
-    Repo.insert!(%Chunk{
-      text_id: text.id,
-      urn: @chunk_urn,
-      first_ordinal: 0,
-      last_ordinal: 0,
-      segment_count: 1,
-      content: "Evaṁ me sutaṁ",
-      content_sha256: "z",
-      char_start: 0,
-      char_end: 13,
-      byte_start: 0,
-      byte_end: 13
-    })
+    {:ok, 1} = Builder.build_for_text(text.id, max_chars: 100)
 
     {:ok, _} =
       Translations.store([
@@ -183,7 +159,7 @@ defmodule Pramana.Retrieval.RerankTest do
     test "a chunk outside the arm's set cannot reorder anything" do
       two_translators!()
 
-      chunk_id = Repo.one!(from c in Chunk, where: c.urn == ^@chunk_urn, select: c.id)
+      chunk_id = Repo.one!(from(c in Chunk, where: c.urn == ^@chunk_urn, select: c.id))
 
       assert moved?("So I have heard", translation_chunks: [chunk_id])
       refute moved?("So I have heard", translation_chunks: [chunk_id + 1_000_000])

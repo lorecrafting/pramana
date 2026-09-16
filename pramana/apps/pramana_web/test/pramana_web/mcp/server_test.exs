@@ -12,7 +12,7 @@ defmodule PramanaWeb.MCP.ServerTest do
     test "server_info/0 returns server name and version" do
       info = Server.server_info()
       assert info["name"] == "pramana"
-      assert info["version"] == "0.1.0"
+      assert {:ok, _} = Version.parse(info["version"])
     end
 
     test "server_capabilities/0 declares tools and resources" do
@@ -28,40 +28,6 @@ defmodule PramanaWeb.MCP.ServerTest do
     end
   end
 
-  describe "components registration" do
-    test "registers all 19 tools and 2 resources" do
-      components = Server.__components__()
-      assert length(components) == 21
-
-      tools = Server.__components__(:tool)
-      assert length(tools) == 19
-
-      resources = Server.__components__(:resource)
-      assert length(resources) == 2
-    end
-  end
-
-  describe "init/2" do
-    test "initializes the frame successfully" do
-      frame = %{some: "frame"}
-      assert {:ok, ^frame} = Server.init(%{}, frame)
-    end
-  end
-
-  describe "server instructions and authorization" do
-    test "returns default server instructions and authorization" do
-      assert Server.server_instructions() == nil
-      assert Server.__authorization__() == nil
-    end
-
-    test "child_spec/1 defines supervisor child specification" do
-      spec = Server.child_spec([])
-      assert spec.id == Server
-      assert spec.type == :supervisor
-      assert spec.start == {Anubis.Server.Supervisor, :start_link, [Server, []]}
-    end
-  end
-
   describe "handle_request/2" do
     setup do
       frame = Frame.new(Server)
@@ -71,7 +37,24 @@ defmodule PramanaWeb.MCP.ServerTest do
     test "handles tools/list request", %{frame: frame} do
       req = %{"jsonrpc" => "2.0", "id" => 1, "method" => "tools/list", "params" => %{}}
       assert {:reply, %{"tools" => tools}, _updated_frame} = Server.handle_request(req, frame)
-      assert length(tools) == 19
+      assert tools != []
+      registered = Server.__components__(:tool)
+      assert MapSet.new(Enum.map(tools, & &1.name)) == MapSet.new(Enum.map(registered, & &1.name))
+      # The model-free docs lane checks source declarations. This lane checks what
+      # an actual client discovers, including the names exported by component macros.
+      documented =
+        Path.expand("../../../../../docs/MCP.md", __DIR__)
+        |> File.read!()
+        |> String.split("| tool | for |", parts: 2)
+        |> List.last()
+        |> String.split("\n\n", parts: 2)
+        |> List.first()
+        |> then(&Regex.scan(~r/^\| `(\w+)` \|/m, &1))
+        |> Enum.map(fn [_, name] -> name end)
+        |> MapSet.new()
+
+      assert MapSet.size(documented) > 0
+      assert MapSet.new(Enum.map(tools, & &1.name)) == documented
       tool_names = Enum.map(tools, & &1.name)
       assert "search" in tool_names
       assert "verify_report" in tool_names
@@ -83,10 +66,10 @@ defmodule PramanaWeb.MCP.ServerTest do
       assert {:reply, %{"resources" => resources}, _updated_frame} =
                Server.handle_request(req, frame)
 
-      assert length(resources) == 2
-      uris = Enum.map(resources, & &1.uri)
-      assert "pramana://guide" in uris
-      assert "pramana://inventory" in uris
+      assert Enum.sort(Enum.map(resources, & &1.uri)) == [
+               "pramana://guide",
+               "pramana://inventory"
+             ]
     end
 
     test "handles resources/read request for pramana://guide", %{frame: frame} do

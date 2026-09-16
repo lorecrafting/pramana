@@ -18,8 +18,16 @@ defmodule PramanaFoundry.Effects.SilenceWatchdogTest do
 
   test "evidence is sufficient only when it is durable and every identity field is present" do
     assert SilenceWatchdog.evidence_sufficient?(@full_evidence)
-    refute SilenceWatchdog.evidence_sufficient?(Map.delete(@full_evidence, :pid))
-    refute SilenceWatchdog.evidence_sufficient?(%{@full_evidence | pid: nil})
+
+    for field <- ~w(source event_at agent pane_id terminal_id session role task_id run_id pid)a do
+      refute SilenceWatchdog.evidence_sufficient?(Map.delete(@full_evidence, field)),
+             "missing #{field} was accepted"
+
+      for absent <- [nil, ""] do
+        refute SilenceWatchdog.evidence_sufficient?(Map.put(@full_evidence, field, absent)),
+               "empty #{field} was accepted"
+      end
+    end
   end
 
   test "a transcript spinner string or bare wall-clock silence is never sufficient evidence" do
@@ -38,8 +46,9 @@ defmodule PramanaFoundry.Effects.SilenceWatchdogTest do
     refute SilenceWatchdog.exempt?(%{own_deadline_epoch: nil})
   end
 
-  test "expired?/3 is false just before the bound and true just after it, given sufficient evidence" do
+  test "expired?/3 remains false at the bound and fires strictly after it with evidence" do
     refute SilenceWatchdog.expired?(@full_evidence, 300, 1_000.0 + 299)
+    refute SilenceWatchdog.expired?(@full_evidence, 300, 1_000.0 + 300)
     assert SilenceWatchdog.expired?(@full_evidence, 300, 1_000.0 + 301)
   end
 

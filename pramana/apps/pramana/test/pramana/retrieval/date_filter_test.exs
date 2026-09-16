@@ -19,9 +19,14 @@ defmodule Pramana.Retrieval.DateFilterTest do
   """
   use Pramana.DataCase, async: false
 
+  alias Pramana.Chunk.Builder
+  alias Pramana.Chunk.Vectors
+  alias Pramana.Corpus.ChunkVector
   alias Pramana.Corpus.Loader
+  alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Coverage
+  alias Pramana.Embed
   alias Pramana.Normalize.CBETA
   alias Pramana.Repo
   alias Pramana.Retrieval.Lexical
@@ -106,12 +111,34 @@ defmodule Pramana.Retrieval.DateFilterTest do
   end
 
   describe "the other retriever honours the same options" do
-    # Not asserting results — that needs an embedding serving. Asserting the option is
-    # ACCEPTED, because `validate_opts!` raises on an unknown one, which is how the
-    # `division:` asymmetry would surface here rather than as contaminated output.
-    test "Semantic accepts both date options" do
-      assert :ok = Semantic.validate_opts!(composed_after: 618, composed_before: 907)
-      assert :ok = Lexical.validate_opts!(composed_after: 618, composed_before: 907)
+    # Synthetic vectors exercise actual SQL filtering without a model or a provider.
+    test "Semantic returns the exact dated subset, including one-sided and unknown bounds" do
+      for text <- Repo.all(Text) do
+        {:ok, 1} = Builder.build_for_text(text.id, max_chars: 100)
+        {:ok, 1} = Vectors.build_source(text.id)
+      end
+
+      vector = [1.0 | List.duplicate(0.0, 1023)]
+
+      Repo.update_all(ChunkVector,
+        set: [embedding: Pgvector.new(vector), embedding_model: Embed.model()]
+      )
+
+      for {opts, expected} <- [
+            {[], ~w(T0001 T0002 T0003 T0004)},
+            {[composed_after: 618, composed_before: 907], ~w(T0001 T0003)},
+            {[composed_before: 400], []},
+            {[composed_after: 1700], ["T0002"]},
+            {[composed_after: 1500], ["T0002"]},
+            {[composed_before: 800], ~w(T0001 T0003)},
+            {[composed_after: 1, composed_before: 3000], ~w(T0001 T0002 T0003)}
+          ] do
+        %{results: results} = Semantic.search_vector(vector, [limit: 20] ++ opts)
+        actual = results |> Enum.map(& &1.span.provenance.work_id) |> Enum.sort()
+
+        assert actual == expected,
+               "semantic date filter #{inspect(opts)} returned #{inspect(actual)}"
+      end
     end
 
     test "the lexical option list carries them, since a dispatcher filters against it" do

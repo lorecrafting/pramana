@@ -1,5 +1,5 @@
 defmodule PramanaWeb.ReaderComponentsTest do
-  use PramanaWeb.ConnCase, async: true
+  use ExUnit.Case, async: true
 
   import Phoenix.LiveViewTest
 
@@ -194,7 +194,7 @@ defmodule PramanaWeb.ReaderComponentsTest do
 
       assert html =~ "如是我聞一時佛住"
       assert html =~ "j1 0001c17"
-      assert html =~ "bg-primary/10 ring-1 ring-primary/30"
+      assert html =~ ~s(data-focus="true")
     end
 
     test "renders locator without juan when juan is nil" do
@@ -209,7 +209,7 @@ defmodule PramanaWeb.ReaderComponentsTest do
 
       assert html =~ "0001c17"
       refute html =~ "j"
-      refute html =~ "bg-primary/10"
+      assert html =~ ~s(data-focus="false")
     end
 
     test "falls back to URN locator when page is absent" do

@@ -12,7 +12,10 @@ defmodule Mix.Tasks.Pramana.Texts.CountChars do
   page ten seconds on every load.
 
   Idempotent, and it does not rewrite rows that already have a count. Safe to re-run and safe
-  to interrupt: it works in batches, and each batch is its own statement.
+  to interrupt: it works in bounded transactions. Counts are Unicode grapheme clusters,
+  exactly as in the loader, not UTF-8 bytes or PostgreSQL code points. Text bytes are
+  never normalized or rewritten. Existing non-null counts are preserved; this command
+  is not a repair of counts written by an older implementation.
   """
 
   use Mix.Task
@@ -40,22 +43,11 @@ defmodule Mix.Tasks.Pramana.Texts.CountChars do
     )
   end
 
-  # BATCHED, and in SQL. `char_length` is Postgres counting characters rather than bytes —
-  # the same thing `String.length/1` gives the loader — so a backfilled row and a freshly
-  # loaded one agree. Pulling bodies into the VM to count them would move 548 million
-  # characters across the wire to produce one integer per row.
+  # PostgreSQL char_length counts code points, whereas the loader counts grapheme
+  # clusters. Read only a bounded batch and use the SAME unit. Row locks ensure that
+  # a concurrent reload cannot leave a count calculated from an older body.
   defp fill(done) do
-    {count, _} =
-      Repo.update_all(
-        from(t in Text,
-          where:
-            t.id in subquery(
-              from(x in Text, where: is_nil(x.char_count), select: x.id, limit: @batch)
-            ),
-          update: [set: [char_count: fragment("char_length(body)")]]
-        ),
-        []
-      )
+    {:ok, count} = Repo.transaction(&fill_batch/0)
 
     if count == 0 do
       done
@@ -63,5 +55,27 @@ defmodule Mix.Tasks.Pramana.Texts.CountChars do
       Mix.shell().info("  #{done + count}…")
       fill(done + count)
     end
+  end
+
+  defp fill_batch do
+    rows =
+      Repo.all(
+        from(t in Text,
+          where: is_nil(t.char_count),
+          order_by: t.id,
+          limit: @batch,
+          lock: "FOR UPDATE",
+          select: {t.id, t.body}
+        )
+      )
+
+    Enum.each(rows, fn {id, body} ->
+      {1, nil} =
+        Repo.update_all(from(t in Text, where: t.id == ^id),
+          set: [char_count: String.length(body)]
+        )
+    end)
+
+    length(rows)
   end
 end

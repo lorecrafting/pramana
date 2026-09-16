@@ -89,10 +89,7 @@ defmodule Pramana.Guard do
   """
   @spec verify(String.t(), String.t()) :: boolean()
   def verify(urn, quoted_text) when is_binary(urn) and is_binary(quoted_text) do
-    case check(urn, quoted_text) do
-      %{verdict: :ok} -> true
-      _ -> false
-    end
+    String.trim(quoted_text) != "" and match?(%{verdict: :ok}, check(urn, quoted_text))
   end
 
   def verify(_, _), do: false
@@ -176,7 +173,9 @@ defmodule Pramana.Guard do
         do: :ok,
         else: :quote_mismatch
 
-    finding(urn, span, quoted, verdict)
+    if String.trim(quoted) == "",
+      do: finding(urn, span, nil, :ok),
+      else: finding(urn, span, quoted, verdict)
   end
 
   defp finding(urn, span, quoted, verdict, source_offset \\ nil) do

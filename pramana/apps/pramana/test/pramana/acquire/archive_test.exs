@@ -131,6 +131,7 @@ defmodule Pramana.Acquire.ArchiveTest do
 
     test "returns extract_failed error when downloaded file cannot be extracted" do
       sha = "sha#{System.unique_integer([:positive])}"
+      on_exit(fn -> File.rm(cache_path(sha)) end)
 
       assert {:error, {:extract_failed, _reason}} =
                Archive.fetch("cbeta", sha, ["N/N13/N13n0006.xml"],
@@ -145,6 +146,7 @@ defmodule Pramana.Acquire.ArchiveTest do
 
     test "handles catalogued file absent from archive" do
       sha = "sha#{System.unique_integer([:positive])}"
+      on_exit(fn -> File.rm(cache_path(sha)) end)
       whole = archive_bytes(sha)
 
       assert {:ok, []} =

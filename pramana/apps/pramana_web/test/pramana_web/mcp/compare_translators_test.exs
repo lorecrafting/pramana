@@ -7,7 +7,7 @@ defmodule PramanaWeb.MCP.Tools.CompareTranslatorsTest do
   refusals, because a comparison tool that answers a question nobody can support is how a
   model comes to believe the corpus holds something it does not.
   """
-  use PramanaWeb.ConnCase, async: false
+  use Pramana.DataCase, async: true
 
   alias PramanaWeb.MCP.Tools.CompareTranslators
 
@@ -16,34 +16,32 @@ defmodule PramanaWeb.MCP.Tools.CompareTranslatorsTest do
     reply
   end
 
-  # The reply is an Anubis response struct wrapping JSON text; the assertions only need
-  # the serialised body, so this flattens it to a string rather than modelling the wrapper.
-  defp body(reply), do: inspect(reply, limit: :infinity, printable_limit: :infinity)
+  defp body(reply), do: reply.content |> hd() |> Map.fetch!("text") |> Jason.decode!()
 
   test "an unknown translator is refused, and the refusal lists what would work" do
-    text = call(%{a: "xuanzang", b: "kumarajiva"}) |> body()
+    data = call(%{a: "xuanzang", b: "kumarajiva"}) |> body()
+    assert data["error"] == "unknown_translator"
+    assert data["requested"] == ["xuanzang", "kumarajiva"]
 
-    assert text =~ "unknown_translator"
-    # A refusal saying only "unknown" makes a model guess again, and guessing at a corpus
-    # is how it invents one.
-    assert text =~ "kumarajiva"
-    assert text =~ "dharmaraksa"
+    assert Enum.sort(Enum.map(data["available"], & &1["id"])) ==
+             ["dharmaraksa", "kumarajiva", "lokaksema"]
   end
 
   test "a translator compared with himself is refused rather than answered with zero" do
-    text = call(%{a: "kumarajiva", b: "kumarajiva"}) |> body()
-
-    assert text =~ "same_translator"
+    data = call(%{a: "kumarajiva", b: "kumarajiva"}) |> body()
+    assert data["error"] == "same_translator"
+    assert data["requested"] == "kumarajiva"
+    refute Map.has_key?(data, "shared_headwords")
   end
 
-  test "a real pair returns divergences beside the agreement they are measured against" do
-    text = call(%{a: "kumarajiva", b: "dharmaraksa", limit: 5}) |> body()
-
-    assert text =~ "shared_headwords"
-    assert text =~ "agreed"
-    assert text =~ "diverged"
-    # Attested, and the response says so rather than leaving a caller to assume the
-    # comparison was computed here.
-    assert text =~ "Karashima"
+  test "a supported pair reports empty evidence honestly when no glossaries are loaded" do
+    data = call(%{a: "kumarajiva", b: "dharmaraksa", limit: 5}) |> body()
+    assert data["shared_headwords"] == 0
+    assert data["agreed"] == 0
+    assert data["diverged"] == 0
+    assert data["divergences"] == []
+    assert data["source"] =~ "Karashima"
+    assert data["translators"]["a"]["id"] == "kumarajiva"
+    assert data["translators"]["b"]["id"] == "dharmaraksa"
   end
 end

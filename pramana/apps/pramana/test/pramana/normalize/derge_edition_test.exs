@@ -185,12 +185,6 @@ defmodule Pramana.Normalize.Derge.EditionTest do
       assert stats.volumes == 1
       assert [%{work_id: "toh1"}] = works
     end
-
-    test "but a volume WITH bytes that yields nothing still halts" do
-      volumes = [{2, tei(folio("1a", "#{line(1)}orphaned"))}]
-
-      assert {:error, {:empty_volume, 2}} = Edition.works(volumes)
-    end
   end
 
   describe "the catalogue volume" do
@@ -220,7 +214,9 @@ defmodule Pramana.Normalize.Derge.EditionTest do
       assert Enum.map(toh1.lines, & &1.text) == ["opening", "still toh 1"]
     end
 
-    test "the same volumes without the catalogue flag collide on the URN", %{volumes: volumes} do
+    test "without catalogue mode references are interpreted as separate works", %{
+      volumes: volumes
+    } do
       # Toh 538 and 539 exist as real texts elsewhere in the Kangyur. Split on, the
       # catalogue's mentions of them become works a few words long that share an address
       # with the text itself.

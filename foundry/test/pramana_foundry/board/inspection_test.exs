@@ -8,6 +8,21 @@ defmodule PramanaFoundry.Board.InspectionTest do
   @base_rev "d83f8f0cedc34780d25cba452545ce9883d416a5"
 
   setup do
+    revision_key = :pramana_runtime_implementation_revision
+    previous_revision = Application.fetch_env(:pramana_foundry, revision_key)
+    previous_env = Map.new(~w(SECRET_API_KEY OPENAI_API_KEY), &{&1, System.get_env(&1)})
+
+    on_exit(fn ->
+      case previous_revision do
+        {:ok, value} -> Application.put_env(:pramana_foundry, revision_key, value)
+        :error -> Application.delete_env(:pramana_foundry, revision_key)
+      end
+
+      for {key, value} <- previous_env do
+        if is_nil(value), do: System.delete_env(key), else: System.put_env(key, value)
+      end
+    end)
+
     Report.set_runtime_implementation_revision(@base_rev)
     :ok = Coordinator.reset(accepted_revision: @base_rev)
     :ok

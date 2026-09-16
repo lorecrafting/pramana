@@ -26,13 +26,19 @@ defmodule PramanaFoundry.Effects.CheckpointTest do
     assert first["schema_version"] == 1
   end
 
-  test "matching/5 finds the exact task/run/role identity and nothing else", %{log_path: log_path} do
-    {:ok, _} = Checkpoint.append(log_path, "launch_intent", "T1", "R1", "developer")
-    {:ok, _} = Checkpoint.append(log_path, "launch_intent", "T1", "R2", "developer")
+  test "matching/5 requires event, task, run and role to agree independently", %{
+    log_path: log_path
+  } do
+    expected = ["launch_intent", "T1", "R1", "developer"]
+    assert {:ok, record} = apply(Checkpoint, :append, [log_path | expected])
 
-    assert {:ok, %{"run_id" => "R1"}} =
-             Checkpoint.matching(log_path, "launch_intent", "T1", "R1", "developer")
+    assert {:ok, ^record} = apply(Checkpoint, :matching, [log_path | expected])
 
-    assert {:ok, nil} = Checkpoint.matching(log_path, "launch_intent", "T1", "R3", "developer")
+    for {index, other} <- [{0, "prompt_intent"}, {1, "T2"}, {2, "R2"}, {3, "reviewer"}] do
+      different = List.replace_at(expected, index, other)
+      assert {:ok, nil} = apply(Checkpoint, :matching, [log_path | different])
+      assert {:ok, _} = apply(Checkpoint, :append, [log_path | different])
+      assert {:ok, ^record} = apply(Checkpoint, :matching, [log_path | expected])
+    end
   end
 end

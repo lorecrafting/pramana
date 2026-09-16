@@ -190,9 +190,8 @@ defmodule Architecture.BoundariesTest do
   @doc """
   What `docs/CHECKS.md` §2 asks for that this file cannot answer.
 
-  Kept as a function rather than a comment so it is printed by the test below: a green
-  suite must not be mistaken for a completed architecture review, and the cheapest way to
-  prevent that is for the mechanical half to name the half it is not doing.
+  This list describes the limits of source inspection; its length is not a test.
+  A green lint result must not be mistaken for a completed architecture review.
   """
   def unmechanised do
     [
@@ -233,7 +232,7 @@ defmodule Architecture.BoundariesTest do
       "compare_translators.ex" => "attested headwords, not spans of any text"
     }
 
-    test "a tool that returns quotable text also returns a sha256" do
+    test "tool source emitting text also mentions sha256 (presence lint only)" do
       offenders =
         Path.wildcard(Path.join(@root, "apps/pramana_web/lib/pramana_web/mcp/tools/*.ex"))
         |> Enum.filter(&emits_text?/1)
@@ -296,7 +295,7 @@ defmodule Architecture.BoundariesTest do
         "derives meta from the source files"
     }
 
-    test "a task that updates many rows in place is dry by default" do
+    test "bulk-update task source declares a preview or write switch (declaration lint only)" do
       offenders =
         Path.wildcard(Path.join(@root, "apps/*/lib/mix/tasks/*.ex"))
         |> Enum.filter(&rewrites_in_place?/1)
@@ -339,10 +338,6 @@ defmodule Architecture.BoundariesTest do
       # `--write` in anything new.
       source =~ ~r/\b(write|apply|commit|execute|dry_run):\s*:boolean/
     end
-  end
-
-  test "this file says which audits it does not perform" do
-    assert length(unmechanised()) == 4
   end
 
   defp db_access_in(file) do

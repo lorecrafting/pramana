@@ -80,3 +80,11 @@ isolated runner executes independently, without Pramāṇa dependencies.
 
 [Cutover and rollback](LAYOUT_MIGRATION.md) describes checks for an existing corpus
 and task worktrees. Do not substitute model-free structure tests for those checks.
+
+## Behavior-first test maintenance
+
+See the [test audit implementation and execution boundaries](TEST_AUDIT.md) for
+finding dispositions, suite ownership, coverage exclusions, and preserved safety
+boundaries. Each changed test should name the plausible regression its fixtures
+can distinguish. A count, successful return, or empty observation alone is not
+proof of filtering, ordering, no-effect safety, or fresh-VM behavior.

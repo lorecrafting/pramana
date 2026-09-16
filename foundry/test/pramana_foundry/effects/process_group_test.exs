@@ -34,9 +34,11 @@ defmodule PramanaFoundry.Effects.ProcessGroupTest do
   test "same_process?/2 requires pid, process group, start time, and command to all agree" do
     identity = %{pid: 1, parent_pid: 0, process_group_id: 1, started_at: "a", command: "x"}
     assert ProcessGroup.same_process?(identity, identity)
-    refute ProcessGroup.same_process?(identity, %{identity | pid: 2})
-    refute ProcessGroup.same_process?(identity, %{identity | started_at: "b"})
-    refute ProcessGroup.same_process?(identity, %{identity | command: "y"})
+
+    for {field, changed} <- [pid: 2, process_group_id: 2, started_at: "b", command: "y"] do
+      refute ProcessGroup.same_process?(identity, Map.put(identity, field, changed)),
+             "#{field} mismatch was accepted"
+    end
   end
 
   test "same_process?/2 is false for anything that is not two identity maps" do

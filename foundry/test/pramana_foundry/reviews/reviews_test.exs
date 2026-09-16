@@ -111,15 +111,20 @@ defmodule PramanaFoundry.ReviewsTest do
       assert msg =~ "cannot contain non-zero exit_code"
     end
 
-    test "rejects review artifact when task_id or run_id mismatch" do
-      mismatched_run = %{@valid_review | "run_id" => "other-run"}
-
-      assert {:error, msg} =
-               Reviews.validate_artifact(mismatched_run, @ticket, @assignment,
+    test "rejects task and reviewer-run mismatches independently" do
+      assert {:ok, _} =
+               Reviews.validate_artifact(@valid_review, @ticket, @assignment,
                  skip_git_checks: true
                )
 
-      assert msg =~ "run_id mismatch"
+      for field <- ["task_id", "run_id"] do
+        different = Map.put(@valid_review, field, "different-identity")
+
+        assert {:error, message} =
+                 Reviews.validate_artifact(different, @ticket, @assignment, skip_git_checks: true)
+
+        assert message =~ "#{field} mismatch"
+      end
     end
 
     test "accepts review with run_id matching reviewer_run_id on assignment" do

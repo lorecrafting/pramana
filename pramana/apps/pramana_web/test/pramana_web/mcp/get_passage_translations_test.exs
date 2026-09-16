@@ -12,9 +12,7 @@ defmodule PramanaWeb.MCP.GetPassageTranslationsTest do
   """
   use Pramana.DataCase, async: false
 
-  alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
-  alias Pramana.Corpus.Text
   alias Pramana.Corpus.Witness
   alias Pramana.Corpus.Work
   alias Pramana.Repo
@@ -37,29 +35,20 @@ defmodule PramanaWeb.MCP.GetPassageTranslationsTest do
     Repo.insert!(%Witness{id: "ms", name: "Mahāsaṅgīti"})
     Repo.insert!(%Work{id: "mn1", title: "Mūlapariyāya"})
 
-    text =
-      Repo.insert!(%Text{
+    Pramana.CorpusFixtures.text!(
+      %{
         work_id: "mn1",
         source_id: "sc",
         witness_id: "ms",
         urn_prefix: "pramana:sc.ms:mn1",
-        body: @pali,
-        body_sha256: "x",
         meta: %{}
-      })
-
-    Repo.insert!(%Segment{
-      text_id: text.id,
-      urn: @anchor,
-      ordinal: 0,
-      content: @pali,
-      content_sha256: :crypto.hash(:sha256, @pali) |> Base.encode16(case: :lower),
-      char_start: 0,
-      char_end: String.length(@pali),
-      byte_start: 0,
-      byte_end: byte_size(@pali),
-      meta: %{}
-    })
+      },
+      [
+        {@anchor, @pali},
+        {"pramana:sc.ms:mn1@1.2", "ekaṁ samayaṁ"},
+        {"pramana:sc.ms:mn1@1.3", "bhagavā"}
+      ]
+    )
 
     {:ok, _} =
       Translations.store([
@@ -178,10 +167,42 @@ defmodule PramanaWeb.MCP.GetPassageTranslationsTest do
     assert data["alternatives"] == 0
   end
 
-  test "context windows carry translations on every span, not just the focus" do
-    data = call!(%{urn: @anchor, translation: "en", context_after: 1})
+  test "context attaches each neighbor's own translation and leaves unrendered neighbors empty" do
+    {:ok, _} =
+      Translations.store([
+        %{
+          anchor_urn: "pramana:sc.ms:mn1@1.2",
+          work_id: "mn1",
+          lang: "en",
+          translator_id: "sujato",
+          tier: "t0",
+          method: "human",
+          text: "At one time.",
+          redistributable: true,
+          license_class: "cc0"
+        }
+      ])
 
+    data = call!(%{urn: @anchor, context_after: 2, translation: "en"})
+    assert data["focus"]["urn"] == @anchor
     assert data["focus"]["translations"]["rendering"]["text"] == "So I have heard."
-    assert data["focus"]["text"] == @pali
+    assert [translated, unrendered] = data["after"]
+    assert translated["urn"] == "pramana:sc.ms:mn1@1.2"
+    assert translated["text"] == "ekaṁ samayaṁ"
+    assert translated["translations"]["rendering"]["text"] == "At one time."
+    assert unrendered["urn"] == "pramana:sc.ms:mn1@1.3"
+    assert unrendered["text"] == "bhagavā"
+    assert unrendered["translations"]["rendering"] == nil
+    assert unrendered["translations"]["pool"] == []
+
+    {:ok, body} = Pramana.Corpus.body("pramana:sc.ms:mn1")
+
+    for span <- [data["focus"] | data["after"]] do
+      assert span["sha256"] == Pramana.CorpusFixtures.sha256(span["text"])
+      offsets = span["offsets"]
+
+      assert binary_part(body, offsets["byte_start"], offsets["byte_end"] - offsets["byte_start"]) ==
+               span["text"]
+    end
   end
 end

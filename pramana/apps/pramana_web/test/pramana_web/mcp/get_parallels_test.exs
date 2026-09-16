@@ -13,6 +13,29 @@ defmodule PramanaWeb.MCP.GetParallelsTest do
   alias PramanaWeb.MCP.Tools.GetParallels
 
   setup do
+    Repo.insert!(%Pramana.Corpus.Source{
+      id: "cbeta",
+      name: "fixture",
+      license_spdx: "LicenseRef-CBETA-NC",
+      license_class: "nc",
+      commercial_use: false,
+      redistributable: false
+    })
+
+    Repo.insert!(%Pramana.Corpus.Witness{id: "T", name: "Taishō"})
+    Repo.insert!(%Pramana.Corpus.Work{id: "T0101", title: "fixture parallel"})
+
+    Pramana.CorpusFixtures.text!(
+      %{
+        work_id: "T0101",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T0101",
+        meta: %{}
+      },
+      [{"pramana:cbeta.T:T0101_001@p0496b22", "如是我聞一時佛住"}]
+    )
+
     {:ok, _} =
       Parallels.store_anchors([
         %{
@@ -85,10 +108,9 @@ defmodule PramanaWeb.MCP.GetParallelsTest do
 
       assert parallel["urn"] == "pramana:cbeta.T:T0101_001@p0496b22"
 
-      # Well-formed and addressable. Whether it RESOLVES depends on the corpus being
-      # loaded, which this test database deliberately is not — that is checked against
-      # the real bake, not here.
-      assert {:ok, _} = Pramana.URN.parse(parallel["urn"])
+      assert {:ok, span} = Pramana.Corpus.resolve(parallel["urn"])
+      assert span.content == "如是我聞一時佛住"
+      assert span.sha256 == Pramana.CorpusFixtures.sha256(span.content)
     end
 
     test "a Pāli parallel carries a null URN rather than a fabricated one" do

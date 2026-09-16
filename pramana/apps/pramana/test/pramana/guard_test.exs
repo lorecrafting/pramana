@@ -321,22 +321,21 @@ defmodule Pramana.GuardTest do
              ] = result.findings
     end
 
-    test "blank and whitespace-only quotes are tracked independently", ctx do
-      output = """
-      Empty 「」【#{ctx.urn}】.
-      Space only 「   」【#{ctx.urn}】.
-      """
-
+    test "blank quotations remain independent existence checks, never verified quotes", ctx do
+      output = "Empty 「」【#{ctx.urn}】. Space only 「   」【#{ctx.urn}】."
       result = Guard.check_output(output)
-
-      # A blank quote becomes `nil` (existence-only check), whitespace trims to
-      # empty which matches any span. Both are tracked as independent occurrences.
       assert result.checked == 2
-      assert length(result.findings) == 2
-      # At minimum both occurrences are independently tracked with different
-      # source_offsets, and the blank one is reported as existence_only
-      assert [%{source_offset: off1}, %{source_offset: off2}] = result.findings
-      assert off1 < off2
+      assert result.failed == 0
+      assert result.verified_quotes == 0
+      assert result.existence_only == 2
+
+      assert [%{quoted: nil, source_offset: first}, %{quoted: nil, source_offset: second}] =
+               result.findings
+
+      assert first < second
+      refute Guard.verify(ctx.urn, "")
+      refute Guard.verify(ctx.urn, "   ")
+      assert Guard.verify(ctx.urn, "如是我聞")
     end
   end
 

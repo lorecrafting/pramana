@@ -54,7 +54,7 @@ defmodule Pramana.Retrieval.SemanticTest do
     {:ok, ir} = CBETA.normalize(xml, work_id: work_id, canon: "T", volume: 1, number: "0001")
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T", provenance: provenance)
 
-    text_id = Repo.one!(from t in Text, where: t.work_id == ^work_id, select: t.id)
+    text_id = Repo.one!(from(t in Text, where: t.work_id == ^work_id, select: t.id))
     {:ok, _} = Builder.build_for_text(text_id, max_chars: 30)
     text_id
   end
@@ -75,7 +75,7 @@ defmodule Pramana.Retrieval.SemanticTest do
 
     rows =
       Repo.all(
-        from c in Chunk, where: c.text_id == ^text_id, select: %{id: c.id, content: c.content}
+        from(c in Chunk, where: c.text_id == ^text_id, select: %{id: c.id, content: c.content})
       )
       |> Enum.map(fn chunk ->
         content = Keyword.get(opts, :content, chunk.content)
@@ -152,7 +152,7 @@ defmodule Pramana.Retrieval.SemanticTest do
     end
   end
 
-  describe "filtered search — the iterative-scan path" do
+  describe "filtered search — result contracts on a small synthetic index" do
     test "returns every match in the division, not the globally-nearest few", %{probe: probe} do
       # 阿含部 is the FAR text from this probe. Under a plain post-filtered index scan
       # this is exactly the case that comes back short or empty.
@@ -187,13 +187,29 @@ defmodule Pramana.Retrieval.SemanticTest do
       assert Enum.all?(results, &(&1.span.provenance.work_id == "T0001"))
     end
 
-    test "ranking survives relaxed_order", %{probe: probe} do
-      # `relaxed_order` may hand back rows slightly out of distance order, so the module
-      # re-sorts. If that sort is dropped, this catches it.
-      %{results: results} = Semantic.search_vector(probe, limit: 10, origin: "indic")
-      sims = Enum.map(results, & &1.similarity)
+    test "filtered results retain distinct cosine ranking and apply the requested limit", %{
+      probe: probe
+    } do
+      text_id = Repo.one!(from(t in Text, where: t.work_id == "T0001", select: t.id))
+      chunks = Repo.all(from(c in Chunk, where: c.text_id == ^text_id, order_by: c.id))
+      assert [first, second] = chunks
 
-      assert sims == Enum.sort(sims, :desc)
+      for {chunk, values} <- [{first, [0.6, 0.8]}, {second, [0.8, 0.6]}] do
+        vector = Pgvector.new(values ++ List.duplicate(0.0, @dims - 2))
+
+        Repo.update_all(from(v in ChunkVector, where: v.chunk_id == ^chunk.id),
+          set: [embedding: vector]
+        )
+      end
+
+      %{results: results} = Semantic.search_vector(probe, limit: 10, origin: "indic")
+      assert Enum.map(results, & &1.urn) == [second.urn, first.urn]
+      assert [near, far] = results
+      assert_in_delta near.similarity, 0.8, 0.0001
+      assert_in_delta far.similarity, 0.6, 0.0001
+
+      assert %{results: [only]} = Semantic.search_vector(probe, limit: 1, origin: "indic")
+      assert only.urn == second.urn
     end
 
     test "a filter matching nothing returns empty rather than erroring", %{probe: probe} do
@@ -222,7 +238,7 @@ defmodule Pramana.Retrieval.SemanticTest do
     end
 
     test "counts partial coverage honestly" do
-      text_id = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+      text_id = Repo.one!(from(t in Text, where: t.work_id == "T0001", select: t.id))
 
       Repo.update_all(
         from(v in ChunkVector,
@@ -249,7 +265,7 @@ defmodule Pramana.Retrieval.SemanticTest do
       assert is_nil(before.note)
 
       unchunked = load!("T9999", ["未分段之經文"], title: "未分段", composition_origin: "chinese")
-      Repo.delete_all(from c in Chunk, where: c.text_id == ^unchunked)
+      Repo.delete_all(from(c in Chunk, where: c.text_id == ^unchunked))
 
       after_load = Semantic.coverage()
 
@@ -265,7 +281,7 @@ defmodule Pramana.Retrieval.SemanticTest do
 
     test "reachability honours the same filters as the chunk counts" do
       unchunked = load!("T9999", ["未分段之經文"], title: "未分段", composition_origin: "chinese")
-      Repo.delete_all(from c in Chunk, where: c.text_id == ^unchunked)
+      Repo.delete_all(from(c in Chunk, where: c.text_id == ^unchunked))
 
       assert %{unchunked_texts: 1} = Semantic.coverage()
 
@@ -281,7 +297,7 @@ defmodule Pramana.Retrieval.SemanticTest do
     setup %{} do
       # An English rendering of the Āgama text, embedded on a THIRD axis. An English
       # query lands nowhere near the Chinese source vector; it lands on this.
-      agama = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+      agama = Repo.one!(from(t in Text, where: t.work_id == "T0001", select: t.id))
 
       embed_chunks!(agama, 2,
         kind: "translation",
@@ -350,7 +366,7 @@ defmodule Pramana.Retrieval.SemanticTest do
   # rendering and the INDEX is what varies.
   describe "restricting the index to one translator" do
     setup %{} do
-      agama = Repo.one!(from t in Text, where: t.work_id == "T0001", select: t.id)
+      agama = Repo.one!(from(t in Text, where: t.work_id == "T0001", select: t.id))
 
       embed_chunks!(agama, 2,
         kind: "translation",
@@ -389,9 +405,10 @@ defmodule Pramana.Retrieval.SemanticTest do
     test "an arm can be restricted to the chunks its comparison set covers", %{probe: probe} do
       chunk_ids =
         Repo.all(
-          from v in Pramana.Corpus.ChunkVector,
+          from(v in Pramana.Corpus.ChunkVector,
             where: v.kind == "translation" and v.translator_id == "model:mitra",
             select: v.chunk_id
+          )
         )
 
       kinds = fn opts ->

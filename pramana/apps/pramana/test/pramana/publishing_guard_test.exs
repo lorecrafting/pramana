@@ -13,6 +13,19 @@ defmodule Pramana.Publishing.GuardTest do
   alias Pramana.Publishing.Guard
   alias Pramana.Repo
 
+  setup do
+    previous = System.get_env("PRAMANA_PUBLIC")
+    System.delete_env("PRAMANA_PUBLIC")
+
+    on_exit(fn ->
+      if is_nil(previous),
+        do: System.delete_env("PRAMANA_PUBLIC"),
+        else: System.put_env("PRAMANA_PUBLIC", previous)
+    end)
+
+    :ok
+  end
+
   defp source!(id, redistributable) do
     Repo.insert!(%Pramana.Corpus.Source{
       id: id,

@@ -3,7 +3,8 @@ defmodule PramanaFoundry.Projections.BenchmarkTest do
 
   alias PramanaFoundry.Projections.Benchmark
 
-  test "recorded benchmark fixture retains its deterministic acceptance assertions" do
+  @tag :benchmark_artifact
+  test "saved benchmark artifact retains its recorded acceptance values (not a fresh measurement)" do
     assert_benchmark_result(saved_result())
   end
 

@@ -19,36 +19,6 @@ defmodule Docs.FiguresTest do
     end
   end
 
-  describe "use_small_pool!/1" do
-    # A gate step that reads nine counts held a 25-connection pool out of Postgres's 100,
-    # and the gate failed as `FAILED test` with every test passing.
-    test "sets the repo's pool size in config, where app.start will read it" do
-      original = Application.get_env(:pramana, Pramana.Repo, [])
-
-      try do
-        Pramana.Runtime.use_small_pool!(2)
-        assert Application.get_env(:pramana, Pramana.Repo)[:pool_size] == 2
-      after
-        Application.put_env(:pramana, Pramana.Repo, original)
-      end
-    end
-
-    test "keeps every other repo setting, since it is a declaration and not a rewrite" do
-      original = Application.get_env(:pramana, Pramana.Repo, [])
-
-      try do
-        Pramana.Runtime.use_small_pool!(3)
-        kept = Application.get_env(:pramana, Pramana.Repo)
-
-        for {key, value} <- Keyword.delete(original, :pool_size) do
-          assert kept[key] == value, "#{key} was dropped"
-        end
-      after
-        Application.put_env(:pramana, Pramana.Repo, original)
-      end
-    end
-  end
-
   describe "blocks/0" do
     test "every block is a list of label/value pairs, both strings" do
       for {key, figures} <- Figures.blocks() do

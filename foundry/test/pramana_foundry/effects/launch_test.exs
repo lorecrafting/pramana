@@ -29,8 +29,17 @@ defmodule PramanaFoundry.Effects.LaunchTest do
     adapter: adapter
   } do
     FakeRunner.install(fn
-      ["herdr", "agent", "start" | _rest] -> FakeRunner.json(%{"ok" => true})
-      ["herdr", "agent", "get", "dev-1"] -> FakeRunner.json(%{"agent" => @ready_agent})
+      ["herdr", "agent", "start" | _rest] ->
+        assert {:ok, %{"event" => "launch_intent"}} =
+                 Checkpoint.matching(log_path, "launch_intent", "T1", "R1", "developer")
+
+        assert {:ok, nil} =
+                 Checkpoint.matching(log_path, "launch_completed", "T1", "R1", "developer")
+
+        FakeRunner.json(%{"ok" => true})
+
+      ["herdr", "agent", "get", "dev-1"] ->
+        FakeRunner.json(%{"agent" => @ready_agent})
     end)
 
     assert {:ok, identity} = Launch.launch(log_path, "T1", "R1", "developer", adapter, @request)
@@ -123,5 +132,19 @@ defmodule PramanaFoundry.Effects.LaunchTest do
              agent: "claude",
              terminal_id: "term-1"
            }
+  end
+
+  test "a checkpoint destination failure prevents every adapter call", %{
+    log_path: log_path,
+    adapter: adapter
+  } do
+    File.mkdir_p!(log_path)
+
+    FakeRunner.install(fn command ->
+      flunk("effect before durable intent: #{inspect(command)}")
+    end)
+
+    assert {:error, _} = Launch.launch(log_path, "T1", "R1", "developer", adapter, @request)
+    assert FakeRunner.calls() == []
   end
 end
