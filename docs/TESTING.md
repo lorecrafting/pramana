@@ -13,6 +13,14 @@ Foundry dispatch or a public deployment merely to validate a documentation chang
 | Corpus and retrieval acceptance | `mix pramana.gate` | Acquired/loaded corpus, matching database, required models and toolchain; see [detailed checks](../pramana/docs/CHECKS.md) |
 | Re-running one declared source task | `mix help pramana.<task>` | Replace the placeholder with an actual task from [the CLI index](../pramana/docs/CLI.md) and inspect its options |
 
+## Fresh test databases
+
+From `pramana/`, `mix test` creates and migrates the configured test database before
+recursive application startup. The umbrella owns this alias: a child-only alias
+runs too late when an earlier child starts the domain app and Oban. It never drops
+or resets a database. Test connection settings remain in `pramana/config/test.exs`.
+Use an isolated test database, not an operator's corpus or production database.
+
 ## The umbrella gate is staged
 
 [The gate implementation](../pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex) defines the

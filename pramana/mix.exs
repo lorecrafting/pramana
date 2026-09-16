@@ -24,10 +24,9 @@ defmodule Pramana.Umbrella.MixProject do
   # transport over a domain that owns the data — splitting them would need the domain
   # reachable over the network, which is a distributed system nobody asked for.
   #
-  # The mix TASKS do not ship, and that is the point rather than an omission: `CLAUDE.md`
-  # invariant #7 says tools read and the CLI writes. A release has no Mix, so a deployed
-  # node physically cannot acquire, bake, or ingest — the read-only posture is a property
-  # of the artefact rather than a rule the router enforces.
+  # Mix tasks do not ship in this release. That removes the CLI entry points, not
+  # domain write functions or database privileges: production still requires a
+  # restricted database role and the checks in docs/DEPLOY.md.
   defp releases do
     [
       pramana: [
@@ -39,7 +38,7 @@ defmodule Pramana.Umbrella.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [test: :test, precommit: :test]
     ]
   end
 
@@ -75,6 +74,9 @@ defmodule Pramana.Umbrella.MixProject do
     [
       # run `mix setup` in all child apps
       setup: ["cmd mix setup"],
+      # Prepare the test database before recursive umbrella application startup.
+      # A child-only alias is too late when another child starts the domain app.
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end

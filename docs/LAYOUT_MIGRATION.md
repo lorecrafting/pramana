@@ -34,6 +34,8 @@ Pramāṇa or Foundry and still refer to this same repository.
 native/model helpers and relative CLI arguments; `foundry/` for its independent
 Mix project. All three Pramāṇa children keep their `../../` build/config/lock paths.
 No new common Mix parent or merged dependency lock is introduced.
+The Pramāṇa umbrella now prepares its test database before recursive application
+startup; the previous child-only alias could fail on a fresh database.
 
 **Documentation roots:** `pramana/docs/` for research-product references;
 `foundry/docs/` for execution contracts; root `docs/` for shared concerns and the
