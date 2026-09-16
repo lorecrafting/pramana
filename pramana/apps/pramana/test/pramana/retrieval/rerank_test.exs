@@ -10,14 +10,14 @@ defmodule Pramana.Retrieval.RerankTest do
   """
   use Pramana.DataCase, async: true
 
-  alias Pramana.CorpusFixtures
-
   import Ecto.Query
 
+  alias Pramana.Chunk.Builder
   alias Pramana.Corpus.Chunk
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Witness
   alias Pramana.Corpus.Work
+  alias Pramana.CorpusFixtures
   alias Pramana.Repo
   alias Pramana.Retrieval.Rerank
   alias Pramana.Translations
@@ -53,7 +53,7 @@ defmodule Pramana.Retrieval.RerankTest do
         [{@chunk_urn, "Evaṁ me sutaṁ"}]
       )
 
-    {:ok, 1} = Pramana.Chunk.Builder.build_for_text(text.id, max_chars: 100)
+    {:ok, 1} = Builder.build_for_text(text.id, max_chars: 100)
 
     {:ok, _} =
       Translations.store([

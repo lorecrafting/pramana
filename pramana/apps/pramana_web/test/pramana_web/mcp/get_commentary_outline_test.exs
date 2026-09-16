@@ -10,8 +10,6 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
   """
   use Pramana.DataCase, async: true
 
-  import Ecto.Query
-
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text

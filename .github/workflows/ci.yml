@@ -161,4 +161,4 @@ jobs:
         run: |
           mix deps.get --only prod
           mix assets.deploy
-          mix release
+          mix release --overwrite

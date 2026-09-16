@@ -8,7 +8,6 @@ defmodule PramanaWeb.ReaderWorkLiveTest do
   alias Pramana.Corpus.AuthorityRelation
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
-  alias Pramana.Normalize.CBETA
   alias Pramana.Repo
   setup :load_reader_fixture
 

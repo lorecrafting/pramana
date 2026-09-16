@@ -1,9 +1,7 @@
 defmodule PramanaWeb.ReaderInventoryLiveTest do
   use PramanaWeb.ConnCase, async: false
-  import Ecto.Query
   import Phoenix.LiveViewTest
   import PramanaWeb.ReaderFixtures
-  alias Pramana.Normalize.CBETA
   setup :load_reader_fixture
 
   describe "the inventory" do
