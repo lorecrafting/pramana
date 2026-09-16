@@ -1,19 +1,16 @@
-# Pramāṇa and Foundry
+# Pramāṇa
 
 This is the Pramāṇa project root (`pramana/` in the Git repository). Run the
 commands below here. [Both products](../README.md) · [Topic index](docs/README.md).
 
-Two independent systems share this repository:
-
-**Pramāṇa** is an English-first, citation-grounded research substrate for Buddhist
+Pramāṇa is an English-first, citation-grounded research substrate for Buddhist
 texts. It retrieves original-language passages with provenance and checkable addresses,
 keeps renderings distinct from source text, and provides deterministic citation checks.
 A valid quotation does not by itself prove an interpretation or exhaustive corpus coverage.
 
-**Foundry** is a standalone Elixir/OTP agent-execution and maintenance system. It has
-its own build, state, lifecycle contracts and repair program. Its implementation
-inventory is not an end-to-end guarantee that every live execution path is enabled
-or verified.
+Foundry is an independent sibling product, not part of this umbrella. Its
+[overview and repair authority](../foundry/docs/README.md) are separate from the
+research-product setup and commands here.
 
 ## Start here
 
@@ -28,7 +25,7 @@ or verified.
 
 ## Pramāṇa's boundary
 
-The root is an Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF,
+This project root is an Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF,
 standalone Rust text-reuse scanner and Python inference/training helpers.
 The MCP surface is read-only; ingestion and other corpus mutations are CLI operations.
 The reader has search, inventory, survey, passage, work and report-checking screens.
@@ -44,14 +41,6 @@ appropriate corpus checks report the state of the database actually connected.
 `bake_id` identifies declared source inputs; the implemented retrieval stamp has
 [count-based limitations](docs/ARCHITECTURE.md#identity-and-replay). This is not an
 immutable, coexistent-snapshot database or a guarantee of identical search replay.
-
-## Foundry's boundary
-
-Foundry is not an umbrella app and does not require the research corpus for its
-model-free build/tests. Its README describes current execution containment.
-Resume repair work from the [repair plan](../foundry/docs/REPAIR-PLAN.md), not from the
-historical migration-ticket sequence. Provider-neutral repository guidance does not
-bypass launch authorization, billing isolation or backend conformance.
 
 ## Data and publication
 

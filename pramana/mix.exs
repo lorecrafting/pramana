@@ -24,10 +24,9 @@ defmodule Pramana.Umbrella.MixProject do
   # transport over a domain that owns the data — splitting them would need the domain
   # reachable over the network, which is a distributed system nobody asked for.
   #
-  # The mix TASKS do not ship, and that is the point rather than an omission: `CLAUDE.md`
-  # invariant #7 says tools read and the CLI writes. A release has no Mix, so a deployed
-  # node physically cannot acquire, bake, or ingest — the read-only posture is a property
-  # of the artefact rather than a rule the router enforces.
+  # Mix tasks do not ship in this release. That removes the CLI entry points, not
+  # domain write functions or database privileges: production still requires a
+  # restricted database role and the checks in docs/DEPLOY.md.
   defp releases do
     [
       pramana: [
