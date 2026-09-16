@@ -76,10 +76,11 @@ defmodule Pramana.Citation do
   # Anchored to a word boundary at both ends so it cannot eat part of a URN.
   @suttacentral ~r/\b([a-z][a-z0-9-]*\d[a-z0-9.-]*):(\d+(?:\.\d+)+)\b/
 
-  # Preserve literal source-evidence bytes. Foreign-looking strings inside the same
-  # quotation delimiters the Guard recognizes are still returned as metadata, but they
-  # are not canonicalized before the Guard compares that quotation with its witness.
-  @literal_quotation ~r/[「『"“]([^」』"”]{1,400})[」』"”]/u
+  # Preserve literal source-evidence bytes. Delimiters must be a real pair: accepting any
+  # opener with any closer lets a closing ASCII quote become a new opener and swallow a
+  # later Chinese quotation. Foreign-looking strings inside these paired bodies are still
+  # returned as metadata, but are not canonicalized before the Guard compares the quote.
+  @literal_quotation ~r/(?|「([^」]{1,400})」|『([^』]{1,400})』|"([^"]{1,400})"|“([^”]{1,400})”)/u
 
   @doc """
   Finds every foreign citation in a block of prose and resolves what it can.
