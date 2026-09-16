@@ -43,6 +43,24 @@ defmodule Repository.LocalLayoutTest do
     assert File.dir?(Path.join(root, "pramana/raw"))
   end
 
+  test "an invalid legacy parent is not silently treated as absent", %{root: root} do
+    parent = Path.join(root, "priv")
+    File.write!(parent, "preserved")
+    assert {text, 2} = run(root)
+    assert text =~ "cannot inspect"
+    assert text =~ ":enotdir"
+    assert File.read!(parent) == "preserved"
+  end
+
+  test "a dangling bridge still requires review", %{root: root} do
+    File.mkdir_p!(Path.join(root, "raw"))
+    bridge = Path.join(root, "pramana/raw")
+    File.ln_s!("../missing-raw", bridge)
+    assert {text, 2} = run(root)
+    assert text =~ "both locations exist"
+    assert File.read_link!(bridge) == "../missing-raw"
+  end
+
   defp run(root),
     do:
       System.cmd(System.find_executable("elixir"), [@script, "--root", root],

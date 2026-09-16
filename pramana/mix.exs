@@ -39,7 +39,7 @@ defmodule Pramana.Umbrella.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [test: :test, precommit: :test]
     ]
   end
 
@@ -75,6 +75,9 @@ defmodule Pramana.Umbrella.MixProject do
     [
       # run `mix setup` in all child apps
       setup: ["cmd mix setup"],
+      # Prepare the test database before recursive umbrella application startup.
+      # A child-only alias is too late when another child starts the domain app.
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end

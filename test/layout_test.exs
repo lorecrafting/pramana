@@ -73,6 +73,23 @@ defmodule Repository.LayoutTest do
     end
   end
 
+  test "umbrella test entry prepares the database before recursive application startup" do
+    text = File.read!(Path.join(@project, "mix.exs"))
+    ast = Code.string_to_quoted!(text)
+
+    {_ast, test_aliases} =
+      Macro.prewalk(ast, [], fn
+        {:test, ["ecto.create --quiet", "ecto.migrate --quiet", "test"]} = node, found ->
+          {node, [node | found]}
+
+        node, found ->
+          {node, found}
+      end)
+
+    assert length(test_aliases) == 1
+    assert text =~ "preferred_envs: [test: :test"
+  end
+
   test "CI uses product working directories and independently addressed native manifests" do
     ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
     assert ci =~ "working-directory: pramana"

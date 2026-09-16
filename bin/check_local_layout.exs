@@ -44,7 +44,19 @@ defmodule Repository.LocalLayout do
     end
   end
 
-  defp present?(path), do: match?({:ok, _}, File.lstat(path))
+  defp present?(path) do
+    case File.lstat(path) do
+      {:ok, _} ->
+        true
+
+      {:error, :enoent} ->
+        false
+
+      {:error, reason} ->
+        IO.puts(:stderr, "REVIEW cannot inspect #{path}: #{inspect(reason)}. No data changed.")
+        System.halt(2)
+    end
+  end
 
   defp direct_bridge?(new, old) do
     case File.read_link(new) do
