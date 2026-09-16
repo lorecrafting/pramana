@@ -10,6 +10,7 @@ defmodule Pramana.RepairTest do
   use Pramana.DataCase, async: false
 
   alias Pramana.Corpus.Loader
+  alias Pramana.Guard
   alias Pramana.Normalize.CBETA
   alias Pramana.Repair
 
@@ -240,12 +241,46 @@ defmodule Pramana.RepairTest do
       [{outer, "Note #{inner}"}]
     )
 
-    original = ~s("Note, #{inner}" [#{outer}])
+    # The supported editorial mark is full-width, not ASCII comma. Establish
+    # that a quote replacement really overlaps the nested citation deletion.
+    original = ~s("Note， #{inner}" [#{outer}])
+
+    assert %{verdict: :quote_mismatch, reason: :editorial_punctuation} =
+             outer |> Guard.check("Note， #{inner}") |> Guard.diagnose()
+
     result = Repair.repair(original)
     assert result.text == original
     assert result.edits == []
     assert length(result.actions) == 2
     assert Enum.all?(result.actions, &(&1.reason == :overlapping_edits))
+  end
+
+  test "an inner deletion cannot invalidate a verified outer quotation that needs no edit" do
+    inner = "pramana:cbeta:T0262"
+    outer = "pramana:cbeta.T:T8888_001@p0001a01"
+    quoted = "Note #{inner}"
+    Repo.insert!(%Pramana.Corpus.Work{id: "T8888"})
+
+    Pramana.CorpusFixtures.text!(
+      %{
+        work_id: "T8888",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T8888"
+      },
+      [{outer, quoted}]
+    )
+
+    assert Guard.verify(outer, quoted)
+    assert %{verdict: :bad_urn} = Guard.check(inner)
+    original = ~s("#{quoted}" [#{outer}])
+    result = Repair.repair(original)
+
+    assert result.text == original
+    assert result.edits == []
+    assert length(result.actions) == 2
+    assert Enum.all?(result.actions, &(&1.reason == :overlapping_edits))
+    assert Guard.verify(outer, quoted)
   end
 
   test "a bare address is existence-only, not a verified quotation" do

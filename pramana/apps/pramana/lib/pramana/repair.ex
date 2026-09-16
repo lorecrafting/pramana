@@ -42,7 +42,7 @@ defmodule Pramana.Repair do
       |> Enum.map(&Guard.diagnose(&1, opts))
       |> Enum.map(fn finding ->
         action = plan(finding)
-        {action, edit_for(finding, action, markdown)}
+        {action, edit_for(finding, action, markdown), finding.occurrence}
       end)
       |> reject_overlaps()
 
@@ -182,30 +182,43 @@ defmodule Pramana.Repair do
     end
   end
 
-  # Nested citation text can create overlapping edits. Neither edit wins by order;
-  # both remain visible as unresolved review items instead of corrupting the input.
+  # An edit must not alter another occurrence's quotation, even if that other
+  # occurrence is already verified and needs no edit. Compare semantic ranges,
+  # not just two write ranges, and flag both sides before applying anything.
   defp reject_overlaps(planned) do
-    Enum.map(planned, fn {action, edit} = item ->
+    Enum.map(planned, fn {action, edit, occurrence} ->
       collision? =
-        edit &&
-          Enum.any?(planned, fn {other, candidate} ->
-            candidate && other.source_offset != action.source_offset &&
-              edit.range.byte_start < candidate.range.byte_end &&
-              candidate.range.byte_start < edit.range.byte_end
-          end)
+        Enum.any?(planned, fn {other, candidate, other_occurrence} ->
+          other.source_offset != action.source_offset &&
+            (touches_occurrence?(edit, other_occurrence) ||
+               touches_occurrence?(candidate, occurrence))
+        end)
 
       if collision? do
         {%{
            action
            | state: :flagged,
              reason: :overlapping_edits,
-             detail: "This edit overlaps another citation; review it manually."
+             detail:
+               "An edit would change another citation or its quotation; review both manually."
          }, nil}
       else
-        item
+        {action, edit}
       end
     end)
   end
+
+  defp touches_occurrence?(nil, _occurrence), do: false
+
+  defp touches_occurrence?(edit, occurrence) do
+    overlaps?(edit.range, occurrence.quote_range) ||
+      overlaps?(edit.range, occurrence.citation_range)
+  end
+
+  defp overlaps?(_range, nil), do: false
+
+  defp overlaps?(left, right),
+    do: left.byte_start < right.byte_end && right.byte_start < left.byte_end
 
   defp apply_edits(original, edits) do
     edits

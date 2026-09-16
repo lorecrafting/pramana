@@ -125,10 +125,7 @@ defmodule Pramana.Report do
 
   defp parse_line({text, line}, acc) do
     opening? = Regex.match?(@opening, text)
-    # Replay arguments and asserted values are data, not additional prose citations.
-    # Mask bytes, not graphemes, so every following citation keeps its exact offset.
-    prose = if opening? or acc.open != nil, do: String.duplicate(" ", byte_size(text)), else: text
-    acc = %{acc | prose: [prose | acc.prose]}
+    acc = record_prose(acc, text, opening?)
 
     cond do
       opening? ->
@@ -156,6 +153,13 @@ defmodule Pramana.Report do
       true ->
         acc
     end
+  end
+
+  # Replay arguments and asserted values are data, not additional prose citations.
+  # Mask bytes, not graphemes, so every following citation keeps its exact offset.
+  defp record_prose(acc, text, opening?) do
+    prose = if opening? or acc.open != nil, do: String.duplicate(" ", byte_size(text)), else: text
+    %{acc | prose: [prose | acc.prose]}
   end
 
   defp close_unterminated(%{open: nil} = acc), do: acc

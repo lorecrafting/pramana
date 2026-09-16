@@ -16,6 +16,8 @@ remain byte-identical. Nothing writes to source data or the caller's saved docum
 
 Multiple candidate addresses, overlapping edits, unavailable diagnosis and candidates
 that fail exact quotation verification are flagged without changing that occurrence.
+An edit inside another citation's quotation is also refused, even when that outer
+quotation already verifies and needs no edit of its own.
 `no_sources` means the citation provides no verified support here; it does not assert
 that the quotation was invented. Bare/blank quotations receive `existence_only`, not
 `verified`. Repair still handles the recognized Pramāṇa citation grammar, not arbitrary
