@@ -115,7 +115,7 @@ jobs:
       # Warnings-as-errors on the project's own code. A warning that nobody has to fix is
       # a warning everybody stops reading.
       - id: compile
-        run: mix compile --warnings-as-errors
+        run: mix compile --force --warnings-as-errors
 
       - run: mix format --check-formatted
 
