@@ -14,13 +14,6 @@ defmodule PramanaWeb.CheckAdmissionConfigTest do
     end)
 
     Application.put_env(:pramana_web, CheckAdmission, unknown: true)
-
-    assert_raise ArgumentError, fn ->
-      start_supervised!(
-        {CheckAdmission,
-         name: {:global, {__MODULE__, make_ref()}},
-         permit_supervisor: {:global, {__MODULE__, :unused, make_ref()}}}
-      )
-    end
+    assert_raise ArgumentError, fn -> CheckAdmission.init([]) end
   end
 end
