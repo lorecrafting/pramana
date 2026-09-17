@@ -203,6 +203,12 @@ not pass, it is rendered in its own colour, and collapsing it into `failed` is h
 checker teaches people to ignore it. `mix pramana.integrity` lost its audience that way,
 crying wolf over 1,228 X texts.
 
+Replay arguments must also satisfy the selected tool's declared schema. Unknown fields
+and wrongly typed values produce an `error` replay rather than a result for an altered
+query. The original record remains visible; a refused replay cannot make a report pass
+or refute that claim. See the [replay argument contract](MCP.md#replay-argument-contract)
+before correcting a record. This does not change the page's execution lifecycle.
+
 The help example copies both identities from the original reply. Older reports without a
 release remain usable but display "No retrieval release was recorded"; a matching source
 bake alone does not identify a historical index. The footer shows the selected identities

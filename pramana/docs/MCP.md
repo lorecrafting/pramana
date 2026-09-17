@@ -68,11 +68,48 @@ These are read-only lookups. A reply does not create or refresh a release stamp;
 derived facts have changed. `Pramana.Release.drift/0` reports those differences.
 The lookups do not provide a transactional snapshot of the preceding tool execution.
 
-Source identity does not freeze all derived data. The current release stamp hashes
-counts and model/translator identities, not every vector/rendering byte, and the
-replay records supplied non-null arguments rather than all resolved defaults.
+Source identity does not freeze all derived data. Current v2 retrieval stamps hash
+stored translation content and vector-row content including embedding bytes; historical
+coarse stamps remain unchanged. A replay records supplied non-null arguments rather
+than every resolved default, and a stamp is not a historical database snapshot.
 [Architecture](ARCHITECTURE.md#identity-and-replay) explains why rerunning is not a
 promise of the identical answer after code, defaults or data have changed.
+
+## Replay argument contract
+
+Both `verify_report` and the reader's `/check` use
+[ReplayExecutor](../apps/pramana_web/lib/pramana_web/mcp/replay_executor.ex). Before
+invoking an allowlisted tool, it checks argument names against that component's schema
+and applies its generated `mcp_schema/1` validator. A misspelled or unsupported filter
+must not be silently removed and then yield a pass for an unfiltered query. Knowing an
+atom with that name does not make the argument valid for this tool.
+
+Invalid arguments return `{:invalid_arguments, reason}` from the executor. The report
+retains the original record and marks that replay `error`; the overall report is
+`incomplete` unless separate evidence genuinely fails. No assertion in the refused
+replay is compared, and no callback for that replay runs. The outer report check may
+still resolve citations/read identities and check other valid replays.
+
+| Reason | Meaning / operator action |
+|---|---|
+| `unknown_field` | A top-level argument is not declared by this tool, or its key is not a name. Check the original invocation against the discovered tool schema. |
+| `schema_mismatch` | A required value is missing or a supplied value violates the declared schema. Check JSON types; `false` is not the string `"false"`, and `20` is not `"20"`. |
+| `duplicate_field` | An in-process map supplied both atom and string forms of a field. Supply one unambiguous key. |
+| `expected_object` | An in-process caller did not supply a plain argument map. JSON replay parsing already requires an object. |
+
+Valid string-key and atom-key calls remain supported. Optional nulls, booleans, lists,
+defaults and tool-specific caps keep the component's existing semantics. This enforces
+**declared** constraints, not values mentioned only in prose descriptions, a new
+retrieval policy, or lossless JSON parsing. Validator error values are not echoed.
+The tool allowlist and recursion prohibition remain unchanged.
+
+**Do not delete an unsupported filter merely to make a report green.** Recover the
+original supported invocation/receipt or label the claim as needing a fresh check.
+Older reports that relied on ignored fields or wrongly typed values are intentionally
+refused; legacy bake-only identities remain supported under their existing limitations.
+There is no migration or rewrite of reports, corpus rows, stamps or defaults. Rolling
+back this application change reintroduces permissive replay argument handling; it does
+not restore historical data or make earlier results trustworthy.
 
 ## Verification limits
 

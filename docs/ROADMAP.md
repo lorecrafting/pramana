@@ -43,6 +43,10 @@ other corpora or silently approving an all-traditions launch. Its operator gates
 translation/vector content. Report verification compares supplied identities and returned
 receipts; it does not freeze code/defaults, retain historical rows or restore snapshots.
 PR #16's dependency advisory fixes and both Hex audit commands are also already integrated.
+PR #19 subsequently completed the per-page asynchronous `/check` lifecycle. The
+[post-#19 argument-validation follow-up](PLAN.md#replay-argument-validation--post-19-2026-09-16)
+rejects unsupported or wrongly typed replay arguments before tool invocation; it does not
+expand release identity, retrieval policy, or public-hosting acceptance.
 
 The phase sections below retain their original schedule and historical evidence. They are
 not an independent executable queue; read PLAN and current code before reviving an item.
