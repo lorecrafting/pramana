@@ -27,15 +27,15 @@ long-lived leaked reservation.
 After activation, the permit no longer depends on the admission server. Restarting only
 the admission server therefore preserves active capacity: the replacement binds to the
 same permit-supervisor process and counts the same live permit children before admitting
-more work. If a coordinator dies, its permit exits automatically.
+more work. If a coordinator dies, its permit exits automatically. `CheckRun` separately
+monitors its permit and stops remaining report work if that permit disappears.
 
-The permit-supervisor generation is intentionally stronger than an ordinary restartable
-counter. `CheckAdmission` pins the exact supervisor PID it saw at startup. If that process
-dies, active permits disappear and their `CheckRun` coordinators stop remaining report
-work; admission then remains unavailable for the rest of that application lifetime. The
-application does not automatically adopt a fresh empty permit supervisor, because doing so
-could admit new work before old workers had observed permit loss and completed cleanup.
-A coordinated application restart restores the subsystem with a new generation.
+The permit-supervisor **generation is pinned** for the application lifetime. It is a
+temporary supervision child rather than an automatically replaced capacity pool. If it
+fails, its permit children disappear, admitted `CheckRun` coordinators observe permit
+loss and clean up their workers, and `CheckAdmission` refuses subsequent admission as
+unavailable. It does not bind to a fresh empty supervisor while old work is still
+stopping. Recovery from this degraded state is a coordinated application restart.
 
 `CheckRun` releases its permit only after the owned verification/repair worker has been
 stopped and observed. A cancellation request, timeout decision or repair failure does not
@@ -43,16 +43,20 @@ make capacity available before worker cleanup.
 
 ## Refusal semantics and limits
 
-MCP capacity refusal returns `report_check_busy` and no report verdict. The reader shows a
-`busy` execution state with the same semantics: verification did not start and no verdict
-was produced. Neither path invokes verification or repair when it was refused. There is no
-automatic retry.
+MCP capacity refusal returns `report_check_busy` and no report verdict. The reader shows
+a `busy` execution state saying that verification did not start; it preserves the pasted
+report for an explicit retry. Neither path invokes verification or repair when refused.
+There is no automatic retry.
 
 The bound applies only to report checks on one BEAM node. It does not bound Anubis session
 queueing, other MCP/search tools, independent nodes, JSON/network latency, or already-
 dispatched PostgreSQL/native work. A permit is resource accounting, not evidence that a
 report is correct. Existing report deadlines, evidence states and release-identity rules
 remain separate.
+
+Both normal web serving and `mix pramana.mcp.stdio` start the `pramana_web` application,
+so the reader, Streamable HTTP MCP and stdio MCP use the same admission implementation
+within their respective BEAM node. Separate BEAM nodes still have separate pools.
 
 Rollback removes the admission children and returns to per-call deadline protection only;
 it requires no schema/data conversion. Do not describe rollback as restoring historical
