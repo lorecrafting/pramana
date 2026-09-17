@@ -1,0 +1,136 @@
+name: Prepare reader lifecycle candidate
+on:
+  push:
+    branches: [work/prep-check-lifecycle-2026-09-16]
+    paths: [.github/workflows/prepare-check-lifecycle.yml, .github/maintenance/check-lifecycle.patch.gz.b64]
+permissions:
+  contents: write
+concurrency:
+  group: prepare-reader-lifecycle
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      MIX_ENV: test
+      BASE: 298e35049d8b417679501625b123a0bc9ef01946
+      TARGET: fix/check-execution-lifecycle-2026-09-16
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Validate candidate bytes and isolate current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/check-lifecycle-preparation"
+          export EVIDENCE="$RUNNER_TEMP/check-lifecycle-preparation"
+          echo "EVIDENCE=$EVIDENCE" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import base64, gzip, hashlib, os, pathlib
+          encoded = pathlib.Path('.github/maintenance/check-lifecycle.patch.gz.b64').read_text()
+          patch = gzip.decompress(base64.b64decode(encoded))
+          assert hashlib.sha256(patch).hexdigest() == '4fed5f674e6ff9f656554c74a3ee58055966ad5b4fa3889ec55eddf251c0f864'
+          pathlib.Path(os.environ['EVIDENCE'], 'input.patch').write_bytes(patch)
+          PY
+          test "$(git rev-parse origin/main)" = "$BASE"
+          test "$(git rev-parse origin/$TARGET)" = "$BASE"
+          git checkout --detach "$BASE"
+          test -z "$(git status --porcelain)"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: '29.0.5'
+          elixir-version: '1.20.3-otp-29'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - name: Install pg_bigm in disposable test database
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec $(docker ps --filter 'ancestor=pgvector/pgvector:pg18' --format '{{.ID}}') bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends build-essential postgresql-server-dev-18 wget ca-certificates && wget -q https://github.com/pgbigm/pg_bigm/archive/refs/tags/v1.2-20250903.tar.gz && tar zxf v1.2-20250903.tar.gz && cd pg_bigm-1.2-20250903 && make USE_PGXS=1 with_llvm=no && make USE_PGXS=1 with_llvm=no install'
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            pramana/deps
+            pramana/_build
+            pramana/priv/plts
+            ~/.cargo
+            pramana/apps/pramana_native/native/pramana_native/target
+            pramana/native/quotations/target
+          key: Linux-pramana-layout-v2-${{ hashFiles('pramana/mix.lock') }}
+          restore-keys: Linux-pramana-layout-v2-
+      - name: Compile baseline and inspect actual compiler callers
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd pramana
+          mix --version > "$EVIDENCE/toolchain.txt"
+          mix deps.get
+          mix compile --force --warnings-as-errors 2>&1 | tee "$EVIDENCE/baseline-compile.log"
+          for app in apps/*; do
+            test -f "$app/mix.exs" || continue
+            echo "$app" >> "$EVIDENCE/baseline-callers.log"
+            (cd "$app"; mix xref callers PramanaWeb.CheckLive --no-compile; mix xref callers Pramana.Report --no-compile; mix xref callers Pramana.Repair --no-compile) >> "$EVIDENCE/baseline-callers.log"
+          done
+      - name: Apply candidate and run the real formatter
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --index "$EVIDENCE/input.patch"
+          cd pramana
+          mix format
+          mix format --check-formatted
+          mix compile --force --warnings-as-errors 2>&1 | tee "$EVIDENCE/candidate-compile.log"
+          for app in apps/*; do
+            test -f "$app/mix.exs" || continue
+            echo "$app" >> "$EVIDENCE/candidate-callers.log"
+            (cd "$app"; mix xref callers PramanaWeb.CheckLive --no-compile; mix xref callers PramanaWeb.CheckRun --no-compile) >> "$EVIDENCE/candidate-callers.log"
+          done
+      - name: Focused lifecycle and reader regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd pramana
+          mix credo --strict 2>&1 | tee "$EVIDENCE/credo.log"
+          mix test apps/pramana_web/test/pramana_web/check_run_test.exs apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs apps/pramana_web/test/pramana_web/live/check_live_test.exs 2>&1 | tee "$EVIDENCE/focused-tests.log"
+          cd ..
+          mix format --check-formatted
+          elixir bin/check_docs.exs 2>&1 | tee "$EVIDENCE/docs.log"
+      - name: Publish only the reviewed feature branch, never main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- docs/PLAN.md pramana/docs/READER.md pramana/apps/pramana_web/lib/pramana_web/check_run.ex pramana/apps/pramana_web/lib/pramana_web/live/check_live.ex pramana/apps/pramana_web/test/pramana_web/check_run_test.exs pramana/apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs pramana/apps/pramana_web/test/pramana_web/live/check_live_test.exs
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: bound the reader report-check lifecycle'
+          test "$(git rev-parse HEAD^)" = "$BASE"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$BASE"
+          test "$(git ls-remote origin "refs/heads/$TARGET" | cut -f1)" = "$BASE"
+          git diff "$BASE" HEAD > "$EVIDENCE/formatted.patch"
+          git rev-parse HEAD > "$EVIDENCE/candidate.sha"
+          git rev-parse 'HEAD^{tree}' > "$EVIDENCE/candidate.tree"
+          git bundle create "$EVIDENCE/candidate.bundle" HEAD
+          git push origin "HEAD:refs/heads/$TARGET"
+      - name: Retain preparation evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: check-lifecycle-preparation
+          path: ${{ runner.temp }}/check-lifecycle-preparation
+          if-no-files-found: error
+          retention-days: 3
