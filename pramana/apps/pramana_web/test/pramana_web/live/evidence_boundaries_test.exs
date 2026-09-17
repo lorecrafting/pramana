@@ -28,6 +28,7 @@ defmodule PramanaWeb.LiveEvidenceBoundariesTest do
     original = "「如是我聞。\n" <> replay <> "\n」 [#{@urn}]"
     {:ok, view, _} = live(conn, ~p"/check")
     view |> form("form", report: original) |> render_submit()
+    render_async(view, 5_000)
 
     assert has_element?(
              view,

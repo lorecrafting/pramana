@@ -218,6 +218,64 @@ attached to it — `Pramana.Guard` draws that line and this holds it. And its
 *unsourced figures* list is a heuristic prompt to look, never a verdict: a check that
 failed on any prose containing a page number would be unusable.
 
+### Check execution and cancellation
+
+`/check` runs verification and suggested repair outside the LiveView event handler. The
+page immediately shows **Checking**, clears the previous verdict and repair, and holds the
+submitted text read-only while work is active. The server admits only one check per page;
+repeated submissions cannot bypass this by ignoring the disabled button. Run identities
+prevent late progress or completion from being applied to another report. Cancellation
+retains only a verification result the page had already observed; a queued completion
+cannot restore an unobserved verdict or partial repair after cancellation.
+
+Both stages share **one 60,000 ms monotonic budget**, starting at submission. Repair does
+not receive a fresh budget. This is a resource policy, not a retrieval-performance claim.
+A trusted server setting can shorten, but cannot remove or extend, the ceiling:
+
+```elixir
+config :pramana_web, PramanaWeb.CheckLive, timeout_ms: 30_000
+```
+
+The value must be an integer from 1 through 60,000; malformed configuration fails
+explicitly. It is read at mount. Form/session parameters cannot change the budget or
+verification/repair callbacks. The existing decoded-report limit (200,000 UTF-8 bytes),
+25-replay cap and read-only replay allowlist still apply; nothing is silently truncated.
+The endpoint already sets a 512,000-byte WebSocket frame cap. That is not a decoded input
+limit and is not proof that long-polling or every transport/resource concern is solved.
+
+| Lifecycle outcome | What the reader can conclude |
+|---|---|
+| Checking | No verification verdict yet. |
+| Verification finished; repairing | The whole verification result is available; suggested repair is still running. |
+| Cancelled or timed out before verification finished | No verification verdict was produced. This is neither a pass nor a refutation. |
+| Repair cancelled, timed out or failed | The completed verification result remains unchanged; no partial repair is published. |
+| Execution error before verification finished | The check could not finish; it did not establish that a claim was false. |
+
+**Cancel stops remaining work.** The page stays busy until the linked, monitored worker
+has actually terminated, rather than becoming idle as soon as an exit signal is sent.
+LiveView termination (including normal page exit) also stops owned work. The coordinator
+can enforce the deadline independently of a busy LiveView mailbox. BEAM scheduling and
+uninterruptible native calls can delay termination acknowledgement; no hard real-time
+shutdown guarantee is made. Killing the caller does not prove that an already-dispatched
+Postgres statement or serving request was recalled. Do not stop shared database or model
+services to cancel a single page's check.
+
+The four **evidence** statuses and #18's release/receipt semantics are unchanged. The
+execution status is separate: a genuine failed verification stays failed if repair times
+out, and a completed verified result is not rewritten because optional repair failed.
+No partial verification is advertised as a complete pass.
+
+This is a **per-page reader lifecycle**, not a global concurrency quota, general job
+framework or approval for anonymous public hosting. Other pages/sessions can still issue
+queries. MCP `verify_report` and direct domain calls are unchanged and do not acquire this
+page's execution budget. Public exposure still needs admission/transport policy.
+
+**Rollout and rollback:** deploy the normal application revision and reconnect reader
+sessions. In-flight checks are transient and are not resumed across a restart/disconnect.
+There are no new database rows, migrations or stored job formats; code rollback requires
+no data conversion, but restores the previous synchronous reader behavior. Neither this
+change nor rollback stamps/selects a release or restores historical corpus contents.
+
 ### `/check` also reads other people's citations, and offers repairs
 
 Added 2026-09-02, and the first half closes a hole rather than adding a convenience. The
