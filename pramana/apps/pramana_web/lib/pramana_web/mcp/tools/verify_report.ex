@@ -55,6 +55,14 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
   state. `checked_identity` preserves the identities read when verification began, distinct
   from the outer reply's later metadata. Matching ids do not freeze data, code or defaults.
 
+  ## Execution bounds
+
+  Verification and repair share a 25-second component budget and one node-local admission
+  pool with the `/check` reader. If capacity is full, the call refuses before verification
+  begins. That refusal is an execution condition, not a report verdict. The admission pool
+  does not bound other MCP tools, Anubis session queueing, another BEAM node, or work already
+  dispatched outside the report worker.
+
   ## What it does not do
 
   It does not judge whether a citation *supports* the claim attached to it. That is
@@ -122,6 +130,11 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
     Reply.json("verify_report", params, payload)
   end
+
+  defp execution_error(:busy),
+    do:
+      {:report_check_busy,
+       "Report-check capacity is currently full; verification did not start and no verdict is available."}
 
   defp execution_error(:timed_out),
     do:
