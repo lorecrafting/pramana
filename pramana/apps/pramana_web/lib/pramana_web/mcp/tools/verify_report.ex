@@ -17,12 +17,13 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
   Ordinary markdown. Where a claim rests on a retrieval rather than a quotation, include the
   call that produced it — every tool response already returns `replay: {tool, arguments}`
-  beside `bake_id`, so this is copying a field:
+  beside `bake_id` and `release_id`. Copy both identities from that response:
 
       ```pramana-replay
       {"tool": "survey_corpus",
        "arguments": {"query": "一切眾生"},
        "bake_id": "b143d7f3…",
+       "release_id": "retrieval-release-id…",
        "assert": {"total": 36775, "works": 1904}}
       ```
 
@@ -34,8 +35,9 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
   - `verified` — re-executed and every asserted value re-derived.
   - `failed` — a value differs, and both numbers are named.
-  - **`unverifiable`** — the record names a different `bake_id`. The corpus has changed and
-    the claim **cannot be re-run here**. It is not refuted, and it does not pass either.
+  - **`unverifiable`** — a named bake or release differs or is unavailable. Release-bound
+    records also require matching identities in the replay response before assertions
+    are compared. The claim **cannot be checked against its recorded inputs here**. It is not refuted, and it does not pass either.
     Reporting a changed corpus as a false report is how a checker teaches people to ignore
     it.
   - `error` — the tool is unknown or raised.
@@ -47,6 +49,11 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
   `unsourced_figures` is a **heuristic warning list, never a verdict**: paragraphs carrying a
   number with no citation and no replay record. It reads, it does not judge — a check that
   failed on any prose containing a page number would be unusable.
+
+  Records without `release_id` remain compatible but carry an `identity_scope` and a note:
+  a source-only or unrecorded replay checks current values, not the historical retrieval
+  state. `checked_identity` preserves the identities read when verification began, distinct
+  from the outer reply's later metadata. Matching ids do not freeze data, code or defaults.
 
   ## What it does not do
 
@@ -134,9 +141,14 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
       ),
       if(unverifiable > 0,
         do:
-          "#{unverifiable} replay record(s) name a different bake and could not be re-run. " <>
-            "Those claims are neither confirmed nor refuted; re-run against that bake to " <>
-            "settle them."
+          "#{unverifiable} replay record(s) lack matching recorded source or release evidence. " <>
+            "Those claims are neither confirmed nor refuted. A stamp alone cannot restore " <>
+            "the historical data or execution environment."
+      ),
+      if(Enum.any?(result.replays, &(&1.identity_scope != :retrieval_release)),
+        do:
+          "Some replay records have no retrieval release identity; they check current values " <>
+            "without establishing historical index equivalence."
       ),
       if(result.skipped > 0,
         do:

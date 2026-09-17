@@ -2,7 +2,8 @@
 
 > Phase-planning record, not runtime acceptance evidence. For current code contracts use the documentation index; for active work use PLAN and Foundry REPAIR-PLAN. Corpus counts and historical completion claims require their original evidence.
 
-Decisions locked: open-source self-hosted · all four traditions in v1 ·
+Original phase-planning choices (not a new pilot commitment): open-source self-hosted ·
+all four traditions in v1 ·
 Postgres+pgvector single DB · MCP + HTTP API first · **Elixir/Phoenix**
 (see `docs/ELIXIR.md`).
 
@@ -15,27 +16,34 @@ the provenance model or the eval harness.
 
 ---
 
-## Where we are — audited 2026-08-28, phase table revised 2026-08-31
+## Current source reconciliation — 2026-09-16, after PR #17
 
-| phase | | |
-|---|---|---|
-| **0** Skeleton | ✅ complete, tagged `phase-0` | |
-| **1** Chinese corpus | ✅ complete, tagged `phase-1` | and long since exceeded — 11 CBETA collections, not one |
-| **2** Japanese delta | ⚠️ **the only unfinished phase behind us** | #15, #16 done. #14 (SAT, Taishō 56–84) blocked on an email a person must send. Gate deliberately **not tagged** while a known gap stands |
-| **3** Pāli + parallels | ✅ complete | |
-| **4** Eval harness | ✅ complete, tagged `phase-4` | 1,472 cases, published, and the gate ratchets on them |
-| **5** Tibetan | ✅ complete | Kangyur and Tengyur both ingested; BDRC OCR correctly still out of scope |
-| **6** Deterministic enrichment | ◐ **half, and the last gap is now unblocked** | quotation graph ✅, reading exceptions ✅, 科文 alignment ✅, authority linking ✅ (2,374 works, plus places, lineage chains and Wikidata ids). **Translator fingerprinting was "ahead of its data" and no longer is** — Karashima's Dharmarakṣa and Kumārajīva glossaries cover the SAME sūtra, anchored per line, with 4,345 attested absences. See `docs/PLAN.md` § L1 |
-| **7** Research agent + translation | ◐ **report verification shipped**; translation not started, and it is now the critical path | `verify_report` byte-compares every citation in a document and re-runs the retrievals its figures rest on (`docs/PLAN.md` § H). Glossary-pinned generation is one of only two routes to an English layer over the Chinese canon — see the risk section below and § E1 |
-| **8** Web reader | ✅ **shipped early** | six screens, and the public artefact builds |
+Rechecked at `e5d0bfc2b61018d5b2f202baa4f9841ac7531882`. These are implementation
+states, not a new live corpus audit or approval of the proposed pilot. See
+[PLAN's current disposition](PLAN.md#current-engineering-disposition--post-17-2026-09-16)
+for the active task, human dependencies and unchanged Foundry ownership.
 
-**The shape of the remaining work is not what this roadmap assumed.** It planned eight
-sequential phases; what is actually left is one blocked item (SAT), one half-finished phase
-(6), one unstarted phase (7), and a long tail of coverage. Phase 8 shipped out of order
-because the API made it cheap, exactly as predicted.
+| Phase | Current disposition |
+|---|---|
+| 0–1: skeleton / Chinese corpus | Implemented; the recorded STATUS snapshot has 16 CBETA collections, not the older 11 below. No corpus acquisition was rerun for this reconciliation. |
+| 2: Japanese delta | SAT bulk acquisition remains human-blocked; do not treat an old phase tag or catalogue implementation as delivery of the missing source. |
+| 3–5: Pāli, evaluation, Tibetan | Infrastructure implemented; historical coverage/quality limits remain. Explicit eval-baseline acceptance and within-work diagnostics already exist. |
+| 6: enrichment | Quotations, reading exceptions, commentary alignment, authority and glossary-based translator comparison exist. That does not establish a general translator/difficulty scoring system or complete relation coverage. |
+| 7: report checking / translation | Report checking and batch generation/import already ship. PR #15 fixes evidence classification; PR #17 supplies v2 content identity; the report-release follow-up prevents treating another release's claims as false. Human fidelity review remains open. Full-corpus translation and the proposed query-time cache/promotion service are not complete. |
+| 8: reader | Six screens exist, including `/check`. New pilot scope/export and generated-reading policies are separate proposed decisions. |
 
-**Read `docs/PLAN.md` for what to do next.** This file is the plan as it was drawn; the plan
-as it is now lives there, with evidence.
+The old "translation not started", "unstarted phase 7", missing release split and
+first-data-for-translator-comparison assumptions are superseded. The multi-corpus
+substrate remains; the strategy proposes one selected scope per pilot, not deleting
+other corpora or silently approving an all-traditions launch. Its operator gates remain.
+
+**Release boundary:** `release_id` fingerprints recorded source identity and derived
+translation/vector content. Report verification compares supplied identities and returned
+receipts; it does not freeze code/defaults, retain historical rows or restore snapshots.
+PR #16's dependency advisory fixes and both Hex audit commands are also already integrated.
+
+The phase sections below retain their original schedule and historical evidence. They are
+not an independent executable queue; read PLAN and current code before reviving an item.
 
 ---
 
@@ -155,14 +163,9 @@ The long pole. Budget generously.
 
 ## Phase 6 — Deterministic enrichment (weeks 17–20) — ◐ HALF DONE
 
-Where the unique features get built. Three of five shipped; the two that have not are
-listed as **not started** rather than in progress, because nothing has been written.
-
-- **Quotation graph** — suffix-array reuse detection across the full corpus, as a
-  standalone Rust binary invoked as a port (see `docs/ELIXIR.md`)
-- **Buddhist reading-exception dictionary** — 般若 *bōrě* not *bānruò*, 南無 *námó*,
-  plus 呉音 go-on readings for the Japanese material. Generic pinyin libraries get
-  these wrong, confidently, in exactly the passages users care about.
+Retained enrichment plan. The current reconciliation above supersedes the old
+"three of five"/"nothing written" labels; distinguish implemented mechanisms from
+population coverage and proposed scoring systems.
 - ✅ **Quotation graph** — 141,073 verbatim reuses across 1,301 works
 - ✅ **Reading exceptions** — 9,543 over a 44,348-character base
 - ✅ **Commentary lemma-and-gloss (科文) parsing** — deterministic, no model. The live
@@ -181,8 +184,9 @@ listed as **not started** rather than in progress, because nothing has been writ
   入處, 覺分, 緣生, 道跡, 法律 — his technical vocabulary). `compare_hands/3` keys on DILA
   authority ids so a translator is one identity across spellings, and is **ahead of the
   data**: six named pairs have parallel works and the richest, T0099 against T0210, is prose
-  sūtra against verse, so it measures genre rather than hand. Needs a genre-matched pair the
-  corpus does not yet hold. And
+  sūtra against verse, so it measures genre rather than hand. That was the original blocker; the acquired Karashima pair and glossary comparison
+  supersede it. General translator fingerprinting is still distinct from that implemented
+  term comparison. And
   **translation divergence scoring** — the same computation, applied to both human
   and machine renderings. Doubles as the corpus-wide difficulty map that prioritizes
   human review effort.
@@ -208,14 +212,15 @@ rendered this term" both work.
   absence claims re-executed from the `replay` record the tool response carried**. A
   citation guard cannot reach "appears 36,775 times" or "no Japanese text says this", and
   those are the claims that carry a report. Designed in `docs/PLAN.md` § H.
-- Multi-hop agentic research mode: plan → survey → cross-reference → sourced report,
-  every claim URN-anchored
+- Historical multi-hop research proposal: caller-owned agents may plan, survey and
+  cross-reference through the read-only tools; this is not a new server-side agent
 - Post-generation citation guard wired into all answer paths
-- Glossary-pinned translation with a visible term-mapping chain
+- Batch glossary-pinned translation is implemented; the later fidelity experiments in
+  PLAN supersede its earlier "not started" status
 - **Full-corpus machine translation** into target languages, stored as layers with
   `method: llm` and full reproducibility metadata — never citable as source. Doubles
   as the cross-lingual retrieval fix, since the English layer gets embedded too.
-- **On-the-fly translation** for retrieved spans, backed by the
+- **Proposed, not implemented: on-the-fly translation** for retrieved spans, backed by the
   `translation_candidates` cache (keyed by content hash, kept out of the bake), plus
   the scored promotion pipeline that elevates good candidates into the next bake
 - Doctrinal position comparison (replacing persona mode)

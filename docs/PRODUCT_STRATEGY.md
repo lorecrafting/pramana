@@ -9,7 +9,9 @@ proposes direction, not shipped capabilities, budgets, implementation tickets or
 permission to launch agents. The [repair plan](../foundry/docs/REPAIR-PLAN.md) and
 [workflow contract](../foundry/docs/WORKFLOW-CONTRACT.md) retain execution authority.
 [PLAN](PLAN.md) owns active work; [ROADMAP](ROADMAP.md) retains its existing phase
-record. Their later reconciliation is an explicit planning step, not done here.
+record. [PLAN's post-#17 reconciliation](PLAN.md#current-engineering-disposition--post-17-2026-09-16)
+now checks the existing engineering baseline; it does not approve the pilot choices or
+admit these strategic initiatives. V2 content identity is implemented, not immutable replay.
 
 ## The strategy in one page
 

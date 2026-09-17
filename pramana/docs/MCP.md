@@ -84,8 +84,22 @@ citations does not verify an uncited report.
 
 `verify_report` checks supported declared replay blocks, not every factual sentence
 in prose. Its domain default caps replay processing at 25 and reports skipped items.
-A different named source bake can make a replay unverifiable; a matching identity
-does not address all the state limitations above. Inspect the [report implementation](../apps/pramana/lib/pramana/report.ex).
+Copy **both** `bake_id` and `release_id` from the original tool reply into its
+`pramana-replay` block alongside `tool`, `arguments` and `assert`. Do not replace a
+historical id with today's stamp to make a report pass.
+
+A different or unavailable named bake/release makes a replay `unverifiable` before it
+executes. For a release-bound replay, the returned tool receipt must also contain matching
+recorded identities before any assertion is compared. `checked_identity` records what the
+verifier read at entry, separately from the outer reply's metadata. Missing, null or
+malformed returned identity cannot establish the recorded release.
+
+Older records omitting `release_id` (or using null) keep their existing behavior, with
+`identity_scope: source_bake_only` or `unrecorded` and a limitation note; they check current
+values, not historical retrieval equivalence. Historical nonempty release ids are opaque,
+not upgraded to v2. An invalid non-null recorded release makes the block malformed.
+A matching identity still does not address all the state limitations above. Inspect the
+[report implementation](../apps/pramana/lib/pramana/report.ex).
 
 A failure to find wording in the loaded corpus is not proof of fabrication. A genuine
 quotation is not proof of the attached interpretation. Generated text is not canonical

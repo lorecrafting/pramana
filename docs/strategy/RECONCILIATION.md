@@ -65,7 +65,8 @@ Pramāṇa utility or require an elaborate platform before the first product tes
 ## Corrections to implementation language
 
 The current [architecture](../../pramana/docs/ARCHITECTURE.md) distinguishes input bake identity,
-mutable loaded state and coarse retrieval stamps. Do not advertise immutable replay
+mutable loaded state. PR #17 subsequently added v2 content-based retrieval stamps;
+that does not freeze historical rows, code or defaults. Do not advertise immutable replay
 from those IDs alone. The current citation guard checks recognized quotations and
 URN existence; it is not a clause-level doctrinal fact checker. Original `urn:cts:`
 examples are not the repository's implemented `pramana:` grammar.

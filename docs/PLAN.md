@@ -13,13 +13,68 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-16** — "Start here" item 2 reconciled with the implemented
-release split and its v2 content-identity follow-up. The phase sections further down were
-not re-read, and the date claims only what was.
+Last reviewed: **2026-09-16** — post-#17 source/roadmap reconciliation below, covering
+"Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
+Older experiment narratives remain dated evidence, not a fresh execution queue. No live
+corpus counts or human fidelity judgments were regenerated.
 **B is done through the sixteenth CBETA collection: 16 of 26 held, every text chunked and
 embedded, the reader at six screens.**
 
 ---
+
+## Current engineering disposition — post-#17, 2026-09-16
+
+**Inspection baseline:** `e5d0bfc2b61018d5b2f202baa4f9841ac7531882` on `main`.
+GitHub had no open issues or PRs at intake. Retained remote branches were compared with
+main; the unmerged differences are earlier documentation/layout/validation work, not an
+active implementation of the report-release fix below. This is repository evidence, not
+visibility into another agent's unpublished working tree or running session.
+
+| Earlier assumption | Source-backed disposition |
+|---|---|
+| Evidence completeness/literal foreign tokens still need repair | PR #15 is merged; `Report`, `ForeignEvidence` and the adversarial evidence tests own the implemented classification. Do not redo it. |
+| Advisory checking only uses `deps.audit` | PR #16 is merged; `hex.audit` is also in CI and `pramana.gate`, with the Bandit/Mint fixes. |
+| Start item 2 / queue item 10: source/retrieval split or content identity remains to build | PR #17 closes v2 stored-content identity, including vector bytes. `Release`, drift, embedding writers and lifecycle tests implement it; old unprefixed rows remain history. |
+| The eval gate cannot explicitly accept its improved baseline | Queue item 9 already closed this; `pramana.evals --gate --accept` and per-case movements exist. An ordinary passing gate must not auto-accept. |
+| Rerank isolation / within-work diagnostics remain proposals | `Retrieval.Rerank` applies arm restrictions and `Recall` has within-work instrumentation. The subsequent dated reruns supersede the earlier broken-isolation warning. |
+| Phase 7 translation has not started; Chinese topical recall is still the old zero | Batch generation/import, translation vectors and the blinded bake-off exist. The later recorded experiments supersede those old statements, not a claim of full-corpus coverage or human fidelity. |
+| Translator comparison needs its first data; reader has five screens | Glossary comparison and `/check` already exist. The phase record's older descriptions are not new implementation tasks. |
+| Old product notebook's feature inventories are an admitted backlog | [The consolidated strategy](PRODUCT_STRATEGY.md) supersedes that notebook. Its pilot/rights/retention decisions remain proposals requiring operator action. |
+
+**Selected machine task: consume release identity in report verification.** At this
+baseline `MCP.Reply` emitted `release_id`, but `Report.decode/2` discarded it and replay
+verification compared only `bake_id`. A changed translation/vector release under one source
+bake could therefore falsely refute an earlier retrieval claim. This change retains and
+validates the recorded release, refuses mismatched/unavailable selection before execution,
+and checks returned identity receipts before comparing release-bound assertions. Both MCP
+and `/check` expose the distinction. Historical bake-only reports remain compatible with
+an explicit identity-limit note. This consumes the existing stamp; it does not extend its
+identity scheme, stamp automatically, reconstruct history or promise immutable replay.
+
+**Alternatives considered:** bounded `/check` execution/transport remains a credible
+public-exposure hardening task, but the current synchronous self-hosted path is documented
+and this repair fixes a demonstrated wrong verdict first. Reader translation-eligibility
+controls require the strategy's D4 generated-reading policy before changing defaults.
+Neither alternative is included in this change.
+
+**Human/operator work remains:** the blinded T0026 fidelity ranking; SAT outreach and
+source acquisition authorization; unresolved Tengyur title adjudication; and strategy
+D1–D7 pilot/scope/rights/budget/retention decisions. The old 705-untitled figure and the
+later STATUS snapshot's 711 are not interchangeable live measurements. Use the actual
+catalogue/database when taking up that work; code inspection cannot supply its verdict.
+
+**Foundry boundary:** current main still has legacy log storage, not an accepted FR-07
+SQLite authority implementation. The latest retained log names `/root/fr07_impl` as sole
+v6 owner, records unresolved support probes, and contains no frozen/accepted v6 handoff.
+No newer published branch or acceptance artifact was found. Do not infer that the owner is
+currently running, or take over its unpublished work. FR-01–05 containment, FR-06's design
+gate and FR-21's integration attestation are complete; FR-21 is not deployed. FR-07 is
+unaccepted; FR-08 has investigation only; FR-08–20 (including FR-15a) and FR-22 remain
+blocked by the recorded dependency graph. No Foundry code, ownership, launch authority or
+repair-status evidence changes in this PR.
+
+The sections below retain original dates and counterevidence. A still-open historical
+bullet must be reconciled with this disposition and current code before dispatch.
 
 ## Foundry audit follow-up — 2026-09-12
 
@@ -154,12 +209,13 @@ with HUMAN English too.** Roughly 20 of 189 are actually addressable.
    design deliberately refuses reader ranking, since a reader without Chinese can only rank
    fluency and fluent-and-wrong is the failure it exists to catch. A few passages repeat
    under fresh labels so the ranker's own consistency is measured.
-2. **Item 10 — retrieval identity is implemented; content identity is the remaining gate.**
+2. **Item 10 — source/retrieval split and v2 content identity are COMPLETE (PR #17).**
    The `source_bake_id` / `translation_set_id` / `vector_set_id` / `release_id` split and
    explicit release selection already shipped. The 2026-09-16 follow-up upgrades the two
    derived component ids from counts/names to v2 content digests, including actual stored
    vector bytes, while preserving old coarse releases as historical rows. This closes the
-   known same-count hole. It still does **not** make `release_id` a frozen replay of code,
+   known same-count hole. The report verifier now consumes that identity as described in
+   the post-#17 disposition above. It still does **not** make `release_id` a frozen replay of code,
    defaults or historical database rows; public replay claims must stay narrower than that.
 3. **705 Tengyur works with no title**, and the SAT request, which has waited since
    2026-08-15. Both need a person and neither needs code.
@@ -893,8 +949,11 @@ look right. Neither has been checked against the code.
    case. Running it twice is what tells noise from signal, and `@tolerated_case_drop 1` is
    calibrated for exactly that.
 
-10. **`bake_id` does not identify what answered, and nineteen tools say it does.** ▸ **FROM
-    THE ARCHITECTURE REVIEW**, and the enlargement of audit finding 3 above.
+10. **Historical finding: `bake_id` did not identify what answered.**
+    **Current disposition:** the split and v2 content digests are implemented (PR #17);
+    this follow-up closes the report consumer's discarded `release_id`. The original
+    observations below explain the defect, not work to repeat. **FROM THE ARCHITECTURE
+    REVIEW**, and the enlargement of audit finding 3 above.
 
     `Pramana.Bake`'s own moduledoc: *"Two people with the same `bake_id` hold byte-identical
     corpora."* The current bake was built **2026-09-02 18:50**. Since then, under an

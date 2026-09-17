@@ -71,3 +71,18 @@ See [retired files](../../docs/RETIRED_FILES.md) for recovery and offline-access
 | <a id="build-it"></a>[Build it](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#build-it) |
 | <a id="what-it-costs-to-host-honestly"></a>[What it costs to host, honestly](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#what-it-costs-to-host-honestly) |
 | <a id="what-it-cannot-do-yet"></a>[What it cannot do yet](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/deployment-notes.md#what-it-cannot-do-yet) |
+
+## Reports from an earlier retrieval release
+
+Keep the original reply's `bake_id` and `release_id` beside each declared replay. The report
+checker is read-only: it refuses a known mismatched or unavailable identity rather than
+stamping, selecting history, or calling the old claim false. It also checks returned
+receipts for release-bound records. Its `checked_identity` is the selection at check entry,
+not an attestation of unchanged data during execution.
+
+Do not edit a report's identity or stamp the current database merely to erase a warning.
+A historical release row is not a backup. Inspect/restore the actual required inputs and
+database separately, and retain the documented code/default/runtime limitations. Old
+bake-only reports remain supported with a visible warning that no retrieval release was
+recorded. This change has no migration, alters no historical identity rows, and requires
+no Foundry operation; rolling code back loses the new report check, not stored data.

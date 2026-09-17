@@ -89,6 +89,15 @@ or create a transactional snapshot of tool execution. Error responses retain the
 error flag, reason and message. Omitted defaults are not pinned by the replay record.
 **Re-runnable is not a promise of identical results.**
 
+`Report.verify/2` retains optional `release_id` in replay fences. A named bake or release
+must match the current selection before the query runs; a release-bound query's returned
+receipt must also carry matching recorded identities before assertions are compared.
+Mismatch or unavailable identity is `unverifiable`, not a false claim. `checked_identity`
+preserves the selection read at verification entry even if outer reply metadata is later.
+Legacy records without a release remain usable with an explicit weaker identity scope.
+No content scan or implicit stamp occurs, and this does not detect every unstamped edit or
+concurrent mutation. Restoring a historical database remains separate operator work.
+
 ## Citation verification, precisely
 
 The guard resolves a supplied URN and checks byte-substring containment for recognized
