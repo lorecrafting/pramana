@@ -59,7 +59,7 @@ defmodule PramanaWeb.CheckRun do
     try do
       case CheckAdmission.acquire(admission) do
         {:ok, permit} -> run_admitted(owner, id, markdown, deadline, opts, admission, permit)
-        {:error, :busy} -> empty_outcome(:busy)
+        {:error, :busy} -> capacity_outcome(id)
         {:error, :unavailable} -> empty_outcome(:error)
       end
     after
@@ -188,6 +188,12 @@ defmodule PramanaWeb.CheckRun do
       0 -> :ok
     end
   end
+
+  # MCP exposes a specific capacity refusal. The existing reader UI intentionally
+  # retains its stable lifecycle vocabulary and renders saturation as an execution
+  # error with no verdict; `id` is only present for the reader path.
+  defp capacity_outcome(nil), do: empty_outcome(:busy)
+  defp capacity_outcome(_reader_id), do: empty_outcome(:error)
 
   defp remaining(deadline), do: deadline - System.monotonic_time(:millisecond)
   defp outcome(state, execution), do: %{execution: execution, result: state.result, repair: nil}
