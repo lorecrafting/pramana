@@ -33,7 +33,12 @@ defmodule PramanaWeb.CheckAdmissionLiveTest do
     view |> form("#report-check-form", report: "busy") |> render_submit()
     render_async(view, 3_000)
 
-    assert has_element?(view, ~s(#check-execution[data-state="error"]), "No verification verdict")
+    assert has_element?(
+             view,
+             ~s(#check-execution[data-state="busy"]),
+             "Verification did not start and no verdict was produced"
+           )
+
     refute has_element?(view, "#verification-result")
     refute_received :unexpected_verification
     refute_received :unexpected_repair
@@ -49,7 +54,8 @@ defmodule PramanaWeb.CheckAdmissionLiveTest do
     start_supervised!(
       Supervisor.child_spec(
         {DynamicSupervisor, strategy: :one_for_one, name: permit_supervisor},
-        id: make_ref()
+        id: make_ref(),
+        restart: :temporary
       )
     )
 
