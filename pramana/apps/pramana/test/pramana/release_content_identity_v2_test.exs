@@ -96,7 +96,12 @@ defmodule Pramana.ReleaseContentIdentityV2Test do
     {:ok, before} = Release.stamp()
     count = Repo.aggregate(ChunkVector, :count)
 
-    path = Path.join(System.tmp_dir!(), "pramana-release-v2-#{System.unique_integer([:positive])}.jsonl")
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "pramana-release-v2-#{System.unique_integer([:positive])}.jsonl"
+      )
+
     on_exit(fn -> File.rm(path) end)
 
     File.write!(

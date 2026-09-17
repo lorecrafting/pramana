@@ -77,9 +77,11 @@ defmodule Pramana.ReleaseAcceptanceTest do
     # The last old writer completed before migration/backfill, as the runbook requires.
     assert :ok = Ecto.Migrator.up(Repo, @selection_version, SelectCurrentRelease, opts)
     assert Release.current() == b
+
     assert Release.drift() == %{
              identity_version: %{stamped: "v1/coarse", live: "v2"}
            }
+
     Repo.delete!(bake_b)
 
     assert %{
