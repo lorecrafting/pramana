@@ -1,0 +1,37 @@
+name: One-off gate count correction
+
+on:
+  push:
+    branches:
+      - fix/security-hex-advisories-2026-09-16
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/security-hex-advisories-2026-09-16
+          fetch-depth: 0
+      - name: Correct documented gate step count
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex")
+          text = path.read_text()
+          old = "All twelve steps, with the stage each runs in."
+          new = "All thirteen steps, with the stage each runs in."
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one gate-count sentence, found {text.count(old)}")
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check -- pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex
+          git commit -m "docs: correct local gate step count"
+          git push origin HEAD:fix/security-hex-advisories-2026-09-16
