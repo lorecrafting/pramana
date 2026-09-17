@@ -36,18 +36,23 @@ defmodule Pramana.CI.ServingPrivileges do
        OR has_schema_privilege(oid, 'CREATE'))
     """)
 
+    # AND predicates may be reordered. CASE keeps each type-sensitive privilege
+    # function away from indexes and other objects it cannot inspect.
     expect_zero!("""
     SELECT count(*) FROM pg_class
-    WHERE relnamespace = 'public'::regnamespace AND relkind IN ('r','p','v','m','f') AND
-      (relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
-       OR has_table_privilege(oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
-       OR has_any_column_privilege(oid, 'INSERT,UPDATE,REFERENCES'))
+    WHERE relnamespace = 'public'::regnamespace AND
+      CASE WHEN relkind IN ('r','p','v','m','f') THEN
+        (relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+         OR has_table_privilege(oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
+         OR has_any_column_privilege(oid, 'INSERT,UPDATE,REFERENCES'))
+      ELSE false END
     """)
 
     expect_zero!("""
     SELECT count(*) FROM pg_class
-    WHERE relnamespace = 'public'::regnamespace AND relkind = 'S'
-      AND has_sequence_privilege(oid, 'USAGE,UPDATE')
+    WHERE relnamespace = 'public'::regnamespace AND
+      CASE WHEN relkind = 'S' THEN has_sequence_privilege(oid, 'USAGE,UPDATE')
+      ELSE false END
     """)
 
     expect_zero!("""
