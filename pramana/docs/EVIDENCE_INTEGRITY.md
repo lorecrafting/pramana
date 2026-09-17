@@ -162,6 +162,12 @@ stamp writers are unsupported.** A successful migration alone does not drain the
    only when selecting the observed state is the operator's intended action. Resume only
    updated writers after acceptance.
 
+For the application-only v2 content-identity upgrade, there is no additional schema
+migration: an existing unprefixed selected release intentionally reports
+`identity_version` drift. Investigate any other drift, keep data writers quiescent, then
+run `mix pramana.release.stamp` only when the live state is the intended selection. That
+creates/selects a v2 row and leaves every v1 history row unchanged.
+
 A late legacy writer can insert B into history after the one-time backfill selected A,
 without updating the selection. The writer fence prevents that unsupported transition;
 the advisory lock cannot constrain old code that never acquires it.
@@ -175,17 +181,20 @@ the advisory lock cannot constrain old code that never acquires it.
    migration. Its `down/0` drops **only `release_selection`**; release history remains.
    Do not blindly roll back the newest migration or reset the database.
 3. Start the chosen older revision only after schema acceptance. Older code selects by
-   the original stamp timestamp: after **A → B → A**, it can select **B**, not the
-   explicitly reselected A. Check and report that change before resuming service. This
-   migration cannot promise selection continuity across old code. Restoring a backup
-   has its own operator-approved recovery procedure; dropping this table is not one.
+   the original stamp timestamp. The first v2 stamp creates a new v2 history row with a
+   fresh timestamp, so a rollback can select that cutover row. After later **A → B → A**
+   within v2, however, reselecting A still reuses A's original timestamp and older code can
+   select **B** instead. Check and report the selected row before resuming service. This
+   migration cannot promise selection continuity across old code. Restoring a backup has
+   its own operator-approved recovery procedure; dropping this table is not one.
 4. For re-upgrade, drain the old writers again and repeat the cutover. The new backfill
    again uses legacy timestamp order, not the previously deleted selection pointer.
    Verify identity/drift, then explicitly select an intended state only after review.
 
 A → B → A under updated code reuses A's identity/timestamp and selects it atomically.
-Reads never create or refresh a selection; MCP success/error envelopes attach it.
-Same-count content edits and code/default changes remain outside the coarse release
+Reads never create or refresh a selection; MCP success/error envelopes attach it. V2
+component ids cover same-count rendering and vector-row changes, including stored vector
+bytes; retrieval code/defaults and historical database snapshots remain outside the
 fingerprint. Exact historical replay and global snapshot isolation are not promised.
 
 PostgreSQL references: [transaction advisory locks](https://www.postgresql.org/docs/18/explicit-locking.html#ADVISORY-LOCKS)
