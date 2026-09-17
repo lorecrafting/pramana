@@ -256,6 +256,10 @@ jobs:
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix credo --strict --files-included '../test/**/*.exs' --files-included '../bin/*.exs'
 
+      - name: Hex lockfile audit
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: mix hex.audit
+
       - name: Deps audit
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix deps.audit

@@ -39,7 +39,7 @@ A checkpoint is a real stop. Do not start the next phase until all of it passes.
 
 ### 1. Code
 ```bash
-mix pramana.gate --quick    # format, compile, credo, deps.audit, test --cover, dialyzer, lockfile, coherence
+mix pramana.gate --quick    # format, compile, credo, hex.audit, deps.audit, test --cover, dialyzer, lockfile, coherence
 mix pramana.doctor          # not a check — the state a session opens with
 mix hex.outdated            # note drift; upgrade deliberately — not in the gate
 ```
@@ -48,6 +48,8 @@ mix hex.outdated            # note drift; upgrade deliberately — not in the ga
 block listed seven commands; the gate ran three of them, so *"the gate passed"* and *"the
 phase-gate code checks passed"* were different statements that read identically.
 `compile --warnings-as-errors`, `dialyzer` and `deps.audit` are now steps.
+
+`mix hex.audit` is a separate gate from `mix deps.audit`: Hex audits the locked Hex packages against current Hex security advisories and retirements, while `deps.audit` keeps the existing mix_audit check. A green `deps.audit` result does not substitute for `hex.audit`.
 
 One stays out, deliberately: `hex.outdated` is asked for here to **note** drift, and a
 dependency being upgradable is not a failure — a gate step that cannot fail is noise.

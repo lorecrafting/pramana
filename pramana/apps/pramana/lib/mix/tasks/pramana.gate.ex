@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Pramana.Gate do
 
   ## The steps, and why in this order
 
-  All eleven steps, with the stage each runs in. **Timings are one measurement, taken
+  All thirteen steps, with the stage each runs in. **Timings are one measurement, taken
   2026-08-29 on this machine** — they are here to justify the ordering, not to be quoted.
   Run it if you want the number; the summary prints every step's own time.
 
@@ -31,7 +31,8 @@ defmodule Mix.Tasks.Pramana.Gate do
   |---|---|---|---|
   | 1 | `mix format --check-formatted` | 0.5 s | costs nothing, fails often |
   | 2 | `mix compile --warnings-as-errors --force` | 5.2 s | every later step assumes built beams |
-  | 3 | `mix deps.audit` | 2.3 s | cheap, independent |
+  | 3 | `mix hex.audit` | — | locked Hex advisories and retirements |
+  | 3 | `mix deps.audit` | 2.3 s | independent mix_audit check |
   | 3 | `mix credo --strict` | 3.7 s | same |
   | 3 | `mix pramana.coherence` | 6.2 s | reads a few aggregates, re-derives nothing |
   | 3 | `mix pramana.docs.figures` | 3 s | documentation figures against the corpus |
@@ -108,6 +109,7 @@ defmodule Mix.Tasks.Pramana.Gate do
       stage: 2
     },
     %{id: "credo", cmd: ~w(mix credo --strict), env: "dev", quick: true, stage: 3},
+    %{id: "hex_audit", cmd: ~w(mix hex.audit), env: "dev", quick: true, stage: 3},
     %{id: "audit", cmd: ~w(mix deps.audit), env: "dev", quick: true, stage: 3},
     %{id: "test", cmd: ~w(mix test --cover), env: "test", quick: true, stage: 3},
     # Slow enough to sit behind the cheap checks and fast enough not to be `quick: false`:
@@ -171,7 +173,7 @@ defmodule Mix.Tasks.Pramana.Gate do
   #   2  compile     alone, because every later step assumes built beams — and because
   #                  concurrent `mix` invocations in one MIX_ENV contend on the build lock,
   #                  so compiling once up front is what makes stage 3 safe to fan out.
-  #   3  cheap       credo, audit, test, dialyzer, lockfile — mutually independent. `test`
+  #   3  cheap       credo, hex_audit, audit, test, dialyzer, lockfile — mutually independent. `test`
   #                  is MIX_ENV=test and takes a different build lock again.
   #   4  corpus      verify and integrity: both read-only over the same bake, and they
   #                  answer DIFFERENT questions, which is why both are here at all.
