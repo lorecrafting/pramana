@@ -124,8 +124,8 @@ VALUES ('{URN}','smoke1','en','ci','t0','human','synthetic restricted rendering'
         self.sql("queued", f"""
 INSERT INTO oban_jobs (state,queue,worker,args,max_attempts)
 VALUES ('available','bake','Pramana.Bake.Worker','{args}'::jsonb,3);
-INSERT INTO oban_jobs (state,queue,worker,args,attempt,completed_at,inserted_at)
-VALUES ('completed','bake','Pramana.Bake.Worker','{{}}',1,now()-interval '9 days',now()-interval '9 days');
+INSERT INTO oban_jobs (state,queue,worker,args,attempt,scheduled_at,completed_at,inserted_at)
+VALUES ('completed','bake','Pramana.Bake.Worker','{{}}',1,now()-interval '9 days',now()-interval '9 days',now()-interval '9 days');
 """)
         # Only this owned disposable cluster is changed. Runtime identities are not
         # table/database owners, and receive neither sequence nor Oban-table access.
@@ -299,6 +299,9 @@ IO.puts("NO_PUBLIC_JOBS_OK")
     def background_isolation(self):
         snapshot_sql = "SELECT jsonb_agg(to_jsonb(j) ORDER BY id)::text FROM oban_jobs j;"
         before = self.sql("queued", snapshot_sql)
+        peer_sql = "SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY name), '[]'::jsonb)::text FROM oban_peers p;"
+        peers = self.sql("queued", peer_sql)
+        assert peers == "[]", "fixture already has a peer"
         jobs = json.loads(before)
         assert len(jobs) == 2 and {job["state"] for job in jobs} == {"available", "completed"}
         assert next(job for job in jobs if job["state"] == "available")["attempt"] == 0
@@ -309,6 +312,7 @@ IO.puts("NO_PUBLIC_JOBS_OK")
             self.wait_ready(name, port)
             self.assert_no_jobs(name)
             assert self.sql("queued", snapshot_sql) == before, "public node changed job history"
+            assert self.sql("queued", peer_sql) == peers, "public node elected a database peer"
             assert self.sql("queued", "SELECT count(*) FROM texts WHERE work_id='T9999';") == "0"
             self.docker("stop", "-t", "10", name)
         self.results["cases"].append({"case": "public-does-not-claim-prune-or-elect", "passed": True})
@@ -386,7 +390,8 @@ end
 result = Application.ensure_all_started(:pramana_web)
 unless match?({:error, _}, result) and inspect(result) =~ "public_corpus_forbidden",
   do: raise("wrong startup disposition: #{inspect(result)}")
-for name <- [Pramana.Supervisor, Pramana.Repo, Oban, Pramana.Embed.Serving,
+if Oban.whereis(Oban), do: raise("rejected startup retained Oban")
+for name <- [Pramana.Supervisor, Pramana.Repo, Pramana.Embed.Serving,
              PramanaWeb.Supervisor, PramanaWeb.Endpoint] do
   if Process.whereis(name), do: raise("rejected startup retained #{inspect(name)}")
 end
@@ -432,7 +437,10 @@ IO.puts("ADMITTED_SERVING_OK")
 
     def admin(self):
         code = '''
+Application.load(:pramana)
+Application.delete_env(:pramana, Oban)
 {:ok, _} = Application.ensure_all_started(:pramana_web)
+if Oban.whereis(Oban), do: raise("public administration started Oban")
 unless PramanaWeb.Endpoint.config(:server) == false, do: raise("implicit server enabled")
 case :gen_tcp.connect({127, 0, 0, 1}, 4000, [:binary, active: false], 1000) do
   {:error, :econnrefused} -> :ok

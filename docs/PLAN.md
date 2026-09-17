@@ -52,6 +52,11 @@ owns provisioning, effective-privilege checks, rollout and rollback. No automati
 creation/grant repair, corpus change, migration, inference, identity expansion, Foundry
 operation or hosting-capacity approval. Operator/human gates below remain unchanged.
 
+Self-review corrected the synthetic completed-job age to the pinned pruner’s
+`scheduled_at` rule, removed an unnecessary pooled session setting from the privilege
+probe, and strengthened peer/registry and configuration-free startup checks. The real
+queue/pruner positive control remains mandatory; no assertion was relaxed.
+
 ## Release startup admission — post-#21, 2026-09-17
 
 **Base:** `17ca708ce07b56298c8986e1bac03ec90c98a129`. PR #21 is merged and its

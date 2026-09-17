@@ -8,8 +8,6 @@ defmodule Pramana.CI.ServingPrivileges do
   def run do
     # A read-only transaction default is reversible by its user and is not a grant
     # boundary. Denial tests below deliberately request read-write transactions.
-    query!("SET default_transaction_read_only = off")
-
     expect!(
       query!("""
       SELECT current_user, session_user, rolsuper, rolcreatedb, rolcreaterole,
