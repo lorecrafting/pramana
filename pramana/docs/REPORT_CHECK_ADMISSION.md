@@ -25,11 +25,17 @@ never arrives within the bounded handshake, the permit terminates without becomi
 long-lived leaked reservation.
 
 After activation, the permit no longer depends on the admission server. Restarting only
-the admission server therefore preserves active capacity: the replacement counts the same
-live permit children before admitting more work. If a coordinator dies, its permit exits
-automatically. `CheckRun` separately monitors its permit; loss of the permit supervisor is
-an execution failure and remaining report work is stopped rather than continuing outside
-the capacity accounting.
+the admission server therefore preserves active capacity: the replacement binds to the
+same permit-supervisor process and counts the same live permit children before admitting
+more work. If a coordinator dies, its permit exits automatically.
+
+The permit-supervisor generation is intentionally stronger than an ordinary restartable
+counter. `CheckAdmission` pins the exact supervisor PID it saw at startup. If that process
+dies, active permits disappear and their `CheckRun` coordinators stop remaining report
+work; admission then remains unavailable for the rest of that application lifetime. The
+application does not automatically adopt a fresh empty permit supervisor, because doing so
+could admit new work before old workers had observed permit loss and completed cleanup.
+A coordinated application restart restores the subsystem with a new generation.
 
 `CheckRun` releases its permit only after the owned verification/repair worker has been
 stopped and observed. A cancellation request, timeout decision or repair failure does not
@@ -37,10 +43,10 @@ make capacity available before worker cleanup.
 
 ## Refusal semantics and limits
 
-MCP capacity refusal returns `report_check_busy` and no report verdict. The reader keeps
-its existing execution-state vocabulary and reports saturation as an execution error with
-no verification result. Neither path invokes verification or repair when it was refused.
-There is no automatic retry.
+MCP capacity refusal returns `report_check_busy` and no report verdict. The reader shows a
+`busy` execution state with the same semantics: verification did not start and no verdict
+was produced. Neither path invokes verification or repair when it was refused. There is no
+automatic retry.
 
 The bound applies only to report checks on one BEAM node. It does not bound Anubis session
 queueing, other MCP/search tools, independent nodes, JSON/network latency, or already-
