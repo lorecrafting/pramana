@@ -49,6 +49,22 @@ defmodule Pramana.ReleaseContentIdentityV2Test do
     assert Release.drift() == :current
   end
 
+  test "actual rendering text participates even when its adjacent hash is stale" do
+    rendering!("Original rendering")
+    {:ok, before} = Release.stamp()
+    changed_at = DateTime.add(DateTime.utc_now(), 1, :second)
+
+    Repo.update_all(Pramana.Corpus.Translation,
+      set: [text: "Tampered rendering", updated_at: changed_at]
+    )
+
+    # Deliberately leave text_sha256 untouched. The v1-style trust in the adjacent hash
+    # would miss this; v2 fingerprints the actual stored text as well.
+    assert %{translation_set_id: %{stamped: stamped, live: live}} = Release.drift()
+    assert stamped == before.translation_set_id
+    refute live == stamped
+  end
+
   test "a no-op translation rewrite does not manufacture content drift" do
     rendering!("Same rendering")
     {:ok, before} = Release.stamp()

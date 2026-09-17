@@ -266,7 +266,9 @@ defmodule Pramana.Release do
     }
   end
 
-  # Stable row fields only. Surrogate ids and timestamps are deliberately excluded: two
+  # Stable row fields only. Actual stored text travels beside its recorded hash, so an
+  # inconsistent hash column cannot mask a content change. Surrogate ids and timestamps
+  # are deliberately excluded: two
   # databases containing the same logical renderings should mint the same set id.
   defp translation_set_id do
     query =
@@ -279,7 +281,7 @@ defmodule Pramana.Release do
               sha256(
                 convert_to(
                   jsonb_build_array(
-                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                   )::text,
                   'UTF8'
                 )
@@ -294,6 +296,7 @@ defmodule Pramana.Release do
             t.translator_name,
             t.tier,
             t.method,
+            t.text,
             t.text_sha256,
             t.model_id,
             t.prompt_version,
@@ -330,7 +333,7 @@ defmodule Pramana.Release do
               sha256(
                 convert_to(
                   jsonb_build_array(
-                    ?, ?, ?, ?, ?, ?, ?,
+                    ?, ?, ?, ?, ?, ?, ?, ?,
                     CASE
                       WHEN ? IS NULL THEN NULL
                       ELSE encode(sha256(vector_send(?)), 'hex')
@@ -347,6 +350,7 @@ defmodule Pramana.Release do
             v.kind,
             v.lang,
             v.translator_id,
+            v.content,
             v.content_sha256,
             v.embedding_model,
             v.embedding_max_length,
