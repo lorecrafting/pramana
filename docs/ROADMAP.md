@@ -7,7 +7,7 @@ all four traditions in v1 ·
 Postgres+pgvector single DB · MCP + HTTP API first · **Elixir/Phoenix**
 (see `docs/ELIXIR.md`).
 
-**Scope warning, stated once.** All four traditions in v1 is the ambitious call.
+**Original scope warning.** All four traditions in v1 is the ambitious call.
 Chinese, Japanese, and Pāli are clean structured text; **Tibetan is a different kind
 of problem** — partial etext coverage and a source (BDRC) that is mostly page images.
 The mitigation below is to ingest Tibetan from 84000/OpenPecha only in v1 and treat
@@ -15,6 +15,8 @@ BDRC OCR as post-v1. If the schedule slips, Tibetan is the thing to cut back, no
 the provenance model or the eval harness.
 
 ---
+
+<a id="where-we-are--audited-2026-08-28-phase-table-revised-2026-08-31"></a>
 
 ## Current source reconciliation — 2026-09-16, after PR #17
 
@@ -231,8 +233,8 @@ Now cheap, because the API already returns structured spans with URNs and offset
 **LiveView**, not a separate SPA — a parallel-column reader is server-state-heavy and
 mostly read-only, and this avoids maintaining a second API client.
 
-- ✅ Five screens — search, inventory, survey, passage, work. Clickable URN citations,
-  variant-reading apparatus, commentary on the line, links out to the publishing edition.
+- ✅ Six screens — search, inventory, survey, passage, work and report check. Clickable
+  URN citations, variant-reading apparatus, commentary on the line, links out to the publishing edition.
   `docs/READER.md`.
 - ✗ Parallel-column reader, quotation-graph visualisation, IIIF images beside the text
 - ◐ **Public demo restricted to the CC0/CC-BY subset** — `mix pramana.public.bake` builds
@@ -266,8 +268,10 @@ the same `composition_origin`/`text_role` axes as Taishō 56–84 with no schema
 - **Embedding a full bake is the main recurring cost.** Roughly 250M+ characters of
   Chinese alone. Use `dev.yaml` subsets while iterating; batch full bakes rarely;
   cache by content hash so re-bakes only embed what changed.
-- **Biggest technical risk: CONFIRMED, and now understood as coverage rather than
-  retrieval.** Cross-lingual retrieval into Classical Chinese was named here as the biggest
+- **Historical retrieval-risk diagnosis (2026-08-31).** The later isolated experiments
+  and translation-fidelity findings in PLAN E1 supersede this diagnosis; the figures
+  below retain their original scope, not the current outcome. Cross-lingual retrieval into
+  Classical Chinese was named here as the biggest
   technical risk, with the multi-vector English-gloss trick as the mitigation.
   `topical/chinese` is **0% of 12** and has never been anything else. The gloss layer works
   where it exists — English→Pāli is 75%.

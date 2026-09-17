@@ -187,6 +187,22 @@ defmodule Pramana.ReportReleaseIdentityTest do
     assert Enum.map(result.replays, & &1.status) == [:unverifiable, :verified]
   end
 
+  test "unavailable evidence cannot hide a genuine failure elsewhere in the report" do
+    report = document(%{"release_id" => "old"}) <> "\n\n" <> document()
+    result = verify(report, fn _, _ -> {:ok, receipt(%{"total" => 8})} end)
+
+    assert result.status == :failed
+    refute result.ok?
+    assert result.counts.unverifiable_replays == 1
+    assert result.counts.replay_failures == 1
+    assert result.counts.verified_replays == 0
+
+    assert [%{status: :unverifiable}, %{status: :failed, mismatches: [mismatch]}] =
+             result.replays
+
+    assert %{expected: 7, actual: 8} = mismatch
+  end
+
   test "input refusal keeps identities absent and never stamps or executes" do
     result =
       verify(

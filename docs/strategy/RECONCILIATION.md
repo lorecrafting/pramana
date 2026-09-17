@@ -64,8 +64,8 @@ Pramāṇa utility or require an elaborate platform before the first product tes
 
 ## Corrections to implementation language
 
-The current [architecture](../../pramana/docs/ARCHITECTURE.md) distinguishes input bake identity,
-mutable loaded state. PR #17 subsequently added v2 content-based retrieval stamps;
+The current [architecture](../../pramana/docs/ARCHITECTURE.md) distinguishes input bake identity
+from mutable loaded state. PR #17 subsequently added v2 content-based retrieval stamps;
 that does not freeze historical rows, code or defaults. Do not advertise immutable replay
 from those IDs alone. The current citation guard checks recognized quotations and
 URN existence; it is not a clause-level doctrinal fact checker. Original `urn:cts:`
@@ -80,9 +80,9 @@ speculative product capability tables. Corpus counts remain in their owning snap
 
 ## Scope protection and verification limits
 
-This rewrite changes strategy and navigation only. Existing Foundry files, PLAN,
-the formal ROADMAP, application code, schemas, lockfiles, roles and runtime policies
-are not edited. Repair context informs dependency mapping; it is not a repair review
+The original 2026-09-15 strategy rewrite changed strategy and navigation only. Foundry
+files, PLAN, the formal ROADMAP, application code, schemas, lockfiles, roles and runtime
+policies were not edited by that rewrite. Repair context informs dependency mapping; it is not a repair review
 or a fresh production acceptance. The previous documentation audit's exclusion of
 product strategy remains true for that earlier audit and is not rewritten retroactively.
 
