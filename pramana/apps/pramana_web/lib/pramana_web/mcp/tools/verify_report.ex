@@ -24,7 +24,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
        "arguments": {"query": "一切眾生"},
        "bake_id": "b143d7f3…",
        "release_id": "retrieval-release-id…",
-       "assert": {"total": 36775, "works": 1904}}
+       "assert": {"total_segments": 36775, "distinct_works": 1904}}
       ```
 
   `assert` names response keys and the values the report claims for them; a dotted path

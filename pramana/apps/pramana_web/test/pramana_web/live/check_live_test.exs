@@ -259,6 +259,41 @@ defmodule PramanaWeb.CheckLiveTest do
     assert html =~ "not a historical index"
   end
 
+  test "reader survey examples use real fields and invalid scopes remain incomplete", %{
+    conn: conn
+  } do
+    {:ok, view, _html} = live(conn, ~p"/check")
+    assert has_element?(view, "details pre code", "total_segments")
+    assert has_element?(view, "details pre code", "distinct_works")
+
+    record = %{
+      tool: "survey_corpus",
+      arguments: %{"query" => "如是我聞"},
+      assert: %{total_segments: 1, distinct_works: 1}
+    }
+
+    report = "```pramana-replay\n" <> Jason.encode!(record) <> "\n```"
+    submit_report(view, report)
+    assert has_element?(view, ~s(#verification-result[data-status="verified"]))
+
+    for asserted <- [1, 2] do
+      invalid = %{
+        record
+        | arguments: Map.put(record.arguments, "originn", "indic"),
+          assert: %{total_segments: asserted}
+      }
+
+      report = "```pramana-replay\n" <> Jason.encode!(invalid) <> "\n```"
+      html = submit_report(view, report)
+      assert has_element?(view, ~s(#check-execution[data-state="completed"]))
+      assert has_element?(view, ~s(#verification-result[data-status="incomplete"]))
+      assert html =~ "invalid_arguments"
+      assert html =~ "originn"
+      refute has_element?(view, ~s(#verification-result[data-status="verified"]))
+      refute has_element?(view, ~s(#verification-result[data-status="failed"]))
+    end
+  end
+
   defp submit_report(view, report) do
     view |> form("#report-check-form", report: report) |> render_submit()
     render_async(view, 5_000)

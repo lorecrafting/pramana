@@ -41,7 +41,10 @@ failure elsewhere still takes precedence. MCP and `/check` share this boundary.
 
 The regression uses distinct Indic/Chinese fixtures whose scoped and unscoped counts
 differ, plus malformed types, allowlist-wide no-query refusals, atom safety, and legacy
-valid/null/boolean inputs. [MCP](../pramana/docs/MCP.md#replay-argument-contract) owns error
+valid/null/boolean inputs. Self-review also corrected public survey examples to the
+actual `total_segments` / `distinct_works` fields, with real reader and valid collection/
+cap receipt checks; domain and lifecycle semantics are unchanged.
+[MCP](../pramana/docs/MCP.md#replay-argument-contract) owns error
 reasons, compatibility, operator correction and rollback semantics. Its old coarse-stamp
 description was also stale after #17 and now reflects the existing v2 implementation.
 

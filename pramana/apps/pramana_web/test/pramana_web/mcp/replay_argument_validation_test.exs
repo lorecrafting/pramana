@@ -172,6 +172,28 @@ defmodule PramanaWeb.MCP.ReplayArgumentValidationTest do
     assert payload["total"] == 2
   end
 
+  test "valid collection options and capped limits retain their original receipts" do
+    urn = "pramana:cbeta.T:T0262_001@p0001a01"
+
+    arguments = %{
+      "urn" => urn,
+      "relations" => ["full", "resembling"],
+      "include_text" => false,
+      "limit" => 2
+    }
+
+    assert {:ok, compared} = execute("compare_versions", arguments)
+    assert compared["passage"]["urn"] == urn
+    assert compared["replay"]["arguments"] == arguments
+
+    # The tool caps execution; validation must not reject a valid integer or
+    # replace the originally supplied value in its receipt with the cap.
+    arguments = %{"query" => @query, "mode" => "phrase", "limit" => 10_000}
+    assert {:ok, searched} = execute("search", arguments)
+    assert searched["total"] == 2
+    assert searched["replay"]["arguments"] == arguments
+  end
+
   test "conflicting or equal atom/string aliases are ambiguous, not last-write-wins" do
     for second <- [@query, "another query"] do
       arguments = Map.put(%{"query" => @query}, :query, second)
