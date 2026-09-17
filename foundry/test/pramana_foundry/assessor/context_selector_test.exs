@@ -210,7 +210,11 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
     refute original.request_digest == changed_selection.request_digest
   end
 
-  defp request(entries_or_ids \\ ["a", "b"], policy_overrides \\ [])
+  defp request(), do: request(["a", "b"], [])
+
+  defp request(value) when is_list(value) do
+    if Keyword.keyword?(value), do: request(["a", "b"], value), else: request(value, [])
+  end
 
   defp request(ids, policy_overrides)
        when is_list(ids) and ids != [] and is_binary(hd(ids)) do
