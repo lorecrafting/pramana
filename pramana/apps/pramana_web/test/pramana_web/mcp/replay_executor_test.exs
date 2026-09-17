@@ -4,7 +4,7 @@ defmodule PramanaWeb.MCP.ReplayExecutorTest do
 
   A replay record names a tool and arguments chosen by whoever wrote the report, so this is
   **untrusted input reaching a dispatcher**. Every test here is about a refusal: what is not
-  in the whitelist, what cannot become an atom, and what a raising tool does.
+  in the whitelist, what cannot become an atom, and which arguments must never reach a tool.
   """
   use Pramana.DataCase, async: true
 
@@ -61,15 +61,13 @@ defmodule PramanaWeb.MCP.ReplayExecutorTest do
       assert {:error, {:unknown_tool, "rm_rf"}} = ReplayExecutor.executor().("rm_rf", %{})
     end
 
-    test "unknown argument keys are dropped without allocating atoms" do
+    test "unknown argument keys are refused without allocating atoms" do
       key = "replay_unknown_" <> Base.url_encode64(:crypto.strong_rand_bytes(24), padding: false)
       assert_raise ArgumentError, fn -> String.to_existing_atom(key) end
 
-      assert {:ok, payload} =
+      assert {:error, {:invalid_arguments, :unknown_field}} =
                ReplayExecutor.executor().("survey_corpus", %{"query" => "一切眾生", key => 1})
 
-      assert payload["replay"]["tool"] == "survey_corpus"
-      refute Map.has_key?(payload["replay"]["arguments"], key)
       assert_raise ArgumentError, fn -> String.to_existing_atom(key) end
     end
 
@@ -78,10 +76,9 @@ defmodule PramanaWeb.MCP.ReplayExecutorTest do
       assert is_map(payload)
     end
 
-    test "a tool execution that raises an exception returns tool_raised error" do
-      # GetPassage requires :urn in execute/2; calling with empty params causes FunctionClauseError
-      assert {:error, {:tool_raised, msg}} = ReplayExecutor.executor().("get_passage", %{})
-      assert msg =~ "no function clause matching"
+    test "a missing required argument is refused before calling the tool" do
+      assert {:error, {:invalid_arguments, :schema_mismatch}} =
+               ReplayExecutor.executor().("get_passage", %{})
     end
   end
 

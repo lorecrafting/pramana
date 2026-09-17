@@ -24,7 +24,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
        "arguments": {"query": "一切眾生"},
        "bake_id": "b143d7f3…",
        "release_id": "retrieval-release-id…",
-       "assert": {"total": 36775, "works": 1904}}
+       "assert": {"total_segments": 36775, "distinct_works": 1904}}
       ```
 
   `assert` names response keys and the values the report claims for them; a dotted path
@@ -40,7 +40,7 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
     are compared. The claim **cannot be checked against its recorded inputs here**. It is not refuted, and it does not pass either.
     Reporting a changed corpus as a false report is how a checker teaches people to ignore
     it.
-  - `error` — the tool is unknown or raised.
+  - `error` — the tool is unknown, its replay arguments were rejected, or execution failed.
   - `executed` — the call ran but no value was asserted; it does not verify a claim.
 
   The overall `status` is `verified`, `failed`, `incomplete`, or `no_checkable_evidence`.

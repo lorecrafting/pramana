@@ -13,8 +13,8 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-16** — post-#18 reader-lifecycle work and the retained
-post-#17 source/roadmap reconciliation below, covering
+Last reviewed: **2026-09-16** — post-#19 replay-argument validation, completed
+reader-lifecycle work and the retained post-#17 source/roadmap reconciliation below, covering
 "Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
 Older experiment narratives remain dated evidence, not a fresh execution queue. No live
 corpus counts or human fidelity judgments were regenerated.
@@ -23,13 +23,44 @@ embedded, the reader at six screens.**
 
 ---
 
+## Replay argument validation — post-#19, 2026-09-16
+
+**Base:** `abb4ae1195e49c037eef7323f112e6c1d5b55697`. PR #19 is merged; the reader's
+owned asynchronous lifecycle is complete. GitHub had no open issues/PRs at intake;
+retained branch heads contain no new overlapping published implementation. This does not
+establish the state of unpublished worktrees or release Foundry's recorded ownership.
+
+**Selected and implemented:** the real replay executor used to drop unknown argument
+names and call `execute/2` without the component's normal validation. A misspelled scope
+could therefore run an unfiltered query and verify its count. The executor now rejects
+unknown fields and ambiguous atom/string aliases, and validates required values/types
+against the selected component's existing schema before invocation. There is no second
+hand-maintained parameter registry, atom allocation from input, or changed retrieval
+algorithm. A refusal is incomplete evidence, not a pass or a refutation; a genuine
+failure elsewhere still takes precedence. MCP and `/check` share this boundary.
+
+The regression uses distinct Indic/Chinese fixtures whose scoped and unscoped counts
+differ, plus malformed types, allowlist-wide no-query refusals, atom safety, and legacy
+valid/null/boolean inputs. Self-review also corrected public survey examples to the
+actual `total_segments` / `distinct_works` fields, with real reader and valid collection/
+cap receipt checks; domain and lifecycle semantics are unchanged.
+[MCP](../pramana/docs/MCP.md#replay-argument-contract) owns error
+reasons, compatibility, operator correction and rollback semantics. Its old coarse-stamp
+description was also stale after #17 and now reflects the existing v2 implementation.
+
+**Alternatives deferred:** global admission/MCP execution budgets are a separate hosting
+hardening task; translation-reading defaults still need D4. Correcting a demonstrated
+wrong verification takes precedence over either. No Foundry, identity, migration,
+provider, deployment, or public-hosting change is included. The human and Foundry gates
+below remain unchanged. Exact execution/review evidence belongs to this change's PR.
+
 ## Reader check lifecycle — post-#18, 2026-09-16
 
 **Base:** `298e35049d8b417679501625b123a0bc9ef01946`. PR #18 is merged;
 report verification already consumes the recorded release identity. No open issues or
 PRs and no new overlapping published branch were present at this task's intake.
 
-**Implemented in this change:** `/check` now owns one asynchronous check per page.
+**Completed by PR #19:** `/check` owns one asynchronous check per page.
 Verification and repair share a finite monotonic execution budget (60 seconds by default;
 trusted server configuration may shorten it). Cancel, deadline expiry and page termination
 stop the worker, and the page does not accept another check until worker termination is

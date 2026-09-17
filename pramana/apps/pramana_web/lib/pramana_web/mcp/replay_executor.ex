@@ -16,6 +16,19 @@ defmodule PramanaWeb.MCP.ReplayExecutor do
 
   `verify_report` is deliberately absent from its own table: a report that asks to verify a
   report is a loop, and a loop over untrusted input is a denial of service.
+
+  ## A replay must not silently become another query
+
+  Arguments are checked before `execute/2`, which normally receives validated MCP input.
+  Unknown top-level fields, ambiguous atom/string keys, missing required values and wrong
+  declared types are refused as `:invalid_arguments`, not dropped or coerced. Field names
+  and the validator come from the selected component's schema, never the global atom table
+  or a second list of tool parameters. No atoms are allocated from report input.
+
+  Valid calls retain the component's validation/default behavior and the tool's own caps.
+  This enforces declared constraints, not every restriction mentioned only in descriptions.
+  A rejected replay is an execution error and leaves its report incomplete unless separate
+  evidence genuinely fails; it is not a verified request or a refutation of the claim.
   """
 
   alias PramanaWeb.MCP.Tools
@@ -58,40 +71,58 @@ defmodule PramanaWeb.MCP.ReplayExecutor do
     end
   end
 
-  # ENSURE THE MODULE IS LOADED BEFORE ATOMIZING ITS FIELD NAMES.
-  #
-  # `to_existing_atom` is the right tool and it has a trap: an atom exists only once the
-  # module defining it has been *loaded*, and module loading is lazy. Before this line,
-  # `get_person` with a perfectly valid `authority_id` failed with "no function clause
-  # matching" — the key had been dropped because `:authority_id` did not yet exist in the
-  # atom table. A caught test, and it would have looked like a schema bug in production.
   defp invoke(module, arguments) do
+    # Schemas and their atom keys must be loaded before inspecting them. A direct
+    # execute/2 call bypasses the MCP dispatcher's normal validation boundary.
     Code.ensure_loaded!(module)
 
-    case module.execute(atomize(arguments), %{}) do
-      {:reply, response, _frame} -> decode(response)
-      other -> {:error, {:unexpected_reply, other}}
+    with {:ok, params} <- normalize_arguments(arguments, module.__mcp_raw_schema__()),
+         {:ok, params} <- validate_arguments(module, params) do
+      case module.execute(params, %{}) do
+        {:reply, response, _frame} -> decode(response)
+        other -> {:error, {:unexpected_reply, other}}
+      end
     end
   rescue
     error -> {:error, {:tool_raised, Exception.message(error)}}
   end
 
-  # `to_existing_atom`, because the keys come from a report nobody wrote here and an
-  # arbitrary string must not be able to grow the atom table. A key no tool declares is
-  # dropped rather than passed on — the schema would reject it anyway, and dropping it
-  # produces a clearer failure than a validation error about a field that cannot exist.
-  defp atomize(arguments) do
-    Map.new(arguments, fn {key, value} -> {safe_atom(key), value} end)
-    |> Map.delete(nil)
+  defp normalize_arguments(arguments, schema)
+       when is_map(arguments) and not is_struct(arguments) do
+    fields = Map.new(schema, fn {field, _type} -> {Atom.to_string(field), field} end)
+
+    Enum.reduce_while(arguments, {:ok, %{}}, fn {key, value}, {:ok, params} ->
+      case Map.fetch(fields, field_name(key)) do
+        {:ok, field} -> put_argument(params, field, value)
+        :error -> {:halt, invalid_arguments(:unknown_field)}
+      end
+    end)
   end
 
-  defp safe_atom(key) when is_atom(key), do: key
+  defp normalize_arguments(_arguments, _schema), do: invalid_arguments(:expected_object)
 
-  defp safe_atom(key) when is_binary(key) do
-    String.to_existing_atom(key)
-  rescue
-    ArgumentError -> nil
+  # Atom keys are retained for existing in-process callers. Supplying both forms
+  # of one field is ambiguous even when their values agree: never choose a winner.
+  defp put_argument(params, field, value) do
+    if Map.has_key?(params, field),
+      do: {:halt, invalid_arguments(:duplicate_field)},
+      else: {:cont, {:ok, Map.put(params, field, value)}}
   end
+
+  defp field_name(key) when is_binary(key), do: key
+  defp field_name(key) when is_atom(key), do: Atom.to_string(key)
+  defp field_name(_key), do: nil
+
+  defp validate_arguments(module, params) do
+    case module.mcp_schema(params) do
+      {:ok, validated} -> {:ok, validated}
+      # Peri errors may contain supplied values. Return a stable refusal reason,
+      # not pasted report data or a validation exception disguised as a tool error.
+      {:error, _errors} -> invalid_arguments(:schema_mismatch)
+    end
+  end
+
+  defp invalid_arguments(reason), do: {:error, {:invalid_arguments, reason}}
 
   # `isError` FIRST. An error response carries prose in the same `content` shape as a
   # success carries JSON, so the success clause matched it, tried to decode the message and
