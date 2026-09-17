@@ -38,24 +38,26 @@ jobs:
           from pathlib import Path
 
           path = Path("../.github/workflows/ci.yml")
-          text = path.read_text()
-          old = """      - name: Deps audit
-                if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
-                run: mix deps.audit
-          """
-          new = """      - name: Hex lockfile audit
-                if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
-                run: mix hex.audit
-
-              - name: Deps audit
-                if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
-                run: mix deps.audit
-          """
-          if old not in text:
-              raise SystemExit("expected dependency-audit block not found")
-          if "- name: Hex lockfile audit" in text:
+          lines = path.read_text().splitlines()
+          marker = "      - name: Deps audit"
+          if "      - name: Hex lockfile audit" in lines:
               raise SystemExit("Hex audit gate already present")
-          path.write_text(text.replace(old, new, 1))
+          try:
+              index = lines.index(marker)
+          except ValueError:
+              raise SystemExit("expected dependency-audit block not found")
+          block = lines[index:index + 3]
+          if len(block) != 3 or not block[1].lstrip().startswith("if:") or block[2].strip() != "run: mix deps.audit":
+              raise SystemExit("dependency-audit block shape changed")
+          replacement = [
+              "      - name: Hex lockfile audit",
+              block[1],
+              "        run: mix hex.audit",
+              "",
+              *block,
+          ]
+          lines[index:index + 3] = replacement
+          path.write_text("\n".join(lines) + "\n")
           PY
 
       - name: Commit resolver-owned changes
