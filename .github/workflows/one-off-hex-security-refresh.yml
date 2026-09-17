@@ -29,7 +29,8 @@ jobs:
       - name: Resolve only the advisory fixes
         run: |
           set -euo pipefail
-          mix deps.update bandit mint
+          mix deps.unlock bandit mint
+          mix deps.get
           mix hex.audit
 
       - name: Add the authoritative Hex lockfile advisory gate
