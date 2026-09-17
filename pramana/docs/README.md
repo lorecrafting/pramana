@@ -8,7 +8,7 @@ Foundry or product strategy use [the repository index](../../docs/README.md).
 |---|---|
 | Learn the project | [Product overview](../README.md), [primer](PRIMER.md), [architecture](ARCHITECTURE.md) |
 | Set up or upgrade a checkout | [Development setup](DEV_ENV.md), [layout cutover](../../docs/LAYOUT_MIGRATION.md) |
-| Query or read | [MCP](MCP.md), [reader](READER.md), [recorded status](STATUS.md) |
+| Query or read | [MCP](MCP.md), [reader](READER.md), [report-check admission](REPORT_CHECK_ADMISSION.md), [recorded status](STATUS.md) |
 | Change source or retrieval behavior | [Invariants](INVARIANTS.md), [rules](RULES.md), [shared rule triggers](../../docs/agents/RULE_TRIGGERS.md) |
 | Add sources | [Catalog](SOURCES.md), [ingestion](ADDING_TEXTS.md), [CLI](CLI.md) |
 | Work with renderings or relationships | [Layers](LAYERS.md), [translation](TRANSLATION.md), [commentary](COMMENTARY.md) |
