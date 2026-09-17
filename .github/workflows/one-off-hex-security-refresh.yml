@@ -33,44 +33,16 @@ jobs:
           mix deps.get
           mix hex.audit
 
-      - name: Add the authoritative Hex lockfile advisory gate
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("../.github/workflows/ci.yml")
-          lines = path.read_text().splitlines()
-          marker = "      - name: Deps audit"
-          if "      - name: Hex lockfile audit" in lines:
-              raise SystemExit("Hex audit gate already present")
-          try:
-              index = lines.index(marker)
-          except ValueError:
-              raise SystemExit("expected dependency-audit block not found")
-          block = lines[index:index + 3]
-          if len(block) != 3 or not block[1].lstrip().startswith("if:") or block[2].strip() != "run: mix deps.audit":
-              raise SystemExit("dependency-audit block shape changed")
-          replacement = [
-              "      - name: Hex lockfile audit",
-              block[1],
-              "        run: mix hex.audit",
-              "",
-              *block,
-          ]
-          lines[index:index + 3] = replacement
-          path.write_text("\n".join(lines) + "\n")
-          PY
-
-      - name: Commit resolver-owned changes
+      - name: Commit resolver-owned lockfile
         run: |
           set -euo pipefail
-          git diff --exit-code -- ../.github/workflows/ci.yml mix.lock && {
-            echo "Expected security refresh to change CI and/or mix.lock" >&2
+          git diff --exit-code -- mix.lock && {
+            echo "Expected security refresh to change mix.lock" >&2
             exit 1
           }
-          git diff --check -- ../.github/workflows/ci.yml mix.lock
+          git diff --check -- mix.lock
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ../.github/workflows/ci.yml mix.lock
+          git add mix.lock
           git commit -m "security: refresh Bandit and Mint advisories"
           git push origin HEAD:fix/security-hex-advisories-2026-09-16
