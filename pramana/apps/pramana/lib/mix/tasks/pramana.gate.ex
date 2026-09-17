@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Pramana.Gate do
 
   ## The steps, and why in this order
 
-  All twelve steps, with the stage each runs in. **Timings are one measurement, taken
+  All thirteen steps, with the stage each runs in. **Timings are one measurement, taken
   2026-08-29 on this machine** — they are here to justify the ordering, not to be quoted.
   Run it if you want the number; the summary prints every step's own time.
 
