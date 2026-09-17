@@ -8,15 +8,17 @@ defmodule PramanaWeb.MCP.Reply do
 
   ## Recorded provenance, not a frozen snapshot
 
-  `bake_id` is the current source-input identity. `release_id` is the explicitly
-  selected retrieval stamp, summarizing source identity and translation/vector counts
-  and translator/model names. Each is `nil` until its corresponding record exists.
+  `bake_id` is the current source-input identity. `release_id` is the explicitly selected
+  retrieval stamp. Version-2 releases digest the source identity, stable translation-row
+  content/provenance and stable vector-row fields including the actual stored embedding
+  bytes. Each id is `nil` until its corresponding record exists.
 
-  Reading response metadata never creates or refreshes a stamp. If the corpus has
-  changed since stamping, the recorded release can be stale; `Pramana.Release.drift/0`
-  reports changes in the tracked facts. These lookups do not create a transactional
-  snapshot of the tool execution or promise identical results when replayed. Same-count
-  content changes, changed defaults and changed code are not all captured by the stamp.
+  Reading response metadata never creates or refreshes a stamp. If answer-producing rows
+  change after selection, `Pramana.Release.drift/0` reports ordinary aggregate drift and
+  can rehash a touched same-count layer when needed. The metadata lookup itself is still
+  not a transactional snapshot of the tool execution, and the release does not fingerprint
+  retrieval code, defaults or planner behaviour. Re-runnable is not identical historical
+  replay.
 
   ## Stateless on purpose
 
