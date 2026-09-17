@@ -78,6 +78,10 @@ migrates and removes only its own test databases/containers; never supply it an 
 python3 pramana/ci/release_smoke.py --image pramana:local --output /tmp/pramana-release-smoke
 ```
 
+The runner resolves the supplied image tag once and invokes the resulting image ID
+throughout its cases. A model-free native-serving control verifies the deferred starter
+on an accepted fixture as well as its refusal-order canary.
+
 The runner's deadlines are test harness bounds, not production latency guarantees. A
 passing fixture audit is not clearance for your dataset, public-hosting capacity acceptance
 or proof that writes after admission are safe. No inference or corpus acquisition runs.

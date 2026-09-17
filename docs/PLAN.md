@@ -45,6 +45,9 @@ operator database, start inference, push an image or deploy a service. See the
 explicit migration, refusal and rollback semantics. Exact checks/review evidence belong
 to this change's PR; a source description is not a claim they already passed.
 
+Self-review tightened image identity to one resolved content ID and added a positive
+model-free native-serving control beside the refusal-order probe.
+
 No migration, historical-data change, identity expansion, new publishing policy or
 Foundry operation. Broader hosting admission and human fidelity/pilot gates remain
 separate. Build success alone was insufficient evidence of runtime startup.

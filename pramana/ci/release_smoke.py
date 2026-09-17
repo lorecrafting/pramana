@@ -55,6 +55,8 @@ class Smoke:
     def prepare(self):
         self.results["image_id"] = self.docker("image", "inspect", self.image,
                                                "--format", "{{.Id}}").stdout.strip()
+        # A tag may move between cases on an operator's Docker host.
+        self.image = self.results["image_id"]
         self.docker("network", "create", "--label", self.label, self.network)
         self.docker("run", "-d", "--name", self.db, "--label", self.label, "--network", self.network,
                     "--network-alias", "db", "-e", "POSTGRES_PASSWORD=postgres",
@@ -266,6 +268,40 @@ IO.puts("ADMISSION_ORDER_OK")
         assert "ADMISSION_ORDER_OK" in result.stdout and "PRE_ADMISSION_MODEL_BUILD" not in result.stdout
         self.results["cases"].append({"case": "admission-before-model-and-web", "passed": True})
 
+    def admitted_serving(self):
+        # Positive counterpart to the refusal canary: native serving really starts
+        # and answers after admission, without weights, downloads or an EXLA backend.
+        code = '''
+Code.compiler_options(ignore_module_conflict: true)
+Code.compile_string("""
+defmodule Pramana.Embed do
+  def build_query_serving([]) do
+    send(Application.fetch_env!(:pramana, :startup_smoke_owner), :constructed)
+    Nx.Serving.new(fn opts ->
+      Nx.Defn.jit(fn tensor -> tensor end, Keyword.put(opts, :compiler, Nx.Defn.Evaluator))
+    end)
+  end
+end
+""")
+Application.load(:pramana)
+Application.put_env(:pramana, :startup_smoke_owner, self())
+System.put_env("PRAMANA_EMBEDDING", "1")
+{:ok, _} = Application.ensure_all_started(:pramana_web)
+receive do
+  :constructed -> :ok
+  after 5_000 -> raise("deferred serving never constructed")
+end
+unless Pramana.Embed.Serving.name() == Pramana.Embed.Serving,
+  do: raise("native serving was not registered")
+input = Nx.tensor([7], backend: Nx.BinaryBackend)
+output = Nx.Serving.batched_run(Pramana.Embed.Serving, Nx.Batch.stack([input]))
+unless Nx.to_flat_list(output) == [7], do: raise("native serving returned the wrong result")
+IO.puts("ADMITTED_SERVING_OK")
+'''
+        result = self.evaluate("admitted-serving", "allowed", code, public=True)
+        assert "ADMITTED_SERVING_OK" in result.stdout
+        self.results["cases"].append({"case": "admitted-native-serving", "passed": True})
+
     def admin(self):
         code = '''
 {:ok, _} = Application.ensure_all_started(:pramana_web)
@@ -322,6 +358,7 @@ def main():
         assert smoke.sql("unmigrated", "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';") == "0"
         smoke.rejection("missing-database", "does_not_exist", "publishing_audit_unavailable")
         smoke.admission_order()
+        smoke.admitted_serving()
         smoke.serving(public=False)
         smoke.results["passed"] = True
     finally:
