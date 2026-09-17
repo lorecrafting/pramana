@@ -22,5 +22,15 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Build only the Pramana project context; no image push or service start
+      - name: Build only the Pramana project context; no image push
         run: docker build --progress=plain -f pramana/Dockerfile -t pramana:ci pramana
+      - name: Exercise the shipped release with disposable synthetic databases
+        run: python3 pramana/ci/release_smoke.py --image pramana:ci --output "${{ runner.temp }}/release-smoke"
+      - name: Retain runtime acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-smoke-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-smoke
+          if-no-files-found: error
+          retention-days: 7

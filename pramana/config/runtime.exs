@@ -40,7 +40,9 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret_key_base
       """
 
+  # Serving is explicit: bin/server opts in; plain start/eval do not.
   config :pramana_web, PramanaWeb.Endpoint,
+    server: System.get_env("PHX_SERVER") in ["true", "1"],
     url: [host: System.get_env("APP_HOST", "example.com")],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -51,13 +53,9 @@ if config_env() == :prod do
 
   # ## Using releases
   #
-  # If you are doing OTP releases, you need to instruct Phoenix
-  # to start each relevant endpoint:
-  #
-  #     config :pramana_web, PramanaWeb.Endpoint, server: true
-  #
-  # Then you can assemble a release by calling `mix release`.
-  # See `mix help release` for more information.
+  # bin/server opts into HTTP via PHX_SERVER=true. Plain start/eval leave it off
+  # unless the operator explicitly sets PHX_SERVER=true or 1. Migrations remain
+  # a separate administrative action; see docs/DEPLOY.md before serving a database.
 
   # ## SSL Support
   #

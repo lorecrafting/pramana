@@ -48,6 +48,10 @@ PR #19 subsequently completed the per-page asynchronous `/check` lifecycle. The
 rejects unsupported or wrongly typed replay arguments before tool invocation; it does not
 expand release identity, retrieval policy, or public-hosting acceptance.
 
+After PR #21, [release startup admission](PLAN.md#release-startup-admission--post-21-2026-09-17)
+adds explicit serving and synchronous public-data refusal, with isolated runtime-image
+acceptance. This does not constitute a production deployment or new publishing policy.
+
 The phase sections below retain their original schedule and historical evidence. They are
 not an independent executable queue; read PLAN and current code before reviving an item.
 

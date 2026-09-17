@@ -13,7 +13,7 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-16** — post-#19 replay-argument validation, completed
+Last reviewed: **2026-09-17** — post-#21 release-startup admission, replay-argument validation, completed
 reader-lifecycle work and the retained post-#17 source/roadmap reconciliation below, covering
 "Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
 Older experiment narratives remain dated evidence, not a fresh execution queue. No live
@@ -23,6 +23,35 @@ embedded, the reader at six screens.**
 
 ---
 
+## Release startup admission — post-#21, 2026-09-17
+
+**Base:** `17ca708ce07b56298c8986e1bac03ec90c98a129`. PR #21 is merged and its
+post-merge CI/documentation/container checks passed. Intake found no open issues/PRs
+or new overlapping published branch. This is not visibility into unpublished worktrees.
+
+**Selected implementation:** the packaged `bin/server` now explicitly enables Phoenix
+serving through `PHX_SERVER=true`; plain release start/eval does not implicitly enable
+HTTP. Public-data admission returns a synchronous startup error on forbidden content
+or unavailable audit, after Repo but before Oban/model construction and the dependent
+web application. Model construction is deferred to its supervised start, rather than
+performed while assembling the child list. The existing publishing policy is unchanged.
+
+The container lane exercises the actual runtime image with synthetic source and
+translation rows in owned disposable databases: serving, static assets, MCP discovery
+and passage retrieval, non-serving administration, forbidden-data refusal, audit/schema
+failure, and refusal before model construction. It does not use a research corpus or
+operator database, start inference, push an image or deploy a service. See the
+[startup runbook](../pramana/docs/DEPLOY.md#release-startup-and-refusal) for activation,
+explicit migration, refusal and rollback semantics. Exact checks/review evidence belong
+to this change's PR; a source description is not a claim they already passed.
+
+Self-review tightened image identity to one resolved content ID and added a positive
+model-free native-serving control beside the refusal-order probe.
+
+No migration, historical-data change, identity expansion, new publishing policy or
+Foundry operation. Broader hosting admission and human fidelity/pilot gates remain
+separate. Build success alone was insufficient evidence of runtime startup.
+
 ## Replay argument validation — post-#19, 2026-09-16
 
 **Base:** `abb4ae1195e49c037eef7323f112e6c1d5b55697`. PR #19 is merged; the reader's
@@ -30,7 +59,7 @@ owned asynchronous lifecycle is complete. GitHub had no open issues/PRs at intak
 retained branch heads contain no new overlapping published implementation. This does not
 establish the state of unpublished worktrees or release Foundry's recorded ownership.
 
-**Selected and implemented:** the real replay executor used to drop unknown argument
+**Completed by PR #21:** the real replay executor used to drop unknown argument
 names and call `execute/2` without the component's normal validation. A misspelled scope
 could therefore run an unfiltered query and verify its count. The executor now rejects
 unknown fields and ambiguous atom/string aliases, and validates required values/types

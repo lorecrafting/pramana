@@ -17,16 +17,15 @@ defmodule Pramana.Application do
     children =
       [
         Pramana.Repo,
+        # Synchronous admission after database startup, before jobs, model loading
+        # or the dependent web application. Failure unwinds already-started children.
+        Guard.child_spec_if_public(),
         {Oban, Application.fetch_env!(:pramana, Oban)},
         {DNSCluster, query: Application.get_env(:pramana, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Pramana.PubSub},
         # Opt-in: loading BGE-M3 costs ~80s and 2.2 GB, which tests and migrations
         # must not pay. Absent, semantic retrieval degrades to lexical and says so.
-        Serving.child_spec_if_enabled(),
-        # AFTER the Repo, because it asks the database a question. Only present when this
-        # node declares itself public, and then it stops the node rather than let one
-        # wrong DATABASE_URL serve the research corpus to everyone.
-        Guard.child_spec_if_public()
+        Serving.child_spec_if_enabled()
       ]
       |> Enum.reject(&is_nil/1)
 

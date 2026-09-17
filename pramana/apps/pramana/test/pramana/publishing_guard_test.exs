@@ -5,8 +5,9 @@ defmodule Pramana.Publishing.GuardTest do
   `DATABASE_URL` pointing at the research corpus starts a perfectly healthy node that
   serves CBETA to the public and reports nothing.
 
-  `verify/0` is tested rather than the boot path, because the boot path's whole job is to
-  stop the node and a test suite that stops itself proves nothing.
+  Domain checks retain the publishing policy. Startup checks require a synchronous
+  error and prove that a later child cannot start after refusal. The built-release
+  smoke test separately exercises fresh OS processes and the real HTTP boundary.
   """
   use Pramana.DataCase, async: false
 
@@ -124,9 +125,8 @@ defmodule Pramana.Publishing.GuardTest do
       System.delete_env("PRAMANA_PUBLIC")
     end
 
-    # The refusing branch calls `System.stop/1` and cannot be exercised without ending the
-    # test run, which is the point of it. The passing branch can: it must return `:ignore`
-    # so the supervisor records no child.
+    # A successful one-shot check returns :ignore; refusal is now a startup error,
+    # not an asynchronous VM stop that returns a successful child result.
     test "on a safe corpus it starts nothing and reports :ignore" do
       assert Guard.verify() == :ok
       assert Guard.verify_and_ignore() == :ignore
@@ -136,5 +136,59 @@ defmodule Pramana.Publishing.GuardTest do
       # A research node holds restricted text by design and must start normally.
       refute Guard.public?()
     end
+  end
+
+  describe "startup admission" do
+    test "refusal blocks later children rather than scheduling a shutdown" do
+      source!("cbeta", false)
+      text!("cbeta", "T0262")
+      System.put_env("PRAMANA_PUBLIC", "1")
+
+      spec = %{
+        id: :admission_probe,
+        start:
+          {Supervisor, :start_link,
+           [
+             [Guard.child_spec_if_public(), probe(self())],
+             [strategy: :one_for_one]
+           ]}
+      }
+
+      assert {:error,
+              {{:shutdown, {:failed_to_start_child, Guard, :public_corpus_forbidden}},
+               _child_spec}} =
+               start_supervised(spec)
+
+      refute_received :after_admission
+    end
+
+    test "safe admission really starts the same later child" do
+      System.put_env("PRAMANA_PUBLIC", "1")
+
+      start_supervised!(%{
+        id: :admission_probe,
+        start:
+          {Supervisor, :start_link,
+           [
+             [Guard.child_spec_if_public(), probe(self())],
+             [strategy: :one_for_one]
+           ]}
+      })
+
+      assert_received :after_admission
+    end
+
+    test "a missing audit table fails closed, never becomes an empty corpus" do
+      Repo.query!("ALTER TABLE translations RENAME TO translations_unavailable")
+      assert Guard.verify_and_ignore() == {:error, :publishing_audit_unavailable}
+    end
+  end
+
+  defp probe(parent), do: %{id: :after_admission, start: {__MODULE__, :start_probe, [parent]}}
+
+  @doc false
+  def start_probe(parent) do
+    send(parent, :after_admission)
+    Agent.start_link(fn -> :ok end)
   end
 end

@@ -2,8 +2,9 @@ defmodule Pramana.Publishing.Guard do
   @moduledoc """
   Refuses to serve publicly from a database that holds content it may not publish.
 
-  Runs once at boot when `PRAMANA_PUBLIC=1`, and **stops the node** if
-  `Pramana.Publishing.audit/0` reports anything forbidden.
+  Runs once at boot when `PRAMANA_PUBLIC=1`. A forbidden or unavailable audit
+  **fails application startup synchronously**, before jobs, model construction and
+  the dependent web application. It does not schedule a later VM shutdown.
 
   ## Why a boot check and not documentation
 
@@ -49,7 +50,8 @@ defmodule Pramana.Publishing.Guard do
   @doc false
   # `:ignore` so the supervisor records no child: the work is the check, and a process
   # that has done its job is not a thing to keep alive or restart.
-  @spec verify_and_ignore() :: :ignore
+  @spec verify_and_ignore() ::
+          :ignore | {:error, :public_corpus_forbidden | :publishing_audit_unavailable}
   def verify_and_ignore do
     case verify() do
       :ok ->
@@ -67,9 +69,23 @@ defmodule Pramana.Publishing.Guard do
         started would have served this.
         """)
 
-        System.stop(1)
-        :ignore
+        {:error, :public_corpus_forbidden}
     end
+  rescue
+    _error -> audit_unavailable()
+  catch
+    :exit, _reason -> audit_unavailable()
+  end
+
+  defp audit_unavailable do
+    # Database exceptions may contain credentials or statement parameters. Keep
+    # the startup reason stable; an unavailable audit is never an empty/safe audit.
+    Logger.emergency(
+      "REFUSING TO START. Public-data audit unavailable; check database connectivity, " <>
+        "permissions and migrations before restarting."
+    )
+
+    {:error, :publishing_audit_unavailable}
   end
 
   @doc """
