@@ -20,7 +20,7 @@ defmodule Pramana.Application do
         # Synchronous admission after database startup, before jobs, model loading
         # or the dependent web application. Failure unwinds already-started children.
         Guard.child_spec_if_public(),
-        {Oban, Application.fetch_env!(:pramana, Oban)},
+        background_jobs(),
         {DNSCluster, query: Application.get_env(:pramana, :dns_cluster_query) || :ignore},
         {Phoenix.PubSub, name: Pramana.PubSub},
         # Opt-in: loading BGE-M3 costs ~80s and 2.2 GB, which tests and migrations
@@ -30,5 +30,12 @@ defmodule Pramana.Application do
       |> Enum.reject(&is_nil/1)
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Pramana.Supervisor)
+  end
+
+  # Public serving must not consume queued bakes, prune history or elect an Oban
+  # database peer. Disabling queues alone leaves other writers running. The package
+  # remains available to administrative processes; only this instance is omitted.
+  defp background_jobs do
+    unless Guard.public?(), do: {Oban, Application.fetch_env!(:pramana, Oban)}
   end
 end

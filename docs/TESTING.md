@@ -78,7 +78,11 @@ tests and production assets/release builds have explicit steps; no release is
 started. The container workflow uses `pramana/` as its context and starts the built runtime
 image only against owned disposable synthetic databases. Its [smoke runner](../pramana/ci/release_smoke.py)
 checks explicit HTTP activation, assets/MCP, public-data refusal and administrative
-non-serving behavior. This is not a research-corpus, inference or production deployment
+non-serving behavior. Public cases use a distinct restricted login, with in-process
+[effective-privilege/denied-write probes](../pramana/ci/serving_privileges.exs). Queued
+bakes and old jobs remain unchanged on public nodes under both restricted and privileged
+fixture credentials; the same job/source must be ingested by the real research queue
+and old history pruned. Missing audit-read permission must still refuse startup. This is not a research-corpus, inference or production deployment
 check. It never pushes an image. Foundry's existing
 isolated runner executes independently, without Pramāṇa dependencies.
 

@@ -51,6 +51,10 @@ expand release identity, retrieval policy, or public-hosting acceptance.
 After PR #21, [release startup admission](PLAN.md#release-startup-admission--post-21-2026-09-17)
 adds explicit serving and synchronous public-data refusal, with isolated runtime-image
 acceptance. This does not constitute a production deployment or new publishing policy.
+The [post-#22 serving-isolation follow-up](PLAN.md#public-serving-isolation--post-22-2026-09-17)
+omits background Oban writers on public nodes and exercises restricted serving credentials
+with a real ingestion positive control. It does not change the publishing policy or grant
+production database privileges automatically.
 
 The phase sections below retain their original schedule and historical evidence. They are
 not an independent executable queue; read PLAN and current code before reviving an item.

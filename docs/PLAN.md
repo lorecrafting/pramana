@@ -13,7 +13,7 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-17** — post-#21 release-startup admission, replay-argument validation, completed
+Last reviewed: **2026-09-17** — post-#22 public serving isolation, completed release-startup admission, replay-argument validation,
 reader-lifecycle work and the retained post-#17 source/roadmap reconciliation below, covering
 "Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
 Older experiment narratives remain dated evidence, not a fresh execution queue. No live
@@ -23,13 +23,53 @@ embedded, the reader at six screens.**
 
 ---
 
+## Public serving isolation — post-#22, 2026-09-17
+
+**Base:** `91d391d2dee6f1053d333f7647eb69f84f8af5a7`. PR #22's startup barrier and
+runtime-image acceptance are implemented. Intake found no open issues/PRs; retained
+published branches show no overlapping serving-isolation work. This does not inspect
+another session's unpublished worktree or change Foundry ownership.
+
+**Selected implementation:** `PRAMANA_PUBLIC=1` omits the configured Oban instance
+entirely, including its bake queues, pruning and database leadership. Research/admin
+application startup retains the existing configuration. Public admission, serving and
+read-only MCP behavior are unchanged. There is no second worker framework or new mode.
+
+The runtime runner prepares databases with its administrative account, then serves with
+a distinct non-owner, non-superuser login with SELECT-only corpus grants and no access
+to Oban tables or sequences. Its in-process privilege probe checks the actual serving
+identity and effective authority, then requires real DML/DDL/sequence/role-switch denials
+in read-write transactions. Reader, lexical/survey and report-verification calls must
+still succeed. Missing audit-read permission must refuse startup. A queued synthetic
+bake and old completed job stay unchanged on public nodes even with privileged fixture
+credentials; the same mounted source/job must execute through the real research queue
+and its old history must be pruned. These are bounded fixture acceptance cases, not a
+live deployment or a general SQL-security certification. Exact execution evidence and
+review corrections belong to the PR, not this source description.
+
+[Serving credentials and ingestion](../pramana/docs/DEPLOY.md#public-serving-and-ingestion)
+owns provisioning, effective-privilege checks, rollout and rollback. No automatic role
+creation/grant repair, corpus change, migration, inference, identity expansion, Foundry
+operation or hosting-capacity approval. Operator/human gates below remain unchanged.
+
+Self-review corrected the synthetic completed-job age to the pinned pruner’s
+`scheduled_at` rule, removed an unnecessary pooled session setting from the privilege
+probe, and strengthened peer/registry and configuration-free startup checks. The real
+queue/pruner positive control remains mandatory; no assertion was relaxed.
+Actual runtime checks additionally exposed SQL predicate reordering in the privilege
+probe and a teardown probe calling an already-unwound Oban registry. Type-sensitive
+inquiries now use CASE, and the refusal probe accepts an absent registry while still
+rejecting a surviving instance or application child. The restricted-account read/write
+checks passed before that later teardown error; only a complete final runtime run is
+acceptance evidence.
+
 ## Release startup admission — post-#21, 2026-09-17
 
 **Base:** `17ca708ce07b56298c8986e1bac03ec90c98a129`. PR #21 is merged and its
 post-merge CI/documentation/container checks passed. Intake found no open issues/PRs
 or new overlapping published branch. This is not visibility into unpublished worktrees.
 
-**Selected implementation:** the packaged `bin/server` now explicitly enables Phoenix
+**Completed by PR #22:** the packaged `bin/server` now explicitly enables Phoenix
 serving through `PHX_SERVER=true`; plain release start/eval does not implicitly enable
 HTTP. Public-data admission returns a synchronous startup error on forbidden content
 or unavailable audit, after Repo but before Oban/model construction and the dependent

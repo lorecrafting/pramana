@@ -21,6 +21,13 @@ from pathlib import Path
 TEXT = "Synthetic startup fixture."
 URN = "pramana:sc.ms:smoke1@1.1"
 SECRET = "synthetic-release-smoke-only-" + "0" * 64
+READER = "smoke_reader"
+READER_PASSWORD = "synthetic-reader-only"
+BAKE_TEXT = "PUBLIC_INGEST_SENTINEL"
+BAKE_XML = f"""<TEI xmlns="http://www.tei-c.org/ns/1.0">
+<teiHeader><fileDesc><titleStmt><title level="m" xml:lang="zh-Hant">Synthetic bake</title>
+</titleStmt></fileDesc></teiHeader><text><body><milestone n="1" unit="juan"/>
+<lb n="0001c19"/>{BAKE_TEXT}</body></text></TEI>"""
 
 
 class Smoke:
@@ -33,6 +40,10 @@ class Smoke:
         self.label = "org.pramana.release-smoke=" + self.token
         self.network = self.prefix + "-net"
         self.db = self.prefix + "-db"
+        self.raw = self.output / "raw"
+        raw_file = self.raw / "cbeta/T/T09/T09n9999.xml"
+        raw_file.parent.mkdir(parents=True, exist_ok=True)
+        raw_file.write_text(BAKE_XML)
         self.counter = 0
         self.results = {"image": image, "cases": []}
 
@@ -107,13 +118,46 @@ INSERT INTO translations (anchor_urn,work_id,lang,translator_id,tier,method,text
 VALUES ('{URN}','smoke1','en','ci','t0','human','synthetic restricted rendering','x','LicenseRef-CI-Forbidden',false,now(),now());
 """)
 
-    def options(self, case, database, public=True):
+        self.sql("postgres", "CREATE DATABASE queued TEMPLATE allowed; CREATE DATABASE audit_denied TEMPLATE allowed;")
+        args = json.dumps({"source": "cbeta", "canon": "T", "volume": 9, "number": "9999",
+                           "work_id": "T9999", "paths": ["T/T09/T09n9999.xml"]})
+        self.sql("queued", f"""
+INSERT INTO oban_jobs (state,queue,worker,args,max_attempts)
+VALUES ('available','bake','Pramana.Bake.Worker','{args}'::jsonb,3);
+INSERT INTO oban_jobs (state,queue,worker,args,attempt,scheduled_at,completed_at,inserted_at)
+VALUES ('completed','bake','Pramana.Bake.Worker','{{}}',1,now()-interval '9 days',now()-interval '9 days',now()-interval '9 days');
+""")
+        # Only this owned disposable cluster is changed. Runtime identities are not
+        # table/database owners, and receive neither sequence nor Oban-table access.
+        self.sql("postgres", f"""
+CREATE ROLE {READER} LOGIN PASSWORD '{READER_PASSWORD}' NOSUPERUSER NOCREATEDB
+  NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT;
+""")
+        for database in ["allowed", "forbidden", "restricted_translation", "unmigrated", "queued", "audit_denied"]:
+            self.sql(database, f"""
+REVOKE ALL ON DATABASE {database} FROM PUBLIC;
+GRANT CONNECT ON DATABASE {database} TO {READER};
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO {READER};
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
+SELECT format('GRANT SELECT ON TABLE %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
+  AND tablename <> 'schema_migrations'
+\\gexec
+""")
+        self.sql("audit_denied", f"REVOKE SELECT ON sources FROM {READER};")
+
+    def options(self, case, database, public=True, role=None):
         name = self.prefix + "-" + case
+        role = role or (READER if public else "postgres")
+        password = READER_PASSWORD if role == READER else "postgres"
         return name, ["--name", name, "--label", self.label, "--network", self.network,
-                      "-e", f"DATABASE_URL=ecto://postgres:postgres@db/{database}",
+                      "-e", f"DATABASE_URL=ecto://{role}:{password}@db/{database}",
                       "-e", f"SECRET_KEY_BASE={SECRET}", "-e", "APP_HOST=localhost",
                       "-e", "PORT=4000", "-e", "POOL_SIZE=2",
-                      "-e", "PRAMANA_EMBEDDING=0", "-e", f"PRAMANA_PUBLIC={'1' if public else '0'}"]
+                      "-e", "PRAMANA_EMBEDDING=0", "-e", f"PRAMANA_PUBLIC={'1' if public else '0'}",
+                      "--mount", f"type=bind,source={self.raw},target=/app/raw,readonly"]
 
     def evaluate(self, case, database, code, public=False, serving=None):
         _, opts = self.options(case, database, public)
@@ -121,8 +165,8 @@ VALUES ('{URN}','smoke1','en','ci','t0','human','synthetic restricted rendering'
             opts += ["-e", f"PHX_SERVER={'true' if serving else 'false'}"]
         return self.docker("run", *opts, "--entrypoint", "/app/bin/pramana", self.image, "eval", code, timeout=90)
 
-    def launch(self, case, database, public=True, plain=False):
-        name, opts = self.options(case, database, public)
+    def launch(self, case, database, public=True, plain=False, role=None):
+        name, opts = self.options(case, database, public, role)
         args = ["run", "-d", *opts, "-e", "PHX_SERVER=false", "-p", "127.0.0.1::4000"]
         if plain:
             args += ["--entrypoint", "/app/bin/pramana", self.image, "start"]
@@ -208,8 +252,96 @@ VALUES ('{URN}','smoke1','en','ci','t0','human','synthetic restricted rendering'
         assert status == 200 and not result.get("isError", False)
         passage = json.loads(result["content"][0]["text"])
         assert passage["text"] == TEXT and passage["urn"] == URN
+        if public:
+            self.assert_no_jobs(name)
+            probe = Path(__file__).with_name("serving_privileges.exs").read_text()
+            assert "SERVING_PRIVILEGES_OK" in self.rpc(name, probe).stdout
+            self.read_only_queries(port, session)
         self.docker("stop", "-t", "10", name)
         self.results["cases"].append({"case": case, "passed": True, "assets": sorted(assets)})
+
+    def rpc(self, name, code):
+        return self.docker("exec", name, "/app/bin/pramana", "rpc", code, timeout=45)
+
+    def assert_no_jobs(self, name):
+        # Oban uses a via registry: Process.whereis(Oban) is not a valid probe.
+        code = """
+if Oban.whereis(Oban), do: raise("public serving started Oban")
+if Enum.any?(Supervisor.which_children(Pramana.Supervisor), fn {id, _, _, _} -> id == Oban end),
+  do: raise("public supervisor retained an Oban child")
+IO.puts("NO_PUBLIC_JOBS_OK")
+"""
+        assert "NO_PUBLIC_JOBS_OK" in self.rpc(name, code).stdout
+
+    def read_only_queries(self, port, session):
+        def call(identifier, tool, arguments):
+            status, _, body = self.request(port, "/mcp",
+                {"jsonrpc": "2.0", "id": identifier, "method": "tools/call",
+                 "params": {"name": tool, "arguments": arguments}}, session)
+            result = self.rpc_body(body)["result"]
+            assert status == 200 and not result.get("isError", False), tool
+            return json.loads(result["content"][0]["text"])
+
+        survey = call(4, "survey_corpus", {"query": "Synthetic"})
+        assert survey["total_segments"] == 1 and survey["distinct_works"] == 1
+        search = call(5, "search", {"query": "Synthetic", "mode": "lexical"})
+        assert URN in json.dumps(search), "lexical search lost the fixture"
+        report = f"「{TEXT}」 ({URN})\n\n```pramana-replay\n" + json.dumps({
+            "tool": "survey_corpus", "arguments": {"query": "Synthetic"},
+            "assert": {"total_segments": 1, "distinct_works": 1}}) + "\n```"
+        checked = call(6, "verify_report", {"report": report})
+        assert checked["status"] == "verified" and checked["counts"]["verified_replays"] == 1
+        assert checked["counts"]["verified_quotes"] == 1 and checked["repair"] is not None
+        status, _, body = self.request(port, "/passage?urn=" + URN)
+        assert status == 200 and TEXT in body
+        self.results["cases"].append({"case": "restricted-account-reads-and-denied-writes", "passed": True})
+
+    def background_isolation(self):
+        snapshot_sql = "SELECT jsonb_agg(to_jsonb(j) ORDER BY id)::text FROM oban_jobs j;"
+        before = self.sql("queued", snapshot_sql)
+        peer_sql = "SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY name), '[]'::jsonb)::text FROM oban_peers p;"
+        peers = self.sql("queued", peer_sql)
+        assert peers == "[]", "fixture already has a peer"
+        jobs = json.loads(before)
+        assert len(jobs) == 2 and {job["state"] for job in jobs} == {"available", "completed"}
+        assert next(job for job in jobs if job["state"] == "available")["attempt"] == 0
+        # Test with restricted AND privileged credentials, so a permission error
+        # cannot masquerade as omission of the queue/pruner/peer instance.
+        for role in [READER, "postgres"]:
+            name, port = self.launch("queued-public-" + role, "queued", role=role)
+            self.wait_ready(name, port)
+            self.assert_no_jobs(name)
+            assert self.sql("queued", snapshot_sql) == before, "public node changed job history"
+            assert self.sql("queued", peer_sql) == peers, "public node elected a database peer"
+            assert self.sql("queued", "SELECT count(*) FROM texts WHERE work_id='T9999';") == "0"
+            self.docker("stop", "-t", "10", name)
+        self.results["cases"].append({"case": "public-does-not-claim-prune-or-elect", "passed": True})
+
+        # Same queued job and mounted source, no inline executor or direct perform:
+        # the real research-mode Oban instance must process it and prune old history.
+        name, port = self.launch("ingestion-control", "queued", public=False)
+        self.wait_ready(name, port)
+        code = """
+unless is_pid(Oban.whereis(Oban)), do: raise("ingestion has no Oban instance")
+conf = Oban.config()
+unless conf.testing == :disabled, do: raise("not exercising the real queue")
+unless Application.fetch_env!(:pramana, Oban)[:queues] == [bake: 8], do: raise("bake queue policy changed")
+IO.puts("INGESTION_INSTANCE_OK")
+"""
+        assert "INGESTION_INSTANCE_OK" in self.rpc(name, code).stdout
+        deadline = time.monotonic() + 70
+        while time.monotonic() < deadline:
+            rows = json.loads(self.sql("queued", snapshot_sql))
+            if len(rows) == 1 and rows[0]["state"] == "completed" and rows[0]["attempt"] == 1:
+                break
+            if any(job["state"] in {"retryable", "discarded", "cancelled"} for job in rows):
+                raise AssertionError("positive ingestion fixture failed")
+            time.sleep(0.25)
+        else:
+            raise AssertionError("real queue/pruner did not complete the positive control")
+        assert self.sql("queued", "SELECT content FROM segments WHERE urn='pramana:cbeta.T:T9999_001@p0001c19';") == BAKE_TEXT
+        self.docker("stop", "-t", "10", name)
+        self.results["cases"].append({"case": "same-fixture-ingested-and-history-pruned-in-research", "passed": True})
 
     def rejection(self, case, database, reason):
         name, port = self.launch(case, database)
@@ -258,7 +390,11 @@ end
 result = Application.ensure_all_started(:pramana_web)
 unless match?({:error, _}, result) and inspect(result) =~ "public_corpus_forbidden",
   do: raise("wrong startup disposition: #{inspect(result)}")
-for name <- [Pramana.Supervisor, Pramana.Repo, Oban, Pramana.Embed.Serving,
+# Failed application startup may have unwound the Oban dependency itself.
+# If its registry survives, the named instance still must be absent.
+if Process.whereis(Oban.Registry) && Oban.whereis(Oban),
+  do: raise("rejected startup retained Oban")
+for name <- [Pramana.Supervisor, Pramana.Repo, Pramana.Embed.Serving,
              PramanaWeb.Supervisor, PramanaWeb.Endpoint] do
   if Process.whereis(name), do: raise("rejected startup retained #{inspect(name)}")
 end
@@ -304,7 +440,10 @@ IO.puts("ADMITTED_SERVING_OK")
 
     def admin(self):
         code = '''
+Application.load(:pramana)
+Application.delete_env(:pramana, Oban)
 {:ok, _} = Application.ensure_all_started(:pramana_web)
+if Oban.whereis(Oban), do: raise("public administration started Oban")
 unless PramanaWeb.Endpoint.config(:server) == false, do: raise("implicit server enabled")
 case :gen_tcp.connect({127, 0, 0, 1}, 4000, [:binary, active: false], 1000) do
   {:error, :econnrefused} -> :ok
@@ -360,6 +499,8 @@ def main():
         smoke.admission_order()
         smoke.admitted_serving()
         smoke.serving(public=False)
+        smoke.rejection("missing-audit-permission", "audit_denied", "publishing_audit_unavailable")
+        smoke.background_isolation()
         smoke.results["passed"] = True
     finally:
         smoke.close()
