@@ -43,6 +43,53 @@ incapable of database mutation**: database privileges, application code and cred
 remain security boundaries. Use least-privilege runtime credentials, protected admin
 operations, backups, restore tests and an explicit deployment/rollback procedure.
 
+## Release startup and refusal
+
+The image's default command, `/app/bin/server`, sets `PHX_SERVER=true` and starts the
+release HTTP listener on `PORT` (default 4000). Configure network exposure and TLS
+before using it. `bin/pramana start` and `bin/pramana eval` do not opt into HTTP by
+themselves; production runtime enables serving only for `PHX_SERVER=true` or `1`.
+An administrative environment should leave that variable unset. `eval` does not start
+applications automatically; code that explicitly starts them still runs public admission.
+
+**Migrations are explicit, never a side effect of `bin/server`.** Prepare the intended
+database with the existing authorized migration workflow before starting the release.
+An empty, unmigrated database is not a safe empty corpus. Do not turn off public mode or
+point at another database merely to make startup pass.
+
+For `PRAMANA_PUBLIC=1`, startup is `Repo → publishing audit → other core children → web`.
+Forbidden content returns `:public_corpus_forbidden`; unavailable connectivity, permissions
+or audit tables return `:publishing_audit_unavailable`. Either fails application startup
+and unwinds the already-started core children. There is no asynchronous stop request
+followed by a successful child result. Optional model construction is deferred until its
+supervised start, so a rejected dataset does not first trigger embedding construction.
+Research mode is deliberately unchanged and may hold restricted material; `PHX_SERVER`
+is not a declaration of public-data policy. The audit uses the existing source/translation
+metadata policy, not independent legal judgment or continuous enforcement of later edits.
+
+The [container smoke runner](../ci/release_smoke.py) uses the actual built image, separate
+OS processes and synthetic fixtures on an owned Docker network. It publishes HTTP only
+on loopback, checks assets and real MCP responses, and tests forbidden source/rendering
+rows, missing schema/database, startup order, and non-serving administration. It creates,
+migrates and removes only its own test databases/containers; never supply it an operator
+`DATABASE_URL`. Run from the Git root after building an image:
+
+```sh
+python3 pramana/ci/release_smoke.py --image pramana:local --output /tmp/pramana-release-smoke
+```
+
+The runner's deadlines are test harness bounds, not production latency guarantees. A
+passing fixture audit is not clearance for your dataset, public-hosting capacity acceptance
+or proof that writes after admission are safe. No inference or corpus acquisition runs.
+
+**Rollout:** verify the target and required migrations, run the existing publishing check,
+set the intended public-mode flag and secrets, then start the reviewed image and inspect
+reader/MCP behavior. Retain backups and operator configuration separately.
+**Rollback:** this change has no schema/data conversion. Reverting application code restores
+the former startup behavior, including its missing explicit serving activation and weaker
+asynchronous refusal; it is not an equivalent safety guarantee. A failing public startup
+should be diagnosed, not bypassed. Rolling back code does not restore historical data.
+
 ## Acceptance is broader than build success
 
 Run the relevant [checks](../../docs/TESTING.md) against the actual candidate and target database.

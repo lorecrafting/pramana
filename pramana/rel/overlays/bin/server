@@ -1,7 +1,7 @@
 #!/bin/sh
-# Starts the release. Named `server` rather than `start` because a release's own `start`
-# does not run migrations, and a public node that boots against an unmigrated database
-# fails in a way that looks like a corpus problem.
+# Explicit serving entrypoint. Migrate the intended database separately before boot;
+# this command neither creates a database nor changes its schema.
 set -eu
 cd -P -- "$(dirname -- "$0")"
+export PHX_SERVER=true
 exec ./pramana start

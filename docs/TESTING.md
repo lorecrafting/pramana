@@ -75,7 +75,11 @@ commands in isolated directories. It cannot certify the operator's external data
 The Pramāṇa workflow uses `working-directory: pramana` for shell steps. Cache paths
 remain Git-root-relative. Rust audits name both actual lockfiles. Native quotation
 tests and production assets/release builds have explicit steps; no release is
-started. The container workflow uses `pramana/` as its context. Foundry's existing
+started. The container workflow uses `pramana/` as its context and starts the built runtime
+image only against owned disposable synthetic databases. Its [smoke runner](../pramana/ci/release_smoke.py)
+checks explicit HTTP activation, assets/MCP, public-data refusal and administrative
+non-serving behavior. This is not a research-corpus, inference or production deployment
+check. It never pushes an image. Foundry's existing
 isolated runner executes independently, without Pramāṇa dependencies.
 
 [Cutover and rollback](LAYOUT_MIGRATION.md) describes checks for an existing corpus

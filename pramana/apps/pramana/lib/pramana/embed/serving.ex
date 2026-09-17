@@ -28,9 +28,20 @@ defmodule Pramana.Embed.Serving do
   @spec child_spec_if_enabled() :: Supervisor.child_spec() | nil
   def child_spec_if_enabled do
     if enabled?() do
-      {Nx.Serving,
-       serving: Pramana.Embed.build_query_serving([]), name: @name, batch_timeout: 100}
+      # Preserve Nx.Serving's supervisor identity and shutdown semantics, but do
+      # not build a model while the application's child list is being assembled.
+      %{id: @name, start: {__MODULE__, :start_link, []}, type: :supervisor}
     end
+  end
+
+  @doc false
+  @spec start_link() :: Supervisor.on_start()
+  def start_link do
+    Nx.Serving.start_link(
+      serving: Pramana.Embed.build_query_serving([]),
+      name: @name,
+      batch_timeout: 100
+    )
   end
 
   @doc "Whether the serving is configured to run."
