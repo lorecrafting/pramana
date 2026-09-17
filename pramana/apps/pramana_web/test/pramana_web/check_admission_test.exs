@@ -40,7 +40,7 @@ defmodule PramanaWeb.CheckAdmissionTest do
              admission: admission,
              verify: callback,
              repair: callback
-           ) == %{execution: :error, result: nil, repair: nil}
+           ) == %{execution: :busy, result: nil, repair: nil}
 
     refute_received :unexpected_capacity_work
     send(worker, :continue)
