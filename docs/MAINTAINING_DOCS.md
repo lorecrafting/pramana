@@ -10,6 +10,7 @@
 | Operating checks | [Testing](TESTING.md), then the implementation of each check |
 | Corpus counts | Generated blocks in [STATUS](../pramana/docs/STATUS.md) / [PLAN](PLAN.md), from a named database |
 | Next work | [PLAN](PLAN.md); Foundry repair ordering belongs to [REPAIR-PLAN](../foundry/docs/REPAIR-PLAN.md) |
+| Foundry investment direction and cross-project lessons | [Foundry strategy brief](../foundry/docs/STRATEGY.md); not ticket status or execution authority |
 | Historical observations | [History](../pramana/docs/HISTORY.md), [proxy studies](../pramana/docs/PROXIES.md), dated review evidence |
 | Product choices under discussion | [PRODUCT_STRATEGY](PRODUCT_STRATEGY.md); not a shipped-feature inventory |
 
