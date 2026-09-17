@@ -10,6 +10,8 @@ defmodule PramanaWeb.CheckRun do
   Before a worker is created, the coordinator acquires one node-local permit from
   `PramanaWeb.CheckAdmission`. Reader pages and MCP report checks therefore share the
   same finite capacity. Capacity refusal is an execution outcome, not an evidence verdict.
+  The coordinator also monitors its permit: loss of the permit infrastructure stops the
+  owned worker instead of allowing unaccounted execution to continue.
 
   This is not a durable job or a new evidence verdict. A completed verification is
   retained if subsequent repair fails. Killing the BEAM worker does not promise to
@@ -58,8 +60,8 @@ defmodule PramanaWeb.CheckRun do
 
     try do
       case CheckAdmission.acquire(admission) do
-        {:ok, permit} -> run_admitted(owner, id, markdown, deadline, opts, admission, permit)
-        {:error, :busy} -> capacity_outcome(id)
+        {:ok, permit} -> run_admitted(owner, id, markdown, deadline, opts, permit)
+        {:error, :busy} -> empty_outcome(:busy)
         {:error, :unavailable} -> empty_outcome(:error)
       end
     after
@@ -67,8 +69,9 @@ defmodule PramanaWeb.CheckRun do
     end
   end
 
-  defp run_admitted(owner, id, markdown, deadline, opts, admission, permit) do
+  defp run_admitted(owner, id, markdown, deadline, opts, permit) do
     owner_ref = Process.monitor(owner)
+    permit_ref = Process.monitor(permit.pid)
     coordinator = self()
     verify = Keyword.get(opts, :verify, &verify/1)
     repair = Keyword.get(opts, :repair, &Repair.repair/1)
@@ -79,6 +82,8 @@ defmodule PramanaWeb.CheckRun do
       await(%{
         owner: owner,
         owner_ref: owner_ref,
+        permit: permit,
+        permit_ref: permit_ref,
         id: id,
         task: task,
         deadline: deadline,
@@ -90,7 +95,8 @@ defmodule PramanaWeb.CheckRun do
       Task.shutdown(task, :brutal_kill)
       flush_worker_messages(task.pid)
       Process.demonitor(owner_ref, [:flush])
-      CheckAdmission.release(admission, permit)
+      Process.demonitor(permit_ref, [:flush])
+      CheckAdmission.release(permit)
     end
   end
 
@@ -134,7 +140,13 @@ defmodule PramanaWeb.CheckRun do
   end
 
   defp receive_result(
-         %{task: %{ref: ref, pid: worker}, owner: owner, owner_ref: owner_ref} = state
+         %{
+           task: %{ref: ref, pid: worker},
+           owner: owner,
+           owner_ref: owner_ref,
+           permit: %{pid: permit_pid},
+           permit_ref: permit_ref
+         } = state
        ) do
     receive do
       {:verification, ^worker, result} ->
@@ -163,13 +175,16 @@ defmodule PramanaWeb.CheckRun do
       {:DOWN, ^owner_ref, :process, ^owner, _reason} ->
         outcome(state, :cancelled)
 
+      {:DOWN, ^permit_ref, :process, ^permit_pid, _reason} ->
+        outcome(state, :error)
+
       {:EXIT, ^worker, _reason} ->
         # Task reply/DOWN is authoritative; linked EXIT is not a second result.
         await(state)
 
-      {:EXIT, _linked, _reason} ->
-        # Includes cancel_async's exit signal, normal LiveView shutdown, the
-        # admission server restarting, and the test supervisor's shutdown.
+      {:EXIT, _parent, _reason} ->
+        # Includes cancel_async's exit signal, normal LiveView shutdown and the
+        # test supervisor's shutdown. Owner monitoring also covers an unlinked LV.
         outcome(state, :cancelled)
     after
       max(remaining(state.deadline), 0) -> outcome(state, :timed_out)
@@ -188,12 +203,6 @@ defmodule PramanaWeb.CheckRun do
       0 -> :ok
     end
   end
-
-  # MCP exposes a specific capacity refusal. The existing reader UI intentionally
-  # retains its stable lifecycle vocabulary and renders saturation as an execution
-  # error with no verdict; `id` is only present for the reader path.
-  defp capacity_outcome(nil), do: empty_outcome(:busy)
-  defp capacity_outcome(_reader_id), do: empty_outcome(:error)
 
   defp remaining(deadline), do: deadline - System.monotonic_time(:millisecond)
   defp outcome(state, execution), do: %{execution: execution, result: state.result, repair: nil}
