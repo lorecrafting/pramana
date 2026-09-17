@@ -1,0 +1,125 @@
+name: One-off release identity v2 patch
+
+on:
+  push:
+    branches:
+      - fix/release-content-identity-v2-2026-09-16
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/release-content-identity-v2-2026-09-16
+          fetch-depth: 0
+
+      - name: Apply narrow v2 follow-up edits
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}: {old!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "pramana/apps/pramana/lib/pramana/embed.ex",
+              "            embedding_model: @model,\n            embedded_at: now\n",
+              "            embedding_model: @model,\n            embedded_at: now,\n            updated_at: now\n",
+          )
+
+          replace_once(
+              "pramana/apps/pramana/lib/pramana/embed/transfer.ex",
+              "        embedding_model = $1,\n        embedded_at = $2,\n        embedding_max_length = $3\n",
+              "        embedding_model = $1,\n        embedded_at = $2,\n        updated_at = $2,\n        embedding_max_length = $3\n",
+          )
+
+          replace_once(
+              "pramana/docs/ARCHITECTURE.md",
+              """[Pramana.Release](../apps/pramana/lib/pramana/release.ex) already implements a separate
+retrieval stamp. It records source identity, translation/vector counts, translator IDs
+and embedding model names. `mix pramana.release.stamp` writes it;
+`mix pramana.doctor` can report its status. **This is not a content hash of all
+renderings and vectors.** Same-count edits, search-code/default changes and some other
+state changes can be invisible. The drift comparison includes `source_bake_id` and all
+derived facts used for stamping, excluding only the observation timestamp. It reports
+source identities appearing, disappearing or changing even when counts are unchanged;
+it never refreshes the stamp. `:current` means those tracked facts agree, not that every
+byte is unchanged. Do not advertise a matching `release_id` as a byte-complete snapshot.
+""",
+              """[Pramana.Release](../apps/pramana/lib/pramana/release.ex) implements a separate
+retrieval stamp. Version-2 `translation_set_id` and `vector_set_id` values are deterministic
+content digests: renderings include their stable selection/provenance fields, and vectors
+include a SHA-256 of pgvector's stored binary value. `mix pramana.release.stamp` performs
+the full scan explicitly; normal tool replies only read the selected row.
+
+`mix pramana.doctor` stays cheap first. It compares source identity, counts and
+translator/model names, then rehashes a v2 layer only when its rows were touched after the
+current selection without moving those aggregates. Historical unprefixed component ids are
+reported as legacy rather than silently reinterpreted. A matching v2 `release_id` identifies
+the recorded source/rendering/vector rows; it still does not fingerprint retrieval code,
+defaults, planner behaviour or preserve a queryable historical database snapshot.
+""",
+          )
+
+          replace_once(
+              "pramana/docs/primer/05-16-licensing-and-why-it-is-a-column.md",
+              """The implemented release stamp adds counts and model/translator identities, not complete
+content hashes. Same-count edits can escape that identity. Read
+[identity and replay](../ARCHITECTURE.md#identity-and-replay) before treating a matching
+ID as proof of the state that answered. A proposed query-time candidate cache is not
+an implemented service merely because a tier or schema sketch names it.""",
+              """The version-2 release stamp hashes stable translation content/provenance and the actual
+stored vector bytes, so same-count rendering or embedding changes move the relevant
+component id. Read [identity and replay](../ARCHITECTURE.md#identity-and-replay) before
+treating a matching ID as an immutable replay guarantee: code/defaults and historical row
+snapshots remain outside the stamp. A proposed query-time candidate cache is not an
+implemented service merely because a tier or schema sketch names it.""",
+          )
+
+          replace_once(
+              "docs/PLAN.md",
+              """Last reviewed: **2026-09-04** — \"Start here\", the isolation section, items 8 through 11 and
+§ E1. The phase sections further down were not re-read, and the date claims only what was.""",
+              """Last reviewed: **2026-09-16** — \"Start here\" item 2 reconciled with the implemented
+release split and its v2 content-identity follow-up. The phase sections further down were
+not re-read, and the date claims only what was.""",
+          )
+
+          replace_once(
+              "docs/PLAN.md",
+              """2. **Item 10 — `bake_id` does not identify what answered.** The overpromise is withdrawn in
+   all three places, so nothing lies to a model now; the `source_bake_id` /
+   `vector_set_id` / `release_id` split is still owed and is a **prerequisite for anything
+   public**. Not urgent while this is a local corpus. It becomes urgent the moment a public
+   demo or a shared `verify_report` replay is on the table.""",
+              """2. **Item 10 — retrieval identity is implemented; content identity is the remaining gate.**
+   The `source_bake_id` / `translation_set_id` / `vector_set_id` / `release_id` split and
+   explicit release selection already shipped. The 2026-09-16 follow-up upgrades the two
+   derived component ids from counts/names to v2 content digests, including actual stored
+   vector bytes, while preserving old coarse releases as historical rows. This closes the
+   known same-count hole. It still does **not** make `release_id` a frozen replay of code,
+   defaults or historical database rows; public replay claims must stay narrower than that.""",
+          )
+          PY
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            pramana/apps/pramana/lib/pramana/embed.ex \
+            pramana/apps/pramana/lib/pramana/embed/transfer.ex \
+            pramana/docs/ARCHITECTURE.md \
+            pramana/docs/primer/05-16-licensing-and-why-it-is-a-column.md \
+            docs/PLAN.md
+          git commit -m "fix: align vector drift and release identity docs"
+          git push origin HEAD:fix/release-content-identity-v2-2026-09-16
