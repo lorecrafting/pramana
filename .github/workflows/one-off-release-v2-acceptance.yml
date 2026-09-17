@@ -1,0 +1,196 @@
+name: One-off release v2 lifecycle acceptance update
+
+on:
+  push:
+    branches:
+      - fix/release-content-identity-v2-2026-09-16
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/release-content-identity-v2-2026-09-16
+          fetch-depth: 0
+
+      - name: Update legacy lifecycle acceptance and runbook
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}: {old!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          test = "pramana/apps/pramana/test/pramana/release_acceptance_test.exs"
+
+          replace_once(
+              test,
+              '  test "drained legacy history survives an actual up/down/up lifecycle and A-B-A reselection", %{\n',
+              '  test "legacy history upgrades to v2 without rewriting v1 rows and survives up/down/up", %{\n',
+          )
+
+          replace_once(
+              test,
+              "    assert Release.current() == b\n    assert Release.drift() == :current\n    Repo.delete!(bake_b)\n    assert {:ok, ^a} = Release.stamp()\n    assert Release.current() == a\n",
+              (
+                  "    assert Release.current() == b\n"
+                  "    assert Release.drift() == %{\n"
+                  "             identity_version: %{stamped: \"v1/coarse\", live: \"v2\"}\n"
+                  "           }\n"
+                  "    Repo.delete!(bake_b)\n"
+                  "\n"
+                  "    assert %{\n"
+                  "             identity_version: %{stamped: \"v1/coarse\", live: \"v2\"},\n"
+                  "             source_bake_id: %{stamped: stamped_source, live: live_source}\n"
+                  "           } = Release.drift()\n"
+                  "\n"
+                  "    assert stamped_source == b.source_bake_id\n"
+                  "    assert live_source == a.source_bake_id\n"
+                  "    assert {:ok, a_v2} = Release.stamp()\n"
+                  "    refute a_v2.id == a.id\n"
+                  "    assert a_v2.source_bake_id == a.source_bake_id\n"
+                  "    assert String.starts_with?(a_v2.translation_set_id, \"v2:\")\n"
+                  "    assert String.starts_with?(a_v2.vector_set_id, \"v2:\")\n"
+                  "    assert Release.current() == a_v2\n"
+                  "    assert Repo.aggregate(ReleaseSchema, :count) == 3\n"
+              ),
+          )
+
+          replace_once(
+              test,
+              "    assert Repo.one(from(r in ReleaseSchema, order_by: [desc: r.stamped_at], limit: 1)) == b\n",
+              "    assert Repo.one(from(r in ReleaseSchema, order_by: [desc: r.stamped_at], limit: 1)) == a_v2\n",
+          )
+
+          replace_once(
+              test,
+              (
+                  "    assert :ok = Ecto.Migrator.up(Repo, @selection_version, SelectCurrentRelease, opts)\n"
+                  "    assert Release.current() == b\n"
+                  "    assert %{source_bake_id: %{stamped: _, live: _}} = Release.drift()\n"
+                  "    # This explicit selection is a reviewed action, not an automatic drift-hiding read.\n"
+                  "    assert {:ok, ^a} = Release.stamp()\n"
+                  "    assert Release.current() == a\n"
+                  "    assert Repo.aggregate(ReleaseSchema, :count) == 2\n"
+              ),
+              (
+                  "    assert :ok = Ecto.Migrator.up(Repo, @selection_version, SelectCurrentRelease, opts)\n"
+                  "    assert Release.current() == a_v2\n"
+                  "    assert Release.drift() == :current\n"
+                  "    # Explicit stamping is idempotent once the v2 content state is selected.\n"
+                  "    assert {:ok, ^a_v2} = Release.stamp()\n"
+                  "    assert Release.current() == a_v2\n"
+                  "    assert Repo.aggregate(ReleaseSchema, :count) == 3\n"
+              ),
+          )
+
+          old = (
+              "  # Model exactly the old writer's effect: an immutable history row, no selection write.\n"
+              "  defp legacy_stamp!(time) do\n"
+              "    fields =\n"
+              "      Map.merge(Release.ids(), %{translations_count: 0, vectors_count: 0, stamped_at: time})\n"
+              "\n"
+              "    Repo.insert!(struct!(ReleaseSchema, fields))\n"
+              "  end\n"
+          )
+          new = (
+              "  # Model the OLD writer independently of the current Release.ids/0 implementation.\n"
+              "  # Calling current code here would make this fixture silently become v2 the day the\n"
+              "  # identity algorithm changes, which defeats the migration test's entire purpose.\n"
+              "  defp legacy_stamp!(time) do\n"
+              "    source_bake_id = Pramana.Bake.current_id()\n"
+              "    translation_set_id = \"legacy-translations\"\n"
+              "    vector_set_id = \"legacy-vectors\"\n"
+              "\n"
+              "    release_id =\n"
+              "      [\"legacy-release\", source_bake_id, translation_set_id, vector_set_id]\n"
+              "      |> Enum.map_join(\"|\", &inspect/1)\n"
+              "      |> then(&:crypto.hash(:sha256, &1))\n"
+              "      |> Base.encode16(case: :lower)\n"
+              "\n"
+              "    Repo.insert!(%ReleaseSchema{\n"
+              "      release_id: release_id,\n"
+              "      source_bake_id: source_bake_id,\n"
+              "      translation_set_id: translation_set_id,\n"
+              "      vector_set_id: vector_set_id,\n"
+              "      translations_count: 0,\n"
+              "      vectors_count: 0,\n"
+              "      embedding_models: [],\n"
+              "      translators: [],\n"
+              "      stamped_at: time\n"
+              "    })\n"
+              "  end\n"
+          )
+          replace_once(test, old, new)
+
+          docs = "pramana/docs/EVIDENCE_INTEGRITY.md"
+          anchor = (
+              "5. Start only the updated code, verify the selected identity and tracked drift with the\n"
+              "   existing release/doctor checks, and check both success and error response envelopes.\n"
+              "   **Do not automatically restamp to hide unexpected drift**. Investigate first; stamp\n"
+              "   only when selecting the observed state is the operator's intended action. Resume only\n"
+              "   updated writers after acceptance.\n"
+          )
+          note = (
+              "\nFor the application-only v2 content-identity upgrade, there is no additional schema\n"
+              "migration: an existing unprefixed selected release intentionally reports\n"
+              "`identity_version` drift. Investigate any other drift, keep data writers quiescent, then\n"
+              "run `mix pramana.release.stamp` only when the live state is the intended selection. That\n"
+              "creates/selects a v2 row and leaves every v1 history row unchanged.\n"
+          )
+          replace_once(docs, anchor, anchor + note)
+
+          old = (
+              "3. Start the chosen older revision only after schema acceptance. Older code selects by\n"
+              "   the original stamp timestamp: after **A → B → A**, it can select **B**, not the\n"
+              "   explicitly reselected A. Check and report that change before resuming service. This\n"
+              "   migration cannot promise selection continuity across old code. Restoring a backup\n"
+              "   has its own operator-approved recovery procedure; dropping this table is not one.\n"
+          )
+          new = (
+              "3. Start the chosen older revision only after schema acceptance. Older code selects by\n"
+              "   the original stamp timestamp. The first v2 stamp creates a new v2 history row with a\n"
+              "   fresh timestamp, so a rollback can select that cutover row. After later **A → B → A**\n"
+              "   within v2, however, reselecting A still reuses A's original timestamp and older code can\n"
+              "   select **B** instead. Check and report the selected row before resuming service. This\n"
+              "   migration cannot promise selection continuity across old code. Restoring a backup has\n"
+              "   its own operator-approved recovery procedure; dropping this table is not one.\n"
+          )
+          replace_once(docs, old, new)
+
+          replace_once(
+              docs,
+              (
+                  "A → B → A under updated code reuses A's identity/timestamp and selects it atomically.\n"
+                  "Reads never create or refresh a selection; MCP success/error envelopes attach it.\n"
+                  "Same-count content edits and code/default changes remain outside the coarse release\n"
+                  "fingerprint. Exact historical replay and global snapshot isolation are not promised.\n"
+              ),
+              (
+                  "A → B → A under updated code reuses A's identity/timestamp and selects it atomically.\n"
+                  "Reads never create or refresh a selection; MCP success/error envelopes attach it. V2\n"
+                  "component ids cover same-count rendering and vector-row changes, including stored vector\n"
+                  "bytes; retrieval code/defaults and historical database snapshots remain outside the\n"
+                  "fingerprint. Exact historical replay and global snapshot isolation are not promised.\n"
+              ),
+          )
+          PY
+
+          git diff --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            pramana/apps/pramana/test/pramana/release_acceptance_test.exs \
+            pramana/docs/EVIDENCE_INTEGRITY.md
+          git commit -m "test: cover legacy to v2 release cutover"
+          git push origin HEAD:fix/release-content-identity-v2-2026-09-16
