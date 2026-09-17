@@ -1,0 +1,73 @@
+name: One-off Hex security refresh
+
+on:
+  push:
+    branches:
+      - fix/security-hex-advisories-2026-09-16
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pramana
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/security-hex-advisories-2026-09-16
+          fetch-depth: 0
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+
+      - name: Resolve only the advisory fixes
+        run: |
+          set -euo pipefail
+          mix deps.update bandit mint
+          mix hex.audit
+
+      - name: Add the authoritative Hex lockfile advisory gate
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("../.github/workflows/ci.yml")
+          text = path.read_text()
+          old = """      - name: Deps audit
+                if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+                run: mix deps.audit
+          """
+          new = """      - name: Hex lockfile audit
+                if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+                run: mix hex.audit
+
+              - name: Deps audit
+                if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+                run: mix deps.audit
+          """
+          if old not in text:
+              raise SystemExit("expected dependency-audit block not found")
+          if "- name: Hex lockfile audit" in text:
+              raise SystemExit("Hex audit gate already present")
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Commit resolver-owned changes
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- ../.github/workflows/ci.yml mix.lock && {
+            echo "Expected security refresh to change CI and/or mix.lock" >&2
+            exit 1
+          }
+          git diff --check -- ../.github/workflows/ci.yml mix.lock
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ../.github/workflows/ci.yml mix.lock
+          git commit -m "security: refresh Bandit and Mint advisories"
+          git push origin HEAD:fix/security-hex-advisories-2026-09-16
