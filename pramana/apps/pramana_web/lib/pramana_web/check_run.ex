@@ -61,7 +61,7 @@ defmodule PramanaWeb.CheckRun do
     try do
       case CheckAdmission.acquire(admission) do
         {:ok, permit} -> run_admitted(owner, id, markdown, deadline, opts, permit)
-        {:error, :busy} -> capacity_outcome(id)
+        {:error, :busy} -> empty_outcome(:busy)
         {:error, :unavailable} -> empty_outcome(:error)
       end
     after
@@ -203,12 +203,6 @@ defmodule PramanaWeb.CheckRun do
       0 -> :ok
     end
   end
-
-  # MCP has a wire-level capacity reason. The current reader lifecycle contract has
-  # no busy display state; it still reports saturation honestly as an execution error
-  # with no verdict, while preserving the submitted report for an explicit retry.
-  defp capacity_outcome(nil), do: empty_outcome(:busy)
-  defp capacity_outcome(_reader_id), do: empty_outcome(:error)
 
   defp remaining(deadline), do: deadline - System.monotonic_time(:millisecond)
   defp outcome(state, execution), do: %{execution: execution, result: state.result, repair: nil}
