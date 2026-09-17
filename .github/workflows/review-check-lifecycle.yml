@@ -1,0 +1,126 @@
+name: Adversarial reader lifecycle review
+on:
+  push:
+    branches: [work/prep-check-lifecycle-2026-09-16]
+    paths: [.github/workflows/review-check-lifecycle.yml]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: [5432:5432]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      MIX_ENV: test
+      CANDIDATE: 38f0c0008ef039933b9ef9293badefa80fc32cbd
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 38f0c0008ef039933b9ef9293badefa80fc32cbd
+          persist-credentials: false
+      - name: Record exact reviewed source
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          test -z "$(git status --porcelain)"
+          mkdir "$RUNNER_TEMP/check-lifecycle-adversarial"
+          echo "EVIDENCE=$RUNNER_TEMP/check-lifecycle-adversarial" >> "$GITHUB_ENV"
+          git rev-parse HEAD > "$RUNNER_TEMP/check-lifecycle-adversarial/source.sha"
+          git rev-parse 'HEAD^{tree}' > "$RUNNER_TEMP/check-lifecycle-adversarial/source.tree"
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: '29.0.5'
+          elixir-version: '1.20.3-otp-29'
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: stable
+      - name: Install extension in disposable test database
+        run: |
+          set -euo pipefail
+          docker exec $(docker ps --filter 'ancestor=pgvector/pgvector:pg18' --format '{{.ID}}') bash -c 'apt-get update -qq && apt-get install -y -qq --no-install-recommends build-essential postgresql-server-dev-18 wget ca-certificates && wget -q https://github.com/pgbigm/pg_bigm/archive/refs/tags/v1.2-20250903.tar.gz && tar zxf v1.2-20250903.tar.gz && cd pg_bigm-1.2-20250903 && make USE_PGXS=1 with_llvm=no && make USE_PGXS=1 with_llvm=no install'
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            pramana/deps
+            pramana/_build
+            ~/.cargo
+            pramana/apps/pramana_native/native/pramana_native/target
+            pramana/native/quotations/target
+          key: Linux-pramana-layout-v2-${{ hashFiles('pramana/mix.lock') }}
+          restore-keys: Linux-pramana-layout-v2-
+      - name: Compile exact candidate with normal settings
+        run: |
+          set -euo pipefail
+          cd pramana
+          mix deps.get
+          mix compile --force --warnings-as-errors 2>&1 | tee "$EVIDENCE/compile.log"
+          mix format --check-formatted
+      - name: Demonstrate that each targeted regression detects its defect
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          root = pathlib.Path.cwd() / 'pramana'
+          evidence = pathlib.Path(os.environ['EVIDENCE'])
+          experiments = [
+              ('cancel-resurrection',
+               'apps/pramana_web/lib/pramana_web/live/check_live.ex',
+               'do: %{outcome | execution: :cancelled, result: socket.assigns.result, repair: nil},',
+               'do: %{outcome | execution: :cancelled, result: outcome.result, repair: nil},',
+               'apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs',
+               'a cancelling page cannot admit work or resurrect an unobserved completion',
+               'cancelled.assigns.result == nil'),
+              ('repair-budget-reset',
+               'apps/pramana_web/lib/pramana_web/check_run.ex',
+               'await(%{state | result: result})',
+               'await(%{state | result: result, deadline: System.monotonic_time(:millisecond) + 2_000})',
+               'apps/pramana_web/test/pramana_web/check_run_test.exs',
+               'repair gets the remaining budget, never a fresh timeout',
+               'Assertion failed, no matching message'),
+          ]
+          results = []
+          for name, source, old, new, test, title, expected in experiments:
+              path = root / source
+              original = path.read_bytes()
+              text = original.decode()
+              assert text.count(old) == 1, (name, 'mutation must identify exactly one site')
+              line = next(i for i, value in enumerate((root / test).read_text().splitlines(), 1) if title in value)
+              try:
+                  path.write_text(text.replace(old, new))
+                  run = subprocess.run(['mix', 'test', f'{test}:{line}', '--seed', '0'], cwd=root, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=120)
+                  (evidence / f'{name}.log').write_text(run.stdout)
+                  assert run.returncode != 0 and expected in run.stdout, (name, run.returncode, run.stdout)
+                  results.append({'experiment': name, 'exit_code': run.returncode, 'expected_assertion_failed': True})
+              finally:
+                  path.write_bytes(original)
+          (evidence / 'experiments.json').write_text(json.dumps(results, indent=2) + '\n')
+          PY
+      - name: Restore, compile and repeat the actual candidate regressions
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE"
+          test -z "$(git status --porcelain)"
+          cd pramana
+          mix compile --force --warnings-as-errors
+          mix format --check-formatted
+          for seed in 0 101; do
+            mix test apps/pramana_web/test/pramana_web/check_run_test.exs apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs apps/pramana_web/test/pramana_web/live/check_live_test.exs --seed "$seed" 2>&1 | tee "$EVIDENCE/restored-seed-$seed.log"
+          done
+          test -z "$(git status --porcelain)"
+      - name: Retain exact-source experiment evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: check-lifecycle-adversarial
+          path: ${{ runner.temp }}/check-lifecycle-adversarial
+          if-no-files-found: error
+          retention-days: 3
