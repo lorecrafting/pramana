@@ -59,33 +59,29 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit(f"translation comment match count: {text.count(old)}")
           text = text.replace(old, new, 1)
-
           path.write_text(text)
 
           test = Path("pramana/apps/pramana/test/pramana/release_content_identity_v2_test.exs")
           text = test.read_text()
           anchor = "  test \"a no-op translation rewrite does not manufacture content drift\" do\n"
-          block = '''  test "actual rendering text participates even when its adjacent hash is stale" do
-    rendering!("Original rendering")
-    {:ok, before} = Release.stamp()
-    changed_at = DateTime.add(DateTime.utc_now(), 1, :second)
-
-    Repo.update_all(Pramana.Corpus.Translation,
-      set: [text: "Tampered rendering", updated_at: changed_at]
-    )
-
-    # Deliberately leave text_sha256 untouched. The v1-style trust in the adjacent hash
-    # would miss this; v2 fingerprints the actual stored text as well.
-    assert %{translation_set_id: %{stamped: stamped, live: live}} = Release.drift()
-    assert stamped == before.translation_set_id
-    refute live == stamped
-  end
-
-'''
+          block = (
+              "  test \"actual rendering text participates even when its adjacent hash is stale\" do\n"
+              "    rendering!(\"Original rendering\")\n"
+              "    {:ok, before} = Release.stamp()\n"
+              "    changed_at = DateTime.add(DateTime.utc_now(), 1, :second)\n\n"
+              "    Repo.update_all(Pramana.Corpus.Translation,\n"
+              "      set: [text: \"Tampered rendering\", updated_at: changed_at]\n"
+              "    )\n\n"
+              "    # Deliberately leave text_sha256 untouched. The v1-style trust in the adjacent hash\n"
+              "    # would miss this; v2 fingerprints the actual stored text as well.\n"
+              "    assert %{translation_set_id: %{stamped: stamped, live: live}} = Release.drift()\n"
+              "    assert stamped == before.translation_set_id\n"
+              "    refute live == stamped\n"
+              "  end\n\n"
+          )
           if text.count(anchor) != 1:
               raise SystemExit(f"test anchor match count: {text.count(anchor)}")
-          text = text.replace(anchor, block + anchor, 1)
-          test.write_text(text)
+          test.write_text(text.replace(anchor, block + anchor, 1))
           PY
 
           git diff --check
