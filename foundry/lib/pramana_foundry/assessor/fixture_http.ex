@@ -52,7 +52,7 @@ defmodule PramanaFoundry.Assessor.FixtureHTTP do
         path = if uri.path in [nil, ""], do: "/", else: uri.path
         path = if is_binary(uri.query), do: path <> "?" <> uri.query, else: path
 
-        if is_integer(port) and port > 0 and port <= 65_535,
+        if is_integer(port) and port > 0 and port <= 65_535 and valid_request_target?(path),
           do: {:ok, %{host: host, port: port, path: path}},
           else: {:error, :invalid_endpoint}
 
@@ -62,6 +62,13 @@ defmodule PramanaFoundry.Assessor.FixtureHTTP do
   end
 
   defp endpoint(_value), do: {:error, :invalid_endpoint}
+
+  defp valid_request_target?(value) when is_binary(value) and value != "" do
+    String.valid?(value) and
+      Enum.all?(:binary.bin_to_list(value), fn byte -> byte >= 33 and byte <= 126 end)
+  end
+
+  defp valid_request_target?(_value), do: false
 
   defp positive_integer(value) when is_integer(value) and value > 0, do: :ok
   defp positive_integer(_value), do: {:error, :invalid_transport_limit}

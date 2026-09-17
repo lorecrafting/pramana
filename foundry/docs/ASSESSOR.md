@@ -48,16 +48,26 @@ JSON handling. Floating provider values are converted to fixed-point integers be
 enter the typed result; raw response bytes are not authoritative state.
 
 A timeout after request transmission is unavailable evidence, not permission to resend.
-Stage A performs no retries. Later production integration must use Foundry's protected
-claim/reservation, cancellation, receipt, replay and redaction contracts; those are not
-proved by these fixtures.
+Stage A performs no retries. Cancellation is checked before issue and again after transport
+returns; a response that arrives after cancellation is not applied. This still does not
+prove remote cancellation or non-delivery. Later production integration must use Foundry's
+protected claim/reservation, cancellation, receipt, replay and redaction contracts; those
+are not proved by these fixtures.
+
+Stage A identity digests use deterministic Erlang term encoding with explicit domain/version
+tags. They are BEAM-internal experiment identities, not the workflow contract's protected
+cross-client canonical command encoding. A production receipt integration must use the
+governing canonical protocol or a separately reviewed versioned digest contract.
 
 ## Offline evaluation
 
-`mix run bin/assessor_eval.exs -- INPUT.json` compares baseline and assessor candidate
-orderings over the same candidate set. Each case identifies independently labelled
-`relevant_ids` and records operational measurements separately for `baseline` and
-`assessor`. Unknown measurements remain explicit rather than becoming zero.
+`mix run bin/assessor_eval.exs -- INPUT.json` accepts an explicitly versioned, bounded
+input and compares baseline and assessor candidate orderings over the same candidate set.
+Each case carries a case id and candidate-manifest digest, identifies independently labelled
+`relevant_ids`, and records operational measurements separately for `baseline` and
+`assessor`. Unknown measurements remain explicit rather than becoming zero. The evaluator
+rejects an overlarge top-k, changed candidate set, duplicate case id, excessive case/candidate
+counts and ambiguous provenance.
 
 The evaluator reports context misses at a chosen top-k, reads needed to cover all labelled
 relevant material, unnecessary reads before full relevance, and known/unknown totals for

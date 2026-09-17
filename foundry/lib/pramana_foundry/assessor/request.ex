@@ -71,12 +71,14 @@ defmodule PramanaFoundry.Assessor.Request do
          {:ok, max_response_bytes} <-
            bounded_integer(attrs, :max_response_bytes, 256, @max_body_bytes, 131_072) do
       candidate_digest =
-        candidates
-        |> Enum.map(&Candidate.manifest_entry/1)
-        |> digest_term()
+        digest_term({
+          "assessor-candidate-manifest-v1",
+          Enum.map(candidates, &Candidate.manifest_entry/1)
+        })
 
       policy_digest =
         digest_term({
+          "assessor-policy-v1",
           policy.version,
           policy.question_set_version,
           policy.selection_version,
@@ -86,6 +88,7 @@ defmodule PramanaFoundry.Assessor.Request do
 
       request_digest =
         digest_term({
+          "assessor-request-v1",
           @purpose,
           assessment_id,
           task_id,
@@ -134,7 +137,8 @@ defmodule PramanaFoundry.Assessor.Request do
   defp candidates(value) when is_list(value) and length(value) <= @max_candidates do
     with {:ok, candidates} <- normalize_candidates(value),
          true <- unique_candidate_ids?(candidates),
-         true <- Enum.sum(Enum.map(candidates, &byte_size(&1.content))) <= @max_total_candidate_bytes do
+         true <-
+           Enum.sum(Enum.map(candidates, &byte_size(&1.content))) <= @max_total_candidate_bytes do
       {:ok, candidates}
     else
       _ -> {:error, :invalid_candidates}

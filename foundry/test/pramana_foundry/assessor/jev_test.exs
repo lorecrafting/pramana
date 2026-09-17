@@ -163,6 +163,7 @@ defmodule PramanaFoundry.Assessor.JevTest do
 
     decoded = :json.decode(wire.body)
     assert decoded["model"] == "jev-1.13.0"
+
     assert Map.keys(decoded["questions"]) |> Enum.sort() ==
              ["any_relevant", "candidate:a", "candidate:b"]
 
@@ -213,6 +214,30 @@ defmodule PramanaFoundry.Assessor.JevTest do
       assert_receive {:fixture_request, ^server, _wire}
       refute_receive {:fixture_request, ^server, _wire}, 50
     end
+  end
+
+  test "cancellation after issue prevents a late response from being applied" do
+    request = request()
+    parent = self()
+    {:ok, checks} = Agent.start_link(fn -> 0 end)
+
+    cancelled? = fn ->
+      Agent.get_and_update(checks, fn count -> {count > 0, count + 1} end)
+    end
+
+    result =
+      Jev.assess(request,
+        api_key: "fixture-secret",
+        cancelled?: cancelled?,
+        transport: fn _payload, _opts ->
+          send(parent, :issued_once)
+          {:ok, 200, %{}, valid_response(request)}
+        end
+      )
+
+    assert_receive :issued_once
+    assert result.status == :unavailable
+    assert result.reason == :cancelled_after_issue
   end
 
   test "post-send timeout and connection loss are unavailable outcomes with one request" do
@@ -363,6 +388,28 @@ defmodule PramanaFoundry.Assessor.JevTest do
     assert result.status == :invalid
     assert result.reason == :question_set_version_mismatch
     refute_received :unexpected_transport
+  end
+
+  test "control characters in credentials and fixture request targets are rejected before I/O" do
+    request = request()
+    parent = self()
+
+    transport = fn _payload, _opts ->
+      send(parent, :unexpected_transport)
+      {:error, :transport_failure}
+    end
+
+    result = Jev.assess(request, api_key: "bad\nkey", transport: transport)
+    assert result.status == :not_requested
+    assert result.reason == :authorization_missing
+    refute_received :unexpected_transport
+
+    assert {:error, :invalid_endpoint} =
+             FixtureHTTP.post("{}",
+               endpoint: "http://127.0.0.1:9/ok\r\nInjected: yes",
+               timeout_ms: 10,
+               max_response_bytes: 256
+             )
   end
 
   test "moving model aliases and other providers are rejected before transport" do

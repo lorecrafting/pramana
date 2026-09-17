@@ -3,9 +3,13 @@ defmodule PramanaFoundry.Assessor.EvaluatorTest do
 
   alias PramanaFoundry.Assessor.Evaluator
 
+  @manifest String.duplicate("a", 64)
+
   test "offline evaluator compares ordering and operational measurements by arm" do
     cases = [
       %{
+        "case_id" => "case-1",
+        "candidate_manifest_digest" => @manifest,
         "baseline_order" => ["a", "b", "c"],
         "assessor_order" => ["b", "a", "c"],
         "relevant_ids" => ["b"],
@@ -47,6 +51,8 @@ defmodule PramanaFoundry.Assessor.EvaluatorTest do
   test "unknown observed values remain explicit per arm instead of becoming zero" do
     cases = [
       %{
+        "case_id" => "case-1",
+        "candidate_manifest_digest" => @manifest,
         "baseline_order" => ["a"],
         "assessor_order" => ["a"],
         "relevant_ids" => [],
@@ -69,8 +75,10 @@ defmodule PramanaFoundry.Assessor.EvaluatorTest do
              %{"known_total" => 0, "unknown_cases" => 1}
   end
 
-  test "candidate-set changes, unknown gold ids, and ambiguous observed arms are refused" do
+  test "candidate-set, provenance, top-k and observed-arm ambiguities are refused" do
     base = %{
+      "case_id" => "case-1",
+      "candidate_manifest_digest" => @manifest,
       "baseline_order" => ["a", "b"],
       "assessor_order" => ["a", "b"],
       "relevant_ids" => ["a"],
@@ -84,7 +92,15 @@ defmodule PramanaFoundry.Assessor.EvaluatorTest do
              Evaluator.compare([%{base | "relevant_ids" => ["missing"]}], 1)
 
     assert {:error, :invalid_evaluation_cases} =
+             Evaluator.compare([%{base | "candidate_manifest_digest" => "not-a-digest"}], 1)
+
+    assert {:error, :invalid_evaluation_cases} =
              Evaluator.compare([%{base | "observed" => %{"assessor" => %{}}}], 1)
+
+    assert {:error, :invalid_evaluation_cases} = Evaluator.compare([base], 3)
+
+    assert {:error, :invalid_evaluation_cases} =
+             Evaluator.compare([base, %{base | "assessor_order" => ["b", "a"]}], 1)
   end
 
   test "offline runner script remains valid Elixir source" do

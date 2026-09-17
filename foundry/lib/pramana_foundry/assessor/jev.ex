@@ -62,6 +62,7 @@ defmodule PramanaFoundry.Assessor.Jev do
          :ok <- request_size(payload, request.max_request_bytes),
          {:ok, status, _headers, body} <-
            call_transport(transport, payload, request, api_key, opts),
+         :ok <- ensure_not_cancelled_after_issue(opts),
          :ok <- response_size(body, request.max_response_bytes) do
       response(request, status, body)
     else
@@ -80,6 +81,9 @@ defmodule PramanaFoundry.Assessor.Jev do
       {:error, :timeout} ->
         Result.unavailable(request, :transport_timeout)
 
+      {:error, :cancelled_after_issue} ->
+        Result.unavailable(request, :cancelled_after_issue)
+
       {:error, _reason} ->
         Result.unavailable(request, :transport_failure)
     end
@@ -88,7 +92,7 @@ defmodule PramanaFoundry.Assessor.Jev do
   defp api_key(opts) do
     case Keyword.get(opts, :api_key) do
       value when is_binary(value) and value != "" and byte_size(value) <= 4_096 ->
-        if String.valid?(value) and String.trim(value) == value,
+        if String.valid?(value) and String.trim(value) == value and no_control_bytes?(value),
           do: {:ok, value},
           else: {:error, :authorization_missing}
 
@@ -177,7 +181,6 @@ defmodule PramanaFoundry.Assessor.Jev do
     if byte_size(body) <= max_bytes, do: :ok, else: {:error, :response_too_large}
   end
 
-
   defp call_transport(transport, payload, request, api_key, opts) do
     transport_opts = [
       endpoint: Keyword.get(opts, :endpoint),
@@ -252,7 +255,9 @@ defmodule PramanaFoundry.Assessor.Jev do
       if below_threshold?(any_relevant, recommendations, request.policy.min_confidence_ppm) do
         Result.abstain(request, :below_policy_confidence, raw)
       else
-        Result.valid(request, if(any_relevant.choice == "none", do: [], else: recommendations),
+        Result.valid(
+          request,
+          if(any_relevant.choice == "none", do: [], else: recommendations),
           raw ++ [explicit_none?: any_relevant.choice == "none"]
         )
       end
@@ -283,7 +288,9 @@ defmodule PramanaFoundry.Assessor.Jev do
   end
 
   defp exact_answer_ids(answers, request) do
-    expected = [@any_relevant_id | Enum.map(request.candidates, &question_id(&1.id))] |> Enum.sort()
+    expected =
+      [@any_relevant_id | Enum.map(request.candidates, &question_id(&1.id))] |> Enum.sort()
+
     actual = Map.keys(answers) |> Enum.sort()
     if actual == expected, do: :ok, else: {:error, :answer_id_mismatch}
   end
@@ -347,7 +354,8 @@ defmodule PramanaFoundry.Assessor.Jev do
          true <- Enum.all?(Map.values(probabilities), &unit_number?/1),
          sum <- Enum.sum(Map.values(probabilities)),
          true <- abs(sum - 1.0) <= @numeric_tolerance do
-      {:ok, probabilities, Map.new(probabilities, fn {key, number} -> {key, round(number * @ppm)} end)}
+      {:ok, probabilities,
+       Map.new(probabilities, fn {key, number} -> {key, round(number * @ppm)} end)}
     else
       _ -> {:error, :invalid_distribution}
     end
@@ -398,6 +406,14 @@ defmodule PramanaFoundry.Assessor.Jev do
   end
 
   defp question_id(candidate_id), do: "candidate:" <> candidate_id
+
+  defp ensure_not_cancelled_after_issue(opts) do
+    if cancelled?(opts), do: {:error, :cancelled_after_issue}, else: :ok
+  end
+
+  defp no_control_bytes?(value) do
+    Enum.all?(:binary.bin_to_list(value), fn byte -> byte >= 32 and byte != 127 end)
+  end
 
   defp cancelled?(opts) do
     case Keyword.get(opts, :cancelled?, false) do

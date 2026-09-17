@@ -30,7 +30,9 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
     unless is_boolean(authorized?), do: raise(ArgumentError, "authorized? must be boolean")
 
     adapter_opts = Keyword.get(opts, :adapter_opts, [])
-    unless Keyword.keyword?(adapter_opts), do: raise(ArgumentError, "adapter_opts must be keyword")
+
+    unless Keyword.keyword?(adapter_opts),
+      do: raise(ArgumentError, "adapter_opts must be keyword")
 
     result =
       request
@@ -69,7 +71,13 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
   defp assess(request, _mode, false, _adapter, _opts),
     do: Result.not_requested(request, :unauthorized)
 
-  defp assess(%Request{policy: %{selection_version: version}} = request, _mode, true, _adapter, _opts)
+  defp assess(
+         %Request{policy: %{selection_version: version}} = request,
+         _mode,
+         true,
+         _adapter,
+         _opts
+       )
        when version != @selection_version,
        do: Result.invalid(request, :selection_version_mismatch)
 

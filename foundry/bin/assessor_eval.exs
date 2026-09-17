@@ -1,11 +1,18 @@
 alias PramanaFoundry.Assessor.Evaluator
 alias PramanaFoundry.Assessor.UniqueJSON
 
+max_input_bytes = 4_194_304
+
 case System.argv() do
   [input_path] ->
-    with {:ok, bytes} <- File.read(input_path),
+    with {:ok, bytes} <-
+           File.open(input_path, [:read, :binary], fn io ->
+             IO.binread(io, max_input_bytes + 1)
+           end),
+         true <- is_binary(bytes) and byte_size(bytes) <= max_input_bytes,
          {:ok, input} <- UniqueJSON.decode(bytes),
-         %{"cases" => cases, "top_k" => top_k} <- input,
+         %{"schema_version" => 2, "cases" => cases, "top_k" => top_k} <- input,
+         true <- Enum.sort(Map.keys(input)) == ["cases", "schema_version", "top_k"],
          {:ok, result} <- Evaluator.compare(cases, top_k) do
       IO.binwrite(IO.iodata_to_binary([:json.encode(result), "\n"]))
     else

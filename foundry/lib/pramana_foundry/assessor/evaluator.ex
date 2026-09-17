@@ -2,18 +2,26 @@ defmodule PramanaFoundry.Assessor.Evaluator do
   @moduledoc """
   Offline evaluator for Stage A context-selection experiments.
 
-  It compares baseline and assessor orderings over the same candidate set and records
-  operational measurements separately for each arm. It performs no provider calls and
-  reports integer totals rather than inventing precision from a small fixture set.
+  It compares baseline and assessor orderings over the same exact candidate manifest and
+  records operational measurements separately for each arm. It performs no provider calls
+  and reports integer totals rather than inventing precision from a small fixture set.
   """
 
   @observed_fields ~w(input_tokens assessor_calls latency_ms operator_effort_ms rework_events)
   @arms ~w(baseline assessor)
+  @max_cases 1_000
+  @max_candidates 24
+  @max_id_bytes 128
+  @sha_pattern ~r/\A[0-9a-f]{64}\z/
 
   @spec compare([map()], pos_integer()) :: {:ok, map()} | {:error, atom()}
-  def compare(cases, top_k) when is_list(cases) and is_integer(top_k) and top_k > 0 do
+  def compare(cases, top_k)
+      when is_list(cases) and length(cases) <= @max_cases and is_integer(top_k) and
+             top_k > 0 and top_k <= @max_candidates do
     with {:ok, normalized} <- normalize_cases(cases),
-         true <- normalized != [] do
+         true <- normalized != [],
+         true <- unique_case_ids?(normalized),
+         true <- Enum.all?(normalized, &(length(&1["baseline_order"]) >= top_k)) do
       baseline = aggregate_arm(normalized, "baseline_order", top_k)
       assessor = aggregate_arm(normalized, "assessor_order", top_k)
 
@@ -50,15 +58,24 @@ defmodule PramanaFoundry.Assessor.Evaluator do
   end
 
   defp normalize_case(value) when is_map(value) and not is_struct(value) do
+    case_id = Map.get(value, "case_id")
+    manifest_digest = Map.get(value, "candidate_manifest_digest")
     baseline = Map.get(value, "baseline_order")
     assessor = Map.get(value, "assessor_order")
     relevant = Map.get(value, "relevant_ids")
     observed = Map.get(value, "observed")
 
     cond do
+      not valid_id?(case_id) or not valid_manifest_digest?(manifest_digest) ->
+        {:error, :invalid_case_identity}
+
       not valid_id_list?(baseline) or baseline == [] or not valid_id_list?(assessor) or
           not valid_id_list?(relevant) ->
         {:error, :invalid_case}
+
+      length(baseline) > @max_candidates or length(assessor) > @max_candidates or
+          length(relevant) > @max_candidates ->
+        {:error, :too_many_candidates}
 
       Enum.sort(baseline) != Enum.sort(assessor) ->
         {:error, :candidate_set_changed}
@@ -72,6 +89,8 @@ defmodule PramanaFoundry.Assessor.Evaluator do
       true ->
         {:ok,
          %{
+           "case_id" => case_id,
+           "candidate_manifest_digest" => manifest_digest,
            "baseline_order" => baseline,
            "assessor_order" => assessor,
            "relevant_ids" => relevant,
@@ -83,10 +102,26 @@ defmodule PramanaFoundry.Assessor.Evaluator do
   defp normalize_case(_value), do: {:error, :invalid_case}
 
   defp valid_id_list?(value) when is_list(value) do
-    Enum.all?(value, &(is_binary(&1) and &1 != "")) and Enum.uniq(value) == value
+    Enum.all?(value, &valid_id?/1) and Enum.uniq(value) == value
   end
 
   defp valid_id_list?(_value), do: false
+
+  defp valid_id?(value) when is_binary(value) and value != "" and byte_size(value) <= @max_id_bytes do
+    String.valid?(value) and String.trim(value) == value
+  end
+
+  defp valid_id?(_value), do: false
+
+  defp valid_manifest_digest?(value) when is_binary(value),
+    do: Regex.match?(@sha_pattern, value)
+
+  defp valid_manifest_digest?(_value), do: false
+
+  defp unique_case_ids?(cases) do
+    ids = Enum.map(cases, & &1["case_id"])
+    Enum.uniq(ids) == ids
+  end
 
   defp valid_observed?(value) when is_map(value) and not is_struct(value) do
     Enum.sort(Map.keys(value)) == Enum.sort(@arms) and
