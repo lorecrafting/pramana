@@ -68,16 +68,18 @@ The current loader replaces rows. Segments have no per-row bake identity support
 coexistent historic snapshots. Re-baking does not preserve a queryable older database.
 Retain the actual inputs and backups needed to reconstruct or inspect an older result.
 
-[Pramana.Release](../apps/pramana/lib/pramana/release.ex) already implements a separate
-retrieval stamp. It records source identity, translation/vector counts, translator IDs
-and embedding model names. `mix pramana.release.stamp` writes it;
-`mix pramana.doctor` can report its status. **This is not a content hash of all
-renderings and vectors.** Same-count edits, search-code/default changes and some other
-state changes can be invisible. The drift comparison includes `source_bake_id` and all
-derived facts used for stamping, excluding only the observation timestamp. It reports
-source identities appearing, disappearing or changing even when counts are unchanged;
-it never refreshes the stamp. `:current` means those tracked facts agree, not that every
-byte is unchanged. Do not advertise a matching `release_id` as a byte-complete snapshot.
+[Pramana.Release](../apps/pramana/lib/pramana/release.ex) implements a separate
+retrieval stamp. Version-2 `translation_set_id` and `vector_set_id` values are deterministic
+content digests: renderings include their stable selection/provenance fields, and vectors
+include a SHA-256 of pgvector's stored binary value. `mix pramana.release.stamp` performs
+the full scan explicitly; normal tool replies only read the selected row.
+
+`mix pramana.doctor` stays cheap first. It compares source identity, counts and
+translator/model names, then rehashes a v2 layer only when its rows were touched after the
+current selection without moving those aggregates. Historical unprefixed component ids are
+reported as legacy rather than silently reinterpreted. A matching v2 `release_id` identifies
+the recorded source/rendering/vector rows; it still does not fingerprint retrieval code,
+defaults, planner behaviour or preserve a queryable historical database snapshot.
 
 [MCP Reply](../apps/pramana_web/lib/pramana_web/mcp/reply.ex) places `bake_id`,
 `release_id` and the caller's non-null arguments in both successful and error JSON replies.

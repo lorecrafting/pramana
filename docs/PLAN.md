@@ -13,8 +13,9 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-04** — "Start here", the isolation section, items 8 through 11 and
-§ E1. The phase sections further down were not re-read, and the date claims only what was.
+Last reviewed: **2026-09-16** — "Start here" item 2 reconciled with the implemented
+release split and its v2 content-identity follow-up. The phase sections further down were
+not re-read, and the date claims only what was.
 **B is done through the sixteenth CBETA collection: 16 of 26 held, every text chunked and
 embedded, the reader at six screens.**
 
@@ -153,11 +154,13 @@ with HUMAN English too.** Roughly 20 of 189 are actually addressable.
    design deliberately refuses reader ranking, since a reader without Chinese can only rank
    fluency and fluent-and-wrong is the failure it exists to catch. A few passages repeat
    under fresh labels so the ranker's own consistency is measured.
-2. **Item 10 — `bake_id` does not identify what answered.** The overpromise is withdrawn in
-   all three places, so nothing lies to a model now; the `source_bake_id` /
-   `vector_set_id` / `release_id` split is still owed and is a **prerequisite for anything
-   public**. Not urgent while this is a local corpus. It becomes urgent the moment a public
-   demo or a shared `verify_report` replay is on the table.
+2. **Item 10 — retrieval identity is implemented; content identity is the remaining gate.**
+   The `source_bake_id` / `translation_set_id` / `vector_set_id` / `release_id` split and
+   explicit release selection already shipped. The 2026-09-16 follow-up upgrades the two
+   derived component ids from counts/names to v2 content digests, including actual stored
+   vector bytes, while preserving old coarse releases as historical rows. This closes the
+   known same-count hole. It still does **not** make `release_id` a frozen replay of code,
+   defaults or historical database rows; public replay claims must stay narrower than that.
 3. **705 Tengyur works with no title**, and the SAT request, which has waited since
    2026-08-15. Both need a person and neither needs code.
 

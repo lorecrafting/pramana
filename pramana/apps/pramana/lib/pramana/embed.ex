@@ -323,7 +323,8 @@ defmodule Pramana.Embed do
           set: [
             embedding: Pgvector.new(Nx.to_flat_list(vector)),
             embedding_model: @model,
-            embedded_at: now
+            embedded_at: now,
+            updated_at: now
           ]
         )
       end)

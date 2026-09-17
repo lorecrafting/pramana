@@ -184,6 +184,7 @@ defmodule Pramana.Embed.Transfer do
     SET embedding = v.embedding::vector,
         embedding_model = $1,
         embedded_at = $2,
+        updated_at = $2,
         embedding_max_length = $3
     FROM (VALUES #{Enum.join(placeholders, ", ")}) AS v(id, embedding)
     WHERE cv.id = v.id
