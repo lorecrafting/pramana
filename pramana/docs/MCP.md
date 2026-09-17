@@ -142,7 +142,8 @@ A failure to find wording in the loaded corpus is not proof of fabrication. A ge
 quotation is not proof of the attached interpretation. Generated text is not canonical
 source evidence; [the invariants](INVARIANTS.md) make these distinctions explicit.
 
-## Report execution budget and admission
+<a id="report-execution-budget"></a>
+## Report-check admission and execution
 
 `verify_report` gives verification and repair one shared monotonic **25-second**
 execution budget, starting when the component is invoked. Trusted application
@@ -165,6 +166,12 @@ worker. MCP returns `report_check_busy`; the reader shows a `busy` execution sta
 both cases verification and repair do not start and no report verdict is invented. See
 [report-check admission](REPORT_CHECK_ADMISSION.md) for permit lifecycle, recovery and
 rollback semantics.
+
+The admission server may restart without losing active capacity because live permit
+processes outlive it. The permit-supervisor generation is different: if it fails,
+in-flight `CheckRun` coordinators observe permit loss and stop their owned workers, while
+new admission remains unavailable for that application lifetime. Recovery is a
+coordinated application restart, not automatic adoption of a fresh zero-count pool.
 
 Completed verification keeps its existing `status`, `ok?`, counts, identity receipts
 and refusal semantics. Successful completion adds `execution: "completed"` and the
@@ -194,10 +201,12 @@ provenance lookups after execution, network delivery or another tool's execution
 The shared admission pool bounds **report checks on one BEAM node only**; it does not
 bound other MCP tools, session queues, another node or end-to-end latency. Killing a
 BEAM worker cannot guarantee recall of already-dispatched database/native/model work.
-These limits also apply to stdio; transport disconnect is not a new cancellation promise.
-No database writes, migrations, automatic retries or historical replay snapshots are
-introduced. Rollback removes the shared report capacity boundary and returns to per-call
-deadline protection; it does not restore stored data.
+These limits also apply to stdio; `mix pramana.mcp.stdio` starts the `pramana_web`
+application before the stdio transport, so it uses the same node-local admission service.
+Transport disconnect is not a new cancellation promise. No database writes, migrations,
+automatic retries or historical replay snapshots are introduced. Rollback removes the
+shared report capacity boundary and returns to per-call deadline protection; it does not
+restore stored data.
 
 ## Resources and transports
 
