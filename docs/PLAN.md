@@ -23,6 +23,30 @@ embedded, the reader at six screens.**
 
 ---
 
+## MCP report execution — post-#23, 2026-09-17
+
+**Base:** `42a61e9a8224df5c5a3ae680d82a410f7c220821`. Public serving isolation is
+merged. Intake found no open issues/PRs or newer overlapping published branch.
+Foundry ownership and human pilot/fidelity gates remain unchanged.
+
+The MCP report tool previously called verification and repair directly. Its HTTP
+response wait did not impose a report-worker deadline, and repair failure could lose
+completed verification. The shared reader check coordinator now also serves the MCP
+request task, without reader progress messages. Verification and repair share a finite
+25-second budget; no-result execution failures are MCP errors, while a completed
+verification survives a later repair failure with an explicit execution outcome and
+null repair. The reader's policy and domain verdicts are unchanged.
+
+[MCP execution](../pramana/docs/MCP.md#report-execution-budget) owns configuration,
+wire compatibility, queue/cleanup limits and rollback. Real session/transport tests
+cover completion, both failure stages, remaining budget, cancellation, session deletion
+and subsequent requests. Exact formatter/test/runtime and review evidence belongs to
+the PR; this section does not claim unrun checks passed.
+
+This is not global admission control, queue expiry, a transport-wide timeout, retrieval
+change or historical reconstruction. Broader multi-session admission remains separate.
+No Foundry code, provider use, corpus acquisition, schema or deployment changes.
+
 ## Public serving isolation — post-#22, 2026-09-17
 
 **Base:** `91d391d2dee6f1053d333f7647eb69f84f8af5a7`. PR #22's startup barrier and
@@ -117,8 +141,8 @@ cap receipt checks; domain and lifecycle semantics are unchanged.
 reasons, compatibility, operator correction and rollback semantics. Its old coarse-stamp
 description was also stale after #17 and now reflects the existing v2 implementation.
 
-**Alternatives deferred:** global admission/MCP execution budgets are a separate hosting
-hardening task; translation-reading defaults still need D4. Correcting a demonstrated
+**Alternatives deferred at that time:** global admission remains a separate hosting
+hardening task; the later MCP execution section above closes the per-report budget. Translation-reading defaults still need D4. Correcting a demonstrated
 wrong verification takes precedence over either. No Foundry, identity, migration,
 provider, deployment, or public-hosting change is included. The human and Foundry gates
 below remain unchanged. Exact execution/review evidence belongs to this change's PR.
@@ -142,7 +166,7 @@ The old `CheckLive` claim that the endpoint has no frame cap was stale: the exis
 WebSocket cap is 512,000 bytes. It is unchanged, as are the 200,000-byte decoded-report
 limit, 25-replay cap and explicit read-only replay allowlist. This does not provide global
 admission control, stop all already-dispatched database/serving work, or harden every
-transport. MCP/domain verification remains synchronous and unchanged. No Foundry,
+transport. Domain verification remains synchronous; the later MCP execution section above supersedes the MCP lifecycle limitation. No Foundry,
 identity-scheme, migration, dependency, persistent-job or deployment change is included.
 The human and Foundry gates recorded below are not reopened or claimed complete.
 

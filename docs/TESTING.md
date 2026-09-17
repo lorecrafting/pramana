@@ -116,6 +116,17 @@ caller loop in temporary native Mix fixtures, including stale ignored input,
 symlinks, external inputs, zero-source scopes and missing manifests. Their fixture
 applications deliberately cannot start. They do not replace the application suite.
 
+## Report lifecycle integration
+
+[Report execution tests](../pramana/apps/pramana_web/test/pramana_web/mcp/report_execution_test.exs)
+exercise the actual Streamable HTTP plug, Anubis session scheduler and report component
+against isolated fixtures. Injected server-owned callbacks block or fail specific
+stages; monitors establish worker termination, and a later request proves the same
+session remains usable. These are lifecycle tests, not corpus-performance measurements.
+The existing runtime-image smoke check still requires real report verification/repair
+under restricted database credentials. Reader lifecycle and domain evidence tests remain
+separate required regressions; none is replaced by a transport test.
+
 ## Behavior-first test maintenance
 
 See the [test audit implementation and execution boundaries](TEST_AUDIT.md) for

@@ -1,11 +1,11 @@
 defmodule PramanaWeb.CheckRun do
   @moduledoc """
-  One short-lived reader check, owned by its LiveView's `start_async` task.
+  One short-lived report check, owned by its reader or MCP caller.
 
-  The async task coordinates a linked, monitored worker. Only the worker calls the
+  The calling task coordinates a linked, monitored worker. Only the worker calls the
   existing verifier and repairer; the coordinator remains able to enforce a shared
   monotonic deadline and react to cancellation or owner death. It observes worker
-  termination before returning, so the page cannot admit overlapping checks.
+  termination before returning, so a finished invocation cannot retain its report worker.
 
   This is not a durable job or a new evidence verdict. A completed verification is
   retained if subsequent repair fails. Killing the BEAM worker does not promise to
@@ -38,8 +38,15 @@ defmodule PramanaWeb.CheckRun do
     timeout
   end
 
+  @doc "Runs in an MCP request task without sending reader progress messages."
+  @spec run(String.t(), keyword()) :: outcome()
+  def run(markdown, opts) do
+    deadline = System.monotonic_time(:millisecond) + timeout_ms(opts)
+    run(self(), nil, markdown, deadline, opts)
+  end
+
   @doc "Runs in start_async, never in the LiveView callback. Options are server-owned."
-  @spec run(pid(), reference(), String.t(), integer(), keyword()) :: outcome()
+  @spec run(pid(), reference() | nil, String.t(), integer(), keyword()) :: outcome()
   def run(owner, id, markdown, deadline, opts \\ []) do
     previous = Process.flag(:trap_exit, true)
     owner_ref = Process.monitor(owner)
@@ -112,7 +119,7 @@ defmodule PramanaWeb.CheckRun do
     receive do
       {:verification, ^worker, result} ->
         if remaining(state.deadline) > 0 do
-          send(owner, {:check_verified, state.id, result})
+          if state.id, do: send(owner, {:check_verified, state.id, result})
           send(worker, {:repair, self()})
           await(%{state | result: result})
         else
