@@ -48,11 +48,9 @@ defmodule PramanaWeb.CheckAdmission do
 
     @doc false
     def activate(pid) when is_pid(pid) do
-      try do
-        GenServer.call(pid, :activate)
-      catch
-        :exit, _ -> {:error, :unavailable}
-      end
+      GenServer.call(pid, :activate)
+    catch
+      :exit, _ -> {:error, :unavailable}
     end
 
     @impl true
@@ -77,8 +75,7 @@ defmodule PramanaWeb.CheckAdmission do
       _ = Process.cancel_timer(state.activation_timer)
       Process.demonitor(state.issuer_ref, [:flush])
 
-      {:reply, :ok,
-       %{state | activated?: true, issuer_ref: nil, activation_timer: nil}}
+      {:reply, :ok, %{state | activated?: true, issuer_ref: nil, activation_timer: nil}}
     end
 
     def handle_call(:activate, _from, state), do: {:reply, :ok, state}
@@ -130,27 +127,23 @@ defmodule PramanaWeb.CheckAdmission do
   @doc "Acquire one node-local report-check permit for the calling coordinator."
   @spec acquire(GenServer.server()) :: {:ok, token()} | {:error, :busy | :unavailable}
   def acquire(server \\ __MODULE__) do
-    try do
-      case GenServer.call(server, {:acquire, self()}) do
-        {:ok, %Token{} = token} -> activate(token)
-        {:error, reason} when reason in [:busy, :unavailable] -> {:error, reason}
-      end
-    catch
-      :exit, _ -> {:error, :unavailable}
+    case GenServer.call(server, {:acquire, self()}) do
+      {:ok, %Token{} = token} -> activate(token)
+      {:error, reason} when reason in [:busy, :unavailable] -> {:error, reason}
     end
+  catch
+    :exit, _ -> {:error, :unavailable}
   end
 
   @doc "Release a permit. Safe after its process already terminated."
   @spec release(token()) :: :ok
   def release(%Token{pid: pid, permit_supervisor: supervisor}) do
-    try do
-      case DynamicSupervisor.terminate_child(supervisor, pid) do
-        :ok -> :ok
-        {:error, _reason} -> :ok
-      end
-    catch
-      :exit, _ -> :ok
+    case DynamicSupervisor.terminate_child(supervisor, pid) do
+      :ok -> :ok
+      {:error, _reason} -> :ok
     end
+  catch
+    :exit, _ -> :ok
   end
 
   @doc false
@@ -175,17 +168,19 @@ defmodule PramanaWeb.CheckAdmission do
 
     permit_supervisor = Keyword.get(opts, :permit_supervisor, @default_permit_supervisor)
 
-    with {:ok, permit_supervisor_pid} <- resolve_server(permit_supervisor) do
-      {:ok,
-       %{
-         max_active: max_active,
-         permit_supervisor: permit_supervisor,
-         permit_supervisor_pid: permit_supervisor_pid,
-         permit_supervisor_ref: Process.monitor(permit_supervisor_pid),
-         available?: true
-       }}
-    else
-      {:error, :unavailable} -> {:stop, :permit_supervisor_unavailable}
+    case resolve_server(permit_supervisor) do
+      {:ok, permit_supervisor_pid} ->
+        {:ok,
+         %{
+           max_active: max_active,
+           permit_supervisor: permit_supervisor,
+           permit_supervisor_pid: permit_supervisor_pid,
+           permit_supervisor_ref: Process.monitor(permit_supervisor_pid),
+           available?: true
+         }}
+
+      {:error, :unavailable} ->
+        {:stop, :permit_supervisor_unavailable}
     end
   end
 
@@ -248,24 +243,20 @@ defmodule PramanaWeb.CheckAdmission do
   end
 
   defp active_count(supervisor) do
-    try do
-      %{active: active} = DynamicSupervisor.count_children(supervisor)
-      {:ok, active}
-    catch
-      :exit, _ -> {:error, :unavailable}
-    end
+    %{active: active} = DynamicSupervisor.count_children(supervisor)
+    {:ok, active}
+  catch
+    :exit, _ -> {:error, :unavailable}
   end
 
   defp start_permit_child(supervisor, coordinator) do
-    try do
-      case DynamicSupervisor.start_child(supervisor, {Permit, {coordinator, self()}}) do
-        {:ok, pid} -> {:ok, pid}
-        {:ok, pid, _info} -> {:ok, pid}
-        {:error, _reason} -> {:error, :unavailable}
-      end
-    catch
-      :exit, _ -> {:error, :unavailable}
+    case DynamicSupervisor.start_child(supervisor, {Permit, {coordinator, self()}}) do
+      {:ok, pid} -> {:ok, pid}
+      {:ok, pid, _info} -> {:ok, pid}
+      {:error, _reason} -> {:error, :unavailable}
     end
+  catch
+    :exit, _ -> {:error, :unavailable}
   end
 
   defp resolve_server(pid) when is_pid(pid) do
@@ -273,14 +264,12 @@ defmodule PramanaWeb.CheckAdmission do
   end
 
   defp resolve_server(name) do
-    try do
-      case GenServer.whereis(name) do
-        pid when is_pid(pid) -> {:ok, pid}
-        _ -> {:error, :unavailable}
-      end
-    catch
-      :exit, _ -> {:error, :unavailable}
+    case GenServer.whereis(name) do
+      pid when is_pid(pid) -> {:ok, pid}
+      _ -> {:error, :unavailable}
     end
+  catch
+    :exit, _ -> {:error, :unavailable}
   end
 
   defp validate_max_active!(value)
