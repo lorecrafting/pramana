@@ -9,6 +9,8 @@ defmodule PramanaWeb.Application do
   def start(_type, _args) do
     children = [
       PramanaWeb.Telemetry,
+      {DynamicSupervisor,
+       strategy: :one_for_one, name: PramanaWeb.CheckAdmission.PermitSupervisor},
       PramanaWeb.CheckAdmission,
       # Start a worker by calling: PramanaWeb.Worker.start_link(arg)
       # {PramanaWeb.Worker, arg},
