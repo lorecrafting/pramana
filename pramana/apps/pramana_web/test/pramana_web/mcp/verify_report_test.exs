@@ -11,6 +11,8 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
 
   alias Pramana.Corpus.Loader
   alias Pramana.Normalize.CBETA
+  alias Pramana.Release
+  alias Pramana.Translations
   alias PramanaWeb.MCP.ReplayExecutor
   alias PramanaWeb.MCP.Tools.VerifyReport
 
@@ -167,5 +169,104 @@ defmodule PramanaWeb.MCP.VerifyReportTest do
     assert payload["status"] == "incomplete"
     assert [%{"reason" => "invalid_assertions"}] = payload["malformed"]
     refute payload["ok?"]
+  end
+
+  test "a real emitted receipt cannot falsely refute a same-source, changed-rendering report" do
+    {:ok, bake} = Pramana.Bake.record(%{"mode" => "report_release_test"})
+
+    rendering = %{
+      anchor_urn: @urn,
+      work_id: "T0262",
+      lang: "en",
+      translator_id: "fixture",
+      tier: "t0",
+      method: "human",
+      text: "compassion",
+      redistributable: true,
+      license_class: "cc0"
+    }
+
+    {:ok, _} = Translations.store([rendering])
+    {:ok, first} = Release.stamp()
+    executor = ReplayExecutor.executor()
+    {:ok, original} = executor.("search_translations", %{"query" => "compassion"})
+    assert [_] = original["results"]
+    assert original["bake_id"] == bake.id
+    assert original["release_id"] == first.release_id
+
+    report = receipt_report(original, %{"results" => original["results"]})
+    assert json(report)["status"] == "verified"
+
+    # Change the existing row, not just a count. The emitted receipt, not an invented id,
+    # binds the earlier answer; #17 supplies the new content identity after this edit.
+    during_execution =
+      Pramana.Report.verify(report,
+        executor: fn tool, arguments ->
+          {:ok, _} = Translations.store([%{rendering | text: "equanimity"}])
+          {:ok, _} = Release.stamp()
+          executor.(tool, arguments)
+        end
+      )
+
+    assert during_execution.status == :incomplete
+    assert [%{status: :unverifiable, detail: detail}] = during_execution.replays
+    assert detail =~ "replay response"
+    assert during_execution.checked_identity.release_id == first.release_id
+    second = Release.current()
+    assert first.source_bake_id == second.source_bake_id
+    assert first.translations_count == second.translations_count
+    refute first.release_id == second.release_id
+    {:ok, changed} = executor.("search_translations", %{"query" => "compassion"})
+    assert changed["results"] == []
+
+    payload = json(report)
+    assert payload["status"] == "incomplete"
+    assert payload["counts"]["replay_failures"] == 0
+    assert [%{"status" => "unverifiable", "identity_field" => "release_id"}] = payload["replays"]
+
+    assert payload["checked_identity"] == %{
+             "bake_id" => bake.id,
+             "release_id" => second.release_id
+           }
+
+    assert payload["note"] =~ "neither confirmed nor refuted"
+    refute payload["ok?"]
+    assert Repo.get!(Pramana.Corpus.Release, first.id) == first
+    assert Repo.aggregate(Pramana.Corpus.Release, :count) == 2
+  end
+
+  test "a lost selection is unavailable, not repaired by the read-only checker" do
+    {:ok, _} = Release.stamp()
+    {:ok, original} = ReplayExecutor.executor().("get_passage", %{"urn" => @urn})
+    report = receipt_report(original, %{"urn" => @urn})
+    Repo.delete_all(Pramana.Release.Selection)
+    payload = json(report)
+    assert payload["status"] == "incomplete"
+    assert [%{"status" => "unverifiable"}] = payload["replays"]
+    assert payload["release_id"] == nil
+    assert Release.current_id() == nil
+    assert Repo.aggregate(Pramana.Corpus.Release, :count) == 1
+  end
+
+  test "legacy MCP reports explicitly disclose the missing release identity" do
+    payload =
+      json(
+        "```pramana-replay\n" <>
+          Jason.encode!(%{tool: "get_passage", arguments: %{urn: @urn}, assert: %{urn: @urn}}) <>
+          "\n```"
+      )
+
+    assert payload["status"] == "verified"
+    assert [%{"identity_scope" => "unrecorded"}] = payload["replays"]
+    assert payload["note"] =~ "no retrieval release identity"
+  end
+
+  defp receipt_report(receipt, assertions) do
+    record =
+      receipt["replay"]
+      |> Map.merge(Map.take(receipt, ["bake_id", "release_id"]))
+      |> Map.put("assert", assertions)
+
+    "```pramana-replay\n" <> Jason.encode!(record) <> "\n```"
   end
 end

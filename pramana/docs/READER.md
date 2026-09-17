@@ -196,11 +196,17 @@ this page asks anyone to trust a model of ours**: the checks are byte comparison
 re-executed counts.
 
 **Three verdicts, and the third is why it is worth building.** `verified` and `failed` are
-the obvious two. **`unverifiable`** is a replay recorded against a different `bake_id` —
-the corpus has changed and the claim cannot be re-run here. It is not refuted and it does
+the obvious two. **`unverifiable`** means a recorded `bake_id` or `release_id` differs or
+is unavailable, including an incompatible returned replay receipt. The claim cannot be
+checked against its recorded inputs here. It is not refuted and it does
 not pass, it is rendered in its own colour, and collapsing it into `failed` is how a
 checker teaches people to ignore it. `mix pramana.integrity` lost its audience that way,
 crying wolf over 1,228 X texts.
+
+The help example copies both identities from the original reply. Older reports without a
+release remain usable but display "No retrieval release was recorded"; a matching source
+bake alone does not identify a historical index. The footer shows the selected identities
+read at check entry, not a promise of a database snapshot or immutable replay.
 
 **The summary states its denominator**, because "3 citations verified" over three
 renderings of one Pāli line is not the claim it appears to be. It reports how many were

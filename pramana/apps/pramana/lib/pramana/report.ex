@@ -32,17 +32,21 @@ defmodule Pramana.Report do
       {"tool": "survey_corpus",
        "arguments": {"query": "一切眾生"},
        "bake_id": "b143d7f3…",
+       "release_id": "retrieval-release-id…",
        "assert": {"total": 36775, "works": 1904}}
       ```
 
-  Every tool response already emits `replay: {tool, arguments}` beside `bake_id`, so writing
-  one of these is copying a field rather than composing anything. `assert` names response
-  keys and the values the report claims for them; dotted paths reach into nested maps.
+  Every tool response emits `replay: {tool, arguments}`, `bake_id` and `release_id`. Copy
+  both identities from the response alongside the call; do not substitute today's stamp.
+  `assert` names response keys and the values the report claims for them; dotted paths reach into nested maps.
 
   ## Three refusals, and each is the point
 
-  1. **A replay against a different `bake_id` is `:unverifiable`, never `:failed`.** The
-     corpus changed; the claim may well have been true when it was made. Reporting that as a
+  1. **A different or unavailable recorded bake or release is `:unverifiable`, never
+     `:failed`.** Named identities must match the current selection before execution. For
+     a release-bound record they must also match the executor's returned receipt before
+     assertions are compared. The source or retrieval state may have changed; the claim may
+     well have been true when it was made. Reporting that as a
      falsehood would teach people to ignore the checker, which is exactly how `integrity`
      lost its audience while crying wolf over 1,228 X texts.
   2. **A figure with no quote and no replay is reported as unsourced.** Counting only what
@@ -51,6 +55,18 @@ defmodule Pramana.Report do
      in a paragraph carrying no citation — so it is a warning list, never a verdict.
   3. **It does not judge whether a citation supports its claim.** `Guard` draws that line
      already and it holds here: mechanical warrant, never interpretation.
+
+  ## Compatibility and limits
+
+  Release ids are opaque: historical coarse ids are not upgraded or reinterpreted. Records
+  without a release id retain the older bake-only (or unrecorded) behavior, with an explicit
+  `identity_scope` and limitation note. They check current values, not a historical index.
+  A missing or malformed release receipt cannot verify a release-bound record.
+
+  `checked_identity` records the selected identities read at the start of this check; it is
+  not a transactional snapshot. No stamp, content scan, historical database reconstruction
+  or retrieval-code/default pinning happens here. Even matching receipts cannot detect an
+  unstamped edit or every concurrent mutation, and do not promise immutable replay.
 
   ## Why not a panel of skeptic models
 
@@ -66,6 +82,7 @@ defmodule Pramana.Report do
   alias Pramana.Citation
   alias Pramana.EvidenceInput
   alias Pramana.Guard
+  alias Pramana.Release
   alias Pramana.Report.ForeignEvidence
 
   @type status :: :verified | :failed | :incomplete | :no_checkable_evidence
@@ -80,6 +97,7 @@ defmodule Pramana.Report do
           tool: String.t(),
           arguments: map(),
           bake_id: String.t() | nil,
+          release_id: String.t() | nil,
           assert: map(),
           line: pos_integer()
         }
@@ -185,12 +203,14 @@ defmodule Pramana.Report do
     with {:ok, map} <- Jason.decode(json),
          %{"tool" => tool, "arguments" => args} when is_binary(tool) and is_map(args) <- map,
          :ok <- validate_assertions(Map.get(map, "assert", %{})),
-         :ok <- validate_bake_id(map["bake_id"]) do
+         :ok <- validate_bake_id(map["bake_id"]),
+         :ok <- validate_release_id(map["release_id"]) do
       {:ok,
        %{
          tool: tool,
          arguments: args,
          bake_id: map["bake_id"],
+         release_id: map["release_id"],
          assert: Map.get(map, "assert", %{}),
          line: line
        }}
@@ -214,12 +234,22 @@ defmodule Pramana.Report do
   defp validate_bake_id(id) when is_binary(id) and byte_size(id) > 0, do: :ok
   defp validate_bake_id(_), do: {:error, :invalid_bake_id}
 
+  defp validate_release_id(nil), do: :ok
+
+  defp validate_release_id(id) when is_binary(id) do
+    if String.trim(id) != "", do: :ok, else: {:error, :invalid_release_id}
+  end
+
+  defp validate_release_id(_), do: {:error, :invalid_release_id}
+
   @doc """
   Verifies a report: quotations through `Guard`, replay records by re-execution.
 
   `executor` receives `{tool, arguments}` and returns the tool's payload. Pass
   `bake_id:` to override what the replays are compared against; it defaults to the
-  current bake. `status` is authoritative and `ok?` is true only for `:verified`.
+  current bake. `release_id:` similarly overrides the selected release for injected
+  executors. A release-bound executor must return the recorded identity fields with its
+  payload (string or atom keys), as the real MCP executor does. `status` is authoritative and `ok?` is true only for `:verified`.
   Existence-only citations, unresolved or unchecked foreign addresses, unasserted replays
   and unavailable evidence make a report incomplete. With no evidence it is not a pass.
   """
@@ -233,7 +263,11 @@ defmodule Pramana.Report do
 
   defp verify_bounded(markdown, opts) do
     executor = Keyword.fetch!(opts, :executor)
-    current_bake = Keyword.get_lazy(opts, :bake_id, &Bake.current_id/0)
+
+    current = %{
+      bake_id: Keyword.get_lazy(opts, :bake_id, &Bake.current_id/0),
+      release_id: Keyword.get_lazy(opts, :release_id, &Release.current_id/0)
+    }
 
     %{replays: all_replays, malformed: malformed, regions: regions} = parse_document(markdown)
 
@@ -268,7 +302,7 @@ defmodule Pramana.Report do
 
     foreign_evidence = ForeignEvidence.classify(foreign, resolved, citations.findings)
     foreign_counts = foreign_evidence.counts
-    results = Enum.map(replays, &check_replay(&1, executor, current_bake))
+    results = Enum.map(replays, &check_replay(&1, executor, current))
     replay_counts = Enum.frequencies_by(results, & &1.status)
 
     counts = %{
@@ -301,7 +335,8 @@ defmodule Pramana.Report do
       malformed: malformed,
       skipped: length(skipped),
       unsourced_figures: unsourced_figures(markdown),
-      bake_id: current_bake
+      bake_id: current.bake_id,
+      checked_identity: current
     }
   end
 
@@ -342,7 +377,8 @@ defmodule Pramana.Report do
       malformed: [],
       skipped: 0,
       unsourced_figures: [],
-      bake_id: nil
+      bake_id: nil,
+      checked_identity: %{bake_id: nil, release_id: nil}
     }
   end
 
@@ -377,25 +413,74 @@ defmodule Pramana.Report do
     do:
       "Nothing in this report was checkable: no recognized citations or replay assertions. This is not a pass."
 
-  defp check_replay(replay, executor, current_bake) do
-    base = Map.take(replay, [:tool, :arguments, :bake_id, :line])
+  defp check_replay(replay, executor, current) do
+    base =
+      replay
+      |> Map.take([:tool, :arguments, :bake_id, :release_id, :line])
+      |> Map.put(:identity_scope, identity_scope(replay))
+      |> Map.put(:identity_note, identity_note(replay))
 
-    if replay.bake_id && replay.bake_id != current_bake do
-      Map.merge(base, %{
-        status: :unverifiable,
-        detail:
-          "recorded against bake #{short(replay.bake_id)}; this corpus is " <>
-            "#{short(current_bake)}. The claim is not refuted — it cannot be re-run here."
-      })
-    else
-      execute_and_compare(base, replay, executor)
+    case identity_issue(replay, current, "current selection") do
+      nil -> execute_and_compare(base, replay, executor)
+      issue -> Map.merge(base, issue)
+    end
+  end
+
+  defp identity_scope(%{release_id: id}) when is_binary(id), do: :retrieval_release
+  defp identity_scope(%{bake_id: id}) when is_binary(id), do: :source_bake_only
+  defp identity_scope(_), do: :unrecorded
+
+  defp identity_note(%{release_id: nil}),
+    do:
+      "No retrieval release was recorded; this checks current results only, not a historical index."
+
+  defp identity_note(_),
+    do: "Matching recorded identities do not freeze historical rows, retrieval code or defaults."
+
+  defp identity_issue(replay, current, context) do
+    Enum.find_value([:bake_id, :release_id], fn key ->
+      recorded = Map.fetch!(replay, key)
+      actual = Map.get(current, key)
+
+      if recorded && recorded != actual do
+        %{
+          status: :unverifiable,
+          identity_field: key,
+          detail:
+            "recorded #{key} #{short(recorded)}; #{context} has #{short(actual)}. " <>
+              "The claim is not refuted — " <> identity_limitation(context)
+        }
+      end
+    end)
+  end
+
+  defp identity_limitation("current selection"),
+    do: "it cannot be re-run here against the recorded inputs."
+
+  defp identity_limitation("replay response"),
+    do: "the response does not establish the recorded inputs."
+
+  # A selection can change between the entry check and the tool's response. Do not compare
+  # assertions against a visibly different (or absent) receipt. This is not snapshot isolation:
+  # the tool itself can still observe unstamped or concurrent data changes under the same id.
+  defp compare_receipt(%{release_id: nil} = replay, payload), do: compare(replay.assert, payload)
+
+  defp compare_receipt(replay, payload) do
+    receipt = Map.new([:bake_id, :release_id], &{&1, receipt_id(payload, &1)})
+    identity_issue(replay, receipt, "replay response") || compare(replay.assert, payload)
+  end
+
+  defp receipt_id(payload, key) do
+    case fetch_key(payload, Atom.to_string(key)) do
+      {:ok, id} when is_binary(id) and byte_size(id) > 0 -> id
+      _ -> nil
     end
   end
 
   defp execute_and_compare(base, replay, executor) do
     case executor.(replay.tool, replay.arguments) do
       {:ok, payload} when is_map(payload) ->
-        Map.merge(base, compare(replay.assert, payload))
+        Map.merge(base, compare_receipt(replay, payload))
 
       {:error, reason} ->
         Map.merge(base, %{status: :error, detail: inspect(reason)})

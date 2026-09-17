@@ -226,4 +226,48 @@ defmodule PramanaWeb.CheckLiveTest do
     assert has_element?(view, ~s(#verification-result[data-status="incomplete"]), "incomplete")
     refute has_element?(view, ~s(#verification-result[data-status="verified"]))
   end
+
+  test "same-source release drift is a warning, not a refuted claim", %{conn: conn, bake: bake} do
+    {:ok, selected} = Pramana.Release.stamp()
+    {:ok, view, _html} = live(conn, ~p"/check")
+
+    report =
+      "```pramana-replay\n" <>
+        Jason.encode!(%{
+          tool: "get_passage",
+          arguments: %{urn: @urn},
+          bake_id: bake.id,
+          release_id: "earlier-release",
+          assert: %{urn: @urn}
+        }) <> "\n```"
+
+    html = view |> form("form", report: report) |> render_submit()
+    assert has_element?(view, ".badge-warning", "unverifiable")
+    assert html =~ "not refuted"
+    assert html =~ "release_id"
+    assert html =~ String.slice(selected.release_id, 0, 12)
+    assert html =~ "Verification is incomplete"
+    refute has_element?(view, ".badge-error")
+  end
+
+  test "legacy assertions remain usable but disclose their identity limit", %{
+    conn: conn,
+    bake: bake
+  } do
+    {:ok, view, _html} = live(conn, ~p"/check")
+
+    report =
+      "```pramana-replay\n" <>
+        Jason.encode!(%{
+          tool: "get_passage",
+          arguments: %{urn: @urn},
+          bake_id: bake.id,
+          assert: %{urn: @urn}
+        }) <> "\n```"
+
+    html = view |> form("form", report: report) |> render_submit()
+    assert has_element?(view, ".badge-success", "verified")
+    assert html =~ "No retrieval release was recorded"
+    assert html =~ "not a historical index"
+  end
 end

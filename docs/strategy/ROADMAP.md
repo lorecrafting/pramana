@@ -101,7 +101,7 @@ interpretation and search coverage. **Evidence:** adversarial cases for missing 
 altered citations, existence-only results, no recognized citations, wrong scope,
 wrong source role, generated renderings and state drift. **Dependencies:** G1 and
 current guard/release inspection. **Excludes:** using a hash as proof of truth or
-claiming exact replay from current coarse stamps.
+claiming exact replay from a matching release stamp (including v2 content identity).
 
 ### I-P3 — scoped find/inspect/export experience
 

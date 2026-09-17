@@ -84,6 +84,7 @@ defmodule PramanaWeb.CheckLive do
 {"tool": "survey_corpus",
  "arguments": {"query": "一切眾生"},
  "bake_id": "b143d7f3…",
+ "release_id": "retrieval-release-id…",
  "assert": {"total": 36775, "works": 1904}}
 ```|
 
@@ -139,7 +140,8 @@ defmodule PramanaWeb.CheckLive do
           Paste anything that cites this corpus. Every quotation is re-resolved and
           byte-compared, and every retrieval claim carrying a
           <code class="text-xs">pramana-replay</code>
-          block is re-executed. Nothing here asks you to trust a model.
+          block is checked. Replays with matching recorded inputs are re-executed;
+          unavailable evidence is not called false. Nothing here asks you to trust a model.
         </p>
       </section>
 
@@ -172,7 +174,11 @@ defmodule PramanaWeb.CheckLive do
         <.repair repair={@repair} />
 
         <p class="font-mono text-xs text-base-content/50">
-          checked against bake {String.slice(@result.bake_id || "none", 0, 12)}
+          checked against bake {String.slice(@result.checked_identity.bake_id || "none", 0, 12)} · selected release {String.slice(
+            @result.checked_identity.release_id || "none",
+            0,
+            12
+          )}
         </p>
       </div>
     </Layouts.app>
@@ -201,18 +207,21 @@ defmodule PramanaWeb.CheckLive do
           <strong>A claim about how often, or about an absence, carries the call that
             produced it.</strong>
           Every tool response already returns <code class="text-xs">replay</code>
-          beside <code class="text-xs">bake_id</code>, so writing one of these is copying a
-          field rather than composing anything:
+          beside <code class="text-xs">bake_id</code>
+          and <code class="text-xs">release_id</code>.
+          Copy both identities from the original response, not from today's selection:
         </p>
         <pre class="overflow-x-auto rounded bg-base-200 p-3 text-xs"><code>{@example}</code></pre>
         <p>
           <code class="text-xs">assert</code>
           names response keys and the values the report claims for them; a dotted path
           reaches into nested maps. Omit it and the call is still re-run, which at least
-          proves the retrieval still executes and still returns something. Omit
-          <code class="text-xs">bake_id</code>
-          and it is checked against this corpus without asking whether that is the corpus it
-          was written against.
+          proves only that the retrieval executes. A different or unavailable named bake or
+          release makes the replay unverifiable, not false. Older records without
+          <code class="text-xs">release_id</code>
+          still work, but check current values
+          without establishing historical index equivalence. Matching ids do not freeze
+          historical rows, retrieval code or defaults.
         </p>
       </div>
     </details>
@@ -366,7 +375,7 @@ defmodule PramanaWeb.CheckLive do
   defp replays(assigns) do
     ~H"""
     <section :if={@replays != []} class="space-y-2">
-      <h2 class="font-semibold">Retrieval claims, re-executed</h2>
+      <h2 class="font-semibold">Retrieval claim checks</h2>
       <ul class="space-y-2">
         <li
           :for={replay <- @replays}
@@ -380,6 +389,7 @@ defmodule PramanaWeb.CheckLive do
           <p :if={Map.get(replay, :detail)} class="mt-1 text-xs text-base-content/70">
             {replay.detail}
           </p>
+          <p class="mt-1 text-xs text-base-content/60">{replay.identity_note}</p>
         </li>
       </ul>
     </section>
