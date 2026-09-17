@@ -69,6 +69,7 @@ defmodule PramanaWeb.CheckRun do
       # Untrappable termination, followed by a monitor acknowledgement. Do not make
       # the UI idle merely because an exit signal was sent. No persistent worker.
       Task.shutdown(task, :brutal_kill)
+      flush_worker_messages(task.pid)
       Process.demonitor(owner_ref, [:flush])
       Process.flag(:trap_exit, previous)
     end
@@ -153,6 +154,19 @@ defmodule PramanaWeb.CheckRun do
         outcome(state, :cancelled)
     after
       max(remaining(state.deadline), 0) -> outcome(state, :timed_out)
+    end
+  end
+
+  # The caller may be reused (for example by an in-process MCP consumer).
+  # Shutdown observes termination, but a linked EXIT or a late verification
+  # message can remain queued. Drain only this dead worker's protocol messages;
+  # never consume another process's cancellation signal or unrelated mail.
+  defp flush_worker_messages(worker) do
+    receive do
+      {:EXIT, ^worker, _reason} -> flush_worker_messages(worker)
+      {:verification, ^worker, _result} -> flush_worker_messages(worker)
+    after
+      0 -> :ok
     end
   end
 

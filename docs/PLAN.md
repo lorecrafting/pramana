@@ -13,7 +13,7 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-17** — post-#22 public serving isolation, completed release-startup admission, replay-argument validation,
+Last reviewed: **2026-09-17** — post-#23 MCP report execution, public serving isolation, completed release-startup admission, replay-argument validation,
 reader-lifecycle work and the retained post-#17 source/roadmap reconciliation below, covering
 "Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
 Older experiment narratives remain dated evidence, not a fresh execution queue. No live
@@ -42,6 +42,13 @@ wire compatibility, queue/cleanup limits and rollback. Real session/transport te
 cover completion, both failure stages, remaining budget, cancellation, session deletion
 and subsequent requests. Exact formatter/test/runtime and review evidence belongs to
 the PR; this section does not claim unrun checks passed.
+
+Self-review found that reusing the coordinator in one caller could leave a dead worker's
+EXIT queued and falsely cancel a later check. Cleanup now drains only that worker's
+lifecycle messages after observed termination; the direct reuse regression also preserves
+unrelated mail and process flags. Integration fixtures explicitly own the real MCP
+transport and use its configured registry adapter. Earlier setup/assertion failures were
+not passing evidence; final validation remains recorded on the PR.
 
 This is not global admission control, queue expiry, a transport-wide timeout, retrieval
 change or historical reconstruction. Broader multi-session admission remains separate.

@@ -33,6 +33,8 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     Application.delete_env(:pramana_web, VerifyReport)
     {:ok, ir} = CBETA.normalize(@xml, work_id: "T0262", canon: "T", volume: 9, number: "0262")
     {:ok, _} = Loader.load(ir, source: "cbeta", witness: "T")
+    # Own the real transport/session tree; no HTTP listener or global env change.
+    start_supervised!({Server, transport: {:streamable_http, start: true}})
     calls = start_supervised!({Task.Supervisor, []})
     opts = MCPPlug.init(server: Server, request_timeout: 5_000)
 
@@ -51,9 +53,9 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     assert init.status == 200
     assert %{"result" => %{"protocolVersion" => "2025-11-25"}} = Jason.decode!(init.resp_body)
     [session_id] = get_resp_header(init, "mcp-session-id")
-    {:ok, session} = Registry.lookup_session(Registry.registry_name(Server), session_id)
-
-    on_exit(fn -> MCPSupervisor.stop_session(Server, Registry, session_id) end)
+    %{registry_mod: registry_mod} = MCPSupervisor.get_session_config(Server)
+    {:ok, session} = registry_mod.lookup_session(Registry.registry_name(Server), session_id)
+    # ExUnit owns and terminates the entire tree, including sessions, on exit.
 
     initialized =
       post(opts, session_id, %{"jsonrpc" => "2.0", "method" => "notifications/initialized"})
@@ -77,7 +79,7 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     configure(timeout_ms: 1_000, verify: blocked(self()))
     task = call_async(ctx, report(1))
     assert_receive {:worker, worker}
-    ref = Process.monitor(worker)
+    ref = watch_worker(worker)
     wire = Task.await(task, 4_000)
     assert wire["result"]["isError"] == true
     payload = payload(wire)
@@ -131,7 +133,7 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
       configure(timeout_ms: 1_000, repair: blocked(self()))
       task = call_async(ctx, report(count), count + 10)
       assert_receive {:worker, worker}
-      ref = Process.monitor(worker)
+      ref = watch_worker(worker)
       wire = Task.await(task, 4_000)
       payload = payload(wire)
       assert payload["status"] == status
@@ -172,7 +174,7 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     configure(timeout_ms: 4_000, verify: blocked(self()))
     task = call_async(ctx, report(1))
     assert_receive {:worker, worker}
-    ref = Process.monitor(worker)
+    ref = watch_worker(worker)
 
     cancelled =
       post(ctx.opts, ctx.session_id, %{
@@ -191,7 +193,7 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     configure(timeout_ms: 4_000, repair: blocked(self()))
     task = call_async(ctx, report(999))
     assert_receive {:worker, worker}
-    ref = Process.monitor(worker)
+    ref = watch_worker(worker)
 
     post(ctx.opts, ctx.session_id, %{
       "jsonrpc" => "2.0",
@@ -208,7 +210,7 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     configure(timeout_ms: 4_000, verify: blocked(self()))
     task = call_async(ctx, report(1))
     assert_receive {:worker, worker}
-    worker_ref = Process.monitor(worker)
+    worker_ref = watch_worker(worker)
     session_ref = Process.monitor(ctx.session)
 
     deleted =
@@ -220,6 +222,11 @@ defmodule PramanaWeb.MCP.ReportExecutionTest do
     assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}, 2_000
     assert_receive {:DOWN, ^session_ref, :process, _, _}, 2_000
     assert %{"error" => %{}} = Task.await(task, 3_000)
+  end
+
+  defp watch_worker(worker) do
+    on_exit(fn -> Process.exit(worker, :kill) end)
+    Process.monitor(worker)
   end
 
   defp configure(opts), do: Application.put_env(:pramana_web, VerifyReport, opts)

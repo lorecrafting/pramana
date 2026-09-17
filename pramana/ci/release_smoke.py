@@ -290,6 +290,7 @@ IO.puts("NO_PUBLIC_JOBS_OK")
             "tool": "survey_corpus", "arguments": {"query": "Synthetic"},
             "assert": {"total_segments": 1, "distinct_works": 1}}) + "\n```"
         checked = call(6, "verify_report", {"report": report})
+        assert checked["execution"] == "completed", "report lifecycle did not complete"
         assert checked["status"] == "verified" and checked["counts"]["verified_replays"] == 1
         assert checked["counts"]["verified_quotes"] == 1 and checked["repair"] is not None
         status, _, body = self.request(port, "/passage?urn=" + URN)
