@@ -142,7 +142,7 @@ A failure to find wording in the loaded corpus is not proof of fabrication. A ge
 quotation is not proof of the attached interpretation. Generated text is not canonical
 source evidence; [the invariants](INVARIANTS.md) make these distinctions explicit.
 
-## Report execution budget
+## Report execution budget and admission
 
 `verify_report` gives verification and repair one shared monotonic **25-second**
 execution budget, starting when the component is invoked. Trusted application
@@ -157,6 +157,15 @@ configuration fail explicitly before report work; a report or MCP argument canno
 increase or disable the budget. The reader's existing 60-second policy is unchanged.
 These are resource policies, not measured corpus-speed or correctness thresholds.
 
+Before a report worker starts, the reader and MCP `verify_report` share one node-local
+admission pool. Its default capacity is four active checks; trusted configuration may
+set `PramanaWeb.CheckAdmission` `max_active` from 1 through 64. Client input cannot
+change that limit. A full pool refuses immediately rather than queueing another report
+worker. MCP returns `report_check_busy`; the reader shows a `busy` execution state. In
+both cases verification and repair do not start and no report verdict is invented. See
+[report-check admission](REPORT_CHECK_ADMISSION.md) for permit lifecycle, recovery and
+rollback semantics.
+
 Completed verification keeps its existing `status`, `ok?`, counts, identity receipts
 and refusal semantics. Successful completion adds `execution: "completed"` and the
 normal repair object. If only repair fails, times out or is cancelled, the completed
@@ -166,26 +175,29 @@ be hidden by a later repair failure. An evidence verdict and an execution outcom
 answer different questions.
 
 If verification does not finish, the MCP result is an error with reason
-`report_check_timed_out`, `report_check_failed` or `report_check_cancelled`; it has
-no invented report `status` or `ok?`. Existing error provenance/replay fields remain.
-Inspect the MCP error flag first, then `execution` and the evidence fields when
-present. Do not retry automatically or relabel an interrupted check as a refutation.
+`report_check_busy`, `report_check_timed_out`, `report_check_failed` or
+`report_check_cancelled`; it has no invented report `status` or `ok?`. Existing error
+provenance/replay fields remain. Inspect the MCP error flag first, then `execution` and
+the evidence fields when present. Do not retry automatically or relabel an interrupted
+check as a refutation.
 
 The shared [check coordinator](../apps/pramana_web/lib/pramana_web/check_run.ex)
-observes its worker's termination before returning. It cooperates with Anubis's
-existing cancellation and session teardown; explicit protocol cancellation may
-return Anubis's cancellation error instead of a completed tool payload. MCP calls
-emit no reader progress messages. This is not a second dispatcher or persistent job.
+observes its worker's termination before returning and releases admission only after that
+cleanup. It cooperates with Anubis's existing cancellation and session teardown; explicit
+protocol cancellation may return Anubis's cancellation error instead of a completed tool
+payload. MCP calls emit no reader progress messages. This is not a second dispatcher or
+persistent job.
 
 The HTTP transport's 30-second response wait is distinct: it includes time queued
 in the session. The component budget does not bound that queue, JSON encoding,
 provenance lookups after execution, network delivery or another tool's execution.
-There is no global admission limit or end-to-end latency guarantee. Killing a BEAM
-worker cannot guarantee recall of already-dispatched database/native/model work.
-These limits also apply to stdio; transport disconnect is not a new cancellation
-promise. No database writes, migrations, automatic retries or historical replay
-snapshots are introduced. Rollback restores unbounded component execution and may
-lose completed verification if repair fails; it does not restore stored data.
+The shared admission pool bounds **report checks on one BEAM node only**; it does not
+bound other MCP tools, session queues, another node or end-to-end latency. Killing a
+BEAM worker cannot guarantee recall of already-dispatched database/native/model work.
+These limits also apply to stdio; transport disconnect is not a new cancellation promise.
+No database writes, migrations, automatic retries or historical replay snapshots are
+introduced. Rollback removes the shared report capacity boundary and returns to per-call
+deadline protection; it does not restore stored data.
 
 ## Resources and transports
 
