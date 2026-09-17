@@ -1,0 +1,83 @@
+name: One-off Hex security refresh
+
+on:
+  push:
+    branches:
+      - fix/security-hex-advisories-2026-09-16
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/security-hex-advisories-2026-09-16
+          fetch-depth: 0
+
+      - name: Keep the local gate aligned with CI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          gate = Path("pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex")
+          text = gate.read_text()
+          replacements = [
+              (
+                  "All eleven steps, with the stage each runs in.",
+                  "All twelve steps, with the stage each runs in.",
+              ),
+              (
+                  "  | 3 | `mix deps.audit` | 2.3 s | cheap, independent |",
+                  "  | 3 | `mix hex.audit` | — | locked Hex advisories and retirements |\n"
+                  "  | 3 | `mix deps.audit` | 2.3 s | independent mix_audit check |",
+              ),
+              (
+                  '    %{id: "credo", cmd: ~w(mix credo --strict), env: "dev", quick: true, stage: 3},\n'
+                  '    %{id: "audit", cmd: ~w(mix deps.audit), env: "dev", quick: true, stage: 3},',
+                  '    %{id: "credo", cmd: ~w(mix credo --strict), env: "dev", quick: true, stage: 3},\n'
+                  '    %{id: "hex_audit", cmd: ~w(mix hex.audit), env: "dev", quick: true, stage: 3},\n'
+                  '    %{id: "audit", cmd: ~w(mix deps.audit), env: "dev", quick: true, stage: 3},',
+              ),
+              (
+                  "  #   3  cheap       credo, audit, test, dialyzer, lockfile — mutually independent. `test`",
+                  "  #   3  cheap       credo, hex_audit, audit, test, dialyzer, lockfile — mutually independent. `test`",
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f"gate replacement count for {old!r}: {text.count(old)}")
+              text = text.replace(old, new, 1)
+          gate.write_text(text)
+
+          docs = Path("pramana/docs/checks/01-every-task.md")
+          text = docs.read_text()
+          old = "mix pramana.gate --quick    # format, compile, credo, deps.audit, test --cover, dialyzer, lockfile, coherence"
+          new = "mix pramana.gate --quick    # format, compile, credo, hex.audit, deps.audit, test --cover, dialyzer, lockfile, coherence"
+          if text.count(old) != 1:
+              raise SystemExit("checkpoint command line changed")
+          text = text.replace(old, new, 1)
+          anchor = "`compile --warnings-as-errors`, `dialyzer` and `deps.audit` are now steps.\n\n"
+          note = (
+              "`mix hex.audit` is a separate gate from `mix deps.audit`: Hex audits the locked Hex packages "
+              "against current Hex security advisories and retirements, while `deps.audit` keeps the existing "
+              "mix_audit check. A green `deps.audit` result does not substitute for `hex.audit`.\n\n"
+          )
+          if text.count(anchor) != 1:
+              raise SystemExit("checkpoint rationale anchor changed")
+          text = text.replace(anchor, anchor + note, 1)
+          docs.write_text(text)
+          PY
+
+      - name: Commit gate and documentation changes
+        run: |
+          set -euo pipefail
+          git diff --check -- pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex pramana/docs/checks/01-every-task.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex pramana/docs/checks/01-every-task.md
+          git commit -m "security: include Hex audit in local gate"
+          git push origin HEAD:fix/security-hex-advisories-2026-09-16
