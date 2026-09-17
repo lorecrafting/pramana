@@ -2,15 +2,16 @@ defmodule PramanaWeb.CheckAdmission do
   @moduledoc """
   Shared, node-local admission for report verification workers.
 
-  Reader pages and MCP `verify_report` calls use the same finite capacity. A permit is
-  acquired before a report worker is started and is released only after that invocation
-  finishes its cleanup. Capacity refusal is an execution outcome, never an evidence
-  verdict.
+  Reader pages and MCP `verify_report` calls use the same finite capacity. Admission is
+  represented by supervised permit processes rather than a raw counter: one live permit
+  means one admitted report coordinator. A permit monitors its coordinator and disappears
+  automatically if that coordinator dies, including an untrappable exit.
 
-  The shared counter lives outside this GenServer in `:persistent_term`, so a supervised
-  restart cannot reopen capacity while older admitted coordinators still hold permits.
-  The server links to admitted coordinators so a server crash cancels their remaining
-  work; permit release is idempotent and can complete against a restarted server.
+  The permit supervisor is a sibling of this GenServer. Restarting only the admission
+  server therefore does not forget active work; the replacement server counts the same
+  live permit children before admitting anything else. If the permit supervisor itself
+  fails, permit monitors in `CheckRun` turn that infrastructure loss into an execution
+  error and stop remaining report work.
 
   This bounds report workers on one BEAM node. It is not a distributed semaphore, an
   Anubis session-queue bound, or a guarantee that already-dispatched database/native work
@@ -21,14 +22,92 @@ defmodule PramanaWeb.CheckAdmission do
 
   @default_max_active 4
   @max_configured_active 64
+  @default_permit_supervisor PramanaWeb.CheckAdmission.PermitSupervisor
 
   defmodule Permit do
     @moduledoc false
-    @enforce_keys [:counter, :lease]
-    defstruct [:counter, :lease]
+    use GenServer
+
+    @activation_timeout_ms 5_000
+
+    @doc false
+    def child_spec({owner, issuer} = args) do
+      %{
+        id: __MODULE__,
+        start: {__MODULE__, :start_link, [args]},
+        restart: :temporary,
+        shutdown: 1_000,
+        type: :worker
+      }
+    end
+
+    def start_link({owner, issuer}) when is_pid(owner) and is_pid(issuer) do
+      GenServer.start_link(__MODULE__, {owner, issuer})
+    end
+
+    @doc false
+    def activate(pid) when is_pid(pid) do
+      try do
+        GenServer.call(pid, :activate)
+      catch
+        :exit, _ -> {:error, :unavailable}
+      end
+    end
+
+    @impl true
+    def init({owner, issuer}) do
+      owner_ref = Process.monitor(owner)
+      issuer_ref = Process.monitor(issuer)
+      timer = Process.send_after(self(), :activation_expired, @activation_timeout_ms)
+
+      {:ok,
+       %{
+         owner: owner,
+         owner_ref: owner_ref,
+         issuer: issuer,
+         issuer_ref: issuer_ref,
+         activation_timer: timer,
+         activated?: false
+       }}
+    end
+
+    @impl true
+    def handle_call(:activate, _from, %{activated?: false} = state) do
+      _ = Process.cancel_timer(state.activation_timer)
+      Process.demonitor(state.issuer_ref, [:flush])
+
+      {:reply, :ok,
+       %{state | activated?: true, issuer_ref: nil, activation_timer: nil}}
+    end
+
+    def handle_call(:activate, _from, state), do: {:reply, :ok, state}
+
+    @impl true
+    def handle_info(
+          {:DOWN, owner_ref, :process, owner, _reason},
+          %{owner_ref: owner_ref, owner: owner} = state
+        ),
+        do: {:stop, :normal, state}
+
+    def handle_info(
+          {:DOWN, issuer_ref, :process, issuer, _reason},
+          %{activated?: false, issuer_ref: issuer_ref, issuer: issuer} = state
+        ),
+        do: {:stop, :normal, state}
+
+    def handle_info(:activation_expired, %{activated?: false} = state),
+      do: {:stop, :normal, state}
+
+    def handle_info(_message, state), do: {:noreply, state}
   end
 
-  @type permit :: %Permit{}
+  defmodule Token do
+    @moduledoc false
+    @enforce_keys [:pid, :permit_supervisor]
+    defstruct [:pid, :permit_supervisor]
+  end
+
+  @type token :: %Token{}
 
   @doc false
   def child_spec(opts) do
@@ -47,27 +126,29 @@ defmodule PramanaWeb.CheckAdmission do
   end
 
   @doc "Acquire one node-local report-check permit for the calling coordinator."
-  @spec acquire(GenServer.server()) :: {:ok, permit()} | {:error, :busy | :unavailable}
+  @spec acquire(GenServer.server()) :: {:ok, token()} | {:error, :busy | :unavailable}
   def acquire(server \\ __MODULE__) do
     try do
-      GenServer.call(server, {:acquire, self()})
+      case GenServer.call(server, {:acquire, self()}) do
+        {:ok, %Token{} = token} -> activate(token)
+        {:error, reason} when reason in [:busy, :unavailable] -> {:error, reason}
+      end
     catch
       :exit, _ -> {:error, :unavailable}
     end
   end
 
-  @doc "Release a permit. Safe to call more than once and after the admission server restarts."
-  @spec release(GenServer.server(), permit()) :: :ok
-  def release(server \\ __MODULE__, %Permit{} = permit) do
-    release_counter(permit)
-
+  @doc "Release a permit. Safe after its process already terminated."
+  @spec release(token()) :: :ok
+  def release(%Token{pid: pid, permit_supervisor: supervisor}) do
     try do
-      GenServer.cast(server, {:released, self(), permit})
+      case DynamicSupervisor.terminate_child(supervisor, pid) do
+        :ok -> :ok
+        {:error, :not_found} -> :ok
+      end
     catch
       :exit, _ -> :ok
     end
-
-    :ok
   end
 
   @doc false
@@ -76,66 +157,83 @@ defmodule PramanaWeb.CheckAdmission do
 
   @impl true
   def init(opts) do
-    Process.flag(:trap_exit, true)
+    opts = Keyword.validate!(opts, [:id, :name, :max_active, :permit_supervisor])
+    configured = Application.get_env(:pramana_web, __MODULE__, [])
 
-    configured =
-      Keyword.get_lazy(opts, :max_active, fn ->
-        Application.get_env(:pramana_web, __MODULE__, [])
-        |> Keyword.get(:max_active, @default_max_active)
-      end)
+    unless Keyword.keyword?(configured) do
+      raise ArgumentError, "report-check admission configuration must be a keyword list"
+    end
 
-    max_active = validate_max_active!(configured)
-    name = Keyword.get(opts, :name, __MODULE__)
-    counter_key = Keyword.get(opts, :counter_key, {__MODULE__, :counter, name})
-    counter = persistent_counter(counter_key)
+    configured = Keyword.validate!(configured, [:max_active])
 
-    {:ok, %{counter: counter, max_active: max_active, permits: %{}}}
+    max_active =
+      opts
+      |> Keyword.get(:max_active, Keyword.get(configured, :max_active, @default_max_active))
+      |> validate_max_active!()
+
+    {:ok,
+     %{
+       max_active: max_active,
+       permit_supervisor:
+         Keyword.get(opts, :permit_supervisor, @default_permit_supervisor)
+     }}
   end
 
   @impl true
   def handle_call({:acquire, coordinator}, _from, state) when is_pid(coordinator) do
-    cond do
-      Map.has_key?(state.permits, coordinator) ->
-        {:reply, {:error, :busy}, state}
-
-      true ->
-        case reserve(state.counter, state.max_active) do
-          {:ok, permit} ->
-            Process.link(coordinator)
-            {:reply, {:ok, permit}, put_in(state.permits[coordinator], permit)}
-
-          :busy ->
-            {:reply, {:error, :busy}, state}
-        end
-    end
+    {:reply, start_permit(state, coordinator), state}
   end
 
   def handle_call(:stats, _from, state) do
-    {:reply,
-     %{active: :atomics.get(state.counter, 1), max_active: state.max_active}, state}
-  end
+    case active_count(state.permit_supervisor) do
+      {:ok, active} ->
+        {:reply, %{active: active, max_active: state.max_active}, state}
 
-  @impl true
-  def handle_cast({:released, coordinator, permit}, state) do
-    case state.permits do
-      %{^coordinator => ^permit} ->
-        Process.unlink(coordinator)
-        {:noreply, %{state | permits: Map.delete(state.permits, coordinator)}}
-
-      _ ->
-        {:noreply, state}
+      {:error, :unavailable} ->
+        {:stop, :permit_supervisor_unavailable, state}
     end
   end
 
-  @impl true
-  def handle_info({:EXIT, coordinator, _reason}, state) do
-    case Map.pop(state.permits, coordinator) do
-      {nil, _} ->
-        {:noreply, state}
+  defp activate(%Token{} = token) do
+    case Permit.activate(token.pid) do
+      :ok ->
+        {:ok, token}
 
-      {permit, permits} ->
-        release_counter(permit)
-        {:noreply, %{state | permits: permits}}
+      {:error, :unavailable} ->
+        release(token)
+        {:error, :unavailable}
+    end
+  end
+
+  defp start_permit(state, coordinator) do
+    with {:ok, active} <- active_count(state.permit_supervisor),
+         true <- active < state.max_active,
+         {:ok, pid} <- start_permit_child(state.permit_supervisor, coordinator) do
+      {:ok, %Token{pid: pid, permit_supervisor: state.permit_supervisor}}
+    else
+      false -> {:error, :busy}
+      {:error, :unavailable} -> {:error, :unavailable}
+    end
+  end
+
+  defp active_count(supervisor) do
+    try do
+      %{active: active} = DynamicSupervisor.count_children(supervisor)
+      {:ok, active}
+    catch
+      :exit, _ -> {:error, :unavailable}
+    end
+  end
+
+  defp start_permit_child(supervisor, coordinator) do
+    try do
+      case DynamicSupervisor.start_child(supervisor, {Permit, {coordinator, self()}}) do
+        {:ok, pid} -> {:ok, pid}
+        {:ok, pid, _info} -> {:ok, pid}
+        {:error, _reason} -> {:error, :unavailable}
+      end
+    catch
+      :exit, _ -> {:error, :unavailable}
     end
   end
 
@@ -146,45 +244,5 @@ defmodule PramanaWeb.CheckAdmission do
   defp validate_max_active!(value) do
     raise ArgumentError,
           "report-check max_active must be an integer between 1 and #{@max_configured_active}, got: #{inspect(value)}"
-  end
-
-  defp persistent_counter(key) do
-    case :persistent_term.get(key, :missing) do
-      :missing ->
-        counter = :atomics.new(1, signed: false)
-        :persistent_term.put(key, counter)
-        counter
-
-      counter ->
-        counter
-    end
-  end
-
-  defp reserve(counter, max_active) do
-    current = :atomics.get(counter, 1)
-
-    cond do
-      current >= max_active ->
-        :busy
-
-      :atomics.compare_exchange(counter, 1, current, current + 1) == :ok ->
-        lease = :atomics.new(1, signed: false)
-        :atomics.put(lease, 1, 1)
-        {:ok, %Permit{counter: counter, lease: lease}}
-
-      true ->
-        reserve(counter, max_active)
-    end
-  end
-
-  defp release_counter(%Permit{counter: counter, lease: lease}) do
-    if :atomics.compare_exchange(lease, 1, 1, 0) == :ok do
-      case :atomics.add_get(counter, 1, -1) do
-        count when count >= 0 -> :ok
-        _ -> raise "report-check admission counter underflow"
-      end
-    else
-      :ok
-    end
   end
 end
