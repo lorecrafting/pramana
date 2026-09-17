@@ -64,10 +64,25 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
   use Anubis.Server.Component, type: :tool
 
-  alias Pramana.Repair
-  alias Pramana.Report
+  alias PramanaWeb.CheckRun
   alias PramanaWeb.MCP.ReplayExecutor
   alias PramanaWeb.MCP.Reply
+
+  # Execution policy, not a measured corpus-performance target. Leave a margin
+  # beneath the HTTP transport's 30 s response wait. Queueing and reply delivery
+  # have separate lifetimes; this budget begins when the component is invoked.
+  @max_timeout_ms 25_000
+
+  @doc false
+  @spec timeout_ms(keyword()) :: pos_integer()
+  def timeout_ms(opts \\ []) do
+    timeout = CheckRun.timeout_ms(Keyword.put_new(opts, :timeout_ms, @max_timeout_ms))
+
+    if timeout > @max_timeout_ms,
+      do: raise(ArgumentError, "MCP report timeout_ms must not exceed #{@max_timeout_ms}")
+
+    timeout
+  end
 
   schema do
     field(:report, :string,
@@ -80,8 +95,18 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
 
   @impl true
   def execute(%{report: markdown} = params, frame) do
-    result = Report.verify(markdown, executor: ReplayExecutor.executor())
+    opts = Application.get_env(:pramana_web, __MODULE__, [])
+    opts = Keyword.put(opts, :timeout_ms, timeout_ms(opts))
+    outcome = CheckRun.run(markdown, opts)
+    {:reply, response(outcome, params), frame}
+  end
 
+  defp response(%{result: nil, execution: execution}, params) do
+    {reason, message} = execution_error(execution)
+    Reply.error("verify_report", params, reason, message)
+  end
+
+  defp response(%{result: result, repair: repair, execution: execution}, params) do
     payload =
       result
       |> Map.update!(:foreign, fn citations ->
@@ -91,11 +116,35 @@ defmodule PramanaWeb.MCP.Tools.VerifyReport do
       # DIAGNOSIS SERVES A CALLER WHO CHECKS; REPAIR SERVES THE ONE WHO DOES NOT, and that
       # is most of them. `docs/PLAN.md` L3. Nothing here writes to the corpus — it rewrites
       # the caller's own document — so invariant #7 is untouched.
-      |> Map.put(:repair, Repair.repair(markdown))
-      |> Map.put(:note, note(result))
+      |> Map.put(:repair, repair)
+      |> Map.put(:execution, execution)
+      |> Map.put(:note, note(result) <> execution_note(execution))
 
-    {:reply, Reply.json("verify_report", params, payload), frame}
+    Reply.json("verify_report", params, payload)
   end
+
+  defp execution_error(:timed_out),
+    do:
+      {:report_check_timed_out,
+       "Report verification exceeded its execution budget; no verdict was completed."}
+
+  defp execution_error(:cancelled),
+    do: {:report_check_cancelled, "Report verification was cancelled; no verdict was completed."}
+
+  defp execution_error(:error),
+    do: {:report_check_failed, "Report verification could not complete; no verdict is available."}
+
+  defp execution_note(:completed), do: ""
+
+  defp execution_note(:timed_out),
+    do:
+      " Verification completed, but repair exceeded the shared execution budget and is unavailable."
+
+  defp execution_note(:cancelled),
+    do: " Verification completed, but repair was cancelled and is unavailable."
+
+  defp execution_note(:error),
+    do: " Verification completed, but repair failed and is unavailable."
 
   # The note leads with what was NOT established. A report can be free of failures and still
   # unverified — every replay `unverifiable` against an older corpus, or no evidence at all —

@@ -13,6 +13,35 @@ defmodule PramanaWeb.CheckRunTest do
     end
   end
 
+  test "MCP callers can reuse the coordinator without retaining worker messages" do
+    parent = self()
+    original_flags = Process.info(self(), :trap_exit)
+    marker = make_ref()
+    send(self(), {:unrelated, marker})
+
+    for _ <- 1..10 do
+      outcome =
+        CheckRun.run("report",
+          verify: fn _ ->
+            send(parent, {:used_worker, self()})
+            %{status: :verified}
+          end,
+          repair: fn _ -> %{edits: []} end
+        )
+
+      assert outcome.execution == :completed
+      assert outcome.result == %{status: :verified}
+      assert_received {:used_worker, worker}
+      refute Process.alive?(worker)
+      refute_received {:EXIT, ^worker, _}
+      refute_received {:verification, ^worker, _}
+      refute_received {:check_verified, _, _}
+      assert Process.info(self(), :trap_exit) == original_flags
+    end
+
+    assert_received {:unrelated, ^marker}
+  end
+
   test "completed verification and repair return only after the worker is gone" do
     parent = self()
 

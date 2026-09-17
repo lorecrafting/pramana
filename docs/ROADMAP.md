@@ -55,6 +55,10 @@ The [post-#22 serving-isolation follow-up](PLAN.md#public-serving-isolation--pos
 omits background Oban writers on public nodes and exercises restricted serving credentials
 with a real ingestion positive control. It does not change the publishing policy or grant
 production database privileges automatically.
+The [post-#23 MCP execution follow-up](PLAN.md#mcp-report-execution--post-23-2026-09-17)
+adds a shared verification/repair deadline and retains completed verification when repair
+fails. The reader policy is unchanged. This bounds component work, not transport queueing,
+all response overhead, cross-session admission or already-dispatched database/native work.
 
 The phase sections below retain their original schedule and historical evidence. They are
 not an independent executable queue; read PLAN and current code before reviving an item.
