@@ -8,10 +8,11 @@ defmodule PramanaWeb.CheckAdmission do
   automatically if that coordinator dies, including an untrappable exit.
 
   The permit supervisor is a sibling of this GenServer. Restarting only the admission
-  server therefore does not forget active work; the replacement server counts the same
-  live permit children before admitting anything else. If the permit supervisor itself
-  fails, permit monitors in `CheckRun` turn that infrastructure loss into an execution
-  error and stop remaining report work.
+  server therefore does not forget active work; the replacement server binds to and counts
+  the same live permit children before admitting anything else. The admission server pins
+  one permit-supervisor generation. If that supervisor dies, admission stays unavailable
+  for the rest of this application lifetime rather than adopting a fresh zero-count pool
+  while old workers are still stopping.
 
   This bounds report workers on one BEAM node. It is not a distributed semaphore, an
   Anubis session-queue bound, or a guarantee that already-dispatched database/native work
@@ -108,6 +109,7 @@ defmodule PramanaWeb.CheckAdmission do
   end
 
   @type token :: %Token{}
+  @type stats :: %{active: non_neg_integer(), max_active: pos_integer()}
 
   @doc false
   def child_spec(opts) do
@@ -152,7 +154,7 @@ defmodule PramanaWeb.CheckAdmission do
   end
 
   @doc false
-  @spec stats(GenServer.server()) :: %{active: non_neg_integer(), max_active: pos_integer()}
+  @spec stats(GenServer.server()) :: stats() | {:error, :unavailable}
   def stats(server \\ __MODULE__), do: GenServer.call(server, :stats)
 
   @impl true
@@ -171,28 +173,57 @@ defmodule PramanaWeb.CheckAdmission do
       |> Keyword.get(:max_active, Keyword.get(configured, :max_active, @default_max_active))
       |> validate_max_active!()
 
-    {:ok,
-     %{
-       max_active: max_active,
-       permit_supervisor:
-         Keyword.get(opts, :permit_supervisor, @default_permit_supervisor)
-     }}
+    permit_supervisor = Keyword.get(opts, :permit_supervisor, @default_permit_supervisor)
+
+    with {:ok, permit_supervisor_pid} <- resolve_server(permit_supervisor) do
+      {:ok,
+       %{
+         max_active: max_active,
+         permit_supervisor: permit_supervisor,
+         permit_supervisor_pid: permit_supervisor_pid,
+         permit_supervisor_ref: Process.monitor(permit_supervisor_pid),
+         available?: true
+       }}
+    else
+      {:error, :unavailable} -> {:stop, :permit_supervisor_unavailable}
+    end
   end
 
   @impl true
+  def handle_call({:acquire, _coordinator}, _from, %{available?: false} = state) do
+    {:reply, {:error, :unavailable}, state}
+  end
+
   def handle_call({:acquire, coordinator}, _from, state) when is_pid(coordinator) do
     {:reply, start_permit(state, coordinator), state}
   end
 
+  def handle_call(:stats, _from, %{available?: false} = state) do
+    {:reply, {:error, :unavailable}, state}
+  end
+
   def handle_call(:stats, _from, state) do
-    case active_count(state.permit_supervisor) do
+    case active_count(state.permit_supervisor_pid) do
       {:ok, active} ->
         {:reply, %{active: active, max_active: state.max_active}, state}
 
       {:error, :unavailable} ->
-        {:stop, :permit_supervisor_unavailable, state}
+        {:reply, {:error, :unavailable}, %{state | available?: false}}
     end
   end
+
+  @impl true
+  def handle_info(
+        {:DOWN, permit_supervisor_ref, :process, permit_supervisor_pid, _reason},
+        %{
+          permit_supervisor_ref: permit_supervisor_ref,
+          permit_supervisor_pid: permit_supervisor_pid
+        } = state
+      ) do
+    {:noreply, %{state | available?: false}}
+  end
+
+  def handle_info(_message, state), do: {:noreply, state}
 
   defp activate(%Token{} = token) do
     case Permit.activate(token.pid) do
@@ -206,10 +237,10 @@ defmodule PramanaWeb.CheckAdmission do
   end
 
   defp start_permit(state, coordinator) do
-    with {:ok, active} <- active_count(state.permit_supervisor),
+    with {:ok, active} <- active_count(state.permit_supervisor_pid),
          true <- active < state.max_active,
-         {:ok, pid} <- start_permit_child(state.permit_supervisor, coordinator) do
-      {:ok, %Token{pid: pid, permit_supervisor: state.permit_supervisor}}
+         {:ok, pid} <- start_permit_child(state.permit_supervisor_pid, coordinator) do
+      {:ok, %Token{pid: pid, permit_supervisor: state.permit_supervisor_pid}}
     else
       false -> {:error, :busy}
       {:error, :unavailable} -> {:error, :unavailable}
@@ -231,6 +262,21 @@ defmodule PramanaWeb.CheckAdmission do
         {:ok, pid} -> {:ok, pid}
         {:ok, pid, _info} -> {:ok, pid}
         {:error, _reason} -> {:error, :unavailable}
+      end
+    catch
+      :exit, _ -> {:error, :unavailable}
+    end
+  end
+
+  defp resolve_server(pid) when is_pid(pid) do
+    if Process.alive?(pid), do: {:ok, pid}, else: {:error, :unavailable}
+  end
+
+  defp resolve_server(name) do
+    try do
+      case GenServer.whereis(name) do
+        pid when is_pid(pid) -> {:ok, pid}
+        _ -> {:error, :unavailable}
       end
     catch
       :exit, _ -> {:error, :unavailable}
