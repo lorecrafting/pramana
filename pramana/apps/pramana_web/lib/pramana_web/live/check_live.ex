@@ -38,16 +38,13 @@ defmodule PramanaWeb.CheckLive do
   `unsourced figures` is a heuristic warning list — a number in a paragraph with no citation
   — displayed as a prompt to look, never as a verdict.
 
-  ## A known limit, stated rather than discovered
+  ## An owned, bounded check
 
-  The check runs **synchronously in the LiveView process**, so a report carrying the full
-  25 replay records holds the socket for as long as those 25 retrievals take — a survey
-  over 12.5M segments is ~1.2 s, so tens of seconds is reachable. Bounded, not free. It is
-  sync because this is a self-hosted reader with one person in front of it, and moving to
-  `start_async` buys responsiveness at the cost of a second state machine on a screen whose
-  whole value is that its verdicts are simple. Revisit it if this is ever served to
-  strangers, where the paste box is also the obvious way to make the corpus do work on
-  someone else's behalf.
+  Verification and repair run outside the LiveView callback under one finite budget.
+  `CheckRun` stops and observes its worker before this page accepts another check.
+  Cancellation, timeout and execution errors are lifecycle outcomes, not findings
+  that a claim is false. A completed verification survives a later repair failure.
+  This per-page bound is not admission control for unrestricted public hosting.
 
   ## Counting, with the denominator
 
@@ -62,8 +59,7 @@ defmodule PramanaWeb.CheckLive do
   use PramanaWeb, :live_view
 
   alias Pramana.EvidenceInput
-  alias Pramana.Repair
-  alias Pramana.Report
+  alias PramanaWeb.CheckRun
   alias PramanaWeb.MCP.ReplayExecutor
 
   # A report is untrusted input and every replay record in it is a query against the
@@ -73,10 +69,8 @@ defmodule PramanaWeb.CheckLive do
   # truncated — a silently shortened report would be reported as verified on the half that
   # was read, which is rule 4 in the place it would do the most damage.
   #
-  # **Transport buffering is still not bounded here.** Phoenix's `:max_frame_size` defaults to
-  # `:infinity` and the endpoint does not set it, so nothing at the transport bounds a
-  # paste before it arrives here. Checked rather than assumed.
-  @max_bytes EvidenceInput.max_bytes()
+  # The endpoint already caps WebSocket frames at 512,000 bytes. That is not
+  # the decoded-report limit, nor proof of bounds for every transport/service.
 
   # Held as a string rather than written into the template: HEEx reads `{` as
   # interpolation, and a JSON example is mostly braces.
@@ -90,44 +84,125 @@ defmodule PramanaWeb.CheckLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    # Only trusted application configuration, never session/form parameters. The
+    # callbacks are injectable for deterministic lifecycle tests without models.
+    opts = Application.get_env(:pramana_web, __MODULE__, [])
+
     {:ok,
-     assign(socket,
+     socket
+     |> put_private(:check_options, opts)
+     |> assign(
        page_title: "Check a report",
-       report: "",
+       form: to_form(%{"report" => ""}),
        result: nil,
        repair: nil,
-       error: nil
+       error: nil,
+       check_run: nil,
+       check_state: :idle,
+       check_timeout_ms: CheckRun.timeout_ms(opts)
      )}
   end
 
   @impl true
-  def handle_event("check", %{"report" => report}, socket) do
-    cond do
-      String.trim(report) == "" ->
-        {:noreply, assign(socket, result: nil, error: nil, report: report)}
+  def handle_event("check", _params, %{assigns: %{check_run: run}} = socket)
+      when not is_nil(run),
+      do: {:noreply, socket}
 
-      byte_size(report) > @max_bytes ->
+  def handle_event("check", %{"report" => report}, socket) when is_binary(report) do
+    socket = reset_check(socket, report)
+
+    case EvidenceInput.check(report) do
+      :ok ->
+        if String.trim(report) == "",
+          do: {:noreply, socket},
+          else: {:noreply, start_check(socket, report)}
+
+      {:error, %{code: :input_too_large, max_bytes: max}} ->
         {:noreply,
          assign(socket,
-           report: report,
-           result: nil,
            error:
              "That report is #{div(byte_size(report), 1000)} KB and the limit is " <>
-               "#{div(@max_bytes, 1000)} KB. Nothing was checked — split it rather than " <>
+               "#{div(max, 1000)} KB. Nothing was checked — split it rather than " <>
                "trusting a partial pass."
          )}
 
-      true ->
-        result = Report.verify(report, executor: ReplayExecutor.executor())
-
+      {:error, _} ->
         {:noreply,
-         assign(socket,
-           report: report,
-           result: result,
-           repair: Repair.repair(report),
-           error: nil
-         )}
+         socket
+         |> reset_check("")
+         |> assign(error: "Enter valid UTF-8 report text. Nothing was checked.")}
     end
+  end
+
+  def handle_event("check", _params, socket),
+    do:
+      {:noreply,
+       socket |> reset_check("") |> assign(error: "Enter report text. Nothing was checked.")}
+
+  def handle_event("cancel", _params, %{assigns: %{check_run: nil}} = socket),
+    do: {:noreply, socket}
+
+  def handle_event("cancel", _params, socket) do
+    # Keep the admission slot until handle_async: CheckRun acknowledges worker
+    # death before returning. A disabled button alone cannot prevent overlap.
+    {:noreply,
+     socket
+     |> assign(check_state: :cancelling)
+     |> cancel_async({:check, socket.assigns.check_run}, {:shutdown, :cancel})}
+  end
+
+  @impl true
+  def handle_info({:check_verified, id, result}, socket) do
+    if socket.assigns.check_run == id and socket.assigns.check_state == :verifying,
+      do: {:noreply, assign(socket, result: result, check_state: :repairing)},
+      else: {:noreply, socket}
+  end
+
+  @impl true
+  def handle_async({:check, id}, reply, %{assigns: %{check_run: id}} = socket) do
+    outcome =
+      case reply do
+        {:ok, outcome} -> outcome
+        {:exit, _reason} -> %{execution: :error, result: socket.assigns.result, repair: nil}
+      end
+
+    outcome =
+      if socket.assigns.check_state == :cancelling,
+        # Cancellation's boundary is what the page had already observed.
+        # A queued completion must not resurrect a verdict after cancel was accepted.
+        do: %{outcome | execution: :cancelled, result: socket.assigns.result, repair: nil},
+        else: outcome
+
+    {:noreply,
+     assign(socket,
+       check_run: nil,
+       check_state: outcome.execution,
+       result: outcome.result || socket.assigns.result,
+       repair: outcome.repair
+     )}
+  end
+
+  def handle_async({:check, _old_id}, _reply, socket), do: {:noreply, socket}
+
+  defp reset_check(socket, report) do
+    assign(socket,
+      form: to_form(%{"report" => report}),
+      result: nil,
+      repair: nil,
+      error: nil,
+      check_state: :idle
+    )
+  end
+
+  defp start_check(socket, report) do
+    id = make_ref()
+    owner = self()
+    deadline = System.monotonic_time(:millisecond) + socket.assigns.check_timeout_ms
+    opts = socket.private.check_options
+
+    socket
+    |> assign(check_run: id, check_state: :verifying)
+    |> start_async({:check, id}, fn -> CheckRun.run(owner, id, report, deadline, opts) end)
   end
 
   @impl true
@@ -145,20 +220,49 @@ defmodule PramanaWeb.CheckLive do
         </p>
       </section>
 
-      <form phx-submit="check" class="space-y-3">
-        <textarea
-          name="report"
+      <.form for={@form} id="report-check-form" phx-submit="check" class="space-y-3">
+        <.input
+          field={@form[:report]}
+          type="textarea"
           rows="12"
+          readonly={@check_run != nil}
           placeholder="Paste a report, an answer, an essay — markdown, with URNs in it."
           class="textarea textarea-bordered w-full font-mono text-sm"
-        >{@report}</textarea>
+        />
         <div class="flex items-center gap-3">
-          <button type="submit" class="btn btn-primary" phx-disable-with="Checking…">Check</button>
+          <button id="check-submit" type="submit" class="btn btn-primary" disabled={@check_run != nil}>
+            Check
+          </button>
+          <button
+            :if={@check_run != nil}
+            id="check-cancel"
+            type="button"
+            phx-click="cancel"
+            class="btn btn-ghost"
+            disabled={@check_state == :cancelling}
+          >
+            Cancel
+          </button>
           <span class="text-xs text-base-content/60">
             Runnable in a replay block: {Enum.join(ReplayExecutor.tools(), " · ")}
           </span>
         </div>
-      </form>
+      </.form>
+
+      <p class="text-xs text-base-content/60">
+        Verification and repair share a {@check_timeout_ms / 1_000}-second execution budget.
+        Cancelling stops remaining work, not a claim's truth or falsehood.
+      </p>
+      <div
+        :if={@check_state != :idle}
+        id="check-execution"
+        data-state={@check_state}
+        role="status"
+        aria-live="polite"
+        class="rounded border border-base-300 p-3 text-sm"
+      >
+        {execution_message(@check_state, @result)}
+      </div>
 
       <.format_help />
 
@@ -171,7 +275,7 @@ defmodule PramanaWeb.CheckLive do
         <.replays replays={@result.replays} />
         <.malformed entries={@result.malformed} skipped={@result.skipped} />
         <.unsourced figures={@result.unsourced_figures} />
-        <.repair repair={@repair} />
+        <.repair :if={@repair} repair={@repair} />
 
         <p class="font-mono text-xs text-base-content/50">
           checked against bake {String.slice(@result.checked_identity.bake_id || "none", 0, 12)} · selected release {String.slice(
@@ -184,6 +288,29 @@ defmodule PramanaWeb.CheckLive do
     </Layouts.app>
     """
   end
+
+  defp execution_message(:verifying, _), do: "Checking report… No verification verdict yet."
+  defp execution_message(:repairing, _), do: "Verification finished; preparing suggested repairs…"
+  defp execution_message(:cancelling, _), do: "Stopping remaining work…"
+  defp execution_message(:completed, _), do: "Check finished. Inspect the evidence verdict below."
+
+  defp execution_message(:cancelled, nil),
+    do: "Check cancelled before verification finished. No verdict was produced."
+
+  defp execution_message(:cancelled, _),
+    do: "Repair cancelled. The completed verification verdict is unchanged."
+
+  defp execution_message(:timed_out, nil),
+    do: "Check timed out before verification finished. This is neither a pass nor a refutation."
+
+  defp execution_message(:timed_out, _),
+    do: "Repair timed out. The completed verification verdict is unchanged."
+
+  defp execution_message(:error, nil),
+    do: "Check could not finish. No verification verdict was produced."
+
+  defp execution_message(:error, _),
+    do: "Repair could not finish. The completed verification verdict is unchanged."
 
   # THE BARRIER IS NOT TRUST, IT IS SYNTAX. Quotations need nothing — paste prose with URNs
   # in it and they are found. But nobody arriving here knows what a replay block looks like,

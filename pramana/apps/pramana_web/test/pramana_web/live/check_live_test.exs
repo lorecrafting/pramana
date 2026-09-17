@@ -73,9 +73,7 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, view, _html} = live(conn, ~p"/check")
 
     html =
-      view
-      |> form("form", report: "The sūtra opens 「如是我聞一時佛住」 (#{@urn}).")
-      |> render_submit()
+      submit_report(view, "The sūtra opens 「如是我聞一時佛住」 (#{@urn}).")
 
     assert html =~ "All checkable quotations and asserted replay values verified"
     assert html =~ "byte-compared against the text"
@@ -85,9 +83,7 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, view, _html} = live(conn, ~p"/check")
 
     html =
-      view
-      |> form("form", report: "The sūtra opens 「如是我聞一時佛說」 (#{@urn}).")
-      |> render_submit()
+      submit_report(view, "The sūtra opens 「如是我聞一時佛說」 (#{@urn}).")
 
     assert html =~ "At least one citation or asserted replay value did not hold"
     assert html =~ "the corpus has"
@@ -99,9 +95,7 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, view, _html} = live(conn, ~p"/check")
 
     html =
-      view
-      |> form("form", report: "The opening is discussed at #{@urn} and elsewhere.")
-      |> render_submit()
+      submit_report(view, "The opening is discussed at #{@urn} and elsewhere.")
 
     assert html =~ "checked only for EXISTENCE"
   end
@@ -121,7 +115,7 @@ defmodule PramanaWeb.CheckLiveTest do
     ```
     """
 
-    html = view |> form("form", report: report) |> render_submit()
+    html = submit_report(view, report)
 
     assert html =~ "unverifiable"
     assert html =~ "cannot be re-run here"
@@ -141,7 +135,7 @@ defmodule PramanaWeb.CheckLiveTest do
     ```
     """
 
-    html = view |> form("form", report: report) |> render_submit()
+    html = submit_report(view, report)
 
     assert html =~ "Evidence that could not be read"
     assert html =~ "invalid_json"
@@ -152,9 +146,7 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, view, _html} = live(conn, ~p"/check")
 
     html =
-      view
-      |> form("form", report: "The phrase appears 36,775 times across 1,904 works.")
-      |> render_submit()
+      submit_report(view, "The phrase appears 36,775 times across 1,904 works.")
 
     assert html =~ "Figures with nothing behind them"
     assert html =~ "never a verdict"
@@ -166,9 +158,7 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, view, _html} = live(conn, ~p"/check")
 
     html =
-      view
-      |> form("form", report: String.duplicate("a", 200_001))
-      |> render_submit()
+      submit_report(view, String.duplicate("a", 200_001))
 
     assert html =~ "Nothing was checked"
     refute html =~ "Citations"
@@ -181,9 +171,7 @@ defmodule PramanaWeb.CheckLiveTest do
     {:ok, view, _html} = live(conn, ~p"/check")
 
     html =
-      view
-      |> form("form", report: "The text says 「這是完全捏造的」 (#{@urn}).")
-      |> render_submit()
+      submit_report(view, "The text says 「這是完全捏造的」 (#{@urn}).")
 
     assert html =~ "What could be repaired"
     assert html =~ "no_sources"
@@ -192,7 +180,7 @@ defmodule PramanaWeb.CheckLiveTest do
   test "a citation in the Taishō's own print form is recognised and resolved", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/check")
 
-    html = view |> form("form", report: "As T. 262, 1c17 has it.") |> render_submit()
+    html = submit_report(view, "As T. 262, 1c17 has it.")
 
     assert html =~ "Citations in another scheme"
     assert html =~ "taisho"
@@ -208,7 +196,7 @@ defmodule PramanaWeb.CheckLiveTest do
 
   test "the reader exposes the same no-evidence status as the API", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/check")
-    view |> form("form", report: "A confident assertion.") |> render_submit()
+    submit_report(view, "A confident assertion.")
 
     assert has_element?(
              view,
@@ -222,7 +210,7 @@ defmodule PramanaWeb.CheckLiveTest do
   test "unresolved foreign evidence is incomplete, not a green report", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/check")
     report = ~s("如是我聞一時佛住" [#{@urn}]. T. 262, 99a1.)
-    view |> form("form", report: report) |> render_submit()
+    submit_report(view, report)
     assert has_element?(view, ~s(#verification-result[data-status="incomplete"]), "incomplete")
     refute has_element?(view, ~s(#verification-result[data-status="verified"]))
   end
@@ -241,7 +229,7 @@ defmodule PramanaWeb.CheckLiveTest do
           assert: %{urn: @urn}
         }) <> "\n```"
 
-    html = view |> form("form", report: report) |> render_submit()
+    html = submit_report(view, report)
     assert has_element?(view, ".badge-warning", "unverifiable")
     assert html =~ "not refuted"
     assert html =~ "release_id"
@@ -265,9 +253,14 @@ defmodule PramanaWeb.CheckLiveTest do
           assert: %{urn: @urn}
         }) <> "\n```"
 
-    html = view |> form("form", report: report) |> render_submit()
+    html = submit_report(view, report)
     assert has_element?(view, ".badge-success", "verified")
     assert html =~ "No retrieval release was recorded"
     assert html =~ "not a historical index"
+  end
+
+  defp submit_report(view, report) do
+    view |> form("#report-check-form", report: report) |> render_submit()
+    render_async(view, 5_000)
   end
 end

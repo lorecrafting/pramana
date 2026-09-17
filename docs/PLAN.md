@@ -13,7 +13,8 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-16** — post-#17 source/roadmap reconciliation below, covering
+Last reviewed: **2026-09-16** — post-#18 reader-lifecycle work and the retained
+post-#17 source/roadmap reconciliation below, covering
 "Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
 Older experiment narratives remain dated evidence, not a fresh execution queue. No live
 corpus counts or human fidelity judgments were regenerated.
@@ -21,6 +22,29 @@ corpus counts or human fidelity judgments were regenerated.
 embedded, the reader at six screens.**
 
 ---
+
+## Reader check lifecycle — post-#18, 2026-09-16
+
+**Base:** `298e35049d8b417679501625b123a0bc9ef01946`. PR #18 is merged;
+report verification already consumes the recorded release identity. No open issues or
+PRs and no new overlapping published branch were present at this task's intake.
+
+**Implemented in this change:** `/check` now owns one asynchronous check per page.
+Verification and repair share a finite monotonic execution budget (60 seconds by default;
+trusted server configuration may shorten it). Cancel, deadline expiry and page termination
+stop the worker, and the page does not accept another check until worker termination is
+observed. A new submission clears the previous verdict and repair. Request identities
+reject stale results; execution failures are not evidence verdicts. Completed verification
+survives a subsequent repair failure, timeout or cancellation. The [reader runbook](../pramana/docs/READER.md#check-execution-and-cancellation)
+owns the visible outcomes, cleanup limits and rollout/rollback behavior.
+
+The old `CheckLive` claim that the endpoint has no frame cap was stale: the existing
+WebSocket cap is 512,000 bytes. It is unchanged, as are the 200,000-byte decoded-report
+limit, 25-replay cap and explicit read-only replay allowlist. This does not provide global
+admission control, stop all already-dispatched database/serving work, or harden every
+transport. MCP/domain verification remains synchronous and unchanged. No Foundry,
+identity-scheme, migration, dependency, persistent-job or deployment change is included.
+The human and Foundry gates recorded below are not reopened or claimed complete.
 
 ## Current engineering disposition — post-#17, 2026-09-16
 
@@ -41,7 +65,7 @@ visibility into another agent's unpublished working tree or running session.
 | Translator comparison needs its first data; reader has five screens | Glossary comparison and `/check` already exist. The phase record's older descriptions are not new implementation tasks. |
 | Old product notebook's feature inventories are an admitted backlog | [The consolidated strategy](PRODUCT_STRATEGY.md) supersedes that notebook. Its pilot/rights/retention decisions remain proposals requiring operator action. |
 
-**Selected machine task: consume release identity in report verification.** At this
+**Completed by PR #18: consume release identity in report verification.** At this
 baseline `MCP.Reply` emitted `release_id`, but `Report.decode/2` discarded it and replay
 verification compared only `bake_id`. A changed translation/vector release under one source
 bake could therefore falsely refute an earlier retrieval claim. This change retains and
@@ -51,11 +75,11 @@ and `/check` expose the distinction. Historical bake-only reports remain compati
 an explicit identity-limit note. This consumes the existing stamp; it does not extend its
 identity scheme, stamp automatically, reconstruct history or promise immutable replay.
 
-**Alternatives considered:** bounded `/check` execution/transport remains a credible
-public-exposure hardening task, but the current synchronous self-hosted path is documented
-and this repair fixes a demonstrated wrong verdict first. Reader translation-eligibility
-controls require the strategy's D4 generated-reading policy before changing defaults.
-Neither alternative is included in this change.
+**Alternatives considered for PR #18:** bounded `/check` execution/transport was deferred
+while the demonstrated wrong verdict was repaired. The reader-only lifecycle follow-up is
+now recorded above; it is not unrestricted public-exposure hardening. Reader translation-
+eligibility controls still require the strategy's D4 generated-reading policy before
+changing defaults. Neither alternative was included in PR #18.
 
 **Human/operator work remains:** the blinded T0026 fidelity ranking; SAT outreach and
 source acquisition authorization; unresolved Tengyur title adjudication; and strategy
