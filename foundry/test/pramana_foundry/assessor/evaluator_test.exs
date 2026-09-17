@@ -97,6 +97,12 @@ defmodule PramanaFoundry.Assessor.EvaluatorTest do
     assert {:error, :invalid_evaluation_cases} =
              Evaluator.compare([%{base | "observed" => %{"assessor" => %{}}}], 1)
 
+    assert {:error, :invalid_evaluation_cases} =
+             Evaluator.compare([Map.put(base, "unexpected", true)], 1)
+
+    assert {:error, :invalid_evaluation_cases} =
+             Evaluator.compare([%{base | "case_id" => "case\n1"}], 1)
+
     assert {:error, :invalid_evaluation_cases} = Evaluator.compare([base], 3)
 
     assert {:error, :invalid_evaluation_cases} =

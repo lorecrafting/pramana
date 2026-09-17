@@ -9,6 +9,7 @@ defmodule PramanaFoundry.Assessor.Evaluator do
 
   @observed_fields ~w(input_tokens assessor_calls latency_ms operator_effort_ms rework_events)
   @arms ~w(baseline assessor)
+  @case_keys ~w(case_id candidate_manifest_digest baseline_order assessor_order relevant_ids observed)
   @max_cases 1_000
   @max_candidates 24
   @max_id_bytes 128
@@ -66,6 +67,9 @@ defmodule PramanaFoundry.Assessor.Evaluator do
     observed = Map.get(value, "observed")
 
     cond do
+      Enum.sort(Map.keys(value)) != Enum.sort(@case_keys) ->
+        {:error, :unknown_case_fields}
+
       not valid_id?(case_id) or not valid_manifest_digest?(manifest_digest) ->
         {:error, :invalid_case_identity}
 
@@ -109,7 +113,8 @@ defmodule PramanaFoundry.Assessor.Evaluator do
 
   defp valid_id?(value)
        when is_binary(value) and value != "" and byte_size(value) <= @max_id_bytes do
-    String.valid?(value) and String.trim(value) == value
+    String.valid?(value) and String.trim(value) == value and
+      Enum.all?(:binary.bin_to_list(value), fn byte -> byte >= 32 and byte != 127 end)
   end
 
   defp valid_id?(_value), do: false
