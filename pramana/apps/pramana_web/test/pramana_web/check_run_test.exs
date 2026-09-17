@@ -1,6 +1,7 @@
 defmodule PramanaWeb.CheckRunTest do
   use ExUnit.Case, async: true
 
+  alias PramanaWeb.CheckAdmission
   alias PramanaWeb.CheckRun
 
   test "the budget is finite and cannot be extended through server options" do
@@ -40,6 +41,98 @@ defmodule PramanaWeb.CheckRunTest do
     end
 
     assert_received {:unrelated, ^marker}
+  end
+
+  test "reader and MCP checks share one capacity and refused work never invokes callbacks" do
+    admission = start_admission(1)
+    parent = self()
+
+    verify = fn _ ->
+      send(parent, {:worker, self()})
+
+      receive do
+        :continue -> %{status: :verified}
+      end
+    end
+
+    {_runner, id} =
+      start_run(
+        [verify: verify, repair: fn _ -> %{edits: []} end, admission: admission],
+        5_000
+      )
+
+    assert_receive {:worker, worker}
+    assert CheckAdmission.stats(admission).active == 1
+
+    callback = fn _ -> send(parent, :unexpected_capacity_work) end
+
+    assert CheckRun.run("mcp", admission: admission, verify: callback, repair: callback) == %{
+             execution: :busy,
+             result: nil,
+             repair: nil
+           }
+
+    reader_id = make_ref()
+    deadline = System.monotonic_time(:millisecond) + 5_000
+
+    assert CheckRun.run(self(), reader_id, "reader", deadline,
+             admission: admission,
+             verify: callback,
+             repair: callback
+           ) == %{execution: :error, result: nil, repair: nil}
+
+    refute_received :unexpected_capacity_work
+    send(worker, :continue)
+
+    assert_receive {:check_verified, ^id, %{status: :verified}}
+    assert_receive {:finished, ^id, %{execution: :completed}}, 1_000
+    assert eventually(fn -> CheckAdmission.stats(admission).active == 0 end)
+
+    assert CheckRun.run("after capacity",
+             admission: admission,
+             verify: fn _ -> %{status: :verified} end,
+             repair: fn _ -> %{edits: []} end
+           ).execution == :completed
+  end
+
+  test "capacity remains reserved across admission-server restart until the old permit releases" do
+    admission = start_admission(1)
+    parent = self()
+
+    holder =
+      spawn(fn ->
+        Process.flag(:trap_exit, true)
+        {:ok, permit} = CheckAdmission.acquire(admission)
+        send(parent, {:permit, permit})
+
+        receive do
+          {:EXIT, _server, _reason} -> send(parent, :admission_restarted)
+        end
+
+        receive do
+          :release -> CheckAdmission.release(admission, permit)
+        end
+      end)
+
+    holder_ref = Process.monitor(holder)
+    assert_receive {:permit, _permit}
+    old_server = admission_pid(admission)
+    old_ref = Process.monitor(old_server)
+    Process.exit(old_server, :kill)
+    assert_receive {:DOWN, ^old_ref, :process, ^old_server, :killed}
+    assert_receive :admission_restarted
+
+    assert eventually(fn ->
+             pid = admission_pid(admission)
+             is_pid(pid) and pid != old_server
+           end)
+
+    assert CheckAdmission.stats(admission) == %{active: 1, max_active: 1}
+    assert CheckAdmission.acquire(admission) == {:error, :busy}
+
+    send(holder, :release)
+    assert_receive {:DOWN, ^holder_ref, :process, ^holder, :normal}
+    assert eventually(fn -> CheckAdmission.stats(admission).active == 0 end)
   end
 
   test "completed verification and repair return only after the worker is gone" do
@@ -219,6 +312,34 @@ defmodule PramanaWeb.CheckRunTest do
       receive do
         :continue -> %{}
       end
+    end
+  end
+
+  defp start_admission(max_active) do
+    key = make_ref()
+    name = {:global, {__MODULE__, key}}
+
+    spec =
+      Supervisor.child_spec(
+        {CheckAdmission, name: name, counter_key: {__MODULE__, key}, max_active: max_active},
+        id: key
+      )
+
+    start_supervised!(spec)
+    name
+  end
+
+  defp admission_pid({:global, name}), do: :global.whereis_name(name)
+
+  defp eventually(fun, attempts \\ 50)
+  defp eventually(fun, 0), do: fun.()
+
+  defp eventually(fun, attempts) do
+    if fun.() do
+      true
+    else
+      Process.sleep(10)
+      eventually(fun, attempts - 1)
     end
   end
 
