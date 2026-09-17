@@ -157,7 +157,7 @@ defmodule PramanaWeb.CheckAdmissionTest do
     assert %{active: 0} = DynamicSupervisor.count_children(permit_supervisor)
   end
 
-  test "loss of the permit supervisor stops admitted report work" do
+  test "loss of the permit supervisor stops work and leaves admission failed closed" do
     {admission, permit_supervisor} = start_admission_with_supervisor(1)
     parent = self()
 
@@ -174,6 +174,9 @@ defmodule PramanaWeb.CheckAdmissionTest do
 
     assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}, 3_000
     assert_receive {:finished, ^id, %{execution: :error, result: nil, repair: nil}}, 1_000
+    assert eventually(fn -> CheckAdmission.stats(admission) == {:error, :unavailable} end)
+    assert CheckAdmission.acquire(admission) == {:error, :unavailable}
+    assert global_pid(permit_supervisor) == :undefined
   end
 
   test "unknown and invalid trusted admission configuration fails closed" do
@@ -210,7 +213,8 @@ defmodule PramanaWeb.CheckAdmissionTest do
     start_supervised!(
       Supervisor.child_spec(
         {DynamicSupervisor, strategy: :one_for_one, name: permit_supervisor},
-        id: make_ref()
+        id: make_ref(),
+        restart: :temporary
       )
     )
 
