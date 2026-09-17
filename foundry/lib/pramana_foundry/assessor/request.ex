@@ -75,7 +75,14 @@ defmodule PramanaFoundry.Assessor.Request do
         |> Enum.map(&Candidate.manifest_entry/1)
         |> digest_term()
 
-      policy_digest = digest_term({policy.version, policy.min_confidence_ppm})
+      policy_digest =
+        digest_term({
+          policy.version,
+          policy.question_set_version,
+          policy.selection_version,
+          policy.min_confidence_ppm,
+          policy.max_initial_optional
+        })
 
       request_digest =
         digest_term({

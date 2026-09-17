@@ -33,7 +33,6 @@ defmodule PramanaFoundry.Assessor.FixtureHTTP do
       end
     else
       {:error, reason} when is_atom(reason) -> {:error, reason}
-      _ -> {:error, :transport_failure}
     end
   end
 
@@ -128,7 +127,7 @@ defmodule PramanaFoundry.Assessor.FixtureHTTP do
     case :binary.match(acc, "\r\n\r\n") do
       {index, 4} ->
         if index <= @max_header_bytes do
-          <<header_bytes::binary-size(index), _separator::binary-size(4), body::binary>> = acc
+          <<header_bytes::binary-size(^index), _separator::binary-size(4), body::binary>> = acc
           {:ok, header_bytes, body}
         else
           {:error, :response_headers_too_large}

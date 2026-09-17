@@ -2,9 +2,10 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
   @moduledoc """
   Deterministic optional-context consumer.
 
-  Mandatory context is opaque and unchanged. Optional context retains its baseline order
-  whenever assessment is off, unauthorized, shadow-only, stale, invalid, uncertain, or
-  unavailable. Stage A only reorders supplied optional candidates; it never removes one.
+  Mandatory context is opaque and unchanged. Off, shadow, stale, invalid, uncertain, and
+  unavailable assessment paths retain the full deterministic optional baseline. A valid
+  enabled assessment may select only a bounded initial subset; omitted optional material
+  remains eligible for later retrieval through the caller's normal tools.
   """
 
   alias PramanaFoundry.Assessor
@@ -14,6 +15,10 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
   alias PramanaFoundry.Assessor.Selection
 
   @modes [:off, :shadow, :enabled]
+  @selection_version "initial-top-k-v1"
+
+  @spec selection_version() :: String.t()
+  def selection_version, do: @selection_version
 
   @spec select(list(), Request.t(), keyword()) :: Selection.t()
   def select(mandatory, %Request{} = request, opts \\ []) when is_list(mandatory) do
@@ -36,10 +41,18 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
     recommended = recommendation(request, result)
 
     {delivered, applied?, fallback_reason} =
-      delivery(mode, baseline, recommended, result, authorized?)
+      delivery(
+        mode,
+        baseline,
+        recommended,
+        result,
+        authorized?,
+        request.policy.max_initial_optional
+      )
 
     %Selection{
       mode: mode,
+      selection_version: @selection_version,
       mandatory: mandatory,
       baseline_optional: baseline,
       recommended_optional: recommended,
@@ -55,6 +68,10 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
 
   defp assess(request, _mode, false, _adapter, _opts),
     do: Result.not_requested(request, :unauthorized)
+
+  defp assess(%Request{policy: %{selection_version: version}} = request, _mode, true, _adapter, _opts)
+       when version != @selection_version,
+       do: Result.invalid(request, :selection_version_mismatch)
 
   defp assess(%Request{candidates: []} = request, _mode, true, _adapter, _opts),
     do: Result.not_requested(request, :no_candidates)
@@ -81,15 +98,36 @@ defmodule PramanaFoundry.Assessor.ContextSelector do
 
   defp recommendation(%Request{} = request, _result), do: request.candidates
 
-  defp delivery(:enabled, baseline, recommended, %Result{status: :valid, explicit_none?: false}, true),
-    do: {recommended, true, nil}
+  defp delivery(
+         :enabled,
+         _baseline,
+         recommended,
+         %Result{status: :valid, explicit_none?: false},
+         true,
+         max_initial_optional
+       ),
+       do: {Enum.take(recommended, max_initial_optional), true, nil}
 
-  defp delivery(:shadow, baseline, _recommended, %Result{status: :valid}, true),
-    do: {baseline, false, :shadow_only}
+  defp delivery(
+         :enabled,
+         _baseline,
+         _recommended,
+         %Result{status: :valid, explicit_none?: true},
+         true,
+         _max_initial_optional
+       ),
+       do: {[], true, nil}
 
-  defp delivery(_mode, baseline, _recommended, %Result{status: :valid, explicit_none?: true}, true),
-    do: {baseline, false, :explicit_none_advisory}
+  defp delivery(
+         :shadow,
+         baseline,
+         _recommended,
+         %Result{status: :valid},
+         true,
+         _max_initial_optional
+       ),
+       do: {baseline, false, :shadow_only}
 
-  defp delivery(_mode, baseline, _recommended, %Result{} = result, _authorized?),
+  defp delivery(_mode, baseline, _recommended, %Result{} = result, _authorized?, _limit),
     do: {baseline, false, result.reason}
 end

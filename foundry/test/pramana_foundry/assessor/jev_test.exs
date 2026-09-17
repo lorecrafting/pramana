@@ -2,6 +2,7 @@ defmodule PramanaFoundry.Assessor.JevTest do
   use ExUnit.Case, async: true
 
   alias PramanaFoundry.Assessor.Candidate
+  alias PramanaFoundry.Assessor.ContextSelector
   alias PramanaFoundry.Assessor.FixtureHTTP
   alias PramanaFoundry.Assessor.Jev
   alias PramanaFoundry.Assessor.Policy
@@ -166,6 +167,11 @@ defmodule PramanaFoundry.Assessor.JevTest do
              ["any_relevant", "candidate:a", "candidate:b"]
 
     assert decoded["state"]["candidate_manifest_digest"] == request.candidate_digest
+    assert decoded["state"]["policy"]["question_set_version"] == Jev.question_set_version()
+    assert decoded["state"]["policy"]["selection_version"] == ContextSelector.selection_version()
+    assert decoded["state"]["policy"]["max_initial_optional"] == 2
+    assert decoded["questions"]["candidate:a"]["instructions"] =~ "`candidates[0].content`"
+    assert decoded["questions"]["candidate:a"]["instructions"] =~ "`task.objective`"
     refute_receive {:fixture_request, ^server, _wire}, 50
   end
 
@@ -344,6 +350,21 @@ defmodule PramanaFoundry.Assessor.JevTest do
     assert output_result.reason == :response_too_large
   end
 
+  test "unsupported question-set semantics are rejected before transport" do
+    parent = self()
+    request = request(question_set_version: "jev-optional-context-v2")
+
+    transport = fn _payload, _opts ->
+      send(parent, :unexpected_transport)
+      {:error, :transport_failure}
+    end
+
+    result = Jev.assess(request, api_key: "key", transport: transport)
+    assert result.status == :invalid
+    assert result.reason == :question_set_version_mismatch
+    refute_received :unexpected_transport
+  end
+
   test "moving model aliases and other providers are rejected before transport" do
     parent = self()
 
@@ -381,7 +402,19 @@ defmodule PramanaFoundry.Assessor.JevTest do
   end
 
   defp request(overrides \\ []) do
-    {:ok, policy} = Policy.new(version: "context-v1", min_confidence_ppm: 700_000)
+    policy_attrs =
+      [
+        version: "context-v1",
+        question_set_version: Jev.question_set_version(),
+        selection_version: ContextSelector.selection_version(),
+        min_confidence_ppm: 700_000,
+        max_initial_optional: 2
+      ]
+      |> Keyword.merge(
+        Keyword.take(overrides, [:question_set_version, :selection_version, :max_initial_optional])
+      )
+
+    {:ok, policy} = Policy.new(policy_attrs)
 
     candidates =
       for id <- ["a", "b"] do
@@ -410,7 +443,9 @@ defmodule PramanaFoundry.Assessor.JevTest do
         provider: "typesafe",
         model: Jev.pinned_model()
       ]
-      |> Keyword.merge(overrides)
+      |> Keyword.merge(
+        Keyword.drop(overrides, [:question_set_version, :selection_version, :max_initial_optional])
+      )
 
     {:ok, request} = Request.new(attrs)
     request

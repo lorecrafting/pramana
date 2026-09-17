@@ -3,6 +3,7 @@ defmodule PramanaFoundry.Assessor.Selection do
 
   @enforce_keys [
     :mode,
+    :selection_version,
     :mandatory,
     :baseline_optional,
     :recommended_optional,
@@ -13,6 +14,7 @@ defmodule PramanaFoundry.Assessor.Selection do
   ]
   defstruct [
     :mode,
+    :selection_version,
     :mandatory,
     :baseline_optional,
     :recommended_optional,

@@ -1,13 +1,14 @@
 defmodule PramanaFoundry.Assessor.Evaluator do
   @moduledoc """
-  Offline ordering evaluator for Stage A context-selection experiments.
+  Offline evaluator for Stage A context-selection experiments.
 
-  It compares baseline and assessor orderings over the same candidate set. It performs
-  no provider calls and reports integer totals rather than inventing precision from a
-  small fixture set.
+  It compares baseline and assessor orderings over the same candidate set and records
+  operational measurements separately for each arm. It performs no provider calls and
+  reports integer totals rather than inventing precision from a small fixture set.
   """
 
   @observed_fields ~w(input_tokens assessor_calls latency_ms operator_effort_ms rework_events)
+  @arms ~w(baseline assessor)
 
   @spec compare([map()], pos_integer()) :: {:ok, map()} | {:error, atom()}
   def compare(cases, top_k) when is_list(cases) and is_integer(top_k) and top_k > 0 do
@@ -18,12 +19,15 @@ defmodule PramanaFoundry.Assessor.Evaluator do
 
       {:ok,
        %{
-         "schema_version" => 1,
+         "schema_version" => 2,
          "cases" => length(normalized),
          "top_k" => top_k,
          "baseline" => baseline,
          "assessor" => assessor,
-         "observed" => aggregate_observed(normalized)
+         "observed" => %{
+           "baseline" => aggregate_observed(normalized, "baseline"),
+           "assessor" => aggregate_observed(normalized, "assessor")
+         }
        }}
     else
       _ -> {:error, :invalid_evaluation_cases}
@@ -49,10 +53,10 @@ defmodule PramanaFoundry.Assessor.Evaluator do
     baseline = Map.get(value, "baseline_order")
     assessor = Map.get(value, "assessor_order")
     relevant = Map.get(value, "relevant_ids")
-    observed = Map.get(value, "observed", %{})
+    observed = Map.get(value, "observed")
 
     cond do
-      not valid_id_list?(baseline) or not valid_id_list?(assessor) or
+      not valid_id_list?(baseline) or baseline == [] or not valid_id_list?(assessor) or
           not valid_id_list?(relevant) ->
         {:error, :invalid_case}
 
@@ -85,12 +89,19 @@ defmodule PramanaFoundry.Assessor.Evaluator do
   defp valid_id_list?(_value), do: false
 
   defp valid_observed?(value) when is_map(value) and not is_struct(value) do
+    Enum.sort(Map.keys(value)) == Enum.sort(@arms) and
+      Enum.all?(@arms, fn arm -> valid_observed_arm?(Map.get(value, arm)) end)
+  end
+
+  defp valid_observed?(_value), do: false
+
+  defp valid_observed_arm?(value) when is_map(value) and not is_struct(value) do
     Enum.all?(value, fn {key, metric} ->
       key in @observed_fields and (is_nil(metric) or (is_integer(metric) and metric >= 0))
     end)
   end
 
-  defp valid_observed?(_value), do: false
+  defp valid_observed_arm?(_value), do: false
 
   defp aggregate_arm(cases, key, top_k) do
     Enum.reduce(
@@ -102,7 +113,6 @@ defmodule PramanaFoundry.Assessor.Evaluator do
       },
       fn value, acc ->
         metrics = metrics(value[key], value["relevant_ids"], top_k)
-
         Map.new(acc, fn {metric, total} -> {metric, total + Map.fetch!(metrics, metric)} end)
       end
     )
@@ -134,9 +144,9 @@ defmodule PramanaFoundry.Assessor.Evaluator do
     }
   end
 
-  defp aggregate_observed(cases) do
+  defp aggregate_observed(cases, arm) do
     Map.new(@observed_fields, fn field ->
-      values = Enum.map(cases, &Map.get(&1["observed"], field))
+      values = Enum.map(cases, &get_in(&1, ["observed", arm, field]))
 
       {field,
        %{

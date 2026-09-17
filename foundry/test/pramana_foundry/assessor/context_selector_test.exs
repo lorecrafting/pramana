@@ -22,6 +22,7 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
     selection = ContextSelector.select(mandatory, request, adapter: adapter)
 
     assert selection.mode == :off
+    assert selection.selection_version == ContextSelector.selection_version()
     assert selection.mandatory == mandatory
     assert ids(selection.delivered_optional) == ["a", "b"]
     assert selection.assessment.status == :not_requested
@@ -74,8 +75,8 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
     refute selection.applied?
   end
 
-  test "enabled applies only ordering and stable ties preserve baseline order" do
-    request = request(["a", "b", "c"])
+  test "enabled selects only the bounded initial subset and stable ties preserve baseline order" do
+    request = request(["a", "b", "c"], max_initial_optional: 2)
 
     recommendations = [
       recommendation("a", 1_000_000),
@@ -94,7 +95,8 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
       )
 
     assert selection.mandatory == [:mandatory]
-    assert ids(selection.delivered_optional) == ["b", "a", "c"]
+    assert ids(selection.recommended_optional) == ["b", "a", "c"]
+    assert ids(selection.delivered_optional) == ["b", "a"]
     assert ids(selection.baseline_optional) == ["a", "b", "c"]
     assert selection.applied?
     assert selection.fallback_reason == nil
@@ -126,7 +128,7 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
     end
   end
 
-  test "explicit none is advisory in Stage A and never drops mandatory or eligible context" do
+  test "a valid explicit-none result removes optional initial context but never mandatory context" do
     request = request()
     result = Result.valid(request, [], explicit_none?: true)
 
@@ -140,10 +142,33 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
 
     assert selection.mandatory == [%{id: "mandatory"}]
     assert selection.recommended_optional == []
-    assert ids(selection.delivered_optional) == ["a", "b"]
+    assert selection.delivered_optional == []
     assert ids(selection.baseline_optional) == ["a", "b"]
-    assert selection.fallback_reason == :explicit_none_advisory
+    assert selection.fallback_reason == nil
+    assert selection.applied?
+  end
+
+  test "unsupported selection semantics fail closed before the adapter and retain baseline" do
+    parent = self()
+    request = request(selection_version: "future-selection-v2")
+
+    adapter = fn _request, _opts ->
+      send(parent, :unexpected_assessor_call)
+      valid_result(request)
+    end
+
+    selection =
+      ContextSelector.select([], request,
+        mode: :enabled,
+        authorized?: true,
+        adapter: adapter
+      )
+
+    assert selection.assessment.status == :invalid
+    assert selection.assessment.reason == :selection_version_mismatch
+    assert ids(selection.delivered_optional) == ["a", "b"]
     refute selection.applied?
+    refute_received :unexpected_assessor_call
   end
 
   test "candidate prompt injection cannot alter mandatory context or mint unknown ids" do
@@ -174,14 +199,36 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
     refute selection.applied?
   end
 
-  defp request(ids \\ ["a", "b"])
+  test "question and selection policy versions are part of request identity" do
+    original = request()
+    changed_question = request(question_set_version: "jev-optional-context-v2")
+    changed_selection = request(selection_version: "initial-top-k-v2")
 
-  defp request(ids) when is_list(ids) and ids != [] and is_binary(hd(ids)) do
-    request(Enum.map(ids, &{&1, "content for #{&1}"}))
+    refute original.policy_digest == changed_question.policy_digest
+    refute original.request_digest == changed_question.request_digest
+    refute original.policy_digest == changed_selection.policy_digest
+    refute original.request_digest == changed_selection.request_digest
   end
 
-  defp request(entries) do
-    {:ok, policy} = Policy.new(version: "context-v1", min_confidence_ppm: 700_000)
+  defp request(entries_or_ids \\ ["a", "b"], policy_overrides \\ [])
+
+  defp request(ids, policy_overrides)
+       when is_list(ids) and ids != [] and is_binary(hd(ids)) do
+    request(Enum.map(ids, &{&1, "content for #{&1}"}), policy_overrides)
+  end
+
+  defp request(entries, policy_overrides) do
+    policy_attrs =
+      [
+        version: "context-v1",
+        question_set_version: Jev.question_set_version(),
+        selection_version: ContextSelector.selection_version(),
+        min_confidence_ppm: 700_000,
+        max_initial_optional: 2
+      ]
+      |> Keyword.merge(policy_overrides)
+
+    {:ok, policy} = Policy.new(policy_attrs)
 
     candidates =
       Enum.map(entries, fn {id, content} ->
@@ -213,10 +260,13 @@ defmodule PramanaFoundry.Assessor.ContextSelectorTest do
   end
 
   defp valid_result(request) do
-    Result.valid(request, [
-      recommendation("a", 1_000_000),
-      recommendation("b", 2_000_000)
-    ])
+    recommendations =
+      Enum.map(request.candidates, fn candidate ->
+        score = if candidate.id == "b", do: 2_000_000, else: 1_000_000
+        recommendation(candidate.id, score)
+      end)
+
+    Result.valid(request, recommendations)
   end
 
   defp recommendation(id, score) do
