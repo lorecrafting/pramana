@@ -121,7 +121,9 @@ defmodule Repository.LayoutTest do
 
     refute container =~ ~s(- "pramana/**")
     assert container =~ ~s(- "pramana/apps/**")
-    assert container =~ ~s(- "pramana/ci/**")
+    assert container =~ ~s(- "pramana/ci/release_smoke.py")
+    assert container =~ ~s(- "pramana/ci/serving_privileges.exs")
+    refute container =~ ~s(- "pramana/ci/**")
     assert container =~ "cache-from: type=gha,scope=pramana-runtime-image"
     assert container =~ "load: true"
     assert container =~ "release_smoke.py"

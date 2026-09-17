@@ -9,7 +9,8 @@ on:
       - "pramana/config/**"
       - "pramana/rel/**"
       - "pramana/apps/**"
-      - "pramana/ci/**"
+      - "pramana/ci/release_smoke.py"
+      - "pramana/ci/serving_privileges.exs"
       - ".github/workflows/pramana-container.yml"
   push:
     branches: [main]
@@ -21,7 +22,8 @@ on:
       - "pramana/config/**"
       - "pramana/rel/**"
       - "pramana/apps/**"
-      - "pramana/ci/**"
+      - "pramana/ci/release_smoke.py"
+      - "pramana/ci/serving_privileges.exs"
       - ".github/workflows/pramana-container.yml"
 permissions:
   contents: read
