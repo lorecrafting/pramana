@@ -1,0 +1,193 @@
+diff --git a/pramana/apps/pramana_web/lib/pramana_web/check_run.ex b/pramana/apps/pramana_web/lib/pramana_web/check_run.ex
+index 0b1c691..18eb910 100644
+--- a/pramana/apps/pramana_web/lib/pramana_web/check_run.ex
++++ b/pramana/apps/pramana_web/lib/pramana_web/check_run.ex
+@@ -29,6 +29,7 @@ defmodule PramanaWeb.CheckRun do
+   @doc "The finite page budget; invalid server configuration fails explicitly."
+   @spec timeout_ms(keyword()) :: pos_integer()
+   def timeout_ms(opts \\ []) do
++    opts = Keyword.validate!(opts, [:timeout_ms, :verify, :repair])
+     timeout = Keyword.get(opts, :timeout_ms, @max_timeout_ms)
+ 
+     unless is_integer(timeout) and timeout > 0 and timeout <= @max_timeout_ms,
+@@ -68,14 +69,7 @@ defmodule PramanaWeb.CheckRun do
+ 
+       receive do
+         {:repair, ^coordinator} ->
+-          if remaining(deadline) > 0 do
+-            case repair.(markdown) do
+-              %{} = repaired -> {:ok, repaired}
+-              _ -> :error
+-            end
+-          else
+-            :timed_out
+-          end
++          repair_within_budget(markdown, deadline, repair)
+       end
+     else
+       false -> :timed_out
+@@ -88,6 +82,17 @@ defmodule PramanaWeb.CheckRun do
+     _, _ -> :error
+   end
+ 
++  defp repair_within_budget(markdown, deadline, repair) do
++    if remaining(deadline) > 0 do
++      case repair.(markdown) do
++        %{} = repaired -> {:ok, repaired}
++        _ -> :error
++      end
++    else
++      :timed_out
++    end
++  end
++
+   defp await(state) do
+     if remaining(state.deadline) <= 0,
+       do: outcome(state, :timed_out),
+diff --git a/pramana/apps/pramana_web/lib/pramana_web/live/check_live.ex b/pramana/apps/pramana_web/lib/pramana_web/live/check_live.ex
+index 660fa97..07b67b0 100644
+--- a/pramana/apps/pramana_web/lib/pramana_web/live/check_live.ex
++++ b/pramana/apps/pramana_web/lib/pramana_web/live/check_live.ex
+@@ -163,7 +163,9 @@ defmodule PramanaWeb.CheckLive do
+ 
+     outcome =
+       if socket.assigns.check_state == :cancelling,
+-        do: %{outcome | execution: :cancelled, repair: nil},
++        # Cancellation's boundary is what the page had already observed.
++        # A queued completion must not resurrect a verdict after cancel was accepted.
++        do: %{outcome | execution: :cancelled, result: socket.assigns.result, repair: nil},
+         else: outcome
+ 
+     {:noreply,
+@@ -243,7 +245,7 @@ defmodule PramanaWeb.CheckLive do
+       </.form>
+ 
+       <p class="text-xs text-base-content/60">
+-        Verification and repair share a {div(@check_timeout_ms, 1000)}-second execution budget.
++        Verification and repair share a {@check_timeout_ms / 1_000}-second execution budget.
+         Cancelling stops remaining work, not a claim's truth or falsehood.
+       </p>
+       <div
+diff --git a/pramana/apps/pramana_web/test/pramana_web/check_run_test.exs b/pramana/apps/pramana_web/test/pramana_web/check_run_test.exs
+index 48443ef..f41d1b5 100644
+--- a/pramana/apps/pramana_web/test/pramana_web/check_run_test.exs
++++ b/pramana/apps/pramana_web/test/pramana_web/check_run_test.exs
+@@ -6,6 +6,7 @@ defmodule PramanaWeb.CheckRunTest do
+   test "the budget is finite and cannot be extended through server options" do
+     assert CheckRun.timeout_ms() == 60_000
+     assert CheckRun.timeout_ms(timeout_ms: 1) == 1
++    assert_raise ArgumentError, fn -> CheckRun.timeout_ms(timeot_ms: 1) end
+ 
+     for invalid <- [0, -1, :infinity, 60_001, "1000", nil] do
+       assert_raise ArgumentError, fn -> CheckRun.timeout_ms(timeout_ms: invalid) end
+@@ -45,6 +46,38 @@ defmodule PramanaWeb.CheckRunTest do
+     assert_receive {:finished, ^id, %{execution: :timed_out, result: %{status: :failed, marker: :unchanged}, repair: nil}}
+   end
+ 
++  test "repair gets the remaining budget, never a fresh timeout" do
++    parent = self()
++    verify = fn _ ->
++      send(parent, {:worker, self()})
++      receive do :continue -> %{status: :verified} end
++    end
++    repair = fn _ ->
++      send(parent, :repair_started)
++      receive do :never_sent -> %{} end
++    end
++
++    {_runner, id} = start_run([verify: verify, repair: repair], 2_000)
++    assert_receive {:worker, worker}
++    # Deliberately consume most of the absolute budget, with a mailbox timer rather
++    # than sleeping or racing a completion. A fresh 2 s repair timer would fail.
++    Process.send_after(worker, :continue, 1_200)
++    assert_receive :repair_started, 1_800
++    assert_receive {:finished, ^id, %{execution: :timed_out, result: %{status: :verified}}}, 1_200
++  end
++
++  test "owner death with an abnormal reason also stops exit-trapping work" do
++    owner = start_supervised!({Task, fn -> receive do :never -> :ok end end})
++    owner_ref = Process.monitor(owner)
++    {_runner, id} = start_run([verify: blocked(self()), repair: fn _ -> %{} end], 5_000, owner)
++    assert_receive {:worker, worker}
++    worker_ref = Process.monitor(worker)
++    Process.exit(owner, :kill)
++    assert_receive {:DOWN, ^owner_ref, :process, ^owner, :killed}
++    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}
++    assert_receive {:finished, ^id, %{execution: :cancelled, result: nil}}
++  end
++
+   test "an expired admission does not invoke either callback" do
+     parent = self()
+     callback = fn _ -> send(parent, :unexpected_work) end
+diff --git a/pramana/apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs b/pramana/apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs
+index 85287ae..f259ca1 100644
+--- a/pramana/apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs
++++ b/pramana/apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs
+@@ -89,6 +89,52 @@ defmodule PramanaWeb.CheckLifecycleTest do
+     refute render(view) =~ "REPAIR SENTINEL"
+   end
+ 
++  test "repair cancellation retains the completed verdict but never a partial repair", %{conn: conn} do
++    configure(verify: fn _ -> verdict(:verified) end, repair: blocking_verifier(self()))
++    {:ok, view, _} = live(conn, ~p"/check")
++    submit(view, "repair cancellation")
++    assert_receive {:started, "repair cancellation", worker}
++    worker_ref = Process.monitor(worker)
++    assert has_element?(view, ~s(#verification-result[data-status="verified"]))
++    render_click(view, "cancel")
++    render_async(view, 3_000)
++    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}
++    assert has_element?(view, ~s(#check-execution[data-state="cancelled"]), "verdict is unchanged")
++    assert has_element?(view, ~s(#verification-result[data-status="verified"]))
++    refute render(view) =~ "REPAIR SENTINEL"
++  end
++
++  test "a cancelling page cannot admit work or resurrect an unobserved completion", %{conn: conn} do
++    configure(verify: blocking_verifier(self()))
++    {:ok, view, _} = live(conn, ~p"/check")
++    submit(view, "first")
++    assert_receive {:started, "first", worker}
++    socket = :sys.get_state(view.pid).socket
++    id = socket.assigns.check_run
++    # Model the cancellation/cleanup interval without relying on a fast worker's
++    # scheduling. This exercises the same callbacks that consume late completion.
++    stopping = Phoenix.Component.assign(socket, check_state: :cancelling)
++    assert {:noreply, ^stopping} = CheckLive.handle_event("check", %{"report" => "new"}, stopping)
++    assert {:noreply, ^stopping} = CheckLive.handle_info({:check_verified, id, verdict(:verified)}, stopping)
++
++    completed = %{execution: :completed, result: verdict(:verified), repair: repair()}
++    {:noreply, cancelled} = CheckLive.handle_async({:check, id}, {:ok, completed}, stopping)
++    assert cancelled.assigns.check_state == :cancelled
++    assert cancelled.assigns.result == nil
++    assert cancelled.assigns.repair == nil
++
++    # A verdict already displayed before cancellation is retained instead.
++    observed = Phoenix.Component.assign(stopping, result: verdict(:failed))
++    {:noreply, retained} = CheckLive.handle_async({:check, id}, {:ok, completed}, observed)
++    assert retained.assigns.result == verdict(:failed)
++    assert retained.assigns.repair == nil
++
++    worker_ref = Process.monitor(worker)
++    render_click(view, "cancel")
++    render_async(view, 3_000)
++    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}
++  end
++
+   test "verification and repair exceptions recover without leaking exception data", %{conn: conn} do
+     configure(verify: fn _ -> raise "SECRET REPORT" end)
+     {:ok, view, _} = live(conn, ~p"/check")
+diff --git a/pramana/docs/READER.md b/pramana/docs/READER.md
+index 822f3af..e201d63 100644
+--- a/pramana/docs/READER.md
++++ b/pramana/docs/READER.md
+@@ -224,7 +224,9 @@ failed on any prose containing a page number would be unusable.
+ page immediately shows **Checking**, clears the previous verdict and repair, and holds the
+ submitted text read-only while work is active. The server admits only one check per page;
+ repeated submissions cannot bypass this by ignoring the disabled button. Run identities
+-prevent late progress or completion from being applied to another report.
++prevent late progress or completion from being applied to another report. Cancellation
++retains only a verification result the page had already observed; a queued completion
++cannot restore an unobserved verdict or partial repair after cancellation.
+ 
+ Both stages share **one 60,000 ms monotonic budget**, starting at submission. Repair does
+ not receive a fresh budget. This is a resource policy, not a retrieval-performance claim.
