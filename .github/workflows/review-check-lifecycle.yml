@@ -22,11 +22,11 @@ jobs:
       PGUSER: postgres
       PGPASSWORD: postgres
       MIX_ENV: test
-      CANDIDATE: 38f0c0008ef039933b9ef9293badefa80fc32cbd
+      CANDIDATE: 795aec171966e7ec48aa5a04c11770b3d590f09b
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 38f0c0008ef039933b9ef9293badefa80fc32cbd
+          ref: 795aec171966e7ec48aa5a04c11770b3d590f09b
           persist-credentials: false
       - name: Record exact reviewed source
         run: |
@@ -53,18 +53,21 @@ jobs:
           path: |
             pramana/deps
             pramana/_build
+            pramana/priv/plts
             ~/.cargo
             pramana/apps/pramana_native/native/pramana_native/target
             pramana/native/quotations/target
           key: Linux-pramana-layout-v2-${{ hashFiles('pramana/mix.lock') }}
           restore-keys: Linux-pramana-layout-v2-
-      - name: Compile exact candidate with normal settings
+      - name: Compile exact candidate and run the actual formatter
         run: |
           set -euo pipefail
           cd pramana
           mix deps.get
           mix compile --force --warnings-as-errors 2>&1 | tee "$EVIDENCE/compile.log"
+          mix format
           mix format --check-formatted
+          test -z "$(git status --porcelain)"
       - name: Demonstrate that each targeted regression detects its defect
         run: |
           python3 - <<'PY'
@@ -104,7 +107,7 @@ jobs:
                   path.write_bytes(original)
           (evidence / 'experiments.json').write_text(json.dumps(results, indent=2) + '\n')
           PY
-      - name: Restore, compile and repeat the actual candidate regressions
+      - name: Restore, compile and repeat all reader check regressions
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$CANDIDATE"
@@ -113,7 +116,7 @@ jobs:
           mix compile --force --warnings-as-errors
           mix format --check-formatted
           for seed in 0 101; do
-            mix test apps/pramana_web/test/pramana_web/check_run_test.exs apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs apps/pramana_web/test/pramana_web/live/check_live_test.exs --seed "$seed" 2>&1 | tee "$EVIDENCE/restored-seed-$seed.log"
+            mix test apps/pramana_web/test/pramana_web/check_run_test.exs apps/pramana_web/test/pramana_web/live/check_lifecycle_test.exs apps/pramana_web/test/pramana_web/live/check_live_test.exs apps/pramana_web/test/pramana_web/live/evidence_boundaries_test.exs --seed "$seed" 2>&1 | tee "$EVIDENCE/restored-seed-$seed.log"
           done
           test -z "$(git status --porcelain)"
       - name: Retain exact-source experiment evidence
