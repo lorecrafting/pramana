@@ -390,7 +390,10 @@ end
 result = Application.ensure_all_started(:pramana_web)
 unless match?({:error, _}, result) and inspect(result) =~ "public_corpus_forbidden",
   do: raise("wrong startup disposition: #{inspect(result)}")
-if Oban.whereis(Oban), do: raise("rejected startup retained Oban")
+# Failed application startup may have unwound the Oban dependency itself.
+# If its registry survives, the named instance still must be absent.
+if Process.whereis(Oban.Registry) && Oban.whereis(Oban),
+  do: raise("rejected startup retained Oban")
 for name <- [Pramana.Supervisor, Pramana.Repo, Pramana.Embed.Serving,
              PramanaWeb.Supervisor, PramanaWeb.Endpoint] do
   if Process.whereis(name), do: raise("rejected startup retained #{inspect(name)}")

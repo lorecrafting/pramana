@@ -56,6 +56,12 @@ Self-review corrected the synthetic completed-job age to the pinned pruner’s
 `scheduled_at` rule, removed an unnecessary pooled session setting from the privilege
 probe, and strengthened peer/registry and configuration-free startup checks. The real
 queue/pruner positive control remains mandatory; no assertion was relaxed.
+Actual runtime checks additionally exposed SQL predicate reordering in the privilege
+probe and a teardown probe calling an already-unwound Oban registry. Type-sensitive
+inquiries now use CASE, and the refusal probe accepts an absent registry while still
+rejecting a surviving instance or application child. The restricted-account read/write
+checks passed before that later teardown error; only a complete final runtime run is
+acceptance evidence.
 
 ## Release startup admission — post-#21, 2026-09-17
 
