@@ -3,6 +3,11 @@
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap](ROADMAP.md)
 **Status:** post-repair investment proposal under the existing authority contract.
 
+For the operator's Foundry-first investment direction, architecture boundaries and
+lessons from FirstMate/Pi/OMP, read the [Foundry strategy brief](../../foundry/docs/STRATEGY.md).
+That brief guides the repair investment; this chapter retains post-repair initiatives
+and portfolio sequencing. Neither replaces the repair plan or workflow contract.
+
 ## Mission and boundary
 
 Foundry turns a bounded objective into an independently checked software change,
