@@ -107,7 +107,8 @@ defmodule PramanaFoundry.Assessor.Evaluator do
 
   defp valid_id_list?(_value), do: false
 
-  defp valid_id?(value) when is_binary(value) and value != "" and byte_size(value) <= @max_id_bytes do
+  defp valid_id?(value)
+       when is_binary(value) and value != "" and byte_size(value) <= @max_id_bytes do
     String.valid?(value) and String.trim(value) == value
   end
 
