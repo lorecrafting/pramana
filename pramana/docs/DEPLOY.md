@@ -94,6 +94,82 @@ the former startup behavior, including its missing explicit serving activation a
 asynchronous refusal; it is not an equivalent safety guarantee. A failing public startup
 should be diagnosed, not bypassed. Rolling back code does not restore historical data.
 
+## Public serving and ingestion
+
+`PRAMANA_PUBLIC=1` omits the application's configured Oban instance, not just its bake
+queue. It cannot consume queued bakes, prune job history or run Oban database leadership
+from that instance. The Oban dependency remains installed; a separate authorized
+research/ingestion process retains the existing eight-worker bake queue, retries and
+seven-day pruner. Do not clear the public flag on an exposed server to enable ingestion.
+Run ingestion separately with protected credentials and review/restart public admission
+when changing what may be served. This is not continuous policing of external writers.
+
+**Database privileges are a separate boundary.** Public mode does not inspect or repair
+your account's grants. Supply a non-superuser serving login that owns neither the database
+nor its schemas/tables and cannot inherit or `SET ROLE` to an owner/writer. It should have
+CONNECT, schema USAGE, and SELECT on the corpus tables needed by the reader/MCP, without
+DML, sequence USAGE/UPDATE, CREATE, TEMPORARY or Oban-table privileges. Keep migration and
+ingestion credentials out of the serving environment. A non-serving release invocation
+is not automatically unprivileged; its supplied database credentials still govern access.
+
+Provisioning is an explicit administrator action against the intended dedicated database,
+not a startup step. This illustrative psql sequence creates no password in shell history;
+substitute your reviewed role/database names and inspect the selected tables before granting:
+
+```sql
+CREATE ROLE pramana_reader LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+  NOREPLICATION NOBYPASSRLS NOINHERIT;
+\password pramana_reader
+-- Connect as the administrator to the intended dedicated public database first.
+-- Review effects on other users before changing any PUBLIC grants.
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+GRANT USAGE ON SCHEMA public TO pramana_reader;
+-- Revoke PUBLIC database TEMPORARY and grant only CONNECT to the serving role.
+-- Select the actual database explicitly; do not copy a guessed target name.
+SELECT format('REVOKE TEMPORARY ON DATABASE %I FROM PUBLIC', current_database()) \gexec
+SELECT format('GRANT CONNECT ON DATABASE %I TO pramana_reader', current_database()) \gexec
+-- Inventory the corpus tables before executing these generated grants.
+SELECT format('GRANT SELECT ON TABLE %I.%I TO pramana_reader', schemaname, tablename)
+FROM pg_tables WHERE schemaname = 'public'
+  AND tablename NOT LIKE 'oban_%' AND tablename <> 'schema_migrations';
+```
+
+The last query prints statements for review; it deliberately does not execute them or
+blanket-grant future tables. In an existing database, also audit privileges inherited
+from PUBLIC/other roles, column-level grants, ownership, security-definer routines,
+extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` membership.
+New tables after migrations require a reviewed grant update; do not solve a missing read
+privilege by granting ownership, ALL, sequence access or membership in an administrator.
+Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
+`has_any_column_privilege`, `has_sequence_privilege`, `pg_has_role`) plus real denied-write
+checks in an isolated copy. `default_transaction_read_only` is not a substitute for grants:
+a user can change its own transaction default.
+
+The smoke runner provisions only its disposable fixtures, not this example role or an
+operator database. Its [privilege probe](../ci/serving_privileges.exs) runs by RPC inside
+the same release serving the HTTP/MCP positive case and explicitly uses read-write
+transactions for denials. It excludes owner/superuser/role-switch/schema/sequence and
+ordinary corpus-write authority, while queries and verification must work. This proves
+the tested schema and paths, not every possible function/extension or query in your
+installation. A separate privileged public case proves absence of the Oban instance is
+not merely a permission failure. The same queued fixture then runs through real ingestion;
+a broken job cannot supply false no-effect evidence.
+
+**Rollout:** prepare/review the intended public database using administrative credentials;
+provision and independently check the restricted login; run the image fixture acceptance;
+then start public serving with only that login and the existing public flag. Inspect reader,
+MCP and admission errors. Database role/grant changes are not deployed by this code change.
+
+**Rollback:** no schema/data conversion is introduced. Older application code starts Oban
+again on public nodes and may fail or repeatedly attempt writes with restricted credentials.
+Do not restore service by elevating the serving login or disabling public admission. Prefer
+a corrected forward release, or isolate the older process and explicitly disable all of
+its job/peer/plugin activity under a separately validated configuration. Do not revert
+restricted grants as a routine application rollback. Code rollback does not restore data.
+
+Primary privilege semantics: [PostgreSQL privileges](https://www.postgresql.org/docs/18/ddl-priv.html)
+and [access-privilege inquiries](https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-ACCESS-TABLE).
+
 ## Acceptance is broader than build success
 
 Run the relevant [checks](../../docs/TESTING.md) against the actual candidate and target database.
