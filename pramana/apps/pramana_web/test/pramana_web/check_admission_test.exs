@@ -106,6 +106,23 @@ defmodule PramanaWeb.CheckAdmissionTest do
     assert eventually(fn -> CheckAdmission.stats(admission).active == 0 end)
   end
 
+  test "a pending permit disappears if its issuing admission process dies before activation" do
+    permit_supervisor = start_permit_supervisor()
+    issuer = spawn(fn -> Process.sleep(:infinity) end)
+
+    assert {:ok, permit} =
+             DynamicSupervisor.start_child(
+               permit_supervisor,
+               {CheckAdmission.Permit, {self(), issuer}}
+             )
+
+    permit_ref = Process.monitor(permit)
+    assert %{active: 1} = DynamicSupervisor.count_children(permit_supervisor)
+    Process.exit(issuer, :kill)
+    assert_receive {:DOWN, ^permit_ref, :process, ^permit, :normal}
+    assert %{active: 0} = DynamicSupervisor.count_children(permit_supervisor)
+  end
+
   test "loss of the permit supervisor stops admitted report work" do
     {admission, permit_supervisor} = start_admission_with_supervisor(1)
     parent = self()
@@ -126,19 +143,10 @@ defmodule PramanaWeb.CheckAdmissionTest do
   end
 
   test "unknown and invalid trusted admission configuration fails closed" do
-    assert_raise ArgumentError, fn ->
-      start_supervised!({CheckAdmission, name: unique_name(:unknown), unknown: true})
-    end
+    assert_raise ArgumentError, fn -> CheckAdmission.init(unknown: true) end
 
     for invalid <- [0, -1, 65, :infinity, nil, "4"] do
-      assert_raise ArgumentError, fn ->
-        start_supervised!(
-          {CheckAdmission,
-           name: unique_name({:invalid, invalid}),
-           permit_supervisor: unique_name({:unused, invalid}),
-           max_active: invalid}
-        )
-      end
+      assert_raise ArgumentError, fn -> CheckAdmission.init(max_active: invalid) end
     end
   end
 
@@ -148,15 +156,8 @@ defmodule PramanaWeb.CheckAdmissionTest do
   end
 
   defp start_admission_with_supervisor(max_active) do
-    permit_supervisor = unique_name(:permits)
+    permit_supervisor = start_permit_supervisor()
     admission = unique_name(:admission)
-
-    start_supervised!(
-      Supervisor.child_spec(
-        {DynamicSupervisor, strategy: :one_for_one, name: permit_supervisor},
-        id: make_ref()
-      )
-    )
 
     start_supervised!(
       Supervisor.child_spec(
@@ -167,6 +168,19 @@ defmodule PramanaWeb.CheckAdmissionTest do
     )
 
     {admission, permit_supervisor}
+  end
+
+  defp start_permit_supervisor do
+    permit_supervisor = unique_name(:permits)
+
+    start_supervised!(
+      Supervisor.child_spec(
+        {DynamicSupervisor, strategy: :one_for_one, name: permit_supervisor},
+        id: make_ref()
+      )
+    )
+
+    permit_supervisor
   end
 
   defp unique_name(tag), do: {:global, {__MODULE__, tag, make_ref()}}
