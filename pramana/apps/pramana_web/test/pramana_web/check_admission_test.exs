@@ -56,6 +56,40 @@ defmodule PramanaWeb.CheckAdmissionTest do
            ).execution == :completed
   end
 
+  test "concurrent acquisition never exceeds the configured live-permit count" do
+    admission = start_admission(3)
+    parent = self()
+
+    callers =
+      for n <- 1..24 do
+        spawn(fn ->
+          result = CheckAdmission.acquire(admission)
+          send(parent, {:acquired, n, result})
+
+          receive do
+            :release ->
+              case result do
+                {:ok, permit} -> CheckAdmission.release(permit)
+                _ -> :ok
+              end
+          end
+        end)
+      end
+
+    results =
+      for _ <- callers do
+        assert_receive {:acquired, n, result}, 2_000
+        {n, result}
+      end
+
+    admitted = for {n, {:ok, _permit}} <- results, do: n
+    assert length(admitted) == 3
+    assert CheckAdmission.stats(admission) == %{active: 3, max_active: 3}
+
+    Enum.each(callers, &send(&1, :release))
+    assert eventually(fn -> CheckAdmission.stats(admission).active == 0 end)
+  end
+
   test "admission-server restart preserves live reservations without linking the caller" do
     admission = start_admission(1)
     {:ok, permit} = CheckAdmission.acquire(admission)
