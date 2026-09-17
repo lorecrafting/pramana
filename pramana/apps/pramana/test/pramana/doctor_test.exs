@@ -75,25 +75,15 @@ defmodule Mix.Tasks.Pramana.DoctorTest do
       stats: %{"chars" => 12_345}
     })
 
-    release =
-      Repo.insert!(%Pramana.Corpus.Release{
-        release_id: "rel-1234567890abcdef",
-        source_bake_id: "bake-1234567890abcdef",
-        translation_set_id: "tset-1",
-        vector_set_id: "vset-1",
-        translations_count: 0,
-        vectors_count: 0,
-        embedding_models: [],
-        translators: [],
-        stamped_at: now
-      })
-
-    Repo.insert!(%Pramana.Release.Selection{id: 1, release_id: release.id, selected_at: now})
+    # Use the production stamp path rather than inventing coarse component ids. A hand-made
+    # "tset-1" / "vset-1" row is correctly legacy under release identity v2 and therefore
+    # cannot represent the current-state case this test is intended to exercise.
+    {:ok, release} = Pramana.Release.stamp()
 
     output = capture_io(fn -> Doctor.run([]) end)
 
     assert output =~ "release"
-    assert output =~ "rel-1234567890ab"
+    assert output =~ String.slice(release.release_id, 0, 16)
     assert output =~ "stamp still describes the corpus"
     assert output =~ "bake-1234567890a"
     assert output =~ "12345 (as recorded at bake time)"

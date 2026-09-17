@@ -44,11 +44,12 @@ A **bake identity** hashes source-input records, the pipeline version and bake c
 It does not freeze translation rows, vectors or retrieval defaults. The loader maintains
 one current set of source rows; it does not preserve independently queryable old bakes.
 
-The implemented release stamp adds counts and model/translator identities, not complete
-content hashes. Same-count edits can escape that identity. Read
-[identity and replay](../ARCHITECTURE.md#identity-and-replay) before treating a matching
-ID as proof of the state that answered. A proposed query-time candidate cache is not
-an implemented service merely because a tier or schema sketch names it.
+The version-2 release stamp hashes stable translation content/provenance and the actual
+stored vector bytes, so same-count rendering or embedding changes move the relevant
+component id. Read [identity and replay](../ARCHITECTURE.md#identity-and-replay) before
+treating a matching ID as an immutable replay guarantee: code/defaults and historical row
+snapshots remain outside the stamp. A proposed query-time candidate cache is not an
+implemented service merely because a tier or schema sketch names it.
 
 ### Two different checks, and the distinction between them
 

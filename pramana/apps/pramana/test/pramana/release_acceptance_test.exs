@@ -65,7 +65,7 @@ defmodule Pramana.ReleaseAcceptanceTest do
     %{repo: repo, schema: schema, opts: opts}
   end
 
-  test "drained legacy history survives an actual up/down/up lifecycle and A-B-A reselection", %{
+  test "legacy history upgrades to v2 without rewriting v1 rows and survives up/down/up", %{
     schema: schema,
     opts: opts
   } do
@@ -77,10 +77,27 @@ defmodule Pramana.ReleaseAcceptanceTest do
     # The last old writer completed before migration/backfill, as the runbook requires.
     assert :ok = Ecto.Migrator.up(Repo, @selection_version, SelectCurrentRelease, opts)
     assert Release.current() == b
-    assert Release.drift() == :current
+
+    assert Release.drift() == %{
+             identity_version: %{stamped: "v1/coarse", live: "v2"}
+           }
+
     Repo.delete!(bake_b)
-    assert {:ok, ^a} = Release.stamp()
-    assert Release.current() == a
+
+    assert %{
+             identity_version: %{stamped: "v1/coarse", live: "v2"},
+             source_bake_id: %{stamped: stamped_source, live: live_source}
+           } = Release.drift()
+
+    assert stamped_source == b.source_bake_id
+    assert live_source == a.source_bake_id
+    assert {:ok, a_v2} = Release.stamp()
+    refute a_v2.id == a.id
+    assert a_v2.source_bake_id == a.source_bake_id
+    assert String.starts_with?(a_v2.translation_set_id, "v2:")
+    assert String.starts_with?(a_v2.vector_set_id, "v2:")
+    assert Release.current() == a_v2
+    assert Repo.aggregate(ReleaseSchema, :count) == 3
 
     assert :ok = Ecto.Migrator.down(Repo, @selection_version, SelectCurrentRelease, opts)
 
@@ -89,15 +106,15 @@ defmodule Pramana.ReleaseAcceptanceTest do
 
     assert Repo.get!(ReleaseSchema, a.id) == a
     assert Repo.get!(ReleaseSchema, b.id) == b
-    assert Repo.one(from(r in ReleaseSchema, order_by: [desc: r.stamped_at], limit: 1)) == b
+    assert Repo.one(from(r in ReleaseSchema, order_by: [desc: r.stamped_at], limit: 1)) == a_v2
 
     assert :ok = Ecto.Migrator.up(Repo, @selection_version, SelectCurrentRelease, opts)
-    assert Release.current() == b
-    assert %{source_bake_id: %{stamped: _, live: _}} = Release.drift()
-    # This explicit selection is a reviewed action, not an automatic drift-hiding read.
-    assert {:ok, ^a} = Release.stamp()
-    assert Release.current() == a
-    assert Repo.aggregate(ReleaseSchema, :count) == 2
+    assert Release.current() == a_v2
+    assert Release.drift() == :current
+    # Explicit stamping is idempotent once the v2 content state is selected.
+    assert {:ok, ^a_v2} = Release.stamp()
+    assert Release.current() == a_v2
+    assert Repo.aggregate(ReleaseSchema, :count) == 3
   end
 
   test "empty history remains unstamped through up/down/up, and singleton/FK constraints execute",
@@ -257,11 +274,30 @@ defmodule Pramana.ReleaseAcceptanceTest do
     })
   end
 
-  # Model exactly the old writer's effect: an immutable history row, no selection write.
+  # Model the OLD writer independently of the current Release.ids/0 implementation.
+  # Calling current code here would make this fixture silently become v2 the day the
+  # identity algorithm changes, which defeats the migration test's entire purpose.
   defp legacy_stamp!(time) do
-    fields =
-      Map.merge(Release.ids(), %{translations_count: 0, vectors_count: 0, stamped_at: time})
+    source_bake_id = Pramana.Bake.current_id()
+    translation_set_id = "legacy-translations"
+    vector_set_id = "legacy-vectors"
 
-    Repo.insert!(struct!(ReleaseSchema, fields))
+    release_id =
+      ["legacy-release", source_bake_id, translation_set_id, vector_set_id]
+      |> Enum.map_join("|", &inspect/1)
+      |> then(&:crypto.hash(:sha256, &1))
+      |> Base.encode16(case: :lower)
+
+    Repo.insert!(%ReleaseSchema{
+      release_id: release_id,
+      source_bake_id: source_bake_id,
+      translation_set_id: translation_set_id,
+      vector_set_id: vector_set_id,
+      translations_count: 0,
+      vectors_count: 0,
+      embedding_models: [],
+      translators: [],
+      stamped_at: time
+    })
   end
 end
