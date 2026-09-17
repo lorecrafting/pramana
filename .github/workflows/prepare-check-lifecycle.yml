@@ -2,7 +2,7 @@ name: Prepare reader lifecycle candidate
 on:
   push:
     branches: [work/prep-check-lifecycle-2026-09-16]
-    paths: [.github/workflows/prepare-check-lifecycle.yml, .github/maintenance/check-lifecycle.patch.gz.b64]
+    paths: [.github/workflows/prepare-check-lifecycle.yml, .github/maintenance/check-lifecycle.patch.gz.b64, .github/maintenance/check-lifecycle-corrections.patch]
 permissions:
   contents: write
 concurrency:
@@ -44,6 +44,9 @@ jobs:
           patch = gzip.decompress(base64.b64decode(encoded))
           assert hashlib.sha256(patch).hexdigest() == '4fed5f674e6ff9f656554c74a3ee58055966ad5b4fa3889ec55eddf251c0f864'
           pathlib.Path(os.environ['EVIDENCE'], 'input.patch').write_bytes(patch)
+          correction = pathlib.Path('.github/maintenance/check-lifecycle-corrections.patch').read_bytes()
+          assert hashlib.sha256(correction).hexdigest() == '15956547a42ca8d7d644f72500e6cabf17c1e8a469b6de428eef6ef952f09ff9'
+          pathlib.Path(os.environ['EVIDENCE'], 'corrections.patch').write_bytes(correction)
           PY
           test "$(git rev-parse origin/main)" = "$BASE"
           test "$(git rev-parse origin/$TARGET)" = "$BASE"
@@ -90,6 +93,7 @@ jobs:
         run: |
           set -euo pipefail
           git apply --index "$EVIDENCE/input.patch"
+          git apply --index "$EVIDENCE/corrections.patch"
           cd pramana
           mix format
           mix format --check-formatted
@@ -99,6 +103,7 @@ jobs:
             echo "$app" >> "$EVIDENCE/candidate-callers.log"
             (cd "$app"; mix xref callers PramanaWeb.CheckLive --no-compile; mix xref callers PramanaWeb.CheckRun --no-compile) >> "$EVIDENCE/candidate-callers.log"
           done
+          git diff HEAD > "$EVIDENCE/formatted.patch"
       - name: Focused lifecycle and reader regressions
         shell: bash
         run: |
