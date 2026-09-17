@@ -273,8 +273,11 @@ No partial verification is advertised as a complete pass.
 
 This is a **per-page reader lifecycle**, not a global concurrency quota, general job
 framework or approval for anonymous public hosting. Other pages/sessions can still issue
-queries. MCP `verify_report` and direct domain calls are unchanged and do not acquire this
-page's execution budget. Public exposure still needs admission/transport policy.
+queries. Direct domain calls do not acquire this page's execution budget. MCP
+`verify_report` now uses the same coordinator with its own shorter component budget;
+[MCP execution](MCP.md#report-execution-budget) owns that wire contract and its limits.
+The reader's 60-second policy and visible lifecycle remain unchanged. Public exposure
+still needs admission/transport policy.
 
 **Rollout and rollback:** deploy the normal application revision and reconnect reader
 sessions. In-flight checks are transient and are not resumed across a restart/disconnect.
