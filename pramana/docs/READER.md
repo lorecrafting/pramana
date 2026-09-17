@@ -249,9 +249,16 @@ verification/repair callbacks. The existing decoded-report limit (200,000 UTF-8 
 The endpoint already sets a 512,000-byte WebSocket frame cap. That is not a decoded input
 limit and is not proof that long-polling or every transport/resource concern is solved.
 
+Before its worker starts, `/check` also acquires one permit from the same node-local
+report-check pool used by MCP `verify_report`. The default is four active report checks on
+one BEAM node; trusted `PramanaWeb.CheckAdmission` configuration may set 1 through 64.
+A full pool does not queue another check. The reader shows **capacity full**, keeps the
+submitted report available for an explicit retry, and produces no evidence verdict.
+
 | Lifecycle outcome | What the reader can conclude |
 |---|---|
 | Checking | No verification verdict yet. |
+| Capacity full | Verification did not start. Nothing was checked; retry when capacity is available. |
 | Verification finished; repairing | The whole verification result is available; suggested repair is still running. |
 | Cancelled or timed out before verification finished | No verification verdict was produced. This is neither a pass nor a refutation. |
 | Repair cancelled, timed out or failed | The completed verification result remains unchanged; no partial repair is published. |
@@ -271,19 +278,21 @@ execution status is separate: a genuine failed verification stays failed if repa
 out, and a completed verified result is not rewritten because optional repair failed.
 No partial verification is advertised as a complete pass.
 
-This is a **per-page reader lifecycle**, not a global concurrency quota, general job
-framework or approval for anonymous public hosting. Other pages/sessions can still issue
-queries. Direct domain calls do not acquire this page's execution budget. MCP
-`verify_report` now uses the same coordinator with its own shorter component budget;
-[MCP execution](MCP.md#report-execution-budget) owns that wire contract and its limits.
-The reader's 60-second policy and visible lifecycle remain unchanged. Public exposure
-still needs admission/transport policy.
+The per-page lifecycle now sits behind a **shared node-local report-check quota**. Other
+reader pages and MCP `verify_report` calls compete for the same permits on that node, but
+other MCP/search tools, direct domain calls and independent BEAM nodes are outside this
+quota. This is not a distributed/global job framework or approval for anonymous public
+hosting. [MCP report-check admission and execution](MCP.md#report-check-admission-and-execution)
+owns the MCP wire contract; [report-check admission](REPORT_CHECK_ADMISSION.md) owns the
+permit/recovery details. Broader public exposure still needs transport and hosting policy.
 
 **Rollout and rollback:** deploy the normal application revision and reconnect reader
 sessions. In-flight checks are transient and are not resumed across a restart/disconnect.
 There are no new database rows, migrations or stored job formats; code rollback requires
-no data conversion, but restores the previous synchronous reader behavior. Neither this
-change nor rollback stamps/selects a release or restores historical corpus contents.
+no data conversion. Rolling back only the admission change removes the shared node-local
+quota and returns to the existing per-page/per-call deadline protections; it does not
+change report evidence semantics, stamp/select a release or restore historical corpus
+contents.
 
 ### `/check` also reads other people's citations, and offers repairs
 

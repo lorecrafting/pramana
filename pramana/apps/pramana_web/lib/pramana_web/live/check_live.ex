@@ -42,9 +42,10 @@ defmodule PramanaWeb.CheckLive do
 
   Verification and repair run outside the LiveView callback under one finite budget.
   `CheckRun` stops and observes its worker before this page accepts another check.
-  Cancellation, timeout and execution errors are lifecycle outcomes, not findings
-  that a claim is false. A completed verification survives a later repair failure.
-  This per-page bound is not admission control for unrestricted public hosting.
+  Cancellation, timeout, capacity refusal and execution errors are lifecycle outcomes,
+  not findings that a claim is false. A completed verification survives a later repair
+  failure. The shared node-local report capacity is not unrestricted-public-hosting
+  admission control.
 
   ## Counting, with the denominator
 
@@ -293,6 +294,9 @@ defmodule PramanaWeb.CheckLive do
   defp execution_message(:repairing, _), do: "Verification finished; preparing suggested repairs…"
   defp execution_message(:cancelling, _), do: "Stopping remaining work…"
   defp execution_message(:completed, _), do: "Check finished. Inspect the evidence verdict below."
+
+  defp execution_message(:busy, nil),
+    do: "Report-check capacity is busy. Verification did not start and no verdict was produced."
 
   defp execution_message(:cancelled, nil),
     do: "Check cancelled before verification finished. No verdict was produced."

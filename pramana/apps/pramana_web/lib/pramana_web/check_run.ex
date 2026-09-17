@@ -7,6 +7,12 @@ defmodule PramanaWeb.CheckRun do
   monotonic deadline and react to cancellation or owner death. It observes worker
   termination before returning, so a finished invocation cannot retain its report worker.
 
+  Before a worker is created, the coordinator acquires one node-local permit from
+  `PramanaWeb.CheckAdmission`. Reader pages and MCP report checks therefore share the
+  same finite capacity. Capacity refusal is an execution outcome, not an evidence verdict.
+  The coordinator also monitors its permit: loss of the permit infrastructure stops the
+  owned worker instead of allowing unaccounted execution to continue.
+
   This is not a durable job or a new evidence verdict. A completed verification is
   retained if subsequent repair fails. Killing the BEAM worker does not promise to
   recall work already dispatched to Postgres, a serving process or native code.
@@ -14,6 +20,7 @@ defmodule PramanaWeb.CheckRun do
 
   alias Pramana.Repair
   alias Pramana.Report
+  alias PramanaWeb.CheckAdmission
   alias PramanaWeb.MCP.ReplayExecutor
 
   # A reader resource policy, not a measured retrieval-quality threshold. Trusted
@@ -21,7 +28,7 @@ defmodule PramanaWeb.CheckRun do
   @max_timeout_ms 60_000
 
   @type outcome :: %{
-          execution: :completed | :cancelled | :timed_out | :error,
+          execution: :completed | :cancelled | :timed_out | :busy | :error,
           result: map() | nil,
           repair: map() | nil
         }
@@ -29,7 +36,7 @@ defmodule PramanaWeb.CheckRun do
   @doc "The finite page budget; invalid server configuration fails explicitly."
   @spec timeout_ms(keyword()) :: pos_integer()
   def timeout_ms(opts \\ []) do
-    opts = Keyword.validate!(opts, [:timeout_ms, :verify, :repair])
+    opts = Keyword.validate!(opts, [:timeout_ms, :verify, :repair, :admission])
     timeout = Keyword.get(opts, :timeout_ms, @max_timeout_ms)
 
     unless is_integer(timeout) and timeout > 0 and timeout <= @max_timeout_ms,
@@ -49,7 +56,22 @@ defmodule PramanaWeb.CheckRun do
   @spec run(pid(), reference() | nil, String.t(), integer(), keyword()) :: outcome()
   def run(owner, id, markdown, deadline, opts \\ []) do
     previous = Process.flag(:trap_exit, true)
+    admission = Keyword.get(opts, :admission, CheckAdmission)
+
+    try do
+      case CheckAdmission.acquire(admission) do
+        {:ok, permit} -> run_admitted(owner, id, markdown, deadline, opts, permit)
+        {:error, :busy} -> empty_outcome(:busy)
+        {:error, :unavailable} -> empty_outcome(:error)
+      end
+    after
+      Process.flag(:trap_exit, previous)
+    end
+  end
+
+  defp run_admitted(owner, id, markdown, deadline, opts, permit) do
     owner_ref = Process.monitor(owner)
+    permit_ref = Process.monitor(permit.pid)
     coordinator = self()
     verify = Keyword.get(opts, :verify, &verify/1)
     repair = Keyword.get(opts, :repair, &Repair.repair/1)
@@ -60,6 +82,8 @@ defmodule PramanaWeb.CheckRun do
       await(%{
         owner: owner,
         owner_ref: owner_ref,
+        permit: permit,
+        permit_ref: permit_ref,
         id: id,
         task: task,
         deadline: deadline,
@@ -71,7 +95,8 @@ defmodule PramanaWeb.CheckRun do
       Task.shutdown(task, :brutal_kill)
       flush_worker_messages(task.pid)
       Process.demonitor(owner_ref, [:flush])
-      Process.flag(:trap_exit, previous)
+      Process.demonitor(permit_ref, [:flush])
+      CheckAdmission.release(permit)
     end
   end
 
@@ -115,7 +140,13 @@ defmodule PramanaWeb.CheckRun do
   end
 
   defp receive_result(
-         %{task: %{ref: ref, pid: worker}, owner: owner, owner_ref: owner_ref} = state
+         %{
+           task: %{ref: ref, pid: worker},
+           owner: owner,
+           owner_ref: owner_ref,
+           permit: %{pid: permit_pid},
+           permit_ref: permit_ref
+         } = state
        ) do
     receive do
       {:verification, ^worker, result} ->
@@ -143,6 +174,9 @@ defmodule PramanaWeb.CheckRun do
 
       {:DOWN, ^owner_ref, :process, ^owner, _reason} ->
         outcome(state, :cancelled)
+
+      {:DOWN, ^permit_ref, :process, ^permit_pid, _reason} ->
+        outcome(state, :error)
 
       {:EXIT, ^worker, _reason} ->
         # Task reply/DOWN is authoritative; linked EXIT is not a second result.
@@ -172,4 +206,5 @@ defmodule PramanaWeb.CheckRun do
 
   defp remaining(deadline), do: deadline - System.monotonic_time(:millisecond)
   defp outcome(state, execution), do: %{execution: execution, result: state.result, repair: nil}
+  defp empty_outcome(execution), do: %{execution: execution, result: nil, repair: nil}
 end
