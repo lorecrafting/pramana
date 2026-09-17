@@ -101,4 +101,32 @@ defmodule Repository.LayoutTest do
     assert foundry =~ "working-directory: foundry"
     assert foundry =~ "elixir ci/run.exs"
   end
+
+  test "heavy CI is path-scoped and reusable caches do not replace exact candidate builds" do
+    ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
+    container = File.read!(Path.join(@root, ".github/workflows/pramana-container.yml"))
+    postgres = File.read!(Path.join(@project, "ci/postgres.Dockerfile"))
+
+    assert ci =~ ~s(- "pramana/**")
+    assert ci =~ ~s(- "!pramana/docs/**")
+    assert ci =~ ~s(- "test/**")
+    assert ci =~ ~s(- "bin/**")
+    refute ci =~ "services:\n      postgres:"
+    refute ci =~ "Install pg_bigm"
+    assert ci =~ "pramana/ci/postgres.Dockerfile"
+    assert ci =~ "cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm"
+    assert ci =~ "mix compile --force --warnings-as-errors"
+    assert ci =~ "mix test"
+    assert ci =~ "mix release --overwrite"
+
+    refute container =~ ~s(- "pramana/**")
+    assert container =~ ~s(- "pramana/apps/**")
+    assert container =~ ~s(- "pramana/ci/**")
+    assert container =~ "cache-from: type=gha,scope=pramana-runtime-image"
+    assert container =~ "load: true"
+    assert container =~ "release_smoke.py"
+
+    assert postgres =~ "735dceba0ecdd8ac1aaaaa207226a7102b6bbd71"
+    assert postgres =~ "COPY --from=builder"
+  end
 end

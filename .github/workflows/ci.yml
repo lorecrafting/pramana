@@ -23,7 +23,21 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - "pramana/**"
+      - "!pramana/docs/**"
+      - "test/**"
+      - "bin/**"
+      - "mise.toml"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "pramana/**"
+      - "!pramana/docs/**"
+      - "test/**"
+      - "bin/**"
+      - "mise.toml"
+      - ".github/workflows/ci.yml"
 
 permissions:
   contents: read
@@ -43,23 +57,6 @@ jobs:
       run:
         working-directory: pramana
 
-    services:
-      postgres:
-        # pgvector's own image, because the alternative is building the extension inside a
-        # service container, which cannot be done from a workflow step. pg_bigm is
-        # installed into it below.
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-
     env:
       # Matches config/test.exs. Stated here rather than assumed, so a change to either
       # fails loudly instead of connecting to the wrong database.
@@ -70,6 +67,27 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Buildx for the cached PostgreSQL fixture image
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build cached PostgreSQL + pg_bigm fixture image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: pramana/ci
+          file: pramana/ci/postgres.Dockerfile
+          load: true
+          tags: pramana-postgres-ci:${{ github.sha }}
+          cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm
+          cache-to: type=gha,mode=max,scope=pramana-postgres-pg18-pgbigm,ignore-error=true
+
+      - name: Start PostgreSQL fixture
+        run: |
+          docker run --detach --name pramana-postgres-ci \
+            --publish 5432:5432 \
+            --env POSTGRES_PASSWORD=postgres \
+            --env POSTGRES_USER=postgres \
+            pramana-postgres-ci:"$GITHUB_SHA"
 
       # EXACT versions, from mise.toml. The toolchain is pinned for the same reason the
       # corpus is: a build that cannot be reproduced is not a build. If these drift from
@@ -88,18 +106,16 @@ jobs:
       # separate toolchain decision, not a hidden change in this path migration.
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install pg_bigm
-        # NOT pg_trgm, which ships with Postgres. `pg_bigm` indexes BIGRAMS, and the
-        # two-character queries that dominate Classical Chinese cannot use a trigram index
-        # at all — see docs/ELIXIR.md. The migration creates the extension, so it has to
-        # exist in the server first.
+      - name: Wait for PostgreSQL fixture
         run: |
-          docker exec $(docker ps --filter "ancestor=pgvector/pgvector:pg18" --format "{{.ID}}") \
-            bash -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-              build-essential postgresql-server-dev-18 wget ca-certificates && \
-              wget -q https://github.com/pgbigm/pg_bigm/archive/refs/tags/v1.2-20250903.tar.gz && \
-              tar zxf v1.2-20250903.tar.gz && cd pg_bigm-1.2-20250903 && \
-              make USE_PGXS=1 with_llvm=no && make USE_PGXS=1 with_llvm=no install"
+          for attempt in {1..60}; do
+            if docker exec pramana-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs pramana-postgres-ci >&2
+          exit 1
 
       - name: Restore deps and build
         uses: actions/cache@v4
@@ -297,3 +313,7 @@ jobs:
           mix deps.get --only prod
           mix assets.deploy
           mix release --overwrite
+
+      - name: Stop PostgreSQL fixture
+        if: always()
+        run: docker rm --force pramana-postgres-ci >/dev/null 2>&1 || true
