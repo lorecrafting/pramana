@@ -9,7 +9,14 @@ defmodule PramanaFoundry.Assessor.Evaluator do
 
   @observed_fields ~w(input_tokens assessor_calls latency_ms operator_effort_ms rework_events)
   @arms ~w(baseline assessor)
-  @case_keys ~w(case_id candidate_manifest_digest baseline_order assessor_order relevant_ids observed)
+  @case_keys [
+    "case_id",
+    "candidate_manifest_digest",
+    "baseline_order",
+    "assessor_order",
+    "relevant_ids",
+    "observed"
+  ]
   @max_cases 1_000
   @max_candidates 24
   @max_id_bytes 128
