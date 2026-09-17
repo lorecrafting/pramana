@@ -31,7 +31,7 @@ defmodule PramanaWeb.CheckAdmission do
     @activation_timeout_ms 5_000
 
     @doc false
-    def child_spec({owner, issuer} = args) do
+    def child_spec({_owner, _issuer} = args) do
       %{
         id: __MODULE__,
         start: {__MODULE__, :start_link, [args]},
@@ -144,7 +144,7 @@ defmodule PramanaWeb.CheckAdmission do
     try do
       case DynamicSupervisor.terminate_child(supervisor, pid) do
         :ok -> :ok
-        {:error, :not_found} -> :ok
+        {:error, _reason} -> :ok
       end
     catch
       :exit, _ -> :ok
