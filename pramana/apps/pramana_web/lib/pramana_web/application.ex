@@ -7,10 +7,17 @@ defmodule PramanaWeb.Application do
 
   @impl true
   def start(_type, _args) do
+    permit_supervisor =
+      Supervisor.child_spec(
+        {DynamicSupervisor,
+         strategy: :one_for_one, name: PramanaWeb.CheckAdmission.PermitSupervisor},
+        id: PramanaWeb.CheckAdmission.PermitSupervisor,
+        restart: :temporary
+      )
+
     children = [
       PramanaWeb.Telemetry,
-      {DynamicSupervisor,
-       strategy: :one_for_one, name: PramanaWeb.CheckAdmission.PermitSupervisor},
+      permit_supervisor,
       PramanaWeb.CheckAdmission,
       # Start a worker by calling: PramanaWeb.Worker.start_link(arg)
       # {PramanaWeb.Worker, arg},
