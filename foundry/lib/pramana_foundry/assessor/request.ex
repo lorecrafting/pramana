@@ -129,7 +129,7 @@ defmodule PramanaFoundry.Assessor.Request do
   @spec digest_term(term()) :: String.t()
   def digest_term(term) do
     bytes = :erlang.term_to_binary(term, [:deterministic])
-    :sha256 |> :crypto.hash(bytes) |> Base.encode16(case: :lower)
+    :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
   end
 
   defp candidates(value) when is_list(value) and length(value) <= @max_candidates do
