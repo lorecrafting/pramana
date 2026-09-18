@@ -105,6 +105,7 @@ defmodule Pramana.PilotParticipants do
     required_disclosures
     required_consents
     optional_consents
+    conditional_consents
     consent_receipt
     prohibited_collection
     study_record
@@ -112,12 +113,14 @@ defmodule Pramana.PilotParticipants do
     sensitive_content
     retention
     purpose_boundaries
+    access_control
     evidence_export
     evaluator_separation
     task_denominator
     withdrawal
     public_sharing
     incident_response
+    protocol_change
     regulatory_boundary
   )
 
@@ -142,6 +145,7 @@ defmodule Pramana.PilotParticipants do
       |> check_exact("required_disclosures", manifest["required_disclosures"], @required_disclosures)
       |> check_exact("required_consents", manifest["required_consents"], @required_consents)
       |> check_optional_consents(manifest["optional_consents"])
+      |> check_conditional_consents(manifest["conditional_consents"])
       |> check_consent_receipt(manifest["consent_receipt"])
       |> check_exact("prohibited_collection", manifest["prohibited_collection"], @prohibited_collection)
       |> check_study_record(manifest["study_record"])
@@ -149,12 +153,14 @@ defmodule Pramana.PilotParticipants do
       |> check_sensitive_content(manifest["sensitive_content"])
       |> check_retention(manifest["retention"])
       |> check_purpose_boundaries(manifest["purpose_boundaries"])
+      |> check_access_control(manifest["access_control"])
       |> check_evidence_export(manifest["evidence_export"])
       |> check_evaluator_separation(manifest["evaluator_separation"])
       |> check_task_denominator(manifest["task_denominator"])
       |> check_withdrawal(manifest["withdrawal"])
       |> check_public_sharing(manifest["public_sharing"])
       |> check_incident_response(manifest["incident_response"])
+      |> check_protocol_change(manifest["protocol_change"])
       |> check_regulatory_boundary(manifest["regulatory_boundary"])
       |> check_document(root)
       |> check_preflight_alignment(root)
@@ -232,6 +238,22 @@ defmodule Pramana.PilotParticipants do
 
   defp check_optional_consents(errors, _), do: ["optional_consents must be an object" | errors]
 
+  defp check_conditional_consents(errors, value) when is_map(value) do
+    route = value["external_provider_question_transfer"] || %{}
+
+    errors
+    |> add_if(
+      route["required_when"] != "external_provider_receives_participant_question_or_task_content",
+      "external participant-question transfer trigger changed"
+    )
+    |> require_false(route, "default")
+    |> require_true(route, "must_name_provider_or_product_route")
+    |> require_true(route, "must_disclose_retention_training_human_review_and_deletion_terms")
+  end
+
+  defp check_conditional_consents(errors, _),
+    do: ["conditional_consents must be an object" | errors]
+
   defp check_consent_receipt(errors, value) when is_map(value) do
     errors
     |> check_exact(
@@ -298,6 +320,7 @@ defmodule Pramana.PilotParticipants do
       "current alternative free-text cap must be 500 characters"
     )
     |> require_true(value, "credentials_or_account_details_forbidden")
+    |> require_true(value, "none_is_mutually_exclusive")
   end
 
   defp check_current_alternative(errors, _),
@@ -351,6 +374,9 @@ defmodule Pramana.PilotParticipants do
     |> require_false(value, "pseudonymous_individual_metadata_after_deadline")
     |> require_true(value, "aggregate_non_reconstructive_metrics_may_remain")
     |> require_true(value, "public_example_content_requires_optional_consent")
+    |> require_true(value, "delete_from_ordinary_application_logs")
+    |> require_true(value, "delete_from_request_logs_under_project_control")
+    |> require_true(value, "delete_from_restorable_working_copies")
   end
 
   defp check_retention(errors, _), do: ["retention must be an object" | errors]
@@ -363,10 +389,29 @@ defmodule Pramana.PilotParticipants do
     |> require_true(value, "study_record_not_foundry_memory")
     |> require_true(value, "evaluator_record_not_participant_identity_record")
     |> require_true(value, "no_secondary_use_without_new_consent")
+    |> require_true(value, "full_question_not_in_operational_logs")
+    |> require_true(value, "generated_answer_not_in_operational_logs")
+    |> require_true(value, "prompt_payload_not_in_operational_logs")
+    |> require_true(value, "provider_side_logging_separately_reviewed")
   end
 
   defp check_purpose_boundaries(errors, _),
     do: ["purpose_boundaries must be an object" | errors]
+
+  defp check_access_control(errors, value) when is_map(value) do
+    errors
+    |> check_exact(
+      "access_control.study_record_access_roles",
+      value["study_record_access_roles"],
+      ["operator", "assigned_evaluator"]
+    )
+    |> require_true(value, "least_privilege_required")
+    |> require_false(value, "public_or_general_analytics_access")
+    |> require_true(value, "evaluator_notes_direct_identity_forbidden")
+    |> require_true(value, "contact_roster_access_separate")
+  end
+
+  defp check_access_control(errors, _), do: ["access_control must be an object" | errors]
 
   defp check_evidence_export(errors, value) when is_map(value) do
     errors
@@ -416,6 +461,8 @@ defmodule Pramana.PilotParticipants do
     |> require_true(value, "participant_exclusion_may_be_initiated_by_participant")
     |> require_true(value, "operator_or_evaluator_may_not_prompt_exclusion_based_on_outcome")
     |> require_true(value, "all_exclusions_counted_and_reported")
+    |> require_true(value, "scope_support_adjudication_blinded_to_system_output_where_feasible")
+    |> require_true(value, "scope_support_adjudication_records_blinding_status")
     |> add_if(value["minimum_eligible_tasks_after_exclusions"] != 24, "eligible-task floor must be 24")
     |> add_if(
       value["minimum_eligible_tasks_per_stratum_after_exclusions"] != 6,
@@ -446,6 +493,8 @@ defmodule Pramana.PilotParticipants do
     |> require_true(value, "recompute_predecision_aggregates")
     |> require_true(value, "previously_published_or_merged_non_reconstructive_aggregate_record_may_remain")
     |> require_true(value, "no_new_public_example_use_after_withdrawal")
+    |> require_true(value, "post_decision_individual_deletion_request_allowed_while_records_exist")
+    |> require_false(value, "post_decision_deletion_recomputes_recorded_aggregate_decision")
   end
 
   defp check_withdrawal(errors, _), do: ["withdrawal must be an object" | errors]
@@ -457,6 +506,12 @@ defmodule Pramana.PilotParticipants do
     |> require_true(value, "small_cohort_reidentification_review_required")
     |> require_true(value, "individual_question_answer_or_feedback_requires_optional_consent")
     |> require_true(value, "source_text_still_subject_to_source_rights")
+    |> add_if(
+      value["public_aggregate_min_distinct_participants_per_cell"] != 3,
+      "public aggregate cell minimum must be three distinct participants"
+    )
+    |> require_true(value, "cells_below_minimum_suppressed_or_merged")
+    |> require_true(value, "exact_question_or_date_never_treated_as_aggregate")
   end
 
   defp check_public_sharing(errors, _), do: ["public_sharing must be an object" | errors]
@@ -495,6 +550,25 @@ defmodule Pramana.PilotParticipants do
 
   defp check_incident_response(errors, _),
     do: ["incident_response must be an object" | errors]
+
+  defp check_protocol_change(errors, value) when is_map(value) do
+    errors
+    |> check_exact(
+      "protocol_change.material_changes_requiring_reconsent",
+      value["material_changes_requiring_reconsent"],
+      [
+        "collection_fields",
+        "external_transfer",
+        "retention_or_deletion",
+        "purpose_or_secondary_use",
+        "public_sharing",
+        "identity_linkage"
+      ]
+    )
+    |> require_true(value, "reconsent_required_before_next_measured_task")
+  end
+
+  defp check_protocol_change(errors, _), do: ["protocol_change must be an object" | errors]
 
   defp check_regulatory_boundary(errors, value) when is_map(value) do
     errors
