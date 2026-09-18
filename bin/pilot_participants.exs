@@ -17,6 +17,7 @@ defmodule Pramana.PilotParticipants do
     evidence_export_is_user_controlled
     public_example_sharing_requires_separate_optional_consent
     no_penalty_for_skipping_or_withdrawing
+    repeat_use_signal_is_unprompted
   )
 
   @required_consents ~w(
@@ -24,7 +25,6 @@ defmodule Pramana.PilotParticipants do
     retain_full_task_record_for_evaluation
     qualified_evaluator_review_of_task_record
     current_alternative_intake
-    fourteen_day_followup_contact
   )
 
   @prohibited_collection ~w(
@@ -101,9 +101,11 @@ defmodule Pramana.PilotParticipants do
     status
     collection_mode
     identifiers
+    eligibility
     required_disclosures
     required_consents
     optional_consents
+    consent_receipt
     prohibited_collection
     study_record
     current_alternative
@@ -116,6 +118,7 @@ defmodule Pramana.PilotParticipants do
     withdrawal
     public_sharing
     incident_response
+    regulatory_boundary
   )
 
   @spec load_manifest!(String.t()) :: map()
@@ -135,9 +138,11 @@ defmodule Pramana.PilotParticipants do
       []
       |> check_top_level(manifest)
       |> check_identifiers(manifest["identifiers"])
+      |> check_eligibility(manifest["eligibility"])
       |> check_exact("required_disclosures", manifest["required_disclosures"], @required_disclosures)
       |> check_exact("required_consents", manifest["required_consents"], @required_consents)
       |> check_optional_consents(manifest["optional_consents"])
+      |> check_consent_receipt(manifest["consent_receipt"])
       |> check_exact("prohibited_collection", manifest["prohibited_collection"], @prohibited_collection)
       |> check_study_record(manifest["study_record"])
       |> check_current_alternative(manifest["current_alternative"])
@@ -150,6 +155,7 @@ defmodule Pramana.PilotParticipants do
       |> check_withdrawal(manifest["withdrawal"])
       |> check_public_sharing(manifest["public_sharing"])
       |> check_incident_response(manifest["incident_response"])
+      |> check_regulatory_boundary(manifest["regulatory_boundary"])
       |> check_document(root)
       |> check_preflight_alignment(root)
 
@@ -195,6 +201,11 @@ defmodule Pramana.PilotParticipants do
     |> add_if(ids["participant_id"] != "random_pseudonymous_id", "participant_id policy changed")
     |> add_if(ids["task_id"] != "random_id", "task_id policy changed")
     |> add_if(ids["evaluator_id"] != "random_pseudonymous_id", "evaluator_id policy changed")
+    |> add_if(
+      ids["consent_receipt_id"] != "random_pseudonymous_id",
+      "consent_receipt_id policy changed"
+    )
+    |> require_false(ids, "consent_receipt_contains_direct_identity")
     |> require_false(ids, "direct_identity_in_study_dataset")
     |> require_false(ids, "account_credentials_collected")
     |> require_false(ids, "cross_dataset_reidentification_key_in_study_dataset")
@@ -202,13 +213,45 @@ defmodule Pramana.PilotParticipants do
 
   defp check_identifiers(errors, _), do: ["identifiers must be an object" | errors]
 
+  defp check_eligibility(errors, value) when is_map(value) do
+    errors
+    |> add_if(value["minimum_age"] != 18, "pilot v1 minimum age must remain 18")
+    |> require_true(value, "age_attestation_only")
+    |> require_false(value, "date_of_birth_collected")
+    |> require_false(value, "minors_in_pilot_v1")
+  end
+
+  defp check_eligibility(errors, _), do: ["eligibility must be an object" | errors]
+
   defp check_optional_consents(errors, consents) when is_map(consents) do
     errors
     |> require_false(consents, "public_anonymized_example_sharing")
     |> require_false(consents, "quote_participant_feedback_publicly")
+    |> require_false(consents, "followup_logistics_contact")
   end
 
   defp check_optional_consents(errors, _), do: ["optional_consents must be an object" | errors]
+
+  defp check_consent_receipt(errors, value) when is_map(value) do
+    errors
+    |> check_exact(
+      "consent_receipt.required_fields",
+      value["required_fields"],
+      [
+        "consent_receipt_id",
+        "participant_id",
+        "protocol_revision",
+        "consented_at",
+        "required_consent_values",
+        "optional_consent_values",
+        "age_18_or_older_attestation"
+      ]
+    )
+    |> require_false(value, "direct_identity_fields_allowed")
+    |> require_true(value, "contact_or_identity_roster_separate")
+  end
+
+  defp check_consent_receipt(errors, _), do: ["consent_receipt must be an object" | errors]
 
   defp check_study_record(errors, record) when is_map(record) do
     errors
@@ -299,6 +342,10 @@ defmodule Pramana.PilotParticipants do
       value["followup_contact_delete_days_after_observation_window_max"] != 7,
       "follow-up contact deletion cap must be 7 days"
     )
+    |> add_if(
+      value["followup_contact_purpose"] != "logistics_only_not_repeat_use_prompting",
+      "follow-up contact purpose must remain logistics-only and unprompted"
+    )
     |> add_if(value["withdrawal_delete_days_max"] != 7, "withdrawal deletion cap must be 7 days")
     |> require_false(value, "per_task_content_after_deadline")
     |> require_false(value, "pseudonymous_individual_metadata_after_deadline")
@@ -366,6 +413,9 @@ defmodule Pramana.PilotParticipants do
     |> require_true(value, "timeout_or_technical_failure_counts_as_failure")
     |> require_true(value, "abandonment_after_start_counts_as_failure")
     |> require_true(value, "exclusions_reported_separately")
+    |> require_true(value, "participant_exclusion_may_be_initiated_by_participant")
+    |> require_true(value, "operator_or_evaluator_may_not_prompt_exclusion_based_on_outcome")
+    |> require_true(value, "all_exclusions_counted_and_reported")
     |> add_if(value["minimum_eligible_tasks_after_exclusions"] != 24, "eligible-task floor must be 24")
     |> add_if(
       value["minimum_eligible_tasks_per_stratum_after_exclusions"] != 6,
@@ -445,6 +495,16 @@ defmodule Pramana.PilotParticipants do
 
   defp check_incident_response(errors, _),
     do: ["incident_response must be an object" | errors]
+
+  defp check_regulatory_boundary(errors, value) when is_map(value) do
+    errors
+    |> require_true(value, "protocol_is_not_irb_or_regulatory_determination")
+    |> require_true(value, "institution_must_obtain_applicable_review_or_approval")
+    |> require_true(value, "this_protocol_authorizes_no_compensation_or_recruitment_spend")
+  end
+
+  defp check_regulatory_boundary(errors, _),
+    do: ["regulatory_boundary must be an object" | errors]
 
   defp check_document(errors, root) do
     path = Path.join(root, "docs/strategy/PILOT_PARTICIPANTS.md")
