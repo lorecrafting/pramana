@@ -28,8 +28,7 @@ defmodule Pramana.PilotAcceptance.CLI do
     do: {:ok, Path.expand(path)}
 
   defp parse(_args, _default) do
-    {:error,
-     "usage: elixir bin/check_pilot_acceptance.exs --validate [--manifest PATH]"}
+    {:error, "usage: elixir bin/check_pilot_acceptance.exs --validate [--manifest PATH]"}
   end
 
   defp report(manifest, root) do
