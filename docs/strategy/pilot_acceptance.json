@@ -1,0 +1,162 @@
+{
+  "schema": "pramana-pilot-acceptance/v1",
+  "pilot_id": "chinese-commentary-v1",
+  "contract_revision": 1,
+  "status": "frozen_pre_execution",
+  "execution_bounds": {
+    "concepts_max": 3,
+    "deterministic_candidates_planned_max": 12,
+    "deterministic_candidates_retrieval_active_max": 8,
+    "related_candidates_retrieval_active_max": 3,
+    "model_proposed_candidates_max": 4,
+    "model_query_proposal_calls_max": 1,
+    "lexical_results_per_query_max": 20,
+    "semantic_results_per_query_max": 20,
+    "lexical_candidate_depth_max": 60,
+    "semantic_candidate_depth_max": 120,
+    "original_english_multilingual_queries_max": 1,
+    "existing_english_index_queries_max": 1,
+    "fused_results_max": 20,
+    "relation_hops_max": 2,
+    "related_works_per_task_max": 8,
+    "synthesis_source_passages_max": 8,
+    "translated_unique_passages_max": 6,
+    "source_characters_per_translation_max": 1200,
+    "source_characters_translated_per_task_max": 6000,
+    "source_utf8_bytes_per_translation_max": 4800,
+    "source_utf8_bytes_translated_per_task_max": 24000,
+    "glossary_pins_per_translation_max": 12,
+    "model_calls_total_max": 8,
+    "model_calls_translation_max": 6,
+    "model_calls_synthesis_max": 1,
+    "automatic_retries_max": 0,
+    "model_call_timeout_seconds": 60,
+    "automated_task_timeout_seconds": 300,
+    "cash_spend_usd_max": 0,
+    "chinese_lexical_query_executions_max": 12,
+    "chinese_semantic_query_executions_max": 12,
+    "retrieval_executions_total_max": 26,
+    "weak_expansion_fusion_contributions_per_passage_max": 1,
+    "glossary_utf8_bytes_per_translation_max": 4000,
+    "glossary_utf8_bytes_per_task_max": 12000
+  },
+  "execution_rules": {
+    "duplicate_source_hash_translation": "reuse_existing_result_or_refuse; never issue another translation call inside the same task attempt",
+    "candidate_deduplication": "normalized identical retrieval queries execute once",
+    "overflow": "stop the affected stage and report bound_exceeded; never truncate silently into a success claim",
+    "retry": "no automatic retry; an explicit later retry is a new attempt with its own receipt and bounds",
+    "provider_tokens": "record tokenizer-specific input/output token counts when a provider/model is eventually authorized; the UTF-8 source-byte caps remain authoritative",
+    "provider_authority": "this contract authorizes no provider/model/spend route",
+    "external_provider_calls_authorized": false,
+    "external_provider_capacity_authorized": false,
+    "weak_expansion_fusion": "related and model_proposed candidates share one weak contribution bucket per passage; multiplicity cannot accumulate evidence strength"
+  },
+  "evaluation": {
+    "retrieval_ranks": [
+      1,
+      5,
+      10
+    ],
+    "retrieval_primary_metric": "evaluator-approved evidence recall_at_10",
+    "retrieval_required_breakdowns": [
+      "arm",
+      "fused",
+      "task_class",
+      "text_role",
+      "supported_vs_out_of_scope"
+    ],
+    "query_expansion_classes": [
+      "explicit_equivalent",
+      "attested_gloss",
+      "historical_rendering",
+      "orthographic_variant",
+      "transliteration",
+      "broader_narrower",
+      "related",
+      "model_proposed"
+    ],
+    "translation_scale": {
+      "min": 0,
+      "max": 2,
+      "dimensions": [
+        "propositional_fidelity",
+        "omission_addition",
+        "negation_modality",
+        "technical_terms",
+        "names_referents",
+        "readability"
+      ],
+      "passing_total_min": 9,
+      "zero_dimension_allowed": false
+    },
+    "answer_support_classes": [
+      "direct_source_support",
+      "independent_treatise_support",
+      "commentarial_interpretation",
+      "synthesis_across_sources",
+      "unresolved_or_insufficient"
+    ],
+    "role_separated_translation_reporting": [
+      "root",
+      "treatise",
+      "commentary",
+      "subcommentary"
+    ],
+    "critical_failure_override": true,
+    "query_expansion_verified_surface_accuracy_required": 1,
+    "query_expansion_verified_surface_allowed_outcomes": [
+      "correct_as_declared",
+      "correct_only_with_narrower_scope_preserved"
+    ],
+    "retrieval_supported_cases_min": 30,
+    "retrieval_commentary_eligible_cases_min": 8,
+    "retrieval_recall_at_10_min": 0.8,
+    "retrieval_commentary_recall_at_10_min": 0.75,
+    "inference_quality_samples_min": 8,
+    "inference_quality_samples_per_present_role_min": 2,
+    "inference_quality_all_samples_must_pass_translation_rubric": true
+  },
+  "critical_failure_ids": [
+    "CF01_false_verification",
+    "CF02_wrong_source_identity",
+    "CF03_rendering_source_conflation",
+    "CF04_wrong_text_role",
+    "CF05_fabricated_exegetical_relation",
+    "CF06_query_equivalence_overclaim",
+    "CF07_material_translation_distortion",
+    "CF08_unsupported_claim_as_supported",
+    "CF09_rights_or_data_boundary_violation",
+    "CF10_evidence_export_violation",
+    "CF11_privacy_or_retention_violation",
+    "CF12_execution_or_spend_bound_violation",
+    "CF13_false_absence_or_exhaustiveness_claim",
+    "CF14_provenance_or_traceability_loss",
+    "CF15_source_data_control_injection"
+  ],
+  "rehearsal": {
+    "case_ids": [
+      "R01_exact_attested_term",
+      "R02_historical_rendering_scope",
+      "R03_related_not_equivalent_trap",
+      "R04_root_with_aligned_commentary",
+      "R05_treatise_commentary_subcommentary",
+      "R06_no_human_english",
+      "R07_unsupported_or_out_of_scope",
+      "R08_multiple_legitimate_passages",
+      "R09_false_verification_injection",
+      "R10_generated_human_source_conflation_injection",
+      "R11_fabricated_relation_injection",
+      "R12_rights_export_boundary",
+      "R13_duplicate_hash_and_retry",
+      "R14_candidate_explosion_bound",
+      "R15_timeout_or_unavailable_inference",
+      "R16_source_data_control_injection"
+    ],
+    "all_mechanical_cases_must_pass": true,
+    "all_injected_critical_failures_must_be_detected": true,
+    "live_provider_calls_allowed": false,
+    "counts_toward_participant_pilot": false,
+    "trust_gate_requires_actual_execution": true,
+    "actual_authorized_inference_route_quality_required_before_trust_ready": true
+  }
+}

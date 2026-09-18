@@ -6,7 +6,7 @@
 **Strategic initiative:** I-P1, preparing I-P2/I-P3 after G0.
 
 [Pramāṇa strategy](PRAMANA.md) · [validation](VALIDATION.md) ·
-[decision register](DECISIONS.md) · [roadmap](ROADMAP.md)
+[acceptance contract](PILOT_ACCEPTANCE.md) · [decision register](DECISIONS.md) · [roadmap](ROADMAP.md)
 
 ## Product thesis
 

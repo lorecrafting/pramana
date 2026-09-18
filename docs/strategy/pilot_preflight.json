@@ -49,9 +49,11 @@
     },
     {
       "id": "execution_bounds",
-      "state": "blocked",
-      "reason": "Per-task caps for query candidates, model calls, translated passages/bytes/tokens, retries, timeout and spend are not yet frozen.",
+      "state": "ready",
+      "reason": null,
       "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     },
@@ -84,33 +86,40 @@
     {
       "id": "retrieval_baseline",
       "state": "blocked",
-      "reason": "The exact Chinese pilot release, held-out bilingual retrieval cases and per-arm baseline have not been measured.",
+      "reason": "The exact Chinese pilot release and evaluator-confirmed held-out set have not been measured. Readiness requires at least 30 supported cases including at least 8 commentary-eligible cases, per-arm/fused reporting, overall recall@10 >= 80%, and commentary-eligible recall@10 >= 75%.",
       "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     },
     {
       "id": "evaluation_rubric",
-      "state": "blocked",
-      "reason": "Chinese query-expansion and generated-reading-translation thresholds, including text-role-separated reporting, are not frozen for participant execution.",
+      "state": "ready",
+      "reason": null,
       "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     },
     {
       "id": "critical_taxonomy",
-      "state": "blocked",
-      "reason": "The complete Chinese-pilot critical failure taxonomy has not yet been frozen with evaluator examples.",
+      "state": "ready",
+      "reason": null,
       "evidence": [
-        "docs/strategy/PILOT_PREFLIGHT.md",
-        "docs/strategy/PILOT_CHARTER.md"
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
+        "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     },
     {
       "id": "rehearsal_trust",
       "state": "blocked",
-      "reason": "Rehearsal cases have not yet demonstrated zero unresolved critical trust defects.",
+      "reason": "The R01–R16 rehearsal contract is frozen, but exact release-bound cases have not been materialized/executed, and the separately authorized inference route has not passed the frozen source-bound translation-quality sample; zero unresolved critical trust defects therefore has not been demonstrated.",
       "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     }

@@ -1,6 +1,6 @@
 # Validation, economics and learning
 
-[Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap gates](ROADMAP.md)
+[Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap gates](ROADMAP.md) · [Chinese pilot acceptance](PILOT_ACCEPTANCE.md)
 **Status:** proposed measurement plan. No new performance, demand or revenue results
 were produced by this rewrite.
 
@@ -51,8 +51,7 @@ unknown and cannot relax the protected budget ledger.
 
 ## Pilot protocol
 
-At G1, preregister audience/scope, task set, current alternatives, evaluator rubric,
-quality floor, effort cap and pass/iterate/stop criteria. A reasonable **proposed
+For the Chinese-first pilot, the execution ceilings, bilingual evaluation rubric, critical-failure taxonomy and rehearsal pass rules are frozen in [PILOT_ACCEPTANCE](PILOT_ACCEPTANCE.md); the charter owns participant-level thresholds. At G1, preregister the remaining live scope, current alternatives, evaluator identities and measured baselines before execution. A reasonable **proposed
 study design** is 6–8 design partners doing several real tasks, followed by later
 observation of voluntary use. This is a feasibility study, not a statistically
 validated market-size or retention estimate. The operator can change the design
@@ -63,9 +62,7 @@ a missing-source case and an ambiguous interpretation. Preserve legitimate multi
 answers. Blind evaluation where feasible and ask evaluators to inspect source context,
 not merely agree with a reference wording. Recruit outside the builder's own habits.
 
-A proposed release floor is **no known critical false-verification, source-role or
-privacy failure in the acceptance cases**, plus usefulness/time/cost thresholds set
-at G1. Zero observed failures is not proof of zero risk. Human scholarly assessment
+The Chinese pilot's frozen critical taxonomy makes any known critical acceptance failure a stop/fix condition regardless of averages. The charter's usefulness/time/reuse thresholds remain separate. Zero observed failures is not proof of zero risk. Human scholarly assessment
 and ordinary functional tests remain necessary even when a model reviewer agrees.
 
 ## Experiment contract
