@@ -21,9 +21,12 @@ Do not make full philological apparatus or general spiritual advice prerequisite
 first useful workflow. The product is a research aid, not a guru, clinical service or
 adjudicator of a person's practice or realization.
 
-Test three tasks with real material: locate a half-remembered quotation; assemble
-sources for a teaching question within a named scope; distinguish what a root text
-says from what a later commentator argues. Compare with each participant's current
+The preregistered task classes are owned by
+[the pilot charter](PILOT_CHARTER.md#cohort-and-task-set): remembered quotation,
+doctrinal/practice question, multi-passage synthesis, ambiguous interpretation,
+missing/unsupported-source case and evidence reuse. The separate Chinese/Tibetan
+compatibility track tests root/treatise/commentary distinctions that the first Pāli user
+scope cannot adequately exercise. Compare each participant's user tasks with their current
 process, including existing archives and ordinary model-assisted search.
 
 ## Scope: narrow the experience, retain the substrate
