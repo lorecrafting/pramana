@@ -1,7 +1,7 @@
 # Decision register and planning handoff
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Candidate initiatives](ROADMAP.md)
-**Status:** D1–D7 are resolved for the initial pilot by [the pilot charter](PILOT_CHARTER.md); D8–D10 remain open. No implementation ticket is admitted before G0.
+**Status:** D1–D7 and D11 are resolved for the initial pilot; D8–D10 remain open. D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md) and D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md). No implementation ticket is admitted before G0.
 
 ## Authority and decision types
 
@@ -29,10 +29,13 @@ repair merely because some untrusted code needs a protected verifier.
 | D8 | Decide which distribution/sustainability option deserves a real pilot; no prices or revenue assumptions are locked | Product owner/operator | Hosting or commercialization |
 | D9 | Select a second repository, success criteria and explicitly authorized project scope for Foundry portability | Operator and that repository's owner | I-F3 |
 | D10 | Decide a session-backend cutover only after actual conformance; Superlogical remains a future candidate | Operator and protected-boundary reviewer | I-F4 activation |
+| D11 | **Resolved:** pilot data authorization is exact-resource × operation and fail-closed. `permission required` and `unclear / unresolved` do not authorize execution; an external route additionally requires provider-terms, inference-authority and execution-bounds clearance; a local-only route is allowed only for resources whose local-model operation is itself cleared; no failed source silently falls back to another corpus or dictionary | Product owner with rights/source reviewer | Any Chinese-pilot source/model/provider data flow |
 
 These are roles to assign, not invented team members. D1–D7 were resolved together in
-[the pilot charter](PILOT_CHARTER.md); revising one of those decisions should amend the
-charter and this register rather than creating a parallel mini-roadmap.
+[the pilot charter](PILOT_CHARTER.md); D11 is the operation boundary established by
+[the Chinese pilot rights review](CHINESE_PILOT_RIGHTS.md). Revising one of those decisions
+should amend its owning document and this register rather than creating a parallel
+mini-roadmap.
 A change to the current manual paid-provider rule requires separate authenticated
 steering, not merely D3 or adoption of provider-neutral docs.
 
