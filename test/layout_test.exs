@@ -114,6 +114,7 @@ defmodule Repository.LayoutTest do
     refute ci =~ "services:\n      postgres:"
     refute ci =~ "Install pg_bigm"
     assert ci =~ "pramana/ci/postgres.Dockerfile"
+    assert ci =~ "cache-mode:"
     assert ci =~ "cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm"
     assert ci =~ "pull: true"
     assert ci =~ "mix compile --force --warnings-as-errors"
@@ -125,6 +126,7 @@ defmodule Repository.LayoutTest do
     assert container =~ ~s(- "pramana/ci/release_smoke.py")
     assert container =~ ~s(- "pramana/ci/serving_privileges.exs")
     refute container =~ ~s(- "pramana/ci/**")
+    assert container =~ "cache-mode:"
     assert container =~ "cache-from: type=gha,scope=pramana-runtime-image"
     assert container =~ "pull: true"
     assert container =~ "load: true"
