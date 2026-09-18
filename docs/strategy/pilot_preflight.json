@@ -14,7 +14,7 @@
     {
       "id": "pilot_scope",
       "state": "blocked",
-      "reason": "The deterministic scope materializer and artifact contract are implemented, but no artifact has yet been generated from and reviewed against the accepted live pilot release. Exact seed IDs, expanded work IDs, alignment coverage, release identity and denominators therefore remain unaccepted.",
+      "reason": "The deterministic scope materializer and artifact contract are implemented, but no artifact has yet been generated from and reviewed against the accepted live pilot release. The derived quotation/relation/alignment tables also lack durable completion markers, so readiness requires separate full-derivation evidence and a quiesced stable-state materialization match. Exact seed IDs, expanded work IDs, alignment coverage, release identity and denominators therefore remain unaccepted.",
       "evidence": [
         "docs/strategy/PILOT_SCOPE.md",
         "docs/strategy/PILOT_PREFLIGHT.md"
