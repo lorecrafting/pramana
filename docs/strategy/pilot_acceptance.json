@@ -93,7 +93,12 @@
       "commentary",
       "subcommentary"
     ],
-    "critical_failure_override": true
+    "critical_failure_override": true,
+    "query_expansion_verified_surface_accuracy_required": 1,
+    "query_expansion_verified_surface_allowed_outcomes": [
+      "correct_as_declared",
+      "correct_only_with_narrower_scope_preserved"
+    ]
   },
   "critical_failure_ids": [
     "CF01_false_verification",
@@ -119,7 +124,7 @@
       "R04_root_with_aligned_commentary",
       "R05_treatise_commentary_subcommentary",
       "R06_no_human_english",
-      "R07_supported_scope_absence",
+      "R07_unsupported_or_out_of_scope",
       "R08_multiple_legitimate_passages",
       "R09_false_verification_injection",
       "R10_generated_human_source_conflation_injection",
