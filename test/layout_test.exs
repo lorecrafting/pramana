@@ -118,7 +118,10 @@ defmodule Repository.LayoutTest do
     assert ci =~ "Build cached PostgreSQL fixture (trusted cache writer)"
     assert ci =~ "cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm"
 
-    assert length(Regex.scan(~r/cache-to: type=gha,mode=max,scope=pramana-postgres-pg18-pgbigm/, ci)) == 1
+    assert length(
+             Regex.scan(~r/cache-to: type=gha,mode=max,scope=pramana-postgres-pg18-pgbigm/, ci)
+           ) == 1
+
     assert ci =~ "pull: true"
     assert ci =~ "mix compile --force --warnings-as-errors"
     assert ci =~ "mix test"
@@ -133,7 +136,10 @@ defmodule Repository.LayoutTest do
     assert container =~ "Build exact Pramana runtime image (trusted cache writer)"
     assert container =~ "cache-from: type=gha,scope=pramana-runtime-image"
 
-    assert length(Regex.scan(~r/cache-to: type=gha,mode=max,scope=pramana-runtime-image/, container)) == 1
+    assert length(
+             Regex.scan(~r/cache-to: type=gha,mode=max,scope=pramana-runtime-image/, container)
+           ) == 1
+
     assert container =~ "pull: true"
     assert container =~ "load: true"
     assert container =~ "release_smoke.py"
