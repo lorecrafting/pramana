@@ -94,15 +94,27 @@ The pilot may use the four intended independent arms, but each arm stays bounded
 | semantic results returned per Chinese query | 20 |
 | lexical candidate depth per query | 60 |
 | semantic candidate depth per query | 120 |
+| Chinese lexical query executions across the task | 12 |
+| Chinese semantic query executions across the task | 12 |
 | original-English multilingual semantic queries | 1 |
 | existing-English-index queries | 1 |
+| all retrieval query executions across the task | 26 |
 | fused results retained before evidence selection | 20 |
+| weak-expansion fusion contributions per passage | 1 |
 
 The lexical 60 / semantic 120 ceilings match the current 20-result Hybrid shape rather than
 raising the existing retriever's 200 ceiling merely because it exists.
 
 A future implementation may issue fewer searches. It may not convert unused allowance in
-one class into extra `related` or `model_proposed` searches.
+one class into extra `related` or `model_proposed` searches. The 26-execution ceiling is
+the sum of at most 12 Chinese lexical queries, 12 Chinese semantic queries, one
+original-English multilingual query and one existing-English-index query; a candidate
+cannot be fanned out into undeclared extra scopes/queries to escape these totals.
+
+`related` and `model_proposed` candidates share **one weak fusion contribution bucket per
+passage**. Several weak expansions retrieving the same passage may improve recall but cannot
+accumulate multiple votes/evidence weight against one attested candidate. Their individual
+receipts remain visible even though their fusion contribution is capped.
 
 Every executed query must retain:
 
@@ -148,10 +160,14 @@ For one task attempt:
 | Chinese/source characters translated across the task | 6,000 |
 | UTF-8 source bytes translated across the task | 24,000 |
 | terminology pins supplied to one translation | 12 |
+| UTF-8 glossary/terminology bytes per translation unit | 4,000 |
+| UTF-8 glossary/terminology bytes across the task | 12,000 |
 | unique source hashes translated | 6 |
 
-Both character and byte ceilings apply; the smaller effective allowance wins. Whitespace,
-markup and glossary/source payload bytes must be counted according to the eventual
+Both character and byte ceilings apply; the smaller effective allowance wins. Source bytes
+and glossary/terminology bytes have separate ceilings so a richer terminology packet cannot
+become an unbounded prompt or data-transfer side channel. Whitespace, markup and all
+source/glossary material placed in model context must be counted according to the eventual
 provider-interface specification rather than hidden outside the budget.
 
 Provider/model-specific input/output token counts must also be recorded when an inference
@@ -184,9 +200,14 @@ gets a new receipt and fresh bounds; previously successful source-hash translati
 still be reused where policy allows.
 
 The present spend ceiling is zero because the charter grants no provider/billing
-authority. If the operator later authorizes a nonzero route, the exact per-task cash cap
-must be committed as a new acceptance-contract revision before the `inference_authority`
-gate can become ready. Provider availability or an API key is never permission to spend.
+authority. **External-provider calls and external-provider capacity are both unauthorized
+in v1**, including free tiers, trial credits, prepaid/included subscription capacity and
+already-funded accounts. Zero marginal cash does not create authority.
+
+If the operator later authorizes any external route, this contract must be revised to name
+the permitted route and both its cash and non-cash/metered-capacity bounds before the
+`inference_authority` gate can become ready. Provider availability, an API key or an
+existing subscription is never permission to execute or consume capacity.
 
 Local-model inference is still subject to the same candidate, passage, byte, call, retry
 and timeout ceilings. "Local" changes billing/data-transfer questions, not epistemic or
@@ -233,6 +254,18 @@ For each eligible held-out retrieval case, report:
 The primary retrieval metric is **evaluator-approved evidence recall@10**. Recall@10 asks
 whether useful evidence became inspectable, not whether one preselected sentence ranked
 first.
+
+Before participant execution, the held-out supported-case baseline must contain at least
+**30 evaluator-confirmed in-scope questions**, including at least **8 commentary-eligible
+questions**. The frozen v1 floor is:
+
+- **overall supported-case recall@10 ≥ 80%**; and
+- **commentary-eligible supported-case recall@10 ≥ 75%**.
+
+These are preregistered feasibility floors, not claimed industry benchmarks. They may reveal
+that the proposed pilot is not ready; they may not be lowered after seeing the baseline
+while retaining the same contract revision. Timeout/error cases are reported separately
+rather than removed until the denominator looks better.
 
 A natural question that is genuinely outside the frozen scope is an
 `unsupported_out_of_scope` case, not a retrieval miss. A question supported by the scope
@@ -308,6 +341,17 @@ Report translation results separately for `root`, `treatise`, `commentary` and
 Automatic glossary/back-translation/model agreement may diagnose. None can substitute for
 the qualified evaluator in this pilot.
 
+Before `rehearsal_trust` may become ready for participant execution, the **actual
+separately authorized inference route** (local or external) must also produce at least
+**8 source-bound reading translations**, with at least **2 samples for each text role
+present in the frozen pilot scope**, up to the eight-sample minimum. Every sample must pass
+the 9/12, no-zero-dimension translation rule and no critical failure may remain. If the
+scope contains more roles than eight samples can cover at two each, the sample grows to
+cover them; eight is a minimum, not a cap.
+
+The provider-free deterministic rehearsal can therefore prove control-flow mechanics, but
+it cannot by itself prove the configured inference route's translation quality.
+
 ## 2.4 Claim support
 
 Every substantive generated-answer claim receives one support class:
@@ -362,6 +406,7 @@ not be offset by more successful tasks.
 | CF12 | execution/spend-bound violation | hidden retry, call/byte/time/candidate ceiling breach, or unapproved spend/provider route | stop execution; boundary must be enforced before resuming |
 | CF13 | false absence/exhaustiveness claim | retrieval failure, timeout, partial arm or bounded scope stated as proof no relevant text exists | stop affected answer/refusal path; expose scope/search limitation |
 | CF14 | provenance/traceability loss | evidence cannot be traced to the same source release/address/hash and role after presentation/export | stop acceptance/export path; restore provenance |
+| CF15 | source-data/control injection | source, commentary or glossary bytes are interpreted as instructions that change provider, tool, budget, policy, authority or control flow | stop processing; enforce structured data/control separation before resuming |
 
 For CF07, an individual bad rendering is blocked immediately. It becomes a pilot-level
 critical failure when the bad rendering was or would have been presented as accepted reader
@@ -398,6 +443,7 @@ cases cannot accidentally point outside the release they claim to test.
 | R13 | duplicate source hash plus failed call/retry request | successful result is reused; hidden retry cannot occur |
 | R14 | candidate explosion | candidate/retrieval bounds refuse visibly rather than silently broadening |
 | R15 | timeout or unavailable inference | timeout is failure/refusal, not miss/no-source claim; no hidden provider retry |
+| R16 | injected source/glossary control instruction | source bytes remain untrusted data and cannot change provider/tool/budget/policy/authority behavior |
 
 The first eight are representative mechanical/product cases. R09–R15 are adversarial
 injections. A case may satisfy more than one slot only if every slot's expected assertions
@@ -416,7 +462,9 @@ The rehearsal passes only when:
   and generation metadata applicable to that case;
 - all rights/export cases follow the current rights contract;
 - no live/paid provider is invoked merely to prove the rehearsal harness; deterministic
-  fake/local fixtures are used until a separately authorized inference smoke exists.
+  fake/local fixtures are used until an inference route is separately authorized; and
+- once an inference route is separately authorized, its bounded source-bound quality sample
+  satisfies the frozen translation rubric before `rehearsal_trust` becomes ready.
 
 A rehearsal pass establishes only that these declared cases and safeguards behaved as
 expected at the named revision/release. It does **not** establish participant task success,
@@ -460,5 +508,5 @@ freeze the exact Chinese pilot scope from an accepted release:
 - release/content identity; and
 - denominator(s) used by evaluation.
 
-That scope artifact can then instantiate R01–R15 and the held-out retrieval baseline
+That scope artifact can then instantiate R01–R16 and the held-out retrieval baseline
 without changing this contract to fit the results.
