@@ -105,7 +105,8 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
     case ScopeArtifact.validate(artifact) do
       :ok ->
         Mix.shell().info(
-          "pilot scope artifact valid; scope=#{artifact["scope_content_sha256"]}; " <>
+          "pilot scope artifact structurally valid; live_currentness=not_established; " <>
+            "scope=#{artifact["scope_content_sha256"]}; " <>
             "release=#{artifact["release"]["release_id"]}"
         )
 
