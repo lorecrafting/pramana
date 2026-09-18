@@ -7,6 +7,7 @@ Foundry dispatch or a public deployment merely to validate a documentation chang
 | Change / question | Check | Prerequisites and limits |
 |---|---|---|
 | Documentation routing, links, rule coverage, task/tool indexes and layout | From the Git root: `elixir bin/check_docs.exs` | Elixir and Git only; no Mix dependencies, database, models or daemon |
+| Pramāṇa pilot preflight bookkeeping | `elixir bin/check_pilot_preflight.exs --validate`; use `--ready` only when claiming pilot readiness | Network/model/database-free. Validates the recorded gate/evidence shape and exact-revision binding; cannot establish substantive rights, evaluator or provider approval. |
 | Umbrella formatting | `mix format --check-formatted` | Pinned umbrella toolchain and formatting dependencies |
 | Umbrella code | `mix compile --warnings-as-errors`, `mix credo --strict`, `mix test --cover` | Umbrella dependencies, Rust NIF, PostgreSQL with required extensions; not a live corpus gate |
 | Foundry code or contract work | From `foundry/`: `elixir ci/run.exs --output /tmp/foundry-ci-artifacts` | Isolated model-free runner; see [Foundry CI](../foundry/docs/CI.md). Does not prove real-provider execution or activation. |
