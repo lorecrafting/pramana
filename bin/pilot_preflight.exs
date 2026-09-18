@@ -131,29 +131,47 @@ defmodule Pramana.PilotPreflight do
 
     errors =
       errors
-      |> add_if(MapSet.difference(actual, expected) != MapSet.new(), "gate contains unknown fields")
+      |> add_if(
+        MapSet.difference(actual, expected) != MapSet.new(),
+        "gate contains unknown fields"
+      )
       |> add_if(
         MapSet.difference(expected, actual) != MapSet.new(),
         "gate is missing required fields"
       )
       |> add_if(not nonempty_string?(gate["id"]), "gate id must be a non-empty string")
       |> add_if(state not in @states, "gate #{inspect(gate["id"])} has invalid state")
-      |> add_if(not valid_evidence?(evidence), "gate #{inspect(gate["id"])} evidence must be non-empty")
+      |> add_if(
+        not valid_evidence?(evidence),
+        "gate #{inspect(gate["id"])} evidence must be non-empty"
+      )
       |> check_gate_state(gate["id"], state, reason)
 
     Enum.reduce(evidence_list(evidence), errors, fn reference, acc ->
-      add_if(acc, not valid_evidence_reference?(reference, root), "invalid evidence reference #{inspect(reference)}")
+      add_if(
+        acc,
+        not valid_evidence_reference?(reference, root),
+        "invalid evidence reference #{inspect(reference)}"
+      )
     end)
   end
 
   defp check_gate(_gate, errors, _root), do: ["every gate must be an object" | errors]
 
   defp check_gate_state(errors, id, "ready", reason) do
-    add_if(errors, reason not in [nil, ""], "ready gate #{inspect(id)} must not carry a blocking reason")
+    add_if(
+      errors,
+      reason not in [nil, ""],
+      "ready gate #{inspect(id)} must not carry a blocking reason"
+    )
   end
 
   defp check_gate_state(errors, id, "blocked", reason) do
-    add_if(errors, not nonempty_string?(reason), "blocked gate #{inspect(id)} must carry a reason")
+    add_if(
+      errors,
+      not nonempty_string?(reason),
+      "blocked gate #{inspect(id)} must carry a reason"
+    )
   end
 
   defp check_gate_state(errors, _id, _state, _reason), do: errors
