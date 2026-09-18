@@ -31,13 +31,9 @@ rather than assuming today's documented state is the eventual implementation.
 no new infrastructure required for interviews or planning.
 
 [The initial pilot charter](PILOT_CHARTER.md) now resolves D1–D7 before results are
-seen: audience, recurring task, conditional four-Nikāya user scope, rights gate,
-evaluation thresholds, rendering policy, privacy/export behavior, capacity and replay
-promise. The charter authorizes no post-G0 implementation and no new cash spend.
+seen: audience, recurring task, bounded Chinese commentary-rich user scope, bilingual retrieval\nand reading-translation boundaries, rights gate, evaluation thresholds, privacy/export\nbehavior, capacity and replay promise. The charter authorizes no post-G0 implementation and no new cash spend.
 
-Before execution, recheck the live source/corpus baseline, complete the charter's
-operation-specific rights matrix for the selected source witness and rendering, identify
-the qualified evaluators and record each participant's current alternative. Actual retrieval limitations and operator time must be
+Before execution, recheck the live source/corpus baseline, complete the charter/preflight operation-specific rights matrix for the selected CBETA\nsource, lexicons and model-processing route, identify the qualified Buddhist-Chinese\nevaluators and record each participant's current alternative. Actual retrieval limitations and operator time must be
 measured locally; public benchmarks do not substitute.
 
 **Exit:** after G0, the operator confirms that the charter's rights/evaluator prerequisites
@@ -96,9 +92,7 @@ merely a batch embedding job.
 
 **Charter:** [initial evidence-first pilot](PILOT_CHARTER.md).
 
-**Outcome:** the ask → answer → evidence → reuse job is tested across scholars,
-practitioners/study leaders and ordinary readers in one conditional Pāli discourse scope,
-without optimizing away the richer treatise/commentary hierarchy.
+**Outcome:** the ask → answer → evidence → explanation → reuse job is tested across\nscholars, practitioners/study leaders and ordinary readers in one bounded Chinese scope\nthat includes actual treatise/commentary/subcommentary neighborhoods.
 **Evidence:** consented task records, failed searches, source-specific rights clearance,
 qualified evaluator review, segmented user outcomes and the charter's predeclared
 thresholds. **Gate:** G1 after G0 permits execution. **Excludes:** declaring product-market
