@@ -42,6 +42,19 @@ The [export task](../apps/pramana/lib/mix/tasks/pramana.translate.export.ex),
 [transfer implementation](../apps/pramana/lib/pramana/translate/transfer.ex) define
 the supported round trip. Review flags with `mix help` before running a paid batch.
 
+**The existence of this round trip is not provider or source-rights authorization.** The
+historical Chinese generated-English tranche exported CBETA chunk content to a Modal-hosted
+generation path and imported the returned MITRA English as raw tier-1 renderings. For the
+Chinese pilot, that is historical data-flow evidence only. Do not rerun, extend, or reuse
+that external-processing route until the CBETA operation, provider terms, inference
+authority and execution-bounds gates independently clear. See
+[`CHINESE_PILOT_RIGHTS.md`](../../docs/strategy/CHINESE_PILOT_RIGHTS.md).
+
+If external processing remains blocked but a source is cleared for local-model processing,
+the same source-bound rendering contract can be implemented locally after a specific local
+model/licence/quality review. That changes deployment mechanics, not the rule that generated
+English is separate from the authoritative Chinese witness.
+
 ```bash
 mix pramana.translate.export --covered-by patton --limit 300 --out /tmp/bakeoff.jsonl
 # Run the reviewed inference workflow with explicit provider/spend authorization.
