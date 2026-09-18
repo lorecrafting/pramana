@@ -46,8 +46,10 @@ defmodule Pramana.PilotPreflight do
   def validate(_manifest, _root), do: {:error, ["manifest must be an object"]}
 
   @spec status(map()) :: String.t()
-  def status(%{"gates" => gates}) when is_list(gates) do
-    if Enum.all?(gates, &(&1["state"] == "ready")), do: "ready", else: "blocked"
+  def status(%{"gates" => gates, "subject_revision" => revision}) when is_list(gates) do
+    if valid_revision_shape?(revision) and Enum.all?(gates, &(&1["state"] == "ready")),
+      do: "ready",
+      else: "blocked"
   end
 
   def status(_manifest), do: "invalid"
@@ -141,12 +143,15 @@ defmodule Pramana.PilotPreflight do
     )
   end
 
+  defp valid_revision_shape?(revision),
+    do: is_binary(revision) and Regex.match?(~r/\A[0-9a-f]{40}\z/, revision)
+
   defp check_revision(errors, nil), do: errors
 
   defp check_revision(errors, revision) do
     add_if(
       errors,
-      not (is_binary(revision) and Regex.match?(~r/\A[0-9a-f]{40}\z/, revision)),
+      not valid_revision_shape?(revision),
       "subject_revision must be null or a 40-character lowercase Git SHA"
     )
   end
