@@ -245,6 +245,7 @@ defmodule Strategy.PilotScopeArtifactTest do
       },
       "selection" => %{
         "demand_seed_count" => 10,
+        "quotation_min_length" => ScopeArtifact.quotation_min_length(),
         "demand_ranking_rule" => ScopeArtifact.demand_ranking_rule(),
         "agama_work_ids" => ScopeArtifact.agama_ids(),
         "scope_source" => "cbeta.T",
