@@ -226,11 +226,22 @@ defmodule Pramana.Pilot.Scope do
         |> Enum.frequencies()
         |> Map.new(fn {method, count} -> {Atom.to_string(method), count} end)
 
-      cutoff_weight = top |> List.last() |> Map.fetch!("weight")
+      cutoff = List.last(top)
+      cutoff_weight = Map.fetch!(cutoff, "weight")
+      cutoff_citing_families = Map.fetch!(cutoff, "citing_families")
 
-      cutoff_tied_families =
+      same_weight_families =
         ranked
         |> Enum.filter(&(&1.weight == cutoff_weight))
+        |> Enum.map(& &1.family)
+        |> Enum.sort()
+
+      equivalent_families =
+        ranked
+        |> Enum.filter(fn row ->
+          row.weight == cutoff_weight and
+            row.citing_families == cutoff_citing_families
+        end)
         |> Enum.map(& &1.family)
         |> Enum.sort()
 
@@ -242,7 +253,9 @@ defmodule Pramana.Pilot.Scope do
         "conflicting_pairs" => conflicts,
         "direction_method_counts" => method_counts,
         "cutoff_weight" => cutoff_weight,
-        "cutoff_tied_families" => cutoff_tied_families,
+        "cutoff_citing_families" => cutoff_citing_families,
+        "cutoff_same_weight_families" => same_weight_families,
+        "cutoff_equivalent_families" => equivalent_families,
         "top_demand" => top
       }
 
@@ -444,12 +457,13 @@ defmodule Pramana.Pilot.Scope do
   end
 
   defp role_direction(a, b) do
-    a_to_b = b.text_role in Relations.may_explain(a.text_role)
-    b_to_a = a.text_role in Relations.may_explain(b.text_role)
-
+    # Rule 72's retained demand proxy was specifically "a commentary cites a root".
+    # Do not broaden that signal to treatises: Quotations.Roots records systematic
+    # treatise→root shared-text false positives. Other role pairs may still be directed by
+    # independently recorded dates.
     cond do
-      a_to_b and not b_to_a -> {a.work_id, b.work_id}
-      b_to_a and not a_to_b -> {b.work_id, a.work_id}
+      a.text_role == "commentary" and b.text_role == "root" -> {a.work_id, b.work_id}
+      b.text_role == "commentary" and a.text_role == "root" -> {b.work_id, a.work_id}
       true -> nil
     end
   end
@@ -636,11 +650,21 @@ defmodule Pramana.Pilot.Scope do
   defp relation_role_compatible?(row, work_map) do
     with %{text_role: source_role} <- Map.get(work_map, row.source_work_id),
          %{text_role: target_role} <- Map.get(work_map, row.target_work_id) do
-      target_role in Relations.may_explain(source_role)
+      relation_matches_source_role?(row.relation, source_role) and
+        target_role in Relations.may_explain(source_role)
     else
       _ -> false
     end
   end
+
+  defp relation_matches_source_role?("subcommentary_of", "subcommentary"), do: true
+  defp relation_matches_source_role?("subcommentary_of", _source_role), do: false
+  defp relation_matches_source_role?("comments_on", "subcommentary"), do: false
+
+  defp relation_matches_source_role?("comments_on", source_role),
+    do: source_role in Relations.explanatory_roles()
+
+  defp relation_matches_source_role?(_relation, _source_role), do: false
 
   defp expand_hop(hop, scope, admitted, frontier, eligible, work_map) do
     edges =
