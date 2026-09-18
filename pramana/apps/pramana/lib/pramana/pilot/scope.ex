@@ -94,48 +94,98 @@ defmodule Pramana.Pilot.Scope do
 
     with {:ok, ranking, ranking_detail} <- demand_ranking(quotation_rows, work_map),
          :ok <- verify_agamas(work_map) do
-      seeds = seeds(ranking["top_demand"], work_map)
-
-      {scope, admitted_relations} = expand(seeds, raw_relation_rows, work_map)
-      considered_relations = considered_relation_rows(raw_relation_rows, scope)
-      traversal_stats = relation_exclusion_stats(considered_relations, work_map)
-      relevant_works =
-        relevant_work_metadata(works, ranking_detail, considered_relations, scope)
-      scope_works = present_works(scope, work_map)
-      relations = present_relations(admitted_relations)
-
-      with :ok <- ensure_unambiguous_relation_pairs(relations) do
-        {alignments, relevant_alignment_rows} =
-          alignment_coverage(relations, alignment_rows)
-
-        payload =
-          payload(
-            release,
-            ranking,
-            seeds,
-            scope_works,
-            relations,
-            alignments,
-            traversal_stats,
-            %{
-              works: relevant_works,
-              ranking: ranking_detail,
-              relations: considered_relations,
-              alignments: relevant_alignment_rows
-            }
-          )
-
-        artifact = ScopeArtifact.finalize(payload)
-
-        case ScopeArtifact.validate(artifact) do
-          :ok -> {:ok, artifact}
-          {:error, errors} -> {:error, {:invalid_artifact, errors}}
-        end
-      end
+      assemble_scope(
+        release,
+        works,
+        raw_relation_rows,
+        alignment_rows,
+        work_map,
+        ranking,
+        ranking_detail
+      )
     end
   end
 
   def build(_), do: {:error, :invalid_scope_input}
+
+  defp assemble_scope(
+         release,
+         works,
+         raw_relation_rows,
+         alignment_rows,
+         work_map,
+         ranking,
+         ranking_detail
+       ) do
+    seeds = seeds(ranking["top_demand"], work_map)
+    {scope, admitted_relations} = expand(seeds, raw_relation_rows, work_map)
+    considered_relations = considered_relation_rows(raw_relation_rows, scope)
+    traversal_stats = relation_exclusion_stats(considered_relations, work_map)
+
+    relevant_works =
+      relevant_work_metadata(works, ranking_detail, considered_relations, scope)
+
+    scope_works = present_works(scope, work_map)
+    relations = present_relations(admitted_relations)
+
+    with :ok <- ensure_unambiguous_relation_pairs(relations) do
+      finish_scope_artifact(
+        release,
+        ranking,
+        seeds,
+        scope_works,
+        relations,
+        alignment_rows,
+        traversal_stats,
+        relevant_works,
+        ranking_detail,
+        considered_relations
+      )
+    end
+  end
+
+  defp finish_scope_artifact(
+         release,
+         ranking,
+         seeds,
+         scope_works,
+         relations,
+         alignment_rows,
+         traversal_stats,
+         relevant_works,
+         ranking_detail,
+         considered_relations
+       ) do
+    {alignments, relevant_alignment_rows} =
+      alignment_coverage(relations, alignment_rows)
+
+    artifact =
+      payload(
+        release,
+        ranking,
+        seeds,
+        scope_works,
+        relations,
+        alignments,
+        traversal_stats,
+        %{
+          works: relevant_works,
+          ranking: ranking_detail,
+          relations: considered_relations,
+          alignments: relevant_alignment_rows
+        }
+      )
+      |> ScopeArtifact.finalize()
+
+    validate_artifact(artifact)
+  end
+
+  defp validate_artifact(artifact) do
+    case ScopeArtifact.validate(artifact) do
+      :ok -> {:ok, artifact}
+      {:error, errors} -> {:error, {:invalid_artifact, errors}}
+    end
+  end
 
   @doc """
   Recomputes the demand proxy from quotation rows and work metadata.
@@ -219,24 +269,29 @@ defmodule Pramana.Pilot.Scope do
 
   defp current_release(expected_release_id) do
     case Release.current() do
-      nil ->
-        {:error, :unstamped_release}
+      nil -> {:error, :unstamped_release}
+      release -> validate_current_release(release, expected_release_id)
+    end
+  end
 
-      release ->
-        cond do
-          release.release_id != expected_release_id ->
-            {:error, {:release_mismatch, expected_release_id, release.release_id}}
+  defp validate_current_release(release, expected_release_id) do
+    cond do
+      release.release_id != expected_release_id ->
+        {:error, {:release_mismatch, expected_release_id, release.release_id}}
 
-          not v2_release?(release) ->
-            {:error, {:legacy_release_identity, release.release_id}}
+      not v2_release?(release) ->
+        {:error, {:legacy_release_identity, release.release_id}}
 
-          true ->
-            case Release.drift() do
-              :current -> {:ok, release}
-              :unstamped -> {:error, :unstamped_release}
-              drift -> {:error, {:release_drift, drift}}
-            end
-        end
+      true ->
+        current_release_drift(release)
+    end
+  end
+
+  defp current_release_drift(release) do
+    case Release.drift() do
+      :current -> {:ok, release}
+      :unstamped -> {:error, :unstamped_release}
+      drift -> {:error, {:release_drift, drift}}
     end
   end
 
@@ -425,46 +480,52 @@ defmodule Pramana.Pilot.Scope do
   defp demand_targets(directed_pairs) do
     directed_pairs
     |> Enum.group_by(fn %{direction: {:ok, _citer, target, _method}} -> family(target) end)
-    |> Enum.map(fn {target_family, pairs} ->
-      evidence =
-        for %{hashes: hashes, direction: {:ok, citer, _target, _method}} <- pairs,
-            hash <- hashes,
-            into: MapSet.new() do
-          {family(citer), hash}
-        end
-
-      member_evidence =
-        pairs
-        |> Enum.group_by(fn %{direction: {:ok, _citer, target, _method}} -> target end)
-        |> Enum.map(fn {member, member_pairs} ->
-          weight =
-            for %{hashes: hashes, direction: {:ok, citer, _target, _method}} <- member_pairs,
-                hash <- hashes,
-                into: MapSet.new() do
-              {family(citer), hash}
-            end
-            |> MapSet.size()
-
-          {member, weight}
-        end)
-        |> Enum.sort_by(fn {member, weight} -> {-weight, member} end)
-
-      {work_id, _member_weight} = hd(member_evidence)
-
-      %{
-        family: target_family,
-        work_id: work_id,
-        weight: MapSet.size(evidence),
-        citing_families: evidence |> Enum.map(&elem(&1, 0)) |> MapSet.new() |> MapSet.size(),
-        directed_pair_count: length(pairs),
-        direction_methods:
-          pairs
-          |> Enum.map(fn %{direction: {:ok, _citer, _target, method}} -> Atom.to_string(method) end)
-          |> Enum.frequencies(),
-        family_members: Enum.map(member_evidence, &elem(&1, 0))
-      }
-    end)
+    |> Enum.map(&demand_target/1)
   end
+
+  defp demand_target({target_family, pairs}) do
+    evidence = family_hash_evidence(pairs)
+
+    member_evidence =
+      pairs
+      |> Enum.group_by(fn %{direction: {:ok, _citer, target, _method}} -> target end)
+      |> Enum.map(&member_weight/1)
+      |> Enum.sort_by(fn {member, weight} -> {-weight, member} end)
+
+    {work_id, _member_weight} = hd(member_evidence)
+
+    %{
+      family: target_family,
+      work_id: work_id,
+      weight: MapSet.size(evidence),
+      citing_families: evidence |> Enum.map(&elem(&1, 0)) |> MapSet.new() |> MapSet.size(),
+      directed_pair_count: length(pairs),
+      direction_methods:
+        pairs
+        |> Enum.map(&direction_method/1)
+        |> Enum.frequencies(),
+      family_members: Enum.map(member_evidence, &elem(&1, 0))
+    }
+  end
+
+  defp member_weight({member, pairs}),
+    do: {member, pairs |> family_hash_evidence() |> MapSet.size()}
+
+  defp family_hash_evidence(pairs) do
+    pairs
+    |> Enum.flat_map(&pair_family_hash_evidence/1)
+    |> MapSet.new()
+  end
+
+  defp pair_family_hash_evidence(%{
+         hashes: hashes,
+         direction: {:ok, citer, _target, _method}
+       }) do
+    Enum.map(hashes, &{family(citer), &1})
+  end
+
+  defp direction_method(%{direction: {:ok, _citer, _target, method}}),
+    do: Atom.to_string(method)
 
   defp ranking_input_row(pair) do
     %{
@@ -484,22 +545,30 @@ defmodule Pramana.Pilot.Scope do
   defp direction_for_digest(:unresolved), do: %{status: "unresolved"}
 
   defp verify_agamas(work_map) do
-    Enum.reduce_while(@agama_expectations, :ok, fn {work_id, title_fragment}, :ok ->
-      case Map.get(work_map, work_id) do
-        nil ->
-          {:halt, {:error, {:missing_agama, work_id}}}
-
-        %{title: title, division: "阿含部", text_role: "root"} when is_binary(title) ->
-          if String.contains?(title, title_fragment) do
-            {:cont, :ok}
-          else
-            {:halt, {:error, {:agama_identity_mismatch, work_id, title}}}
-          end
-
-        work ->
-          {:halt, {:error, {:agama_provenance_mismatch, work_id, work}}}
-      end
+    Enum.reduce_while(@agama_expectations, :ok, fn expectation, :ok ->
+      verify_agama(expectation, work_map)
     end)
+  end
+
+  defp verify_agama({work_id, title_fragment}, work_map) do
+    case Map.get(work_map, work_id) do
+      nil ->
+        {:halt, {:error, {:missing_agama, work_id}}}
+
+      %{title: title, division: "阿含部", text_role: "root"} when is_binary(title) ->
+        verify_agama_title(work_id, title, title_fragment)
+
+      work ->
+        {:halt, {:error, {:agama_provenance_mismatch, work_id, work}}}
+    end
+  end
+
+  defp verify_agama_title(work_id, title, title_fragment) do
+    if String.contains?(title, title_fragment) do
+      {:cont, :ok}
+    else
+      {:halt, {:error, {:agama_identity_mismatch, work_id, title}}}
+    end
   end
 
   defp seeds(top_demand, work_map) do
@@ -591,50 +660,60 @@ defmodule Pramana.Pilot.Scope do
       end)
       |> Enum.sort_by(fn {{source, target, relation}, _rows} -> {target, source, relation} end)
 
-    Enum.reduce(edges, {scope, admitted, MapSet.new()}, fn
-      {{source, target, relation}, assertions}, {scope_acc, admitted_acc, frontier_acc} ->
-        target_seeds = scope_acc |> Map.fetch!(target) |> Map.fetch!(:seed_ids)
-        existing = Map.get(scope_acc, source)
-
-        scope_acc =
-          cond do
-            is_nil(existing) ->
-              Map.put(scope_acc, source, %{min_hop: hop, seed_ids: target_seeds})
-
-            existing.min_hop == 0 ->
-              scope_acc
-
-            true ->
-              Map.update!(scope_acc, source, fn item ->
-                %{item | seed_ids: Enum.sort(Enum.uniq(item.seed_ids ++ target_seeds))}
-              end)
-          end
-
-        relation_key = {source, target, relation}
-
-        admitted_acc =
-          Map.update(
-            admitted_acc,
-            relation_key,
-            %{
-              source_work_id: source,
-              target_work_id: target,
-              relation: relation,
-              hop: hop,
-              seed_ids: target_seeds,
-              assertions: assertions
-            },
-            fn item ->
-              %{item | seed_ids: Enum.sort(Enum.uniq(item.seed_ids ++ target_seeds))}
-            end
-          )
-
-        frontier_acc =
-          if is_nil(existing), do: MapSet.put(frontier_acc, source), else: frontier_acc
-
-        {scope_acc, admitted_acc, frontier_acc}
+    Enum.reduce(edges, {scope, admitted, MapSet.new()}, fn edge, acc ->
+      expand_edge(edge, acc, hop)
     end)
   end
+
+  defp expand_edge(
+         {{source, target, relation}, assertions},
+         {scope, admitted, frontier},
+         hop
+       ) do
+    target_seeds = scope |> Map.fetch!(target) |> Map.fetch!(:seed_ids)
+    existing = Map.get(scope, source)
+    next_scope = extend_scope(scope, source, existing, hop, target_seeds)
+
+    next_admitted =
+      admit_relation(admitted, source, target, relation, hop, target_seeds, assertions)
+
+    next_frontier = maybe_add_frontier(frontier, source, existing)
+
+    {next_scope, next_admitted, next_frontier}
+  end
+
+  defp extend_scope(scope, source, nil, hop, target_seeds),
+    do: Map.put(scope, source, %{min_hop: hop, seed_ids: target_seeds})
+
+  defp extend_scope(scope, _source, %{min_hop: 0}, _hop, _target_seeds), do: scope
+
+  defp extend_scope(scope, source, _existing, _hop, target_seeds) do
+    Map.update!(scope, source, fn item ->
+      %{item | seed_ids: merge_seed_ids(item.seed_ids, target_seeds)}
+    end)
+  end
+
+  defp admit_relation(admitted, source, target, relation, hop, target_seeds, assertions) do
+    key = {source, target, relation}
+
+    initial = %{
+      source_work_id: source,
+      target_work_id: target,
+      relation: relation,
+      hop: hop,
+      seed_ids: target_seeds,
+      assertions: assertions
+    }
+
+    Map.update(admitted, key, initial, fn item ->
+      %{item | seed_ids: merge_seed_ids(item.seed_ids, target_seeds)}
+    end)
+  end
+
+  defp maybe_add_frontier(frontier, source, nil), do: MapSet.put(frontier, source)
+  defp maybe_add_frontier(frontier, _source, _existing), do: frontier
+
+  defp merge_seed_ids(left, right), do: left |> Kernel.++(right) |> Enum.uniq() |> Enum.sort()
 
   defp assertion_key(row) do
     {
@@ -777,8 +856,7 @@ defmodule Pramana.Pilot.Scope do
         Enum.count(rows, fn row ->
           row.method in allowed_methods and not Map.has_key?(work_map, row.source_work_id)
         end),
-      excluded_model_relation_rows:
-        Enum.count(rows, &(&1.method == "llm")),
+      excluded_model_relation_rows: Enum.count(rows, &(&1.method == "llm")),
       excluded_role_incoherent_relation_rows:
         Enum.count(rows, fn row ->
           row.method in allowed_methods and
@@ -854,9 +932,8 @@ defmodule Pramana.Pilot.Scope do
       "expanded_work_count" => length(works) - length(seeds),
       "relation_edge_count" => length(relations),
       "relation_assertion_count" =>
-        relations |> Enum.map(&(length(&1["assertions"]))) |> Enum.sum(),
-      "relation_edges_with_alignment" =>
-        Enum.count(alignments, & &1["has_passage_alignment"]),
+        relations |> Enum.map(&length(&1["assertions"])) |> Enum.sum(),
+      "relation_edges_with_alignment" => Enum.count(alignments, & &1["has_passage_alignment"]),
       "alignment_rows" => alignments |> Enum.map(& &1["alignment_rows"]) |> Enum.sum(),
       "works_by_text_role" =>
         works
