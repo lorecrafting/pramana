@@ -125,20 +125,15 @@ defmodule Pramana.Pilot.ScopeArtifact do
   def validate(_artifact), do: {:error, ["scope artifact must be an object"]}
 
   defp check_top_level(errors, artifact) do
-    expected = MapSet.new(@top_level)
-    actual = artifact |> Map.keys() |> MapSet.new()
+    actual = Map.keys(artifact)
+    unknown = actual -- @top_level
+    missing = @top_level -- actual
 
     errors
     |> add_if(artifact["schema"] != @schema, "schema must be #{@schema}")
     |> add_if(artifact["pilot_id"] != @pilot_id, "pilot_id must be #{@pilot_id}")
-    |> add_if(
-      MapSet.difference(actual, expected) != MapSet.new(),
-      "scope artifact contains unknown top-level fields"
-    )
-    |> add_if(
-      MapSet.difference(expected, actual) != MapSet.new(),
-      "scope artifact is missing required top-level fields"
-    )
+    |> add_if(unknown != [], "scope artifact contains unknown top-level fields")
+    |> add_if(missing != [], "scope artifact is missing required top-level fields")
   end
 
   defp check_hash(errors, artifact) do
@@ -217,8 +212,14 @@ defmodule Pramana.Pilot.ScopeArtifact do
     )
     |> add_if(length(top) != @demand_seed_count, "ranking.top_demand must contain ten rows")
     |> add_if(not sorted_unique_rank?(top), "ranking.top_demand ranks must be unique 1..10")
-    |> add_if(length(work_ids) != length(Enum.uniq(work_ids)), "ranking demand work ids must be unique")
-    |> add_if(length(families) != length(Enum.uniq(families)), "ranking demand families must be unique")
+    |> add_if(
+      length(work_ids) != length(Enum.uniq(work_ids)),
+      "ranking demand work ids must be unique"
+    )
+    |> add_if(
+      length(families) != length(Enum.uniq(families)),
+      "ranking demand families must be unique"
+    )
     |> add_if(
       Enum.any?(top, &(not positive_integer?(&1["weight"]))),
       "ranking demand weights must be positive integers"
@@ -425,7 +426,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "alignment counts must be non-negative integers"
       )
       |> add_if(
-        row["has_passage_alignment"] != (row["alignment_rows"] > 0),
+        row["has_passage_alignment"] != row["alignment_rows"] > 0,
         "has_passage_alignment must match alignment_rows"
       )
       |> add_if(
@@ -455,7 +456,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
       assertion_count =
         relations
-        |> Enum.map(&(length(&1["assertions"] || [])))
+        |> Enum.map(&length(&1["assertions"] || []))
         |> Enum.sum()
 
       errors
@@ -476,7 +477,8 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "relation_assertion_count is wrong"
       )
       |> add_if(
-        d["relation_edges_with_alignment"] != Enum.count(alignments, & &1["has_passage_alignment"]),
+        d["relation_edges_with_alignment"] !=
+          Enum.count(alignments, & &1["has_passage_alignment"]),
         "relation_edges_with_alignment is wrong"
       )
       |> add_if(
