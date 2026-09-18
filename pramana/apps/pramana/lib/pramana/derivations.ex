@@ -201,7 +201,7 @@ defmodule Pramana.Derivations do
       bake_id: bake_id,
       scope: scope,
       parameters: parameters,
-      candidates: shared_text_candidates(min_passages)
+      candidates: shared_text_candidates(min_passages, bake_id)
     })
   end
 
@@ -301,7 +301,7 @@ defmodule Pramana.Derivations do
     )
   end
 
-  defp shared_text_candidates(min_passages) do
+  defp shared_text_candidates(min_passages, bake_id) do
     Roots.candidates(min_passages: min_passages, bake_id: bake_id)
     |> Enum.map(fn candidate ->
       %{
