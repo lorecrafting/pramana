@@ -85,6 +85,21 @@ records separate SHA-256 digests for:
 
 Do not claim release_id alone freezes those graphs.
 
+There is also no durable database marker proving that a full quotation scan, every intended
+relation-derivation pass, or every intended commentary-alignment pass completed. A row
+carrying the current bake ID proves provenance for that row, not exhaustiveness of the
+derived graph.
+
+For that reason every artifact carries an explicit derivation-status boundary:
+
+- quotation graph completeness: `not_recorded_by_database`;
+- relation graph completeness: `not_recorded_by_database`;
+- alignment graph completeness: `not_recorded_by_database`;
+- structural validation does **not** establish live currentness; and
+- live acceptance requires external completion evidence plus stable repeated materialization.
+
+Do not replace these facts with a historical row-count threshold.
+
 ## Relation traversal
 
 Relations point **explanatory work → explained work**. Scope expansion therefore walks the
@@ -100,7 +115,9 @@ For every admitted edge the artifact retains:
 - assertion method/confidence/scope/target URN; and
 - a digest of the assertion evidence.
 
-Several assertion methods for one relation are corroboration, not duplicate edges.
+Several assertion methods for one relation are corroboration, not duplicate edges. Each
+assertion retains its inspectable evidence object plus a SHA-256 of that evidence so a
+reviewer can judge the relation rather than trusting an opaque hash alone.
 
 Works outside CBETA/Taishō, model-only relation assertions, and role-incoherent relation
 rows are excluded and counted rather than silently disappearing.
@@ -146,8 +163,9 @@ or from the umbrella:
     cd pramana
     mix pramana.pilot.scope --validate /tmp/pramana-pilot-scope.json
 
-Structural validation proves only the file's internal contract. It does not prove that the
-file still matches today's database.
+Structural validation proves only the file's internal contract. The checker therefore
+prints `live_currentness=not_established`; it does not prove that the file still matches
+today's database or that the derived graphs were complete when it was generated.
 
 ## What closes the preflight gate
 
@@ -160,8 +178,14 @@ A later review may change pilot_scope to ready only when it has:
 5. complete expanded-work and relation lists;
 6. passage-alignment coverage;
 7. source/rights review covering **every expanded work**, not only the seeds;
-8. recorded scope and input hashes; and
-9. evidence that the reviewed artifact is the one participant/rehearsal execution will use.
+8. separate evidence that the intended full quotation/relation/alignment derivations
+   completed for the reviewed database state;
+9. derived-data writers quiesced while accepting the scope, followed by **two consecutive
+   materializations with identical scope hash and input digests** (or equivalent
+   independently recorded stable-state evidence);
+10. recorded scope and input hashes; and
+11. evidence that the reviewed artifact hash is the exact one participant/rehearsal
+    execution will use.
 
 A test fixture, historical 14-work list, successful command exit, or structurally valid
 JSON is not enough.
