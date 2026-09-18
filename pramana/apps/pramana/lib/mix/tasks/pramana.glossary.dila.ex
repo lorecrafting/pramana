@@ -51,16 +51,19 @@ defmodule Mix.Tasks.Pramana.Glossary.Dila do
   entry and a kiṃnara king's name in the next; both are stored, both are scoped to T0262,
   and neither is presented as what 法 means.
 
-  ## Licence — CC BY-NC-SA 4.0, and the NC is load-bearing
+  ## Rights posture — aggregate registry gate, not operation authority
 
-  Stated by the glossary site. **The TEI header says only "Published on the Web with a
-  Creative Commons License" without naming a version**, and a secondary source said
-  BY-SA 3.0, so the site's statement is taken as binding and the restrictive reading is
-  the one recorded — rule 10, and the direction it is safe to be wrong in.
+  The current DILA glossary portal states CC BY-NC-SA 4.0. Primary review for the Chinese
+  pilot also found that the exact digital-edition PDFs for all five files imported here
+  state CC BY-SA 3.0 and identify the TEI source; the TEI headers themselves name Creative
+  Commons without a version. That is a resource-level licence-version conflict.
 
-  NonCommercial makes these `redistributable: false`, which is the same footing CBETA is
-  already on: usable for everything this project does locally, and **excluded from the
-  public artefact** by `mix pramana.public.bake` for the same reason CBETA is.
+  The aggregate source record therefore keeps the current portal's more restrictive NC
+  posture and remains `redistributable: false` for Pramāṇa's public artifact. Do **not**
+  read that coarse flag as "everything local is permitted", and do not treat the older
+  BY-SA notice as automatic commercial/provider clearance. Operation-specific pilot
+  authorization is recorded in
+  `docs/strategy/CHINESE_PILOT_RIGHTS.md`.
   """
 
   use Mix.Task
