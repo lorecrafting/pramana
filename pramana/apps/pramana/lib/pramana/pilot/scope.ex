@@ -53,11 +53,24 @@ defmodule Pramana.Pilot.Scope do
   """
   @spec materialize(String.t()) :: {:ok, map()} | {:error, term()}
   def materialize(expected_release_id) when is_binary(expected_release_id) do
-    with {:ok, release} <- current_release(expected_release_id),
-         input <- load_input(release),
-         {:ok, artifact} <- build(input),
-         :ok <- ScopeArtifact.validate(artifact) do
-      {:ok, artifact}
+    transaction_result =
+      Repo.transaction(fn ->
+        # One repeatable snapshot prevents release/work/graph reads from describing
+        # different moments when a corpus maintenance process commits concurrently.
+        Repo.query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+
+        with {:ok, release} <- current_release(expected_release_id),
+             input <- load_input(release),
+             {:ok, artifact} <- build(input) do
+          artifact
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+    case transaction_result do
+      {:ok, artifact} -> recheck_release_after_snapshot(expected_release_id, artifact)
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -83,35 +96,39 @@ defmodule Pramana.Pilot.Scope do
          :ok <- verify_agamas(work_map) do
       seeds = seeds(ranking["top_demand"], work_map)
 
-      {scope, admitted_relations, traversal_stats} =
-        expand(seeds, raw_relation_rows, work_map)
-
+      {scope, admitted_relations} = expand(seeds, raw_relation_rows, work_map)
+      considered_relations = considered_relation_rows(raw_relation_rows, scope)
+      traversal_stats = relation_exclusion_stats(considered_relations, work_map)
       scope_works = present_works(scope, work_map)
       relations = present_relations(admitted_relations)
-      alignments = alignment_coverage(relations, alignment_rows)
 
-      payload =
-        payload(
-          release,
-          ranking,
-          seeds,
-          scope_works,
-          relations,
-          alignments,
-          traversal_stats,
-          %{
-            works: works,
-            ranking: ranking_detail,
-            relations: raw_relation_rows,
-            alignments: alignment_rows
-          }
-        )
+      with :ok <- ensure_unambiguous_relation_pairs(relations) do
+        {alignments, relevant_alignment_rows} =
+          alignment_coverage(relations, alignment_rows)
 
-      artifact = ScopeArtifact.finalize(payload)
+        payload =
+          payload(
+            release,
+            ranking,
+            seeds,
+            scope_works,
+            relations,
+            alignments,
+            traversal_stats,
+            %{
+              works: works,
+              ranking: ranking_detail,
+              relations: considered_relations,
+              alignments: relevant_alignment_rows
+            }
+          )
 
-      case ScopeArtifact.validate(artifact) do
-        :ok -> {:ok, artifact}
-        {:error, errors} -> {:error, {:invalid_artifact, errors}}
+        artifact = ScopeArtifact.finalize(payload)
+
+        case ScopeArtifact.validate(artifact) do
+          :ok -> {:ok, artifact}
+          {:error, errors} -> {:error, {:invalid_artifact, errors}}
+        end
       end
     end
   end
@@ -167,12 +184,23 @@ defmodule Pramana.Pilot.Scope do
         |> Enum.frequencies()
         |> Map.new(fn {method, count} -> {Atom.to_string(method), count} end)
 
+      cutoff_weight = top |> List.last() |> Map.fetch!("weight")
+
+      cutoff_tied_families =
+        ranked
+        |> Enum.filter(&(&1.weight == cutoff_weight))
+        |> Enum.map(& &1.family)
+        |> Enum.sort()
+
       ranking = %{
+        "rule" => ScopeArtifact.demand_ranking_rule(),
         "cross_family_pairs" => length(classified),
         "directed_pairs" => length(directed),
         "unresolved_pairs" => unresolved,
         "conflicting_pairs" => conflicts,
         "direction_method_counts" => method_counts,
+        "cutoff_weight" => cutoff_weight,
+        "cutoff_tied_families" => cutoff_tied_families,
         "top_demand" => top
       }
 
@@ -207,6 +235,20 @@ defmodule Pramana.Pilot.Scope do
               drift -> {:error, {:release_drift, drift}}
             end
         end
+    end
+  end
+
+  defp recheck_release_after_snapshot(expected_release_id, artifact) do
+    case current_release(expected_release_id) do
+      {:ok, release} ->
+        if release.release_id == artifact["release"]["release_id"] do
+          {:ok, artifact}
+        else
+          {:error, :release_changed_after_snapshot}
+        end
+
+      {:error, reason} ->
+        {:error, {:release_changed_after_snapshot, reason}}
     end
   end
 
@@ -708,6 +750,7 @@ defmodule Pramana.Pilot.Scope do
       "release" => stringify_release(release),
       "selection" => %{
         "demand_seed_count" => ScopeArtifact.demand_seed_count(),
+        "demand_ranking_rule" => ScopeArtifact.demand_ranking_rule(),
         "agama_work_ids" => ScopeArtifact.agama_ids(),
         "scope_source" => "cbeta.T",
         "relation_types" => ScopeArtifact.allowed_relations(),
