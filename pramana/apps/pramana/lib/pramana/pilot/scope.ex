@@ -560,38 +560,7 @@ defmodule Pramana.Pilot.Scope do
         end
       )
 
-    outside_cbeta =
-      relation_rows
-      |> Enum.count(fn row ->
-        row.relation in ScopeArtifact.allowed_relations() and
-          row.method in ScopeArtifact.allowed_relation_methods() and
-          Map.has_key?(scope, row.target_work_id) and
-          not Map.has_key?(work_map, row.source_work_id)
-      end)
-
-    excluded_model =
-      Enum.count(relation_rows, fn row ->
-        row.relation in ScopeArtifact.allowed_relations() and
-          row.method == "llm" and
-          Map.has_key?(scope, row.target_work_id)
-      end)
-
-    excluded_role_incoherent =
-      Enum.count(relation_rows, fn row ->
-        row.relation in ScopeArtifact.allowed_relations() and
-          row.method in ScopeArtifact.allowed_relation_methods() and
-          Map.has_key?(work_map, row.source_work_id) and
-          Map.has_key?(work_map, row.target_work_id) and
-          not relation_role_compatible?(row, work_map) and
-          Map.has_key?(scope, row.target_work_id)
-      end)
-
-    {scope, Map.values(admitted),
-     %{
-       outside_cbeta_relation_rows: outside_cbeta,
-       excluded_model_relation_rows: excluded_model,
-       excluded_role_incoherent_relation_rows: excluded_role_incoherent
-     }}
+    {scope, Map.values(admitted)}
   end
 
   defp relation_role_compatible?(row, work_map) do
@@ -617,12 +586,17 @@ defmodule Pramana.Pilot.Scope do
         existing = Map.get(scope_acc, source)
 
         scope_acc =
-          if existing do
-            Map.update!(scope_acc, source, fn item ->
-              %{item | seed_ids: Enum.sort(Enum.uniq(item.seed_ids ++ target_seeds))}
-            end)
-          else
-            Map.put(scope_acc, source, %{min_hop: hop, seed_ids: target_seeds})
+          cond do
+            is_nil(existing) ->
+              Map.put(scope_acc, source, %{min_hop: hop, seed_ids: target_seeds})
+
+            existing.min_hop == 0 ->
+              scope_acc
+
+            true ->
+              Map.update!(scope_acc, source, fn item ->
+                %{item | seed_ids: Enum.sort(Enum.uniq(item.seed_ids ++ target_seeds))}
+              end)
           end
 
         relation_key = {source, target, relation}
@@ -709,31 +683,98 @@ defmodule Pramana.Pilot.Scope do
   end
 
   defp alignment_coverage(relations, alignment_rows) do
+    admitted_pairs =
+      relations
+      |> Enum.map(&{&1["source_work_id"], &1["target_work_id"]})
+      |> MapSet.new()
+
+    relevant_rows =
+      alignment_rows
+      |> Enum.filter(fn row ->
+        MapSet.member?(admitted_pairs, {row.commentary_work_id, row.root_work_id})
+      end)
+
     grouped =
-      Enum.group_by(alignment_rows, &{&1.commentary_work_id, &1.root_work_id})
+      Enum.group_by(relevant_rows, &{&1.commentary_work_id, &1.root_work_id})
 
-    Enum.map(relations, fn relation ->
-      rows =
-        Map.get(
-          grouped,
-          {relation["source_work_id"], relation["target_work_id"]},
-          []
-        )
+    coverage =
+      Enum.map(relations, fn relation ->
+        rows =
+          Map.get(
+            grouped,
+            {relation["source_work_id"], relation["target_work_id"]},
+            []
+          )
 
-      %{
-        "commentary_work_id" => relation["source_work_id"],
-        "target_work_id" => relation["target_work_id"],
-        "relation" => relation["relation"],
-        "alignment_rows" => length(rows),
-        "distinct_root_urns" => rows |> Enum.map(& &1.root_urn) |> Enum.uniq() |> length(),
-        "distinct_commentary_urns" =>
-          rows |> Enum.map(& &1.commentary_urn) |> Enum.uniq() |> length(),
-        "has_passage_alignment" => rows != []
-      }
+        %{
+          "commentary_work_id" => relation["source_work_id"],
+          "target_work_id" => relation["target_work_id"],
+          "relation" => relation["relation"],
+          "alignment_rows" => length(rows),
+          "distinct_root_urns" => rows |> Enum.map(& &1.root_urn) |> Enum.uniq() |> length(),
+          "distinct_commentary_urns" =>
+            rows |> Enum.map(& &1.commentary_urn) |> Enum.uniq() |> length(),
+          "has_passage_alignment" => rows != []
+        }
+      end)
+      |> Enum.sort_by(fn row ->
+        {row["target_work_id"], row["commentary_work_id"], row["relation"]}
+      end)
+
+    {coverage, relevant_rows}
+  end
+
+  defp ensure_unambiguous_relation_pairs(relations) do
+    ambiguous =
+      relations
+      |> Enum.group_by(&{&1["source_work_id"], &1["target_work_id"]})
+      |> Enum.find(fn {_pair, rows} ->
+        rows |> Enum.map(& &1["relation"]) |> Enum.uniq() |> length() > 1
+      end)
+
+    case ambiguous do
+      nil ->
+        :ok
+
+      {{source, target}, rows} ->
+        types = rows |> Enum.map(& &1["relation"]) |> Enum.uniq() |> Enum.sort()
+        {:error, {:ambiguous_relation_types, source, target, types}}
+    end
+  end
+
+  defp considered_relation_rows(relation_rows, scope) do
+    max_depth = ScopeArtifact.max_relation_depth()
+
+    relation_rows
+    |> Enum.filter(fn row ->
+      case Map.get(scope, row.target_work_id) do
+        %{min_hop: hop} when hop < max_depth -> true
+        _ -> false
+      end
     end)
     |> Enum.sort_by(fn row ->
-      {row["target_work_id"], row["commentary_work_id"], row["relation"]}
+      {row.target_work_id || "", row.source_work_id || "", row.relation || "", row.method || ""}
     end)
+  end
+
+  defp relation_exclusion_stats(rows, work_map) do
+    allowed_methods = ScopeArtifact.allowed_relation_methods()
+
+    %{
+      outside_cbeta_relation_rows:
+        Enum.count(rows, fn row ->
+          row.method in allowed_methods and not Map.has_key?(work_map, row.source_work_id)
+        end),
+      excluded_model_relation_rows:
+        Enum.count(rows, &(&1.method == "llm")),
+      excluded_role_incoherent_relation_rows:
+        Enum.count(rows, fn row ->
+          row.method in allowed_methods and
+            Map.has_key?(work_map, row.source_work_id) and
+            Map.has_key?(work_map, row.target_work_id) and
+            not relation_role_compatible?(row, work_map)
+        end)
+    }
   end
 
   defp payload(
