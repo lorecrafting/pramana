@@ -19,15 +19,20 @@ The product is not merely search and it is not merely a chatbot. Its core loop i
 **ask → answer → inspect evidence → follow explanation → reuse responsibly**
 
 A user should be able to move from a plain-language answer to the texts behind it. Where
-the corpus actually supports the relationship, Pramāṇa should expose an explanatory chain
-such as:
+the corpus actually supports the relationships, Pramāṇa should expose a **typed
+explanatory graph**, for example:
 
-**sūtra / discourse → śāstra or treatise → commentary → subcommentary**
+- **sūtra / discourse → commentary → subcommentary**;
+- **śāstra / treatise → commentary → subcommentary**;
+- a sūtra and an independent treatise may both bear on the same question without claiming
+  that the treatise is a commentary on that sūtra.
 
-That chain is a core product direction because root texts are often terse and difficult.
-Commentaries can make them intelligible, but a commentary remains an attributed
-interpretation rather than scripture. Pramāṇa must preserve that distinction instead of
-flattening every retrieved passage into one undifferentiated evidence pool.
+This depth is a core product direction because root texts and systematic treatises can be
+terse and difficult. Commentaries can make them intelligible, but a commentary remains an
+attributed interpretation rather than scripture. Topic relevance must never be promoted
+into a `comments_on` edge merely to make a clean lineage diagram. Pramāṇa must preserve
+those distinctions instead of flattening every retrieved passage into one
+undifferentiated evidence pool.
 
 ## D1 — audience and recurring job
 
@@ -54,7 +59,9 @@ into a claim about what a person should practice or what all Buddhists believe.
 The first useful answer should have progressive depth rather than one giant scholarly
 apparatus.
 
-1. **Plain-language answer.** Short enough to orient a normal reader.
+1. **Plain-language answer.** Short enough to orient a normal reader and headed by the
+   exact corpus/tradition scope being searched, so “within this Pāli pilot scope” cannot
+   silently become “Buddhism says.”
 2. **Claim-level evidence.** Important factual/doctrinal claims point to supporting
    passages or are marked as interpretation/insufficiently supported.
 3. **Source cards.** Original text, rights-cleared human rendering when available,
@@ -125,7 +132,7 @@ Before the first product slice is considered structurally acceptable, fixtures f
 existing Chinese and Tibetan relation graphs must prove that the UI/API can represent:
 
 - root sūtra/discourse;
-- independent śāstra/treatise;
+- independent śāstra/treatise without inventing a root relation from topical similarity;
 - commentary on a root or treatise;
 - subcommentary on commentary/treatise;
 - multiple competing/sibling commentaries;
@@ -182,9 +189,9 @@ For this feasibility pilot:
 - **time to useful evidence:** median at or below 3 minutes and 90th percentile at or
   below 8 minutes from question submission to the participant identifying useful
   inspectable evidence;
-- **repeat signal:** at least half of participants voluntarily bring one new natural task
-  during the observation window. This is a directional feasibility signal, not a
-  retention-rate claim.
+- **repeat signal:** during a declared **14-day observation window**, at least half of
+  participants voluntarily bring one new natural task. This is a directional feasibility
+  signal, not a retention-rate claim.
 
 Failure of the critical trust floor is a stop/fix condition regardless of average task
 success. A weak result in only one audience stratum must remain visible rather than being
