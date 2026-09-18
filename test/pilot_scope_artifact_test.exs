@@ -72,7 +72,8 @@ defmodule Strategy.PilotScopeArtifactTest do
         stderr_to_stdout: true
       )
 
-    assert output =~ "pilot scope artifact valid"
+    assert output =~ "pilot scope artifact structurally valid"
+    assert output =~ "live_currentness=not_established"
   end
 
   defp valid_artifact do
@@ -164,7 +165,8 @@ defmodule Strategy.PilotScopeArtifactTest do
           "confidence" => "certain",
           "scope" => "whole_work",
           "target_urn" => nil,
-          "evidence_sha256" => String.duplicate("a", 64)
+          "evidence" => %{"fixture" => true},
+          "evidence_sha256" => ScopeArtifact.digest(%{"fixture" => true})
         }
       ]
     }
@@ -220,6 +222,14 @@ defmodule Strategy.PilotScopeArtifactTest do
         "excluded_relation_rows_outside_cbeta" => 0,
         "excluded_model_relation_rows" => 0,
         "excluded_role_incoherent_relation_rows" => 0
+      },
+      "derivation_status" => %{
+        "quotation_graph_completeness" => "not_recorded_by_database",
+        "relation_graph_completeness" => "not_recorded_by_database",
+        "alignment_graph_completeness" => "not_recorded_by_database",
+        "structural_validation_establishes_live_currentness" => false,
+        "live_acceptance_requires_external_completion_evidence" => true,
+        "live_acceptance_requires_quiesced_repeat_match" => true
       },
       "input_digests" => %{
         "work_metadata" => String.duplicate("1", 64),
