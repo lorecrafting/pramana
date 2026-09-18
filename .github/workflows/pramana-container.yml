@@ -45,6 +45,7 @@ jobs:
         with:
           context: pramana
           file: pramana/Dockerfile
+          pull: true
           load: true
           tags: pramana:ci
           cache-from: type=gha,scope=pramana-runtime-image
