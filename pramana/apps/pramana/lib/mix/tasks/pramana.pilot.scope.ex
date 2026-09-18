@@ -51,7 +51,9 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
       opts[:release_id] ||
         Mix.raise("--release-id is required; scope may not bind to an implicit release")
 
-    out = opts[:out] || Mix.raise("--out is required; no repository artifact is written by default")
+    out =
+      opts[:out] || Mix.raise("--out is required; no repository artifact is written by default")
+
     out = Path.expand(out)
 
     if File.exists?(out) do
@@ -90,9 +92,14 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
       File.write!(temporary, bytes, [:binary])
 
       case File.ln(temporary, path) do
-        :ok -> :ok
-        {:error, :eexist} -> Mix.raise("refusing to overwrite existing scope artifact: #{path}")
-        {:error, reason} -> Mix.raise("cannot create immutable scope artifact: #{inspect(reason)}")
+        :ok ->
+          :ok
+
+        {:error, :eexist} ->
+          Mix.raise("refusing to overwrite existing scope artifact: #{path}")
+
+        {:error, reason} ->
+          Mix.raise("cannot create immutable scope artifact: #{inspect(reason)}")
       end
     after
       File.rm(temporary)
