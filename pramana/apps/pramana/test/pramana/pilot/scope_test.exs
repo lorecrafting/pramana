@@ -35,6 +35,18 @@ defmodule Pramana.Pilot.ScopeTest do
            end)
   end
 
+  test "demand graph ignores quotation rows below the frozen 20-character floor" do
+    input = input_fixture()
+    [first | rest] = input.quotation_rows
+    too_short = %{first | text_sha256: hash("short-extra"), length: 19}
+
+    {:ok, artifact} = Scope.build(%{input | quotation_rows: [too_short, first | rest]})
+
+    row = Enum.find(artifact["ranking"]["top_demand"], &(&1["work_id"] == first.b_work_id))
+    assert row["weight"] == 1
+    assert artifact["selection"]["quotation_min_length"] == 20
+  end
+
   test "distinct hashes, not duplicate quotation rows, carry demand weight" do
     input = input_fixture()
     [first | rest] = input.quotation_rows
@@ -57,7 +69,7 @@ defmodule Pramana.Pilot.ScopeTest do
       input
       | works: [family_work, family_work_2 | input.works],
         quotation_rows: [
-          %{a_work_id: "T0220a", b_work_id: "T0220b", text_sha256: hash("family")}
+          %{a_work_id: "T0220a", b_work_id: "T0220b", text_sha256: hash("family"), length: 20}
           | input.quotation_rows
         ]
     }
@@ -90,7 +102,7 @@ defmodule Pramana.Pilot.ScopeTest do
     work_map = Map.new([treatise, root | input.works], &{&1.work_id, &1})
 
     quotation_rows = [
-      %{a_work_id: "T1600", b_work_id: "T0300", text_sha256: hash("treatise-root")}
+      %{a_work_id: "T1600", b_work_id: "T0300", text_sha256: hash("treatise-root"), length: 20}
       | input.quotation_rows
     ]
 
@@ -109,7 +121,7 @@ defmodule Pramana.Pilot.ScopeTest do
       input
       | works: [root, commentary | input.works],
         quotation_rows: [
-          %{a_work_id: "T1750", b_work_id: "T0300", text_sha256: hash("conflict")}
+          %{a_work_id: "T1750", b_work_id: "T0300", text_sha256: hash("conflict"), length: 20}
           | input.quotation_rows
         ]
     }
@@ -215,7 +227,8 @@ defmodule Pramana.Pilot.ScopeTest do
         %{
           a_work_id: citer.work_id,
           b_work_id: root.work_id,
-          text_sha256: hash(citer.work_id <> root.work_id)
+          text_sha256: hash(citer.work_id <> root.work_id),
+          length: 20
         }
       end)
 
