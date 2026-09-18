@@ -112,6 +112,32 @@ defmodule Pramana.Pilot.ScopeTest do
     assert artifact["denominators"]["alignment_rows"] == 2
   end
 
+  test "unrelated work, relation and alignment rows do not perturb the scope hash" do
+    input = input_fixture()
+    {:ok, baseline} = Scope.build(input)
+
+    unrelated_a = work("T5000", "root", "unrelated root", 50, "經集部")
+    unrelated_b = work("T5001", "commentary", "unrelated commentary", 900, "經疏部")
+
+    changed = %{
+      input
+      | works: [unrelated_a, unrelated_b | input.works],
+        relation_rows: [
+          relation("T5001", "T5000", "comments_on", "manifest", "certain")
+          | input.relation_rows
+        ],
+        alignment_rows: [
+          alignment("T5001", "T5000", "ru", "cu", "lu")
+          | input.alignment_rows
+        ]
+    }
+
+    {:ok, after_unrelated_change} = Scope.build(changed)
+
+    assert baseline["scope_content_sha256"] == after_unrelated_change["scope_content_sha256"]
+    assert baseline["input_digests"] == after_unrelated_change["input_digests"]
+  end
+
   test "artifact is byte deterministic for identical semantic inputs" do
     {:ok, a} = Scope.build(input_fixture())
     {:ok, b} = Scope.build(input_fixture())
