@@ -25,6 +25,7 @@ defmodule Pramana.PilotPreflight do
     path
     |> File.read!()
     |> :json.decode()
+    |> normalize_json()
   end
 
   @spec validate(map(), String.t()) :: :ok | {:error, [String.t()]}
@@ -95,6 +96,15 @@ defmodule Pramana.PilotPreflight do
       {output, status} -> raise "git rev-parse failed (#{status}): #{String.trim(output)}"
     end
   end
+
+  defp normalize_json(:null), do: nil
+
+  defp normalize_json(value) when is_map(value) do
+    Map.new(value, fn {key, item} -> {key, normalize_json(item)} end)
+  end
+
+  defp normalize_json(value) when is_list(value), do: Enum.map(value, &normalize_json/1)
+  defp normalize_json(value), do: value
 
   defp check_top_level(errors, manifest) do
     expected = MapSet.new(~w(schema pilot_id subject_revision gates))
