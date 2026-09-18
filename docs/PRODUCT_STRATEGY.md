@@ -35,9 +35,16 @@ they improve a real research or engineering outcome.
 | Long-term Foundry option | Portable standalone engineering system, proved on a second repository | Preserve independence now; delay multi-tenant platform work until demand is demonstrated |
 | Research and dependencies | Borrow tested mechanisms; adopt packages only after bounded evaluation | No blanket adoption of a vendor's stack or benchmark claims |
 
-The initial canon, pilot participants, effort allocation and operating budgets are
-**open decisions**, not silently selected by this rewrite. A scoped pilot narrows
-the new experience, not the stored corpus or existing users' access to supported tools.
+The initial strategy rewrite left canon, participants and pilot controls open. Those
+initial D1–D7 choices are now resolved by the
+[pilot charter](strategy/PILOT_CHARTER.md): three user strata around one evidence-backed
+question-answering job, a conditional four-Nikāya user pilot, explicit commentary-depth
+compatibility, preregistered thresholds, rights/privacy rules and no exact-replay promise.
+Implementation remains gated by G0 and source-specific rights clearance; the charter does
+not authorize provider spend or deployment.
+
+A scoped pilot narrows the new experience, not the stored corpus or existing users' access
+to supported tools.
 
 ## What makes this worth building
 

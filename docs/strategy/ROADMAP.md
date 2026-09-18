@@ -1,6 +1,6 @@
 # Strategic roadmap and candidate initiatives
 
-[Strategy overview](../PRODUCT_STRATEGY.md) · [Decisions](DECISIONS.md)
+[Strategy overview](../PRODUCT_STRATEGY.md) · [Pilot charter](PILOT_CHARTER.md) · [Decisions](DECISIONS.md)
 **Status:** proposed sequencing, not a scheduled or admitted backlog.
 
 ## How to read this roadmap
@@ -30,16 +30,21 @@ rather than assuming today's documented state is the eventual implementation.
 **Work:** I-P1 plus baseline measurement for I-F1. **Dependencies:** G0 for execution;
 no new infrastructure required for interviews or planning.
 
-Produce one pilot charter: audience, recurring task, one source scope, available
-qualified evaluator, source/translation permissions, current alternative, initial
-quality/latency/cost thresholds and a bounded effort allocation. Record actual
-retrieval limitations and operator time; do not import research benchmarks as local
-performance. Choose the pilot canon explicitly using [the scope criteria](PRAMANA.md#scope-narrow-the-experience-retain-the-substrate).
+[The initial pilot charter](PILOT_CHARTER.md) now resolves D1–D7 before results are
+seen: audience, recurring task, conditional four-Nikāya user scope, rights gate,
+evaluation thresholds, rendering policy, privacy/export behavior, capacity and replay
+promise. The charter authorizes no post-G0 implementation and no new cash spend.
 
-**Exit:** the operator approves the charter and the measurement plan before results
-are seen. **Stop/reframe:** no recurring need, no usable source access, no evaluator,
-or the proposed advantage disappears in comparison with existing tools. Do not
-solve weak demand by adding more models or corpora.
+Before execution, recheck the live source/corpus baseline, complete the charter's
+operation-specific rights matrix for the selected source witness and rendering, identify
+the qualified evaluators and record each participant's current alternative. Actual retrieval limitations and operator time must be
+measured locally; public benchmarks do not substitute.
+
+**Exit:** after G0, the operator confirms that the charter's rights/evaluator prerequisites
+are satisfied and admits the bounded pilot implementation. **Stop/reframe:** no recurring
+need, no usable rights-cleared source access, no evaluator, or the proposed advantage
+disappears in comparison with existing tools. Do not solve weak demand by adding more
+models or corpora.
 
 ## H2 / G2 — deliver one complete evidence workflow
 
@@ -89,10 +94,15 @@ merely a batch embedding job.
 
 ### I-P1 — pilot charter and research baseline
 
-**Outcome:** a chosen research job/scope with observed demand and a fair comparison.
-**Evidence:** consented task records, failed searches, rights review, evaluator and
-predeclared thresholds. **Gate:** G1. **Excludes:** declaring product-market fit
-from interviews, prototype enthusiasm or a corpus count.
+**Charter:** [initial evidence-first pilot](PILOT_CHARTER.md).
+
+**Outcome:** the ask → answer → evidence → reuse job is tested across scholars,
+practitioners/study leaders and ordinary readers in one conditional Pāli discourse scope,
+without optimizing away the richer treatise/commentary hierarchy.
+**Evidence:** consented task records, failed searches, source-specific rights clearance,
+qualified evaluator review, segmented user outcomes and the charter's predeclared
+thresholds. **Gate:** G1 after G0 permits execution. **Excludes:** declaring product-market
+fit from interviews, prototype enthusiasm or a corpus count.
 
 ### I-P2 — evidence and trust contract
 
