@@ -155,7 +155,6 @@ defmodule PramanaFoundry.Repair.FR08HandoffGateTest do
     end
   end
 
-
   test "hung probes are killed and reported as failures" do
     report = FR08HandoffGate.run(HangingProvider, probe_timeout_ms: 20)
 
