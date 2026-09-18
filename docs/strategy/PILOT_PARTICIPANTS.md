@@ -103,6 +103,16 @@ evaluation is not consent to publish it.
 
 No audio, video or screen recording is part of pilot v1.
 
+### Conditional consent for external question transfer
+
+If a separately authorized external provider/model will receive the participant's question,
+prompt/task content or any retained study content, that transfer requires a **separate
+affirmative conditional consent** before the affected measured task. The disclosure must
+name the provider/product route and state the reviewed retention, training, human-review
+and deletion terms. General study consent does not authorize an unknown future provider.
+
+A local-only route does not use this external-transfer consent merely because it is a model.
+
 # 2. Identity separation
 
 Study analysis uses random pseudonymous identifiers:
@@ -131,6 +141,10 @@ The pilot does not collect:
 
 The study does not attempt to infer demographic, religious, medical or other sensitive
 attributes that the participant did not explicitly provide for the study's defined purpose.
+
+Study-record access is least-privilege: the operator and assigned evaluator(s) only. It is
+not a general analytics dataset. Evaluator notes may not add direct identity fields, and
+contact-roster access remains separate from task/evaluator access.
 
 # 3. What one retained task record contains
 
@@ -200,7 +214,8 @@ Also record coarse buckets for:
 - main friction category.
 
 Exact product/service names are not required for the decision metric. The optional
-500-character note may capture context when useful.
+500-character note may capture context when useful. `none` is mutually exclusive with
+every other current-alternative category.
 
 Never request login credentials, paid-account status, API keys or private account details
 for another service.
@@ -263,10 +278,16 @@ prompt the voluntary repeat task.
 A participant withdrawal request triggers deletion of their individual study records
 within **7 calendar days maximum**.
 
-Deletion must include working copies, evaluator copies and study export copies under the
-operator's control. A deletion process that leaves an ordinary backup capable of silently
-restoring the participant record is not complete; any exceptional immutable backup must
-have a documented expiry and may not be used for study analysis.
+Deletion must include working copies, evaluator copies, study export copies, ordinary
+application/request logs and other restorable working copies under the project's control.
+A deletion process that leaves an ordinary backup capable of silently restoring the
+participant record is not complete; any exceptional immutable backup must have a documented
+expiry and may not be used for study analysis.
+
+Measured task content must not be duplicated into operational logs in the first place:
+full questions, generated answers and full prompt payloads are forbidden in ordinary
+operational telemetry/logging. Provider-side logging is a separate provider-review issue
+and must be disclosed/cleared before external transfer.
 
 # 7. Purpose boundaries
 
@@ -284,6 +305,11 @@ Likewise, study consent is not converted into broader operational or training pe
 
 Any materially different secondary use requires a new explicit consent and its own
 rights/privacy review.
+
+A material protocol revision affecting collected fields, external transfer,
+retention/deletion, purpose/secondary use, public sharing or identity linkage requires
+**re-consent before that participant contributes another measured task**. Existing consent
+does not float forward across those changes.
 
 # 8. Evidence packet handling
 
@@ -355,7 +381,8 @@ failure. It may not be reclassified as "out of scope" after seeing the system fa
 A natural unsupported question may count as a successful task **only** when qualified
 review confirms the declared pilot scope does not support the requested evidence and the
 system gives a correct scoped unsupported/refusal result without a false exhaustiveness
-claim.
+claim. That support/out-of-scope adjudication is made **without seeing the system outcome
+wherever feasible**, and the task record states whether the adjudicator was blinded.
 
 Thus "we cannot support this from this declared scope" can succeed; "Buddhism has no such
 teaching" cannot.
@@ -388,7 +415,9 @@ unfavorable result.
 # 11. Withdrawal
 
 A participant may withdraw from the measured study without penalty until the pilot decision
-is recorded.
+is recorded. While individual records still exist after that decision, the participant may
+still request deletion of those individual records; the already-recorded non-reconstructive
+aggregate decision does not have to be recomputed after the decision boundary.
 
 On withdrawal:
 
@@ -410,8 +439,11 @@ replacement natural tasks before making the pilot decision.
 Public sharing defaults **off** for individual task material.
 
 Aggregate results may be reported when they do not contain task content. Because the cohort
-is small, every public aggregate/example review must consider whether combinations of
-audience stratum, exact question, dates or distinctive feedback could re-identify a person.
+is small, a publicly reported aggregate cell must contain at least **three distinct
+participants**; smaller cells are suppressed or merged. Every public aggregate/example
+review must also consider whether combinations of audience stratum, dates or distinctive
+feedback could re-identify a person. An exact question or exact task date is individual
+content, not an "aggregate," regardless of how it is labelled.
 
 Publishing any individual question, answer, screenshot, evidence packet or participant
 feedback requires the separate optional consent recorded for that purpose.
