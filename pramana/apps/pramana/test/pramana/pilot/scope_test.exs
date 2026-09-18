@@ -12,6 +12,9 @@ defmodule Pramana.Pilot.ScopeTest do
     assert artifact["denominators"]["combined_seed_count"] == 14
     assert artifact["denominators"]["total_work_count"] == 16
     assert artifact["denominators"]["expanded_work_count"] == 2
+    assert artifact["ranking"]["rule"] == "directed_shared_text_v1"
+    assert is_integer(artifact["ranking"]["cutoff_weight"])
+    assert artifact["ranking"]["cutoff_tied_families"] != []
 
     seed_ids = MapSet.new(Enum.map(artifact["seeds"], & &1["work_id"]))
     assert MapSet.subset?(MapSet.new(ScopeArtifact.agama_ids()), seed_ids)
@@ -85,7 +88,7 @@ defmodule Pramana.Pilot.ScopeTest do
     {:ok, artifact} = Scope.build(input_fixture())
 
     assert artifact["denominators"]["excluded_model_relation_rows"] == 1
-    assert artifact["denominators"]["excluded_role_incoherent_relation_rows"] == 2
+    assert artifact["denominators"]["excluded_role_incoherent_relation_rows"] == 1
 
     refute Enum.any?(artifact["relations"], fn edge ->
              Enum.any?(edge["assertions"], &(&1["method"] == "llm"))
