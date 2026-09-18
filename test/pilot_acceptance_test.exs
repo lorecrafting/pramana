@@ -77,6 +77,7 @@ defmodule Strategy.PilotAcceptanceTest do
 
     assert "CF15_source_data_control_injection" in manifest["critical_failure_ids"]
     assert "R16_source_data_control_injection" in manifest["rehearsal"]["case_ids"]
+
     assert manifest["rehearsal"][
              "actual_authorized_inference_route_quality_required_before_trust_ready"
            ]
