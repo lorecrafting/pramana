@@ -154,9 +154,12 @@ defmodule PramanaWeb.CheckRunTest do
     {runner, id} = start_run(verify: blocked(parent), repair: fn _ -> %{} end)
     assert_receive {:worker, worker}
     worker_ref = Process.monitor(worker)
+    runner_ref = Process.monitor(runner)
     Process.exit(runner, {:shutdown, :cancel})
-    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}
-    assert_receive {:finished, ^id, %{execution: :cancelled, result: nil, repair: nil}}
+    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}, 3_000
+    assert_receive {:DOWN, ^runner_ref, :process, ^runner, :normal}, 1_000
+    refute Process.alive?(worker)
+    assert_received {:finished, ^id, %{execution: :cancelled, result: nil, repair: nil}}
   end
 
   test "an unlinked owner exiting normally still stops its worker" do
