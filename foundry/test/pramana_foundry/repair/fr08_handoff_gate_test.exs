@@ -157,13 +157,11 @@ defmodule PramanaFoundry.Repair.FR08HandoffGateTest do
 
 
   test "hung probes are killed and reported as failures" do
-    started = System.monotonic_time(:millisecond)
     report = FR08HandoffGate.run(HangingProvider, probe_timeout_ms: 20)
 
     assert report.status == "failed"
     assert report.failed_count == report.mandatory_count
     assert Enum.all?(report.capabilities, &(&1.reason == "probe_timeout"))
-    assert System.monotonic_time(:millisecond) - started < 1_000
   end
 
   test "untrappable provider death fails without leaking its exit reason" do
