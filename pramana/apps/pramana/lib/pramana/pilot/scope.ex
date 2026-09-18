@@ -99,6 +99,8 @@ defmodule Pramana.Pilot.Scope do
       {scope, admitted_relations} = expand(seeds, raw_relation_rows, work_map)
       considered_relations = considered_relation_rows(raw_relation_rows, scope)
       traversal_stats = relation_exclusion_stats(considered_relations, work_map)
+      relevant_works =
+        relevant_work_metadata(works, ranking_detail, considered_relations, scope)
       scope_works = present_works(scope, work_map)
       relations = present_relations(admitted_relations)
 
@@ -116,7 +118,7 @@ defmodule Pramana.Pilot.Scope do
             alignments,
             traversal_stats,
             %{
-              works: works,
+              works: relevant_works,
               ranking: ranking_detail,
               relations: considered_relations,
               alignments: relevant_alignment_rows
@@ -865,6 +867,26 @@ defmodule Pramana.Pilot.Scope do
       "excluded_role_incoherent_relation_rows" =>
         traversal_stats.excluded_role_incoherent_relation_rows
     }
+  end
+
+  defp relevant_work_metadata(works, ranking_detail, relation_rows, scope) do
+    quotation_ids =
+      ranking_detail.pairs
+      |> Enum.flat_map(&[&1.a_work_id, &1.b_work_id])
+
+    relation_ids =
+      relation_rows
+      |> Enum.flat_map(&[&1.source_work_id, &1.target_work_id])
+      |> Enum.reject(&is_nil/1)
+
+    ids =
+      quotation_ids ++ relation_ids ++ Map.keys(scope) ++ ScopeArtifact.agama_ids()
+
+    wanted = MapSet.new(ids)
+
+    works
+    |> Enum.filter(&MapSet.member?(wanted, &1.work_id))
+    |> Enum.sort_by(& &1.work_id)
   end
 
   defp stable_works(works) do
