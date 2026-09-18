@@ -226,18 +226,20 @@ defmodule Pramana.Pilot.ScopeArtifact do
     ids = Enum.map(seeds, & &1["work_id"])
     demand_ids = MapSet.new(Enum.map(ranking["top_demand"] || [], & &1["work_id"]))
 
-    errors
-    |> add_if(ids != Enum.sort(ids), "seeds must be sorted by work_id")
-    |> add_if(length(ids) != length(Enum.uniq(ids)), "seed work ids must be unique")
-    |> add_if(
-      not Enum.all?(@agama_ids, &(&1 in ids)),
-      "all four charter Āgamas must be present in seeds"
-    )
-    |> add_if(
-      not MapSet.subset?(demand_ids, MapSet.new(ids)),
-      "every demand-ranked work must be present in seeds"
-    )
-    |> Enum.reduce(seeds, fn seed, acc ->
+    errors =
+      errors
+      |> add_if(ids != Enum.sort(ids), "seeds must be sorted by work_id")
+      |> add_if(length(ids) != length(Enum.uniq(ids)), "seed work ids must be unique")
+      |> add_if(
+        not Enum.all?(@agama_ids, &(&1 in ids)),
+        "all four charter Āgamas must be present in seeds"
+      )
+      |> add_if(
+        not MapSet.subset?(demand_ids, MapSet.new(ids)),
+        "every demand-ranked work must be present in seeds"
+      )
+
+    Enum.reduce(seeds, errors, fn seed, acc ->
       sources = seed["seed_sources"] || []
 
       acc
@@ -256,14 +258,16 @@ defmodule Pramana.Pilot.ScopeArtifact do
     ids = Enum.map(works, & &1["work_id"])
     seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
 
-    errors
-    |> add_if(ids != Enum.sort(ids), "works must be sorted by work_id")
-    |> add_if(length(ids) != length(Enum.uniq(ids)), "scope work ids must be unique")
-    |> add_if(
-      not MapSet.subset?(seed_ids, MapSet.new(ids)),
-      "every seed must be present in works"
-    )
-    |> Enum.reduce(works, fn work, acc ->
+    errors =
+      errors
+      |> add_if(ids != Enum.sort(ids), "works must be sorted by work_id")
+      |> add_if(length(ids) != length(Enum.uniq(ids)), "scope work ids must be unique")
+      |> add_if(
+        not MapSet.subset?(seed_ids, MapSet.new(ids)),
+        "every seed must be present in works"
+      )
+
+    Enum.reduce(works, errors, fn work, acc ->
       acc
       |> add_if(not nonempty?(work["work_id"]), "work_id is required")
       |> add_if(work["source"] != "cbeta", "scope works must come from CBETA")
@@ -281,10 +285,12 @@ defmodule Pramana.Pilot.ScopeArtifact do
     work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
     keys = Enum.map(relations, &relation_key/1)
 
-    errors
-    |> add_if(keys != Enum.sort(keys), "relations must use canonical sort order")
-    |> add_if(length(keys) != length(Enum.uniq(keys)), "relation edges must be unique")
-    |> Enum.reduce(relations, fn relation, acc ->
+    errors =
+      errors
+      |> add_if(keys != Enum.sort(keys), "relations must use canonical sort order")
+      |> add_if(length(keys) != length(Enum.uniq(keys)), "relation edges must be unique")
+
+    Enum.reduce(relations, errors, fn relation, acc ->
       assertions = relation["assertions"] || []
 
       acc
@@ -315,10 +321,12 @@ defmodule Pramana.Pilot.ScopeArtifact do
     relation_keys = MapSet.new(Enum.map(relations, &relation_identity/1))
     keys = Enum.map(rows, &alignment_key/1)
 
-    errors
-    |> add_if(keys != Enum.sort(keys), "alignment_coverage must use canonical sort order")
-    |> add_if(length(keys) != length(Enum.uniq(keys)), "alignment coverage rows must be unique")
-    |> Enum.reduce(rows, fn row, acc ->
+    errors =
+      errors
+      |> add_if(keys != Enum.sort(keys), "alignment_coverage must use canonical sort order")
+      |> add_if(length(keys) != length(Enum.uniq(keys)), "alignment coverage rows must be unique")
+
+    Enum.reduce(rows, errors, fn row, acc ->
       acc
       |> add_if(
         not MapSet.member?(relation_keys, alignment_identity(row)),
