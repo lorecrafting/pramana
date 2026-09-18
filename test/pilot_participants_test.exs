@@ -70,6 +70,37 @@ defmodule Strategy.PilotParticipantsTest do
     assert evaluator["disagreements_preserved"]
   end
 
+  test "repeat-use signal stays voluntary and consent receipt stays pseudonymous" do
+    manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
+
+    refute "fourteen_day_followup_contact" in manifest["required_consents"]
+    assert "repeat_use_signal_is_unprompted" in manifest["required_disclosures"]
+    assert manifest["optional_consents"]["followup_logistics_contact"] == false
+
+    receipt = manifest["consent_receipt"]
+    assert receipt["direct_identity_fields_allowed"] == false
+    assert receipt["contact_or_identity_roster_separate"]
+    assert manifest["identifiers"]["consent_receipt_contains_direct_identity"] == false
+  end
+
+  test "adult-only v1 and operator anti-denominator-gaming rules stay pinned" do
+    manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
+
+    assert manifest["eligibility"]["minimum_age"] == 18
+    assert manifest["eligibility"]["age_attestation_only"]
+    assert manifest["eligibility"]["date_of_birth_collected"] == false
+    assert manifest["eligibility"]["minors_in_pilot_v1"] == false
+
+    denominator = manifest["task_denominator"]
+    assert denominator["participant_exclusion_may_be_initiated_by_participant"]
+    assert denominator["operator_or_evaluator_may_not_prompt_exclusion_based_on_outcome"]
+    assert denominator["all_exclusions_counted_and_reported"]
+
+    regulatory = manifest["regulatory_boundary"]
+    assert regulatory["protocol_is_not_irb_or_regulatory_determination"]
+    assert regulatory["institution_must_obtain_applicable_review_or_approval"]
+  end
+
   test "participant protocol preflight gate is ready while unrelated execution gates remain blocked" do
     manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
     assert :ok = Pramana.PilotParticipants.validate(manifest, @root)
