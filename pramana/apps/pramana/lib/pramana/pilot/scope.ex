@@ -15,8 +15,7 @@ defmodule Pramana.Pilot.Scope do
 
     * exclude same-family reuse (for example the T0220 lettered family);
     * count distinct passage hashes, never quotation rows;
-    * use an asymmetric explanatory-role direction when exactly one side may explain
-      the other;
+    * use the retained historical role signal only for commentary→root;
     * otherwise direct later date_start to earlier date_start;
     * when role and date both resolve but disagree, count a conflict and use neither;
     * unresolved/conflicting pairs contribute no demand weight;
