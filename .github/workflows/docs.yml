@@ -28,4 +28,5 @@ jobs:
         run: |
           mix format --check-formatted
           elixir bin/check_docs.exs
+          elixir bin/check_pilot_preflight.exs --validate
           elixir bin/sync_agent_conventions.exs --check

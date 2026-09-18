@@ -22,8 +22,9 @@
     {
       "id": "cbeta_rights",
       "state": "blocked",
-      "reason": "Operation-specific CBETA rights review for the complete expanded seed/commentary/treatise pilot scope is not yet recorded.",
+      "reason": "CBETA Category A/non-commercial baseline is recorded, but the complete live expanded pilot scope is not frozen and embedding, generated-translation, local-model and external-provider processing of CBETA bytes remain unresolved. Treat those operations as permission-required until exact clearance is recorded.",
       "evidence": [
+        "docs/strategy/CHINESE_PILOT_RIGHTS.md",
         "docs/strategy/PILOT_PREFLIGHT.md",
         "docs/strategy/RESEARCH.md"
       ]
@@ -31,8 +32,9 @@
     {
       "id": "lexicon_rights",
       "state": "blocked",
-      "reason": "Per-glossary operation-specific rights review is not yet recorded for the lexicons that will feed query expansion or translation.",
+      "reason": "Local deterministic use can proceed only under a conservative non-commercial reading, but the exact DILA pilot resources carry conflicting primary licence notices (resource PDFs: CC BY-SA 3.0; current portal: CC BY-NC-SA 4.0), and external-model transfer is not cleared. The operation-level gate therefore remains blocked.",
       "evidence": [
+        "docs/strategy/CHINESE_PILOT_RIGHTS.md",
         "docs/strategy/PILOT_PREFLIGHT.md",
         "docs/strategy/RESEARCH.md"
       ]
@@ -56,8 +58,9 @@
     {
       "id": "provider_terms",
       "state": "blocked",
-      "reason": "Provider data-use terms for sending selected Chinese source/glossary text have not been reviewed for the pilot.",
+      "reason": "No provider/product/model has been selected or authorized. Source or glossary bytes must not leave the local boundary until retention/training, abuse review, subprocessors, input licence, output rights, confidentiality/deletion and non-commercial-use compatibility are reviewed alongside source-specific permissions.",
       "evidence": [
+        "docs/strategy/CHINESE_PILOT_RIGHTS.md",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     },
