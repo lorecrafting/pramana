@@ -35,7 +35,13 @@ defmodule Pramana.PilotAcceptance do
     "automatic_retries_max" => 0,
     "model_call_timeout_seconds" => 60,
     "automated_task_timeout_seconds" => 300,
-    "cash_spend_usd_max" => 0
+    "cash_spend_usd_max" => 0,
+    "chinese_lexical_query_executions_max" => 12,
+    "chinese_semantic_query_executions_max" => 12,
+    "retrieval_executions_total_max" => 26,
+    "weak_expansion_fusion_contributions_per_passage_max" => 1,
+    "glossary_utf8_bytes_per_translation_max" => 4000,
+    "glossary_utf8_bytes_per_task_max" => 12000
   }
 
   @expected_rules %{
@@ -48,7 +54,11 @@ defmodule Pramana.PilotAcceptance do
       "no automatic retry; an explicit later retry is a new attempt with its own receipt and bounds",
     "provider_tokens" =>
       "record tokenizer-specific input/output token counts when a provider/model is eventually authorized; the UTF-8 source-byte caps remain authoritative",
-    "provider_authority" => "this contract authorizes no provider/model/spend route"
+    "provider_authority" => "this contract authorizes no provider/model/spend route",
+    "external_provider_calls_authorized" => false,
+    "external_provider_capacity_authorized" => false,
+    "weak_expansion_fusion" =>
+      "related and model_proposed candidates share one weak contribution bucket per passage; multiplicity cannot accumulate evidence strength"
   }
 
   @expected_query_classes ~w(
@@ -106,7 +116,14 @@ defmodule Pramana.PilotAcceptance do
     "query_expansion_verified_surface_allowed_outcomes" => [
       "correct_as_declared",
       "correct_only_with_narrower_scope_preserved"
-    ]
+    ],
+    "retrieval_supported_cases_min" => 30,
+    "retrieval_commentary_eligible_cases_min" => 8,
+    "retrieval_recall_at_10_min" => 0.80,
+    "retrieval_commentary_recall_at_10_min" => 0.75,
+    "inference_quality_samples_min" => 8,
+    "inference_quality_samples_per_present_role_min" => 2,
+    "inference_quality_all_samples_must_pass_translation_rubric" => true
   }
 
   @critical_ids ~w(
@@ -124,6 +141,7 @@ defmodule Pramana.PilotAcceptance do
     CF12_execution_or_spend_bound_violation
     CF13_false_absence_or_exhaustiveness_claim
     CF14_provenance_or_traceability_loss
+    CF15_source_data_control_injection
   )
 
   @rehearsal_ids ~w(
@@ -142,6 +160,7 @@ defmodule Pramana.PilotAcceptance do
     R13_duplicate_hash_and_retry
     R14_candidate_explosion_bound
     R15_timeout_or_unavailable_inference
+    R16_source_data_control_injection
   )
 
   @expected_rehearsal %{
@@ -150,7 +169,8 @@ defmodule Pramana.PilotAcceptance do
     "all_injected_critical_failures_must_be_detected" => true,
     "live_provider_calls_allowed" => false,
     "counts_toward_participant_pilot" => false,
-    "trust_gate_requires_actual_execution" => true
+    "trust_gate_requires_actual_execution" => true,
+    "actual_authorized_inference_route_quality_required_before_trust_ready" => true
   }
 
   @spec load_manifest!(String.t()) :: map()
