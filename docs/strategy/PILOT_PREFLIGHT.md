@@ -106,20 +106,29 @@ A literal English→Chinese sentence translation is too brittle for Buddhist ret
 Technical terms have historical renderings, translator-specific usage and near-neighbours
 that must not be flattened into synonyms.
 
-The query planner should extract concepts and produce candidates with a relation type:
+The query planner should extract concepts and produce candidates with a provenance-bearing
+relation type. **A reverse dictionary hit is not automatically an equivalence claim.**
 
 | Relation | Meaning | Retrieval treatment |
 |---|---|---|
-| `equivalent` | strong attested technical equivalent | high-weight lexical + semantic |
+| `explicit_equivalent` | the reviewed source explicitly presents the cross-language forms as equivalents | highest-weight lexical + semantic |
+| `attested_gloss` | Chinese headword has an English/Sanskrit gloss matching the query concept | high-value candidate, but not displayed as a synonym without review |
 | `historical_rendering` | attested rendering used by a named translator/text family | high weight only in its supported scope; lower outside it |
-| `orthographic_variant` | character/edition variant | equivalent for matching, original form preserved |
+| `orthographic_variant` | character/edition variant | equivalent only for character matching; original form preserved |
 | `transliteration` | Indic name/term represented phonetically in Chinese | high-value lexical candidate |
-| `broader_narrower` | taxonomic relationship | separate lower-weight expansion |
+| `broader_narrower` | reviewed taxonomic relationship | separate lower-weight expansion |
 | `related` | doctrinally associated but not equivalent | recall-only arm; never presented as a synonym |
+| `model_proposed` | model-suggested Chinese formulation lacking reviewed lexical attestation | bounded recall arm only |
+
+English→Chinese lookup therefore works conservatively: search the lexicon's English,
+Sanskrit and definition fields for candidate Chinese headwords, retain each glossary's
+source/work scope, and record *why* the candidate matched. A model may propose additional
+Chinese forms, but matching a retrieved passage does not retroactively turn that proposal
+into an attested lexical equivalence.
 
 Example: an English question about "Buddha-nature" may produce 佛性 and 如來藏 as
-separate concept candidates with their own evidence; the system must not claim those terms
-are interchangeable merely because both are relevant to the question.
+separate relevant candidates with their own provenance; the system must not claim those
+terms are interchangeable merely because both retrieve useful material.
 
 The original English question is always retained beside the expansion plan.
 
