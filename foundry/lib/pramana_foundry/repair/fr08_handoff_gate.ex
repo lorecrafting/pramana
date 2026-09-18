@@ -80,13 +80,52 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
     end
   end
 
-  @doc "True only for a revision-bound report in which every mandatory capability passed."
+  @doc "True only for a complete revision-bound report in which every capability passed."
   @spec ready?(map()) :: boolean()
-  def ready?(%{schema: @schema, status: "ready", subject_revision: revision})
-      when is_binary(revision),
-      do: true
+  def ready?(%{
+        schema: @schema,
+        status: "ready",
+        provider: provider,
+        subject_revision: subject_revision,
+        mandatory_count: mandatory_count,
+        passed_count: passed_count,
+        failed_count: 0,
+        unavailable_count: 0,
+        capabilities: capabilities
+      })
+      when is_binary(provider) and is_list(capabilities) do
+    mandatory_count == length(@capabilities) and
+      passed_count == mandatory_count and
+      valid_subject_revision?(subject_revision) and
+      valid_passed_capabilities?(capabilities)
+  end
 
   def ready?(_report), do: false
+
+  defp valid_passed_capabilities?(capabilities) do
+    length(capabilities) == length(@capabilities) and
+      Enum.zip(capabilities, @capabilities)
+      |> Enum.all?(fn
+        {%{
+           id: actual_id,
+           description: actual_description,
+           status: "passed",
+           evidence: evidence,
+           reason: nil
+         }, {expected_id, expected_description}} ->
+          actual_id == Atom.to_string(expected_id) and
+            actual_description == expected_description and
+            match?({:ok, _evidence}, bounded_detail(evidence))
+
+        _other ->
+          false
+      end)
+  end
+
+  defp valid_subject_revision?(subject_revision) do
+    is_binary(subject_revision) and byte_size(subject_revision) > 0 and
+      byte_size(subject_revision) <= @max_subject_revision_bytes
+  end
 
   defp options(opts) do
     opts = Keyword.validate!(opts, [:probe_timeout_ms, :subject_revision])
@@ -98,9 +137,7 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
             "probe_timeout_ms must be between 1 and #{@max_probe_timeout_ms}"
     end
 
-    unless is_nil(subject_revision) or
-             (is_binary(subject_revision) and byte_size(subject_revision) > 0 and
-                byte_size(subject_revision) <= @max_subject_revision_bytes) do
+    unless is_nil(subject_revision) or valid_subject_revision?(subject_revision) do
       raise ArgumentError,
             "subject_revision must be a non-empty binary up to #{@max_subject_revision_bytes} bytes"
     end
