@@ -55,6 +55,13 @@ the same source-bound rendering contract can be implemented locally after a spec
 model/licence/quality review. That changes deployment mechanics, not the rule that generated
 English is separate from the authoritative Chinese witness.
 
+The existing `Pramana.Translate.Glossary.table/0` helper is historical experiment
+infrastructure, **not** the Chinese pilot's lexicon/provenance interface: it reads across
+`glossary_entries` and reduces rows to `{chinese, english}`, losing source/glossary and
+work scope. Do not use it for pilot query expansion or provider payload construction. The
+27,956-passage MITRA tranche was recorded as unpinned; smaller bake-off arms did exercise
+glossary pinning and must be reviewed according to their actual payloads.
+
 ```bash
 mix pramana.translate.export --covered-by patton --limit 300 --out /tmp/bakeoff.jsonl
 # Run the reviewed inference workflow with explicit provider/spend authorization.
