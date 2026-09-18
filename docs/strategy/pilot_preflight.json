@@ -14,8 +14,9 @@
     {
       "id": "pilot_scope",
       "state": "blocked",
-      "reason": "Exact seed IDs, allowed relation edge types, traversal depth, expanded work IDs, passage-alignment coverage, release identity and scope denominator are not yet frozen from an accepted pilot release.",
+      "reason": "The deterministic scope materializer and artifact contract are implemented, but no artifact has yet been generated from and reviewed against the accepted live pilot release. Exact seed IDs, expanded work IDs, alignment coverage, release identity and denominators therefore remain unaccepted.",
       "evidence": [
+        "docs/strategy/PILOT_SCOPE.md",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
     },
