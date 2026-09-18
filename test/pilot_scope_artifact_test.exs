@@ -189,13 +189,18 @@ defmodule Strategy.PilotScopeArtifactTest do
       },
       "selection" => %{
         "demand_seed_count" => 10,
+        "demand_ranking_rule" => ScopeArtifact.demand_ranking_rule(),
         "agama_work_ids" => ScopeArtifact.agama_ids(),
         "scope_source" => "cbeta.T",
         "relation_types" => ScopeArtifact.allowed_relations(),
         "relation_methods" => ScopeArtifact.allowed_relation_methods(),
         "max_relation_depth" => 2
       },
-      "ranking" => ranking,
+      "ranking" => Map.merge(ranking, %{
+        "rule" => ScopeArtifact.demand_ranking_rule(),
+        "cutoff_weight" => 1,
+        "cutoff_tied_families" => ["T0205"]
+      }),
       "seeds" => seeds,
       "works" => works,
       "relations" => [relation],
