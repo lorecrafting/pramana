@@ -43,6 +43,7 @@ use paid services. Read the task before executing it. Foundry uses its separate
 | [`mix pramana.local.add`](../apps/pramana/lib/mix/tasks/pramana.local.add.ex) | Hashes, bakes and loads a local source directory into the corpus |
 | [`mix pramana.local.validate`](../apps/pramana/lib/mix/tasks/pramana.local.validate.ex) | Checks a local source directory. Writes nothing. |
 | [`mix pramana.parallels.import`](../apps/pramana/lib/mix/tasks/pramana.parallels.import.ex) | Fetches and imports SuttaCentral's curated cross-tradition parallels |
+| [`mix pramana.pilot.scope`](../apps/pramana/lib/mix/tasks/pramana.pilot.scope.ex) | Materializes a deterministic Chinese pilot scope against an explicitly selected current release, or validates a saved scope artifact |
 | [`mix pramana.provenance`](../apps/pramana/lib/mix/tasks/pramana.provenance.ex) | Populates provenance axes from the Taishō division table |
 | [`mix pramana.public.bake`](../apps/pramana/lib/mix/tasks/pramana.public.bake.ex) | Bakes the redistributable-only corpus into a separate database |
 | [`mix pramana.public.check`](../apps/pramana/lib/mix/tasks/pramana.public.check.ex) | Says whether this database is safe to expose publicly |
