@@ -34,21 +34,21 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
 
   alias Pramana.Bake
   alias Pramana.Commentary
-  alias Pramana.Repo
+  alias Pramana.Derivations
 
   @switches [work: :string, dry_run: :boolean, min_density: :float]
 
   @grapheme_sources ~w(cbeta sat local-huang-nianzu-jie)
   @syllable_sources ~w(derge derge-tengyur)
-  @alignable_sources @grapheme_sources ++ @syllable_sources
 
   @impl Mix.Task
   def run(argv) do
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
     Mix.Task.run("app.start")
 
-    pairs = pairs(opts[:work])
     bake_id = Bake.current_id()
+    receipt = begin_receipt(opts, bake_id)
+    pairs = Derivations.commentary_pairs(opts[:work])
 
     Mix.shell().info("""
 
@@ -76,14 +76,44 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
       |> Enum.reduce({[], nil}, fn {_, root, source} = pair, {acc, cached} ->
         unit = unit_for(source)
         held = prepared_for(root, cached, unit)
-        result = align_pair(pair, opts[:dry_run], bake_id, elem(held, 1), unit)
+        result =
+          align_pair(
+            pair,
+            opts[:dry_run],
+            bake_id,
+            elem(held, 1),
+            unit,
+            opts[:min_density]
+          )
         report(result)
         {[result | acc], held}
       end)
       |> then(fn {acc, _} -> Enum.reverse(acc) end)
 
-    summarise(results)
+    stats = summarise(results)
+    finish_receipt(receipt, stats)
   end
+
+  defp begin_receipt(opts, bake_id) do
+    if opts[:dry_run] do
+      nil
+    else
+      Derivations.begin_run(
+        "commentary_align",
+        bake_id,
+        %{"work" => opts[:work]},
+        %{
+          "min_density_override" => opts[:min_density],
+          "grapheme_window" => Commentary.window(),
+          "root_min_density" => Commentary.min_density(),
+          "subcommentary_min_density" => Commentary.min_density("subcommentary")
+        }
+      )
+    end
+  end
+
+  defp finish_receipt(nil, _stats), do: :ok
+  defp finish_receipt(receipt, stats), do: Derivations.finish_run!(receipt, stats)
 
   # Keyed on the work id, which sorting has already made consecutive. `prepare_root/2` also
   # checks the body before trusting a prepared form, so a mistake here would be slow rather
@@ -106,10 +136,20 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
 
   # A prepared root is an optimisation and never an input to the answer: `nil` here takes
   # the slow path to the same result, which is what makes the cache safe to get wrong.
-  defp align_pair(pair, dry_run, bake_id, prepared, unit) do
-    opts = [unit: unit] ++ if prepared, do: [prepared_root: prepared], else: []
+  defp align_pair(pair, dry_run, bake_id, prepared, unit, min_density) do
+    opts =
+      [unit: unit]
+      |> maybe_prepared(prepared)
+      |> maybe_min_density(min_density)
+
     run_pair(pair, dry_run, bake_id, opts)
   end
+
+  defp maybe_prepared(opts, nil), do: opts
+  defp maybe_prepared(opts, prepared), do: Keyword.put(opts, :prepared_root, prepared)
+
+  defp maybe_min_density(opts, nil), do: opts
+  defp maybe_min_density(opts, min_density), do: Keyword.put(opts, :min_density, min_density)
 
   defp run_pair({commentary, root, _source}, true, _bake_id, opts),
     do: Commentary.measure(commentary, root, opts)
@@ -160,25 +200,6 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
   # null pairs of the latter rejects nearly all of the former. Whether that floor is right
   # for this population is a separate question needing its own null set; including the
   # pairs is what puts the numbers in front of anyone who asks it.
-  @alignable_relations ~w(comments_on subcommentary_of)
-
-  defp pairs(work) do
-    from(r in "work_relations",
-      join: cs in "texts",
-      on: cs.work_id == r.source_work_id,
-      join: rt in "texts",
-      on: rt.work_id == r.target_work_id,
-      where:
-        r.relation in ^@alignable_relations and not is_nil(r.target_work_id) and
-          cs.source_id in ^@alignable_sources and rt.source_id in ^@alignable_sources,
-      distinct: true,
-      select: {r.source_work_id, r.target_work_id, cs.source_id},
-      order_by: [asc: r.source_work_id, asc: r.target_work_id]
-    )
-    |> then(fn q -> if work, do: where(q, [r], r.source_work_id == ^work), else: q end)
-    |> Repo.all()
-  end
-
   defp report({:error, commentary, root, reason}),
     do: Mix.shell().error("  #{commentary} -> #{root}  #{inspect(reason)}")
 
@@ -206,6 +227,7 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     reports = Enum.filter(results, &is_map/1)
     aligned = Enum.filter(reports, & &1.aligned)
     written = reports |> Enum.map(&Map.get(&1, :written, 0)) |> Enum.sum()
+    failures = Enum.count(results, &match?({:error, _, _, _}, &1))
 
     forward = fn rs ->
       case Enum.map(rs, & &1.forward_pct) do
@@ -223,5 +245,13 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     A pair below the floor is NOT a refuted relation. A commentary may paraphrase its
     root, and several here plainly do; this method can only see verbatim quotation.
     """)
+
+    %{
+      "failures" => failures,
+      "pairs_attempted" => length(results),
+      "pairs_reported" => length(reports),
+      "aligned_pairs" => length(aligned),
+      "alignments_written" => written
+    }
   end
 end
