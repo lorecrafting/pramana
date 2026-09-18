@@ -101,6 +101,42 @@ defmodule Strategy.PilotParticipantsTest do
     assert regulatory["institution_must_obtain_applicable_review_or_approval"]
   end
 
+  test "external participant transfer, logging and public-cell boundaries stay closed" do
+    manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
+
+    transfer = manifest["conditional_consents"]["external_provider_question_transfer"]
+    assert transfer["default"] == false
+    assert transfer["must_name_provider_or_product_route"]
+    assert transfer["must_disclose_retention_training_human_review_and_deletion_terms"]
+
+    purpose = manifest["purpose_boundaries"]
+    assert purpose["full_question_not_in_operational_logs"]
+    assert purpose["generated_answer_not_in_operational_logs"]
+    assert purpose["prompt_payload_not_in_operational_logs"]
+
+    sharing = manifest["public_sharing"]
+    assert sharing["public_aggregate_min_distinct_participants_per_cell"] == 3
+    assert sharing["cells_below_minimum_suppressed_or_merged"]
+    assert sharing["exact_question_or_date_never_treated_as_aggregate"]
+  end
+
+  test "post-decision deletion and material protocol changes do not escape consent" do
+    manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
+
+    withdrawal = manifest["withdrawal"]
+    assert withdrawal["post_decision_individual_deletion_request_allowed_while_records_exist"]
+    assert withdrawal["post_decision_deletion_recomputes_recorded_aggregate_decision"] == false
+
+    protocol_change = manifest["protocol_change"]
+    assert protocol_change["reconsent_required_before_next_measured_task"]
+    assert "external_transfer" in protocol_change["material_changes_requiring_reconsent"]
+    assert "retention_or_deletion" in protocol_change["material_changes_requiring_reconsent"]
+
+    denominator = manifest["task_denominator"]
+    assert denominator["scope_support_adjudication_blinded_to_system_output_where_feasible"]
+    assert denominator["scope_support_adjudication_records_blinding_status"]
+  end
+
   test "participant protocol preflight gate is ready while unrelated execution gates remain blocked" do
     manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
     assert :ok = Pramana.PilotParticipants.validate(manifest, @root)
