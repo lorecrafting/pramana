@@ -40,6 +40,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`docs/strategy/DECISIONS.md`](strategy/DECISIONS.md)
 - [`docs/strategy/FOUNDRY.md`](strategy/FOUNDRY.md)
 - [`docs/strategy/PRAMANA.md`](strategy/PRAMANA.md)
+- [`docs/strategy/PILOT_CHARTER.md`](strategy/PILOT_CHARTER.md)
 - [`docs/strategy/RECONCILIATION.md`](strategy/RECONCILIATION.md)
 - [`docs/strategy/RESEARCH.md`](strategy/RESEARCH.md)
 - [`docs/strategy/ROADMAP.md`](strategy/ROADMAP.md)
