@@ -1,21 +1,25 @@
 # Pramāṇa: the research product
 
-[Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap](ROADMAP.md)
+[Strategy overview](../PRODUCT_STRATEGY.md) · [Pilot charter](PILOT_CHARTER.md) · [Roadmap](ROADMAP.md)
 **Status:** proposed product choices, not an inventory of completed features.
 
 ## Customer and job
 
-Recommended initial audience: English-speaking teachers, writers and serious study
-leaders who repeatedly prepare source-backed explanations. Their job is narrow:
-**find the relevant passage, understand its context, and reuse it without losing
-its attribution or overstating what it supports.** This audience selection is a
-hypothesis to test, not established demand.
+The initial pilot deliberately spans **scholars/researchers, serious practitioners or
+study leaders, and ordinary curious readers** around one common job:
 
-Serious practitioners remain an important audience; scholars and translators are
-accuracy partners and potential later power users. Do not make full philological
-apparatus or general spiritual advice prerequisites for the first useful workflow.
-The product is a research aid, not a guru, clinical service or adjudicator of a
-person's practice or realization.
+**ask a real Dharma question, understand an answer, inspect what the texts actually
+support, and leave with sources that can be checked or reused.**
+
+The product should progressively disclose depth rather than force one audience's interface
+on the others. Scholars need exact provenance and relation evidence; practitioners need
+trustworthy explanatory context; ordinary readers need plain language and a clear path to
+the source. The pilot reports each stratum separately so a good result for experts cannot
+hide a product that ordinary readers cannot use.
+
+Do not make full philological apparatus or general spiritual advice prerequisites for the
+first useful workflow. The product is a research aid, not a guru, clinical service or
+adjudicator of a person's practice or realization.
 
 Test three tasks with real material: locate a half-remembered quotation; assemble
 sources for a teaching question within a named scope; distinguish what a root text
@@ -38,9 +42,20 @@ Choose the pilot scope at G1 using real tasks and the recorded corpus limitation
 | A Tibetan collection | Fit for an Indo-Tibetan study cohort and commentary-oriented work | English access, missing witnesses/titles, translation alignment and a qualified evaluator |
 | A Chinese collection | Potentially valuable English-discovery gap and rich commentarial material | Whether selected tasks are findable and readable without presenting generated glosses as authoritative translations |
 
-These are selection hypotheses, not comparative benchmark results. [STATUS](../../pramana/docs/STATUS.md)
-is a dated snapshot, not the live database. Choose the narrowest source scope that
-supports the job; do not require an entire canon to be equally complete.
+These were selection hypotheses. The initial user pilot now conditionally selects the
+**four main Pāli Nikāyas/discourse collection** because it offers the strongest current
+path to broad English-readable Dharma questions. [The pilot charter](PILOT_CHARTER.md)
+records the comparison, thresholds and stop rules.
+
+That selection is contingent on clearing the actual human rendering source for AI-assisted
+processing. Current imported translation availability is not permission: source-specific
+licenses and stakeholder requests must be honored. If no acceptable rendering source is
+available for the task set, the pilot stops rather than substituting a restricted
+translation or silently making generated English authoritative.
+
+[STATUS](../../pramana/docs/STATUS.md) is a dated snapshot, not the live database. The
+Chinese/Tibetan relation graph remains a mandatory compatibility track so the Pāli pilot
+cannot hard-code a flat root-text-only product.
 
 Retain supported search, parallels and comparisons across the current corpus.
 Automatic multi-canon synthesis is a later experience with its own evaluation,
