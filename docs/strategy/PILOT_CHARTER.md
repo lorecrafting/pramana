@@ -63,7 +63,8 @@ The first useful answer should have progressive depth rather than one giant scho
 apparatus.
 
 1. **Plain-language answer.** Short enough to orient a normal reader and headed by the
-   exact corpus/tradition scope being searched, so “within this bounded Chinese pilot\n   scope” cannot silently become “Buddhism says.”
+   exact corpus/tradition scope being searched, so “within this bounded Chinese pilot
+   scope” cannot silently become “Buddhism says.”
 2. **Claim-level evidence.** Important factual/doctrinal claims point to supporting
    passages or are marked as interpretation/insufficiently supported.
 3. **Source cards.** Original text, rights-cleared human rendering when available,
