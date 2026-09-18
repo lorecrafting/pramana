@@ -104,6 +104,25 @@ defmodule Strategy.PilotPreflightTest do
     assert "invalid evidence reference \"../private.txt\"" in errors
   end
 
+  test "untracked local files cannot satisfy an evidence reference" do
+    manifest = Pramana.PilotPreflight.load_manifest!(@manifest)
+    [first | rest] = manifest["gates"]
+    relative = "test/.pilot-preflight-untracked-#{System.unique_integer([:positive])}"
+    absolute = Path.join(@root, relative)
+    File.write!(absolute, "not committed evidence")
+
+    on_exit(fn -> File.rm(absolute) end)
+
+    gate = %{first | "evidence" => [relative]}
+
+    assert {:error, errors} =
+             manifest
+             |> Map.put("gates", [gate | rest])
+             |> Pramana.PilotPreflight.validate(@root)
+
+    assert "invalid evidence reference #{inspect(relative)}" in errors
+  end
+
   test "top-level schema and revision are closed and validated" do
     manifest = Pramana.PilotPreflight.load_manifest!(@manifest)
 
