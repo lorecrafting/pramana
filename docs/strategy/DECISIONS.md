@@ -1,7 +1,7 @@
 # Decision register and planning handoff
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Candidate initiatives](ROADMAP.md)
-**Status:** recommendations awaiting operator decisions; no tickets admitted.
+**Status:** D1–D7 are resolved for the initial pilot by [the pilot charter](PILOT_CHARTER.md); D8–D10 remain open. No implementation ticket is admitted before G0.
 
 ## Authority and decision types
 
@@ -19,19 +19,20 @@ repair merely because some untrusted code needs a protected verifier.
 
 | ID | Decision / recommended default | Owner role | Required before |
 |---|---|---|---|
-| D1 | Accept or revise the initial teacher/writer/study-leader audience and recurring job | Product owner/operator | G1 charter |
-| D2 | Select one pilot canon/collection using task coverage, human renderings, rights and reviewer availability; no canon is preselected here | Product owner with qualified evaluator | G1 charter |
-| D3 | Approve proposed quality/time/cost thresholds, evaluation cohort and effort cap | Operator and evaluation owner | Any pilot implementation or experiment |
-| D4 | Use attributed human renderings by default; decide whether any generated reading aid is allowed in this pilot and by its partners | Product owner and rights/partner reviewer | User-facing rendering or provider processing |
-| D5 | Approve a concrete storage/retention/export policy for evidence packets and private research | Product owner and implementation owner | Persistent notebooks or public sharing |
-| D6 | Allocate capacity between one Pramāṇa delivery slice, bounded Foundry improvement and a possible second-repository pilot | Operator | H1 execution and later reallocations |
-| D7 | Decide whether exact historical replay is necessary for the initial job; otherwise promise inspectable receipts with explicit drift/unavailability | Product owner and architecture reviewer | I-P2/I-P3 export contract |
+| D1 | **Resolved:** one shared ask → answer → evidence → reuse job for scholars, practitioners/study leaders and ordinary readers; evaluate each stratum separately | Product owner/operator | Pilot charter |
+| D2 | **Resolved conditionally:** first user pilot targets the four main Pāli Nikāyas/discourse collection; selected human rendering must pass source-specific rights/stakeholder clearance before any AI-assisted processing | Product owner with qualified evaluator | Pilot execution |
+| D3 | **Resolved:** 6–8 partner design, ≥24 eligible tasks, preregistered trust/task/time/reuse thresholds, 40 operator-hour iteration cap, and no new cash spend authorized by the charter | Operator and evaluation owner | Pilot execution |
+| D4 | **Resolved:** original witness + rights-cleared attributed human rendering for evidence; generated synthesis may explain but generated translation is not reader evidence; optional AI reading aid is off by default | Product owner and rights/partner reviewer | User-facing rendering/provider processing |
+| D5 | **Resolved:** no persistent notebook required; minimal non-content telemetry by default, explicit opt-in study retention, local/user-controlled evidence export, and rights-aware excerpt handling | Product owner and implementation owner | Pilot implementation |
+| D6 | **Resolved:** before G0 only non-operational discovery; after G0 one Pramāṇa product slice plus at most one bounded Foundry improvement; no second-repository pilot during the first user pilot | Operator | H1 execution |
+| D7 | **Resolved:** no exact historical replay promise for the first pilot; carry source/release identity and report explicit drift/unavailability | Product owner and architecture reviewer | I-P2/I-P3 export contract |
 | D8 | Decide which distribution/sustainability option deserves a real pilot; no prices or revenue assumptions are locked | Product owner/operator | Hosting or commercialization |
 | D9 | Select a second repository, success criteria and explicitly authorized project scope for Foundry portability | Operator and that repository's owner | I-F3 |
 | D10 | Decide a session-backend cutover only after actual conformance; Superlogical remains a future candidate | Operator and protected-boundary reviewer | I-F4 activation |
 
-These are roles to assign, not invented team members. D1–D7 can be resolved in one
-pilot charter; they need not become ten meetings or a new governance service.
+These are roles to assign, not invented team members. D1–D7 were resolved together in
+[the pilot charter](PILOT_CHARTER.md); revising one of those decisions should amend the
+charter and this register rather than creating a parallel mini-roadmap.
 A change to the current manual paid-provider rule requires separate authenticated
 steering, not merely D3 or adoption of provider-neutral docs.
 
