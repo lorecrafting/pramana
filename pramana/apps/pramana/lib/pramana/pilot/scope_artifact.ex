@@ -16,6 +16,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   @relation_methods ~w(catalogue manifest title_match lemma_match shared_text)
   @max_relation_depth 2
   @demand_seed_count 10
+  @demand_ranking_rule "directed_shared_text_v1"
 
   @top_level ~w(
     schema
@@ -51,6 +52,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
   @doc "The number of demand-ranked seed families admitted before the Āgamas are added."
   @spec demand_seed_count() :: pos_integer()
   def demand_seed_count, do: @demand_seed_count
+
+  @doc "The frozen rule identifier for the v1 demand-ranking algorithm."
+  @spec demand_ranking_rule() :: String.t()
+  def demand_ranking_rule, do: @demand_ranking_rule
 
   @doc """
   Adds the contract identifiers and a SHA-256 over the complete semantic artifact.
@@ -169,6 +174,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
       "selection.demand_seed_count must be #{@demand_seed_count}"
     )
     |> add_if(
+      selection["demand_ranking_rule"] != @demand_ranking_rule,
+      "selection.demand_ranking_rule must be #{@demand_ranking_rule}"
+    )
+    |> add_if(
       selection["agama_work_ids"] != @agama_ids,
       "selection.agama_work_ids must match the four charter Āgamas"
     )
@@ -194,10 +203,36 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
   defp check_ranking(errors, ranking) when is_map(ranking) do
     top = ranking["top_demand"] || []
+    work_ids = Enum.map(top, & &1["work_id"])
+    families = Enum.map(top, & &1["family"])
+    cutoff_families = ranking["cutoff_tied_families"] || []
+    tenth = Enum.at(top, @demand_seed_count - 1)
 
     errors
     |> add_if(length(top) != @demand_seed_count, "ranking.top_demand must contain ten rows")
     |> add_if(not sorted_unique_rank?(top), "ranking.top_demand ranks must be unique 1..10")
+    |> add_if(length(work_ids) != length(Enum.uniq(work_ids)), "ranking demand work ids must be unique")
+    |> add_if(length(families) != length(Enum.uniq(families)), "ranking demand families must be unique")
+    |> add_if(
+      Enum.any?(top, &(not positive_integer?(&1["weight"]))),
+      "ranking demand weights must be positive integers"
+    )
+    |> add_if(
+      not positive_integer?(ranking["cutoff_weight"]),
+      "ranking.cutoff_weight must be a positive integer"
+    )
+    |> add_if(
+      is_map(tenth) and ranking["cutoff_weight"] != tenth["weight"],
+      "ranking.cutoff_weight must equal rank ten weight"
+    )
+    |> add_if(
+      cutoff_families != Enum.sort(Enum.uniq(cutoff_families)),
+      "ranking.cutoff_tied_families must be sorted and unique"
+    )
+    |> add_if(
+      is_map(tenth) and tenth["family"] not in cutoff_families,
+      "ranking.cutoff_tied_families must include the rank ten family"
+    )
     |> add_if(
       not nonnegative_integer?(ranking["cross_family_pairs"]),
       "ranking.cross_family_pairs must be a non-negative integer"
@@ -284,11 +319,16 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp check_relations(errors, relations, works) when is_list(relations) and is_list(works) do
     work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
     keys = Enum.map(relations, &relation_key/1)
+    pair_keys = Enum.map(relations, &{&1["source_work_id"], &1["target_work_id"]})
 
     errors =
       errors
       |> add_if(keys != Enum.sort(keys), "relations must use canonical sort order")
       |> add_if(length(keys) != length(Enum.uniq(keys)), "relation edges must be unique")
+      |> add_if(
+        length(pair_keys) != length(Enum.uniq(pair_keys)),
+        "one source/target pair may not carry multiple admitted relation types"
+      )
 
     Enum.reduce(relations, errors, fn relation, acc ->
       assertions = relation["assertions"] || []
@@ -311,6 +351,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> add_if(
         Enum.any?(assertions, &(&1["method"] not in @relation_methods)),
         "scope relation contains a disallowed assertion method"
+      )
+      |> add_if(
+        Enum.any?(assertions, &(not sha256?(&1["evidence_sha256"]))),
+        "scope relation assertion evidence digest must be a SHA-256"
       )
     end)
   end
@@ -439,6 +483,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
   defp nonempty?(value), do: is_binary(value) and String.trim(value) != ""
   defp nonnegative_integer?(value), do: is_integer(value) and value >= 0
+  defp positive_integer?(value), do: is_integer(value) and value > 0
 
   defp canonical_json(map) when is_map(map) and not is_struct(map) do
     body =
