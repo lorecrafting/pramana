@@ -128,50 +128,40 @@ defmodule Pramana.Pilot.Scope do
     scope_works = present_works(scope, work_map)
     relations = present_relations(admitted_relations)
 
+    context = %{
+      release: release,
+      ranking: ranking,
+      seeds: seeds,
+      scope_works: scope_works,
+      relations: relations,
+      traversal_stats: traversal_stats,
+      relevant_works: relevant_works,
+      ranking_detail: ranking_detail,
+      considered_relations: considered_relations
+    }
+
     with :ok <- ensure_unambiguous_relation_pairs(relations) do
-      finish_scope_artifact(
-        release,
-        ranking,
-        seeds,
-        scope_works,
-        relations,
-        alignment_rows,
-        traversal_stats,
-        relevant_works,
-        ranking_detail,
-        considered_relations
-      )
+      finish_scope_artifact(context, alignment_rows)
     end
   end
 
-  defp finish_scope_artifact(
-         release,
-         ranking,
-         seeds,
-         scope_works,
-         relations,
-         alignment_rows,
-         traversal_stats,
-         relevant_works,
-         ranking_detail,
-         considered_relations
-       ) do
+  defp finish_scope_artifact(context, alignment_rows) do
     {alignments, relevant_alignment_rows} =
-      alignment_coverage(relations, alignment_rows)
+      alignment_coverage(context.relations, alignment_rows)
 
     artifact =
       payload(
-        release,
-        ranking,
-        seeds,
-        scope_works,
-        relations,
+        context.release,
+        context.ranking,
+        context.seeds,
+        context.scope_works,
+        context.relations,
         alignments,
-        traversal_stats,
+        context.traversal_stats,
         %{
-          works: relevant_works,
-          ranking: ranking_detail,
-          relations: considered_relations,
+          works: context.relevant_works,
+          ranking: context.ranking_detail,
+          relations: context.considered_relations,
           alignments: relevant_alignment_rows
         }
       )
