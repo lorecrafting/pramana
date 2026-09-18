@@ -10,7 +10,9 @@
     "evaluator_id": "random_pseudonymous_id",
     "direct_identity_in_study_dataset": false,
     "account_credentials_collected": false,
-    "cross_dataset_reidentification_key_in_study_dataset": false
+    "cross_dataset_reidentification_key_in_study_dataset": false,
+    "consent_receipt_id": "random_pseudonymous_id",
+    "consent_receipt_contains_direct_identity": false
   },
   "required_disclosures": [
     "research_feasibility_pilot_not_spiritual_direction",
@@ -22,18 +24,19 @@
     "withdrawal_and_task_exclusion_process",
     "evidence_export_is_user_controlled",
     "public_example_sharing_requires_separate_optional_consent",
-    "no_penalty_for_skipping_or_withdrawing"
+    "no_penalty_for_skipping_or_withdrawing",
+    "repeat_use_signal_is_unprompted"
   ],
   "required_consents": [
     "participate_in_feasibility_study",
     "retain_full_task_record_for_evaluation",
     "qualified_evaluator_review_of_task_record",
-    "current_alternative_intake",
-    "fourteen_day_followup_contact"
+    "current_alternative_intake"
   ],
   "optional_consents": {
     "public_anonymized_example_sharing": false,
-    "quote_participant_feedback_publicly": false
+    "quote_participant_feedback_publicly": false,
+    "followup_logistics_contact": false
   },
   "prohibited_collection": [
     "passwords_or_api_keys",
@@ -122,7 +125,8 @@
     "per_task_content_after_deadline": false,
     "pseudonymous_individual_metadata_after_deadline": false,
     "aggregate_non_reconstructive_metrics_may_remain": true,
-    "public_example_content_requires_optional_consent": true
+    "public_example_content_requires_optional_consent": true,
+    "followup_contact_purpose": "logistics_only_not_repeat_use_prompting"
   },
   "purpose_boundaries": {
     "operational_noncontent_telemetry_not_study_consent": true,
@@ -180,7 +184,10 @@
     "minimum_eligible_tasks_after_exclusions": 24,
     "minimum_eligible_tasks_per_stratum_after_exclusions": 6,
     "minimum_commentary_eligible_tasks_after_exclusions": 6,
-    "replenish_after_withdrawal_or_exclusion": true
+    "replenish_after_withdrawal_or_exclusion": true,
+    "participant_exclusion_may_be_initiated_by_participant": true,
+    "operator_or_evaluator_may_not_prompt_exclusion_based_on_outcome": true,
+    "all_exclusions_counted_and_reported": true
   },
   "withdrawal": {
     "allowed_until": "pilot_decision_recorded",
@@ -217,5 +224,29 @@
       "resolve_before_resuming_affected_study_path"
     ],
     "critical_failure_mapping": "CF11_privacy_or_retention_violation"
+  },
+  "eligibility": {
+    "minimum_age": 18,
+    "age_attestation_only": true,
+    "date_of_birth_collected": false,
+    "minors_in_pilot_v1": false
+  },
+  "consent_receipt": {
+    "required_fields": [
+      "consent_receipt_id",
+      "participant_id",
+      "protocol_revision",
+      "consented_at",
+      "required_consent_values",
+      "optional_consent_values",
+      "age_18_or_older_attestation"
+    ],
+    "direct_identity_fields_allowed": false,
+    "contact_or_identity_roster_separate": true
+  },
+  "regulatory_boundary": {
+    "protocol_is_not_irb_or_regulatory_determination": true,
+    "institution_must_obtain_applicable_review_or_approval": true,
+    "this_protocol_authorizes_no_compensation_or_recruitment_spend": true
   }
 }
