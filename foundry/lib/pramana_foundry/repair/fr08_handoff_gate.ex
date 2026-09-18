@@ -3,9 +3,10 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
   Executable readiness boundary between FR-07's accepted public store API and FR-08.
 
   The gate owns no storage and performs no repair. A provider executes one bounded probe
-  for each mandatory FR-07 handoff capability. Missing integration is reported as blocked;
-  a malformed or broken provider is reported as failed. Only a complete set of passing
-  probes can produce a ready result.
+  for each mandatory FR-07 handoff capability against one exact subject revision. Missing
+  integration or subject identity is reported as blocked; a malformed or broken provider
+  is reported as failed. Only a complete set of passing, revision-bound probes can produce
+  a ready result.
 
   A ready report is handoff evidence, not authority to mark FR-07 complete or to bypass
   its reviewed acceptance requirements. The eventual FR-07 adapter must itself be reviewed
@@ -18,6 +19,7 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
 
   @schema "pramana-foundry-fr07-fr08-handoff/v1"
   @max_detail_bytes 512
+  @max_subject_revision_bytes 128
   @default_probe_timeout_ms 5_000
   @max_probe_timeout_ms 60_000
 
@@ -50,7 +52,7 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
   @type probe_result ::
           {:pass, String.t()} | {:fail, String.t()} | {:unavailable, String.t()}
 
-  @callback probe(capability_id()) :: probe_result()
+  @callback probe(capability_id(), String.t()) :: probe_result()
 
   @doc "The ordered mandatory capabilities FR-07 must expose before FR-08 implementation."
   @spec capabilities() :: [%{id: capability_id(), description: String.t()}]
@@ -59,64 +61,89 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
   end
 
   @doc "Runs every mandatory probe and returns a deterministic bounded report."
-  @spec run(module() | nil | term(), keyword()) :: map()
-  def run(provider \\ nil, opts \\ [])
+  @spec run(term(), keyword()) :: map()
+  def run(provider \\ nil, opts \\ []) do
+    {timeout, subject_revision} = options(opts)
 
-  def run(nil, opts) do
-    _timeout = probe_timeout_ms(opts)
-    report(nil, unavailable_results("provider_unavailable"))
-  end
+    cond do
+      is_nil(provider) ->
+        report(nil, subject_revision, unavailable_results("provider_unavailable"))
 
-  def run(provider, opts) when is_atom(provider) do
-    timeout = probe_timeout_ms(opts)
+      not is_atom(provider) ->
+        report(nil, subject_revision, failed_results("invalid_provider"))
 
-    case Code.ensure_loaded(provider) do
-      {:module, ^provider} ->
-        if function_exported?(provider, :probe, 1) do
-          report(provider, Enum.map(@capabilities, &run_probe(provider, &1, timeout)))
-        else
-          report(provider, unavailable_results("provider_missing_probe_callback"))
-        end
+      is_nil(subject_revision) ->
+        report(provider, nil, unavailable_results("subject_revision_missing"))
 
-      {:error, _reason} ->
-        report(provider, unavailable_results("provider_not_loadable"))
+      true ->
+        run_provider(provider, subject_revision, timeout)
     end
   end
 
-  def run(_provider, opts) do
-    _timeout = probe_timeout_ms(opts)
-    report(nil, failed_results("invalid_provider"))
-  end
-
-  @doc "True only for a report in which every mandatory capability passed."
+  @doc "True only for a revision-bound report in which every mandatory capability passed."
   @spec ready?(map()) :: boolean()
-  def ready?(%{schema: @schema, status: "ready"}), do: true
+  def ready?(%{schema: @schema, status: "ready", subject_revision: revision})
+      when is_binary(revision),
+      do: true
+
   def ready?(_report), do: false
 
-  defp probe_timeout_ms(opts) do
-    opts = Keyword.validate!(opts, [:probe_timeout_ms])
+  defp options(opts) do
+    opts = Keyword.validate!(opts, [:probe_timeout_ms, :subject_revision])
     timeout = Keyword.get(opts, :probe_timeout_ms, @default_probe_timeout_ms)
+    subject_revision = Keyword.get(opts, :subject_revision)
 
     unless is_integer(timeout) and timeout > 0 and timeout <= @max_probe_timeout_ms do
       raise ArgumentError,
             "probe_timeout_ms must be between 1 and #{@max_probe_timeout_ms}"
     end
 
-    timeout
+    unless is_nil(subject_revision) or
+             (is_binary(subject_revision) and byte_size(subject_revision) > 0 and
+                byte_size(subject_revision) <= @max_subject_revision_bytes) do
+      raise ArgumentError,
+            "subject_revision must be a non-empty binary up to #{@max_subject_revision_bytes} bytes"
+    end
+
+    {timeout, subject_revision}
   end
 
-  defp run_probe(provider, {id, description}, timeout) do
+  defp run_provider(provider, subject_revision, timeout) do
+    case Code.ensure_loaded(provider) do
+      {:module, ^provider} ->
+        if function_exported?(provider, :probe, 2) do
+          results =
+            Enum.map(
+              @capabilities,
+              &run_probe(provider, &1, subject_revision, timeout)
+            )
+
+          report(provider, subject_revision, results)
+        else
+          report(
+            provider,
+            subject_revision,
+            unavailable_results("provider_missing_probe_callback")
+          )
+        end
+
+      {:error, _reason} ->
+        report(provider, subject_revision, unavailable_results("provider_not_loadable"))
+    end
+  end
+
+  defp run_probe(provider, {id, description}, subject_revision, timeout) do
     base = %{id: Atom.to_string(id), description: description}
-    normalize_probe(base, execute_probe(provider, id, timeout))
+    normalize_probe(base, execute_probe(provider, id, subject_revision, timeout))
   end
 
-  defp execute_probe(provider, id, timeout) do
+  defp execute_probe(provider, id, subject_revision, timeout) do
     parent = self()
     token = make_ref()
 
     {pid, monitor_ref} =
       spawn_monitor(fn ->
-        result = safe_probe(provider, id)
+        result = safe_probe(provider, id, subject_revision)
         send(parent, {token, result})
       end)
 
@@ -134,8 +161,8 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
     end
   end
 
-  defp safe_probe(provider, id) do
-    provider.probe(id)
+  defp safe_probe(provider, id, subject_revision) do
+    provider.probe(id, subject_revision)
   rescue
     _error -> {:internal_failure, "probe_exception"}
   catch
@@ -232,7 +259,7 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
     end)
   end
 
-  defp report(provider, results) do
+  defp report(provider, subject_revision, results) do
     failed = Enum.count(results, &(&1.status == "failed"))
     unavailable = Enum.count(results, &(&1.status == "unavailable"))
     passed = Enum.count(results, &(&1.status == "passed"))
@@ -241,6 +268,7 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
       cond do
         failed > 0 -> "failed"
         unavailable > 0 -> "blocked"
+        is_nil(subject_revision) -> "blocked"
         passed == length(@capabilities) -> "ready"
         true -> "failed"
       end
@@ -249,6 +277,7 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
       schema: @schema,
       status: status,
       provider: provider_name(provider),
+      subject_revision: subject_revision,
       mandatory_count: length(@capabilities),
       passed_count: passed,
       failed_count: failed,
