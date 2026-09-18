@@ -314,6 +314,8 @@ defmodule Pramana.Pilot.ScopeArtifact do
     Enum.reduce(seeds, errors, &check_seed(&1, &2, ranked))
   end
 
+  defp check_seeds(errors, _seeds, _ranking), do: ["seeds must be an array" | errors]
+
   defp check_seed(seed, errors, ranked) do
     work_id = seed["work_id"]
     expected_sources = expected_seed_sources(work_id, ranked)
@@ -348,8 +350,6 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp demand_value(nil, _key), do: nil
   defp demand_value(row, key), do: row[key]
 
-  defp check_seeds(errors, _seeds, _ranking), do: ["seeds must be an array" | errors]
-
   defp check_works(errors, works, seeds) when is_list(works) and is_list(seeds) do
     ids = Enum.map(works, & &1["work_id"])
     seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
@@ -365,6 +365,8 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
     Enum.reduce(works, errors, &check_work(&1, &2, seed_ids))
   end
+
+  defp check_works(errors, _works, _seeds), do: ["works must be an array" | errors]
 
   defp check_work(work, errors, seed_ids) do
     work_id = work["work_id"]
@@ -397,8 +399,6 @@ defmodule Pramana.Pilot.ScopeArtifact do
       is_integer(work["min_hop"]) and
         work["min_hop"] in 1..@max_relation_depth and
         (work["seed_ids"] || []) != []
-
-  defp check_works(errors, _works, _seeds), do: ["works must be an array" | errors]
 
   defp check_relations(errors, relations, works, seeds)
        when is_list(relations) and is_list(works) and is_list(seeds) do
