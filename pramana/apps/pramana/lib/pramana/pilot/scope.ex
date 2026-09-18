@@ -378,10 +378,19 @@ defmodule Pramana.Pilot.Scope do
     date = date_direction(aw, bw)
 
     case {role, date} do
-      {{citer, target}, {^citer, ^target}} -> {:ok, citer, target, :role_and_date}
-      {{citer, target}, nil} -> {:ok, citer, target, :role}
-      {nil, {citer, target}} -> {:ok, citer, target, :date}
-      {nil, nil} -> :unresolved
+      {{role_citer, role_target}, {date_citer, date_target}}
+      when role_citer == date_citer and role_target == date_target ->
+        {:ok, role_citer, role_target, :role_and_date}
+
+      {{citer, target}, nil} ->
+        {:ok, citer, target, :role}
+
+      {nil, {citer, target}} ->
+        {:ok, citer, target, :date}
+
+      {nil, nil} ->
+        :unresolved
+
       {{role_citer, role_target}, {date_citer, date_target}} ->
         {:conflict, {role_citer, role_target}, {date_citer, date_target}}
     end
