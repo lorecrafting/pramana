@@ -196,11 +196,12 @@ defmodule Strategy.PilotScopeArtifactTest do
         "relation_methods" => ScopeArtifact.allowed_relation_methods(),
         "max_relation_depth" => 2
       },
-      "ranking" => Map.merge(ranking, %{
-        "rule" => ScopeArtifact.demand_ranking_rule(),
-        "cutoff_weight" => 1,
-        "cutoff_tied_families" => ["T0205"]
-      }),
+      "ranking" =>
+        Map.merge(ranking, %{
+          "rule" => ScopeArtifact.demand_ranking_rule(),
+          "cutoff_weight" => 1,
+          "cutoff_tied_families" => ["T0205"]
+        }),
       "seeds" => seeds,
       "works" => works,
       "relations" => [relation],
