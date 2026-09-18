@@ -209,6 +209,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
     tenth = Enum.at(top, @demand_seed_count - 1)
 
     errors
+    |> add_if(
+      ranking["rule"] != @demand_ranking_rule,
+      "ranking.rule must be #{@demand_ranking_rule}"
+    )
     |> add_if(length(top) != @demand_seed_count, "ranking.top_demand must contain ten rows")
     |> add_if(not sorted_unique_rank?(top), "ranking.top_demand ranks must be unique 1..10")
     |> add_if(length(work_ids) != length(Enum.uniq(work_ids)), "ranking demand work ids must be unique")
