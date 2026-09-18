@@ -4,7 +4,7 @@
 # Keep the base aligned with .github/workflows/ci.yml's former service image. pg_bigm is
 # pinned to the exact commit behind tag v1.2-20250903 rather than downloaded from a moving
 # tag during each test run.
-ARG PGVECTOR_IMAGE=pgvector/pgvector:pg18
+ARG PGVECTOR_IMAGE=pgvector/pgvector:pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
 
 FROM ${PGVECTOR_IMAGE} AS builder
 ARG PG_BIGM_COMMIT=735dceba0ecdd8ac1aaaaa207226a7102b6bbd71
