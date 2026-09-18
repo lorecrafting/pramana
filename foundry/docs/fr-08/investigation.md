@@ -73,3 +73,24 @@ redispatch. R5 tests must cover conservation, multi-ticket allocation, recursive
 delegation, duplicate/conflicting receipts, bounded infrastructure retries, resets and
 late settlement against the original generation. Replay must never invoke Git, backend,
 clock, random generation, configuration or provider effects.
+
+
+## Executable handoff-gate plan — 2026-09-17
+
+This investigation will be paired with a small executable conformance gate before FR-08
+implementation begins. The gate is preparation only: it must not modify or substitute for
+the active FR-07 store implementation, and a missing FR-07 public boundary must report
+**blocked/not yet available**, never a false pass.
+
+The first gate will encode the handoff capabilities listed above as named probes against a
+small provider-neutral adapter. It will distinguish **passed**, **failed** and
+**unavailable** capabilities, produce deterministic machine-readable output, and require
+all mandatory capabilities before declaring FR-08 ready. Fixture adapters will prove the
+gate catches missing, failing and contradictory capabilities without relying on the live
+FR-07 worktree. Once FR-07 lands, one thin adapter may bind these probes to the accepted
+public API; that binding is the only dependency-specific layer.
+
+In parallel, the Pramāṇa CheckRun cancellation regression will be made synchronization-
+based so it proves worker death precedes completion without depending on ExUnit's implicit
+100 ms receive timeout. These two changes are intentionally grouped as repair-readiness
+work: one removes CI timing noise, the other shortens the FR-07 → FR-08 handoff.
