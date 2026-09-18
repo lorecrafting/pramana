@@ -93,7 +93,9 @@ defmodule Pramana.Pilot.ScopeAcceptanceTest do
     assert artifact["denominators"]["demand_seed_count"] == 10
     assert artifact["denominators"]["combined_seed_count"] == 14
 
-    assert {:error, {:release_mismatch, "wrong-release", ^release.release_id}} =
+    release_id = release.release_id
+
+    assert {:error, {:release_mismatch, "wrong-release", ^release_id}} =
              Scope.materialize("wrong-release")
 
     newer = seed_bake!("b", ~U[2026-09-18 02:00:00.000000Z])
