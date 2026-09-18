@@ -501,9 +501,11 @@ defmodule Pramana.Commentary do
     unit = unit(opts)
 
     floor =
-      if unit == :syllable,
-        do: @syllable_min_density,
-        else: min_density(role_of(commentary_work_id))
+      Keyword.get_lazy(opts, :min_density, fn ->
+        if unit == :syllable,
+          do: @syllable_min_density,
+          else: min_density(role_of(commentary_work_id))
+      end)
 
     %{
       commentary_work_id: commentary_work_id,
