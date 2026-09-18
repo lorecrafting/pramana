@@ -51,6 +51,13 @@ expanded work ID, passage-alignment coverage, release identity and scope denomin
 The rights review applies to the **entire expanded scope**, not merely the 14 seeds.
 The historical phrase "top ten by directed citation weight" is not an immutable list.
 
+The reviewed materialization procedure is specified in [PILOT_SCOPE](PILOT_SCOPE.md).
+The read-only `mix pramana.pilot.scope --release-id <exact-release-id> --out <path>`
+command fails closed on release drift. The standalone artifact checker can verify
+structure/hash without a database, but **neither command makes `pilot_scope` ready by
+itself**: the generated live artifact must still be reviewed and accepted as preflight
+evidence.
+
 ## The bilingual architecture
 
 ```text
