@@ -31,7 +31,8 @@ defmodule Pramana.PilotScopeCheck.CLI do
 
   defp report(:ok, artifact) do
     IO.puts(
-      "pilot scope artifact valid; scope=#{artifact["scope_content_sha256"]}; " <>
+      "pilot scope artifact structurally valid; live_currentness=not_established; " <>
+        "scope=#{artifact["scope_content_sha256"]}; " <>
         "release=#{artifact["release"]["release_id"]}"
     )
 
