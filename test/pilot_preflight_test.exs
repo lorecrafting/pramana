@@ -51,7 +51,8 @@ defmodule Strategy.PilotPreflightTest do
 
     assert :ok = Pramana.PilotPreflight.validate(manifest, @root)
     assert {:error, errors} = Pramana.PilotPreflight.ready(manifest, @root, revision)
-    assert "subject_revision must equal the exact current Git revision" in errors
+    assert "subject_revision must equal the exact requested candidate revision" in errors
+    assert "subject_revision must name a Git commit available in this checkout" in errors
   end
 
   test "mandatory gate set cannot be weakened or duplicated" do
@@ -150,12 +151,25 @@ defmodule Strategy.PilotPreflightTest do
 
     assert validated =~ "manifest valid; status=blocked"
 
+    revision = Pramana.PilotPreflight.git_revision!(@root)
+
     {refused, 2} =
-      System.cmd("elixir", ["bin/check_pilot_preflight.exs", "--ready"],
+      System.cmd(
+        "elixir",
+        ["bin/check_pilot_preflight.exs", "--ready", "--subject", revision],
         cd: @root,
         stderr_to_stdout: true
       )
 
     assert refused =~ "one or more mandatory gates are blocked"
+    assert refused =~ "subject_revision must equal the exact requested candidate revision"
+
+    {usage, 2} =
+      System.cmd("elixir", ["bin/check_pilot_preflight.exs", "--ready"],
+        cd: @root,
+        stderr_to_stdout: true
+      )
+
+    assert usage =~ "--subject REVISION"
   end
 end
