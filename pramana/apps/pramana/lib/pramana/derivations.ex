@@ -302,7 +302,7 @@ defmodule Pramana.Derivations do
   end
 
   defp shared_text_candidates(min_passages) do
-    Roots.candidates(min_passages: min_passages)
+    Roots.candidates(min_passages: min_passages, bake_id: bake_id)
     |> Enum.map(fn candidate ->
       %{
         work_id: candidate.work_id,
