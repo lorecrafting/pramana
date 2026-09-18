@@ -52,7 +52,10 @@ The recurring job is:
 
 The pilot is not a guru, spiritual director, realization assessor or doctrinal authority.
 It may explain documented traditions and disagreements; it must not turn textual retrieval
-into a claim about what a person should practice or what all Buddhists believe.
+into a claim about what a person should practice or what all Buddhists believe. A question
+such as “what should I meditate on?” may be answered as **what named texts/teachers in the
+searched scope prescribe or discuss**, with sources and variation, rather than as
+personalized spiritual instruction.
 
 ## Answer contract
 
@@ -90,19 +93,38 @@ Why this is the first user-facing scope:
   Tibetan line-level retrieval;
 - the four Nikāyas cover a broad range of questions ordinary readers and practitioners
   naturally ask, rather than requiring a specialist text family;
-- source Pāli is public-domain canonical material and the current substrate already has
-  source addressing, translation anchors, parallels and verification machinery;
+- the current substrate already has Pāli source addressing, translation anchors,
+  parallels and verification machinery; the exact source witness/transcription used by
+  the pilot must still have its own use and redistribution basis recorded rather than
+  inheriting permission from the age of the underlying canonical work;
 - starting with a readable discourse corpus lets the pilot test the actual answer/evidence
   product rather than making translation acquisition the entire experiment.
 
 This is a **conditional selection**, not blanket permission to process every translation
 currently imported from SuttaCentral. Current SuttaCentral materials have source-specific
 licenses and the project presently asks that its content not be used in generative-AI
-datasets or downstream AI-derived technologies. Before implementation or design-partner
-processing, the selected human rendering must therefore be cleared from its actual rights
-holder/source and recorded in the rendering metadata. If no acceptable rendering source is
-available for the chosen task set, the user pilot stops rather than silently using a
-restricted translation.
+datasets or downstream AI-derived technologies. The pilot treats that stakeholder request
+as a product-policy constraint; this charter does not convert it into a legal conclusion.
+
+Before implementation or design-partner processing, the selected source witness and human
+rendering must each have a reviewed **rights matrix** covering the actual operations:
+
+| Operation | Required recorded disposition |
+|---|---|
+| store/index locally | permitted / prohibited / permission required, with source |
+| derive embeddings or retrieval features | permitted / prohibited / permission required |
+| send text to any model/provider | permitted / prohibited / permission required, including provider terms |
+| display in the reader | permitted scope and attribution requirements |
+| quote/copy into an evidence packet | permitted excerpt/export scope or external-link-only |
+| retain for consented evaluation | permitted duration and deletion obligation |
+
+A permissive license for one operation does not imply permission for the others. The
+clearance record should identify the source/version, rights holder or publisher where
+known, license/terms reference, review date and any stakeholder restriction being honored.
+
+If the four-Nikāya scope cannot satisfy this matrix for a useful task set, **D2 reopens**.
+The product owner must explicitly select and review another scope. There is no automatic
+fallback to another canon, to a different translation, or to generated English.
 
 ### Why not make the first user pilot Chinese or Tibetan?
 
@@ -143,11 +165,14 @@ existing Chinese and Tibetan relation graphs must prove that the UI/API can repr
 
 These are **compatibility fixtures**, not a second user pilot and not automatic cross-canon
 synthesis. They prevent an easy Pāli pilot from optimizing the product into a flat
-root-text search engine.
+root-text search engine. Passing them proves only that the product can faithfully represent
+the hierarchy; it does **not** prove that commentary improves comprehension or usefulness
+for ordinary users.
 
 A later commentary-first user cohort should be chosen only after a commentary-rich text
 family also has rights-cleared readable renderings or qualified readers who can evaluate
-the source language directly.
+the source language directly. Until such a cohort succeeds, neither G2 nor product copy
+should claim that the commentary experience has been validated for non-specialists.
 
 ## D3 — preregistered pilot thresholds
 
@@ -159,8 +184,10 @@ Use **6–8 design partners**, including at least:
 - 2 serious practitioners/study leaders;
 - 2 ordinary non-specialist readers.
 
-Collect at least **24 eligible tasks** before a continue decision. Use natural questions
-from participants, supplemented only as needed to cover these classes:
+Collect at least **24 eligible tasks** before a continue decision, with **at least six
+eligible tasks from each user stratum** so the per-stratum floor has a meaningful
+denominator. Use natural questions from participants, supplemented only as needed to cover
+these classes:
 
 1. a remembered or paraphrased quotation;
 2. a doctrinal/practice concept question;
@@ -170,7 +197,15 @@ from participants, supplemented only as needed to cover these classes:
 6. an evidence-reuse/export task.
 
 The commentary-depth compatibility fixtures are evaluated separately and do not inflate
-the user-task denominator.
+the user-task denominator. A qualified source evaluator reviews every pilot task for source
+identity/role errors and all substantive claims sampled for interpretation support; ordinary
+participants' comprehension is measured separately from evaluator agreement.
+
+These numerical floors are preregistered feasibility choices, not established industry
+benchmarks. They may be revised while the pilot is still in planning, but once the first
+participant task begins, changing a threshold requires declaring the original pilot
+inconclusive/failed and starting a new preregistered evaluation rather than moving the
+goalposts.
 
 ### Pass / iterate / stop
 
@@ -203,9 +238,11 @@ This charter authorizes **no new cash spend** and no new provider/billing route.
 implementation/pilot ticket must name the approved inference route and its budget before
 execution.
 
-Initial product-build/pilot iteration is capped at **40 operator hours** after G0. Reaching
-that cap without satisfying the preregistered thresholds requires an explicit continue,
-reframe or stop decision rather than another infrastructure round.
+Initial product-build/pilot iteration is capped at **40 operator hours** after G0.
+Operator hours include implementation, setup, support, evaluation review and rework; they
+exclude participant time. Reaching that cap without satisfying the preregistered thresholds
+requires an explicit continue, reframe or stop decision rather than another infrastructure
+round.
 
 ## D4 — human and generated language
 
