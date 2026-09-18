@@ -1,6 +1,6 @@
 # Pramāṇa: the research product
 
-[Strategy overview](../PRODUCT_STRATEGY.md) · [Pilot charter](PILOT_CHARTER.md) · [Roadmap](ROADMAP.md)
+[Strategy overview](../PRODUCT_STRATEGY.md) · [Pilot charter](PILOT_CHARTER.md) · [Pilot preflight](PILOT_PREFLIGHT.md) · [Roadmap](ROADMAP.md)
 **Status:** proposed product choices, not an inventory of completed features.
 
 ## Customer and job
@@ -45,21 +45,23 @@ Choose the pilot scope at G1 using real tasks and the recorded corpus limitation
 | A Tibetan collection | Fit for an Indo-Tibetan study cohort and commentary-oriented work | English access, missing witnesses/titles, translation alignment and a qualified evaluator |
 | A Chinese collection | Potentially valuable English-discovery gap and rich commentarial material | Whether selected tasks are findable and readable without presenting generated glosses as authoritative translations |
 
-These were selection hypotheses. The initial user pilot now conditionally selects the
-**four main Pāli Nikāyas/discourse collection** because it offers the strongest current
-path to broad English-readable Dharma questions. [The pilot charter](PILOT_CHARTER.md)
-records the comparison, thresholds and stop rules.
+Those were selection hypotheses. D2 was revised on 2026-09-17 after the product goal
+was clarified: **commentary/treatise depth is a central first-pilot value**, not only future
+compatibility. The initial user pilot is now a bounded Chinese CBETA scope built from the
+live equivalents of the recorded 14 demand-weighted seed works plus accepted
+commentary/subcommentary neighborhoods. [The pilot charter](PILOT_CHARTER.md) and
+[preflight](PILOT_PREFLIGHT.md) own the exact scope, bilingual architecture, thresholds and
+stop rules.
 
-That selection is contingent on an operation-specific rights review for both the source
-witness and the human rendering: local indexing/derivatives, model/provider processing,
-display, evidence-packet export and study retention are separate uses. Current imported
-availability is not permission. If the rights matrix cannot be satisfied for a useful task
-set, D2 reopens for an explicit scope decision; there is no automatic canon, translation
-or generated-English fallback.
+English accessibility is supplied by multi-arm English→Chinese retrieval and bounded
+on-demand reading translation; the Chinese witness remains the textual evidence. The
+selection is contingent on operation-specific CBETA/lexicon/model-processing rights and
+qualified Buddhist-Chinese evaluation. If those prerequisites cannot be satisfied, D2
+reopens explicitly; there is no automatic Pāli/Tibetan/broader-Chinese fallback.
 
 [STATUS](../../pramana/docs/STATUS.md) is a dated snapshot, not the live database. The
-Chinese/Tibetan relation graph remains a mandatory compatibility track so the Pāli pilot
-cannot hard-code a flat root-text-only product.
+pilot must rematerialize its exact seed IDs and relations from the accepted release rather
+than treating historical ranking prose as an immutable list.
 
 Retain supported search, parallels and comparisons across the current corpus.
 Automatic multi-canon synthesis is a later experience with its own evaluation,
