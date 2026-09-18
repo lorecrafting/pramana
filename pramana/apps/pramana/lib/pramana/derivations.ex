@@ -13,7 +13,6 @@ defmodule Pramana.Derivations do
 
   import Ecto.Query
 
-  alias Pramana.Commentary
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.DerivationRun
   alias Pramana.Corpus.Quotation
