@@ -1,0 +1,221 @@
+{
+  "schema": "pramana-pilot-participants/v1",
+  "pilot_id": "chinese-commentary-v1",
+  "protocol_revision": 1,
+  "status": "frozen_pre_recruitment",
+  "collection_mode": "consent_required_for_measured_participant_record",
+  "identifiers": {
+    "participant_id": "random_pseudonymous_id",
+    "task_id": "random_id",
+    "evaluator_id": "random_pseudonymous_id",
+    "direct_identity_in_study_dataset": false,
+    "account_credentials_collected": false,
+    "cross_dataset_reidentification_key_in_study_dataset": false
+  },
+  "required_disclosures": [
+    "research_feasibility_pilot_not_spiritual_direction",
+    "bounded_chinese_corpus_scope_and_known_coverage_limits",
+    "chinese_source_is_authoritative_and_generated_english_is_not_source_evidence",
+    "model_or_provider_identity_and_data_boundary_when_applicable",
+    "what_full_task_data_will_be_retained_for_study",
+    "retention_and_deletion_deadline",
+    "withdrawal_and_task_exclusion_process",
+    "evidence_export_is_user_controlled",
+    "public_example_sharing_requires_separate_optional_consent",
+    "no_penalty_for_skipping_or_withdrawing"
+  ],
+  "required_consents": [
+    "participate_in_feasibility_study",
+    "retain_full_task_record_for_evaluation",
+    "qualified_evaluator_review_of_task_record",
+    "current_alternative_intake",
+    "fourteen_day_followup_contact"
+  ],
+  "optional_consents": {
+    "public_anonymized_example_sharing": false,
+    "quote_participant_feedback_publicly": false
+  },
+  "prohibited_collection": [
+    "passwords_or_api_keys",
+    "payment_information",
+    "government_identifiers",
+    "audio_recording",
+    "video_recording",
+    "screen_recording",
+    "precise_location",
+    "unrelated_contact_lists",
+    "private_notes_outside_the_declared_task_record"
+  ],
+  "study_record": {
+    "required_fields": [
+      "protocol_revision",
+      "participant_id",
+      "task_id",
+      "audience_stratum",
+      "task_class",
+      "question_text",
+      "submitted_at",
+      "declared_scope_identity",
+      "system_release_identity",
+      "query_plan_receipt",
+      "retrieval_receipt",
+      "selected_evidence_ids",
+      "generated_answer",
+      "rendering_metadata",
+      "outcome_state",
+      "failure_category",
+      "time_to_useful_evidence_ms",
+      "commentary_eligible",
+      "commentary_opened",
+      "evidence_packet_trace_result",
+      "comprehension_check",
+      "consent_receipt_id"
+    ],
+    "optional_fields": [
+      "participant_feedback",
+      "current_alternative_optional_note",
+      "study_evidence_packet_copy_if_rights_permit"
+    ],
+    "excluded_fields": [
+      "participant_name",
+      "participant_email",
+      "participant_phone",
+      "account_credentials",
+      "freeform_private_notes_not_part_of_task"
+    ]
+  },
+  "current_alternative": {
+    "required": true,
+    "multi_select_categories": [
+      "web_search",
+      "canon_or_archive_search",
+      "general_chat_model",
+      "specialist_buddhist_tool",
+      "books_or_manual_research",
+      "teacher_or_study_community",
+      "other",
+      "none"
+    ],
+    "required_fields": [
+      "categories",
+      "frequency_bucket",
+      "usual_time_bucket",
+      "main_friction_category"
+    ],
+    "optional_free_text_max_chars": 500,
+    "credentials_or_account_details_forbidden": true
+  },
+  "sensitive_content": {
+    "pre_task_warning": true,
+    "instruction": "do_not_submit_secrets_credentials_or_unnecessary_highly_personal_information",
+    "participant_can_mark_task_private_exclude": true,
+    "accidental_sensitive_content_action": "stop_research_use_and_delete_full_content_promptly",
+    "minimal_incident_metadata_may_remain_without_content": true,
+    "spiritual_or_personal_question_alone_is_not_permission_for_secondary_use": true
+  },
+  "retention": {
+    "full_task_record_delete_days_after_pilot_decision_max": 30,
+    "full_task_record_delete_days_after_collection_max": 90,
+    "effective_full_task_deadline": "earlier_of_the_two_limits",
+    "followup_contact_delete_days_after_observation_window_max": 7,
+    "withdrawal_delete_days_max": 7,
+    "per_task_content_after_deadline": false,
+    "pseudonymous_individual_metadata_after_deadline": false,
+    "aggregate_non_reconstructive_metrics_may_remain": true,
+    "public_example_content_requires_optional_consent": true
+  },
+  "purpose_boundaries": {
+    "operational_noncontent_telemetry_not_study_consent": true,
+    "study_record_not_model_training_data": true,
+    "study_record_not_canonical_corpus_data": true,
+    "study_record_not_foundry_memory": true,
+    "evaluator_record_not_participant_identity_record": true,
+    "no_secondary_use_without_new_consent": true
+  },
+  "evidence_export": {
+    "participant_controls_export": true,
+    "server_copy_required": false,
+    "study_copy_default": false,
+    "study_copy_requires": "study_consent_and_source_rights",
+    "retained_trace_fields": [
+      "packet_hash",
+      "source_ids",
+      "traceability_result",
+      "rights_disposition"
+    ]
+  },
+  "evaluator_separation": {
+    "evaluator_id_separate_from_participant_id": true,
+    "qualified_source_judgment_requires_independent_evaluator": true,
+    "participant_may_also_be_evaluator_pool_member": true,
+    "participant_cannot_supply_independent_source_judgment_for_own_task": true,
+    "disagreements_preserved": true,
+    "adjudication_recorded": true
+  },
+  "task_denominator": {
+    "eligibility_decided_without_using_system_success": true,
+    "start_boundary": "participant_submits_consented_natural_task",
+    "included_outcomes": [
+      "success_supported",
+      "success_scoped_unsupported",
+      "failure_retrieval_miss",
+      "failure_wrong_evidence",
+      "failure_comprehension",
+      "failure_timeout",
+      "failure_technical",
+      "abandoned_after_start"
+    ],
+    "excluded_outcomes": [
+      "withdrawn_from_study",
+      "private_excluded_by_participant",
+      "protocol_invalid_before_start",
+      "rehearsal_or_training_case",
+      "duplicate_task_not_independently_attempted"
+    ],
+    "supported_retrieval_miss_counts_as_failure": true,
+    "correctly_scoped_unsupported_can_count_as_success": true,
+    "timeout_or_technical_failure_counts_as_failure": true,
+    "abandonment_after_start_counts_as_failure": true,
+    "exclusions_reported_separately": true,
+    "minimum_eligible_tasks_after_exclusions": 24,
+    "minimum_eligible_tasks_per_stratum_after_exclusions": 6,
+    "minimum_commentary_eligible_tasks_after_exclusions": 6,
+    "replenish_after_withdrawal_or_exclusion": true
+  },
+  "withdrawal": {
+    "allowed_until": "pilot_decision_recorded",
+    "no_penalty": true,
+    "stop_new_research_use_immediately": true,
+    "individual_records_delete_days_max": 7,
+    "remove_from_participant_denominators": true,
+    "recompute_predecision_aggregates": true,
+    "previously_published_or_merged_non_reconstructive_aggregate_record_may_remain": true,
+    "no_new_public_example_use_after_withdrawal": true
+  },
+  "public_sharing": {
+    "default": false,
+    "aggregate_results_allowed_without_task_content": true,
+    "small_cohort_reidentification_review_required": true,
+    "individual_question_answer_or_feedback_requires_optional_consent": true,
+    "source_text_still_subject_to_source_rights": true
+  },
+  "incident_response": {
+    "triggers": [
+      "unauthorized_retention",
+      "unauthorized_disclosure",
+      "secondary_use_without_consent",
+      "sensitive_content_retained_against_protocol",
+      "identity_linkage_leak",
+      "rights_restricted_packet_retained_or_shared"
+    ],
+    "actions": [
+      "stop_affected_processing",
+      "contain_access",
+      "delete_or_quarantine_as_required",
+      "record_noncontent_incident_receipt",
+      "notify_operator_and_affected_participant_when_appropriate",
+      "resolve_before_resuming_affected_study_path"
+    ],
+    "critical_failure_mapping": "CF11_privacy_or_retention_violation"
+  }
+}
