@@ -55,6 +55,24 @@ defmodule Strategy.PilotPreflightTest do
     assert "subject_revision must name a Git commit available in this checkout" in errors
   end
 
+  test "execution bounds remain a mandatory readiness gate" do
+    manifest = Pramana.PilotPreflight.load_manifest!(@manifest)
+    ids = Enum.map(manifest["gates"], & &1["id"])
+
+    assert "execution_bounds" in ids
+  end
+
+  test "candidate revision must be available and ancestral to the evidence checkout" do
+    revision = Pramana.PilotPreflight.git_revision!(@root)
+
+    assert Pramana.PilotPreflight.revision_exists?(revision, @root)
+    assert Pramana.PilotPreflight.revision_is_ancestor?(revision, @root)
+
+    nonexistent = String.duplicate("a", 40)
+    refute Pramana.PilotPreflight.revision_exists?(nonexistent, @root)
+    refute Pramana.PilotPreflight.revision_is_ancestor?(nonexistent, @root)
+  end
+
   test "mandatory gate set cannot be weakened or duplicated" do
     manifest = Pramana.PilotPreflight.load_manifest!(@manifest)
     [first | rest] = manifest["gates"]
