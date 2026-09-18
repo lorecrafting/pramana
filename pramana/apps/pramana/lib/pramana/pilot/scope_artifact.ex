@@ -30,6 +30,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
     relations
     alignment_coverage
     denominators
+    derivation_status
     input_digests
   )
 
@@ -112,6 +113,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> check_relations(artifact["relations"], artifact["works"])
       |> check_alignments(artifact["alignment_coverage"], artifact["relations"])
       |> check_denominators(artifact)
+      |> check_derivation_status(artifact["derivation_status"])
       |> check_input_digests(artifact["input_digests"])
 
     case Enum.reverse(errors) do
@@ -285,6 +287,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> add_if(not nonempty?(seed["work_id"]), "seed work_id is required")
       |> add_if(sources == [], "every seed must name at least one seed source")
       |> add_if(
+        sources != Enum.sort(Enum.uniq(sources)),
+        "seed_sources must be sorted and unique"
+      )
+      |> add_if(
         Enum.any?(sources, &(&1 not in ["agama", "demand_rank"])),
         "seed_sources contains an unknown source"
       )
@@ -307,10 +313,16 @@ defmodule Pramana.Pilot.ScopeArtifact do
       )
 
     Enum.reduce(works, errors, fn work, acc ->
+      seed_ids_for_work = work["seed_ids"] || []
+
       acc
       |> add_if(not nonempty?(work["work_id"]), "work_id is required")
       |> add_if(work["source"] != "cbeta", "scope works must come from CBETA")
       |> add_if(work["witness"] != "T", "scope works must use the Taishō witness")
+      |> add_if(
+        seed_ids_for_work != Enum.sort(Enum.uniq(seed_ids_for_work)),
+        "work seed_ids must be sorted and unique"
+      )
       |> add_if(
         not (is_integer(work["min_hop"]) and work["min_hop"] in 0..@max_relation_depth),
         "work min_hop must be between zero and #{@max_relation_depth}"
@@ -336,8 +348,22 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
     Enum.reduce(relations, errors, fn relation, acc ->
       assertions = relation["assertions"] || []
+      seed_ids = relation["seed_ids"] || []
+      assertion_keys = Enum.map(assertions, &assertion_artifact_key/1)
 
       acc
+      |> add_if(
+        seed_ids != Enum.sort(Enum.uniq(seed_ids)),
+        "relation seed_ids must be sorted and unique"
+      )
+      |> add_if(
+        assertion_keys != Enum.sort(assertion_keys),
+        "relation assertions must use canonical sort order"
+      )
+      |> add_if(
+        length(assertion_keys) != length(Enum.uniq(assertion_keys)),
+        "relation assertions must be unique"
+      )
       |> add_if(
         relation["relation"] not in @relations,
         "scope relation type is outside the frozen relation set"
@@ -357,8 +383,19 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "scope relation contains a disallowed assertion method"
       )
       |> add_if(
+        Enum.any?(assertions, &(not is_map(&1["evidence"]))),
+        "scope relation assertion evidence must be an object"
+      )
+      |> add_if(
         Enum.any?(assertions, &(not sha256?(&1["evidence_sha256"]))),
         "scope relation assertion evidence digest must be a SHA-256"
+      )
+      |> add_if(
+        Enum.any?(assertions, fn assertion ->
+          is_map(assertion["evidence"]) and
+            assertion["evidence_sha256"] != digest(assertion["evidence"])
+        end),
+        "scope relation assertion evidence digest does not match evidence"
       )
     end)
   end
@@ -390,6 +427,11 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> add_if(
         row["has_passage_alignment"] != (row["alignment_rows"] > 0),
         "has_passage_alignment must match alignment_rows"
+      )
+      |> add_if(
+        row["distinct_root_urns"] > row["alignment_rows"] or
+          row["distinct_commentary_urns"] > row["alignment_rows"],
+        "alignment distinct counts cannot exceed alignment_rows"
       )
     end)
   end
@@ -447,6 +489,37 @@ defmodule Pramana.Pilot.ScopeArtifact do
     end
   end
 
+  defp check_derivation_status(errors, status) when is_map(status) do
+    errors
+    |> add_if(
+      status["quotation_graph_completeness"] != "not_recorded_by_database",
+      "quotation graph completeness must remain explicitly external"
+    )
+    |> add_if(
+      status["relation_graph_completeness"] != "not_recorded_by_database",
+      "relation graph completeness must remain explicitly external"
+    )
+    |> add_if(
+      status["alignment_graph_completeness"] != "not_recorded_by_database",
+      "alignment graph completeness must remain explicitly external"
+    )
+    |> add_if(
+      status["structural_validation_establishes_live_currentness"] != false,
+      "structural validation must not claim live currentness"
+    )
+    |> add_if(
+      status["live_acceptance_requires_external_completion_evidence"] != true,
+      "live acceptance must require external derivation completion evidence"
+    )
+    |> add_if(
+      status["live_acceptance_requires_quiesced_repeat_match"] != true,
+      "live acceptance must require a quiesced repeated materialization match"
+    )
+  end
+
+  defp check_derivation_status(errors, _),
+    do: ["derivation_status must be an object" | errors]
+
   defp check_input_digests(errors, digests) when is_map(digests) do
     required = ~w(work_metadata quotation_graph relation_graph alignment_graph)
 
@@ -466,6 +539,16 @@ defmodule Pramana.Pilot.ScopeArtifact do
     (ranking["directed_pairs"] || 0) +
       (ranking["unresolved_pairs"] || 0) +
       (ranking["conflicting_pairs"] || 0)
+  end
+
+  defp assertion_artifact_key(assertion) do
+    {
+      assertion["method"] || "",
+      assertion["confidence"] || "",
+      assertion["scope"] || "",
+      assertion["target_urn"] || "",
+      assertion["evidence_sha256"] || ""
+    }
   end
 
   defp relation_key(row),
