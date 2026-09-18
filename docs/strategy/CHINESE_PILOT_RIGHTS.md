@@ -59,10 +59,13 @@ The current repository does not have one operation-aware rights authority.
   human Chinese renderings found in repository tests are fixtures, not additional
   production source records or cleared pilot inputs.
 - The existing generated-English Chinese tranche is a separate historical layer:
-  27,956 generated renderings over the recorded 14-work demand-weighted tranche. The
-  export path sent selected CBETA chunk content to a generation host and the importer
-  stored returned English as tier t1, method llm, raw/non-canonical renderings. This
-  history is evidence about data flow, not permission to repeat it.
+  27,956 generated MITRA renderings over the recorded 14-work demand-weighted tranche.
+  The recorded full tranche was **not glossary-pinned**; its outbound source payload was
+  selected CBETA chunk content, not DILA term pins. The export path sent that content to
+  a generation host and the importer stored returned English as tier t1, method llm,
+  raw/non-canonical renderings. Smaller historical bake-off arms did exercise glossary
+  pinning, so their payload rights must not be generalized from the full tranche. This
+  history is evidence about data flow, not permission to repeat either route.
 
 The live pilot scope is not frozen yet. The intended seed is the live equivalent of the
 recorded 14-work CBETA tranche plus accepted comments_on/subcommentary_of neighborhoods.
@@ -122,7 +125,7 @@ provider stores.
 
 | resource | 1 local storage | 2 local index/search | 3 embeddings / derived retrieval artifacts | 4 English→Chinese query expansion | 5 external source/rendering text | 6 external glossary text |
 |---|---|---|---|---|---|---|
-| **CBETA Taishō Category A** | permitted, NC + notice/version | permitted, NC | **unclear / unresolved** | permitted locally, NC; no equivalence claim created | **unclear / unresolved** | not applicable |
+| **CBETA Taishō Category A** | permitted, NC + notice/version | permitted, NC | **unclear / unresolved** | not applicable as a lexicon; any new source-derived expansion artifact is **unclear / unresolved** | **unclear / unresolved** | not applicable |
 | **DILA Soothill-Hodous** | permitted, treat as NC | permitted, treat as NC | permitted locally, treat as NC | permitted locally with glossary provenance | not applicable | **unclear / unresolved** |
 | **DILA Karashima / Kumārajīva** | permitted, treat as NC | permitted, treat as NC | permitted locally, treat as NC | permitted in T0262 scope with provenance | not applicable | **unclear / unresolved** |
 | **DILA Karashima / Dharmarakṣa** | permitted, treat as NC | permitted, treat as NC | permitted locally, treat as NC | permitted in T0263 scope with provenance | not applicable | **unclear / unresolved** |
@@ -154,6 +157,13 @@ pins rather than raw TEI. A future provider path that sends raw TEI or richer en
 records may therefore carry underlying source-edition bytes as well as DILA lexicon bytes.
 Clearing DILA alone would not clear those compound payloads.
 
+The legacy `Pramana.Translate.Glossary.table/0` helper is **not a pilot-safe rights or
+query-provenance boundary**. It currently reads `glossary_entries` without a source filter
+and collapses matches to plain `{chinese, english}` pairs. That discards source id,
+glossary id, work/translator scope, relation type and source-specific licence. The Chinese
+pilot must build candidates from provenance-bearing rows instead of reusing this helper
+for query expansion or provider payloads.
+
 Why the Patton copyright cells are permissive but the pilot still restricts AI use:
 scpub20/scpub35 are explicitly CC0. SuttaCentral's current AI request is therefore recorded
 as a **stakeholder norm**, not silently converted into a copyright restriction.
@@ -173,6 +183,22 @@ as a **stakeholder norm**, not silently converted into a copyright restriction.
 
 "Permitted" here is not a recommendation to expose full entries or source passages. It
 states the reviewed licence baseline. The pilot policy below is intentionally narrower.
+
+### Final pilot-policy overrides
+
+These are the operative overrides where Pramāṇa deliberately stops short of the copyright
+table. They do not replace the 12-operation evidence matrix; they prevent a permissive
+copyright cell from being mistaken for runtime authority.
+
+| resource | copyright/licence position | stakeholder/project norm | final pilot disposition |
+|---|---|---|---|
+| CBETA | local NC storage/search/display/excerpts have a published baseline; derived/model operations remain unresolved | CBETA has its own AI-search precedent, but no Pramāṇa approval follows | no CBETA model/generation/provider bytes until exact operation clearance; public artifacts remain excluded by project policy |
+| DILA five pilot glossaries | local NC reuse/adaptation is within the restrictive common denominator; commercial status conflicts across primary notices | preserve exact glossary/work scope; unpublished author permissions are not inferred | local provenance-bearing deterministic expansion only; no provider glossary bytes; no public artifact inclusion; commercial reliance blocked |
+| Patton scpub20/scpub35 | CC0 permits reuse by copyright | SuttaCentral requests no generative-AI dataset/downstream AI use | attributed human reader display/ordinary evidence use allowed; **new AI-derived use requires stakeholder clearance** |
+| historical MITRA English | current model terms do not cure unresolved CBETA input/processing rights | historical existence is not approval | internal historical inspection only; no regeneration, expansion, reader promotion or export for the pilot until cleared |
+
+All other preflight gates still apply. In particular, this table does not admit product
+implementation while `foundry_g0` remains blocked.
 
 ## Stakeholder/project norms kept separate from copyright
 
@@ -229,8 +255,14 @@ The pilot policy is narrower than the maximum licence reading:
 
 ## Provider boundary: what a later review must prove
 
-No paid/provider model is selected or authorized by this PR. Before any external model
-receives source, rendering or glossary bytes, a later provider review must record at least:
+No paid/provider model is selected or authorized by this PR. A future **source-free**
+query-reformulation call may be reviewed separately if it receives only the user's English
+question and returns labelled `model_proposed` Chinese candidates; that call does not by
+itself transmit CBETA, DILA or Patton bytes. It still requires provider terms, inference
+authority, privacy/retention review and execution bounds.
+
+Before any external model receives source, rendering or glossary bytes, a later provider
+review must additionally record at least:
 
 1. exact provider, product/API, model and contractual entity;
 2. what licence the provider receives over prompts, uploaded files, cached context and
@@ -266,9 +298,12 @@ For every candidate byte sequence or excerpt:
 3. **Look up the operation.** If the matrix says prohibited, permission required, or
    unclear / unresolved, stop. Record the exact missing permission/review; do not choose a
    substitute corpus/dictionary.
-4. **External-provider branch.** Even when the source operation is permitted, source
-   clearance + provider_terms + inference_authority + execution_bounds must all clear
-   independently before bytes leave the local boundary.
+4. **External-provider branch.** First classify the payload. A source-free call containing
+   only the user's English question may be separately reviewed, but still requires
+   provider_terms + inference_authority + privacy/retention + execution_bounds clearance.
+   If any source, glossary, rendering, retrieved passage, raw TEI, cached source context or
+   source-derived pin is included, its exact resource clearance is required as well before
+   those bytes leave the local boundary.
 5. **Local-only branch.** If external processing is blocked but local-model processing is
    permitted for that resource, a separately reviewed local model may be used. If local
    processing is also unresolved, no generation occurs.
