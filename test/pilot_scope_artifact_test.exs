@@ -56,6 +56,54 @@ defmodule Strategy.PilotScopeArtifactTest do
     assert "has_passage_alignment must match alignment_rows" in errors
   end
 
+  test "rehashed artifact cannot lie about ranking, seed or ancestry relationships" do
+    artifact = valid_artifact()
+
+    changed =
+      artifact
+      |> put_in(["seeds", Access.at(0), "demand_rank"], 99)
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(changed)
+    assert "seed demand_rank must match ranking.top_demand" in errors
+
+    changed =
+      artifact
+      |> put_in(["works", Access.at(0), "min_hop"], 1)
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(changed)
+    assert "work min_hop/seed ancestry is inconsistent with seed membership" in errors
+
+    changed =
+      artifact
+      |> put_in(["relations", Access.at(0), "seed_ids"], ["T0200"])
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(changed)
+    assert "relation seed_ids must match target-work ancestry" in errors
+  end
+
+  test "ranking direction counts and cutoff sort key are closed" do
+    artifact = valid_artifact()
+
+    changed =
+      artifact
+      |> put_in(["ranking", "direction_method_counts"], %{"role" => 9})
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(changed)
+    assert "ranking.direction_method_counts must exactly account for directed_pairs" in errors
+
+    changed =
+      artifact
+      |> put_in(["ranking", "cutoff_citing_families"], 2)
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(changed)
+    assert "ranking.cutoff_citing_families must equal rank ten citing_families" in errors
+  end
+
   test "standalone checker accepts a valid saved artifact" do
     path =
       Path.join(
@@ -74,6 +122,12 @@ defmodule Strategy.PilotScopeArtifactTest do
 
     assert output =~ "pilot scope artifact structurally valid"
     assert output =~ "live_currentness=not_established"
+  end
+
+  defp refinalize(artifact) do
+    artifact
+    |> Map.delete("scope_content_sha256")
+    |> ScopeArtifact.finalize()
   end
 
   defp valid_artifact do
@@ -202,7 +256,9 @@ defmodule Strategy.PilotScopeArtifactTest do
         Map.merge(ranking, %{
           "rule" => ScopeArtifact.demand_ranking_rule(),
           "cutoff_weight" => 1,
-          "cutoff_tied_families" => ["T0205"]
+          "cutoff_citing_families" => 1,
+          "cutoff_same_weight_families" => ["T0205"],
+          "cutoff_equivalent_families" => ["T0205"]
         }),
       "seeds" => seeds,
       "works" => works,
