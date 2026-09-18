@@ -51,14 +51,18 @@ defmodule Pramana.PilotPreflight do
   def status(_manifest), do: "invalid"
 
   @spec ready(map(), String.t(), String.t()) :: :ok | {:error, [String.t()]}
-  def ready(manifest, root, current_revision) do
+  def ready(manifest, root, requested_subject_revision) do
     with :ok <- validate(manifest, root) do
       errors =
         []
         |> add_if(status(manifest) != "ready", "one or more mandatory gates are blocked")
         |> add_if(
-          manifest["subject_revision"] != current_revision,
-          "subject_revision must equal the exact current Git revision"
+          manifest["subject_revision"] != requested_subject_revision,
+          "subject_revision must equal the exact requested candidate revision"
+        )
+        |> add_if(
+          not revision_exists?(manifest["subject_revision"], root),
+          "subject_revision must name a Git commit available in this checkout"
         )
 
       case Enum.reverse(errors) do
@@ -67,6 +71,19 @@ defmodule Pramana.PilotPreflight do
       end
     end
   end
+
+  @spec revision_exists?(String.t() | nil, String.t()) :: boolean()
+  def revision_exists?(revision, root) when is_binary(revision) do
+    case System.cmd("git", ["cat-file", "-e", "#{revision}^{commit}"],
+           cd: root,
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} -> true
+      {_output, _status} -> false
+    end
+  end
+
+  def revision_exists?(_revision, _root), do: false
 
   @spec default_manifest(String.t()) :: String.t()
   def default_manifest(root), do: Path.join(root, "docs/strategy/pilot_preflight.json")
