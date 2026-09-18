@@ -50,11 +50,12 @@ These were selection hypotheses. The initial user pilot now conditionally select
 path to broad English-readable Dharma questions. [The pilot charter](PILOT_CHARTER.md)
 records the comparison, thresholds and stop rules.
 
-That selection is contingent on clearing the actual human rendering source for AI-assisted
-processing. Current imported translation availability is not permission: source-specific
-licenses and stakeholder requests must be honored. If no acceptable rendering source is
-available for the task set, the pilot stops rather than substituting a restricted
-translation or silently making generated English authoritative.
+That selection is contingent on an operation-specific rights review for both the source
+witness and the human rendering: local indexing/derivatives, model/provider processing,
+display, evidence-packet export and study retention are separate uses. Current imported
+availability is not permission. If the rights matrix cannot be satisfied for a useful task
+set, D2 reopens for an explicit scope decision; there is no automatic canon, translation
+or generated-English fallback.
 
 [STATUS](../../pramana/docs/STATUS.md) is a dated snapshot, not the live database. The
 Chinese/Tibetan relation graph remains a mandatory compatibility track so the Pāli pilot
