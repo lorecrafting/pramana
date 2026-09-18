@@ -23,6 +23,14 @@ The default product boundary remains the charter's D5 rule:
 A person may use or inspect the product without becoming a measured study participant.
 Declining study retention means their task does not enter the pilot denominator.
 
+This is Pramāṇa's product-research protocol, **not** an IRB/human-subjects-regulatory
+determination. If an institution or organization runs the study, it must obtain whatever
+review/approval its own policies and applicable requirements demand. This protocol also
+authorizes no participant compensation, recruitment spend or outreach.
+
+Pilot v1 is **adult-only (18+)** by self-attestation. Do not collect date of birth merely
+to establish eligibility, and do not enroll minors under this protocol.
+
 # 1. Consent before collection
 
 A measured participant record may be created only after the participant receives the
@@ -47,7 +55,10 @@ Before the first measured task, explain plainly that:
 8. evidence export is controlled by the participant;
 9. sharing an individual question, answer or feedback publicly is **not** included in
    ordinary study consent; and
-10. there is no penalty for declining or withdrawing.
+10. there is no penalty for declining or withdrawing; and
+11. the fourteen-day repeat-use signal is **unprompted**: the participant is told the
+    observation window in advance, but the study does not remind/nudge them to return merely
+    to manufacture a repeat task.
 
 The consent presentation must not imply that source verification proves interpretation,
 that the corpus is exhaustive or that generated English is canonical evidence.
@@ -61,18 +72,31 @@ affirmatively consented to all of these:
 - retention of the full task record for evaluation;
 - qualified evaluator review of the task record;
 - the current-alternative intake described below; and
-- contact for the declared fourteen-day repeat-use observation.
+- self-attestation that the participant is at least 18 years old.
 
 These are one measured-study bundle because each is necessary to evaluate the frozen pilot
 decision. A participant who declines any required item may still use an ordinary
 non-study path, but their task is not silently included in the study.
+
+The consent receipt itself is pseudonymous. It records only:
+
+- a random `consent_receipt_id`;
+- pseudonymous `participant_id`;
+- protocol revision;
+- consent timestamp;
+- required and optional consent values; and
+- the 18+ self-attestation.
+
+It contains no direct identity fields. Any contact/identity roster remains separate from
+both the consent receipt and the study task dataset.
 
 ## Optional consent remains separate
 
 The following default to **off**:
 
 - public sharing of an anonymized/de-identified individual example;
-- public quotation of participant feedback.
+- public quotation of participant feedback; and
+- logistical follow-up contact beyond what is necessary to schedule/operate the study.
 
 Neither may be bundled into study participation. Consent to retain a task for internal
 evaluation is not consent to publish it.
@@ -90,9 +114,10 @@ Study analysis uses random pseudonymous identifiers:
 The study dataset must not contain the participant's name, email address, telephone number,
 account credentials or an identity-linkage key.
 
-A scheduling/follow-up roster may temporarily map contact information to the pseudonymous
+A scheduling/logistics roster may temporarily map contact information to the pseudonymous
 participant ID, but it is a **separate access-controlled roster**, not part of the task
-dataset. It is deleted under the shorter contact-retention rule below.
+dataset or consent receipt. It is deleted under the shorter contact-retention rule below.
+It may not be used to nudge a participant to create the repeat-use event being measured.
 
 The pilot does not collect:
 
@@ -193,7 +218,10 @@ Before each measured task, remind participants not to submit:
 - unnecessary highly personal information.
 
 A participant may mark a task **private / exclude from study** before or after submission.
-That removes its full content from research use and from the study denominator.
+That removes its full content from research use and from the study denominator. This right
+belongs to the participant: the operator/evaluator may not suggest exclusion, deletion or
+"privacy" reclassification because the system performed badly. Every such exclusion is
+counted/reported separately and must be replenished before the pilot decision.
 
 If an operator/evaluator discovers accidental sensitive content that should not have been
 retained:
@@ -227,8 +255,10 @@ After that deadline:
 - only non-reconstructive aggregate metrics and the public/maintained decision record may
   remain.
 
-The separate follow-up contact roster is deleted no later than **7 calendar days after the
-participant's fourteen-day observation window ends**, or sooner on withdrawal.
+The separate logistics/contact roster is deleted no later than **7 calendar days after the
+participant's fourteen-day observation window ends**, or sooner on withdrawal. Contact
+during that window may be used only for necessary logistics—not to request, remind or
+prompt the voluntary repeat task.
 
 A participant withdrawal request triggers deletion of their individual study records
 within **7 calendar days maximum**.
@@ -351,7 +381,9 @@ After exclusions/withdrawals, the pilot must still contain:
 - at least **6 commentary-eligible tasks**.
 
 Removed tasks are replaced with new natural participant tasks; the denominator is never
-reduced to preserve a favorable percentage.
+reduced to preserve a favorable percentage. Participant-initiated privacy withdrawal is
+always honored, but operator/evaluator staff may not invite exclusion after seeing an
+unfavorable result.
 
 # 11. Withdrawal
 
