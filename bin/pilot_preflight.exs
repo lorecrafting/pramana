@@ -9,6 +9,7 @@ defmodule Pramana.PilotPreflight do
     cbeta_rights
     lexicon_rights
     inference_authority
+    execution_bounds
     provider_terms
     bilingual_evaluators
     participant_protocol
@@ -65,6 +66,10 @@ defmodule Pramana.PilotPreflight do
           not revision_exists?(manifest["subject_revision"], root),
           "subject_revision must name a Git commit available in this checkout"
         )
+        |> add_if(
+          not revision_is_ancestor?(manifest["subject_revision"], root),
+          "subject_revision must be an ancestor of the current evidence checkout"
+        )
 
       case Enum.reverse(errors) do
         [] -> :ok
@@ -85,6 +90,19 @@ defmodule Pramana.PilotPreflight do
   end
 
   def revision_exists?(_revision, _root), do: false
+
+  @spec revision_is_ancestor?(String.t() | nil, String.t()) :: boolean()
+  def revision_is_ancestor?(revision, root) when is_binary(revision) do
+    case System.cmd("git", ["merge-base", "--is-ancestor", revision, "HEAD"],
+           cd: root,
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} -> true
+      {_output, _status} -> false
+    end
+  end
+
+  def revision_is_ancestor?(_revision, _root), do: false
 
   @spec default_manifest(String.t()) :: String.t()
   def default_manifest(root), do: Path.join(root, "docs/strategy/pilot_preflight.json")
