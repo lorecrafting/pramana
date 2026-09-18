@@ -45,9 +45,11 @@ This is an evaluation scope, not a claim that the other CBETA works are lower va
 Natural participant questions may fall outside it; such cases are recorded as unsupported
 rather than answered from an undeclared wider corpus.
 
-Before execution, the exact seed work IDs and relation expansion must be materialized from
-the live pilot release and recorded. The historical phrase "top ten by directed citation
-weight" is not an immutable list.
+Before execution, the exact scope must be materialized from the live pilot release and
+recorded: seed work IDs, allowed relation edge types, maximum traversal depth, every
+expanded work ID, passage-alignment coverage, release identity and scope denominator.
+The rights review applies to the **entire expanded scope**, not merely the 14 seeds.
+The historical phrase "top ten by directed citation weight" is not an immutable list.
 
 ## The bilingual architecture
 
@@ -197,8 +199,19 @@ signal, not English source evidence.
 ### Fusion
 
 Fuse arms deterministically using the existing retrieval framework or a small evaluated
-extension of it. Preserve per-arm ranks and query identities so a result can say why it was
-found.
+extension of it. Preserve per-arm ranks, candidate provenance and query identities so a
+result can say why it was found.
+
+Expansion multiplicity must not become evidence strength:
+
+- repeated candidates that normalize to the same retrieval query contribute once;
+- several `related` or `model_proposed` candidates cannot outvote one precise
+  `explicit_equivalent` / attested lexical hit merely by their count;
+- weak expansion classes have bounded candidate counts and their own fusion contribution;
+- per-arm results remain inspectable so ablation can show which arm rescued or harmed a
+  task;
+- a hit from `related` or `model_proposed` expansion may retrieve useful source
+  evidence, but the expansion itself is never displayed as a verified synonym.
 
 Do not simply concatenate translated Chinese terms into one giant OR query: weak related
 terms would be allowed to outvote precise terms and the existing lexical planner can cross
@@ -231,6 +244,9 @@ Translate only bounded retrieved evidence that the user opens or that a synthesi
 
 For every generated reading translation:
 
+- treat source/commentary/glossary bytes as **untrusted data**, never as prompt/control
+  instructions; structured input boundaries may not allow corpus text to change provider,
+  tool, budget or policy settings;
 - keep and display the Chinese source;
 - bind the generation to the source URN/content hash;
 - record model/provider identity, prompt/rubric version and glossary inputs;
@@ -317,7 +333,9 @@ corpus. Supplement only to ensure the charter's question classes are represented
 
 #### 1. English-question → Chinese-evidence retrieval
 
-A bilingual evaluator identifies acceptable source work/passages for a held-out subset.
+For a held-out subset, a bilingual evaluator records acceptable source work/passages
+**before inspecting the candidate system's retrieval output**. Legitimate alternative
+passages/works may be recorded; the reference set is not forced to one proof-text.
 Report:
 
 - recall@k by retrieval arm and fused result;
@@ -355,6 +373,10 @@ For sampled passages, bilingual evaluators score:
 
 A fluent English sentence is not a success if it changes the Chinese claim.
 
+Report translation quality separately by source `text_role`: root/discourse, treatise,
+commentary and subcommentary where the pilot scope contains them. A strong root-text average
+must not hide a failing commentary layer.
+
 Critical translation errors block that rendering from being used as reader evidence until
 fixed/reviewed. Automatic glossary/back-translation checks may diagnose but cannot certify
 faithfulness.
@@ -385,9 +407,9 @@ Test whether non-specialists can identify:
 ### Existing charter floors
 
 The charter's task-success, comprehension, evidence-reuse, latency, 14-day repeat-use and
-40 operator-hour caps remain in force. Chinese-specific retrieval/translation floors must
-be frozen before the first participant task, after rehearsal evaluation establishes a
-meaningful scale.
+40 operator-hour caps remain in force. Chinese-specific retrieval/translation floors and
+role-specific reporting rules must be frozen before the first participant task, after
+rehearsal evaluation establishes a meaningful scale.
 
 ## Rehearsal cases, not pilot tasks
 
@@ -412,13 +434,18 @@ The pilot is not ready until every mandatory condition has explicit evidence:
 3. **CBETA rights matrix reviewed** for every intended operation.
 4. **Lexicon rights matrix reviewed** for each glossary used.
 5. **Inference route and spending authorized** separately.
-6. **Provider data-use terms reviewed** for sending selected source text.
-7. **Bilingual evaluator coverage identified**.
-8. **Participant protocol/consent/retention procedure fixed**.
-9. **Retrieval baseline and current-alternative procedure fixed**.
-10. **Translation/query evaluation rubric frozen**.
-11. **Critical failure taxonomy frozen**.
-12. **No known unresolved critical trust defect** in rehearsal cases.
+6. **Per-task execution bounds frozen**: maximum deterministic/model query candidates,
+   model calls, passages and source bytes/tokens translated, timeout, retry count and
+   authorized spend. Hidden retries are forbidden and duplicate source hashes must not be
+   translated repeatedly within one task.
+7. **Provider data-use terms reviewed** for sending selected source/glossary text.
+8. **Bilingual evaluator coverage identified**.
+9. **Participant protocol/consent/retention procedure fixed**.
+10. **Retrieval baseline and current-alternative procedure fixed**.
+11. **Translation/query evaluation rubric frozen**, including text-role-separated
+    translation reporting.
+12. **Critical failure taxonomy frozen**.
+13. **No known unresolved critical trust defect** in rehearsal cases.
 
 A blocked gate is a valid preflight result. It must not be rewritten to `ready` merely
 because implementation could technically start.
@@ -440,9 +467,11 @@ well-formed states and local evidence references. A valid blocked manifest is su
 
 `--ready` is stricter: every mandatory gate must be `ready`, every ready gate must carry
 evidence, no blocking reason may remain, and `subject_revision` must equal the exact
-candidate revision supplied with `--subject`. That commit must exist in the checkout.
-The explicit subject avoids an impossible self-reference in which a committed manifest
-would need to contain its own commit SHA. It fails while the pilot is legitimately blocked.
+candidate revision supplied with `--subject`. That commit must exist **and be an ancestor
+of the current evidence checkout**, so evidence on one branch cannot claim an unrelated
+candidate. The explicit subject avoids an impossible self-reference in which a committed
+manifest would need to contain its own commit SHA. It fails while the pilot is legitimately
+blocked.
 
 Neither command proves that a rights opinion, evaluator decision or provider authorization
 is substantively correct. Those remain human/reviewed evidence. The command prevents
