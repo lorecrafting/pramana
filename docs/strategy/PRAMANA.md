@@ -24,10 +24,10 @@ adjudicator of a person's practice or realization.
 The preregistered task classes are owned by
 [the pilot charter](PILOT_CHARTER.md#cohort-and-task-set): remembered quotation,
 doctrinal/practice question, multi-passage synthesis, ambiguous interpretation,
-missing/unsupported-source case and evidence reuse. The separate Chinese/Tibetan
-compatibility track tests root/treatise/commentary distinctions that the first Pāli user
-scope cannot adequately exercise. Compare each participant's user tasks with their current
-process, including existing archives and ordinary model-assisted search.
+missing/unsupported-source case and evidence reuse. The Chinese-first pilot additionally
+requires commentary-eligible tasks so root/treatise/commentary distinctions are exercised
+by real users rather than only structural fixtures. Compare each participant's user tasks
+with their current process, including existing archives and ordinary model-assisted search.
 
 ## Scope: narrow the experience, retain the substrate
 
