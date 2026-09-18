@@ -60,10 +60,11 @@
     {
       "id": "provider_terms",
       "state": "blocked",
-      "reason": "No provider/product/model has been selected or authorized. Source or glossary bytes must not leave the local boundary until retention/training, abuse review, subprocessors, input licence, output rights, confidentiality/deletion and non-commercial-use compatibility are reviewed alongside source-specific permissions.",
+      "reason": "No provider/product/model has been selected or authorized. Participant questions/task content and source/glossary bytes must not leave the local boundary until the exact route is reviewed for retention/training, abuse or human review, subprocessors, confidentiality/deletion, input/output rights and non-commercial-use compatibility, with participant-transfer consent where applicable.",
       "evidence": [
         "docs/strategy/CHINESE_PILOT_RIGHTS.md",
-        "docs/strategy/PILOT_PREFLIGHT.md"
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/PILOT_PARTICIPANTS.md"
       ]
     },
     {
