@@ -645,18 +645,30 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp valid_direction_method_counts?(_counts, _directed_pairs), do: false
 
   defp valid_top_demand_row?(row) do
-    methods = row["direction_methods"]
-    members = row["family_members"] || []
+    valid_top_demand_identity?(row) and
+      valid_top_demand_counts?(row) and
+      valid_top_demand_members?(row) and
+      valid_direction_method_counts?(
+        row["direction_methods"],
+        row["directed_pair_count"]
+      )
+  end
 
-    nonempty?(row["work_id"]) and
-      nonempty?(row["family"]) and
-      positive_integer?(row["citing_families"]) and
+  defp valid_top_demand_identity?(row),
+    do: nonempty?(row["work_id"]) and nonempty?(row["family"])
+
+  defp valid_top_demand_counts?(row) do
+    positive_integer?(row["citing_families"]) and
       positive_integer?(row["directed_pair_count"]) and
       row["citing_families"] <= row["directed_pair_count"] and
-      row["weight"] >= row["citing_families"] and
-      members == Enum.sort(Enum.uniq(members)) and
-      row["work_id"] in members and
-      valid_direction_method_counts?(methods, row["directed_pair_count"])
+      row["weight"] >= row["citing_families"]
+  end
+
+  defp valid_top_demand_members?(row) do
+    members = row["family_members"] || []
+
+    members == Enum.sort(Enum.uniq(members)) and
+      row["work_id"] in members
   end
 
   defp assertion_artifact_key(assertion) do
