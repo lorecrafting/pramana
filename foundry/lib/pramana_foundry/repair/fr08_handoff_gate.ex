@@ -7,13 +7,19 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
   a malformed or broken provider is reported as failed. Only a complete set of passing
   probes can produce a ready result.
 
+  A ready report is handoff evidence, not authority to mark FR-07 complete or to bypass
+  its reviewed acceptance requirements. The eventual FR-07 adapter must itself be reviewed
+  protected code that executes the documented probes against the accepted public boundary.
+
   Provider details are deliberately short evidence references rather than raw storage
-  contents or exception text. The returned map contains only JSON-safe values and keeps
-  capability ordering stable for machine consumption.
+  contents or exception text. The returned map has bounded values and stable capability
+  ordering for machine consumption.
   """
 
   @schema "pramana-foundry-fr07-fr08-handoff/v1"
   @max_detail_bytes 512
+  @default_probe_timeout_ms 5_000
+  @max_probe_timeout_ms 60_000
 
   @capabilities [
     {:same_command_lookup_before_revision,
@@ -52,17 +58,22 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
     Enum.map(@capabilities, fn {id, description} -> %{id: id, description: description} end)
   end
 
-  @doc "Runs every mandatory probe and returns a deterministic, JSON-safe report."
-  @spec run(module() | nil | term()) :: map()
-  def run(provider \\ nil)
+  @doc "Runs every mandatory probe and returns a deterministic bounded report."
+  @spec run(module() | nil | term(), keyword()) :: map()
+  def run(provider \\ nil, opts \\ [])
 
-  def run(nil), do: report(nil, unavailable_results("provider_unavailable"))
+  def run(nil, opts) do
+    _timeout = probe_timeout_ms(opts)
+    report(nil, unavailable_results("provider_unavailable"))
+  end
 
-  def run(provider) when is_atom(provider) do
+  def run(provider, opts) when is_atom(provider) do
+    timeout = probe_timeout_ms(opts)
+
     case Code.ensure_loaded(provider) do
       {:module, ^provider} ->
         if function_exported?(provider, :probe, 1) do
-          report(provider, Enum.map(@capabilities, &run_probe(provider, &1)))
+          report(provider, Enum.map(@capabilities, &run_probe(provider, &1, timeout)))
         else
           report(provider, unavailable_results("provider_missing_probe_callback"))
         end
@@ -72,27 +83,94 @@ defmodule PramanaFoundry.Repair.FR08HandoffGate do
     end
   end
 
-  def run(_provider), do: report(nil, failed_results("invalid_provider"))
+  def run(_provider, opts) do
+    _timeout = probe_timeout_ms(opts)
+    report(nil, failed_results("invalid_provider"))
+  end
 
   @doc "True only for a report in which every mandatory capability passed."
   @spec ready?(map()) :: boolean()
   def ready?(%{schema: @schema, status: "ready"}), do: true
   def ready?(_report), do: false
 
-  defp run_probe(provider, {id, description}) do
+  defp probe_timeout_ms(opts) do
+    opts = Keyword.validate!(opts, [:probe_timeout_ms])
+    timeout = Keyword.get(opts, :probe_timeout_ms, @default_probe_timeout_ms)
+
+    unless is_integer(timeout) and timeout > 0 and timeout <= @max_probe_timeout_ms do
+      raise ArgumentError,
+            "probe_timeout_ms must be between 1 and #{@max_probe_timeout_ms}"
+    end
+
+    timeout
+  end
+
+  defp run_probe(provider, {id, description}, timeout) do
     base = %{id: Atom.to_string(id), description: description}
+    normalize_probe(base, execute_probe(provider, id, timeout))
+  end
 
-    result =
-      try do
-        provider.probe(id)
-      rescue
-        _error -> {:internal_failure, "probe_exception"}
-      catch
-        :throw, _reason -> {:internal_failure, "probe_throw"}
-        :exit, _reason -> {:internal_failure, "probe_exit"}
-      end
+  defp execute_probe(provider, id, timeout) do
+    parent = self()
+    token = make_ref()
 
-    normalize_probe(base, result)
+    {pid, monitor_ref} =
+      spawn_monitor(fn ->
+        result = safe_probe(provider, id)
+        send(parent, {token, result})
+      end)
+
+    receive do
+      {^token, result} ->
+        await_probe_exit(pid, monitor_ref, timeout)
+        result
+
+      {:DOWN, ^monitor_ref, :process, ^pid, _reason} ->
+        {:internal_failure, "probe_process_exit"}
+    after
+      timeout ->
+        stop_probe(pid, monitor_ref, token)
+        {:internal_failure, "probe_timeout"}
+    end
+  end
+
+  defp safe_probe(provider, id) do
+    provider.probe(id)
+  rescue
+    _error -> {:internal_failure, "probe_exception"}
+  catch
+    :throw, _reason -> {:internal_failure, "probe_throw"}
+    :exit, _reason -> {:internal_failure, "probe_exit"}
+  end
+
+  defp await_probe_exit(pid, monitor_ref, timeout) do
+    receive do
+      {:DOWN, ^monitor_ref, :process, ^pid, _reason} ->
+        :ok
+    after
+      timeout ->
+        Process.exit(pid, :kill)
+        await_killed_probe(pid, monitor_ref)
+    end
+  end
+
+  defp stop_probe(pid, monitor_ref, token) do
+    Process.exit(pid, :kill)
+    await_killed_probe(pid, monitor_ref)
+
+    receive do
+      {^token, _late_result} -> :ok
+    after
+      0 -> :ok
+    end
+  end
+
+  defp await_killed_probe(pid, monitor_ref) do
+    receive do
+      {:DOWN, ^monitor_ref, :process, ^pid, _reason} -> :ok
+    after
+      1_000 -> Process.demonitor(monitor_ref, [:flush])
+    end
   end
 
   defp normalize_probe(base, {:pass, detail}) do
