@@ -38,8 +38,7 @@ they improve a real research or engineering outcome.
 The initial strategy rewrite left canon, participants and pilot controls open. Those
 initial D1–D7 choices are now resolved by the
 [pilot charter](strategy/PILOT_CHARTER.md): three user strata around one evidence-backed
-question-answering job, a conditional four-Nikāya user pilot, explicit commentary-depth
-compatibility, preregistered thresholds, rights/privacy rules and no exact-replay promise.
+question-answering job, a bounded Chinese commentary-rich user pilot with bilingual\nretrieval/on-demand reading translation, preregistered thresholds, rights/privacy rules\nand no exact-replay promise.
 Implementation remains gated by G0 and source-specific rights clearance; the charter does
 not authorize provider spend or deployment.
 
