@@ -14,7 +14,7 @@
     {
       "id": "pilot_scope",
       "state": "blocked",
-      "reason": "Exact seed work IDs, relation expansion, release identity and coverage denominator are not yet materialized from an accepted pilot release.",
+      "reason": "Exact seed IDs, allowed relation edge types, traversal depth, expanded work IDs, passage-alignment coverage, release identity and scope denominator are not yet frozen from an accepted pilot release.",
       "evidence": [
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
@@ -22,7 +22,7 @@
     {
       "id": "cbeta_rights",
       "state": "blocked",
-      "reason": "Operation-specific CBETA rights review for the selected source scope is not yet recorded.",
+      "reason": "Operation-specific CBETA rights review for the complete expanded seed/commentary/treatise pilot scope is not yet recorded.",
       "evidence": [
         "docs/strategy/PILOT_PREFLIGHT.md",
         "docs/strategy/RESEARCH.md"
@@ -89,7 +89,7 @@
     {
       "id": "evaluation_rubric",
       "state": "blocked",
-      "reason": "Chinese-specific query-expansion and generated-reading-translation thresholds are not frozen for participant execution.",
+      "reason": "Chinese query-expansion and generated-reading-translation thresholds, including text-role-separated reporting, are not frozen for participant execution.",
       "evidence": [
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
