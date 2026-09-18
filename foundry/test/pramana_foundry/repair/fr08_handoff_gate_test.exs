@@ -261,6 +261,25 @@ defmodule PramanaFoundry.Repair.FR08HandoffGateTest do
     assert Enum.all?(report.capabilities, &(&1.reason == "invalid_provider"))
   end
 
+  test "ready predicate rejects incomplete or tampered reports" do
+    report =
+      FR08HandoffGate.run(PassingProvider,
+        subject_revision: @subject_revision
+      )
+
+    refute FR08HandoffGate.ready?(%{
+             schema: report.schema,
+             status: "ready",
+             subject_revision: @subject_revision
+           })
+
+    refute FR08HandoffGate.ready?(%{report | passed_count: report.passed_count - 1})
+
+    [first | rest] = report.capabilities
+    tampered = [%{first | status: "failed", reason: "tampered", evidence: nil} | rest]
+    refute FR08HandoffGate.ready?(%{report | capabilities: tampered})
+  end
+
   test "reports are deterministic for the same pure provider and revision" do
     first =
       FR08HandoffGate.run(PassingProvider,
