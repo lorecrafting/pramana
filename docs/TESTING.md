@@ -64,6 +64,35 @@ Record the exact commit, command, environment and outcome. Say explicitly which
 checks were unavailable or skipped. Do not convert a source inspection into a claim
 that code was executed.
 
+## CI routing and reusable build caches
+
+Heavy workflows are scoped to inputs they can actually exercise. Foundry-only and
+documentation-only changes do not run the Pramāṇa database/Rust/Dialyzer/release lane.
+The runtime-container workflow is narrower still: it runs for application, release,
+configuration, Docker or runtime-smoke inputs, not every file below `pramana/`.
+Repository layout tests pin these routing assumptions so a later edit cannot silently
+restore an all-PR expensive lane or omit a named shared executable input.
+
+Build caches are accelerators, never acceptance evidence. Pramāṇa CI builds its
+PostgreSQL fixture from [a repository-owned Dockerfile](../pramana/ci/postgres.Dockerfile)
+that pins the tested pgvector/PostgreSQL base by digest and pins pg_bigm to an immutable
+upstream commit. Cached builds still request registry metadata (`pull: true`), but the digest
+prevents identical source from silently moving to a newer PostgreSQL/pgvector image. BuildKit may restore layers
+from GitHub's cache, but a cache miss must still build successfully. Cache export is allowed to fail without changing the build
+result; losing an optimization is not a correctness failure.
+
+Pull-request build steps restore reusable cache layers but omit cache export entirely.
+Only the trusted `push` variant writes the shared BuildKit cache, so large PR-local caches
+cannot crowd out the default-branch cache. A merged `main` run is therefore the producer
+future PRs can reuse.
+
+The ordinary Pramāṇa lane still performs a forced warnings-as-errors compile, full
+model-free umbrella tests, Dialyzer and a fresh release build from the checked source.
+The container lane still constructs the candidate's final runtime image and runs the
+same synthetic-database release smoke. Reused Docker layers may contain unchanged
+toolchain or dependency work; they do not substitute an older final image for the
+candidate. No CI cache authorizes corpus acceptance, provider use or deployment.
+
 ## Sibling-layout validation
 
 At the Git root, `mix format --check-formatted` covers only shared scripts/tests;
