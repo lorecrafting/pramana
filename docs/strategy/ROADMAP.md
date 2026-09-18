@@ -35,9 +35,9 @@ seen: audience, recurring task, conditional four-Nikāya user scope, rights gate
 evaluation thresholds, rendering policy, privacy/export behavior, capacity and replay
 promise. The charter authorizes no post-G0 implementation and no new cash spend.
 
-Before execution, recheck the live source/corpus baseline, clear the selected human
-rendering source for AI-assisted use, identify the qualified evaluators and record each
-participant's current alternative. Actual retrieval limitations and operator time must be
+Before execution, recheck the live source/corpus baseline, complete the charter's
+operation-specific rights matrix for the selected source witness and rendering, identify
+the qualified evaluators and record each participant's current alternative. Actual retrieval limitations and operator time must be
 measured locally; public benchmarks do not substitute.
 
 **Exit:** after G0, the operator confirms that the charter's rights/evaluator prerequisites
