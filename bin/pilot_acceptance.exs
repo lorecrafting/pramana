@@ -210,7 +210,10 @@ defmodule Pramana.PilotAcceptance do
     errors
     |> add_if(manifest["schema"] != @schema, "schema must be #{@schema}")
     |> add_if(manifest["pilot_id"] != @pilot_id, "pilot_id must be #{@pilot_id}")
-    |> add_if(manifest["contract_revision"] != @revision, "contract_revision must be #{@revision}")
+    |> add_if(
+      manifest["contract_revision"] != @revision,
+      "contract_revision must be #{@revision}"
+    )
     |> add_if(manifest["status"] != @status, "status must be #{@status}")
     |> add_if(
       MapSet.difference(actual, expected) != MapSet.new(),
@@ -279,7 +282,11 @@ defmodule Pramana.PilotAcceptance do
 
   defp require_gate(errors, gates, id, state) do
     actual = get_in(gates, [id, "state"])
-    add_if(errors, actual != state, "preflight gate #{id} must be #{state}, got #{inspect(actual)}")
+    add_if(
+      errors,
+      actual != state,
+      "preflight gate #{id} must be #{state}, got #{inspect(actual)}"
+    )
   end
 
   defp require_acceptance_evidence(errors, gates, id) do
