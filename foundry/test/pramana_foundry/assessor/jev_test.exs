@@ -115,7 +115,7 @@ defmodule PramanaFoundry.Assessor.JevTest do
 
       headers =
         Map.new(header_lines, fn line ->
-          [name, value] = :binary.split(line, ":", [{:parts, 2}])
+          [name, value] = String.split(line, ":", parts: 2)
           {String.downcase(String.trim(name)), String.trim(value)}
         end)
 
