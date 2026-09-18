@@ -262,7 +262,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
       "ranking cutoff-equivalent families must be a subset of same-weight families"
     )
     |> add_if(
-      not valid_direction_method_counts?(ranking["direction_method_counts"], ranking["directed_pairs"]),
+      not valid_direction_method_counts?(
+        ranking["direction_method_counts"],
+        ranking["directed_pairs"]
+      ),
       "ranking.direction_method_counts must exactly account for directed_pairs"
     )
     |> add_if(
