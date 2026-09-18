@@ -171,7 +171,7 @@ defmodule Strategy.PilotScopeArtifactTest do
               else: ["demand_rank"]
             ),
           "demand_rank" => Enum.find_index(demand_ids, &(&1 == id)) + 1,
-          "demand_weight" => 1
+          "demand_weight" => 10 - Enum.find_index(demand_ids, &(&1 == id))
         }
       end)
       |> Enum.sort_by(& &1["work_id"])
