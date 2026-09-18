@@ -494,7 +494,8 @@ defmodule Pramana.Pilot.Scope do
       |> Enum.filter(fn row ->
         MapSet.member?(allowed_relations, row.relation) and
           MapSet.member?(allowed_methods, row.method) and
-          not is_nil(row.target_work_id)
+          not is_nil(row.target_work_id) and
+          relation_role_compatible?(row, work_map)
       end)
       |> Enum.group_by(&{&1.source_work_id, &1.target_work_id, &1.relation})
       |> Map.new(fn {key, rows} -> {key, Enum.sort_by(rows, &assertion_key/1)} end)
@@ -533,11 +534,31 @@ defmodule Pramana.Pilot.Scope do
           Map.has_key?(scope, row.target_work_id)
       end)
 
+    excluded_role_incoherent =
+      Enum.count(relation_rows, fn row ->
+        row.relation in ScopeArtifact.allowed_relations() and
+          row.method in ScopeArtifact.allowed_relation_methods() and
+          Map.has_key?(work_map, row.source_work_id) and
+          Map.has_key?(work_map, row.target_work_id) and
+          not relation_role_compatible?(row, work_map) and
+          Map.has_key?(scope, row.target_work_id)
+      end)
+
     {scope, Map.values(admitted),
      %{
        outside_cbeta_relation_rows: outside_cbeta,
-       excluded_model_relation_rows: excluded_model
+       excluded_model_relation_rows: excluded_model,
+       excluded_role_incoherent_relation_rows: excluded_role_incoherent
      }}
+  end
+
+  defp relation_role_compatible?(row, work_map) do
+    with %{text_role: source_role} <- Map.get(work_map, row.source_work_id),
+         %{text_role: target_role} <- Map.get(work_map, row.target_work_id) do
+      target_role in Relations.may_explain(source_role)
+    else
+      _ -> false
+    end
   end
 
   defp expand_hop(hop, scope, admitted, frontier, eligible, work_map) do
@@ -738,7 +759,9 @@ defmodule Pramana.Pilot.Scope do
         |> Enum.frequencies_by(&(&1["text_role"] || "unknown"))
         |> Map.new(fn {key, value} -> {to_string(key), value} end),
       "excluded_relation_rows_outside_cbeta" => traversal_stats.outside_cbeta_relation_rows,
-      "excluded_model_relation_rows" => traversal_stats.excluded_model_relation_rows
+      "excluded_model_relation_rows" => traversal_stats.excluded_model_relation_rows,
+      "excluded_role_incoherent_relation_rows" =>
+        traversal_stats.excluded_role_incoherent_relation_rows
     }
   end
 
