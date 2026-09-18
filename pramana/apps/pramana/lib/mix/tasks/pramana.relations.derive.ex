@@ -56,7 +56,9 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
 
   import Ecto.Query
 
+  alias Pramana.Bake
   alias Pramana.Corpus.Work
+  alias Pramana.Derivations
   alias Pramana.Relations
   alias Pramana.Repo
 
@@ -81,6 +83,7 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
     min_title = Keyword.get(opts, :min_title, @default_min_title)
+    receipt = begin_receipt(opts[:dry_run], min_title)
 
     sources = load(Relations.explanatory_roles(), 0)
 
@@ -98,7 +101,21 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
 
     report(matches, opts[:dry_run])
 
-    unless opts[:dry_run], do: write(matches)
+    unless opts[:dry_run] do
+      stats = write(matches)
+      Derivations.finish_run!(receipt, stats)
+    end
+  end
+
+  defp begin_receipt(true, _min_title), do: nil
+
+  defp begin_receipt(false, min_title) do
+    Derivations.begin_run(
+      "relations_title",
+      Bake.current_id(),
+      %{"mode" => "full"},
+      %{"min_title" => min_title}
+    )
   end
 
   # `Pramana.Relations.may_explain/1` owns this, because `Pramana.Quotations.Roots` needs
@@ -184,6 +201,12 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
     Mix.shell().info(
       "\n  wrote #{ok} relation(s)#{if failed > 0, do: ", #{failed} failed", else: ""}"
     )
+
+    %{
+      "failures" => failed,
+      "assertions_succeeded" => ok,
+      "assertions_attempted" => ok + failed
+    }
   end
 
   defp report(matches, dry_run?) do
