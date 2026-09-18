@@ -167,7 +167,7 @@ defmodule Strategy.PilotPreflightTest do
         stderr_to_stdout: true
       )
 
-    assert validated =~ "manifest valid; status=blocked"
+    assert validated =~ "manifest valid; declared_status=blocked; readiness=not_evaluated"
 
     revision = Pramana.PilotPreflight.git_revision!(@root)
 
