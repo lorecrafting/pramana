@@ -145,6 +145,7 @@ defmodule Repository.LayoutTest do
     assert container =~ "release_smoke.py"
 
     assert postgres =~ "735dceba0ecdd8ac1aaaaa207226a7102b6bbd71"
+    assert postgres =~ "sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a"
     assert postgres =~ "COPY --from=builder"
   end
 end
