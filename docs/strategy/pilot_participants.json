@@ -106,7 +106,8 @@
       "main_friction_category"
     ],
     "optional_free_text_max_chars": 500,
-    "credentials_or_account_details_forbidden": true
+    "credentials_or_account_details_forbidden": true,
+    "none_is_mutually_exclusive": true
   },
   "sensitive_content": {
     "pre_task_warning": true,
@@ -126,7 +127,10 @@
     "pseudonymous_individual_metadata_after_deadline": false,
     "aggregate_non_reconstructive_metrics_may_remain": true,
     "public_example_content_requires_optional_consent": true,
-    "followup_contact_purpose": "logistics_only_not_repeat_use_prompting"
+    "followup_contact_purpose": "logistics_only_not_repeat_use_prompting",
+    "delete_from_ordinary_application_logs": true,
+    "delete_from_request_logs_under_project_control": true,
+    "delete_from_restorable_working_copies": true
   },
   "purpose_boundaries": {
     "operational_noncontent_telemetry_not_study_consent": true,
@@ -134,7 +138,11 @@
     "study_record_not_canonical_corpus_data": true,
     "study_record_not_foundry_memory": true,
     "evaluator_record_not_participant_identity_record": true,
-    "no_secondary_use_without_new_consent": true
+    "no_secondary_use_without_new_consent": true,
+    "full_question_not_in_operational_logs": true,
+    "generated_answer_not_in_operational_logs": true,
+    "prompt_payload_not_in_operational_logs": true,
+    "provider_side_logging_separately_reviewed": true
   },
   "evidence_export": {
     "participant_controls_export": true,
@@ -187,7 +195,9 @@
     "replenish_after_withdrawal_or_exclusion": true,
     "participant_exclusion_may_be_initiated_by_participant": true,
     "operator_or_evaluator_may_not_prompt_exclusion_based_on_outcome": true,
-    "all_exclusions_counted_and_reported": true
+    "all_exclusions_counted_and_reported": true,
+    "scope_support_adjudication_blinded_to_system_output_where_feasible": true,
+    "scope_support_adjudication_records_blinding_status": true
   },
   "withdrawal": {
     "allowed_until": "pilot_decision_recorded",
@@ -197,14 +207,19 @@
     "remove_from_participant_denominators": true,
     "recompute_predecision_aggregates": true,
     "previously_published_or_merged_non_reconstructive_aggregate_record_may_remain": true,
-    "no_new_public_example_use_after_withdrawal": true
+    "no_new_public_example_use_after_withdrawal": true,
+    "post_decision_individual_deletion_request_allowed_while_records_exist": true,
+    "post_decision_deletion_recomputes_recorded_aggregate_decision": false
   },
   "public_sharing": {
     "default": false,
     "aggregate_results_allowed_without_task_content": true,
     "small_cohort_reidentification_review_required": true,
     "individual_question_answer_or_feedback_requires_optional_consent": true,
-    "source_text_still_subject_to_source_rights": true
+    "source_text_still_subject_to_source_rights": true,
+    "public_aggregate_min_distinct_participants_per_cell": 3,
+    "cells_below_minimum_suppressed_or_merged": true,
+    "exact_question_or_date_never_treated_as_aggregate": true
   },
   "incident_response": {
     "triggers": [
@@ -248,5 +263,34 @@
     "protocol_is_not_irb_or_regulatory_determination": true,
     "institution_must_obtain_applicable_review_or_approval": true,
     "this_protocol_authorizes_no_compensation_or_recruitment_spend": true
+  },
+  "conditional_consents": {
+    "external_provider_question_transfer": {
+      "required_when": "external_provider_receives_participant_question_or_task_content",
+      "default": false,
+      "must_name_provider_or_product_route": true,
+      "must_disclose_retention_training_human_review_and_deletion_terms": true
+    }
+  },
+  "access_control": {
+    "study_record_access_roles": [
+      "operator",
+      "assigned_evaluator"
+    ],
+    "least_privilege_required": true,
+    "public_or_general_analytics_access": false,
+    "evaluator_notes_direct_identity_forbidden": true,
+    "contact_roster_access_separate": true
+  },
+  "protocol_change": {
+    "material_changes_requiring_reconsent": [
+      "collection_fields",
+      "external_transfer",
+      "retention_or_deletion",
+      "purpose_or_secondary_use",
+      "public_sharing",
+      "identity_linkage"
+    ],
+    "reconsent_required_before_next_measured_task": true
   }
 }
