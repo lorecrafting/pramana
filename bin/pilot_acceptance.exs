@@ -302,6 +302,7 @@ defmodule Pramana.PilotAcceptance do
 
   defp require_gate(errors, gates, id, state) do
     actual = get_in(gates, [id, "state"])
+
     add_if(
       errors,
       actual != state,
