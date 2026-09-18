@@ -54,6 +54,24 @@ defmodule PramanaFoundry.Repair.FR08HandoffGateTest do
     def probe(_id), do: {:pass, String.duplicate("x", 513)}
   end
 
+  defmodule HangingProvider do
+    @behaviour FR08HandoffGate
+
+    @impl true
+    def probe(_id) do
+      receive do
+        :never -> {:pass, "unexpected"}
+      end
+    end
+  end
+
+  defmodule KilledProvider do
+    @behaviour FR08HandoffGate
+
+    @impl true
+    def probe(_id), do: Process.exit(self(), :kill)
+  end
+
   defmodule MissingCallbackProvider do
   end
 
@@ -134,6 +152,37 @@ defmodule PramanaFoundry.Repair.FR08HandoffGateTest do
       assert Enum.all?(report.capabilities, &(&1.reason == reason))
       refute inspect(report) =~ "private storage detail"
       refute inspect(report) =~ "private_storage_detail"
+    end
+  end
+
+
+  test "hung probes are killed and reported as failures" do
+    started = System.monotonic_time(:millisecond)
+    report = FR08HandoffGate.run(HangingProvider, probe_timeout_ms: 20)
+
+    assert report.status == "failed"
+    assert report.failed_count == report.mandatory_count
+    assert Enum.all?(report.capabilities, &(&1.reason == "probe_timeout"))
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
+  test "untrappable provider death fails without leaking its exit reason" do
+    report = FR08HandoffGate.run(KilledProvider, probe_timeout_ms: 100)
+
+    assert report.status == "failed"
+    assert report.failed_count == report.mandatory_count
+    assert Enum.all?(report.capabilities, &(&1.reason == "probe_process_exit"))
+  end
+
+  test "probe timeout configuration is finite and validated" do
+    for invalid <- [0, -1, 60_001, :infinity, "100"] do
+      assert_raise ArgumentError, fn ->
+        FR08HandoffGate.run(PassingProvider, probe_timeout_ms: invalid)
+      end
+    end
+
+    assert_raise ArgumentError, fn ->
+      FR08HandoffGate.run(PassingProvider, timeout_ms: 100)
     end
   end
 
