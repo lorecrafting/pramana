@@ -3,6 +3,7 @@ root = Path.expand("..", __DIR__)
 ExUnit.start()
 Code.require_file(Path.join(root, "pramana/apps/pramana/lib/pramana/docs/sync.ex"))
 Code.require_file(Path.join(root, "bin/pilot_preflight.exs"))
+Code.require_file(Path.join(root, "bin/pilot_acceptance.exs"))
 
 for relative <- [
       "test/docs/routing_test.exs",
@@ -10,6 +11,7 @@ for relative <- [
       "test/docs/hygiene_test.exs",
       "test/layout_test.exs",
       "test/pilot_preflight_test.exs",
+      "test/pilot_acceptance_test.exs",
       "test/local_layout_test.exs",
       "test/wrappers_test.exs",
       "pramana/apps/pramana/test/docs/sync_test.exs",
