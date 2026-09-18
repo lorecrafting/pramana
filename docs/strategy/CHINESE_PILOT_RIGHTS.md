@@ -54,7 +54,10 @@ The current repository does not have one operation-aware rights authority.
   renderings to CBETA anchors. The exact publications relevant to the present bounded
   Chinese layer are **scpub20** (Saṃyukta Āgama / T0099 coverage) and **scpub35**
   (Madhyama Āgama / T0026 coverage), each published as CC0 in bilara-data's
-  publication metadata.
+  publication metadata. The production alignment map contains only `sa -> T0099` and
+  `ma -> T0026`; T0001/T0125 are deliberately unsupported by that path. Other named
+  human Chinese renderings found in repository tests are fixtures, not additional
+  production source records or cleared pilot inputs.
 - The existing generated-English Chinese tranche is a separate historical layer:
   27,956 generated renderings over the recorded 14-work demand-weighted tranche. The
   export path sent selected CBETA chunk content to a generation host and the importer
@@ -108,9 +111,12 @@ or other editorial contribution in the public domain.
 ## Operation-specific rights matrix
 
 These tables record the **copyright/licence evidence state**. Product-policy overrides
-follow immediately after them. "External source/rendering text" means source or rendering
-bytes supplied to a cloud/provider model; "external glossary text" means DILA
-entry/definition/equivalence bytes supplied in prompts, context, files or provider stores.
+follow immediately after them. A `permitted` cell is **necessary but not sufficient for
+execution**: `foundry_g0`, scope, inference authority, execution bounds, evaluation and
+any other applicable preflight gate remain independent. "External source/rendering text"
+means source or rendering bytes supplied to a cloud/provider model; "external glossary
+text" means DILA entry/definition/equivalence bytes supplied in prompts, context, files or
+provider stores.
 
 ### Operations 1–6
 
@@ -139,6 +145,14 @@ reuse/adaptation; the restrictive common denominator is noncommercial use plus
 attribution/share-alike when material is shared. Sending material to an external provider
 adds separate provider licences, retention/training behavior and a fact-specific NC
 question that the DILA notices do not answer.
+
+Payload shape matters too. Karashima's raw TEI contains Taishō Chinese quotations and
+Sanskrit witnesses. The current normalizer does **not** store the Chinese quotation as a
+glossary field; it keeps the headword, definition/Sanskrit witness and Taishō citation
+addresses, and the existing translation prompt builder sends selected `Chinese = English`
+pins rather than raw TEI. A future provider path that sends raw TEI or richer entry
+records may therefore carry underlying source-edition bytes as well as DILA lexicon bytes.
+Clearing DILA alone would not clear those compound payloads.
 
 Why the Patton copyright cells are permissive but the pilot still restricts AI use:
 scpub20/scpub35 are explicitly CC0. SuttaCentral's current AI request is therefore recorded
