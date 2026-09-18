@@ -27,7 +27,7 @@ they improve a real research or engineering outcome.
 
 | Choice | Proposed direction | Consequence |
 |---|---|---|
-| First Pramāṇa user | Teachers, writers and serious study leaders doing repeatable source work; scholars help evaluate accuracy | Validate a concrete research job before serving every persona equally |
+| First Pramāṇa users | Scholars/researchers, serious practitioners or study leaders, and ordinary curious readers share one evidence-backed Dharma-question workflow; outcomes are reported separately by stratum | Use progressive disclosure rather than building separate products or letting expert success hide ordinary-reader failure |
 | Initial product scope | One selected canon/collection per pilot workflow, with explicit scope selection | Keep existing multi-corpus infrastructure; defer automatic cross-canon synthesis |
 | First complete experience | Question or quotation → scoped evidence → context and rendering → reusable citation | Improve the existing reader and MCP instead of rebuilding them around a chatbot |
 | Trust promise | Show what was checked, against which source, and what remains uncertain | Byte matching is not doctrinal truth, interpretation, translation fidelity or exhaustive search |
@@ -38,8 +38,9 @@ they improve a real research or engineering outcome.
 The initial strategy rewrite left canon, participants and pilot controls open. Those
 initial D1–D7 choices are now resolved by the
 [pilot charter](strategy/PILOT_CHARTER.md): three user strata around one evidence-backed
-question-answering job, a conditional four-Nikāya user pilot, explicit commentary-depth
-compatibility, preregistered thresholds, rights/privacy rules and no exact-replay promise.
+question-answering job, a bounded Chinese commentary-rich user pilot with bilingual
+retrieval/on-demand reading translation, preregistered thresholds, rights/privacy rules
+and no exact-replay promise.
 Implementation remains gated by G0 and source-specific rights clearance; the charter does
 not authorize provider spend or deployment.
 
