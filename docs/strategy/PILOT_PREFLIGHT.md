@@ -285,36 +285,45 @@ Glossary pinning is a consistency control, not proof that the translation is fai
 
 ## Rights preflight
 
-The Chinese pilot needs an operation-specific matrix for at least:
+[Chinese pilot rights and data-flow boundaries](CHINESE_PILOT_RIGHTS.md) is the reviewed
+operation-level authority for this preflight. It covers, separately, local storage/search,
+derived retrieval artifacts, English→Chinese expansion, cloud/provider transfer,
+local-model processing, reader display, evidence packets, evaluation retention, public
+redistribution and commercial implications for:
 
-- CBETA source text/metadata in the selected scope;
-- each DILA glossary actually used;
-- any human English rendering shown;
-- any model/provider that receives source or glossary text.
+- the CBETA Taishō Category A witness used by the intended seed;
+- Soothill-Hodous;
+- each of the three exact Karashima digital editions;
+- the DILA Mahāvyutpatti digital edition;
+- Charles Patton's scpub20/scpub35 human English layer; and
+- the existing generated-English MITRA tranche over CBETA.
 
-For each input record:
+The review found a primary-source conflict the earlier preflight did not capture. Each of
+the five exact DILA digital-edition PDFs states CC BY-SA 3.0, while the current DILA portal
+states CC BY-NC-SA 4.0. The pilot therefore keeps the existing conservative NC posture and
+does not silently select the more permissive notice. Local deterministic lexicon use is
+supported under the restrictive common denominator; external-model glossary transfer and
+commercial reliance remain blocked pending clarification.
 
-| Operation | Required disposition |
-|---|---|
-| local store/index | permitted / prohibited / permission required |
-| embeddings/derived retrieval | permitted / prohibited / permission required |
-| query-expansion use | permitted / prohibited / permission required |
-| model/provider input | permitted / prohibited / permission required |
-| reader display | permitted scope + attribution |
-| evidence-packet excerpt/export | permitted excerpt scope or link-only |
-| evaluation retention | permitted duration/deletion obligation |
+CBETA's current database terms establish a non-commercial Category A baseline for Taishō,
+plus notice/version obligations, but the complete expanded pilot scope is not frozen and
+the model-derived/cloud operations are not thereby cleared. CBETA's own RAG/OpenAI
+experiment remains implementation precedent, **not permission for Pramāṇa's provider
+route**.
 
-CBETA's published database terms currently limit use to non-commercial purposes and set
-reuse/attribution/version obligations, with source-specific exceptions. CBETA has itself
-publicly tested RAG/OpenAI semantic search over its corpus, which is useful stakeholder
-precedent but **not permission for Pramāṇa's separate deployment**.
+SuttaCentral's exact Patton publications are CC0, while SuttaCentral separately asks that
+its content not be used for generative-AI datasets or downstream AI-derived technologies.
+The pilot records that as a stakeholder norm rather than rewriting the CC0 copyright
+position: attributed human-reader display may remain available, while new AI-derived use
+of Patton text requires stakeholder review.
 
-DILA's glossary site currently states CC BY-NC-SA 4.0 for its content, while individual
-historical digital glossaries may carry their own notices. Use the more specific reviewed
-source record and do not generalize one glossary's terms to another.
+The execution rule is fail-closed: **permitted** authorizes only the named operation and
+conditions; **prohibited**, **permission required**, and **unclear / unresolved** all stop
+that operation. No blocked resource is silently replaced with another corpus or glossary.
 
-This preflight is not legal advice. Ambiguity remains `permission_required`, not
-`probably_permitted`.
+Accordingly, `cbeta_rights`, `lexicon_rights` and `provider_terms` remain blocked in
+[pilot_preflight.json](pilot_preflight.json), now with precise reasons and this review as
+evidence. No provider/model/spend authority is granted here.
 
 ## Evaluation protocol
 
