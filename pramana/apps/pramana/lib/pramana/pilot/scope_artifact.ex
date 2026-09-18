@@ -110,7 +110,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> check_ranking(artifact["ranking"])
       |> check_seeds(artifact["seeds"], artifact["ranking"])
       |> check_works(artifact["works"], artifact["seeds"])
-      |> check_relations(artifact["relations"], artifact["works"])
+      |> check_relations(artifact["relations"], artifact["works"], artifact["seeds"])
       |> check_alignments(artifact["alignment_coverage"], artifact["relations"])
       |> check_denominators(artifact)
       |> check_derivation_status(artifact["derivation_status"])
@@ -202,7 +202,8 @@ defmodule Pramana.Pilot.ScopeArtifact do
     top = ranking["top_demand"] || []
     work_ids = Enum.map(top, & &1["work_id"])
     families = Enum.map(top, & &1["family"])
-    cutoff_families = ranking["cutoff_tied_families"] || []
+    same_weight_families = ranking["cutoff_same_weight_families"] || []
+    equivalent_families = ranking["cutoff_equivalent_families"] || []
     tenth = Enum.at(top, @demand_seed_count - 1)
 
     errors
@@ -233,12 +234,40 @@ defmodule Pramana.Pilot.ScopeArtifact do
       "ranking.cutoff_weight must equal rank ten weight"
     )
     |> add_if(
-      cutoff_families != Enum.sort(Enum.uniq(cutoff_families)),
-      "ranking.cutoff_tied_families must be sorted and unique"
+      not positive_integer?(ranking["cutoff_citing_families"]),
+      "ranking.cutoff_citing_families must be a positive integer"
     )
     |> add_if(
-      is_map(tenth) and tenth["family"] not in cutoff_families,
-      "ranking.cutoff_tied_families must include the rank ten family"
+      is_map(tenth) and ranking["cutoff_citing_families"] != tenth["citing_families"],
+      "ranking.cutoff_citing_families must equal rank ten citing_families"
+    )
+    |> add_if(
+      same_weight_families != Enum.sort(Enum.uniq(same_weight_families)),
+      "ranking.cutoff_same_weight_families must be sorted and unique"
+    )
+    |> add_if(
+      equivalent_families != Enum.sort(Enum.uniq(equivalent_families)),
+      "ranking.cutoff_equivalent_families must be sorted and unique"
+    )
+    |> add_if(
+      is_map(tenth) and tenth["family"] not in same_weight_families,
+      "ranking.cutoff_same_weight_families must include the rank ten family"
+    )
+    |> add_if(
+      is_map(tenth) and tenth["family"] not in equivalent_families,
+      "ranking.cutoff_equivalent_families must include the rank ten family"
+    )
+    |> add_if(
+      not Enum.all?(equivalent_families, &(&1 in same_weight_families)),
+      "ranking cutoff-equivalent families must be a subset of same-weight families"
+    )
+    |> add_if(
+      not valid_direction_method_counts?(ranking["direction_method_counts"], ranking["directed_pairs"]),
+      "ranking.direction_method_counts must exactly account for directed_pairs"
+    )
+    |> add_if(
+      Enum.any?(top, &(not valid_top_demand_row?(&1))),
+      "ranking.top_demand row metadata is internally inconsistent"
     )
     |> add_if(
       not nonnegative_integer?(ranking["cross_family_pairs"]),
@@ -266,7 +295,8 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
   defp check_seeds(errors, seeds, ranking) when is_list(seeds) and is_map(ranking) do
     ids = Enum.map(seeds, & &1["work_id"])
-    demand_ids = MapSet.new(Enum.map(ranking["top_demand"] || [], & &1["work_id"]))
+    ranked = Map.new(ranking["top_demand"] || [], &{&1["work_id"], &1})
+    demand_ids = ranked |> Map.keys() |> MapSet.new()
 
     errors =
       errors
@@ -281,28 +311,48 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "every demand-ranked work must be present in seeds"
       )
 
-    Enum.reduce(seeds, errors, fn seed, acc ->
-      sources = seed["seed_sources"] || []
-
-      acc
-      |> add_if(not nonempty?(seed["work_id"]), "seed work_id is required")
-      |> add_if(sources == [], "every seed must name at least one seed source")
-      |> add_if(
-        sources != Enum.sort(Enum.uniq(sources)),
-        "seed_sources must be sorted and unique"
-      )
-      |> add_if(
-        Enum.any?(sources, &(&1 not in ["agama", "demand_rank"])),
-        "seed_sources contains an unknown source"
-      )
-    end)
+    Enum.reduce(seeds, errors, &check_seed(&1, &2, ranked))
   end
+
+  defp check_seed(seed, errors, ranked) do
+    work_id = seed["work_id"]
+    expected_sources = expected_seed_sources(work_id, ranked)
+    rank_row = Map.get(ranked, work_id)
+
+    errors
+    |> add_if(not nonempty?(work_id), "seed work_id is required")
+    |> add_if(
+      seed["seed_sources"] != expected_sources,
+      "seed_sources must exactly match ranking/Āgama membership"
+    )
+    |> add_if(
+      seed["demand_rank"] != demand_value(rank_row, "rank"),
+      "seed demand_rank must match ranking.top_demand"
+    )
+    |> add_if(
+      seed["demand_weight"] != demand_value(rank_row, "weight"),
+      "seed demand_weight must match ranking.top_demand"
+    )
+  end
+
+  defp expected_seed_sources(work_id, ranked) do
+    []
+    |> maybe_source(Map.has_key?(ranked, work_id), "demand_rank")
+    |> maybe_source(work_id in @agama_ids, "agama")
+    |> Enum.sort()
+  end
+
+  defp maybe_source(sources, true, source), do: [source | sources]
+  defp maybe_source(sources, false, _source), do: sources
+
+  defp demand_value(nil, _key), do: nil
+  defp demand_value(row, key), do: row[key]
 
   defp check_seeds(errors, _seeds, _ranking), do: ["seeds must be an array" | errors]
 
   defp check_works(errors, works, seeds) when is_list(works) and is_list(seeds) do
     ids = Enum.map(works, & &1["work_id"])
-    seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
+    declared_seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
 
     errors =
       errors
@@ -313,28 +363,48 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "every seed must be present in works"
       )
 
-    Enum.reduce(works, errors, fn work, acc ->
-      seed_ids_for_work = work["seed_ids"] || []
-
-      acc
-      |> add_if(not nonempty?(work["work_id"]), "work_id is required")
-      |> add_if(work["source"] != "cbeta", "scope works must come from CBETA")
-      |> add_if(work["witness"] != "T", "scope works must use the Taishō witness")
-      |> add_if(
-        seed_ids_for_work != Enum.sort(Enum.uniq(seed_ids_for_work)),
-        "work seed_ids must be sorted and unique"
-      )
-      |> add_if(
-        not (is_integer(work["min_hop"]) and work["min_hop"] in 0..@max_relation_depth),
-        "work min_hop must be between zero and #{@max_relation_depth}"
-      )
-    end)
+    Enum.reduce(works, errors, &check_work(&1, &2, seed_ids))
   end
+
+  defp check_work(work, errors, seed_ids) do
+    work_id = work["work_id"]
+    ancestry = work["seed_ids"] || []
+    seed? = MapSet.member?(seed_ids, work_id)
+
+    errors
+    |> add_if(not nonempty?(work_id), "work_id is required")
+    |> add_if(work["source"] != "cbeta", "scope works must come from CBETA")
+    |> add_if(work["witness"] != "T", "scope works must use the Taishō witness")
+    |> add_if(
+      ancestry != Enum.sort(Enum.uniq(ancestry)),
+      "work seed_ids must be sorted and unique"
+    )
+    |> add_if(
+      not Enum.all?(ancestry, &MapSet.member?(seed_ids, &1)),
+      "work seed_ids must name declared seeds"
+    )
+    |> add_if(
+      not valid_work_hop_and_ancestry?(work, seed?),
+      "work min_hop/seed ancestry is inconsistent with seed membership"
+    )
+  end
+
+  defp valid_work_hop_and_ancestry?(work, true),
+    do: work["min_hop"] == 0 and work["seed_ids"] == [work["work_id"]]
+
+  defp valid_work_hop_and_ancestry?(work, false),
+    do:
+      is_integer(work["min_hop"]) and
+        work["min_hop"] in 1..@max_relation_depth and
+        (work["seed_ids"] || []) != []
 
   defp check_works(errors, _works, _seeds), do: ["works must be an array" | errors]
 
-  defp check_relations(errors, relations, works) when is_list(relations) and is_list(works) do
+  defp check_relations(errors, relations, works, seeds)
+       when is_list(relations) and is_list(works) and is_list(seeds) do
     work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
+    works_by_id = Map.new(works, &{&1["work_id"], &1})
+    seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
     keys = Enum.map(relations, &relation_key/1)
     pair_keys = Enum.map(relations, &{&1["source_work_id"], &1["target_work_id"]})
 
@@ -356,6 +426,15 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> add_if(
         seed_ids != Enum.sort(Enum.uniq(seed_ids)),
         "relation seed_ids must be sorted and unique"
+      )
+      |> add_if(seed_ids == [], "relation seed_ids must not be empty")
+      |> add_if(
+        not Enum.all?(seed_ids, &MapSet.member?(declared_seed_ids, &1)),
+        "relation seed_ids must name declared seeds"
+      )
+      |> add_if(
+        not relation_ancestry_matches_target?(relation, works_by_id),
+        "relation seed_ids must match target-work ancestry"
       )
       |> add_if(
         assertion_keys != Enum.sort(assertion_keys),
@@ -401,7 +480,15 @@ defmodule Pramana.Pilot.ScopeArtifact do
     end)
   end
 
-  defp check_relations(errors, _relations, _works), do: ["relations must be an array" | errors]
+  defp check_relations(errors, _relations, _works, _seeds),
+    do: ["relations must be an array" | errors]
+
+  defp relation_ancestry_matches_target?(relation, works_by_id) do
+    case Map.get(works_by_id, relation["target_work_id"]) do
+      nil -> false
+      target -> relation["seed_ids"] == target["seed_ids"]
+    end
+  end
 
   defp check_alignments(errors, rows, relations) when is_list(rows) and is_list(relations) do
     relation_keys = MapSet.new(Enum.map(relations, &relation_identity/1))
@@ -541,6 +628,32 @@ defmodule Pramana.Pilot.ScopeArtifact do
     (ranking["directed_pairs"] || 0) +
       (ranking["unresolved_pairs"] || 0) +
       (ranking["conflicting_pairs"] || 0)
+  end
+
+  defp valid_direction_method_counts?(counts, directed_pairs) when is_map(counts) do
+    allowed = ~w(role date role_and_date)
+    keys = Map.keys(counts)
+
+    Enum.all?(keys, &(&1 in allowed)) and
+      Enum.all?(Map.values(counts), &nonnegative_integer?/1) and
+      Enum.sum(Map.values(counts)) == directed_pairs
+  end
+
+  defp valid_direction_method_counts?(_counts, _directed_pairs), do: false
+
+  defp valid_top_demand_row?(row) do
+    methods = row["direction_methods"]
+    members = row["family_members"] || []
+
+    nonempty?(row["work_id"]) and
+      nonempty?(row["family"]) and
+      positive_integer?(row["citing_families"]) and
+      positive_integer?(row["directed_pair_count"]) and
+      row["citing_families"] <= row["directed_pair_count"] and
+      row["weight"] >= row["citing_families"] and
+      members == Enum.sort(Enum.uniq(members)) and
+      row["work_id"] in members and
+      valid_direction_method_counts?(methods, row["directed_pair_count"])
   end
 
   defp assertion_artifact_key(assertion) do
