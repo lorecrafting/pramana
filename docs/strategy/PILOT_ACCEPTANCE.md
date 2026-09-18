@@ -267,6 +267,16 @@ The evaluator records one outcome:
 Report precision/error counts by declared relation class. Do not collapse
 `historical_rendering` and `related` into generic "correct terms."
 
+**Verified-equivalence surface threshold: 100%.** Anything the system presents as a
+verified equivalence/attestation must be judged either **correct as declared** or **correct
+only with narrower work/translator scope**, with that narrower scope preserved in the
+product and downstream plan. One overstated/wrong/fabricated verified-equivalence case is
+CF06 and fails acceptance; it cannot be averaged away.
+
+`related` and `model_proposed` are excluded from that equivalence denominator precisely
+because they are not equivalence claims. They may contribute recall only while retaining
+their weaker relation labels.
+
 A `model_proposed` candidate can be useful retrieval input without becoming an
 equivalence. Retrieval success never upgrades its provenance.
 
