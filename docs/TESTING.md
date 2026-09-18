@@ -75,9 +75,9 @@ restore an all-PR expensive lane or omit a named shared executable input.
 
 Build caches are accelerators, never acceptance evidence. Pramāṇa CI builds its
 PostgreSQL fixture from [a repository-owned Dockerfile](../pramana/ci/postgres.Dockerfile)
-that retains the existing pgvector/PostgreSQL base and pins pg_bigm to an immutable
-upstream commit. Cached builds still request current base-image metadata (`pull: true`),
-so a reusable layer cannot silently freeze a moving base tag. BuildKit may restore layers
+that pins the tested pgvector/PostgreSQL base by digest and pins pg_bigm to an immutable
+upstream commit. Cached builds still request registry metadata (`pull: true`), but the digest
+prevents identical source from silently moving to a newer PostgreSQL/pgvector image. BuildKit may restore layers
 from GitHub's cache, but a cache miss must still build successfully. Cache export is allowed to fail without changing the build
 result; losing an optimization is not a correctness failure.
 
