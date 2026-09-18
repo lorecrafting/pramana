@@ -191,15 +191,23 @@ byte-verified. 29,890 citations are stored; resolving them to URNs is a separate
 here: Soothill-Hodous 187/199, Karashima's Kumārajīva 190/199, the Mahāvyutpatti's Chinese
 side 140/199.
 
-**Licence: CC BY-NC-SA 4.0**, per the site. The TEI headers say only *"Published on the
-Web with a Creative Commons License"* without naming a version and one secondary source
-said BY-SA 3.0, so the site governs and the restrictive reading is recorded — rule 10.
-NonCommercial puts these where CBETA already is: `redistributable: false`, out of the
-public artefact, usable for everything local.
+**Rights record requires two layers.** The current DILA portal states CC BY-NC-SA 4.0,
+but the exact digital-edition PDFs for all five files ingested here — Soothill-Hodous,
+Kumārajīva, Dharmarakṣa, Lokakṣema and Mahāvyutpatti — each state CC BY-SA 3.0 and point
+to the TEI source. The TEI headers themselves name Creative Commons without a version.
+This is therefore a primary-source licence-version conflict, not a secondary-source
+rumour. The coarse `dila-glossaries` registry entry deliberately retains the more
+restrictive current NC posture for public-surface gating; it is **not** sufficient
+authorization for every pilot operation. See
+[`CHINESE_PILOT_RIGHTS.md`](../../docs/strategy/CHINESE_PILOT_RIGHTS.md) for the
+resource×operation boundary. In particular, "local" does not mean "automatically cleared
+for any transformation or external model".
 
 **Not taken:** Hopkins Tib-Skt-Eng (18,441) and the Nanshan Vinaya dictionary (3,218) are
-on the same site under the same terms. Both duplicate strength this corpus already has —
-Tibetan-side and Chinese-only respectively — and neither closes the measured gap.
+on the same portal. Their own resource-specific notices still need review before use;
+the portal-wide statement is not generalized to them merely because they share a site.
+Both also duplicate strength this corpus already has — Tibetan-side and Chinese-only
+respectively — and neither closes the measured gap.
 
 **Not acquirable:** the Digital Dictionary of Buddhism is the scholarly standard and is
 **not open for bulk download** — rights to individual articles are held by their authors.
