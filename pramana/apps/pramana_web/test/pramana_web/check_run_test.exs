@@ -151,12 +151,19 @@ defmodule PramanaWeb.CheckRunTest do
 
   test "cancel signal kills even an exit-trapping worker before completion is reported" do
     parent = self()
-    {runner, id} = start_run(verify: blocked(parent), repair: fn _ -> %{} end)
+    {runner, id} = start_synced_run(verify: blocked(parent), repair: fn _ -> %{} end)
     assert_receive {:worker, worker}
     worker_ref = Process.monitor(worker)
+    runner_ref = Process.monitor(runner)
     Process.exit(runner, {:shutdown, :cancel})
-    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}
-    assert_receive {:finished, ^id, %{execution: :cancelled, result: nil, repair: nil}}
+    assert_receive {:DOWN, ^worker_ref, :process, ^worker, :killed}, 3_000
+
+    assert_receive {:finished, ^id, %{execution: :cancelled, result: nil, repair: nil}},
+                   3_000
+
+    refute Process.alive?(worker)
+    send(runner, {:finished_observed, id})
+    assert_receive {:DOWN, ^runner_ref, :process, ^runner, :normal}, 1_000
   end
 
   test "an unlinked owner exiting normally still stops its worker" do
@@ -220,6 +227,28 @@ defmodule PramanaWeb.CheckRunTest do
         :continue -> %{}
       end
     end
+  end
+
+  defp start_synced_run(opts, budget \\ 5_000, owner \\ self()) do
+    parent = self()
+    id = make_ref()
+    deadline = System.monotonic_time(:millisecond) + budget
+
+    spec =
+      Supervisor.child_spec(
+        {Task,
+         fn ->
+           result = CheckRun.run(owner, id, "report", deadline, opts)
+           send(parent, {:finished, id, result})
+
+           receive do
+             {:finished_observed, ^id} -> :ok
+           end
+         end},
+        id: id
+      )
+
+    {start_supervised!(spec), id}
   end
 
   defp start_run(opts, budget \\ 5_000, owner \\ self()) do
