@@ -89,7 +89,7 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
     try do
       File.write!(temporary, bytes, [:binary])
 
-      case File.link(temporary, path) do
+      case File.ln(temporary, path) do
         :ok -> :ok
         {:error, :eexist} -> Mix.raise("refusing to overwrite existing scope artifact: #{path}")
         {:error, reason} -> Mix.raise("cannot create immutable scope artifact: #{inspect(reason)}")
