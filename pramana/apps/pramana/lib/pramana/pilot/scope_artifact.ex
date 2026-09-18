@@ -352,7 +352,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
   defp check_works(errors, works, seeds) when is_list(works) and is_list(seeds) do
     ids = Enum.map(works, & &1["work_id"])
-    declared_seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
+    seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
 
     errors =
       errors
@@ -404,7 +404,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
        when is_list(relations) and is_list(works) and is_list(seeds) do
     work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
     works_by_id = Map.new(works, &{&1["work_id"], &1})
-    seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
+    declared_seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
     keys = Enum.map(relations, &relation_key/1)
     pair_keys = Enum.map(relations, &{&1["source_work_id"], &1["target_work_id"]})
 
@@ -419,17 +419,17 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
     Enum.reduce(relations, errors, fn relation, acc ->
       assertions = relation["assertions"] || []
-      seed_ids = relation["seed_ids"] || []
+      relation_seed_ids = relation["seed_ids"] || []
       assertion_keys = Enum.map(assertions, &assertion_artifact_key/1)
 
       acc
       |> add_if(
-        seed_ids != Enum.sort(Enum.uniq(seed_ids)),
+        relation_seed_ids != Enum.sort(Enum.uniq(relation_seed_ids)),
         "relation seed_ids must be sorted and unique"
       )
-      |> add_if(seed_ids == [], "relation seed_ids must not be empty")
+      |> add_if(relation_seed_ids == [], "relation seed_ids must not be empty")
       |> add_if(
-        not Enum.all?(seed_ids, &MapSet.member?(declared_seed_ids, &1)),
+        not Enum.all?(relation_seed_ids, &MapSet.member?(declared_seed_ids, &1)),
         "relation seed_ids must name declared seeds"
       )
       |> add_if(
