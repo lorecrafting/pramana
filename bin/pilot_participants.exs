@@ -142,12 +142,20 @@ defmodule Pramana.PilotParticipants do
       |> check_top_level(manifest)
       |> check_identifiers(manifest["identifiers"])
       |> check_eligibility(manifest["eligibility"])
-      |> check_exact("required_disclosures", manifest["required_disclosures"], @required_disclosures)
+      |> check_exact(
+        "required_disclosures",
+        manifest["required_disclosures"],
+        @required_disclosures
+      )
       |> check_exact("required_consents", manifest["required_consents"], @required_consents)
       |> check_optional_consents(manifest["optional_consents"])
       |> check_conditional_consents(manifest["conditional_consents"])
       |> check_consent_receipt(manifest["consent_receipt"])
-      |> check_exact("prohibited_collection", manifest["prohibited_collection"], @prohibited_collection)
+      |> check_exact(
+        "prohibited_collection",
+        manifest["prohibited_collection"],
+        @prohibited_collection
+      )
       |> check_study_record(manifest["study_record"])
       |> check_current_alternative(manifest["current_alternative"])
       |> check_sensitive_content(manifest["sensitive_content"])
@@ -186,7 +194,10 @@ defmodule Pramana.PilotParticipants do
     errors
     |> add_if(manifest["schema"] != @schema, "schema must be #{@schema}")
     |> add_if(manifest["pilot_id"] != @pilot_id, "pilot_id must be #{@pilot_id}")
-    |> add_if(manifest["protocol_revision"] != @revision, "protocol_revision must be #{@revision}")
+    |> add_if(
+      manifest["protocol_revision"] != @revision,
+      "protocol_revision must be #{@revision}"
+    )
     |> add_if(manifest["status"] != @status, "status must be #{@status}")
     |> add_if(
       manifest["collection_mode"] != "consent_required_for_measured_participant_record",
@@ -277,7 +288,11 @@ defmodule Pramana.PilotParticipants do
 
   defp check_study_record(errors, record) when is_map(record) do
     errors
-    |> check_exact("study_record.required_fields", record["required_fields"], @required_task_fields)
+    |> check_exact(
+      "study_record.required_fields",
+      record["required_fields"],
+      @required_task_fields
+    )
     |> check_exact(
       "study_record.optional_fields",
       record["optional_fields"],
@@ -341,7 +356,10 @@ defmodule Pramana.PilotParticipants do
       "accidental-sensitive-content action changed"
     )
     |> require_true(value, "minimal_incident_metadata_may_remain_without_content")
-    |> require_true(value, "spiritual_or_personal_question_alone_is_not_permission_for_secondary_use")
+    |> require_true(
+      value,
+      "spiritual_or_personal_question_alone_is_not_permission_for_secondary_use"
+    )
   end
 
   defp check_sensitive_content(errors, _),
@@ -451,8 +469,16 @@ defmodule Pramana.PilotParticipants do
       value["start_boundary"] != "participant_submits_consented_natural_task",
       "task denominator start boundary changed"
     )
-    |> check_exact("task_denominator.included_outcomes", value["included_outcomes"], @included_outcomes)
-    |> check_exact("task_denominator.excluded_outcomes", value["excluded_outcomes"], @excluded_outcomes)
+    |> check_exact(
+      "task_denominator.included_outcomes",
+      value["included_outcomes"],
+      @included_outcomes
+    )
+    |> check_exact(
+      "task_denominator.excluded_outcomes",
+      value["excluded_outcomes"],
+      @excluded_outcomes
+    )
     |> require_true(value, "supported_retrieval_miss_counts_as_failure")
     |> require_true(value, "correctly_scoped_unsupported_can_count_as_success")
     |> require_true(value, "timeout_or_technical_failure_counts_as_failure")
@@ -463,7 +489,10 @@ defmodule Pramana.PilotParticipants do
     |> require_true(value, "all_exclusions_counted_and_reported")
     |> require_true(value, "scope_support_adjudication_blinded_to_system_output_where_feasible")
     |> require_true(value, "scope_support_adjudication_records_blinding_status")
-    |> add_if(value["minimum_eligible_tasks_after_exclusions"] != 24, "eligible-task floor must be 24")
+    |> add_if(
+      value["minimum_eligible_tasks_after_exclusions"] != 24,
+      "eligible-task floor must be 24"
+    )
     |> add_if(
       value["minimum_eligible_tasks_per_stratum_after_exclusions"] != 6,
       "per-stratum eligible-task floor must be 6"
@@ -491,9 +520,15 @@ defmodule Pramana.PilotParticipants do
     )
     |> require_true(value, "remove_from_participant_denominators")
     |> require_true(value, "recompute_predecision_aggregates")
-    |> require_true(value, "previously_published_or_merged_non_reconstructive_aggregate_record_may_remain")
+    |> require_true(
+      value,
+      "previously_published_or_merged_non_reconstructive_aggregate_record_may_remain"
+    )
     |> require_true(value, "no_new_public_example_use_after_withdrawal")
-    |> require_true(value, "post_decision_individual_deletion_request_allowed_while_records_exist")
+    |> require_true(
+      value,
+      "post_decision_individual_deletion_request_allowed_while_records_exist"
+    )
     |> require_false(value, "post_decision_deletion_recomputes_recorded_aggregate_decision")
   end
 
@@ -596,7 +631,11 @@ defmodule Pramana.PilotParticipants do
         ]
 
         Enum.reduce(required, errors, fn heading, acc ->
-          add_if(acc, not String.contains?(document, heading), "participant protocol missing #{heading}")
+          add_if(
+            acc,
+            not String.contains?(document, heading),
+            "participant protocol missing #{heading}"
+          )
         end)
 
       {:error, reason} ->
