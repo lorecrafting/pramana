@@ -31,7 +31,10 @@ defmodule Pramana.PilotPreflight.CLI do
   defp report_validation(manifest, root) do
     case Pramana.PilotPreflight.validate(manifest, root) do
       :ok ->
-        IO.puts("pilot preflight manifest valid; status=#{Pramana.PilotPreflight.status(manifest)}")
+        IO.puts(
+          "pilot preflight manifest valid; status=#{Pramana.PilotPreflight.status(manifest)}"
+        )
+
         0
 
       {:error, errors} ->
@@ -56,8 +59,12 @@ defmodule Pramana.PilotPreflight.CLI do
 
   defp parse(["--validate"], default), do: {:ok, :validate, default}
   defp parse(["--ready"], default), do: {:ok, :ready, default}
-  defp parse(["--validate", "--manifest", path], _default), do: {:ok, :validate, Path.expand(path)}
-  defp parse(["--ready", "--manifest", path], _default), do: {:ok, :ready, Path.expand(path)}
+  defp parse(["--validate", "--manifest", path], _default),
+    do: {:ok, :validate, Path.expand(path)}
+
+  defp parse(["--ready", "--manifest", path], _default),
+    do: {:ok, :ready, Path.expand(path)}
+
   defp parse(_args, _default), do: {:error, usage()}
 
   defp usage do
