@@ -81,6 +81,11 @@ so a reusable layer cannot silently freeze a moving base tag. BuildKit may resto
 from GitHub's cache, but a cache miss must still build successfully. Cache export is allowed to fail without changing the build
 result; losing an optimization is not a correctness failure.
 
+Pull-request jobs receive read-only cache authority; only trusted `push` runs may write
+reusable cache entries. GitHub scopes pull-request caches to their merge refs, and the
+explicit read-only mode also avoids accumulating large branch-local BuildKit caches. A
+merged `main` run is therefore the producer future PRs can reuse.
+
 The ordinary Pramāṇa lane still performs a forced warnings-as-errors compile, full
 model-free umbrella tests, Dialyzer and a fresh release build from the checked source.
 The container lane still constructs the candidate's final runtime image and runs the
