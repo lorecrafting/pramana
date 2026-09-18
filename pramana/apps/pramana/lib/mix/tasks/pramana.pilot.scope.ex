@@ -35,6 +35,10 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
 
     case opts[:validate] do
       path when is_binary(path) ->
+        if opts[:release_id] || opts[:out] do
+          Mix.raise("--validate cannot be combined with --release-id or --out")
+        end
+
         validate_file(path)
 
       nil ->
@@ -48,14 +52,19 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
         Mix.raise("--release-id is required; scope may not bind to an implicit release")
 
     out = opts[:out] || Mix.raise("--out is required; no repository artifact is written by default")
+    out = Path.expand(out)
+
+    if File.exists?(out) do
+      Mix.raise("refusing to overwrite existing scope artifact: #{out}")
+    end
 
     Mix.Task.run("app.start")
 
     case Scope.materialize(release_id) do
       {:ok, artifact} ->
         bytes = ScopeArtifact.encode(artifact)
-        File.mkdir_p!(Path.dirname(Path.expand(out)))
-        File.write!(out, bytes)
+        File.mkdir_p!(Path.dirname(out))
+        write_immutable!(out, bytes)
 
         Mix.shell().info("""
         pilot scope materialized
@@ -64,13 +73,29 @@ defmodule Mix.Tasks.Pramana.Pilot.Scope do
           seeds:   #{artifact["denominators"]["combined_seed_count"]}
           works:   #{artifact["denominators"]["total_work_count"]}
           edges:   #{artifact["denominators"]["relation_edge_count"]}
-          output:  #{Path.expand(out)}
+          output:  #{out}
 
         The pilot_scope preflight gate remains blocked until this live artifact is reviewed.
         """)
 
       {:error, reason} ->
         Mix.raise("pilot scope refused: #{inspect(reason)}")
+    end
+  end
+
+  defp write_immutable!(path, bytes) do
+    temporary = path <> ".tmp-" <> Integer.to_string(System.unique_integer([:positive]))
+
+    try do
+      File.write!(temporary, bytes, [:binary])
+
+      case File.link(temporary, path) do
+        :ok -> :ok
+        {:error, :eexist} -> Mix.raise("refusing to overwrite existing scope artifact: #{path}")
+        {:error, reason} -> Mix.raise("cannot create immutable scope artifact: #{inspect(reason)}")
+      end
+    after
+      File.rm(temporary)
     end
   end
 
