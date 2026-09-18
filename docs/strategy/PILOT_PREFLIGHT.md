@@ -323,7 +323,10 @@ that operation. No blocked resource is silently replaced with another corpus or 
 
 Accordingly, `cbeta_rights`, `lexicon_rights` and `provider_terms` remain blocked in
 [pilot_preflight.json](pilot_preflight.json), now with precise reasons and this review as
-evidence. No provider/model/spend authority is granted here.
+evidence. Provider review must cover not only source/glossary bytes but also any participant
+question/task content an external route would receive, including retention/training,
+human-review and deletion terms plus the conditional participant-transfer consent.
+No provider/model/spend authority is granted here.
 
 ## Evaluation and rehearsal contract
 
@@ -392,7 +395,9 @@ The pilot is not ready until every mandatory condition has explicit evidence:
    model calls, passages and source bytes/tokens translated, timeout, retry count and
    authorized spend. Hidden retries are forbidden and duplicate source hashes must not be
    translated repeatedly within one task.
-7. **Provider data-use terms reviewed** for sending selected source/glossary text.
+7. **Provider data-use terms reviewed** for sending selected source/glossary text **and**
+   participant question/task content, with route-specific participant-transfer consent
+   where an external provider receives that content.
 8. **Bilingual evaluator coverage identified**.
 9. **Participant protocol/consent/retention procedure fixed** in
    [PILOT_PARTICIPANTS](PILOT_PARTICIPANTS.md), including current-alternative intake,
