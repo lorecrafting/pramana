@@ -51,6 +51,7 @@ concurrency:
 
 jobs:
   test:
+    cache-mode: ${{ github.event_name == 'push' && 'write' || 'read' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
