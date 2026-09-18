@@ -35,8 +35,10 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
 
   import Ecto.Query
 
+  alias Pramana.Bake
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
+  alias Pramana.Derivations
   alias Pramana.Quotations
   alias Pramana.Repo
 
@@ -85,6 +87,8 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     Mix.shell().info("scanning #{length(texts)} text(s), #{chars} characters")
 
     min_length = Keyword.get(opts, :min_length, 20)
+    bake_id = Bake.current_id()
+    receipt = begin_receipt(opts, bake_id, min_length)
     started = System.monotonic_time(:millisecond)
     matches = scan(binary, texts, min_length)
     elapsed = div(System.monotonic_time(:millisecond) - started, 1000)
@@ -94,12 +98,42 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     if opts[:dry_run] do
       preview(matches)
     else
-      {:ok, result} = Quotations.store(matches, bake_id: Pramana.Bake.current_id())
+      {:ok, result} = Quotations.store(matches, bake_id: bake_id)
       report(result, elapsed)
+      finish_receipt(receipt, result, elapsed)
     end
   end
 
   defp exit_normally, do: throw(:done)
+
+  defp begin_receipt(opts, bake_id, min_length) do
+    if opts[:dry_run] do
+      nil
+    else
+      Derivations.begin_run(
+        "quotations_scan",
+        bake_id,
+        %{
+          "source" => opts[:source],
+          "division" => opts[:division],
+          "work" => opts[:work]
+        },
+        %{"min_length" => min_length}
+      )
+    end
+  end
+
+  defp finish_receipt(nil, _result, _elapsed), do: :ok
+
+  defp finish_receipt(receipt, result, elapsed) do
+    Derivations.finish_run!(receipt, %{
+      "failures" => result.unresolved,
+      "matches_total" => result.total,
+      "stored" => result.written,
+      "unresolved" => result.unresolved,
+      "elapsed_seconds" => elapsed
+    })
+  end
 
   defp texts(opts) do
     from(t in Text, select: %{id: t.id, work_id: t.work_id, body: t.body})
