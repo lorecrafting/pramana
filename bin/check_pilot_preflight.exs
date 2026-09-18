@@ -29,7 +29,7 @@ defmodule Pramana.PilotPreflight.CLI do
     case Pramana.PilotPreflight.validate(manifest, root) do
       :ok ->
         IO.puts(
-          "pilot preflight manifest valid; status=#{Pramana.PilotPreflight.status(manifest)}"
+          "pilot preflight manifest valid; declared_status=#{Pramana.PilotPreflight.status(manifest)}; readiness=not_evaluated"
         )
 
         0
