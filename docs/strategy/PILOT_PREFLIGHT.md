@@ -432,7 +432,7 @@ From the Git root:
 
 ```bash
 elixir bin/check_pilot_preflight.exs --validate
-elixir bin/check_pilot_preflight.exs --ready
+elixir bin/check_pilot_preflight.exs --ready --subject <exact-candidate-git-sha>
 ```
 
 `--validate` answers only whether the manifest has the complete mandatory gate set,
@@ -440,7 +440,9 @@ well-formed states and local evidence references. A valid blocked manifest is su
 
 `--ready` is stricter: every mandatory gate must be `ready`, every ready gate must carry
 evidence, no blocking reason may remain, and `subject_revision` must equal the exact
-current Git revision. It fails while the pilot is legitimately blocked.
+candidate revision supplied with `--subject`. That commit must exist in the checkout.
+The explicit subject avoids an impossible self-reference in which a committed manifest
+would need to contain its own commit SHA. It fails while the pilot is legitimately blocked.
 
 Neither command proves that a rights opinion, evaluator decision or provider authorization
 is substantively correct. Those remain human/reviewed evidence. The command prevents
