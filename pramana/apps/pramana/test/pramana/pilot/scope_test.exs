@@ -14,7 +14,9 @@ defmodule Pramana.Pilot.ScopeTest do
     assert artifact["denominators"]["expanded_work_count"] == 2
     assert artifact["ranking"]["rule"] == "directed_shared_text_v1"
     assert is_integer(artifact["ranking"]["cutoff_weight"])
-    assert artifact["ranking"]["cutoff_tied_families"] != []
+    assert is_integer(artifact["ranking"]["cutoff_citing_families"])
+    assert artifact["ranking"]["cutoff_same_weight_families"] != []
+    assert artifact["ranking"]["cutoff_equivalent_families"] != []
 
     seed_ids = MapSet.new(Enum.map(artifact["seeds"], & &1["work_id"]))
     assert MapSet.subset?(MapSet.new(ScopeArtifact.agama_ids()), seed_ids)
@@ -64,6 +66,40 @@ defmodule Pramana.Pilot.ScopeTest do
     assert artifact["ranking"]["cross_family_pairs"] == 10
   end
 
+  test "treatise role alone does not manufacture citation direction" do
+    input = input_fixture()
+
+    treatise = %{
+      work_id: "T1600",
+      text_role: "treatise",
+      title: "treatise",
+      date_start: nil,
+      date_end: nil,
+      division: "論集部"
+    }
+
+    root = %{
+      work_id: "T0300",
+      text_role: "root",
+      title: "root",
+      date_start: nil,
+      date_end: nil,
+      division: "經集部"
+    }
+
+    work_map = Map.new([treatise, root | input.works], &{&1.work_id, &1})
+
+    quotation_rows = [
+      %{a_work_id: "T1600", b_work_id: "T0300", text_sha256: hash("treatise-root")}
+      | input.quotation_rows
+    ]
+
+    {:ok, ranking, _detail} = Scope.demand_ranking(quotation_rows, work_map)
+
+    assert ranking["unresolved_pairs"] == 1
+    refute Enum.any?(ranking["top_demand"], &(&1["work_id"] == "T0300"))
+  end
+
   test "role/date disagreement is reported as conflict and contributes no weight" do
     input = input_fixture()
     root = work("T0300", "root", "root", 900, "經集部")
@@ -88,7 +124,7 @@ defmodule Pramana.Pilot.ScopeTest do
     {:ok, artifact} = Scope.build(input_fixture())
 
     assert artifact["denominators"]["excluded_model_relation_rows"] == 1
-    assert artifact["denominators"]["excluded_role_incoherent_relation_rows"] == 1
+    assert artifact["denominators"]["excluded_role_incoherent_relation_rows"] == 2
 
     refute Enum.any?(artifact["relations"], fn edge ->
              Enum.any?(edge["assertions"], &(&1["method"] == "llm"))
@@ -188,7 +224,8 @@ defmodule Pramana.Pilot.ScopeTest do
       relation("T1830", "T1800", "subcommentary_of", "manifest", "certain"),
       relation("T1900", "T1830", "subcommentary_of", "manifest", "certain"),
       relation("T1801", "T0200", "comments_on", "llm", "uncertain"),
-      relation("T0200", "T1800", "comments_on", "manifest", "certain")
+      relation("T0200", "T1800", "comments_on", "manifest", "certain"),
+      relation("T1830", "T0201", "comments_on", "manifest", "certain")
     ]
 
     alignment_rows = [
