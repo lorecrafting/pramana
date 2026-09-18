@@ -338,8 +338,8 @@ That contract now owns:
 - provenance-aware query-expansion classification;
 - the six-dimension generated-reading-translation rubric and pass rule;
 - claim-support classes;
-- the fourteen critical failure classes whose occurrence overrides aggregate scores; and
-- the required R01–R15 rehearsal slots and pass conditions.
+- the fifteen critical failure classes whose occurrence overrides aggregate scores; and
+- the required R01–R16 rehearsal slots and pass conditions.
 
 The charter still owns the 6–8 participant design, ≥24 natural tasks, per-stratum task
 floors, comprehension/evidence-reuse/time/repeat-use thresholds and 40 operator-hour cap.
@@ -353,7 +353,7 @@ The acceptance contract freezes policy, not implementation. Later code must demo
 that limits refuse **before** exceeding them; reporting an excess after the fact is not
 enforcement.
 
-The rehearsal contract is frozen but **has not run**. Exact R01–R15 work IDs/URNs must be
+The rehearsal contract is frozen but **has not run**. Exact R01–R16 work IDs/URNs must be
 instantiated only after the pilot release/scope is frozen. Rehearsal cases never enter the
 24-task participant denominator.
 
@@ -361,10 +361,12 @@ Accordingly:
 
 - `execution_bounds`, `evaluation_rubric` and `critical_taxonomy` may be recorded
   ready as frozen specification gates;
-- `rehearsal_trust` remains blocked until the exact cases execute with zero unresolved
-  critical failures;
-- `retrieval_baseline` remains blocked until held-out bilingual per-arm/fused measurements
-  exist against the accepted release.
+- `rehearsal_trust` remains blocked until R01–R16 execute with zero unresolved critical
+  failures **and** the separately authorized inference route passes its frozen source-bound
+  translation-quality sample;
+- `retrieval_baseline` remains blocked until at least 30 evaluator-confirmed supported
+  held-out cases (including at least 8 commentary-eligible cases) are measured against the
+  accepted release and meet the frozen recall@10 floors.
 
 ## Fail-closed readiness gate
 
