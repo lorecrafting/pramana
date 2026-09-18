@@ -8,8 +8,10 @@ defmodule Pramana.Pilot.DerivationReadiness do
   scopes and that their recorded input/output digests still match the database.
   """
 
+  alias Pramana.Corpus.Bake, as: BakeSchema
   alias Pramana.Corpus.DerivationRun
   alias Pramana.Derivations
+  alias Pramana.Repo
 
   @requirements [
     {"quotations_scan", &__MODULE__.quotation_scope?/1},
@@ -27,16 +29,27 @@ defmodule Pramana.Pilot.DerivationReadiness do
   @doc "Checks every derivation receipt required by the pilot."
   @spec check(String.t()) :: result()
   def check(source_bake_id) when is_binary(source_bake_id) and source_bake_id != "" do
-    derivations =
-      Map.new(@requirements, fn {kind, coverage?} ->
-        {kind, check_kind(source_bake_id, kind, coverage?)}
-      end)
+    if Repo.get(BakeSchema, source_bake_id) do
+      derivations =
+        Map.new(@requirements, fn {kind, coverage?} ->
+          {kind, check_kind(source_bake_id, kind, coverage?)}
+        end)
 
-    %{
-      ready: Enum.all?(derivations, fn {_kind, result} -> result.state == "ready" end),
-      source_bake_id: source_bake_id,
-      derivations: derivations
-    }
+      %{
+        ready: Enum.all?(derivations, fn {_kind, result} -> result.state == "ready" end),
+        source_bake_id: source_bake_id,
+        derivations: derivations
+      }
+    else
+      %{
+        ready: false,
+        source_bake_id: source_bake_id,
+        derivations:
+          Map.new(@requirements, fn {kind, _coverage?} ->
+            {kind, %{state: "source_bake_missing"}}
+          end)
+      }
+    end
   end
 
   @doc false
