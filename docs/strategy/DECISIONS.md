@@ -1,7 +1,7 @@
 # Decision register and planning handoff
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Candidate initiatives](ROADMAP.md)
-**Status:** D1–D7, D11 and D12 are resolved for the initial pilot; D8–D10 remain open. D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md), D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md), and D12 by the frozen [pilot acceptance contract](PILOT_ACCEPTANCE.md). No implementation ticket is admitted before G0.
+**Status:** D1–D7 and D11–D13 are resolved for the initial pilot; D8–D10 remain open. D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md), D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md), and D12 by the frozen [pilot acceptance contract](PILOT_ACCEPTANCE.md). No implementation ticket is admitted before G0.
 
 ## Authority and decision types
 
@@ -31,10 +31,11 @@ repair merely because some untrusted code needs a protected verifier.
 | D10 | Decide a session-backend cutover only after actual conformance; Superlogical remains a future candidate | Operator and protected-boundary reviewer | I-F4 activation |
 | D11 | **Resolved:** pilot data authorization is exact-resource × operation and fail-closed. `permission required` and `unclear / unresolved` do not authorize execution; an external route additionally requires provider-terms, inference-authority and execution-bounds clearance; a local-only route is allowed only for resources whose local-model operation is itself cleared; no failed source silently falls back to another corpus or dictionary | Product owner with rights/source reviewer | Any Chinese-pilot source/model/provider data flow |
 | D12 | **Resolved:** Chinese-pilot execution ceilings, bilingual evaluation rubric, critical-failure taxonomy and R01–R16 rehearsal contract are frozen before implementation; known critical failures override averages, hidden retries are forbidden, external-provider calls/capacity remain unauthorized even at $0 cash, frozen retrieval floors must clear, the actual authorized inference route must pass source-bound translation quality, and rehearsal cases never count toward participant outcomes | Product owner with qualified evaluator/reviewer | Pilot implementation and rehearsal |
+| D13 | **Resolved:** measured participant tasks require explicit study consent; direct identity is separated from pseudonymous task/evaluator records; full individual study records are deleted by the earlier of 30 days after the pilot decision or 90 days after collection; withdrawals delete individual records within 7 days and remove tasks from denominators; current-alternative intake is structured/minimal; individual public examples require separate opt-in consent; task eligibility cannot be reclassified based on system success | Product owner with study/evaluation owner | Participant recruitment and pilot execution |
 
 These are roles to assign, not invented team members. D1–D7 were resolved together in
 [the pilot charter](PILOT_CHARTER.md); D11 is the operation boundary established by
-[the Chinese pilot rights review](CHINESE_PILOT_RIGHTS.md); D12 is the pre-execution acceptance boundary established by [PILOT_ACCEPTANCE](PILOT_ACCEPTANCE.md). Revising one of those decisions
+[the Chinese pilot rights review](CHINESE_PILOT_RIGHTS.md); D12 is the pre-execution acceptance boundary established by [PILOT_ACCEPTANCE](PILOT_ACCEPTANCE.md); D13 is the participant-study boundary established by [PILOT_PARTICIPANTS](PILOT_PARTICIPANTS.md). Revising one of those decisions
 should amend its owning document and this register rather than creating a parallel
 mini-roadmap.
 A change to the current manual paid-provider rule requires separate authenticated
