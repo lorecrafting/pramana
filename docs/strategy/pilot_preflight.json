@@ -1,0 +1,107 @@
+{
+  "schema": "pramana-pilot-preflight/v1",
+  "pilot_id": "chinese-commentary-v1",
+  "subject_revision": null,
+  "gates": [
+    {
+      "id": "foundry_g0",
+      "state": "blocked",
+      "reason": "FR-22 lifecycle acceptance is not complete.",
+      "evidence": [
+        "foundry/docs/REPAIR-PLAN.md"
+      ]
+    },
+    {
+      "id": "pilot_scope",
+      "state": "blocked",
+      "reason": "Exact seed work IDs, relation expansion, release identity and coverage denominator are not yet materialized from an accepted pilot release.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "cbeta_rights",
+      "state": "blocked",
+      "reason": "Operation-specific CBETA rights review for the selected source scope is not yet recorded.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/RESEARCH.md"
+      ]
+    },
+    {
+      "id": "lexicon_rights",
+      "state": "blocked",
+      "reason": "Per-glossary operation-specific rights review is not yet recorded for the lexicons that will feed query expansion or translation.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/RESEARCH.md"
+      ]
+    },
+    {
+      "id": "inference_authority",
+      "state": "blocked",
+      "reason": "No pilot inference route, provider/model identity or spending authority has been granted by the charter.",
+      "evidence": [
+        "docs/strategy/PILOT_CHARTER.md"
+      ]
+    },
+    {
+      "id": "provider_terms",
+      "state": "blocked",
+      "reason": "Provider data-use terms for sending selected Chinese source/glossary text have not been reviewed for the pilot.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "bilingual_evaluators",
+      "state": "blocked",
+      "reason": "At least two qualified Buddhist-Chinese source evaluators have not yet been identified.",
+      "evidence": [
+        "docs/strategy/PILOT_CHARTER.md"
+      ]
+    },
+    {
+      "id": "participant_protocol",
+      "state": "blocked",
+      "reason": "Participant consent, retention/deletion procedure and current-alternative intake are specified conceptually but not finalized for execution.",
+      "evidence": [
+        "docs/strategy/PILOT_CHARTER.md",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "retrieval_baseline",
+      "state": "blocked",
+      "reason": "The exact Chinese pilot release, held-out bilingual retrieval cases and per-arm baseline have not been measured.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "evaluation_rubric",
+      "state": "blocked",
+      "reason": "Chinese-specific query-expansion and generated-reading-translation thresholds are not frozen for participant execution.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "critical_taxonomy",
+      "state": "blocked",
+      "reason": "The complete Chinese-pilot critical failure taxonomy has not yet been frozen with evaluator examples.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/PILOT_CHARTER.md"
+      ]
+    },
+    {
+      "id": "rehearsal_trust",
+      "state": "blocked",
+      "reason": "Rehearsal cases have not yet demonstrated zero unresolved critical trust defects.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    }
+  ]
+}
