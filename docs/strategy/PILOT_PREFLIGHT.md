@@ -58,10 +58,13 @@ structure/hash without a database, but **neither command makes `pilot_scope` rea
 itself**: the generated live artifact must still be reviewed and accepted as preflight
 evidence.
 
-The derived quotation/relation/alignment tables do not carry durable completion markers.
-Live scope acceptance therefore also requires separate derivation-completion evidence and
-a quiesced stable-state check (two identical consecutive materializations, or equivalent
-independently recorded evidence). A historical row count is not a substitute.
+The quotation/relation/alignment producers now record append-only completion receipts as
+specified in [PILOT_DERIVATIONS](PILOT_DERIVATIONS.md). The pilot verifier requires clean,
+current full/default receipts for all four required derivations; scoped, dry-run,
+report-only, partial, old-implementation, input-stale or output-stale receipts do not pass.
+A quiesced stable-state check (two identical consecutive scope materializations, or
+equivalent independently recorded evidence) remains separately required. A historical row
+count is not a substitute.
 
 ## The bilingual architecture
 
