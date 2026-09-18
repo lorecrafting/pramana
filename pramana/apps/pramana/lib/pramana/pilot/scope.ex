@@ -681,6 +681,7 @@ defmodule Pramana.Pilot.Scope do
               "confidence" => assertion.confidence,
               "scope" => assertion.scope,
               "target_urn" => assertion.target_urn,
+              "evidence" => assertion.evidence || %{},
               "evidence_sha256" => ScopeArtifact.digest(assertion.evidence || %{})
             }
           end)
@@ -813,6 +814,14 @@ defmodule Pramana.Pilot.Scope do
       "relations" => relations,
       "alignment_coverage" => alignments,
       "denominators" => denominators(seeds, works, relations, alignments, traversal_stats),
+      "derivation_status" => %{
+        "quotation_graph_completeness" => "not_recorded_by_database",
+        "relation_graph_completeness" => "not_recorded_by_database",
+        "alignment_graph_completeness" => "not_recorded_by_database",
+        "structural_validation_establishes_live_currentness" => false,
+        "live_acceptance_requires_external_completion_evidence" => true,
+        "live_acceptance_requires_quiesced_repeat_match" => true
+      },
       "input_digests" => %{
         "work_metadata" => ScopeArtifact.digest(stable_works(inputs.works)),
         "quotation_graph" => ScopeArtifact.digest(inputs.ranking),
