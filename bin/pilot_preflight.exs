@@ -234,8 +234,15 @@ defmodule Pramana.PilotPreflight do
     [path | _fragment] = String.split(reference, "#", parts: 2)
 
     safe_relative_path?(path) and
-      File.regular?(Path.join(root, path)) and
+      regular_file_not_symlink?(Path.join(root, path)) and
       tracked_file?(path, root)
+  end
+
+  defp regular_file_not_symlink?(path) do
+    case File.lstat(path) do
+      {:ok, %File.Stat{type: :regular}} -> true
+      _other -> false
+    end
   end
 
   defp tracked_file?(path, root) do
