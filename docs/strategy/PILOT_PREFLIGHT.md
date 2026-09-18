@@ -325,114 +325,46 @@ Accordingly, `cbeta_rights`, `lexicon_rights` and `provider_terms` remain blocke
 [pilot_preflight.json](pilot_preflight.json), now with precise reasons and this review as
 evidence. No provider/model/spend authority is granted here.
 
-## Evaluation protocol
+## Evaluation and rehearsal contract
 
-### Participants
+The exact v1 acceptance rules are frozen in
+[Chinese pilot acceptance and rehearsal contract](PILOT_ACCEPTANCE.md), with machine-readable
+values in [`pilot_acceptance.json`](pilot_acceptance.json).
 
-Retain the charter's three strata, but the Chinese pilot requires at least **two qualified
-Buddhist-Chinese readers** among the evaluator pool. They may also be participant-design
-partners, but their source-evaluation role is recorded separately from usability scores.
+That contract now owns:
 
-### Natural user tasks
+- per-task query/candidate/retrieval/relation/model/byte/time/retry/spend ceilings;
+- evaluator-approved recall@1/5/10 and per-arm/fused retrieval reporting;
+- provenance-aware query-expansion classification;
+- the six-dimension generated-reading-translation rubric and pass rule;
+- claim-support classes;
+- the fourteen critical failure classes whose occurrence overrides aggregate scores; and
+- the required R01–R15 rehearsal slots and pass conditions.
 
-Use at least 24 eligible natural questions, ≥6 per user stratum. Do not prewrite the task
-corpus. Supplement only to ensure the charter's question classes are represented.
+The charter still owns the 6–8 participant design, ≥24 natural tasks, per-stratum task
+floors, comprehension/evidence-reuse/time/repeat-use thresholds and 40 operator-hour cap.
+The acceptance contract does not replace those participant outcomes.
 
-### Separate measurements
+The frozen execution ceiling currently authorizes **US$0 cash spend**. It therefore does
+not select or authorize a provider; any later nonzero route requires a reviewed contract
+revision plus the independent inference/provider gates.
 
-#### 1. English-question → Chinese-evidence retrieval
+The acceptance contract freezes policy, not implementation. Later code must demonstrate
+that limits refuse **before** exceeding them; reporting an excess after the fact is not
+enforcement.
 
-For a held-out subset, a bilingual evaluator records acceptable source work/passages
-**before inspecting the candidate system's retrieval output**. Legitimate alternative
-passages/works may be recorded; the reference set is not forced to one proof-text.
-Report:
+The rehearsal contract is frozen but **has not run**. Exact R01–R15 work IDs/URNs must be
+instantiated only after the pilot release/scope is frozen. Rehearsal cases never enter the
+24-task participant denominator.
 
-- recall@k by retrieval arm and fused result;
-- unsupported/out-of-scope rate;
-- wrong-concept retrievals caused by query expansion;
-- cases rescued or harmed by each arm;
-- exact source scope denominator.
+Accordingly:
 
-A result found only after a broad `related` expansion is not scored as evidence that the
-terms were equivalent.
-
-#### 2. Query-expansion quality
-
-Review candidate mappings for:
-
-- correct equivalence;
-- historically valid but scope-specific rendering;
-- over-broad/narrow mapping;
-- doctrinally related but non-equivalent mapping;
-- fabricated/unattested term.
-
-Critical failure: a non-equivalent term is presented to the user or downstream logic as a
-verified synonym.
-
-#### 3. Generated reading translation
-
-For sampled passages, bilingual evaluators score:
-
-- omission/addition;
-- reversal/negation error;
-- technical-term adequacy;
-- named entity/text-title handling;
-- relation of pronouns/agents;
-- readability without doctrinal distortion.
-
-A fluent English sentence is not a success if it changes the Chinese claim.
-
-Report translation quality separately by source `text_role`: root/discourse, treatise,
-commentary and subcommentary where the pilot scope contains them. A strong root-text average
-must not hide a failing commentary layer.
-
-Critical translation errors block that rendering from being used as reader evidence until
-fixed/reviewed. Automatic glossary/back-translation checks may diagnose but cannot certify
-faithfulness.
-
-#### 4. Answer support
-
-Every substantive claim is classified as:
-
-- direct root/source support;
-- independent treatise support;
-- commentarial interpretation;
-- synthesis across sources;
-- unresolved/insufficient evidence.
-
-Qualified review checks whether the cited evidence actually supports the claim and whether
-tradition/scope is overstated.
-
-#### 5. Ordinary-user comprehension
-
-Test whether non-specialists can identify:
-
-- which text is the source;
-- which English is generated versus human;
-- whether an item is a treatise or commentary;
-- whether a commentary interprets rather than replaces the root;
-- what corpus scope was searched.
-
-### Existing charter floors
-
-The charter's task-success, comprehension, evidence-reuse, latency, 14-day repeat-use and
-40 operator-hour caps remain in force. Chinese-specific retrieval/translation floors and
-role-specific reporting rules must be frozen before the first participant task, after
-rehearsal evaluation establishes a meaningful scale.
-
-## Rehearsal cases, not pilot tasks
-
-A small committed rehearsal set may test mechanics before participant recruitment:
-
-- English concept with a high-confidence Chinese technical equivalent;
-- one term with multiple historical Chinese renderings;
-- one term whose related concept must not be treated as a synonym;
-- one root passage with aligned commentary;
-- one treatise with commentary/subcommentary;
-- one passage with no approved English rendering;
-- one question genuinely unsupported in the bounded scope.
-
-These cases test the evaluation apparatus. They never enter the 24-task pilot denominator.
+- `execution_bounds`, `evaluation_rubric` and `critical_taxonomy` may be recorded
+  ready as frozen specification gates;
+- `rehearsal_trust` remains blocked until the exact cases execute with zero unresolved
+  critical failures;
+- `retrieval_baseline` remains blocked until held-out bilingual per-arm/fused measurements
+  exist against the accepted release.
 
 ## Fail-closed readiness gate
 
