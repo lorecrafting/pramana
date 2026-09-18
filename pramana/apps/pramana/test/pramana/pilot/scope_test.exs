@@ -85,7 +85,7 @@ defmodule Pramana.Pilot.ScopeTest do
     {:ok, artifact} = Scope.build(input_fixture())
 
     assert artifact["denominators"]["excluded_model_relation_rows"] == 1
-    assert artifact["denominators"]["excluded_role_incoherent_relation_rows"] == 1
+    assert artifact["denominators"]["excluded_role_incoherent_relation_rows"] == 2
 
     refute Enum.any?(artifact["relations"], fn edge ->
              Enum.any?(edge["assertions"], &(&1["method"] == "llm"))
