@@ -76,9 +76,11 @@
     },
     {
       "id": "participant_protocol",
-      "state": "blocked",
-      "reason": "Participant consent, retention/deletion procedure and current-alternative intake are specified conceptually but not finalized for execution.",
+      "state": "ready",
+      "reason": null,
       "evidence": [
+        "docs/strategy/PILOT_PARTICIPANTS.md",
+        "docs/strategy/pilot_participants.json",
         "docs/strategy/PILOT_CHARTER.md",
         "docs/strategy/PILOT_PREFLIGHT.md"
       ]
