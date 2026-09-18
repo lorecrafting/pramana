@@ -8,6 +8,7 @@ defmodule Pramana.Pilot.DerivationReadiness do
   scopes and that their recorded input/output digests still match the database.
   """
 
+  alias Pramana.Commentary
   alias Pramana.Corpus.Bake, as: BakeSchema
   alias Pramana.Corpus.DerivationRun
   alias Pramana.Derivations
@@ -73,7 +74,10 @@ defmodule Pramana.Pilot.DerivationReadiness do
   @doc false
   def commentary_scope?(%DerivationRun{} = run) do
     is_nil(run.scope["work"]) and
-      is_nil(run.parameters["min_density_override"])
+      is_nil(run.parameters["min_density_override"]) and
+      run.parameters["grapheme_window"] == Commentary.window() and
+      run.parameters["root_min_density"] == Commentary.min_density() and
+      run.parameters["subcommentary_min_density"] == Commentary.min_density("subcommentary")
   end
 
   defp check_kind(source_bake_id, kind, coverage?) do
