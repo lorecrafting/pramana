@@ -46,6 +46,14 @@
       ]
     },
     {
+      "id": "execution_bounds",
+      "state": "blocked",
+      "reason": "Per-task caps for query candidates, model calls, translated passages/bytes/tokens, retries, timeout and spend are not yet frozen.",
+      "evidence": [
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
       "id": "provider_terms",
       "state": "blocked",
       "reason": "Provider data-use terms for sending selected Chinese source/glossary text have not been reviewed for the pilot.",
