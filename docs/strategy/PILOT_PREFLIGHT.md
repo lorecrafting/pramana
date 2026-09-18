@@ -58,6 +58,11 @@ structure/hash without a database, but **neither command makes `pilot_scope` rea
 itself**: the generated live artifact must still be reviewed and accepted as preflight
 evidence.
 
+The derived quotation/relation/alignment tables do not carry durable completion markers.
+Live scope acceptance therefore also requires separate derivation-completion evidence and
+a quiesced stable-state check (two identical consecutive materializations, or equivalent
+independently recorded evidence). A historical row count is not a substitute.
+
 ## The bilingual architecture
 
 ```text
