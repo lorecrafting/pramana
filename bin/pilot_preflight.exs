@@ -171,7 +171,18 @@ defmodule Pramana.PilotPreflight do
     [path | _fragment] = String.split(reference, "#", parts: 2)
 
     safe_relative_path?(path) and
-      File.regular?(Path.join(root, path))
+      File.regular?(Path.join(root, path)) and
+      tracked_file?(path, root)
+  end
+
+  defp tracked_file?(path, root) do
+    case System.cmd("git", ["ls-files", "--error-unmatch", "--", path],
+           cd: root,
+           stderr_to_stdout: true
+         ) do
+      {_output, 0} -> true
+      {_output, _status} -> false
+    end
   end
 
   defp safe_relative_path?(path) when is_binary(path) do
