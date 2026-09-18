@@ -30,4 +30,5 @@ jobs:
           elixir bin/check_docs.exs
           elixir bin/check_pilot_preflight.exs --validate
           elixir bin/check_pilot_acceptance.exs --validate
+          elixir bin/check_pilot_participants.exs --validate
           elixir bin/sync_agent_conventions.exs --check

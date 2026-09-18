@@ -1,6 +1,6 @@
 # Strategic roadmap and candidate initiatives
 
-[Strategy overview](../PRODUCT_STRATEGY.md) · [Pilot charter](PILOT_CHARTER.md) · [Decisions](DECISIONS.md)
+[Strategy overview](../PRODUCT_STRATEGY.md) · [Pilot charter](PILOT_CHARTER.md) · [participant protocol](PILOT_PARTICIPANTS.md) · [Decisions](DECISIONS.md)
 **Status:** proposed sequencing, not a scheduled or admitted backlog.
 
 ## How to read this roadmap
@@ -37,7 +37,8 @@ behavior, capacity and replay promise. The charter authorizes no post-G0 impleme
 
 Before execution, recheck the live source/corpus baseline, complete the charter/preflight operation-specific rights matrix for the selected CBETA
 source, lexicons and model-processing route, identify the qualified Buddhist-Chinese
-evaluators and record each participant's current alternative. Actual retrieval limitations and operator time must be
+evaluators and follow the frozen [participant protocol](PILOT_PARTICIPANTS.md), including
+each participant's current-alternative intake. Actual retrieval limitations and operator time must be
 measured locally; public benchmarks do not substitute.
 
 **Exit:** after G0, the operator confirms that the charter's rights/evaluator prerequisites

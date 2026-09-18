@@ -1,6 +1,6 @@
 # Validation, economics and learning
 
-[Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap gates](ROADMAP.md) · [Chinese pilot acceptance](PILOT_ACCEPTANCE.md)
+[Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap gates](ROADMAP.md) · [Chinese pilot acceptance](PILOT_ACCEPTANCE.md) · [participant protocol](PILOT_PARTICIPANTS.md)
 **Status:** proposed measurement plan. No new performance, demand or revenue results
 were produced by this rewrite.
 
@@ -51,7 +51,7 @@ unknown and cannot relax the protected budget ledger.
 
 ## Pilot protocol
 
-For the Chinese-first pilot, the execution ceilings, bilingual evaluation rubric, critical-failure taxonomy and rehearsal pass rules are frozen in [PILOT_ACCEPTANCE](PILOT_ACCEPTANCE.md); the charter owns participant-level thresholds. At G1, preregister the remaining live scope, current alternatives, evaluator identities and measured baselines before execution. A reasonable **proposed
+For the Chinese-first pilot, the execution ceilings, bilingual evaluation rubric, critical-failure taxonomy and rehearsal pass rules are frozen in [PILOT_ACCEPTANCE](PILOT_ACCEPTANCE.md); consent, retention/deletion, withdrawal, current-alternative intake and study denominator rules are frozen in [PILOT_PARTICIPANTS](PILOT_PARTICIPANTS.md); the charter owns participant-level thresholds. At G1, preregister the remaining live scope, current alternatives, evaluator identities and measured baselines before execution. A reasonable **proposed
 study design** is 6–8 design partners doing several real tasks, followed by later
 observation of voluntary use. This is a feasibility study, not a statistically
 validated market-size or retention estimate. The operator can change the design
