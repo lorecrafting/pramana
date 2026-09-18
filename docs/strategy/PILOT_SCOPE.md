@@ -26,9 +26,11 @@ The materializer uses:
   shared_text;
 - only CBETA / Taishō (cbeta.T) works in the first pilot scope.
 
-An llm work-relation assertion cannot put a work into pilot scope. A typed relation whose
-source role is not allowed by Pramana.Relations.may_explain/1 to explain the target role is
-also excluded and counted.
+An llm work-relation assertion cannot put a work into pilot scope. Relation semantics are
+also checked in two dimensions: the source role must be allowed to explain the target role,
+and the relation name must match the source role. A subcommentary may enter through
+subcommentary_of, not comments_on; commentary/treatise explanatory rows use comments_on.
+Role-incoherent rows are excluded and counted.
 
 This is intentionally stricter than "a row exists."
 
@@ -43,14 +45,17 @@ For every current-bake CBETA Taishō quotation pair:
 
 1. exclude reuse inside the same letter-stripped work family;
 2. collapse repeated rows to distinct text_sha256 evidence;
-3. if exactly one work's text_role may explain the other's role, direct from explanatory
-   work to explained work;
+3. use role as a direction signal only for **commentary → root**, matching the retained
+   rule-72 description and avoiding the repository's known treatise shared-text false
+   positives;
 4. otherwise, when both date_start values are known and differ, direct later → earlier;
 5. if role and date both resolve but disagree, mark the pair **conflicting** and give it no
    demand weight;
 6. if neither resolves, mark it **unresolved** and give it no demand weight;
 7. score a target family by distinct {citer_family, passage_hash} evidence;
-8. pick the best-attested member of a winning family, breaking exact ties by work ID.
+8. pick the best-attested member of a winning family, breaking exact ties by work ID;
+9. report the rank-10 cutoff's full sort key (weight and citing-family count), all
+   same-weight families, and the subset genuinely equivalent on both numeric sort fields.
 
 The artifact reports the full direction denominator:
 directed_pairs + unresolved_pairs + conflicting_pairs = cross_family_pairs.
@@ -163,9 +168,11 @@ or from the umbrella:
     cd pramana
     mix pramana.pilot.scope --validate /tmp/pramana-pilot-scope.json
 
-Structural validation proves only the file's internal contract. The checker therefore
-prints `live_currentness=not_established`; it does not prove that the file still matches
-today's database or that the derived graphs were complete when it was generated.
+Structural validation proves only the file's internal contract. It also cross-checks the
+ranked rows, seed labels/ranks/weights, work hop ancestry and relation seed ancestry so a
+file cannot become "valid" merely by recomputing the outer SHA after editing one section.
+The checker still prints `live_currentness=not_established`; it does not prove that the
+file matches today's database or that the derived graphs were complete when generated.
 
 ## What closes the preflight gate
 
