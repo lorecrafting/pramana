@@ -1,0 +1,473 @@
+defmodule Pramana.Pilot.ScopeArtifact do
+  @moduledoc """
+  Pure contract for one materialized Chinese pilot scope.
+
+  This module has no Repo, Ecto or application-start dependency so a saved artifact can be
+  checked independently of the live corpus that produced it. Validation establishes
+  structure, internal denominators, frozen scope parameters and the content hash. It does
+  not establish that the artifact still matches a live database; the materializer owns
+  that boundary.
+  """
+
+  @schema "pramana-pilot-scope/v1"
+  @pilot_id "chinese-commentary-v1"
+  @agama_ids ~w(T0001 T0026 T0099 T0125)
+  @relations ~w(comments_on subcommentary_of)
+  @relation_methods ~w(catalogue manifest title_match lemma_match shared_text)
+  @max_relation_depth 2
+  @demand_seed_count 10
+
+  @top_level ~w(
+    schema
+    pilot_id
+    scope_content_sha256
+    release
+    selection
+    ranking
+    seeds
+    works
+    relations
+    alignment_coverage
+    denominators
+    input_digests
+  )
+
+  @doc "The four named Āgama works required by the charter."
+  @spec agama_ids() :: [String.t()]
+  def agama_ids, do: @agama_ids
+
+  @doc "The only relation types that may expand the v1 pilot scope."
+  @spec allowed_relations() :: [String.t()]
+  def allowed_relations, do: @relations
+
+  @doc "Non-model assertion methods admitted by the v1 scope materializer."
+  @spec allowed_relation_methods() :: [String.t()]
+  def allowed_relation_methods, do: @relation_methods
+
+  @doc "The frozen scope-traversal ceiling."
+  @spec max_relation_depth() :: pos_integer()
+  def max_relation_depth, do: @max_relation_depth
+
+  @doc "The number of demand-ranked seed families admitted before the Āgamas are added."
+  @spec demand_seed_count() :: pos_integer()
+  def demand_seed_count, do: @demand_seed_count
+
+  @doc """
+  Adds the contract identifiers and a SHA-256 over the complete semantic artifact.
+
+  The hash excludes only itself. No wall-clock generation timestamp belongs in the
+  semantic payload, so re-materializing unchanged inputs produces the same bytes and hash.
+  """
+  @spec finalize(map()) :: map()
+  def finalize(payload) when is_map(payload) do
+    artifact =
+      payload
+      |> Map.put("schema", @schema)
+      |> Map.put("pilot_id", @pilot_id)
+      |> Map.delete("scope_content_sha256")
+
+    Map.put(artifact, "scope_content_sha256", digest(artifact))
+  end
+
+  @doc "Canonical compact JSON: map keys are sorted recursively."
+  @spec encode(map()) :: binary()
+  def encode(artifact), do: canonical_json(artifact) <> "\n"
+
+  @doc "Loads JSON written by this contract without requiring Jason."
+  @spec decode!(binary()) :: term()
+  def decode!(bytes), do: bytes |> :json.decode() |> normalize_json()
+
+  @doc "SHA-256 of a term's canonical JSON representation."
+  @spec digest(term()) :: String.t()
+  def digest(term) do
+    term
+    |> canonical_json()
+    |> then(&:crypto.hash(:sha256, &1))
+    |> Base.encode16(case: :lower)
+  end
+
+  @doc """
+  Validates the saved artifact's closed v1 shape and arithmetic.
+
+  Live release/current-corpus verification is deliberately absent here. A structurally
+  valid historical artifact is still historical evidence rather than proof of current
+  readiness.
+  """
+  @spec validate(map()) :: :ok | {:error, [String.t()]}
+  def validate(artifact) when is_map(artifact) do
+    errors =
+      []
+      |> check_top_level(artifact)
+      |> check_hash(artifact)
+      |> check_release(artifact["release"])
+      |> check_selection(artifact["selection"])
+      |> check_ranking(artifact["ranking"])
+      |> check_seeds(artifact["seeds"], artifact["ranking"])
+      |> check_works(artifact["works"], artifact["seeds"])
+      |> check_relations(artifact["relations"], artifact["works"])
+      |> check_alignments(artifact["alignment_coverage"], artifact["relations"])
+      |> check_denominators(artifact)
+      |> check_input_digests(artifact["input_digests"])
+
+    case Enum.reverse(errors) do
+      [] -> :ok
+      found -> {:error, found}
+    end
+  end
+
+  def validate(_artifact), do: {:error, ["scope artifact must be an object"]}
+
+  defp check_top_level(errors, artifact) do
+    expected = MapSet.new(@top_level)
+    actual = artifact |> Map.keys() |> MapSet.new()
+
+    errors
+    |> add_if(artifact["schema"] != @schema, "schema must be #{@schema}")
+    |> add_if(artifact["pilot_id"] != @pilot_id, "pilot_id must be #{@pilot_id}")
+    |> add_if(
+      MapSet.difference(actual, expected) != MapSet.new(),
+      "scope artifact contains unknown top-level fields"
+    )
+    |> add_if(
+      MapSet.difference(expected, actual) != MapSet.new(),
+      "scope artifact is missing required top-level fields"
+    )
+  end
+
+  defp check_hash(errors, artifact) do
+    expected = artifact |> Map.delete("scope_content_sha256") |> digest()
+
+    errors
+    |> add_if(not sha256?(artifact["scope_content_sha256"]), "scope_content_sha256 is invalid")
+    |> add_if(
+      artifact["scope_content_sha256"] != expected,
+      "scope_content_sha256 does not match canonical artifact content"
+    )
+  end
+
+  defp check_release(errors, release) when is_map(release) do
+    errors
+    |> add_if(not nonempty?(release["release_id"]), "release.release_id is required")
+    |> add_if(not nonempty?(release["source_bake_id"]), "release.source_bake_id is required")
+    |> add_if(
+      not v2_component?(release["translation_set_id"]),
+      "release.translation_set_id must be a v2 content identity"
+    )
+    |> add_if(
+      not v2_component?(release["vector_set_id"]),
+      "release.vector_set_id must be a v2 content identity"
+    )
+    |> add_if(not nonempty?(release["stamped_at"]), "release.stamped_at is required")
+  end
+
+  defp check_release(errors, _), do: ["release must be an object" | errors]
+
+  defp check_selection(errors, selection) when is_map(selection) do
+    errors
+    |> add_if(
+      selection["demand_seed_count"] != @demand_seed_count,
+      "selection.demand_seed_count must be #{@demand_seed_count}"
+    )
+    |> add_if(
+      selection["agama_work_ids"] != @agama_ids,
+      "selection.agama_work_ids must match the four charter Āgamas"
+    )
+    |> add_if(
+      selection["relation_types"] != @relations,
+      "selection.relation_types must match the frozen v1 relation set"
+    )
+    |> add_if(
+      selection["relation_methods"] != @relation_methods,
+      "selection.relation_methods must match the frozen non-model assertion set"
+    )
+    |> add_if(
+      selection["max_relation_depth"] != @max_relation_depth,
+      "selection.max_relation_depth must be #{@max_relation_depth}"
+    )
+    |> add_if(
+      selection["scope_source"] != "cbeta.T",
+      "selection.scope_source must remain cbeta.T"
+    )
+  end
+
+  defp check_selection(errors, _), do: ["selection must be an object" | errors]
+
+  defp check_ranking(errors, ranking) when is_map(ranking) do
+    top = ranking["top_demand"] || []
+
+    errors
+    |> add_if(length(top) != @demand_seed_count, "ranking.top_demand must contain ten rows")
+    |> add_if(not sorted_unique_rank?(top), "ranking.top_demand ranks must be unique 1..10")
+    |> add_if(
+      not nonnegative_integer?(ranking["cross_family_pairs"]),
+      "ranking.cross_family_pairs must be a non-negative integer"
+    )
+    |> add_if(
+      not nonnegative_integer?(ranking["directed_pairs"]),
+      "ranking.directed_pairs must be a non-negative integer"
+    )
+    |> add_if(
+      not nonnegative_integer?(ranking["unresolved_pairs"]),
+      "ranking.unresolved_pairs must be a non-negative integer"
+    )
+    |> add_if(
+      not nonnegative_integer?(ranking["conflicting_pairs"]),
+      "ranking.conflicting_pairs must be a non-negative integer"
+    )
+    |> add_if(
+      ranking_pair_total(ranking) != ranking["cross_family_pairs"],
+      "ranking direction denominators do not sum to cross_family_pairs"
+    )
+  end
+
+  defp check_ranking(errors, _), do: ["ranking must be an object" | errors]
+
+  defp check_seeds(errors, seeds, ranking) when is_list(seeds) and is_map(ranking) do
+    ids = Enum.map(seeds, & &1["work_id"])
+    demand_ids = MapSet.new(Enum.map(ranking["top_demand"] || [], & &1["work_id"]))
+
+    errors
+    |> add_if(ids != Enum.sort(ids), "seeds must be sorted by work_id")
+    |> add_if(length(ids) != length(Enum.uniq(ids)), "seed work ids must be unique")
+    |> add_if(
+      not Enum.all?(@agama_ids, &(&1 in ids)),
+      "all four charter Āgamas must be present in seeds"
+    )
+    |> add_if(
+      not MapSet.subset?(demand_ids, MapSet.new(ids)),
+      "every demand-ranked work must be present in seeds"
+    )
+    |> Enum.reduce(seeds, fn seed, acc ->
+      sources = seed["seed_sources"] || []
+
+      acc
+      |> add_if(not nonempty?(seed["work_id"]), "seed work_id is required")
+      |> add_if(sources == [], "every seed must name at least one seed source")
+      |> add_if(
+        Enum.any?(sources, &(&1 not in ["agama", "demand_rank"])),
+        "seed_sources contains an unknown source"
+      )
+    end)
+  end
+
+  defp check_seeds(errors, _seeds, _ranking), do: ["seeds must be an array" | errors]
+
+  defp check_works(errors, works, seeds) when is_list(works) and is_list(seeds) do
+    ids = Enum.map(works, & &1["work_id"])
+    seed_ids = MapSet.new(Enum.map(seeds, & &1["work_id"]))
+
+    errors
+    |> add_if(ids != Enum.sort(ids), "works must be sorted by work_id")
+    |> add_if(length(ids) != length(Enum.uniq(ids)), "scope work ids must be unique")
+    |> add_if(
+      not MapSet.subset?(seed_ids, MapSet.new(ids)),
+      "every seed must be present in works"
+    )
+    |> Enum.reduce(works, fn work, acc ->
+      acc
+      |> add_if(not nonempty?(work["work_id"]), "work_id is required")
+      |> add_if(work["source"] != "cbeta", "scope works must come from CBETA")
+      |> add_if(work["witness"] != "T", "scope works must use the Taishō witness")
+      |> add_if(
+        not (is_integer(work["min_hop"]) and work["min_hop"] in 0..@max_relation_depth),
+        "work min_hop must be between zero and #{@max_relation_depth}"
+      )
+    end)
+  end
+
+  defp check_works(errors, _works, _seeds), do: ["works must be an array" | errors]
+
+  defp check_relations(errors, relations, works) when is_list(relations) and is_list(works) do
+    work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
+    keys = Enum.map(relations, &relation_key/1)
+
+    errors
+    |> add_if(keys != Enum.sort(keys), "relations must use canonical sort order")
+    |> add_if(length(keys) != length(Enum.uniq(keys)), "relation edges must be unique")
+    |> Enum.reduce(relations, fn relation, acc ->
+      assertions = relation["assertions"] || []
+
+      acc
+      |> add_if(
+        relation["relation"] not in @relations,
+        "scope relation type is outside the frozen relation set"
+      )
+      |> add_if(
+        not MapSet.member?(work_ids, relation["source_work_id"]) or
+          not MapSet.member?(work_ids, relation["target_work_id"]),
+        "scope relation endpoint is outside works"
+      )
+      |> add_if(
+        not (is_integer(relation["hop"]) and relation["hop"] in 1..@max_relation_depth),
+        "scope relation hop is outside the frozen depth"
+      )
+      |> add_if(assertions == [], "scope relation must retain at least one assertion")
+      |> add_if(
+        Enum.any?(assertions, &(&1["method"] not in @relation_methods)),
+        "scope relation contains a disallowed assertion method"
+      )
+    end)
+  end
+
+  defp check_relations(errors, _relations, _works), do: ["relations must be an array" | errors]
+
+  defp check_alignments(errors, rows, relations) when is_list(rows) and is_list(relations) do
+    relation_keys = MapSet.new(Enum.map(relations, &relation_identity/1))
+    keys = Enum.map(rows, &alignment_key/1)
+
+    errors
+    |> add_if(keys != Enum.sort(keys), "alignment_coverage must use canonical sort order")
+    |> add_if(length(keys) != length(Enum.uniq(keys)), "alignment coverage rows must be unique")
+    |> Enum.reduce(rows, fn row, acc ->
+      acc
+      |> add_if(
+        not MapSet.member?(relation_keys, alignment_identity(row)),
+        "alignment coverage row has no admitted scope relation"
+      )
+      |> add_if(
+        not Enum.all?(
+          ~w(alignment_rows distinct_root_urns distinct_commentary_urns),
+          &nonnegative_integer?(row[&1])
+        ),
+        "alignment counts must be non-negative integers"
+      )
+      |> add_if(
+        row["has_passage_alignment"] != (row["alignment_rows"] > 0),
+        "has_passage_alignment must match alignment_rows"
+      )
+    end)
+  end
+
+  defp check_alignments(errors, _rows, _relations),
+    do: ["alignment_coverage must be an array" | errors]
+
+  defp check_denominators(errors, artifact) do
+    d = artifact["denominators"]
+
+    if is_map(d) do
+      seeds = artifact["seeds"] || []
+      works = artifact["works"] || []
+      relations = artifact["relations"] || []
+      alignments = artifact["alignment_coverage"] || []
+
+      role_counts =
+        works
+        |> Enum.frequencies_by(&(&1["text_role"] || "unknown"))
+        |> Map.new(fn {key, value} -> {to_string(key), value} end)
+
+      assertion_count =
+        relations
+        |> Enum.map(&(length(&1["assertions"] || [])))
+        |> Enum.sum()
+
+      errors
+      |> add_if(d["combined_seed_count"] != length(seeds), "combined_seed_count is wrong")
+      |> add_if(
+        d["demand_seed_count"] != @demand_seed_count,
+        "denominators.demand_seed_count is wrong"
+      )
+      |> add_if(d["agama_required_count"] != length(@agama_ids), "agama_required_count is wrong")
+      |> add_if(d["total_work_count"] != length(works), "total_work_count is wrong")
+      |> add_if(
+        d["expanded_work_count"] != length(works) - length(seeds),
+        "expanded_work_count is wrong"
+      )
+      |> add_if(d["relation_edge_count"] != length(relations), "relation_edge_count is wrong")
+      |> add_if(
+        d["relation_assertion_count"] != assertion_count,
+        "relation_assertion_count is wrong"
+      )
+      |> add_if(
+        d["relation_edges_with_alignment"] != Enum.count(alignments, & &1["has_passage_alignment"]),
+        "relation_edges_with_alignment is wrong"
+      )
+      |> add_if(
+        d["alignment_rows"] != Enum.sum(Enum.map(alignments, & &1["alignment_rows"])),
+        "alignment_rows denominator is wrong"
+      )
+      |> add_if(d["works_by_text_role"] != role_counts, "works_by_text_role is wrong")
+    else
+      ["denominators must be an object" | errors]
+    end
+  end
+
+  defp check_input_digests(errors, digests) when is_map(digests) do
+    required = ~w(work_metadata quotation_graph relation_graph alignment_graph)
+
+    Enum.reduce(required, errors, fn key, acc ->
+      add_if(acc, not sha256?(digests[key]), "input_digests.#{key} must be a SHA-256")
+    end)
+  end
+
+  defp check_input_digests(errors, _), do: ["input_digests must be an object" | errors]
+
+  defp sorted_unique_rank?(rows) do
+    ranks = Enum.map(rows, & &1["rank"])
+    ranks == Enum.to_list(1..@demand_seed_count)
+  end
+
+  defp ranking_pair_total(ranking) do
+    (ranking["directed_pairs"] || 0) +
+      (ranking["unresolved_pairs"] || 0) +
+      (ranking["conflicting_pairs"] || 0)
+  end
+
+  defp relation_key(row),
+    do: {row["hop"], row["target_work_id"], row["source_work_id"], row["relation"]}
+
+  defp relation_identity(row),
+    do: {row["source_work_id"], row["target_work_id"], row["relation"]}
+
+  defp alignment_key(row),
+    do: {row["target_work_id"], row["commentary_work_id"], row["relation"]}
+
+  defp alignment_identity(row),
+    do: {row["commentary_work_id"], row["target_work_id"], row["relation"]}
+
+  defp v2_component?(value), do: is_binary(value) and String.starts_with?(value, "v2:")
+
+  defp sha256?(value),
+    do: is_binary(value) and Regex.match?(~r/\A[0-9a-f]{64}\z/, value)
+
+  defp nonempty?(value), do: is_binary(value) and String.trim(value) != ""
+  defp nonnegative_integer?(value), do: is_integer(value) and value >= 0
+
+  defp canonical_json(map) when is_map(map) and not is_struct(map) do
+    body =
+      map
+      |> Enum.map(fn {key, value} -> {to_string(key), value} end)
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map_join(",", fn {key, value} ->
+        json_scalar(key) <> ":" <> canonical_json(value)
+      end)
+
+    "{" <> body <> "}"
+  end
+
+  defp canonical_json(list) when is_list(list) do
+    "[" <> Enum.map_join(list, ",", &canonical_json/1) <> "]"
+  end
+
+  defp canonical_json(nil), do: "null"
+  defp canonical_json(value), do: json_scalar(value)
+
+  defp json_scalar(nil), do: "null"
+  defp json_scalar(value), do: value |> encode_json_scalar() |> IO.iodata_to_binary()
+
+  defp encode_json_scalar(value) when is_atom(value) and value not in [true, false],
+    do: :json.encode(Atom.to_string(value))
+
+  defp encode_json_scalar(value), do: :json.encode(value)
+
+  defp normalize_json(:null), do: nil
+
+  defp normalize_json(value) when is_map(value) do
+    Map.new(value, fn {key, item} -> {key, normalize_json(item)} end)
+  end
+
+  defp normalize_json(value) when is_list(value), do: Enum.map(value, &normalize_json/1)
+  defp normalize_json(value), do: value
+
+  defp add_if(errors, true, message), do: [message | errors]
+  defp add_if(errors, false, _message), do: errors
+end
