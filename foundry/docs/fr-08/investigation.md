@@ -75,22 +75,31 @@ late settlement against the original generation. Replay must never invoke Git, b
 clock, random generation, configuration or provider effects.
 
 
-## Executable handoff-gate plan — 2026-09-17
+## Executable handoff gate — 2026-09-17
 
-This investigation will be paired with a small executable conformance gate before FR-08
-implementation begins. The gate is preparation only: it must not modify or substitute for
-the active FR-07 store implementation, and a missing FR-07 public boundary must report
-**blocked/not yet available**, never a false pass.
+`PramanaFoundry.Repair.FR08HandoffGate` now encodes the required FR-07 handoff
+capabilities as a fixed ordered probe set. This is preparation only: it does not modify or
+substitute for the active FR-07 store implementation, and a missing provider reports
+**blocked**, never a false pass.
 
-The first gate will encode the handoff capabilities listed above as named probes against a
-small provider-neutral adapter. It will distinguish **passed**, **failed** and
-**unavailable** capabilities, produce deterministic machine-readable output, and require
-all mandatory capabilities before declaring FR-08 ready. Fixture adapters will prove the
-gate catches missing, failing and contradictory capabilities without relying on the live
-FR-07 worktree. Once FR-07 lands, one thin adapter may bind these probes to the accepted
-public API; that binding is the only dependency-specific layer.
+A provider must implement one bounded probe per capability and return an explicit pass,
+failure or unavailable result with a short evidence reference. Probes execute in isolated
+monitored processes with a finite timeout. Exceptions, throws, exits, hangs, malformed
+results and oversized details fail closed without publishing raw provider error text.
+`ready` is produced only when every mandatory probe passes.
 
-In parallel, the Pramāṇa CheckRun cancellation regression will be made synchronization-
-based so it proves worker death precedes completion without depending on ExUnit's implicit
-100 ms receive timeout. These two changes are intentionally grouped as repair-readiness
-work: one removes CI timing noise, the other shortens the FR-07 → FR-08 handoff.
+The current repository intentionally supplies no FR-07 adapter, so:
+
+```bash
+cd foundry
+mix run -e 'IO.inspect(PramanaFoundry.Repair.FR08HandoffGate.run())'
+```
+
+must report `blocked`. Once FR-07 lands, add one thin reviewed adapter that executes
+these probes against the accepted public boundary, then run the gate with that module.
+A ready gate report is handoff evidence; it does not mark FR-07 complete, replace its
+ticket acceptance, or authorize FR-08 effects.
+
+The companion Pramāṇa CheckRun regression now synchronizes on both worker and outer-runner
+termination so it proves worker death precedes reported cancellation without relying on
+ExUnit's implicit 100 ms receive timeout.
