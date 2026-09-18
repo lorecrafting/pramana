@@ -181,6 +181,10 @@ Retain required raw evidence. Summaries are attributed replaceable projections; 
 are hypotheses until reviewed and tested for a named scope. A lesson cannot weaken a
 mandatory gate. Start with task-specific context selection, not unlimited memory.
 
+The bounded Stage-A implementation for issue #26 is documented in
+[Assessor Stage A](ASSESSOR.md). It is an advisory experiment with deterministic fallback,
+not a production provider route or an acceptance authority.
+
 ## Investment milestones within the repair plan
 
 | Milestone | Owning repair work | Evidence before expanding investment |
