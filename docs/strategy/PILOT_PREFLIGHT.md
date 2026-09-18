@@ -414,6 +414,30 @@ The pilot is not ready until every mandatory condition has explicit evidence:
 A blocked gate is a valid preflight result. It must not be rewritten to `ready` merely
 because implementation could technically start.
 
+## Readiness manifest and commands
+
+The current machine-readable record is
+[`pilot_preflight.json`](pilot_preflight.json). It is intentionally blocked.
+
+From the Git root:
+
+```bash
+elixir bin/check_pilot_preflight.exs --validate
+elixir bin/check_pilot_preflight.exs --ready
+```
+
+`--validate` answers only whether the manifest has the complete mandatory gate set,
+well-formed states and local evidence references. A valid blocked manifest is success.
+
+`--ready` is stricter: every mandatory gate must be `ready`, every ready gate must carry
+evidence, no blocking reason may remain, and `subject_revision` must equal the exact
+current Git revision. It fails while the pilot is legitimately blocked.
+
+Neither command proves that a rights opinion, evaluator decision or provider authorization
+is substantively correct. Those remain human/reviewed evidence. The command prevents
+missing/stale bookkeeping from being mistaken for readiness; it does not manufacture the
+underlying decisions.
+
 ## Post-G0 implementation sequence
 
 Once the readiness gate is genuinely satisfied:
