@@ -178,7 +178,7 @@ defmodule Pramana.Pilot.Scope do
 
       detail = %{
         pairs: Enum.map(classified, &ranking_input_row/1),
-        ranked_families: Enum.map(ranked, &Map.from_struct/1)
+        ranked_families: ranked
       }
 
       {:ok, ranking, detail}
@@ -270,9 +270,11 @@ defmodule Pramana.Pilot.Scope do
   end
 
   defp load_relation_rows do
+    allowed_relations = ScopeArtifact.allowed_relations()
+
     Repo.all(
       from r in WorkRelation,
-        where: r.relation in ^ScopeArtifact.allowed_relations(),
+        where: r.relation in ^allowed_relations,
         order_by: [asc: r.target_work_id, asc: r.source_work_id, asc: r.relation, asc: r.method],
         select: %{
           source_work_id: r.source_work_id,
@@ -526,7 +528,9 @@ defmodule Pramana.Pilot.Scope do
 
     excluded_model =
       Enum.count(relation_rows, fn row ->
-        row.relation in ScopeArtifact.allowed_relations() and row.method == "llm"
+        row.relation in ScopeArtifact.allowed_relations() and
+          row.method == "llm" and
+          Map.has_key?(scope, row.target_work_id)
       end)
 
     {scope, Map.values(admitted),
