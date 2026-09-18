@@ -30,15 +30,12 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
 
   use Mix.Task
 
-  import Ecto.Query
-
   alias Pramana.Bake
   alias Pramana.Commentary
   alias Pramana.Derivations
 
   @switches [work: :string, dry_run: :boolean, min_density: :float]
 
-  @grapheme_sources ~w(cbeta sat local-huang-nianzu-jie)
   @syllable_sources ~w(derge derge-tengyur)
 
   @impl Mix.Task
