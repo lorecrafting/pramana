@@ -206,7 +206,22 @@ defmodule Pramana.Quotations do
     # parameters and Postgres accepts 65,535. See `Pramana.Batch`.
     {n, _} =
       Pramana.Batch.insert_all(Quotation, rows,
-        on_conflict: :nothing,
+        on_conflict:
+          {:replace,
+           [
+             :text,
+             :text_sha256,
+             :length,
+             :a_work_id,
+             :a_urn,
+             :a_char_end,
+             :b_work_id,
+             :b_urn,
+             :b_char_end,
+             :bake_id,
+             :meta,
+             :updated_at
+           ]},
         conflict_target: [:a_text_id, :a_char_start, :b_text_id, :b_char_start]
       )
 
