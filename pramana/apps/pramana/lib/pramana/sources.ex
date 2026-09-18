@@ -138,10 +138,12 @@ defmodule Pramana.Sources do
     # ingest and a bake that cannot be reproduced from `sources.lock.json` is not a bake.
     # DILA's TEI glossaries — the lexicon layer. `docs/PLAN.md` L1.
     #
-    # ONE ENTRY FOR FIVE GLOSSARIES, unlike the bilara split, because they share a
-    # licence and a publisher: the DILA Glossaries project states CC BY-NC-SA 4.0 over
-    # the whole site. Which glossary an entry came from is on the row, in
-    # `glossary_entries.meta["glossary"]`, where it is data rather than a licence axis.
+    # ONE CONSERVATIVE REGISTRY ENTRY FOR FIVE GLOSSARIES. This is not a claim that their
+    # published licence history is identical: the current portal says CC BY-NC-SA 4.0,
+    # while each exact digital-edition PDF reviewed for the Chinese pilot says CC BY-SA
+    # 3.0 and points to the TEI source. The glossary id remains on each row in
+    # `glossary_entries.meta["glossary"]`; operation-level authorization is owned by
+    # `docs/strategy/CHINESE_PILOT_RIGHTS.md`, not this coarse serving/export gate.
     "dila-glossaries" => %{
       id: "dila-glossaries",
       # REFERENCE, not `chinese`, and the registry test is what forced the question. A
@@ -161,15 +163,17 @@ defmodule Pramana.Sources do
         spdx: "CC-BY-NC-SA-4.0",
         class: "nc",
         commercial_use: false,
-        # NonCommercial, so it sits where CBETA sits: usable for everything local, and
-        # out of the public artefact.
+        # Conservative PUBLIC-SURFACE policy: the current portal has an NC term, so this
+        # aggregate record remains excluded from the public artefact. This does not mean
+        # every local transformation is automatically authorized.
         redistributable: false,
         notice:
-          "CC BY-NC-SA 4.0 per glossaries.dila.edu.tw. The TEI headers say only " <>
-            "\"Published on the Web with a Creative Commons License\" without naming a " <>
-            "version, so the site's statement governs and the restrictive reading is " <>
-            "recorded — see rule 10. Karashima's glossaries were digitised by DILA with " <>
-            "the author's permission."
+          "Conservative aggregate record: the current DILA glossary portal states " <>
+            "CC BY-NC-SA 4.0, while the exact Soothill-Hodous, three Karashima and " <>
+            "Mahavyutpatti digital-edition PDFs reviewed in 2026-09 state CC BY-SA 3.0 " <>
+            "and point to the TEI source. Keep the NC public-surface gate until that " <>
+            "resource-level conflict is clarified; use docs/strategy/CHINESE_PILOT_RIGHTS.md " <>
+            "for operation-specific pilot authorization."
       }
     },
     "sc-lzh" => %{
