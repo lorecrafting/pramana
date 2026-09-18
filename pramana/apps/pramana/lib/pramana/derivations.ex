@@ -92,7 +92,7 @@ defmodule Pramana.Derivations do
     stats = stringify_keys(stats)
     post_input = current_input_digest(token)
     {output_digest, output_count} = current_output_snapshot(token)
-    failures = integer_stat(stats, "failures")
+    failures = failure_count!(stats)
 
     status =
       if post_input == token.input_digest and failures == 0,
@@ -465,10 +465,10 @@ defmodule Pramana.Derivations do
     end
   end
 
-  defp integer_stat(stats, key) do
-    case stats[key] do
+  defp failure_count!(stats) do
+    case stats["failures"] do
       value when is_integer(value) and value >= 0 -> value
-      _ -> 0
+      _ -> raise ArgumentError, "derivation stats must include a non-negative failures count"
     end
   end
 
