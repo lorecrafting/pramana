@@ -486,7 +486,8 @@ conversation continuity separate from workflow authority. The current contract c
 a fresh developer after correction, not re-prompting the old developer; useful context
 can transfer without reviving old execution authority.
 
-The current source still launches OMP and production automatic execution remains blocked.
+The current source's implemented execution path still targets OMP, while production
+automatic execution remains blocked.
 The investment direction is now to evaluate Pi first as the replacement candidate before
 deepening OMP-specific FR-09 work. Prefer a pinned `pi --mode rpc` subprocess with
 strict JSONL framing over embedding a TypeScript SDK in the Elixir control plane. Keep the
@@ -498,10 +499,9 @@ required tests and any OMP-specific contract text is explicitly revised and re-r
 Pi itself runs with broad host authority by default. Its containerization guidance also
 warns that extensions run wherever the Pi process runs; routing built-in tools into
 Gondolin does not automatically sandbox unrelated extension tools. A production candidate
-therefore needs pinned code/configuration, no unadmitted project/user extension or
-execution-changing configuration loading, and an inventory proving every model-directed
-executable tool crosses the
-FR-15a isolation boundary. Do not turn Pi extensions into a second authority or a bypass
+therefore needs pinned code/configuration; no unadmitted extension or
+execution-changing configuration may be loaded; and an inventory must prove every
+model-directed executable tool crosses the FR-15a isolation boundary. Do not turn Pi extensions into a second authority or a bypass
 around Foundry's capability grants.
 
 Pi RPC supplies useful diagnostic surfaces such as session token/cost/context statistics
@@ -579,8 +579,8 @@ a replaceable fast semantic/reflex layer only if held-out evaluation shows net b
 Treat measurement as part of the execution contract, not optional dashboard polish. The
 implementation inventory and target are maintained in [Observability](OBSERVABILITY.md).
 Every useful harness should let Foundry attribute observed resource use along the durable
-lineage `objective → ticket → attempt → execution → request/tool/effect → candidate → review → accepted outcome`.
-Telemetry remains diagnostic evidence: it cannot mint authority, and missing usage stays
+lineage from objective and ticket through attempt, execution, request/tool/effect,
+candidate, review and accepted outcome. Telemetry remains diagnostic evidence: it cannot mint authority, and missing usage stays
 unknown rather than becoming zero.
 
 For model work, preserve source-qualified input, cache-read, cache-write, output,
