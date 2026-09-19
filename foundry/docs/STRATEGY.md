@@ -101,24 +101,30 @@ or its work is complete is not the corresponding receipt.
 
 A model-generated workflow is therefore an untrusted proposal. Before execution, Foundry
 validates it against the current operator/project policy, available capabilities and
-budgets, then pins the admitted definition and its revision/digest. A mid-run change is
-a new admitted decision, not a silent mutation of history. Project configuration may
-request authority but cannot mint it.
+budgets, then pins the admitted definition and its revision/digest. Protected policy may
+inject or require gates that a proposed workflow omitted; a project or model cannot
+weaken mandatory review, acceptance, publication or activation predicates. A mid-run
+change is a new admitted decision, not a silent mutation of history. Project
+configuration may request authority but cannot mint it.
 
 Do not bake today's PM/developer/reviewer names or one software lifecycle into protected
 storage and authority semantics. Preserve generic identities such as project, workflow,
 workflow revision, role, assignment, principal, capability set, artifact/evidence type,
-acceptance profile and execution profile. Current repairs may continue using the fixed
-software workflow until it is actually proven; this direction is a post-repair
+acceptance profile and execution profile. Independence is checked from durable
+principal/authority lineage and candidate ownership; changing a role label, session or
+model does not create an independent reviewer. Current repairs may continue using the
+fixed software workflow until it is actually proven; this direction is a post-repair
 generalization constraint, not authorization to replace the active contract.
 
 The same project should eventually be able to register materially different workflows
 with materially different tool surfaces. A software-engineering workflow may receive an
 isolated worktree, Git, shell and compiler tools; a content-authoring workflow may receive
 only a typed Builder API, simulation and certification operations. Reusing the same
-model in both cases does not imply equal authority. Avoid a Turing-complete workflow DSL
-or a second orchestrator: start with small composable lifecycle primitives and introduce
-generalization only after real portability evidence.
+model in both cases does not imply equal authority. Child work and sub-workflows inherit
+bounded parent scope/budget ceilings unless protected policy grants less; composition
+cannot expand authority. Avoid a Turing-complete workflow DSL or a second orchestrator:
+start with small composable lifecycle primitives and introduce generalization only after
+real portability evidence.
 
 ## Lessons to adopt selectively
 
