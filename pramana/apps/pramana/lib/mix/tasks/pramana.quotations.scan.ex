@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
   Runs the Rust scanner over the corpus and stores what it finds.
 
       mix pramana.quotations.scan --division 阿含部
-      mix pramana.quotations.scan --source cbeta --min-length 25
+      mix pramana.quotations.scan --source cbeta --witness T --min-length 25
       mix pramana.quotations.scan --dry-run
 
   Build the scanner first:
@@ -45,6 +45,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
   @switches [
     division: :string,
     source: :string,
+    witness: :string,
     min_length: :integer,
     dry_run: :boolean,
     work: :string
@@ -115,6 +116,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
         bake_id,
         %{
           "source" => opts[:source],
+          "witness" => opts[:witness],
           "division" => opts[:division],
           "work" => opts[:work]
         },
@@ -140,6 +142,9 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     from(t in Text, select: %{id: t.id, work_id: t.work_id, body: t.body})
     |> then(fn q ->
       if opts[:source], do: where(q, [t], t.source_id == ^opts[:source]), else: q
+    end)
+    |> then(fn q ->
+      if opts[:witness], do: where(q, [t], t.witness_id == ^opts[:witness]), else: q
     end)
     |> then(fn q -> if opts[:work], do: where(q, [t], t.work_id == ^opts[:work]), else: q end)
     |> then(fn q ->
