@@ -102,9 +102,9 @@ A receipt is run-completion evidence, not scholarly truth and not a substitute f
 integrity. The scope artifact therefore continues to carry an explicit derivation-status
 boundary:
 
-- quotation graph completeness: `not_recorded_by_database`;
-- relation graph completeness: `not_recorded_by_database`;
-- alignment graph completeness: `not_recorded_by_database`;
+- quotation graph completeness: `requires_separate_receipt_verification`;
+- relation graph completeness: `requires_separate_receipt_verification`;
+- alignment graph completeness: `requires_separate_receipt_verification`;
 - structural validation does **not** establish live currentness; and
 - live acceptance requires **current clean derivation receipts** plus stable repeated materialization.
 
