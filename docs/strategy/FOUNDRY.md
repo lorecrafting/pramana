@@ -226,6 +226,36 @@ nothing. Jev cannot establish entitlement, spend, durable state, reviewer indepe
 safe retry of an unknown effect, acceptance or promotion. Keep a deterministic fallback
 and a replaceable provider boundary because Jev is currently early access.
 
+## Project-defined roles, surfaces and escalation
+
+The long-term product should not encode Pramāṇa's current `developer → reviewer`
+workflow as the protected ontology. The detailed direction is recorded in
+[Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md).
+
+Projects may describe versioned RoleSpecs and request scoped tool/API surfaces, context,
+evidence adapters and workflow shapes. Foundry's protected kernel admits an exact
+CapabilityGrant no broader than operator/project policy.
+
+Loka is the strongest concrete design case currently available because its authoring
+architecture deliberately separates layers:
+
+- content/world builders can be very powerful over L3–L6 through a typed Builder API;
+- those builders should have no ambient engine-source or arbitrary-shell authority;
+- missing semantics become CapabilityProposal/escalation;
+- engine-capability developers receive separate L2 source scope and stronger checks;
+- semantic reviewers remain read/simulate-only;
+- release roles operate only on exact certified artifact identities.
+
+This is more useful than adding a `mud_builder` branch inside Foundry code. The protected
+kernel should understand assignments, principals, capability grants, evidence,
+independence and acceptance; `mud_builder` is project vocabulary supplied by a
+ProjectProfile.
+
+Current runtime code is not yet role-agnostic: software-specific launch roles and
+handoff/review phases remain part of the active repair baseline. Post-repair portability
+must remove those assumptions only after the fixed workflow is proven and a materially
+different typed-content workflow demonstrates the generalization.
+
 ## First post-repair investment: useful context and honest feedback
 
 Measure where the operator loses time, then try one bounded improvement. Candidate
