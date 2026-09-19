@@ -128,6 +128,37 @@ cannot expand authority. Avoid a Turing-complete workflow DSL or a second orches
 start with small composable lifecycle primitives and introduce generalization only after
 real portability evidence.
 
+### Project-declared roles and capability surfaces
+
+The post-repair generalization should be **role-agnostic in the kernel and role-specific
+at the project boundary**. See [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md).
+
+A versioned ProjectProfile may declare RoleSpecs, tool/API surfaces, context policy,
+evidence adapters, acceptance profiles and workflow templates. Foundry admits an exact
+CapabilityGrant that is no broader than protected operator/project policy.
+
+This is stronger than merely mapping role names to model profiles. The current code still
+contains software-specific assumptions—for example `LaunchEligibility` accepts only
+`developer | reviewer | pm`, the queue path launches a developer, and handoff/review
+lifecycle code is specialized around software candidates. Those assumptions are acceptable
+inside the active repair workflow; they are **not** the target protected ontology.
+
+Loka supplies a concrete portability test:
+
+- a MUD/world builder can operate only through Loka's typed Builder API over L3–L6
+  authoring surfaces;
+- the builder can have enormous semantic authoring power without shell or engine-source
+  write access;
+- a missing semantic primitive produces a capability proposal/escalation;
+- a separately admitted engine-capability developer may work at L2 under stronger
+  isolation/checks;
+- a semantic reviewer may inspect/simulate the exact content candidate without mutation;
+- a release role may stage only an exact certified artifact.
+
+Changing the model, role label or session does not create reviewer independence or enlarge
+authority. Escalation creates a new protected decision/assignment; the originating role
+cannot amend its own grant.
+
 ## Compose before build: own contracts, substitute infrastructure
 
 Foundry is not valuable because it owns an agent loop, container runner, durable workflow
