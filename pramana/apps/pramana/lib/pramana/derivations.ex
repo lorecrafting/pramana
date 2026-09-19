@@ -502,6 +502,8 @@ defmodule Pramana.Derivations do
 
   defp stringify_value(value) when is_map(value), do: stringify_keys(value)
   defp stringify_value(value) when is_list(value), do: Enum.map(value, &stringify_value/1)
-  defp stringify_value(value) when is_atom(value) and value not in [true, false, nil], do: Atom.to_string(value)
+  defp stringify_value(value) when is_atom(value) and value not in [true, false, nil],
+    do: Atom.to_string(value)
+
   defp stringify_value(value), do: value
 end

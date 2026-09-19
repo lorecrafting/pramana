@@ -73,6 +73,7 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
       |> Enum.reduce({[], nil}, fn {_, root, source} = pair, {acc, cached} ->
         unit = unit_for(source)
         held = prepared_for(root, cached, unit)
+
         result =
           align_pair(
             pair,
@@ -82,6 +83,7 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
             unit,
             opts[:min_density]
           )
+
         report(result)
         {[result | acc], held}
       end)
