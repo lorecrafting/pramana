@@ -38,11 +38,14 @@ Do not compare a typo fix and an architecture change as equivalent units.
 
 Track autonomous eligible-task completion, correction/reopen rate, rollback and
 escaped defects, time to evidence-backed acceptance, restart/recovery outcomes,
-false completion/no-op reporting, and resource spend. An idle queue can be healthy;
-it contributes neither a fabricated success nor an automatic operational failure.
-No denominator or no qualifying observations means **insufficient evidence**, not
-infinite efficiency. The old “45 minutes of review means zero efficiency” example
-was not a valid consequence of its formula.
+false completion/no-op reporting, and resource spend. For task classes where a
+practical off-the-shelf software factory or workflow system exists, include that
+alternative (or the operator's current manual/agent workflow) as a declared baseline;
+custom Foundry infrastructure has not demonstrated value merely by completing the task.
+An idle queue can be healthy; it contributes neither a fabricated success nor an
+automatic operational failure. No denominator or no qualifying observations means
+**insufficient evidence**, not infinite efficiency. The old “45 minutes of review means
+zero efficiency” example was not a valid consequence of its formula.
 
 Cost reporting separates cash spend, subscription capacity consumed or held,
 infrastructure/storage and human effort. Subscriptions and local infrastructure are
