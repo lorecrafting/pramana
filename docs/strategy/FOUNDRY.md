@@ -141,6 +141,28 @@ heuristics; infrastructure maturity should delete infrastructure code. What shou
 stable is the contract that distinguishes a proposal from authority, activity from
 evidence and completion claims from accepted outcomes.
 
+## Current host path and why execution isolation matters
+
+Today the production automatic agent route is fail-closed before launch because the
+installed Herdr/OMP path has not proved subscription/billing isolation. The code path
+that would run after that gate is host-based: Herdr opens a terminal pane at the
+assignment checkout and starts OMP there, while the Elixir adapter invokes Herdr as a
+host OS child. Foundry tracks exact pane/process/process-group identity for ownership and
+cleanup, but that is not container or credential isolation.
+
+A worktree keeps concurrent Git changes separate; a pane keeps sessions distinguishable;
+a process group makes descendant cleanup safer. None limits a shell-capable worker to the
+checkout, removes the host principal's readable files, or disables arbitrary network
+egress. Restoring automatic execution therefore requires the FR-09/15a security boundary,
+not simply flipping the existing launch capability on.
+
+Dagger is conceptually above Docker rather than a Docker replacement. Docker/Podman/etc.
+supply OCI container execution; Dagger can programmatically compose those containers,
+inputs, services, commands, caches and artifacts. Foundry may use Dagger to reduce
+execution plumbing, or use a direct container/micro-VM adapter if that is smaller and
+easier to verify. In either case, the same credential, network, filesystem, resource,
+cleanup and useful-completion conformance tests apply.
+
 ## Elixir control plane; OS/sandbox security plane
 
 Retain Elixir/OTP for long-lived coordination, supervision, workflow state/replay,
