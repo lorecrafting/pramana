@@ -13,6 +13,19 @@ defmodule Strategy.PilotScopeArtifactTest do
     assert encoded == ScopeArtifact.encode(ScopeArtifact.decode!(encoded))
   end
 
+  test "v1 artifacts are not silently reinterpreted as the v2 contract" do
+    artifact =
+      valid_artifact()
+      |> Map.put("schema", "pramana-pilot-scope/v1")
+      |> Map.delete("scope_content_sha256")
+
+    artifact =
+      Map.put(artifact, "scope_content_sha256", ScopeArtifact.digest(artifact))
+
+    assert {:error, errors} = ScopeArtifact.validate(artifact)
+    assert "schema must be pramana-pilot-scope/v2" in errors
+  end
+
   test "content hash detects semantic drift" do
     artifact = valid_artifact()
     changed = put_in(artifact, ["selection", "max_relation_depth"], 3)
