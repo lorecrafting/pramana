@@ -380,7 +380,56 @@ An escalation can therefore:
 
 It cannot amend its own CapabilityGrant.
 
-## 8. WorkflowPlan should be declarative and small
+## 8. Assignment results are typed, not role-name callbacks
+
+Long-term protected workflow state should not need branches such as:
+
+~~~text
+if role == developer -> receive_handoff
+if role == reviewer  -> receive_review
+~~~
+
+A generic **AssignmentResult** envelope can carry a schema-declared result kind such as:
+
+- candidate artifact/proposal;
+- finding/review set;
+- evidence/check result;
+- planning/decomposition proposal;
+- escalation request;
+- operator-decision request;
+- no-change/blocked/unsupported result.
+
+Conceptually:
+
+~~~text
+AssignmentResult
+  assignment_id
+  principal_id
+  role_spec_revision
+  workflow_revision
+  result_kind
+  subject/candidate identity
+  payload/artifact reference + digest
+  evidence references
+  outcome classification
+~~~
+
+The admitted WorkflowPlan declares which result kinds are valid at each node and what
+protected transition may consume them.
+
+A result never changes durable workflow state merely because its role/model says
+"approved", "done", or "publish". The protected reducer verifies schema, identity,
+candidate/evidence binding, capability/policy revision and transition predicate first.
+
+Review independence is similarly a predicate over principal/authority/candidate lineage,
+not an implication of `result_kind = review`.
+
+The current `handoff` and `review` commands may remain adapters for the proven
+software workflow. Post-repair generalization should translate them into the generic
+assignment/result model rather than preserve developer/reviewer callbacks as the kernel
+ontology.
+
+## 9. WorkflowPlan should be declarative and small
 
 Models may propose workflow topology, but the durable admitted plan should use a small
 composable vocabulary rather than arbitrary orchestration code.
@@ -420,7 +469,7 @@ missing_loka_capability:
 The protected kernel admits/pins the actual WorkflowPlan and may inject mandatory gates.
 The planner cannot remove a required reviewer, certification profile or operator decision.
 
-## 9. Context is part of the role contract
+## 10. Context is part of the role contract
 
 A role should receive the **minimum sufficient authoritative context**, not a giant
 repository dump and not a context window chosen only for token savings.
@@ -458,7 +507,7 @@ Normally omit engine source.
 A model/assessor may help rank optional context. Mandatory policy/spec/evidence context is
 selected outside that model and cannot be dropped by it.
 
-## 10. Evidence and acceptance are project-configurable, authority is not
+## 11. Evidence and acceptance are project-configurable, authority is not
 
 Different workflows need different evidence:
 
@@ -507,7 +556,7 @@ Project-defined evidence adapters/check specifications are also authority-sensit
 This prevents a candidate from "fixing the test" by replacing the checker with one that
 always passes.
 
-## 11. Jev and other semantic decision models
+## 12. Jev and other semantic decision models
 
 A fast typed decision model such as Jev may be useful for:
 
@@ -531,7 +580,7 @@ It should not decide:
 The model outputs probabilistic advisory evidence. Protected code applies thresholds and
 fallback/escalation policy.
 
-## 12. Required portability proof
+## 13. Required portability proof
 
 Do not generalize the live implementation from this document before the current repair
 workflow is accepted.
