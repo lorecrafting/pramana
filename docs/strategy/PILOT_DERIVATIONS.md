@@ -72,7 +72,7 @@ shape:
 - quotation scan: exact CBETA Taishō scope (`--source cbeta --witness T`) at a 20-character minimum;
 - title relations: full scope at the default three-character title floor;
 - shared-text relations: full write scope at the default one-passage floor;
-- commentary alignment: all eligible pairs at the current default windows/density floors.
+- commentary alignment: all eligible pairs at the current Chinese and Tibetan window, density and forward-order defaults.
 
 Old implementation versions, changed inputs, changed outputs, output-count mismatches,
 partial runs and narrower scopes are refused. A passing result is derivation-completion
