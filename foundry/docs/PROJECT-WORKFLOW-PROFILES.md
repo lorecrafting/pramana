@@ -59,8 +59,12 @@ RoleSpec
   evidence obligations
   handoff/result schema
   escalation targets
-  independence class
+  independence requirements
 ```
+
+A RoleSpec may request an independence requirement; it cannot assert that the requirement
+has been satisfied. Protected policy evaluates durable principal/authority/candidate
+lineage (and any additional configured separation requirements).
 
 Two assignments with different labels but the same principal/candidate lineage are not
 automatically independent. Conversely, the same underlying model may be usable in
@@ -140,6 +144,7 @@ provider.model_request(profile = ...)
 A capability grant should bind, where relevant:
 
 - project/workflow/assignment/principal;
+- exact workspace/resource namespace;
 - exact ProjectProfile, RoleSpec, WorkflowPlan and protected-policy revision/digest;
 - operation family;
 - read/write classification;
