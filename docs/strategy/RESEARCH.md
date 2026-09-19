@@ -1,7 +1,7 @@
 # Research register and dependency policy
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Original-section map](RECONCILIATION.md)
-**Checked:** 2026-09-17. This register distinguishes source evidence from our
+**Checked:** 2026-09-18. This register distinguishes source evidence from our
 recommendations. A retrieved article or README is not local conformance, a licence
 review, a partnership or a benchmark reproduction. Recheck moving upstream sources
 at evaluation/adoption; pin actual package/model/data revisions in that work.
@@ -19,6 +19,12 @@ at evaluation/adoption; pin actual package/model/data revisions in that work.
 | E11 | [Agentic Cloud Engineering](https://arxiv.org/abs/2609.00050), research abstract checked | Graph progression, bounded recovery and constrained execution are complementary concerns, not three new Foundry services |
 | E12 | [Agentic coding configuration dataset](https://arxiv.org/abs/2605.08435), research abstract checked | Configuration artifacts can be studied systematically. Its engineered-repository count describes sampling, not the prevalence of infinite loops or the specific xpk incident |
 | E13 | [Superlogical's public plan](https://www.superlogical.com/) and [founder's announcement](https://mitchellh.com/writing/superlogical), checked | Durable, human/software-accessible sessions are relevant to future presentation. No installed adapter, stable API, Herdr parity or production acceptance is established by those pages |
+| E22 | [Warp documentation](https://docs.warp.dev/), checked 2026-09-18 | Warp Factories is currently Early Access and describes repeatable software workflows where cloud agents triage, spec, implement, review and verify, with humans at key decisions and multi-model support. It is a serious software-factory benchmark; its public positioning does not establish Foundry's generalized authority/evidence semantics or non-software workflow fit |
+| E23 | [TypeSafe System One design guide](https://docs.typesafe.ai/concepts/how-to-build-with-system-one), [confidence guide](https://docs.typesafe.ai/confidence) and [Jev launch note](https://typesafe.ai/blog/introducing-system-one-models-and-jev), checked 2026-09-18 | TypeSafe explicitly keeps control flow/deterministic rules/side effects in code and uses narrow typed probabilistic decisions with confidence routing. Jev is early access and provider performance/cost claims require independent evaluation. This supports a replaceable advisory/reflex layer, not Foundry authority |
+| E24 | [Dagger Elixir SDK](https://docs.dagger.io/reference/sdks/elixir/) and [SDK overview](https://docs.dagger.io/reference/sdks/), checked 2026-09-18 | Dagger exposes typed containers/directories/files/secrets and content-addressed execution, with an Elixir SDK. The Elixir SDK is currently beta and documents feature limitations. It is a candidate execution abstraction, not proof of Foundry's credential, network or cleanup isolation |
+| E25 | [Open Policy Agent](https://www.openpolicyagent.org/docs) and [Cedar](https://docs.cedarpolicy.com/), checked 2026-09-18 | Mature policy-as-code/authorization engines can externalize bounded policy decisions; Cedar explicitly models principal/action/resource/context and OPA accepts structured policy input. Neither by itself supplies Foundry's durable reservation/effect ledger, exact evidence binding, replay or reconciliation |
+| E26 | [Restate](https://restate.dev/), [Temporal](https://docs.temporal.io/), [DBOS workflows](https://docs.dbos.dev/python/tutorials/workflow-tutorial) and [LangGraph](https://www.langchain.com/langgraph), checked 2026-09-18 | Durable execution, persistence, human-in-the-loop and custom workflow infrastructure are mature/rapidly improving external capabilities. Benchmark before extending Foundry's runtime; do not assume feature overlap equals authority-contract equivalence |
+| E27 | Linux [namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html), [cgroups](https://man7.org/linux/man-pages/man7/cgroups.7.html), [seccomp](https://man7.org/linux/man-pages/man2/seccomp.2.html) and [Landlock](https://cdn.kernel.org/doc/html/latest/userspace-api/landlock.html), checked 2026-09-18 | Hard process/resource/filesystem/network restrictions belong in OS/sandbox enforcement rather than BEAM process semantics. These mechanisms are complementary; Linux's own Landlock documentation warns that namespaces alone are not fine-grained access control. Use tested compositions instead of inventing a kernel-security layer in Elixir |
 
 ## Buddhist sources and stakeholders
 
@@ -69,6 +75,12 @@ operating requirements. Foundry's standalone boundary remains a hard constraint.
 | Mem0-like retrieval or graph ranking | Relevant held-out recall benefit, provenance and privacy/scope tests; deploy only in the appropriate independent system | Copying one SQL weighting formula reproduces a commercial memory service |
 | MITRA-E, OCR and other upstream corpus artifacts | Actual artifact availability, terms, source fidelity, alignment, local retrieval evaluation and bounded spend | A research score or initiative announcement justifies a full production bake |
 | Superlogical | I-F4's installed backend conformance and reversible cutover | A terminal pane proves workflow completion or session persistence proves execution isolation |
+| Warp Factories or comparable software factories | Compare on the same accepted software tasks, authority/evidence fit, operator effort, portability and reversibility | Foundry must own software orchestration because it was built first |
+| Jev/System One or comparable typed decision models | Held-out calibration/utility, confidence thresholds, privacy/cost/latency and deterministic fallback | A fast semantic score can grant authority, prove completion or replace receipts |
+| Dagger or comparable execution abstractions | Credential/egress/filesystem/process isolation, cleanup, positive task completion, local operating cost and Elixir integration maturity | Containerization alone satisfies the protected harness/tool split |
+| OPA/Cedar or comparable policy engines | Exact policy slice, fail-closed behavior, versioning, explainability and integration burden | Policy evaluation replaces durable budgets, effect claims or acceptance state |
+| Restate/Temporal/DBOS/LangGraph or comparable runtimes | Matched crash/restart/idempotency/unknown-outcome cases and lower total maintenance burden | Durable workflow features automatically preserve Foundry's domain semantics |
+| Linux/container/micro-VM security primitives | Threat-model-specific enforcement tests, synthetic credential denial, resource bounds and cleanup | BEAM process isolation is a security sandbox, or any single Linux primitive is sufficient alone |
 
 A candidate graduates from **idea → bounded experiment → reviewed decision →
 pinned implementation → acceptance evidence**. Failed or inconclusive results stay
