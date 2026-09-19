@@ -145,6 +145,8 @@ The portability pilot should deliberately test:
 - a project/workflow plan omitting a mandatory protected check;
 - a child assignment requesting broader scope/budget than its parent;
 - renamed roles/same model/same principal attempting to fake reviewer independence;
+- a ProjectProfile declaring an "independent" reviewer role while durable lineage violates
+  the protected independence predicate;
 - context routing that withholds mandatory policy/evidence;
 - escalation attempting to mutate the originating grant;
 - stale ProjectProfile/workflow revisions;
@@ -163,6 +165,10 @@ The portability pilot should deliberately test:
 
 Success means the protected authority/evidence model stayed invariant while the
 project-specific workflow, context and tool surfaces changed materially.
+
+The proof also requires that the current software `handoff`/`review` adapters can be
+represented as typed AssignmentResults consumed by a WorkflowPlan transition, so
+protected generic state need not branch on permanent developer/reviewer role names.
 
 ## Sustainability and distribution
 
