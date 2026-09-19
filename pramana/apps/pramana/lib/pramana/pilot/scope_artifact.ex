@@ -9,7 +9,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   that boundary.
   """
 
-  @schema "pramana-pilot-scope/v1"
+  @schema "pramana-pilot-scope/v2"
   @pilot_id "chinese-commentary-v1"
   @agama_ids ~w(T0001 T0026 T0099 T0125)
   @relations ~w(comments_on subcommentary_of)
