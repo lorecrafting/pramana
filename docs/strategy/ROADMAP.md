@@ -170,13 +170,16 @@ false-positive and maintenance cost, full diffs, failure/no-op cases and rollbac
 **Dependencies:** G0 plus a measured bottleneck. **Excludes:** bulk adoption of AST,
 lint, replay, gateway and orchestration packages as one “ecosystem upgrade.”
 
-### I-F3 — second-repository portability
+### I-F3 — project and workflow portability
 
-**Outcome:** Foundry works on another approved project without Pramāṇa dependencies.
-**Evidence:** separate setup/commands, accepted changes, recovery, operator effort,
-support burden and owner feedback. **Dependencies:** G0, a bounded allocation and
-separate project-scope authorization under the governing contract.
-**Excludes:** multi-tenancy, broader privileges or assumed demand from one successful demo.
+**Outcome:** Foundry works on another approved project without Pramāṇa dependencies,
+then demonstrates that project/workflow roles and tool/evidence surfaces are not baked
+into the protected kernel. **Evidence:** separate setup/commands, accepted software
+changes, recovery, operator effort and support burden; a later separately authorized
+materially different workflow is a stronger portability proof than another code task.
+**Dependencies:** G0, a bounded allocation and separate project/workflow authorization
+under the governing contract. **Excludes:** multi-tenancy, self-granted capabilities,
+a general workflow platform before evidence, or assumed demand from one successful demo.
 
 ### I-F4 — future session-backend conformance
 
