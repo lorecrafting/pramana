@@ -448,6 +448,10 @@ accepted. Start with a shallow structure: planner, bounded developers, independe
 reviewers and optional diagnostic help. Do not build layers of agent managers before
 an observed coordination limit justifies them.
 
+For the **first software-engineering lifecycle**, keep the operating structure shallow:
+planner, bounded developers, independent reviewers and optional diagnostic help. This is
+a proving workflow, not the permanent protected role taxonomy.
+
 FirstMate's [current-state reader][fm-state] distinguishes append-only status events
 from attributable current execution evidence. Apply that distinction in Foundry's
 canonical projections: execution liveness, meaningful progress, workflow wait reason
