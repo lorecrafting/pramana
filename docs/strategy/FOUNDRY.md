@@ -327,8 +327,9 @@ Do not freeze model brand names or price tiers into strategy. Evaluate permitted
 profiles by task success, review effort, latency and total cost. Reviewer capability
 must fit the risk; a cheaper model is not automatically an adequate grader. A new
 API gateway is an optional dependency, not a reason to route around the selected harness,
-protected request path or billing isolation. Pramāṇa's user-facing model service needs its own approved policy; builder
-subscription permission does not authorize serving public product queries.
+protected request path or billing isolation. Pramāṇa's user-facing model service needs its
+own approved policy; builder subscription permission does not authorize serving public
+product queries.
 
 Use the accepted budget ledger across retries, child work, handoffs, restarts and
 switches. Preserve unknown outcomes for reconciliation; a context reset or profile
