@@ -110,8 +110,11 @@ A ProjectProfile may define:
 - context-routing rules;
 - escalation classes.
 
-It is itself versioned, reviewed policy input. A candidate-controlled checkout cannot
-silently rewrite the active ProjectProfile governing its own assignment.
+It is itself versioned, reviewed policy input. The active ProjectProfile/policy revision
+must be controller/protected-policy-custodied (or equivalently authenticated) and pinned
+into admitted assignment identity. A candidate-controlled checkout may contain a proposed
+profile change, but cannot silently rewrite the active ProjectProfile governing its own
+assignment.
 
 ## 4. Capability grants, not ambient toolboxes
 
@@ -209,6 +212,44 @@ Therefore:
 The protected verifier's existing **role/profile/operation/scope** check is the substrate
 to generalize; ProjectProfile/RoleSpec should compile into requests checked by that
 authority rather than create a second authorization system.
+
+### Gateway scope comes from the admitted assignment, not caller claims
+
+A typed project API must not trust a caller-supplied role name, path prefix, project ID,
+or "requested scope" as authorization.
+
+The gateway derives the maximum permitted operation/resource scope from the authenticated
+assignment/principal and pinned CapabilityGrant, then validates the concrete request
+inside that scope.
+
+This prevents confused-deputy shapes such as:
+
+- builder calls a generic `content.write` operation while naming an engine path;
+- child/subagent reuses a parent API credential but supplies a broader role string;
+- an engine-capable service is asked to operate on another project/workspace ID;
+- caller chooses a stale/broader ProjectProfile revision in the request.
+
+Where practical, model-controlled workers should receive mediated handles rather than
+reusable bearer credentials for broad project APIs.
+
+### Grant revision, revocation and policy change
+
+A later ProjectProfile or operator-policy revision does not silently enlarge an already
+admitted assignment.
+
+Rules:
+
+- broadening policy requires a new admission/grant before the assignment can use the new
+  authority;
+- narrowing/revocation uses a protected generation/revocation mechanism checked at the
+  effect gateway;
+- already-issued external effects/holds are reconciled under the governing workflow
+  contract rather than forgotten;
+- stale grants fail closed for new effects once revoked;
+- replay/audit retains the policy/grant revision that governed each acknowledged action.
+
+A project cannot "update its profile" in candidate content and thereby upgrade a running
+agent.
 
 ### Deny by capability, not by omission
 
