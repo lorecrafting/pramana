@@ -205,7 +205,7 @@ defmodule Pramana.QuotationsTest do
         "quotations_scan",
         "bake-a",
         %{"source" => "cbeta", "witness" => "T", "division" => nil, "work" => nil},
-        %{"min_length" => 20}
+        %{"min_length" => String.length(@shared)}
       )
 
     {digest, count} = Derivations.current_output_snapshot(token)
