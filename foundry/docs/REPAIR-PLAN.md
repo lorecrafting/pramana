@@ -40,8 +40,10 @@ explicit file/interface ownership; this plan does not itself launch agents.
 - Automatic execution uses explicitly permitted subscription profiles only.
   OpenRouter/DeepSeek paid use remains manual. No eligible profile means affected
   work waits with a reason, rather than consuming another billing channel.
-- OMP remains the harness and Herdr the initial presentation backend. A pane is
-  optional presentation; its lifetime cannot establish workflow success or failure.
+- The current governing repair contract retains OMP as the harness and Herdr as the
+  initial presentation backend until explicit revision and renewed review. Pi is the
+  preferred first replacement evaluation, not a silent substitution. A pane is optional
+  presentation; its lifetime cannot establish workflow success or failure.
 - Ticket, attempt, execution/session, pane, artifact, review, integration and
   deployment identities have separate lifetimes and explicit relationships.
 - Acknowledged decisions survive restart. Uncertain external outcomes reconcile
