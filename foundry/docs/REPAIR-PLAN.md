@@ -804,6 +804,14 @@ consume existing allocation, independently review and autonomously activate via 
 no root privilege shortcut or operator-only kernel exclusion. Proposal plumbing may be
 implemented before FR-17, but kernel repair activation is not complete until FR-17 passes.
 
+**2026-09-19 efficiency refinement:** After FR-18 provides trustworthy usage and outcome
+correlation, improvement proposals may compare context, model/reasoning and tool policies
+on comparable task classes. They must include failed/retried/corrected work, review
+quality and operator effort rather than optimize raw token count or provider cost alone.
+Unknown usage yields insufficient evidence, not a zero-cost win. Every optimization still
+needs a baseline, fixed acceptance gates, bounded experiment and ordinary admission/review/
+activation; telemetry cannot weaken authority or auto-promote its own recommendation.
+
 **Excludes:** Open-ended recurring PM calls or self-generating management hierarchies.
 
 ### FR-21 — Establish independent Foundry CI and build provenance
