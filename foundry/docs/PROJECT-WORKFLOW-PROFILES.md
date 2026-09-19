@@ -137,6 +137,7 @@ provider.model_request(profile = ...)
 A capability grant should bind, where relevant:
 
 - project/workflow/assignment/principal;
+- exact ProjectProfile, RoleSpec, WorkflowPlan and protected-policy revision/digest;
 - operation family;
 - read/write classification;
 - object/path/content-kind scope;
@@ -331,7 +332,7 @@ The original builder assignment remains bounded.
 An escalation can therefore:
 
 - propose a new task;
-- request a new role assignment;
+- request a new separately admitted role assignment;
 - request operator decision;
 - request additional context;
 - request a narrower approved capability.
