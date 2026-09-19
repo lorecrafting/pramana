@@ -155,6 +155,9 @@ The portability pilot should deliberately test:
 - a protected revocation/narrowing while an assignment is active: new effects fail
   closed while issued effects reconcile correctly;
 - a subagent/tool attempting to reuse or exfiltrate a broader parent/API credential;
+- a candidate that modifies its own mandatory check/evidence-adapter definition to always
+  return pass; governing policy/check revision must remain pinned and the attempted change
+  must not certify itself;
 - crash/restart/replay across handoff and escalation;
 - useful positive completion in both workloads.
 
