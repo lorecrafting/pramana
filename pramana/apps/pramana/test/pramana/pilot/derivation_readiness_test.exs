@@ -28,7 +28,7 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
   test "accepts all four current full/default receipts and detects later output drift" do
     record_clean!(
       "quotations_scan",
-      %{"source" => nil, "division" => nil, "work" => nil},
+      %{"source" => "cbeta", "witness" => "T", "division" => nil, "work" => nil},
       %{"min_length" => 20}
     )
 
@@ -62,6 +62,18 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
     stale = DerivationReadiness.check(@bake_id)
     refute stale.ready
     assert stale.derivations["relations_title"].state == "stale_output"
+  end
+
+
+  test "rejects a corpus-wide quotation receipt for the CBETA/T pilot" do
+    receipt =
+      record_clean!(
+        "quotations_scan",
+        %{"source" => nil, "witness" => nil, "division" => nil, "work" => nil},
+        %{"min_length" => 20}
+      )
+
+    refute DerivationReadiness.quotation_scope?(receipt)
   end
 
   defp record_clean!(kind, scope, parameters) do
