@@ -60,7 +60,7 @@ evidence.
 
 The quotation/relation/alignment producers now record append-only completion receipts as
 specified in [PILOT_DERIVATIONS](PILOT_DERIVATIONS.md). The pilot verifier requires clean,
-current full/default receipts for all four required derivations; scoped, dry-run,
+current receipts for the pilot-required scope and parameters for all four derivations; scoped, dry-run,
 report-only, partial, old-implementation, input-stale, output-stale or output-count-mismatched
 receipts do not pass.
 A quiesced stable-state check (two identical consecutive scope materializations, or
