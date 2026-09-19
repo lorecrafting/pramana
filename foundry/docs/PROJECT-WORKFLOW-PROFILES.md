@@ -392,6 +392,12 @@ Foundry
 
 The original builder assignment remains bounded.
 
+If resolving the escalation requires authority broader than the builder's grant, the new
+work is **not** admitted as a child that expands the builder's ceiling. It is a separate
+protected sibling/root assignment admitted from operator/project policy with its own
+principal, budget, scope, WorkflowPlan and CapabilityGrant. The originating builder grant
+does not change.
+
 An escalation can therefore:
 
 - propose a new task;
@@ -427,11 +433,14 @@ Conceptually:
 AssignmentResult
   assignment_id
   principal_id
-  role_spec_revision
-  workflow_revision
+  project_profile_revision/digest
+  role_spec_revision/digest
+  workflow_revision/digest
+  protected_policy_revision
+  capability_grant_id/generation
   result_kind
   subject/candidate identity
-  payload/artifact reference + digest
+  controller-custodied/imported payload/artifact reference + digest
   evidence references
   outcome classification
 ~~~
@@ -442,6 +451,10 @@ protected transition may consume them.
 A result never changes durable workflow state merely because its role/model says
 "approved", "done", or "publish". The protected reducer verifies schema, identity,
 candidate/evidence binding, capability/policy revision and transition predicate first.
+
+Result artifact references are not trusted host paths supplied by the agent. Protected
+workflow imports/freezes/verifies the exact artifact/evidence into controller custody (or
+an equivalently authenticated immutable store) before a transition relies on it.
 
 Review independence is similarly a predicate over principal/authority/candidate lineage,
 not an implication of `result_kind = review`.
