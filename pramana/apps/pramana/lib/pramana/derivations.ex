@@ -221,8 +221,7 @@ defmodule Pramana.Derivations do
   @doc false
   def current_output_snapshot("quotations_scan", bake_id, scope, parameters) do
     min_length = integer_parameter(parameters, "min_length", 20)
-    rows = quotation_output_rows(bake_id, scope, min_length)
-    {digest(rows), length(rows)}
+    quotation_output_snapshot(bake_id, scope, min_length)
   end
 
   def current_output_snapshot("relations_title", _bake_id, _scope, _parameters) do
@@ -377,39 +376,66 @@ defmodule Pramana.Derivations do
     })
   end
 
-  defp quotation_output_rows(nil, _scope, _min_length), do: []
+  defp quotation_output_snapshot(nil, _scope, _min_length),
+    do: digest_ordered_query(from(q in Quotation, where: false, select: q.id))
 
-  defp quotation_output_rows(bake_id, scope, min_length) do
+  defp quotation_output_snapshot(bake_id, scope, min_length) do
     ids =
       scope
       |> quotation_text_facts()
       |> Enum.map(& &1.id)
 
-    if ids == [] do
-      []
-    else
-      Repo.all(
-        from q in Quotation,
-          where:
-            q.bake_id == ^bake_id and q.length >= ^min_length and
-              q.a_text_id in ^ids and q.b_text_id in ^ids,
-          order_by: [asc: q.a_text_id, asc: q.a_char_start, asc: q.b_text_id, asc: q.b_char_start],
-          select: %{
-            text_sha256: q.text_sha256,
-            length: q.length,
-            a_text_id: q.a_text_id,
-            a_work_id: q.a_work_id,
-            a_urn: q.a_urn,
-            a_char_start: q.a_char_start,
-            a_char_end: q.a_char_end,
-            b_text_id: q.b_text_id,
-            b_work_id: q.b_work_id,
-            b_urn: q.b_urn,
-            b_char_start: q.b_char_start,
-            b_char_end: q.b_char_end
-          }
+    query =
+      from q in Quotation,
+        where:
+          q.bake_id == ^bake_id and q.length >= ^min_length and
+            q.a_text_id in ^ids and q.b_text_id in ^ids,
+        order_by: [asc: q.a_text_id, asc: q.a_char_start, asc: q.b_text_id, asc: q.b_char_start],
+        select: %{
+          text_sha256: q.text_sha256,
+          length: q.length,
+          a_text_id: q.a_text_id,
+          a_work_id: q.a_work_id,
+          a_urn: q.a_urn,
+          a_char_start: q.a_char_start,
+          a_char_end: q.a_char_end,
+          b_text_id: q.b_text_id,
+          b_work_id: q.b_work_id,
+          b_urn: q.b_urn,
+          b_char_start: q.b_char_start,
+          b_char_end: q.b_char_end
+        }
+
+    digest_ordered_query(query)
+  end
+
+  # The full quotation graph is large enough that materializing every row in the BEAM just
+  # to hash it defeats the verifier. Stream in stable query order and frame each
+  # deterministic term before updating one SHA-256 state, keeping memory bounded.
+  defp digest_ordered_query(query) do
+    {:ok, result} =
+      Repo.transaction(
+        fn ->
+          initial =
+            :sha256
+            |> :crypto.hash_init()
+            |> :crypto.hash_update("pramana-derivation-row-stream/v1")
+
+          query
+          |> Repo.stream(max_rows: 2_000)
+          |> Enum.reduce({initial, 0}, fn row, {hash, count} ->
+            bytes = :erlang.term_to_binary(row, [:deterministic])
+            frame = [<<byte_size(bytes)::unsigned-big-integer-size(64)>>, bytes]
+            {:crypto.hash_update(hash, frame), count + 1}
+          end)
+          |> then(fn {hash, count} ->
+            {hash |> :crypto.hash_final() |> Base.encode16(case: :lower), count}
+          end)
+        end,
+        timeout: :infinity
       )
-    end
+
+    result
   end
 
   defp relation_output_rows(method) do
