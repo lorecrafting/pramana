@@ -142,6 +142,8 @@ The portability pilot should deliberately test:
 - a source developer trying to call a protected publication surface;
 - a role attempting an ungranted API operation through both the normal tool and an
   alternate reachable tool/path;
+- a ProjectProfile attempting to register arbitrary controller-side executable code as a
+  new "tool adapter"; protected runtime must refuse absent a separately reviewed adapter;
 - a project/workflow plan omitting a mandatory protected check;
 - a child assignment requesting broader scope/budget than its parent;
 - renamed roles/same model/same principal attempting to fake reviewer independence;
