@@ -111,6 +111,69 @@ quest author in another because authority follows the assignment, not the model 
 Released game/runtime artifacts should remain independently useful without Foundry or an
 LLM. This is a future portability target, not part of the current Pramāṇa repair scope.
 
+## Positioning: own the contract, not commodity infrastructure
+
+Foundry must earn its custom infrastructure. Its durable product boundary is the
+authority/evidence contract around model-directed work: admitted intent and capability,
+durable identities and budgets, exact external-effect accounting, exact artifact/evidence
+binding, independence constraints, acceptance, reconciliation and controlled promotion.
+Agent loops, software-factory UIs, workflow runtimes, sandboxes, policy languages and
+model routers are implementation choices unless the governing contract proves otherwise.
+
+Before post-repair work adds or substantially extends one of those implementation layers,
+run a bounded substitution evaluation against the strongest available alternative.
+Current candidate classes include Warp Factories for software-factory orchestration,
+LangGraph for agent/workflow runtime, Restate/Temporal/DBOS for durable execution,
+Dagger plus OS/container/micro-VM primitives for execution isolation, and OPA/Cedar for
+bounded authorization-policy evaluation. These names are candidates, not dependencies.
+
+A substitution evaluation compares the actual Foundry cases—not feature lists—including
+lost acknowledgments, duplicate delivery, unknown side-effect outcomes, durable budgets,
+credential separation, exact candidate/receipt binding, independent review, mandatory
+gates, cancellation, restart/replay, positive useful completion, local operating burden,
+privacy/licensing and reversible migration. Adopt a candidate only where it lowers total
+burden without weakening those properties. If it fully satisfies a layer, remove or avoid
+duplicative Foundry code. If a future product satisfies the entire useful contract, using
+it instead of Foundry is a valid success outcome.
+
+This is also the future-proofing rule: model capability growth should delete planning
+heuristics; infrastructure maturity should delete infrastructure code. What should remain
+stable is the contract that distinguishes a proposal from authority, activity from
+evidence and completion claims from accepted outcomes.
+
+## Elixir control plane; OS/sandbox security plane
+
+Retain Elixir/OTP for long-lived coordination, supervision, workflow state/replay,
+assignment lifecycle and recovery. Do not use BEAM process separation as the security
+boundary for arbitrary agent-controlled tools.
+
+Hard process/filesystem/network/resource boundaries belong to the host or a proven
+execution backend. On Linux, evaluate native primitives such as namespaces, cgroups,
+seccomp and Landlock, normally through a container/sandbox/micro-VM layer rather than a
+new Foundry reimplementation. Non-Linux hosts need equivalently tested mechanisms.
+Dagger is worth a bounded evaluation because it exposes typed execution objects and an
+Elixir SDK, but its current Elixir SDK is beta and Dagger must still prove Foundry's
+credential, egress and cleanup requirements before adoption.
+
+The execution backend therefore remains replaceable beneath the Elixir authority/control
+plane. Foundry should specify *what must be isolated and evidenced*, not own every kernel
+mechanism used to achieve it.
+
+## Jev as a fast semantic layer, not authority
+
+The current Stage-A assessor already captures the appropriate Jev boundary. TypeSafe's
+System One guidance keeps deterministic control flow and side effects in code while
+models answer narrow typed questions with probabilities/confidence. If held-out
+evaluation supports it, Jev can become a cheap reflex layer for context ranking,
+diagnostic triage, progress/stuck signals, duplicate findings, risk classification and
+execution-profile recommendations.
+
+Those signals remain advisory. Deterministic policy decides whether a confidence range
+may trigger a low-risk automatic path, require stronger-model/human verification, or do
+nothing. Jev cannot establish entitlement, spend, durable state, reviewer independence,
+safe retry of an unknown effect, acceptance or promotion. Keep a deterministic fallback
+and a replaceable provider boundary because Jev is currently early access.
+
 ## First post-repair investment: useful context and honest feedback
 
 Measure where the operator loses time, then try one bounded improvement. Candidate
@@ -197,7 +260,8 @@ and an explicit maintenance/security cost.
 ## Portability and the Superlogical option
 
 Candidate I-F3 first proves the accepted software workflow on one operator-selected,
-non-Pramāṇa repository. Identify project-specific commands, roles and evidence adapters
+non-Pramāṇa repository and compares the result with the best practical off-the-shelf
+alternative for the same job rather than assuming custom Foundry orchestration is needed. Identify project-specific commands, roles and evidence adapters
 without generalizing the entire platform. After that baseline, a stronger portability
 proof is a separately authorized workflow with a materially different tool/evidence
 surface in the same project, such as typed content authoring rather than Git/shell.
