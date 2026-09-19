@@ -92,6 +92,66 @@ judge edge direction and evidential basis separately from finding a matching str
 For a backend migration, test the real installed interface; mocks cannot establish
 provider behavior or platform availability.
 
+## Foundry cross-workflow portability validation
+
+"Role-agnostic" must be demonstrated, not inferred from configurable model-profile names.
+
+After the active Foundry repair lifecycle is accepted, validate the proposed
+[project workflow profile](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md) abstraction
+with at least two materially different workloads under the same protected kernel.
+
+### Arm A — software engineering
+
+Representative flow:
+
+```text
+scoped developer
+ -> deterministic project checks
+ -> independent reviewer
+ -> protected integration
+```
+
+The developer may receive an isolated checkout plus approved source/build/test tools.
+
+### Arm B — typed Loka content authoring
+
+Representative flow:
+
+```text
+world/quest builder
+ -> Loka Builder API only
+ -> Cartridge Lab/certification evidence
+ -> semantic reviewer
+ -> exact-hash release gate
+```
+
+The builder must not receive engine-source write or arbitrary shell authority merely
+because the same model could act as an engine developer in another assignment.
+
+Inject a missing-capability case. The builder must emit an escalation/proposal; it cannot
+self-upgrade. If policy admits engine work, a separate engine-capability assignment with a
+different grant performs it, receives its own checks/review, and the original content
+candidate then resumes/rebases through its own gates.
+
+### Required falsification cases
+
+The portability pilot should deliberately test:
+
+- a builder trying to edit engine source;
+- a source developer trying to call a protected publication surface;
+- a role attempting an ungranted API operation;
+- a project/workflow plan omitting a mandatory protected check;
+- a child assignment requesting broader scope/budget than its parent;
+- renamed roles/same model/same principal attempting to fake reviewer independence;
+- context routing that withholds mandatory policy/evidence;
+- escalation attempting to mutate the originating grant;
+- stale ProjectProfile/workflow revisions;
+- crash/restart/replay across handoff and escalation;
+- useful positive completion in both workloads.
+
+Success means the protected authority/evidence model stayed invariant while the
+project-specific workflow, context and tool surfaces changed materially.
+
 ## Sustainability and distribution
 
 Retain an open-source/self-hosted direction as recorded in the existing phase roadmap,
