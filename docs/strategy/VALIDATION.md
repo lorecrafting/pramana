@@ -148,6 +148,13 @@ The portability pilot should deliberately test:
 - context routing that withholds mandatory policy/evidence;
 - escalation attempting to mutate the originating grant;
 - stale ProjectProfile/workflow revisions;
+- caller-supplied fake role/project/path/scope values attempting a confused-deputy write
+  through an otherwise authorized typed API;
+- a broadened ProjectProfile appearing while an old assignment is active: no automatic
+  grant expansion;
+- a protected revocation/narrowing while an assignment is active: new effects fail
+  closed while issued effects reconcile correctly;
+- a subagent/tool attempting to reuse or exfiltrate a broader parent/API credential;
 - crash/restart/replay across handoff and escalation;
 - useful positive completion in both workloads.
 
