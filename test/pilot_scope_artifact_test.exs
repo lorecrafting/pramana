@@ -13,6 +13,19 @@ defmodule Strategy.PilotScopeArtifactTest do
     assert encoded == ScopeArtifact.encode(ScopeArtifact.decode!(encoded))
   end
 
+  test "v1 artifacts are not silently reinterpreted as the v2 contract" do
+    artifact =
+      valid_artifact()
+      |> Map.put("schema", "pramana-pilot-scope/v1")
+      |> Map.delete("scope_content_sha256")
+
+    artifact =
+      Map.put(artifact, "scope_content_sha256", ScopeArtifact.digest(artifact))
+
+    assert {:error, errors} = ScopeArtifact.validate(artifact)
+    assert "schema must be pramana-pilot-scope/v2" in errors
+  end
+
   test "content hash detects semantic drift" do
     artifact = valid_artifact()
     changed = put_in(artifact, ["selection", "max_relation_depth"], 3)
@@ -245,6 +258,7 @@ defmodule Strategy.PilotScopeArtifactTest do
       },
       "selection" => %{
         "demand_seed_count" => 10,
+        "quotation_min_length" => ScopeArtifact.quotation_min_length(),
         "demand_ranking_rule" => ScopeArtifact.demand_ranking_rule(),
         "agama_work_ids" => ScopeArtifact.agama_ids(),
         "scope_source" => "cbeta.T",
@@ -280,11 +294,11 @@ defmodule Strategy.PilotScopeArtifactTest do
         "excluded_role_incoherent_relation_rows" => 0
       },
       "derivation_status" => %{
-        "quotation_graph_completeness" => "not_recorded_by_database",
-        "relation_graph_completeness" => "not_recorded_by_database",
-        "alignment_graph_completeness" => "not_recorded_by_database",
+        "quotation_graph_completeness" => "requires_separate_receipt_verification",
+        "relation_graph_completeness" => "requires_separate_receipt_verification",
+        "alignment_graph_completeness" => "requires_separate_receipt_verification",
         "structural_validation_establishes_live_currentness" => false,
-        "live_acceptance_requires_external_completion_evidence" => true,
+        "live_acceptance_requires_derivation_receipts" => true,
         "live_acceptance_requires_quiesced_repeat_match" => true
       },
       "input_digests" => %{

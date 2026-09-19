@@ -224,7 +224,8 @@ defmodule Pramana.Commentary do
           :root_pct => float(),
           :forward_pct => float(),
           :aligned => boolean(),
-          optional(:written) => non_neg_integer()
+          optional(:written) => non_neg_integer(),
+          optional(:unresolved) => non_neg_integer()
         }
 
   # The unit and the window travel together: a window of 8 means 8 graphemes or 8
@@ -248,6 +249,18 @@ defmodule Pramana.Commentary do
   @doc "The density floor a pair must clear before any alignment is recorded."
   @spec min_density() :: float()
   def min_density, do: @min_density
+
+  @doc "The Tibetan alignment window in printed syllables."
+  @spec syllable_window() :: pos_integer()
+  def syllable_window, do: @syllable_window
+
+  @doc "The Tibetan density floor in spans per 10,000 commentary characters."
+  @spec syllable_min_density() :: float()
+  def syllable_min_density, do: @syllable_min_density
+
+  @doc "The Tibetan forward-order percentage required for an alignment."
+  @spec syllable_min_forward() :: float()
+  def syllable_min_forward, do: @syllable_min_forward
 
   @doc """
   The density floor for a commentary of this `text_role`, which is not one number.
@@ -501,9 +514,11 @@ defmodule Pramana.Commentary do
     unit = unit(opts)
 
     floor =
-      if unit == :syllable,
-        do: @syllable_min_density,
-        else: min_density(role_of(commentary_work_id))
+      Keyword.get_lazy(opts, :min_density, fn ->
+        if unit == :syllable,
+          do: @syllable_min_density,
+          else: min_density(role_of(commentary_work_id))
+      end)
 
     %{
       commentary_work_id: commentary_work_id,
@@ -866,20 +881,31 @@ defmodule Pramana.Commentary do
       |> Enum.map(&row(&1, commentary, root, c_segments, r_segments, bake_id, now, pair))
       |> Enum.reject(&is_nil/1)
 
-    Repo.transaction(fn ->
-      Repo.delete_all(
-        from a in CommentaryAlignment,
-          where:
-            a.commentary_text_id == ^commentary.id and a.root_text_id == ^root.id and
-              a.method == "lemma_match"
-      )
+    unresolved = length(found) - length(rows)
 
-      # Chunked because a rich pair produces thousands of rows and Postgres caps a
-      # statement's parameters.
-      Enum.each(Enum.chunk_every(rows, 500), &Repo.insert_all(CommentaryAlignment, &1))
-    end)
+    written =
+      if unresolved == 0 do
+        Repo.transaction(fn ->
+          Repo.delete_all(
+            from a in CommentaryAlignment,
+              where:
+                a.commentary_text_id == ^commentary.id and a.root_text_id == ^root.id and
+                  a.method == "lemma_match"
+          )
 
-    Map.put(report, :written, length(rows))
+          # Chunked because a rich pair produces thousands of rows and Postgres caps a
+          # statement's parameters.
+          Enum.each(Enum.chunk_every(rows, 500), &Repo.insert_all(CommentaryAlignment, &1))
+        end)
+
+        length(rows)
+      else
+        0
+      end
+
+    report
+    |> Map.put(:written, written)
+    |> Map.put(:unresolved, unresolved)
   end
 
   defp row(span, commentary, root, c_segments, r_segments, bake_id, now, pair) do

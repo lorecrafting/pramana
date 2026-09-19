@@ -361,11 +361,13 @@ defmodule Pramana.Pilot.Scope do
         where:
           q.bake_id == ^source_bake_id and
             a.source_id == "cbeta" and a.witness_id == "T" and
-            b.source_id == "cbeta" and b.witness_id == "T",
+            b.source_id == "cbeta" and b.witness_id == "T" and
+            q.length >= ^ScopeArtifact.quotation_min_length(),
         select: %{
           a_work_id: q.a_work_id,
           b_work_id: q.b_work_id,
-          text_sha256: q.text_sha256
+          text_sha256: q.text_sha256,
+          length: q.length
         }
     )
   end
@@ -414,7 +416,8 @@ defmodule Pramana.Pilot.Scope do
       Map.has_key?(work_map, row.a_work_id) and
         Map.has_key?(work_map, row.b_work_id) and
         family(row.a_work_id) != family(row.b_work_id) and
-        is_binary(row.text_sha256)
+        is_binary(row.text_sha256) and
+        row.length >= ScopeArtifact.quotation_min_length()
     end)
     |> Enum.group_by(fn row ->
       [a, b] = Enum.sort([row.a_work_id, row.b_work_id])
@@ -894,6 +897,7 @@ defmodule Pramana.Pilot.Scope do
       "release" => stringify_release(release),
       "selection" => %{
         "demand_seed_count" => ScopeArtifact.demand_seed_count(),
+        "quotation_min_length" => ScopeArtifact.quotation_min_length(),
         "demand_ranking_rule" => ScopeArtifact.demand_ranking_rule(),
         "agama_work_ids" => ScopeArtifact.agama_ids(),
         "scope_source" => "cbeta.T",
@@ -908,11 +912,11 @@ defmodule Pramana.Pilot.Scope do
       "alignment_coverage" => alignments,
       "denominators" => denominators(seeds, works, relations, alignments, traversal_stats),
       "derivation_status" => %{
-        "quotation_graph_completeness" => "not_recorded_by_database",
-        "relation_graph_completeness" => "not_recorded_by_database",
-        "alignment_graph_completeness" => "not_recorded_by_database",
+        "quotation_graph_completeness" => "requires_separate_receipt_verification",
+        "relation_graph_completeness" => "requires_separate_receipt_verification",
+        "alignment_graph_completeness" => "requires_separate_receipt_verification",
         "structural_validation_establishes_live_currentness" => false,
-        "live_acceptance_requires_external_completion_evidence" => true,
+        "live_acceptance_requires_derivation_receipts" => true,
         "live_acceptance_requires_quiesced_repeat_match" => true
       },
       "input_digests" => %{

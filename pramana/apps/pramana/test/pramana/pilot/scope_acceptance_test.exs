@@ -160,7 +160,7 @@ defmodule Pramana.Pilot.ScopeAcceptanceTest do
     Enum.zip(citers, roots)
     |> Enum.with_index()
     |> Enum.each(fn {{{citer_work, citer_text}, {root_work, root_text}}, n} ->
-      text = "abcdefghij#{n}"
+      text = "abcdefghijklmnopqrst#{n}"
       digest = :crypto.hash(:sha256, text) |> Base.encode16(case: :lower)
 
       Repo.insert!(%Quotation{

@@ -17,7 +17,7 @@ release and the resulting artifact is reviewed.
 
 The materializer uses:
 
-- **10 demand-ranked seed families**, recomputed from the live CBETA Taishō quotation graph;
+- **10 demand-ranked seed families**, recomputed from the live CBETA Taishō quotation graph at the frozen **20-character minimum match length**;
 - the four named Āgamas: T0001, T0026, T0099, T0125, verified against live
   title/division/role metadata rather than silently assumed present;
 - only comments_on and subcommentary_of expansion edges;
@@ -41,7 +41,7 @@ The repository preserved what was learned about that proxy, but not a reusable p
 query that can be replayed verbatim. The new materializer therefore codifies the retained
 rules rather than pretending hidden historical SQL is an immutable specification.
 
-For every current-bake CBETA Taishō quotation pair:
+For every current-bake CBETA Taishō quotation pair at **20 characters or longer**:
 
 1. exclude reuse inside the same letter-stripped work family;
 2. collapse repeated rows to distinct text_sha256 evidence;
@@ -90,18 +90,23 @@ records separate SHA-256 digests for:
 
 Do not claim release_id alone freezes those graphs.
 
-There is also no durable database marker proving that a full quotation scan, every intended
-relation-derivation pass, or every intended commentary-alignment pass completed. A row
-carrying the current bake ID proves provenance for that row, not exhaustiveness of the
-derived graph.
+The derivation layer records append-only run receipts for the quotation scan, title-derived
+relations, shared-text relations and commentary alignment. A receipt binds the source bake,
+implementation version, exact scope/parameters, input/output digests, counts and clean or
+partial status. A clean receipt also requires the observed output cardinality to equal what
+the producer expected to leave behind, so stale extra rows cannot be certified by a
+successful re-run. The pilot-specific verifier requires the pilot-required run shape and
+refuses partial or stale receipts.
 
-For that reason every artifact carries an explicit derivation-status boundary:
+A receipt is run-completion evidence, not scholarly truth and not a substitute for source
+integrity. The scope artifact therefore continues to carry an explicit derivation-status
+boundary:
 
-- quotation graph completeness: `not_recorded_by_database`;
-- relation graph completeness: `not_recorded_by_database`;
-- alignment graph completeness: `not_recorded_by_database`;
+- quotation graph completeness: `requires_separate_receipt_verification`;
+- relation graph completeness: `requires_separate_receipt_verification`;
+- alignment graph completeness: `requires_separate_receipt_verification`;
 - structural validation does **not** establish live currentness; and
-- live acceptance requires external completion evidence plus stable repeated materialization.
+- live acceptance requires **current clean derivation receipts** plus stable repeated materialization.
 
 Do not replace these facts with a historical row-count threshold.
 
@@ -141,7 +146,7 @@ A zero means "the accepted work relation has no current-bake passage alignment,"
 
 ## Deterministic artifact
 
-The saved schema is pramana-pilot-scope/v1.
+The saved schema is pramana-pilot-scope/v2. Version 2 makes the quotation-length selection parameter and receipt-verification boundary explicit; v1 artifacts are not silently reinterpreted.
 
 It contains:
 
@@ -185,8 +190,9 @@ A later review may change pilot_scope to ready only when it has:
 5. complete expanded-work and relation lists;
 6. passage-alignment coverage;
 7. source/rights review covering **every expanded work**, not only the seeds;
-8. separate evidence that the intended full quotation/relation/alignment derivations
-   completed for the reviewed database state;
+8. `mix pramana.pilot.derivations --bake-id <source-bake-id>` passes using current,
+   clean pilot-scope receipts for quotation scan, title relations, shared-text relations
+   and commentary alignment;
 9. derived-data writers quiesced while accepting the scope, followed by **two consecutive
    materializations with identical scope hash and input digests** (or equivalent
    independently recorded stable-state evidence);

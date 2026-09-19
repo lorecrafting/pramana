@@ -144,6 +144,7 @@ defmodule Pramana.Quotations.Roots do
   has no anomaly to threshold on, so none was built.
   """
 
+  alias Pramana.Bake
   alias Pramana.Repo
 
   @typedoc "One proposal: a commentarial work and the root it most shares text with."
@@ -207,8 +208,9 @@ defmodule Pramana.Quotations.Roots do
   @spec candidates(keyword()) :: [candidate()]
   def candidates(opts \\ []) do
     min_passages = Keyword.get(opts, :min_passages, 1)
+    bake_id = Keyword.get_lazy(opts, :bake_id, &Bake.current_id/0)
 
-    %{rows: rows} = Repo.query!(sql(), [@commentarial, min_passages])
+    %{rows: rows} = Repo.query!(sql(), [@commentarial, min_passages, bake_id])
 
     Enum.map(rows, &row/1)
   end
@@ -363,9 +365,13 @@ defmodule Pramana.Quotations.Roots do
   defp sql do
     """
     WITH ends AS (
-      SELECT a_work_id AS w, b_work_id AS p, text_sha256 AS s FROM quotations
+      SELECT a_work_id AS w, b_work_id AS p, text_sha256 AS s
+        FROM quotations
+       WHERE bake_id IS NOT DISTINCT FROM $3
       UNION ALL
-      SELECT b_work_id, a_work_id, text_sha256 FROM quotations
+      SELECT b_work_id, a_work_id, text_sha256
+        FROM quotations
+       WHERE bake_id IS NOT DISTINCT FROM $3
     ),
     per_member AS (
       SELECT e.w,

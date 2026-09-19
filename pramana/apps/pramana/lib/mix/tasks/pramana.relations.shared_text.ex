@@ -69,6 +69,8 @@ defmodule Mix.Tasks.Pramana.Relations.SharedText do
 
   use Mix.Task
 
+  alias Pramana.Bake
+  alias Pramana.Derivations
   alias Pramana.Quotations.Roots
   alias Pramana.Relations
 
@@ -78,13 +80,30 @@ defmodule Mix.Tasks.Pramana.Relations.SharedText do
   def run(argv) do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
+    min_passages = Keyword.get(opts, :min_passages, 1)
+    bake_id = Bake.current_id()
+    receipt = begin_receipt(opts[:write], bake_id, min_passages)
 
-    candidates = Roots.candidates(min_passages: Keyword.get(opts, :min_passages, 1))
+    candidates = Roots.candidates(min_passages: min_passages, bake_id: bake_id)
     assertable = Roots.assertable(candidates)
 
     report(candidates, assertable, opts)
 
-    if opts[:write], do: write(assertable)
+    if opts[:write] do
+      stats = write(assertable)
+      Derivations.finish_run!(receipt, stats)
+    end
+  end
+
+  defp begin_receipt(false, _bake_id, _min_passages), do: nil
+
+  defp begin_receipt(true, bake_id, min_passages) do
+    Derivations.begin_run(
+      "relations_shared_text",
+      bake_id,
+      %{"mode" => "full"},
+      %{"min_passages" => min_passages}
+    )
   end
 
   defp write(assertable) do
@@ -99,6 +118,13 @@ defmodule Mix.Tasks.Pramana.Relations.SharedText do
     Mix.shell().info(
       "\n  wrote #{ok} relation(s)#{if failed > 0, do: ", #{failed} failed", else: ""}"
     )
+
+    %{
+      "failures" => failed,
+      "expected_output_count" => ok,
+      "assertions_succeeded" => ok,
+      "assertions_attempted" => ok + failed
+    }
   end
 
   defp attrs(c) do

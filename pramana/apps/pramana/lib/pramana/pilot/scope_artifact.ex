@@ -9,13 +9,14 @@ defmodule Pramana.Pilot.ScopeArtifact do
   that boundary.
   """
 
-  @schema "pramana-pilot-scope/v1"
+  @schema "pramana-pilot-scope/v2"
   @pilot_id "chinese-commentary-v1"
   @agama_ids ~w(T0001 T0026 T0099 T0125)
   @relations ~w(comments_on subcommentary_of)
   @relation_methods ~w(catalogue manifest title_match lemma_match shared_text)
   @max_relation_depth 2
   @demand_seed_count 10
+  @quotation_min_length 20
   @demand_ranking_rule "directed_shared_text_v1"
 
   @top_level ~w(
@@ -53,6 +54,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
   @doc "The number of demand-ranked seed families admitted before the Āgamas are added."
   @spec demand_seed_count() :: pos_integer()
   def demand_seed_count, do: @demand_seed_count
+
+  @doc "Minimum quotation length admitted to the v1 demand graph."
+  @spec quotation_min_length() :: pos_integer()
+  def quotation_min_length, do: @quotation_min_length
 
   @doc "The frozen rule identifier for the v1 demand-ranking algorithm."
   @spec demand_ranking_rule() :: String.t()
@@ -93,7 +98,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   end
 
   @doc """
-  Validates the saved artifact's closed v1 shape and arithmetic.
+  Validates the saved artifact's closed v2 shape and arithmetic.
 
   Live release/current-corpus verification is deliberately absent here. A structurally
   valid historical artifact is still historical evidence rather than proof of current
@@ -173,6 +178,10 @@ defmodule Pramana.Pilot.ScopeArtifact do
     |> add_if(
       selection["demand_ranking_rule"] != @demand_ranking_rule,
       "selection.demand_ranking_rule must be #{@demand_ranking_rule}"
+    )
+    |> add_if(
+      selection["quotation_min_length"] != @quotation_min_length,
+      "selection.quotation_min_length must be #{@quotation_min_length}"
     )
     |> add_if(
       selection["agama_work_ids"] != @agama_ids,
@@ -584,24 +593,24 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp check_derivation_status(errors, status) when is_map(status) do
     errors
     |> add_if(
-      status["quotation_graph_completeness"] != "not_recorded_by_database",
-      "quotation graph completeness must remain explicitly external"
+      status["quotation_graph_completeness"] != "requires_separate_receipt_verification",
+      "quotation graph completeness must require separate receipt verification"
     )
     |> add_if(
-      status["relation_graph_completeness"] != "not_recorded_by_database",
-      "relation graph completeness must remain explicitly external"
+      status["relation_graph_completeness"] != "requires_separate_receipt_verification",
+      "relation graph completeness must require separate receipt verification"
     )
     |> add_if(
-      status["alignment_graph_completeness"] != "not_recorded_by_database",
-      "alignment graph completeness must remain explicitly external"
+      status["alignment_graph_completeness"] != "requires_separate_receipt_verification",
+      "alignment graph completeness must require separate receipt verification"
     )
     |> add_if(
       status["structural_validation_establishes_live_currentness"] != false,
       "structural validation must not claim live currentness"
     )
     |> add_if(
-      status["live_acceptance_requires_external_completion_evidence"] != true,
-      "live acceptance must require external derivation completion evidence"
+      status["live_acceptance_requires_derivation_receipts"] != true,
+      "live acceptance must require derivation receipt verification"
     )
     |> add_if(
       status["live_acceptance_requires_quiesced_repeat_match"] != true,

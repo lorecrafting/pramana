@@ -206,11 +206,67 @@ defmodule Pramana.Quotations do
     # parameters and Postgres accepts 65,535. See `Pramana.Batch`.
     {n, _} =
       Pramana.Batch.insert_all(Quotation, rows,
-        on_conflict: :nothing,
+        on_conflict: refresh_changed_fact(),
         conflict_target: [:a_text_id, :a_char_start, :b_text_id, :b_char_start]
       )
 
     {written + n, unresolved + missed, total + length(batch)}
+  end
+
+  # The quotation identity is its two text/offset endpoints. An identical re-run is a
+  # no-op, but the same identity must still converge when either a new bake owns it or
+  # materialized fields differ. An unbound caller may update an unbound row, but must
+  # never overwrite a row that already carries bake provenance.
+  defp refresh_changed_fact do
+    from(q in Quotation,
+      update: [
+        set: [
+          text: fragment("EXCLUDED.text"),
+          text_sha256: fragment("EXCLUDED.text_sha256"),
+          length: fragment("EXCLUDED.length"),
+          a_work_id: fragment("EXCLUDED.a_work_id"),
+          a_urn: fragment("EXCLUDED.a_urn"),
+          a_char_end: fragment("EXCLUDED.a_char_end"),
+          b_work_id: fragment("EXCLUDED.b_work_id"),
+          b_urn: fragment("EXCLUDED.b_urn"),
+          b_char_end: fragment("EXCLUDED.b_char_end"),
+          bake_id: fragment("EXCLUDED.bake_id"),
+          meta: fragment("EXCLUDED.meta"),
+          updated_at: fragment("EXCLUDED.updated_at")
+        ]
+      ],
+      where:
+        fragment(
+          """
+          (EXCLUDED.bake_id IS NOT NULL OR ? IS NULL) AND
+          (
+            ? IS DISTINCT FROM EXCLUDED.bake_id OR
+            ? IS DISTINCT FROM EXCLUDED.text OR
+            ? IS DISTINCT FROM EXCLUDED.text_sha256 OR
+            ? IS DISTINCT FROM EXCLUDED.length OR
+            ? IS DISTINCT FROM EXCLUDED.a_work_id OR
+            ? IS DISTINCT FROM EXCLUDED.a_urn OR
+            ? IS DISTINCT FROM EXCLUDED.a_char_end OR
+            ? IS DISTINCT FROM EXCLUDED.b_work_id OR
+            ? IS DISTINCT FROM EXCLUDED.b_urn OR
+            ? IS DISTINCT FROM EXCLUDED.b_char_end OR
+            ? IS DISTINCT FROM EXCLUDED.meta
+          )
+          """,
+          q.bake_id,
+          q.bake_id,
+          q.text,
+          q.text_sha256,
+          q.length,
+          q.a_work_id,
+          q.a_urn,
+          q.a_char_end,
+          q.b_work_id,
+          q.b_urn,
+          q.b_char_end,
+          q.meta
+        )
+    )
   end
 
   defp text_ids(batch) do

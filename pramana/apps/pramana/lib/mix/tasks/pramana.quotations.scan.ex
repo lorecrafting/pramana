@@ -5,7 +5,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
   Runs the Rust scanner over the corpus and stores what it finds.
 
       mix pramana.quotations.scan --division 阿含部
-      mix pramana.quotations.scan --source cbeta --min-length 25
+      mix pramana.quotations.scan --source cbeta --witness T --min-length 25
       mix pramana.quotations.scan --dry-run
 
   Build the scanner first:
@@ -35,14 +35,17 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
 
   import Ecto.Query
 
+  alias Pramana.Bake
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
+  alias Pramana.Derivations
   alias Pramana.Quotations
   alias Pramana.Repo
 
   @switches [
     division: :string,
     source: :string,
+    witness: :string,
     min_length: :integer,
     dry_run: :boolean,
     work: :string
@@ -85,6 +88,8 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     Mix.shell().info("scanning #{length(texts)} text(s), #{chars} characters")
 
     min_length = Keyword.get(opts, :min_length, 20)
+    bake_id = Bake.current_id()
+    receipt = begin_receipt(opts, bake_id, min_length)
     started = System.monotonic_time(:millisecond)
     matches = scan(binary, texts, min_length)
     elapsed = div(System.monotonic_time(:millisecond) - started, 1000)
@@ -94,17 +99,52 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     if opts[:dry_run] do
       preview(matches)
     else
-      {:ok, result} = Quotations.store(matches, bake_id: Pramana.Bake.current_id())
+      {:ok, result} = Quotations.store(matches, bake_id: bake_id)
       report(result, elapsed)
+      finish_receipt(receipt, result, elapsed)
     end
   end
 
   defp exit_normally, do: throw(:done)
 
+  defp begin_receipt(opts, bake_id, min_length) do
+    if opts[:dry_run] do
+      nil
+    else
+      Derivations.begin_run(
+        "quotations_scan",
+        bake_id,
+        %{
+          "source" => opts[:source],
+          "witness" => opts[:witness],
+          "division" => opts[:division],
+          "work" => opts[:work]
+        },
+        %{"min_length" => min_length}
+      )
+    end
+  end
+
+  defp finish_receipt(nil, _result, _elapsed), do: :ok
+
+  defp finish_receipt(receipt, result, elapsed) do
+    Derivations.finish_run!(receipt, %{
+      "failures" => result.unresolved,
+      "matches_total" => result.total,
+      "expected_output_count" => result.total - result.unresolved,
+      "stored" => result.written,
+      "unresolved" => result.unresolved,
+      "elapsed_seconds" => elapsed
+    })
+  end
+
   defp texts(opts) do
     from(t in Text, select: %{id: t.id, work_id: t.work_id, body: t.body})
     |> then(fn q ->
       if opts[:source], do: where(q, [t], t.source_id == ^opts[:source]), else: q
+    end)
+    |> then(fn q ->
+      if opts[:witness], do: where(q, [t], t.witness_id == ^opts[:witness]), else: q
     end)
     |> then(fn q -> if opts[:work], do: where(q, [t], t.work_id == ^opts[:work]), else: q end)
     |> then(fn q ->

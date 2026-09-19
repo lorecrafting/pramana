@@ -17,6 +17,7 @@ defmodule Pramana.QuotationsTest do
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Witness
   alias Pramana.Corpus.Work
+  alias Pramana.Derivations
   alias Pramana.Quotations
   alias Pramana.Repo
 
@@ -155,12 +156,62 @@ defmodule Pramana.QuotationsTest do
       root: root,
       commentary: commentary
     } do
-      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)])
-      {:ok, second} = Quotations.store([match(root, 8, commentary, 4)])
+      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+      {:ok, second} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
 
       assert second.written == 0
       assert Repo.aggregate(Quotation, :count) == 1
     end
+
+    test "a new bake refreshes provenance without duplicating the fact", %{
+      root: root,
+      commentary: commentary
+    } do
+      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+      {:ok, refreshed} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-b")
+
+      assert refreshed.written == 1
+      assert Repo.aggregate(Quotation, :count) == 1
+      assert Repo.one(Quotation).bake_id == "bake-b"
+    end
+
+    test "a same-bake rerun repairs stale materialized fields", %{
+      root: root,
+      commentary: commentary
+    } do
+      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+
+      Repo.update_all(Quotation,
+        set: [text: "stale", text_sha256: String.duplicate("0", 64)]
+      )
+
+      {:ok, repaired} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+
+      assert repaired.written == 1
+      assert Repo.aggregate(Quotation, :count) == 1
+      assert Repo.one(Quotation).text == @shared
+      assert Repo.one(Quotation).bake_id == "bake-a"
+    end
+  end
+
+  test "receipt snapshot hashes stored quotations without materializing a result list", %{
+    root: root,
+    commentary: commentary
+  } do
+    {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+
+    token =
+      Derivations.begin_run(
+        "quotations_scan",
+        "bake-a",
+        %{"source" => "cbeta", "witness" => "T", "division" => nil, "work" => nil},
+        %{"min_length" => String.length(@shared)}
+      )
+
+    {digest, count} = Derivations.current_output_snapshot(token)
+
+    assert count == 1
+    assert digest =~ ~r/^[0-9a-f]{64}$/
   end
 
   describe "querying" do
