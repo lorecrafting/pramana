@@ -231,6 +231,46 @@ Evaluate Dagger if its typed composition, caching, portability and observability
 Foundry maintenance while still satisfying the same isolation conformance suite.
 Otherwise a smaller direct container/micro-VM adapter may be preferable.
 
+### Dagger integration posture: pin the engine, keep the bridge tiny
+
+Dagger is Apache-2.0 open source, can run locally against an OCI-compatible runtime, and
+is therefore compatible with the sovereignty policy: mirror the exact source/release,
+pin the engine/artifact digest and retain the legal/technical ability to build or fork
+it. That does **not** imply Foundry should vendor or fork the whole engine by default;
+the engine is a substantial active project whose upstream security and runtime work are
+valuable.
+
+Upstream is moving quickly enough that a broad compile-time coupling would create
+maintenance pressure. Engine releases advanced from v0.21.0 on 2026-05-26 through
+v0.21.9 on 2026-08-26, with several intervening patch releases. Current documentation
+also describes the 1.0 workspace/module configuration migration, while the Elixir SDK
+is explicitly still beta, uses the previous beta SDK interface, needs an update for the
+current module/client commands and currently supports checks but not generators or
+`up` services. Treat that as meaningful interface churn, not a reason to reject Dagger.
+
+For the first Foundry experiment, avoid making the beta Elixir SDK a foundational
+dependency. Prefer a narrow process/API adapter such as:
+
+```text
+Foundry.Execution.Dagger
+  -> exact pinned dagger executable
+  -> fixed Foundry-owned Dagger module/core API calls
+  -> `dagger api call ... --json`
+  -> strict versioned JSON result parser
+```
+
+The Dagger CLI exposes JSON output and the engine exposes a language-independent GraphQL
+API. This keeps Dagger-specific generated types out of Foundry's durable domain and makes
+an engine upgrade an explicit adapter/conformance event rather than an application-wide
+SDK migration. Pin the module's `engineVersion`, module references and engine artifact;
+upgrade only after regenerating any Dagger-side bindings, reviewing the diff and rerunning
+the full Foundry execution/isolation suite.
+
+If a later stable Elixir SDK materially reduces bridge code without increasing coupling,
+re-evaluate it. The target is not "never update the bridge"; it is a bridge small enough
+that upstream churn is localized to one adapter and upgrades are optional rather than
+forced.
+
 ## In-house sandbox direction: own policy and launcher, not kernel isolation
 
 A secure execution boundary is required for unattended roles that can run arbitrary
