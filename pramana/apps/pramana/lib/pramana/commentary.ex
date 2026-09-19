@@ -871,21 +871,28 @@ defmodule Pramana.Commentary do
 
     unresolved = length(found) - length(rows)
 
-    Repo.transaction(fn ->
-      Repo.delete_all(
-        from a in CommentaryAlignment,
-          where:
-            a.commentary_text_id == ^commentary.id and a.root_text_id == ^root.id and
-              a.method == "lemma_match"
-      )
+    written =
+      if unresolved == 0 do
+        Repo.transaction(fn ->
+          Repo.delete_all(
+            from a in CommentaryAlignment,
+              where:
+                a.commentary_text_id == ^commentary.id and a.root_text_id == ^root.id and
+                  a.method == "lemma_match"
+          )
 
-      # Chunked because a rich pair produces thousands of rows and Postgres caps a
-      # statement's parameters.
-      Enum.each(Enum.chunk_every(rows, 500), &Repo.insert_all(CommentaryAlignment, &1))
-    end)
+          # Chunked because a rich pair produces thousands of rows and Postgres caps a
+          # statement's parameters.
+          Enum.each(Enum.chunk_every(rows, 500), &Repo.insert_all(CommentaryAlignment, &1))
+        end)
+
+        length(rows)
+      else
+        0
+      end
 
     report
-    |> Map.put(:written, length(rows))
+    |> Map.put(:written, written)
     |> Map.put(:unresolved, unresolved)
   end
 
