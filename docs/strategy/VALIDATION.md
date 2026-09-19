@@ -156,6 +156,9 @@ The portability pilot should deliberately test:
   grant expansion;
 - a protected revocation/narrowing while an assignment is active: new effects fail
   closed while issued effects reconcile correctly;
+- a read-only builder/reviewer attempting to access provider credentials, another
+  workspace, protected signing material or unrelated private context through a generic
+  read/search API;
 - a subagent/tool attempting to reuse or exfiltrate a broader parent/API credential;
 - a candidate that modifies its own mandatory check/evidence-adapter definition to always
   return pass; governing policy/check revision must remain pinned and the attempted change
