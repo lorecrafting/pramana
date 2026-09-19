@@ -12,7 +12,7 @@ lifecycle is not yet a coherent end-to-end telemetry pipeline. FR-18 owns alignm
 real producers, validators and consumers. Do not infer complete token/cost accounting
 from the presence of the `llm_phase` schema.
 
-## Data model: four local diagnostic logs
+## Data model: four local JSONL surfaces
 
 The current system uses four append-oriented JSONL surfaces under
 `foundry/local/state/current/`:
