@@ -149,6 +149,7 @@ A capability grant should bind, where relevant:
 - operation family;
 - read/write classification;
 - object/path/content-kind scope;
+- data classification/redaction constraints for readable context/results;
 - exact API/schema version;
 - resource/time/budget ceiling;
 - execution/sandbox profile;
@@ -475,6 +476,28 @@ The protected kernel admits/pins the actual WorkflowPlan and may inject mandator
 The planner cannot remove a required reviewer, certification profile or operator decision.
 
 ## 10. Context is part of the role contract
+
+### Read authority and sensitive context
+
+Read access is authority too.
+
+A RoleSpec/CapabilityGrant must not expose protected credentials, provider tokens, signing
+keys, unrelated private data, operator home contents, or another project's data merely
+because the assignment is "read only."
+
+Context/tool-result construction should:
+
+- derive readable resources from the admitted grant;
+- apply project/operator redaction/classification policy outside candidate control;
+- keep reusable credentials in protected gateways rather than model context;
+- prevent a typed API role from asking a generic read endpoint for another workspace;
+- record provenance for sensitive evidence surfaced to reviewers;
+- treat attempted secret access as a denied capability/evidence event.
+
+A reviewer may need broader **read** access than an author to falsify claims, but that
+broader read grant is explicit and still does not imply mutation/publication authority.
+
+
 
 A role should receive the **minimum sufficient authoritative context**, not a giant
 repository dump and not a context window chosen only for token savings.
