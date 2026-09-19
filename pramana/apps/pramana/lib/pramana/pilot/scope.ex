@@ -912,11 +912,11 @@ defmodule Pramana.Pilot.Scope do
       "alignment_coverage" => alignments,
       "denominators" => denominators(seeds, works, relations, alignments, traversal_stats),
       "derivation_status" => %{
-        "quotation_graph_completeness" => "not_recorded_by_database",
-        "relation_graph_completeness" => "not_recorded_by_database",
-        "alignment_graph_completeness" => "not_recorded_by_database",
+        "quotation_graph_completeness" => "requires_separate_receipt_verification",
+        "relation_graph_completeness" => "requires_separate_receipt_verification",
+        "alignment_graph_completeness" => "requires_separate_receipt_verification",
         "structural_validation_establishes_live_currentness" => false,
-        "live_acceptance_requires_external_completion_evidence" => true,
+        "live_acceptance_requires_derivation_receipts" => true,
         "live_acceptance_requires_quiesced_repeat_match" => true
       },
       "input_digests" => %{
