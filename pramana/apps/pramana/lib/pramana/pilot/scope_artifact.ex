@@ -98,7 +98,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   end
 
   @doc """
-  Validates the saved artifact's closed v1 shape and arithmetic.
+  Validates the saved artifact's closed v2 shape and arithmetic.
 
   Live release/current-corpus verification is deliberately absent here. A structurally
   valid historical artifact is still historical evidence rather than proof of current
