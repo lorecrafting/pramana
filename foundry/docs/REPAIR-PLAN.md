@@ -40,8 +40,10 @@ explicit file/interface ownership; this plan does not itself launch agents.
 - Automatic execution uses explicitly permitted subscription profiles only.
   OpenRouter/DeepSeek paid use remains manual. No eligible profile means affected
   work waits with a reason, rather than consuming another billing channel.
-- OMP remains the harness and Herdr the initial presentation backend. A pane is
-  optional presentation; its lifetime cannot establish workflow success or failure.
+- The current governing repair contract retains OMP as the harness and Herdr as the
+  initial presentation backend until explicit revision and renewed review. Pi is the
+  preferred first replacement evaluation, not a silent substitution. A pane is optional
+  presentation; its lifetime cannot establish workflow success or failure.
 - Ticket, attempt, execution/session, pane, artifact, review, integration and
   deployment identities have separate lifetimes and explicit relationships.
 - Acknowledged decisions survive restart. Uncertain external outcomes reconcile
@@ -443,6 +445,17 @@ execution/session identity. Put Herdr attach/inspect/close behind presentation o
 Exercise installed OMP structured modes, session persistence and quota observations.
 Keep Herdr as the initial backend; do not replace it speculatively.
 
+**2026-09-19 harness-selection note:** Before spending substantial implementation effort
+on OMP-specific FR-09 conformance, run the bounded substitution evaluation described in
+[STRATEGY](STRATEGY.md#pi-explicit-session-contracts-and-replaceable-execution), with
+pinned Pi RPC as the preferred first replacement candidate. Compare the same
+start/observe/prompt/interrupt/reconcile/close semantics, usage observability, failure
+reconciliation, extension/tool isolation, subscription-route enforceability and
+maintenance burden. This note changes evaluation order, not authority: the current
+OMP-specific FR-06 contract remains governing and automatic execution remains blocked.
+If Pi is selected, explicitly revise and independently re-review the affected FR-06/FR-09
+contract text before production adoption; do not silently substitute a harness.
+
 **Acceptance:** A bounded allowed-subscription execution produces a result without a
 pane where supported; disconnect/reconnect, cancellation and exit observation have
 recorded outcomes. Pane closure alone cannot assert ticket completion. Unsupported
@@ -730,6 +743,21 @@ are redacted. A corrupt/unreachable store cannot show a healthy empty board.
 check/cleanup/stop blocks, old-generation holds, unknown usage and root-derived accepted/
 deployed pointers. A candidate domain projection cannot manufacture healthy acceptance.
 
+**2026-09-19 measurement refinement:** Repair the known producer/schema split before
+claiming lifecycle telemetry: AgentServer's current command-shaped lifecycle records do
+not satisfy the canonical command validator, while Coordinator writes a different
+EventLog-style shape. Connect the selected harness to versioned LLM usage observations
+correlated through ticket/attempt/execution/request and exact candidate/review outcome.
+Preserve source/quality for input, cache-read/cache-write, output/reasoning/total usage,
+context utilization, retries/compactions and provider-reported cost where exposed; missing
+values remain unknown. Record tool duration/result size/truncation and bounded context
+admission without copying raw prompt/response bodies into telemetry. Keep human
+steering/review/recovery effort and subscription/infrastructure cost as separate measures.
+Telemetry compaction must preserve the numeric usage aggregates and provenance required to
+compare like task classes over time. Acceptance tests cover failed/retried/corrected work
+as well as successful final runs and demonstrate that a cheaper token path cannot hide
+worse review, acceptance or operator-effort outcomes.
+
 **Excludes:** Building a new dashboard framework.
 
 ### FR-19 — Bound storage and make offline maintenance safe
@@ -775,6 +803,14 @@ Completed repair tickets remain complete. An improvement cannot broaden governin
 consume existing allocation, independently review and autonomously activate via FR-17;
 no root privilege shortcut or operator-only kernel exclusion. Proposal plumbing may be
 implemented before FR-17, but kernel repair activation is not complete until FR-17 passes.
+
+**2026-09-19 efficiency refinement:** After FR-18 provides trustworthy usage and outcome
+correlation, improvement proposals may compare context, model/reasoning and tool policies
+on comparable task classes. They must include failed/retried/corrected work, review
+quality and operator effort rather than optimize raw token count or provider cost alone.
+Unknown usage yields insufficient evidence, not a zero-cost win. Every optimization still
+needs a baseline, fixed acceptance gates, bounded experiment and ordinary admission/review/
+activation; telemetry cannot weaken authority or auto-promote its own recommendation.
 
 **Excludes:** Open-ended recurring PM calls or self-generating management hierarchies.
 

@@ -1,6 +1,6 @@
 # Foundry strategy brief
 
-**Date:** 2026-09-18. **Type:** investment direction and design guidance, not an
+**Date:** 2026-09-19. **Type:** investment direction and design guidance, not an
 implementation inventory or authorization to execute. Records the operator's
 Foundry-first investment direction, the model-directed-work vision and the lessons from
 FirstMate, Pi, OMP and no-mistakes. External capabilities below are source observations
@@ -20,10 +20,15 @@ Foundry owns admitted intent, identities, capability grants, durable acknowledge
 budgets, external-effect control, evidence, acceptance, recovery and controlled
 self-improvement.
 
-Retain the standalone Elixir/OTP project, OMP as the current harness and Herdr as
-initial optional presentation. A stronger model, different harness, accessible API or
-new backend may improve planning without gaining spending, acceptance or deployment
-authority. Model proposals remain inputs to protected deterministic checks.
+Retain the standalone Elixir/OTP project. Beneath the current fail-closed launch gate,
+the implemented execution path still targets OMP through Herdr; that is implementation
+truth, not the desired permanent dependency.
+Keep agent execution harness-neutral behind a small versioned execution/observation
+contract, with Pi's headless RPC as the preferred first replacement candidate to evaluate
+before investing further in OMP-specific integration. Herdr remains initial optional
+presentation. A stronger model, different harness, accessible API or new backend may
+improve planning without gaining spending, acceptance or deployment authority. Model
+proposals and harness observations remain inputs to protected deterministic checks.
 
 Software engineering is the first workload to prove, not the permanent ontology of the
 system. Prove one useful complete lifecycle, including correction and interruption,
@@ -72,7 +77,7 @@ requests and test coverage percentages are not the product outcome.
 |---|---|---|
 | Authority | Authenticated policy, capabilities, reservations, effect claims and acceptance predicates | OS security primitives and appropriate transactional storage libraries |
 | Workflow | Admission, pure decision/replay, scheduling, correction, cancellation and reconciliation for versioned workflow definitions | OTP supervision and ordinary concurrency mechanisms |
-| Agent execution | A small versioned and tested execution/observation contract | OMP initially; Pi only as an evaluated alternative |
+| Agent execution | A small versioned and tested execution/observation contract | Current source: OMP; preferred first replacement evaluation: pinned Pi RPC, subject to FR-09/15a conformance and explicit contract review |
 | Project tools | Approved capability/evidence surfaces for the current assignment | Git/compiler tools for software; typed project APIs where appropriate |
 | Presentation | Honest projections and outstanding operator decisions | Herdr initially; future backends only after conformance evidence |
 
@@ -481,10 +486,30 @@ conversation continuity separate from workflow authority. The current contract c
 a fresh developer after correction, not re-prompting the old developer; useful context
 can transfer without reviving old execution authority.
 
-OMP remains the baseline. A bounded Pi evaluation can test enforceability, reliability
-and maintenance cost, but a migration requires explicit contract review and renewed
-conformance. Do not fund multiple equally elaborate production adapters before one
-works. Do not rewrite Foundry as a collection of Pi extensions.
+The current source's implemented execution path still targets OMP, while production
+automatic execution remains blocked.
+The investment direction is now to evaluate Pi first as the replacement candidate before
+deepening OMP-specific FR-09 work. Prefer a pinned `pi --mode rpc` subprocess with
+strict JSONL framing over embedding a TypeScript SDK in the Elixir control plane. Keep the
+bridge deliberately small: start, observe, prompt, interrupt, reconcile, close and
+source-qualified usage observations. This is a preferred evaluation order, **not**
+adoption: the existing FR-06 contract remains governing until a Pi candidate passes the
+required tests and any OMP-specific contract text is explicitly revised and re-reviewed.
+
+Pi itself runs with broad host authority by default. Its containerization guidance also
+warns that extensions run wherever the Pi process runs; routing built-in tools into
+Gondolin does not automatically sandbox unrelated extension tools. A production candidate
+therefore needs pinned code/configuration; no unadmitted extension or
+execution-changing configuration may be loaded; and an inventory must prove every
+model-directed executable tool crosses the FR-15a isolation boundary. Do not turn Pi
+extensions into a second authority or a bypass around Foundry's capability grants.
+
+Pi RPC supplies useful diagnostic surfaces such as session token/cost/context statistics
+and explicit compaction usage. Consume those through Foundry's observation contract with
+source/quality labels. A prompt acknowledgement still means accepted/queued/handled, not
+completion, and session statistics do not become budget, acceptance or retry authority.
+Do not fund multiple equally elaborate production adapters before one works. Do not
+rewrite Foundry as a collection of Pi extensions.
 
 ### Isolation: reuse mechanisms, prove the whole boundary
 
@@ -548,6 +573,38 @@ The bounded Stage-A implementation for issue #26 is documented in
 [Assessor Stage A](ASSESSOR.md). It is an advisory experiment with deterministic fallback,
 not a production provider route or an acceptance authority. Its longer-term purpose is
 a replaceable fast semantic/reflex layer only if held-out evaluation shows net benefit.
+
+### Efficiency observability: optimize accepted outcomes, not token count
+
+Treat measurement as part of the execution contract, not optional dashboard polish. The
+implementation inventory and target are maintained in [Observability](OBSERVABILITY.md).
+Every useful harness should let Foundry attribute observed resource use along the durable
+lineage from objective and ticket through attempt, execution, request/tool/effect,
+candidate, review and accepted outcome. Telemetry remains diagnostic evidence: it cannot
+mint authority, and missing usage stays unknown rather than becoming zero.
+
+For model work, preserve source-qualified input, cache-read, cache-write, output,
+reasoning/other-provider token classes where exposed, total usage, context-window
+utilization, latency, retries/compactions and provider-reported cost. Keep provider
+reported cost distinct from subscription capacity, local infrastructure cost and human
+effort. For context optimization, record attributed **counts/digests**, not prompt bodies,
+for mandatory policy, role instructions, task/spec, source files, retrieved docs/tool
+results, conversation history and correction history. Estimated attribution must remain
+labelled estimated even when the provider's total is exact.
+
+Record tool execution separately: tool/capability identity, duration, result size,
+truncation/error and the amount subsequently admitted to model context. Link developer,
+reviewer, PM/assessor and correction consumption to the exact attempt/candidate so failed
+work and rework are not hidden by a successful final run. Retention/compaction must
+preserve numeric usage totals and provenance needed for longitudinal comparison.
+
+The primary optimization target is trustworthy accepted delivery with low operator burden,
+not minimum tokens. Compare like task classes using measures such as accepted outcomes per
+operator hour, tokens/cost per accepted outcome, first-pass acceptance, correction and
+failed-work tax, cache effectiveness, context/tool-result tax and wall-clock latency.
+Cheaper runs that create more rework, miss defects or require more operator attention are
+not improvements. Require a baseline, fixed evaluation and rollback/stop decision before
+an efficiency proposal changes production behavior.
 
 ## Investment milestones within the repair plan
 
