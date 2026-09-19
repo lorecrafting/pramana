@@ -224,7 +224,8 @@ defmodule Pramana.Commentary do
           :root_pct => float(),
           :forward_pct => float(),
           :aligned => boolean(),
-          optional(:written) => non_neg_integer()
+          optional(:written) => non_neg_integer(),
+          optional(:unresolved) => non_neg_integer()
         }
 
   # The unit and the window travel together: a window of 8 means 8 graphemes or 8
