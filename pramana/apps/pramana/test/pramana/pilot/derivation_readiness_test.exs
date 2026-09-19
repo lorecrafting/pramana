@@ -42,7 +42,10 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
         "min_density_override" => nil,
         "grapheme_window" => Commentary.window(),
         "root_min_density" => Commentary.min_density(),
-        "subcommentary_min_density" => Commentary.min_density("subcommentary")
+        "subcommentary_min_density" => Commentary.min_density("subcommentary"),
+        "syllable_window" => Commentary.syllable_window(),
+        "syllable_min_density" => Commentary.syllable_min_density(),
+        "syllable_min_forward" => Commentary.syllable_min_forward()
       }
     )
 
@@ -93,6 +96,25 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
 
     result = DerivationReadiness.check(@bake_id)
     assert result.derivations["relations_title"].state == "stale_input"
+  end
+
+  test "rejects a commentary receipt with stale Tibetan defaults" do
+    receipt =
+      record_clean!(
+        "commentary_align",
+        %{"work" => nil},
+        %{
+          "min_density_override" => nil,
+          "grapheme_window" => Commentary.window(),
+          "root_min_density" => Commentary.min_density(),
+          "subcommentary_min_density" => Commentary.min_density("subcommentary"),
+          "syllable_window" => Commentary.syllable_window(),
+          "syllable_min_density" => Commentary.syllable_min_density(),
+          "syllable_min_forward" => Commentary.syllable_min_forward() - 1.0
+        }
+      )
+
+    refute DerivationReadiness.commentary_scope?(receipt)
   end
 
   test "rejects a corpus-wide quotation receipt for the CBETA/T pilot" do
