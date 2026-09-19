@@ -60,7 +60,8 @@ defmodule Pramana.Pilot.DerivationReadiness do
       "witness" => "T",
       "division" => nil,
       "work" => nil
-    } and run.parameters == %{"min_length" => 20}
+    } and
+      run.parameters == %{"min_length" => 20}
   end
 
   @doc false
