@@ -90,11 +90,13 @@ records separate SHA-256 digests for:
 
 Do not claim release_id alone freezes those graphs.
 
-PR #37 adds append-only derivation-run receipts for the quotation scan, title-derived
+The derivation layer records append-only run receipts for the quotation scan, title-derived
 relations, shared-text relations and commentary alignment. A receipt binds the source bake,
 implementation version, exact scope/parameters, input/output digests, counts and clean or
-partial status. The pilot-specific verifier requires the full/default run shape and refuses
-partial or stale receipts.
+partial status. A clean receipt also requires the observed output cardinality to equal what
+the producer expected to leave behind, so stale extra rows cannot be certified by a
+successful re-run. The pilot-specific verifier requires the full/default run shape and
+refuses partial or stale receipts.
 
 A receipt is run-completion evidence, not scholarly truth and not a substitute for source
 integrity. The scope artifact therefore continues to carry an explicit derivation-status

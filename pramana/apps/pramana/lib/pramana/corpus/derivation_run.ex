@@ -45,9 +45,7 @@ defmodule Pramana.Corpus.DerivationRun do
   def changeset(run, attrs) do
     run
     |> cast(attrs, @fields)
-    |> validate_required(
-      @fields -- [:source_bake_id]
-    )
+    |> validate_required(@fields -- [:source_bake_id])
     |> check_constraint(:derivation, name: :derivation_runs_kind_known)
     |> check_constraint(:status, name: :derivation_runs_status_known)
     |> check_constraint(:input_digest, name: :derivation_runs_input_digest_shape)

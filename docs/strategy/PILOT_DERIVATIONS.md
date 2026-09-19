@@ -1,39 +1,66 @@
 # Pilot derivation completion receipts
 
-**Status:** planning draft; no live pilot derivation is certified by this file.
-**Scope:** replace terminal-only evidence for quotation/relation/alignment derivations with
-durable, immutable run receipts that can be reviewed by the Chinese pilot preflight.
+**Status:** implementation contract; no live pilot derivation is certified by this file.
+**Scope:** durable completion evidence for quotation, relation and alignment derivations
+consumed by the Chinese-pilot preflight.
 
-## Work plan
+## Receipt contract
 
-1. Add an append-only `derivation_runs` record that binds one derivation attempt to:
-   source bake, implementation/rule version, explicit scope/parameters, input digest,
-   output digest, counts, timestamps and clean/partial status.
-2. Keep scope honest: partial quotation scans, one-work alignment runs, dry-runs and
-   report-only shared-text runs must never satisfy a full-pilot completion requirement.
-3. Instrument the four writes that feed the pilot scope:
-   - quotation scan;
-   - title-derived work relations;
-   - shared-text work relations;
-   - commentary passage alignment.
-4. Record per-item failures instead of allowing a successful process exit to masquerade as
-   clean completion. A receipt may describe a partial run, but pilot verification accepts
-   only clean coverage.
-5. Add a deterministic verifier that asks whether the current source bake has the complete
-   receipt set required by the pilot and exposes exactly which receipt/evidence is missing.
-6. Bind receipt validation to current database output digests so later mutation makes old
-   completion evidence visibly stale instead of silently reusable.
-7. Update the pilot scope/preflight runbook to use receipts as derivation-completion
-   evidence while leaving `pilot_scope` blocked until a real live scope artifact is run
-   and reviewed.
-8. Add migration/schema/domain tests, task-level acceptance tests and failure/staleness
-   cases.
-9. Self-review, correct, adversarially review, correct, then run exact-head CI/container
-   validation and mark Ready only if the final head is clean and green.
+Every non-dry write run records an append-only `derivation_runs` row binding the attempt
+to its source bake, implementation version, exact scope/parameters, input digest, output
+digest, counts and timestamps. Database triggers reject update or deletion of a receipt.
+
+A receipt is `complete` only when all of these are true at the end of the run:
+
+- the producer reports zero explicit or per-item failures;
+- the recomputed input digest is unchanged from the start of the run; and
+- the derived table contains exactly the number of rows the producer expected to leave
+  for that derivation.
+
+The last condition is intentionally stricter than "the command exited successfully."
+Title/shared-text relations and commentary alignments are convergent writes, not wholesale
+table replacements. A stale row from an older rule can therefore survive a successful
+run. Such a run records a `partial` receipt instead of certifying the stale output.
+The receipt mechanism does not delete that row automatically.
+
+The output digest binds the receipt to the exact derived rows that were observed.
+Any later mutation makes the receipt stale when the verifier recomputes that digest.
+
+## Producers covered
+
+The pilot requires current receipts for all four deterministic producers:
+
+- `quotations_scan` — the quotation graph;
+- `relations_title` — title-derived work relations;
+- `relations_shared_text` — quotation-graph-derived work relations;
+- `commentary_align` — passage-level commentary alignment.
+
+Dry-runs and report-only executions do not create completion receipts. Scoped runs may
+record useful evidence, but they do not satisfy the full-pilot requirement.
+
+## Pilot acceptance
+
+Run:
+
+```sh
+mix pramana.pilot.derivations --bake-id <source-bake-id>
+```
+
+The verifier accepts only clean, current receipts with the pilot's frozen full/default
+shape:
+
+- quotation scan: full CBETA-compatible scope at a 20-character minimum;
+- title relations: full scope at the default three-character title floor;
+- shared-text relations: full write scope at the default one-passage floor;
+- commentary alignment: all eligible pairs at the current default windows/density floors.
+
+Old implementation versions, changed inputs, changed outputs, output-count mismatches,
+partial runs and narrower scopes are refused. A passing result is derivation-completion
+evidence only; it does not make `pilot_scope` ready by itself.
 
 ## Non-goals
 
-- no claim that one receipt proves scholarly correctness of derived relations;
+- no claim that a receipt proves scholarly correctness of a derived relation;
 - no backfilling fake receipts from historical row counts;
 - no provider/model call or participant activity;
 - no automatic transition of `pilot_scope` to ready;

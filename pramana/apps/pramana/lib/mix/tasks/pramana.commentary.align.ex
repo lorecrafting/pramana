@@ -245,6 +245,7 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
 
     %{
       "failures" => failures,
+      "expected_output_count" => written,
       "pairs_attempted" => length(results),
       "pairs_reported" => length(reports),
       "aligned_pairs" => length(aligned),

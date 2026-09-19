@@ -129,6 +129,7 @@ defmodule Mix.Tasks.Pramana.Quotations.Scan do
     Derivations.finish_run!(receipt, %{
       "failures" => result.unresolved,
       "matches_total" => result.total,
+      "expected_output_count" => result.total - result.unresolved,
       "stored" => result.written,
       "unresolved" => result.unresolved,
       "elapsed_seconds" => elapsed

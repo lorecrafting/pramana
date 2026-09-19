@@ -206,26 +206,41 @@ defmodule Pramana.Quotations do
     # parameters and Postgres accepts 65,535. See `Pramana.Batch`.
     {n, _} =
       Pramana.Batch.insert_all(Quotation, rows,
-        on_conflict:
-          {:replace,
-           [
-             :text,
-             :text_sha256,
-             :length,
-             :a_work_id,
-             :a_urn,
-             :a_char_end,
-             :b_work_id,
-             :b_urn,
-             :b_char_end,
-             :bake_id,
-             :meta,
-             :updated_at
-           ]},
+        on_conflict: refresh_for_new_bake(),
         conflict_target: [:a_text_id, :a_char_start, :b_text_id, :b_char_start]
       )
 
     {written + n, unresolved + missed, total + length(batch)}
+  end
+
+  # The quotation identity is its two text/offset endpoints, so an identical re-run is a
+  # no-op. A new non-null bake means that fact was re-derived against another source
+  # snapshot; refresh the materialized fields and provenance without duplicating it.
+  # A caller that omits bake identity must never erase provenance already on the row.
+  defp refresh_for_new_bake do
+    from(q in Quotation,
+      update: [
+        set: [
+          text: fragment("EXCLUDED.text"),
+          text_sha256: fragment("EXCLUDED.text_sha256"),
+          length: fragment("EXCLUDED.length"),
+          a_work_id: fragment("EXCLUDED.a_work_id"),
+          a_urn: fragment("EXCLUDED.a_urn"),
+          a_char_end: fragment("EXCLUDED.a_char_end"),
+          b_work_id: fragment("EXCLUDED.b_work_id"),
+          b_urn: fragment("EXCLUDED.b_urn"),
+          b_char_end: fragment("EXCLUDED.b_char_end"),
+          bake_id: fragment("EXCLUDED.bake_id"),
+          meta: fragment("EXCLUDED.meta"),
+          updated_at: fragment("EXCLUDED.updated_at")
+        ]
+      ],
+      where:
+        fragment(
+          "EXCLUDED.bake_id IS NOT NULL AND ? IS DISTINCT FROM EXCLUDED.bake_id",
+          q.bake_id
+        )
+    )
   end
 
   defp text_ids(batch) do

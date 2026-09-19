@@ -121,6 +121,7 @@ defmodule Mix.Tasks.Pramana.Relations.SharedText do
 
     %{
       "failures" => failed,
+      "expected_output_count" => ok,
       "assertions_succeeded" => ok,
       "assertions_attempted" => ok + failed
     }

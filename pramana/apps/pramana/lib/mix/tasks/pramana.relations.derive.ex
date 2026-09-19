@@ -204,6 +204,7 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
 
     %{
       "failures" => failed,
+      "expected_output_count" => ok,
       "assertions_succeeded" => ok,
       "assertions_attempted" => ok + failed
     }

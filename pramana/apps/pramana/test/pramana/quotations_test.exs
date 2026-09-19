@@ -155,11 +155,23 @@ defmodule Pramana.QuotationsTest do
       root: root,
       commentary: commentary
     } do
-      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)])
-      {:ok, second} = Quotations.store([match(root, 8, commentary, 4)])
+      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+      {:ok, second} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
 
       assert second.written == 0
       assert Repo.aggregate(Quotation, :count) == 1
+    end
+
+    test "a new bake refreshes provenance without duplicating the fact", %{
+      root: root,
+      commentary: commentary
+    } do
+      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+      {:ok, refreshed} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-b")
+
+      assert refreshed.written == 1
+      assert Repo.aggregate(Quotation, :count) == 1
+      assert Repo.one(Quotation).bake_id == "bake-b"
     end
   end
 

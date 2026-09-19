@@ -93,9 +93,11 @@ defmodule Pramana.Derivations do
     post_input = current_input_digest(token)
     {output_digest, output_count} = current_output_snapshot(token)
     failures = failure_count!(stats)
+    expected_output_count = expected_output_count!(stats)
+    output_count_matches_expected = output_count == expected_output_count
 
     status =
-      if post_input == token.input_digest and failures == 0,
+      if post_input == token.input_digest and failures == 0 and output_count_matches_expected,
         do: "complete",
         else: "partial"
 
@@ -112,7 +114,8 @@ defmodule Pramana.Derivations do
         Map.merge(stats, %{
           "input_changed_during_run" => post_input != token.input_digest,
           "post_input_digest" => post_input,
-          "output_count" => output_count
+          "output_count" => output_count,
+          "output_count_matches_expected" => output_count_matches_expected
         }),
       started_at: token.started_at,
       completed_at: DateTime.utc_now()
@@ -462,6 +465,17 @@ defmodule Pramana.Derivations do
     case parameters[key] do
       value when is_integer(value) -> value
       _ -> default
+    end
+  end
+
+  defp expected_output_count!(stats) do
+    case stats["expected_output_count"] do
+      value when is_integer(value) and value >= 0 ->
+        value
+
+      _ ->
+        raise ArgumentError,
+              "derivation stats must include a non-negative expected_output_count"
     end
   end
 

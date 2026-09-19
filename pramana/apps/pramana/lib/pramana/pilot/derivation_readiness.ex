@@ -105,6 +105,9 @@ defmodule Pramana.Pilot.DerivationReadiness do
       run.output_digest != current_output ->
         false
 
+      not output_count_evidence?(run, output_count) ->
+        false
+
       true ->
         %{
           state: "ready",
@@ -130,12 +133,25 @@ defmodule Pramana.Pilot.DerivationReadiness do
     diagnose(run)
   end
 
+  defp output_count_evidence?(%DerivationRun{} = run, current_output_count) do
+    expected = run.stats["expected_output_count"]
+    recorded = run.stats["output_count"]
+
+    is_integer(expected) and expected >= 0 and
+      expected == current_output_count and
+      recorded == current_output_count and
+      run.stats["output_count_matches_expected"] == true
+  end
+
   defp diagnose(%DerivationRun{status: status} = run) when status != "complete" do
     %{
       state: "partial_receipt",
       receipt_id: run.id,
       failures: run.stats["failures"],
-      input_changed_during_run: run.stats["input_changed_during_run"]
+      input_changed_during_run: run.stats["input_changed_during_run"],
+      expected_output_count: run.stats["expected_output_count"],
+      output_count: run.stats["output_count"],
+      output_count_matches_expected: run.stats["output_count_matches_expected"]
     }
   end
 
@@ -168,6 +184,16 @@ defmodule Pramana.Pilot.DerivationReadiness do
           recorded: run.output_digest,
           current: current_output,
           current_output_count: output_count
+        }
+
+      not output_count_evidence?(run, output_count) ->
+        %{
+          state: "invalid_output_count_evidence",
+          receipt_id: run.id,
+          expected_output_count: run.stats["expected_output_count"],
+          recorded_output_count: run.stats["output_count"],
+          current_output_count: output_count,
+          output_count_matches_expected: run.stats["output_count_matches_expected"]
         }
 
       true ->
