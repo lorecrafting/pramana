@@ -155,6 +155,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`foundry/docs/MIGRATION-TICKETS.md`](../foundry/docs/MIGRATION-TICKETS.md)
 - [`foundry/docs/MIGRATION.md`](../foundry/docs/MIGRATION.md)
 - [`foundry/docs/OBSERVABILITY.md`](../foundry/docs/OBSERVABILITY.md)
+- [`foundry/docs/PI-HARNESS.md`](../foundry/docs/PI-HARNESS.md)
 - [`foundry/docs/README.md`](../foundry/docs/README.md)
 - [`foundry/docs/REPAIR-PLAN.md`](../foundry/docs/REPAIR-PLAN.md)
 - [`foundry/docs/WORKFLOW-CONTRACT.md`](../foundry/docs/WORKFLOW-CONTRACT.md)
