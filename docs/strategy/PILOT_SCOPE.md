@@ -95,7 +95,7 @@ relations, shared-text relations and commentary alignment. A receipt binds the s
 implementation version, exact scope/parameters, input/output digests, counts and clean or
 partial status. A clean receipt also requires the observed output cardinality to equal what
 the producer expected to leave behind, so stale extra rows cannot be certified by a
-successful re-run. The pilot-specific verifier requires the full/default run shape and
+successful re-run. The pilot-specific verifier requires the pilot-required run shape and
 refuses partial or stale receipts.
 
 A receipt is run-completion evidence, not scholarly truth and not a substitute for source
@@ -191,7 +191,7 @@ A later review may change pilot_scope to ready only when it has:
 6. passage-alignment coverage;
 7. source/rights review covering **every expanded work**, not only the seeds;
 8. `mix pramana.pilot.derivations --bake-id <source-bake-id>` passes using current,
-   clean full/default receipts for quotation scan, title relations, shared-text relations
+   clean pilot-scope receipts for quotation scan, title relations, shared-text relations
    and commentary alignment;
 9. derived-data writers quiesced while accepting the scope, followed by **two consecutive
    materializations with identical scope hash and input digests** (or equivalent
