@@ -250,6 +250,19 @@ defmodule Pramana.Commentary do
   @spec min_density() :: float()
   def min_density, do: @min_density
 
+  @doc "The Tibetan alignment window in printed syllables."
+  @spec syllable_window() :: pos_integer()
+  def syllable_window, do: @syllable_window
+
+  @doc "The Tibetan density floor in spans per 10,000 commentary characters."
+  @spec syllable_min_density() :: float()
+  def syllable_min_density, do: @syllable_min_density
+
+  @doc "The Tibetan forward-order percentage required for an alignment."
+  @spec syllable_min_forward() :: float()
+  def syllable_min_forward, do: @syllable_min_forward
+
+
   @doc """
   The density floor for a commentary of this `text_role`, which is not one number.
 
