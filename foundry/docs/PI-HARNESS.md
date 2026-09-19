@@ -271,8 +271,10 @@ principal while moving model-directed effects through a credential-free gateway/
         filesystem/shell/build/test
 
 The bridge should receive an execution-scoped handle, not a reusable operator/provider
-credential. In this topology, model-visible filesystem read/search, mutation, shell,
-language-service and network operations are mediated through the gateway or another
+credential. That handle stays in the protected Pi/bridge principal: it is not copied into
+model context, worker environment, tool output, child input or diagnostic logs. In this
+topology, model-visible filesystem read/search, mutation, shell, language-service and
+network operations are mediated through the gateway or another
 equivalently proven restricted principal; a "read-only" Pi builtin must not retain ambient
 access to the operator home or provider secrets. A concrete resource/effect request
 carries an invocation identity and is checked against the durable assignment/grant.
@@ -317,7 +319,9 @@ A governed run must be reproducible from a controller-owned manifest that binds 
 - exact approved extension list;
 - exact active tool schemas;
 - exact approved skills/prompts/context resources and digests;
+- governing instruction/router bundle and base revision/digest;
 - provider/model/profile selection;
+- isolated session-storage root, retention/redaction policy and resume policy;
 - isolation profile;
 - project/workflow/role/context-policy revision;
 - relevant environment allowlist;
@@ -329,11 +333,21 @@ For governed runs, ambient discovery is fail-closed:
 - project-local extensions are not auto-loaded;
 - project-local agents are not auto-executable;
 - user/project prompt libraries are not implicitly authoritative;
+- arbitrary prior Pi sessions are not selectable/resumable across assignment boundaries;
 - arbitrary MCP servers are not auto-discovered;
 - unknown execution-changing settings refuse rather than silently apply.
 
-A candidate checkout may contain a **proposal** to change a project profile, skill or
-extension, but it cannot modify the active manifest governing its own execution.
+A candidate checkout may contain a **proposal** to change a project profile, skill,
+extension or repository instruction file, but it cannot modify the active manifest or
+governing instruction bundle for its own execution. Candidate-modified `AGENTS.md`,
+skills or prompts are inspectable candidate data until separately reviewed/admitted;
+they are not silently reloaded as higher-priority instructions mid-assignment.
+
+Governed session persistence uses an assignment/execution-scoped storage root with
+controller-chosen permissions and retention. A Pi "resume" or session tree cannot select
+a transcript from another assignment merely because the same host user can see it.
+Session transcripts may contain source/tool/model data and require the same privacy and
+diagnostic-boundary treatment as other retained context.
 
 Interactive human Pi usage may have a more permissive convenience profile, but that
 profile is not evidence for autonomous Foundry conformance.
@@ -623,6 +637,22 @@ Candidate families:
 A tool result is not automatically an acceptance receipt. The owning evidence adapter
 decides which controller-observed facts can satisfy a protected predicate.
 
+### 9.1 Workspace and Git custody
+
+A Git worktree is not sufficient isolation. Its `.git` indirection may lead to a shared
+common repository whose refs, hooks, remotes or worktree metadata have broader authority
+than the candidate file scope. A shell-capable worker must not receive protected
+integration credentials or unrestricted control of the controller's Git common directory.
+
+The implementation may use a disposable clone/object view, mediated Git operations or
+another proved arrangement, but the conformance requirement is invariant:
+
+- candidate file authority does not imply protected-ref/integration authority;
+- path scope is enforced after safe resolution, not by string-prefix comparison;
+- traversal, symlink/hardlink/reparse-style escape and swap races are refused or contained;
+- candidate checks/builds cannot install hooks or mutate controller-custodied Git state;
+- commits/diffs used as evidence are rebound to exact controller-observed artifact identity.
+
 ## 10. Bridge threat model
 
 The bridge runs close to provider/session authority and therefore has to be treated as a
@@ -636,6 +666,8 @@ small trusted component.
 - other assignments/workspaces;
 - Git integration/publication credentials;
 - operator home/private files;
+- Pi session transcripts and context caches from other assignments;
+- protected Git refs/common metadata/integration credentials;
 - network destinations outside the grant;
 - budget/effect/acceptance state.
 
@@ -643,30 +675,41 @@ small trusted component.
 
 1. candidate repository adds or modifies a Pi extension and obtains host execution;
 2. user-level Pi config silently changes tools/provider/network behavior;
-3. a direct read/search/file-inclusion path exposes host secrets or out-of-scope data;
-4. a custom extension bypasses sandboxed built-ins;
-5. model calls a generic gateway while lying about project/role/path scope;
-6. child Pi process inherits a broader environment or credential;
-7. stale session controls a successor execution;
-8. prompt/abort acknowledgement is mistaken for completed effect;
-9. direct Pi subagent spawning bypasses child budget/grant admission;
-10. LSP/build hooks execute candidate-controlled code outside the worker boundary;
-11. background process survives assignment cancellation;
-12. tool output or telemetry copies secrets/raw prompts into diagnostics;
-13. session rewind resurrects stale policy assumptions;
-14. MCP/plugin supply-chain change silently enlarges capabilities;
-15. Pi/provider fallback spends through a route not admitted by Foundry.
+3. a candidate modifies `AGENTS.md`/skills/prompts and turns its own proposed policy into
+   governing instructions mid-run;
+4. a direct read/search/file-inclusion path exposes host secrets or out-of-scope data;
+5. a custom extension bypasses sandboxed built-ins;
+6. hostile model/candidate tool arguments exploit bridge parsing, shell interpolation,
+   path handling or oversized/ambiguous protocol inputs;
+7. model calls a generic gateway while lying about project/role/path scope;
+8. path traversal, symlink swap or shared Git metadata escapes the admitted workspace;
+9. a prior/foreign Pi session is resumed under a new assignment;
+10. child Pi process inherits a broader environment or credential;
+11. stale session controls a successor execution;
+12. prompt/abort acknowledgement is mistaken for completed effect;
+13. direct Pi subagent spawning bypasses child budget/grant admission;
+14. LSP/build hooks execute candidate-controlled code outside the worker boundary;
+15. background process survives assignment cancellation;
+16. tool output or telemetry copies secrets/raw prompts into diagnostics;
+17. session rewind resurrects stale policy assumptions;
+18. MCP/plugin supply-chain change silently enlarges capabilities;
+19. Pi/provider fallback spends through a route not admitted by Foundry.
 
 ### Required mitigations
 
 - exact-version/digest pinning;
-- explicit governed loadout;
-- no ambient executable extension discovery;
+- explicit governed loadout and protected instruction bundle;
+- no ambient executable extension/session discovery;
 - complete resource/executable-path inventory, including non-tool file ingestion;
+- strict versioned/bounded bridge and RPC schemas; reject duplicate/ambiguous fields,
+  invalid encoding, NUL/control abuse and oversized records rather than interpolating
+  untrusted data into shell/code;
 - authenticated execution-scoped gateway;
 - server-side scope derivation from CapabilityGrant;
 - credential-free model-directed worker;
-- restricted network/filesystem/process authority;
+- restricted network/filesystem/process authority with canonical path/resource checks;
+- protected Git custody separated from candidate shell/file authority;
+- assignment-scoped session storage/resume and bounded retention;
 - child grants/budgets no broader than parent ceilings unless separately admitted;
 - incarnation/session matching before control/cleanup;
 - durable effect intent/issue/reconciliation;
@@ -738,8 +781,8 @@ owning work is admissible.
 1. Define a harness-neutral Elixir behaviour around start/observe/prompt/interrupt/
    reconcile/close/usage.
 2. Build a strict pinned Pi RPC adapter with JSONL framing and protocol validation.
-3. Define a controller-owned governed loadout manifest and refuse ambient executable
-   configuration.
+3. Define a controller-owned governed loadout/instruction/session manifest and refuse
+   ambient executable configuration or foreign-session resume.
 4. Implement the minimal trusted bridge and gateway path needed for a useful coding task
    without ambient model-visible host filesystem/process/network access.
 5. Prove provider/model/billing selection and fail-closed no-paid-fallback behavior for
@@ -787,7 +830,9 @@ cases must be executable against the exact candidate.
 ### Protocol/lifecycle
 
 - fresh start returns unique execution/session identity;
-- malformed/oversized/noncanonical JSONL fails closed;
+- malformed/oversized/noncanonical JSONL, duplicate keys and invalid/ambiguous fields
+  fail closed before dispatch;
+- hostile strings/newlines/NUL/path-like payloads remain inert data across the bridge;
 - prompt acknowledgement is distinguished from turn completion;
 - lost prompt acknowledgement is reconciled without blind duplicate delivery;
 - duplicate prompt/request identity does not create duplicate acknowledged effects;
@@ -804,6 +849,9 @@ cases must be executable against the exact candidate.
 
 - malicious project-local extension is ignored/refused in governed mode;
 - malicious user-level extension/config is ignored/refused;
+- candidate-modified `AGENTS.md`/skill/prompt is visible as candidate data but cannot
+  replace the pinned governing instruction bundle for that execution;
+- foreign/prior Pi session cannot be selected as the current assignment session;
 - changed bridge/Pi digest refuses until manifest is updated through protected process;
 - unknown execution-changing setting fails closed;
 - candidate cannot rewrite the active skill/project profile governing itself.
@@ -811,12 +859,16 @@ cases must be executable against the exact candidate.
 ### Capabilities/isolation
 
 - review role cannot write candidate even if UI/tool exposure is wrong;
-- out-of-scope path write/read is denied;
+- out-of-scope path write/read is denied after safe path resolution;
+- `../`, absolute-path, symlink/hardlink and swap-race escape cases cannot reach outside
+  the admitted workspace;
 - read/search/file-inclusion paths cannot read reusable provider/controller credentials;
 - shell/process paths cannot read reusable provider/controller credentials;
 - unauthorized outbound network is denied;
-- another assignment/workspace is inaccessible;
-- build/LSP hook cannot escape the worker boundary;
+- another assignment/workspace and its Pi session/context store are inaccessible;
+- candidate shell cannot mutate protected Git refs/common worktree metadata or use
+  integration/push credentials;
+- build/LSP hook cannot escape the worker boundary or install a protected-host hook;
 - denied capability is visible evidence, not translated into success;
 - worker cleanup does not kill foreign resources.
 
@@ -840,9 +892,11 @@ cases must be executable against the exact candidate.
   growth;
 - renamed model/session does not create independent review lineage.
 
-### Context/compaction
+### Context/session/compaction
 
 - required policy/spec/evidence context is retained or reloaded deterministically;
+- governing instruction bundle is pinned independently of candidate-modified instructions;
+- assignment-scoped session storage cannot resume/read a foreign assignment transcript;
 - optional source/tool context can be ranked/dropped without dropping mandatory context;
 - compaction summary is attributed and not accepted as raw evidence;
 - context/usage observation values preserve quality/source;
@@ -1011,6 +1065,8 @@ The design leaves these decisions for measured implementation work:
 - whether an official supported provider route can meet the subscription-only contract;
 - which context categories can be exact versus estimated;
 - whether interactive-human and governed profiles share one bridge package;
+- exact assignment-scoped Pi session persistence/retention mechanism after privacy tests;
+- exact protected-Git/workspace topology after isolation tests;
 - whether Superlogical eventually presents Pi sessions or replaces Herdr independently.
 
 None of those unknowns requires weakening the core boundary: Pi remains replaceable,
