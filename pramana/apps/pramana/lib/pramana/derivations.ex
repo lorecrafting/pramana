@@ -62,8 +62,9 @@ defmodule Pramana.Derivations do
   Captures the input identity immediately before a derivation begins.
 
   The command should retain this token until its write path finishes and call
-  `finish_run!/2`. If the input digest changes in between, the receipt is recorded as
-  partial rather than clean.
+  `finish_run!/2`. If the input digest differs at finalization, the receipt is recorded as
+  partial rather than clean. Matching checkpoints do not replace the pilot's separate
+  quiescence requirement.
   """
   @spec begin_run(String.t(), String.t() | nil, map(), map()) :: token()
   def begin_run(kind, source_bake_id, scope, parameters) when kind in @kinds do
@@ -85,7 +86,7 @@ defmodule Pramana.Derivations do
   Records the immutable receipt after a derivation write path finishes.
 
   `stats["failures"]` is the command's explicit per-item failure count. A run is
-  `complete` only when that count is zero, its input digest stayed stable, and the
+  `complete` only when that count is zero, its input digest matches the start checkpoint again, and the
   observed output count equals the producer's declared `expected_output_count`.
   """
   @spec finish_run!(token(), map()) :: DerivationRun.t()
