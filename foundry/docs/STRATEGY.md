@@ -444,9 +444,7 @@ requires fresh contract/terms/privacy/cost/conformance review and must remain re
 
 Provide one operator-facing interface that answers what was requested, what is
 progressing, what is waiting, which decision belongs to the operator, and what was
-accepted. Start with a shallow structure: planner, bounded developers, independent
-reviewers and optional diagnostic help. Do not build layers of agent managers before
-an observed coordination limit justifies them.
+accepted.
 
 For the **first software-engineering lifecycle**, keep the operating structure shallow:
 planner, bounded developers, independent reviewers and optional diagnostic help. This is
