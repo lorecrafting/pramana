@@ -12,7 +12,8 @@ digest, counts and timestamps. Database triggers reject update or deletion of a 
 
 A receipt is `complete` only when all of these are true at the end of the run:
 
-- the producer reports zero explicit or per-item failures;
+- the producer reports zero explicit or per-item failures, including aligned spans that
+  could not be resolved back to citation segments;
 - the recomputed input digest is unchanged from the start of the run; and
 - the derived table contains exactly the number of rows the producer expected to leave
   for that derivation.
@@ -23,8 +24,11 @@ table replacements. A stale row from an older rule can therefore survive a succe
 run. Such a run records a `partial` receipt instead of certifying the stale output.
 The receipt mechanism does not delete that row automatically.
 
-The output digest binds the receipt to the exact derived rows that were observed.
-Any later mutation makes the receipt stale when the verifier recomputes that digest.
+The output digest binds the receipt to the exact derived rows that were observed. For
+commentary alignment this covers only the deterministic `lemma_match` rows owned by that
+producer; unrelated future alignment methods do not poison its receipt. Ordering follows
+stable row identity, and alignment metadata is included in the digest. Any later mutation
+to the covered output makes the receipt stale when the verifier recomputes that digest.
 
 ## Producers covered
 

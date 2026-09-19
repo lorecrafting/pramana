@@ -215,6 +215,9 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     )
   end
 
+  defp written(%{written: n, unresolved: unresolved}) when unresolved > 0,
+    do: "  wrote #{n}, #{unresolved} unresolvable"
+
   defp written(%{written: n}), do: "  wrote #{n}"
   defp written(_), do: ""
 
@@ -224,7 +227,9 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
     reports = Enum.filter(results, &is_map/1)
     aligned = Enum.filter(reports, & &1.aligned)
     written = reports |> Enum.map(&Map.get(&1, :written, 0)) |> Enum.sum()
-    failures = Enum.count(results, &match?({:error, _, _, _}, &1))
+    unresolved = reports |> Enum.map(&Map.get(&1, :unresolved, 0)) |> Enum.sum()
+    explicit_failures = Enum.count(results, &match?({:error, _, _, _}, &1))
+    failures = explicit_failures + unresolved
 
     forward = fn rs ->
       case Enum.map(rs, & &1.forward_pct) do
@@ -249,7 +254,8 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
       "pairs_attempted" => length(results),
       "pairs_reported" => length(reports),
       "aligned_pairs" => length(aligned),
-      "alignments_written" => written
+      "alignments_written" => written,
+      "unresolved_alignments" => unresolved
     }
   end
 end

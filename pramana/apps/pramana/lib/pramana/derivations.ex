@@ -85,7 +85,8 @@ defmodule Pramana.Derivations do
   Records the immutable receipt after a derivation write path finishes.
 
   `stats["failures"]` is the command's explicit per-item failure count. A run is
-  `complete` only when that count is zero and its input digest stayed stable.
+  `complete` only when that count is zero, its input digest stayed stable, and the
+  observed output count equals the producer's declared `expected_output_count`.
   """
   @spec finish_run!(token(), map()) :: DerivationRun.t()
   def finish_run!(token, stats) do
@@ -249,6 +250,7 @@ defmodule Pramana.Derivations do
     commentary_pair_query(work_id)
     |> select([r, cs, _rt], {r.source_work_id, r.target_work_id, cs.source_id})
     |> Repo.all()
+    |> Enum.sort()
   end
 
   defp quotation_text_facts(scope) do
@@ -324,11 +326,16 @@ defmodule Pramana.Derivations do
         band: Atom.to_string(candidate.band)
       }
     end)
+    |> Enum.sort_by(&{&1.work_id, &1.target_work_id, &1.family})
   end
 
   defp commentary_pair_facts(scope) do
     commentary_pair_fact_query(scope["work"])
     |> Repo.all()
+    |> Enum.sort_by(
+      &{&1.commentary_work_id, &1.root_work_id, &1.relation, &1.commentary_text_id,
+       &1.root_text_id}
+    )
   end
 
   defp commentary_pair_query(work_id) do
@@ -428,11 +435,11 @@ defmodule Pramana.Derivations do
 
   defp alignment_output_rows(bake_id, scope) do
     from(a in CommentaryAlignment,
-      where: a.bake_id == ^bake_id,
+      where: a.bake_id == ^bake_id and a.method == "lemma_match",
       order_by: [
-        asc: a.commentary_work_id,
-        asc: a.root_work_id,
+        asc: a.commentary_text_id,
         asc: a.commentary_char_start,
+        asc: a.root_text_id,
         asc: a.root_char_start
       ],
       select: %{
@@ -449,7 +456,8 @@ defmodule Pramana.Derivations do
         root_char_start: a.root_char_start,
         root_char_end: a.root_char_end,
         method: a.method,
-        confidence: a.confidence
+        confidence: a.confidence,
+        meta: a.meta
       }
     )
     |> maybe_alignment_work(scope["work"])

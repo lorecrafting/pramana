@@ -232,10 +232,25 @@ defmodule Pramana.CommentaryDbTest do
       assert {:ok, report} = Commentary.align("T1509", "T0223")
       assert report.aligned == true
       assert report.written >= 1
+      assert report.unresolved == 0
 
       # Re-aligning replaces rows idempotently
       assert {:ok, report2} = Commentary.align("T1509", "T0223")
       assert report2.written == report.written
+      assert report2.unresolved == 0
+    end
+
+    test "reports matched spans that cannot be resolved to citation segments" do
+      commentary =
+        Repo.one!(from t in Text, where: t.work_id == "T1509")
+
+      Repo.delete_all(from s in Segment, where: s.text_id == ^commentary.id)
+
+      assert {:ok, report} = Commentary.align("T1509", "T0223")
+      assert report.aligned == true
+      assert report.spans > 0
+      assert report.written == 0
+      assert report.unresolved == report.spans
     end
 
     test "skips persisting when texts do not clear the alignment density gate" do

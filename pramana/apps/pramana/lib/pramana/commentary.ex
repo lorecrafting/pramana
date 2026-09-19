@@ -868,6 +868,8 @@ defmodule Pramana.Commentary do
       |> Enum.map(&row(&1, commentary, root, c_segments, r_segments, bake_id, now, pair))
       |> Enum.reject(&is_nil/1)
 
+    unresolved = length(found) - length(rows)
+
     Repo.transaction(fn ->
       Repo.delete_all(
         from a in CommentaryAlignment,
@@ -881,7 +883,9 @@ defmodule Pramana.Commentary do
       Enum.each(Enum.chunk_every(rows, 500), &Repo.insert_all(CommentaryAlignment, &1))
     end)
 
-    Map.put(report, :written, length(rows))
+    report
+    |> Map.put(:written, length(rows))
+    |> Map.put(:unresolved, unresolved)
   end
 
   defp row(span, commentary, root, c_segments, r_segments, bake_id, now, pair) do
