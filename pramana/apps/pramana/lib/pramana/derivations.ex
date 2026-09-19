@@ -276,6 +276,7 @@ defmodule Pramana.Derivations do
       where: not is_nil(t.body) and t.body != ""
     )
     |> maybe_where(:source, scope["source"])
+    |> maybe_where(:witness, scope["witness"])
     |> maybe_where(:work, scope["work"])
     |> maybe_division(scope["division"])
   end
@@ -284,6 +285,9 @@ defmodule Pramana.Derivations do
 
   defp maybe_where(query, :source, source),
     do: where(query, [t, _w], t.source_id == ^source)
+
+  defp maybe_where(query, :witness, witness),
+    do: where(query, [t, _w], t.witness_id == ^witness)
 
   defp maybe_where(query, :work, work),
     do: where(query, [t, _w], t.work_id == ^work)
