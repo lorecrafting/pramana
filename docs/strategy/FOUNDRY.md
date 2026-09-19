@@ -60,8 +60,12 @@ evidence, recovery**. These are a review vocabulary, not six new services.
 The workflow kernel decides domain transitions; the protected verifier owns safety
 and authority checks. Middleware can shape context or diagnostics inside those
 boundaries. A plugin, model response or general evaluation tool cannot be allowed
-to replace the checks that constrain it. Keep OMP as the current harness and Herdr
-as initial optional presentation unless the governing contract is explicitly changed.
+to replace the checks that constrain it. The current source still uses OMP through
+Herdr, but the durable execution boundary should be harness-neutral. Pi's pinned
+headless RPC is the preferred first replacement candidate to evaluate before further
+OMP-specific investment; it is not adopted until FR-09/15a conformance and any
+OMP-specific governing-contract text are explicitly revised and re-reviewed. Herdr
+remains initial optional presentation.
 
 A subagent used as a tool returns bounded findings while the parent retains task
 ownership. A lifecycle handoff changes the responsible assignment/role with durable
@@ -269,6 +273,14 @@ full artifact reference. A successful command that performed no expected work mu
 not count as productive completion. An empty queue can be healthy and idle; distinguish
 **service health**, **eligible work**, **work attempted** and **accepted outcomes**.
 
+Use [Foundry observability](../../foundry/docs/OBSERVABILITY.md) to measure the complete
+resource path from task/attempt/execution through model requests, tools, corrections,
+review and final acceptance. Preserve source-qualified token/cache/cost/context data when
+the selected harness exposes it, plus human steering/review/recovery effort. Optimize
+accepted outcomes per operator hour and comparable per-accepted-outcome costs; raw token
+reduction is not a success metric when it increases defects, correction cycles or operator
+attention.
+
 Read-cache receipts are hints, not authorization or durable memory. Recheck the
 file hash/revision before relying on cached content, and invalidate on external
 changes. No universal 500-token ceiling or fifteen-line diagnostic can fit every
@@ -314,9 +326,10 @@ and terminal/session backend are three different decisions.
 Do not freeze model brand names or price tiers into strategy. Evaluate permitted
 profiles by task success, review effort, latency and total cost. Reviewer capability
 must fit the risk; a cheaper model is not automatically an adequate grader. A new
-API gateway is an optional dependency, not a reason to route around OMP or billing
-isolation. Pramāṇa's user-facing model service needs its own approved policy; builder
-subscription permission does not authorize serving public product queries.
+API gateway is an optional dependency, not a reason to route around the selected harness,
+protected request path or billing isolation. Pramāṇa's user-facing model service needs its
+own approved policy; builder subscription permission does not authorize serving public
+product queries.
 
 Use the accepted budget ledger across retries, child work, handoffs, restarts and
 switches. Preserve unknown outcomes for reconciliation; a context reset or profile
