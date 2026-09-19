@@ -64,9 +64,17 @@ defmodule Pramana.Repo.Migrations.CreateDerivationRuns do
     FOR EACH ROW
     EXECUTE FUNCTION pramana_forbid_derivation_run_mutation();
     """)
+
+    execute("""
+    CREATE TRIGGER derivation_runs_no_truncate
+    BEFORE TRUNCATE ON derivation_runs
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION pramana_forbid_derivation_run_mutation();
+    """)
   end
 
   def down do
+    execute("DROP TRIGGER IF EXISTS derivation_runs_no_truncate ON derivation_runs")
     execute("DROP TRIGGER IF EXISTS derivation_runs_append_only ON derivation_runs")
     execute("DROP FUNCTION IF EXISTS pramana_forbid_derivation_run_mutation()")
     drop table(:derivation_runs)
