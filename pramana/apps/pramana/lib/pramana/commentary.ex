@@ -262,7 +262,6 @@ defmodule Pramana.Commentary do
   @spec syllable_min_forward() :: float()
   def syllable_min_forward, do: @syllable_min_forward
 
-
   @doc """
   The density floor for a commentary of this `text_role`, which is not one number.
 
