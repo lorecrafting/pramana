@@ -6,9 +6,11 @@ consumed by the Chinese-pilot preflight.
 
 ## Receipt contract
 
-Every non-dry write run records an append-only `derivation_runs` row binding the attempt
-to its source bake, implementation version, exact scope/parameters, input digest, output
-digest, counts and timestamps. Database triggers reject update, deletion or truncation of the receipt table.
+Every non-dry write run that reaches receipt finalization records an append-only
+`derivation_runs` row binding the attempt to its source bake, implementation version,
+exact scope/parameters, input digest, output digest, counts and timestamps. A crash or
+exception before finalization leaves no completion receipt; absence is never treated as
+success. Database triggers reject update, deletion or truncation of the receipt table.
 
 A receipt is `complete` only when all of these are true at the end of the run:
 
@@ -45,7 +47,16 @@ record useful evidence, but they do not satisfy the full-pilot requirement.
 
 ## Pilot acceptance
 
-Run:
+Produce the four required receipts from the Pramāṇa umbrella with the frozen pilot shape:
+
+```sh
+mix pramana.quotations.scan --source cbeta --witness T --min-length 20
+mix pramana.relations.derive
+mix pramana.relations.shared_text --write
+mix pramana.commentary.align
+```
+
+Then verify the selected source bake:
 
 ```sh
 mix pramana.pilot.derivations --bake-id <source-bake-id>
