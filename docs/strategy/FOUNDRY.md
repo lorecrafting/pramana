@@ -10,14 +10,18 @@ and portfolio sequencing. Neither replaces the repair plan or workflow contract.
 
 ## Mission and boundary
 
-Foundry turns a bounded objective into an independently checked software change,
-with observable progress, controlled expenditure and recoverable failure. The
-first customer is its operator building Pramāṇa. The longer-term product option is
-the same dependable workflow on other repositories, without Buddhist-domain or
-Pramāṇa database dependencies. Independence is architectural; external demand is
-still unproved. The current repair contract covers one operator, one machine and
-Pramāṇa. A second-repository pilot needs separately approved project scope and
-policies; FR-22 is not blanket authorization for expansion.
+Foundry is a trusted execution and governance kernel for model-directed work. Given a
+bounded objective, capable models may propose how to decompose and perform the work;
+Foundry supplies observable progress, controlled authority/expenditure, attributable
+evidence, acceptance and recoverable failure. Software engineering in Pramāṇa is the
+first workload and first customer, not the permanent role/workflow model.
+
+The longer-term product option is the same dependable kernel across repositories and
+across materially different workflows within one project, without Buddhist-domain or
+Pramāṇa database dependencies. Independence is architectural; external demand is still
+unproved. The current repair contract covers one operator, one machine and Pramāṇa. A
+second-repository or non-software workflow pilot needs separately approved project
+scope and policies; FR-22 is not blanket authorization for expansion.
 
 Keep the standalone OTP system. It may require appropriate local libraries and
 protected host provisioning; “standalone” does not mean zero dependencies, zero
@@ -64,6 +68,44 @@ ownership. A lifecycle handoff changes the responsible assignment/role with dura
 identity. Neither gains permission to accept its own work. Review must be independent
 of the maker's authority and have the exact candidate, contract, source context and
 raw evidence it needs—not merely a diff and one suggested test command.
+
+## Models direct; the kernel governs
+
+Increasing model capability should shrink Foundry's hard-coded intelligence rather than
+eliminate its protected kernel. Let models propose decomposition, temporary role names,
+workflow topology, context/tool requests, execution profiles, tests, reviewers and
+correction strategies. Do not invest in a large permanent planner hierarchy, fixed role
+taxonomy or rule engine whose main job a stronger model can perform from current state.
+
+Keep deterministic or protected the things whose truth cannot safely depend on the
+planner: admitted objective/policy revision, principal and assignment identity,
+capability grants, durable state transitions, request/budget accounting, effect claims
+and duplicate suppression, exact artifact identity, check/review provenance,
+independence requirements, acceptance predicates, reconciliation and promotion.
+A model may propose completion, retry or publication; receipts and policy authorize the
+corresponding effect.
+
+Post-repair workflow portability should be project-configurable rather than role
+hard-coded. A project/workflow definition may declare requested roles, capability
+requirements, context rules, evidence types, acceptance profile and project adapters.
+Those declarations are requests: effective capability is the intersection of protected
+operator policy, project scope, workflow/role allowance and the specific assignment.
+Repository-controlled configuration can never grant itself secrets, billing authority,
+arbitrary shell/network access or publication power.
+
+Pin every admitted workflow definition/revision to the run that used it. If a model or
+project changes the plan mid-run, record and admit a new revision instead of rewriting
+history. Favor a small vocabulary such as sequence, bounded parallel work, gates,
+handoff, correction and sub-workflow invocation over an unconstrained executable
+workflow language. Generalize only from observed needs.
+
+This permits different workflows inside one project. For example, a future Lokacore
+software workflow could use isolated Git/shell/compiler capabilities, while an approved
+RPG content-authoring workflow could expose only its typed Builder API, simulations and
+certification. The same model could serve as engine developer in one assignment and
+quest author in another because authority follows the assignment, not the model name.
+Released game/runtime artifacts should remain independently useful without Foundry or an
+LLM. This is a future portability target, not part of the current Pramāṇa repair scope.
 
 ## First post-repair investment: useful context and honest feedback
 
@@ -150,11 +192,14 @@ and an explicit maintenance/security cost.
 
 ## Portability and the Superlogical option
 
-Candidate I-F3 proves the workflow on one operator-selected, non-Pramāṇa repository.
-Identify project-specific commands and evidence adapters without generalizing the
-entire platform. Evaluate onboarding effort, reliability and net operator effort
-before pursuing multi-user hosting or a commercial package. This is a separate
-product hypothesis, not a permanent support feature of Pramāṇa.
+Candidate I-F3 first proves the accepted software workflow on one operator-selected,
+non-Pramāṇa repository. Identify project-specific commands, roles and evidence adapters
+without generalizing the entire platform. After that baseline, a stronger portability
+proof is a separately authorized workflow with a materially different tool/evidence
+surface in the same project, such as typed content authoring rather than Git/shell.
+Evaluate onboarding effort, reliability and net operator effort before pursuing
+multi-user hosting or a commercial package. This is a separate product hypothesis,
+not a permanent support feature of Pramāṇa.
 
 Retain Superlogical as the preferred **future candidate to evaluate** for session/
 presentation integration, not a completed or feature-equivalent Herdr replacement.
