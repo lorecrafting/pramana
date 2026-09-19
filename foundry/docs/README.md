@@ -15,7 +15,7 @@ contract still govern implementation.
 | Task | Read |
 |---|---|
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
-| Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the owning FR-09/15a/18 requirements before implementation |
+| Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the repair plan/workflow contract and affected FR-09/15a/18 requirements before implementation |
 | Resume active repairs | [Repair plan](REPAIR-PLAN.md), the current ticket's acceptance criteria and its referenced evidence |
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
 | Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
