@@ -51,7 +51,7 @@ Run:
 mix pramana.pilot.derivations --bake-id <source-bake-id>
 ```
 
-The verifier accepts only clean, current receipts with the pilot's frozen full/default
+The verifier accepts only clean, current receipts with the pilot's frozen required
 shape:
 
 - quotation scan: exact CBETA Taishō scope (`--source cbeta --witness T`) at a 20-character minimum;
