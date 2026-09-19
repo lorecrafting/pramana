@@ -11,6 +11,17 @@ are explicitly revised and re-reviewed.
 [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md) ·
 [Research sources](../../docs/strategy/RESEARCH.md)
 
+### Use this document by task
+
+| Task | Section |
+|---|---|
+| Understand the architecture/ownership split | [Decision summary](#1-decision-summary), [ownership](#4-ownership-boundary), [topology](#6-recommended-governed-topology) |
+| Implement the adapter | [Execution contract](#5-harness-neutral-execution-contract), [loadout](#7-deterministic-loadout-and-configuration), [P0](#13-p0--p1--p2-implementation-scope) |
+| Add Claude-like ergonomics | [Feature disposition](#8-claude-like-feature-disposition) |
+| Review security/isolation | [Threat model](#10-bridge-threat-model), [provider/billing](#11-provider-and-billing-boundary), [conformance](#14-conformance-matrix) |
+| Review observability/efficiency | [Observability](#12-observability-integration), [compaction/context](#810-foundry-aware-compaction--p1) |
+| Decide adoption | [Rollout gates](#15-rollout-and-adoption-gates), [upgrade policy](#17-upgrade-policy) |
+
 ## 1. Decision summary
 
 Use Pi as the preferred **replacement harness candidate**, not as a new Foundry control
@@ -27,8 +38,10 @@ plane. The target is "Claude-quality coding ergonomics under Foundry-quality aut
 - Governed runs load an explicit pinned Pi build, bridge and approved resources. They do
   not inherit arbitrary user-level or project-local extensions, agents, prompts, skills,
   MCP servers or configuration.
-- Model-directed executable effects cross Foundry's admitted capability gateway and the
-  FR-15a isolation boundary. Merely hiding Pi tools is not an authority boundary.
+- Model-directed access to project/host resources—reads, writes, processes, network,
+  language services and other executable effects—crosses Foundry's admitted capability
+  gateway and the FR-15a isolation boundary (or an equivalently proven OS restriction).
+  Merely hiding Pi tools is not an authority boundary.
 - Pi-local task lists, direct Pi subagent spawning and ambient agent teams are not
   authoritative workflow mechanisms. Delegation requests go to Foundry, which may admit
   bounded child/sibling assignments.
@@ -243,7 +256,7 @@ principal while moving model-directed effects through a credential-free gateway/
         |      +-- provider/model session
         |      +-- pinned Foundry bridge only
         |      X-- no ambient executable extensions
-        |      X-- no direct effectful built-in tools
+        |      X-- no direct host filesystem/process/network tools
         |
         +-- per-execution authenticated control channel
                |
@@ -257,8 +270,11 @@ principal while moving model-directed effects through a credential-free gateway/
         filesystem/shell/build/test
 
 The bridge should receive an execution-scoped handle, not a reusable operator/provider
-credential. A concrete effect request carries an invocation identity and is checked
-against the durable assignment/grant.
+credential. In this topology, model-visible filesystem read/search, mutation, shell,
+language-service and network operations are mediated through the gateway or another
+equivalently proven restricted principal; a "read-only" Pi builtin must not retain ambient
+access to the operator home or provider secrets. A concrete resource/effect request
+carries an invocation identity and is checked against the durable assignment/grant.
 
 Example conceptual request:
 
@@ -275,12 +291,15 @@ authorization.
 
 ### 6.1 Why not "Pi plus sandboxed Bash"
 
-Because extensions run where Pi runs. Sandboxing only a built-in Bash tool is insufficient
-if another active extension/tool can spawn a host process, read provider credentials,
-modify protected files or make network requests.
+Because extensions run where Pi runs, and read authority matters too. Sandboxing only a
+built-in Bash tool is insufficient if another active extension/tool can spawn a host
+process, or if a built-in read/search/file-inclusion path can inspect provider credentials,
+operator-home files or another workspace.
 
-The governed loadout therefore needs a complete executable-path inventory, not a
-tool-name allowlist alone.
+The governed loadout therefore needs a complete **resource and executable path**
+inventory—not a tool-name allowlist alone—including file references/attachments,
+read/search helpers, language servers, build hooks, extensions, subprocesses and network
+clients that can be influenced by model or candidate input.
 
 ### 6.2 Alternative whole-Pi sandbox
 
@@ -359,6 +378,11 @@ Flow:
 
 A "[DONE:n]" marker may update UI progress but cannot satisfy a protected workflow
 predicate.
+
+`PlanningProposal` is the post-repair target shape, not permission to generalize the
+current live repair workflow early. A P0 software trial may map planning into the existing
+admitted software-assignment contract until the owning role/workflow-generalization work
+is complete.
 
 ### 8.3 Skills and prompt templates — P0/P1
 
@@ -618,25 +642,26 @@ small trusted component.
 
 1. candidate repository adds or modifies a Pi extension and obtains host execution;
 2. user-level Pi config silently changes tools/provider/network behavior;
-3. a custom extension bypasses sandboxed built-ins;
-4. model calls a generic gateway while lying about project/role/path scope;
-5. child Pi process inherits a broader environment or credential;
-6. stale session controls a successor execution;
-7. prompt/abort acknowledgement is mistaken for completed effect;
-8. direct Pi subagent spawning bypasses child budget/grant admission;
-9. LSP/build hooks execute candidate-controlled code outside the worker boundary;
-10. background process survives assignment cancellation;
-11. tool output or telemetry copies secrets/raw prompts into diagnostics;
-12. session rewind resurrects stale policy assumptions;
-13. MCP/plugin supply-chain change silently enlarges capabilities;
-14. Pi/provider fallback spends through a route not admitted by Foundry.
+3. a direct read/search/file-inclusion path exposes host secrets or out-of-scope data;
+4. a custom extension bypasses sandboxed built-ins;
+5. model calls a generic gateway while lying about project/role/path scope;
+6. child Pi process inherits a broader environment or credential;
+7. stale session controls a successor execution;
+8. prompt/abort acknowledgement is mistaken for completed effect;
+9. direct Pi subagent spawning bypasses child budget/grant admission;
+10. LSP/build hooks execute candidate-controlled code outside the worker boundary;
+11. background process survives assignment cancellation;
+12. tool output or telemetry copies secrets/raw prompts into diagnostics;
+13. session rewind resurrects stale policy assumptions;
+14. MCP/plugin supply-chain change silently enlarges capabilities;
+15. Pi/provider fallback spends through a route not admitted by Foundry.
 
 ### Required mitigations
 
 - exact-version/digest pinning;
 - explicit governed loadout;
 - no ambient executable extension discovery;
-- complete executable-path inventory;
+- complete resource/executable-path inventory, including non-tool file ingestion;
 - authenticated execution-scoped gateway;
 - server-side scope derivation from CapabilityGrant;
 - credential-free model-directed worker;
@@ -708,8 +733,8 @@ optimization.
 2. Build a strict pinned Pi RPC adapter with JSONL framing and protocol validation.
 3. Define a controller-owned governed loadout manifest and refuse ambient executable
    configuration.
-4. Implement the minimal trusted bridge and effect-gateway path needed for a useful
-   coding task without direct host-effect tools.
+4. Implement the minimal trusted bridge and gateway path needed for a useful coding task
+   without ambient model-visible host filesystem/process/network access.
 5. Prove provider/model/billing selection and fail-closed no-paid-fallback behavior for
    the intended real route.
 6. Prove credential/filesystem/network/process isolation with synthetic secrets and
@@ -780,7 +805,8 @@ cases must be executable against the exact candidate.
 
 - review role cannot write candidate even if UI/tool exposure is wrong;
 - out-of-scope path write/read is denied;
-- shell cannot read reusable provider/controller credentials;
+- read/search/file-inclusion paths cannot read reusable provider/controller credentials;
+- shell/process paths cannot read reusable provider/controller credentials;
 - unauthorized outbound network is denied;
 - another assignment/workspace is inaccessible;
 - build/LSP hook cannot escape the worker boundary;
@@ -937,19 +963,19 @@ isolation parity.
 Primary references checked for this design:
 
 - Pi RPC:
-  https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/rpc.md
+  https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/rpc.md
 - Pi extensions:
-  https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md
+  https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/extensions.md
 - Pi upstream extension examples, including plan mode/subagents/permissions:
-  https://github.com/earendil-works/pi/tree/main/packages/coding-agent/examples/extensions
+  https://github.com/earendil-works/pi/tree/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/examples/extensions
 - Pi subagent example:
-  https://github.com/earendil-works/pi/blob/main/packages/coding-agent/examples/extensions/subagent/README.md
+  https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/examples/extensions/subagent/README.md
 - Pi skills:
-  https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/skills.md
+  https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/skills.md
 - Pi sessions:
-  https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/sessions.md
+  https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/sessions.md
 - Pi containerization/security guidance:
-  https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/containerization.md
+  https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/containerization.md
 - Claude Code feature overview:
   https://code.claude.com/docs/en/features-overview
 - Claude Code permissions:
@@ -970,7 +996,8 @@ available mechanisms and design inspiration, not Foundry acceptance evidence.
 The design leaves these decisions for measured implementation work:
 
 - exact local IPC transport for the Pi bridge;
-- whether the bridge wraps all built-in read tools or only effectful tools;
+- which Pi-internal pure/session/UI tools can remain direct after the resource-path
+  inventory proves they cannot access project/host resources;
 - exact sandbox/runtime implementation;
 - exact Pi version/revision selected for Stage B;
 - exact language-server package/version;
