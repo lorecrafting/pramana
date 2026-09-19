@@ -285,9 +285,8 @@ credential. That handle stays in the protected Pi/bridge principal: it is not co
 model context, worker environment, tool output, child input or diagnostic logs. The Pi
 process should start from a controller-owned **neutral control working directory**, not
 the candidate checkout, unless a later conformance result proves an equally strong
-configuration-discovery boundary. The candidate workspace is an explicit gateway
-resource, not ambient process CWD. In this
-topology, model-visible filesystem read/search, mutation, shell, language-service and
+configuration-discovery boundary. The candidate workspace is an explicit gateway resource, not ambient process CWD. In
+this topology, model-visible filesystem read/search, mutation, shell, language-service and
 network operations are mediated through the gateway or another
 equivalently proven restricted principal; a "read-only" Pi builtin must not retain ambient
 access to the operator home or provider secrets. A concrete resource/effect request
@@ -727,7 +726,9 @@ small trusted component.
 16. tool output or telemetry copies secrets/raw prompts into diagnostics;
 17. session rewind resurrects stale policy assumptions;
 18. MCP/plugin supply-chain change silently enlarges capabilities;
-19. Pi/provider fallback spends through a route not admitted by Foundry.
+19. Pi/provider fallback spends through a route not admitted by Foundry;
+20. Pi-internal retry, tool-loop continuation or compaction issues a model request without
+    a durable request reservation.
 
 ### Required mitigations
 
@@ -739,9 +740,10 @@ small trusted component.
   invalid encoding, NUL/control abuse and oversized records rather than interpolating
   untrusted data into shell/code;
 - authenticated execution-scoped gateway;
-- pre-request model reservation/claim with exact route fixed outside model control;
-- reusable provider credentials kept in the protected request path where technically
-  feasible, never in the effect worker;
+- pre-request model reservation/claim with exact route fixed outside model/candidate
+  control;
+- provider-request gateway configuration, route selection and reusable credentials kept
+  in protected controller custody where technically feasible, never in the effect worker;
 - server-side scope derivation from CapabilityGrant;
 - credential-free model-directed worker;
 - restricted network/filesystem/process authority with canonical path/resource checks;
@@ -984,7 +986,8 @@ fixtures. No real provider or automatic execution.
 ### Stage B — pinned local candidate
 
 Run exact Pi/bridge builds in an isolated test environment with protocol fixtures or an
-otherwise controlled provider test route plus the effect gateway. Exercise configuration, lifecycle, denial and cleanup cases.
+otherwise controlled provider test route plus the effect gateway. Exercise configuration,
+lifecycle, denial and cleanup cases.
 
 ### Stage C — bounded provider/isolation smoke
 
