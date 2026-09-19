@@ -394,6 +394,7 @@ defmodule Pramana.Derivations do
             q.a_text_id in ^ids and q.b_text_id in ^ids,
         order_by: [asc: q.a_text_id, asc: q.a_char_start, asc: q.b_text_id, asc: q.b_char_start],
         select: %{
+          text: q.text,
           text_sha256: q.text_sha256,
           length: q.length,
           a_text_id: q.a_text_id,
@@ -476,6 +477,7 @@ defmodule Pramana.Derivations do
         asc: a.root_char_start
       ],
       select: %{
+        lemma: a.lemma,
         lemma_sha256: a.lemma_sha256,
         length: a.length,
         commentary_text_id: a.commentary_text_id,
