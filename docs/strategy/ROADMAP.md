@@ -183,10 +183,26 @@ infrastructure justified only by ownership.
 
 **Outcome:** Foundry works on another approved project without Pramāṇa dependencies,
 then demonstrates that project/workflow roles and tool/evidence surfaces are not baked
-into the protected kernel. **Evidence:** separate setup/commands, accepted software
-changes, recovery, operator effort and support burden, plus comparison with the best
-practical off-the-shelf software-factory alternative; a later separately authorized
-materially different workflow is a stronger portability proof than another code task.
+into the protected kernel.
+
+**Evidence:** first prove an accepted software change with separate setup/commands,
+recovery, operator effort/support burden and comparison with the best practical
+off-the-shelf software-factory alternative. Then, under separately authorized scope,
+prove a materially different typed-content workflow such as Loka:
+
+- world/quest builder receives only its ProjectProfile-declared Builder/Lab surface;
+- engine-source/shell operations are denied;
+- MISSING_CAPABILITY escalates to a separate engine-capability assignment rather than
+  expanding the builder's grant;
+- mandatory content certification cannot be removed by the project/model plan;
+- reviewer independence is checked by durable principal/candidate lineage;
+- context/evidence routing changes by RoleSpec while protected authority semantics remain
+  invariant.
+
+Use [Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md) as the
+post-repair design target and [Validation](VALIDATION.md#foundry-cross-workflow-portability-validation)
+for falsification cases.
+
 **Dependencies:** G0, a bounded allocation and separate project/workflow authorization
 under the governing contract. **Excludes:** multi-tenancy, self-granted capabilities,
 a general workflow platform before evidence, or assumed demand from one successful demo.
