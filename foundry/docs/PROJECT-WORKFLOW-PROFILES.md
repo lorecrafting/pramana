@@ -122,6 +122,22 @@ assignment.
 
 ## 4. Capability grants, not ambient toolboxes
 
+### Registered tool surfaces, not project-installed controller code
+
+A ProjectProfile may reference/request tool or API surfaces that the protected system knows
+how to admit. It does not get to install arbitrary executable code into the controller/
+verifier simply by declaring a new tool kind.
+
+A new controller-side adapter/plugin requires its own reviewed Foundry change and
+conformance. A project-specific executable tool may instead run as an isolated worker or
+external typed service under an admitted interface, but its outputs remain untrusted until
+the governing receipt/evidence contract verifies them.
+
+This keeps "project-configurable tools" from becoming a plugin-shaped authority escape
+hatch.
+
+
+
 A RoleSpec requests specific capabilities. Foundry admits an exact
 **CapabilityGrant** that is a subset of project/operator policy.
 
