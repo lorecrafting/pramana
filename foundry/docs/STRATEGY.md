@@ -20,8 +20,9 @@ Foundry owns admitted intent, identities, capability grants, durable acknowledge
 budgets, external-effect control, evidence, acceptance, recovery and controlled
 self-improvement.
 
-Retain the standalone Elixir/OTP project. The current fail-closed runtime still launches
-OMP through Herdr; that is implementation truth, not the desired permanent dependency.
+Retain the standalone Elixir/OTP project. Beneath the current fail-closed launch gate,
+the implemented execution path still targets OMP through Herdr; that is implementation
+truth, not the desired permanent dependency.
 Keep agent execution harness-neutral behind a small versioned execution/observation
 contract, with Pi's headless RPC as the preferred first replacement candidate to evaluate
 before investing further in OMP-specific integration. Herdr remains initial optional
@@ -497,8 +498,9 @@ required tests and any OMP-specific contract text is explicitly revised and re-r
 Pi itself runs with broad host authority by default. Its containerization guidance also
 warns that extensions run wherever the Pi process runs; routing built-in tools into
 Gondolin does not automatically sandbox unrelated extension tools. A production candidate
-therefore needs pinned code/configuration, no unadmitted project/user extension or package
-loading, and an inventory proving every model-directed executable tool crosses the
+therefore needs pinned code/configuration, no unadmitted project/user extension or
+execution-changing configuration loading, and an inventory proving every model-directed
+executable tool crosses the
 FR-15a isolation boundary. Do not turn Pi extensions into a second authority or a bypass
 around Foundry's capability grants.
 
