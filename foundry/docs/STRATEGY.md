@@ -501,8 +501,8 @@ warns that extensions run wherever the Pi process runs; routing built-in tools i
 Gondolin does not automatically sandbox unrelated extension tools. A production candidate
 therefore needs pinned code/configuration; no unadmitted extension or
 execution-changing configuration may be loaded; and an inventory must prove every
-model-directed executable tool crosses the FR-15a isolation boundary. Do not turn Pi extensions into a second authority or a bypass
-around Foundry's capability grants.
+model-directed executable tool crosses the FR-15a isolation boundary. Do not turn Pi
+extensions into a second authority or a bypass around Foundry's capability grants.
 
 Pi RPC supplies useful diagnostic surfaces such as session token/cost/context statistics
 and explicit compaction usage. Consume those through Foundry's observation contract with
@@ -580,8 +580,8 @@ Treat measurement as part of the execution contract, not optional dashboard poli
 implementation inventory and target are maintained in [Observability](OBSERVABILITY.md).
 Every useful harness should let Foundry attribute observed resource use along the durable
 lineage from objective and ticket through attempt, execution, request/tool/effect,
-candidate, review and accepted outcome. Telemetry remains diagnostic evidence: it cannot mint authority, and missing usage stays
-unknown rather than becoming zero.
+candidate, review and accepted outcome. Telemetry remains diagnostic evidence: it cannot
+mint authority, and missing usage stays unknown rather than becoming zero.
 
 For model work, preserve source-qualified input, cache-read, cache-write, output,
 reasoning/other-provider token classes where exposed, total usage, context-window
