@@ -53,7 +53,7 @@ mix pramana.pilot.derivations --bake-id <source-bake-id>
 The verifier accepts only clean, current receipts with the pilot's frozen full/default
 shape:
 
-- quotation scan: full CBETA-compatible scope at a 20-character minimum;
+- quotation scan: exact CBETA Taishō scope (`--source cbeta --witness T`) at a 20-character minimum;
 - title relations: full scope at the default three-character title floor;
 - shared-text relations: full write scope at the default one-passage floor;
 - commentary alignment: all eligible pairs at the current default windows/density floors.
