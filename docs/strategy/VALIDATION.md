@@ -102,7 +102,7 @@ validated yet.
 | Community-supported Pramāṇa | Recurring use, supporter motivation and actual hosting/support burden | Free use does not automatically fund maintenance |
 | Institutional support or hosted workspace | A real institution's task, procurement constraints, data permissions and willingness to support/pay | Endorsement, rights or trust requirements may conflict with the proposed AI workflow |
 | Developer/API access | A concrete integrating user and cost/reliability expectations | Maintaining another surface before the core job is useful |
-| Foundry standalone support/package | Second-repository utility, setup/support burden and a distinct buyer | Internal success may not generalize to other environments |
+| Foundry standalone support/package | Cross-project utility, then materially different workflow utility, setup/support burden and a distinct buyer | Internal software success may not generalize to other projects or workflow/tool surfaces |
 
 Start distribution with consented design partners and useful evidence packets, not
 paid acquisition or viral authenticity scores. Conduct exploratory willingness-to-pay
