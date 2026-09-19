@@ -78,7 +78,10 @@ defmodule Pramana.Pilot.DerivationReadiness do
       is_nil(run.parameters["min_density_override"]) and
       run.parameters["grapheme_window"] == Commentary.window() and
       run.parameters["root_min_density"] == Commentary.min_density() and
-      run.parameters["subcommentary_min_density"] == Commentary.min_density("subcommentary")
+      run.parameters["subcommentary_min_density"] == Commentary.min_density("subcommentary") and
+      run.parameters["syllable_window"] == Commentary.syllable_window() and
+      run.parameters["syllable_min_density"] == Commentary.syllable_min_density() and
+      run.parameters["syllable_min_forward"] == Commentary.syllable_min_forward()
   end
 
   defp check_kind(source_bake_id, kind, coverage?) do
