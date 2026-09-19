@@ -593,24 +593,24 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp check_derivation_status(errors, status) when is_map(status) do
     errors
     |> add_if(
-      status["quotation_graph_completeness"] != "not_recorded_by_database",
-      "quotation graph completeness must remain explicitly external"
+      status["quotation_graph_completeness"] != "requires_separate_receipt_verification",
+      "quotation graph completeness must require separate receipt verification"
     )
     |> add_if(
-      status["relation_graph_completeness"] != "not_recorded_by_database",
-      "relation graph completeness must remain explicitly external"
+      status["relation_graph_completeness"] != "requires_separate_receipt_verification",
+      "relation graph completeness must require separate receipt verification"
     )
     |> add_if(
-      status["alignment_graph_completeness"] != "not_recorded_by_database",
-      "alignment graph completeness must remain explicitly external"
+      status["alignment_graph_completeness"] != "requires_separate_receipt_verification",
+      "alignment graph completeness must require separate receipt verification"
     )
     |> add_if(
       status["structural_validation_establishes_live_currentness"] != false,
       "structural validation must not claim live currentness"
     )
     |> add_if(
-      status["live_acceptance_requires_external_completion_evidence"] != true,
-      "live acceptance must require external derivation completion evidence"
+      status["live_acceptance_requires_derivation_receipts"] != true,
+      "live acceptance must require derivation receipt verification"
     )
     |> add_if(
       status["live_acceptance_requires_quiesced_repeat_match"] != true,
