@@ -17,9 +17,10 @@ admit these strategic initiatives. V2 content identity is implemented, not immut
 
 **Build two independent products around evidence, not one universal agent platform.**
 Pramāṇa helps people find, inspect and responsibly reuse Buddhist textual evidence.
-Foundry helps an operator turn bounded software objectives into independently
-checked, recoverable changes. Pramāṇa is Foundry's first demanding application,
-not a permanent dependency or its only possible market.
+Foundry is a trusted execution and governance kernel that lets models direct bounded
+work while preserving authority, evidence, acceptance and recovery. Software
+engineering is its first demanding workload and Pramāṇa its first application, not
+a permanent role model, dependency or its only possible market.
 
 The scarce resource is trustworthy progress per unit of human attention. More
 corpus rows, agents, generated code or architectural layers are not progress unless
@@ -32,7 +33,7 @@ they improve a real research or engineering outcome.
 | First complete experience | Question or quotation → scoped evidence → context and rendering → reusable citation | Improve the existing reader and MCP instead of rebuilding them around a chatbot |
 | Trust promise | Show what was checked, against which source, and what remains uncertain | Byte matching is not doctrinal truth, interpretation, translation fidelity or exhaustive search |
 | Foundry investment | Complete repair acceptance, then measure delivery and improve the demonstrated bottleneck | Do not rebuild a second kernel, budget system or verifier from essay-derived patterns |
-| Long-term Foundry option | Portable standalone engineering system, proved on a second repository | Preserve independence now; delay multi-tenant platform work until demand is demonstrated |
+| Long-term Foundry option | Portable model-directed execution/governance kernel, proved first on a second repository and later on a materially different authorized workflow | Preserve independence now; keep roles/workflows configurable outside the protected authority core; delay multi-tenant platform work until demand is demonstrated |
 | Research and dependencies | Borrow tested mechanisms; adopt packages only after bounded evaluation | No blanket adoption of a vendor's stack or benchmark claims |
 
 The initial strategy rewrite left canon, participants and pilot controls open. Those
