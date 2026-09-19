@@ -64,7 +64,6 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
     assert stale.derivations["relations_title"].state == "stale_output"
   end
 
-
   test "diagnoses a qualifying receipt whose output cardinality is incomplete" do
     token =
       Derivations.begin_run(
