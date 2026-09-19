@@ -117,6 +117,17 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
     refute DerivationReadiness.commentary_scope?(receipt)
   end
 
+  test "rejects an otherwise valid receipt with an unknown pilot parameter" do
+    receipt =
+      record_clean!(
+        "relations_title",
+        %{"mode" => "full"},
+        %{"min_title" => 3, "future_knob" => true}
+      )
+
+    refute DerivationReadiness.title_scope?(receipt)
+  end
+
   test "rejects a corpus-wide quotation receipt for the CBETA/T pilot" do
     receipt =
       record_clean!(
