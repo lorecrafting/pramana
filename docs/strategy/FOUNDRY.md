@@ -153,11 +153,16 @@ seccomp and Landlock, normally through a container/sandbox/micro-VM layer rather
 new Foundry reimplementation. Non-Linux hosts need equivalently tested mechanisms.
 Dagger is worth a bounded evaluation because it exposes typed execution objects and an
 Elixir SDK, but its current Elixir SDK is beta and Dagger must still prove Foundry's
-credential, egress and cleanup requirements before adoption.
+credential, egress and cleanup requirements before adoption. Dagger-managed secrets do
+not authorize reusable model/provider credentials inside candidate-controlled execution;
+preserve the protected authentication boundary unless a reviewed replacement proves the
+same or stronger separation.
 
 The execution backend therefore remains replaceable beneath the Elixir authority/control
-plane. Foundry should specify *what must be isolated and evidenced*, not own every kernel
-mechanism used to achieve it.
+plane. Elixir is the current control-plane implementation, not the security boundary or
+the product moat. Foundry should specify *what must be isolated and evidenced*, not own
+every kernel mechanism used to achieve it, and should replace even its own infrastructure
+when measured substitution evidence justifies that change.
 
 ## Jev as a fast semantic layer, not authority
 
