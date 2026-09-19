@@ -163,6 +163,31 @@ execution plumbing, or use a direct container/micro-VM adapter if that is smalle
 easier to verify. In either case, the same credential, network, filesystem, resource,
 cleanup and useful-completion conformance tests apply.
 
+A sovereign in-house option is intentionally narrower than building a container engine:
+own a small versioned sandbox-manifest protocol, policy compiler/launcher and conformance
+suite, while delegating enforcement to Linux primitives or a pinned minimal helper. For
+shell-capable software workers, the baseline policy should include a credential-free
+dedicated identity, cleared environment/file descriptors, no host home/keychain/SSH or
+runtime sockets, an explicit workspace and ephemeral home/tmp, default-deny networking,
+resource/PID/time ceilings, complete descendant cleanup, `no_new_privs`, capability
+dropping, syscall filtering and stackable filesystem/network restrictions such as
+Landlock where supported. Exact policy/rootfs/input/argv/output identities become
+receipts.
+
+Because the current operator host is macOS, the simplest strong boundary may be a
+Foundry-controlled Linux worker VM with per-execution Linux sandboxes inside it. Apple
+Virtualization.framework supports Linux guests. Keep operator credentials and normal host
+files outside the VM; transfer only the exact workspace/input and return patches/artifacts.
+This provides defense in depth: an inner sandbox failure reaches a sacrificial worker
+guest before it reaches the operator host. A direct Linux host can use the same sandbox
+contract without the outer VM.
+
+Do not confuse source ownership with security quality. A tiny in-house launcher can be
+easier to audit than a large platform, but writing raw sandbox mechanisms creates subtle
+mount, file-descriptor, namespace and privilege bugs. Prefer composing kernel enforcement
+and, where useful, a pinned/mirrored low-level helper. The security update path remains
+mandatory even for vendored code.
+
 ## Elixir control plane; OS/sandbox security plane
 
 Retain Elixir/OTP for long-lived coordination, supervision, workflow state/replay,
