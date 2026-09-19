@@ -16,7 +16,7 @@ defmodule Pramana.Derivations do
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.DerivationRun
   alias Pramana.Corpus.Quotation
-  alias Segment
+  alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Corpus.WorkRelation
