@@ -1,6 +1,9 @@
 defmodule Pramana.DerivationsTest do
   use Pramana.DataCase, async: true
 
+  alias Pramana.Corpus.Source
+  alias Pramana.Corpus.Text
+  alias Pramana.Corpus.Witness
   alias Pramana.Corpus.Work
   alias Pramana.Derivations
   alias Pramana.Relations
@@ -38,6 +41,49 @@ defmodule Pramana.DerivationsTest do
     assert receipt.stats["expected_output_count"] == 0
     assert receipt.stats["output_count"] == 1
     assert receipt.stats["output_count_matches_expected"] == false
+  end
+
+  test "commentary receipts become stale when the source role changes" do
+    Repo.insert!(%Source{id: "cbeta", name: "CBETA"})
+    Repo.insert!(%Witness{id: "T", name: "Taishō"})
+    Repo.insert!(%Work{id: "T9001", title: "Root", text_role: "root"})
+    Repo.insert!(%Work{id: "T9002", title: "Commentary", text_role: "commentary"})
+
+    for {work_id, body} <- [{"T9001", "root text"}, {"T9002", "commentary text"}] do
+      Repo.insert!(%Text{
+        work_id: work_id,
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:#{work_id}",
+        body: body,
+        body_sha256: Derivations.digest(body),
+        char_count: String.length(body)
+      })
+    end
+
+    assert {:ok, _} =
+             Relations.assert(%{
+               source_work_id: "T9002",
+               target_work_id: "T9001",
+               relation: "comments_on",
+               method: "catalogue",
+               confidence: "certain"
+             })
+
+    token =
+      Derivations.begin_run(
+        "commentary_align",
+        "bake-test",
+        %{"work" => nil},
+        %{}
+      )
+
+    Repo.update_all(
+      from(w in Work, where: w.id == "T9002"),
+      set: [text_role: "subcommentary"]
+    )
+
+    refute token.input_digest == Derivations.current_input_digest(token)
   end
 
   test "a producer must state its expected output cardinality" do
