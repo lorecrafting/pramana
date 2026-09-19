@@ -474,6 +474,10 @@ completion. Borrow mechanisms and failure scenarios, not a competing authority s
 
 ### Pi: explicit session contracts and replaceable execution
 
+The concrete [Pi harness design](PI-HARNESS.md) turns this strategy into a bounded
+feature disposition, bridge threat model, P0/P1/P2 scope and conformance matrix. It is
+a design candidate, not adoption or permission to bypass the governing repair gates.
+
 Pi's [RPC contract][pi-rpc] is a useful example of structured headless integration.
 A successful prompt response means accepted/queued/handled, not task completion.
 Correlation IDs alone do not establish durable deduplication. Its documented abort
