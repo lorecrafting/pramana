@@ -253,6 +253,38 @@ defmodule Pramana.CommentaryDbTest do
       assert report.unresolved == report.spans
     end
 
+    test "an incomplete re-alignment preserves the previous complete pair" do
+      assert {:ok, first} = Commentary.align("T1509", "T0223", bake_id: "bake-a")
+      assert first.written > 0
+
+      before_rows =
+        Repo.all(
+          from a in CommentaryAlignment,
+            where:
+              a.commentary_work_id == "T1509" and a.root_work_id == "T0223" and
+                a.method == "lemma_match",
+            select: {a.lemma_sha256, a.commentary_char_start, a.root_char_start}
+        )
+
+      commentary = Repo.one!(from t in Text, where: t.work_id == "T1509")
+      Repo.delete_all(from s in Segment, where: s.text_id == ^commentary.id)
+
+      assert {:ok, partial} = Commentary.align("T1509", "T0223", bake_id: "bake-a")
+      assert partial.unresolved == partial.spans
+      assert partial.written == 0
+
+      after_rows =
+        Repo.all(
+          from a in CommentaryAlignment,
+            where:
+              a.commentary_work_id == "T1509" and a.root_work_id == "T0223" and
+                a.method == "lemma_match",
+            select: {a.lemma_sha256, a.commentary_char_start, a.root_char_start}
+        )
+
+      assert Enum.sort(after_rows) == Enum.sort(before_rows)
+    end
+
     test "skips persisting when texts do not clear the alignment density gate" do
       load_long_commentary!()
       set_role!("T9999", "commentary")
