@@ -17,9 +17,10 @@ admit these strategic initiatives. V2 content identity is implemented, not immut
 
 **Build two independent products around evidence, not one universal agent platform.**
 Pramāṇa helps people find, inspect and responsibly reuse Buddhist textual evidence.
-Foundry helps an operator turn bounded software objectives into independently
-checked, recoverable changes. Pramāṇa is Foundry's first demanding application,
-not a permanent dependency or its only possible market.
+Foundry is a trusted execution and governance kernel that lets models direct bounded
+work while preserving authority, evidence, acceptance and recovery. Software
+engineering is its first demanding workload and Pramāṇa its first application, not
+a permanent role model, dependency or its only possible market.
 
 The scarce resource is trustworthy progress per unit of human attention. More
 corpus rows, agents, generated code or architectural layers are not progress unless
@@ -31,8 +32,8 @@ they improve a real research or engineering outcome.
 | Initial product scope | One selected canon/collection per pilot workflow, with explicit scope selection | Keep existing multi-corpus infrastructure; defer automatic cross-canon synthesis |
 | First complete experience | Question or quotation → scoped evidence → context and rendering → reusable citation | Improve the existing reader and MCP instead of rebuilding them around a chatbot |
 | Trust promise | Show what was checked, against which source, and what remains uncertain | Byte matching is not doctrinal truth, interpretation, translation fidelity or exhaustive search |
-| Foundry investment | Complete repair acceptance, then measure delivery and improve the demonstrated bottleneck | Do not rebuild a second kernel, budget system or verifier from essay-derived patterns |
-| Long-term Foundry option | Portable standalone engineering system, proved on a second repository | Preserve independence now; delay multi-tenant platform work until demand is demonstrated |
+| Foundry investment | Complete repair acceptance, then measure delivery, run a substitution check and improve only the demonstrated gap | Compose mature infrastructure where it passes Foundry's contract; do not rebuild generic agent/workflow/sandbox layers for ownership's sake |
+| Long-term Foundry option | Portable model-directed execution/governance kernel, proved first on a second repository and later on a materially different authorized workflow | Preserve independence now; keep roles/workflows configurable outside the protected authority core; delay multi-tenant platform work until demand is demonstrated |
 | Research and dependencies | Borrow tested mechanisms; adopt packages only after bounded evaluation | No blanket adoption of a vendor's stack or benchmark claims |
 
 The initial strategy rewrite left canon, participants and pilot controls open. Those
@@ -58,8 +59,11 @@ owns the customer, scope and trust contract.
 
 Foundry's proposed advantage is controlled delivery with understandable failure and
 recovery, across permitted providers, without requiring the operator to babysit
-ordinary work. A multiplexer, model gateway or coding agent alone is not that
-product. [Foundry strategy](strategy/FOUNDRY.md) owns the boundary and investment logic.
+ordinary work. A multiplexer, model gateway, coding agent or generic durable workflow
+runtime alone is not that product. Foundry should compose those systems when they
+satisfy its contracts and should stop building any layer an external product can do
+better without weakening authority or evidence. [Foundry strategy](strategy/FOUNDRY.md)
+owns the boundary and investment logic.
 
 Both can accumulate useful assets: regression cases, source corrections, reviewed
 rules and reliable workflows. This is a **compounding hypothesis**, not evidence

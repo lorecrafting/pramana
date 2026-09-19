@@ -89,6 +89,25 @@ It is also not a replacement for deterministic repository routing. Use code and 
 for facts they can answer exactly. A future diagnostic-triage consumer requires a separate
 bounded design after context selection has been evaluated.
 
+## Longer-term positioning
+
+If Stage A demonstrates held-out benefit, keep Jev/System One as a replaceable **fast
+semantic/reflex layer**, not as Foundry's workflow brain. Appropriate future questions
+are narrow and advisory: context relevance, whether a trace looks stuck, whether a
+failure appears infrastructural, whether two findings are duplicates, whether a task
+looks unusually risky, or which already-authorized execution profile deserves further
+consideration.
+
+Ask independent questions over a bounded state, preserve their typed probabilities and
+confidence, and let versioned deterministic code compose those signals. High-confidence
+low-risk signals may support automation only when protected policy already permits that
+action; uncertainty should route to stronger verification or no action. System One's
+speed/cost claims are provider claims to evaluate, not acceptance evidence.
+
+This positioning is intentionally compatible with stronger future models: a better fast
+decision model can replace Jev behind the assessor interface, and a better planner can
+use the signals without gaining authority.
+
 ## What remains unproved
 
 Stage A does not prove live TypeSafe account compatibility, privacy/retention suitability,

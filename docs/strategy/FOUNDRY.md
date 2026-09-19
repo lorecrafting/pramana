@@ -1,4 +1,4 @@
-# Foundry: the engineering product
+# Foundry: trusted execution for model-directed work
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap](ROADMAP.md)
 **Status:** post-repair investment proposal under the existing authority contract.
@@ -10,14 +10,18 @@ and portfolio sequencing. Neither replaces the repair plan or workflow contract.
 
 ## Mission and boundary
 
-Foundry turns a bounded objective into an independently checked software change,
-with observable progress, controlled expenditure and recoverable failure. The
-first customer is its operator building Pramāṇa. The longer-term product option is
-the same dependable workflow on other repositories, without Buddhist-domain or
-Pramāṇa database dependencies. Independence is architectural; external demand is
-still unproved. The current repair contract covers one operator, one machine and
-Pramāṇa. A second-repository pilot needs separately approved project scope and
-policies; FR-22 is not blanket authorization for expansion.
+Foundry is a trusted execution and governance kernel for model-directed work. Given a
+bounded objective, capable models may propose how to decompose and perform the work;
+Foundry supplies observable progress, controlled authority/expenditure, attributable
+evidence, acceptance and recoverable failure. Software engineering in Pramāṇa is the
+first workload and first customer, not the permanent role/workflow model.
+
+The longer-term product option is the same dependable kernel across repositories and
+across materially different workflows within one project, without Buddhist-domain or
+Pramāṇa database dependencies. Independence is architectural; external demand is still
+unproved. The current repair contract covers one operator, one machine and Pramāṇa. A
+second-repository or non-software workflow pilot needs separately approved project
+scope and policies; FR-22 is not blanket authorization for expansion.
 
 Keep the standalone OTP system. It may require appropriate local libraries and
 protected host provisioning; “standalone” does not mean zero dependencies, zero
@@ -64,6 +68,193 @@ ownership. A lifecycle handoff changes the responsible assignment/role with dura
 identity. Neither gains permission to accept its own work. Review must be independent
 of the maker's authority and have the exact candidate, contract, source context and
 raw evidence it needs—not merely a diff and one suggested test command.
+
+## Models direct; the kernel governs
+
+Increasing model capability should shrink Foundry's hard-coded intelligence rather than
+eliminate its protected kernel. Let models propose decomposition, temporary role names,
+workflow topology, context/tool requests, execution profiles, tests, reviewers and
+correction strategies. Do not invest in a large permanent planner hierarchy, fixed role
+taxonomy or rule engine whose main job a stronger model can perform from current state.
+
+Keep deterministic or protected the things whose truth cannot safely depend on the
+planner: admitted objective/policy revision, principal and assignment identity,
+capability grants, durable state transitions, request/budget accounting, effect claims
+and duplicate suppression, exact artifact identity, check/review provenance,
+independence requirements, acceptance predicates, reconciliation and promotion.
+Protected policy may require gates omitted by a proposed workflow and a plan cannot
+weaken them. A model may propose completion, retry or publication; receipts and policy
+authorize the corresponding effect. Independence follows durable principal/authority
+lineage and candidate ownership, not a fresh role name, session or model.
+
+Post-repair workflow portability should be project-configurable rather than role
+hard-coded. A project/workflow definition may declare requested roles, capability
+requirements, context rules, evidence types, acceptance profile and project adapters.
+Those declarations are requests: effective capability is the intersection of protected
+operator policy, project scope, workflow/role allowance and the specific assignment.
+Repository-controlled configuration can never grant itself secrets, billing authority,
+arbitrary shell/network access or publication power.
+
+Pin every admitted workflow definition/revision to the run that used it. If a model or
+project changes the plan mid-run, record and admit a new revision instead of rewriting
+history. Child work and sub-workflows inherit parent scope and budget ceilings unless
+protected policy narrows them; composition cannot mint authority. Favor a small
+vocabulary such as sequence, bounded parallel work, gates, handoff, correction and
+sub-workflow invocation over an unconstrained executable workflow language. Generalize
+only from observed needs.
+
+This permits different workflows inside one project. For example, a future Lokacore
+software workflow could use isolated Git/shell/compiler capabilities, while an approved
+RPG content-authoring workflow could expose only its typed Builder API, simulations and
+certification. The same model could serve as engine developer in one assignment and
+quest author in another because authority follows the assignment, not the model name.
+Released game/runtime artifacts should remain independently useful without Foundry or an
+LLM. This is a future portability target, not part of the current Pramāṇa repair scope.
+
+## Positioning: own the contract, not commodity infrastructure
+
+Foundry must earn its custom infrastructure. Its durable product boundary is the
+authority/evidence contract around model-directed work: admitted intent and capability,
+durable identities and budgets, exact external-effect accounting, exact artifact/evidence
+binding, independence constraints, acceptance, reconciliation and controlled promotion.
+Agent loops, software-factory UIs, workflow runtimes, sandboxes, policy languages and
+model routers are implementation choices unless the governing contract proves otherwise.
+
+Before post-repair work adds or substantially extends one of those implementation layers,
+run a bounded substitution evaluation against the strongest available alternative.
+Current candidate classes include Warp Factories for software-factory orchestration,
+LangGraph for agent/workflow runtime, Restate/Temporal/DBOS for durable execution,
+Dagger plus OS/container/micro-VM primitives for execution isolation, and OPA/Cedar for
+bounded authorization-policy evaluation. These names are candidates, not dependencies.
+
+A substitution evaluation compares the actual Foundry cases—not feature lists—including
+lost acknowledgments, duplicate delivery, unknown side-effect outcomes, durable budgets,
+credential separation, exact candidate/receipt binding, independent review, mandatory
+gates, cancellation, restart/replay, positive useful completion, local operating burden,
+privacy/licensing and reversible migration. Adopt a candidate only where it lowers total
+burden without weakening those properties. If it fully satisfies a layer, remove or avoid
+duplicative Foundry code. If a future product satisfies the entire useful contract, using
+it instead of Foundry is a valid success outcome.
+
+This is also the future-proofing rule: model capability growth should delete planning
+heuristics; infrastructure maturity should delete infrastructure code. What should remain
+stable is the contract that distinguishes a proposal from authority, activity from
+evidence and completion claims from accepted outcomes.
+
+## Current host path and why execution isolation matters
+
+Today the production automatic agent route is fail-closed before launch because the
+installed Herdr/OMP path has not proved subscription/billing isolation. The code path
+that would run after that gate is host-based: Herdr opens a terminal pane at the
+assignment checkout and starts OMP there, while the Elixir adapter invokes Herdr as a
+host OS child. Foundry tracks exact pane/process/process-group identity for ownership and
+cleanup, but that is not container or credential isolation.
+
+A worktree keeps concurrent Git changes separate; a pane keeps sessions distinguishable;
+a process group makes descendant cleanup safer. None limits a shell-capable worker to the
+checkout, removes the host principal's readable files, or disables arbitrary network
+egress. Restoring automatic execution therefore requires the FR-09/15a security boundary,
+not simply flipping the existing launch capability on.
+
+Dagger is conceptually above Docker rather than a Docker replacement. Docker/Podman/etc.
+supply OCI container execution; Dagger can programmatically compose those containers,
+inputs, services, commands, caches and artifacts. Foundry may use Dagger to reduce
+execution plumbing, or use a direct container/micro-VM adapter if that is smaller and
+easier to verify. In either case, the same credential, network, filesystem, resource,
+cleanup and useful-completion conformance tests apply.
+
+A sovereign in-house option is intentionally narrower than building a container engine:
+own a small versioned sandbox-manifest protocol, policy compiler/launcher and conformance
+suite, while delegating enforcement to Linux primitives or a pinned minimal helper. For
+shell-capable software workers, the baseline policy should include a credential-free
+dedicated identity, cleared environment/file descriptors, no host home/keychain/SSH or
+runtime sockets, an explicit workspace and ephemeral home/tmp, default-deny networking,
+resource/PID/time ceilings, complete descendant cleanup, `no_new_privs`, capability
+dropping, syscall filtering and stackable filesystem/network restrictions such as
+Landlock where supported. Exact policy/rootfs/input/argv/output identities become
+receipts.
+
+Because the current operator host is macOS, the simplest strong boundary may be a
+Foundry-controlled Linux worker VM with per-execution Linux sandboxes inside it. Apple
+Virtualization.framework supports Linux guests. Keep operator credentials and normal host
+files outside the VM; transfer only the exact workspace/input and return patches/artifacts.
+This provides defense in depth: an inner sandbox failure reaches a sacrificial worker
+guest before it reaches the operator host. A direct Linux host can use the same sandbox
+contract without the outer VM.
+
+Do not confuse source ownership with security quality. A tiny in-house launcher can be
+easier to audit than a large platform, but writing raw sandbox mechanisms creates subtle
+mount, file-descriptor, namespace and privilege bugs. Prefer composing kernel enforcement
+and, where useful, a pinned/mirrored low-level helper. The security update path remains
+mandatory even for vendored code.
+
+## Elixir control plane; OS/sandbox security plane
+
+Retain Elixir/OTP for long-lived coordination, supervision, workflow state/replay,
+assignment lifecycle and recovery. Do not use BEAM process separation as the security
+boundary for arbitrary agent-controlled tools.
+
+Hard process/filesystem/network/resource boundaries belong to the host or a proven
+execution backend. On Linux, evaluate native primitives such as namespaces, cgroups,
+seccomp and Landlock, normally through a container/sandbox/micro-VM layer rather than a
+new Foundry reimplementation. Non-Linux hosts need equivalently tested mechanisms.
+Dagger is worth a bounded evaluation because it exposes typed execution objects and an
+Elixir SDK, but its current Elixir SDK is beta and Dagger must still prove Foundry's
+credential, egress and cleanup requirements before adoption. Dagger-managed secrets do
+not authorize reusable model/provider credentials inside candidate-controlled execution;
+preserve the protected authentication boundary unless a reviewed replacement proves the
+same or stronger separation.
+
+The execution backend therefore remains replaceable beneath the Elixir authority/control
+plane. Elixir is the current control-plane implementation, not the security boundary or
+the product moat. Foundry should specify *what must be isolated and evidenced*, not own
+every kernel mechanism used to achieve it, and should replace even its own infrastructure
+when measured substitution evidence justifies that change.
+
+## Jev as a fast semantic layer, not authority
+
+The current Stage-A assessor already captures the appropriate Jev boundary. TypeSafe's
+System One guidance keeps deterministic control flow and side effects in code while
+models answer narrow typed questions with probabilities/confidence. If held-out
+evaluation supports it, Jev can become a cheap reflex layer for context ranking,
+diagnostic triage, progress/stuck signals, duplicate findings, risk classification and
+execution-profile recommendations.
+
+Those signals remain advisory. Deterministic policy decides whether a confidence range
+may trigger a low-risk automatic path, require stronger-model/human verification, or do
+nothing. Jev cannot establish entitlement, spend, durable state, reviewer independence,
+safe retry of an unknown effect, acceptance or promotion. Keep a deterministic fallback
+and a replaceable provider boundary because Jev is currently early access.
+
+## Project-defined roles, surfaces and escalation
+
+The long-term product should not encode Pramāṇa's current `developer → reviewer`
+workflow as the protected ontology. The detailed direction is recorded in
+[Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md).
+
+Projects may describe versioned RoleSpecs and request scoped tool/API surfaces, context,
+evidence adapters and workflow shapes. Foundry's protected kernel admits an exact
+CapabilityGrant no broader than operator/project policy.
+
+Loka is the strongest concrete design case currently available because its authoring
+architecture deliberately separates layers:
+
+- content/world builders can be very powerful over L3–L6 through a typed Builder API;
+- those builders should have no ambient engine-source or arbitrary-shell authority;
+- missing semantics become CapabilityProposal/escalation;
+- engine-capability developers receive separate L2 source scope and stronger checks;
+- semantic reviewers remain read/simulate-only;
+- release roles operate only on exact certified artifact identities.
+
+This is more useful than adding a `mud_builder` branch inside Foundry code. The protected
+kernel should understand assignments, principals, capability grants, evidence,
+independence and acceptance; `mud_builder` is project vocabulary supplied by a
+ProjectProfile.
+
+Current runtime code is not yet role-agnostic: software-specific launch roles and
+handoff/review phases remain part of the active repair baseline. Post-repair portability
+must remove those assumptions only after the fixed workflow is proven and a materially
+different typed-content workflow demonstrates the generalization.
 
 ## First post-repair investment: useful context and honest feedback
 
@@ -150,11 +341,15 @@ and an explicit maintenance/security cost.
 
 ## Portability and the Superlogical option
 
-Candidate I-F3 proves the workflow on one operator-selected, non-Pramāṇa repository.
-Identify project-specific commands and evidence adapters without generalizing the
-entire platform. Evaluate onboarding effort, reliability and net operator effort
-before pursuing multi-user hosting or a commercial package. This is a separate
-product hypothesis, not a permanent support feature of Pramāṇa.
+Candidate I-F3 first proves the accepted software workflow on one operator-selected,
+non-Pramāṇa repository and compares the result with the best practical off-the-shelf
+alternative for the same job rather than assuming custom Foundry orchestration is needed. Identify project-specific commands, roles and evidence adapters
+without generalizing the entire platform. After that baseline, a stronger portability
+proof is a separately authorized workflow with a materially different tool/evidence
+surface in the same project, such as typed content authoring rather than Git/shell.
+Evaluate onboarding effort, reliability and net operator effort before pursuing
+multi-user hosting or a commercial package. This is a separate product hypothesis,
+not a permanent support feature of Pramāṇa.
 
 Retain Superlogical as the preferred **future candidate to evaluate** for session/
 presentation integration, not a completed or feature-equivalent Herdr replacement.

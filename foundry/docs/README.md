@@ -1,13 +1,14 @@
 # Foundry documentation
 
-Foundry is an independent OTP execution system. [The overview](../README.md) describes
+Foundry is an independent OTP execution and governance system. [The overview](../README.md) describes
 its implementation inventory and important containment limits. Neither a historical
 review nor a model-free CI result establishes that live promotion or provider execution
 is enabled.
 
 Read the [strategy working summary](STRATEGY.md#working-summary) once for overall
-direction: dependable control, reused harnesses, independent evidence and useful recovery.
-The strategy is context; the repair plan and workflow contract still govern implementation.
+direction: model-directed work under dependable authority, reused harnesses, independent
+evidence and useful recovery. The strategy is context; the repair plan and workflow
+contract still govern implementation.
 
 ## Start by the task
 
@@ -16,6 +17,7 @@ The strategy is context; the repair plan and workflow contract still govern impl
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
 | Resume active repairs | [Repair plan](REPAIR-PLAN.md), the current ticket's acceptance criteria and its referenced evidence |
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
+| Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
 | Understand why repairs exist | [Architecture/lifecycle audit](AUDIT-2026-09-12.md) and its dated verification records |
 | Build or run model-free checks | [Independent CI](CI.md) and `ci/run.exs` |
 | Observe the local system | [Observability](OBSERVABILITY.md), with the README's containment warnings |

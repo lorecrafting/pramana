@@ -11,6 +11,12 @@ handles; they are **not tickets**. Dates, staffing, estimates and budget grants 
 intentionally uncommitted. Before implementation, reconcile each candidate against
 current PLAN, repair evidence, open PRs and source.
 
+For Foundry initiatives, **compose before build**. Before adding substantial custom
+orchestration, durable-execution, policy or sandbox infrastructure, perform a bounded
+substitution check against the strongest current external candidate and the exact
+Foundry authority/evidence contract. A candidate that satisfies the contract with lower
+total burden should be reused; existing custom code is not a reason to reject it.
+
 ## H0 / G0 — clear the repair boundary
 
 **Owner:** the existing repair owner/operator. **Entry:** current repair process.
@@ -165,18 +171,41 @@ state store, giant mandatory prompt or a fixed tiny context cap that drops const
 
 ### I-F2 — one tooling/quality improvement at a time
 
-**Outcome:** reduce an observed class of rework. **Evidence:** representative tasks,
-false-positive and maintenance cost, full diffs, failure/no-op cases and rollback.
+**Outcome:** reduce an observed class of rework, preferably by composing a proven
+external mechanism when it satisfies the contract. **Evidence:** representative tasks,
+false-positive and maintenance cost, full diffs, failure/no-op cases, rollback and a
+documented substitution comparison when overlapping mature infrastructure exists.
 **Dependencies:** G0 plus a measured bottleneck. **Excludes:** bulk adoption of AST,
-lint, replay, gateway and orchestration packages as one “ecosystem upgrade.”
+lint, replay, gateway and orchestration packages as one “ecosystem upgrade,” or custom
+infrastructure justified only by ownership.
 
-### I-F3 — second-repository portability
+### I-F3 — project and workflow portability
 
-**Outcome:** Foundry works on another approved project without Pramāṇa dependencies.
-**Evidence:** separate setup/commands, accepted changes, recovery, operator effort,
-support burden and owner feedback. **Dependencies:** G0, a bounded allocation and
-separate project-scope authorization under the governing contract.
-**Excludes:** multi-tenancy, broader privileges or assumed demand from one successful demo.
+**Outcome:** Foundry works on another approved project without Pramāṇa dependencies,
+then demonstrates that project/workflow roles and tool/evidence surfaces are not baked
+into the protected kernel.
+
+**Evidence:** first prove an accepted software change with separate setup/commands,
+recovery, operator effort/support burden and comparison with the best practical
+off-the-shelf software-factory alternative. Then, under separately authorized scope,
+prove a materially different typed-content workflow such as Loka:
+
+- world/quest builder receives only its ProjectProfile-declared Builder/Lab surface;
+- engine-source/shell operations are denied;
+- MISSING_CAPABILITY escalates to a separate engine-capability assignment rather than
+  expanding the builder's grant;
+- mandatory content certification cannot be removed by the project/model plan;
+- reviewer independence is checked by durable principal/candidate lineage;
+- context/evidence routing changes by RoleSpec while protected authority semantics remain
+  invariant.
+
+Use [Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md) as the
+post-repair design target and [Validation](VALIDATION.md#foundry-cross-workflow-portability-validation)
+for falsification cases.
+
+**Dependencies:** G0, a bounded allocation and separate project/workflow authorization
+under the governing contract. **Excludes:** multi-tenancy, self-granted capabilities,
+a general workflow platform before evidence, or assumed demand from one successful demo.
 
 ### I-F4 — future session-backend conformance
 
