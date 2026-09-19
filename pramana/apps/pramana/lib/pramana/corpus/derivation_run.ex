@@ -2,8 +2,9 @@ defmodule Pramana.Corpus.DerivationRun do
   @moduledoc """
   Immutable evidence that one deterministic derived-data command ran over a named scope.
 
-  `status: "complete"` means the command itself finished cleanly and its inputs stayed
-  stable during the run. It does not mean the resulting scholarly relation is correct.
+  `status: "complete"` means the command finished without reported failures, its inputs
+  stayed stable during the run, and its observed output cardinality matched the producer's
+  declared expectation. It does not mean the resulting scholarly relation is correct.
   """
 
   use Ecto.Schema
