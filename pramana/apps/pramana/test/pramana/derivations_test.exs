@@ -78,10 +78,10 @@ defmodule Pramana.DerivationsTest do
         %{}
       )
 
-    Repo.update_all(
-      from(w in Work, where: w.id == "T9002"),
-      set: [text_role: "subcommentary"]
-    )
+    "T9002"
+    |> then(&Repo.get!(Work, &1))
+    |> Ecto.Changeset.change(text_role: "subcommentary")
+    |> Repo.update!()
 
     refute token.input_digest == Derivations.current_input_digest(token)
   end
