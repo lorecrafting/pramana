@@ -1,6 +1,8 @@
 defmodule Pramana.DerivationsTest do
   use Pramana.DataCase, async: true
 
+  alias Pramana.Corpus.CommentaryAlignment
+  alias Pramana.Corpus.Quotation
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Witness
@@ -84,6 +86,108 @@ defmodule Pramana.DerivationsTest do
     |> Repo.update!()
 
     refute token.input_digest == Derivations.current_input_digest(token)
+  end
+
+
+  test "output digests cover the served quotation and alignment text" do
+    Repo.insert!(%Source{id: "cbeta", name: "CBETA"})
+    Repo.insert!(%Witness{id: "T", name: "Taishō"})
+    Repo.insert!(%Work{id: "T9001", title: "Root", text_role: "root"})
+    Repo.insert!(%Work{id: "T9002", title: "Commentary", text_role: "commentary"})
+
+    root =
+      Repo.insert!(%Text{
+        work_id: "T9001",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T9001",
+        body: "root body",
+        body_sha256: Derivations.digest("root body"),
+        char_count: 9
+      })
+
+    commentary =
+      Repo.insert!(%Text{
+        work_id: "T9002",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T9002",
+        body: "commentary body",
+        body_sha256: Derivations.digest("commentary body"),
+        char_count: 15
+      })
+
+    quotation =
+      Repo.insert!(%Quotation{
+        text: String.duplicate("a", 20),
+        text_sha256: String.duplicate("1", 64),
+        length: 20,
+        a_text_id: root.id,
+        a_work_id: root.work_id,
+        a_urn: "pramana:cbeta.T:T9001_001@p0001a01",
+        a_char_start: 0,
+        a_char_end: 20,
+        b_text_id: commentary.id,
+        b_work_id: commentary.work_id,
+        b_urn: "pramana:cbeta.T:T9002_001@p0001a01",
+        b_char_start: 0,
+        b_char_end: 20,
+        bake_id: "bake-test"
+      })
+
+    quotation_token =
+      Derivations.begin_run(
+        "quotations_scan",
+        "bake-test",
+        %{"source" => "cbeta", "witness" => "T", "division" => nil, "work" => nil},
+        %{"min_length" => 20}
+      )
+
+    {quotation_before, 1} = Derivations.current_output_snapshot(quotation_token)
+
+    quotation
+    |> Ecto.Changeset.change(text: String.duplicate("b", 20))
+    |> Repo.update!()
+
+    {quotation_after, 1} = Derivations.current_output_snapshot(quotation_token)
+    refute quotation_before == quotation_after
+
+    alignment =
+      Repo.insert!(%CommentaryAlignment{
+        lemma: "abcdefgh",
+        lemma_sha256: String.duplicate("2", 64),
+        length: 8,
+        commentary_text_id: commentary.id,
+        commentary_work_id: commentary.work_id,
+        commentary_urn: "pramana:cbeta.T:T9002_001@p0001a01",
+        commentary_char_start: 0,
+        commentary_char_end: 8,
+        root_text_id: root.id,
+        root_work_id: root.work_id,
+        root_urn: "pramana:cbeta.T:T9001_001@p0001a01",
+        root_char_start: 0,
+        root_char_end: 8,
+        method: "lemma_match",
+        confidence: "probable",
+        bake_id: "bake-test"
+      })
+
+    alignment_token =
+      Derivations.begin_run(
+        "commentary_align",
+        "bake-test",
+        %{"work" => nil},
+        %{}
+      )
+
+    {alignment_before, 1} = Derivations.current_output_snapshot(alignment_token)
+
+    alignment
+    |> Ecto.Changeset.change(lemma: "ijklmnop")
+    |> Repo.update!()
+
+    {alignment_after, 1} = Derivations.current_output_snapshot(alignment_token)
+    refute alignment_before == alignment_after
   end
 
   test "a producer must state its expected output cardinality" do
