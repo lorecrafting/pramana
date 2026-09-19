@@ -8,7 +8,7 @@ consumed by the Chinese-pilot preflight.
 
 Every non-dry write run records an append-only `derivation_runs` row binding the attempt
 to its source bake, implementation version, exact scope/parameters, input digest, output
-digest, counts and timestamps. Database triggers reject update or deletion of a receipt.
+digest, counts and timestamps. Database triggers reject update, deletion or truncation of the receipt table.
 
 A receipt is `complete` only when all of these are true at the end of the run:
 
