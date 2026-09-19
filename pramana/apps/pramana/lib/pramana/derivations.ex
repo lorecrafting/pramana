@@ -181,11 +181,14 @@ defmodule Pramana.Derivations do
 
   @doc false
   def current_input_digest("quotations_scan", bake_id, scope, parameters) do
+    text_facts = quotation_text_facts(scope)
+
     digest(%{
       bake_id: bake_id,
       scope: scope,
       parameters: parameters,
-      texts: quotation_text_facts(scope)
+      texts: text_facts,
+      segments: segment_snapshot(Enum.map(text_facts, & &1.id))
     })
   end
 
@@ -210,11 +213,19 @@ defmodule Pramana.Derivations do
   end
 
   def current_input_digest("commentary_align", bake_id, scope, parameters) do
+    pairs = commentary_pair_facts(scope)
+
+    text_ids =
+      pairs
+      |> Enum.flat_map(&[&1.commentary_text_id, &1.root_text_id])
+      |> Enum.uniq()
+
     digest(%{
       bake_id: bake_id,
       scope: scope,
       parameters: parameters,
-      pairs: commentary_pair_facts(scope)
+      pairs: pairs,
+      segments: segment_snapshot(text_ids)
     })
   end
 
@@ -376,6 +387,23 @@ defmodule Pramana.Derivations do
       root_source_id: rt.source_id,
       root_body_sha256: rt.body_sha256
     })
+  end
+
+  defp segment_snapshot([]),
+    do: digest_ordered_query(from(s in Pramana.Corpus.Segment, where: false, select: s.id))
+
+  defp segment_snapshot(text_ids) do
+    digest_ordered_query(
+      from s in Pramana.Corpus.Segment,
+        where: s.text_id in ^text_ids,
+        order_by: [asc: s.text_id, asc: s.char_start, asc: s.char_end, asc: s.urn],
+        select: %{
+          text_id: s.text_id,
+          urn: s.urn,
+          char_start: s.char_start,
+          char_end: s.char_end
+        }
+    )
   end
 
   defp quotation_output_snapshot(nil, _scope, _min_length),
