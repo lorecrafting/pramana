@@ -55,33 +55,36 @@ defmodule Pramana.Pilot.DerivationReadiness do
 
   @doc false
   def quotation_scope?(%DerivationRun{} = run) do
-    run.scope["source"] == "cbeta" and
-      run.scope["witness"] == "T" and
-      is_nil(run.scope["division"]) and
-      is_nil(run.scope["work"]) and
-      run.parameters["min_length"] == 20
+    run.scope == %{
+      "source" => "cbeta",
+      "witness" => "T",
+      "division" => nil,
+      "work" => nil
+    } and run.parameters == %{"min_length" => 20}
   end
 
   @doc false
   def title_scope?(%DerivationRun{} = run) do
-    run.scope == %{"mode" => "full"} and run.parameters["min_title"] == 3
+    run.scope == %{"mode" => "full"} and run.parameters == %{"min_title" => 3}
   end
 
   @doc false
   def shared_text_scope?(%DerivationRun{} = run) do
-    run.scope == %{"mode" => "full"} and run.parameters["min_passages"] == 1
+    run.scope == %{"mode" => "full"} and run.parameters == %{"min_passages" => 1}
   end
 
   @doc false
   def commentary_scope?(%DerivationRun{} = run) do
-    is_nil(run.scope["work"]) and
-      is_nil(run.parameters["min_density_override"]) and
-      run.parameters["grapheme_window"] == Commentary.window() and
-      run.parameters["root_min_density"] == Commentary.min_density() and
-      run.parameters["subcommentary_min_density"] == Commentary.min_density("subcommentary") and
-      run.parameters["syllable_window"] == Commentary.syllable_window() and
-      run.parameters["syllable_min_density"] == Commentary.syllable_min_density() and
-      run.parameters["syllable_min_forward"] == Commentary.syllable_min_forward()
+    run.scope == %{"work" => nil} and
+      run.parameters == %{
+        "min_density_override" => nil,
+        "grapheme_window" => Commentary.window(),
+        "root_min_density" => Commentary.min_density(),
+        "subcommentary_min_density" => Commentary.min_density("subcommentary"),
+        "syllable_window" => Commentary.syllable_window(),
+        "syllable_min_density" => Commentary.syllable_min_density(),
+        "syllable_min_forward" => Commentary.syllable_min_forward()
+      }
   end
 
   defp check_kind(source_bake_id, kind, coverage?) do
