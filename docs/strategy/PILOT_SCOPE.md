@@ -146,7 +146,7 @@ A zero means "the accepted work relation has no current-bake passage alignment,"
 
 ## Deterministic artifact
 
-The saved schema is pramana-pilot-scope/v1.
+The saved schema is pramana-pilot-scope/v2. Version 2 makes the quotation-length selection parameter and receipt-verification boundary explicit; v1 artifacts are not silently reinterpreted.
 
 It contains:
 
