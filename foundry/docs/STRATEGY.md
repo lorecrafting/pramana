@@ -27,10 +27,12 @@ authority. Model proposals remain inputs to protected deterministic checks.
 
 Software engineering is the first workload to prove, not the permanent ontology of the
 system. Prove one useful complete lifecycle, including correction and interruption,
-before generalizing roles or workflow definitions. Measure operator effort per
-independently accepted outcome, including preparation, review, recovery and Foundry
-maintenance. Safety without useful completion and apparent productivity without valid
-evidence are both failures.
+before generalizing roles or workflow definitions. **Compose before build:** Foundry
+should own the contracts that distinguish trustworthy execution, not commodity
+infrastructure that another system can satisfy under those contracts. Measure operator
+effort per independently accepted outcome, including preparation, review, recovery and
+Foundry maintenance. Safety without useful completion and apparent productivity without
+valid evidence are both failures.
 
 ## Authority and document ownership
 
@@ -125,6 +127,82 @@ bounded parent scope/budget ceilings unless protected policy grants less; compos
 cannot expand authority. Avoid a Turing-complete workflow DSL or a second orchestrator:
 start with small composable lifecycle primitives and introduce generalization only after
 real portability evidence.
+
+## Compose before build: own contracts, substitute infrastructure
+
+Foundry is not valuable because it owns an agent loop, container runner, durable workflow
+engine, policy language or model router. Those layers are increasingly available from
+specialized projects and will continue to improve. Before substantial post-repair work
+on any such layer, perform a bounded substitution evaluation against the best available
+candidate. If a candidate satisfies the required contract with lower operator,
+maintenance and security burden, use it and delete or avoid overlapping Foundry code.
+
+Evaluate one responsibility at a time rather than adopting a new stack wholesale:
+
+| Responsibility | Candidate class to benchmark | Foundry-specific conformance question |
+|---|---|---|
+| Software-factory orchestration | Warp Factories or comparable systems | Can it preserve Foundry's exact authority, evidence, budget and acceptance semantics, or should Foundry sit above/beside it? |
+| Agent/workflow runtime | LangGraph or comparable agent runtimes | Does it add useful persistence/control without becoming a competing source of workflow authority? |
+| Durable execution | Restate, Temporal, DBOS or comparable runtimes | Can it represent effect claims, unknown outcomes and replay without weakening the protected store/receipt contract? |
+| Tool execution/isolation | Dagger, containers, micro-VMs and OS primitives | Can candidate-controlled tools be isolated from model credentials, protected state and unauthorized network paths while still completing real work? |
+| Authorization policy | OPA, Cedar or comparable policy engines | Can it safely replace a bounded stateless policy slice without becoming the durable budget/effect/acceptance ledger? |
+| Fast semantic decisions | Jev/System One or comparable typed decision models | Does it improve routing, triage or supervision on held-out cases while remaining advisory and confidence-gated? |
+
+Passing a feature checklist is insufficient. Compare actual failure semantics, operator
+effort, upgrade/rollback cost, licensing, local/offline requirements, privacy, observability
+and the cost of preserving Foundry's evidence. A promising external system is a dependency
+candidate, not evidence that a repair ticket is complete. Conversely, "we already wrote
+it" is not a reason to retain a worse implementation.
+
+This substitution gate also defines a stop condition for Foundry itself. If an external
+system eventually satisfies the whole useful contract—including protected authority,
+durable effect accounting, exact evidence binding, independent acceptance and recovery—
+use that system rather than maintaining Foundry as a duplicate. The product thesis is
+the contract and outcome, not ownership of a particular codebase.
+
+## Control plane versus security/execution plane
+
+Keep Elixir/OTP where it is strong: long-lived coordination, supervision, pure workflow
+decisions/replay, typed domain boundaries, concurrent assignment lifecycle and honest
+recovery. Do not treat BEAM process isolation as the security boundary for hostile or
+model-controlled tools.
+
+Use operating-system or proven sandbox primitives for hard resource and security
+boundaries. On Linux, candidate mechanisms include namespaces for resource views,
+cgroups for accounting/limits, seccomp for syscall restriction and Landlock for
+additional filesystem/network access control. Containers or micro-VMs may compose these
+mechanisms. On non-Linux hosts, require an equivalently tested boundary or keep the
+capability disabled; do not emulate kernel security in Elixir.
+
+Dagger is a candidate execution abstraction because it exposes typed containers,
+directories, files and secrets and has an Elixir SDK, but the current Elixir SDK is
+still beta and its presence does not prove Foundry's credential/network/isolation
+contract. Evaluate it with the same synthetic-credential, egress, process-cleanup and
+positive-delivery cases required of any other execution backend.
+
+The intended split is therefore **Elixir/OTP control plane; OS/sandbox security and tool
+execution plane**. Keep those interfaces replaceable so Foundry can adopt better Linux,
+container, micro-VM or remote-execution mechanisms without changing workflow authority.
+
+## Jev positioning: an optional reflex/assessor layer
+
+Jev's System One design is unusually aligned with Foundry's intelligence boundary:
+TypeSafe recommends keeping control flow, deterministic rules and side effects in code
+while asking narrow typed questions and composing probabilities/confidence in software.
+Use that shape where a fuzzy judgment is useful but authority is not required.
+
+Potential post-evaluation consumers include context relevance, duplicate-finding
+triage, stuck/progress classification, infrastructure-versus-assertion failure hints,
+risk signals and execution-profile recommendations. Ask many narrow questions over a
+bounded state, preserve the individual answers, and let deterministic policy choose
+what confidence ranges may trigger an automatic low-risk action, verification or
+escalation.
+
+Jev is not the planner, scheduler, verifier or acceptance authority. It must not decide
+entitlement, budget truth, Git ancestry, reviewer independence, whether an unknown
+effect is safe to repeat, or whether an exact artifact may be promoted. Stage A remains
+optional with deterministic fallback. Because Jev is currently early access, live use
+requires fresh contract/terms/privacy/cost/conformance review and must remain replaceable.
 
 ## Lessons to adopt selectively
 
@@ -232,7 +310,8 @@ mandatory gate. Start with task-specific context selection, not unlimited memory
 
 The bounded Stage-A implementation for issue #26 is documented in
 [Assessor Stage A](ASSESSOR.md). It is an advisory experiment with deterministic fallback,
-not a production provider route or an acceptance authority.
+not a production provider route or an acceptance authority. Its longer-term purpose is
+a replaceable fast semantic/reflex layer only if held-out evaluation shows net benefit.
 
 ## Investment milestones within the repair plan
 
@@ -270,7 +349,9 @@ unmeasured throughput claims. Self-improvement proposals need a baseline, fixed 
 regression checks, effort cap and rollback decision outside the candidate's control.
 
 Postpone multi-machine fleets, deep agent hierarchies, broad plugin marketplaces,
-automatic policy learning, custom terminals/harnesses and generalized memory platforms.
+automatic policy learning, custom terminals/harnesses, generalized memory platforms and
+custom replacements for mature external infrastructure that has not failed a Foundry
+conformance evaluation.
 The [broader strategy](../../docs/strategy/FOUNDRY.md) owns later repository portability,
 context/tool experiments and Superlogical evaluation. Do not put an unverified future
 presentation backend on the repair critical path.
@@ -296,3 +377,35 @@ Recheck current licensing and integration terms before copying code or adding de
 [pi-rpc]: https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/rpc.md
 [pi-gondolin]: https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/examples/extensions/gondolin/index.ts
 [nm-agent]: https://github.com/kunchenguid/no-mistakes/blob/71cd9110543eeac67fd76180f2bdabd355395ec2/internal/agent/agent.go
+
+
+### Additional substitution-source observations — checked 2026-09-18
+
+These sources motivate evaluation, not adoption. Recheck versions, licensing and
+interfaces when an experiment is actually authorized.
+
+- [Warp documentation](https://docs.warp.dev/) describes Factories (Early Access) as
+  repeatable software-development workflows in which agents triage, spec, implement,
+  review and verify work, with multi-model support. Treat it as a serious benchmark for
+  Foundry's software-factory value, not proof of generalized non-software authority.
+- [TypeSafe's System One design guide](https://docs.typesafe.ai/concepts/how-to-build-with-system-one)
+  explicitly keeps control flow, deterministic rules and side effects in code and uses
+  narrow typed model decisions; [Jev's launch note](https://typesafe.ai/blog/introducing-system-one-models-and-jev)
+  says Jev is early access. This supports the assessor/reflex positioning, not authority.
+- [Dagger's Elixir SDK](https://docs.dagger.io/reference/sdks/elixir/) exposes typed
+  container/file/directory/secret APIs but is currently beta with documented feature
+  limitations. Evaluate it as execution plumbing rather than assuming isolation parity.
+- [OPA](https://www.openpolicyagent.org/docs) and
+  [Cedar](https://docs.cedarpolicy.com/) are mature policy-engine candidates for bounded
+  authorization decisions; neither by itself supplies Foundry's durable claims, budgets,
+  evidence binding or reconciliation.
+- [Restate](https://restate.dev/), [Temporal](https://docs.temporal.io/),
+  [DBOS](https://docs.dbos.dev/) and [LangGraph](https://www.langchain.com/langgraph)
+  overlap with durable execution/orchestration. Their existence is a reason to benchmark
+  before extending Foundry's runtime, not a reason to migrate without contract evidence.
+- Linux already supplies hard-isolation primitives including
+  [namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html),
+  [cgroups](https://man7.org/linux/man-pages/man7/cgroups.7.html),
+  [seccomp](https://man7.org/linux/man-pages/man2/seccomp.2.html) and
+  [Landlock](https://cdn.kernel.org/doc/html/latest/userspace-api/landlock.html).
+  Foundry should compose proven OS enforcement rather than recreate it in application code.
