@@ -160,6 +160,77 @@ durable effect accounting, exact evidence binding, independent acceptance and re
 use that system rather than maintaining Foundry as a duplicate. The product thesis is
 the contract and outcome, not ownership of a particular codebase.
 
+## Current execution baseline: host-bound path, automatic launch fail-closed
+
+The current source should not be described simply as "agents run unsandboxed" because
+production automatic dispatch is intentionally blocked earlier. `AgentServer.init/1`
+first resolves an admitted launch profile and requires the Herdr adapter to prove the
+selected route is subscription-only. The production Herdr System runner currently
+reports that proof as unsupported, so a normal automatic launch stops before pane
+creation. FR-09 and FR-15a own the evidence needed to restore live automatic execution.
+
+The implemented execution path beneath that gate is nevertheless host-bound rather than
+containerized. `AgentServer.do_launch/1` asks Herdr to split a terminal pane whose
+working directory is the assignment checkout, then starts `omp` in that pane.
+`Herdr.Runner.System` invokes the configured Herdr executable directly as an OS child
+with `Port.open/2`. Foundry records pane/process identities and process groups so it can
+refuse stale cleanup and signal the correct descendants, but it does not create a
+container, micro-VM or separate OS security principal in this path.
+
+Git worktrees, terminal panes and process groups solve different problems from a sandbox:
+they provide checkout separation, presentation/session identity and safer lifecycle
+cleanup. They do **not** by themselves restrict what a shell-capable model process may
+read, execute, contact or modify under the host principal. If this host path were enabled
+under an ordinary user account, candidate-controlled tools could exercise whatever
+filesystem, network, process and installed-tool authority that principal and the host OS
+grant them. A worktree prevents neither reads outside the checkout nor arbitrary outbound
+network access. Process-group ownership helps terminate descendants after the fact; it
+does not constrain those descendants while they are running.
+
+That is why the repair contract requires a stronger harness/tool separation before
+automatic execution is restored: reusable provider credentials remain in a protected
+authentication path, while candidate-controlled file/shell/build/test work runs in a
+credential-free restricted principal/environment with explicit network and filesystem
+bounds. Sandboxing must also preserve positive usefulness: an isolated worker that cannot
+build or test real work is not an acceptable solution.
+
+## Dagger versus Docker
+
+Docker is primarily a container platform/runtime interface: images describe packaged
+environments and containers are isolated processes managed by a container runtime.
+Dagger sits **above** an OCI-compatible runtime such as Docker, Podman or nerdctl. Dagger
+provides a programmable, typed DAG/execution API for creating containers, injecting
+explicit files/directories/services, running commands, caching intermediate work and
+returning artifacts consistently across local development and CI. When Docker is the
+runtime, the Dagger Engine itself runs as a container and asks that runtime to execute
+the workflow's containers.
+
+For Foundry, Docker or another OCI runtime could be used directly. Dagger is interesting
+because it may remove custom plumbing around "construct environment → copy exact inputs
+→ run bounded commands/services → capture outputs/artifacts → cache/reuse → clean up."
+It is therefore an execution abstraction and reproducibility layer, **not a stronger
+security boundary merely because it uses containers**. Foundry would still specify and
+test mounts, network paths, credentials, host services, privileges, resource ceilings
+and cleanup. A poorly configured Dagger workflow can expose host resources just as a
+poorly configured Docker invocation can.
+
+The adoption question is therefore not "Dagger or Docker." It is closer to:
+
+```text
+Foundry authority/control
+        |
+        +-- direct OCI/container adapter --------> Docker/Podman/etc.
+        |
+        +-- Dagger execution adapter ------------> Dagger Engine
+                                                     |
+                                                     v
+                                               OCI runtime
+```
+
+Evaluate Dagger if its typed composition, caching, portability and observability reduce
+Foundry maintenance while still satisfying the same isolation conformance suite.
+Otherwise a smaller direct container/micro-VM adapter may be preferable.
+
 ## Control plane versus security/execution plane
 
 Keep Elixir/OTP where it is strong: long-lived coordination, supervision, pure workflow
