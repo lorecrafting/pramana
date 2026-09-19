@@ -88,7 +88,6 @@ defmodule Pramana.DerivationsTest do
     refute token.input_digest == Derivations.current_input_digest(token)
   end
 
-
   test "output digests cover the served quotation and alignment text" do
     Repo.insert!(%Source{id: "cbeta", name: "CBETA"})
     Repo.insert!(%Witness{id: "T", name: "Taishō"})
