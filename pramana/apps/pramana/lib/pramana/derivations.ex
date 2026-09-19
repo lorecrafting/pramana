@@ -16,6 +16,7 @@ defmodule Pramana.Derivations do
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.DerivationRun
   alias Pramana.Corpus.Quotation
+  alias Segment
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Work
   alias Pramana.Corpus.WorkRelation
@@ -390,11 +391,11 @@ defmodule Pramana.Derivations do
   end
 
   defp segment_snapshot([]),
-    do: digest_ordered_query(from(s in Pramana.Corpus.Segment, where: false, select: s.id))
+    do: digest_ordered_query(from(s in Segment, where: false, select: s.id))
 
   defp segment_snapshot(text_ids) do
     digest_ordered_query(
-      from s in Pramana.Corpus.Segment,
+      from s in Segment,
         where: s.text_id in ^text_ids,
         order_by: [asc: s.text_id, asc: s.char_start, asc: s.char_end, asc: s.urn],
         select: %{
