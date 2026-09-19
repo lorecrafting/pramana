@@ -492,6 +492,21 @@ A project-supplied check cannot report itself mandatory-pass by merely returning
 "pass"; Foundry verifies the check runner/receipt according to its admitted evidence
 contract.
 
+Project-defined evidence adapters/check specifications are also authority-sensitive input:
+
+- their exact definition/revision/digest is pinned into the admitted acceptance profile;
+- candidate-controlled changes to a check definition do not alter the currently governing
+  gate until separately reviewed/admitted;
+- executable project checks run in the appropriate isolated check worker and receive only
+  their required inputs/capabilities;
+- controller-observed command/result/artifact identity becomes the receipt; candidate
+  prose or exit-status-only self-report is insufficient;
+- a changed mandatory check implementation invalidates evidence according to protected
+  policy rather than silently reusing old receipts.
+
+This prevents a candidate from "fixing the test" by replacing the checker with one that
+always passes.
+
 ## 11. Jev and other semantic decision models
 
 A fast typed decision model such as Jev may be useful for:
