@@ -105,7 +105,10 @@ defmodule Mix.Tasks.Pramana.Commentary.Align do
           "min_density_override" => opts[:min_density],
           "grapheme_window" => Commentary.window(),
           "root_min_density" => Commentary.min_density(),
-          "subcommentary_min_density" => Commentary.min_density("subcommentary")
+          "subcommentary_min_density" => Commentary.min_density("subcommentary"),
+          "syllable_window" => Commentary.syllable_window(),
+          "syllable_min_density" => Commentary.syllable_min_density(),
+          "syllable_min_forward" => Commentary.syllable_min_forward()
         }
       )
     end
