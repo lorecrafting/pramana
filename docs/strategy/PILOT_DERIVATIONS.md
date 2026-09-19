@@ -16,7 +16,7 @@ A receipt is `complete` only when all of these are true at the end of the run:
 
 - the producer reports zero explicit or per-item failures, including aligned spans that
   could not be resolved back to citation segments;
-- the recomputed input digest is unchanged from the start of the run; and
+- the recomputed input digest matches the start checkpoint again; and
 - the derived table contains exactly the number of rows the producer expected to leave
   for that derivation.
 
@@ -26,6 +26,10 @@ whole-table replacement. A stale row from an older or narrower rule can therefor
 a successful run. Such a run records a `partial` receipt instead of certifying the stale
 output. The receipt mechanism deliberately does not delete that row automatically; stale
 derived evidence must be reviewed before cleanup rather than erased merely to make a gate pass.
+
+Matching start/end input digests do not prove that no concurrent writer changed and restored
+an input mid-run. Pilot acceptance therefore retains its separate quiesced stable-state
+requirement.
 
 The output digest binds the receipt to the exact derived rows that were observed. For
 commentary alignment this covers only the deterministic `lemma_match` rows owned by that
