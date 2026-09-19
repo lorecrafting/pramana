@@ -1,4 +1,4 @@
-# Foundry: the engineering product
+# Foundry: trusted execution for model-directed work
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Roadmap](ROADMAP.md)
 **Status:** post-repair investment proposal under the existing authority contract.
@@ -82,8 +82,10 @@ planner: admitted objective/policy revision, principal and assignment identity,
 capability grants, durable state transitions, request/budget accounting, effect claims
 and duplicate suppression, exact artifact identity, check/review provenance,
 independence requirements, acceptance predicates, reconciliation and promotion.
-A model may propose completion, retry or publication; receipts and policy authorize the
-corresponding effect.
+Protected policy may require gates omitted by a proposed workflow and a plan cannot
+weaken them. A model may propose completion, retry or publication; receipts and policy
+authorize the corresponding effect. Independence follows durable principal/authority
+lineage and candidate ownership, not a fresh role name, session or model.
 
 Post-repair workflow portability should be project-configurable rather than role
 hard-coded. A project/workflow definition may declare requested roles, capability
@@ -95,9 +97,11 @@ arbitrary shell/network access or publication power.
 
 Pin every admitted workflow definition/revision to the run that used it. If a model or
 project changes the plan mid-run, record and admit a new revision instead of rewriting
-history. Favor a small vocabulary such as sequence, bounded parallel work, gates,
-handoff, correction and sub-workflow invocation over an unconstrained executable
-workflow language. Generalize only from observed needs.
+history. Child work and sub-workflows inherit parent scope and budget ceilings unless
+protected policy narrows them; composition cannot mint authority. Favor a small
+vocabulary such as sequence, bounded parallel work, gates, handoff, correction and
+sub-workflow invocation over an unconstrained executable workflow language. Generalize
+only from observed needs.
 
 This permits different workflows inside one project. For example, a future Lokacore
 software workflow could use isolated Git/shell/compiler capabilities, while an approved
