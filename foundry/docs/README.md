@@ -6,8 +6,9 @@ review nor a model-free CI result establishes that live promotion or provider ex
 is enabled.
 
 Read the [strategy working summary](STRATEGY.md#working-summary) once for overall
-direction: dependable control, reused harnesses, independent evidence and useful recovery.
-The strategy is context; the repair plan and workflow contract still govern implementation.
+direction: model-directed work under dependable authority, reused harnesses, independent
+evidence and useful recovery. The strategy is context; the repair plan and workflow
+contract still govern implementation.
 
 ## Start by the task
 
