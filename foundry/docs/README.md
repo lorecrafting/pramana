@@ -1,6 +1,6 @@
 # Foundry documentation
 
-Foundry is an independent OTP execution system. [The overview](../README.md) describes
+Foundry is an independent OTP execution and governance system. [The overview](../README.md) describes
 its implementation inventory and important containment limits. Neither a historical
 review nor a model-free CI result establishes that live promotion or provider execution
 is enabled.
