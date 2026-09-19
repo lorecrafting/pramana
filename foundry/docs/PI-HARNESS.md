@@ -123,6 +123,7 @@ This design does not:
 | assignment/workflow identity | display only | **owns** | requests only |
 | permissions/capabilities | may hide/shape tools | **owns and enforces** | requests subset |
 | provider/model/billing authorization | executes admitted route | **owns admission and evidence** | no authority |
+| project/host read access | presents bounded context/tools | **owns/mediates readable scope** | constrained worker/service |
 | executable tools | presents tool schemas | **owns gateway/authorization** | isolated implementation |
 | shell/filesystem/network isolation | no security claim | **owns required contract** | constrained worker |
 | child/subagent creation | presents request/result | **owns admission/lifecycle/budget** | child receives bounded grant |
@@ -726,6 +727,12 @@ optimization.
 
 ## 13. P0 / P1 / P2 implementation scope
 
+This is a design decomposition, **not a parallel Foundry backlog**. Every implementation
+change must be routed to the repair/workflow requirement that owns its authority and
+prerequisites; these labels cannot be used to jump blocked FR dependencies or mark an FR
+complete. P0/P1/P2 only describe the minimum Pi-candidate scope and sequencing once the
+owning work is admissible.
+
 ### P0 — prove Pi is a governable replacement candidate
 
 1. Define a harness-neutral Elixir behaviour around start/observe/prompt/interrupt/
@@ -875,8 +882,8 @@ fixtures. No real provider or automatic execution.
 
 ### Stage B — pinned local candidate
 
-Run exact Pi/bridge builds in an isolated test environment with fake/controlled provider
-and effect gateway. Exercise configuration, lifecycle, denial and cleanup cases.
+Run exact Pi/bridge builds in an isolated test environment with protocol fixtures or an
+otherwise controlled provider test route plus the effect gateway. Exercise configuration, lifecycle, denial and cleanup cases.
 
 ### Stage C — bounded provider/isolation smoke
 
