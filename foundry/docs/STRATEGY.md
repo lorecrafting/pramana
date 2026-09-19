@@ -177,12 +177,19 @@ capability disabled; do not emulate kernel security in Elixir.
 Dagger is a candidate execution abstraction because it exposes typed containers,
 directories, files and secrets and has an Elixir SDK, but the current Elixir SDK is
 still beta and its presence does not prove Foundry's credential/network/isolation
-contract. Evaluate it with the same synthetic-credential, egress, process-cleanup and
-positive-delivery cases required of any other execution backend.
+contract. Its secret type is not permission to inject reusable model/provider
+credentials into candidate-controlled execution; the protected authentication gateway
+boundary remains until a separately reviewed design proves an equivalent or stronger
+separation. Evaluate Dagger with the same synthetic-credential, egress, process-cleanup
+and positive-delivery cases required of any other execution backend.
 
 The intended split is therefore **Elixir/OTP control plane; OS/sandbox security and tool
-execution plane**. Keep those interfaces replaceable so Foundry can adopt better Linux,
-container, micro-VM or remote-execution mechanisms without changing workflow authority.
+execution plane**. Elixir is the current implementation choice and a strong fit for the
+accepted single-machine control problem, not a product moat or a substitute for kernel
+security. Keep those interfaces replaceable so Foundry can adopt better Linux, container,
+micro-VM, remote-execution or durable-runtime mechanisms without changing workflow
+authority. Do not rewrite the accepted OTP core merely for architectural fashion; require
+the same substitution evidence before replacing it.
 
 ## Jev positioning: an optional reflex/assessor layer
 
