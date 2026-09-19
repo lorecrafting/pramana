@@ -247,15 +247,25 @@ not replace Foundry's budget ledger or subscription-capacity accounting.
 
 ## 6. Recommended governed topology
 
-The preferred first experiment keeps provider authentication in a protected harness
-principal while moving model-directed effects through a credential-free gateway/worker.
+The preferred first experiment separates both **model requests** and **project/host
+effects** from ambient authority. Post-hoc usage observation is not a budget boundary.
 
     protected Foundry controller
         |
+        +-- provider/request gateway
+        |      |
+        |   reservation / exact admitted route
+        |      |
+        |   reusable provider authentication
+        |      |
+        |      v
+        |   model provider
+        |
         +-- launches pinned Pi RPC process
         |      |
-        |      +-- provider/model session
+        |      +-- execution-scoped provider route
         |      +-- pinned Foundry bridge only
+        |      X-- no reusable provider credential where avoidable
         |      X-- no ambient executable extensions
         |      X-- no direct host filesystem/process/network tools
         |
@@ -272,7 +282,11 @@ principal while moving model-directed effects through a credential-free gateway/
 
 The bridge should receive an execution-scoped handle, not a reusable operator/provider
 credential. That handle stays in the protected Pi/bridge principal: it is not copied into
-model context, worker environment, tool output, child input or diagnostic logs. In this
+model context, worker environment, tool output, child input or diagnostic logs. The Pi
+process should start from a controller-owned **neutral control working directory**, not
+the candidate checkout, unless a later conformance result proves an equally strong
+configuration-discovery boundary. The candidate workspace is an explicit gateway
+resource, not ambient process CWD. In this
 topology, model-visible filesystem read/search, mutation, shell, language-service and
 network operations are mediated through the gateway or another
 equivalently proven restricted principal; a "read-only" Pi builtin must not retain ambient
@@ -304,11 +318,30 @@ inventory—not a tool-name allowlist alone—including file references/attachme
 read/search helpers, language servers, build hooks, extensions, subprocesses and network
 clients that can be influenced by model or candidate input.
 
-### 6.2 Alternative whole-Pi sandbox
+### 6.2 Provider request authority
+
+Every provider request—including the first prompt, tool-loop continuation, retry,
+compaction/summarization call and child request—must cross a budget/accounting boundary
+**before** issue. Foundry needs a durable reservation/claim before a request can consume
+subscription capacity or money; a crash after possible issue retains an unknown hold
+until reconciliation.
+
+The preferred mechanism is a Foundry-owned local request broker/proxy that fixes the
+admitted provider/model/account route and keeps reusable provider authentication out of
+Pi. If the selected subscription mechanism cannot operate through such a broker, an
+alternative pinned trusted provider adapter must prove an equivalent pre-request
+reservation handshake and must be unable to issue when Foundry refuses it.
+
+If neither mechanism is compatible with the intended official subscription route, Pi is
+not yet a conforming production replacement. Do not weaken durable request budgets into
+post-hoc token accounting to make the harness fit.
+
+### 6.3 Alternative whole-Pi sandbox
 
 Running all of Pi inside the worker may eventually be attractive, but only if provider
-authentication is separately brokered so model-directed code cannot read reusable
-credentials. That topology is a later experiment, not the initial assumption.
+authentication/request authority is separately brokered so model-directed code cannot
+read reusable credentials or issue unreserved requests. That topology is a later
+experiment, not the initial assumption.
 
 ## 7. Deterministic loadout and configuration
 
@@ -320,7 +353,8 @@ A governed run must be reproducible from a controller-owned manifest that binds 
 - exact active tool schemas;
 - exact approved skills/prompts/context resources and digests;
 - governing instruction/router bundle and base revision/digest;
-- provider/model/profile selection;
+- provider/model/profile selection and provider-request gateway/adapter identity;
+- model-request reservation/receipt protocol revision;
 - isolated session-storage root, retention/redaction policy and resume policy;
 - isolation profile;
 - project/workflow/role/context-policy revision;
@@ -705,6 +739,9 @@ small trusted component.
   invalid encoding, NUL/control abuse and oversized records rather than interpolating
   untrusted data into shell/code;
 - authenticated execution-scoped gateway;
+- pre-request model reservation/claim with exact route fixed outside model control;
+- reusable provider credentials kept in the protected request path where technically
+  feasible, never in the effect worker;
 - server-side scope derivation from CapabilityGrant;
 - credential-free model-directed worker;
 - restricted network/filesystem/process authority with canonical path/resource checks;
@@ -725,11 +762,15 @@ For each governed execution profile, Foundry must verify:
 
 - exact provider and model selection;
 - intended account/profile;
+- every model request is preceded by the required durable reservation/claim and followed
+  by an attributable receipt/reconciliation outcome;
 - subscription-versus-paid billing class;
 - behavior when subscription quota/capacity is unavailable;
 - absence of an automatic paid/extra-credit fallback unless separately authorized;
 - observable usage/quota signals and their uncertainty;
-- child/delegated work uses only its admitted provider/budget route.
+- child/delegated work uses only its admitted provider/budget route;
+- retries, tool-loop continuations and compaction cannot create unreserved requests;
+- crash/timeout after possible provider issue retains an unknown hold until reconciled.
 
 Possession of an Anthropic/OpenAI/other credential is not proof of subscription
 entitlement. A future authentication bridge intended to use an official subscription
@@ -785,8 +826,8 @@ owning work is admissible.
    ambient executable configuration or foreign-session resume.
 4. Implement the minimal trusted bridge and gateway path needed for a useful coding task
    without ambient model-visible host filesystem/process/network access.
-5. Prove provider/model/billing selection and fail-closed no-paid-fallback behavior for
-   the intended real route.
+5. Prove provider/model/billing selection, per-request durable reservation/receipt and
+   fail-closed no-paid-fallback behavior for the intended real route.
 6. Prove credential/filesystem/network/process isolation with synthetic secrets and
    controlled endpoints.
 7. Connect Pi usage/context/compaction observations to FR-18's versioned telemetry path.
@@ -852,6 +893,8 @@ cases must be executable against the exact candidate.
 - candidate-modified `AGENTS.md`/skill/prompt is visible as candidate data but cannot
   replace the pinned governing instruction bundle for that execution;
 - foreign/prior Pi session cannot be selected as the current assignment session;
+- candidate `.pi`/ancestor configuration cannot affect governed behavior merely by
+  becoming the Pi process working directory;
 - changed bridge/Pi digest refuses until manifest is updated through protected process;
 - unknown execution-changing setting fails closed;
 - candidate cannot rewrite the active skill/project profile governing itself.
@@ -874,8 +917,12 @@ cases must be executable against the exact candidate.
 
 ### Provider/billing
 
-- exact configured provider/model/profile is observed;
+- exact configured provider/model/profile is observed and cannot be changed by model/UI
+  command outside a newly admitted decision;
 - intended subscription route is positively evidenced;
+- first request, tool-loop continuation, retry and compaction each have a corresponding
+  pre-issue reservation/claim and attributable receipt or unknown hold;
+- controller/Pi crash after possible provider issue does not release capacity as unused;
 - subscription exhaustion does not silently use paid/extra-credit route;
 - unavailable/unknown quota blocks or follows FR-16 policy;
 - child work cannot choose a broader/premium route;
@@ -1056,7 +1103,7 @@ available mechanisms and design inspiration, not Foundry acceptance evidence.
 
 The design leaves these decisions for measured implementation work:
 
-- exact local IPC transport for the Pi bridge;
+- exact local IPC transport for the Pi bridge and provider-request broker/adapter;
 - which Pi-internal pure/session/UI tools can remain direct after the resource-path
   inventory proves they cannot access project/host resources;
 - exact sandbox/runtime implementation;
