@@ -181,6 +181,53 @@ engine capability developer
 The world builder may be *more expressive inside the game-authoring domain* than a
 generic source-code developer while still having dramatically less host authority.
 
+
+
+## 5.1 Enforcement is outside the role prompt
+
+Role instructions are useful context, but they are not an authority boundary.
+
+A role is actually constrained only when every effectful operation crosses an enforcement
+point that verifies the admitted CapabilityGrant.
+
+Therefore:
+
+- hiding a tool from the model UI is not sufficient if another reachable tool can perform
+  the same operation;
+- telling a builder "do not edit engine code" is not sufficient if its OS principal can
+  write the engine checkout;
+- a typed API must authenticate/identify the assignment and enforce operation/object scope
+  server-side;
+- a shell-capable role must run under the admitted sandbox/workspace/filesystem/network
+  policy rather than relying on path conventions;
+- publication/integration credentials remain outside ordinary candidate-controlled
+  execution;
+- capability denial is logged as evidence and cannot be converted into success by a
+  model response.
+
+The protected verifier's existing **role/profile/operation/scope** check is the substrate
+to generalize; ProjectProfile/RoleSpec should compile into requests checked by that
+authority rather than create a second authorization system.
+
+### Deny by capability, not by omission
+
+The long-term design should prefer positive grants:
+
+~~~text
+allowed:
+  builder.content.write quest/*
+  builder.lab.run cartridge/*
+  builder.capability.read *
+
+everything else:
+  denied
+~~~
+
+over giant negative lists such as "can do everything except engine, release, credentials,
+database, network...".
+
+The exact representation may differ, but absence of a grant must fail closed.
+
 ## 6. Loka's layered world model as a portability test
 
 Loka's proposed world architecture provides a useful materially-different workflow test:
