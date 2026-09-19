@@ -65,6 +65,37 @@ defmodule Pramana.Pilot.DerivationReadinessTest do
   end
 
 
+  test "diagnoses a qualifying receipt whose output cardinality is incomplete" do
+    token =
+      Derivations.begin_run(
+        "relations_title",
+        @bake_id,
+        %{"mode" => "full"},
+        %{"min_title" => 3}
+      )
+
+    receipt =
+      Derivations.finish_run!(token, %{
+        "failures" => 0,
+        "expected_output_count" => 1
+      })
+
+    assert receipt.status == "partial"
+
+    result = DerivationReadiness.check(@bake_id)
+    assert result.derivations["relations_title"].state == "partial_receipt"
+    assert result.derivations["relations_title"].output_count_matches_expected == false
+  end
+
+  test "a later relevant input mutation makes a clean receipt stale" do
+    record_clean!("relations_title", %{"mode" => "full"}, %{"min_title" => 3})
+
+    Repo.insert!(%Work{id: "T9003", title: "Gamma", text_role: "root"})
+
+    result = DerivationReadiness.check(@bake_id)
+    assert result.derivations["relations_title"].state == "stale_input"
+  end
+
   test "rejects a corpus-wide quotation receipt for the CBETA/T pilot" do
     receipt =
       record_clean!(
