@@ -173,6 +173,24 @@ defmodule Pramana.QuotationsTest do
       assert Repo.aggregate(Quotation, :count) == 1
       assert Repo.one(Quotation).bake_id == "bake-b"
     end
+
+    test "a same-bake rerun repairs stale materialized fields", %{
+      root: root,
+      commentary: commentary
+    } do
+      {:ok, _} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+
+      Repo.update_all(Quotation,
+        set: [text: "stale", text_sha256: String.duplicate("0", 64)]
+      )
+
+      {:ok, repaired} = Quotations.store([match(root, 8, commentary, 4)], bake_id: "bake-a")
+
+      assert repaired.written == 1
+      assert Repo.aggregate(Quotation, :count) == 1
+      assert Repo.one(Quotation).text == @shared
+      assert Repo.one(Quotation).bake_id == "bake-a"
+    end
   end
 
   describe "querying" do
