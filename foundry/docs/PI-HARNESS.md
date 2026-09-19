@@ -16,10 +16,10 @@ are explicitly revised and re-reviewed.
 | Task | Section |
 |---|---|
 | Understand the architecture/ownership split | [Decision summary](#1-decision-summary), [ownership](#4-ownership-boundary), [topology](#6-recommended-governed-topology) |
-| Implement the adapter | [Execution contract](#5-harness-neutral-execution-contract), [loadout](#7-deterministic-loadout-and-configuration), [P0](#13-p0--p1--p2-implementation-scope) |
+| Implement the adapter | [Execution contract](#5-harness-neutral-execution-contract), [loadout](#7-deterministic-loadout-and-configuration), then the P0/P1/P2 scope below |
 | Add Claude-like ergonomics | [Feature disposition](#8-claude-like-feature-disposition) |
 | Review security/isolation | [Threat model](#10-bridge-threat-model), [provider/billing](#11-provider-and-billing-boundary), [conformance](#14-conformance-matrix) |
-| Review observability/efficiency | [Observability](#12-observability-integration), [compaction/context](#810-foundry-aware-compaction--p1) |
+| Review observability/efficiency | [Observability](#12-observability-integration), then the context/compaction feature disposition |
 | Decide adoption | [Rollout gates](#15-rollout-and-adoption-gates), [upgrade policy](#17-upgrade-policy) |
 
 ## 1. Decision summary
