@@ -4,8 +4,8 @@ defmodule Pramana.Pilot.DerivationReadiness do
   Chinese pilot scope.
 
   This is deliberately narrower than "all derivations are good." It checks only that the
-  four deterministic producers the pilot depends on ran over the required full/default
-  scopes and that their recorded input/output digests still match the database.
+  four deterministic producers the pilot depends on ran over the pilot-required
+  scopes and parameters and that their recorded input/output digests still match the database.
   """
 
   alias Pramana.Commentary
