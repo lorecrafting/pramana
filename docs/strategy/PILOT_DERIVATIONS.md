@@ -19,10 +19,11 @@ A receipt is `complete` only when all of these are true at the end of the run:
   for that derivation.
 
 The last condition is intentionally stricter than "the command exited successfully."
-Title/shared-text relations and commentary alignments are convergent writes, not wholesale
-table replacements. A stale row from an older rule can therefore survive a successful
-run. Such a run records a `partial` receipt instead of certifying the stale output.
-The receipt mechanism does not delete that row automatically.
+Title/shared-text relations and commentary alignments use idempotent row/pair upserts, not
+whole-table replacement. A stale row from an older or narrower rule can therefore survive
+a successful run. Such a run records a `partial` receipt instead of certifying the stale
+output. The receipt mechanism deliberately does not delete that row automatically; stale
+derived evidence must be reviewed before cleanup rather than erased merely to make a gate pass.
 
 The output digest binds the receipt to the exact derived rows that were observed. For
 commentary alignment this covers only the deterministic `lemma_match` rows owned by that
