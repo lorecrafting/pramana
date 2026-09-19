@@ -151,6 +151,9 @@ The portability pilot should deliberately test:
   the protected independence predicate;
 - context routing that withholds mandatory policy/evidence;
 - escalation attempting to mutate the originating grant;
+- an escalation requesting broader authority as a child workflow rather than a separately
+  admitted sibling/root assignment;
+- AssignmentResult attempting to reference an arbitrary host path/unowned artifact;
 - stale ProjectProfile/workflow revisions;
 - caller-supplied fake role/project/path/scope values attempting a confused-deputy write
   through an otherwise authorized typed API;
