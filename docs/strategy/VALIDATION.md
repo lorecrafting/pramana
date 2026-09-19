@@ -137,9 +137,11 @@ candidate then resumes/rebases through its own gates.
 
 The portability pilot should deliberately test:
 
-- a builder trying to edit engine source;
+- a builder prompt explicitly instructed not to edit engine source while a hidden alternate
+  path tries to do so; enforcement must deny the operation outside the prompt;
 - a source developer trying to call a protected publication surface;
-- a role attempting an ungranted API operation;
+- a role attempting an ungranted API operation through both the normal tool and an
+  alternate reachable tool/path;
 - a project/workflow plan omitting a mandatory protected check;
 - a child assignment requesting broader scope/budget than its parent;
 - renamed roles/same model/same principal attempting to fake reviewer independence;
