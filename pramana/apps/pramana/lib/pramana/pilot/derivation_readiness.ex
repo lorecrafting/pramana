@@ -55,7 +55,8 @@ defmodule Pramana.Pilot.DerivationReadiness do
 
   @doc false
   def quotation_scope?(%DerivationRun{} = run) do
-    run.scope["source"] in [nil, "cbeta"] and
+    run.scope["source"] == "cbeta" and
+      run.scope["witness"] == "T" and
       is_nil(run.scope["division"]) and
       is_nil(run.scope["work"]) and
       run.parameters["min_length"] == 20
