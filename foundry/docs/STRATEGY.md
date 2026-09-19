@@ -1,10 +1,11 @@
 # Foundry strategy brief
 
-**Date:** 2026-09-17. **Type:** investment direction and design guidance, not an
+**Date:** 2026-09-18. **Type:** investment direction and design guidance, not an
 implementation inventory or authorization to execute. Records the operator's
-Foundry-first investment direction and the lessons from FirstMate, Pi, OMP and
-no-mistakes. External capabilities below are source observations at pinned revisions,
-not comparative performance measurements or certification on the operator's machine.
+Foundry-first investment direction, the model-directed-work vision and the lessons from
+FirstMate, Pi, OMP and no-mistakes. External capabilities below are source observations
+at pinned revisions, not comparative performance measurements or certification on the
+operator's machine.
 
 [Documentation index](README.md) · [Repair plan](REPAIR-PLAN.md) ·
 [Workflow contract](WORKFLOW-CONTRACT.md) ·
@@ -12,21 +13,24 @@ not comparative performance measurements or certification on the operator's mach
 
 ## Working summary
 
-Build a dependable controller of engineering work, not another comprehensive coding
-harness. Foundry owns authorized intent, durable workflow, recovery, evidence-based
-acceptance and controlled self-improvement. Reuse execution harnesses, development
-tools and isolation primitives where they actually satisfy the contract.
+Build a trusted execution and governance kernel for model-directed work, not another
+comprehensive coding harness or a permanently hard-coded agent graph. Models may propose
+task decomposition, roles, workflow shape, context, tools, checks and corrections.
+Foundry owns admitted intent, identities, capability grants, durable acknowledged state,
+budgets, external-effect control, evidence, acceptance, recovery and controlled
+self-improvement.
 
 Retain the standalone Elixir/OTP project, OMP as the current harness and Herdr as
 initial optional presentation. A stronger model, different harness, accessible API or
-new backend does not grant spending, acceptance or deployment authority. A model may
-propose a decision; protected deterministic checks authorize its effects.
+new backend may improve planning without gaining spending, acceptance or deployment
+authority. Model proposals remain inputs to protected deterministic checks.
 
-Prove one useful complete lifecycle, including correction and interruption, before
-increasing parallelism or feature breadth. Measure operator effort per independently
-accepted change, including preparation, review, recovery and Foundry maintenance.
-Safety without useful completion and apparent productivity without valid evidence
-are both failures.
+Software engineering is the first workload to prove, not the permanent ontology of the
+system. Prove one useful complete lifecycle, including correction and interruption,
+before generalizing roles or workflow definitions. Measure operator effort per
+independently accepted outcome, including preparation, review, recovery and Foundry
+maintenance. Safety without useful completion and apparent productivity without valid
+evidence are both failures.
 
 ## Authority and document ownership
 
@@ -46,25 +50,28 @@ Pramāṇa must continue to build and run without Foundry.
 
 ## Product thesis
 
-Given a bounded authorized objective, Foundry should produce an independently checked
-change, survive interruptions without losing or inventing authority, and explain what
-happened. The longer-term differentiator is a replaceable workflow kernel that can be
-repaired autonomously without gaining power to change the protected rules judging it.
-External demand for this as a product remains a hypothesis.
+Given a bounded authorized objective, Foundry should let capable models direct useful
+work while preserving independently checked outcomes, interruption safety and a durable
+account of what actually happened. The longer-term differentiator is a replaceable,
+project-portable workflow kernel that can accept model-proposed plans without giving the
+planner power to alter the protected rules judging its effects.
 
-Enforcing spending, ownership and evidence boundaries does not prove arbitrary code
-correct. Useful specifications, real checks, independent review and evaluation remain
-necessary. Number of agents, generated pull requests and test coverage percentages are
-not the product outcome.
+Better models should remove pressure to encode planning intelligence, fixed role
+taxonomies or elaborate task graphs in the protected core. They do not remove the need
+for durable identity, authority, budgets, exact artifact binding, attributable evidence,
+independent acceptance and reconciliation of uncertain side effects. Enforcing those
+boundaries does not prove arbitrary work correct; useful specifications, real checks,
+independent review and evaluation remain necessary. Number of agents, generated pull
+requests and test coverage percentages are not the product outcome.
 
 ## Architecture to preserve
 
 | Responsibility | Foundry owns | Reuse rather than rebuild |
 |---|---|---|
 | Authority | Authenticated policy, capabilities, reservations, effect claims and acceptance predicates | OS security primitives and appropriate transactional storage libraries |
-| Workflow | Pure decision/replay, scheduling, correction, cancellation and reconciliation | OTP supervision and ordinary concurrency mechanisms |
+| Workflow | Admission, pure decision/replay, scheduling, correction, cancellation and reconciliation for versioned workflow definitions | OTP supervision and ordinary concurrency mechanisms |
 | Agent execution | A small versioned and tested execution/observation contract | OMP initially; Pi only as an evaluated alternative |
-| Development tools | Approved execution environment and required evidence | Git, compiler tooling, harness editing tools and language services |
+| Project tools | Approved capability/evidence surfaces for the current assignment | Git/compiler tools for software; typed project APIs where appropriate |
 | Presentation | Honest projections and outstanding operator decisions | Herdr initially; future backends only after conformance evidence |
 
 These are responsibilities, not five new services. Keep the protected verifier small:
@@ -76,6 +83,42 @@ Keep one transactional authority store and one domain reducer for live operation
 replay. Session transcripts, diagnostics, context caches and boards are evidence or
 projections, never competing sources of acceptance or budgets. A working process is
 not progress; progress is not completion; completion is not acceptance.
+
+## Intelligence boundary: models direct, the kernel governs
+
+Treat workflow intelligence as replaceable and increasingly model-driven. A model may
+propose how to decompose an objective, which temporary roles are useful, which permitted
+execution profile to use, what context or tools it needs, which checks to run, and how a
+correction or sub-workflow should proceed. It may also propose a workflow amendment when
+new evidence changes the plan. Those are planning decisions, not authority.
+
+The protected system owns the facts that must not depend on the planner believing its
+own story: principal and assignment identity, admitted capabilities, durable revisions,
+budget reservations, effect claims and idempotency, unknown-outcome reconciliation,
+exact artifact identity, check/review receipts, independence constraints, acceptance
+predicates and promotion/activation. A model saying that a test passed, a retry is safe,
+or its work is complete is not the corresponding receipt.
+
+A model-generated workflow is therefore an untrusted proposal. Before execution, Foundry
+validates it against the current operator/project policy, available capabilities and
+budgets, then pins the admitted definition and its revision/digest. A mid-run change is
+a new admitted decision, not a silent mutation of history. Project configuration may
+request authority but cannot mint it.
+
+Do not bake today's PM/developer/reviewer names or one software lifecycle into protected
+storage and authority semantics. Preserve generic identities such as project, workflow,
+workflow revision, role, assignment, principal, capability set, artifact/evidence type,
+acceptance profile and execution profile. Current repairs may continue using the fixed
+software workflow until it is actually proven; this direction is a post-repair
+generalization constraint, not authorization to replace the active contract.
+
+The same project should eventually be able to register materially different workflows
+with materially different tool surfaces. A software-engineering workflow may receive an
+isolated worktree, Git, shell and compiler tools; a content-authoring workflow may receive
+only a typed Builder API, simulation and certification operations. Reusing the same
+model in both cases does not imply equal authority. Avoid a Turing-complete workflow DSL
+or a second orchestrator: start with small composable lifecycle primitives and introduce
+generalization only after real portability evidence.
 
 ## Lessons to adopt selectively
 
