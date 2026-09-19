@@ -231,6 +231,91 @@ Evaluate Dagger if its typed composition, caching, portability and observability
 Foundry maintenance while still satisfying the same isolation conformance suite.
 Otherwise a smaller direct container/micro-VM adapter may be preferable.
 
+## In-house sandbox direction: own policy and launcher, not kernel isolation
+
+A secure execution boundary is required for unattended roles that can run arbitrary
+candidate-controlled code (shell, build hooks, tests, generated scripts or similar).
+It is not automatically required for every Foundry role: a Lokacore author restricted
+to a narrow typed Builder API can rely on that API/capability boundary instead of being
+given a general-purpose shell sandbox.
+
+Do not write a new sandboxing mechanism from first principles. Linux already supplies
+the enforcement primitives; Foundry should own a small versioned **worker-launch
+contract and sandbox policy** that composes them. The useful in-house asset is the exact
+policy, conformance suite, launch protocol and receipts—not our own namespace, syscall
+filter or container implementation.
+
+A minimum software-worker profile should fail closed unless it can establish all of
+these properties:
+
+- run under a dedicated unprivileged execution identity, with no supplementary host
+  groups or reusable provider credentials;
+- clear inherited environment variables and file descriptors, set `no_new_privs`,
+  drop Linux capabilities and expose no host SSH agent, keychain, Docker socket, system
+  bus, operator home or provider-auth socket;
+- provide an immutable/read-only base environment plus writable ephemeral `HOME`,
+  `/tmp` and the exact assignment workspace only; dependency caches, if shared, are
+  read-only or mediated and cannot become an authority channel;
+- isolate PID, mount, IPC and network views; hide the host process tree and devices;
+- default network to denied, adding only explicitly authorized egress through a
+  controlled fetch/proxy path when a build genuinely needs it;
+- enforce CPU, memory, PID, wall-time and storage ceilings and kill the whole owned
+  execution hierarchy on cancellation/timeout;
+- use seccomp to reduce syscall attack surface and Landlock (where available) as a
+  stackable filesystem/network restriction in addition to namespaces and ordinary Unix
+  permissions;
+- never mount the host filesystem broadly or expose privileged runtime sockets;
+- emit attributable receipts containing sandbox-policy revision, rootfs/image digest,
+  input/workspace digest, exact argv, exit status, output/artifact digests, resource
+  observations and any policy denial;
+- prove both denial and usefulness: synthetic credential/escape/egress attempts must
+  fail, while representative Elixir/Phoenix builds and tests must still complete.
+
+Linux kernel documentation explicitly treats Landlock as an additional restriction layer
+and notes that namespaces alone are not fine-grained access control. Seccomp filters and
+`no_new_privs` propagate restrictions across child execution when configured correctly.
+A mature helper such as bubblewrap can implement namespace/mount construction, but its
+own security documentation stresses that it is a toolkit, not a complete policy, and
+recent security advisories demonstrate why an internally mirrored helper must still
+receive reviewed security updates rather than being frozen forever.
+
+For the current macOS host, prefer a Linux worker boundary rather than inventing a
+macOS-specific sandbox contract first. Apple Virtualization.framework can run a Linux VM.
+A pragmatic sovereign design is therefore:
+
+```text
+macOS operator host
+  └─ Foundry Elixir control plane
+       └─ protected auth/model gateway
+       └─ Linux worker VM (no operator credentials)
+            └─ per-execution restricted worker
+                 ├─ namespaces / UID
+                 ├─ cgroups
+                 ├─ seccomp
+                 ├─ Landlock
+                 ├─ controlled workspace
+                 └─ default-deny network
+```
+
+The outer VM keeps the operator's Mac, keychain and normal home outside the tool-worker
+security boundary; the inner per-execution sandbox prevents concurrent assignments from
+sharing unrestricted authority inside the worker VM. The VM may be long-lived if
+cleanup/reconciliation is proved, or disposable/snapshotted if stronger reset semantics
+are worth the cost.
+
+If we want the launcher implementation itself in-house, keep it deliberately small:
+Foundry sends a fixed, versioned sandbox manifest to a root-owned/restricted launcher
+(or an unprivileged launcher where the chosen kernel mechanisms permit it); the launcher
+validates that manifest against a closed schema and invokes pinned kernel/runtime
+mechanisms. A small Rust/C helper is a reasonable implementation shape for the Linux
+syscalls, while Elixir remains the authority/control plane. Avoid a general shell-based
+"policy" launcher whose caller can smuggle extra mounts, sockets, environment or flags.
+
+This should remain backend-neutral. The same `Foundry.ExecutionSandbox` conformance
+suite should be runnable against an in-house Linux launcher, Dagger, direct OCI
+containers or a future micro-VM backend. The in-house implementation wins only if it is
+simpler to audit and maintain while passing the same cases.
+
 ## Control plane versus security/execution plane
 
 Keep Elixir/OTP where it is strong: long-lived coordination, supervision, pure workflow
