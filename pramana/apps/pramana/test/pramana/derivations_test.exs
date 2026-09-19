@@ -3,6 +3,7 @@ defmodule Pramana.DerivationsTest do
 
   alias Pramana.Corpus.CommentaryAlignment
   alias Pramana.Corpus.Quotation
+  alias Pramana.Corpus.Segment
   alias Pramana.Corpus.Source
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Witness
@@ -86,6 +87,80 @@ defmodule Pramana.DerivationsTest do
     |> Repo.update!()
 
     refute token.input_digest == Derivations.current_input_digest(token)
+  end
+
+  test "citation segment geometry is part of quotation and alignment input identity" do
+    Repo.insert!(%Source{id: "cbeta", name: "CBETA"})
+    Repo.insert!(%Witness{id: "T", name: "Taishō"})
+    Repo.insert!(%Work{id: "T9001", title: "Root", text_role: "root"})
+    Repo.insert!(%Work{id: "T9002", title: "Commentary", text_role: "commentary"})
+
+    root =
+      Repo.insert!(%Text{
+        work_id: "T9001",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T9001",
+        body: "root text",
+        body_sha256: Derivations.digest("root text"),
+        char_count: 9
+      })
+
+    commentary =
+      Repo.insert!(%Text{
+        work_id: "T9002",
+        source_id: "cbeta",
+        witness_id: "T",
+        urn_prefix: "pramana:cbeta.T:T9002",
+        body: "commentary text",
+        body_sha256: Derivations.digest("commentary text"),
+        char_count: 15
+      })
+
+    segment =
+      Repo.insert!(%Segment{
+        text_id: root.id,
+        urn: "pramana:cbeta.T:T9001_001@p0001a01",
+        ordinal: 0,
+        content: "root text",
+        content_sha256: Derivations.digest("root text"),
+        char_start: 0,
+        char_end: 9,
+        byte_start: 0,
+        byte_end: 9
+      })
+
+    assert {:ok, _} =
+             Relations.assert(%{
+               source_work_id: commentary.work_id,
+               target_work_id: root.work_id,
+               relation: "comments_on",
+               method: "catalogue",
+               confidence: "certain"
+             })
+
+    quotation_token =
+      Derivations.begin_run(
+        "quotations_scan",
+        "bake-test",
+        %{"source" => "cbeta", "witness" => "T", "division" => nil, "work" => nil},
+        %{"min_length" => 20}
+      )
+
+    alignment_token =
+      Derivations.begin_run(
+        "commentary_align",
+        "bake-test",
+        %{"work" => nil},
+        %{}
+      )
+
+    segment
+    |> Ecto.Changeset.change(char_end: 8)
+    |> Repo.update!()
+
+    refute quotation_token.input_digest == Derivations.current_input_digest(quotation_token)
+    refute alignment_token.input_digest == Derivations.current_input_digest(alignment_token)
   end
 
   test "output digests cover the served quotation and alignment text" do
