@@ -363,8 +363,10 @@ defmodule Pramana.Derivations do
 
   defp commentary_pair_fact_query(work_id) do
     commentary_pair_query(work_id)
-    |> select([r, cs, rt], %{
+    |> join(:inner, [r, _cs, _rt], w in Work, on: w.id == r.source_work_id)
+    |> select([r, cs, rt, w], %{
       commentary_work_id: r.source_work_id,
+      commentary_text_role: w.text_role,
       root_work_id: r.target_work_id,
       relation: r.relation,
       commentary_text_id: cs.id,
