@@ -428,4 +428,151 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
       end
     end
   end
+
+  describe "derive_outputs/2 uses only authoritative staged facts" do
+    defp staged(overrides \\ %{}) do
+      Map.merge(
+        %{
+          "ordinal" => 0,
+          "operation_kind" => "protected",
+          "operation_type" => "settle_claim",
+          "execution_status" => "committed",
+          "request" => %{},
+          "result" => %{"facts" => %{"infrastructure_settlement" => settlement()}}
+        },
+        overrides
+      )
+    end
+
+    defp settlement_binding do
+      [
+        %{
+          "name" => "settled",
+          "operation_ordinal" => 0,
+          "output_kind" => "nonstart_settlement_v1",
+          "destination_slot" => "launch_settled.settlement"
+        }
+      ]
+    end
+
+    test "derives a settlement from a committed settle_claim result" do
+      assert {:ok, %{"settled" => derived}} =
+               TransitionPlan.derive_outputs(settlement_binding(), [staged()])
+
+      assert derived["ordinal"] == 1
+      assert derived["effect_id"] == "effect-1"
+      assert derived["schema_version"] == 1
+    end
+
+    test "rejects a binding naming an absent operation ordinal" do
+      assert {:error, :staged_operation_absent} =
+               TransitionPlan.derive_outputs(settlement_binding(), [staged(%{"ordinal" => 4})])
+    end
+
+    test "rejects duplicated staged ordinals" do
+      assert {:error, :staged_operation_not_unique} =
+               TransitionPlan.derive_outputs(settlement_binding(), [staged(), staged()])
+    end
+
+    test "rejects a rolled-back operation" do
+      assert {:error, :unbindable_operation_result} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"execution_status" => "rolled_back"})
+               ])
+    end
+
+    test "rejects an operation of the wrong type" do
+      assert {:error, :unbindable_operation_result} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"operation_type" => "set_control"})
+               ])
+    end
+
+    test "rejects a non-protected operation" do
+      assert {:error, :unbindable_operation_result} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"operation_kind" => "domain"})
+               ])
+    end
+
+    test "rejects a result carrying no settlement fact" do
+      assert {:error, :unbindable_operation_result} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"result" => %{"facts" => %{}}})
+               ])
+    end
+
+    test "rejects a settlement whose ordinal is not positive" do
+      fact = Map.put(settlement(), "ordinal", 0)
+
+      assert {:error, :invalid_authoritative_fact} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => fact}}})
+               ])
+    end
+
+    test "rejects a settlement carrying an unexpected field" do
+      fact = Map.put(settlement(), "smuggled", true)
+
+      assert {:error, :invalid_authoritative_fact} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => fact}}})
+               ])
+    end
+
+    test "rejects a settlement missing a required field" do
+      fact = Map.delete(settlement(), "role")
+
+      assert {:error, :invalid_authoritative_fact} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => fact}}})
+               ])
+    end
+
+    test "projects a control fact into its declared shape" do
+      bindings = [
+        %{
+          "name" => "control",
+          "operation_ordinal" => 0,
+          "output_kind" => "control_fact_v1",
+          "destination_slot" => "control_changed.control"
+        }
+      ]
+
+      state = %{
+        "schema_version" => 1,
+        "control_id" => "control-1",
+        "revision" => 3,
+        "value" => %{"status" => "active"}
+      }
+
+      result =
+        staged(%{
+          "operation_type" => "set_control",
+          "result" => %{"facts" => %{"root_control" => state}}
+        })
+
+      assert {:ok, %{"control" => derived}} = TransitionPlan.derive_outputs(bindings, [result])
+
+      assert derived == %{
+               "schema_version" => 1,
+               "control_id" => "control-1",
+               "control_revision" => 3
+             }
+    end
+
+    test "fails closed on an output kind with no specified producer" do
+      bindings = [
+        %{
+          "name" => "authority",
+          "operation_ordinal" => 0,
+          "output_kind" => "launch_authority_v1",
+          "destination_slot" => "launch_planned.authority"
+        }
+      ]
+
+      assert {:error, :unsupported_output_kind} =
+               TransitionPlan.derive_outputs(bindings, [staged()])
+    end
+  end
 end

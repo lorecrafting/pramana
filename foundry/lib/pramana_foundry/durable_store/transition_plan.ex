@@ -30,6 +30,17 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
 
   @output_kinds ~w(launch_authority_v1 nonstart_settlement_v1 terminal_settlement_v1 control_fact_v1 reset_fact_v1)
 
+  # The protected operation that authoritatively produces each output kind, and the key
+  # its fact occupies in that operation's result. Output kinds absent from this map are
+  # declarable but not yet derivable, and fail closed rather than defaulting to a copy of
+  # caller-supplied data. Their producing facts must be specified before use.
+  @producers %{
+    "nonstart_settlement_v1" => {"settle_claim", "infrastructure_settlement"},
+    "control_fact_v1" => {"set_control", "root_control"}
+  }
+
+  @settlement_fields ~w(effect_id claim_id receipt_id role work_owner infrastructure_generation predecessor_effect_id failure_class ordinal)
+
   # A destination slot names the event type and the payload field the bound fact
   # occupies. The closed set is part of the codec, not caller-supplied text.
   @slots %{
@@ -99,6 +110,94 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     else
       {:error, _reason} = error -> error
       _ -> {:error, :invalid_bound_plan}
+    end
+  end
+
+  @doc """
+  Derives typed outputs for `bindings` from authoritative staged protected results.
+
+  `operation_results` are Gateway's staged results, whose facts were produced by the
+  protected layer inside the current transaction. Nothing here reads caller-supplied
+  values: a binding names an operation ordinal, and the fact is taken from that
+  operation's authoritative result. A reference to an absent, duplicated, non-protected,
+  non-committed or wrong-type operation rejects.
+
+  Facts are projected into the declared output shape rather than copied wholesale, so an
+  output kind's schema stays stable regardless of the internal state shape it derives
+  from.
+  """
+  @spec derive_outputs([map()], [map()]) :: {:ok, map()} | {:error, atom()}
+  def derive_outputs(bindings, operation_results)
+      when is_list(bindings) and is_list(operation_results) do
+    Enum.reduce_while(bindings, {:ok, %{}}, fn binding, {:ok, acc} ->
+      case derive_output(binding, operation_results) do
+        {:ok, output} -> {:cont, {:ok, Map.put(acc, binding["name"], output)}}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  def derive_outputs(_bindings, _operation_results), do: {:error, :invalid_operation_results}
+
+  defp derive_output(binding, operation_results) do
+    kind = binding["output_kind"]
+
+    with {:ok, {type, fact_key}} <- producer(kind),
+         {:ok, result} <- staged_result(operation_results, binding["operation_ordinal"]),
+         true <- result["operation_kind"] == "protected",
+         true <- result["execution_status"] == "committed",
+         true <- result["operation_type"] == type,
+         fact when is_map(fact) <- get_in(result, ["result", "facts", fact_key]) do
+      project(kind, fact)
+    else
+      {:error, _reason} = error -> error
+      _ -> {:error, :unbindable_operation_result}
+    end
+  end
+
+  defp producer(kind) do
+    case Map.fetch(@producers, kind) do
+      {:ok, producer} -> {:ok, producer}
+      :error -> {:error, :unsupported_output_kind}
+    end
+  end
+
+  defp staged_result(operation_results, ordinal) do
+    case Enum.filter(operation_results, &(&1["ordinal"] == ordinal)) do
+      [result] -> {:ok, result}
+      [] -> {:error, :staged_operation_absent}
+      _ -> {:error, :staged_operation_not_unique}
+    end
+  end
+
+  defp project("nonstart_settlement_v1", fact) do
+    with true <- exact_keys?(Map.drop(fact, ["schema_version"]), @settlement_fields),
+         true <-
+           Enum.all?(
+             ~w(effect_id claim_id receipt_id role work_owner failure_class),
+             &identifier?(fact[&1])
+           ),
+         true <- nonnegative_integer?(fact["infrastructure_generation"]),
+         true <-
+           is_nil(fact["predecessor_effect_id"]) or identifier?(fact["predecessor_effect_id"]),
+         true <- is_integer(fact["ordinal"]) and fact["ordinal"] > 0 do
+      {:ok, Map.put(fact, "schema_version", 1)}
+    else
+      _ -> {:error, :invalid_authoritative_fact}
+    end
+  end
+
+  defp project("control_fact_v1", fact) do
+    with true <- identifier?(fact["control_id"]),
+         true <- nonnegative_integer?(fact["revision"]) do
+      {:ok,
+       %{
+         "schema_version" => 1,
+         "control_id" => fact["control_id"],
+         "control_revision" => fact["revision"]
+       }}
+    else
+      _ -> {:error, :invalid_authoritative_fact}
     end
   end
 
