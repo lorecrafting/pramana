@@ -1907,3 +1907,49 @@ latest prose here, remains authoritative for status and dependencies.
   the reviewed candidate; exact clean CI passed all six stages, and the full model-free
   suite passed 711 at seed 0 run serially.
 
+## FR-08A Gateway plan resolution, subcommit 4 — 2026-09-20
+
+- This is the change the whole binding correction exists for. Before it,
+  `commit_accepted_atomic_bundle/6` bound `envelope["proposal"]` and committed it
+  unchanged, so no protected fact derived inside the transaction could reach the domain.
+- `9f1115d` makes a v2 envelope carry **either** a precomputed proposal **or** an
+  unresolved transition plan, never both and never neither, and resolves a plan after
+  staging and before commit: the protected layer derives the discriminator from the
+  settlement staged in that same transaction, and the codec mechanically selects the
+  matching alternative and substitutes. Proposal-bearing envelopes and stored histories
+  are untouched.
+- Three protocol decisions were recorded before implementation rather than discovered
+  during it. The semantic digest covers the **unresolved** plan, because digesting the
+  resolved proposal would make one command digest differently depending on which
+  alternative the discriminator selected, so an idempotent retry after a lost reply could
+  not find its original result. `discriminator_kind` is a closed vocabulary, so Gateway
+  maps a name to one fixed protected function rather than dispatching on caller text.
+  And `bind/3` takes the staged results rather than a pre-derived outputs map, so
+  provenance is structural: a caller cannot supply a forged fact because the interface
+  offers nowhere to put one.
+- Independent critical review by Claude Fable 5.1 returned **BLOCKER** before passing,
+  and both defects were reproduced against a real store.
+  - A plan-binding failure crashed the **entire Gateway into permanent recovery mode**.
+    The else clause recognised three error reasons, so every error the new resolution
+    path could raise fell through the catch-all, was mapped to `storage_unavailable`, and
+    made `transition_after_result/2` reject every subsequent call from every actor.
+    Reachable by ordinary input, and nothing was persisted, so a lost reply for that
+    command could never be found again. Corrected by tagging plan failures
+    `{:plan_rejected, reason}`, which also covers error atoms neither test suite listed.
+  - The selected discriminator was discarded and never persisted, which the specification
+    required. It is not recoverable afterwards from the policy head row, so it is now
+    recorded in the durable result.
+  - A smaller defect: the persisted domain row always wrote the `proposal` key, recording
+    `nil` for a plan-bearing bundle that had just committed one. The stored request is now
+    keyed by the envelope's real carrier, and the protected validator delegates to
+    Gateway's own shape function rather than mirroring it — a hand-copied rule would have
+    diverged silently the moment a third carrier appeared.
+- Review also found two tests that did not establish what their names claimed: the commit
+  test read only the protected table, written before binding, and no test exercised a
+  non-first alternative. Both corrected, plus an end-to-end exhausted-branch test.
+- Integrated at `b9bfc85` with runtime byte-identical to the reviewed candidate; exact
+  clean CI passed all six stages, run serially. Nine attestation rebinds were required
+  across the session because `gateway.ex`, `protected_primitives.ex` and `record_codec.ex`
+  are all pinned by source SHA-256 and loaded BEAM MD5; that repetition is the evidence
+  behind FR-23's same-commit rebinding requirement.
+
