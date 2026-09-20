@@ -1637,6 +1637,27 @@ latest prose here, remains authoritative for status and dependencies.
   dependency-ready and FR-18A may now add its separately designed bounded read query.
   No provider, daemon, activation or deployment ran.
 
+## FR-08B pure kernel and root-fact composition — 2026-09-20
+
+- First pure-kernel candidate `a00deccbf4717ed6c3e4835bbdefed457dd6d637`, tree
+  `21ec8b3c1cc64c490b325506682754bfa2cd7db5`, added only new workflow kernel/state/test
+  files and passed 17 maintained tests. Fresh Sol-high review
+  `a8ecf36b7032572ceba27c139c06c5f17d10a604` returned **BLOCKER**: generic snapshot
+  replay was unguarded and non-total; closure/check/review/correction custody was lossy;
+  R4a ignored control/allocation/generation cross-products; and the label matrix did not
+  execute the 28 required rows.
+- The review also exposed that the integrated atomic Gateway cannot bind protected facts
+  derived during staging into its precomputed domain proposal. Fresh Astra-high diagnosis
+  [`fr08b-root-fact-composition-diagnosis.md`](fr-08/fr08b-root-fact-composition-diagnosis.md)
+  confirms this is a bounded FR-08A interface correction: a closed versioned transition
+  plan with fixed typed result slots and finite kernel-authored alternatives selected by
+  root-derived discriminants. Gateway performs only mechanical validated selection and
+  substitution; it does not execute candidate code or become a lifecycle reducer.
+- The FR-08B owner is correcting the pure semantic event/state/plan contract and exhaustive
+  matrices without touching durable core. The protected-result/domain-plan binding must be
+  implemented and critically reviewed after the active FR-18A protected read slice releases
+  core ownership. No FR-08B runtime or adapter code is integrated.
+
 ## FR-18A minimal honest observations — 2026-09-20
 
 - Sol-medium source candidate `fa74cabb7ce8c4d12cf94e756c92b7310733192a`, tree
