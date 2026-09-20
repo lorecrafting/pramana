@@ -2,7 +2,16 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
   use ExUnit.Case, async: false
 
   alias Exqlite.Sqlite3
-  alias PramanaFoundry.DurableStore.{Authority, Database, Encoding, Gateway, ProtectedPrimitives}
+
+  alias PramanaFoundry.DurableStore.{
+    Authority,
+    Database,
+    Encoding,
+    Gateway,
+    ProtectedPrimitives,
+    TransitionPlan
+  }
+
   alias PramanaFoundry.Observations
   alias PramanaFoundry.Observations.Query
 
@@ -1494,32 +1503,63 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       commit_plan!(ctx, "REV3")
       stop_supervised!(Gateway)
 
-      # The hole this closes: flipping the recorded discriminator alone is caught, but
-      # flipping it AND regenerating the events from the trusted binder's own
-      # blocked-alternative used to reconstruct cleanly, because the recorded value was
-      # the only free input and nothing reconstructed it. The store then asserted blocked
-      # for a ticket the policy in force said must be queued.
+      # The hole correction 1 closes. Flipping the recorded discriminator ALONE is caught
+      # by the pre-existing events comparison and proves nothing about reconstruction: the
+      # binder's output for the other alternative simply differs from the committed
+      # events. The tamper that matters rewrites the events and projection to the other
+      # alternative too, so the store is internally coherent and only contradicts the
+      # policy that was in force. Before reconstruction, that reopened clean.
       assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
 
-      assert {:ok, [[bytes]]} =
-               Database.query(raw, "SELECT result FROM atomic_bundles WHERE command_id = ?", [
-                 "REV3"
+      assert {:ok, [[envelope_bytes, result_bytes]]} =
+               Database.query(
+                 raw,
+                 "SELECT canonical_envelope, result FROM atomic_bundles WHERE command_id = ?",
+                 ["REV3"]
+               )
+
+      envelope = envelope_bytes |> :json.decode() |> normalize_json()
+      result = result_bytes |> :json.decode() |> normalize_json()
+
+      # Ask the trusted binder itself for the other alternative's carriers, so the tamper
+      # is exactly what a correct commit of the blocked branch would have written.
+      assert {:ok, blocked} =
+               TransitionPlan.bind(
+                 envelope["plan"],
+                 "infrastructure_limit_reached",
+                 result["operations"]
+               )
+
+      [blocked_event] = blocked["events"]
+      assert {:ok, event_encoded} = Encoding.json(blocked_event)
+
+      assert :ok =
+               Database.execute(raw, "UPDATE events SET event = ? WHERE event_type = ?", [
+                 {:blob, event_encoded},
+                 "launch_settled"
                ])
 
-      tampered =
-        bytes
-        |> :json.decode()
-        |> normalize_json()
-        |> Map.put("selected_discriminator", "infrastructure_limit_reached")
+      [blocked_projection] = blocked["projections"]
+      assert {:ok, projection_encoded} = Encoding.json(blocked_projection)
 
-      assert {:ok, encoded} = Encoding.json(tampered)
+      assert :ok =
+               Database.execute(
+                 raw,
+                 "UPDATE projections SET projection = ? WHERE namespace = ? AND entity_id = ?",
+                 [{:blob, projection_encoded}, "atomic-v2", "REV3"]
+               )
+
+      assert {:ok, tampered_result} =
+               Encoding.json(
+                 Map.put(result, "selected_discriminator", "infrastructure_limit_reached")
+               )
 
       assert :ok =
                Database.execute(
                  raw,
                  "UPDATE atomic_bundles SET result = ? WHERE command_id = ?",
                  [
-                   {:blob, encoded},
+                   {:blob, tampered_result},
                    "REV3"
                  ]
                )
