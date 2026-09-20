@@ -1,148 +1,158 @@
-# Durable event vocabulary extension — design
+# Durable event vocabulary extension — design, revision 2
 
 Date: 2026-09-20
 
 Status: **design note; no implementation, no acceptance, no accepted vocabulary**
 
-Author: Claude Opus 5.
+Author: Claude Opus 5. Revision 1 was reviewed and returned **BLOCKER**; this revision
+replaces its mechanism outright. The prior mechanism is described below under "what
+revision 1 got wrong" rather than deleted, because the mistake is instructive.
 
-This is subcommit 0 of the [FR-08A plan-binding correction](plan-binding-specification.md),
-whose prerequisite section records the blocking finding. It is written as a separate
-design note because it changes a contract shared with FR-08B and must be reviewed on its
-own terms before any code is written.
+This is subcommit 0 of the [FR-08A plan-binding correction](plan-binding-specification.md).
 
 ## Exact base
 
-`main` at `9dd30c3fd1624ef74bf697bc78eb0fc4d10154ba`.
+`main` at `4a2f7748ba80b73b1aa9e3fef25c5e0a5bdd2e70`.
 
-## The finding, restated
+## What revision 1 got wrong
 
-The prerequisite section recorded that `RecordCodec` accepts nine event types while the
-FR-08B kernel declares twenty-seven, intersecting in exactly one name. Further inspection
-shows something more specific and more consequential.
+Revision 1 proposed versioning the durable event record: keep `schema_version` 1 for the
+legacy vocabulary, admit 2 for the lifecycle vocabulary, and dispatch validation on the
+record's declared version.
 
-Eight of the nine accepted event types map one-to-one onto the **legacy command
-vocabulary** in the same module:
+That mechanism is unimplementable without a relational migration the note never mentioned.
+Independent review established, and this author re-verified:
 
-| Accepted event type | Legacy command |
-|---|---|
-| `legacy_event` | `legacy_event_append` |
-| `ticket_enqueued` | `enqueue` |
-| `ticket_steered` | `steer` |
-| `ticket_paused` | `pause` |
-| `ticket_resumed` | `resume` |
-| `ticket_cancelled` | `cancel` |
-| `effect_requested` | `request_effect` |
-| `receipt_recorded` | `record_receipt` |
+- `database.ex:248` declares `schema_version INTEGER NOT NULL CHECK (schema_version = 1)`
+  on the `events` table, which is `STRICT`. SQLite cannot alter a CHECK in place; changing
+  it requires a full table rebuild.
+- `gateway.ex:1481` writes `VALUES (?, ?, 1, ?, ?, ?, ?)` — the version is a literal in the
+  SQL text, not bound from the event.
+- The review further identified that relaxing the CHECK without fixing the literal would
+  write column `1` beside a blob declaring `2`, committing successfully and then failing
+  `:relational_binding_mismatch` on the next read, because `authority.ex` cross-checks the
+  column against the blob. That is a new way to manufacture exactly the partial-version
+  state this repair exists to eliminate.
 
-(`ticket_created` is the ninth, with no direct command counterpart.)
+The underlying error was reasoning from `RecordCodec` without reading the table beneath it.
 
-So the durable store's event vocabulary is the **pre-repair legacy lifecycle**. It was
-never migrated to the v2 lifecycle that [R4](../WORKFLOW-CONTRACT.md#r4) defines. The
-mismatch with the FR-08B kernel is therefore not the kernel inventing an idiosyncratic
-vocabulary; it is the durable codec still speaking the vocabulary the repair replaced.
+## The correction: the constrained column was never the one that needed to change
 
-This matters for how the change is framed. It is a deliberate migration of a durable
-contract toward R4, not an accommodation of one unreviewed candidate.
+`schema_version` is CHECK-constrained. **`event_type` is not.**
 
-## Ownership split
+```
+event_type TEXT NOT NULL,
+```
 
-- **This subcommit (FR-08A) owns the mechanism**: how the durable codec admits a second,
-  explicitly versioned lifecycle vocabulary while preserving the legacy one exactly.
-- **FR-08B owns the vocabulary's content**: which lifecycle events exist, their payload
-  key sets and their correspondence to R4 rows. FR-08B's acceptance obligations are
-  unchanged and none is waived here.
+The event-type vocabulary is enforced in exactly one place in the entire system —
+`record_codec.ex:81`, `map["type"] in @event_types` — and nowhere in the relational schema.
+The database will store any event type string today.
 
-The mechanism is implementable and reviewable without settling every event name, which is
-why it is separated. A seed vocabulary derived from R4 is proposed below so the mechanism
-has a concrete first population, explicitly subject to FR-08B revision.
+So extending the vocabulary requires **no schema change, no migration, no table rebuild and
+no version dispatch**. It requires adding names to one closed list in one module.
 
-## Mechanism: version the event record, not the call path
+## Mechanism: one flat vocabulary of globally unique names
 
-`RecordCodec.normalize(:event, _)` requires `schema_version == 1` and membership in a
-single closed list. Two options were considered.
+Extend `@event_types` with the lifecycle vocabulary. Do not introduce record versioning.
 
-**Rejected — thread a vocabulary parameter through the call path.**
-`normalize_candidate/1` is shared by the v1 `transact` path (`gateway.ex` lines 518, 550)
-and the v2 atomic path (line 598), so the accepted vocabulary would depend on which
-function called it. The persisted record would then not describe itself: replay, reopen
-and backup validation would have to know the writing path to know which vocabulary
-applies. That is precisely the ambiguity the repair is removing elsewhere.
+The two vocabularies must be **fully disjoint**, so an event type name alone identifies
+exactly one event contract. The legacy and lifecycle sets currently collide on one name,
+`ticket_resumed`. The lifecycle event takes a distinct name instead. Which name is FR-08B's
+call; this note requires only that it not reuse a legacy one.
 
-**Chosen — a versioned event record.** A durable event declares `schema_version`. Version
-1 keeps exactly today's nine legacy types, byte-for-byte unchanged. Version 2 admits the
-R4 lifecycle vocabulary. Validation dispatches on the record's own declared version.
+Why a flat disjoint namespace is better here than versioning, beyond being implementable:
 
-Consequences, all of which are properties the repair wants:
+- **Nothing can go out of sync.** A version column can disagree with its payload; a name
+  cannot disagree with itself. The failure mode review found in revision 1 has no analogue.
+- **Existing read paths need no change.** `gateway.ex:1917`'s `query_recent_events/2`
+  selects `event_type` without `schema_version`. Under revision 1 that surface was
+  ambiguous and needed widening. Under disjoint names it is already correct.
+- **Later extension stays cheap.** Adding a name is additive. This matters for the
+  ownership split below: FR-08B can add lifecycle events later without a "v3" migration.
+- **Redefinition is forbidden rather than versioned.** A name's contract never changes; a
+  changed contract takes a new name. This is the ordinary event-sourcing discipline and it
+  is what makes replay of old records safe indefinitely.
 
-- The persisted bytes are self-describing. Replay and backup validation read the version
-  from the record and need no knowledge of the writing path.
-- Version 1 records are untouched, so existing histories keep validating unchanged.
-- An unsupported version fails closed, as `supported_version/1` already does for bundles.
-- **A bundle mixing event versions is rejected.** Partial version states are exactly what
-  the diagnosis requires failing closed on, and a bundle whose events disagree about which
-  lifecycle they describe has no coherent reading.
+The cost is that the namespace is permanently global: a name, once persisted, is spent.
+That is an acceptable and explicit trade.
+
+## Ownership split, stated honestly this time
+
+Revision 1 claimed to own only "the mechanism" while shipping a concrete vocabulary, and
+review correctly identified that as a content decision wearing mechanism's clothes.
+
+Under a flat additive namespace the split is real rather than rhetorical: adding a name
+later costs nothing, so seeding the list does not freeze FR-08B's options the way shipping
+a numbered schema version would have. FR-08B may add, and must not redefine or reuse.
+
+That said, **the names below are a proposal, and FR-08B owns them.** This note does not
+require that subcommit 0 land the full seed. A defensible alternative is to land the
+mechanism with only the event types the FR-08A binding actually needs, and let FR-08B add
+the rest as its reduction is written. The implementing subcommit should choose explicitly
+and record why.
 
 ## Seed vocabulary proposed from R4
 
-Derived from the [R4 transition table](../WORKFLOW-CONTRACT.md#r4) rather than from the
-preserved kernel work in progress, which is unreviewed and mid-correction. Each entry
-must trace to a row or entity state; entries that cannot are omitted rather than guessed.
+Derived from the [R4 transition table](../WORKFLOW-CONTRACT.md#r4), not from the preserved
+kernel work in progress, which is unreviewed and mid-correction.
 
-Admission and specification: `objective_created`, `ticket_admitted`, `ticket_amended`,
-`ticket_parked`.
-
-Developer lifecycle: `launch_planned`, `launch_settled`, `artifact_frozen`,
-`artifact_blocked`, `freeze_failed`, `submission_rejected`, `developer_closed`.
-
+Admission: `objective_created`, `ticket_admitted`, `ticket_amended`, `ticket_parked`.
+Developer: `launch_planned`, `launch_settled`, `artifact_frozen`, `artifact_blocked`,
+`freeze_failed`, `submission_rejected`, `developer_closed`.
 Checks: `checks_started`, `check_planned`, `check_recorded`.
-
 Review: `review_planned`, `review_recorded`, `reviewer_closed`.
-
 Integration: `integration_planned`, `integration_settled`.
-
-Controls and recovery: `control_changed`, `ticket_resumed`, `ticket_reset`,
-`cancellation_requested`, `cancellation_finalized`.
-
+Controls and recovery: `control_changed`, `ticket_reset`, `cancellation_requested`,
+`cancellation_finalized`, plus a lifecycle resume event under a name not already spent.
 Observation: `execution_observed`.
-
 PM: `pm_proposal_recorded`, `pm_launch_planned`, `pm_launch_settled`.
 
-Two deliberate differences from the preserved kernel vocabulary, both traceable to R4:
+Two differences from the preserved kernel vocabulary, both traceable to R4 and both
+sustained by review:
 
-- **`submission_rejected` is added.** The row "any open submission phase; malformed
-  result" requires a durable rejected submission that charges one validation action. The
-  preserved kernel has no event for it, so that row could not be reduced.
-- **`ticket_resumed` is retained as a shared name.** It is the one name already in the
-  legacy vocabulary. Under versioned records this is not a collision: a v1
-  `ticket_resumed` and a v2 `ticket_resumed` are distinct records with distinct payload
-  contracts, and nothing has to disambiguate them by name alone.
+- **`submission_rejected` is added.** R4's "any open submission phase; malformed result"
+  row requires a durable rejected submission charging one validation action. The preserved
+  kernel has no event for it, so that row could not be reduced.
+- **Attempt terminal dispositions get no separate event type.** R4 sets a disposition once,
+  in the same row that moves the attempt to terminal. Review checked all nine dispositions
+  against their rows and found no counterexample.
 
-Attempt terminal dispositions are deliberately **not** separate event types here. R4 sets
-a disposition once on an attempt as part of the transition that terminates it, so a
-separate event would create two carriers for one fact. If FR-08B's reduction shows this
-is wrong, that is its call to make.
+## Corrected framing of the original finding
 
-## What this design does not decide
+Revision 1 concluded the durable store "still speaks the pre-repair legacy lifecycle."
+Review showed that overreaches, and this revision withdraws it.
 
-Payload key sets per event type, the event-to-projection correspondence for each type,
-and whether any transition needs an ordered multi-event group all belong to FR-08B. The
-mechanism admits a vocabulary; it does not define the semantics of its members.
+The 8-of-9 name correspondence between `@event_types` and `@command_types` is real, but
+nothing cross-checks a command's type against an event's type — the correspondence is a
+naming coincidence between two independently maintained closed lists. `@command_types`
+also contains `reset`, `propose`, `submit_artifact` and `submit_review`, which have zero
+uses anywhere in `lib/` outside the list literal. So the accurate statement is narrower:
+**the codec carries two stale closed lists, one of which already contains dead R4-flavoured
+names.** The dead names are routed to [FR-23](../REPAIR-PLAN.md), not removed here.
 
 ## Acceptance for the implementing subcommit
 
-- Version 1 events validate exactly as today, proven against unchanged existing fixtures.
-- Version 2 events validate against the seed vocabulary; unknown names in either version
-  reject.
-- A bundle mixing event versions rejects with a distinct reason.
-- An unsupported event version fails closed.
-- Existing v1 and v2 bundle histories continue to validate on reopen, replay and backup
-  validation.
-- No legacy accepted type is removed, renamed or re-pointed.
+Revision 1's criteria were all at `RecordCodec` level and could have been satisfied in full
+while leaving the actual prerequisite untouched. These require the real path:
+
+- A bundle carrying a lifecycle event **commits through the real `Gateway` path** and is
+  read back with its event type intact. Codec-level validation alone is insufficient
+  evidence.
+- That committed bundle **replays to identical state**, and survives **reopen and verified
+  backup validation**, since those are the paths the diagnosis requires to revalidate.
+- The legacy vocabulary continues to validate and replay byte-identically; no legacy name is
+  removed, renamed or re-pointed, proven against unchanged existing fixtures.
+- An unknown event type still rejects, with the same reason as today.
+- No name appears in both vocabularies, enforced by an assertion over the two lists rather
+  than by inspection.
+- No relational schema change is introduced. If implementation discovers one is
+  unavoidable, that is a design failure and returns here rather than proceeding.
+- `transition_plan_test.exs`'s pinned prerequisite case, which currently asserts
+  `{:error, :invalid_event}`, becomes the end-to-end binding assertion.
 
 ## Limits
 
 This note changes no runtime and enables no execution. It does not establish FR-08B
-progress, does not unblock the FR-08A Gateway wiring on its own, and claims no lifecycle
-behavior. The plan-binding correction's subcommit 4 remains additionally bound by its
-recorded structural-provenance requirement.
+progress and does not by itself unblock the FR-08A Gateway wiring, which remains
+additionally bound by its recorded structural-provenance requirement. It makes no claim
+about FR-08B's reduction logic or payload semantics, which do not exist yet.
