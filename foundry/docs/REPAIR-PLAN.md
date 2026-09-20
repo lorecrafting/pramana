@@ -148,6 +148,40 @@ suite at candidate freeze and again after integration, reusable reviewer-owned f
 probes, and one manifest/evidence packet for the frozen batch. Batch review reduces
 duplicated context; it never converts missing per-ticket evidence into a pass.
 
+**Brief a reviewer on the delta, not the candidate, and never pay twice for a settled
+fact.** Independent review is the most expensive step in this repair, and its cost is
+dominated by re-establishing things already established rather than by finding defects.
+Recorded 2026-09-20 after a single re-review consumed roughly 383,000 tokens, most of it
+recomputing nine attestation hashes, regenerating a report the gate already regenerates,
+re-running a full suite whose result was supplied, and re-auditing a whole candidate when
+only one correction was in question.
+
+Every review briefing must therefore:
+
+- **State what is already established and must not be re-derived.** Attestation hashes,
+  suite counts with their seeds, and CI provenance are supplied as given. A reviewer may
+  spot-check any of them and must say so, but re-establishing them as routine is waste:
+  the revision-bound gate already recomputes source and loaded-BEAM identities on every
+  run and fails closed, so a second manual recomputation proves nothing new.
+- **Name the exact revisions and the diff.** "Review `git diff <base> <candidate>`" with
+  the commits enumerated, never "review the candidate".
+- **For a re-review, scope to the reproduced defect and its regression controls.** Give
+  the defect, the correction, and what must still hold. Whole-candidate re-audit is
+  explicitly out of scope unless escalation applies.
+- **Say what the previous pass of the same reviewer already verified**, so it is not
+  repeated. A resumed reviewer retains its own findings; it does not need to rediscover
+  them.
+- **Ask for a full suite run only when the change plausibly affects unrelated modules.**
+  Otherwise supply the result and seed. Concurrent full-suite runs additionally produce
+  spurious physical-fault failures, so a redundant one is worse than merely expensive.
+
+**Escalate a narrow re-review to a full one when** the correction touches a different
+file or invariant family than the reported defect, or when a previous correction for that
+same defect already failed review. Both conditions were met on 2026-09-20: one correction
+was itself incomplete for a shape its author had not considered, and two structural gaps
+were found only because a review deliberately went broad. Narrow is the default for a
+correction; it is not a default for everything.
+
 **Contract coverage is a separate review dimension from candidate correctness.** A
 candidate review asks whether the code does what it claims, correctly and safely. A
 coverage review asks whether what it claims is enough to satisfy the governing contract.
