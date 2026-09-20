@@ -325,9 +325,14 @@ Next resumable Foundry work, under exact repair-plan ownership:
    ownership-aware provisioning and rollback. It performed no host provisioning and
    enables no execution: actual isolation remains FR-15aB, installed-harness/subscription
    conformance remains FR-09, and OMP remains governing.
-4. Implement FR-18A's remaining bounded exact-effect observation query against the
-   reviewed atomic protected interface, and resume FR-08B's one-reducer migration for
-   every command ingress using its durable source inventory and acceptance matrix.
+4. FR-18A's bounded exact-effect observation query is implemented, independently
+   reviewed and integrated against the reviewed atomic protected interface, including
+   bounded control/execution summaries, the valid non-start reconciliation outcome, a
+   three-way settlement field binding and bounded-response source/version correlation.
+   Its recorded execution-summary coverage gap is closed. FR-08B's one-reducer migration
+   for every command ingress is not resumed: its first pure-kernel slice holds an
+   independent BLOCKER, and its event vocabulary is incompatible with the durable codec,
+   which admits one of the kernel's twenty-seven event types.
 5. Continue actual isolation, selected-harness conformance, durable effects/lifecycle,
    scheduling, artifact custody and Git integration in the repair graph's order.
 6. Complete honest observation/storage baselines before immutable activation; then finish
