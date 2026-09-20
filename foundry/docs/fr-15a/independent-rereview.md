@@ -1,5 +1,9 @@
 # FR-15aA focused independent rereview — BLOCKER
 
+Historical verdict for `5a7eb463`; see the appended
+[final residual-B2 review](#final-residual-b2-review--pass) for corrected candidate
+`9ed32575`. The original findings and evidence below remain unchanged.
+
 Review date: 2026-09-19. Scope: initial review B1–B3 and their necessary regression
 interactions. This is specification review, not host isolation or provider conformance.
 
@@ -129,3 +133,85 @@ Full Foundry CI and checkpoint-F provider fixture were not rerun. Actual isolati
 useful isolated build/test, FR-09 subscription conformance and deployment remain unproved
 and gated. OMP remains governing; Pi remains unselected. Only review/evidence files are
 added by this rereview; shared plans and ticket status are untouched.
+
+## Final residual-B2 review — PASS
+
+Review date: 2026-09-19. This renewed review is limited to B2.1/B2.2 above and
+necessary B1/B3 regression interactions. **PASS for the corrected FR-15aA
+specification candidate; no remaining blocker in this bounded review.**
+
+| Binding | Exact identity |
+|---|---|
+| Prior focused review | `5902944c065185ebbc3d716749cecd5eab0fdfdc` |
+| Corrected substantive candidate | `9ed32575f2840e90fe3e1ebb1f1ebcd0bd54040b` |
+| Corrected substantive tree | `1c5dd96f0da66286ecb47eec029c09b2f3733802` |
+| Evidence tip reviewed | `a5cb96b11131f356f638c34b693e9223f8f6f0d4` |
+| Evidence-tip tree | `ffed42475ea65739ddf953152c02ce5e1dbb81e4` |
+
+Git confirms these identities. The substantive diff changes only the validator,
+specification introduction and maintained focused test; the evidence-tip diff changes
+only `evidence.md`. The three corrected-file SHA-256 values match its residual-correction
+table. The worktree was initially clean.
+
+### B2.1 closed: complete pin identities and trusted repository reads
+
+The validator now requires the complete frozen pin inventory and each pin's exact kind,
+version, path, status and digest (`ci/validate_fr15aa.exs:461`). Repository reads at
+line 509 are selected by the validator's trusted repository-pin ID set and use the
+expected path/digest taken from its constants at line 477, not the manifest's path.
+The repository root is anchored to the validator location. Removing or redirecting a
+manifest path therefore cannot select or suppress a required repository-byte check.
+Explicit unresolved/blocked artifacts remain supported as blocked specifications.
+
+The [new independent probes](independent-final-review-probes.exs) reject individual
+erasure and alteration of all six identity fields (`id`, `kind`, `version`, `path`,
+`status`, `sha256`) for every pin. They also rerun the precise prior whole-inventory
+metadata-erasure and redirected `foundry-config` mutations: both now return errors.
+Trusted path selection was additionally verified by source inspection; no installed
+host artifact was rehashed or provisioned for this review.
+
+### B2.2 closed: uniqueness precedes indexing
+
+`validate/1` now checks security-collection uniqueness before invoking semantic validation
+or constructing inventory maps. This covers principal, channel, pin and route IDs, nested
+channel callers and route dependencies, and kernel allowed-operation, forbidden-field
+and root-check lists. The individual map-building functions also retain local guards.
+
+Independent probes reject contradictory principal, auth-channel, pin and shell-route
+records in **both declaration orders**, returning the explicit duplicate-ID error.
+The exact earlier worker-auth and root-shell duplicate cases therefore cannot disappear
+behind a later valid record. Nested duplicate grants, dependencies and each of the three
+kernel authority lists are also rejected.
+
+### Regression boundary and suggestions
+
+The manifest, kernel protocol/principal definitions and provisioning/rollback procedure
+are unchanged from the prior focused review. The pure B3 procedure module is unchanged;
+the maintained suite continues to exercise its observer and ownership cases. The prior
+B1/B3 dispositions and nonblocking suggestions above stand. There are no additional
+blocking or scope-expanding requirements from this renewed review.
+
+### Fresh checks and limitations
+
+Commands ran in the same dedicated worktree with Elixir 1.20.4 / OTP 29 / ERTS 17.0.6.
+
+| Command | Result |
+|---|---|
+| From `foundry/`: `elixir ci/validate_fr15aa.exs` | Exit 0, manifest valid |
+| From `foundry/`: `MIX_ENV=test elixir -r test/test_helper.exs test/pramana_foundry/repair/fr15aa_provisioning_test.exs` | Exit 0, 22 passed, seed 621764 |
+| From `foundry/`: `mix format --check-formatted ci/validate_fr15aa.exs docs/fr-15a/provisioning-manifest.exs test/pramana_foundry/repair/fr15aa_provisioning_test.exs` | Exit 0 |
+| `elixir bin/check_docs.exs` before review updates | Exit 0, 80 passed, seed 659358 |
+| `elixir bin/check_docs.exs` after staging review updates | Exit 0, 80 passed, seed 563532 |
+| `elixir foundry/docs/fr-15a/independent-final-review-probes.exs` | Exit 0, all expected rejections observed |
+| From `foundry/`: `mix format --check-formatted docs/fr-15a/independent-final-review-probes.exs` | Exit 0 |
+| `git diff 5902944..a5cb96b1 --check` | Exit 0 |
+
+The two earlier reproduction scripts remain historical and deliberately retain their
+old expectations. The final probe expects rejection and is the renewed review evidence.
+Full Foundry CI, installed host/provider artifacts and actual isolation were not tested.
+No host accounts, credentials, network policy, provider/model, daemon, Herdr, acquisition,
+installation, push or integration was used. Actual principal/channel/auth/network denial
+and useful isolated execution remain FR-15aB; installed OMP/subscription conformance remains
+FR-09. OMP remains governing, Pi remains unselected, and no production capability is enabled.
+This PASS closes the reviewed specification blockers only; it does not change the shared
+repair plan or grant operational authority.
