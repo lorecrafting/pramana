@@ -50,6 +50,11 @@ read_state() {
   loop_device=$(<"$state_dir/loop")
   sectors=$(<"$state_dir/sectors")
   linear_table=$(<"$state_dir/linear-table")
+  expected_loop_name=$(<"$state_dir/loop-name")
+  expected_back_file=$(<"$state_dir/back-file")
+  expected_back_ino=$(<"$state_dir/back-ino")
+  expected_back_maj_min=$(<"$state_dir/back-maj-min")
+  expected_loop_maj_min=$(<"$state_dir/loop-maj-min")
 
   [[ $image == "$state_dir/image.raw" && ! -L $image ]] || return 1
   [[ $mount_path == "$state_dir/mountpoint" && ! -L $mount_path ]] || return 1
@@ -58,11 +63,35 @@ read_state() {
   [[ $sectors =~ ^[1-9][0-9]*$ ]] || return 1
 
   [[ $linear_table =~ ^0\ $sectors\ linear\ ([0-9]+:[0-9]+|/dev/loop[0-9]+)\ 0$ ]] || return 1
+  [[ $expected_loop_name == "$loop_device" ]] || return 1
+  [[ $expected_back_file == "$image" && $expected_back_ino =~ ^[1-9][0-9]*$ ]] || return 1
+  [[ $expected_back_maj_min =~ ^[0-9]+:[0-9]+$ ]] || return 1
+  [[ $expected_loop_maj_min =~ ^[0-9]+:[0-9]+$ ]] || return 1
+  [[ $linear_table == "0 $sectors linear $expected_loop_maj_min 0" ]] || return 1
   error_table="0 $sectors error"
 }
 
-mapper_exists() {
-  as_root dmsetup info "$map_name" >/dev/null 2>&1
+query_mapper() {
+  local phase=$1
+  local stdout_file="$artifact_dir/mapper-query-$phase.stdout"
+  local stderr_file="$artifact_dir/mapper-query-$phase.stderr"
+  local status
+
+  if as_root dmsetup info "$map_name" >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  printf 'phase=%s status=%s map=%s\n' "$phase" "$status" "$map_name" \
+    >>"$artifact_dir/mapper-query-status.txt"
+
+  if [[ $status -eq 0 ]]; then
+    return 0
+  fi
+  if grep -Eqi 'does not exist|not found|no such device' "$stdout_file" "$stderr_file"; then
+    return 1
+  fi
+  return 2
 }
 
 mapper_suspended() {
@@ -104,16 +133,97 @@ record_mapper() {
   } >>"$artifact_dir/mapper-transitions.txt"
 }
 
-loop_matches() {
-  local output
-  output=$(as_root losetup "$loop_device" 2>/dev/null || true)
-  [[ $output == *"($image)"* ]]
+query_loop_identity() {
+  local phase=$1
+  local stdout_file="$artifact_dir/loop-query-$phase.json"
+  local stderr_file="$artifact_dir/loop-query-$phase.stderr"
+  local status
+
+  if as_root losetup --json --list \
+    --output NAME,BACK-FILE,BACK-INO,BACK-MAJ:MIN,MAJ:MIN,OFFSET,SIZELIMIT \
+    "$loop_device" >"$stdout_file" 2>"$stderr_file"; then
+    status=0
+  else
+    status=$?
+  fi
+  printf 'phase=%s status=%s expected_loop=%s expected_back_file=%s\n' \
+    "$phase" "$status" "$loop_device" "$image" >>"$artifact_dir/loop-query-status.txt"
+  [[ $status -eq 0 ]] || return 2
+  local count
+  count=$(jq -er '.loopdevices | length' "$stdout_file") || return 2
+  [[ $count -ne 0 ]] || return 1
+  [[ $count -eq 1 ]] || return 2
+
+  queried_loop_name=$(jq -r '.loopdevices[0].name // empty' "$stdout_file")
+  queried_back_file=$(jq -r '.loopdevices[0]["back-file"] // empty' "$stdout_file")
+  queried_back_ino=$(jq -r '.loopdevices[0]["back-ino"] // empty' "$stdout_file")
+  queried_back_maj_min=$(jq -r '.loopdevices[0]["back-maj:min"] // empty' "$stdout_file")
+  queried_loop_maj_min=$(jq -r '.loopdevices[0]["maj:min"] // empty' "$stdout_file")
+  queried_offset=$(jq -r '.loopdevices[0].offset // empty' "$stdout_file")
+  queried_sizelimit=$(jq -r '.loopdevices[0].sizelimit // empty' "$stdout_file")
+
+  [[ -n $queried_back_file ]] || return 2
+  queried_back_file=$(realpath -e "$queried_back_file") || return 2
+  return 0
+}
+
+validate_loop_identity() {
+  [[ $queried_loop_name == "$expected_loop_name" ]] || return 3
+  [[ $queried_back_file == "$expected_back_file" ]] || return 3
+  [[ $queried_back_ino == "$expected_back_ino" ]] || return 3
+  [[ $queried_back_maj_min == "$expected_back_maj_min" ]] || return 3
+  [[ $queried_loop_maj_min == "$expected_loop_maj_min" ]] || return 3
+  [[ $queried_offset == 0 && $queried_sizelimit == 134217728 ]] || return 3
+}
+
+verify_loop_identity() {
+  local phase=$1
+  local query_status
+  if query_loop_identity "$phase"; then
+    query_status=0
+  else
+    query_status=$?
+    return "$query_status"
+  fi
+
+  {
+    printf 'expected_loop=%s\nexpected_back_file=%s\nexpected_back_ino=%s\n' \
+      "$expected_loop_name" "$expected_back_file" "$expected_back_ino"
+    printf 'expected_back_maj_min=%s\nexpected_loop_maj_min=%s\n' \
+      "$expected_back_maj_min" "$expected_loop_maj_min"
+    printf 'queried_loop=%s\nqueried_back_file=%s\nqueried_back_ino=%s\n' \
+      "$queried_loop_name" "$queried_back_file" "$queried_back_ino"
+    printf 'queried_back_maj_min=%s\nqueried_loop_maj_min=%s\n' \
+      "$queried_back_maj_min" "$queried_loop_maj_min"
+    printf 'queried_offset=%s\nqueried_sizelimit=%s\n' "$queried_offset" "$queried_sizelimit"
+  } >>"$artifact_dir/loop-query-status.txt"
+
+  validate_loop_identity
 }
 
 restore_linear() {
   read_state
-  mapper_exists || return 0
-  loop_matches || { record "refusing restore: loop identity mismatch"; return 1; }
+  if query_mapper restore-check; then
+    mapper_state=0
+  else
+    mapper_state=$?
+    [[ $mapper_state -eq 1 ]] && return 0
+    record "refusing restore: mapper identity unavailable"
+    return 1
+  fi
+  if verify_loop_identity restore; then
+    loop_state=0
+  else
+    loop_state=$?
+    if [[ $loop_state -eq 2 ]]; then
+      record "refusing restore: loop identity unavailable"
+    elif [[ $loop_state -eq 1 ]]; then
+      record "refusing restore: recorded loop is absent"
+    else
+      record "refusing restore: loop identity mismatch"
+    fi
+    return 1
+  fi
 
   if ! mapper_suspended; then
     as_root dmsetup suspend --noflush --nolockfs "$map_name"
@@ -133,8 +243,14 @@ cleanup_state() {
         -f $state_dir/image && -f $state_dir/mount && -f $state_dir/linear-table ]]; then
     read_state
 
-    if mapper_exists; then
-      restore_linear || true
+    if query_mapper cleanup-restore-check; then
+      restore_linear
+    else
+      mapper_state=$?
+      [[ $mapper_state -eq 1 ]] || {
+        record "refusing cleanup: mapper identity unavailable"
+        return 1
+      }
     fi
   fi
 
@@ -156,9 +272,12 @@ cleanup_state() {
       record "refusing cleanup: invalid mapper identity"
       return 1
     }
-    if mapper_exists; then
+    if query_mapper cleanup-remove-check; then
       as_root dmsetup remove --retry "$map_name"
       printf 'removed_mapper=%s\n' "$map_name" >>"$artifact_dir/cleanup.txt"
+    else
+      mapper_state=$?
+      [[ $mapper_state -eq 1 ]] || return 1
     fi
   fi
 
@@ -169,9 +288,16 @@ cleanup_state() {
       record "refusing cleanup: invalid loop identity"
       return 1
     }
-    if loop_matches; then
+    read_state
+    if verify_loop_identity cleanup-detach; then
       as_root losetup -d "$loop_device"
       printf 'detached_loop=%s\n' "$loop_device" >>"$artifact_dir/cleanup.txt"
+    else
+      loop_state=$?
+      [[ $loop_state -eq 1 ]] || {
+        record "refusing cleanup: loop identity unavailable or mismatched ($loop_state)"
+        return 1
+      }
     fi
   fi
 
@@ -192,17 +318,35 @@ assert_clean() {
 
   if [[ -f $state_dir/map ]]; then
     map_name=$(<"$state_dir/map")
-    if [[ $map_name =~ ^fr19a_sync_eio_[0-9]+_[0-9]+_[0-9]+$ ]] && mapper_exists; then
-      printf 'remaining_mapper=%s\n' "$map_name" >>"$artifact_dir/cleanup.txt"
-      failed=1
+    if [[ $map_name =~ ^fr19a_sync_eio_[0-9]+_[0-9]+_[0-9]+$ ]]; then
+      if query_mapper assert-clean; then
+        printf 'remaining_mapper=%s\n' "$map_name" >>"$artifact_dir/cleanup.txt"
+        failed=1
+      else
+        mapper_state=$?
+        if [[ $mapper_state -ne 1 ]]; then
+          printf 'mapper_identity=unavailable\n' >>"$artifact_dir/cleanup.txt"
+          failed=1
+        fi
+      fi
     fi
   fi
 
   if [[ -f $state_dir/loop ]]; then
     loop_device=$(<"$state_dir/loop")
-    if [[ $loop_device =~ ^/dev/loop[0-9]+$ ]] && as_root losetup "$loop_device" >/dev/null 2>&1; then
-      printf 'remaining_loop=%s\n' "$loop_device" >>"$artifact_dir/cleanup.txt"
-      failed=1
+    if [[ $loop_device =~ ^/dev/loop[0-9]+$ ]]; then
+      read_state
+      if verify_loop_identity assert-clean; then
+        printf 'remaining_loop=%s\n' "$loop_device" >>"$artifact_dir/cleanup.txt"
+        failed=1
+      else
+        loop_state=$?
+        if [[ $loop_state -ne 1 ]]; then
+          printf 'loop_identity=unavailable_or_mismatched:%s\n' "$loop_state" \
+            >>"$artifact_dir/cleanup.txt"
+          failed=1
+        fi
+      fi
     fi
   fi
 
@@ -228,6 +372,7 @@ setup_state() {
   mount_path="$state_dir/mountpoint"
   mkdir -p "$mount_path"
   truncate -s "$image_size" "$image"
+  image=$(realpath -e "$image")
 
   printf '%s\n' "$image" >"$state_dir/image"
   printf '%s\n' "$mount_path" >"$state_dir/mount"
@@ -237,22 +382,41 @@ setup_state() {
   [[ $loop_device =~ ^/dev/loop[0-9]+$ ]] || return 1
   printf '%s\n' "$loop_device" >"$state_dir/loop"
 
+  if query_loop_identity setup; then
+    :
+  else
+    record "setup loop identity query failed: $?"
+    return 1
+  fi
+  expected_loop_name=$loop_device
+  expected_back_file=$image
+  expected_back_ino=$(stat -c %i "$image")
+  expected_back_maj_min=$(findmnt -rn -T "$image" -o MAJ:MIN)
+  expected_loop_maj_min=$queried_loop_maj_min
+  validate_loop_identity || { record "setup loop identity mismatch"; return 1; }
+  printf '%s\n' "$expected_loop_name" >"$state_dir/loop-name"
+  printf '%s\n' "$expected_back_file" >"$state_dir/back-file"
+  printf '%s\n' "$expected_back_ino" >"$state_dir/back-ino"
+  printf '%s\n' "$expected_back_maj_min" >"$state_dir/back-maj-min"
+  printf '%s\n' "$expected_loop_maj_min" >"$state_dir/loop-maj-min"
+
   sectors=$(as_root blockdev --getsz "$loop_device")
   [[ $sectors =~ ^[1-9][0-9]*$ ]] || return 1
   printf '%s\n' "$sectors" >"$state_dir/sectors"
 
-  linear_table="0 $sectors linear $loop_device 0"
+  linear_table="0 $sectors linear $expected_loop_maj_min 0"
   printf '%s\n' "$linear_table" | as_root dmsetup create "$map_name"
   linear_table=$(as_root dmsetup table "$map_name")
-  [[ $linear_table =~ ^0\ $sectors\ linear\ ([0-9]+:[0-9]+|/dev/loop[0-9]+)\ 0$ ]] || return 1
+  [[ $linear_table == "0 $sectors linear $expected_loop_maj_min 0" ]] || return 1
   printf '%s\n' "$linear_table" >"$state_dir/linear-table"
   as_root mkfs.ext4 -q -F "/dev/mapper/$map_name"
   as_root mount -o nodev,nosuid,noexec "/dev/mapper/$map_name" "$mount_path"
   as_root chown "$(id -u):$(id -g)" "$mount_path"
 
   {
-    printf 'image=%s\nloop=%s\nmap=%s\nsectors=%s\nmount=%s\n' \
-      "$image" "$loop_device" "$map_name" "$sectors" "$mount_path"
+    printf 'image=%s\nloop=%s\nloop_maj_min=%s\nback_inode=%s\nback_dev=%s\nmap=%s\nsectors=%s\nmount=%s\n' \
+      "$image" "$loop_device" "$expected_loop_maj_min" "$expected_back_ino" \
+      "$expected_back_maj_min" "$map_name" "$sectors" "$mount_path"
     as_root dmsetup table "$map_name"
     as_root dmsetup status "$map_name"
     as_root findmnt -rn -M "$mount_path" -o SOURCE,TARGET,FSTYPE,OPTIONS
@@ -278,7 +442,7 @@ capability() {
   fi
 
   for command in sudo losetup dmsetup blockdev mkfs.ext4 mount umount findmnt strace awk \
-    elixir erl timeout; do
+    elixir erl timeout jq realpath stat; do
     if command -v "$command" >/dev/null 2>&1; then
       printf '%s=%s\n' "$command" "$(command -v "$command")" >>"$artifact_dir/capability.txt"
     else
@@ -398,8 +562,8 @@ case "$mode" in
     ;;
   suspend)
     read_state
-    loop_matches || { record "refusing suspend: loop identity mismatch"; exit 1; }
-    mapper_exists || { record "refusing suspend: mapper missing"; exit 1; }
+    verify_loop_identity suspend || { status=$?; record "refusing suspend: loop identity status $status"; exit 1; }
+    query_mapper suspend || { status=$?; record "refusing suspend: mapper identity status $status"; exit 1; }
     [[ $(as_root dmsetup table "$map_name") == "$linear_table" ]] || {
       record "refusing suspend: unexpected mapper table"
       exit 1
@@ -410,8 +574,12 @@ case "$mode" in
     ;;
   error-resume)
     read_state
-    loop_matches || { record "refusing error load: loop identity mismatch"; exit 1; }
-    mapper_exists || { record "refusing error load: mapper missing"; exit 1; }
+    verify_loop_identity error-resume || { status=$?; record "refusing error load: loop identity status $status"; exit 1; }
+    query_mapper error-resume || { status=$?; record "refusing error load: mapper identity status $status"; exit 1; }
+    [[ $(as_root dmsetup table "$map_name") == "$linear_table" ]] || {
+      record "refusing error load: mapper does not reference recorded loop identity"
+      exit 1
+    }
     : >"$artifact_dir/error-table-phase.txt"
     if printf '%s\n' "$error_table" | as_root dmsetup load "$map_name"; then
       record_phase load 0

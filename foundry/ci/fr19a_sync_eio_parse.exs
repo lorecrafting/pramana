@@ -153,7 +153,10 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
   end
 
   defp fixture_complete?(fixture) do
-    Regex.match?(~r/^DIRTY_PWRITE=(?:ok|error:eio|error:erofs)$/m, fixture) and
+    fixture =~ "TRACED_CONTEXT=pass" and
+      fixture =~ "NESTED_SUDO=pass" and
+      fixture =~ "HEX_SCM=pass" and
+      Regex.match?(~r/^DIRTY_PWRITE=(?:ok|error:eio|error:erofs)$/m, fixture) and
       fixture =~ "GATEWAY_RECOVERY_MODE=pass" and
       fixture =~ "LATER_PROTECTED_REFUSAL=pass" and
       fixture =~ "DESTINATION_VERIFICATION=pass" and
