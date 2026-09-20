@@ -132,10 +132,10 @@ The second class may be recomputed, compacted or discarded without rewriting the
 
 ### Standard Erlang telemetry is a good runtime seam
 
-Jido emits ordinary Erlang `:telemetry` events and can bridge them to
-OpenTelemetry-style tracing/metrics. Foundry should similarly make a single normalized
-runtime observation emitter the fan-out point for durable local analytics and optional
-OpenTelemetry export. Observability remains evidence/diagnostics, not authority.
+Jido's ecosystem uses ordinary Erlang `:telemetry` events behind a unified observability
+facade with span-style tracing. Foundry should similarly make a single normalized runtime
+observation emitter the fan-out point for durable local analytics and a separately
+configured OpenTelemetry export. Observability remains evidence/diagnostics, not authority.
 
 ## Jido.Harness capabilities relevant to Foundry
 
@@ -297,3 +297,5 @@ A Jido.Harness candidate may advance only after:
   https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/docs/decisions/exmcp-acp-boundary.md
 - Agent Client Protocol overview at https://agentclientprotocol.com/
 - Jido documentation at https://jido.run/
+- Jido ecosystem package overview, including Thread/Memory/Observability boundaries, at
+  https://jido.run/ecosystem/jido
