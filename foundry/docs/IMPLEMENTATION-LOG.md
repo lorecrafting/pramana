@@ -1634,3 +1634,14 @@ latest prose here, remains authoritative for status and dependencies.
   protected effect query is deliberately serialized behind the active FR-08A atomic
   bundle writer because both require the same Gateway/protected-core files. FR-18A is not
   complete, and its green component/full-suite counts do not override the hostile review.
+- Observation-layer correction `ff6613cb81ac335d425ef460edc8994bc29448c4` and final
+  Sol-high rereview `e10c57b115f2c8b9a8aab2d04d3e5da1fa8cc330` pass corrupt-versus-
+  unavailable classification, terminal reconciliation, whole-envelope redaction,
+  malformed-version quality and protected pointer vocabulary. Focused checks passed 28;
+  B5 remains explicitly unreviewed and blocking.
+- Branch `origin/repair/fr18a-honest-observations` preserves the complete candidate and
+  review chain. Documentation-only commit `3bc217e70ff3df359f9a68672e10f53bc9a3dfe7`
+  records the future bounded exact-effect query: typed SQL-level item/byte caps, stable
+  source-bound cursors, explicit truncation/unknown/error semantics and acceptance tests.
+  It changes no runtime. Implementation waits for the FR-08A protected-core correction
+  to pass and integrate, avoiding concurrent ownership of `ProtectedPrimitives`.
