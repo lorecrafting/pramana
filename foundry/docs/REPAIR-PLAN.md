@@ -4,6 +4,13 @@ Created 2026-09-12 from [the audit](AUDIT-2026-09-12.md) and the operator's agre
 contract. This is an external Markdown backlog; it does not depend on Foundry's
 admission, state tracking, or agents. No repairs are marked complete by creating it.
 
+The [independent alignment audit](ALIGNMENT-AUDIT-2026-09-19.md), SHA-256
+`c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`, was
+performed read-only against `2f603675e3feb1a65f0ce57a3bd69aa93deec29d`. Its
+coordinator-approved dispositions are incorporated here. The report is durable evidence,
+not a second backlog; this file remains the sole authority for ticket status, dependency
+order and acceptance obligations.
+
 ## How to execute this plan
 
 Use one implementation session per ticket. Keep this file as the authoritative
@@ -80,14 +87,17 @@ contracts. This is an engineering recommendation, not a Foundry model benchmark.
 The [official Sol reference](https://developers.openai.com/api/docs/models/gpt-5.6-sol)
 documents medium reasoning support; it does not prove a success rate for this repo.
 
-Use Sol-high for routine independent review and Astra-medium for the first review of
-authority, durable storage, recovery, budgets, Git integration and activation work.
-Reserve Astra-high for FR-22's final lifecycle gate, a concrete cross-cutting design
-contradiction, or a candidate that repeatedly fails in materially different ways. Narrow
-rechecks after a reviewer has isolated one defect may use Sol-medium. Escalate when a
-ticket reveals an unresolved contract or repeatedly fails meaningful tests; do not keep
-retrying the same implementation or make every documentation edit an expensive review.
-Model selection does not replace deterministic gates or independent review.
+Use **Sol-high** for routine independent review. Use **Astra-high** for the first review
+of critical authority, persistence/schema, replay/recovery, R1/R5 budget state, actual
+isolation/credential routing, Git custody/CAS and activation/rollback work. Use
+**Astra-medium** only for a narrow critical re-review that reruns the reproduced defect
+and relevant positive/regression controls against the changed candidate. Re-escalate to
+Astra-high when a correction crosses another invariant family or repeated failures show
+that the abstraction, rather than one local implementation, is wrong. FR-22 receives a
+fresh Astra-high whole-lifecycle review; xhigh is reserved for a concrete cross-cutting
+audit chosen explicitly, not the default ticket review tier. Preserve historical model
+labels as the evidence identities actually used. Model selection does not replace
+deterministic gates or independent review.
 
 Save this plan and decisions before clearing context. A fresh implementation session
 needs project instructions, the assigned ticket, shared contracts, relevant findings,
@@ -121,26 +131,44 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-01 | Remove automatic paid execution paths | — | **Complete: reviewed static containment** | F01 |
 | FR-02 | Transport CLI arguments as inert data | — | **Complete: reviewed inert transport** | F06 |
 | FR-03 | Fence startup and fail closed on legacy persistence errors | — | **Complete: reviewed containment** | F14, F02 |
-| FR-04 | Restrict cleanup to verified owned resources | — | **Complete: reviewed containment** | F05, F23 |
+| FR-04 | Restrict cleanup to verified owned resources | — | **Historical reviewed containment complete; current-revision false-death correction ready** | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | **Complete: reviewed containment** | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
-| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Active: v8 closed target cases; v9 carrier-binding correction active** | F02, F20, F21 |
-| FR-08 | Unify command transitions and replay | FR-07 | Blocked | F07, F16 |
-| FR-09 | Prove OMP execution and presentation contract | FR-01, FR-04, FR-06, FR-15a | Blocked | F08–F10 |
-| FR-10 | Persist owned effects and reconcile executions | FR-08, FR-09 | Blocked | F08, F09 |
+| FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |
+| H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Ready; may remain blocked on unavailable capabilities** | Inherits FR-07/08 handoff evidence only |
+| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | Blocked pending H0 disposition of supported/unavailable facts | F07, F16 |
+| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | Blocked | F07, F16 |
+| F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Ready for synthetic/local investigation; provider/host action remains separately authorized** | Inherits FR-09/15a evidence only |
+| FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |
+| FR-10 | Persist owned effects and reconcile executions | FR-08B, FR-09 | Blocked | F08, F09 |
 | FR-11 | Close correction, timeout and review lifecycles | FR-10 | Blocked | F09, F10, F16 |
-| FR-12 | Wire admission, resource scheduling and review capacity | FR-08, FR-10, FR-11 | Blocked | F04, F11, F15 |
-| FR-13 | Verify artifacts, candidate scope and check receipts | FR-02, FR-05, FR-10, FR-12, FR-15a, FR-15 | Blocked | F03, F04, F16 |
+| FR-12 | Wire admission, resource scheduling and review capacity | FR-08B, FR-10, FR-11 | Blocked | F04, F11, F15 |
+| FR-13 | Verify artifacts, candidate scope and check receipts | FR-02, FR-05, FR-10, FR-12, FR-15aB | Blocked; FR-15 edge removed only under the ownership condition below | F03, F04, F16 |
 | FR-14 | Perform serialized recoverable Git integration | FR-13 | Blocked | F12 |
-| FR-15a | Prove protected verifier and execution isolation | FR-02, FR-03, FR-05, FR-06, FR-07, FR-08 | Blocked | F01, F04, F06, F13, F14, F22 |
-| FR-15 | Implement durable steering and optional PM planning | FR-08, FR-12, FR-15a | Blocked | F15, F22 |
+| FR-15aA | Specify feasibility, provisioning and complete executable-path inventory | F | Ready after bounded F evidence | F01, F04, F06, F13, F14, F22 |
+| FR-15aB | Prove actual principal/channel/auth/network isolation and useful conformance | FR-02, FR-03, FR-05, FR-06, FR-08B, FR-15aA | Blocked | F01, F04, F06, F13, F14, F22 |
+| FR-15 | Implement durable steering and optional PM planning | FR-08B, FR-12, FR-15aB | Blocked | F15, F22 |
 | FR-16 | Implement bounded subscription switching | FR-01, FR-09, FR-12, FR-15 | Blocked | F01, F11 |
-| FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-21 | Blocked | F13, F22 |
-| FR-18 | Make status, board and telemetry reflect real state | FR-08, FR-10, FR-11 | Blocked | F17, F18 |
-| FR-19 | Bound storage and make offline maintenance safe | FR-07, FR-18 | Blocked | F20, F21 |
-| FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18 | Blocked | F19 |
+| FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
+| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | Blocked | F17, F18 |
+| FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
+| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | Ready | F20, F21 |
+| FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
+| FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
-| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11–FR-21 | Blocked | F01–F24 |
+| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21 | Blocked | F01–F24 |
+
+There are **23 ticket nodes: FR-01 through FR-22, plus child ticket FR-15a**. H0 and F
+are bounded evidence checkpoints, and the A/B labels are slices of their existing parent
+tickets; none creates FR-23 or FR-24. F23 and F24 are audit findings routed to existing
+owners in the checksum below. Every parent outcome, scope, acceptance paragraph and
+exclusion remains binding across its slices.
+
+Removing FR-15 as a direct FR-13 dependency is valid only because FR-08A/B and FR-15aB
+now explicitly own the core steering/policy/grant interfaces that artifact admission must
+bind. If implementation leaves any of those interfaces solely in FR-15, restore the
+FR-15→FR-13 edge before beginning FR-13. This does not waive the full admitted-spec or
+policy-identity acceptance, and FR-17 and FR-22 still require FR-15.
 
 ## FR-06 sequencing and supersession
 
@@ -153,19 +181,29 @@ never waive a failing case. No containment is claimed installed by this plan.
 | Immediate containment | FR-01 authorized profiles; FR-02 inert transport; FR-03 exclusive startup plus checked legacy persistence; FR-04 owned cleanup; FR-05 disable unsupported acceptance/integration and source watcher activation |
 | Superseded interim mechanisms | FR-02 general RPC replaced by FR-15a scoped protocol; FR-03 legacy append patches replaced by FR-07/08 atomic kernel; FR-05 integration/activation suspension restored only by FR-13/14/17 evidence |
 | Do not build | A second production journal backend; parallel live/replay reducers; pane-driven recovery; both correction resume and relaunch; synthetic acceptance; raw-source rebuild watcher; custom compaction before choosing storage |
-| Durable foundation | FR-06 independent review → FR-07/08 store/kernel. FR-15a uses FR-07/08 store/verifier contracts to establish isolated execution before the later PM loop |
-| Dependent execution | FR-09 under isolation → FR-10 recovery → FR-11 lifecycle → FR-12 scheduling → FR-15 durable steering; FR-16 bounded subscription switching |
+| Durable foundation | FR-06 independent review → FR-07 accepted store → H0 honest inventory → FR-08A protected primitives/full handoff proof → FR-08B one live/replay kernel. FR-15aB uses the completed protected interfaces to establish isolated execution before the later PM loop |
+| Early feasibility | Bounded joint FR-09/15a Pi-first investigation may run before FR-08B; it records supported/blocked topology and provisioning needs but closes neither parent and enables nothing |
+| Dependent execution | FR-15aB isolation → FR-09 selected-harness conformance → FR-10 recovery → FR-11 lifecycle → FR-12 scheduling → FR-15 durable steering; FR-16 bounded subscription switching |
 | Dependent delivery | FR-13 verified evidence → FR-14 protected ref promotion → FR-17 immutable runtime activation; FR-21 supplies build provenance before activation |
 | Operational closure | FR-18 projections; FR-19 retention/offline relocation; FR-20 constrained improvement; FR-22 scenario acceptance and documentation |
 
 FR-15a is a child of the existing FR-15 authority work, not an additional audit finding.
-V2 adds FR-07/08 dependencies because its real protected claim/ledger tests need their
-store and transaction contracts. Initial operator policy, reset/cancel primitives and
-claim predicates are FR-08 interfaces exercised under FR-15a isolation; the optional
-PM loop and full steering UX remain FR-15. FR-09 can use bounded preconfigured assignments
-and reservations without waiting for FR-12 scheduling/FR-16 switching; live orchestration
-still cannot bypass those later gates. Host provisioning and installed OMP compatibility
-are explicit FR-15a/09 prerequisites, not implied available because the graph is acyclic.
+FR-15aA records feasibility/provisioning and the complete executable-path inventory;
+FR-15aB performs actual principal/channel/auth/network denial and positive-usefulness
+conformance against FR-08B's protected interfaces. Initial operator policy, reset/cancel
+primitives and claim predicates are FR-08 interfaces exercised under FR-15aB isolation;
+the optional PM loop and full steering UX remain FR-15. FR-09 can use bounded
+preconfigured assignments and reservations without waiting for FR-12 scheduling/FR-16
+switching; live orchestration still cannot bypass those later gates. Host provisioning
+and installed OMP compatibility are explicit FR-15a/09 prerequisites, not implied
+available because the graph is acyclic.
+
+The F checkpoint evaluates pinned Pi RPC first against the common
+start/observe/prompt/interrupt/reconcile/close contract and the required subscription,
+reservation, credential and tool-separation topology. **OMP remains the governing
+FR-06 baseline until an explicit contract revision and independent review select a
+substitute.** Unsupported routes remain blocked; neither direct provider access,
+credential copying nor a synthetic adapter is an acceptable feasibility result.
 
 V2 supersedes the **design** of an operator-only workflow kernel: FR-17 restores autonomous
 kernel repairs behind the fixed verifier/activation root. No runtime-only demonstration
@@ -282,6 +320,18 @@ owned resources close successfully. Test cleanup also preserves unrelated state 
 
 **Excludes:** Full restart reconciliation, delivered by FR-10.
 
+**Current-revision correction — jointly routed with FR-10 (2026-09-19):** The historical
+FR-04 PASS remains valid evidence for its named owned-cleanup candidate; it is not erased
+or retroactively relabelled. Current `ProcessGroup.gone?/1` can nevertheless report a
+live process dead when its argv contains `defunct`. Before this primitive is reused for
+new quiescence or retry guarantees, replace command-substring inference with actual
+process-state and bound identity evidence. Regression acceptance must cover a live argv
+marker, a real zombie, an absent process, a recycled identity, observation failure as
+unknown rather than absence, and the `Checks.Runner` cancellation caller. FR-04 owns the
+bounded predicate/caller correction; FR-10 still owns descendant, issuer and delivery-
+channel quiescence and all durable reconciliation. This correction changes no backend
+activation permission.
+
 ### FR-05 — Contain acceptance and mutable-source activation bypasses
 
 **Outcome:** Unverified submissions cannot be promoted, and editing source cannot
@@ -388,10 +438,13 @@ reviewed source and evidence were integrated at
 `origin/main` `4c91bf7ef917e67c73574eb0246d8d57cc28806d`; no reviewed durable-store
 source, test or dependency file changed upstream. Pinned combined-tree compilation,
 92 focused tests and the 546-test full suite passed. This closes FR-07 only. FR-08,
-FR-19, activation and FR-22 lifecycle acceptance remain open. The FR-07→FR-08 handoff
-gate remains blocked until a thin reviewed adapter is bound to this accepted boundary.
-Work pauses before that adapter and FR-08 for the authorized whole-Foundry alignment audit;
-any backlog revision must preserve this evidence and every routed F01–F24 obligation.
+FR-19, activation and FR-22 lifecycle acceptance remain open. The alignment audit
+preserves this completion but shows that the old full FR-07→FR-08 gate cannot be
+satisfied honestly by a thin adapter: several required lifecycle primitives are
+deliberately outside accepted FR-07. H0 now inventories and revision-binds what the
+accepted public boundary supports and reports unavailable capabilities without
+manufacturing a pass. FR-08A supplies the missing protected primitives and owns the
+substantive full handoff proof before FR-08B.
 
 **Outcome:** Accepted decisions and effect intents are durable; corrupt authority cannot
 silently become an empty workflow.
@@ -415,13 +468,58 @@ including real binding/write/sync/import faults, not only the one-row spike.
 
 **Excludes:** Optimizing log retention; FR-19 handles measured operational limits.
 
-### FR-08 — Unify command transitions and replay
+### H0 — Honest accepted-FR-07 boundary inventory/report
+
+**Outcome:** A reproducible report binds the accepted v9 store revision to its public API,
+adapter/probe revision, source/tree/API identity, fixtures, commands and artifact hashes,
+and names every supported, failed and unavailable handoff capability.
+
+**Scope:** Exercise only accepted public FR-07 interfaces. Preserve the current seven-
+capability gate's fail-closed behavior and retained failure details. Empty protected tables
+are not positive lifecycle evidence. H0 may run and remain blocked before FR-08A; that is
+an honest boundary result, not an FR-07 regression or permission to invent capabilities.
+
+**Acceptance:** Reproduce supported positive and hostile cases against the accepted
+revision, bind every result to exact evidence, and report receipts/leases, evolving
+policy/control revisions, authenticated inbox sequence/seal facts, claim issuance and
+ledger evolution as unavailable where the accepted API cannot perform them. No direct
+SQL, private-table mutation, generic JSON/table-name inference or synthetic passing
+provider is allowed.
+
+**Sequencing disposition:** This replaces the old impossible requirement that all seven
+capabilities pass before *any* FR-08 work starts. H0 must complete honestly before FR-08A;
+FR-08A must then implement and independently prove the missing protected boundary and
+pass the substantive revision-bound full gate before FR-08B begins. Original acceptance
+is deferred to the correct owner, not weakened.
+
+### FR-08A — Complete protected primitives and full handoff proof
+
+**Outcome:** The accepted foundation gains the protected public operations required for
+real workflow authority, and the full handoff gate passes with meaningful positive and
+negative evidence against the newly reviewed revision.
+
+**Scope:** Implement versioned public APIs and schema evolution for authenticated inbox
+sequence/seal, evolving policy/control/allocation read-set CAS, claim issue/settlement,
+receipts, leases, ledger generations/reservations and root-derived protected facts.
+Distinguish fixed verifier predicates from the autonomously updatable domain reducer.
+Use the same protected gateway; do not expose SQL or add a competing authority store.
+
+**Acceptance:** Preserve H0 provenance and add positive transactions plus hostile
+proposals, changing complete read sets, sealed result-versus-exit ordering, atomic
+receipt/claim/lease settlement, durable rejection and same-ID recovery. R5 proves
+parent-funded allocation, holds, consumption, proved refunds, closed generations and
+late/conflicting receipts without implicit credit. Reject an always-refusing
+implementation as insufficient. A first critical independent review is Astra-high.
+
+### FR-08B — Unify all command transitions and replay
 
 **Outcome:** One deterministic transition contract produces equivalent live and
 reconstructed state.
 
-**Scope:** Route all mutations through the kernel/store, including steering controls,
-PM proposals, reviews, budgets and resets. Distinguish commands, persisted decisions
+**Scope:** Inventory and route **every** mutation ingress through the kernel/store,
+including CLI/public RPC, Coordinator/State/Tick, PM, scheduling, agent callbacks,
+correction, cleanup and recovery, plus steering controls, PM proposals, reviews, budgets
+and resets. Distinguish commands, persisted decisions
 and projections. Remove parallel mutation paths; use recorded time rather than replay
 wall-clock time. Model blocked/partial/rejected outcomes explicitly or reject them
 consistently at admission with documented alternatives.
@@ -447,7 +545,9 @@ planning owner. Restart after atomic non-start settlement but before redispatch 
 reconstruct one owner, one infrastructure ordinal, no live execution and no replay of the
 settled launch. Pause/drain/cancel/exhaustion and generation changes reproduce the v3 rows.
 
-**Excludes:** Running external effects inside the reducer.
+**Excludes:** Running external effects inside the reducer. FR-08A's protected verifier is
+not a second domain reducer, and legacy JSONL may remain only as checked import/export or
+diagnostic compatibility after it ceases deciding live workflow truth.
 
 ### FR-09 — Prove OMP execution and presentation contract
 
@@ -634,8 +734,30 @@ and review, charging the existing allocation for actual new work.
 reviewer. This is the early infrastructure portion of FR-15, separated to avoid making
 FR-09 depend on a steering loop that itself depends on execution.
 
+#### FR-15aA — Feasibility and provisioning specification
+
+**Scope:** Jointly with FR-09's F checkpoint, inventory every candidate-controlled
+execution path: harness, shell/file/custom tools, extensions and startup code, build hooks,
+language services, subprocesses, inherited environment and file descriptors, network,
+IPC/process memory, Git metadata and shared writable state. Specify the actual host
+topology, restricted principals, credential/auth gateway, request-reservation handshake,
+slot cleanup, controlled acquisition path and provisioning steps. Evaluate pinned Pi RPC
+first against the common execution contract while OMP remains governing. Start with
+synthetic credentials and controlled endpoints; provider/host changes needing additional
+authority stay outside this investigation.
+
+**Acceptance:** Publish exact executable/config versions and an explicit supported or
+blocked result for subscription routing, credential separation, pre-request reservation,
+tool isolation, cancellation/reconciliation and one representative useful build/test
+path. Name every required adapter or provisioning change. A paper design, same-user
+directory convention, sandboxed shell with unsandboxed extensions, copied credentials,
+direct provider calls or permissive mock cannot pass. This slice closes no production
+capability and does not replace the parent acceptance below.
+
+#### FR-15aB — Actual isolation and conformance
+
 **Scope:** Implement the account/worker isolation and narrow local capability protocol
-in [FR-06](WORKFLOW-CONTRACT.md), using FR-07/08 durable gateway and ledger contracts.
+in [FR-06](WORKFLOW-CONTRACT.md), using FR-08A/B's completed durable gateway and ledger contracts.
 Protect verifier/launcher/auth gateway/activation-root code, state, policy, accepted refs,
 release store and activation credentials. Keep untrusted build/test/runtime code outside
 that principal. Separate role/slot access; Herdr attachment must not inherit steering
@@ -742,6 +864,21 @@ work. Protected-root upgrades remain explicit operator maintenance, not all kern
 
 **Outcome:** The operator can see what runs, why it waits, and what evidence is missing.
 
+#### FR-18A — Minimal honest observations
+
+**Scope:** Provide the smallest canonical query/observation identity surface needed for
+FR-09/15a trials and later activation: ticket/attempt/execution/effect/control identity,
+source and freshness, accepted versus deployed pointers, unknown outcomes/usage and
+unavailable/corrupt status distinct from empty healthy state. This slice follows FR-08A
+and does not claim the legacy producer chain is repaired.
+
+**Acceptance:** Against canonical protected facts, show supported state and explicit
+unknown/unavailable/corrupt outcomes without projection-manufactured health. Bind every
+observation to revision/source/quality and redact representative secrets. A source
+inventory or schema declaration alone is not live/deployed truth.
+
+#### FR-18B — Complete status and telemetry chain
+
 **Scope:** Consume one versioned query/projection contract; fix board envelope handling
 and distinguish unavailable/corrupt data from empty success. Align actual telemetry
 producers with validators and consumers; correlate ticket/attempt/execution/effect IDs.
@@ -777,6 +914,21 @@ worse review, acceptance or operator-effort outcomes.
 ### FR-19 — Bound storage and make offline maintenance safe
 
 **Outcome:** Diagnostic growth and maintenance failures cannot erase authoritative work.
+
+#### FR-19A — Operational storage, backup and recovery baseline
+
+**Scope:** After FR-07, establish bounded operational queries/capacity health, verified
+SQLite backup/replay and explicit offline maintenance containment. Exercise physical
+ENOSPC/sync/WAL/checkpoint/corruption cases that FR-07 explicitly deferred. Disable unsafe
+relocation paths clearly until FR-19B repairs or retires them. Preserve original authority
+and old claim/ledger evidence on every failure.
+
+**Acceptance:** Verify backup content and replay, not row count; cover interrupted
+checkpoint/backup, full disk and corrupt SQLite with originals retained and effects fenced.
+Record measured limits and unsupported physical guarantees. This baseline is required by
+FR-17 but does not close the parent's diagnostic-retention or cross-device obligations.
+
+#### FR-19B — Diagnostic retention and offline relocation
 
 **Scope:** Add measured retention/rotation and bounded query behavior for diagnostic
 logs. Apply FR-07's snapshot/compaction protocol where needed. Repair or retire relocation
@@ -986,3 +1138,16 @@ durable-store behavior. Combined-tree warnings-as-errors compilation, 92 focused
 546 full-suite tests passed with exit zero. FR-07 is complete locally and not deployed.
 The accepted-revision handoff adapter, FR-08, operational durability, activation and FR-22
 remain open. Implementation pauses for the authorized whole-Foundry alignment audit.
+
+2026-09-19, independent whole-Foundry alignment disposition: exact read-only audit
+`ALIGNMENT-AUDIT-2026-09-19.md`, SHA-256
+`c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`,
+audited `2f603675e3feb1a65f0ce57a3bd69aa93deec29d` and recommended continuing the
+repair without a ground-up rewrite. Coordinator disposition preserves FR-07 completion
+and all F01–F24 routing, corrects its inventory row, introduces honest H0 followed by
+FR-08A/B, records the current ProcessGroup correction under FR-04/10, splits FR-15a,
+FR-18 and FR-19, advances bounded Pi-first feasibility without changing the governing
+OMP contract, and updates review tiers/dependencies. No source, runtime, provider,
+credential, policy, deployment or activation changed. Next resumable work is the bounded
+FR-04 current-revision correction and H0 accepted-boundary report; either may proceed
+without claiming FR-08A readiness or enabling execution.

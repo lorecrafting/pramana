@@ -19,13 +19,17 @@ steps.
 
 ## Review-model policy
 
-- Operator cost/effort adjustment, 2026-09-12: Sol-medium remains the implementation
-  default; use Sol-high for routine independent review, Astra-medium for the first review
-  of authority/persistence/recovery/budget/Git/activation changes, and Astra-high only for
-  FR-22, a cross-cutting contract contradiction, or materially different repeated
-  failures. A narrow isolated recheck may use Sol-medium.
-- This changes review compute, not independence or acceptance rigor. The already completed
-  FR-01/FR-02 Astra-high evidence remains valid and is not rerun merely to relabel effort.
+- Current coordinator disposition, 2026-09-19: Sol-medium remains the implementation
+  default and Sol-high handles routine independent review. Use Astra-high for the first
+  critical review of authority, persistence/schema, replay/recovery, budgets, isolation/
+  credential routing, Git custody/CAS and activation/rollback. Use Astra-medium for a
+  narrow critical re-review that reruns the exact reproduced defect and relevant positive/
+  regression controls. Re-escalate to Astra-high when another invariant family changes or
+  repeated failures expose an abstraction problem. FR-22 receives Astra-high whole-
+  lifecycle review; xhigh is only an explicit choice for a concrete cross-cutting audit.
+- This changes current review compute, not independence or acceptance rigor. Every earlier
+  model/effort label below remains the historical identity actually used and is not rerun
+  or relabelled merely to match current policy.
 
 ## Coordination baseline — 2026-09-12
 
@@ -1240,3 +1244,51 @@ steps.
   Per operator direction, no FR-08 implementation starts before a fresh Astra-xhigh audit
   reviews the new strategy/direction documents, actual Elixir source, repair history,
   workflow contract and all F01–F24 obligations.
+
+## Whole-Foundry alignment disposition and documentation candidate — 2026-09-19
+
+- The requested independent read-only audit completed against pushed main
+  `2f603675e3feb1a65f0ce57a3bd69aa93deec29d`, tree
+  `73bc4bd386cf67d61cf8563814a45d1c1c9e0af0`. Its exact preserved report is
+  [ALIGNMENT-AUDIT-2026-09-19.md](ALIGNMENT-AUDIT-2026-09-19.md), SHA-256
+  `c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`;
+  it is byte-identical to `/tmp/foundry-alignment-audit-2f60367.md`. The independent
+  session changed no backlog, source, runtime, policy, credential, Git ref, deployment or
+  activation permission. Coordinator disposition is recorded only in current authority
+  documents; the report itself remains unchanged evidence.
+- The disposition continues the existing repair. REPAIR-PLAN remains the sole backlog,
+  with 23 ticket nodes (FR-01–FR-22 plus FR-15a). F23 and F24 remain findings under
+  FR-04/21/22 and FR-21/22, not phantom FR-23/24 tickets. Every F01–F24 routing row and
+  acceptance obligation remains present.
+- FR-07 remains complete only for accepted v9 foundation evidence. H0 now produces an
+  honest revision-bound supported/unavailable inventory and may remain blocked. The old
+  full-seven-probe-before-any-FR-08 requirement is explicitly replaced by H0 → FR-08A
+  protected primitives/full substantive handoff proof → FR-08B every-ingress one-reducer
+  live/replay migration. Direct SQL, empty-table positive inference and synthetic adapters
+  remain prohibited.
+- Historical FR-04 PASS remains historical evidence. A newly demonstrated current-source
+  defect—live argv containing `defunct` can satisfy `ProcessGroup.gone?/1`—is routed to a
+  bounded FR-04/10 correction before reuse for quiescence. Required cases are live marker,
+  zombie, absent, recycled identity, observation failure and `Checks.Runner` cancellation;
+  FR-10 retains descendant/issuer/channel reconciliation.
+- FR-15a is split into feasibility/provisioning specification and actual isolation/
+  conformance; FR-18 into minimal honest observations and full producer/status/usage; and
+  FR-19 into operational backup/recovery and later diagnostic retention/relocation. A
+  bounded joint FR-09/15a feasibility checkpoint evaluates pinned Pi first, with synthetic
+  credentials and controlled endpoints. OMP remains governing until explicit contract
+  revision and independent review; automatic execution remains blocked.
+- Dependency changes follow the audited acyclic graph. FR-17 now depends on FR-18A and
+  FR-19A; FR-20 explicitly depends on FR-17. FR-13 omits full optional FR-15 only while
+  FR-08A/B and FR-15aB explicitly own core steering/policy/grant interfaces; otherwise the
+  edge must be restored before FR-13 starts.
+- Exact known limitations are unchanged: the live/deployed release was not inspected;
+  FR-07 lacks the protected lifecycle APIs assigned to FR-08A; the current JSONL live path
+  and separate replay remain; no OMP/Pi subscription/isolation topology is proved; no
+  source/runtime/provider/credential/policy/deployment/activation changed; no full suite,
+  host provisioning, provider call, Git promotion, activation or physical fault test was
+  run for this documentation candidate. The untracked root `apps/` tree remains untouched.
+- Next resumable step: implement neither FR-08 nor ProcessGroup in this documentation
+  change. After independent review of the frozen documentation candidate, assign the
+  bounded ProcessGroup correction and H0 report under separate exact candidates; the
+  Pi-first feasibility investigation may run in its bounded early lane without enabling
+  execution or changing the OMP contract.

@@ -10,6 +10,17 @@ remain historical evidence. [Response v3](fr-06/review-response-v3.md) addresses
 R4a. FR-07 remains blocked on FR-03; its FR-06 design prerequisite is complete.
 No production code, running daemon, credentials or host permissions changed here.
 
+> **Current status route (2026-09-19):** This revision-3 document is preserved as the
+> accepted FR-06 design evidence, so dated sentences below saying FR-07 waits for FR-03
+> are not rewritten. Current ticket status and sequencing live only in the
+> [repair plan](REPAIR-PLAN.md): FR-07 is complete for its accepted v9 foundation; H0
+> inventories that public boundary; FR-08A supplies missing protected lifecycle
+> primitives and substantive revision-bound handoff proof; FR-08B then migrates all
+> command ingress and replay. See the independent read-only
+> [alignment audit](ALIGNMENT-AUDIT-2026-09-19.md) and the historical
+> [FR-08 investigation](fr-08/investigation.md). This route changes no R1–R5 decision,
+> runtime, policy, provider or activation permission.
+
 ## Decisions and evidence
 
 Retain one standalone OTP project. Use one pure decision/replay kernel, SQLite for

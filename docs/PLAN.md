@@ -218,15 +218,17 @@ D1–D7 pilot/scope/rights/budget/retention decisions. The old 705-untitled figu
 later STATUS snapshot's 711 are not interchangeable live measurements. Use the actual
 catalogue/database when taking up that work; code inspection cannot supply its verdict.
 
-**Foundry boundary:** current main still has legacy log storage, not an accepted FR-07
-SQLite authority implementation. The latest retained log names `/root/fr07_impl` as sole
-v6 owner, records unresolved support probes, and contains no frozen/accepted v6 handoff.
-No newer published branch or acceptance artifact was found. Do not infer that the owner is
-currently running, or take over its unpublished work. FR-01–05 containment, FR-06's design
-gate and FR-21's integration attestation are complete; FR-21 is not deployed. FR-07 is
-unaccepted; FR-08 has investigation only; FR-08–20 (including FR-15a) and FR-22 remain
-blocked by the recorded dependency graph. No Foundry code, ownership, launch authority or
-repair-status evidence changes in this PR.
+**Foundry boundary (superseding the stale snapshot formerly here):** FR-07's exact v9
+foundation is independently accepted and locally integrated, not deployed. The
+[2026-09-19 independent alignment audit](../foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md),
+SHA-256 `c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`,
+inspected source at `2f603675e3feb1a65f0ce57a3bd69aa93deec29d` but not the loaded release.
+It therefore distinguishes source/containment from unknown live deployment truth. The
+[repair plan](../foundry/docs/REPAIR-PLAN.md) remains the sole backlog: H0 inventories the
+accepted public store boundary honestly, FR-08A supplies missing protected lifecycle
+primitives/full handoff proof, and FR-08B performs all-ingress live/replay migration.
+Automatic execution, deployment and activation remain disabled/unproved; no source,
+runtime, provider, credential or policy change is part of this documentation disposition.
 
 The sections below retain original dates and counterevidence. A still-open historical
 bullet must be reconciled with this disposition and current code before dispatch.
@@ -278,14 +280,21 @@ GitHub `origin/main` `4c91bf7ef917e67c73574eb0246d8d57cc28806d`. No reviewed dur
 source, test or dependency file changed upstream. On the combined tree, pinned compilation
 passed with warnings as errors, the focused suite passed 92/92, and the full Foundry suite
 passed 546/546. FR-07 is complete but not deployed. The new FR-07→FR-08 handoff gate
-correctly remains blocked pending its thin accepted-revision adapter; that is required
-before FR-08 implementation, not evidence against FR-07 acceptance.
+correctly remains blocked and is not evidence against FR-07 acceptance. H0 now binds an
+honest accepted-revision supported/unavailable report; FR-08A, not a thin adapter, owns
+the missing protected primitives and substantive full gate before FR-08B migration.
 FR-21's focused v3 CI/provenance correction
 passed renewed
 independent review, is integrated, and passed independent post-integration 432-test
-attestation. FR-21 is complete but not deployed. Per the 2026-09-19 coordination decision,
-implementation pauses before FR-08 for a fresh Astra-xhigh whole-Foundry alignment audit;
-any backlog revision must preserve completed evidence and every F01–F24 obligation.
+attestation. FR-21 is complete but not deployed. The authorized whole-Foundry alignment
+audit is now preserved at exact SHA-256
+`c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`.
+Its coordinator-approved disposition continues repair rather than rebuilding: preserve
+FR-07 and every F01–F24 owner/acceptance obligation; correct the current ProcessGroup
+false-death predicate under FR-04/10; use H0 then FR-08A/B; split FR-15a, FR-18 and FR-19;
+and advance bounded Pi-first FR-09/15a feasibility while OMP remains governing until an
+explicit reviewed substitution. There are FR-01–FR-22 plus FR-15a ticket nodes; F23/F24
+are findings, not phantom FR-23/24 tickets.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence
@@ -299,17 +308,29 @@ checks passed. The v3 correction preserves both reviews and response v2, adds ac
 traces only to FR-08/10/11/12, and refreshes the manifest. FR-01–FR-05 containment can
 proceed meanwhile. No production implementation, runtime probe or model invocation.
 
-Next Foundry work, in dependency order:
+Next resumable Foundry work, under exact repair-plan ownership:
 
-1. Protect subscription-only execution, artifact attribution, durable acknowledgement,
-   owned cleanup and accepted-revision activation boundaries.
-2. Unify command/replay state transitions and durable steering controls.
-3. Separate ticket, attempt, execution and pane identity; reconcile before retrying;
-   enforce scheduling/resource policy and review capacity.
-4. Verify real artifacts/check receipts and integrate actual Git candidates.
-5. Complete steering-to-PM admission and bounded subscription switching, then prove
-   immutable release activation and compatible rollback.
-6. Repair board/telemetry/improvement consumers and add isolated Foundry lifecycle CI.
+1. Correct the bounded current-revision `ProcessGroup.gone?/1` false-death predicate and
+   its `Checks.Runner` caller cases before reusing it for quiescence; retain historical
+   FR-04 PASS and leave FR-10's full reconciliation open.
+2. Produce H0's revision-bound accepted-FR-07 supported/unavailable inventory. It may
+   remain blocked; no direct SQL, empty-table inference or synthetic adapter may pass it.
+3. Run the bounded joint FR-09/15a Pi-first feasibility/provisioning investigation with
+   synthetic credentials and controlled endpoints. OMP remains the governing baseline;
+   unsupported host/provider requirements remain blocked.
+4. Implement and critically review FR-08A's missing protected primitives/full handoff
+   evidence, then FR-08B's one-reducer migration for every command ingress.
+5. Continue actual isolation, selected-harness conformance, durable effects/lifecycle,
+   scheduling, artifact custody and Git integration in the repair graph's order.
+6. Complete honest observation/storage baselines before immutable activation; then finish
+   steering, switching, maintenance, constrained improvement and FR-22 lifecycle closure.
+
+Current review policy is Sol-medium implementation, Sol-high routine independent review,
+Astra-high first critical authority/persistence/replay/budget/Git/activation review and
+Astra-medium narrow critical re-review. Re-escalate to Astra-high when invariant scope
+changes or repeated failures expose an abstraction defect. FR-22 receives Astra-high;
+xhigh is only an explicit choice for a concrete cross-cutting audit. Historical review
+model labels remain unchanged.
 
 Use the audit's per-stage acceptance evidence, not the existing component-suite pass
 count, to decide completion. Documentation and tests accompany each repair. No paid

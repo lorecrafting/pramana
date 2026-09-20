@@ -5,15 +5,15 @@ found that the live execution path bypasses several safeguards described below.
 Treat the following capability list as an implementation inventory, not verified
 end-to-end guarantees. The audit includes reproductions and an ordered repair plan.
 
-**Status: live.** The Elixir OTP release is the sole local dispatcher — Python supervisor
-retired and state archived, self-healing Improver loop active. This standalone Mix project
-supplies the local OTP release/CLI shell, strict schema validation, durable-state and
-fencing, typed Herdr adapter, checkpointed OS-child/check lifecycle with process-group
-ownership and crash-recovery adoption, deterministic scheduling, PM planning lifecycle
-with attempt caps, quota cooldown and subscription fallback, exact-commit review, serial
-candidate integration, terminal board, sanitized local BEAM inspection, journaled
-workspace relocation, cutover facade, soak/restart harness, telemetry-driven
-self-healing Improver, full system metrics, health probes, and structured observability.
+**Recorded historical runtime status, not a current deployment attestation:** the Elixir
+OTP release was described as the sole local dispatcher, with the Python supervisor retired,
+state archived and the self-healing Improver active. The source tree contains a release/CLI
+shell, schemas, fencing, Herdr and process-lifecycle adapters, scheduling/planning,
+review/integration containment, board, relocation, telemetry and observability components.
+The 2026-09-19 [independent alignment audit](docs/ALIGNMENT-AUDIT-2026-09-19.md) inspected
+source at `2f603675e3feb1a65f0ce57a3bd69aa93deec29d`; it did **not** inspect the loaded
+release and therefore records live/deployed truth as unknown. Source presence, historical
+status and model-free checks do not prove current deployment, wiring or activation.
 
 The project remains independent of the Phoenix umbrella, Postgres, the research corpus, and
 `priv/embed/`.
@@ -82,12 +82,18 @@ disabled/routed to their containment owners until rewritten.
 
 ## Read first
 
+- [`docs/REPAIR-PLAN.md`](docs/REPAIR-PLAN.md) — sole authoritative repair backlog,
+  current status, dependencies and acceptance obligations.
+- [`docs/WORKFLOW-CONTRACT.md`](docs/WORKFLOW-CONTRACT.md) — accepted FR-06 authority,
+  lifecycle and budget contract, with a route to current sequencing.
+- [`docs/ALIGNMENT-AUDIT-2026-09-19.md`](docs/ALIGNMENT-AUDIT-2026-09-19.md) — independent
+  read-only current-source alignment audit and exact limitations.
 - [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) — telemetry records, health probe,
   system metrics, CLI diagnostics, self-healing classifiers.
-- [`docs/MIGRATION.md`](docs/MIGRATION.md) — destination architecture, runtime and storage
-  boundaries, parity matrix, cutover, and rollback.
-- [`docs/MIGRATION-TICKETS.md`](docs/MIGRATION-TICKETS.md) — authoritative eight-ticket
-  sequence and the bounded contracts for the next two implementation tickets.
+- [`docs/MIGRATION.md`](docs/MIGRATION.md) — historical destination architecture, runtime
+  and storage boundaries, parity matrix, cutover and rollback design.
+- [`docs/MIGRATION-TICKETS.md`](docs/MIGRATION-TICKETS.md) — historical eight-ticket
+  migration sequence; it is evidence, not current repair authority.
 - [`docs/DURABLE-STORE.md`](docs/DURABLE-STORE.md) — FR-07 SQLite authority boundary,
   initialization/recovery, offline import and current limitations.
 - [`../docs/PLAN.md`](../docs/PLAN.md) — project roadmap and Foundry audit follow-up.
@@ -118,13 +124,12 @@ foundry/
     effects/                 — checkpointed launch, prompt, and process lifecycle
     board/                   — terminal kanban dashboard
     relocation/              — journaled workspace move
-    cutover/                 — Python-supervisor cutover facade
   test/
   roles/
   docs/
     OBSERVABILITY.md
     MIGRATION.md
-    MIGRATION-TICKETS.md
+    MIGRATION-TICKETS.md     — historical migration sequence
   README.md
 ```
 

@@ -6,6 +6,16 @@ implementation or review. The investigator changed no repository file, live proc
 provider or Git ref. The full working note had SHA-256
 `0124e166dff0e7374c21c7f6e72adee8136e6e31e5b143a645077dfdd0fe9a7f`.
 
+> **Current status route (2026-09-19):** This investigation remains dated evidence and
+> its migration traps still apply, except that the then-dirty `ticket unblock` observation
+> is historical; current HEAD routes unblock through `persist_call`. The authoritative
+> [repair plan](../REPAIR-PLAN.md) now dispositions the old impossible full-gate-before-
+> any-FR-08 wording as H0 → FR-08A → FR-08B. H0 must report the accepted FR-07 boundary
+> honestly even when capabilities are unavailable; FR-08A implements missing protected
+> primitives and passes the substantive full gate before FR-08B migration. See the
+> independent [alignment audit](../ALIGNMENT-AUDIT-2026-09-19.md). No direct SQL or
+> synthetic passing adapter is permitted.
+
 ## Conclusion
 
 FR-08 is not an extension of the legacy `Transition` module. It requires one pure
@@ -110,7 +120,10 @@ PramanaFoundry.Repair.FR08HandoffGate.run(
 ```
 
 A ready gate report is handoff evidence bound to that revision; it does not mark FR-07
-complete, replace its ticket acceptance, or authorize FR-08 effects.
+complete, replace its ticket acceptance, or authorize FR-08 effects. Under the current
+plan, H0 first binds an honest supported/unavailable inventory to accepted v9; it is
+allowed to remain blocked. FR-08A, not a thin adapter over missing lifecycle APIs, owns
+the protected primitives and substantive ready report required before FR-08B.
 
 The companion Pramāṇa CheckRun regression now synchronizes on both worker and outer-runner
 termination so it proves worker death precedes reported cancellation without relying on

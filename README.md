@@ -6,7 +6,7 @@ running a command; the repository root is **not** a Mix umbrella for both.
 | Product | Purpose | Start here |
 |---|---|---|
 | **Pramāṇa** | Citation-grounded Buddhist textual retrieval and a source reader | [Product overview](pramana/README.md), [setup](pramana/docs/DEV_ENV.md), [reference index](pramana/docs/README.md) |
-| **Foundry** | Independent agent-workflow coordination, evidence and recovery | [Overview and containment](foundry/README.md), [current repair authority](foundry/docs/REPAIR-PLAN.md), [independent CI](foundry/docs/CI.md) |
+| **Foundry** | Independent agent-workflow coordination, evidence and recovery | [Overview and containment](foundry/README.md), [current repair authority](foundry/docs/REPAIR-PLAN.md), [current alignment audit](foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md), [independent CI](foundry/docs/CI.md) |
 
 Pramāṇa retains its three-app umbrella under `pramana/apps/`. Foundry retains its
 own dependencies, configuration, release and tests under `foundry/`. Neither is a

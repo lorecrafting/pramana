@@ -17,6 +17,7 @@ contract still govern implementation.
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
 | Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the repair plan/workflow contract and affected FR-09/15a/18 requirements before implementation |
 | Resume active repairs | [Repair plan](REPAIR-PLAN.md), the current ticket's acceptance criteria and its referenced evidence |
+| Understand current alignment, known source gaps and the FR-07→FR-08 disposition | [Independent alignment audit](ALIGNMENT-AUDIT-2026-09-19.md), then [repair plan](REPAIR-PLAN.md) and [FR-08 investigation](fr-08/investigation.md) |
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
 | Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
 | Understand why repairs exist | [Architecture/lifecycle audit](AUDIT-2026-09-12.md) and its dated verification records |
@@ -30,6 +31,9 @@ contract still govern implementation.
 **The active repair plan, not the original eight-ticket migration sequence, owns
 repair ordering.** A design-review approval applies to its named candidate; it is not
 an endorsement of later revisions or evidence that a protected route is activated.
+The plan contains 23 ticket nodes (FR-01–FR-22 plus FR-15a); F23/F24 are findings routed
+to existing owners, not missing tickets. Its H0/F checkpoints and A/B slices do not form
+a competing backlog.
 
 ## Provider and backend boundary
 
@@ -48,5 +52,11 @@ rewritten into one current narrative. Use [the complete documentation catalog](.
 to find an individual record. One historical audit link points to a now-removed legacy
 Python diagnostic; [the documentation audit](../../docs/audits/2026-09-15/README.md)
 records that exception without rewriting the original evidence.
+
+For current status, distinguish inspected source/containment from deployment truth. The
+alignment audit did not inspect the loaded release; historical “live” statements and
+component inventories therefore do not establish current wiring, activation or provider
+execution. The [workflow contract's current-status route](WORKFLOW-CONTRACT.md) preserves
+its dated design evidence while directing implementation to H0 and FR-08A/B.
 
 [Repository map](../../docs/REPO_MAP.md) · [Shared workflow](../../docs/agents/WORKFLOW.md)

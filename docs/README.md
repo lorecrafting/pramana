@@ -38,6 +38,9 @@ Use [the Foundry index](../foundry/docs/README.md), not Pramāṇa's corpus comm
 [Foundry README](../foundry/README.md) states containment limits;
 [REPAIR-PLAN](../foundry/docs/REPAIR-PLAN.md) and
 [WORKFLOW-CONTRACT](../foundry/docs/WORKFLOW-CONTRACT.md) route current work.
+[The 2026-09-19 independent alignment audit](../foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md)
+records current-source gaps and the accepted FR-07/FR-08 sequencing disposition without
+becoming another backlog.
 [CI](../foundry/docs/CI.md) is independent and model-free. Historical migration and
 review records remain evidence for their named candidates, not proof of current activation.
 
