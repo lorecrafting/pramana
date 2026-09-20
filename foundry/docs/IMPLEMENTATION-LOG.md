@@ -5,6 +5,22 @@ ticket, status, and dependency backlog. It records candidate provenance, indepen
 review, integration decisions, executable evidence, limitations, and resumable next
 steps.
 
+## Read this log efficiently
+
+This is append-only historical evidence, not required linear reading. On resume:
+
+1. Inspect Git/worktree state and the repair plan's dependency table/current ticket.
+2. List this file's headings (for example `rg -n '^## |^### '`) and read only the newest
+   coordination/integration entries plus the active ticket's named sections.
+3. Follow exact candidate/review links when validating provenance; read older ticket
+   history only when a current finding crosses that interface.
+
+Do not preload this whole log, all of `docs/PLAN.md`, the full audit or the full workflow
+contract for a bounded ticket. Read the Foundry portion of `docs/PLAN.md`, the relevant
+contract anchors and the exact evidence packet. Targeted patches can append or update an
+entry without loading the rest of this file into model context. `REPAIR-PLAN.md`, not the
+latest prose here, remains authoritative for status and dependencies.
+
 ## Implementation-language constraint
 
 - Operator direction, 2026-09-12: because this backlog repairs the Elixir supervisor,

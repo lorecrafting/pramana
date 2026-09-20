@@ -27,7 +27,7 @@ contract still govern implementation.
 | Observe the local system | [Observability](OBSERVABILITY.md), with the README's containment warnings |
 | Evaluate the optional semantic assessor | [Assessor Stage A](ASSESSOR.md), issue #26 and the governing repair boundaries |
 | Understand historical architecture choices | [Migration design](MIGRATION.md), [migration tickets](MIGRATION-TICKETS.md), [event sourcing](EVENT_SOURCING.md) |
-| Inspect implementation history | [Implementation log](IMPLEMENTATION-LOG.md); dates and candidate identities matter |
+| Inspect implementation history | [Implementation log](IMPLEMENTATION-LOG.md); use its reading route and active-ticket headings rather than preloading the append-only history |
 | Review an agent assignment | The applicable [role documents](../../docs/README.md#foundry-role-contracts) and current workflow contract |
 
 **The active repair plan, not the original eight-ticket migration sequence, owns
