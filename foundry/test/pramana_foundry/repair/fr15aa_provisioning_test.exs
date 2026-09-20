@@ -142,6 +142,95 @@ defmodule PramanaFoundry.Repair.FR15aAProvisioningTest do
     assert Enum.any?(errors, &String.contains?(&1, "digest differs"))
   end
 
+  test "pin kind, version, path and disposition are mandatory", %{manifest: manifest} do
+    changed =
+      update_in(
+        manifest.pins,
+        &Enum.map(&1, fn pin -> Map.drop(pin, [:kind, :version, :path, :status]) end)
+      )
+
+    assert {:error, errors} = FR15aAValidator.validate(changed)
+    assert Enum.any?(errors, &String.contains?(&1, "kind/version/path/status identity"))
+  end
+
+  test "repository pin paths cannot redirect byte validation", %{manifest: manifest} do
+    changed =
+      update_in(manifest.pins, fn pins ->
+        Enum.map(pins, fn pin ->
+          if pin.id == "foundry-config",
+            do: %{pin | path: "/tmp/unreviewed-config.exs"},
+            else: pin
+        end)
+      end)
+
+    assert {:error, errors} = FR15aAValidator.validate(changed)
+    assert Enum.any?(errors, &String.contains?(&1, "kind/version/path/status identity"))
+    refute Enum.any?(errors, &String.contains?(&1, "/tmp/unreviewed-config.exs is unavailable"))
+  end
+
+  test "duplicate auth channels are rejected in both declaration orders", %{manifest: manifest} do
+    channel = Enum.find(manifest.channels, &(&1.id == "model-request"))
+    hostile = %{channel | callers: ["slot_developer"]}
+
+    for channels <- [[hostile | manifest.channels], manifest.channels ++ [hostile]] do
+      changed = %{manifest | channels: channels}
+      assert {:error, errors} = FR15aAValidator.validate(changed)
+      assert "duplicate channel IDs are forbidden" in errors
+    end
+  end
+
+  test "duplicate shell routes are rejected in both declaration orders", %{manifest: manifest} do
+    route = Enum.find(manifest.routes, &(&1.id == "shell"))
+    hostile = %{route | principal: "root", channel: "model-request"}
+
+    for routes <- [[hostile | manifest.routes], manifest.routes ++ [hostile]] do
+      changed = %{manifest | routes: routes}
+      assert {:error, errors} = FR15aAValidator.validate(changed)
+      assert "duplicate route IDs are forbidden" in errors
+    end
+  end
+
+  test "duplicate principal and pin identities fail before indexing", %{manifest: manifest} do
+    principal = hd(manifest.principals)
+    pin = hd(manifest.pins)
+
+    assert {:error, principal_errors} =
+             FR15aAValidator.validate(%{manifest | principals: [principal | manifest.principals]})
+
+    assert "duplicate principal IDs are forbidden" in principal_errors
+
+    assert {:error, pin_errors} =
+             FR15aAValidator.validate(%{manifest | pins: manifest.pins ++ [pin]})
+
+    assert "duplicate pin IDs are forbidden" in pin_errors
+  end
+
+  test "duplicate nested authority grants and dependencies are rejected", %{manifest: manifest} do
+    changed_channel =
+      update_in(manifest.channels, fn channels ->
+        Enum.map(channels, fn channel ->
+          if channel.id == "model-request",
+            do: %{channel | callers: ["harness", "harness"]},
+            else: channel
+        end)
+      end)
+
+    assert {:error, caller_errors} = FR15aAValidator.validate(changed_channel)
+    assert "duplicate channel caller values are forbidden" in caller_errors
+
+    changed_route =
+      update_in(manifest.routes, fn routes ->
+        Enum.map(routes, fn route ->
+          if route.id == "shell",
+            do: %{route | executable_ids: ["host-sh", "host-sh"]},
+            else: route
+        end)
+      end)
+
+    assert {:error, executable_errors} = FR15aAValidator.validate(changed_route)
+    assert "duplicate route executable values are forbidden" in executable_errors
+  end
+
   test "package lock cannot replace executable provenance", %{manifest: manifest} do
     changed =
       update_in(
