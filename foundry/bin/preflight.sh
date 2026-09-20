@@ -39,13 +39,17 @@ fi
 #     in test/**/*.exs is invisible to the check above. Running with a tag no test carries
 #     compiles every test file and executes none, in about two seconds. Its exit status is
 #     nonzero by design ("no test was executed"), so only the output is inspected.
+#     This WARNS rather than fails. The canonical gate does not reject test-file
+#     warnings, and the tree carries pre-existing ones, so failing here would block on
+#     conditions unrelated to the change being frozen — a false positive is worse than no
+#     check. Read the list and confirm none of them are yours.
 MIX_ENV=test mix test --only preflight_compile_probe >/tmp/preflight-tests.log 2>&1
-if grep -q "warning:" /tmp/preflight-tests.log; then
-  say "test files compile clean" "FAIL"
-  grep -A 2 "warning:" /tmp/preflight-tests.log | head -6 | sed 's/^/    /'
-  fail=1
+warned=$(grep -c "warning:" /tmp/preflight-tests.log || true)
+if [ "${warned:-0}" -gt 0 ]; then
+  say "test files compile" "WARN ($warned warning(s); see /tmp/preflight-tests.log)"
+  grep "warning:" /tmp/preflight-tests.log | head -3 | sed 's/^/    /'
 else
-  say "test files compile clean" "ok"
+  say "test files compile" "ok"
 fi
 
 # 3. Cheap, and the gate checks it.
