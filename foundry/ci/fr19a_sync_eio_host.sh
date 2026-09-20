@@ -232,10 +232,10 @@ capability() {
   require_state_path
   mkdir -p "$artifact_dir"
   : >"$artifact_dir/capability.txt"
-  local supported=true
+  local supported=true elixir_path erl_path elixir_dir erl_dir runtime_path
 
   for command in sudo losetup dmsetup blockdev mkfs.ext4 mount umount findmnt strace \
-    elixir timeout; do
+    elixir erl timeout; do
     if command -v "$command" >/dev/null 2>&1; then
       printf '%s=%s\n' "$command" "$(command -v "$command")" >>"$artifact_dir/capability.txt"
     else
@@ -276,14 +276,29 @@ capability() {
     return 78
   fi
 
+  elixir_path=$(command -v elixir)
+  erl_path=$(command -v erl)
+  [[ $elixir_path == /* && -x $elixir_path && $erl_path == /* && -x $erl_path ]] || {
+    printf 'beam_runtime_path=invalid\nsupported=false\n' >>"$artifact_dir/capability.txt"
+    return 78
+  }
+  elixir_dir=$(cd "$(dirname "$elixir_path")" && pwd -P)
+  erl_dir=$(cd "$(dirname "$erl_path")" && pwd -P)
+  [[ $elixir_dir != *:* && $erl_dir != *:* && $elixir_dir != *$'\n'* && $erl_dir != *$'\n'* ]] || {
+    printf 'beam_runtime_path=invalid\nsupported=false\n' >>"$artifact_dir/capability.txt"
+    return 78
+  }
+  runtime_path="$elixir_dir:$erl_dir:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  printf 'beam_runtime_path=%s\n' "$runtime_path" >>"$artifact_dir/capability.txt"
+
   trap 'cleanup_state || true' EXIT
   setup_state
   local raw_file raw_trace
   raw_file="$state_dir/mountpoint/raw-sync.bin"
   raw_trace="$artifact_dir/raw-strace"
-  elixir_path=$(command -v elixir)
 
-  as_root env \
+  as_root /usr/bin/env \
+    PATH="$runtime_path" \
     RUNNER_TEMP="$RUNNER_TEMP" \
     GITHUB_RUN_ID="${GITHUB_RUN_ID:-0}" \
     GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-0}" \

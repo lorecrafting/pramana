@@ -88,9 +88,12 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          bash ci/fr19a_sync_eio_host.sh capability \
-            "$FR19A_CAPABILITY_STATE" "$FR19A_ARTIFACT_DIR/capability"
-          capability_status=$?
+          if bash ci/fr19a_sync_eio_host.sh capability \
+            "$FR19A_CAPABILITY_STATE" "$FR19A_ARTIFACT_DIR/capability"; then
+            capability_status=0
+          else
+            capability_status=$?
+          fi
           if [[ $capability_status -eq 0 ]]; then
             printf 'supported=true\n' >>"$GITHUB_OUTPUT"
           else
