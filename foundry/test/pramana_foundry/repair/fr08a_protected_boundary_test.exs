@@ -34,8 +34,10 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
   test "frozen artifact is deterministic and bound to the protected sources" do
     first = FR08AProtectedBoundary.report_artifact()
     second = FR08AProtectedBoundary.report_artifact()
+    foundry_root = Path.expand("../../..", __DIR__)
 
     assert first == second
+    assert first == File.read!(Path.join(foundry_root, "docs/fr-08/fr08a-protected-report.txt"))
     assert first =~ "ready=true\n"
     assert first =~ "implementation_binding=verified:source-sha256/v1\n"
 
