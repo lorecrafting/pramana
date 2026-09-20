@@ -1605,6 +1605,17 @@ latest prose here, remains authoritative for status and dependencies.
   FR-18A observation slice. The correction requires a fresh Astra-high authority,
   persistence and replay review before integration. The historical FR-08A PASS remains
   valid only for its exact candidate and does not prove this new handoff surface.
+- First frozen candidate `9a8a4912bcc86d1f58b50a65f9cc148982ac3915`, tree
+  `325652033c56f582ea3102650770dd5a73b3c0bb`, added the one-transaction bundle route,
+  typed operation journal, v1 backfill and infrastructure settlement record. Fresh
+  Astra-high review `d1700a853e286428c315d9a26040c86a048cead8` returned **BLOCKER**:
+  hostile probes reproduced cross-envelope rejected-operation reuse, non-durable early
+  rejection, settlement/history mutation surviving reopen, partial migration acceptance,
+  truncated/substituted v2 outcomes, missing bundle-prestate CAS and broken duplicate
+  receipt settlement recovery. Independent probes passed 22/35; the affected suite
+  passed 173/176. The exact-base ENOSPC fixture passed while the candidate fixture
+  returned zero-frame success, so that difference remains an explicit diagnosis item.
+  The original implementer owns the bounded B1–B7 correction; nothing is integrated.
 
 ## FR-18A minimal honest observations — 2026-09-20
 
