@@ -181,6 +181,8 @@ jobs:
 
           elixir ci/fr19a_sync_eio_parse.exs \
             "$trace_prefix*" "$destination" "$fixture_log" \
+            "$FR19A_ARTIFACT_DIR/gateway-host/error-table-phase.txt" \
+            "$FR19A_ARTIFACT_DIR/gateway-host/mapper-transitions.txt" \
             "$FR19A_ARTIFACT_DIR/gateway/parsed-proof.txt"
           parse_status=$?
 

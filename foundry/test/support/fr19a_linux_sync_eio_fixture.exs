@@ -202,6 +202,10 @@ fault = fn _gateway_file ->
         IO.puts("DIRTY_PWRITE=error:eio")
         :ok
 
+      {:ok, {:error, :erofs}} ->
+        IO.puts("DIRTY_PWRITE=error:erofs")
+        :ok
+
       {:ok, other} ->
         raise "dirty pwrite failed: #{inspect(other)}"
 
@@ -234,14 +238,16 @@ dirty_holder =
 :ok = restore_and_stop.(dirty_holder)
 
 case backup_result do
-  {:error, {:storage_unavailable, {:backup_failed, :eio}}} ->
-    IO.puts("GATEWAY_STORAGE_FAILURE=eio")
+  {:error, {:storage_unavailable, {:backup_failed, reason}}}
+  when reason in [:eio, :erofs] ->
+    IO.puts("GATEWAY_STORAGE_FAILURE=#{reason}")
 
   other ->
-    raise "expected typed EIO storage failure, got: #{inspect(other)}"
+    raise "expected typed physical sync storage failure, got: #{inspect(other)}"
 end
 
 %{mode: :recovery} = Gateway.status(gateway)
+IO.puts("GATEWAY_RECOVERY_MODE=pass")
 
 {:error, {:recovery_mode, _reason}} =
   Gateway.transact_verified(
@@ -253,17 +259,22 @@ end
     protected.("LATER")
   )
 
+IO.puts("LATER_PROTECTED_REFUSAL=pass")
+
 unless File.exists?(destination), do: raise("partial backup destination was removed")
 partial_digest = file_digest.(destination)
 {:ok, %{content: ^baseline}} = Maintenance.verify(destination)
 ^partial_digest = file_digest.(destination)
 ^baseline_digest = file_digest.(baseline_path)
+IO.puts("DESTINATION_VERIFICATION=pass")
 :ok = GenServer.stop(gateway)
 
 {:ok, reopened} = Gateway.start_link(path: source, protected_capability: capability)
 {:ok, %{content: ^baseline}} = Gateway.backup(reopened, recovered_path)
 assert_complete.(baseline)
 :ok = GenServer.stop(reopened)
+IO.puts("SOURCE_AUTHORITY=pass")
+IO.puts("FILESYSTEM_RECOVERY=not_claimed")
 
 IO.puts("BASELINE_SHA256=#{baseline_digest}")
 IO.puts("PARTIAL_SHA256=#{partial_digest}")
