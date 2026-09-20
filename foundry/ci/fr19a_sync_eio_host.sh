@@ -69,6 +69,31 @@ mapper_suspended() {
   as_root dmsetup info "$map_name" | grep -Eq '^State:[[:space:]]+SUSPENDED'
 }
 
+validate_error_table() {
+  local table=$1
+  local expected_sectors=$2
+
+  printf '%s\n' "$table" | awk -v expected_sectors="$expected_sectors" '
+    NF == 0 { next }
+    {
+      rows += 1
+      if (NF != 3 || $1 != "0" || $2 != expected_sectors || $3 != "error") {
+        valid = 0
+      } else if (rows == 1) {
+        valid = 1
+      }
+    }
+    END { exit !(rows == 1 && valid == 1) }
+  '
+}
+
+record_phase() {
+  local phase=$1
+  local status=$2
+  printf 'epoch_ns=%s phase=%s status=%s\n' "$(date +%s%N)" "$phase" "$status" \
+    >>"$artifact_dir/error-table-phase.txt"
+}
+
 record_mapper() {
   local phase=$1
   {
@@ -240,7 +265,19 @@ capability() {
   : >"$artifact_dir/capability.txt"
   local supported=true elixir_path erl_path elixir_dir erl_dir runtime_path
 
-  for command in sudo losetup dmsetup blockdev mkfs.ext4 mount umount findmnt strace \
+  {
+    uname -srvmo || true
+    strace --version | head -n 1 || true
+  } >"$artifact_dir/host-versions.txt" 2>&1
+
+  if bash "$(dirname "$script_path")/fr19a_sync_eio_host_test.sh"; then
+    printf 'semantic_error_table_regression=pass\n' >"$artifact_dir/host-self-test.txt"
+  else
+    printf 'semantic_error_table_regression=fail\n' >"$artifact_dir/host-self-test.txt"
+    return 1
+  fi
+
+  for command in sudo losetup dmsetup blockdev mkfs.ext4 mount umount findmnt strace awk \
     elixir erl timeout; do
     if command -v "$command" >/dev/null 2>&1; then
       printf '%s=%s\n' "$command" "$(command -v "$command")" >>"$artifact_dir/capability.txt"
@@ -252,6 +289,7 @@ capability() {
 
   if sudo -n true 2>/dev/null; then
     printf 'sudo_noninteractive=true\n' >>"$artifact_dir/capability.txt"
+    sudo -n dmsetup version >>"$artifact_dir/host-versions.txt" 2>&1 || true
   else
     printf 'sudo_noninteractive=false\n' >>"$artifact_dir/capability.txt"
     supported=false
@@ -308,7 +346,7 @@ capability() {
     RUNNER_TEMP="$RUNNER_TEMP" \
     GITHUB_RUN_ID="${GITHUB_RUN_ID:-0}" \
     GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-0}" \
-    timeout 45s strace -ff -yy \
+    timeout 45s strace -ff -yy -ttt \
     -e trace=fsync,fdatasync,pwrite64,write,openat,close \
     -o "$raw_trace" env FR19A_ARTIFACT_DIR="$artifact_dir" \
     "$elixir_path" "$(dirname "$script_path")/fr19a_raw_sync_eio.exs" \
@@ -324,6 +362,10 @@ capability() {
     return 78
   fi
 }
+
+if [[ ${FR19A_SYNC_EIO_SOURCE_ONLY:-0} == 1 ]]; then
+  return 0
+fi
 
 case "$mode" in
   capability)
@@ -348,13 +390,40 @@ case "$mode" in
     read_state
     loop_matches || { record "refusing error load: loop identity mismatch"; exit 1; }
     mapper_exists || { record "refusing error load: mapper missing"; exit 1; }
-    printf '%s\n' "$error_table" | as_root dmsetup load "$map_name"
-    if ! as_root dmsetup resume "$map_name"; then
+    : >"$artifact_dir/error-table-phase.txt"
+    if printf '%s\n' "$error_table" | as_root dmsetup load "$map_name"; then
+      record_phase load 0
+    else
+      load_status=$?
+      record_phase load "$load_status"
+      restore_linear
+      exit "$load_status"
+    fi
+    if as_root dmsetup resume "$map_name"; then
+      resume_status=0
+    else
+      resume_status=$?
+      record_phase resume "$resume_status"
       record "error-table resume failed; restoring exact linear table"
+      restore_linear
+      exit "$resume_status"
+    fi
+    record_phase resume "$resume_status"
+    if observed_error_table=$(as_root dmsetup table "$map_name"); then
+      table_status=0
+    else
+      table_status=$?
+    fi
+    record_phase table-read "$table_status"
+    {
+      printf 'observed_table_begin\n%s\nobserved_table_end\n' "$observed_error_table"
+    } >>"$artifact_dir/error-table-phase.txt"
+    if [[ $table_status -ne 0 ]] || ! validate_error_table "$observed_error_table" "$sectors"; then
+      record_phase semantic-assert 1
       restore_linear
       exit 1
     fi
-    [[ $(as_root dmsetup table "$map_name") == "$error_table" ]]
+    record_phase semantic-assert 0
     record "loaded exact error table: $error_table"
     record_mapper error
     ;;
