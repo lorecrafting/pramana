@@ -1218,8 +1218,33 @@ compatibility, and says so, or is removed.
 and the single most contended file in the repair, which serialised FR-18A against the
 FR-08A binding correction purely by file granularity rather than by any logical dependency.
 
+*Documentation retirement.* The repair produced a large body of dated records, and the
+distinction between the ones that must survive and the ones that should go is not
+obvious. Apply this rule rather than judgement:
+
+- **Preserve, always.** Dated audits, independent reviews, candidate records, verdicts and
+  attestation artifacts. These are evidence of what was checked against which revision,
+  and the repository's existing convention is explicit that they are kept as dated
+  evidence rather than rewritten into one current narrative. A superseded candidate's
+  review is still true about that candidate. Retiring it destroys the only record that a
+  claim was independently checked.
+- **Retire.** Design material whose mechanism was replaced and whose replacement is
+  itself recorded; documents describing code that no longer exists; migration-era material
+  that no longer describes anything, once FR-08B has retired legacy JSONL from deciding
+  live workflow truth; and routes pointing at either.
+- **Neither delete nor leave silently stale.** A superseded design that explains *why* an
+  approach failed is worth keeping when the failure is instructive, but it must say so at
+  the top and name what replaced it. The event-vocabulary design is the worked example:
+  its first mechanism was unimplementable, and revision 2 keeps that account deliberately
+  rather than deleting it, because the mistake is the useful part.
+
+Deciding rule: **evidence of a check is preserved; description of a mechanism is retired
+when the mechanism is gone.** When the two are in one file, split it rather than choosing.
+
 *General hygiene.* Formatter baseline debt, accumulated worktrees and branches, and
-documentation routes left pointing at superseded evidence.
+documentation routes left pointing at superseded evidence. Branch and worktree state is
+mechanical — see the implementation log's note on archive tags — so prefer enumerating it
+from Git over maintaining a list.
 
 **Sequencing, and why it is not literally last:** this ticket must land **before** FR-22,
 not after it. FR-22 is whole-lifecycle acceptance bound to exact revisions. A sweep
