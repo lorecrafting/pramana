@@ -38,8 +38,9 @@ contract still govern implementation.
 **The active repair plan, not the original eight-ticket migration sequence, owns
 repair ordering.** A design-review approval applies to its named candidate; it is not
 an endorsement of later revisions or evidence that a protected route is activated.
-The plan contains 23 ticket nodes (FR-01–FR-22 plus FR-15a); F23/F24 are findings routed
-to existing owners, not missing tickets. Its H0/F checkpoints and A/B slices do not form
+The plan contains 24 ticket nodes (FR-01–FR-23 plus FR-15a). FR-23 is a ticket covering
+legacy retirement, module decomposition and hygiene; F23/F24 are audit findings routed to
+existing owners. The `F` and `FR` prefixes distinguish findings from tickets. Its H0/F checkpoints and A/B slices do not form
 a competing backlog.
 
 ## Provider and backend boundary
