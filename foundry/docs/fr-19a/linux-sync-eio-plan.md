@@ -1,4 +1,4 @@
-# FR-19A Linux kernel-sync EIO acceptance plan
+# FR-19A Linux physical kernel-sync fault acceptance plan
 
 Recorded 2026-09-19, Hawaii. This is a branch-only execution plan, not acceptance
 evidence. It does not change the blocked disposition in
@@ -33,14 +33,23 @@ and writes its own descriptor. Mapper recovery detects an already suspended map 
 loads the recorded linear table before resuming; an active map is suspended with
 `--noflush --nolockfs` first.
 
+Run `35496921076` at revision `5a724b3f1c5f382e269ca4127ebf2d0778e15bb2`
+and artifact `10600856081` corrected an over-narrow assumption in this branch plan. The
+controlled device-mapper block fault became live, ext4 entered `emergency_ro`, the helper
+write completed, and the already-open exact-path `fsync` returned kernel `EROFS`. The
+authoritative FR-19A obligation is an attributable physical/kernel sync failure, not one
+particular errno. This plan therefore accepts `EIO` or provenance-checked `EROFS`; this is
+not a waiver and the result is never relabeled as `EIO`.
+
 ## Boundary
 
 The branch-only [workflow](../../../.github/workflows/fr19a-sync-eio.yml) uses an ephemeral
 GitHub-hosted Ubuntu runner and `contents: read` permission. It performs no provider call,
 Foundry dispatch, live-daemon operation, deployment or activation. It does not install
 packages. The first stage inventories the preinstalled commands, noninteractive sudo,
-`/dev/mapper/control` and the device-mapper `error` target, then requires a raw sync-EIO
-control. The Gateway stage is skipped unless every capability and the raw control pass.
+`/dev/mapper/control` and the device-mapper `error` target, then requires a raw physical
+sync-fault control. The Gateway stage is skipped unless every capability and the raw
+control pass.
 
 Every block resource is created beneath a unique `$RUNNER_TEMP` state directory:
 
@@ -73,16 +82,20 @@ The raw capability probe and the actual Gateway fixture both:
 For the Gateway case, steps 1–4 run through the existing
 `maintenance_fault: {:during, :during_backup_sync, fun}` seam after the verified backup is
 open. Production `Gateway.sync_file/2` then calls unchanged `:file.sync`. The BEAM runs
-under `strace -ff -yy` restricted to file open/write/sync/close syscalls. The parser accepts
-only `fsync` or `fdatasync` on the decoded exact backup path returning `-1 EIO`. `EBADF`,
-an EIO only on `write`/`pwrite64`, an injected callback error or an unrelated descriptor is
-failure, not sync acceptance.
+under timestamped `strace -ff -yy` restricted to file open/write/sync/close syscalls. The
+parser accepts only `fsync` or `fdatasync` on the decoded exact backup path returning
+kernel `EIO`, or `EROFS` when the same evidence proves the controlled exact error table
+was live and ext4 entered `emergency_ro`. An arbitrary read-only mount, unrelated `EROFS`,
+`EBADF`, a failure only on `write`/`pwrite64`, an injected callback error or an unrelated
+descriptor is failure, not sync acceptance. The matching descriptor must have opened the
+destination before the fault phases.
 
-The fixture also requires the public backup result to be typed
-`{:storage_unavailable, {:backup_failed, :eio}}`, gateway recovery mode, refusal of a later
-protected effect, complete prior commands/events/projections/effects/claims/ledger
+The fixture also requires the public backup result to carry the same typed reason in
+`{:storage_unavailable, {:backup_failed, reason}}`, gateway recovery mode, refusal of a
+later protected effect, complete prior commands/events/projections/effects/claims/ledger
 generations/reservations, unchanged source baseline, and retained content-verifiable
-destination after restoring the exact linear table.
+destination after restoring the exact linear table. Restoring the mapper is not described
+as filesystem recovery when ext4 remains `emergency_ro`.
 
 ## Cleanup and evidence
 
@@ -98,10 +111,14 @@ The always-uploaded, 14-day bounded artifact contains:
 - capability inventory and device-mapper targets;
 - exact setup identities, table/status and `findmnt` output;
 - raw and Gateway fixture logs plus restricted strace files;
-- parsed exact-path sync-EIO proof and content digests;
+- parsed exact-path kernel-sync-fault proof and content digests;
 - individual probe/restore/parser exit codes and cleanup results.
 
 It intentionally excludes the environment, secrets, credentials and `dmesg`. A missing
 capability produces an honest unavailable artifact. A green workflow is still only a
 candidate evidence input: independent review must bind the exact revision, inspect the
 artifact and decide whether the unwaived FR-19A sync obligation is satisfied.
+
+This acceptance proves the exercised Gateway backup `:file.sync` path only. It does not
+prove SQLite `xSync`, WAL durability, power-loss survival, controller/cache flush or media
+durability.

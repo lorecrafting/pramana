@@ -353,14 +353,36 @@ capability() {
     "$raw_file" "$script_path" "$state_dir" "$artifact_dir" \
     >"$artifact_dir/raw-probe.txt" 2>&1
 
-  if grep -Fh "$raw_file" "$raw_trace"* | grep -Eq '(fsync|fdatasync)\(.*\) = -1 EIO'; then
-    grep -Fh "$raw_file" "$raw_trace"* | grep -E '(fsync|fdatasync)\(.*\) = -1 EIO' \
-      >"$artifact_dir/raw-sync-eio.txt"
-    printf 'raw_sync_eio=true\nsupported=true\n' >>"$artifact_dir/capability.txt"
-  else
-    printf 'raw_sync_eio=false\nsupported=false\n' >>"$artifact_dir/capability.txt"
+  raw_sync_line=$(grep -Fh "$raw_file" "$raw_trace"* | \
+    grep -E '(fsync|fdatasync)\(.*\) = -1 (EIO|EROFS)' | tail -n 1 || true)
+  raw_errno=$(printf '%s\n' "$raw_sync_line" | sed -nE 's/.* = -1 (EIO|EROFS).*/\1/p')
+
+  if [[ -z $raw_sync_line ]] || \
+    ! grep -Eq 'phase=semantic-assert status=0$' "$artifact_dir/error-table-phase.txt"; then
+    printf 'raw_sync_failure=missing\nsupported=false\n' >>"$artifact_dir/capability.txt"
     return 78
   fi
+
+  if [[ $raw_errno == EROFS ]] && \
+    ! grep -Eq 'emergency_ro' "$artifact_dir/mapper-transitions.txt"; then
+    printf 'raw_sync_failure=erofs_without_emergency_ro\nsupported=false\n' \
+      >>"$artifact_dir/capability.txt"
+    return 78
+  fi
+
+  {
+    printf 'schema=pramana-foundry-fr19a-raw-sync-fault/v1\n'
+    printf 'errno=%s\n' "$raw_errno"
+    printf 'controlled_error_table=true\n'
+    if [[ $raw_errno == EROFS ]]; then
+      printf 'ext4_emergency_ro=true\n'
+    else
+      printf 'ext4_emergency_ro=not_required\n'
+    fi
+    printf 'result=pass\n%s\n' "$raw_sync_line"
+  } >"$artifact_dir/raw-sync-proof.txt"
+  printf 'raw_sync_failure=%s\nsupported=true\n' "${raw_errno,,}" \
+    >>"$artifact_dir/capability.txt"
 }
 
 if [[ ${FR19A_SYNC_EIO_SOURCE_ONLY:-0} == 1 ]]; then

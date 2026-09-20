@@ -30,13 +30,17 @@ defmodule PramanaFoundry.CI.FR19ARawSyncEIO do
       end
 
       case :file.sync(file) do
-        {:error, :eio} ->
-          IO.puts("RAW_FSYNC_ERRNO=5")
-          IO.puts("RAW_SYNC_EIO=pass")
+        {:error, reason} when reason in [:eio, :erofs] ->
+          IO.puts("RAW_SYNC_ERRNO=#{reason}")
+          IO.puts("RAW_SYNC_FAILURE=pass")
           0
 
         other ->
-          IO.puts(:stderr, "raw fsync did not return EIO: #{inspect(other)}")
+          IO.puts(
+            :stderr,
+            "raw fsync did not return an accepted physical fault: #{inspect(other)}"
+          )
+
           2
       end
     after
