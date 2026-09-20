@@ -24,6 +24,15 @@ succeeded. Both probes now start the `pwrite` in a tracked helper, establish tha
 pending, load the error table and resume before awaiting its bounded outcome. Cleanup
 restores the mapper before bounded helper termination.
 
+Run `35496300361` at revision `5d9464ea3f706e69f873498c22ddb143b2c00e05`
+and artifact `10600621573` were diagnostic only. The asynchronous raw helper attempted
+to use a descriptor opened by its parent and failed with `:not_on_controlling_process`;
+the attempted error-table resume also returned EIO before the raw sync proof. Exact
+cleanup still removed the mount, mapper and loop. The tracked helper now opens, pre-reads
+and writes its own descriptor. Mapper recovery detects an already suspended map and
+loads the recorded linear table before resuming; an active map is suspended with
+`--noflush --nolockfs` first.
+
 ## Boundary
 
 The branch-only [workflow](../../../.github/workflows/fr19a-sync-eio.yml) uses an ephemeral

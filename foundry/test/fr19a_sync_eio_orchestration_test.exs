@@ -5,6 +5,25 @@ defmodule PramanaFoundry.CI.FR19ASyncEIOOrchestrationTest do
 
   alias PramanaFoundry.CI.FR19ASyncEIOOrchestration, as: Orchestration
 
+  test "tracked helper opens and writes its own raw descriptor" do
+    path =
+      Path.join(System.tmp_dir!(), "fr19a-owned-pwrite-#{System.unique_integer([:positive])}")
+
+    block = :binary.copy("O", 4096)
+    File.write!(path, block)
+    on_exit(fn -> File.rm(path) end)
+
+    {:ok, holder} = Orchestration.start_pwrite_holder(path, byte_size(block))
+    :ok = Orchestration.start_pwrite(holder)
+
+    assert_receive {:fr19a_pwrite_entered, token, worker}, 100
+    assert token == holder.token
+    assert worker == holder.pid
+    assert_receive {:fr19a_pwrite_finished, ^token, ^worker, :ok}, 100
+    assert :ok = Orchestration.stop_pwrite_holder(holder)
+    assert File.read!(path) == block
+  end
+
   test "error resume runs before awaiting a blocked pwrite" do
     parent = self()
     token = make_ref()
