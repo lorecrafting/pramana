@@ -63,7 +63,10 @@ path-identity defects. V4 was withdrawn before verdict when self-audit found its
 SQLite WAL `xSync` fixture did not yet use the full protected bundle. V5 independently passed
 that sync-fault obligation but failed six authority-validation/fencing checks. A fresh focused
 diagnosis found no contract ambiguity and specified one exhaustive retained-authority reader,
-fence, path namespace and shared narrow projection reducer; v6 implementation is active.
+fence, path namespace and shared narrow projection reducer. The lost mutable v6 worktree was
+recovered from its exact rollout journal onto current main and frozen as candidate
+`103ee1de234af8929d504e78c51297b6d9907d71`; warnings-as-errors compilation and the
+68-test durable-store suite pass. FR-07 remains incomplete pending fresh Astra-high review.
 FR-21's focused v3 CI/provenance correction
 passed renewed
 independent review, is integrated, and passed independent post-integration 432-test

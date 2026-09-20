@@ -1119,3 +1119,32 @@ steps.
 - Implemented, reviewed and integrated; **not deployed**. The running daemon was not
   stopped, replaced, reconfigured or inspected. FR-01's owning acceptance protocol is
   the only authority that may later restore its containment, through FR-09/15a evidence.
+
+## FR-07 v6 recovery and review handoff — 2026-09-19
+
+- Main history advanced to `75a56c13ebafa0ab7e67f2cf12f47ad84aad2ebc` after the
+  mutable FR-07 worktree and unreferenced v5/v6 Git objects were removed. The exact old
+  base `8aa0ebddbfb5fa834bbefa53d1f84b992e4c25bd` survived. No newer main work was reset
+  or overwritten.
+- The implementation owner replayed the surviving rollout journal through its final v6
+  patch, preserving successful edits and formatting boundaries and excluding failed patch
+  attempts. The stable rollout prefix SHA-256 is
+  `ecf3d05e03f059d67c0b80f95bfaf8dc7589e42e8c2e32b1f9c774c1d22562d1`.
+  Recovered diagnosis/relation artifacts match their previously recorded SHA-256 values.
+- The recovered current-main candidate is revision
+  `103ee1de234af8929d504e78c51297b6d9907d71`, tree
+  `89e7dbf935211b63dff3353c246eefd546fbbae1`, on
+  `repair/fr07-v6-recovered` in `/Users/raymondluong/dev/pramana-fr07-worktree`.
+  Runtime/review-input revision `940b8f710c661ef5f7ecd7c5c5ae9cc3fbed2ea6` has tree
+  `2d1632ac183c19a50d87b74ddeb7332f9b7e6f08`. The worktree is clean.
+- Fresh evidence on current main: pinned warnings-as-errors compilation passed for 90
+  project files; the durable-store suite passed **68/68**. The full suite passed 500/501;
+  its sole projection-benchmark failure reproduced alone as 1/2 because Python
+  `tiktoken` is unavailable and the documented fallback count differs from the benchmark
+  expectation. This is retained as an honest non-FR-07 exclusion, not a passing full run.
+- Candidate v6 remains **unreviewed and unintegrated**. Attempts to spawn or resume the
+  required independent Astra-high reviewer returned `agent thread limit reached`; no
+  substitute review or verdict is claimed. FR-08 and every other dependent ticket remain
+  blocked. Exact resumable next step: obtain a fresh Astra-high review of revision
+  `103ee1de234af8929d504e78c51297b6d9907d71`, dispose any findings, then integrate and
+  revalidate the reviewed candidate before marking FR-07 complete.
