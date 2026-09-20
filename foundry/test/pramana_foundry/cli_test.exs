@@ -258,9 +258,7 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
 
   describe "validate_commit_sha/1" do
     test "accepts 40-char hex" do
-      assert Validators.validate_commit_sha(
-               "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
-             ) == :ok
+      assert Validators.validate_commit_sha("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0") == :ok
     end
 
     test "rejects short hash" do
@@ -270,9 +268,7 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
 
     test "rejects non-hex chars" do
       assert {:error, _} =
-               Validators.validate_commit_sha(
-                 "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
-               )
+               Validators.validate_commit_sha("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
     end
 
     test "accepts nil (optional commit)" do

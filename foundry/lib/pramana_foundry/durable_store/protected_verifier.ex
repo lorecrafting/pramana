@@ -1,0 +1,163 @@
+defmodule PramanaFoundry.DurableStore.ProtectedVerifier do
+  @moduledoc false
+
+  @fact_keys ~w(writer_epoch ledger_generations effect_authorizations)a
+  @authorization_keys ~w(effect_id claim_id generation_id reservation_id dimension units)a
+
+  def derive(proposal, facts) when is_map(facts) do
+    with :ok <- exact_keys(facts, @fact_keys),
+         writer_epoch when is_binary(writer_epoch) and writer_epoch != "" <- fetch(facts, :writer_epoch),
+         generations when is_list(generations) <- fetch(facts, :ledger_generations),
+         authorizations when is_list(authorizations) <- fetch(facts, :effect_authorizations),
+         :ok <- validate_generations(generations),
+         :ok <- validate_authorizations(proposal, authorizations, generations),
+         claims <- claims(authorizations, writer_epoch),
+         reservations <- reservations(authorizations) do
+      {:ok,
+       %{
+         required_revisions: fetch(facts, :required_revisions),
+         ledger_generations: generations,
+         claims: claims,
+         reservations: reservations
+       }}
+    else
+      {:error, _reason} = error -> error
+      _ -> {:error, :invalid_protected_facts}
+    end
+  end
+
+  def derive(_proposal, _facts), do: {:error, :invalid_protected_facts}
+
+  defp validate_generations(generations) do
+    validate_many(generations, fn generation ->
+      with :ok <- exact_keys(generation, ~w(schema_version generation_id parent_generation_id allocation consumed)a),
+           1 <- fetch(generation, :schema_version),
+           :ok <- identity(generation, :generation_id),
+           nil <- fetch(generation, :parent_generation_id),
+           allocation when is_integer(allocation) and allocation >= 0 <- fetch(generation, :allocation),
+           consumed when is_integer(consumed) and consumed >= 0 and consumed <= allocation <- fetch(generation, :consumed) do
+        :ok
+      else
+        _ -> {:error, :unsupported_child_ledger_generation}
+      end
+    end)
+  end
+
+  defp validate_authorizations(proposal, authorizations, generations) do
+    intents = fetch(proposal, :intents, [])
+    intent_ids = MapSet.new(intents, &fetch(&1, :effect_id))
+    available = Map.new(generations, fn generation ->
+      {fetch(generation, :generation_id), fetch(generation, :allocation) - fetch(generation, :consumed)}
+    end)
+
+    with true <- length(authorizations) == MapSet.size(intent_ids),
+         :ok <-
+           validate_many(authorizations, fn authorization ->
+             with :ok <- exact_keys(authorization, @authorization_keys),
+                  :ok <- identities(authorization, [:effect_id, :claim_id, :generation_id, :reservation_id, :dimension]),
+                  units when is_integer(units) and units > 0 <- fetch(authorization, :units),
+                  true <- MapSet.member?(intent_ids, fetch(authorization, :effect_id)) do
+               :ok
+             else
+               _ -> {:error, :invalid_effect_authorization}
+             end
+           end),
+         true <- MapSet.new(authorizations, &fetch(&1, :effect_id)) == intent_ids,
+         :ok <- allocations_fit(authorizations, available) do
+      :ok
+    else
+      {:error, _reason} = error -> error
+      _ -> {:error, :incomplete_effect_authorization}
+    end
+  end
+
+  defp allocations_fit(authorizations, available) do
+    requested =
+      Enum.reduce(authorizations, %{}, fn authorization, acc ->
+        Map.update(
+          acc,
+          fetch(authorization, :generation_id),
+          fetch(authorization, :units),
+          &(&1 + fetch(authorization, :units))
+        )
+      end)
+
+    if map_size(requested) == map_size(available) and
+         Enum.all?(requested, fn {generation_id, units} ->
+           case Map.fetch(available, generation_id) do
+             {:ok, remaining} -> units == remaining
+             :error -> false
+           end
+         end),
+      do: :ok,
+      else: {:error, :insufficient_ledger_allocation}
+  end
+
+  defp claims(authorizations, writer_epoch) do
+    Enum.map(authorizations, fn authorization ->
+      %{
+        schema_version: 1,
+        claim_id: fetch(authorization, :claim_id),
+        effect_id: fetch(authorization, :effect_id),
+        writer_epoch: writer_epoch,
+        status: "claimed",
+        value: %{"verified" => true}
+      }
+    end)
+  end
+
+  defp reservations(authorizations) do
+    Enum.map(authorizations, fn authorization ->
+      %{
+        schema_version: 1,
+        reservation_id: fetch(authorization, :reservation_id),
+        generation_id: fetch(authorization, :generation_id),
+        claim_id: fetch(authorization, :claim_id),
+        dimension: fetch(authorization, :dimension),
+        units: fetch(authorization, :units),
+        status: "reserved",
+        value: %{"verified" => true}
+      }
+    end)
+  end
+
+  defp validate_many(values, fun) do
+    Enum.reduce_while(values, :ok, fn value, :ok ->
+      case fun.(value) do
+        :ok -> {:cont, :ok}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp exact_keys(map, allowed) when is_map(map) do
+    keys = Enum.map(Map.keys(map), &normalize_key(&1, allowed))
+
+    if :invalid in keys or length(keys) != length(allowed) or length(Enum.uniq(keys)) != length(keys),
+      do: {:error, :invalid_protected_fields},
+      else: :ok
+  end
+
+  defp exact_keys(_map, _allowed), do: {:error, :invalid_protected_fields}
+
+  defp normalize_key(key, allowed) when is_atom(key), do: if(key in allowed, do: key, else: :invalid)
+
+  defp normalize_key(key, allowed) when is_binary(key) do
+    Enum.find(allowed, &(Atom.to_string(&1) == key)) || :invalid
+  end
+
+  defp normalize_key(_key, _allowed), do: :invalid
+
+  defp identities(map, keys) do
+    if Enum.all?(keys, fn key -> identity(map, key) == :ok end), do: :ok, else: {:error, :invalid_identity}
+  end
+
+  defp identity(map, key) do
+    case fetch(map, key) do
+      value when is_binary(value) and value != "" -> :ok
+      _ -> {:error, :invalid_identity}
+    end
+  end
+
+  defp fetch(map, key, default \\ nil), do: Map.get(map, key, Map.get(map, Atom.to_string(key), default))
+end

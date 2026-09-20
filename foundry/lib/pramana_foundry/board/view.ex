@@ -59,10 +59,10 @@ defmodule PramanaFoundry.Board.View do
     active_col_idx = clamp_index(view_state.active_column, length(@columns))
     grouped = group_tickets_by_column(data[:tickets] || [])
 
-    title_bar   = build_title_bar(data, width)
-    rev_bar     = build_revision_bar(data, width)
-    tab_bar     = build_tab_bar(active_col_idx, grouped, width)
-    headers     = [title_bar, "\n", rev_bar, "\n", tab_bar]
+    title_bar = build_title_bar(data, width)
+    rev_bar = build_revision_bar(data, width)
+    tab_bar = build_tab_bar(active_col_idx, grouped, width)
+    headers = [title_bar, "\n", rev_bar, "\n", tab_bar]
 
     columns_rendered = render_columns(view_state, grouped, width)
     footer = build_footer(width)
@@ -112,7 +112,10 @@ defmodule PramanaFoundry.Board.View do
     match? = data[:revisions_match?] != false and accepted == runtime
 
     if match? do
-      Data.tag("  Revisions in sync [Source: #{short_rev(accepted)} │ Loaded: #{short_rev(runtime)}]", :light_black)
+      Data.tag(
+        "  Revisions in sync [Source: #{short_rev(accepted)} │ Loaded: #{short_rev(runtime)}]",
+        :light_black
+      )
     else
       Data.tag(
         "  ⚠ REVISION MISMATCH: loaded #{short_rev(runtime)} != source #{short_rev(accepted)} — restart required",
@@ -156,7 +159,8 @@ defmodule PramanaFoundry.Board.View do
     visible_indices = calculate_visible_columns(active_col_idx, width)
     num_visible = length(visible_indices)
 
-    col_width = div(width, num_visible) - 1  # 1 for the separator gap
+    # 1 for the separator gap
+    col_width = div(width, num_visible) - 1
 
     rendered =
       Enum.map(visible_indices, fn col_idx ->
@@ -178,7 +182,8 @@ defmodule PramanaFoundry.Board.View do
     card_width = max(10, width - 2)
     count = length(tickets)
 
-    title_content = Data.tag("#{col_name} (#{count})", if(focused?, do: [:bright, :cyan], else: :light_black))
+    title_content =
+      Data.tag("#{col_name} (#{count})", if(focused?, do: [:bright, :cyan], else: :light_black))
 
     # Render cards inside the column
     card_lines =
@@ -229,6 +234,7 @@ defmodule PramanaFoundry.Board.View do
 
       summary_str = ticket[:summary] || ""
       summary_trimmed = String.slice(summary_str, 0, width - 2)
+
       summary_line =
         if summary_trimmed != "" do
           ["  ", Data.tag(summary_trimmed, :light_black)]
@@ -429,7 +435,11 @@ defmodule PramanaFoundry.Board.View do
   defp render_review_block(review, _width) do
     verdict = Map.get(review, "verdict", "-")
     findings = Map.get(review, "findings", [])
-    [Data.tag("\n  REVIEW", [:bright, :underline]), "\n  Verdict: #{verdict} │ Findings: #{length(findings)}"]
+
+    [
+      Data.tag("\n  REVIEW", [:bright, :underline]),
+      "\n  Verdict: #{verdict} │ Findings: #{length(findings)}"
+    ]
   end
 
   # ===================================================================
