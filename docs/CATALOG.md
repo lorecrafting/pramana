@@ -253,6 +253,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`foundry/docs/fr-08/fr08a-typed-carrier-candidate.md`](../foundry/docs/fr-08/fr08a-typed-carrier-candidate.md)
 - [`foundry/docs/fr-08/fr08a-carrier-rereview.md`](../foundry/docs/fr-08/fr08a-carrier-rereview.md)
 - [`foundry/docs/fr-08/fr08a-fr19a-integration-candidate.md`](../foundry/docs/fr-08/fr08a-fr19a-integration-candidate.md)
+- [`foundry/docs/fr-08/fr08a-fr19a-integration-review.md`](../foundry/docs/fr-08/fr08a-fr19a-integration-review.md)
 - [`foundry/docs/fr-08/investigation.md`](../foundry/docs/fr-08/investigation.md)
 - [`foundry/docs/fr-09/checkpoint-f-feasibility.md`](../foundry/docs/fr-09/checkpoint-f-feasibility.md)
 - [`foundry/docs/fr-09/checkpoint-f-review.md`](../foundry/docs/fr-09/checkpoint-f-review.md)
