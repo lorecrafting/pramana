@@ -150,7 +150,21 @@ jobs:
           trace_prefix="$FR19A_ARTIFACT_DIR/gateway/strace"
           fixture_log="$FR19A_ARTIFACT_DIR/gateway/fixture.log"
 
-          sudo -n env \
+          if [[ $(id -u) -eq 0 ]]; then
+            printf 'Gateway BEAM context unexpectedly runs as root\n' >&2
+            exit 1
+          fi
+          {
+            printf 'uid=%s\n' "$(id -u)"
+            printf 'mix=%s\n' "$(command -v mix)"
+            printf 'elixir=%s\n' "$(command -v elixir)"
+            printf 'erl=%s\n' "$(command -v erl)"
+            mix --version
+            mix help hex >/dev/null
+            printf 'hex_scm=available\n'
+          } >"$FR19A_ARTIFACT_DIR/gateway/beam-context.txt"
+
+          if env \
             PATH="$PATH" \
             MIX_ENV="$MIX_ENV" \
             MIX_BUILD_PATH="$MIX_BUILD_PATH" \
@@ -172,19 +186,28 @@ jobs:
               "$GITHUB_WORKSPACE/foundry/ci/fr19a_sync_eio_host.sh" \
               "$FR19A_PROBE_STATE" \
               "$FR19A_ARTIFACT_DIR/gateway-host" \
-              >"$fixture_log" 2>&1
-          probe_status=$?
+              >"$fixture_log" 2>&1; then
+            probe_status=0
+          else
+            probe_status=$?
+          fi
 
-          bash ci/fr19a_sync_eio_host.sh restore \
-            "$FR19A_PROBE_STATE" "$FR19A_ARTIFACT_DIR/gateway-host"
-          restore_status=$?
+          if bash ci/fr19a_sync_eio_host.sh restore \
+            "$FR19A_PROBE_STATE" "$FR19A_ARTIFACT_DIR/gateway-host"; then
+            restore_status=0
+          else
+            restore_status=$?
+          fi
 
-          elixir ci/fr19a_sync_eio_parse.exs \
+          if elixir ci/fr19a_sync_eio_parse.exs \
             "$trace_prefix*" "$destination" "$fixture_log" \
             "$FR19A_ARTIFACT_DIR/gateway-host/error-table-phase.txt" \
             "$FR19A_ARTIFACT_DIR/gateway-host/mapper-transitions.txt" \
-            "$FR19A_ARTIFACT_DIR/gateway/parsed-proof.txt"
-          parse_status=$?
+            "$FR19A_ARTIFACT_DIR/gateway/parsed-proof.txt"; then
+            parse_status=0
+          else
+            parse_status=$?
+          fi
 
           {
             printf 'probe_exit=%s\n' "$probe_status"
