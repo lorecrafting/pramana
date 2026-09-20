@@ -403,7 +403,51 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
       end
     end
 
-    test "forced loss of an owned filesystem returns a real kernel sync error and retains backup",
+    test "checkpoint on an owned full filesystem returns real ENOSPC and retains the WAL", ctx do
+      capability = make_ref()
+      image = attach_disk_image(ctx.root, "checkpoint-enospc", 20)
+      source = Path.join(image.mount, "authority.sqlite3")
+
+      gateway = ready_gateway(source, protected_capability: capability)
+      commit_protected(gateway, "CHECKPOINT-ENOSPC", capability, 2_000_000)
+      assert File.stat!(source <> "-wal").size > 0
+
+      baseline_path = Path.join(ctx.root, "checkpoint-enospc-baseline.sqlite3")
+      assert {:ok, %{content: baseline}} = Gateway.backup(gateway, baseline_path)
+      assert_complete_authority(baseline)
+      assert File.stat!(source <> "-wal").size > 0
+
+      filler = fill_to_enospc(image.mount)
+      assert File.exists?(filler)
+
+      assert {:error, {:storage_unavailable, reason}} = Gateway.checkpoint(gateway)
+      assert inspect(reason) =~ "full"
+      assert %{mode: :recovery} = Gateway.status(gateway)
+      assert File.exists?(source)
+      assert File.stat!(source <> "-wal").size > 0
+
+      assert {:error, {:recovery_mode, _reason}} =
+               Gateway.transact_verified(
+                 gateway,
+                 capability,
+                 "operator",
+                 command("CHECKPOINT-ENOSPC-LATER"),
+                 bundle("CHECKPOINT-ENOSPC-LATER"),
+                 protected("CHECKPOINT-ENOSPC-LATER")
+               )
+
+      assert :ok = stop_supervised(Gateway)
+      File.rm!(filler)
+
+      reopened =
+        start_supervised!({Gateway, path: source, protected_capability: capability})
+
+      recovered_path = Path.join(ctx.root, "checkpoint-enospc-recovered.sqlite3")
+      assert {:ok, %{content: ^baseline}} = Gateway.backup(reopened, recovered_path)
+      assert_complete_authority(baseline)
+    end
+
+    test "forced loss of an owned filesystem invalidates a descriptor but is not sync acceptance",
          ctx do
       capability = make_ref()
       parent = self()
@@ -643,11 +687,7 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
   end
 
   defp fill_and_release(mount, release_bytes) do
-    filler = Path.join(mount, "filler.bin")
-    {:ok, file} = :file.open(String.to_charlist(filler), [:write, :binary, :raw])
-    chunk = :binary.copy(<<0>>, 1_024 * 1_024)
-    assert :enospc = fill_until_enospc(file, chunk)
-    assert :ok = :file.close(file)
+    filler = fill_to_enospc(mount)
 
     {:ok, file} = :file.open(String.to_charlist(filler), [:read, :write, :binary, :raw])
     {:ok, size} = :file.position(file, :eof)
@@ -657,6 +697,16 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     assert :ok = :file.sync(file)
     assert :ok = :file.close(file)
     release_bytes
+  end
+
+  defp fill_to_enospc(mount) do
+    filler = Path.join(mount, "filler-#{System.unique_integer([:positive])}.bin")
+    {:ok, file} = :file.open(String.to_charlist(filler), [:write, :binary, :raw])
+    chunk = :binary.copy(<<0>>, 1_024 * 1_024)
+    assert :enospc = fill_until_enospc(file, chunk)
+    assert :ok = :file.sync(file)
+    assert :ok = :file.close(file)
+    filler
   end
 
   defp fill_until_enospc(file, chunk) do
