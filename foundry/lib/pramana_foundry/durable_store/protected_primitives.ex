@@ -7,6 +7,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   @operation_types ~w(set_policy set_control append_inbox seal_inbox grant_ledger delegate_allocation return_allocation reserve release_reservation close_generation reset_generation create_effect claim_effect reclaim_claim issue_claim cancel_effect settle_claim)
 
   @doc false
+  def supported_operation_type?(type), do: type in @operation_types
+
+  @doc false
   def execute(conn, actor_id, request, writer_epoch, fault \\ nil) do
     with :ok <- identity(actor_id),
          :ok <- identity(writer_epoch),
@@ -41,6 +44,159 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         {:error, _reason} = error ->
           error
       end
+    end
+  end
+
+  @doc false
+  def execute_in_transaction(conn, actor_id, request, writer_epoch) do
+    with :ok <- identity(actor_id),
+         :ok <- identity(writer_epoch),
+         {:ok, request} <- normalize_request(request),
+         {:ok, digest} <- request_digest(actor_id, request),
+         :ok <- validate_operation_envelope(request["operation"]) do
+      case existing_command(conn, request["command_id"], actor_id, digest) do
+        {:ok, result} ->
+          {:ok, result, :idempotent}
+
+        {:error, :not_found} ->
+          case apply_new(conn, actor_id, request, writer_epoch) do
+            {:ok, facts} ->
+              with {:ok, result} <-
+                     persist_result(
+                       conn,
+                       actor_id,
+                       request,
+                       digest,
+                       "accepted",
+                       nil,
+                       facts
+                     ) do
+                {:ok, result, :accepted}
+              end
+
+            {:quarantine, reason, facts} ->
+              with {:ok, result} <-
+                     persist_result(
+                       conn,
+                       actor_id,
+                       request,
+                       digest,
+                       "rejected",
+                       Atom.to_string(reason),
+                       facts
+                     ) do
+                {:ok, result, :quarantined}
+              end
+
+            {:reject, reason, facts} ->
+              with {:ok, result} <-
+                     persist_result(
+                       conn,
+                       actor_id,
+                       request,
+                       digest,
+                       "rejected",
+                       Atom.to_string(reason),
+                       facts
+                     ) do
+                {:ok, result, :rejected}
+              end
+
+            {:error, _reason} = error ->
+              error
+          end
+
+        {:error, _reason} = error ->
+          error
+      end
+    else
+      _ -> {:error, :invalid_protected_request}
+    end
+  end
+
+  @doc false
+  def persist_nonstart_settlement(conn, operation, facts) do
+    effect = facts["effect"]
+    claim = facts["claim"]
+    receipt = facts["receipt"]
+    payload = operation["payload"]
+
+    with "non_started" <- operation["outcome"],
+         true <- is_map(effect) and is_map(claim) and is_map(receipt),
+         true <- receipt["outcome"] == "non_started",
+         true <- receipt["claim_id"] == claim["claim_id"],
+         failure_class when is_binary(failure_class) and failure_class != "" <-
+           payload["failure_class"],
+         role when role in ~w(developer reviewer pm check freeze build integration activation) <-
+           effect["role"],
+         work_owner when is_binary(work_owner) and work_owner != "" <- effect["assignment_id"],
+         generation when is_integer(generation) and generation >= 0 <- effect["phase_generation"],
+         {:ok, [[prior_count]]} <-
+           Database.query(
+             conn,
+             "SELECT count(*) FROM root_infrastructure_settlements WHERE role = ? AND work_owner = ? AND infrastructure_generation = ?",
+             [role, work_owner, generation]
+           ),
+         ordinal <- prior_count + 1,
+         :ok <- validate_nonstart_predecessor(conn, effect, role, work_owner, generation, ordinal),
+         state <- %{
+           "schema_version" => 1,
+           "effect_id" => effect["effect_id"],
+           "claim_id" => claim["claim_id"],
+           "receipt_id" => receipt["receipt_id"],
+           "role" => role,
+           "work_owner" => work_owner,
+           "infrastructure_generation" => generation,
+           "predecessor_effect_id" => effect["predecessor_effect_id"],
+           "failure_class" => failure_class,
+           "ordinal" => ordinal
+         },
+         {:ok, bytes} <- encode(state),
+         :ok <-
+           Database.execute(
+             conn,
+             "INSERT INTO root_infrastructure_settlements(effect_id, claim_id, receipt_id, role, work_owner, infrastructure_generation, predecessor_effect_id, failure_class, ordinal, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+             [
+               state["effect_id"],
+               state["claim_id"],
+               state["receipt_id"],
+               role,
+               work_owner,
+               generation,
+               state["predecessor_effect_id"],
+               failure_class,
+               ordinal,
+               {:blob, bytes}
+             ]
+           ) do
+      {:ok, state}
+    else
+      _ -> {:error, :invalid_nonstart_infrastructure_settlement}
+    end
+  end
+
+  defp validate_nonstart_predecessor(
+         _conn,
+         %{"predecessor_effect_id" => nil},
+         _role,
+         _owner,
+         _generation,
+         1
+       ),
+       do: :ok
+
+  defp validate_nonstart_predecessor(conn, effect, role, owner, generation, ordinal) do
+    with predecessor when is_binary(predecessor) <- effect["predecessor_effect_id"],
+         {:ok, [[^role, ^owner, ^generation, prior_ordinal]]} <-
+           Database.query(
+             conn,
+             "SELECT role, work_owner, infrastructure_generation, ordinal FROM root_infrastructure_settlements WHERE effect_id = ?",
+             [predecessor]
+           ),
+         true <- prior_ordinal + 1 == ordinal do
+      :ok
+    else
+      _ -> {:error, :invalid_nonstart_predecessor}
     end
   end
 
@@ -110,9 +266,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        ) do
     with {:ok, result} <-
            persist_result(conn, actor_id, request, digest, disposition, reason, facts),
+         :ok <- persist_v1_operation(conn, request["command_id"]),
          :ok <- inject(fault, :before_commit) do
       {:ok, result}
     end
+  end
+
+  defp persist_v1_operation(conn, command_id) do
+    Database.execute(
+      conn,
+      "INSERT INTO durable_operations(owner_kind, owner_id, ordinal, operation_kind, operation_type, request, result) " <>
+        "SELECT 'protected_v1', command_id, 0, 'protected', operation, canonical_request, result FROM root_commands WHERE command_id = ?",
+      [command_id]
+    )
   end
 
   defp validate_operation_envelope(%{"type" => type} = operation)
@@ -250,18 +416,48 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          1 <- query["schema_version"],
          type when is_binary(type) <- query["type"] do
       case type do
-        "inbox" -> inbox_fact(conn, query["execution_id"])
-        "policy" -> simple_fact(conn, "root_policies", "policy_id", query["policy_id"])
-        "control" -> simple_fact(conn, "root_controls", "control_id", query["control_id"])
-        "ledger" -> ledger_fact(conn, query["ledger_id"], query["generation"])
-        "effect" -> effect_fact(conn, query["effect_id"])
-        "claim" -> claim_fact(conn, query["claim_id"])
-        "reservation" -> reservation_fact(conn, query["reservation_id"])
-        "receipt" -> receipt_fact(conn, query["receipt_id"])
-        "lease" -> lease_fact(conn, query["lease_id"])
-        "command" -> command_fact(conn, query["command_id"])
-        "pointer" -> pointer_fact(conn, query["pointer_kind"])
-        _ -> {:error, :unsupported_protected_query}
+        "inbox" ->
+          inbox_fact(conn, query["execution_id"])
+
+        "policy" ->
+          simple_fact(conn, "root_policies", "policy_id", query["policy_id"])
+
+        "control" ->
+          simple_fact(conn, "root_controls", "control_id", query["control_id"])
+
+        "ledger" ->
+          ledger_fact(conn, query["ledger_id"], query["generation"])
+
+        "effect" ->
+          effect_fact(conn, query["effect_id"])
+
+        "claim" ->
+          claim_fact(conn, query["claim_id"])
+
+        "reservation" ->
+          reservation_fact(conn, query["reservation_id"])
+
+        "receipt" ->
+          receipt_fact(conn, query["receipt_id"])
+
+        "lease" ->
+          lease_fact(conn, query["lease_id"])
+
+        "command" ->
+          command_fact(conn, query["command_id"])
+
+        "infrastructure_settlement" ->
+          protected_row(
+            conn,
+            "SELECT state FROM root_infrastructure_settlements WHERE effect_id = ?",
+            [query["effect_id"]]
+          )
+
+        "pointer" ->
+          pointer_fact(conn, query["pointer_kind"])
+
+        _ ->
+          {:error, :unsupported_protected_query}
       end
     else
       _ -> {:error, :invalid_protected_query}
@@ -324,6 +520,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- validate_blob_rows(conn, "root_receipts", "state"),
          :ok <- validate_blob_rows(conn, "root_leases", "state"),
          :ok <- validate_blob_rows(conn, "root_pointers", "state"),
+         :ok <- validate_blob_rows(conn, "root_infrastructure_settlements", "state"),
+         :ok <- validate_atomic_bundle_rows(conn),
          :ok <- validate_root_commands(conn),
          :ok <- validate_simple_history(conn),
          :ok <- validate_root_pointers(conn),
@@ -3730,6 +3928,181 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         end
       end)
     end
+  end
+
+  defp validate_atomic_bundle_rows(conn) do
+    with {:ok, bundles} <-
+           Database.query(
+             conn,
+             "SELECT b.command_id, b.actor_id, b.request_digest, b.schema_version, b.disposition, b.reason_code, b.canonical_envelope, b.result, c.actor_id, c.request_digest, i.canonical_request, r.result " <>
+               "FROM atomic_bundles b JOIN commands c ON c.command_id = b.command_id JOIN inputs i ON i.input_id = c.input_id JOIN command_results r ON r.command_id = c.command_id ORDER BY b.command_id"
+           ),
+         :ok <- validate_bundles(conn, bundles),
+         {:ok, operations} <-
+           Database.query(
+             conn,
+             "SELECT owner_kind, owner_id, ordinal, operation_kind, operation_type, request, result FROM durable_operations ORDER BY owner_kind, owner_id, ordinal"
+           ),
+         :ok <- validate_durable_operations(conn, operations),
+         {:ok, settlements} <-
+           Database.query(
+             conn,
+             "SELECT effect_id, claim_id, receipt_id, role, work_owner, infrastructure_generation, predecessor_effect_id, failure_class, ordinal, state FROM root_infrastructure_settlements ORDER BY effect_id"
+           ) do
+      validate_infrastructure_settlements(settlements)
+    end
+  end
+
+  defp validate_bundles(conn, rows) do
+    Enum.reduce_while(rows, :ok, fn
+      [
+        id,
+        actor,
+        digest,
+        2,
+        disposition,
+        reason,
+        envelope_bytes,
+        result_bytes,
+        domain_actor,
+        domain_digest,
+        domain_request_bytes,
+        domain_result_bytes
+      ],
+      :ok ->
+        with {:ok, envelope} <- decode(envelope_bytes),
+             2 <- envelope["schema_version"],
+             ^id <- get_in(envelope, ["command", "command_id"]),
+             ^actor <- envelope["actor_id"],
+             ^actor <- domain_actor,
+             {:ok, ^digest} <-
+               Encoding.semantic_digest("pramana-foundry-atomic-bundle-v2", envelope),
+             {:ok, domain_request} <- decode(domain_request_bytes),
+             ^actor <- domain_request["actor_id"],
+             true <- domain_request["command"] == envelope["command"],
+             {:ok, expected_domain_bytes} <- Encoding.canonical(domain_request),
+             true <- Encoding.digest(expected_domain_bytes) == domain_digest,
+             {:ok, result} <- decode(result_bytes),
+             {:ok, domain_result} <- decode(domain_result_bytes),
+             ^id <- result["command_id"],
+             ^disposition <- result["disposition"],
+             ^reason <- result["reason_code"],
+             true <- result["domain_result"] == domain_result,
+             :ok <- validate_bundle_operations(conn, id, envelope, result) do
+          {:cont, :ok}
+        else
+          _ -> {:halt, {:error, {:protected_corrupt, "atomic_bundles", id}}}
+        end
+
+      row, :ok ->
+        {:halt, {:error, {:protected_corrupt, "atomic_bundles", inspect(row)}}}
+    end)
+  end
+
+  defp validate_bundle_operations(conn, command_id, envelope, result) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT ordinal, operation_kind, operation_type, request, result FROM durable_operations WHERE owner_kind = 'bundle_v2' AND owner_id = ? ORDER BY ordinal",
+             [command_id]
+           ),
+         expected_count <- length(envelope["operations"]) + 1,
+         true <- length(rows) == expected_count,
+         true <- Enum.map(rows, &hd/1) == Enum.to_list(0..(expected_count - 1)//1),
+         {protected_rows, [domain_row]} <- Enum.split(rows, expected_count - 1),
+         true <-
+           Enum.zip([envelope["operations"], result["operations"], protected_rows])
+           |> Enum.all?(fn {operation, operation_result, row} ->
+             [ordinal, "protected", type, request_bytes, result_bytes] = row
+
+             with true <- ordinal == operation["ordinal"],
+                  true <- type == operation["operation_type"],
+                  true <- operation_result["ordinal"] == ordinal,
+                  true <- operation_result["operation_type"] == type,
+                  {:ok, request} <- decode(request_bytes),
+                  {:ok, stored_result} <- decode(result_bytes) do
+               request["expected_revisions"] == operation["expected_revisions"] and
+                 request["operation"] == operation["operation"] and
+                 stored_result == operation_result["result"]
+             else
+               _ -> false
+             end
+           end),
+         [domain_ordinal, "domain", domain_type, domain_request_bytes, domain_result_bytes] <-
+           domain_row,
+         true <- domain_ordinal == expected_count - 1,
+         true <- domain_type == envelope["command"]["type"],
+         {:ok, domain_request} <- decode(domain_request_bytes),
+         {:ok, domain_result} <- decode(domain_result_bytes),
+         true <-
+           domain_request == %{
+             "command" => envelope["command"],
+             "inputs" => envelope["inputs"],
+             "proposal" => envelope["proposal"]
+           },
+         true <- domain_result == result["domain_result"] do
+      :ok
+    else
+      _ -> {:error, :invalid_bundle_operation_binding}
+    end
+  end
+
+  defp validate_durable_operations(conn, rows) do
+    rows
+    |> Enum.group_by(fn [owner_kind, owner_id | _] -> {owner_kind, owner_id} end)
+    |> Enum.reduce_while(:ok, fn {{owner_kind, owner_id}, owner_rows}, :ok ->
+      ordinals = Enum.map(owner_rows, &Enum.at(&1, 2))
+
+      valid_rows? =
+        Enum.all?(owner_rows, fn
+          [^owner_kind, ^owner_id, ordinal, kind, type, request, result]
+          when is_integer(ordinal) and kind in ["domain", "protected"] and
+                 is_binary(type) ->
+            valid_durable_operation?(conn, owner_kind, owner_id, request, result)
+
+          _ ->
+            false
+        end)
+
+      if valid_rows? and ordinals == Enum.to_list(0..(length(ordinals) - 1)//1),
+        do: {:cont, :ok},
+        else:
+          {:halt, {:error, {:protected_corrupt, "durable_operations", {owner_kind, owner_id}}}}
+    end)
+  end
+
+  defp valid_durable_operation?(_conn, owner, _id, request, result)
+       when owner in ["domain_v1", "protected_v1"],
+       do: is_binary(request) and is_binary(result)
+
+  defp valid_durable_operation?(_conn, "bundle_v2", _id, request, result),
+    do: match?({:ok, _}, decode(request)) and match?({:ok, _}, decode(result))
+
+  defp valid_durable_operation?(_conn, _owner, _id, _request, _result), do: false
+
+  defp validate_infrastructure_settlements(rows) do
+    Enum.reduce_while(rows, :ok, fn row, :ok ->
+      [effect, claim, receipt, role, owner, generation, predecessor, failure, ordinal, bytes] =
+        row
+
+      expected = %{
+        "schema_version" => 1,
+        "effect_id" => effect,
+        "claim_id" => claim,
+        "receipt_id" => receipt,
+        "role" => role,
+        "work_owner" => owner,
+        "infrastructure_generation" => generation,
+        "predecessor_effect_id" => predecessor,
+        "failure_class" => failure,
+        "ordinal" => ordinal
+      }
+
+      case encode(expected) do
+        {:ok, ^bytes} -> {:cont, :ok}
+        _ -> {:halt, {:error, {:protected_corrupt, "root_infrastructure_settlements", effect}}}
+      end
+    end)
   end
 
   defp validate_inboxes(conn) do
