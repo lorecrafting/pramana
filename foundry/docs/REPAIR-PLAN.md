@@ -1090,6 +1090,26 @@ telemetry schemas to it; steps 6 and 7 have no owner recorded and must be assign
 either is started. Export is **step 5 of 7**, gated on steps 1 through 4, and steps 6 and
 7 follow it.
 
+**The four JSONL surfaces need named owners.** The observability route documents
+fragmentation across `coordinator.jsonl`, `telemetry.jsonl`, `events.jsonl` and
+`findings.jsonl`. Only `events.jsonl` appears anywhere in this plan, once, in FR-08B's
+exclusions. Assigning the rest here so none is retired by assumption: `events.jsonl` is
+FR-08B's, which may keep it only as checked import/export or diagnostic compatibility once
+it stops deciding live workflow truth; `coordinator.jsonl` is FR-08B's through its
+command-ingress migration; `telemetry.jsonl` is FR-18B's through producer repair; and
+`findings.jsonl` is FR-20's, since it carries improvement findings. FR-23 sweeps whatever
+those leave behind and must not pre-empt them.
+
+**The correlation model this route proposes is longer than the one this ticket requires,
+and the difference is load-bearing.** The refinement above asks to correlate ticket,
+attempt, execution and effect identities — four links. The route proposes objective →
+ticket → attempt → execution → request/tool/effect → candidate → review → accepted
+outcome. The tail is what makes the economics requirement checkable: demonstrating that a
+cheaper token path cannot hide worse review, acceptance or operator-effort outcomes
+requires correlating cost to the *accepted outcome*, which a chain ending at the effect
+cannot express. Treat the longer chain as the requirement; the four-identity phrasing is a
+floor, not a ceiling.
+
 Two architectural commitments from that route are recorded here because the plan is the
 acceptance authority and did not previously carry them. **Erlang `:telemetry` is the
 in-process seam**, with durable local analytics, OpenTelemetry traces/metrics, and the
@@ -1099,6 +1119,22 @@ not authority**: telemetry may explain a workflow or effect outcome and may neve
 one, so no OpenTelemetry mapping, exporter or consumer is a source of workflow truth. The
 GenAI semantic-convention mapping is an adapter and export concern, never Foundry's stored
 authority schema.
+
+**Trace and metric roles are separated by cardinality.** Identities that are unique per
+unit of work — request, tool call, effect, candidate, review — belong on traces, where
+high cardinality is expected. Metrics carry bounded dimensions only: role, phase, outcome
+class, provider, model. Putting a per-request identity on a metric label makes the metric
+series unbounded, which is how a telemetry system becomes too expensive to keep and then
+gets turned off. This is a design constraint on the envelope, not an export detail, so it
+is recorded here rather than left to step 5.
+
+**Extensibility is the reason for the seam, not a side effect.** One canonical envelope
+emitted once through `:telemetry`, with durable analytics, traces/metrics and the board
+and Improver as independent consumers, means a new consumer is added without touching
+producers and a new producer is added without touching consumers. A chain in which one
+consumer's format becomes the next one's contract has the opposite property. Any change
+that makes a consumer's schema load-bearing for another consumer contradicts this and
+should be refused.
 
 **Export is routed to FR-18B but is not an FR-18B acceptance obligation.** Exporters are
 optional sinks, never a new source of truth, so FR-18B may close without export having
