@@ -1799,4 +1799,10 @@ latest prose here, remains authoritative for status and dependencies.
 - Exact clean CI at each frozen revision on pinned Elixir 1.20.3 / OTP 29.0.5, run
   serially; full model-free suite 701 passed, 13 skipped and one optional exclusion at
   seed 0. No provider, daemon, credential, activation or deployment was used.
+- Current-main documentation and the exact reviewed branch merged at
+  `3de546c9d6bdafc9c6ec1f97983b794d48da1cb2`. Runtime, test, CI-runner and lockfile paths
+  are byte-identical to reviewed candidate `1952ff4`; only documentation differs. Exact
+  clean integrated CI, run serially, passed all six stages at tree
+  `5c2c42e03c9257e78c4e99d40373ff998fdd8c2e`. Integration adds no caller: both new symbols
+  remain unreferenced by production code, so no existing behavior changes.
 
