@@ -5,11 +5,11 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
     destination = Path.expand(destination)
     traces = trace_prefix |> Path.wildcard() |> Enum.sort()
     events = trace_events(traces)
-    fixture = File.read!(fixture_log)
-    phase = File.read!(phase_log)
-    mapper = File.read!(mapper_log)
 
-    with {:ok, typed_errno} <- typed_errno(fixture),
+    with {:ok, fixture} <- read_required(fixture_log, :fixture_log),
+         {:ok, phase} <- read_required(phase_log, :phase_log),
+         {:ok, mapper} <- read_required(mapper_log, :mapper_log),
+         {:ok, typed_errno} <- typed_errno(fixture),
          {:ok, sync} <- exact_sync_failure(events, destination, typed_errno),
          {:ok, open} <- matching_open(events, destination, sync),
          {:ok, load_time} <- phase_time(phase, "load"),
@@ -53,6 +53,13 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
   end
 
   def main(_args), do: 64
+
+  defp read_required(path, label) do
+    case File.read(path) do
+      {:ok, content} -> {:ok, content}
+      {:error, reason} -> {:error, {:missing_prerequisite, label, reason}}
+    end
+  end
 
   defp trace_events(traces) do
     for trace <- traces,
