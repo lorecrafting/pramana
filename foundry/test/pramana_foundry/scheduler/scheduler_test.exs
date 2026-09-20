@@ -212,33 +212,66 @@ defmodule PramanaFoundry.SchedulerTest do
   end
 
   describe "plan_dispatch/2" do
-    test "pause or stop promptly blocks new dispatch" do
-      state_paused = %{
-        "paused" => true,
-        "queue" => ["T1"],
-        "assignments" => %{"T1" => %{"status" => "queued"}}
-      }
-
-      assert Scheduler.plan_dispatch(state_paused) == {:ok, []}
-
-      state_stopped = %{
-        "stop_requested" => true,
-        "queue" => ["T1"],
-        "assignments" => %{"T1" => %{"status" => "queued"}}
-      }
-
-      assert Scheduler.plan_dispatch(state_stopped) == {:ok, []}
+    test "pause and stop each block a dispatchable candidate" do
+      candidate = assignment("T1", "queued")
+      state = %{"queue" => ["T1"], "assignments" => %{"T1" => candidate}}
+      assert {:ok, [^candidate]} = Scheduler.plan_dispatch(state)
+      assert {:ok, []} = Scheduler.plan_dispatch(Map.put(state, "paused", true))
+      assert {:ok, []} = Scheduler.plan_dispatch(Map.put(state, "stop_requested", true))
     end
 
-    test "respects default ceiling of 2 concurrent workers" do
-      assignments = %{
-        "T1" => %{"status" => "working", "run_id" => "r1"},
-        "T2" => %{"status" => "working", "run_id" => "r2"},
-        "T3" => %{"status" => "queued", "ticket" => %{"task_id" => "T3"}}
+    test "the default ceiling, rather than a conflicting fixture, prevents a third assignment" do
+      candidate = assignment("T3", "queued")
+
+      state = %{
+        "queue" => ["T3"],
+        "assignments" => %{
+          "T1" => assignment("T1", "working"),
+          "T2" => assignment("T2", "working"),
+          "T3" => candidate
+        }
       }
 
-      state = %{"assignments" => assignments, "queue" => ["T3"]}
-      assert Scheduler.plan_dispatch(state) == {:ok, []}
+      assert {:ok, [^candidate]} = Scheduler.plan_dispatch(state, max_workers: 3)
+      assert {:ok, []} = Scheduler.plan_dispatch(state)
+    end
+  end
+
+  defp assignment(id, status) do
+    %{
+      "status" => status,
+      "run_id" => "run-#{id}",
+      "ticket" => %{
+        "task_id" => id,
+        "base_revision" => "same-base",
+        "checkout" => "/tmp/checkout-#{id}",
+        "scope" => ["workflow/lib/#{id}/**"],
+        "dependencies" => [],
+        "environment" => %{
+          "MIX_TEST_PARTITION" => id,
+          "MIX_BUILD_PATH" => "/tmp/build-#{id}",
+          "PORT" => id
+        },
+        "shared_resources" => %{
+          "corpus" => [],
+          "database" => [],
+          "gpu" => [],
+          "other" => [id],
+          "service_ports" => [id]
+        }
+      }
+    }
+  end
+
+  test "each exclusive resource class blocks otherwise-disjoint assignments" do
+    candidate = assignment("A", "queued")
+    active = assignment("B", "working")
+    assert Policy.parallel_conflict(candidate, active) == nil
+
+    for resource <- ~w(database corpus gpu other service_ports) do
+      first = put_in(candidate, ["ticket", "shared_resources", resource], ["shared"])
+      second = put_in(active, ["ticket", "shared_resources", resource], ["shared"])
+      assert Policy.parallel_conflict(first, second) != nil, "#{resource} was ignored"
     end
   end
 end

@@ -15,13 +15,37 @@ defmodule PramanaFoundry.CoordinatorTest do
   @check ["sh", "-c", "cd workflow && exec mise exec -- mix test"]
 
   setup do
+    previous = :sys.get_state(Coordinator)
+    suffix = 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+    root = Path.join(System.tmp_dir!(), "audit-coordinator-#{suffix}")
+    File.mkdir!(root)
+
+    on_exit(fn ->
+      :sys.replace_state(Coordinator, fn current ->
+        if current.tick_ref, do: Process.cancel_timer(current.tick_ref)
+        %{previous | tick_ref: nil}
+      end)
+
+      File.rm_rf!(root)
+    end)
+
     :sys.replace_state(Coordinator, fn data ->
-      %{data | checkpoint_append_fn: &Checkpoint.append/6, recovery_error: nil}
+      if data.tick_ref, do: Process.cancel_timer(data.tick_ref)
+
+      %{
+        data
+        | checkpoint_append_fn: &Checkpoint.append/6,
+          recovery_error: nil,
+          tick_ref: nil,
+          event_log_path: Path.join(root, "events.jsonl"),
+          telemetry_path: Path.join(root, "telemetry.jsonl"),
+          coordinator_log_path: Path.join(root, "coordinator.jsonl")
+      }
     end)
 
     :ok = Coordinator.reset(accepted_revision: @base_rev)
     install_launch_fixture()
-    :ok
+    %{fixture_root: root}
   end
 
   defp install_launch_fixture do
@@ -335,12 +359,10 @@ defmodule PramanaFoundry.CoordinatorTest do
     assert_sibling_cleanup_fence(:reviewer_first, "T-CLEANUP-SIBLING-REVIEW-FIRST")
   end
 
-  test "Coordinator handles cleanup admission suspension as an ordinary tick" do
-    fixture_root =
-      Path.join(
-        System.tmp_dir!(),
-        "fr04-coordinator-suspension-#{System.unique_integer([:positive, :monotonic])}"
-      )
+  test "Coordinator handles cleanup admission suspension as an ordinary tick", %{
+    fixture_root: parent
+  } do
+    fixture_root = Path.join(parent, "suspension")
 
     log_path = Path.join(fixture_root, "coordinator.jsonl")
     event_path = Path.join(fixture_root, "events.jsonl")

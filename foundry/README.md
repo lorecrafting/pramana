@@ -59,6 +59,13 @@ automatic execution only with exact backend evidence. FR-16 owns durable quota o
 and bounded switching. Do not treat a model name, available credential or this temporary
 policy as entitlement, and do not change the System capability as an operator workaround.
 
+This section describes the **current implementation**, not a permanent harness decision.
+The [Foundry strategy](docs/STRATEGY.md#pi-explicit-session-contracts-and-replaceable-execution)
+now prefers a bounded pinned-Pi-RPC replacement evaluation before deeper OMP-specific
+investment. No production harness, FR-06 authority contract or automatic-launch permission
+changes until that candidate passes FR-09/15a and any affected contract text is explicitly
+revised and re-reviewed.
+
 ## Agent command transport
 
 `bin/pramana` treats every user argument as inert data. It invokes Elixir with those values
@@ -192,4 +199,4 @@ See [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) for the full reference.
 - **SystemMetrics** captures VM stats, per-process memory/mailbox/reductions, agent child list.
 - **Health probe** at `Coordinator.health/0` returns status, queue depth, system metrics.
 - **Self-healing Improver** runs every 5 minutes, classifies 14 categories of issues, creates PM proposals for hardening tickets.
-- **Token metrics schema** ready for Herdr integration (`prompt_input_tokens`, `output_tokens`, etc.).
+- **Token metrics schema exists**, but live harness usage, full request/candidate correlation and numeric-token retention through compaction are not yet end-to-end; see [Observability](docs/OBSERVABILITY.md).

@@ -1,0 +1,109 @@
+name: Phoenix Agent Rules Watch
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/upstream-agent-rules.yml"
+      - "bin/sync_agent_conventions.exs"
+      - "docs/agents/code-conventions/UPSTREAM.exs"
+      - "pramana/mix.lock"
+  schedule:
+    - cron: "23 17 1 * *"
+  workflow_dispatch:
+
+concurrency:
+  group: phoenix-agent-rules-watch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      changed: ${{ steps.watch.outputs.changed }}
+      report: ${{ steps.watch.outputs.report }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+
+      - name: Verify locked Phoenix provenance
+        if: github.event_name == 'pull_request'
+        run: elixir bin/sync_agent_conventions.exs --review
+
+      - name: Compare Phoenix main agent guidance
+        id: watch
+        env:
+          # PR code gets no API credential. Scheduled/manual runs use their read-only
+          # job token so the monthly watch does not depend on anonymous rate limits.
+          PRAMANA_GITHUB_TOKEN: ${{ github.event_name != 'pull_request' && github.token || '' }}
+        shell: bash
+        run: |
+          set +e
+          report="$(elixir bin/sync_agent_conventions.exs --watch-main 2>&1)"
+          status=$?
+          set -e
+
+          printf '%s\n' "$report"
+          delimiter="PRAMANA_OUTPUT_${RANDOM}_${RANDOM}_${GITHUB_RUN_ATTEMPT}"
+          {
+            echo "report<<$delimiter"
+            printf '%s\n' "$report"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+          case "$status" in
+            0) echo "changed=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "changed=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$status" ;;
+          esac
+
+  maintain-issue:
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main' &&
+      needs.compare.outputs.changed == 'true'
+    needs: compare
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      WATCH_REPORT: ${{ needs.compare.outputs.report }}
+    steps:
+      - name: Open or refresh upstream-review issue
+        shell: bash
+        run: |
+          title="Phoenix agent usage rules changed upstream"
+          number="$(
+            gh issue list --state open --search "$title in:title" --limit 100 --json number,title \
+              --jq '.[] | select(.title == "Phoenix agent usage rules changed upstream") | .number' \
+              | head -n 1
+          )"
+
+          {
+            echo "Phoenix's \`main\` agent guidance differs from the reviewed early-warning baseline."
+            echo
+            echo "This is **not** an instruction to copy \`main\` into Pramāṇa. Compatibility remains"
+            echo "the Phoenix version locked in \`pramana/mix.lock\`. Review added/removed rule files"
+            echo "and changed blobs, decide whether any local convention should change, and advance"
+            echo "\`docs/agents/code-conventions/UPSTREAM.exs\` only after that review."
+            echo
+            echo '```text'
+            printf '%s\n' "$WATCH_REPORT"
+            echo '```'
+          } > /tmp/phoenix-agent-rules.md
+
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file /tmp/phoenix-agent-rules.md
+          else
+            gh issue create --title "$title" --body-file /tmp/phoenix-agent-rules.md
+          fi

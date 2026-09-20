@@ -13,12 +13,223 @@ the intent.
 > Three things trigger an edit: **finishing** an item, **discovering** work (add it to the
 > backlog with its evidence), and **invalidating** an assumption (strike it and say why).
 
-Last reviewed: **2026-09-04** — "Start here", the isolation section, items 8 through 11 and
-§ E1. The phase sections further down were not re-read, and the date claims only what was.
+Last reviewed: **2026-09-17** — post-#23 MCP report execution, public serving isolation, completed release-startup admission, replay-argument validation,
+reader-lifecycle work and the retained post-#17 source/roadmap reconciliation below, covering
+"Start here", the numbered/audit queues, E1, the phase roadmap and current strategy gates.
+Older experiment narratives remain dated evidence, not a fresh execution queue. No live
+corpus counts or human fidelity judgments were regenerated.
 **B is done through the sixteenth CBETA collection: 16 of 26 held, every text chunked and
 embedded, the reader at six screens.**
 
 ---
+
+## MCP report execution — post-#23, 2026-09-17
+
+**Base:** `42a61e9a8224df5c5a3ae680d82a410f7c220821`. Public serving isolation is
+merged. Intake found no open issues/PRs or newer overlapping published branch.
+Foundry ownership and human pilot/fidelity gates remain unchanged.
+
+The MCP report tool previously called verification and repair directly. Its HTTP
+response wait did not impose a report-worker deadline, and repair failure could lose
+completed verification. The shared reader check coordinator now also serves the MCP
+request task, without reader progress messages. Verification and repair share a finite
+25-second budget; no-result execution failures are MCP errors, while a completed
+verification survives a later repair failure with an explicit execution outcome and
+null repair. The reader's policy and domain verdicts are unchanged.
+
+[MCP execution](../pramana/docs/MCP.md#report-execution-budget) owns configuration,
+wire compatibility, queue/cleanup limits and rollback. Real session/transport tests
+cover completion, both failure stages, remaining budget, cancellation, session deletion
+and subsequent requests. Exact formatter/test/runtime and review evidence belongs to
+the PR; this section does not claim unrun checks passed.
+
+Self-review found that reusing the coordinator in one caller could leave a dead worker's
+EXIT queued and falsely cancel a later check. Cleanup now drains only that worker's
+lifecycle messages after observed termination; the direct reuse regression also preserves
+unrelated mail and process flags. Integration fixtures explicitly own the real MCP
+transport and use its configured registry adapter. Earlier setup/assertion failures were
+not passing evidence; final validation remains recorded on the PR.
+
+This is not global admission control, queue expiry, a transport-wide timeout, retrieval
+change or historical reconstruction. Broader multi-session admission remains separate.
+No Foundry code, provider use, corpus acquisition, schema or deployment changes.
+
+## Public serving isolation — post-#22, 2026-09-17
+
+**Base:** `91d391d2dee6f1053d333f7647eb69f84f8af5a7`. PR #22's startup barrier and
+runtime-image acceptance are implemented. Intake found no open issues/PRs; retained
+published branches show no overlapping serving-isolation work. This does not inspect
+another session's unpublished worktree or change Foundry ownership.
+
+**Selected implementation:** `PRAMANA_PUBLIC=1` omits the configured Oban instance
+entirely, including its bake queues, pruning and database leadership. Research/admin
+application startup retains the existing configuration. Public admission, serving and
+read-only MCP behavior are unchanged. There is no second worker framework or new mode.
+
+The runtime runner prepares databases with its administrative account, then serves with
+a distinct non-owner, non-superuser login with SELECT-only corpus grants and no access
+to Oban tables or sequences. Its in-process privilege probe checks the actual serving
+identity and effective authority, then requires real DML/DDL/sequence/role-switch denials
+in read-write transactions. Reader, lexical/survey and report-verification calls must
+still succeed. Missing audit-read permission must refuse startup. A queued synthetic
+bake and old completed job stay unchanged on public nodes even with privileged fixture
+credentials; the same mounted source/job must execute through the real research queue
+and its old history must be pruned. These are bounded fixture acceptance cases, not a
+live deployment or a general SQL-security certification. Exact execution evidence and
+review corrections belong to the PR, not this source description.
+
+[Serving credentials and ingestion](../pramana/docs/DEPLOY.md#public-serving-and-ingestion)
+owns provisioning, effective-privilege checks, rollout and rollback. No automatic role
+creation/grant repair, corpus change, migration, inference, identity expansion, Foundry
+operation or hosting-capacity approval. Operator/human gates below remain unchanged.
+
+Self-review corrected the synthetic completed-job age to the pinned pruner’s
+`scheduled_at` rule, removed an unnecessary pooled session setting from the privilege
+probe, and strengthened peer/registry and configuration-free startup checks. The real
+queue/pruner positive control remains mandatory; no assertion was relaxed.
+Actual runtime checks additionally exposed SQL predicate reordering in the privilege
+probe and a teardown probe calling an already-unwound Oban registry. Type-sensitive
+inquiries now use CASE, and the refusal probe accepts an absent registry while still
+rejecting a surviving instance or application child. The restricted-account read/write
+checks passed before that later teardown error; only a complete final runtime run is
+acceptance evidence.
+
+## Release startup admission — post-#21, 2026-09-17
+
+**Base:** `17ca708ce07b56298c8986e1bac03ec90c98a129`. PR #21 is merged and its
+post-merge CI/documentation/container checks passed. Intake found no open issues/PRs
+or new overlapping published branch. This is not visibility into unpublished worktrees.
+
+**Completed by PR #22:** the packaged `bin/server` now explicitly enables Phoenix
+serving through `PHX_SERVER=true`; plain release start/eval does not implicitly enable
+HTTP. Public-data admission returns a synchronous startup error on forbidden content
+or unavailable audit, after Repo but before Oban/model construction and the dependent
+web application. Model construction is deferred to its supervised start, rather than
+performed while assembling the child list. The existing publishing policy is unchanged.
+
+The container lane exercises the actual runtime image with synthetic source and
+translation rows in owned disposable databases: serving, static assets, MCP discovery
+and passage retrieval, non-serving administration, forbidden-data refusal, audit/schema
+failure, and refusal before model construction. It does not use a research corpus or
+operator database, start inference, push an image or deploy a service. See the
+[startup runbook](../pramana/docs/DEPLOY.md#release-startup-and-refusal) for activation,
+explicit migration, refusal and rollback semantics. Exact checks/review evidence belong
+to this change's PR; a source description is not a claim they already passed.
+
+Self-review tightened image identity to one resolved content ID and added a positive
+model-free native-serving control beside the refusal-order probe.
+
+No migration, historical-data change, identity expansion, new publishing policy or
+Foundry operation. Broader hosting admission and human fidelity/pilot gates remain
+separate. Build success alone was insufficient evidence of runtime startup.
+
+## Replay argument validation — post-#19, 2026-09-16
+
+**Base:** `abb4ae1195e49c037eef7323f112e6c1d5b55697`. PR #19 is merged; the reader's
+owned asynchronous lifecycle is complete. GitHub had no open issues/PRs at intake;
+retained branch heads contain no new overlapping published implementation. This does not
+establish the state of unpublished worktrees or release Foundry's recorded ownership.
+
+**Completed by PR #21:** the real replay executor used to drop unknown argument
+names and call `execute/2` without the component's normal validation. A misspelled scope
+could therefore run an unfiltered query and verify its count. The executor now rejects
+unknown fields and ambiguous atom/string aliases, and validates required values/types
+against the selected component's existing schema before invocation. There is no second
+hand-maintained parameter registry, atom allocation from input, or changed retrieval
+algorithm. A refusal is incomplete evidence, not a pass or a refutation; a genuine
+failure elsewhere still takes precedence. MCP and `/check` share this boundary.
+
+The regression uses distinct Indic/Chinese fixtures whose scoped and unscoped counts
+differ, plus malformed types, allowlist-wide no-query refusals, atom safety, and legacy
+valid/null/boolean inputs. Self-review also corrected public survey examples to the
+actual `total_segments` / `distinct_works` fields, with real reader and valid collection/
+cap receipt checks; domain and lifecycle semantics are unchanged.
+[MCP](../pramana/docs/MCP.md#replay-argument-contract) owns error
+reasons, compatibility, operator correction and rollback semantics. Its old coarse-stamp
+description was also stale after #17 and now reflects the existing v2 implementation.
+
+**Alternatives deferred at that time:** global admission remains a separate hosting
+hardening task; the later MCP execution section above closes the per-report budget. Translation-reading defaults still need D4. Correcting a demonstrated
+wrong verification takes precedence over either. No Foundry, identity, migration,
+provider, deployment, or public-hosting change is included. The human and Foundry gates
+below remain unchanged. Exact execution/review evidence belongs to this change's PR.
+
+## Reader check lifecycle — post-#18, 2026-09-16
+
+**Base:** `298e35049d8b417679501625b123a0bc9ef01946`. PR #18 is merged;
+report verification already consumes the recorded release identity. No open issues or
+PRs and no new overlapping published branch were present at this task's intake.
+
+**Completed by PR #19:** `/check` owns one asynchronous check per page.
+Verification and repair share a finite monotonic execution budget (60 seconds by default;
+trusted server configuration may shorten it). Cancel, deadline expiry and page termination
+stop the worker, and the page does not accept another check until worker termination is
+observed. A new submission clears the previous verdict and repair. Request identities
+reject stale results; execution failures are not evidence verdicts. Completed verification
+survives a subsequent repair failure, timeout or cancellation. The [reader runbook](../pramana/docs/READER.md#check-execution-and-cancellation)
+owns the visible outcomes, cleanup limits and rollout/rollback behavior.
+
+The old `CheckLive` claim that the endpoint has no frame cap was stale: the existing
+WebSocket cap is 512,000 bytes. It is unchanged, as are the 200,000-byte decoded-report
+limit, 25-replay cap and explicit read-only replay allowlist. This does not provide global
+admission control, stop all already-dispatched database/serving work, or harden every
+transport. Domain verification remains synchronous; the later MCP execution section above supersedes the MCP lifecycle limitation. No Foundry,
+identity-scheme, migration, dependency, persistent-job or deployment change is included.
+The human and Foundry gates recorded below are not reopened or claimed complete.
+
+## Current engineering disposition — post-#17, 2026-09-16
+
+**Inspection baseline:** `e5d0bfc2b61018d5b2f202baa4f9841ac7531882` on `main`.
+GitHub had no open issues or PRs at intake. Retained remote branches were compared with
+main; the unmerged differences are earlier documentation/layout/validation work, not an
+active implementation of the report-release fix below. This is repository evidence, not
+visibility into another agent's unpublished working tree or running session.
+
+| Earlier assumption | Source-backed disposition |
+|---|---|
+| Evidence completeness/literal foreign tokens still need repair | PR #15 is merged; `Report`, `ForeignEvidence` and the adversarial evidence tests own the implemented classification. Do not redo it. |
+| Advisory checking only uses `deps.audit` | PR #16 is merged; `hex.audit` is also in CI and `pramana.gate`, with the Bandit/Mint fixes. |
+| Start item 2 / queue item 10: source/retrieval split or content identity remains to build | PR #17 closes v2 stored-content identity, including vector bytes. `Release`, drift, embedding writers and lifecycle tests implement it; old unprefixed rows remain history. |
+| The eval gate cannot explicitly accept its improved baseline | Queue item 9 already closed this; `pramana.evals --gate --accept` and per-case movements exist. An ordinary passing gate must not auto-accept. |
+| Rerank isolation / within-work diagnostics remain proposals | `Retrieval.Rerank` applies arm restrictions and `Recall` has within-work instrumentation. The subsequent dated reruns supersede the earlier broken-isolation warning. |
+| Phase 7 translation has not started; Chinese topical recall is still the old zero | Batch generation/import, translation vectors and the blinded bake-off exist. The later recorded experiments supersede those old statements, not a claim of full-corpus coverage or human fidelity. |
+| Translator comparison needs its first data; reader has five screens | Glossary comparison and `/check` already exist. The phase record's older descriptions are not new implementation tasks. |
+| Old product notebook's feature inventories are an admitted backlog | [The consolidated strategy](PRODUCT_STRATEGY.md) supersedes that notebook. Its pilot/rights/retention decisions remain proposals requiring operator action. |
+
+**Completed by PR #18: consume release identity in report verification.** At this
+baseline `MCP.Reply` emitted `release_id`, but `Report.decode/2` discarded it and replay
+verification compared only `bake_id`. A changed translation/vector release under one source
+bake could therefore falsely refute an earlier retrieval claim. This change retains and
+validates the recorded release, refuses mismatched/unavailable selection before execution,
+and checks returned identity receipts before comparing release-bound assertions. Both MCP
+and `/check` expose the distinction. Historical bake-only reports remain compatible with
+an explicit identity-limit note. This consumes the existing stamp; it does not extend its
+identity scheme, stamp automatically, reconstruct history or promise immutable replay.
+
+**Alternatives considered for PR #18:** bounded `/check` execution/transport was deferred
+while the demonstrated wrong verdict was repaired. The reader-only lifecycle follow-up is
+now recorded above; it is not unrestricted public-exposure hardening. Reader translation-
+eligibility controls still require the strategy's D4 generated-reading policy before
+changing defaults. Neither alternative was included in PR #18.
+
+**Human/operator work remains:** the blinded T0026 fidelity ranking; SAT outreach and
+source acquisition authorization; unresolved Tengyur title adjudication; and strategy
+D1–D7 pilot/scope/rights/budget/retention decisions. The old 705-untitled figure and the
+later STATUS snapshot's 711 are not interchangeable live measurements. Use the actual
+catalogue/database when taking up that work; code inspection cannot supply its verdict.
+
+**Foundry boundary:** current main still has legacy log storage, not an accepted FR-07
+SQLite authority implementation. The latest retained log names `/root/fr07_impl` as sole
+v6 owner, records unresolved support probes, and contains no frozen/accepted v6 handoff.
+No newer published branch or acceptance artifact was found. Do not infer that the owner is
+currently running, or take over its unpublished work. FR-01–05 containment, FR-06's design
+gate and FR-21's integration attestation are complete; FR-21 is not deployed. FR-07 is
+unaccepted; FR-08 has investigation only; FR-08–20 (including FR-15a) and FR-22 remain
+blocked by the recorded dependency graph. No Foundry code, ownership, launch authority or
+repair-status evidence changes in this PR.
+
+The sections below retain original dates and counterevidence. A still-open historical
+bullet must be reconciled with this disposition and current code before dispatch.
 
 ## Foundry audit follow-up — 2026-09-12
 
@@ -57,23 +268,24 @@ unknown possible start remain distinct. A fresh Astra-high
 [focused independent review](../foundry/docs/fr-06/r4a-focused-review.md) verified the
 exact v3 manifest and returned **PASS**. FR-06's design gate is complete; no
 implementation finding is closed. FR-03 and FR-06 now provide the recorded dependency
-evidence required to begin FR-07's durable-store implementation. FR-07 is active on a
-fourth candidate after three independent reviews exposed recurring record-schema and
-path-identity defects. V4 was withdrawn before verdict when self-audit found its executed
-SQLite WAL `xSync` fixture did not yet use the full protected bundle. V5 independently passed
-that sync-fault obligation but failed six authority-validation/fencing checks. A fresh focused
-diagnosis found no contract ambiguity and specified one exhaustive retained-authority reader,
-fence, path namespace and shared narrow projection reducer. The lost mutable v6 worktree was
-recovered from its exact rollout journal onto current main and frozen as candidate
-`103ee1de234af8929d504e78c51297b6d9907d71`; warnings-as-errors compilation and the
-68-test durable-store suite pass. Fresh Astra-high review reproduced five blockers and one
-bounded-query shortfall. V7 corrected B3–B6; v8 closed the two target retained-reader
-defects, but its renewed review found one adjacent carrier-binding exception. A bounded v9
-correction is in progress. FR-07 remains incomplete.
+evidence required to begin FR-07's durable-store implementation. FR-07's recovered v6 and
+bounded v7–v9 correction chain are retained as review history. The exact v9 candidate
+`8d7223b79cb237d3406f156c7d1a06a8bcb48d81` received an independent Astra-high
+[PASS](../foundry/docs/fr-07/review-v9.md): all 56 manifest hashes matched, 92 focused tests
+and the carrier/closure/full-row recovery probes passed. The reviewed source and evidence
+were integrated at `c4816b2e1ef5ae41943c98591246851b2672561f`, then merged with current
+GitHub `origin/main` `4c91bf7ef917e67c73574eb0246d8d57cc28806d`. No reviewed durable-store
+source, test or dependency file changed upstream. On the combined tree, pinned compilation
+passed with warnings as errors, the focused suite passed 92/92, and the full Foundry suite
+passed 546/546. FR-07 is complete but not deployed. The new FR-07→FR-08 handoff gate
+correctly remains blocked pending its thin accepted-revision adapter; that is required
+before FR-08 implementation, not evidence against FR-07 acceptance.
 FR-21's focused v3 CI/provenance correction
 passed renewed
 independent review, is integrated, and passed independent post-integration 432-test
-attestation. FR-21 is complete but not deployed; FR-07 remains incomplete.
+attestation. FR-21 is complete but not deployed. Per the 2026-09-19 coordination decision,
+implementation pauses before FR-08 for a fresh Astra-xhigh whole-Foundry alignment audit;
+any backlog revision must preserve completed evidence and every F01–F24 obligation.
 
 The original contract/storage hashes matched; reversing the documented review-status
 edits reproduced both original plan hashes. The independent review and storage evidence
@@ -159,11 +371,14 @@ with HUMAN English too.** Roughly 20 of 189 are actually addressable.
    design deliberately refuses reader ranking, since a reader without Chinese can only rank
    fluency and fluent-and-wrong is the failure it exists to catch. A few passages repeat
    under fresh labels so the ranker's own consistency is measured.
-2. **Item 10 — `bake_id` does not identify what answered.** The overpromise is withdrawn in
-   all three places, so nothing lies to a model now; the `source_bake_id` /
-   `vector_set_id` / `release_id` split is still owed and is a **prerequisite for anything
-   public**. Not urgent while this is a local corpus. It becomes urgent the moment a public
-   demo or a shared `verify_report` replay is on the table.
+2. **Item 10 — source/retrieval split and v2 content identity are COMPLETE (PR #17).**
+   The `source_bake_id` / `translation_set_id` / `vector_set_id` / `release_id` split and
+   explicit release selection already shipped. The 2026-09-16 follow-up upgrades the two
+   derived component ids from counts/names to v2 content digests, including actual stored
+   vector bytes, while preserving old coarse releases as historical rows. This closes the
+   known same-count hole. The report verifier now consumes that identity as described in
+   the post-#17 disposition above. It still does **not** make `release_id` a frozen replay of code,
+   defaults or historical database rows; public replay claims must stay narrower than that.
 3. **705 Tengyur works with no title**, and the SAT request, which has waited since
    2026-08-15. Both need a person and neither needs code.
 
@@ -896,8 +1111,11 @@ look right. Neither has been checked against the code.
    case. Running it twice is what tells noise from signal, and `@tolerated_case_drop 1` is
    calibrated for exactly that.
 
-10. **`bake_id` does not identify what answered, and nineteen tools say it does.** ▸ **FROM
-    THE ARCHITECTURE REVIEW**, and the enlargement of audit finding 3 above.
+10. **Historical finding: `bake_id` did not identify what answered.**
+    **Current disposition:** the split and v2 content digests are implemented (PR #17);
+    this follow-up closes the report consumer's discarded `release_id`. The original
+    observations below explain the defect, not work to repeat. **FROM THE ARCHITECTURE
+    REVIEW**, and the enlargement of audit finding 3 above.
 
     `Pramana.Bake`'s own moduledoc: *"Two people with the same `bake_id` hold byte-identical
     corpora."* The current bake was built **2026-09-02 18:50**. Since then, under an

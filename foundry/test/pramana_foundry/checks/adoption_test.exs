@@ -17,7 +17,7 @@ defmodule PramanaFoundry.Checks.AdoptionTest do
     )
   end
 
-  test "adopts a surviving check exactly once when the live process still matches" do
+  test "recognizes a surviving check when its current process identity still matches" do
     {:ok, self_identity} = ProcessGroup.identity(System.pid() |> String.to_integer())
 
     assert {:adopted, ^self_identity} =

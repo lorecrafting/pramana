@@ -1,5 +1,2 @@
-[
-  plugins: [Phoenix.LiveView.HTMLFormatter],
-  inputs: ["mix.exs", "config/*.exs"],
-  subdirectories: ["apps/*"]
-]
+# Repository-only scripts and tests. Each product formats in its own project.
+[inputs: ["bin/*.exs", "test/**/*.exs"]]

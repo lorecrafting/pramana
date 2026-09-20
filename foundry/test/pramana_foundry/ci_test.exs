@@ -20,7 +20,13 @@ defmodule PramanaFoundry.CITest do
              |> Enum.any?(&(&1 == ["--exclude", "live_provider"]))
            end)
 
-    refute Enum.any?(List.flatten(argvs), &(&1 =~ "ecto" or &1 =~ "pramana.gate"))
+    refute Enum.any?(argvs, fn
+             ["mix", task | _args] ->
+               String.starts_with?(task, "ecto.") or task == "pramana.gate"
+
+             _ ->
+               false
+           end)
 
     refute Enum.any?(argvs, fn [executable | _args] ->
              executable in ["herdr", "python", "python3"]

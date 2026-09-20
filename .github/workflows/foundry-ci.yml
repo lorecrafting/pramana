@@ -7,11 +7,15 @@ on:
       - "foundry/**"
       - ".github/workflows/foundry-ci.yml"
       - "mise.toml"
+      - "pramana/mix.exs"
+      - "test/layout_test.exs"
   pull_request:
     paths:
       - "foundry/**"
       - ".github/workflows/foundry-ci.yml"
       - "mise.toml"
+      - "pramana/mix.exs"
+      - "test/layout_test.exs"
 
 permissions:
   contents: read

@@ -73,3 +73,45 @@ redispatch. R5 tests must cover conservation, multi-ticket allocation, recursive
 delegation, duplicate/conflicting receipts, bounded infrastructure retries, resets and
 late settlement against the original generation. Replay must never invoke Git, backend,
 clock, random generation, configuration or provider effects.
+
+
+## Executable handoff gate — 2026-09-17
+
+`PramanaFoundry.Repair.FR08HandoffGate` now encodes the required FR-07 handoff
+capabilities as a fixed ordered probe set. This is preparation only: it does not modify or
+substitute for the active FR-07 store implementation, and a missing provider reports
+**blocked**, never a false pass.
+
+A provider must implement one bounded probe per capability and return an explicit pass,
+failure or unavailable result with a short evidence reference. Every run is bound to an
+exact `subject_revision`, and that revision is passed into every provider probe and
+recorded in the report. Missing subject identity blocks the gate before provider code is
+invoked. Probes execute in isolated monitored processes with a finite timeout. Exceptions,
+throws, exits, hangs, malformed results and oversized details fail closed without
+publishing raw provider error text. `ready` is produced only when every mandatory probe
+passes for the named subject revision.
+
+The current repository intentionally supplies no FR-07 adapter, so:
+
+```bash
+cd foundry
+mix run -e 'IO.inspect(PramanaFoundry.Repair.FR08HandoffGate.run())'
+```
+
+must report `blocked`. Once FR-07 lands, add one thin reviewed adapter that executes
+these probes against the accepted public boundary, then run the gate with that module and
+the exact accepted revision, for example:
+
+```elixir
+PramanaFoundry.Repair.FR08HandoffGate.run(
+  PramanaFoundry.Repair.AcceptedFR07Adapter,
+  subject_revision: "exact-accepted-git-revision"
+)
+```
+
+A ready gate report is handoff evidence bound to that revision; it does not mark FR-07
+complete, replace its ticket acceptance, or authorize FR-08 effects.
+
+The companion Pramāṇa CheckRun regression now synchronizes on both worker and outer-runner
+termination so it proves worker death precedes reported cancellation without relying on
+ExUnit's implicit 100 ms receive timeout.

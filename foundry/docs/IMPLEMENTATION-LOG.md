@@ -1199,3 +1199,44 @@ steps.
   carrier-free event whose retained index columns claim a carrier, then raise before shared
   binding validation. V8 remains rejected and unintegrated. V9 is restricted to validating
   bound carrier rows before reduction and adding the exact no-exception regression.
+
+### FR-07 candidate v9, acceptance and current-upstream integration
+
+- V9 freeze revision `8d7223b79cb237d3406f156c7d1a06a8bcb48d81`, tree
+  `894e47756305f1b0fb615c6471f2dfdc644f16f3`, contains implementation revision
+  `af0c51b4682c50080e67194dd853fbaa1eebace7`. Candidate-v9 SHA-256 is
+  `223aac42be3a823561d37a083f9e5da614002b9bb5c96151e32ba79c9c13873b`; all 56
+  manifest entries matched. Implementer evidence passed warnings-as-errors compilation,
+  92 focused tests and 512 full-suite tests.
+- Fresh Astra-high [review](fr-07/review-v9.md), SHA-256
+  `08379ffd3315ec2724c4578a0a14e690f535238104107c778bd8d777efbf8638`, returned
+  **PASS**. It independently reproduced the exact v8 residual and expanded absent/entity/
+  namespace mismatch matrix, four prior closure probes, 92 focused tests and both normal-
+  close and hard-exit full-row VFS recovery/retry branches. No bounded FR-07 blocker remains;
+  physical power-loss/media guarantees and downstream lifecycle duties remain excluded.
+- The reviewed linear candidate was integrated locally through
+  `c4816b2e1ef5ae41943c98591246851b2672561f`, tree
+  `2a488b7fc2a54ccf0059ddeb5038c251ffb9948b`. Initial post-integration validation first
+  stopped before compilation because the main checkout lacked the newly locked Exqlite
+  source. `mise exec -- mix deps.get` fetched the unchanged lockfile versions; the rerun
+  compiled 90 project files with warnings as errors, passed 92 focused tests and passed
+  512/512 full-suite tests. The preflight miss is not counted as a test pass.
+- A fresh `git fetch origin --prune` showed GitHub `origin/main` had advanced from the
+  recorded base `75a56c1` to `4c91bf7ef917e67c73574eb0246d8d57cc28806d` by 601
+  commits. The histories were merged rather than rebased so every candidate/review identity
+  remains stable. Only `foundry/README.md` overlaps the 56-path candidate manifest; no
+  durable-store source/test, `mix.exs`, `mix.lock` or EventLog path changed upstream.
+- On the combined merge tree, pinned warnings-as-errors compilation passed for 105 project
+  files; the focused FR-07 suite passed 92/92 at seed 9241; the complete Foundry suite
+  passed 546/546 at seed 9242. All commands exited zero under fresh isolated `/private/tmp`
+  and build roots with provider/runtime variables removed. No daemon, credential, provider,
+  deployment or activation path was used.
+- Upstream adds a fail-closed executable FR-07→FR-08 handoff gate but intentionally no
+  accepted-store adapter. Its own contract says a ready report is not FR-07 acceptance.
+  The thin adapter and revision-bound ready report remain prerequisites to beginning FR-08;
+  they are deferred until after the authorized whole-Foundry alignment audit.
+- FR-07 is implemented, independently reviewed and locally integrated; **not deployed**.
+  FR-19 retains operating/physical durability and FR-22 retains full lifecycle acceptance.
+  Per operator direction, no FR-08 implementation starts before a fresh Astra-xhigh audit
+  reviews the new strategy/direction documents, actual Elixir source, repair history,
+  workflow contract and all F01–F24 obligations.

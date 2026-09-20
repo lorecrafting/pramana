@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# Keeps a detached generation tranche alive, without ever creating a second writer.
+#
+#   bin/pramana-tranche mitra trancheC.jsonl trancheC-mitra.jsonl
+#
+# WHY THIS EXISTS. On 2026-09-02 a 27,956-passage tranche was supervised by a loop that
+# restarted the run whenever the local client exited. That was safe only while the run was
+# ATTACHED, because the client exiting meant the job had ended. Switching to `--detach` so
+# the laptop could sleep made the same loop dangerous: the client can exit while the remote
+# app runs on, and a restart would then have two containers appending to one file.
+#
+# So the supervisor was removed — and three hours later the job died on a four-hour
+# function timeout with 53% written, which a supervisor would have restarted. Two
+# mitigations, each assuming the other was there.
+#
+# THE FIX IS TO ASK MODAL, NOT THE LOCAL PROCESS. A restart happens only when no
+# `pramana-translate` app is running, which is the condition that actually matters. The
+# local client's fate is irrelevant and is no longer consulted.
+#
+# Restarts are free because `translate/2` resumes: it reads what is already on the volume,
+# skips those ids, and refuses outright if their `params_sha256` does not match the current
+# configuration — so a restart can never blend two configs into one tranche.
+set -uo pipefail
+
+ARM="${1:?usage: pramana-tranche <arm> <input.jsonl> <output.jsonl>}"
+INPUT="${2:?input file on the volume}"
+OUTPUT="${3:?output file on the volume}"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MODAL="$ROOT/bin/pramana-modal"
+LOG_DIR="${PRAMANA_TRANCHE_LOGS:-/tmp/pramana-tranche}"
+POLL="${PRAMANA_TRANCHE_POLL:-120}"
+MAX_RESTARTS="${PRAMANA_TRANCHE_MAX_RESTARTS:-12}"
+
+mkdir -p "$LOG_DIR"
+
+running() {
+  # A running app is one Modal says is running. Whether our client is still attached says
+  # nothing — that is the distinction this whole script exists for.
+  "$MODAL" app list --json 2>/dev/null \
+    | grep -q '"description": "pramana-translate"' && return 0
+  return 1
+}
+
+launch() {
+  local log="$1"
+  echo "$(date +%H:%M:%S) launching $ARM -> $OUTPUT (log: $log)"
+  nohup "$MODAL" run --detach "$ROOT/priv/embed/modal_translate.py" \
+    --arm "$ARM" --input-name "$INPUT" --output-name "$OUTPUT" \
+    --batch-size "${PRAMANA_TRANCHE_BATCH:-32}" > "$log" 2>&1 &
+}
+
+# POLLING IS FREE; ONLY A RESTART IS RATIONED. The first version spent one restart per
+# poll, because both lived in the same `for`, so it exited after thirteen 120-second polls
+# — twenty-six minutes of everything going RIGHT — and announced "gave up after 12
+# restarts" having restarted nothing. A budget that a healthy loop consumes is not a
+# budget, and a message that reports work never done is worse than no message.
+restarts=0
+
+while true; do
+  if running; then
+    sleep "$POLL"
+    continue
+  fi
+
+  # The run itself is the only thing that knows what it skipped, so it is what declares
+  # completion. Checking the log beats re-counting the volume.
+  if grep -qa "nothing outstanding" "$LOG_DIR"/*.log 2>/dev/null; then
+    echo "$(date +%H:%M:%S) tranche complete"
+    exit 0
+  fi
+
+  if [ "$restarts" -ge "$MAX_RESTARTS" ]; then
+    echo "$(date +%H:%M:%S) gave up after $restarts restart(s) — check $LOG_DIR"
+    exit 1
+  fi
+
+  launch "$LOG_DIR/${OUTPUT%.jsonl}-attempt-$restarts.log"
+  restarts=$((restarts + 1))
+
+  # Let the app register before polling again, or the next check races the launch and
+  # starts a second one — the exact failure this script exists to prevent.
+  sleep 60
+done

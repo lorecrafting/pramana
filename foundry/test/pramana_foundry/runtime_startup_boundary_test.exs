@@ -109,9 +109,8 @@ defmodule PramanaFoundry.RuntimeStartupBoundaryTest do
     assert await_output(owner, "FR03_OWNER_DOWN") =~ "FR03_OWNER_DOWN"
     assert File.read!(Path.join(root, "old-effect-quiesced")) == "quiesced"
 
-    {blocked_output, blocked_status} = run_once(root, "daemon")
-    assert blocked_status == 23
-    assert blocked_output =~ "unclean_runtime_owner"
+    assert File.exists?(Path.join(root, "runtime-owner.unclean"))
+    assert_unclean_takeover(root, System.monotonic_time(:millisecond) + 5_000)
     true = Port.command(owner, "stop\n")
     assert_receive {^owner, {:exit_status, 0}}, 5_000
   end
@@ -470,6 +469,26 @@ defmodule PramanaFoundry.RuntimeStartupBoundaryTest do
         flunk("process exited #{status} before #{marker}: #{output}")
     after
       5_000 -> flunk("timed out waiting for #{marker}: #{output}")
+    end
+  end
+
+  # Owner DOWN proves the BEAM subtree has quiesced, not that the OS bridge has
+  # released flock yet. Every interim attempt must still refuse. Once the lock is
+  # released, demand the durable unclean-owner refusal rather than accepting either
+  # error forever. A successful takeover is a failure on EVERY attempt.
+  defp assert_unclean_takeover(root, deadline) do
+    {output, status} = run_once(root, "daemon")
+    assert status == 23, output
+
+    unless output =~ "unclean_runtime_owner" do
+      assert output =~ "runtime_fence_unavailable", output
+      assert output =~ ":owned", output
+
+      assert System.monotonic_time(:millisecond) < deadline,
+             "OS bridge did not release ownership before the deadline: #{output}"
+
+      Process.sleep(20)
+      assert_unclean_takeover(root, deadline)
     end
   end
 

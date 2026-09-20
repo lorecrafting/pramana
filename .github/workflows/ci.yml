@@ -12,7 +12,7 @@
 #
 # So the split is honest rather than incidental:
 #
-#   here          format, credo, 1,158 tests            ~4 min, every push
+#   here          format, credo, application/native tests and release build
 #   on a machine  mix pramana.gate                      verify, integrity, evals, lockfile
 #                 with the bake
 #
@@ -23,7 +23,24 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - "pramana/**"
+      - "!pramana/docs/**"
+      - "test/**"
+      - "bin/**"
+      - "mise.toml"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "pramana/**"
+      - "!pramana/docs/**"
+      - "test/**"
+      - "bin/**"
+      - "mise.toml"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
 
 # A second push to the same branch makes the first run irrelevant. Cancelling it is not
 # just thrift: two runs of the same suite against one Postgres service is contention, and
@@ -35,23 +52,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        # pgvector's own image, because the alternative is building the extension inside a
-        # service container, which cannot be done from a workflow step. pg_bigm is
-        # installed into it below.
-        image: pgvector/pgvector:pg18
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: pramana
 
     env:
       # Matches config/test.exs. Stated here rather than assumed, so a change to either
@@ -64,6 +68,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Buildx for the cached PostgreSQL fixture image
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build cached PostgreSQL fixture (PR restore only)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: pramana/ci
+          file: pramana/ci/postgres.Dockerfile
+          pull: true
+          load: true
+          tags: pramana-postgres-ci:${{ github.sha }}
+          cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm
+
+      - name: Build cached PostgreSQL fixture (trusted cache writer)
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: pramana/ci
+          file: pramana/ci/postgres.Dockerfile
+          pull: true
+          load: true
+          tags: pramana-postgres-ci:${{ github.sha }}
+          cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm
+          cache-to: type=gha,mode=max,scope=pramana-postgres-pg18-pgbigm,ignore-error=true
+
+      - name: Start PostgreSQL fixture
+        run: |
+          docker run --detach --name pramana-postgres-ci \
+            --publish 5432:5432 \
+            --env POSTGRES_PASSWORD=postgres \
+            --env POSTGRES_USER=postgres \
+            pramana-postgres-ci:"$GITHUB_SHA"
+
       # EXACT versions, from mise.toml. The toolchain is pinned for the same reason the
       # corpus is: a build that cannot be reproduced is not a build. If these drift from
       # mise.toml, CI is testing something the developer is not running.
@@ -72,57 +110,223 @@ jobs:
           otp-version: "29.0.5"
           elixir-version: "1.20.3-otp-29"
 
+      # Real compiler fixtures; no project dependencies, runtime or database access.
+      - name: Test xref evidence boundaries
+        run: python3 ../test/xref_collector_test.py
+
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
-      # Pinned to the same 1.83.0 as the Dockerfile — a NIF that compiles today and
-      # not tomorrow is the least debuggable class of build failure.
+      # Rust remains the existing floating stable selection. Pinning it is a
+      # separate toolchain decision, not a hidden change in this path migration.
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Install pg_bigm
-        # NOT pg_trgm, which ships with Postgres. `pg_bigm` indexes BIGRAMS, and the
-        # two-character queries that dominate Classical Chinese cannot use a trigram index
-        # at all — see docs/ELIXIR.md. The migration creates the extension, so it has to
-        # exist in the server first.
+      - name: Wait for PostgreSQL fixture
         run: |
-          docker exec $(docker ps --filter "ancestor=pgvector/pgvector:pg18" --format "{{.ID}}") \
-            bash -c "apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-              build-essential postgresql-server-dev-18 wget ca-certificates && \
-              wget -q https://github.com/pgbigm/pg_bigm/archive/refs/tags/v1.2-20250903.tar.gz && \
-              tar zxf v1.2-20250903.tar.gz && cd pg_bigm-1.2-20250903 && \
-              make USE_PGXS=1 with_llvm=no && make USE_PGXS=1 with_llvm=no install"
+          for attempt in {1..60}; do
+            if docker exec pramana-postgres-ci pg_isready -U postgres >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs pramana-postgres-ci >&2
+          exit 1
 
       - name: Restore deps and build
         uses: actions/cache@v4
         with:
           path: |
-            deps
-            _build
-            priv/plts
+            pramana/deps
+            pramana/_build
+            pramana/priv/plts
             ~/.cargo
-            apps/pramana_native/native/pramana_native/target
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock', '**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-mix-
+            pramana/apps/pramana_native/native/pramana_native/target
+            pramana/native/quotations/target
+          key: ${{ runner.os }}-pramana-layout-v2-${{ hashFiles('pramana/mix.lock', 'pramana/**/Cargo.lock', 'mise.toml') }}
+          restore-keys: ${{ runner.os }}-pramana-layout-v2-
 
       - run: mix deps.get
 
       # Warnings-as-errors on the project's own code. A warning that nobody has to fix is
       # a warning everybody stops reading.
-      - run: mix compile --warnings-as-errors
+      - id: compile
+        run: mix compile --force --warnings-as-errors
 
       - run: mix format --check-formatted
 
       - run: mix credo --strict
 
+      # Advisory dependency evidence, not a graph-size/cycle ratchet or test selector.
+      # Reuse only the manifests just rebuilt above; never resurrect a cached graph.
+      - name: Export compiler dependency reports
+        id: xref
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        env:
+          XREF_REPORT_DIR: ${{ runner.temp }}/pramana-xref-${{ github.run_id }}-${{ github.run_attempt }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$MIX_ENV" = test
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+          mkdir "$XREF_REPORT_DIR"
+          (
+            cd "$(git rev-parse --show-toplevel)"
+            git ls-files -z -- pramana mise.toml .github/workflows/ci.yml |
+              sort -z > "$XREF_REPORT_DIR/source-files.paths0"
+            xargs -0 sha256sum < "$XREF_REPORT_DIR/source-files.paths0" > "$XREF_REPORT_DIR/source-files.sha256"
+          )
+          mix --version > "$XREF_REPORT_DIR/toolchain.txt"
+          for app in apps/*; do
+            test -f "$app/mix.exs" || continue
+            name="$(basename "$app")"
+            if ! test -s "_build/$MIX_ENV/lib/$name/.mix/compile.elixir"; then
+              printf 'Compiler evidence unavailable for %s: missing compile.elixir manifest\n' "$name" >&2
+              exit 1
+            fi
+            mkdir "$XREF_REPORT_DIR/$name"
+            (
+              cd "$app"
+              export XREF_APP_REPORT="$XREF_REPORT_DIR/$name"
+              # Enumerate configured .ex inputs, not just files that emitted modules.
+              # This distinguishes a real no-source app from lost graph evidence.
+              mix run --no-start --no-compile --no-listeners -e '
+              paths = Mix.Project.config()[:elixirc_paths] || ["lib"]
+              sources = Mix.Utils.extract_files(paths, [:ex]) |> Enum.sort()
+              File.write!(Path.join(System.fetch_env!("XREF_APP_REPORT"), "elixir-sources.json"), JSON.encode!(sources) <> "\n")
+              '
+              mix xref graph --no-compile --format json --output "$XREF_REPORT_DIR/$name/graph.json"
+              mix xref graph --no-compile --format stats > "$XREF_REPORT_DIR/$name/stats.txt"
+              mix xref graph --no-compile --format cycles --label compile-connected > "$XREF_REPORT_DIR/$name/compile-connected-cycles.txt"
+            )
+          done
+          elixir -e '
+          root = System.fetch_env!("XREF_REPORT_DIR")
+          inventory = Path.join(root, "source-files.paths0") |> File.read!() |> String.split(<<0>>, trim: true) |> MapSet.new()
+          {repo_root, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"])
+          repo_root = String.trim(repo_root)
+          validate_source = fn source, dir ->
+            unless is_binary(source) and Path.type(source) == :relative and
+                     Path.relative_to(Path.expand(source, dir), Path.expand(dir)) == source,
+              do: raise("Out-of-scope compiler source: #{inspect(source)}")
+            relative = Path.join(["pramana", dir, source])
+            unless MapSet.member?(inventory, relative),
+              do: raise("Uninventoried compiler source: #{relative}; ignored/generated inputs are unsupported")
+            # Check every component: a tracked symlink is not tracked target bytes.
+            components = Enum.scan(Path.split(relative), repo_root, fn part, parent -> Path.join(parent, part) end)
+            regular_path = Enum.all?(components, fn path ->
+              case File.lstat(path) do
+                {:ok, %{type: type}} when type in [:directory, :regular] -> true
+                _ -> false
+              end
+            end)
+            unless regular_path and File.regular?(Path.join(repo_root, relative)),
+              do: raise("Non-regular or symlinked compiler source: #{relative}")
+          end
+          projects = Path.wildcard("apps/*/mix.exs") |> Enum.sort()
+          if projects == [], do: raise("No umbrella applications found")
+          scopes = Enum.map(projects, fn project ->
+            dir = Path.dirname(project)
+            name = Path.basename(dir)
+            graph = Path.join([root, name, "graph.json"]) |> File.read!() |> JSON.decode!()
+            unless is_map(graph), do: raise("Invalid graph: #{name}")
+            sources = Path.join([root, name, "elixir-sources.json"]) |> File.read!() |> JSON.decode!()
+            unless is_list(sources), do: raise("Invalid source inventory: #{name}")
+            Enum.each(Enum.uniq(sources ++ Map.keys(graph)), &validate_source.(&1, dir))
+            if map_size(graph) == 0 and sources != [],
+              do: raise("Empty graph despite configured Elixir sources: #{name}")
+            Enum.each(graph, fn {source, sinks} ->
+              unless source in sources and is_map(sinks),
+                do: raise("Invalid source node in #{name}: #{inspect(source)}")
+              Enum.each(sinks, fn {sink, label} ->
+                unless Map.has_key?(graph, sink) and label in ["compile", "export", "runtime"],
+                  do: raise("Invalid dependency in #{name}: #{inspect({sink, label})}")
+              end)
+            end)
+            %{
+              app: name, source_root: "pramana/#{dir}", graph: "#{name}/graph.json",
+              status: if(sources == [], do: "no_elixir_sources", else: "collected"),
+              elixir_sources: "#{name}/elixir-sources.json",
+              nodes: map_size(graph), edges: Enum.sum(Enum.map(graph, fn {_, sinks} -> map_size(sinks) end))
+            }
+          end)
+          {tree, 0} = System.cmd("git", ["rev-parse", "HEAD^{tree}"])
+          metadata = %{
+            schema_version: 2, source_sha: System.fetch_env!("GITHUB_SHA"), source_tree: String.trim(tree),
+            run_id: System.fetch_env!("GITHUB_RUN_ID"), run_attempt: System.fetch_env!("GITHUB_RUN_ATTEMPT"),
+            generated_at: DateTime.to_iso8601(DateTime.utc_now()), mix_env: System.fetch_env!("MIX_ENV"),
+            elixir: System.version(), otp_release: System.otp_release(), scopes: scopes,
+            compile_command: "mix compile --force --warnings-as-errors (preceding CI step)",
+            graph_command: "mix xref graph --no-compile --format json",
+            limitations: ["Only inventoried tracked regular source files inside each app are supported",
+              "Per-app file dependencies only; cross-app edges are not included",
+              "Not a complete function, dynamic-dispatch, message or test-coverage graph",
+              "No Foundry, Rust-body, Python, corpus or live-runtime analysis",
+              "Generation success is not architectural approval or test acceptance"]
+          }
+          File.write!(Path.join(root, "metadata.json"), JSON.encode!(metadata) <> "\n")
+          Enum.each(scopes, fn scope -> IO.puts("#{scope.app}: #{scope.nodes} files, #{scope.edges} edges") end)
+          '
+          (
+            cd "$(git rev-parse --show-toplevel)"
+            sha256sum --check --status "$XREF_REPORT_DIR/source-files.sha256"
+          )
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Upload compiler dependency reports
+        if: ${{ !cancelled() && steps.xref.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pramana-xref-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pramana-xref-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Lint shared repository checks with the same rules
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: mix credo --strict --files-included '../test/**/*.exs' --files-included '../bin/*.exs'
+
+      - name: Hex lockfile audit
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: mix hex.audit
+
       - name: Deps audit
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix deps.audit
 
       - name: Dialyzer
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix dialyzer
 
       - name: Cargo audit
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: |
           if ! command -v cargo-audit &>/dev/null; then
             cargo install cargo-audit --locked
           fi
-          cargo audit
+          cargo audit --file apps/pramana_native/native/pramana_native/Cargo.lock
+          cargo audit --file native/quotations/Cargo.lock
 
-      - run: mix test
+      - name: Test native quotation companion
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: cargo test --locked --manifest-path native/quotations/Cargo.toml
+
+      # Collect migration acceptance even when a separate quality check fails.
+      # No continue-on-error: preceding failures still fail this job.
+      - name: Test the Pramana umbrella
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        run: mix test
+
+      - name: Build production assets and release without starting it
+        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
+        env:
+          MIX_ENV: prod
+          DATABASE_URL: ecto://postgres:postgres@localhost/pramana_build_only
+          SECRET_KEY_BASE: build-only-not-used-to-start-a-server-00000000000000000000000000000000
+        run: |
+          mix deps.get --only prod
+          mix assets.deploy
+          mix release --overwrite
+
+      - name: Stop PostgreSQL fixture
+        if: always()
+        run: docker rm --force pramana-postgres-ci >/dev/null 2>&1 || true

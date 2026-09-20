@@ -1,0 +1,132 @@
+{
+  "schema": "pramana-pilot-preflight/v1",
+  "pilot_id": "chinese-commentary-v1",
+  "subject_revision": null,
+  "gates": [
+    {
+      "id": "foundry_g0",
+      "state": "blocked",
+      "reason": "FR-22 lifecycle acceptance is not complete.",
+      "evidence": [
+        "foundry/docs/REPAIR-PLAN.md"
+      ]
+    },
+    {
+      "id": "pilot_scope",
+      "state": "blocked",
+      "reason": "The deterministic scope materializer and append-only derivation receipt verifier are implemented, but no accepted live pilot release has yet produced reviewed clean/current full derivation receipts plus a reviewed stable scope artifact. Exact seed IDs, expanded work IDs, alignment coverage, release identity and denominators therefore remain unaccepted.",
+      "evidence": [
+        "docs/strategy/PILOT_SCOPE.md",
+        "docs/strategy/PILOT_DERIVATIONS.md",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "cbeta_rights",
+      "state": "blocked",
+      "reason": "CBETA Category A/non-commercial baseline is recorded, but the complete live expanded pilot scope is not frozen and embedding, generated-translation, local-model and external-provider processing of CBETA bytes remain unresolved. Treat those operations as permission-required until exact clearance is recorded.",
+      "evidence": [
+        "docs/strategy/CHINESE_PILOT_RIGHTS.md",
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/RESEARCH.md"
+      ]
+    },
+    {
+      "id": "lexicon_rights",
+      "state": "blocked",
+      "reason": "Local deterministic use can proceed only under a conservative non-commercial reading, but the exact DILA pilot resources carry conflicting primary licence notices (resource PDFs: CC BY-SA 3.0; current portal: CC BY-NC-SA 4.0), and external-model transfer is not cleared. The operation-level gate therefore remains blocked.",
+      "evidence": [
+        "docs/strategy/CHINESE_PILOT_RIGHTS.md",
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/RESEARCH.md"
+      ]
+    },
+    {
+      "id": "inference_authority",
+      "state": "blocked",
+      "reason": "No pilot inference route, provider/model identity or spending authority has been granted by the charter.",
+      "evidence": [
+        "docs/strategy/PILOT_CHARTER.md"
+      ]
+    },
+    {
+      "id": "execution_bounds",
+      "state": "ready",
+      "reason": null,
+      "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "provider_terms",
+      "state": "blocked",
+      "reason": "No provider/product/model has been selected or authorized. Participant questions/task content and source/glossary bytes must not leave the local boundary until the exact route is reviewed for retention/training, abuse or human review, subprocessors, confidentiality/deletion, input/output rights and non-commercial-use compatibility, with participant-transfer consent where applicable.",
+      "evidence": [
+        "docs/strategy/CHINESE_PILOT_RIGHTS.md",
+        "docs/strategy/PILOT_PREFLIGHT.md",
+        "docs/strategy/PILOT_PARTICIPANTS.md"
+      ]
+    },
+    {
+      "id": "bilingual_evaluators",
+      "state": "blocked",
+      "reason": "At least two qualified Buddhist-Chinese source evaluators have not yet been identified.",
+      "evidence": [
+        "docs/strategy/PILOT_CHARTER.md"
+      ]
+    },
+    {
+      "id": "participant_protocol",
+      "state": "ready",
+      "reason": null,
+      "evidence": [
+        "docs/strategy/PILOT_PARTICIPANTS.md",
+        "docs/strategy/pilot_participants.json",
+        "docs/strategy/PILOT_CHARTER.md",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "retrieval_baseline",
+      "state": "blocked",
+      "reason": "The exact Chinese pilot release and evaluator-confirmed held-out set have not been measured. Readiness requires at least 30 supported cases including at least 8 commentary-eligible cases, per-arm/fused reporting, overall recall@10 >= 80%, and commentary-eligible recall@10 >= 75%.",
+      "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "evaluation_rubric",
+      "state": "ready",
+      "reason": null,
+      "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "critical_taxonomy",
+      "state": "ready",
+      "reason": null,
+      "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    },
+    {
+      "id": "rehearsal_trust",
+      "state": "blocked",
+      "reason": "The R01–R16 rehearsal contract is frozen, but exact release-bound cases have not been materialized/executed, and the separately authorized inference route has not passed the frozen source-bound translation-quality sample; zero unresolved critical trust defects therefore has not been demonstrated.",
+      "evidence": [
+        "docs/strategy/PILOT_ACCEPTANCE.md",
+        "docs/strategy/pilot_acceptance.json",
+        "docs/strategy/PILOT_PREFLIGHT.md"
+      ]
+    }
+  ]
+}

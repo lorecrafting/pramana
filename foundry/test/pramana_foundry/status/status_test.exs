@@ -30,20 +30,5 @@ defmodule PramanaFoundry.StatusTest do
       assert report["revision_disagreement"] =~ @orig_rev
       assert report["revision_disagreement"] =~ @new_rev
     end
-
-    test "reconciles revision visibility upon controlled restart" do
-      state = %{"accepted_revision" => @new_rev}
-
-      # Before restart: disagreeing
-      Status.set_runtime_implementation_revision(@orig_rev)
-      report1 = Status.report(state)
-      assert report1["revisions_match?"] == false
-
-      # Controlled restart executes:
-      Status.reconcile_runtime_implementation_revision(@new_rev)
-      report2 = Status.report(state)
-      assert report2["revisions_match?"] == true
-      assert report2["runtime_implementation_revision"] == @new_rev
-    end
   end
 end

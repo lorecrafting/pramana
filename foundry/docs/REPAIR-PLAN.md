@@ -40,8 +40,10 @@ explicit file/interface ownership; this plan does not itself launch agents.
 - Automatic execution uses explicitly permitted subscription profiles only.
   OpenRouter/DeepSeek paid use remains manual. No eligible profile means affected
   work waits with a reason, rather than consuming another billing channel.
-- OMP remains the harness and Herdr the initial presentation backend. A pane is
-  optional presentation; its lifetime cannot establish workflow success or failure.
+- The current governing repair contract retains OMP as the harness and Herdr as the
+  initial presentation backend until explicit revision and renewed review. Pi is the
+  preferred first replacement evaluation, not a silent substitution. A pane is optional
+  presentation; its lifetime cannot establish workflow success or failure.
 - Ticket, attempt, execution/session, pane, artifact, review, integration and
   deployment identities have separate lifetimes and explicit relationships.
 - Acknowledged decisions survive restart. Uncertain external outcomes reconcile
@@ -377,6 +379,20 @@ blocked on FR-03.
 
 ### FR-07 — Implement durable store and compatibility boundary
 
+**Status (2026-09-19): Complete, independently reviewed and locally integrated; not
+deployed.** Exact v9 candidate `8d7223b79cb237d3406f156c7d1a06a8bcb48d81`
+received an independent Astra-high [PASS](fr-07/review-v9.md). All 56 manifest hashes,
+92 focused tests and the bounded carrier/closure/full-row recovery probes passed. The
+reviewed source and evidence were integrated at
+`c4816b2e1ef5ae41943c98591246851b2672561f`, then combined with current GitHub
+`origin/main` `4c91bf7ef917e67c73574eb0246d8d57cc28806d`; no reviewed durable-store
+source, test or dependency file changed upstream. Pinned combined-tree compilation,
+92 focused tests and the 546-test full suite passed. This closes FR-07 only. FR-08,
+FR-19, activation and FR-22 lifecycle acceptance remain open. The FR-07→FR-08 handoff
+gate remains blocked until a thin reviewed adapter is bound to this accepted boundary.
+Work pauses before that adapter and FR-08 for the authorized whole-Foundry alignment audit;
+any backlog revision must preserve this evidence and every routed F01–F24 obligation.
+
 **Outcome:** Accepted decisions and effect intents are durable; corrupt authority cannot
 silently become an empty workflow.
 
@@ -442,6 +458,17 @@ start, observe, prompt, interrupt, reconcile and close operations with
 execution/session identity. Put Herdr attach/inspect/close behind presentation operations.
 Exercise installed OMP structured modes, session persistence and quota observations.
 Keep Herdr as the initial backend; do not replace it speculatively.
+
+**2026-09-19 harness-selection note:** Before spending substantial implementation effort
+on OMP-specific FR-09 conformance, run the bounded substitution evaluation described in
+[STRATEGY](STRATEGY.md#pi-explicit-session-contracts-and-replaceable-execution), with
+pinned Pi RPC as the preferred first replacement candidate. Compare the same
+start/observe/prompt/interrupt/reconcile/close semantics, usage observability, failure
+reconciliation, extension/tool isolation, subscription-route enforceability and
+maintenance burden. This note changes evaluation order, not authority: the current
+OMP-specific FR-06 contract remains governing and automatic execution remains blocked.
+If Pi is selected, explicitly revise and independently re-review the affected FR-06/FR-09
+contract text before production adoption; do not silently substitute a harness.
 
 **Acceptance:** A bounded allowed-subscription execution produces a result without a
 pane where supported; disconnect/reconnect, cancellation and exit observation have
@@ -730,6 +757,21 @@ are redacted. A corrupt/unreachable store cannot show a healthy empty board.
 check/cleanup/stop blocks, old-generation holds, unknown usage and root-derived accepted/
 deployed pointers. A candidate domain projection cannot manufacture healthy acceptance.
 
+**2026-09-19 measurement refinement:** Repair the known producer/schema split before
+claiming lifecycle telemetry: AgentServer's current command-shaped lifecycle records do
+not satisfy the canonical command validator, while Coordinator writes a different
+EventLog-style shape. Connect the selected harness to versioned LLM usage observations
+correlated through ticket/attempt/execution/request and exact candidate/review outcome.
+Preserve source/quality for input, cache-read/cache-write, output/reasoning/total usage,
+context utilization, retries/compactions and provider-reported cost where exposed; missing
+values remain unknown. Record tool duration/result size/truncation and bounded context
+admission without copying raw prompt/response bodies into telemetry. Keep human
+steering/review/recovery effort and subscription/infrastructure cost as separate measures.
+Telemetry compaction must preserve the numeric usage aggregates and provenance required to
+compare like task classes over time. Acceptance tests cover failed/retried/corrected work
+as well as successful final runs and demonstrate that a cheaper token path cannot hide
+worse review, acceptance or operator-effort outcomes.
+
 **Excludes:** Building a new dashboard framework.
 
 ### FR-19 — Bound storage and make offline maintenance safe
@@ -775,6 +817,14 @@ Completed repair tickets remain complete. An improvement cannot broaden governin
 consume existing allocation, independently review and autonomously activate via FR-17;
 no root privilege shortcut or operator-only kernel exclusion. Proposal plumbing may be
 implemented before FR-17, but kernel repair activation is not complete until FR-17 passes.
+
+**2026-09-19 efficiency refinement:** After FR-18 provides trustworthy usage and outcome
+correlation, improvement proposals may compare context, model/reasoning and tool policies
+on comparable task classes. They must include failed/retried/corrected work, review
+quality and operator effort rather than optimize raw token count or provider cost alone.
+Unknown usage yields insufficient evidence, not a zero-cost win. Every optimization still
+needs a baseline, fixed acceptance gates, bounded experiment and ordinary admission/review/
+activation; telemetry cannot weaken authority or auto-promote its own recommendation.
 
 **Excludes:** Open-ended recurring PM calls or self-generating management hierarchies.
 
@@ -922,3 +972,17 @@ only as an unverified historical claim and cannot advance the authoritative acce
 revision. The mutable-source watcher invokes no child and exits 78. This is containment,
 not FR-13 artifact custody, FR-14 integration or FR-17 immutable activation; none is
 deployed or re-enabled.
+
+2026-09-19, FR-07: exact v9 candidate
+`8d7223b79cb237d3406f156c7d1a06a8bcb48d81` received an independent Astra-high
+[PASS](fr-07/review-v9.md), SHA-256
+`08379ffd3315ec2724c4578a0a14e690f535238104107c778bd8d777efbf8638`.
+All 56 manifest hashes matched; the focused 92-test suite and independent carrier,
+retained-authority closure and both full-row recovery branches passed. Reviewed source and
+evidence were integrated at `c4816b2e1ef5ae41943c98591246851b2672561f` and merged with
+GitHub `origin/main` `4c91bf7ef917e67c73574eb0246d8d57cc28806d`. Upstream changed
+only `foundry/README.md` among the candidate's 56 paths and did not change reviewed
+durable-store behavior. Combined-tree warnings-as-errors compilation, 92 focused tests and
+546 full-suite tests passed with exit zero. FR-07 is complete locally and not deployed.
+The accepted-revision handoff adapter, FR-08, operational durability, activation and FR-22
+remain open. Implementation pauses for the authorized whole-Foundry alignment audit.
