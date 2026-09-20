@@ -1584,3 +1584,24 @@ latest prose here, remains authoritative for status and dependencies.
 - FR-08A is complete. FR-08B and FR-18A are ready; FR-15aB still waits for FR-08B. The
   protected verifier is not a second workflow reducer, and completion does not claim live
   execution, presentation, activation or FR-22 acceptance.
+
+## FR-08A atomic-composition handoff correction — 2026-09-20
+
+- FR-08B implementation stopped before editing at base
+  `d0059b03757a73085f430895304244afaec79ce2`. Source inspection showed that ordinary
+  `Gateway.transact/4` commits domain records with no protected operations, while
+  `Gateway.protected_command/4` executes one protected operation in a separate
+  transaction and the legacy combined route refuses root-authority stores. Sequential
+  calls cannot satisfy the workflow contract's atomic R4a/R5 settlement and restart
+  obligations.
+- A fresh read-only Astra-high diagnosis confirmed the contradiction and bounded the
+  correction. [Its durable record](fr-08/atomic-composition-diagnosis.md) requires a
+  versioned bundle through the one Gateway transaction, fixed non-committing protected
+  operations, global command idempotency, complete prestate CAS, typed ordered history,
+  v1 replay compatibility, validated domain/protected linkage and a protected
+  once-per-non-start infrastructure settlement fact. FR-08B retains the role reducer and
+  every-ingress migration; no acceptance obligation is waived.
+- Active owner: Sol-medium `fr08a_atomic_bundle_impl`, isolated from the concurrent
+  FR-18A observation slice. The correction requires a fresh Astra-high authority,
+  persistence and replay review before integration. The historical FR-08A PASS remains
+  valid only for its exact candidate and does not prove this new handoff surface.

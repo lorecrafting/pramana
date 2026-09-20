@@ -214,7 +214,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |
 | H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Complete: independently reviewed; 4 pass, 3 unavailable, not ready** | Inherits FR-07/08 handoff evidence only |
 | FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Complete: protected authority and typed recovery independently reviewed, combined with FR-19A and integrated** | F07, F16 |
-| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **Ready: reviewed FR-08A interface integrated** | F07, F16 |
+| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **Blocked: focused source review found the accepted interface cannot atomically compose protected settlement with domain transitions; bounded FR-08A handoff correction in progress** | F07, F16 |
 | F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Complete: provider-free inventory independently reviewed; governed execution remains blocked** | Inherits FR-09/15a evidence only |
 | FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08B, FR-09 | Blocked | F08, F09 |
