@@ -15,6 +15,30 @@ This is append-only historical evidence, not required linear reading. On resume:
 3. Follow exact candidate/review links when validating provenance; read older ticket
    history only when a current finding crosses that interface.
 
+## Which branches are live
+
+A branch is live if it is **not** reachable from an `archive/` tag. Consolidating on
+2026-09-20 tagged every branch tip as `archive/<date>/<branch>` before deleting any
+branch, so an archived line of work is recoverable with
+`git branch <name> archive/<date>/<name>` and is not lost by being absent from
+`git branch`.
+
+```sh
+git for-each-ref --format='%(refname:short)' refs/heads/   # live
+git for-each-ref --format='%(refname:short)' 'refs/tags/archive/**'  # archived
+```
+
+This convention is deliberately mechanical rather than a maintained list of current
+branches. Such a list is accurate for about an hour in an active repair and then
+misleads, which is the failure this repository already avoids by generating evidence and
+pinning it by hash rather than describing it in prose. Each entry below names the branch
+its work lived on at the time it mattered; that, plus the tag convention, is the durable
+form of the same information.
+
+A complete offline copy of every ref as of that consolidation exists outside the
+repository as a Git bundle; `git bundle verify` reports it records a complete history. It
+is a backstop, not a substitute for the tags.
+
 Do not preload this whole log, all of `docs/PLAN.md`, the full audit or the full workflow
 contract for a bounded ticket. Read the Foundry portion of `docs/PLAN.md`, the relevant
 contract anchors and the exact evidence packet. Targeted patches can append or update an
