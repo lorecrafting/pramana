@@ -1,10 +1,10 @@
-# FR-19A blocker correction checkpoint — kernel sync acceptance unavailable
+# FR-19A blocker correction checkpoint — superseded
 
-Recorded 2026-09-19, Hawaii. This is a durable **blocked checkpoint**, not a frozen
-candidate, review request, acceptance verdict or integration authorization. B1, B2 and
-physical filesystem ENOSPC now have executable evidence. The required actual kernel sync
-failure remains unavailable on this host and has no waiver, so FR-19A candidacy remains
-blocked.
+Recorded 2026-09-19, Hawaii. This historical blocked checkpoint is superseded by the new
+frozen [correction candidate](candidate.md), which adds genuine Linux kernel-sync fault
+evidence and deterministic B1/B2/physical ENOSPC acceptance. This file remains as durable
+history; it is not the current disposition, an acceptance verdict or integration
+authorization.
 
 ## Exact checkpoint
 

@@ -53,6 +53,14 @@ and fresh mount of the same revalidated mapper, and only then verifies retained 
 It separately classifies an exact unbound loop row as absent ownership rather than a
 foreign or unavailable binding.
 
+Run `35498430877` and artifact `10601228576` at revision
+`5f4984be07c67de8515a26d953d4d5b7de907c05` completed the corrected experiment. The
+raw control and unchanged Gateway path each produced an attributable exact-path kernel
+`fsync` EIO; public typed failure, recovery fencing, descriptor/helper closure, orderly
+remount, digest-stable retained content, complete content/replay verification, unaffected
+source recovery and exact independent cleanup all passed. The frozen candidate records
+the precise evidence and limitations; independent critical rereview remains required.
+
 ## Boundary
 
 The branch-only [workflow](../../../.github/workflows/fr19a-sync-eio.yml) uses an ephemeral
