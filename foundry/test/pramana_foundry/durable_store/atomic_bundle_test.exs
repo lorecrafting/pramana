@@ -706,7 +706,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert :ok = Sqlite3.close(raw)
   end
 
-  defp seed_issued_launch!(ctx, role \\ "developer", suffix \\ "1") do
+  defp seed_issued_launch!(ctx, role \\ "developer", suffix \\ "1", limit \\ 3) do
     policy_id = "policy-#{suffix}"
     control_id = "control-#{suffix}"
     ledger_id = "ledger-#{suffix}"
@@ -723,7 +723,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       "value" => %{
         "allowed_operations" => ["launch"],
         "allowed_scopes" => ["ticket:#{ticket_id}"],
-        "infrastructure_attempt_limits" => %{role => 3}
+        "infrastructure_attempt_limits" => %{role => limit}
       }
     })
 
@@ -1098,6 +1098,293 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
       assert {:error, :infrastructure_limit_undecidable} =
                ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", settlement)
+    end
+  end
+
+  describe "plan-bearing atomic bundles" do
+    defp plan_alternative(id, phase, with_marker?) do
+      event_id = "event-#{id}"
+
+      payload =
+        %{
+          "projection" => %{
+            "namespace" => "atomic-v2",
+            "entity_id" => id,
+            "revision" => 0,
+            "value" => %{"phase" => phase}
+          }
+        }
+        |> then(fn p ->
+          if with_marker?, do: Map.put(p, "settlement", %{"binding" => "settled"}), else: p
+        end)
+
+      %{
+        "schema_version" => 1,
+        "result" => %{"schema_version" => 1, "disposition" => "accepted"},
+        "events" => [
+          %{
+            "schema_version" => 1,
+            "event_id" => event_id,
+            "type" => "launch_settled",
+            "payload" => payload
+          }
+        ],
+        "projections" => [
+          %{
+            "schema_version" => 1,
+            "namespace" => "atomic-v2",
+            "entity_id" => id,
+            "expected_revision" => -1,
+            "revision" => 0,
+            "last_event_id" => event_id,
+            "value" => %{"phase" => phase}
+          }
+        ],
+        "intents" => []
+      }
+    end
+
+    defp nonstart_plan_bundle(id) do
+      nonstart_bundle(id)
+      |> Map.delete("proposal")
+      |> Map.put("plan", %{
+        "schema_version" => 1,
+        "command_id" => id,
+        "disposition" => "accepted",
+        "reason_code" => nil,
+        "expected_domain_revision" => 0,
+        "domain_reads" => [],
+        "protected_operations" => [
+          %{"schema_version" => 1, "ordinal" => 0, "type" => "settle_claim", "input" => %{}}
+        ],
+        "bindings" => [
+          %{
+            "name" => "settled",
+            "operation_ordinal" => 0,
+            "output_kind" => "nonstart_settlement_v1",
+            "destination_slot" => "launch_settled.settlement"
+          }
+        ],
+        "discriminator_kind" => "infrastructure_limit_v1",
+        "alternatives" => [
+          %{
+            "discriminator" => "below_infrastructure_limit",
+            "proposal" => plan_alternative(id, "queued", true)
+          },
+          # Both alternatives bind the settlement. R4a records the proved non-start
+          # whichever branch is taken; only the resulting phase differs. A declared
+          # binding with no destination in the selected alternative is a plan error, and
+          # the codec correctly rejects it as binding_slot_absent.
+          %{
+            "discriminator" => "infrastructure_limit_reached",
+            "proposal" => plan_alternative(id, "blocked", true)
+          }
+        ]
+      })
+    end
+
+    test "a plan binds its authoritative settlement and commits", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, %{"disposition" => "accepted"}, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN1")
+               )
+
+      # The settlement the protected layer assigned inside this transaction reached the
+      # committed domain event. Nothing predicted or copied it.
+      assert {:ok, settlement} = fact(ctx, "infrastructure_settlement", "effect_id", "effect-1")
+      assert settlement["ordinal"] == 1
+
+      assert {:ok, events} = Gateway.recent_events(ctx.gateway, 20)
+      assert Enum.any?(events, &(&1.event_type == "launch_settled"))
+    end
+
+    test "the protected discriminator selects the alternative, not the caller", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, %{"disposition" => "accepted"}, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN2")
+               )
+
+      # Ordinal 1 is below the seeded developer limit of 3, so the protected derivation
+      # must have chosen the below-limit alternative and queued rather than blocked.
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(
+                 raw,
+                 "SELECT projection FROM projections WHERE namespace = ? AND entity_id = ?",
+                 ["atomic-v2", "PLAN2"]
+               )
+
+      assert :ok = Sqlite3.close(raw)
+      assert %{"value" => %{"phase" => "queued"}} = bytes |> :json.decode() |> normalize_json()
+    end
+
+    test "an envelope carrying both a plan and a proposal is refused", ctx do
+      seed_issued_launch!(ctx)
+
+      both = Map.put(nonstart_plan_bundle("PLAN3"), "proposal", %{})
+
+      assert {:error, :invalid_atomic_bundle} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", both)
+    end
+
+    test "an envelope carrying neither is refused", ctx do
+      seed_issued_launch!(ctx)
+
+      neither = Map.delete(nonstart_plan_bundle("PLAN4"), "plan")
+
+      assert {:error, :invalid_atomic_bundle} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", neither)
+    end
+
+    test "a rejected plan is an ordinary rejection, not an infrastructure failure", ctx do
+      seed_issued_launch!(ctx)
+
+      # No alternative matches either value the protected derivation can return.
+      unknown =
+        nonstart_plan_bundle("PLAN5")
+        |> update_in(["plan", "alternatives"], fn [a, b] ->
+          [%{a | "discriminator" => "alt-a"}, %{b | "discriminator" => "alt-b"}]
+        end)
+
+      assert {:ok, %{"disposition" => "rejected"}, _} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unknown)
+
+      # The Gateway must remain usable for every actor. Untagged, this error reached the
+      # generic catch-all, was reported as storage_unavailable, and put the whole
+      # GenServer into permanent recovery mode.
+      assert %{mode: :ready} = Gateway.status(ctx.gateway)
+
+      assert {:ok, _, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN6")
+               )
+    end
+
+    test "a rejected plan is durably recorded so a lost reply can find it", ctx do
+      seed_issued_launch!(ctx)
+
+      unknown =
+        nonstart_plan_bundle("PLAN7")
+        |> update_in(["plan", "alternatives"], fn [a, b] ->
+          [%{a | "discriminator" => "alt-a"}, %{b | "discriminator" => "alt-b"}]
+        end)
+
+      assert {:ok, first, _} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unknown)
+
+      assert first["disposition"] == "rejected"
+
+      # The identical command returns its original result rather than re-deciding.
+      assert {:ok, ^first, :idempotent} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unknown)
+    end
+
+    test "the selected discriminator is recorded, because it cannot be recomputed", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, result, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN8")
+               )
+
+      assert result["selected_discriminator"] == "below_infrastructure_limit"
+    end
+
+    test "the committed event carries the authoritative settlement itself", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, _, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN9")
+               )
+
+      assert {:ok, authoritative} =
+               fact(ctx, "infrastructure_settlement", "effect_id", "effect-1")
+
+      # Read the committed event itself rather than trusting that binding happened.
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(raw, "SELECT event FROM events WHERE event_type = ?", [
+                 "launch_settled"
+               ])
+
+      assert :ok = Sqlite3.close(raw)
+      event = bytes |> :json.decode() |> normalize_json()
+
+      assert event["payload"]["settlement"] == authoritative
+    end
+
+    test "alternative selection does not depend on declaration order", ctx do
+      seed_issued_launch!(ctx)
+
+      # Same plan with the alternatives reversed. The true answer is still below-limit,
+      # so a "pick the first alternative" implementation would now choose blocked.
+      reversed =
+        nonstart_plan_bundle("PLAN10")
+        |> update_in(["plan", "alternatives"], &Enum.reverse/1)
+
+      assert {:ok, _, :committed} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", reversed)
+
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(
+                 raw,
+                 "SELECT projection FROM projections WHERE namespace = ? AND entity_id = ?",
+                 ["atomic-v2", "PLAN10"]
+               )
+
+      assert :ok = Sqlite3.close(raw)
+      assert %{"value" => %{"phase" => "queued"}} = bytes |> :json.decode() |> normalize_json()
+    end
+
+    test "the exhausted branch is reachable through the full path", ctx do
+      # Seed with a limit of 1 so the first settlement's ordinal already reaches it.
+      seed_issued_launch!(ctx, "developer", "1", 1)
+
+      assert {:ok, result, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN11")
+               )
+
+      assert result["selected_discriminator"] == "infrastructure_limit_reached"
+
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(
+                 raw,
+                 "SELECT projection FROM projections WHERE namespace = ? AND entity_id = ?",
+                 ["atomic-v2", "PLAN11"]
+               )
+
+      assert :ok = Sqlite3.close(raw)
+      assert %{"value" => %{"phase" => "blocked"}} = bytes |> :json.decode() |> normalize_json()
     end
   end
 end

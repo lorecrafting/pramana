@@ -5093,7 +5093,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              true <- is_map(result),
              true <-
                Map.keys(result) |> Enum.sort() ==
-                 ~w(command_id committed_seq disposition domain_result operations reason_code schema_version),
+                 ~w(command_id committed_seq disposition domain_result operations reason_code schema_version selected_discriminator),
              {:ok, domain_result} <- decode(domain_result_bytes),
              true <- is_map(domain_result),
              ^id <- result["command_id"],
@@ -5450,6 +5450,17 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp valid_settlement_shape?(_settlement), do: false
 
+  # Delegates to Gateway rather than mirroring it. A hand-copied rule would be correct
+  # only while both sides happen to agree: add a third carrier, update one side, and a
+  # legitimately committed bundle reads as :protected_corrupt on its next validation.
+  #
+  # This is deliberately unlike the TransitionPlan/Kernel.Plan duplication, which exists
+  # because those are different trust tiers and root must never execute candidate code.
+  # Gateway and ProtectedPrimitives are the same trust tier, so duplication here buys
+  # nothing and costs a silent divergence.
+  defp expected_bundle_domain_request(envelope),
+    do: PramanaFoundry.DurableStore.Gateway.atomic_domain_request(envelope)
+
   defp valid_bundle_domain_row?(row, envelope, result) do
     case row do
       [ordinal, "domain", type, request_bytes, result_bytes] ->
@@ -5461,12 +5472,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         with true <- ordinal == expected_ordinal,
              true <- type == envelope["command"]["type"],
              {:ok, request} <- decode(request_bytes),
-             true <-
-               request == %{
-                 "command" => envelope["command"],
-                 "inputs" => envelope["inputs"],
-                 "proposal" => envelope["proposal"]
-               },
+             true <- request == expected_bundle_domain_request(envelope),
              {:ok, stored} <- decode(result_bytes),
              true <-
                Map.keys(stored) |> Enum.sort() ==
