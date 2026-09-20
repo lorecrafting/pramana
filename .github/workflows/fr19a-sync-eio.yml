@@ -8,8 +8,10 @@ on:
     paths:
       - ".github/workflows/fr19a-sync-eio.yml"
       - "foundry/ci/fr19a_raw_sync_eio.exs"
+      - "foundry/ci/fr19a_sync_eio_orchestration.exs"
       - "foundry/ci/fr19a_sync_eio_host.sh"
       - "foundry/ci/fr19a_sync_eio_parse.exs"
+      - "foundry/test/fr19a_sync_eio_orchestration_test.exs"
       - "foundry/test/support/fr19a_linux_sync_eio_fixture.exs"
       - "foundry/lib/pramana_foundry/durable_store/**"
       - "foundry/mix.exs"
@@ -78,8 +80,10 @@ jobs:
             sha256sum \
               ../.github/workflows/fr19a-sync-eio.yml \
               ci/fr19a_raw_sync_eio.exs \
+              ci/fr19a_sync_eio_orchestration.exs \
               ci/fr19a_sync_eio_host.sh \
               ci/fr19a_sync_eio_parse.exs \
+              test/fr19a_sync_eio_orchestration_test.exs \
               test/support/fr19a_linux_sync_eio_fixture.exs
           } >"$FR19A_ARTIFACT_DIR/revision.txt"
 

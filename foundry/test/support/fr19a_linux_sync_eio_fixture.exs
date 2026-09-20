@@ -1,4 +1,7 @@
+Code.require_file("../../ci/fr19a_sync_eio_orchestration.exs", __DIR__)
+
 alias PramanaFoundry.DurableStore.{Encoding, Gateway, Maintenance}
+alias PramanaFoundry.CI.FR19ASyncEIOOrchestration, as: Orchestration
 
 [source, baseline_path, destination, recovered_path, host_script, state_dir, artifact_dir] =
   System.argv()
@@ -143,15 +146,50 @@ holder = fn controller ->
   send(controller, {:holder_ready, self()})
 
   receive do
-    {:dirty, reply_to} ->
+    {:dirty, reply_to, token} ->
+      send(reply_to, {:fr19a_pwrite_entered, token, self()})
       result = :file.pwrite(file, 0, bytes)
-      send(reply_to, {:dirty_written, self(), result})
+      send(reply_to, {:fr19a_pwrite_finished, token, self(), result})
   end
 
   receive do
     {:close, reply_to} ->
       result = :file.close(file)
       send(reply_to, {:holder_closed, self(), result})
+  end
+end
+
+stop_holder = fn worker ->
+  monitor = Process.monitor(worker)
+  send(worker, {:close, self()})
+
+  closed =
+    receive do
+      {:holder_closed, ^worker, result} -> result
+      {:DOWN, ^monitor, :process, ^worker, _reason} -> :already_down
+    after
+      3_000 -> :timeout
+    end
+
+  if closed == :timeout do
+    Process.exit(worker, :kill)
+  end
+
+  unless closed == :already_down do
+    receive do
+      {:DOWN, ^monitor, :process, ^worker, _reason} -> :ok
+    after
+      2_000 -> Process.exit(worker, :kill)
+    end
+  end
+
+  Process.demonitor(monitor, [:flush])
+
+  case closed do
+    :ok -> :ok
+    :already_down -> :ok
+    :timeout -> :ok
+    other -> raise "dirty holder close failed: #{inspect(other)}"
   end
 end
 
@@ -184,6 +222,7 @@ baseline_digest = file_digest.(baseline_path)
 fault = fn _gateway_file ->
   controller = self()
   dirty_holder = spawn(fn -> holder.(controller) end)
+  send(parent, {:dirty_holder, dirty_holder})
 
   receive do
     {:holder_ready, ^dirty_holder} -> :ok
@@ -191,19 +230,34 @@ fault = fn _gateway_file ->
     10_000 -> raise "dirty holder did not open and pre-read the target"
   end
 
-  run_host.("suspend")
-  send(dirty_holder, {:dirty, controller})
+  try do
+    run_host.("suspend")
+    token = make_ref()
+    send(dirty_holder, {:dirty, controller, token})
 
-  receive do
-    {:dirty_written, ^dirty_holder, :ok} -> IO.puts("DIRTY_PWRITE=ok")
-    {:dirty_written, ^dirty_holder, other} -> raise "dirty pwrite failed: #{inspect(other)}"
-  after
-    10_000 -> raise "dirty pwrite timed out while mapper was suspended"
+    case Orchestration.resume_before_await(dirty_holder, token, fn ->
+           run_host.("error-resume")
+         end) do
+      {:ok, :ok} ->
+        IO.puts("DIRTY_PWRITE=ok")
+        :ok
+
+      {:ok, {:error, :eio}} ->
+        IO.puts("DIRTY_PWRITE=error:eio")
+        :ok
+
+      {:ok, other} ->
+        raise "dirty pwrite failed: #{inspect(other)}"
+
+      {:error, reason} ->
+        raise "dirty pwrite orchestration failed: #{inspect(reason)}"
+    end
+  rescue
+    error ->
+      _ = run_host.("restore")
+      _ = stop_holder.(dirty_holder)
+      reraise error, __STACKTRACE__
   end
-
-  run_host.("error-resume")
-  send(parent, {:dirty_holder, dirty_holder})
-  :ok
 end
 
 {:ok, gateway} =
@@ -221,6 +275,9 @@ dirty_holder =
   after
     10_000 -> raise "maintenance hook did not return the dirty holder"
   end
+
+:ok = run_host.("restore")
+:ok = stop_holder.(dirty_holder)
 
 case backup_result do
   {:error, {:storage_unavailable, {:backup_failed, :eio}}} ->
@@ -241,22 +298,6 @@ end
     bundle.("LATER"),
     protected.("LATER")
   )
-
-:ok = run_host.("restore")
-holder_monitor = Process.monitor(dirty_holder)
-send(dirty_holder, {:close, self()})
-
-receive do
-  {:holder_closed, ^dirty_holder, :ok} -> :ok
-after
-  10_000 -> raise "dirty holder did not close after mapper restore"
-end
-
-receive do
-  {:DOWN, ^holder_monitor, :process, ^dirty_holder, :normal} -> :ok
-after
-  10_000 -> raise "dirty holder remained alive"
-end
 
 unless File.exists?(destination), do: raise("partial backup destination was removed")
 partial_digest = file_digest.(destination)

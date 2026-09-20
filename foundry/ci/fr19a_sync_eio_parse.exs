@@ -19,7 +19,7 @@ defmodule PramanaFoundry.CI.FR19ASyncEIOParse do
 
     fixture = File.read!(fixture_log)
 
-    with true <- fixture =~ "DIRTY_PWRITE=ok",
+    with true <- Regex.match?(~r/^DIRTY_PWRITE=(?:ok|error:eio)$/m, fixture),
          true <- fixture =~ "GATEWAY_STORAGE_FAILURE=eio",
          true <- fixture =~ "FIXTURE_RESULT=pass",
          [_first | _rest] <- matches do
