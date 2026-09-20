@@ -116,7 +116,24 @@ The importer does not remove or relocate the source. FR-19 still owns live-handl
 preflight, retention, checkpoint interruption, archival removal and collision-safe
 relocation.
 
-## Backup and limitations
+## Operational health and bounded diagnostics
+
+`Gateway.operational_health/1` reports the last durable event sequence, SQLite database
+and WAL bytes, the configured SQLite page ceiling and the physical bytes currently
+reported by the fixed `df -Pk` probe. A missing, failed or malformed probe is `unknown`;
+it is never converted to invented headroom. The probe is diagnostic and has no authority
+to admit work. It runs in an isolated monitored process with a five-second default bound,
+so an OS probe exit or stall cannot crash or indefinitely block the store owner.
+`Gateway.recent_events/2` returns only event identities/type/sequence in
+descending sequence order and requires a limit from 1 through 1,000. It is explicitly a
+bounded diagnostic, not an authoritative replay API.
+
+`Gateway.checkpoint/1` serializes a real `wal_checkpoint(TRUNCATE)` call through the sole
+gateway owner and compares complete authority content and reconstructed projections before
+and after it. Failure fences later mutations. This is operational maintenance, not WAL
+retention or compaction policy, which remains FR-19B.
+
+## Backup, offline verification and limitations
 
 `Gateway.backup/2` uses SQLite `VACUUM INTO`, an engine-produced coherent snapshot rather
 than copying a live database/WAL pair. The destination must be a new absolute normalized
@@ -129,6 +146,14 @@ the verifier compares reconstructed projection state with the stored projection 
 detecting missing, reordered and same-count body corruption. FR-19 owns retention,
 checkpoint/compaction interruption, archival and operational
 backup policy.
+
+`PramanaFoundry.DurableStore.Maintenance.verify/2` is the offline verification entry
+point. It takes the same cross-process owner lock as the gateway, so a live store is
+refused. It opens through the normal schema/physical/authority validation, reads complete
+ordered content, replays projections through the shared reducer and returns a deterministic
+replay digest. It never repairs, replaces, relocates or removes the input. Backup and
+checkpoint interruption leaves the original store behind; an unclean owner marker forces
+explicit recovery evidence before reopening.
 
 The acceptance suite uses the real pinned binding and exercises an actual SQLite
 `max_page_count` FULL failure, an actual read-only filesystem/open failure and a real OS
@@ -147,3 +172,18 @@ attributed SQLite VFS `xSync` fault evidence through the production
 Exqlite connection; it is not a claim that a kernel `fsync(2)` syscall or physical medium
 failed. FR-19 retains the broader physical capacity, filesystem sync, WAL/checkpoint and
 compaction fault matrix.
+
+FR-19A additionally exercises an actual SQLite WAL checkpoint, a hard VM exit immediately
+after checkpoint and immediately after `VACUUM INTO`, and byte-level corruption of a
+previously valid SQLite database. These are real engine/file operations with deterministic
+process interruption points. The existing `max_page_count` case is an SQLite logical-full
+condition, `RLIMIT_FSIZE` is a kernel file-size-limit I/O failure, and the loadable VFS
+extension is an injected SQLite `xSync` error. None is physical filesystem ENOSPC, an
+observed kernel `fsync(2)` failure, power loss, controller/cache flush proof or media
+durability evidence. Those physical guarantees were unavailable on the development host
+and are not claimed.
+
+All mutating relocation entry points (`execute/2`, `resume/2`, `rollback/2`) return
+`{:error, {:relocation_disabled, :fr19b_required}}` before journal or path access. Inventory
+and planning remain read-only; the historical mutation/recovery tests remain preserved but
+skipped until FR-19B repairs or retires that implementation.

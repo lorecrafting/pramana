@@ -1008,6 +1008,16 @@ worse review, acceptance or operator-effort outcomes.
 
 #### FR-19A — Operational storage, backup and recovery baseline
 
+**Status (2026-09-19): Candidate implementation prepared; independent review pending.**
+The bounded implementation adds capacity/last-sequence health, limited event diagnostics,
+serialized content-checked WAL checkpointing, offline owner-locked backup replay
+verification and fail-closed relocation mutation containment. It preserves prior claim and
+ledger rows through backup, checkpoint and deterministic process-interruption probes. The
+host could not safely provide physical filesystem ENOSPC, power-loss, kernel `fsync(2)` or
+media-flush evidence; SQLite logical-full, kernel file-size-limit and injected VFS `xSync`
+evidence retain their exact narrower attribution. FR-19B diagnostic retention/compaction
+and cross-device relocation remain open.
+
 **Scope:** After FR-07, establish bounded operational queries/capacity health, verified
 SQLite backup/replay and explicit offline maintenance containment. Exercise physical
 ENOSPC/sync/WAL/checkpoint/corruption cases that FR-07 explicitly deferred. Disable unsafe
