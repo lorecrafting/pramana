@@ -415,6 +415,73 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert %{mode: :recovery} = Gateway.status(gateway)
   end
 
+  test "accepted non-start requires the settlement carrier key", ctx do
+    seed_issued_launch!(ctx)
+
+    assert {:ok, _result, :committed} =
+             Gateway.atomic_bundle(
+               ctx.gateway,
+               ctx.capability,
+               "operator",
+               nonstart_bundle("missing-settlement-carrier")
+             )
+
+    gateway =
+      corrupt_bundle_result!(ctx, "missing-settlement-carrier", true, fn result ->
+        [operation] = result["operations"]
+
+        operation =
+          update_in(operation, ["result", "facts"], &Map.delete(&1, "infrastructure_settlement"))
+
+        Map.put(result, "operations", [operation])
+      end)
+
+    assert %{mode: :recovery} = Gateway.status(gateway)
+  end
+
+  test "accepted non-start rejects an explicit null settlement carrier", ctx do
+    seed_issued_launch!(ctx)
+
+    assert {:ok, _result, :committed} =
+             Gateway.atomic_bundle(
+               ctx.gateway,
+               ctx.capability,
+               "operator",
+               nonstart_bundle("null-settlement-carrier")
+             )
+
+    gateway =
+      corrupt_bundle_result!(ctx, "null-settlement-carrier", true, fn result ->
+        [operation] = result["operations"]
+        operation = put_in(operation, ["result", "facts", "infrastructure_settlement"], nil)
+        Map.put(result, "operations", [operation])
+      end)
+
+    assert %{mode: :recovery} = Gateway.status(gateway)
+  end
+
+  test "accepted operations without settlement facts remain valid when the key is absent", ctx do
+    assert {:ok, result, :committed} =
+             Gateway.atomic_bundle(
+               ctx.gateway,
+               ctx.capability,
+               "operator",
+               policy_bundle("no-settlement-required", "ordinary-policy")
+             )
+
+    assert [operation] = result["operations"]
+    refute Map.has_key?(operation["result"]["facts"], "infrastructure_settlement")
+
+    stop_supervised!(Gateway)
+
+    reopened =
+      start_supervised!(
+        {Gateway, path: ctx.path, protected_capability: ctx.capability, writer_epoch: "epoch-B"}
+      )
+
+    assert %{mode: :ready} = Gateway.status(reopened)
+  end
+
   test "protected v1 history migrates to typed singleton operations and reruns safely", ctx do
     accept_current!(ctx, %{
       "type" => "set_policy",

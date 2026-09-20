@@ -4441,17 +4441,26 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     with true <- is_map(operation),
          true <- is_map(root_facts),
          true <- is_map(operation_facts) do
+      receipt = root_facts["receipt"]
       settlement = operation_facts["infrastructure_settlement"]
+      settlement_present? = Map.has_key?(operation_facts, "infrastructure_settlement")
 
-      case {operation["type"], operation["outcome"], settlement} do
-        {"settle_claim", "non_started", settlement} when is_map(settlement) ->
+      requires_settlement? =
+        operation["type"] == "settle_claim" and is_map(receipt) and
+          receipt["outcome"] == "non_started"
+
+      cond do
+        requires_settlement? and settlement_present? and is_map(settlement) ->
           valid_authoritative_settlement(conn, operation, root_facts, settlement)
 
-        {_type, _outcome, nil} ->
-          true
-
-        _ ->
+        requires_settlement? ->
           false
+
+        settlement_present? ->
+          false
+
+        true ->
+          true
       end
     else
       _ -> false
