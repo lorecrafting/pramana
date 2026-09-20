@@ -376,56 +376,40 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                })
     end
 
-    test "substitution and carrier agreement succeed up to that refusal" do
-      # The same plan against a currently accepted event type proves the substitution
-      # and carrier-agreement path itself is sound.
+    test "a marker naming a binding the plan never declared rejects" do
       marker = %{"binding" => "settled"}
+      stray = %{"binding" => "never_declared"}
 
-      accepted =
+      undeclared =
         proposal(
-          [
-            event("ticket_enqueued", %{
-              "settlement" => marker,
-              "projection" => %{
-                "namespace" => "atomic-v2",
-                "entity_id" => "ticket-1",
-                "revision" => 0,
-                "value" => %{"settlement" => marker}
-              }
-            })
-          ],
-          [projection(%{"settlement" => marker})]
+          [event("launch_settled", %{"settlement" => marker, "note" => stray})],
+          []
         )
 
-      bindings = [
-        %{
-          "name" => "settled",
-          "operation_ordinal" => 0,
-          "output_kind" => "nonstart_settlement_v1",
-          "destination_slot" => "ticket_enqueued.settlement"
-        }
-      ]
+      assert {:error, :binding_undeclared} =
+               TransitionPlan.bind(
+                 plan(%{
+                   "alternatives" => [
+                     %{"discriminator" => "below_infrastructure_limit", "proposal" => undeclared}
+                   ]
+                 }),
+                 "below_infrastructure_limit",
+                 %{"settled" => settlement()}
+               )
+    end
 
-      case TransitionPlan.slot("ticket_enqueued.settlement") do
-        :error ->
-          # No slot is declared over a legacy event type, which is itself the point of
-          # the prerequisite: every declared slot names a lifecycle event type.
-          assert {:error, :invalid_plan_bindings} =
-                   TransitionPlan.validate(
-                     plan(%{
-                       "bindings" => bindings,
-                       "alternatives" => [
-                         %{
-                           "discriminator" => "below_infrastructure_limit",
-                           "proposal" => accepted
-                         }
-                       ]
-                     })
-                   )
+    test "an output whose shape does not match its declared kind rejects" do
+      assert {:error, :invalid_binding_outputs} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
+                 "settled" => "not-a-settlement"
+               })
+    end
 
-        {:ok, _slot} ->
-          flunk("unexpected legacy slot declaration")
-      end
+    test "a forged settlement missing an authoritative field rejects" do
+      assert {:error, :invalid_binding_outputs} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
+                 "settled" => Map.delete(settlement(), "receipt_id")
+               })
     end
   end
 
@@ -559,6 +543,13 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                "control_id" => "control-1",
                "control_revision" => 3
              }
+    end
+
+    test "rejects a fact that is present but not a map" do
+      assert {:error, :unbindable_operation_result} =
+               TransitionPlan.derive_outputs(settlement_binding(), [
+                 staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => "nope"}}})
+               ])
     end
 
     test "fails closed on an output kind with no specified producer" do

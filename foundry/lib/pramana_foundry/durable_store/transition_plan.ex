@@ -101,7 +101,9 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
          true <- identifier?(discriminator),
          true <- plain_map?(outputs),
          :ok <- outputs_match_bindings(plan["bindings"], outputs),
+         :ok <- outputs_match_declared_kinds(plan["bindings"], outputs),
          {:ok, alternative} <- select(plan["alternatives"], discriminator),
+         :ok <- every_marker_is_declared(plan["bindings"], alternative["proposal"]),
          :ok <- markers_occupy_declared_slots(plan["bindings"], alternative["proposal"]),
          substituted <- substitute(alternative["proposal"], outputs),
          {:ok, proposal} <- RecordCodec.normalize_bundle(substituted),
@@ -171,20 +173,11 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   end
 
   defp project("nonstart_settlement_v1", fact) do
-    with true <- exact_keys?(Map.drop(fact, ["schema_version"]), @settlement_fields),
-         true <-
-           Enum.all?(
-             ~w(effect_id claim_id receipt_id role work_owner failure_class),
-             &identifier?(fact[&1])
-           ),
-         true <- nonnegative_integer?(fact["infrastructure_generation"]),
-         true <-
-           is_nil(fact["predecessor_effect_id"]) or identifier?(fact["predecessor_effect_id"]),
-         true <- is_integer(fact["ordinal"]) and fact["ordinal"] > 0 do
-      {:ok, Map.put(fact, "schema_version", 1)}
-    else
-      _ -> {:error, :invalid_authoritative_fact}
-    end
+    candidate = Map.put(fact, "schema_version", 1)
+
+    if settlement_shape?(candidate),
+      do: {:ok, candidate},
+      else: {:error, :invalid_authoritative_fact}
   end
 
   defp project("control_fact_v1", fact) do
@@ -312,6 +305,57 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     if Enum.sort(Map.keys(outputs)) == Enum.sort(Enum.map(bindings, & &1["name"])),
       do: :ok,
       else: {:error, :invalid_binding_outputs}
+  end
+
+  # A marker naming a binding the plan never declared has no authoritative source. Left
+  # unchecked, substitution would raise on the missing key instead of rejecting, so the
+  # codec would fail with an opaque exception rather than its specified refusal.
+  defp every_marker_is_declared(bindings, proposal) do
+    declared = MapSet.new(bindings, & &1["name"])
+    present = MapSet.new(marker_names(proposal))
+
+    if MapSet.subset?(present, declared), do: :ok, else: {:error, :binding_undeclared}
+  end
+
+  defp marker_names(%{"binding" => name} = value) when map_size(value) == 1 do
+    if is_binary(name), do: [name], else: []
+  end
+
+  defp marker_names(value) when is_map(value),
+    do: Enum.flat_map(value, fn {_key, nested} -> marker_names(nested) end)
+
+  defp marker_names(value) when is_list(value), do: Enum.flat_map(value, &marker_names/1)
+  defp marker_names(_value), do: []
+
+  # bind/3 is reachable with any outputs map, so it re-checks each value against its
+  # binding's declared output kind rather than assuming derive_outputs/2 produced it.
+  defp outputs_match_declared_kinds(bindings, outputs) do
+    if Enum.all?(bindings, &valid_output?(&1["output_kind"], outputs[&1["name"]])),
+      do: :ok,
+      else: {:error, :invalid_binding_outputs}
+  end
+
+  defp valid_output?(kind, value) when kind in ~w(nonstart_settlement_v1 terminal_settlement_v1),
+    do: settlement_shape?(value)
+
+  defp valid_output?("control_fact_v1", value) do
+    plain_map?(value) and exact_keys?(value, ~w(schema_version control_id control_revision)) and
+      value["schema_version"] == 1 and identifier?(value["control_id"]) and
+      nonnegative_integer?(value["control_revision"])
+  end
+
+  defp valid_output?(_kind, _value), do: false
+
+  defp settlement_shape?(value) do
+    plain_map?(value) and value["schema_version"] == 1 and
+      exact_keys?(Map.drop(value, ["schema_version"]), @settlement_fields) and
+      Enum.all?(
+        ~w(effect_id claim_id receipt_id role work_owner failure_class),
+        &identifier?(value[&1])
+      ) and
+      nonnegative_integer?(value["infrastructure_generation"]) and
+      (is_nil(value["predecessor_effect_id"]) or identifier?(value["predecessor_effect_id"])) and
+      is_integer(value["ordinal"]) and value["ordinal"] > 0
   end
 
   # The candidate declares where each authoritative fact lands. Enforce that declaration
