@@ -113,9 +113,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   @impl true
   def terminate(_reason, state) do
-    Enum.each(state.operational_health_requests, fn {_token, request} ->
-      Process.cancel_timer(request.timer)
-      Process.exit(request.pid, :kill)
+    Enum.each(state.operational_health_requests, fn {token, request} ->
+      send(request.pid, {:cancel_capacity_probe, token})
     end)
 
     _ = Database.close(state.conn)
@@ -143,24 +142,21 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
         {pid, monitor} =
           spawn_monitor(fn ->
-            result = invoke_capacity_probe(state.capacity_probe, state.path)
-            send(owner, {:operational_health_capacity, token, result})
+            capacity_probe_controller(
+              owner,
+              token,
+              state.capacity_probe,
+              state.path,
+              state.capacity_probe_timeout_ms
+            )
           end)
-
-        timer =
-          Process.send_after(
-            owner,
-            {:operational_health_capacity_timeout, token},
-            state.capacity_probe_timeout_ms
-          )
 
         request = %{
           from: from,
           health: health,
           pid: pid,
           monitor: monitor,
-          caller_monitor: Process.monitor(elem(from, 0)),
-          timer: timer
+          caller_monitor: Process.monitor(elem(from, 0))
         }
 
         {:noreply, put_in(state.operational_health_requests[token], request)}
@@ -268,7 +264,6 @@ defmodule PramanaFoundry.DurableStore.Gateway do
         {:noreply, state}
 
       {request, requests} ->
-        Process.cancel_timer(request.timer)
         Process.demonitor(request.monitor, [:flush])
         Process.demonitor(request.caller_monitor, [:flush])
         physical = normalize_capacity_result(result)
@@ -283,7 +278,6 @@ defmodule PramanaFoundry.DurableStore.Gateway do
         {:noreply, state}
 
       {request, requests} ->
-        Process.exit(request.pid, :kill)
         Process.demonitor(request.monitor, [:flush])
         Process.demonitor(request.caller_monitor, [:flush])
 
@@ -302,7 +296,6 @@ defmodule PramanaFoundry.DurableStore.Gateway do
         {:noreply, state}
 
       {token, request, :worker} ->
-        Process.cancel_timer(request.timer)
         Process.demonitor(request.caller_monitor, [:flush])
 
         physical = {:unknown, {:capacity_probe_worker_exit, reason}}
@@ -310,8 +303,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
         {:noreply, update_in(state.operational_health_requests, &Map.delete(&1, token))}
 
       {token, request, :caller} ->
-        Process.cancel_timer(request.timer)
-        Process.exit(request.pid, :kill)
+        send(request.pid, {:cancel_capacity_probe, token})
         Process.demonitor(request.monitor, [:flush])
         {:noreply, update_in(state.operational_health_requests, &Map.delete(&1, token))}
     end
@@ -1069,9 +1061,10 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp checkpoint_database(conn, fault) do
     with {:ok, before_view} <- Authority.read(conn, :all),
          :ok <- inject_maintenance(fault, :before_checkpoint),
-         :ok <- start_maintenance_fault(fault, :during_checkpoint, conn),
          {:ok, [[busy, log_frames, checkpointed_frames]]} <-
-           Database.query(conn, "PRAGMA wal_checkpoint(TRUNCATE)"),
+           run_maintenance_operation(fault, :during_checkpoint, conn, fn ->
+             Database.query(conn, "PRAGMA wal_checkpoint(TRUNCATE)")
+           end),
          true <- busy == 0,
          :ok <- inject_maintenance(fault, :after_checkpoint),
          {:ok, after_view} <- Authority.read(conn, :all),
@@ -1102,6 +1095,98 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     do: fun.(conn)
 
   defp start_maintenance_fault(_fault, _point, _conn), do: :ok
+
+  defp run_maintenance_operation(fault, point, conn, operation) do
+    case start_maintenance_fault(fault, point, conn) do
+      {:scoped, finish} when is_function(finish, 1) ->
+        try do
+          result = operation.()
+
+          case finish.(result) do
+            :ok -> result
+            {:error, _reason} = error -> error
+            other -> {:error, {:maintenance_fault_cleanup_failed, other}}
+          end
+        catch
+          kind, reason ->
+            stacktrace = __STACKTRACE__
+            _ = finish.({:raised, kind, reason})
+            :erlang.raise(kind, reason, stacktrace)
+        end
+
+      :ok ->
+        operation.()
+
+      {:error, _reason} = error ->
+        error
+
+      other ->
+        {:error, {:invalid_maintenance_fault_result, other}}
+    end
+  end
+
+  defp capacity_probe_controller(owner, token, probe, path, timeout_ms) do
+    owner_monitor = Process.monitor(owner)
+    controller = self()
+
+    {probe_pid, probe_monitor} =
+      spawn_monitor(fn ->
+        result = invoke_capacity_probe(probe, path)
+        send(controller, {:capacity_probe_result, self(), result})
+      end)
+
+    timer = Process.send_after(controller, :capacity_probe_timeout, timeout_ms)
+
+    await_capacity_probe(
+      owner,
+      owner_monitor,
+      token,
+      probe_pid,
+      probe_monitor,
+      timer
+    )
+  end
+
+  defp await_capacity_probe(owner, owner_monitor, token, probe_pid, probe_monitor, timer) do
+    receive do
+      {:capacity_probe_result, ^probe_pid, result} ->
+        Process.cancel_timer(timer)
+        Process.demonitor(probe_monitor, [:flush])
+        Process.demonitor(owner_monitor, [:flush])
+        send(owner, {:operational_health_capacity, token, result})
+
+      :capacity_probe_timeout ->
+        stop_capacity_probe(probe_pid, probe_monitor)
+        Process.demonitor(owner_monitor, [:flush])
+        send(owner, {:operational_health_capacity_timeout, token})
+
+      {:cancel_capacity_probe, ^token} ->
+        Process.cancel_timer(timer)
+        stop_capacity_probe(probe_pid, probe_monitor)
+        Process.demonitor(owner_monitor, [:flush])
+
+      {:DOWN, ^owner_monitor, :process, ^owner, _reason} ->
+        Process.cancel_timer(timer)
+        stop_capacity_probe(probe_pid, probe_monitor)
+
+      {:DOWN, ^probe_monitor, :process, ^probe_pid, reason} ->
+        Process.cancel_timer(timer)
+        Process.demonitor(owner_monitor, [:flush])
+
+        send(
+          owner,
+          {:operational_health_capacity, token, {:error, {:capacity_probe_worker_exit, reason}}}
+        )
+    end
+  end
+
+  defp stop_capacity_probe(probe_pid, probe_monitor) do
+    Process.exit(probe_pid, :kill)
+
+    receive do
+      {:DOWN, ^probe_monitor, :process, ^probe_pid, _reason} -> :ok
+    end
+  end
 
   defp invoke_capacity_probe(probe, path) do
     probe.(path)
@@ -1151,8 +1236,10 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp perform_backup(conn, target, source_view, fault) do
     escaped = String.replace(target.path, "'", "''")
 
-    with :ok <- start_maintenance_fault(fault, :during_backup, conn),
-         :ok <- Database.execute(conn, "VACUUM INTO '#{escaped}'"),
+    with :ok <-
+           run_maintenance_operation(fault, :during_backup, conn, fn ->
+             Database.execute(conn, "VACUUM INTO '#{escaped}'")
+           end),
          :ok <- maybe_interrupt_backup(fault),
          {:ok, snapshot} <- PathIdentity.existing(target.path),
          {:ok, result} <- verify_backup(snapshot, source_view, fault) do

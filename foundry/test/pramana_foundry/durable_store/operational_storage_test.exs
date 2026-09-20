@@ -2,7 +2,7 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
   use ExUnit.Case, async: false
 
   alias Exqlite.Sqlite3
-  alias PramanaFoundry.DurableStore.{Encoding, Gateway, Maintenance}
+  alias PramanaFoundry.DurableStore.{Database, Encoding, Gateway, Maintenance}
 
   setup do
     root = Path.join(canonical_tmp(), "fr19a-storage-#{System.unique_integer([:positive])}")
@@ -129,6 +129,62 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     assert %{mode: :ready} = Gateway.status(gateway)
   end
 
+  test "untrappable owner loss stops a default stalled probe and permits recovery", ctx do
+    assert :ok = Gateway.initialize(ctx.path)
+    parent = self()
+
+    {:ok, gateway} =
+      Gateway.start_link(
+        path: ctx.path,
+        capacity_probe: fn _path ->
+          send(parent, {:owner_loss_probe_started, self()})
+          receive do: (:never -> :ok)
+        end
+      )
+
+    Process.unlink(gateway)
+    gateway_monitor = Process.monitor(gateway)
+
+    caller =
+      spawn(fn ->
+        try do
+          Gateway.operational_health(gateway)
+        catch
+          :exit, reason -> send(parent, {:owner_loss_caller_exit, self(), reason})
+        end
+      end)
+
+    caller_monitor = Process.monitor(caller)
+    assert_receive {:owner_loss_probe_started, probe}
+    probe_monitor = Process.monitor(probe)
+
+    [request] = :sys.get_state(gateway).operational_health_requests |> Map.values()
+    controller = request.pid
+    controller_monitor = Process.monitor(controller)
+
+    Process.exit(gateway, :kill)
+
+    assert_receive {:DOWN, ^gateway_monitor, :process, ^gateway, :killed}
+    assert_receive {:owner_loss_caller_exit, ^caller, {:killed, {GenServer, :call, _call}}}
+    assert_receive {:DOWN, ^caller_monitor, :process, ^caller, :normal}
+    assert_receive {:DOWN, ^probe_monitor, :process, ^probe, :killed}, 1_000
+    assert_receive {:DOWN, ^controller_monitor, :process, ^controller, :normal}, 1_000
+
+    {:ok, recovered} =
+      Gateway.start_link(
+        path: ctx.path,
+        recovery_evidence: "observed killed test owner",
+        capacity_probe: fn _path -> {:ok, 321} end
+      )
+
+    assert %{mode: :ready} = Gateway.status(recovered)
+
+    assert {:ok, %{capacity: %{status: :known, physical_available_bytes: 321}}} =
+             Gateway.operational_health(recovered)
+
+    assert :ok = GenServer.stop(recovered)
+  end
+
   test "the host filesystem probe reports observed physical capacity", ctx do
     gateway = ready_gateway(ctx.path, [])
 
@@ -199,12 +255,52 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     for operation <- [:checkpoint, :backup] do
       path = Path.join(ctx.root, "#{operation}.sqlite3")
       capability = make_ref()
+      parent = self()
+      armed = :atomics.new(1, signed: false)
+
+      fault = fn conn ->
+        if :atomics.get(armed, 1) == 0 do
+          :ok
+        else
+          ready = make_ref()
+          callback = self()
+          worker = spawn(fn -> interrupt_connection(conn, callback, ready) end)
+
+          receive do
+            {:maintenance_interrupter_ready, ^ready, ^worker} -> :ok
+          after
+            1_000 -> raise "maintenance interrupter did not start"
+          end
+
+          send(parent, {:maintenance_interrupter, operation, worker})
+
+          {:scoped,
+           fn operation_result ->
+             worker_monitor = Process.monitor(worker)
+             send(worker, :stop)
+
+             stopped =
+               receive do
+                 {:DOWN, ^worker_monitor, :process, ^worker, :normal} -> :ok
+               after
+                 1_000 -> {:error, :maintenance_interrupter_stop_timeout}
+               end
+
+             send(parent, {:maintenance_operation_result, operation, operation_result})
+             stopped
+           end}
+        end
+      end
 
       seed =
         start_store(path,
           protected_capability: capability,
-          capacity_probe: fn _path -> {:ok, 1} end
+          capacity_probe: fn _path -> {:ok, 1} end,
+          maintenance_fault: {:during, :"during_#{operation}", fault}
         )
+
+      connection = :sys.get_state(seed).conn
+      assert {:ok, [[0]]} = Database.query(connection, "PRAGMA wal_autocheckpoint=0")
 
       prior_count = 4
 
@@ -216,54 +312,51 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
       assert {:ok, %{content: baseline}} = Gateway.backup(seed, baseline_path)
       baseline_digest = file_digest(baseline_path)
       assert_complete_authority(baseline, prior_count)
-      assert :ok = stop_supervised(Path.basename(path))
+      source_identity = File.stat!(path).inode
 
-      parent = self()
-
-      fault = fn conn ->
-        ready = make_ref()
-        callback = self()
-        worker = spawn(fn -> interrupt_connection(conn, callback, ready) end)
-
-        receive do
-          {:maintenance_interrupter_ready, ^ready, ^worker} -> :ok
-        after
-          1_000 -> raise "maintenance interrupter did not start"
+      wal_precondition =
+        if operation == :checkpoint do
+          wal_precondition(path, connection)
         end
 
-        send(parent, {:maintenance_interrupter, operation, worker})
-        :ok
-      end
-
-      gateway =
-        start_supervised!(
-          {Gateway,
-           path: path,
-           protected_capability: capability,
-           maintenance_fault: {:during, :"during_#{operation}", fault}},
-          id: {:interrupted, operation}
-        )
+      :atomics.put(armed, 1, 1)
 
       destination = Path.join(ctx.root, "#{operation}-partial.sqlite3")
 
-      result =
-        case operation do
-          :checkpoint -> Gateway.checkpoint(gateway)
-          :backup -> Gateway.backup(gateway, destination)
-        end
+      request =
+        Task.async(fn ->
+          case operation do
+            :checkpoint -> Gateway.checkpoint(seed)
+            :backup -> Gateway.backup(seed, destination)
+          end
+        end)
 
-      assert_receive {:maintenance_interrupter, ^operation, interrupter}
+      assert_receive {:maintenance_interrupter, ^operation, interrupter}, 5_000
       interrupter_monitor = Process.monitor(interrupter)
-      send(interrupter, :stop)
-      assert_receive {:DOWN, ^interrupter_monitor, :process, ^interrupter, :normal}
+      assert_receive {:DOWN, ^interrupter_monitor, :process, ^interrupter, :normal}, 5_000
+      assert_receive {:maintenance_operation_result, ^operation, operation_result}, 5_000
+      result = Task.await(request, 10_000)
+
+      assert {:error, operation_reason} = operation_result
+      assert inspect(operation_reason) =~ "interrupt"
 
       assert {:error, {:storage_unavailable, reason}} = result
       assert inspect(reason) =~ "interrupt"
-      assert %{mode: :recovery} = Gateway.status(gateway)
+      assert %{mode: :recovery} = Gateway.status(seed)
+      assert File.stat!(path).inode == source_identity
+
+      if operation == :checkpoint do
+        assert %{size: size, frames: frames, inode: wal_inode} = wal_precondition
+        assert size > 32
+        assert frames > 0
+        retained_wal = File.stat!(path <> "-wal")
+        assert retained_wal.inode == wal_inode
+        assert retained_wal.size > 0
+      end
 
       assert {:error, {:recovery_mode, _reason}} =
                Gateway.transact_verified(
-                 gateway,
+                 seed,
                  capability,
                  "operator",
                  command("#{operation}-LATER"),
@@ -272,12 +365,12 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
                )
 
       assert {:error, {:recovery_mode, _reason}} =
-               Gateway.backup(gateway, Path.join(ctx.root, "#{operation}-fenced.sqlite3"))
+               Gateway.backup(seed, Path.join(ctx.root, "#{operation}-fenced.sqlite3"))
 
       partial =
         if File.exists?(destination), do: {File.stat!(destination).size, file_digest(destination)}
 
-      assert :ok = stop_supervised({:interrupted, operation})
+      assert :ok = stop_supervised(Path.basename(path))
 
       reopened =
         start_supervised!(
@@ -288,6 +381,8 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
       recovered_path = Path.join(ctx.root, "#{operation}-recovered.sqlite3")
       assert {:ok, %{content: ^baseline}} = Gateway.backup(reopened, recovered_path)
       assert_complete_authority(baseline, prior_count)
+      assert {:ok, %{content: ^baseline}} = Maintenance.verify(baseline_path)
+      assert {:ok, %{content: ^baseline}} = Maintenance.verify(recovered_path)
       assert file_digest(baseline_path) == baseline_digest
 
       if partial do
@@ -645,19 +740,39 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
   end
 
   defp interrupt_connection(conn, parent, ready) do
+    owner_monitor = Process.monitor(parent)
     send(parent, {:maintenance_interrupter_ready, ready, self()})
-    interrupt_connection(conn)
+    interrupt_connection_loop(conn, parent, owner_monitor)
   end
 
-  defp interrupt_connection(conn) do
+  defp interrupt_connection_loop(conn, owner, owner_monitor) do
     receive do
       :stop ->
+        Process.demonitor(owner_monitor, [:flush])
+        :ok
+
+      {:DOWN, ^owner_monitor, :process, ^owner, _reason} ->
         :ok
     after
       1 ->
         :ok = Sqlite3.interrupt(conn)
-        interrupt_connection(conn)
+        interrupt_connection_loop(conn, owner, owner_monitor)
     end
+  end
+
+  defp wal_precondition(path, conn) do
+    wal = File.stat!(path <> "-wal")
+    assert {:ok, [[page_size]]} = Database.query(conn, "PRAGMA page_size")
+    frame_bytes = page_size + 24
+    assert wal.size > 32
+    assert rem(wal.size - 32, frame_bytes) == 0
+
+    %{
+      size: wal.size,
+      page_size: page_size,
+      frames: div(wal.size - 32, frame_bytes),
+      inode: wal.inode
+    }
   end
 
   defp assert_complete_authority(content, expected \\ 1) do
