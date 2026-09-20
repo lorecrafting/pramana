@@ -15,6 +15,30 @@ This is append-only historical evidence, not required linear reading. On resume:
 3. Follow exact candidate/review links when validating provenance; read older ticket
    history only when a current finding crosses that interface.
 
+## Which branches are live
+
+A branch is live if it is **not** reachable from an `archive/` tag. Consolidating on
+2026-09-20 tagged every branch tip as `archive/<date>/<branch>` before deleting any
+branch, so an archived line of work is recoverable with
+`git branch <name> archive/<date>/<name>` and is not lost by being absent from
+`git branch`.
+
+```sh
+git for-each-ref --format='%(refname:short)' refs/heads/   # live
+git for-each-ref --format='%(refname:short)' 'refs/tags/archive/**'  # archived
+```
+
+This convention is deliberately mechanical rather than a maintained list of current
+branches. Such a list is accurate for about an hour in an active repair and then
+misleads, which is the failure this repository already avoids by generating evidence and
+pinning it by hash rather than describing it in prose. Each entry below names the branch
+its work lived on at the time it mattered; that, plus the tag convention, is the durable
+form of the same information.
+
+A complete offline copy of every ref as of that consolidation exists outside the
+repository as a Git bundle; `git bundle verify` reports it records a complete history. It
+is a backstop, not a substitute for the tags.
+
 Do not preload this whole log, all of `docs/PLAN.md`, the full audit or the full workflow
 contract for a bounded ticket. Read the Foundry portion of `docs/PLAN.md`, the relevant
 contract anchors and the exact evidence packet. Targeted patches can append or update an
@@ -1521,3 +1545,365 @@ latest prose here, remains authoritative for status and dependencies.
   credential, daemon, Herdr, installation or execution capability changed. FR-15aA is
   complete; FR-15aB still owns actual isolation and FR-09 owns installed-harness and
   subscription conformance.
+
+## FR-19A operational storage integration — 2026-09-19
+
+- Initial candidate `d1ce73ee9da548a64a447106f83d3d7f8ce1b567` received Astra-high
+  **BLOCKER** review `705e7b604483c631b2ac968c9a99ca627d8ad616` for the default health
+  deadline race, incomplete maintenance fencing/interruption, and missing physical
+  ENOSPC/kernel-sync evidence. The correction retained all credited backup, corruption,
+  authority and relocation-containment behavior.
+- Linux workflow run `35498430877` supplies the bounded physical sync record: an exact
+  owned device-mapper/loop/ext4 stack, unchanged Gateway backup descriptor returning
+  `fsync EIO`, typed public failure and fencing, deterministic map restoration, orderly
+  same-device remount, digest-stable complete destination/source authority and replay,
+  and exact cleanup. The independently downloaded artifact ZIP hash is
+  `ad315c15657068a921a1faeb73831a66c08bbecd252dc79145f539c7cca76959`.
+  An owned Darwin filesystem separately proved physical ENOSPC. Neither result claims
+  power-loss, failed-sync persistence, cache flush or media durability.
+- Astra-high rereview `7ce0c65c0a4f72ec146abdbb26d8f0381f5e96d4` credited the physical
+  evidence but retained B1 owner-death probe cleanup and B2 a zero-WAL interruption false
+  positive. Implementation `6c1e5acb29b10e0cd40c692de87f05f1155804c8` added an independent
+  controller/watchdog and a positive-frame, operation-scoped checkpoint/VACUUM fixture.
+  Focused Astra-medium rereview `95eccd6b160b6f339376cfd79e7de81f997c4ba6` returned **PASS**.
+- The complete chain is integrated through
+  `efd8e89967ad90e7ea30dddd08864de5afadd4d1`. Composition exposed that H0's test
+  incorrectly required the live post-FR-07 Gateway to remain byte-identical forever;
+  reviewed compatibility commit `b7484482ac1305eb47d81be2787fc9a836683339` preserves the frozen
+  accepted-v9 artifact while requiring the historical provider to refuse positive credit
+  for evolved code. In a clean detached checkout with pinned Elixir 1.20.3 / OTP 29.0.5,
+  bundled Exqlite headers and a canonical temporary root, integrated CI passed 590 tests,
+  13 intentional skips and one optional exclusion. Provenance SHA-256:
+  `76b45e0e364464e52919012acdf955b46516473163e15bebfeb1bcd4fa0be0dd`.
+  No daemon, provider, credential, deployment or activation was used. FR-19B remains open.
+
+## FR-08A protected authority and combined integration — 2026-09-20
+
+- The initial protected-primitives candidates passed broad component suites but repeated
+  Astra-high hostile review exposed loaded-code binding, epoch/control ordering, semantic
+  launch identity, recursive ledger closure, receipt provenance, migration, dual-authority,
+  rejection atomicity and recovery-provenance defects. Every blocker record and correction
+  remains routed under `foundry/docs/fr-08/`; green test totals were never treated as a
+  substitute for closing the reproduced invariant.
+- Final branch correction `f9e35b42d2eb768f4407543ac0f84e2758409ab4`, gate binding
+  `3ccbbc3639ae31cbb76daa08254523ecefe63aa7` and evidence
+  `f2e4a9110d46bee19f3438e74e467335c60e677f` enforce typed command/result replay,
+  contiguous revisions and exact singular/plural carrier schemas without recursively
+  interpreting opaque payload data. Focused Astra-medium review
+  `5851c9be9b6d0cfb7f3fad5d41e06fa139b852bd` returned **PASS** after maintained 57,
+  prior 39 and 98 fresh carrier cases.
+- A read-only merge inventory showed no textual conflict with accepted FR-19A but correctly
+  invalidated revision-bound evidence. The reviewed branch was therefore combined with
+  current main in explicit merge `1d0b128ff7c78bf72577d23658e267d7508e4763`; cross-feature
+  tests `240d16f6823a8b9118c4d2b52d305314c6a97203` and rebound evidence
+  `b05f8342fbb83cb26a0fa157472bee15a020ad7e` produced frozen candidate
+  `176dab44354b5bbdde5b488f44766849c9d8927d`.
+- Fresh Astra-high combined review `a22753569254ca42773f04632ca42a72573c9a2e`
+  returned **PASS**. It independently recreated the merge tree, verified every manifest
+  and artifact, passed combined 6, focused 46, independent 11, prior 41/39/57/98 and
+  isolated native-sync 2, reproduced the exact 7/7 source/BEAM-bound report and rejected
+  altered loaded code. Clean canonical CI passed 612 tests, 13 intentional skips and one
+  optional exclusion. The exact reviewed branch fast-forwarded main with no post-review
+  source change. No provider, daemon, credential, activation or deployment was used.
+- FR-08A is complete. FR-08B and FR-18A are ready; FR-15aB still waits for FR-08B. The
+  protected verifier is not a second workflow reducer, and completion does not claim live
+  execution, presentation, activation or FR-22 acceptance.
+
+## FR-08A atomic-composition handoff correction — 2026-09-20
+
+- FR-08B implementation stopped before editing at base
+  `d0059b03757a73085f430895304244afaec79ce2`. Source inspection showed that ordinary
+  `Gateway.transact/4` commits domain records with no protected operations, while
+  `Gateway.protected_command/4` executes one protected operation in a separate
+  transaction and the legacy combined route refuses root-authority stores. Sequential
+  calls cannot satisfy the workflow contract's atomic R4a/R5 settlement and restart
+  obligations.
+- A fresh read-only Astra-high diagnosis confirmed the contradiction and bounded the
+  correction. [Its durable record](fr-08/atomic-composition-diagnosis.md) requires a
+  versioned bundle through the one Gateway transaction, fixed non-committing protected
+  operations, global command idempotency, complete prestate CAS, typed ordered history,
+  v1 replay compatibility, validated domain/protected linkage and a protected
+  once-per-non-start infrastructure settlement fact. FR-08B retains the role reducer and
+  every-ingress migration; no acceptance obligation is waived.
+- Active owner: Sol-medium `fr08a_atomic_bundle_impl`, isolated from the concurrent
+  FR-18A observation slice. The correction requires a fresh Astra-high authority,
+  persistence and replay review before integration. The historical FR-08A PASS remains
+  valid only for its exact candidate and does not prove this new handoff surface.
+- First frozen candidate `9a8a4912bcc86d1f58b50a65f9cc148982ac3915`, tree
+  `325652033c56f582ea3102650770dd5a73b3c0bb`, added the one-transaction bundle route,
+  typed operation journal, v1 backfill and infrastructure settlement record. Fresh
+  Astra-high review `d1700a853e286428c315d9a26040c86a048cead8` returned **BLOCKER**:
+  hostile probes reproduced cross-envelope rejected-operation reuse, non-durable early
+  rejection, settlement/history mutation surviving reopen, partial migration acceptance,
+  truncated/substituted v2 outcomes, missing bundle-prestate CAS and broken duplicate
+  receipt settlement recovery. Independent probes passed 22/35; the affected suite
+  passed 173/176. The exact-base ENOSPC fixture passed while the candidate fixture
+  returned zero-frame success, so that difference remains an explicit diagnosis item.
+  The original implementer owns the bounded B1–B7 correction; nothing is integrated.
+- Runtime corrections `940ccfb3efbcfb533ebeec0f46d67c1f83d3681f`,
+  `0cadb1f1c936304240c0b053503c45156c53f4e4` and
+  `67a2b923ef58f98290457f4640561bc5d44f9db8` close the seven original blocker groups,
+  copied settlement provenance/shape and mandatory non-start carrier presence. Evidence
+  commit `721a9e86ed51b776785a7260890b39f894fc1c5a` binds the final corrected source.
+  Astra-medium rereview PASS `bae065ba183833b3fb30c6f3c6326c00e49a1039`
+  verified the final B3/B5 boundary after earlier blocker records were preserved.
+- The ENOSPC discrepancy was traced to the new typed history crossing SQLite's default
+  1,000-frame auto-checkpoint threshold, not a checkpoint implementation regression.
+  The owned physical fixture now disables auto-checkpoint only for the test, asserts a
+  nonempty wholly uncheckpointed WAL using `wal_checkpoint(NOOP)`, then proves physical
+  ENOSPC. Production WAL behavior is unchanged.
+- Current-main documentation and the exact reviewed branch were merged at
+  `f3ef50340548fa1c430f922a0913f132bae9786f`. Runtime/test paths are byte-identical to
+  the reviewed candidate. Exact clean integrated CI on pinned Elixir 1.20.3 / OTP 29.0.5
+  passed 625 tests with 13 intentional skips and one optional exclusion; provenance is
+  `/private/tmp/fr08a-atomic-integrated-ci-f3ef503/provenance.json`, tree
+  `3c36362dc9d4b6a49bbd6fa8b0d41f20832dfa86`. Documentation passed 80/80. FR-08B is
+  dependency-ready and FR-18A may now add its separately designed bounded read query.
+  No provider, daemon, activation or deployment ran.
+
+## FR-08B pure kernel and root-fact composition — 2026-09-20
+
+- First pure-kernel candidate `a00deccbf4717ed6c3e4835bbdefed457dd6d637`, tree
+  `21ec8b3c1cc64c490b325506682754bfa2cd7db5`, added only new workflow kernel/state/test
+  files and passed 17 maintained tests. Fresh Sol-high review
+  `a8ecf36b7032572ceba27c139c06c5f17d10a604` returned **BLOCKER**: generic snapshot
+  replay was unguarded and non-total; closure/check/review/correction custody was lossy;
+  R4a ignored control/allocation/generation cross-products; and the label matrix did not
+  execute the 28 required rows.
+- The review also exposed that the integrated atomic Gateway cannot bind protected facts
+  derived during staging into its precomputed domain proposal. Fresh Astra-high diagnosis
+  [`fr08b-root-fact-composition-diagnosis.md`](fr-08/fr08b-root-fact-composition-diagnosis.md)
+  confirms this is a bounded FR-08A interface correction: a closed versioned transition
+  plan with fixed typed result slots and finite kernel-authored alternatives selected by
+  root-derived discriminants. Gateway performs only mechanical validated selection and
+  substitution; it does not execute candidate code or become a lifecycle reducer.
+- The FR-08B owner is correcting the pure semantic event/state/plan contract and exhaustive
+  matrices without touching durable core. The protected-result/domain-plan binding must be
+  implemented and critically reviewed after the active FR-18A protected read slice releases
+  core ownership. No FR-08B runtime or adapter code is integrated.
+
+## FR-18A minimal honest observations — 2026-09-20
+
+- Sol-medium source candidate `fa74cabb7ce8c4d12cf94e756c92b7310733192a`, tree
+  `6228757bd34a1d639ebb693413dd45b43d50fc0c`, adds only a typed observation surface,
+  DTOs, a protected-Gateway adapter and tests. Candidate evidence commit
+  `8f266ea087791345f1318785e80fa2f754a15b00` records 22 focused passes, exact-source
+  pinned CI with 619 passes, 13 intentional skips and one optional exclusion, and an
+  80/80 documentation gate. It changes no Coordinator, reducer or protected writer.
+- Fresh Sol-high review `84848a1b13278d052ee590705a12fb384abbd5c6` returned
+  **BLOCKER**. Hostile probes reproduced corrupt authority collapse to unavailable,
+  contradictory unknown-to-success effect reporting, secret-shaped identity leakage,
+  canonical quality on malformed versions and post-materialization limits that do not
+  bound the protected query. It also found a protected pointer-vocabulary mismatch.
+- The original implementer is correcting the disjoint observation defects. The bounded
+  protected effect query is deliberately serialized behind the active FR-08A atomic
+  bundle writer because both require the same Gateway/protected-core files. FR-18A is not
+  complete, and its green component/full-suite counts do not override the hostile review.
+- Observation-layer correction `ff6613cb81ac335d425ef460edc8994bc29448c4` and final
+  Sol-high rereview `e10c57b115f2c8b9a8aab2d04d3e5da1fa8cc330` pass corrupt-versus-
+  unavailable classification, terminal reconciliation, whole-envelope redaction,
+  malformed-version quality and protected pointer vocabulary. Focused checks passed 28;
+  B5 remains explicitly unreviewed and blocking.
+- Branch `origin/repair/fr18a-honest-observations` preserves the complete candidate and
+  review chain. Documentation-only commit `3bc217e70ff3df359f9a68672e10f53bc9a3dfe7`
+  records the future bounded exact-effect query: typed SQL-level item/byte caps, stable
+  source-bound cursors, explicit truncation/unknown/error semantics and acceptance tests.
+  It changes no runtime. Implementation waits for the FR-08A protected-core correction
+  to pass and integrate, avoiding concurrent ownership of `ProtectedPrimitives`.
+
+## FR-18A bounded effect query B5 correction integrated — 2026-09-20
+
+- The B5a-B5d correction `98b6ef9fe4236d4741d54888845f64049d8ba738` and its rebound
+  FR-08A evidence `aa173780365d732e1b6fe8ea07b86ca9348c863e` were frozen as candidate
+  `f3f038809262963e5f26e1b2dd127bc89c6bd3c9`, tree
+  `490cb434b3110b2eee987b7e3bbf57c6eb8d0c9e`.
+- Independent narrow rereview `2f5a30817febc490eed3156c37ffdf80cabf86a6` returned
+  **PASS** for all four blockers. Reviewer identity: Claude Opus 5, fresh session,
+  separate from the implementer; recorded as the evidence identity actually used.
+  [Its durable record](fr-18a/b5-correction-rereview.md) verified rather than accepted
+  the diff: the new control/execution summaries never reach the legacy unbounded
+  materializers and are charged to the byte budget by `effect_observation_size/3` before
+  section reads; the closed `active|cancel_requested` vocabulary is enforced at the write
+  boundary, so no healthy store can present a control value the reader calls corrupt;
+  the reconciliation path admits only a durably quarantined conflicting receipt, and a
+  duplicate non-start is refused before reaching that state; and the settlement binding
+  is three-way across settlement row, authoritative effect/receipt scalars and the
+  accepted operation record, verified from the authoritative side as well as the
+  settlement side.
+- Evidence: 23 independent [rereview probes](fr-18a/b5-correction-rereview-probes.exs)
+  at seed 20926, of which 10 were authored by the reviewer; 42 maintained focused tests
+  at seed 20927; 26 corrected B5 review probes at seed 18055; canonical CI at the frozen
+  candidate with six stages passed and an empty dirty set; documentation gate 80/80.
+- **Recorded gap, outstanding before FR-18A completion:**
+  `bounded_execution_summary/1` enumerates four statuses, but the `exit` and
+  `sealed_without_result_or_exit` branches have no executable coverage against a real
+  store, and `sealed_without_result_or_exit` does not appear in `test/` at all. Those
+  branches carry sequence-range validation whose failure would misreport terminal
+  execution state. This is a coverage gap, not a reproduced defect, and did not block
+  integrating the correction.
+- Current-main documentation and the exact reviewed branch merged at
+  `850489ca5fccaeafe5128fbf6500f5962c3e5e6c`. Runtime, test, CI-runner and lockfile paths
+  are byte-identical to the reviewed candidate; only documentation differs. Exact clean
+  integrated CI on pinned Elixir 1.20.3 / OTP 29.0.5 passed all six stages at tree
+  `fa056dab9ccce5f1e63c46ddd3dc3736c2cfb2a3`; provenance is `/private/tmp/claude-501/-Users-raymondluong-dev-pramana/3cec5694-5089-47fb-a6c1-b782b0717815/scratchpad/ci-artifacts-integrated/provenance.json`. Documentation passed 80/80.
+- Integration releases the `ProtectedPrimitives` ownership that the FR-08A
+  protected-result/domain-plan binding correction was waiting on. FR-18A is not complete,
+  and this integration claims no producer, board, activation, provider execution or
+  FR-22 acceptance.
+
+## FR-18A execution summary coverage gap closed — 2026-09-20
+
+- The gap recorded by the B5 correction rereview is closed at
+  `cb136fa`. `bounded_execution_summary/1` enumerates four statuses; against a real store
+  only `result` and `absent` were covered, and `sealed_without_result_or_exit` appeared
+  nowhere in `test/`. Three real-store cases now drive `append_inbox` and `seal_inbox`
+  through the public protected command path to reach `open`, `exit` and
+  `sealed_without_result_or_exit`, asserting the sealed sequence and the presence or
+  absence of the accepted item sequence.
+- All three pass against the unchanged implementation, so the gap closed without
+  exposing a defect. The commit touches no runtime file. Observations suite 20 passed at
+  seed 20930; full model-free suite 649 passed, 13 skipped and one optional exclusion at
+  seed 0.
+- **Operational finding for anyone running these checks.** The physical fault tests
+  (`SyncFaultTest`, `OperationalStorageTest` ENOSPC/xSync/checkpoint cases) are not safe
+  to run concurrently with another suite run on the same machine. Two concurrent runs
+  produced two spurious failures each; both runs passed when rerun serially with nothing
+  else running. Candidate and integration evidence must therefore come from a serial run.
+- This closes one recorded obligation. FR-18A's other completion obligations are
+  unchanged, and no producer, board, activation, provider execution or FR-22 acceptance
+  is claimed.
+
+## FR-08A protected-result/domain-plan binding, partial candidate — 2026-09-20
+
+- The root-fact composition diagnosis assigns this interface correction to FR-08A.
+  [Its implementation specification](fr-08/plan-binding-specification.md) records the
+  confirmed defect at base `3f06a5a` with exact source lines: `commit_accepted_atomic_bundle/6`
+  binds `proposal = envelope["proposal"]` and commits it unchanged, while
+  `operation_results` — already carrying the authoritative settlement and its ordinal —
+  reaches the durable record but never the domain proposal.
+- Three attributable subcommits are complete. `24b8431` adds the trusted
+  `DurableStore.TransitionPlan` codec: closed schema validation, discriminator selection,
+  slot-enforced substitution and post-normalization carrier agreement. `aa0debe` adds
+  `derive_outputs/2`, which resolves each binding against the staged protected result at
+  its declared ordinal and projects facts into fixed shapes. `d1b190d` adds
+  `ProtectedPrimitives.infrastructure_discriminator/3` and, with it, the first evaluation
+  of `infrastructure_attempt_limits` anywhere in `lib/`.
+- The codec deliberately does not depend on `Workflow.Kernel.Plan`. It also enforces the
+  declared destination slot, which the candidate-side copy does not: a bound fact may
+  occupy only the declared payload field of one event of the declared type, that event's
+  embedded projection transition value, and the paired projection's value.
+- **Subcommits 0, 4 and 5 are outstanding.** There is no Gateway wiring, no existing path
+  changes behavior, and a bound lifecycle transition cannot commit. Subcommit 0 is a
+  versioned durable event vocabulary extension, blocked on a decision belonging with the
+  FR-08B kernel contract; subcommits 4 and 5 depend on it.
+- Independent critical review by Claude Fable 5.1, fresh session, separate from the
+  implementer; recorded as the evidence identity actually used. It returned **BLOCKER**
+  twice before passing.
+  - First: `bind/3` raised `KeyError` instead of rejecting a marker naming an undeclared
+    binding, which the specification required and the implementation omitted. Corrected
+    at `ce9b4a1` by `every_marker_is_declared/2`.
+  - Second: that correction was incomplete. `marker_names/1` filtered on `is_binary`, so a
+    marker named by an integer, `nil` or a list still reached `substitute/2` and raised.
+    All three shapes were reproduced. Corrected at `1952ff4` by collecting names
+    regardless of type.
+  - **PASS** at `1952ff4`, after the reviewer re-ran its own reproductions and seven
+    further marker shapes, including a marker-shaped value nested inside an authoritative
+    output, which the pre-existing shape gate refuses.
+- The review also established that `bind/3`'s output-kind check is a **shape gate, not a
+  provenance gate**: a well-shaped but entirely fabricated settlement passes it. This is
+  unexploitable at this candidate, which cannot commit anything, and is recorded as a
+  binding requirement on subcommit 4 rather than deferred to discovery.
+- Two operational findings. The revision-bound FR-08A attestation pins the source SHA-256
+  and loaded BEAM MD5 of `protected_primitives.ex`, so adding one function there broke the
+  frozen artifact and reported `ready=false`; the full suite at candidate freeze caught
+  what focused runs did not, and `c7673b4` rebinds it. Separately, a build directory used
+  for `mix run` and later reused for a full `mix test` produces stale-artifact failures in
+  unrelated modules; this is distinct from the concurrency effect recorded above, and both
+  were reproduced. Use a fresh `MIX_BUILD_PATH` for each full-suite validation run.
+- Exact clean CI at each frozen revision on pinned Elixir 1.20.3 / OTP 29.0.5, run
+  serially; full model-free suite 701 passed, 13 skipped and one optional exclusion at
+  seed 0. No provider, daemon, credential, activation or deployment was used.
+- Current-main documentation and the exact reviewed branch merged at
+  `3de546c9d6bdafc9c6ec1f97983b794d48da1cb2`. Runtime, test, CI-runner and lockfile paths
+  are byte-identical to reviewed candidate `1952ff4`; only documentation differs. Exact
+  clean integrated CI, run serially, passed all six stages at tree
+  `5c2c42e03c9257e78c4e99d40373ff998fdd8c2e`. Integration adds no caller: both new symbols
+  remain unreferenced by production code, so no existing behavior changes.
+
+## FR-08A durable event vocabulary, subcommit 0 — 2026-09-20
+
+- The blocking prerequisite recorded against the binding correction is resolved. The
+  [design](fr-08/event-vocabulary-design.md) required two revisions: revision 1 proposed
+  versioning the durable event record and was returned **BLOCKER** because
+  `events.schema_version` carries `CHECK (schema_version = 1)` on a STRICT table,
+  `insert_events/3` writes that version as a SQL literal, and relaxing the CHECK without
+  fixing the literal would have written a column and blob that disagree — a new way to
+  manufacture the partial version state the repair exists to eliminate.
+- Revision 2 replaced the mechanism outright. The constrained column was never the one
+  that needed to change: `event_type` carries no CHECK, and within the durable store the
+  vocabulary is enforced in exactly one place. Extending it needs no schema change, no
+  migration and no version dispatch. Two disjoint vocabularies now share one flat
+  namespace, so a name identifies exactly one contract and no stored record can disagree
+  with its own type.
+- Implementation `7fc5c46` seeds the lifecycle set with exactly the ten event types the
+  transition-plan destination slots require, so every name is justified by a concrete
+  binding; FR-08B adds the remainder. Disjointness is enforced at compile time, verified
+  non-vacuous by introducing a collision and confirming the build fails.
+- Evidence commit `a68fa8a` rebinds the FR-08A attestation, because `record_codec.ex` is
+  pinned by source SHA-256 and loaded BEAM MD5. This was the second such break in one
+  session and is the evidence behind FR-23's same-commit rebinding requirement.
+- Independent review by Claude Fable 5.1 returned **PASS**, having re-derived every claim
+  rather than accepting the summary: it broke the compile-time guard on purpose and
+  reverted it, recomputed the pinned hash independently, and confirmed the recovered test
+  coverage was intact after a bad bulk edit was restored from git. It also established a
+  precision point now recorded in the test itself — the backup reconstruction is agnostic
+  to the event type string, so the reconstruction assertions alone do not prove the name
+  survived storage; the `recent_events` assertions are what establish that.
+- **FR-08A is reopened, not complete.** Its row was marked complete before the binding
+  correction reopened it. Subcommits 4 and 5, Gateway wiring and replay revalidation,
+  remain outstanding, and subcommit 4 is additionally bound by its recorded structural
+  provenance requirement.
+
+## FR-08A transition plan codec R4a coverage — 2026-09-20
+
+- A deliberately broad independent design review, asked to judge the FR-08B kernel design
+  in context with the rest of Foundry rather than on its own terms, found two defects in
+  the already-integrated FR-08A transition-plan codec. `launch_authority_v1` had **no
+  producer**, so all five `.authority` slots were declarable but unbindable and R4's
+  ordinary admission row was unreachable through the binding. `@slots` defined no
+  `review_settled` and no check-worker settlement, so two of R4a's four domain-owner rows
+  had no destination at all.
+- **Both defects were in code that had already passed two independent reviews.** Each
+  examined the codec's mechanism — authority, slot enforcement, fail-closed derivation —
+  and each was correct on those terms. Neither was asked whether the mechanism covered
+  R4a, so neither looked. That evidence produced the contract-coverage review requirement
+  now recorded in [the repair plan](REPAIR-PLAN.md).
+- `71e558b` adds the producer as `{"issue_claim", "effect"}`. `issue_claim` returns the
+  authoritative issued effect, which carries every field the kind needs; the projection
+  renames `assignment_id` to `work_owner` and `phase_generation` to
+  `infrastructure_generation`. Reservation and ledger identities are deliberately
+  excluded, because no single operation's facts carry them authoritatively and binding
+  them would mean copying caller-supplied data on trust. It also adds `check_settled` and
+  `review_settled` and their slots.
+- `43ee08e` resolves the remainder of R4a's fourth domain-owner row three different ways
+  after review asked for one sentence of reasoning. freeze/import is **subsumed by
+  check**, because R5 states each freeze/import/mandatory-check worker charges
+  `starts.check` and R4's freeze-failure row routes to a bounded `starts.check` retry.
+  **build was a genuine gap**, not a documentation request: R5 gives it a distinct
+  `starts.build` dimension, so `build_planned`/`build_settled` and their slots were added.
+  activation gets no slot, being accounted as `operations.activation` rather than a start,
+  with FR-17 owning immutable activation. The reasoning sits beside the slot table so it
+  is not reconstructed later.
+- The coverage assertions whose absence let this through are now maintained tests: every
+  R4a domain owner must have a settlement slot, and every declared admission slot must
+  actually derive an authority fact rather than merely naming a kind. They enumerate six
+  owners, so a future missing slot fails a test rather than waiting for a reviewer.
+- Independent review by Claude Fable 5.1 returned **PASS**, having traced `issue_claim`
+  through `public_effect/1` to confirm every projected field is genuinely present in the
+  authoritative record rather than invented, and confirmed the new assertions are real
+  coverage rather than mechanism tests relabelled.
+- Evidence commits `7b7c590` and `aae4424` rebind the FR-08A attestation, third and
+  fourth rebinds of the session. Integrated at `b4044e3` with runtime byte-identical to
+  the reviewed candidate; exact clean CI passed all six stages, and the full model-free
+  suite passed 711 at seed 0 run serially.
+

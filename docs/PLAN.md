@@ -313,10 +313,11 @@ Next resumable Foundry work, under exact repair-plan ownership:
 1. The bounded current-revision `ProcessGroup.gone?/1` false-death correction and its
    `Checks.Runner` caller cases are independently reviewed and integrated. Retain its
    evidence and leave FR-10's descendant/issuer/channel reconciliation open.
-2. H0's revision-bound accepted-FR-07 inventory is independently reviewed and integrated:
-   four capabilities pass and three are honestly unavailable, so `ready=false`. FR-08A is
-   now ready and owns those missing protected capabilities; no direct SQL, empty-table
-   inference or synthetic adapter may pass them.
+2. H0's revision-bound accepted-FR-07 inventory remains immutable historical evidence:
+   four capabilities passed and three were honestly unavailable. FR-08A has now supplied
+   those protected capabilities, survived adversarial authority/recovery review, and passed
+   a fresh Astra-high review on the actual combined FR-08A/FR-19A tree. Its current gate is
+   7/7 ready; H0 is not rewritten to impersonate the evolved implementation.
 3. Checkpoint F's bounded Pi-first provider-free inventory and FR-15aA's executable
    provisioning specification are complete, independently reviewed and integrated. The
    specification inventories and validates the distinct protected-root, kernel, auth,
@@ -324,20 +325,25 @@ Next resumable Foundry work, under exact repair-plan ownership:
    ownership-aware provisioning and rollback. It performed no host provisioning and
    enables no execution: actual isolation remains FR-15aB, installed-harness/subscription
    conformance remains FR-09, and OMP remains governing.
-4. Implement and critically review FR-08A's missing protected primitives/full handoff
-   evidence, then FR-08B's one-reducer migration for every command ingress.
+4. FR-18A's bounded exact-effect observation query is implemented, independently
+   reviewed and integrated against the reviewed atomic protected interface, including
+   bounded control/execution summaries, the valid non-start reconciliation outcome, a
+   three-way settlement field binding and bounded-response source/version correlation.
+   Its recorded execution-summary coverage gap is closed. FR-08B's one-reducer migration
+   for every command ingress is not resumed: its first pure-kernel slice holds an
+   independent BLOCKER, and its event vocabulary is incompatible with the durable codec,
+   which admits one of the kernel's twenty-seven event types.
 5. Continue actual isolation, selected-harness conformance, durable effects/lifecycle,
    scheduling, artifact custody and Git integration in the repair graph's order.
 6. Complete honest observation/storage baselines before immutable activation; then finish
    steering, switching, maintenance, constrained improvement and FR-22 lifecycle closure.
 
-FR-19A candidate `d1ce73ee9da548a64a447106f83d3d7f8ce1b567` remains
-unintegrated after independent Astra-high **BLOCKER** review
-`705e7b604483c631b2ac968c9a99ca627d8ad616`. Correct the default capacity-probe/public
-call deadline race and maintenance failure fencing/interruption coverage; required physical
-filesystem ENOSPC and kernel-sync conformance remains open without an operator waiver.
-Preserve the candidate's credited bounded-query, verified-backup/checkpoint, corruption,
-authority-retention and relocation-containment behavior and obtain renewed review.
+FR-19A is complete, independently reviewed and integrated. It now supplies bounded
+capacity health, owner-death-safe probes, verified backup/replay, operation-local
+checkpoint/VACUUM interruption, corruption containment, physical filesystem ENOSPC and an
+attributed Linux kernel-sync failure with fencing, same-device recovery, complete authority
+verification and exact cleanup. Power-loss and physical-media durability remain explicitly
+unclaimed. FR-19B still owns diagnostic retention and offline relocation closure.
 
 Current review policy is Sol-medium implementation, Sol-high routine independent review,
 Astra-high first critical authority/persistence/replay/budget/Git/activation review and

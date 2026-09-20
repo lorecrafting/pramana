@@ -6,11 +6,14 @@ compare and improve work, but it cannot authorize a model request, retry, accept
 integration or activation. Unknown observations remain unknown rather than becoming
 zero, success or reusable budget.
 
-**Current-state warning, 2026-09-19:** the repository has useful telemetry schemas,
+**Current-state warning, 2026-09-20:** the repository has useful telemetry schemas,
 storage, exports, duration observations and VM/process metrics, but the live agent
 lifecycle is not yet a coherent end-to-end telemetry pipeline. FR-18 owns alignment of
 real producers, validators and consumers. Do not infer complete token/cost accounting
-from the presence of the `llm_phase` schema.
+from the presence of the `llm_phase` schema. Foundry is **not currently unified under
+OpenTelemetry**: `foundry/mix.exs` declares no OpenTelemetry packages and Foundry's own
+runtime producers do not currently emit an application-wide `:telemetry` event contract.
+The Erlang `telemetry` package is present only transitively through current dependencies.
 
 ## Data model: four local JSONL surfaces
 
@@ -95,6 +98,172 @@ These are current source findings, not hypothetical future requirements.
 
 Until FR-18 closes these gaps, lifecycle tables and dashboards should describe intended
 or partial observations, not claim complete measurement.
+
+## OpenTelemetry and normalization direction
+
+The current fragmentation is worth fixing because Foundry's self-improvement goal depends
+on comparing the **whole cost of an accepted outcome**, not isolated log lines. The target
+is one canonical observation model with multiple projections/sinks, not one giant log and
+not an OpenTelemetry backend as a new source of truth.
+
+A useful layering is:
+
+```text
+runtime producers / harness adapters / effect broker / checks / operator actions
+                              |
+                              v
+                  canonical observation envelope
+          stable identity + timing + source/quality + outcome
+                              |
+                :telemetry in-process event seam
+                 /             |              \
+                /              |               \
+               v               v                v
+      durable analytics   OpenTelemetry     live consumers
+      / self-improver     traces/metrics    board/status
+```
+
+The authoritative workflow/effect store remains separate. It may be referenced by exact
+IDs and may emit observations about committed transitions, but no trace collector,
+dashboard, metric aggregate or dropped telemetry event may decide authorization,
+acceptance, budget balance, effect issuance or recovery.
+
+### Why use standard `:telemetry` plus OpenTelemetry
+
+Elixir's `:telemetry` is a good low-coupling in-process seam: domain/runtime code can
+emit a normalized event once and independent handlers can persist, aggregate or export it.
+OpenTelemetry then supplies portable traces, metrics/log export and widely used semantic
+conventions without requiring Foundry's domain code to depend on a particular backend.
+
+OpenTelemetry's current GenAI semantic conventions include model/provider and token
+concepts such as input, cache-read/cache-creation, output and reasoning tokens. Those
+conventions remain under active development, so Foundry should maintain a **versioned
+mapping** from its stable internal observation schema rather than make an unstable
+external semantic-convention version the stored domain format.
+
+Prompt/response content should remain excluded by default. GenAI content attributes can
+contain user data, project secrets and large payloads; Foundry's optimization goals
+normally require counts, digests, categories, timings and result sizes rather than full
+conversation bodies.
+
+### Canonical correlation model
+
+Every observation should be able to carry the applicable subset of the durable lineage:
+
+`objective_id → ticket_id → attempt_id → execution_id → request/tool/effect_id → candidate_id → review_id → accepted_outcome_id`
+
+Add harness/session/provider IDs as **observed foreign identities**, not replacements for
+Foundry execution identity. Use high-cardinality IDs for trace/span correlation and
+durable analysis records; do not make them metric labels that explode time-series
+cardinality.
+
+The normalized model should cover at least these event families:
+
+| Family | Required useful measurements |
+|---|---|
+| workflow/runtime | queue time, phase duration, retries/restarts, cancellation/reconciliation outcome |
+| model request | provider/account route, model/profile/reasoning, latency, input/cache-read/cache-write/output/reasoning/total tokens, context use, reported cost |
+| tool/effect | admitted capability/tool, duration, result bytes, bytes admitted to model context, truncation/error, claim/receipt correlation where applicable |
+| context | source-category counts/bytes/digests for policy, role, spec, source, retrieval, tools, history and corrections |
+| check/review | exact candidate identity, check/reviewer type, duration, outcome and correction relationship |
+| human effort | steering, intervention, review/recovery/maintenance time where measurable |
+| infrastructure | CPU/memory/process/queue/storage/network measurements with execution correlation |
+
+Token fields should preserve provider-native semantics and source/quality. In particular,
+do not double-count cache-read/cache-write classes when a provider's total already
+includes them, and do not infer zero from absent usage.
+
+### Trace shape for diagnosing token cost
+
+A trace should make a costly outcome visually decomposable, for example:
+
+```text
+objective / ticket / attempt
+  execution: developer
+    context.compile
+    model.request
+      tool.read
+      tool.test
+      model.request
+    candidate.freeze
+  checks
+  review
+    model.request
+  correction execution
+    ...
+  accepted outcome
+```
+
+This lets Foundry answer questions such as:
+
+- Was the cost dominated by mandatory context, repeated source reads, tool-result bloat,
+  compaction, review or correction?
+- Did a cheaper model reduce request cost but increase rework and total accepted-outcome
+  cost?
+- Are workers waking/polling while no useful event exists?
+- Did cache reads actually reduce paid/input work?
+- Which task classes have poor first-pass acceptance or high reviewer/correction tax?
+- Which context categories consume tokens without improving accepted outcomes?
+
+The Improver should consume the same normalized durable observation records used for these
+questions rather than scrape several incompatible logs.
+
+### Metrics versus traces versus durable analytics
+
+Use each signal for what it is good at:
+
+- **traces:** exact high-cardinality causal/correlation paths for individual attempts;
+- **metrics:** low-cardinality aggregate rates/histograms such as latency, token usage,
+  accepted outcomes, correction rate and queue delay by stable task/model/profile class;
+- **logs/events:** diagnostic detail and unusual failures;
+- **Foundry durable observations:** provenance-preserving longitudinal/self-improvement
+  dataset that survives exporter sampling/retention and can be reprojected.
+
+OTel exporters are therefore optional sinks. Foundry should still be able to optimize
+locally/offline and should not lose its self-improvement history when an external
+observability backend samples or expires traces.
+
+### Staged convergence under FR-18
+
+Do not perform a flag-day logging rewrite. Route the work through the owning FR-18
+requirements:
+
+1. **Freeze the canonical observation envelope and identity vocabulary.** Reconcile
+   `command`, `llm_phase` and lifecycle fields; define source/quality and unknown rules.
+2. **Repair producers.** Make Coordinator, AgentServer, effect/tool execution and later
+   harness adapters emit that contract through one module/`:telemetry` namespace.
+3. **Repair numeric retention.** Compaction/aggregation must preserve token/cost totals,
+   provenance and enough lineage to compute accepted-outcome economics.
+4. **Bridge the selected harness.** Map direct Pi or Jido.Harness observations into the
+   canonical model; preserve provider-native usage distinctions and unknowns.
+5. **Add OpenTelemetry export.** Introduce pinned OTel dependencies/export configuration
+   only after internal semantics are stable; map to a pinned semantic-convention version.
+6. **Move Improver/status to canonical observations.** Stop treating
+   `ConsolidatedLog` over heterogeneous files as the long-term analytics contract.
+7. **Validate optimization loops.** Use fixed task classes and acceptance gates to show
+   that a proposed token/context optimization lowers accepted-outcome cost or operator
+   burden without reducing quality/safety.
+
+This direction centralizes semantics without centralizing authority, and it preserves a
+local durable dataset suitable for Foundry's self-improvement work.
+
+### Candidate OpenTelemetry mapping
+
+Prefer standard attributes when their semantics match, while retaining Foundry-specific
+IDs in a separate namespace/mapping. Candidate mappings include:
+
+| Foundry concept | OpenTelemetry direction |
+|---|---|
+| model/provider | GenAI request/response model and provider attributes |
+| input/output tokens | GenAI usage input/output attributes |
+| cache read/write | GenAI cache-read/cache-creation usage where equivalent |
+| reasoning tokens | GenAI reasoning output usage |
+| request/tool latency | span duration plus GenAI/tool semantic attributes |
+| Foundry workflow identities | trace/span attributes and durable observation fields; avoid metric-label cardinality |
+| accepted outcome/correction/review | Foundry-specific attributes/events until a suitable stable convention exists |
+
+Treat this table as an adapter plan, not a promise that current OpenTelemetry GenAI
+conventions are stable or sufficient for Foundry's domain.
 
 ## Target execution-observation contract
 

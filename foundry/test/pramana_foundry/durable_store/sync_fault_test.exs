@@ -228,7 +228,7 @@ defmodule PramanaFoundry.DurableStore.SyncFaultTest do
 
   defp compile_extension!(root) do
     source = Path.expand("test/support/fr07_sync_fault.c")
-    include = Path.expand("deps/exqlite/c_src")
+    include = Path.join([Mix.Project.deps_path(), "exqlite", "c_src"])
     {compiler, linker_flags, suffix} = compiler!()
     output = Path.join(root, "fr07_sync_fault" <> suffix)
 

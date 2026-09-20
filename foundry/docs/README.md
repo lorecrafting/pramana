@@ -16,14 +16,20 @@ contract still govern implementation.
 |---|---|
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
 | Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the [checkpoint F feasibility record](fr-09/checkpoint-f-feasibility.md), its [independent blocker review](fr-09/checkpoint-f-review.md) and [independent correction PASS](fr-09/checkpoint-f-rereview.md), repair plan/workflow contract and affected FR-09/15a/18 requirements before implementation |
+| Evaluate Jido/Jido.Harness/ACP before building a custom harness bridge | [Jido / Jido.Harness evaluation](JIDO-HARNESS.md), then [Pi harness design](PI-HARNESS.md), [Observability](OBSERVABILITY.md) and the same FR-09/15a/18 gates |
 | Inspect the FR-15aA host/provisioning specification and executable inventory | [FR-15aA provisioning specification](fr-15a/provisioning-specification.md), its [machine-readable manifest](fr-15a/provisioning-manifest.exs), then the governing FR-15aB/FR-09 criteria; the specification enables no execution |
+| Inspect the frozen FR-18A observation/query candidate | [FR-18A candidate and evidence](fr-18a/candidate.md), its [independent BLOCKER review](fr-18a/independent-review.md), [narrow correction rereview](fr-18a/correction-rereview.md), [final residual-B1 PASS](fr-18a/final-b1-rereview.md), the [bounded effect-query design](fr-18a/bounded-effect-query-design.md), [B5 implementation candidate](fr-18a/bounded-effect-query-candidate.md) [independent B5 BLOCKER review](fr-18a/b5-review.md) and the [B5 correction rereview PASS](fr-18a/b5-correction-rereview.md), then the governing FR-18A criteria and accepted FR-08A combined review; FR-18A remains blocked and this candidate enables no producer, activation or deployment |
 | Resume active repairs | [Repair plan](REPAIR-PLAN.md), the current ticket's acceptance criteria and its referenced evidence |
+| Implement FR-08B after its atomic prerequisite | [Command-ingress inventory and acceptance matrix](fr-08/fr08b-ingress-inventory.md), then the [atomic-composition diagnosis](fr-08/atomic-composition-diagnosis.md) and governing repair-plan section |
+| Resolve FR-08B protected-result/domain binding | [Root-fact composition diagnosis](fr-08/fr08b-root-fact-composition-diagnosis.md), a proposed bounded interface correction with exact inspected revisions, then the [plan-binding implementation specification](fr-08/plan-binding-specification.md), the [replay revalidation design](fr-08/plan-replay-revalidation-design.md), its [frozen partial candidate](fr-08/plan-binding-candidate.md) and the [durable event vocabulary design](fr-08/event-vocabulary-design.md); none implements an end-to-end binding nor enables any execution |
 | Understand current alignment, known source gaps and the FR-07→FR-08 disposition | [Independent alignment audit](ALIGNMENT-AUDIT-2026-09-19.md), then [repair plan](REPAIR-PLAN.md) and [FR-08 investigation](fr-08/investigation.md) |
 | Inspect the exact disposition candidate and its independent verdict | [Candidate record](alignment-disposition-2026-09-19.md) and [Astra-high PASS](alignment-disposition-review-2026-09-19.md) |
 | Inspect the H0 accepted-FR-07 boundary candidate and review | [H0 candidate](fr-08/h0-boundary-candidate.md) and [independent blocker review](fr-08/h0-boundary-review.md) |
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
+| Review the frozen FR-08A atomic-composition correction | [Settlement-presence correction narrow PASS](fr-08/atomic-composition-presence-review.md), [prior presence BLOCKER](fr-08/atomic-composition-final-rereview.md), [earlier rereview](fr-08/atomic-composition-rereview.md) and [first review](fr-08/atomic-composition-review.md), each with exact candidate scope |
 | Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
 | Understand why repairs exist | [Architecture/lifecycle audit](AUDIT-2026-09-12.md) and its dated verification records |
+| Inspect the durable store's actual tables, columns and constraints | [Generated schema reference](DURABLE-STORE-SCHEMA.md); it is generated from `database.ex` and a test fails if the two disagree, so prefer it over reading the schema by hand |
 | Build or run model-free checks | [Independent CI](CI.md) and `ci/run.exs` |
 | Observe the local system | [Observability](OBSERVABILITY.md), with the README's containment warnings |
 | Evaluate the optional semantic assessor | [Assessor Stage A](ASSESSOR.md), issue #26 and the governing repair boundaries |
@@ -34,8 +40,9 @@ contract still govern implementation.
 **The active repair plan, not the original eight-ticket migration sequence, owns
 repair ordering.** A design-review approval applies to its named candidate; it is not
 an endorsement of later revisions or evidence that a protected route is activated.
-The plan contains 23 ticket nodes (FR-01–FR-22 plus FR-15a); F23/F24 are findings routed
-to existing owners, not missing tickets. Its H0/F checkpoints and A/B slices do not form
+The plan contains 24 ticket nodes (FR-01–FR-23 plus FR-15a). FR-23 is a ticket covering
+legacy retirement, module decomposition and hygiene; F23/F24 are audit findings routed to
+existing owners. The `F` and `FR` prefixes distinguish findings from tickets. Its H0/F checkpoints and A/B slices do not form
 a competing backlog.
 
 ## Provider and backend boundary

@@ -1,7 +1,13 @@
 defmodule PramanaFoundry.DurableStore.Authority do
   @moduledoc false
 
-  alias PramanaFoundry.DurableStore.{Database, Encoding, LegacyLine, RecordCodec}
+  alias PramanaFoundry.DurableStore.{
+    Database,
+    Encoding,
+    LegacyLine,
+    ProtectedPrimitives,
+    RecordCodec
+  }
 
   @registry [
     {"metadata", "key", ~w(key value)},
@@ -34,6 +40,35 @@ defmodule PramanaFoundry.DurableStore.Authority do
      ~w(source_digest source_path archived_path source_bytes line_count valid_count invalid_count manifest)},
     {"legacy_records", "source_digest, line_number",
      ~w(source_digest line_number byte_start byte_end record_digest valid error raw_record)},
+    {"root_commands", "seq",
+     ~w(seq command_id actor_id request_digest canonical_request schema_version operation disposition reason_code result)},
+    {"authenticated_inboxes", "execution_id",
+     ~w(execution_id actor_id revision last_sequence sealed_sequence state)},
+    {"authenticated_inbox_items", "execution_id, sequence",
+     ~w(execution_id sequence item_kind disposition item_digest item)},
+    {"root_policies", "policy_id", ~w(policy_id revision state)},
+    {"root_policy_history", "policy_id, revision",
+     ~w(policy_id revision prior_revision command_id state)},
+    {"root_controls", "control_id", ~w(control_id revision state)},
+    {"root_control_history", "control_id, revision",
+     ~w(control_id revision prior_revision command_id state)},
+    {"root_ledgers", "ledger_id, generation",
+     ~w(ledger_id generation parent_ledger_id parent_generation dimension revision status authorized available held consumed delegated retired state)},
+    {"root_reservations", "reservation_id",
+     ~w(reservation_id ledger_id generation dimension owner_kind owner_id units revision status claim_id state)},
+    {"root_effects", "effect_id",
+     ~w(effect_id request_digest policy_id policy_revision control_id control_revision operation scope ticket_id attempt_id execution_id status revision state)},
+    {"root_claims", "claim_id", ~w(claim_id effect_id writer_epoch status revision state)},
+    {"root_receipts", "receipt_id",
+     ~w(receipt_id claim_id request_id outcome receipt_digest state)},
+    {"root_leases", "lease_id", ~w(lease_id claim_id resource_id status revision state)},
+    {"root_pointers", "pointer_kind", ~w(pointer_kind producer_status revision state)},
+    {"atomic_bundles", "command_id",
+     ~w(command_id actor_id request_digest schema_version disposition reason_code canonical_envelope result)},
+    {"durable_operations", "owner_kind, owner_id, ordinal",
+     ~w(owner_kind owner_id ordinal operation_kind operation_type request result)},
+    {"root_infrastructure_settlements", "effect_id",
+     ~w(effect_id claim_id receipt_id role work_owner infrastructure_generation predecessor_effect_id failure_class ordinal state)},
     {"sqlite_sequence", "name", ~w(name seq)}
   ]
 
@@ -45,6 +80,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
          :ok <- validate_schema(conn),
          {:ok, rows} <- validation_rows(conn),
          {:ok, view} <- validate_content(conn, rows),
+         :ok <- ProtectedPrimitives.validate(conn),
          {:ok, content} <- content(conn) do
       {:ok, Map.put(view, :content, content)}
     end
@@ -203,7 +239,8 @@ defmodule PramanaFoundry.DurableStore.Authority do
   defp validate_metadata(rows) do
     allowed =
       MapSet.new(
-        ~w(schema_version protocol_version event_version projection_version installation_id repository_id migration_v1)
+        ~w(schema_version protocol_version event_version projection_version installation_id repository_id migration_v1) ++
+          ~w(protected_schema_version migration_fr08a_v1 migration_atomic_bundle_v2)
       )
 
     values = Map.new(rows, fn [key, value] -> {key, value} end)
@@ -227,6 +264,15 @@ defmodule PramanaFoundry.DurableStore.Authority do
 
       Map.has_key?(values, "migration_v1") and values["migration_v1"] != "complete" ->
         corrupt("metadata", "migration_v1", :invalid_migration_state)
+
+      values["protected_schema_version"] != "2" ->
+        corrupt("metadata", "protected_schema_version", :unsupported_version)
+
+      values["migration_fr08a_v1"] != "complete" ->
+        corrupt("metadata", "migration_fr08a_v1", :invalid_migration_state)
+
+      values["migration_atomic_bundle_v2"] != "complete" ->
+        corrupt("metadata", "migration_atomic_bundle_v2", :invalid_migration_state)
 
       true ->
         :ok

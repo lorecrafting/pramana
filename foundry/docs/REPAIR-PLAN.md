@@ -122,6 +122,13 @@ ticket acceptance paragraph or F01–F24 obligation.
    constrained improvement and FR-22 whole-lifecycle acceptance. Only this second finish
    line can close the repair backlog.
 
+**Current operator-directed target, set 2026-09-20: supervised dogfood alpha**, the first
+finish line above. This is recorded here rather than only in a session's memory so that a
+restarted or cleared session finds it by reading this plan. It changes no dependency,
+acceptance paragraph or F01–F24 obligation; it states which finish line is currently being
+worked toward. Reaching it means Batch C and then Batch D below. The second finish line
+remains the only one that can close the backlog.
+
 Use coherent batches to reach those milestones without creating one unreviewable
 FR-08–FR-22 change:
 
@@ -140,6 +147,59 @@ During a batch, run focused checks for each attributable subcommit, the full rel
 suite at candidate freeze and again after integration, reusable reviewer-owned failure
 probes, and one manifest/evidence packet for the frozen batch. Batch review reduces
 duplicated context; it never converts missing per-ticket evidence into a pass.
+
+**Brief a reviewer on the delta, not the candidate, and never pay twice for a settled
+fact.** Independent review is the most expensive step in this repair, and its cost is
+dominated by re-establishing things already established rather than by finding defects.
+Recorded 2026-09-20 after a single re-review consumed roughly 383,000 tokens, most of it
+recomputing nine attestation hashes, regenerating a report the gate already regenerates,
+re-running a full suite whose result was supplied, and re-auditing a whole candidate when
+only one correction was in question.
+
+Every review briefing must therefore:
+
+- **State what is already established and must not be re-derived.** Attestation hashes,
+  suite counts with their seeds, and CI provenance are supplied as given. A reviewer may
+  spot-check any of them and must say so, but re-establishing them as routine is waste:
+  the revision-bound gate already recomputes source and loaded-BEAM identities on every
+  run and fails closed, so a second manual recomputation proves nothing new.
+- **Name the exact revisions and the diff.** "Review `git diff <base> <candidate>`" with
+  the commits enumerated, never "review the candidate".
+- **For a re-review, scope to the reproduced defect and its regression controls.** Give
+  the defect, the correction, and what must still hold. Whole-candidate re-audit is
+  explicitly out of scope unless escalation applies.
+- **Say what the previous pass of the same reviewer already verified**, so it is not
+  repeated. A resumed reviewer retains its own findings; it does not need to rediscover
+  them.
+- **Ask for a full suite run only when the change plausibly affects unrelated modules.**
+  Otherwise supply the result and seed. Concurrent full-suite runs additionally produce
+  spurious physical-fault failures, so a redundant one is worse than merely expensive.
+
+**Escalate a narrow re-review to a full one when** the correction touches a different
+file or invariant family than the reported defect, or when a previous correction for that
+same defect already failed review. Both conditions were met on 2026-09-20: one correction
+was itself incomplete for a shape its author had not considered, and two structural gaps
+were found only because a review deliberately went broad. Narrow is the default for a
+correction; it is not a default for everything.
+
+**Contract coverage is a separate review dimension from candidate correctness.** A
+candidate review asks whether the code does what it claims, correctly and safely. A
+coverage review asks whether what it claims is enough to satisfy the governing contract.
+These are different questions and a candidate can pass the first while failing the second.
+
+Added 2026-09-20 on evidence: two independent reviews passed the FR-08A transition-plan
+codec on candidate correctness, and both were right on their own terms. The codec
+nonetheless could not express two of R4a's four domain-owner rows — it had no
+`review_settled` and no check-worker settlement slot — and could not bind admission
+authority on any role, because `launch_authority_v1` had no producer. Neither review was
+asked whether the mechanism covered R4a, so neither looked.
+
+Every batch freeze therefore requires one review pass that walks the governing contract
+rows — R4's transition table and R4a's domain-owner rows for a lifecycle batch — and, for
+each, names where the candidate satisfies it or records that it does not. An obligation
+with no home is a blocker, not a gap to be discovered later. Prefer executable coverage
+assertions over prose: a test that enumerates the contract's rows and fails when one has
+no destination is durable, while a reviewer's row-by-row read is not.
 
 ### Coordination efficiency discipline
 
@@ -213,8 +273,8 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |
 | H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Complete: independently reviewed; 4 pass, 3 unavailable, not ready** | Inherits FR-07/08 handoff evidence only |
-| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Ready: H0 assigns the 3 unavailable protected capabilities here** | F07, F16 |
-| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | Blocked | F07, F16 |
+| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **In progress: protected authority, typed recovery and the atomic protected/domain handoff are independently reviewed and integrated, but the ticket was reopened by the protected-result/domain-plan binding correction; its codec, authoritative output derivation, protected discriminator and lifecycle event vocabulary are integrated, while Gateway wiring and replay revalidation remain outstanding** | F07, F16 |
+| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **In progress: first pure-kernel slice holds an independent BLOCKER; the FR-08A binding correction's codec, output derivation and discriminator are independently reviewed and integrated, while its Gateway wiring waits on a durable event vocabulary extension the kernel contract owns** | F07, F16 |
 | F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Complete: provider-free inventory independently reviewed; governed execution remains blocked** | Inherits FR-09/15a evidence only |
 | FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08B, FR-09 | Blocked | F08, F09 |
@@ -227,18 +287,21 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-15 | Implement durable steering and optional PM planning | FR-08B, FR-12, FR-15aB | Blocked | F15, F22 |
 | FR-16 | Implement bounded subscription switching | FR-01, FR-09, FR-12, FR-15 | Blocked | F01, F11 |
 | FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
-| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | Blocked | F17, F18 |
+| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | **In progress: bounded protected effect query independently reviewed and integrated; the recorded execution-summary coverage gap is closed; remaining completion obligations are unchanged** | F17, F18 |
 | FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
-| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Candidate review BLOCKER: B1/B2 correction ready; physical ENOSPC/sync acceptance open** | F20, F21 |
+| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Complete: physical ENOSPC/kernel-sync and bounded maintenance recovery independently reviewed and integrated** | F20, F21 |
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
-| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21 | Blocked | F01–F24 |
+| FR-23 | Retire legacy surfaces, decompose god modules and restore code hygiene | FR-08B, FR-12, FR-19B | Blocked | F23, F24 |
+| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21, FR-23 | Blocked | F01–F24 |
 
-There are **23 ticket nodes: FR-01 through FR-22, plus child ticket FR-15a**. H0 and F
+There are **24 ticket nodes: FR-01 through FR-23, plus child ticket FR-15a**. H0 and F
 are bounded evidence checkpoints, and the A/B labels are slices of their existing parent
-tickets; none creates FR-23 or FR-24. F23 and F24 are audit findings routed to existing
-owners in the checksum below. Every parent outcome, scope, acceptance paragraph and
+tickets. **FR-23 is a ticket; F23 and F24 are audit findings** routed to existing owners in
+the checksum below. The similar names are unrelated: findings use the `F` prefix and
+tickets the `FR` prefix. FR-23 was added on 2026-09-20 by operator direction after repair
+work accumulated concrete hygiene evidence; it creates no FR-24. Every parent outcome, scope, acceptance paragraph and
 exclusion remains binding across its slices.
 
 Removing FR-15 as a direct FR-13 dependency is valid only because FR-08A/B and FR-15aB
@@ -587,6 +650,26 @@ receipt/claim/lease settlement, durable rejection and same-ID recovery. R5 prove
 parent-funded allocation, holds, consumption, proved refunds, closed generations and
 late/conflicting receipts without implicit credit. Reject an always-refusing
 implementation as insufficient. A first critical independent review is Astra-high.
+
+**Completion — 2026-09-20:** After multiple adversarial review/correction cycles, the
+protected implementation supplies authenticated inbox sequencing/sealing, complete
+read-set CAS, policy/control and assignment binding, epoch-safe claims, request/receipt
+provenance, leases, conserved generation/reservation ledgers, recursive close/reset,
+typed transition replay and fail-closed migration/recovery. The final branch correction
+`f9e35b42d2eb768f4407543ac0f84e2758409ab4` received focused independent PASS
+`5851c9be9b6d0cfb7f3fad5d41e06fa139b852bd`.
+
+Because FR-19A had independently evolved the same Gateway, completion binds the actual
+combined tree: merge `1d0b128ff7c78bf72577d23658e267d7508e4763`, integration tests
+`240d16f6823a8b9118c4d2b52d305314c6a97203`, revision-bound evidence
+`b05f8342fbb83cb26a0fa157472bee15a020ad7e`, frozen candidate
+`176dab44354b5bbdde5b488f44766849c9d8927d` and Astra-high PASS
+`a22753569254ca42773f04632ca42a72573c9a2e`. The combined gate reports 7/7 ready;
+clean CI passed 612 tests with 13 intentional skips and one optional exclusion. H0's
+accepted-v9 4/3 artifact remains immutable historical evidence while the evolved live
+implementation correctly refuses to impersonate it. This closes FR-08A only: FR-08B
+still owns every-ingress reducer migration, FR-15aB actual isolation, FR-18 presentation,
+FR-17 activation and FR-22 lifecycle acceptance. No provider, daemon or deployment ran.
 
 ### FR-08B — Unify all command transitions and replay
 
@@ -1008,6 +1091,16 @@ worse review, acceptance or operator-effort outcomes.
 
 #### FR-19A — Operational storage, backup and recovery baseline
 
+**Status (2026-09-19): Candidate implementation prepared; independent review pending.**
+The bounded implementation adds capacity/last-sequence health, limited event diagnostics,
+serialized content-checked WAL checkpointing, offline owner-locked backup replay
+verification and fail-closed relocation mutation containment. It preserves prior claim and
+ledger rows through backup, checkpoint and deterministic process-interruption probes. The
+host could not safely provide physical filesystem ENOSPC, power-loss, kernel `fsync(2)` or
+media-flush evidence; SQLite logical-full, kernel file-size-limit and injected VFS `xSync`
+evidence retain their exact narrower attribution. FR-19B diagnostic retention/compaction
+and cross-device relocation remain open.
+
 **Scope:** After FR-07, establish bounded operational queries/capacity health, verified
 SQLite backup/replay and explicit offline maintenance containment. Exercise physical
 ENOSPC/sync/WAL/checkpoint/corruption cases that FR-07 explicitly deferred. Disable unsafe
@@ -1018,6 +1111,21 @@ and old claim/ledger evidence on every failure.
 checkpoint/backup, full disk and corrupt SQLite with originals retained and effects fenced.
 Record measured limits and unsupported physical guarantees. This baseline is required by
 FR-17 but does not close the parent's diagnostic-retention or cross-device obligations.
+
+**Completion — 2026-09-19:** Final implementation
+`6c1e5acb29b10e0cd40c692de87f05f1155804c8` and frozen candidate
+`8cfd983b40e5ad6edce4e863ee64906960220f92` received focused independent PASS
+`95eccd6b160b6f339376cfd79e7de81f997c4ba6` after the earlier Astra-high blocker
+reviews. The accepted evidence covers bounded/unknown capacity health, owner-death-safe
+probe cleanup, verified backup/replay, genuine nonempty-WAL checkpoint and VACUUM
+interruption, corrupt input, an owned Darwin filesystem reaching physical ENOSPC, and a
+Linux device-mapper run where the unchanged Gateway backup path received kernel
+`fsync EIO`, fenced, restored the same device, remounted ordinarily, verified complete
+content/replay/source authority and removed every owned resource. Integration is through
+`efd8e89967ad90e7ea30dddd08864de5afadd4d1`; clean-checkout pinned CI passed 590
+tests with 13 intentional skips and one optional exclusion. This does not prove power-loss,
+failed-sync persistence, controller/cache flush or media durability. FR-19B still owns
+diagnostic retention and offline relocation closure; FR-17/22 own activation/lifecycle.
 
 #### FR-19B — Diagnostic retention and offline relocation
 
@@ -1089,6 +1197,54 @@ bounded and separately reported. Publish excluded coverage rather than implying 
 
 **Excludes:** Waiting for the whole repair before adding CI; extend this job in each
 subsequent ticket as new lifecycle tests land.
+
+### FR-23 — Retire legacy surfaces, decompose god modules and restore code hygiene
+
+**Outcome:** The repaired system is left in a state a maintainer can safely change, with
+no dead vocabulary, no module too large to review as a unit, and no legacy surface still
+implying it decides live truth.
+
+**Scope:** One exhaustive, evidence-backed sweep in three separable parts.
+
+*Dead surface removal.* Remove or explicitly retire identifiers that no longer dispatch.
+Evidence gathered 2026-09-20 at `9dd30c3`: `RecordCodec`'s `@command_types` contains
+`reset`, `propose`, `submit_artifact` and `submit_review`, each with zero uses anywhere in
+`lib/` outside the list literal itself. Twenty distinct `legacy_*` identifiers and six
+modules referencing `events.jsonl`/`EventLog` remain. Each is either genuinely required
+compatibility, and says so, or is removed.
+
+*Module decomposition.* Evidence at `9dd30c3`: twelve modules exceed 800 lines and
+`protected_primitives.ex` is 7,547 — roughly a fifth of the whole `lib/` tree in one file,
+and the single most contended file in the repair, which serialised FR-18A against the
+FR-08A binding correction purely by file granularity rather than by any logical dependency.
+
+*General hygiene.* Formatter baseline debt, accumulated worktrees and branches, and
+documentation routes left pointing at superseded evidence.
+
+**Sequencing, and why it is not literally last:** this ticket must land **before** FR-22,
+not after it. FR-22 is whole-lifecycle acceptance bound to exact revisions. A sweep
+performed after FR-22 would invalidate that acceptance wholesale. This is demonstrated,
+not predicted: on 2026-09-20 adding a single function to `protected_primitives.ex` changed
+its source SHA-256 and loaded BEAM MD5, broke the frozen FR-08A attestation and reported
+`ready=false` until the evidence was rebound. A decomposition changes every pinned
+identity at once. FR-22 therefore depends on FR-23.
+
+**Acceptance:** Each part is behavior-preserving and demonstrated so: the full model-free
+suite passes before and after with no test deleted or weakened to accommodate a move, and
+every revision-bound attestation is rebound in the same commit that changes its subject,
+never in a follow-up. Decomposition preserves public interfaces or migrates every caller
+in the same change, using the [dependency review runbook](../../docs/agents/DEPENDENCY_REVIEW.md).
+Removal of any identifier is justified by a recorded search showing no dispatch, not by
+inspection alone. Documentation routes and the catalog resolve after the sweep.
+
+**Excludes:** Behavioral change of any kind, including "obvious" fixes found while moving
+code. A defect found during the sweep is recorded and routed to its owning ticket, never
+repaired inside a refactoring commit. This ticket does not relitigate settled design,
+rename durable record fields, change any persisted format, or alter policy.
+
+**Ownership boundaries:** FR-08B owns legacy JSONL's retirement from deciding live workflow
+truth; FR-19B owns offline relocation's repair or retirement. FR-23 covers what those leave
+behind and must not duplicate or pre-empt them.
 
 ### FR-22 — Prove full lifecycle and reconcile operating docs
 

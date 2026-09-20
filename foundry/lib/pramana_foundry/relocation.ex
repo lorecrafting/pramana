@@ -106,7 +106,8 @@ defmodule PramanaFoundry.Relocation do
         }
       end)
 
-    with {:ok, _} <-
+    with :ok <- relocation_enabled(),
+         {:ok, _} <-
            Journal.init(journal_path, txid,
              metadata: %{"steps_count" => length(steps), "planned_steps" => serializable_steps}
            ),
@@ -132,9 +133,11 @@ defmodule PramanaFoundry.Relocation do
   def execute(opts, extra_opts) when is_list(opts) do
     combined = Keyword.merge(opts, extra_opts)
 
-    case plan(combined) do
-      {:ok, p} -> execute(p, combined)
-      {:error, reason} -> {:error, reason}
+    with :ok <- relocation_enabled() do
+      case plan(combined) do
+        {:ok, p} -> execute(p, combined)
+        {:error, reason} -> {:error, reason}
+      end
     end
   end
 
@@ -143,7 +146,8 @@ defmodule PramanaFoundry.Relocation do
   """
   @spec resume(Path.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def resume(journal_path, opts \\ []) do
-    with {:ok, state} <- Journal.reconstruct_state(journal_path) do
+    with :ok <- relocation_enabled(),
+         {:ok, state} <- Journal.reconstruct_state(journal_path) do
       txid = state.txid
 
       path_map_file =
@@ -333,7 +337,8 @@ defmodule PramanaFoundry.Relocation do
   """
   @spec rollback(Path.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def rollback(journal_path, opts \\ []) do
-    with {:ok, state} <- Journal.reconstruct_state(journal_path) do
+    with :ok <- relocation_enabled(),
+         {:ok, state} <- Journal.reconstruct_state(journal_path) do
       txid = state.txid
 
       # Steps to reverse: in reverse order of chronological execution
@@ -451,6 +456,13 @@ defmodule PramanaFoundry.Relocation do
       end
     end
   end
+
+  defp relocation_enabled do
+    apply(__MODULE__, :relocation_status, [])
+  end
+
+  @doc false
+  def relocation_status, do: {:error, {:relocation_disabled, :fr19b_required}}
 
   defp execute_steps(steps, journal_path, txid, opts) do
     initial_path_map = PathMap.new(txid, [])

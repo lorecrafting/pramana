@@ -6,7 +6,7 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
   @accepted_revision "af0c51b4682c50080e67194dd853fbaa1eebace7"
   @test_adapter_revision String.duplicate("a", 40)
 
-  test "public probes produce the honest revision-bound blocked inventory" do
+  test "historical provider refuses to credit the evolved FR-08A implementation" do
     report = H0AcceptedFR07Boundary.report(@test_adapter_revision)
 
     assert report.schema == "pramana-foundry-h0-accepted-fr07-boundary/v1"
@@ -15,7 +15,7 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
     assert report.identity.adapter_probe_revision == @test_adapter_revision
 
     assert report.identity.implementation_binding == %{
-             status: "verified",
+             status: "mismatch",
              method: "source-sha256+beam-md5/v1"
            }
 
@@ -24,21 +24,15 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
     assert report.gate.status == "blocked"
     refute FR08HandoffGate.ready?(report.gate)
     assert report.gate.subject_revision == @accepted_revision
-    assert report.gate.passed_count == 4
+    assert report.gate.passed_count == 0
     assert report.gate.failed_count == 0
-    assert report.gate.unavailable_count == 3
+    assert report.gate.unavailable_count == 7
 
-    statuses = Map.new(report.gate.capabilities, &{&1.id, &1.status})
-
-    assert statuses == %{
-             "atomic_authority_commit" => "unavailable",
-             "complete_read_set_cas" => "unavailable",
-             "fail_closed_recovery" => "passed",
-             "immutable_legacy_import" => "passed",
-             "protected_field_boundary" => "passed",
-             "revision_and_inbox_facts" => "unavailable",
-             "same_command_lookup_before_revision" => "passed"
-           }
+    assert Enum.all?(
+             report.gate.capabilities,
+             &(&1.status == "unavailable" and
+                 &1.reason == "h0:loaded_accepted_api_identity_mismatch")
+           )
 
     assert Enum.all?(report.gate.capabilities, fn capability ->
              detail = capability.evidence || capability.reason
@@ -46,19 +40,16 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
            end)
   end
 
-  test "positive probe receipts use the documented content-addressed format" do
+  test "evolved implementation refusal remains bounded" do
     report = H0AcceptedFR07Boundary.report(@test_adapter_revision)
 
-    assert Enum.all?(report.gate.capabilities, fn
-             %{status: "passed", evidence: evidence} ->
-               Regex.match?(~r/^h0:[a-z-]+:sha256:[0-9a-f]{64}$/, evidence)
-
-             %{status: "unavailable", evidence: nil, reason: "h0:" <> _reason} ->
-               true
+    assert Enum.all?(report.gate.capabilities, fn capability ->
+             capability.status == "unavailable" and capability.evidence == nil and
+               capability.reason == "h0:loaded_accepted_api_identity_mismatch"
            end)
   end
 
-  test "fresh BEAMs with different loading orders reproduce the frozen artifact" do
+  test "frozen accepted-v9 artifact and adapter sources remain historically bound" do
     foundry_root = Path.expand("../../..", __DIR__)
     artifact_path = Path.join(foundry_root, "docs/fr-08/h0-accepted-fr07-report.txt")
     expected = File.read!(artifact_path)
@@ -70,7 +61,6 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
 
     for path <- [
           "foundry/lib/pramana_foundry/repair/h0_accepted_fr07_boundary.ex",
-          "foundry/test/pramana_foundry/repair/h0_accepted_fr07_boundary_test.exs",
           "foundry/test/support/h0_report_fixture.exs",
           "foundry/test/support/h0_identity_negative_fixture.exs"
         ] do
@@ -83,11 +73,9 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
       assert bytes == File.read!(Path.join(repository_root, path))
     end
 
-    normal = run_fixture(foundry_root, "h0_report_fixture.exs", adapter_revision, "normal")
-    reverse = run_fixture(foundry_root, "h0_report_fixture.exs", adapter_revision, "reverse")
-
-    assert normal == expected
-    assert reverse == expected
+    assert expected =~ "implementation_binding=verified|source-sha256+beam-md5/v1\n"
+    assert expected =~ "passed_count=4\n"
+    assert expected =~ "unavailable_count=3\n"
   end
 
   test "changed loaded Gateway implementation refuses accepted-v9 positive evidence" do
@@ -115,7 +103,7 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
     assert Enum.all?(report.capabilities, &(&1.reason == "h0:accepted_revision_mismatch"))
   end
 
-  test "accepted API identity matches the exact accepted revision" do
+  test "accepted API identity matches its exact historical revision" do
     foundry_root = Path.expand("../../..", __DIR__)
     repository_root = Path.expand("..", foundry_root)
 
@@ -130,7 +118,10 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
 
       digest = :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
       assert digest == entry.sha256
-      assert File.read!(Path.join(foundry_root, entry.path)) == bytes
+
+      if entry.path == "lib/pramana_foundry/durable_store/gateway.ex" do
+        refute File.read!(Path.join(foundry_root, entry.path)) == bytes
+      end
     end)
   end
 

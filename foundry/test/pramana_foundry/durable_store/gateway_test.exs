@@ -1,7 +1,7 @@
 defmodule PramanaFoundry.DurableStore.GatewayTest do
   use ExUnit.Case, async: false
 
-  alias PramanaFoundry.DurableStore.{Database, Gateway}
+  alias PramanaFoundry.DurableStore.{Database, Gateway, RecordCodec}
   alias PramanaFoundry.EventLog
 
   setup do
@@ -448,5 +448,78 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
       )
 
     digest
+  end
+
+  describe "lifecycle event vocabulary" do
+    test "the legacy and lifecycle vocabularies are disjoint" do
+      legacy = RecordCodec.legacy_event_types()
+      lifecycle = RecordCodec.lifecycle_event_types()
+
+      assert legacy != []
+      assert lifecycle != []
+      assert MapSet.disjoint?(MapSet.new(legacy), MapSet.new(lifecycle))
+      assert Enum.sort(legacy ++ lifecycle) == Enum.sort(RecordCodec.event_types())
+    end
+
+    test "a lifecycle event commits, reopens, replays and survives backup validation",
+         %{path: path} do
+      gateway = ready_gateway(path)
+      id = "LC1"
+
+      lifecycle =
+        bundle(id)
+        |> Map.update!(:events, fn [event] -> [%{event | type: "launch_settled"}] end)
+
+      assert {:ok, %{"disposition" => "accepted"}, :committed} =
+               Gateway.transact(gateway, "operator", command(id), lifecycle)
+
+      # Reads back with its type intact, through the real read path.
+      assert {:ok, events} = Gateway.recent_events(gateway, 10)
+      assert Enum.any?(events, &(&1.event_type == "launch_settled"))
+
+      # A verified backup reconstructs from the durable events and refuses to publish
+      # unless that reconstruction matches live authority, so a successful backup is the
+      # replay evidence. Capture it for comparison across reopen.
+      #
+      # Note what each half of this test proves. The reconstruction is built from
+      # event["payload"]["projection"] and is agnostic to the type string, so the
+      # reconstruction-equality assertions alone would not establish that the name
+      # "launch_settled" survived storage — only that some event with that projection
+      # payload did. The recent_events assertions are what prove the type string itself
+      # round-trips, which is the property this test exists for. Both halves are needed.
+      assert {:ok, %{reconstruction: reconstruction}} =
+               Gateway.backup(gateway, path <> ".lifecycle-backup")
+
+      assert reconstruction != nil
+
+      # Survives reopen, and replays to the same reconstruction afterwards.
+      stop_supervised!(Gateway)
+      reopened = start_supervised!({Gateway, path: path})
+      assert %{mode: :ready} = Gateway.status(reopened)
+
+      assert {:ok, %{reconstruction: ^reconstruction}} =
+               Gateway.backup(reopened, path <> ".lifecycle-backup-2")
+
+      assert {:ok, after_reopen} = Gateway.recent_events(reopened, 10)
+      assert Enum.any?(after_reopen, &(&1.event_type == "launch_settled"))
+    end
+
+    test "the legacy vocabulary still commits unchanged", %{path: path} do
+      gateway = ready_gateway(path)
+
+      assert {:ok, %{"disposition" => "accepted"}, :committed} =
+               Gateway.transact(gateway, "operator", command("LEG1"), bundle("LEG1"))
+    end
+
+    test "an unknown event type is still refused", %{path: path} do
+      gateway = ready_gateway(path)
+
+      unknown =
+        bundle("UNK1")
+        |> Map.update!(:events, fn [event] -> [%{event | type: "not_a_real_event"}] end)
+
+      assert {:error, :invalid_event} =
+               Gateway.transact(gateway, "operator", command("UNK1"), unknown)
+    end
   end
 end

@@ -24,8 +24,9 @@ Retain the standalone Elixir/OTP project. Beneath the current fail-closed launch
 the implemented execution path still targets OMP through Herdr; that is implementation
 truth, not the desired permanent dependency.
 Keep agent execution harness-neutral behind a small versioned execution/observation
-contract, with Pi's headless RPC as the preferred first replacement candidate to evaluate
-before investing further in OMP-specific integration. Herdr remains initial optional
+contract. Pi remains the preferred first replacement **agent**, but the bridge is now a
+substitution question: compare direct pinned Pi RPC with pinned Jido.Harness/ACP before
+investing further in OMP-specific integration or writing a custom adapter. Herdr remains initial optional
 presentation. A stronger model, different harness, accessible API or new backend may
 improve planning without gaining spending, acceptance or deployment authority. Model
 proposals and harness observations remain inputs to protected deterministic checks.
@@ -77,7 +78,7 @@ requests and test coverage percentages are not the product outcome.
 |---|---|---|
 | Authority | Authenticated policy, capabilities, reservations, effect claims and acceptance predicates | OS security primitives and appropriate transactional storage libraries |
 | Workflow | Admission, pure decision/replay, scheduling, correction, cancellation and reconciliation for versioned workflow definitions | OTP supervision and ordinary concurrency mechanisms |
-| Agent execution | A small versioned and tested execution/observation contract | Current source: OMP; preferred first replacement evaluation: pinned Pi RPC, subject to FR-09/15a conformance and explicit contract review |
+| Agent execution | A small versioned and tested execution/observation contract | Current source: OMP; preferred first replacement agent: Pi; compare direct pinned Pi RPC with pinned Jido.Harness/ACP before selecting the bridge, subject to FR-09/15a conformance and explicit contract review |
 | Project tools | Approved capability/evidence surfaces for the current assignment | Git/compiler tools for software; typed project APIs where appropriate |
 | Presentation | Honest projections and outstanding operator decisions | Herdr initially; future backends only after conformance evidence |
 
@@ -179,6 +180,7 @@ Evaluate one responsibility at a time rather than adopting a new stack wholesale
 |---|---|---|
 | Software-factory orchestration | Warp Factories or comparable systems | Can it preserve Foundry's exact authority, evidence, budget and acceptance semantics, or should Foundry sit above/beside it? |
 | Agent/workflow runtime | LangGraph or comparable agent runtimes | Does it add useful persistence/control without becoming a competing source of workflow authority? |
+| Coding-agent harness normalization | Direct Pi RPC versus Jido.Harness/ACP or comparable harnesses | Does normalization remove lifecycle/provider-specific maintenance while preserving exact identities, capabilities, billing/usage evidence, cancellation and restart/reconciliation semantics? |
 | Durable execution | Restate, Temporal, DBOS or comparable runtimes | Can it represent effect claims, unknown outcomes and replay without weakening the protected store/receipt contract? |
 | Tool execution/isolation | Dagger, containers, micro-VMs and OS primitives | Can candidate-controlled tools be isolated from model credentials, protected state and unauthorized network paths while still completing real work? |
 | Authorization policy | OPA, Cedar or comparable policy engines | Can it safely replace a bounded stateless policy slice without becoming the durable budget/effect/acceptance ledger? |
@@ -523,6 +525,37 @@ completion, and session statistics do not become budget, acceptance or retry aut
 Do not fund multiple equally elaborate production adapters before one works. Do not
 rewrite Foundry as a collection of Pi extensions.
 
+### Jido.Harness/ACP: benchmark the bridge before building it
+
+The [Jido / Jido.Harness evaluation](JIDO-HARNESS.md) records a second implementation
+candidate for the same harness-neutral boundary. At the pinned revision checked
+2026-09-20, Jido.Harness normalizes Pi, Claude Code, Codex, Gemini and other coding-agent
+CLIs into supervised Elixir runs/sessions/processes with stable IDs, replay journals,
+process-group cancellation, explicit capabilities, usage/events and reusable contract
+tests. Its current v3 path uses ACP through ExMCP; Pi therefore reaches Harness through an
+ACP adapter rather than direct Pi JSONL RPC.
+
+This is potentially valuable because Foundry should not maintain provider-specific
+lifecycle machinery if a smaller external layer satisfies the contract better. It is
+also an additional dependency/protocol/supply-chain boundary, and the checked Harness
+version intentionally loses run/session state on BEAM/host restart. Foundry must therefore
+remain the durable owner of execution intent, authority, budgets, effects and
+reconciliation.
+
+Do not choose between direct Pi RPC and Jido.Harness/ACP by API elegance. Run the same
+pinned lifecycle, cancellation, lost-acknowledgement, restart, billing, isolation,
+usage/provenance and useful-completion conformance cases against both. Verify explicitly
+that ACP normalization does not discard provider-native information required by Foundry.
+Choose one production bridge after that bounded comparison; do not maintain both merely
+for optionality.
+
+Jido core also reinforces useful design principles without becoming Foundry's control
+plane: keep agent/workflow state as data where possible, separate pure decisions from
+effects, distinguish process lifecycle from semantic completion, and test returned effect
+intent independently from execution. BEAM process supervision is fault isolation, not
+Foundry's filesystem/network/credential security boundary, and generic retry/backoff must
+not replace effect claims plus unknown-outcome reconciliation.
+
 ### Isolation: reuse mechanisms, prove the whole boundary
 
 The [Pi Gondolin example][pi-gondolin] demonstrates routing built-in tools into a
@@ -685,6 +718,9 @@ Recheck current licensing and integration terms before copying code or adding de
 [pi-rpc]: https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/rpc.md
 [pi-gondolin]: https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/examples/extensions/gondolin/index.ts
 [nm-agent]: https://github.com/kunchenguid/no-mistakes/blob/71cd9110543eeac67fd76180f2bdabd355395ec2/internal/agent/agent.go
+[jido-harness]: https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/README.md
+[jido-normalization]: https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/guides/normalization_and_data_model.md
+[jido-acp]: https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/docs/decisions/exmcp-acp-boundary.md
 
 
 ### Additional substitution-source observations — checked 2026-09-18
@@ -711,6 +747,10 @@ interfaces when an experiment is actually authorized.
   [DBOS](https://docs.dbos.dev/) and [LangGraph](https://www.langchain.com/langgraph)
   overlap with durable execution/orchestration. Their existence is a reason to benchmark
   before extending Foundry's runtime, not a reason to migrate without contract evidence.
+- [Jido.Harness][jido-harness] and its [normalization model][jido-normalization] provide
+  a concrete Elixir harness-normalization candidate; its [ACP boundary][jido-acp] also
+  adds protocol/dependency surface. Benchmark it against direct Pi RPC instead of assuming
+  either a custom adapter or a generic harness is automatically simpler.
 - Linux already supplies hard-isolation primitives including
   [namespaces](https://man7.org/linux/man-pages/man7/namespaces.7.html),
   [cgroups](https://man7.org/linux/man-pages/man7/cgroups.7.html),

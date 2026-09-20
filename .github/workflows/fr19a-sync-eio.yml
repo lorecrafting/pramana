@@ -1,0 +1,266 @@
+name: FR-19A physical sync EIO acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - repair/fr19a-correction
+    paths:
+      - ".github/workflows/fr19a-sync-eio.yml"
+      - "foundry/ci/fr19a_raw_sync_eio.exs"
+      - "foundry/ci/fr19a_sync_eio_orchestration.exs"
+      - "foundry/ci/fr19a_sync_eio_host.sh"
+      - "foundry/ci/fr19a_sync_eio_host_test.sh"
+      - "foundry/ci/fr19a_sync_eio_parse.exs"
+      - "foundry/test/fr19a_sync_eio_orchestration_test.exs"
+      - "foundry/test/fr19a_sync_eio_workflow_test.exs"
+      - "foundry/test/support/fr19a_linux_sync_eio_fixture.exs"
+      - "foundry/lib/pramana_foundry/durable_store/**"
+      - "foundry/mix.exs"
+      - "foundry/mix.lock"
+      - "mise.toml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fr19a-sync-eio-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  physical-sync-eio:
+    if: github.ref == 'refs/heads/repair/fr19a-correction'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: foundry
+
+    env:
+      MIX_ENV: test
+      COORDINATOR_TICK: "0"
+
+    steps:
+      - name: Check out exact repair source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Initialize exact runner paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -d "$RUNNER_TEMP" || "$RUNNER_TEMP" != /* ]]; then
+            printf 'Invalid RUNNER_TEMP: %q\n' "$RUNNER_TEMP" >&2
+            exit 1
+          fi
+
+          runner_temp="$(cd "$RUNNER_TEMP" && pwd -P)"
+          {
+            printf 'FR19A_ARTIFACT_DIR=%s/fr19a-sync-eio-artifacts\n' "$runner_temp"
+            printf 'FR19A_CAPABILITY_STATE=%s/fr19a-sync-eio-capability\n' "$runner_temp"
+            printf 'FR19A_PROBE_STATE=%s/fr19a-sync-eio-gateway\n' "$runner_temp"
+            printf 'MIX_BUILD_PATH=%s/fr19a-sync-eio-build\n' "$runner_temp"
+            printf 'MIX_DEPS_PATH=%s/fr19a-sync-eio-deps\n' "$runner_temp"
+          } >>"$GITHUB_ENV"
+
+      - name: Install pinned BEAM toolchain
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
+        with:
+          otp-version: "29.0.5"
+          elixir-version: "1.20.3-otp-29"
+
+      - name: Record exact revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$FR19A_ARTIFACT_DIR"
+          {
+            printf 'revision=%s\n' "$(git rev-parse HEAD)"
+            printf 'tree=%s\n' "$(git rev-parse HEAD^{tree})"
+            printf 'ref=%s\n' "$GITHUB_REF"
+            printf 'run_id=%s\nrun_attempt=%s\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            sha256sum \
+              ../.github/workflows/fr19a-sync-eio.yml \
+              ci/fr19a_raw_sync_eio.exs \
+              ci/fr19a_sync_eio_orchestration.exs \
+              ci/fr19a_sync_eio_host.sh \
+              ci/fr19a_sync_eio_host_test.sh \
+              ci/fr19a_sync_eio_parse.exs \
+              test/fr19a_sync_eio_orchestration_test.exs \
+              test/fr19a_sync_eio_workflow_test.exs \
+              test/support/fr19a_linux_sync_eio_fixture.exs
+          } >"$FR19A_ARTIFACT_DIR/revision.txt"
+
+      - name: Inventory host and prove raw sync EIO capability
+        id: capability
+        shell: bash
+        run: |
+          set -uo pipefail
+          if bash ci/fr19a_sync_eio_host.sh capability \
+            "$FR19A_CAPABILITY_STATE" "$FR19A_ARTIFACT_DIR/capability"; then
+            capability_status=0
+          else
+            capability_status=$?
+          fi
+          if [[ $capability_status -eq 0 ]]; then
+            printf 'supported=true\n' >>"$GITHUB_OUTPUT"
+          else
+            printf 'supported=false\n' >>"$GITHUB_OUTPUT"
+          fi
+          printf 'capability_exit=%s\n' "$capability_status" \
+            >"$FR19A_ARTIFACT_DIR/capability-exit.txt"
+          exit 0
+
+      - name: Refuse unavailable physical acceptance
+        if: steps.capability.outputs.supported != 'true'
+        shell: bash
+        run: |
+          printf '%s\n' \
+            'Required loop/device-mapper/raw-sync-EIO capability is unavailable.' >&2
+          exit 78
+
+      - name: Resolve locked dependencies and compile fixture
+        if: steps.capability.outputs.supported == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mix deps.get --check-locked
+          mix compile --force --warnings-as-errors
+
+      - name: Create exact disposable gateway fault target
+        if: steps.capability.outputs.supported == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/fr19a_sync_eio_host.sh setup \
+            "$FR19A_PROBE_STATE" "$FR19A_ARTIFACT_DIR/gateway-host"
+
+      - name: Run Gateway backup through real sync EIO
+        if: steps.capability.outputs.supported == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+          cleanup_probe() {
+            bash ci/fr19a_sync_eio_host.sh cleanup \
+              "$FR19A_PROBE_STATE" "$FR19A_ARTIFACT_DIR/gateway-host" || true
+          }
+          trap cleanup_probe EXIT
+
+          source_root="$RUNNER_TEMP/fr19a-sync-eio-source"
+          mkdir -p "$source_root" "$FR19A_ARTIFACT_DIR/gateway"
+          destination="$(<"$FR19A_PROBE_STATE/mount")/backup.sqlite3"
+          trace_prefix="$FR19A_ARTIFACT_DIR/gateway/strace"
+          fixture_log="$FR19A_ARTIFACT_DIR/gateway/fixture.log"
+          runner_user="$(id -un)"
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
+          runner_home="$HOME"
+          runner_mix_home="${MIX_HOME:-$HOME/.mix}"
+          strace_path="$(command -v strace)"
+
+          if [[ $runner_uid -eq 0 || ! $runner_user =~ ^[a-z_][a-z0-9_-]*$ || \
+            $(id -u "$runner_user") != "$runner_uid" || $strace_path != /* ]]; then
+            printf 'Gateway BEAM context unexpectedly runs as root\n' >&2
+            exit 1
+          fi
+          {
+            printf 'uid=%s\n' "$(id -u)"
+            printf 'mix=%s\n' "$(command -v mix)"
+            printf 'elixir=%s\n' "$(command -v elixir)"
+            printf 'erl=%s\n' "$(command -v erl)"
+            printf 'runner_user=%s\nrunner_gid=%s\nrunner_home=%s\nmix_home=%s\nstrace=%s\n' \
+              "$runner_user" "$runner_gid" "$runner_home" "$runner_mix_home" "$strace_path"
+            mix --version
+            mix help hex >/dev/null
+            printf 'hex_scm=available\n'
+          } >"$FR19A_ARTIFACT_DIR/gateway/beam-context.txt"
+
+          if sudo -n /usr/bin/env \
+            PATH="$PATH" \
+            HOME="$runner_home" \
+            MIX_HOME="$runner_mix_home" \
+            MIX_ENV="$MIX_ENV" \
+            MIX_BUILD_PATH="$MIX_BUILD_PATH" \
+            MIX_DEPS_PATH="$MIX_DEPS_PATH" \
+            COORDINATOR_TICK=0 \
+            HERDR_ENV= \
+            RUNNER_TEMP="$RUNNER_TEMP" \
+            GITHUB_RUN_ID="$GITHUB_RUN_ID" \
+            GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            FR19A_EXPECTED_RUNNER_USER="$runner_user" \
+            FR19A_EXPECTED_RUNNER_UID="$runner_uid" \
+            FR19A_EXPECTED_RUNNER_GID="$runner_gid" \
+            "$strace_path" -u "$runner_user" -ff -yy -ttt \
+              -e trace=fsync,fdatasync,pwrite64,write,openat,close \
+              -o "$trace_prefix" \
+              mix run --no-start --no-compile --no-deps-check \
+              test/support/fr19a_linux_sync_eio_fixture.exs \
+              "$source_root/authority.sqlite3" \
+              "$source_root/baseline.sqlite3" \
+              "$destination" \
+              "$source_root/recovered.sqlite3" \
+              "$GITHUB_WORKSPACE/foundry/ci/fr19a_sync_eio_host.sh" \
+              "$FR19A_PROBE_STATE" \
+              "$FR19A_ARTIFACT_DIR/gateway-host" \
+              >"$fixture_log" 2>&1; then
+            probe_status=0
+          else
+            probe_status=$?
+          fi
+
+          if bash ci/fr19a_sync_eio_host.sh restore \
+            "$FR19A_PROBE_STATE" "$FR19A_ARTIFACT_DIR/gateway-host"; then
+            restore_status=0
+          else
+            restore_status=$?
+          fi
+
+          if elixir ci/fr19a_sync_eio_parse.exs \
+            "$trace_prefix*" "$destination" "$fixture_log" \
+            "$FR19A_ARTIFACT_DIR/gateway-host/error-table-phase.txt" \
+            "$FR19A_ARTIFACT_DIR/gateway-host/mapper-transitions.txt" \
+            "$FR19A_ARTIFACT_DIR/gateway/parsed-proof.txt"; then
+            parse_status=0
+          else
+            parse_status=$?
+          fi
+
+          {
+            printf 'probe_exit=%s\n' "$probe_status"
+            printf 'restore_exit=%s\n' "$restore_status"
+            printf 'parse_exit=%s\n' "$parse_status"
+          } >"$FR19A_ARTIFACT_DIR/gateway/exit-status.txt"
+
+          if [[ $probe_status -ne 0 || $restore_status -ne 0 || $parse_status -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Clean exact owned resources
+        if: always()
+        shell: bash
+        run: |
+          set -uo pipefail
+          cleanup_status=0
+
+          if [[ -d $FR19A_PROBE_STATE ]]; then
+            bash ci/fr19a_sync_eio_host.sh cleanup \
+              "$FR19A_PROBE_STATE" "$FR19A_ARTIFACT_DIR/gateway-host" || cleanup_status=1
+          fi
+
+          if [[ -d $FR19A_CAPABILITY_STATE ]]; then
+            bash ci/fr19a_sync_eio_host.sh cleanup \
+              "$FR19A_CAPABILITY_STATE" "$FR19A_ARTIFACT_DIR/capability" || cleanup_status=1
+          fi
+
+          printf 'workflow_cleanup_exit=%s\n' "$cleanup_status" \
+            >"$FR19A_ARTIFACT_DIR/workflow-cleanup.txt"
+          exit "$cleanup_status"
+
+      - name: Upload bounded physical acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: fr19a-sync-eio-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fr19a-sync-eio-artifacts
+          if-no-files-found: error
+          retention-days: 14
