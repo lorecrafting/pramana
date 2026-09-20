@@ -178,8 +178,8 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | **Complete: reviewed containment** | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |
-| H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Ready; may remain blocked on unavailable capabilities** | Inherits FR-07/08 handoff evidence only |
-| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | Blocked pending H0 disposition of supported/unavailable facts | F07, F16 |
+| H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Complete: independently reviewed; 4 pass, 3 unavailable, not ready** | Inherits FR-07/08 handoff evidence only |
+| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Ready: H0 assigns the 3 unavailable protected capabilities here** | F07, F16 |
 | FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | Blocked | F07, F16 |
 | F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Ready for synthetic/local investigation; provider/host action remains separately authorized** | Inherits FR-09/15a evidence only |
 | FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |

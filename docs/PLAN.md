@@ -313,8 +313,10 @@ Next resumable Foundry work, under exact repair-plan ownership:
 1. The bounded current-revision `ProcessGroup.gone?/1` false-death correction and its
    `Checks.Runner` caller cases are independently reviewed and integrated. Retain its
    evidence and leave FR-10's descendant/issuer/channel reconciliation open.
-2. Produce H0's revision-bound accepted-FR-07 supported/unavailable inventory. It may
-   remain blocked; no direct SQL, empty-table inference or synthetic adapter may pass it.
+2. H0's revision-bound accepted-FR-07 inventory is independently reviewed and integrated:
+   four capabilities pass and three are honestly unavailable, so `ready=false`. FR-08A is
+   now ready and owns those missing protected capabilities; no direct SQL, empty-table
+   inference or synthetic adapter may pass them.
 3. Run the bounded joint FR-09/15a Pi-first feasibility/provisioning investigation with
    synthetic credentials and controlled endpoints. OMP remains the governing baseline;
    unsupported host/provider requirements remain blocked.

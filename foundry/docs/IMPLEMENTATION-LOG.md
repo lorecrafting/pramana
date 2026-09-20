@@ -1352,3 +1352,32 @@ steps.
   because its fresh dependency root was empty; after fetching the unchanged lockfile,
   warnings-as-errors compilation passed for 105 files and the focused suite passed 32/32
   at seed 8021. This changes no provider, daemon, deployment or activation state.
+
+## H0 accepted-FR-07 boundary integration — 2026-09-19
+
+- The first frozen H0 candidate `3e1ed8bb643e6f68cf604cb497f3c0f41770e7b0`
+  correctly reported four supported and three unavailable capabilities but received an
+  independent **BLOCKER** review at
+  `b5abb5eab4d16c0075e5e2180a5ff059b51c9a70`: one receipt was not reproducible across
+  fresh BEAM processes and the report did not bind its accepted identity to the actually
+  loaded public implementation.
+- Correction `a23482de566dcd7be567dff49985ff8c97536df9` replaced Erlang-term hashing
+  with documented sorted-key canonical JSON and verifies source SHA-256 plus loaded BEAM
+  MD5 before every probe. Separate opposite-load-order BEAMs reproduce the frozen report;
+  a changed in-memory `Gateway.command/2` sentinel executes and forces all seven results
+  unavailable with `identity_mismatch_refused`.
+- Corrected candidate `4c8734c6473be97da77f299bc4b42cd720cdf0b6`, tree
+  `f120fcaff6967f6dc3a734200d2e797b2ed9c2ed`, received narrow independent Astra-medium
+  **PASS** at review commit `9715cf846f4485821482e7a5d929b58f1b9087ad`.
+  The reviewer verified all corrected and accepted-v9 manifest entries, both blocker
+  reproductions, 18 hostile protected-field variants, 19 focused tests, two independent
+  public controls, 109 broader regressions and the 80-test documentation gate.
+- The complete candidate→BLOCKER→correction→PASS chain was integrated on current main
+  through `c3c11ac367e00b7f992a5c65e4c1aa99c291636e`, tree
+  `074c408e73b27cf098f210c9fbca05e362bfc202`. Post-integration warnings-as-errors
+  compilation passed for 106 files, the focused suite passed 19/19 at seed 9251 and the
+  documentation gate passed 80/80. H0 is complete as an honest evidence checkpoint, not
+  ready for migration: complete evolving policy/control/allocation CAS, atomic protected
+  receipt/lease/claim/settlement/ledger transitions and authenticated inbox sequence/seal
+  remain unavailable and are now FR-08A work. The existing native VFS exit 139 is excluded;
+  no provider, daemon, credential, deployment or activation was exercised.
