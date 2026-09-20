@@ -1584,3 +1584,84 @@ latest prose here, remains authoritative for status and dependencies.
 - FR-08A is complete. FR-08B and FR-18A are ready; FR-15aB still waits for FR-08B. The
   protected verifier is not a second workflow reducer, and completion does not claim live
   execution, presentation, activation or FR-22 acceptance.
+
+## FR-08A atomic-composition handoff correction — 2026-09-20
+
+- FR-08B implementation stopped before editing at base
+  `d0059b03757a73085f430895304244afaec79ce2`. Source inspection showed that ordinary
+  `Gateway.transact/4` commits domain records with no protected operations, while
+  `Gateway.protected_command/4` executes one protected operation in a separate
+  transaction and the legacy combined route refuses root-authority stores. Sequential
+  calls cannot satisfy the workflow contract's atomic R4a/R5 settlement and restart
+  obligations.
+- A fresh read-only Astra-high diagnosis confirmed the contradiction and bounded the
+  correction. [Its durable record](fr-08/atomic-composition-diagnosis.md) requires a
+  versioned bundle through the one Gateway transaction, fixed non-committing protected
+  operations, global command idempotency, complete prestate CAS, typed ordered history,
+  v1 replay compatibility, validated domain/protected linkage and a protected
+  once-per-non-start infrastructure settlement fact. FR-08B retains the role reducer and
+  every-ingress migration; no acceptance obligation is waived.
+- Active owner: Sol-medium `fr08a_atomic_bundle_impl`, isolated from the concurrent
+  FR-18A observation slice. The correction requires a fresh Astra-high authority,
+  persistence and replay review before integration. The historical FR-08A PASS remains
+  valid only for its exact candidate and does not prove this new handoff surface.
+- First frozen candidate `9a8a4912bcc86d1f58b50a65f9cc148982ac3915`, tree
+  `325652033c56f582ea3102650770dd5a73b3c0bb`, added the one-transaction bundle route,
+  typed operation journal, v1 backfill and infrastructure settlement record. Fresh
+  Astra-high review `d1700a853e286428c315d9a26040c86a048cead8` returned **BLOCKER**:
+  hostile probes reproduced cross-envelope rejected-operation reuse, non-durable early
+  rejection, settlement/history mutation surviving reopen, partial migration acceptance,
+  truncated/substituted v2 outcomes, missing bundle-prestate CAS and broken duplicate
+  receipt settlement recovery. Independent probes passed 22/35; the affected suite
+  passed 173/176. The exact-base ENOSPC fixture passed while the candidate fixture
+  returned zero-frame success, so that difference remains an explicit diagnosis item.
+  The original implementer owns the bounded B1–B7 correction; nothing is integrated.
+- Runtime corrections `940ccfb3efbcfb533ebeec0f46d67c1f83d3681f`,
+  `0cadb1f1c936304240c0b053503c45156c53f4e4` and
+  `67a2b923ef58f98290457f4640561bc5d44f9db8` close the seven original blocker groups,
+  copied settlement provenance/shape and mandatory non-start carrier presence. Evidence
+  commit `721a9e86ed51b776785a7260890b39f894fc1c5a` binds the final corrected source.
+  Astra-medium rereview PASS `bae065ba183833b3fb30c6f3c6326c00e49a1039`
+  verified the final B3/B5 boundary after earlier blocker records were preserved.
+- The ENOSPC discrepancy was traced to the new typed history crossing SQLite's default
+  1,000-frame auto-checkpoint threshold, not a checkpoint implementation regression.
+  The owned physical fixture now disables auto-checkpoint only for the test, asserts a
+  nonempty wholly uncheckpointed WAL using `wal_checkpoint(NOOP)`, then proves physical
+  ENOSPC. Production WAL behavior is unchanged.
+- Current-main documentation and the exact reviewed branch were merged at
+  `f3ef50340548fa1c430f922a0913f132bae9786f`. Runtime/test paths are byte-identical to
+  the reviewed candidate. Exact clean integrated CI on pinned Elixir 1.20.3 / OTP 29.0.5
+  passed 625 tests with 13 intentional skips and one optional exclusion; provenance is
+  `/private/tmp/fr08a-atomic-integrated-ci-f3ef503/provenance.json`, tree
+  `3c36362dc9d4b6a49bbd6fa8b0d41f20832dfa86`. Documentation passed 80/80. FR-08B is
+  dependency-ready and FR-18A may now add its separately designed bounded read query.
+  No provider, daemon, activation or deployment ran.
+
+## FR-18A minimal honest observations — 2026-09-20
+
+- Sol-medium source candidate `fa74cabb7ce8c4d12cf94e756c92b7310733192a`, tree
+  `6228757bd34a1d639ebb693413dd45b43d50fc0c`, adds only a typed observation surface,
+  DTOs, a protected-Gateway adapter and tests. Candidate evidence commit
+  `8f266ea087791345f1318785e80fa2f754a15b00` records 22 focused passes, exact-source
+  pinned CI with 619 passes, 13 intentional skips and one optional exclusion, and an
+  80/80 documentation gate. It changes no Coordinator, reducer or protected writer.
+- Fresh Sol-high review `84848a1b13278d052ee590705a12fb384abbd5c6` returned
+  **BLOCKER**. Hostile probes reproduced corrupt authority collapse to unavailable,
+  contradictory unknown-to-success effect reporting, secret-shaped identity leakage,
+  canonical quality on malformed versions and post-materialization limits that do not
+  bound the protected query. It also found a protected pointer-vocabulary mismatch.
+- The original implementer is correcting the disjoint observation defects. The bounded
+  protected effect query is deliberately serialized behind the active FR-08A atomic
+  bundle writer because both require the same Gateway/protected-core files. FR-18A is not
+  complete, and its green component/full-suite counts do not override the hostile review.
+- Observation-layer correction `ff6613cb81ac335d425ef460edc8994bc29448c4` and final
+  Sol-high rereview `e10c57b115f2c8b9a8aab2d04d3e5da1fa8cc330` pass corrupt-versus-
+  unavailable classification, terminal reconciliation, whole-envelope redaction,
+  malformed-version quality and protected pointer vocabulary. Focused checks passed 28;
+  B5 remains explicitly unreviewed and blocking.
+- Branch `origin/repair/fr18a-honest-observations` preserves the complete candidate and
+  review chain. Documentation-only commit `3bc217e70ff3df359f9a68672e10f53bc9a3dfe7`
+  records the future bounded exact-effect query: typed SQL-level item/byte caps, stable
+  source-bound cursors, explicit truncation/unknown/error semantics and acceptance tests.
+  It changes no runtime. Implementation waits for the FR-08A protected-core correction
+  to pass and integrate, avoiding concurrent ownership of `ProtectedPrimitives`.

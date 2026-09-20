@@ -1,6 +1,7 @@
 # Fresh typed-replay rereview; public fixtures, disposable SQLite corruption only.
 base = File.read!("docs/fr-08/fr08a-final-review-probes.exs")
 base = Regex.replace(~r/\nend\s*\z/, base, "\n")
+
 extra = ~S"""
   for reverse <- [false, true], nesting <- [:direct, :list] do
     @reverse reverse
@@ -34,7 +35,7 @@ extra = ~S"""
 
   for placement <- [:diagnostic, :artifact, :receipt, :nested_list] do
     @placement placement
-    test "typed: opaque #{@placement} maps stay opaque", ctx do
+    test "typed: opaque #{@placement} maps cannot rewrite byte-bound v1 history", ctx do
       prepare(ctx)
       issue(ctx)
       :ok = stop_supervised(Gateway)
@@ -49,7 +50,7 @@ extra = ~S"""
         put_in(r, ["facts", key], value)
       end)
       ctx = start_again(ctx)
-      assert %{mode: :ready} = Gateway.status(ctx.g)
+      assert %{mode: :recovery} = Gateway.status(ctx.g)
     end
   end
 
@@ -121,4 +122,5 @@ extra = ~S"""
   end
 end
 """
+
 Code.eval_string(base <> extra, [], file: __ENV__.file)

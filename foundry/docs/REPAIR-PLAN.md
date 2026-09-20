@@ -213,8 +213,8 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |
 | H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Complete: independently reviewed; 4 pass, 3 unavailable, not ready** | Inherits FR-07/08 handoff evidence only |
-| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Complete: protected authority and typed recovery independently reviewed, combined with FR-19A and integrated** | F07, F16 |
-| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **Ready: reviewed FR-08A interface integrated** | F07, F16 |
+| FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Complete: protected authority, typed recovery and atomic protected/domain handoff independently reviewed and integrated** | F07, F16 |
+| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **Ready: reviewed atomic protected/domain handoff integrated** | F07, F16 |
 | F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Complete: provider-free inventory independently reviewed; governed execution remains blocked** | Inherits FR-09/15a evidence only |
 | FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08B, FR-09 | Blocked | F08, F09 |
@@ -227,7 +227,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-15 | Implement durable steering and optional PM planning | FR-08B, FR-12, FR-15aB | Blocked | F15, F22 |
 | FR-16 | Implement bounded subscription switching | FR-01, FR-09, FR-12, FR-15 | Blocked | F01, F11 |
 | FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
-| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | **Ready: reviewed FR-08A protected facts integrated** | F17, F18 |
+| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | **In progress: observation corrections independently passed; bounded protected query is now implementation-ready against the integrated atomic core** | F17, F18 |
 | FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
 | FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Complete: physical ENOSPC/kernel-sync and bounded maintenance recovery independently reviewed and integrated** | F20, F21 |
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |

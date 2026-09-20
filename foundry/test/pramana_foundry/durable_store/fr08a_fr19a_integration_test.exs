@@ -13,7 +13,7 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
   alias PramanaFoundry.Repair.{FR08HandoffGate, H0AcceptedFR07Boundary}
 
   @accepted_h0_revision "af0c51b4682c50080e67194dd853fbaa1eebace7"
-  @protected_tables ~w(root_leases root_receipts root_reservations root_claims root_effects root_ledgers root_control_history root_controls root_policy_history root_policies authenticated_inbox_items authenticated_inboxes root_pointers root_commands)
+  @protected_tables ~w(root_infrastructure_settlements durable_operations atomic_bundles root_leases root_receipts root_reservations root_claims root_effects root_ledgers root_control_history root_controls root_policy_history root_policies authenticated_inbox_items authenticated_inboxes root_pointers root_commands)
   @legacy_tables ~w(inputs commands command_results events projections effects ledger_generations claims reservations receipts leases policy_revisions control_revisions artifact_references import_runs legacy_records sqlite_sequence)
 
   setup do
@@ -90,7 +90,7 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
 
     assert {:ok,
             %{
-              "protected_schema_version" => "1",
+              "protected_schema_version" => "2",
               "authority_mode" => "empty_or_legacy",
               "writer_epoch" => "epoch-after-migration"
             }} = Gateway.protected_snapshot(migrated, capability)
@@ -101,12 +101,12 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
     assert :ok = GenServer.stop(migrated)
 
     future = initialized_path(root, "future")
-    execute_raw!(future, "UPDATE metadata SET value = '2' WHERE key = 'protected_schema_version'")
+    execute_raw!(future, "UPDATE metadata SET value = '3' WHERE key = 'protected_schema_version'")
 
     assert {:error, {:unsupported_protected_migration, :partial_or_future_protected_state}} =
              Gateway.migrate(future)
 
-    assert metadata!(future, "protected_schema_version") == "2"
+    assert metadata!(future, "protected_schema_version") == "3"
 
     partial = initialized_path(root, "partial")
     execute_raw!(partial, "DELETE FROM metadata WHERE key = 'migration_fr08a_v1'")
@@ -119,7 +119,7 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
     corrupt = initialized_path(root, "corrupt")
     execute_raw!(corrupt, "DROP TABLE root_pointers")
 
-    assert {:error, {:authority_corrupt, "sqlite_schema", "inventory", :schema_mismatch}} =
+    assert {:error, {:unsupported_protected_migration, :partial_or_future_protected_state}} =
              Gateway.migrate(corrupt)
 
     refute table_exists?(corrupt, "root_pointers")
@@ -590,7 +590,7 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
     assert :ok =
              Database.execute(
                conn,
-               "DELETE FROM metadata WHERE key IN ('protected_schema_version', 'migration_fr08a_v1')"
+               "DELETE FROM metadata WHERE key IN ('protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2')"
              )
 
     assert :ok = Sqlite3.close(conn)

@@ -325,8 +325,9 @@ Next resumable Foundry work, under exact repair-plan ownership:
    ownership-aware provisioning and rollback. It performed no host provisioning and
    enables no execution: actual isolation remains FR-15aB, installed-harness/subscription
    conformance remains FR-09, and OMP remains governing.
-4. Implement FR-08B's one-reducer migration for every command ingress and FR-18A's minimal
-   honest observation slice against the now-reviewed protected interface.
+4. Implement FR-18A's remaining bounded exact-effect observation query against the
+   reviewed atomic protected interface, and resume FR-08B's one-reducer migration for
+   every command ingress using its durable source inventory and acceptance matrix.
 5. Continue actual isolation, selected-harness conformance, durable effects/lifecycle,
    scheduling, artifact custody and Git integration in the repair graph's order.
 6. Complete honest observation/storage baselines before immutable activation; then finish

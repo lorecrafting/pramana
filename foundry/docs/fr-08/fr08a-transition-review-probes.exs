@@ -1,6 +1,7 @@
 # Independent residual-F2 variations; reuse only public fixture helpers.
 base = File.read!("docs/fr-08/fr08a-final-review-probes.exs")
 base = Regex.replace(~r/\nend\s*\z/, base, "\n")
+
 extra = ~S"""
   defp authenticated_commands(path) do
     {:ok, conn} = Sqlite3.open(path)
@@ -98,13 +99,13 @@ extra = ~S"""
     assert %{mode: :recovery} = Gateway.status(ctx.g)
   end
 
-  test "transition: duplicate identical fact carriers are harmless", ctx do
+  test "transition: duplicate fact carriers cannot rewrite byte-bound v1 history", ctx do
     prepare(ctx)
     issue(ctx)
     :ok = stop_supervised(Gateway)
     mutate_blob(ctx.path, "root_commands", "result", "operation = 'issue_claim' AND disposition = 'accepted'", fn r -> put_in(r, ["facts", "duplicate"], r["facts"]["effect"]) end)
     ctx = start_again(ctx)
-    assert %{mode: :ready} = Gateway.status(ctx.g)
+    assert %{mode: :recovery} = Gateway.status(ctx.g)
   end
 
   test "transition: conflicting duplicate fact carrier fences", ctx do
@@ -161,4 +162,5 @@ extra = ~S"""
   end
 end
 """
+
 Code.eval_string(base <> extra, [], file: __ENV__.file)
