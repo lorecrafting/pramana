@@ -66,7 +66,8 @@ diagnosis found no contract ambiguity and specified one exhaustive retained-auth
 fence, path namespace and shared narrow projection reducer. The lost mutable v6 worktree was
 recovered from its exact rollout journal onto current main and frozen as candidate
 `103ee1de234af8929d504e78c51297b6d9907d71`; warnings-as-errors compilation and the
-68-test durable-store suite pass. FR-07 remains incomplete pending fresh Astra-high review.
+68-test durable-store suite pass. Fresh Astra-high review reproduced five blockers and one
+bounded-query shortfall; a corrected candidate is in progress. FR-07 remains incomplete.
 FR-21's focused v3 CI/provenance correction
 passed renewed
 independent review, is integrated, and passed independent post-integration 432-test

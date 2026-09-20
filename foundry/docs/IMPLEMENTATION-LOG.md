@@ -1148,3 +1148,21 @@ steps.
   blocked. Exact resumable next step: obtain a fresh Astra-high review of revision
   `103ee1de234af8929d504e78c51297b6d9907d71`, dispose any findings, then integrate and
   revalidate the reviewed candidate before marking FR-07 complete.
+
+### FR-07 recovered v6 independent review
+
+- Fresh Astra-high review SHA-256
+  `7151d544e1d64e757d75f33428e361d668c84356631b09fed1d3daeda491f35f`
+  returned **FAIL** after matching revision/tree and all 45 manifest hashes. Independent
+  evidence passed warnings-as-errors compilation, 81 focused tests, a fresh 501-test full
+  suite and both exact full-row VFS xSync recovery/retry branches.
+- Six blockers/shortfalls remain: a rewound projection can be certified and used; scoped
+  projection/ledger reads omit required owner/result relations and global reads miss orphan
+  effects; malformed protected facts/lookups can crash or incorrectly fence; import can
+  overwrite an unowned regular staging file; schema checks validate index names rather
+  than required definitions; and scoped projection validation accumulates an unbounded
+  unrelated event prefix.
+- Candidate `103ee1de` remains rejected and unintegrated. The same implementation owner is
+  applying the bounded B1–B6 correction with executable regressions. A changed candidate
+  requires renewed independent review; credited 18-table, import-completeness, shared-reducer
+  and VFS evidence must not be weakened.
