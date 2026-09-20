@@ -13,22 +13,49 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   alias PramanaFoundry.DurableStore.{Gateway, LegacyImport}
   alias PramanaFoundry.Repair.FR08HandoffGate
 
-  @subject_revision "aacbd1c407eb5f76afdfaf09e6793f7ecb19c8da"
-  @subject_tree "d0e3d258fef13915b78080cd484c68d84f5337c4"
-  @source_identity %{
-    "authority.ex" => "d0b94ba108f8a1be0b3c17db4478bcbe25783991ceb17bc5ca3bb8edd886d99c",
-    "database.ex" => "eb33981a78b6a973f26f8610f660f660c149ba57e2d8c046f09556bb1fd4b6e5",
-    "gateway.ex" => "693fad9919d9bbf91b3a1157f5a775442a95fd3994553757c7912ec22862551b",
-    "protected_primitives.ex" =>
-      "df075738ec53580e52e06fbc28187192a65feb4dbaa5777985017b490b38d5cf"
-  }
+  @subject_revision "44a56be3b4854b7cd392215beef6e01f4f30097a"
+  @subject_tree "08aeb550ae5bf6b4c178ac8b933bcfc7e7d956df"
+  @api_identity [
+    {PramanaFoundry.DurableStore.Authority, "lib/pramana_foundry/durable_store/authority.ex",
+     "d0b94ba108f8a1be0b3c17db4478bcbe25783991ceb17bc5ca3bb8edd886d99c",
+     "f4c3d14a481aa2b56b657abe55537e54"},
+    {PramanaFoundry.DurableStore.Database, "lib/pramana_foundry/durable_store/database.ex",
+     "bf21cc2dc37b58cdec0de191025a7753529fc08d66b887f15331d8bdf026e464",
+     "f662bf6db75b1d695069f61ccf165a58"},
+    {PramanaFoundry.DurableStore.Gateway, "lib/pramana_foundry/durable_store/gateway.ex",
+     "e60158b2f95ace9c1f143f3a9b8a12d8c6cf08ca279bbe7c90ced6b955793d1e",
+     "291a5f116748dc0c31f59d4735d46b97"},
+    {PramanaFoundry.DurableStore.ProtectedPrimitives,
+     "lib/pramana_foundry/durable_store/protected_primitives.ex",
+     "f08d975d1ce5f7d12352d2de0b5d20ef9cf261c0afe78666f350f64426e88bf7",
+     "6ba705f41c1d9f1c3fb08b7f1ef9968b"},
+    {PramanaFoundry.DurableStore.Kernel, "lib/pramana_foundry/durable_store/kernel.ex",
+     "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac",
+     "e43949e9a2658ebbd12afabdf2f30086"},
+    {PramanaFoundry.DurableStore.RecordCodec, "lib/pramana_foundry/durable_store/record_codec.ex",
+     "8bd05827b932e00dffbeeda84383d509a61d1cbc4be3fa58943ecfbef2930131",
+     "be95460c6e50de9cdb4bd85945413708"},
+    {PramanaFoundry.DurableStore.Encoding, "lib/pramana_foundry/durable_store/encoding.ex",
+     "140730a723527d3e7c9f71f0e54c209f14ce4a8b74004e553f12f14ce7c987ba",
+     "5f1bff0562b0fed9407a8af02bc84241"},
+    {PramanaFoundry.DurableStore.LegacyImport,
+     "lib/pramana_foundry/durable_store/legacy_import.ex",
+     "158a8419cc59ee7e3998f2e497308d2a03a88871f79c1e031849cfcfef24a322",
+     "c91b85e002244d83b85410de3c2f666b"},
+    {PramanaFoundry.Repair.FR08HandoffGate, "lib/pramana_foundry/repair/fr08_handoff_gate.ex",
+     "710f42d0467e97f58540342ba1c566959d995f1d561242c275f88eab2017228b",
+     "e1eef77b648eb850b9a643629982d091"}
+  ]
 
   def identity do
     %{
       schema: "pramana-foundry-fr08a-protected-boundary/v1",
       subject_revision: @subject_revision,
       subject_tree: @subject_tree,
-      source_sha256: @source_identity,
+      exercised_api:
+        Enum.map(@api_identity, fn {_module, path, sha256, beam_md5} ->
+          %{path: path, sha256: sha256, beam_md5: beam_md5}
+        end),
       implementation_binding: implementation_binding()
     }
   end
@@ -45,7 +72,9 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
     gate = report.gate
 
     source_lines =
-      Enum.map(@source_identity, fn {path, digest} -> "source=#{path}|sha256:#{digest}" end)
+      Enum.map(report.identity.exercised_api, fn api ->
+        "source=#{api.path}|sha256:#{api.sha256}|beam_md5:#{api.beam_md5}"
+      end)
 
     capability_lines =
       Enum.map(gate.capabilities, fn capability ->
@@ -77,7 +106,7 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
     do: {:unavailable, "fr08a:subject_revision_mismatch"}
 
   def probe(capability, @subject_revision) do
-    if implementation_binding() == "verified:source-sha256/v1" do
+    if implementation_binding() == "verified:source-sha256+beam-md5/v1" do
       verified_probe(capability)
     else
       {:unavailable, "fr08a:loaded_subject_identity_mismatch"}
@@ -374,7 +403,7 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   defp effect_request do
     command(
       "EFFECT",
-      Map.put(incomplete_effect_reads(), "ledger/ticket-T1/0", 1),
+      Map.put(incomplete_effect_reads(), "ledger/ticket-T1/0", 0),
       effect_operation()
     )
   end
@@ -385,8 +414,11 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
       %{
         "effect/effect-1" => 0,
         "claim/claim-1" => "absent",
-        "reservation/reservation-1" => 0,
-        "ledger/ticket-T1/0" => 1
+        "reservation/reservation-1" => 1,
+        "ledger/ticket-T1/0" => 1,
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "lease/lease-1" => "absent"
       },
       %{
         "type" => "claim_effect",
@@ -405,7 +437,7 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
         "effect/effect-1" => 1,
         "policy/policy-1" => 0,
         "control/control-1" => 0,
-        "reservation/reservation-1" => 1,
+        "reservation/reservation-1" => 2,
         "ledger/ticket-T1/0" => 1,
         "lease/lease-1" => 0
       },
@@ -421,7 +453,7 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
         "effect/effect-1" => 2,
         "policy/policy-1" => 0,
         "control/control-1" => 0,
-        "reservation/reservation-1" => 2,
+        "reservation/reservation-1" => 3,
         "ledger/ticket-T1/0" => 1,
         "lease/lease-1" => 0,
         "receipt/receipt-1" => "absent"
@@ -452,7 +484,11 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
     %{
       "type" => "create_effect",
       "effect_id" => "effect-1",
-      "request" => %{"profile" => "sol"},
+      "request" => %{
+        "request_id" => "provider-request-1",
+        "role" => "developer",
+        "profile" => "sol"
+      },
       "operation" => "launch",
       "scope" => "ticket:T1",
       "ticket_id" => "T1",
@@ -603,17 +639,21 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   end
 
   defp implementation_binding do
-    source_dir = Path.expand("../durable_store", __DIR__)
-
-    if Enum.all?(@source_identity, fn {path, expected} ->
-         case File.read(Path.join(source_dir, path)) do
-           {:ok, bytes} -> sha256(bytes) == expected
-           _ -> false
-         end
-       end) do
-      "verified:source-sha256/v1"
+    if Enum.all?(@api_identity, &loaded_api?/1) do
+      "verified:source-sha256+beam-md5/v1"
     else
-      "mismatch:source-sha256/v1"
+      "mismatch:source-sha256+beam-md5/v1"
+    end
+  end
+
+  defp loaded_api?({module, _path, expected_sha256, expected_md5}) do
+    with {:module, ^module} <- Code.ensure_loaded(module),
+         source when is_list(source) <- module.module_info(:compile)[:source],
+         {:ok, bytes} <- File.read(List.to_string(source)) do
+      sha256(bytes) == expected_sha256 and
+        Base.encode16(module.module_info(:md5), case: :lower) == expected_md5
+    else
+      _ -> false
     end
   end
 
