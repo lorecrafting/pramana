@@ -89,7 +89,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
         ],
         "alternatives" => [
           %{"discriminator" => "below_infrastructure_limit", "proposal" => settled_proposal()}
-        ]
+        ],
+        "discriminator_kind" => "infrastructure_limit_v1"
       },
       overrides
     )
@@ -225,29 +226,59 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
           "disposition" => "blocked",
           "reason_code" => "capacity_denied",
           "bindings" => [],
-          "alternatives" => []
+          "alternatives" => [],
+          "discriminator_kind" => nil
         })
 
       assert {:ok, _plan} = TransitionPlan.validate(terminal)
     end
 
     test "rejects a terminal plan that still carries alternatives" do
-      terminal = plan(%{"disposition" => "blocked", "reason_code" => "capacity_denied"})
+      # discriminator_kind is nil so this isolates the alternatives failure rather than
+      # tripping the earlier check that a terminal plan names no derivation.
+      terminal =
+        plan(%{
+          "disposition" => "blocked",
+          "reason_code" => "capacity_denied",
+          "discriminator_kind" => nil
+        })
+
       assert {:error, :invalid_terminal_plan} = TransitionPlan.validate(terminal)
+    end
+
+    test "rejects a terminal plan that still names a discriminator" do
+      terminal =
+        plan(%{
+          "disposition" => "blocked",
+          "reason_code" => "capacity_denied",
+          "bindings" => [],
+          "alternatives" => []
+        })
+
+      assert {:error, :invalid_transition_plan} = TransitionPlan.validate(terminal)
+    end
+
+    test "rejects an accepted plan naming an unknown derivation" do
+      assert {:error, :invalid_transition_plan} =
+               TransitionPlan.validate(plan(%{"discriminator_kind" => "arbitrary_code_v1"}))
     end
   end
 
   describe "bind/3 selection" do
     test "rejects an unknown discriminator" do
       assert {:error, :unknown_discriminator} =
-               TransitionPlan.bind(plan(), "no_such_branch", %{"settled" => settlement()})
+               TransitionPlan.bind(plan(), "no_such_branch", [staged()])
     end
 
-    test "rejects outputs that do not match the declared bindings" do
-      assert {:error, :invalid_binding_outputs} =
-               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
-                 "other" => settlement()
-               })
+    test "rejects a staged result at an ordinal no binding names" do
+      # Previously this asserted that an outputs map with the wrong keys was refused.
+      # That is no longer representable: bind/3 derives outputs from staged results, so a
+      # caller cannot present a differently-keyed map. The reachable failure is a staged
+      # result whose ordinal no binding refers to.
+      assert {:error, :staged_operation_absent} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [
+                 staged(%{"ordinal" => 7})
+               ])
     end
 
     test "rejects binding a terminal plan" do
@@ -256,7 +287,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
           "disposition" => "blocked",
           "reason_code" => "capacity_denied",
           "bindings" => [],
-          "alternatives" => []
+          "alternatives" => [],
+          "discriminator_kind" => nil
         })
 
       assert {:error, :invalid_bound_plan} =
@@ -276,7 +308,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                    ]
                  }),
                  "below_infrastructure_limit",
-                 %{"settled" => settlement()}
+                 [staged()]
                )
     end
 
@@ -292,7 +324,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                    ]
                  }),
                  "below_infrastructure_limit",
-                 %{"settled" => settlement()}
+                 [staged()]
                )
     end
 
@@ -313,7 +345,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                    ]
                  }),
                  "below_infrastructure_limit",
-                 %{"settled" => settlement()}
+                 [staged()]
                )
     end
 
@@ -337,7 +369,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                    ]
                  }),
                  "below_infrastructure_limit",
-                 %{"settled" => settlement()}
+                 [staged()]
                )
     end
 
@@ -358,7 +390,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                    ]
                  }),
                  "below_infrastructure_limit",
-                 %{"settled" => settlement()}
+                 [staged()]
                )
     end
   end
@@ -369,9 +401,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     # pinned prerequisite assertion that recorded the block.
     test "a valid plan binds its authoritative fact into a normalized proposal" do
       assert {:ok, proposal} =
-               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
-                 "settled" => settlement()
-               })
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [staged()])
 
       assert [event] = proposal["events"]
       assert event["type"] == "launch_settled"
@@ -386,9 +416,9 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
       refute inspect(proposal) =~ ~s("binding")
     end
 
-    test "binding is refused when the authoritative fact is absent" do
-      assert {:error, :invalid_binding_outputs} =
-               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{})
+    test "binding is refused when no staged result is present" do
+      assert {:error, :staged_operation_absent} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [])
     end
 
     test "a marker naming a binding the plan never declared rejects" do
@@ -409,7 +439,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                    ]
                  }),
                  "below_infrastructure_limit",
-                 %{"settled" => settlement()}
+                 [staged()]
                )
     end
 
@@ -431,22 +461,34 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                      ]
                    }),
                    "below_infrastructure_limit",
-                   %{"settled" => settlement()}
+                   [staged()]
                  )
       end
     end
 
-    test "an output whose shape does not match its declared kind rejects" do
-      assert {:error, :invalid_binding_outputs} =
-               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
-                 "settled" => "not-a-settlement"
-               })
+    test "a staged fact that is not a map rejects" do
+      assert {:error, :unbindable_operation_result} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [
+                 staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => "nope"}}})
+               ])
     end
 
-    test "a forged settlement missing an authoritative field rejects" do
-      assert {:error, :invalid_binding_outputs} =
+    test "an authoritative settlement missing a field rejects" do
+      fact = Map.delete(settlement(), "receipt_id")
+
+      assert {:error, :invalid_authoritative_fact} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [
+                 staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => fact}}})
+               ])
+    end
+
+    test "a caller cannot supply a fact at all" do
+      # The interface offers nowhere to put one. bind/3 takes staged protected results,
+      # so the forgery this codec was hardened against is now unrepresentable rather
+      # than rejected. Passing anything that is not a staged result list fails.
+      assert {:error, :invalid_operation_results} =
                TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
-                 "settled" => Map.delete(settlement(), "receipt_id")
+                 "settled" => settlement()
                })
     end
   end
@@ -703,11 +745,16 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
         }
       ]
 
-      assert {:error, :invalid_binding_outputs} =
+      assert {:error, :invalid_authoritative_fact} =
                TransitionPlan.bind(
                  plan(%{"bindings" => bindings}),
                  "below_infrastructure_limit",
-                 %{"authority" => %{"schema_version" => 1, "effect_id" => "only-one-field"}}
+                 [
+                   %{
+                     issued_effect_result()
+                     | "result" => %{"facts" => %{"effect" => %{"effect_id" => "only-one"}}}
+                   }
+                 ]
                )
     end
   end
