@@ -44,8 +44,16 @@ The underlying error was reasoning from `RecordCodec` without reading the table 
 event_type TEXT NOT NULL,
 ```
 
-The event-type vocabulary is enforced in exactly one place in the entire system —
-`record_codec.ex:81`, `map["type"] in @event_types` — and nowhere in the relational schema.
+Within the durable SQLite store, the event-type vocabulary is enforced in exactly one
+place — `record_codec.ex:81`, `map["type"] in @event_types` — and nowhere in the relational
+schema.
+
+That scoping is deliberate. `PramanaFoundry.Transition` maintains a separate closed
+vocabulary with its own `:unknown_event_type` catch-all, but it dispatches on a record's
+`"event"` key rather than `"type"`, over the legacy coordinator journal rather than the
+`events` table. It shares no storage and no key with this mechanism, so a lifecycle name
+added here cannot collide with it and it needs no change for this design. Its own
+retirement belongs to FR-08B's ingress migration, not here.
 The database will store any event type string today.
 
 So extending the vocabulary requires **no schema change, no migration, no table rebuild and
