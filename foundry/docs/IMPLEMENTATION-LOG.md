@@ -1292,3 +1292,18 @@ steps.
   bounded ProcessGroup correction and H0 report under separate exact candidates; the
   Pi-first feasibility investigation may run in its bounded early lane without enabling
   execution or changing the OMP contract.
+
+### Independent review and integration evidence
+
+- The exact frozen 12-path documentation candidate received independent Astra-high
+  [PASS](alignment-disposition-review-2026-09-19.md), SHA-256
+  `5b0b8cba64edad3db669d84d86a9b28f97664a8efa74c4c97a4fbe4e4288e5f7`.
+  The reviewer independently matched the candidate/diff/audit identities, all 24 finding
+  routing rows and all 43 original acceptance paragraphs; parsed an acyclic 29-node,
+  78-edge dependency table with full FR-22 reachability; and passed the 80-test docs check.
+- The reviewed candidate was committed unchanged on main as
+  `c6ec8d76e3aceffbf2660a2f516013718f452a9a`. This closes only the controlled
+  documentation disposition. The review explicitly does not accept FR-08 implementation,
+  certify current ProcessGroup cleanup, authorize provider/host work, or establish
+  deployment/activation readiness. No source, runtime, policy or credential changed in
+  this evidence-only follow-up.

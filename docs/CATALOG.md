@@ -148,6 +148,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`foundry/README.md`](../foundry/README.md)
 - [`foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md`](../foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md)
 - [`foundry/docs/alignment-disposition-2026-09-19.md`](../foundry/docs/alignment-disposition-2026-09-19.md)
+- [`foundry/docs/alignment-disposition-review-2026-09-19.md`](../foundry/docs/alignment-disposition-review-2026-09-19.md)
 - [`foundry/docs/AUDIT-2026-09-12.md`](../foundry/docs/AUDIT-2026-09-12.md)
 - [`foundry/docs/CI.md`](../foundry/docs/CI.md)
 - [`foundry/docs/EVENT_SOURCING.md`](../foundry/docs/EVENT_SOURCING.md)

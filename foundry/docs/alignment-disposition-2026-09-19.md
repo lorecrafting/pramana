@@ -10,7 +10,15 @@ Git ref, deployment or activation permission.
 [workflow contract](WORKFLOW-CONTRACT.md) ·
 [implementation log](IMPLEMENTATION-LOG.md) ·
 [exact independent audit](ALIGNMENT-AUDIT-2026-09-19.md) ·
+[independent Astra-high PASS](alignment-disposition-review-2026-09-19.md) ·
 [FR-08 investigation](fr-08/investigation.md)
+
+**Current evidence status:** The exact frozen 12-path candidate received independent
+Astra-high **PASS** and was committed unchanged as
+`c6ec8d76e3aceffbf2660a2f516013718f452a9a`. The review report has SHA-256
+`5b0b8cba64edad3db669d84d86a9b28f97664a8efa74c4c97a4fbe4e4288e5f7`.
+The verdict accepts this documentation disposition only; it does not certify runtime
+behavior or authorize provider, deployment or activation actions.
 
 ## Provenance and substantive candidate digest
 
@@ -75,6 +83,7 @@ accounts for 596 insertions.
 
 No Foundry suite, daemon, listener, host provisioning, provider call, credential check,
 Git promotion, activation or physical storage-fault test was run. Source inspection and
-documentation checks do not establish deployed/live truth. No independent review is
-claimed. The next implementation candidate is separately owned: bounded ProcessGroup
-correction and H0 report first; no FR-08 or ProcessGroup code is part of this candidate.
+documentation checks do not establish deployed/live truth. The linked independent PASS
+is limited to the exact documentation/contract/routing candidate. The next implementation
+candidate is separately owned: bounded ProcessGroup correction and H0 report first; no
+FR-08 or ProcessGroup code is part of this candidate.
