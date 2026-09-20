@@ -34,17 +34,30 @@ jobs:
         working-directory: foundry
 
     env:
-      FR19A_ARTIFACT_DIR: ${{ runner.temp }}/fr19a-sync-eio-artifacts
-      FR19A_CAPABILITY_STATE: ${{ runner.temp }}/fr19a-sync-eio-capability
-      FR19A_PROBE_STATE: ${{ runner.temp }}/fr19a-sync-eio-gateway
       MIX_ENV: test
-      MIX_BUILD_PATH: ${{ runner.temp }}/fr19a-sync-eio-build
-      MIX_DEPS_PATH: ${{ runner.temp }}/fr19a-sync-eio-deps
       COORDINATOR_TICK: "0"
 
     steps:
       - name: Check out exact repair source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Initialize exact runner paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -d "$RUNNER_TEMP" || "$RUNNER_TEMP" != /* ]]; then
+            printf 'Invalid RUNNER_TEMP: %q\n' "$RUNNER_TEMP" >&2
+            exit 1
+          fi
+
+          runner_temp="$(cd "$RUNNER_TEMP" && pwd -P)"
+          {
+            printf 'FR19A_ARTIFACT_DIR=%s/fr19a-sync-eio-artifacts\n' "$runner_temp"
+            printf 'FR19A_CAPABILITY_STATE=%s/fr19a-sync-eio-capability\n' "$runner_temp"
+            printf 'FR19A_PROBE_STATE=%s/fr19a-sync-eio-gateway\n' "$runner_temp"
+            printf 'MIX_BUILD_PATH=%s/fr19a-sync-eio-build\n' "$runner_temp"
+            printf 'MIX_DEPS_PATH=%s/fr19a-sync-eio-deps\n' "$runner_temp"
+          } >>"$GITHUB_ENV"
 
       - name: Install pinned BEAM toolchain
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124
