@@ -562,7 +562,7 @@ defmodule PramanaFoundry.DurableStore.ReviewCorrectionsTest do
     assert byte_size(reconstruction.sha256) == 64
 
     expected =
-      ~w(metadata inputs commands command_results events projections effects claims receipts leases ledger_generations reservations policy_revisions control_revisions artifact_references import_runs legacy_records root_commands authenticated_inboxes authenticated_inbox_items root_policies root_policy_history root_controls root_control_history root_ledgers root_reservations root_effects root_claims root_receipts root_leases root_pointers sqlite_sequence)
+      ~w(metadata inputs commands command_results events projections effects claims receipts leases ledger_generations reservations policy_revisions control_revisions artifact_references import_runs legacy_records root_commands authenticated_inboxes authenticated_inbox_items root_policies root_policy_history root_controls root_control_history root_ledgers root_reservations root_effects root_claims root_receipts root_leases root_pointers atomic_bundles durable_operations root_infrastructure_settlements sqlite_sequence)
 
     assert Enum.sort(Map.keys(content)) == Enum.sort(expected)
 

@@ -518,6 +518,8 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
       source = Path.join(image.mount, "authority.sqlite3")
 
       gateway = ready_gateway(source, protected_capability: capability)
+      conn = :sys.get_state(gateway).conn
+      assert {:ok, [[0]]} = Database.query(conn, "PRAGMA wal_autocheckpoint = 0")
       commit_protected(gateway, "CHECKPOINT-ENOSPC", capability, 2_000_000)
       assert File.stat!(source <> "-wal").size > 0
 
@@ -525,6 +527,11 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
       assert {:ok, %{content: baseline}} = Gateway.backup(gateway, baseline_path)
       assert_complete_authority(baseline)
       assert File.stat!(source <> "-wal").size > 0
+
+      assert {:ok, [[0, log_frames, 0]]} =
+               Database.query(conn, "PRAGMA wal_checkpoint(NOOP)")
+
+      assert log_frames > 0
 
       filler = fill_to_enospc(image.mount)
       assert File.exists?(filler)

@@ -539,14 +539,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     assert :ok = Sqlite3.execute(raw, "PRAGMA foreign_keys = OFF")
 
     for table <-
-          ~w(root_leases root_receipts root_reservations root_claims root_effects root_ledgers root_control_history root_controls root_policy_history root_policies authenticated_inbox_items authenticated_inboxes root_pointers root_commands) do
+          ~w(root_infrastructure_settlements durable_operations atomic_bundles root_leases root_receipts root_reservations root_claims root_effects root_ledgers root_control_history root_controls root_policy_history root_policies authenticated_inbox_items authenticated_inboxes root_pointers root_commands) do
       assert :ok = Sqlite3.execute(raw, "DROP TABLE #{table}")
     end
 
     assert :ok =
              Database.execute(
                raw,
-               "DELETE FROM metadata WHERE key IN ('protected_schema_version', 'migration_fr08a_v1')"
+               "DELETE FROM metadata WHERE key IN ('protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2')"
              )
 
     assert :ok = Sqlite3.close(raw)
@@ -567,7 +567,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
       )
 
     assert {:ok, snapshot} = Gateway.protected_snapshot(migrated, capability)
-    assert snapshot["protected_schema_version"] == "1"
+    assert snapshot["protected_schema_version"] == "2"
     assert snapshot["pointers"]["accepted_source"]["producer_status"] == "absent"
   end
 

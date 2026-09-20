@@ -59,8 +59,9 @@ additional = ~S"""
 source =
   String.replace(
     source,
-    "\nend\n\"\"\"\nCode.eval_string(base <> extra, [], file: __ENV__.file)",
-    additional <> "\nend\n\"\"\"\nCode.eval_string(base <> extra, [], file: __ENV__.file)"
+    "\nend\n\"\"\"\n\nCode.eval_string(base <> extra, [], file: __ENV__.file)",
+    additional <>
+      "\nend\n\"\"\"\n\nCode.eval_string(base <> extra, [], file: __ENV__.file)"
   )
 
 Code.eval_string(source, [], file: __ENV__.file)

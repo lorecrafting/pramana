@@ -9,7 +9,45 @@ defmodule PramanaFoundry.DurableStore.Database do
   # FR-08A evolves the protected authority schema independently from the v1 domain
   # command/event protocol.  The migration is additive so accepted FR-07 history is
   # never rewritten merely to gain protected lifecycle primitives.
-  @protected_schema_version 1
+  @protected_schema_version 2
+  @protected_v1_tables ~w(authenticated_inbox_items authenticated_inboxes root_claims root_commands root_control_history root_controls root_effects root_leases root_ledgers root_pointers root_policies root_policy_history root_receipts root_reservations)
+  @atomic_v2_tables ~w(atomic_bundles durable_operations root_infrastructure_settlements)
+
+  @atomic_bundle_schema """
+  CREATE TABLE IF NOT EXISTS atomic_bundles (
+    command_id TEXT PRIMARY KEY REFERENCES commands(command_id),
+    actor_id TEXT NOT NULL,
+    request_digest TEXT NOT NULL,
+    schema_version INTEGER NOT NULL CHECK (schema_version = 2),
+    disposition TEXT NOT NULL CHECK (disposition IN ('accepted', 'rejected', 'quarantined')),
+    reason_code TEXT,
+    canonical_envelope BLOB NOT NULL,
+    result BLOB NOT NULL,
+    UNIQUE(command_id, actor_id, request_digest)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS durable_operations (
+    owner_kind TEXT NOT NULL CHECK (owner_kind IN ('domain_v1', 'protected_v1', 'bundle_v2')),
+    owner_id TEXT NOT NULL,
+    ordinal INTEGER NOT NULL CHECK (ordinal >= 0),
+    operation_kind TEXT NOT NULL CHECK (operation_kind IN ('domain', 'protected')),
+    operation_type TEXT NOT NULL,
+    request BLOB NOT NULL,
+    result BLOB NOT NULL,
+    PRIMARY KEY(owner_kind, owner_id, ordinal)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_infrastructure_settlements (
+    effect_id TEXT PRIMARY KEY REFERENCES root_effects(effect_id),
+    claim_id TEXT NOT NULL UNIQUE REFERENCES root_claims(claim_id),
+    receipt_id TEXT NOT NULL UNIQUE REFERENCES root_receipts(receipt_id),
+    role TEXT NOT NULL,
+    work_owner TEXT NOT NULL,
+    infrastructure_generation INTEGER NOT NULL CHECK (infrastructure_generation >= 0),
+    predecessor_effect_id TEXT,
+    failure_class TEXT NOT NULL,
+    ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  """
 
   @protected_schema """
   CREATE TABLE IF NOT EXISTS root_commands (
@@ -170,6 +208,7 @@ defmodule PramanaFoundry.DurableStore.Database do
     ON root_receipts(claim_id, receipt_id);
   CREATE INDEX IF NOT EXISTS authenticated_inbox_items_order_idx
     ON authenticated_inbox_items(execution_id, sequence);
+  #{@atomic_bundle_schema}
   """
 
   @schema """
@@ -530,11 +569,36 @@ defmodule PramanaFoundry.DurableStore.Database do
     with {:ok, _checked} <- Authority.read(conn, :all), do: :ok
   end
 
+  defp apply_protected_migration(conn, :protected_v1) do
+    with {:ok, :ok} <-
+           transaction(conn, fn ->
+             with :ok <- Sqlite3.execute(conn, @atomic_bundle_schema),
+                  :ok <- backfill_v1_operations(conn),
+                  :ok <-
+                    execute(
+                      conn,
+                      "UPDATE metadata SET value = ? WHERE key = 'protected_schema_version'",
+                      [Integer.to_string(@protected_schema_version)]
+                    ),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('migration_atomic_bundle_v2', 'complete')"
+                    ),
+                  {:ok, _checked} <- Authority.read(conn, :all) do
+               :ok
+             end
+           end) do
+      :ok
+    end
+  end
+
   defp apply_protected_migration(conn, :accepted_v1_without_protected) do
     with {:ok, :ok} <-
            transaction(conn, fn ->
              with :ok <- Sqlite3.execute(conn, @protected_schema),
                   :ok <- seed_root_pointers(conn),
+                  :ok <- backfill_v1_operations(conn),
                   :ok <-
                     execute(
                       conn,
@@ -545,6 +609,11 @@ defmodule PramanaFoundry.DurableStore.Database do
                     execute(
                       conn,
                       "INSERT INTO metadata(key, value) VALUES ('migration_fr08a_v1', 'complete')"
+                    ),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('migration_atomic_bundle_v2', 'complete')"
                     ),
                   {:ok, _checked} <- Authority.read(conn, :all) do
                :ok
@@ -561,25 +630,35 @@ defmodule PramanaFoundry.DurableStore.Database do
     with {:ok, metadata_rows} <-
            query(
              conn,
-             "SELECT key, value FROM metadata WHERE key IN ('schema_version', 'protected_schema_version', 'migration_fr08a_v1')"
+             "SELECT key, value FROM metadata WHERE key IN ('schema_version', 'protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2')"
            ),
          metadata <- Map.new(metadata_rows, fn [key, value] -> {key, value} end),
          {:ok, table_rows} <-
            query(
              conn,
-             "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'root_%' OR name LIKE 'authenticated_inbox%') ORDER BY name"
+             "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'root_%' OR name LIKE 'authenticated_inbox%' OR name IN ('atomic_bundles', 'durable_operations')) ORDER BY name"
            ),
-         tables <- Enum.map(table_rows, &hd/1) do
+         tables <- Enum.map(table_rows, &hd/1),
+         table_set <- MapSet.new(tables),
+         protected_v1_set <- MapSet.new(@protected_v1_tables),
+         current_set <- MapSet.union(protected_v1_set, MapSet.new(@atomic_v2_tables)) do
       cond do
         metadata["schema_version"] != Integer.to_string(@schema_version) ->
           {:ok, {:unsupported, :outer_schema_version}}
 
         metadata["protected_schema_version"] == Integer.to_string(@protected_schema_version) and
-            metadata["migration_fr08a_v1"] == "complete" ->
+          metadata["migration_fr08a_v1"] == "complete" and
+          metadata["migration_atomic_bundle_v2"] == "complete" and table_set == current_set ->
           {:ok, :current}
 
+        metadata["protected_schema_version"] == "1" and
+          metadata["migration_fr08a_v1"] == "complete" and
+          is_nil(metadata["migration_atomic_bundle_v2"]) and table_set == protected_v1_set ->
+          {:ok, :protected_v1}
+
         is_nil(metadata["protected_schema_version"]) and
-          is_nil(metadata["migration_fr08a_v1"]) and tables == [] ->
+          is_nil(metadata["migration_fr08a_v1"]) and
+          is_nil(metadata["migration_atomic_bundle_v2"]) and table_set == MapSet.new() ->
           {:ok, :accepted_v1_without_protected}
 
         true ->
@@ -667,6 +746,11 @@ defmodule PramanaFoundry.DurableStore.Database do
                     ]),
                   :ok <-
                     execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
+                      "migration_atomic_bundle_v2",
+                      "complete"
+                    ]),
+                  :ok <-
+                    execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
                       "installation_id",
                       installation_id
                     ]),
@@ -714,6 +798,28 @@ defmodule PramanaFoundry.DurableStore.Database do
 
   defp random_id do
     16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+  end
+
+  defp backfill_v1_operations(conn) do
+    with :ok <-
+           execute(
+             conn,
+             "INSERT INTO durable_operations(owner_kind, owner_id, ordinal, operation_kind, operation_type, request, result) " <>
+               "SELECT 'domain_v1', c.command_id, 0, 'domain', c.command_type, i.canonical_request, r.result " <>
+               "FROM commands c JOIN inputs i ON i.input_id = c.input_id JOIN command_results r ON r.command_id = c.command_id " <>
+               "WHERE true " <>
+               "ON CONFLICT(owner_kind, owner_id, ordinal) DO NOTHING"
+           ),
+         :ok <-
+           execute(
+             conn,
+             "INSERT INTO durable_operations(owner_kind, owner_id, ordinal, operation_kind, operation_type, request, result) " <>
+               "SELECT 'protected_v1', command_id, 0, 'protected', operation, canonical_request, result FROM root_commands " <>
+               "WHERE true " <>
+               "ON CONFLICT(owner_kind, owner_id, ordinal) DO NOTHING"
+           ) do
+      :ok
+    end
   end
 
   defp seed_root_pointers(conn) do

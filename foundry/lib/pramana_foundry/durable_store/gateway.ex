@@ -89,6 +89,10 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   def protected_command(server, capability, actor_id, request),
     do: GenServer.call(server, {:protected_command, capability, actor_id, request})
 
+  @doc "Atomically commits an ordered protected-operation and domain-proposal bundle."
+  def atomic_bundle(server, capability, actor_id, envelope),
+    do: GenServer.call(server, {:atomic_bundle, capability, actor_id, envelope})
+
   @doc "Reads a bounded root-derived protected fact without exposing SQL or table names."
   def protected_query(server, capability, query),
     do: GenServer.call(server, {:protected_query, capability, query})
@@ -276,6 +280,40 @@ defmodule PramanaFoundry.DurableStore.Gateway do
               state.conn,
               actor_id,
               request,
+              state.writer_epoch,
+              state.fault
+            )
+
+          {:error, _reason} = error ->
+            error
+        end
+      else
+        {:error, :unauthorized_protected_operation}
+      end
+
+    {:reply, result, transition_after_result(state, result)}
+  end
+
+  def handle_call(
+        {:atomic_bundle, _capability, _actor_id, _envelope},
+        _from,
+        %{mode: :recovery} = state
+      ) do
+    {:reply, {:error, {:recovery_mode, state.reason}}, state}
+  end
+
+  def handle_call({:atomic_bundle, capability, actor_id, envelope}, _from, state) do
+    result =
+      if capability === state.protected_capability do
+        case ProtectedPrimitives.authority_mode(state.conn) do
+          {:ok, :legacy} ->
+            {:error, :legacy_authority_mode_active}
+
+          {:ok, _mode} ->
+            do_atomic_bundle(
+              state.conn,
+              actor_id,
+              envelope,
               state.writer_epoch,
               state.fault
             )
@@ -530,6 +568,698 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     end
   end
 
+  defp do_atomic_bundle(conn, actor_id, envelope, writer_epoch, fault) do
+    with {:ok, normalized, canonical, digest} <- normalize_atomic_envelope(actor_id, envelope) do
+      command_id = normalized["command"]["command_id"]
+
+      case existing_atomic_bundle(conn, command_id, actor_id, digest) do
+        {:ok, result} ->
+          {:ok, result, :idempotent}
+
+        {:error, :not_found} ->
+          commit_atomic_bundle(conn, normalized, canonical, digest, writer_epoch, fault)
+
+        {:error, _reason} = error ->
+          error
+      end
+    end
+  end
+
+  defp normalize_atomic_envelope(actor_id, envelope) do
+    with :ok <- validate_actor(actor_id),
+         {:ok, normalized_input} <- canonical_value(envelope),
+         true <-
+           Map.keys(normalized_input) |> Enum.sort() ==
+             ~w(actor_id command inputs operations proposal schema_version),
+         2 <- normalized_input["schema_version"],
+         ^actor_id <- normalized_input["actor_id"],
+         true <- plain_map?(normalized_input["inputs"]),
+         {:ok, command} <- RecordCodec.normalize(:command, normalized_input["command"]),
+         {:ok, proposal} <- normalize_candidate(normalized_input["proposal"]),
+         {:ok, operations} <- normalize_atomic_operations(normalized_input["operations"]),
+         normalized <- %{
+           "schema_version" => 2,
+           "actor_id" => actor_id,
+           "inputs" => normalized_input["inputs"],
+           "command" => command,
+           "operations" => operations,
+           "proposal" => proposal
+         },
+         {:ok, canonical} <- Encoding.canonical(normalized),
+         {:ok, digest} <-
+           Encoding.semantic_digest("pramana-foundry-atomic-bundle-v2", normalized) do
+      {:ok, normalized, canonical, digest}
+    else
+      {:error, _reason} = error -> error
+      _ -> {:error, :invalid_atomic_bundle}
+    end
+  end
+
+  defp normalize_atomic_operations(operations) when is_list(operations) do
+    operations
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, []}, fn {entry, ordinal}, {:ok, acc} ->
+      with true <- plain_map?(entry),
+           true <-
+             Map.keys(entry) |> Enum.sort() == ~w(expected_revisions operation schema_version),
+           1 <- entry["schema_version"],
+           true <- plain_map?(entry["expected_revisions"]),
+           true <- plain_map?(entry["operation"]),
+           type when is_binary(type) <- entry["operation"]["type"],
+           true <- ProtectedPrimitives.supported_operation_type?(type) do
+        normalized =
+          entry
+          |> Map.put("ordinal", ordinal)
+          |> Map.put("operation_type", type)
+
+        {:cont, {:ok, [normalized | acc]}}
+      else
+        _ -> {:halt, {:error, :invalid_atomic_operation}}
+      end
+    end)
+    |> case do
+      {:ok, values} -> {:ok, Enum.reverse(values)}
+      error -> error
+    end
+  end
+
+  defp normalize_atomic_operations(_operations), do: {:error, :invalid_atomic_operations}
+
+  defp existing_atomic_bundle(conn, command_id, actor_id, digest) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT actor_id, request_digest, result FROM atomic_bundles WHERE command_id = ?",
+             [command_id]
+           ) do
+      case rows do
+        [[^actor_id, ^digest, bytes]] ->
+          decode_json_map(bytes)
+
+        [[_actor, _digest, _bytes]] ->
+          {:error, :idempotency_conflict}
+
+        [] ->
+          with {:ok, [[domain_count]]} <-
+                 Database.query(conn, "SELECT count(*) FROM commands WHERE command_id = ?", [
+                   command_id
+                 ]),
+               {:ok, [[root_count]]} <-
+                 Database.query(conn, "SELECT count(*) FROM root_commands WHERE command_id = ?", [
+                   command_id
+                 ]) do
+            if domain_count == 0 and root_count == 0,
+              do: {:error, :not_found},
+              else: {:error, :idempotency_conflict}
+          end
+
+        _ ->
+          {:error, :duplicate_atomic_command}
+      end
+    end
+  end
+
+  defp commit_atomic_bundle(conn, envelope, canonical, digest, writer_epoch, fault) do
+    result =
+      Database.transaction(conn, fn ->
+        with :ok <- validate_atomic_prestate(conn, envelope["operations"]),
+             {:ok, staged} <- stage_atomic_operations(conn, envelope, digest, writer_epoch),
+             :ok <- inject(fault, :after_protected) do
+          case staged do
+            {:quarantined, operation_results, reason} ->
+              commit_quarantined_atomic_bundle(
+                conn,
+                envelope,
+                canonical,
+                digest,
+                operation_results,
+                reason,
+                fault
+              )
+
+            {:accepted, operation_results} ->
+              commit_accepted_atomic_bundle(
+                conn,
+                envelope,
+                canonical,
+                digest,
+                operation_results,
+                fault
+              )
+          end
+        else
+          {:error, reason} when reason in [:incomplete_read_set, :stale_read_set] ->
+            {:error,
+             {:atomic_rejection, reason, unexecuted_operation_results(envelope, digest, reason)}}
+
+          {:error, _reason} = error ->
+            error
+        end
+      end)
+
+    case result do
+      {:ok, {:accepted, durable}} ->
+        atomic_reply(envelope, durable, :committed, fault)
+
+      {:ok, {:quarantined, durable}} ->
+        atomic_reply(envelope, durable, :quarantined, fault)
+
+      {:error, {:atomic_rejection, reason, operation_results}} ->
+        persist_atomic_rejection(
+          conn,
+          envelope,
+          canonical,
+          digest,
+          reason,
+          operation_results,
+          fault
+        )
+
+      {:error, reason} ->
+        {:error, {:storage_unavailable, reason}}
+    end
+  end
+
+  defp stage_atomic_operations(conn, envelope, digest, writer_epoch) do
+    operations = envelope["operations"]
+
+    operations
+    |> Enum.reduce_while({:ok, []}, fn entry, {:ok, acc} ->
+      ordinal = entry["ordinal"]
+
+      with {:ok, staged_reads} <- ProtectedPrimitives.required_revisions(conn, entry["operation"]) do
+        request = %{
+          "schema_version" => 1,
+          "command_id" => atomic_operation_id(digest, ordinal),
+          "expected_revisions" => staged_reads,
+          "operation" => entry["operation"]
+        }
+
+        case ProtectedPrimitives.execute_in_transaction(
+               conn,
+               envelope["actor_id"],
+               request,
+               writer_epoch
+             ) do
+          {:ok, result, status} when status in [:accepted, :idempotent] ->
+            with true <- result["disposition"] == "accepted",
+                 {:ok, result, settlement_status} <-
+                   maybe_persist_nonstart(conn, entry["operation"], result) do
+              item = atomic_operation_result(entry, request, result, "committed")
+
+              if settlement_status == :duplicate do
+                rejected =
+                  duplicate_operation_results(envelope, digest, item, acc)
+
+                {:halt, {:error, {:atomic_rejection, :duplicate_receipt, rejected}}}
+              else
+                {:cont, {:ok, [item | acc]}}
+              end
+            else
+              false ->
+                rejected =
+                  rejected_operation_results(
+                    envelope,
+                    digest,
+                    acc,
+                    :cached_rejected_operation
+                  )
+
+                {:halt, {:error, {:atomic_rejection, :cached_rejected_operation, rejected}}}
+
+              {:error, reason} ->
+                item = atomic_operation_result(entry, request, result, "rolled_back")
+                rejected = rejected_operation_results(envelope, digest, [item | acc], reason)
+                {:halt, {:error, {:atomic_rejection, reason, rejected}}}
+            end
+
+          {:ok, result, :rejected} ->
+            item = atomic_operation_result(entry, request, result, "rolled_back")
+            reason = result["reason_code"] || "protected_rejection"
+            rejected = rejected_operation_results(envelope, digest, [item | acc], reason)
+            {:halt, {:error, {:atomic_rejection, reason, rejected}}}
+
+          {:ok, result, :quarantined} when ordinal == 0 and length(operations) == 1 ->
+            item = atomic_operation_result(entry, request, result, "committed")
+
+            {:halt,
+             {:ok,
+              {:quarantined, Enum.reverse([item | acc]),
+               result["reason_code"] || "protected_quarantine"}}}
+
+          {:ok, result, :quarantined} ->
+            item = atomic_operation_result(entry, request, result, "rolled_back")
+
+            rejected =
+              rejected_operation_results(
+                envelope,
+                digest,
+                [item | acc],
+                "quarantine_requires_single_operation"
+              )
+
+            {:halt,
+             {:error, {:atomic_rejection, "quarantine_requires_single_operation", rejected}}}
+
+          {:error, reason} ->
+            {:halt, {:error, reason}}
+        end
+      else
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, {:quarantined, _results, _reason} = value} -> {:ok, value}
+      {:ok, results} when is_list(results) -> {:ok, {:accepted, Enum.reverse(results)}}
+      error -> error
+    end
+  end
+
+  defp validate_atomic_prestate(conn, operations) do
+    operations
+    |> Enum.reduce_while({:ok, []}, fn entry, {:ok, prior} ->
+      with {:ok, required} <-
+             ProtectedPrimitives.required_bundle_prestate_revisions(
+               conn,
+               entry["operation"],
+               Enum.reverse(prior)
+             ) do
+        supplied = entry["expected_revisions"]
+
+        cond do
+          required == supplied ->
+            {:cont, {:ok, [entry["operation"] | prior]}}
+
+          Enum.sort(Map.keys(required)) == Enum.sort(Map.keys(supplied)) ->
+            {:halt, {:error, :stale_read_set}}
+
+          true ->
+            {:halt, {:error, :incomplete_read_set}}
+        end
+      else
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, _prior} -> :ok
+      error -> error
+    end
+  end
+
+  defp unexecuted_operation_results(envelope, digest, reason),
+    do: rejected_operation_results(envelope, digest, [], reason)
+
+  defp rejected_operation_results(envelope, digest, executed, reason) do
+    executed =
+      executed
+      |> Enum.map(&rolled_back_operation_result(&1, reason))
+      |> Map.new(&{&1["ordinal"], &1})
+
+    Enum.map(envelope["operations"], fn entry ->
+      Map.get_lazy(executed, entry["ordinal"], fn ->
+        request = %{
+          "schema_version" => 1,
+          "command_id" => atomic_operation_id(digest, entry["ordinal"]),
+          "expected_revisions" => entry["expected_revisions"],
+          "operation" => entry["operation"]
+        }
+
+        atomic_operation_result(
+          entry,
+          request,
+          %{
+            "schema_version" => 1,
+            "command_id" => request["command_id"],
+            "disposition" => "unexecuted",
+            "reason_code" => atomic_reason(reason),
+            "facts" => %{}
+          },
+          "unexecuted"
+        )
+      end)
+    end)
+  end
+
+  defp rolled_back_operation_result(item, reason) do
+    result = %{
+      "schema_version" => 1,
+      "command_id" => get_in(item, ["request", "command_id"]),
+      "disposition" => "rolled_back",
+      "reason_code" => atomic_reason(reason),
+      "facts" => %{}
+    }
+
+    item
+    |> Map.put("execution_status", "rolled_back")
+    |> Map.put("result", result)
+  end
+
+  defp duplicate_operation_results(envelope, digest, duplicate, earlier) do
+    settlement = get_in(duplicate, ["result", "facts", "infrastructure_settlement"])
+
+    duplicate = %{
+      duplicate
+      | "execution_status" => "duplicate",
+        "result" => %{
+          "schema_version" => 1,
+          "command_id" => get_in(duplicate, ["request", "command_id"]),
+          "disposition" => "duplicate",
+          "reason_code" => "duplicate_receipt",
+          "facts" => %{"infrastructure_settlement" => settlement}
+        }
+    }
+
+    rejected_operation_results(envelope, digest, earlier, :duplicate_receipt)
+    |> List.replace_at(duplicate["ordinal"], duplicate)
+  end
+
+  defp maybe_persist_nonstart(
+         conn,
+         %{"type" => "settle_claim", "outcome" => "non_started"} = op,
+         result
+       ) do
+    with {:ok, settlement} <-
+           ProtectedPrimitives.persist_nonstart_settlement(conn, op, result["facts"]) do
+      status = if settlement["duplicate"] == true, do: :duplicate, else: :new
+      settlement = Map.delete(settlement, "duplicate")
+      {:ok, put_in(result, ["facts", "infrastructure_settlement"], settlement), status}
+    end
+  end
+
+  defp maybe_persist_nonstart(_conn, _operation, result), do: {:ok, result, :none}
+
+  defp atomic_operation_result(entry, request, result, execution_status) do
+    %{
+      "ordinal" => entry["ordinal"],
+      "operation_kind" => "protected",
+      "operation_type" => entry["operation_type"],
+      "execution_status" => execution_status,
+      "request" => request,
+      "result" => result
+    }
+  end
+
+  defp atomic_operation_id(digest, ordinal), do: "atomic-v2/#{digest}/#{ordinal}"
+
+  defp commit_accepted_atomic_bundle(
+         conn,
+         envelope,
+         canonical,
+         digest,
+         operation_results,
+         fault
+       ) do
+    actor_id = envelope["actor_id"]
+    command = envelope["command"]
+    proposal = envelope["proposal"]
+    {domain_canonical, domain_digest} = prepare_command!(actor_id, command)
+
+    with :ok <- check_expected_revisions(conn, command, proposal, %{}),
+         {:ok, {:accepted, domain_result}} <-
+           commit_accepted_bundle(
+             conn,
+             actor_id,
+             command,
+             domain_canonical,
+             domain_digest,
+             proposal,
+             %{},
+             nil,
+             :bundle_v2
+           ),
+         :ok <- inject(fault, :after_domain),
+         durable <-
+           atomic_result(
+             command["command_id"],
+             "accepted",
+             nil,
+             operation_results,
+             domain_result
+           ),
+         :ok <-
+           persist_atomic_records(
+             conn,
+             envelope,
+             canonical,
+             digest,
+             durable,
+             operation_results,
+             domain_result
+           ),
+         {:ok, _checked} <- Authority.read(conn, :all),
+         :ok <- inject(fault, :before_commit) do
+      {:ok, {:accepted, durable}}
+    else
+      {:error, reason}
+      when reason in [:incomplete_expected_revisions, :projection_read_mismatch] ->
+        {:error,
+         {:atomic_rejection, reason,
+          rejected_operation_results(envelope, digest, operation_results, reason)}}
+
+      {:error, {:revision_conflict, _key, _expected, _actual} = reason} ->
+        {:error,
+         {:atomic_rejection, reason,
+          rejected_operation_results(envelope, digest, operation_results, reason)}}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp commit_quarantined_atomic_bundle(
+         conn,
+         envelope,
+         canonical,
+         digest,
+         operation_results,
+         reason,
+         fault
+       ) do
+    actor_id = envelope["actor_id"]
+    command = envelope["command"]
+    {domain_canonical, domain_digest} = prepare_command!(actor_id, command)
+    reason_code = atomic_reason(reason)
+
+    with {:ok, {:rejected, domain_result}} <-
+           commit_rejected_command(
+             conn,
+             actor_id,
+             command,
+             domain_canonical,
+             domain_digest,
+             {:atomic, reason_code},
+             :bundle_v2
+           ),
+         durable <-
+           atomic_result(
+             command["command_id"],
+             "quarantined",
+             reason_code,
+             operation_results,
+             domain_result
+           ),
+         :ok <-
+           persist_atomic_records(
+             conn,
+             envelope,
+             canonical,
+             digest,
+             durable,
+             operation_results,
+             domain_result
+           ),
+         {:ok, _checked} <- Authority.read(conn, :all),
+         :ok <- inject(fault, :before_commit) do
+      {:ok, {:quarantined, durable}}
+    end
+  end
+
+  defp persist_atomic_rejection(
+         conn,
+         envelope,
+         canonical,
+         digest,
+         reason,
+         operation_results,
+         fault
+       ) do
+    actor_id = envelope["actor_id"]
+    command = envelope["command"]
+    {domain_canonical, domain_digest} = prepare_command!(actor_id, command)
+    reason_code = atomic_reason(reason)
+
+    transaction_result =
+      Database.transaction(conn, fn ->
+        with {:ok, {:rejected, domain_result}} <-
+               commit_rejected_command(
+                 conn,
+                 actor_id,
+                 command,
+                 domain_canonical,
+                 domain_digest,
+                 {:atomic, reason_code},
+                 :bundle_v2
+               ),
+             durable <-
+               atomic_result(
+                 command["command_id"],
+                 "rejected",
+                 reason_code,
+                 operation_results,
+                 domain_result
+               ),
+             :ok <-
+               persist_atomic_records(
+                 conn,
+                 envelope,
+                 canonical,
+                 digest,
+                 durable,
+                 operation_results,
+                 domain_result
+               ),
+             {:ok, _checked} <- Authority.read(conn, :all),
+             :ok <- inject(fault, :before_commit) do
+          {:ok, durable}
+        end
+      end)
+
+    case transaction_result do
+      {:ok, durable} -> atomic_reply(envelope, durable, :rejected, fault)
+      {:error, why} -> {:error, {:storage_unavailable, why}}
+    end
+  end
+
+  defp persist_atomic_records(
+         conn,
+         envelope,
+         canonical,
+         digest,
+         durable,
+         operation_results,
+         domain_result
+       ) do
+    command_id = envelope["command"]["command_id"]
+
+    with {:ok, result_bytes} <- Encoding.json(durable),
+         :ok <-
+           Database.execute(
+             conn,
+             "INSERT INTO atomic_bundles(command_id, actor_id, request_digest, schema_version, disposition, reason_code, canonical_envelope, result) VALUES (?, ?, ?, 2, ?, ?, ?, ?)",
+             [
+               command_id,
+               envelope["actor_id"],
+               digest,
+               durable["disposition"],
+               durable["reason_code"],
+               {:blob, canonical},
+               {:blob, result_bytes}
+             ]
+           ),
+         :ok <- persist_atomic_operation_rows(conn, command_id, operation_results),
+         domain_entry <- %{
+           "ordinal" => length(operation_results),
+           "operation_kind" => "domain",
+           "operation_type" => envelope["command"]["type"],
+           "execution_status" =>
+             if(durable["disposition"] == "accepted", do: "committed", else: "rejected"),
+           "request" => %{
+             "command" => envelope["command"],
+             "inputs" => envelope["inputs"],
+             "proposal" => envelope["proposal"]
+           },
+           "result" => domain_result
+         },
+         :ok <- persist_atomic_operation_rows(conn, command_id, [domain_entry]) do
+      :ok
+    end
+  end
+
+  defp persist_atomic_operation_rows(conn, command_id, entries) do
+    Enum.reduce_while(entries, :ok, fn entry, :ok ->
+      with {:ok, request_bytes} <- Encoding.json(entry["request"]),
+           {:ok, result_bytes} <-
+             Encoding.json(%{
+               "schema_version" => 1,
+               "execution_status" => entry["execution_status"],
+               "operation_result" => entry["result"]
+             }),
+           :ok <-
+             Database.execute(
+               conn,
+               "INSERT INTO durable_operations(owner_kind, owner_id, ordinal, operation_kind, operation_type, request, result) VALUES ('bundle_v2', ?, ?, ?, ?, ?, ?)",
+               [
+                 command_id,
+                 entry["ordinal"],
+                 entry["operation_kind"],
+                 entry["operation_type"],
+                 {:blob, request_bytes},
+                 {:blob, result_bytes}
+               ]
+             ) do
+        {:cont, :ok}
+      else
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp atomic_result(command_id, disposition, reason, operation_results, domain_result) do
+    %{
+      "schema_version" => 2,
+      "command_id" => command_id,
+      "disposition" => disposition,
+      "reason_code" => reason,
+      "committed_seq" => domain_result["committed_seq"],
+      "operations" =>
+        Enum.map(operation_results, fn item ->
+          Map.take(item, ~w(ordinal operation_kind operation_type execution_status result))
+        end),
+      "domain_result" => domain_result
+    }
+  end
+
+  defp prepare_command!(actor_id, command) do
+    case prepare_command(actor_id, command) do
+      {:ok, canonical, digest, _normalized} -> {canonical, digest}
+    end
+  end
+
+  defp atomic_reply(envelope, _durable, _status, :after_commit_before_reply),
+    do: {:error, {:outcome_unknown, envelope["command"]["command_id"]}}
+
+  defp atomic_reply(_envelope, durable, status, _fault), do: {:ok, durable, status}
+
+  defp atomic_reason({:revision_conflict, _key, _expected, _actual}), do: "revision_conflict"
+  defp atomic_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
+  defp atomic_reason(reason) when is_binary(reason) and reason != "", do: reason
+  defp atomic_reason(_reason), do: "atomic_bundle_rejected"
+
+  defp canonical_value(value) do
+    with {:ok, bytes} <- Encoding.json(value), do: decode_json_map(bytes)
+  end
+
+  defp decode_json_map(bytes) when is_binary(bytes) do
+    try do
+      case :json.decode(bytes) do
+        value when is_map(value) -> {:ok, normalize_json(value)}
+        _ -> {:error, :invalid_json_map}
+      end
+    rescue
+      _ -> {:error, :invalid_json_map}
+    end
+  end
+
+  defp normalize_json(:null), do: nil
+  defp normalize_json(value) when is_list(value), do: Enum.map(value, &normalize_json/1)
+
+  defp normalize_json(value) when is_map(value),
+    do: Map.new(value, fn {key, item} -> {key, normalize_json(item)} end)
+
+  defp normalize_json(value), do: value
+
+  defp plain_map?(value), do: is_map(value) and not is_struct(value)
+
   defp normalize_candidate(proposal) do
     case Kernel.normalize_bundle(proposal) do
       {:error, :projection_transition_bijection} ->
@@ -615,7 +1345,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          digest,
          proposal,
          protected,
-         fault
+         fault,
+         durable_owner \\ :domain_v1
        ) do
     with :ok <- inject(fault, :before_write),
          :ok <- insert_input(conn, actor_id, command, canonical, digest),
@@ -648,6 +1379,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
              get(proposal, :result),
              committed_seq
            ),
+         :ok <- maybe_persist_v1_domain_operation(conn, command, durable_owner),
          :ok <- inject(fault, :after_result),
          {:ok, _checked} <-
            Authority.read(conn, {
@@ -663,7 +1395,15 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     end
   end
 
-  defp commit_rejected_command(conn, actor_id, command, canonical, digest, reason) do
+  defp commit_rejected_command(
+         conn,
+         actor_id,
+         command,
+         canonical,
+         digest,
+         reason,
+         durable_owner \\ :domain_v1
+       ) do
     with :ok <- insert_input(conn, actor_id, command, canonical, digest),
          :ok <- insert_command(conn, actor_id, command, digest),
          {:ok, committed_seq} <- current_seq(conn),
@@ -678,6 +1418,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
              },
              committed_seq
            ),
+         :ok <- maybe_persist_v1_domain_operation(conn, command, durable_owner),
          {:ok, _checked} <-
            Authority.read(conn, {
              :touched,
@@ -693,6 +1434,21 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   defp rejection_reason_code({:revision_conflict, _key, _expected, _actual}),
     do: "revision_conflict"
+
+  defp rejection_reason_code({:atomic, reason}) when is_binary(reason), do: reason
+
+  defp maybe_persist_v1_domain_operation(_conn, _command, :bundle_v2), do: :ok
+
+  defp maybe_persist_v1_domain_operation(conn, command, :domain_v1) do
+    Database.execute(
+      conn,
+      "INSERT INTO durable_operations(owner_kind, owner_id, ordinal, operation_kind, operation_type, request, result) " <>
+        "SELECT 'domain_v1', c.command_id, 0, 'domain', c.command_type, i.canonical_request, r.result " <>
+        "FROM commands c JOIN inputs i ON i.input_id = c.input_id JOIN command_results r ON r.command_id = c.command_id " <>
+        "WHERE c.command_id = ?",
+      [command["command_id"]]
+    )
+  end
 
   defp insert_input(conn, actor_id, command, canonical, digest) do
     Database.execute(
@@ -930,22 +1686,29 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   end
 
   defp existing(conn, command_id, actor_id, digest) do
-    if ProtectedPrimitives.root_command_id_exists?(conn, command_id) do
-      {:error, :idempotency_conflict}
-    else
-      case Authority.read(conn, {:command, command_id}) do
-        {:ok, :absent} ->
-          {:error, :not_found}
+    with {:ok, [[atomic_count]]} <-
+           Database.query(conn, "SELECT count(*) FROM atomic_bundles WHERE command_id = ?", [
+             command_id
+           ]) do
+      if atomic_count > 0 or ProtectedPrimitives.root_command_id_exists?(conn, command_id) do
+        {:error, :idempotency_conflict}
+      else
+        case Authority.read(conn, {:command, command_id}) do
+          {:ok, :absent} ->
+            {:error, :not_found}
 
-        {:ok, %{actor_id: ^actor_id, digest: ^digest, result: result}} ->
-          {:ok, result}
+          {:ok, %{actor_id: ^actor_id, digest: ^digest, result: result}} ->
+            {:ok, result}
 
-        {:ok, %{}} ->
-          {:error, :idempotency_conflict}
+          {:ok, %{}} ->
+            {:error, :idempotency_conflict}
 
-        {:error, _reason} = error ->
-          error
+          {:error, _reason} = error ->
+            error
+        end
       end
+    else
+      {:error, _reason} = error -> error
     end
   end
 
@@ -1065,6 +1828,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   defp inject(:write_error, :before_write), do: {:error, :injected_write_error}
   defp inject(:full, :before_write), do: {:error, :injected_full}
+  defp inject(:after_protected, :after_protected), do: {:error, :injected_after_protected}
+  defp inject(:after_domain, :after_domain), do: {:error, :injected_after_domain}
   defp inject(:before_commit, :before_commit), do: {:error, :injected_crash_before_commit}
   defp inject({:halt, :before_commit}, :before_commit), do: System.halt(71)
   defp inject({:after_insert, point}, point), do: {:error, {:injected_after_insert, point}}
