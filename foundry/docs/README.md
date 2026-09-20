@@ -22,7 +22,7 @@ contract still govern implementation.
 | Inspect the exact disposition candidate and its independent verdict | [Candidate record](alignment-disposition-2026-09-19.md) and [Astra-high PASS](alignment-disposition-review-2026-09-19.md) |
 | Inspect the H0 accepted-FR-07 boundary candidate and review | [H0 candidate](fr-08/h0-boundary-candidate.md) and [independent blocker review](fr-08/h0-boundary-review.md) |
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
-| Review the frozen FR-08A atomic-composition correction | [Independent BLOCKER review](fr-08/atomic-composition-review.md) and its reproducible probes; applies to the named candidate only |
+| Review the frozen FR-08A atomic-composition correction | [Corrected-candidate BLOCKER rereview](fr-08/atomic-composition-rereview.md) and [first BLOCKER review](fr-08/atomic-composition-review.md), each with reproducible probes and exact candidate scope |
 | Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
 | Understand why repairs exist | [Architecture/lifecycle audit](AUDIT-2026-09-12.md) and its dated verification records |
 | Build or run model-free checks | [Independent CI](CI.md) and `ci/run.exs` |
