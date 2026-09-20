@@ -4,13 +4,21 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
   alias PramanaFoundry.Repair.{FR08HandoffGate, H0AcceptedFR07Boundary}
 
   @accepted_revision "af0c51b4682c50080e67194dd853fbaa1eebace7"
+  @test_adapter_revision String.duplicate("a", 40)
 
   test "public probes produce the honest revision-bound blocked inventory" do
-    report = H0AcceptedFR07Boundary.report()
+    report = H0AcceptedFR07Boundary.report(@test_adapter_revision)
 
     assert report.schema == "pramana-foundry-h0-accepted-fr07-boundary/v1"
     assert report.identity.accepted_revision == @accepted_revision
     assert report.identity.accepted_tree == "e4aed492d5973d185a7e772d1b764e1117df11c1"
+    assert report.identity.adapter_probe_revision == @test_adapter_revision
+
+    assert report.identity.implementation_binding == %{
+             status: "verified",
+             method: "source-sha256+beam-md5/v1"
+           }
+
     assert length(report.identity.public_api) == 4
 
     assert report.gate.status == "blocked"
@@ -38,19 +46,59 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
            end)
   end
 
-  test "positive probe receipts are reproducible and content addressed" do
-    first = H0AcceptedFR07Boundary.report()
-    second = H0AcceptedFR07Boundary.report()
+  test "positive probe receipts use the documented content-addressed format" do
+    report = H0AcceptedFR07Boundary.report(@test_adapter_revision)
 
-    assert first == second
-
-    assert Enum.all?(first.gate.capabilities, fn
+    assert Enum.all?(report.gate.capabilities, fn
              %{status: "passed", evidence: evidence} ->
                Regex.match?(~r/^h0:[a-z-]+:sha256:[0-9a-f]{64}$/, evidence)
 
              %{status: "unavailable", evidence: nil, reason: "h0:" <> _reason} ->
                true
            end)
+  end
+
+  test "fresh BEAMs with different loading orders reproduce the frozen artifact" do
+    foundry_root = Path.expand("../../..", __DIR__)
+    artifact_path = Path.join(foundry_root, "docs/fr-08/h0-accepted-fr07-report.txt")
+    expected = File.read!(artifact_path)
+
+    [_line, adapter_revision] =
+      Regex.run(~r/^adapter_probe_revision=([0-9a-f]{40})$/m, expected)
+
+    repository_root = Path.expand("..", foundry_root)
+
+    for path <- [
+          "foundry/lib/pramana_foundry/repair/h0_accepted_fr07_boundary.ex",
+          "foundry/test/pramana_foundry/repair/h0_accepted_fr07_boundary_test.exs",
+          "foundry/test/support/h0_report_fixture.exs",
+          "foundry/test/support/h0_identity_negative_fixture.exs"
+        ] do
+      {bytes, 0} =
+        System.cmd("git", ["show", "#{adapter_revision}:#{path}"],
+          cd: repository_root,
+          stderr_to_stdout: true
+        )
+
+      assert bytes == File.read!(Path.join(repository_root, path))
+    end
+
+    normal = run_fixture(foundry_root, "h0_report_fixture.exs", adapter_revision, "normal")
+    reverse = run_fixture(foundry_root, "h0_report_fixture.exs", adapter_revision, "reverse")
+
+    assert normal == expected
+    assert reverse == expected
+  end
+
+  test "changed loaded Gateway implementation refuses accepted-v9 positive evidence" do
+    foundry_root = Path.expand("../../..", __DIR__)
+
+    assert run_fixture(
+             foundry_root,
+             "h0_identity_negative_fixture.exs",
+             @test_adapter_revision,
+             "normal"
+           ) == "identity_mismatch_refused\n"
   end
 
   test "a different revision cannot reuse accepted-v9 evidence" do
@@ -84,5 +132,24 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07BoundaryTest do
       assert digest == entry.sha256
       assert File.read!(Path.join(foundry_root, entry.path)) == bytes
     end)
+  end
+
+  defp run_fixture(foundry_root, fixture, adapter_revision, load_order) do
+    fixture_path = Path.join([foundry_root, "test", "support", fixture])
+
+    {output, 0} =
+      System.cmd(
+        System.find_executable("mix"),
+        ["run", "--no-start", "--no-compile", fixture_path],
+        cd: foundry_root,
+        env: [
+          {"H0_ADAPTER_REVISION", adapter_revision},
+          {"H0_LOAD_ORDER", load_order},
+          {"COORDINATOR_TICK", "0"},
+          {"HERDR_ENV", nil}
+        ]
+      )
+
+    output
   end
 end

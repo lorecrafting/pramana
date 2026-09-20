@@ -9,6 +9,11 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
 
   This is an evidence provider, not a durable-store extension. A blocked report is
   the expected H0 result and does not establish FR-08 readiness.
+
+  Receipt inputs use `pramana-foundry-h0-receipt/v1`: a UTF-8 JSON object whose
+  keys are sorted by byte value at every depth, with no insignificant whitespace.
+  The encoder accepts only JSON strings, integers, booleans, nulls, proper lists
+  and string-keyed maps. The receipt is the lowercase SHA-256 of those bytes.
   """
 
   @behaviour PramanaFoundry.Repair.FR08HandoffGate
@@ -23,20 +28,28 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
 
   @api_identity [
     %{
+      module: PramanaFoundry.DurableStore.Gateway,
       path: "lib/pramana_foundry/durable_store/gateway.ex",
-      sha256: "71742ca574ccc21806eb5cd6fb211946bad18a5049f1048bf9bde5c655723247"
+      sha256: "71742ca574ccc21806eb5cd6fb211946bad18a5049f1048bf9bde5c655723247",
+      beam_md5: "545016e2a46e4810b9c275683ca82c33"
     },
     %{
+      module: PramanaFoundry.DurableStore.Kernel,
       path: "lib/pramana_foundry/durable_store/kernel.ex",
-      sha256: "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac"
+      sha256: "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac",
+      beam_md5: "e43949e9a2658ebbd12afabdf2f30086"
     },
     %{
+      module: PramanaFoundry.DurableStore.LegacyImport,
       path: "lib/pramana_foundry/durable_store/legacy_import.ex",
-      sha256: "158a8419cc59ee7e3998f2e497308d2a03a88871f79c1e031849cfcfef24a322"
+      sha256: "158a8419cc59ee7e3998f2e497308d2a03a88871f79c1e031849cfcfef24a322",
+      beam_md5: "c91b85e002244d83b85410de3c2f666b"
     },
     %{
+      module: PramanaFoundry.DurableStore.RecordCodec,
       path: "lib/pramana_foundry/durable_store/record_codec.ex",
-      sha256: "8bd05827b932e00dffbeeda84383d509a61d1cbc4be3fa58943ecfbef2930131"
+      sha256: "8bd05827b932e00dffbeeda84383d509a61d1cbc4be3fa58943ecfbef2930131",
+      beam_md5: "be95460c6e50de9cdb4bd85945413708"
     }
   ]
 
@@ -47,24 +60,81 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
       accepted_tree: @accepted_tree,
       accepted_review_revision: @accepted_review_revision,
       accepted_review_tree: @accepted_review_tree,
-      public_api: @api_identity
+      public_api: Enum.map(@api_identity, &Map.drop(&1, [:module]))
     }
   end
 
-  @doc "Runs the seven-capability gate against the exact accepted FR-07 revision."
-  def report do
+  @doc "Runs the seven-capability gate and binds the supplied adapter/probe revision."
+  def report(adapter_revision) when is_binary(adapter_revision) do
+    unless Regex.match?(~r/^[0-9a-f]{40}$/, adapter_revision) do
+      raise ArgumentError, "adapter_revision must be a lowercase 40-character Git object ID"
+    end
+
+    binding = implementation_binding()
+
     %{
       schema: "pramana-foundry-h0-accepted-fr07-boundary/v1",
-      identity: identity(),
+      identity:
+        identity()
+        |> Map.put(:adapter_probe_revision, adapter_revision)
+        |> Map.put(:implementation_binding, binding),
       gate: FR08HandoffGate.run(__MODULE__, subject_revision: @accepted_revision)
     }
+  end
+
+  @doc "Renders the bounded report in the deterministic frozen-artifact format."
+  def report_artifact(adapter_revision) do
+    report = report(adapter_revision)
+    identity = report.identity
+    gate = report.gate
+
+    api_lines =
+      Enum.map(identity.public_api, fn api ->
+        "public_api=#{api.path}|sha256:#{api.sha256}|beam_md5:#{api.beam_md5}"
+      end)
+
+    capability_lines =
+      Enum.map(gate.capabilities, fn capability ->
+        detail = capability.evidence || capability.reason
+        "#{capability.id}=#{capability.status}|#{detail}"
+      end)
+
+    lines = [
+      "schema=#{report.schema}",
+      "provider=#{gate.provider}",
+      "subject_revision=#{identity.accepted_revision}",
+      "subject_tree=#{identity.accepted_tree}",
+      "accepted_review_revision=#{identity.accepted_review_revision}",
+      "accepted_review_tree=#{identity.accepted_review_tree}",
+      "adapter_probe_revision=#{identity.adapter_probe_revision}",
+      "implementation_binding=#{identity.implementation_binding.status}|#{identity.implementation_binding.method}"
+    ]
+
+    summary_lines = [
+      "gate_schema=#{gate.schema}",
+      "gate_status=#{gate.status}",
+      "ready=#{FR08HandoffGate.ready?(gate)}",
+      "mandatory_count=#{gate.mandatory_count}",
+      "passed_count=#{gate.passed_count}",
+      "failed_count=#{gate.failed_count}",
+      "unavailable_count=#{gate.unavailable_count}"
+    ]
+
+    Enum.join(lines ++ api_lines ++ summary_lines ++ capability_lines, "\n") <> "\n"
   end
 
   @impl true
   def probe(_capability, revision) when revision != @accepted_revision,
     do: {:unavailable, "h0:accepted_revision_mismatch"}
 
-  def probe(:same_command_lookup_before_revision, @accepted_revision) do
+  def probe(capability, @accepted_revision) do
+    case implementation_binding() do
+      %{status: "verified"} -> verified_probe(capability)
+      %{status: "mismatch"} -> {:unavailable, "h0:loaded_accepted_api_identity_mismatch"}
+    end
+  end
+
+  defp verified_probe(:same_command_lookup_before_revision) do
     with_fixture("lookup", fn _root, path ->
       with :ok <- initialize(path),
            {:ok, gateway} <- Gateway.start_link(path: path) do
@@ -80,6 +150,13 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
                  Gateway.transact(gateway, "h0-actor", command("H0-LOOKUP"), %{}),
                {:error, :idempotency_conflict} <-
                  Gateway.transact(gateway, "hostile-actor", command("H0-LOOKUP"), %{}),
+               {:error, :idempotency_conflict} <-
+                 Gateway.transact(
+                   gateway,
+                   "h0-actor",
+                   put_in(command("H0-LOOKUP")["payload"], %{"changed" => true}),
+                   %{}
+                 ),
                {:ok, ^result} <- Gateway.command(gateway, "H0-LOOKUP") do
             {:pass, receipt("lookup-before-revision", result)}
           end
@@ -88,21 +165,21 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
     end)
   end
 
-  def probe(:complete_read_set_cas, @accepted_revision) do
+  defp verified_probe(:complete_read_set_cas) do
     {:unavailable,
      "h0:no_public_evolving_policy_control_or_allocation_lifecycle;projection_cas_only"}
   end
 
-  def probe(:atomic_authority_commit, @accepted_revision) do
+  defp verified_probe(:atomic_authority_commit) do
     {:unavailable,
      "h0:no_public_receipt_lease_claim_issue_settlement_or_ledger_evolution_operation"}
   end
 
-  def probe(:revision_and_inbox_facts, @accepted_revision) do
+  defp verified_probe(:revision_and_inbox_facts) do
     {:unavailable, "h0:no_public_authenticated_inbox_sequence_or_seal_operation"}
   end
 
-  def probe(:protected_field_boundary, @accepted_revision) do
+  defp verified_probe(:protected_field_boundary) do
     with_fixture("protected-boundary", fn _root, path ->
       protected_fields = [
         :claims,
@@ -122,7 +199,12 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
           with :ok <- reject_protected_fields(gateway, protected_fields),
                {:ok, counts} <- Gateway.counts(gateway),
                true <- Enum.all?(counts, fn {_table, count} -> count == 0 end) do
-            {:pass, receipt("protected-field-rejection", {protected_fields, counts})}
+            {:pass,
+             receipt("protected-field-rejection", %{
+               "protected_fields" => Enum.map(protected_fields, &Atom.to_string/1),
+               "key_forms" => ["atom", "string"],
+               "counts" => counts
+             })}
           else
             false -> {:fail, "h0:forged_protected_field_changed_public_counts"}
             other -> {:fail, failure("protected-field-boundary", other)}
@@ -132,7 +214,7 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
     end)
   end
 
-  def probe(:fail_closed_recovery, @accepted_revision) do
+  defp verified_probe(:fail_closed_recovery) do
     with_fixture("recovery", fn _root, path ->
       with {:ok, gateway} <- Gateway.start_link(path: path) do
         with_gateway(gateway, fn ->
@@ -147,11 +229,11 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
                {:error, {:recovery_mode, :not_initialized}} <- Gateway.counts(gateway),
                false <- File.exists?(path) do
             {:pass,
-             receipt("fail-closed-recovery", {
-               status.mode,
-               status.reason,
-               rejected,
-               :path_absent
+             receipt("fail-closed-recovery", %{
+               "mode" => Atom.to_string(status.mode),
+               "reason" => Atom.to_string(status.reason),
+               "transaction" => inspect(rejected),
+               "path" => "absent"
              })}
           else
             true -> {:fail, "h0:missing_store_was_created"}
@@ -162,7 +244,7 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
     end)
   end
 
-  def probe(:immutable_legacy_import, @accepted_revision) do
+  defp verified_probe(:immutable_legacy_import) do
     with_fixture("legacy-import", fn root, path ->
       source = Path.join(root, "legacy.jsonl")
       archive = Path.join(root, "archive")
@@ -179,11 +261,11 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
         with_gateway(gateway, fn ->
           with {:ok, %{"commands" => 0, "events" => 0}} <- Gateway.counts(gateway) do
             selected = %{
-              source_digest: manifest["source_digest"],
-              source_bytes: manifest["source_bytes"],
-              line_count: manifest["line_count"],
-              valid_count: manifest["valid_count"],
-              invalid_count: manifest["invalid_count"]
+              "source_digest" => manifest["source_digest"],
+              "source_bytes" => manifest["source_bytes"],
+              "line_count" => manifest["line_count"],
+              "valid_count" => manifest["valid_count"],
+              "invalid_count" => manifest["invalid_count"]
             }
 
             {:pass, receipt("immutable-legacy-import", selected)}
@@ -226,8 +308,10 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
   end
 
   defp reject_protected_fields(gateway, fields) do
-    Enum.reduce_while(fields, :ok, fn field, :ok ->
-      id = "H0-FORGE-#{field}"
+    fields
+    |> Enum.flat_map(fn field -> [{field, "atom"}, {Atom.to_string(field), "string"}] end)
+    |> Enum.reduce_while(:ok, fn {field, form}, :ok ->
+      id = "H0-FORGE-#{field}-#{form}"
       forged = Map.put(bundle(id), field, [%{"forged" => true}])
 
       case Gateway.transact(gateway, "h0-kernel", command(id), forged) do
@@ -310,12 +394,73 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
   end
 
   defp receipt(label, value) do
-    digest = :crypto.hash(:sha256, :erlang.term_to_binary(value)) |> Base.encode16(case: :lower)
+    bytes =
+      canonical_json!(%{
+        "data" => value,
+        "label" => label,
+        "schema" => "pramana-foundry-h0-receipt/v1"
+      })
+
+    digest = :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
     "h0:#{label}:sha256:#{digest}"
   end
 
   defp failure(label, value) do
-    digest = :crypto.hash(:sha256, :erlang.term_to_binary(value)) |> Base.encode16(case: :lower)
-    "h0:#{label}-failed:sha256:#{digest}"
+    _redacted = value
+    "h0:#{label}-failed"
   end
+
+  defp implementation_binding do
+    if Enum.all?(@api_identity, &accepted_loaded_module?/1) do
+      %{status: "verified", method: "source-sha256+beam-md5/v1"}
+    else
+      %{status: "mismatch", method: "source-sha256+beam-md5/v1"}
+    end
+  end
+
+  defp accepted_loaded_module?(expected) do
+    with {:module, module} <- Code.ensure_loaded(expected.module),
+         source when is_list(source) <- module.module_info(:compile)[:source],
+         {:ok, bytes} <- File.read(List.to_string(source)) do
+      sha256(bytes) == expected.sha256 and
+        Base.encode16(module.module_info(:md5), case: :lower) == expected.beam_md5
+    else
+      _other -> false
+    end
+  end
+
+  defp sha256(bytes),
+    do: :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
+
+  defp canonical_json!(value), do: value |> canonical_json() |> IO.iodata_to_binary()
+
+  defp canonical_json(value) when is_binary(value) do
+    unless String.valid?(value), do: raise(ArgumentError, "canonical JSON string must be UTF-8")
+    :json.encode(value)
+  end
+
+  defp canonical_json(value) when is_integer(value), do: Integer.to_string(value)
+  defp canonical_json(true), do: "true"
+  defp canonical_json(false), do: "false"
+  defp canonical_json(nil), do: "null"
+
+  defp canonical_json(value) when is_list(value) do
+    ["[", value |> Enum.map(&canonical_json/1) |> Enum.intersperse(","), "]"]
+  end
+
+  defp canonical_json(value) when is_map(value) and not is_struct(value) do
+    entries =
+      value
+      |> Enum.map(fn
+        {key, item} when is_binary(key) -> {key, item}
+        {_key, _item} -> raise ArgumentError, "canonical JSON map keys must be strings"
+      end)
+      |> Enum.sort_by(&elem(&1, 0))
+      |> Enum.map(fn {key, item} -> [canonical_json(key), ":", canonical_json(item)] end)
+
+    ["{", Enum.intersperse(entries, ","), "}"]
+  end
+
+  defp canonical_json(_value),
+    do: raise(ArgumentError, "unsupported canonical JSON value")
 end
