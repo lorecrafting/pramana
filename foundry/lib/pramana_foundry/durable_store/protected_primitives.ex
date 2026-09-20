@@ -4790,32 +4790,71 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   # Results have an explicit operation schema. Only direct fact fields are authority
   # carriers; receipt payloads and other nested diagnostic/artifact maps are opaque.
   defp collect_typed_transition_snapshots(type, facts, sequence, acc) when is_map(facts) do
-    known =
+    schema =
       case type do
-        "grant_ledger" -> ~w(ledger)
-        "delegate_allocation" -> ~w(parent_ledger child_ledger)
-        "return_allocation" -> ~w(parent_ledger child_ledger)
-        "reserve" -> ~w(ledger reservation)
-        "release_reservation" -> ~w(ledger reservation)
-        "close_generation" -> ~w(ledgers)
-        "reset_generation" -> ~w(closed_generation new_generation parent_ledger)
-        "create_effect" -> ~w(effect reservations ledgers)
-        "claim_effect" -> ~w(claim effect)
-        "reclaim_claim" -> ~w(claim)
-        "issue_claim" -> ~w(claim effect)
-        "cancel_effect" -> ~w(claim effect)
-        "settle_claim" -> ~w(claim effect ledgers)
-        _ -> []
+        "grant_ledger" ->
+          %{"ledger" => {:singular, :ledger}}
+
+        "delegate_allocation" ->
+          %{"parent_ledger" => {:singular, :ledger}, "child_ledger" => {:singular, :ledger}}
+
+        "return_allocation" ->
+          %{"parent_ledger" => {:singular, :ledger}, "child_ledger" => {:singular, :ledger}}
+
+        "reserve" ->
+          %{"ledger" => {:singular, :ledger}, "reservation" => {:singular, :reservation}}
+
+        "release_reservation" ->
+          %{"ledger" => {:singular, :ledger}, "reservation" => {:singular, :reservation}}
+
+        "close_generation" ->
+          %{"ledgers" => {:plural, :ledger}}
+
+        "reset_generation" ->
+          %{
+            "closed_generation" => {:singular, :ledger},
+            "new_generation" => {:singular, :ledger},
+            "parent_ledger" => {:singular, :ledger}
+          }
+
+        "create_effect" ->
+          %{
+            "effect" => {:singular, :effect},
+            "reservations" => {:plural, :reservation},
+            "ledgers" => {:plural, :ledger}
+          }
+
+        "claim_effect" ->
+          %{"claim" => {:singular, :claim}, "effect" => {:singular, :effect}}
+
+        "reclaim_claim" ->
+          %{"claim" => {:singular, :claim}}
+
+        "issue_claim" ->
+          %{"claim" => {:singular, :claim}, "effect" => {:singular, :effect}}
+
+        "cancel_effect" ->
+          %{"claim" => {:singular, :claim}, "effect" => {:singular, :effect}}
+
+        "settle_claim" ->
+          %{
+            "claim" => {:singular, :claim},
+            "effect" => {:singular, :effect},
+            "ledgers" => {:plural, :ledger}
+          }
+
+        _ ->
+          %{}
       end
+
+    known = Map.keys(schema)
 
     ignored =
       ~w(receipt attempted_receipt required_revisions lease_specs takeover transfer_kind control_status outstanding_claim_ids)
 
-    known_carriers =
-      known
-      |> Enum.flat_map(&direct_transition_carriers(facts[&1]))
-
-    with :ok <-
+    with :ok <- validate_declared_transition_carriers(facts, schema),
+         known_carriers <- known |> Enum.flat_map(&direct_transition_carriers(facts[&1])),
+         :ok <-
            facts
            |> Map.drop(known ++ ignored)
            |> Map.values()
@@ -4827,7 +4866,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            end) do
       known
       |> Enum.reduce_while({:ok, acc}, fn key, {:ok, nested} ->
-        case collect_direct_transition_snapshots(facts[key], sequence, nested) do
+        case collect_declared_transition_snapshots(facts[key], sequence, nested, schema[key]) do
           {:ok, next} -> {:cont, {:ok, next}}
           error -> {:halt, error}
         end
@@ -4838,6 +4877,87 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp collect_typed_transition_snapshots(_type, _facts, _sequence, _acc),
     do: {:error, :invalid_transition_facts}
 
+  defp validate_declared_transition_carriers(facts, schema) do
+    Enum.reduce_while(schema, :ok, fn {key, declaration}, :ok ->
+      case Map.fetch(facts, key) do
+        :error ->
+          {:cont, :ok}
+
+        {:ok, value} ->
+          case validate_declared_transition_carrier(value, declaration) do
+            :ok -> {:cont, :ok}
+            error -> {:halt, error}
+          end
+      end
+    end)
+  end
+
+  defp validate_declared_transition_carrier(value, {:singular, kind}) when is_map(value) do
+    if transition_carrier_kind(value) == kind and declared_transition_shape?(value, kind),
+      do: :ok,
+      else: {:error, :invalid_singular_transition_carrier}
+  end
+
+  defp validate_declared_transition_carrier(_value, {:singular, _kind}),
+    do: {:error, :invalid_singular_transition_carrier}
+
+  defp validate_declared_transition_carrier(values, {:plural, kind}) when is_list(values) do
+    with true <- Enum.all?(values, &(is_map(&1) and transition_carrier_kind(&1) == kind)),
+         true <- Enum.all?(values, &declared_transition_shape?(&1, kind)),
+         identities <- Enum.map(values, &transition_carrier_identity(&1, kind)),
+         true <- Enum.all?(identities, &(not is_nil(&1))),
+         true <- length(identities) == length(Enum.uniq(identities)) do
+      :ok
+    else
+      _ -> {:error, :invalid_plural_transition_carrier}
+    end
+  end
+
+  defp validate_declared_transition_carrier(_value, {:plural, _kind}),
+    do: {:error, :invalid_plural_transition_carrier}
+
+  defp declared_transition_shape?(value, :ledger),
+    do:
+      Map.keys(value) |> Enum.sort() ==
+        Enum.sort(
+          ~w(schema_version ledger_id generation parent_ledger_id parent_generation dimension revision status authorized available held consumed delegated retired)
+        ) and value["schema_version"] == 1
+
+  defp declared_transition_shape?(value, :reservation),
+    do:
+      Map.keys(value) |> Enum.sort() ==
+        Enum.sort(
+          ~w(schema_version reservation_id ledger_id generation dimension owner_kind owner_id units revision status claim_id)
+        ) and value["schema_version"] == 1
+
+  defp declared_transition_shape?(value, :claim),
+    do:
+      Map.keys(value) |> Enum.sort() ==
+        Enum.sort(~w(schema_version claim_id effect_id writer_epoch status revision)) and
+        value["schema_version"] == 1
+
+  defp declared_transition_shape?(value, :effect),
+    do:
+      Map.keys(value) |> Enum.sort() ==
+        Enum.sort(
+          ~w(schema_version effect_id request_digest policy_id policy_revision control_id control_revision operation scope ticket_id attempt_id execution_id assignment_id role phase_generation operation_ordinal predecessor_effect_id request_id issuer channel profile deadline status revision reservation_ids lease_specs)
+        ) and value["schema_version"] == 1
+
+  defp transition_carrier_kind(%{"ledger_id" => _, "generation" => _, "authorized" => _}),
+    do: :ledger
+
+  defp transition_carrier_kind(%{"reservation_id" => _, "ledger_id" => _}), do: :reservation
+  defp transition_carrier_kind(%{"claim_id" => _, "effect_id" => _}), do: :claim
+  defp transition_carrier_kind(%{"effect_id" => _}), do: :effect
+  defp transition_carrier_kind(_value), do: nil
+
+  defp transition_carrier_identity(value, :ledger),
+    do: {value["ledger_id"], value["generation"]}
+
+  defp transition_carrier_identity(value, :reservation), do: value["reservation_id"]
+  defp transition_carrier_identity(value, :claim), do: value["claim_id"]
+  defp transition_carrier_identity(value, :effect), do: value["effect_id"]
+
   defp direct_transition_carriers(value) when is_map(value) do
     if transition_carrier?(value), do: [value], else: []
   end
@@ -4847,24 +4967,22 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp direct_transition_carriers(_value), do: []
 
-  defp transition_carrier?(%{"ledger_id" => _, "generation" => _, "authorized" => _}), do: true
-  defp transition_carrier?(%{"claim_id" => _, "effect_id" => _}), do: true
-  defp transition_carrier?(%{"effect_id" => _}), do: true
-  defp transition_carrier?(_value), do: false
+  defp transition_carrier?(value), do: not is_nil(transition_carrier_kind(value))
 
-  defp collect_direct_transition_snapshots(value, sequence, acc) when is_map(value),
+  defp collect_declared_transition_snapshots(nil, _sequence, acc, _declaration),
+    do: {:ok, acc}
+
+  defp collect_declared_transition_snapshots(value, sequence, acc, {:singular, _kind}),
     do: maybe_put_transition_snapshot(value, sequence, acc)
 
-  defp collect_direct_transition_snapshots(values, sequence, acc) when is_list(values) do
+  defp collect_declared_transition_snapshots(values, sequence, acc, {:plural, _kind}) do
     Enum.reduce_while(values, {:ok, acc}, fn value, {:ok, nested} ->
-      case collect_direct_transition_snapshots(value, sequence, nested) do
+      case maybe_put_transition_snapshot(value, sequence, nested) do
         {:ok, next} -> {:cont, {:ok, next}}
         error -> {:halt, error}
       end
     end)
   end
-
-  defp collect_direct_transition_snapshots(_value, _sequence, acc), do: {:ok, acc}
 
   defp maybe_put_transition_snapshot(
          %{"ledger_id" => id, "generation" => generation, "authorized" => _units} = fact,
