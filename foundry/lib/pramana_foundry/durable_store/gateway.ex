@@ -972,7 +972,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     command = envelope["command"]
     {domain_canonical, domain_digest} = prepare_command!(actor_id, command)
 
-    with {:ok, proposal, _discriminator} <-
+    with {:ok, proposal, discriminator} <-
            atomic_domain_proposal(conn, envelope, operation_results),
          :ok <- check_expected_revisions(conn, command, proposal, %{}),
          {:ok, {:accepted, domain_result}} <-
@@ -994,7 +994,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
              "accepted",
              nil,
              operation_results,
-             domain_result
+             domain_result,
+             discriminator
            ),
          :ok <-
            persist_atomic_records(
@@ -1017,6 +1018,11 @@ defmodule PramanaFoundry.DurableStore.Gateway do
           rejected_operation_results(envelope, digest, operation_results, reason)}}
 
       {:error, {:revision_conflict, _key, _expected, _actual} = reason} ->
+        {:error,
+         {:atomic_rejection, reason,
+          rejected_operation_results(envelope, digest, operation_results, reason)}}
+
+      {:error, {:plan_rejected, reason}} ->
         {:error,
          {:atomic_rejection, reason,
           rejected_operation_results(envelope, digest, operation_results, reason)}}
@@ -1163,11 +1169,12 @@ defmodule PramanaFoundry.DurableStore.Gateway do
            "operation_type" => envelope["command"]["type"],
            "execution_status" =>
              if(durable["disposition"] == "accepted", do: "committed", else: "rejected"),
-           "request" => %{
-             "command" => envelope["command"],
-             "inputs" => envelope["inputs"],
-             "proposal" => envelope["proposal"]
-           },
+           # Keyed by the envelope's real carrier. Previously this always wrote
+           # "proposal", which is nil for a plan-bearing envelope — recording that no
+           # proposal existed for a bundle that had just committed one. A
+           # proposal-bearing row is byte-identical to before, so stored histories and
+           # the protected domain-row validator are unaffected.
+           "request" => atomic_domain_request(envelope),
            "result" => domain_result
          },
          :ok <- persist_atomic_operation_rows(conn, command_id, [domain_entry]) do
@@ -1204,7 +1211,21 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     end)
   end
 
-  defp atomic_result(command_id, disposition, reason, operation_results, domain_result) do
+  defp atomic_result(command_id, disposition, reason, operation_results, domain_result),
+    do: atomic_result(command_id, disposition, reason, operation_results, domain_result, nil)
+
+  # The selected discriminator is recorded because it cannot be recomputed later.
+  # infrastructure_discriminator/3 derives from the *current* policy row and fails closed
+  # once that policy is revised, so a value not written down at commit time is
+  # unrecoverable in principle rather than merely inconvenient.
+  defp atomic_result(
+         command_id,
+         disposition,
+         reason,
+         operation_results,
+         domain_result,
+         discriminator
+       ) do
     %{
       "schema_version" => 2,
       "command_id" => command_id,
@@ -1215,7 +1236,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
         Enum.map(operation_results, fn item ->
           Map.take(item, ~w(ordinal operation_kind operation_type execution_status result))
         end),
-      "domain_result" => domain_result
+      "domain_result" => domain_result,
+      "selected_discriminator" => discriminator
     }
   end
 
@@ -1277,6 +1299,14 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     with {:ok, discriminator} <- protected_discriminator(conn, plan, results),
          {:ok, proposal} <- TransitionPlan.bind(plan, discriminator, results) do
       {:ok, proposal, discriminator}
+    else
+      # Tagged so a rejected plan can never be mistaken for an infrastructure fault.
+      # Untagged, these errors reached the generic catch-all, were mapped to
+      # :storage_unavailable, and flipped the whole Gateway into permanent recovery mode
+      # for every actor. A candidate-authored plan being wrong is an ordinary rejection.
+      # The tag also means this does not have to enumerate TransitionPlan's error
+      # vocabulary, and cannot accidentally swallow a genuine storage failure.
+      {:error, reason} -> {:error, {:plan_rejected, reason}}
     end
   end
 
@@ -1317,6 +1347,21 @@ defmodule PramanaFoundry.DurableStore.Gateway do
       ~w(actor_id command inputs operations plan schema_version) -> {:ok, "plan"}
       _ -> {:error, :invalid_atomic_bundle}
     end
+  end
+
+  defp atomic_carrier_name(%{"plan" => _}), do: "plan"
+  defp atomic_carrier_name(_envelope), do: "proposal"
+
+  @doc false
+  # Public to the protected validator, which must reconstruct exactly this shape.
+  def atomic_domain_request(envelope) do
+    carrier = atomic_carrier_name(envelope)
+
+    %{
+      "command" => envelope["command"],
+      "inputs" => envelope["inputs"],
+      carrier => envelope[carrier]
+    }
   end
 
   defp normalize_atomic_carrier("proposal", value), do: normalize_candidate(value)

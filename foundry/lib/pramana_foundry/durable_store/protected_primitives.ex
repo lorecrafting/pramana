@@ -5093,7 +5093,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              true <- is_map(result),
              true <-
                Map.keys(result) |> Enum.sort() ==
-                 ~w(command_id committed_seq disposition domain_result operations reason_code schema_version),
+                 ~w(command_id committed_seq disposition domain_result operations reason_code schema_version selected_discriminator),
              {:ok, domain_result} <- decode(domain_result_bytes),
              true <- is_map(domain_result),
              ^id <- result["command_id"],
@@ -5450,6 +5450,20 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp valid_settlement_shape?(_settlement), do: false
 
+  # Mirrors Gateway.atomic_domain_request/1. The stored request names the envelope's real
+  # carrier, so a proposal-bearing row keeps the exact three-key shape it always had and
+  # existing histories validate unchanged, while a plan-bearing row records its plan
+  # rather than a nil proposal.
+  defp expected_bundle_domain_request(envelope) do
+    carrier = if Map.has_key?(envelope, "plan"), do: "plan", else: "proposal"
+
+    %{
+      "command" => envelope["command"],
+      "inputs" => envelope["inputs"],
+      carrier => envelope[carrier]
+    }
+  end
+
   defp valid_bundle_domain_row?(row, envelope, result) do
     case row do
       [ordinal, "domain", type, request_bytes, result_bytes] ->
@@ -5461,12 +5475,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         with true <- ordinal == expected_ordinal,
              true <- type == envelope["command"]["type"],
              {:ok, request} <- decode(request_bytes),
-             true <-
-               request == %{
-                 "command" => envelope["command"],
-                 "inputs" => envelope["inputs"],
-                 "proposal" => envelope["proposal"]
-               },
+             true <- request == expected_bundle_domain_request(envelope),
              {:ok, stored} <- decode(result_bytes),
              true <-
                Map.keys(stored) |> Enum.sort() ==
