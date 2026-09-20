@@ -116,6 +116,30 @@ version states.
 kernel and adapter; the blocked kernel's allowed-key set must accept it rather than have
 the adapter strip it.
 
+## Required design point for subcommit 4: provenance must be structural
+
+Raised by independent critical review of the partial candidate and adopted here.
+
+`bind/3` validates that each output matches its binding's declared output kind. That is a
+**shape gate, not a provenance gate**. The review confirmed by probe that a fully
+well-shaped but entirely fabricated settlement — fictitious effect, claim and receipt
+identities and an attacker-chosen ordinal — passes `outputs_match_declared_kinds/2`
+unchanged, because nothing in that check proves the value was read from a staged
+protected result. Shape validation closes real gaps and must stay, but it is not
+sufficient on its own.
+
+Subcommit 4 must therefore make provenance structural rather than checked. Either Gateway
+calls `derive_outputs/2` and passes its literal return value into `bind/3` within one
+function, leaving no seam at which a different map could be substituted, or `bind/3` is
+refactored to accept `operation_results` directly and call `derive_outputs/2` internally,
+so a pre-derived outputs map is not part of the interface at all. The second is
+preferable because it removes the unsafe call shape from the API rather than relying on
+every caller using it correctly.
+
+This is not a defect in the current candidate, which has no Gateway wiring and cannot
+commit anything. It is a binding requirement on the subcommit that adds one, and its
+review must verify the property structurally rather than by inspection of call sites.
+
 ## Prerequisite: the durable event vocabulary does not admit lifecycle events
 
 Discovered while implementing subcommit 1, at base `3f06a5a`. Recorded here because it

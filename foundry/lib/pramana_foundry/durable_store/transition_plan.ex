@@ -317,9 +317,11 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     if MapSet.subset?(present, declared), do: :ok, else: {:error, :binding_undeclared}
   end
 
-  defp marker_names(%{"binding" => name} = value) when map_size(value) == 1 do
-    if is_binary(name), do: [name], else: []
-  end
+  # Collected regardless of type. Declared names are validated binaries, so a marker
+  # naming anything else can never be a subset member and is refused as undeclared.
+  # Filtering by type here would let it reach substitute/2, which does not guard the
+  # name and would raise on the lookup.
+  defp marker_names(%{"binding" => name} = value) when map_size(value) == 1, do: [name]
 
   defp marker_names(value) when is_map(value),
     do: Enum.flat_map(value, fn {_key, nested} -> marker_names(nested) end)

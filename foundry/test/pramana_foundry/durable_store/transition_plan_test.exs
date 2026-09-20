@@ -398,6 +398,30 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                )
     end
 
+    for {label, name} <- [{"integer", 42}, {"nil", nil}, {"list", ["settled"]}] do
+      @marker_label label
+      @marker_name name
+
+      test "a marker named by a #{label} rejects instead of raising" do
+        marker = %{"binding" => "settled"}
+        stray = %{"binding" => @marker_name}
+
+        hostile =
+          proposal([event("launch_settled", %{"settlement" => marker, "note" => stray})], [])
+
+        assert {:error, :binding_undeclared} =
+                 TransitionPlan.bind(
+                   plan(%{
+                     "alternatives" => [
+                       %{"discriminator" => "below_infrastructure_limit", "proposal" => hostile}
+                     ]
+                   }),
+                   "below_infrastructure_limit",
+                   %{"settled" => settlement()}
+                 )
+      end
+    end
+
     test "an output whose shape does not match its declared kind rejects" do
       assert {:error, :invalid_binding_outputs} =
                TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
