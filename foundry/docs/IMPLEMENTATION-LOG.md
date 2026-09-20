@@ -1864,3 +1864,46 @@ latest prose here, remains authoritative for status and dependencies.
   remain outstanding, and subcommit 4 is additionally bound by its recorded structural
   provenance requirement.
 
+## FR-08A transition plan codec R4a coverage — 2026-09-20
+
+- A deliberately broad independent design review, asked to judge the FR-08B kernel design
+  in context with the rest of Foundry rather than on its own terms, found two defects in
+  the already-integrated FR-08A transition-plan codec. `launch_authority_v1` had **no
+  producer**, so all five `.authority` slots were declarable but unbindable and R4's
+  ordinary admission row was unreachable through the binding. `@slots` defined no
+  `review_settled` and no check-worker settlement, so two of R4a's four domain-owner rows
+  had no destination at all.
+- **Both defects were in code that had already passed two independent reviews.** Each
+  examined the codec's mechanism — authority, slot enforcement, fail-closed derivation —
+  and each was correct on those terms. Neither was asked whether the mechanism covered
+  R4a, so neither looked. That evidence produced the contract-coverage review requirement
+  now recorded in [the repair plan](REPAIR-PLAN.md).
+- `71e558b` adds the producer as `{"issue_claim", "effect"}`. `issue_claim` returns the
+  authoritative issued effect, which carries every field the kind needs; the projection
+  renames `assignment_id` to `work_owner` and `phase_generation` to
+  `infrastructure_generation`. Reservation and ledger identities are deliberately
+  excluded, because no single operation's facts carry them authoritatively and binding
+  them would mean copying caller-supplied data on trust. It also adds `check_settled` and
+  `review_settled` and their slots.
+- `43ee08e` resolves the remainder of R4a's fourth domain-owner row three different ways
+  after review asked for one sentence of reasoning. freeze/import is **subsumed by
+  check**, because R5 states each freeze/import/mandatory-check worker charges
+  `starts.check` and R4's freeze-failure row routes to a bounded `starts.check` retry.
+  **build was a genuine gap**, not a documentation request: R5 gives it a distinct
+  `starts.build` dimension, so `build_planned`/`build_settled` and their slots were added.
+  activation gets no slot, being accounted as `operations.activation` rather than a start,
+  with FR-17 owning immutable activation. The reasoning sits beside the slot table so it
+  is not reconstructed later.
+- The coverage assertions whose absence let this through are now maintained tests: every
+  R4a domain owner must have a settlement slot, and every declared admission slot must
+  actually derive an authority fact rather than merely naming a kind. They enumerate six
+  owners, so a future missing slot fails a test rather than waiting for a reviewer.
+- Independent review by Claude Fable 5.1 returned **PASS**, having traced `issue_claim`
+  through `public_effect/1` to confirm every projected field is genuinely present in the
+  authoritative record rather than invented, and confirmed the new assertions are real
+  coverage rather than mechanism tests relabelled.
+- Evidence commits `7b7c590` and `aae4424` rebind the FR-08A attestation, third and
+  fourth rebinds of the session. Integrated at `b4044e3` with runtime byte-identical to
+  the reviewed candidate; exact clean CI passed all six stages, and the full model-free
+  suite passed 711 at seed 0 run serially.
+
