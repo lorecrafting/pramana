@@ -195,7 +195,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
 | FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | Blocked | F17, F18 |
 | FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
-| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | Ready | F20, F21 |
+| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Candidate review BLOCKER: B1/B2 correction ready; physical ENOSPC/sync acceptance open** | F20, F21 |
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |

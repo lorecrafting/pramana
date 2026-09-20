@@ -1381,3 +1381,26 @@ steps.
   receipt/lease/claim/settlement/ledger transitions and authenticated inbox sequence/seal
   remain unavailable and are now FR-08A work. The existing native VFS exit 139 is excluded;
   no provider, daemon, credential, deployment or activation was exercised.
+
+## FR-19A candidate and independent blocker review — 2026-09-19
+
+- Implementation `0391468926bc8f9c1591e8a619d80d6661cf9a5d` and frozen
+  candidate `d1ce73ee9da548a64a447106f83d3d7f8ce1b567`, tree
+  `005ddf2ff0d241a71f4dbfe4d995c72e5983d35f`, remain unintegrated on
+  `repair/fr19a-operational-storage`. Credited work includes bounded recent-event queries,
+  explicit capacity/last-sequence health, content/replay-checked backup and checkpoint,
+  offline owner-lock verification, corrupt-store fencing, retained claim/ledger recovery
+  evidence and public relocation disablement pending FR-19B.
+- Fresh Astra-high review `705e7b604483c631b2ac968c9a99ca627d8ad616` returned
+  **BLOCKER**. B1 reproduces the default 5-second public `GenServer.call` expiring at the
+  same deadline as a stalled capacity probe instead of returning explicit unknown state.
+  B2 finds backup maintenance errors can leave the gateway ready and that in-operation
+  checkpoint/backup failure recovery with retained protected rows is unproved. Physical
+  filesystem ENOSPC and kernel-sync acceptance remains required and unproved; logical
+  SQLite fullness, RLIMIT, injected VFS sync and post-operation hard exit are not substitutes.
+- The reviewer resolved the native sync exit-139 attribution as a fixture/header-selection
+  defect: the fixture ignored external `MIX_DEPS_PATH`; selecting Exqlite's bundled headers
+  made the unchanged candidate pass 2/2. Canonical-temp/bundled-header full CI passed 542
+  tests with 13 intentional FR-19B skips and one optional tokenizer exclusion. No candidate
+  source was changed by review. Next action is the smallest B1/B2 correction plus physical
+  acceptance disposition, a newly frozen candidate and renewed independent review.
