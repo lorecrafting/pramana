@@ -790,4 +790,24 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
       }
     }
   end
+
+  describe "vocabulary agreement with the protected layer" do
+    # These two directions were both violated at once: consume_validation was declarable
+    # but is not a protected operation, and issue_claim is required by @producers but was
+    # not declarable — which silently disabled every admission slot as soon as the
+    # declared-versus-staged coherence check made the list load-bearing.
+    test "every declarable operation is a real protected operation" do
+      for type <- TransitionPlan.operation_types() do
+        assert PramanaFoundry.DurableStore.ProtectedPrimitives.supported_operation_type?(type),
+               "#{type} is declarable in a plan but is not a protected operation"
+      end
+    end
+
+    test "every producing operation is declarable" do
+      for {kind, type} <- TransitionPlan.producer_operations() do
+        assert type in TransitionPlan.operation_types(),
+               "#{kind} is produced by #{type}, which no plan can declare"
+      end
+    end
+  end
 end

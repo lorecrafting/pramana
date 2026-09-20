@@ -313,6 +313,46 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   end
 
   @doc """
+  Re-derives the discriminator for a past settlement from retained policy history.
+
+  Revalidation must not trust the recorded value, and must not use
+  `infrastructure_discriminator/3` either: that reads the current policy head row and
+  fails closed once policy is revised, which would report a valid historical commit as
+  corrupt. `root_policy_history` retains every revision under `PRIMARY KEY(policy_id,
+  revision)` with a chain constraint, and its lineage is validated on open, so the limit
+  in force at the effect's recorded `policy_revision` is recoverable and integrity-checked.
+
+  Fails closed when the history row is absent, the limit is missing or non-positive, or
+  the settlement disagrees with the effect.
+  """
+  @spec infrastructure_discriminator_at_revision(term(), String.t(), map()) ::
+          {:ok, String.t()} | {:error, atom()}
+  def infrastructure_discriminator_at_revision(conn, effect_id, settlement)
+      when is_map(settlement) do
+    with {:ok, effect} <- load_effect(conn, effect_id),
+         true <- effect.role == settlement["role"],
+         {:ok, [[bytes]]} <-
+           Database.query(
+             conn,
+             "SELECT state FROM root_policy_history WHERE policy_id = ? AND revision = ?",
+             [effect.policy_id, effect.policy_revision]
+           ),
+         {:ok, state} <- decode(bytes),
+         limits when is_map(limits) <- get_in(state, ["value", "infrastructure_attempt_limits"]),
+         limit when is_integer(limit) and limit > 0 <- Map.get(limits, effect.role),
+         ordinal when is_integer(ordinal) and ordinal > 0 <- settlement["ordinal"] do
+      if ordinal < limit,
+        do: {:ok, "below_infrastructure_limit"},
+        else: {:ok, "infrastructure_limit_reached"}
+    else
+      _ -> {:error, :infrastructure_limit_undecidable}
+    end
+  end
+
+  def infrastructure_discriminator_at_revision(_conn, _effect_id, _settlement),
+    do: {:error, :infrastructure_limit_undecidable}
+
+  @doc """
   Derives the closed infrastructure-limit discriminator for a settled non-start.
 
   This is a protected safety observation used to select a kernel-authored alternative in
@@ -5140,16 +5180,26 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
-  # Revalidates a plan-bound commit by reconstructing it. Re-running the binding against
+  # Revalidates a plan-bound commit by reconstructing it.
+  #
+  # Comparing events alone is sufficient, but only because Authority's content validation
+  # runs ahead of this in the same read: projection_matches_event?/2 ties each stored
+  # projection to its carrier event's payload, and validate_reconstruction/2 rebuilds all
+  # projections from events and compares. Pinning the events therefore pins the
+  # projections transitively. If those checks were ever reordered after this one, a
+  # projection comparison would have to be added here. Re-running the binding against
   # the original plan, the recorded discriminator and the persisted protected outcomes
   # must reproduce the committed events exactly. That proves those events could only have
   # come from that plan, those results and that discriminator, and it subsumes field-level
   # comparison rather than enumerating checks that need extending whenever a slot is added.
   #
-  # The recorded discriminator is used and never recomputed.
-  # infrastructure_discriminator/3 derives from the current policy row and fails closed
-  # once that policy is revised, so recomputing here would turn a valid historical commit
-  # into a corruption report the moment an operator changed policy.
+  # The recorded discriminator is reconstructed from retained policy history, not trusted.
+  # Trusting it left a hole: a store whose discriminator, events and projection were all
+  # tampered coherently revalidated as valid, because the recorded value was the only free
+  # input and nothing else read it. Recomputation uses
+  # infrastructure_discriminator_at_revision/3, which reads the policy at the effect's
+  # recorded revision rather than the head row, so a later policy revision does not turn a
+  # valid historical commit into a corruption report.
   defp valid_bundle_plan_binding?(conn, envelope, result) do
     case envelope["plan"] do
       nil -> true
@@ -5165,11 +5215,39 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp valid_plan_binding?(conn, plan, envelope, result) do
     with discriminator when is_binary(discriminator) <- result["selected_discriminator"],
          staged when is_list(staged) <- result["operations"],
+         :ok <- recorded_discriminator_reconstructs?(conn, plan, staged, discriminator),
          {:ok, proposal} <- TransitionPlan.bind(plan, discriminator, staged),
          {:ok, committed} <- committed_bundle_events(conn, envelope["command"]["command_id"]) do
       proposal["events"] == committed
     else
       _ -> false
+    end
+  end
+
+  defp recorded_discriminator_reconstructs?(conn, plan, staged, recorded) do
+    with {:ok, settlement} <- bound_settlement_fact(plan, staged),
+         {:ok, ^recorded} <-
+           infrastructure_discriminator_at_revision(conn, settlement["effect_id"], settlement) do
+      :ok
+    else
+      _ -> {:error, :discriminator_does_not_reconstruct}
+    end
+  end
+
+  # Mirrors Gateway's ordinal resolution: the settlement is the one the plan's own
+  # settlement binding names, not whichever one happens to be unique.
+  defp bound_settlement_fact(plan, staged) do
+    case Enum.filter(plan["bindings"], &(&1["output_kind"] == "nonstart_settlement_v1")) do
+      [binding] ->
+        settlement =
+          staged
+          |> Enum.find(%{}, &(&1["ordinal"] == binding["operation_ordinal"]))
+          |> get_in(["result", "facts", "infrastructure_settlement"])
+
+        if is_map(settlement), do: {:ok, settlement}, else: {:error, :settlement_unavailable}
+
+      _ ->
+        {:error, :settlement_unavailable}
     end
   end
 

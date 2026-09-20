@@ -1490,18 +1490,19 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       assert %{mode: :recovery} = Gateway.status(reopened)
     end
 
-    # Honest attribution: this passes with valid_plan_binding?/4 neutralised, so the
-    # detection comes from the pre-existing durable result-record validation, not from
-    # the new revalidation. Kept because the property matters and should stay asserted,
-    # but it is not evidence that the plan binding is revalidated.
-    test "mutating the recorded discriminator is detected by result validation", ctx do
+    test "a coherently tampered commit that contradicts policy is still detected", ctx do
       commit_plan!(ctx, "REV3")
       stop_supervised!(Gateway)
 
+      # The hole this closes: flipping the recorded discriminator alone is caught, but
+      # flipping it AND regenerating the events from the trusted binder's own
+      # blocked-alternative used to reconstruct cleanly, because the recorded value was
+      # the only free input and nothing reconstructed it. The store then asserted blocked
+      # for a ticket the policy in force said must be queued.
       assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
 
       assert {:ok, [[bytes]]} =
-               Database.query(raw, "SELECT result FROM command_results WHERE command_id = ?", [
+               Database.query(raw, "SELECT result FROM atomic_bundles WHERE command_id = ?", [
                  "REV3"
                ])
 
@@ -1516,7 +1517,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       assert :ok =
                Database.execute(
                  raw,
-                 "UPDATE command_results SET result = ? WHERE command_id = ?",
+                 "UPDATE atomic_bundles SET result = ? WHERE command_id = ?",
                  [
                    {:blob, encoded},
                    "REV3"
@@ -1531,12 +1532,13 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       assert %{mode: :recovery} = Gateway.status(reopened)
     end
 
-    test "revalidation never recomputes the discriminator, so a policy revision is safe", ctx do
+    test "reconstruction is revision-aware, so a later policy revision is safe", ctx do
       commit_plan!(ctx, "REV4")
 
-      # Revising the policy makes recomputation impossible — the effect's recorded
-      # policy_revision no longer matches, and infrastructure_discriminator/3 fails
-      # closed. A revalidation that recomputed would now report a valid commit as corrupt.
+      # Revising the policy makes head-row recomputation fail closed. Revalidation
+      # reconstructs from root_policy_history at the effect's recorded policy_revision
+      # instead, so the historical commit still revalidates. A head-row recomputation
+      # would report this valid commit as corrupt.
       accept_current!(ctx, %{
         "type" => "set_policy",
         "policy_id" => "policy-1",

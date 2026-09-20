@@ -28,7 +28,13 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @alternative ~w(discriminator proposal)
   @domain_read ~w(kind entity_id revision)
 
-  @operation_types ~w(set_control reserve create_effect settle_claim consume_validation reset_generation)
+  # Must stay a subset of ProtectedPrimitives' supported operations and must contain every
+  # type @producers names, or a declared slot becomes unreachable. consume_validation was
+  # here and is not a protected operation at all; issue_claim produces launch_authority_v1
+  # and was missing, which made all six admission slots unbindable once
+  # plan_describes_operations/2 made this list load-bearing. A test enforces both
+  # directions so the vocabularies cannot drift apart again.
+  @operation_types ~w(set_control reserve create_effect issue_claim settle_claim reset_generation)
   @read_kinds ~w(state ticket objective pm)
   @dispositions ~w(accepted rejected blocked)
   @terminal_dispositions ~w(rejected blocked)
@@ -251,6 +257,14 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @doc """
   The closed set of protected derivations a plan may nominate.
   """
+  @doc "The producing protected operation for each derivable output kind."
+  @spec producer_operations() :: [{String.t(), String.t()}]
+  def producer_operations, do: Enum.map(@producers, fn {kind, {type, _fact}} -> {kind, type} end)
+
+  @doc "The closed set of protected operations a plan may declare."
+  @spec operation_types() :: [String.t()]
+  def operation_types, do: @operation_types
+
   @spec discriminator_kinds() :: [String.t()]
   def discriminator_kinds, do: @discriminator_kinds
 
