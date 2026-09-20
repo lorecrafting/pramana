@@ -81,6 +81,8 @@ disabled/routed to their containment owners until rewritten.
   boundaries, parity matrix, cutover, and rollback.
 - [`docs/MIGRATION-TICKETS.md`](docs/MIGRATION-TICKETS.md) — authoritative eight-ticket
   sequence and the bounded contracts for the next two implementation tickets.
+- [`docs/DURABLE-STORE.md`](docs/DURABLE-STORE.md) — FR-07 SQLite authority boundary,
+  initialization/recovery, offline import and current limitations.
 - [`../docs/PLAN.md`](../docs/PLAN.md) — project roadmap and Foundry audit follow-up.
 
 ## Tracked layout
