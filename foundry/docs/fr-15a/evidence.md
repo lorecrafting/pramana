@@ -1,8 +1,8 @@
 # FR-15aA candidate evidence
 
-**Specification candidate:** `97b0ea4375f309cee8e65763d312d622038c62c8`
+**Specification candidate:** `ca4094e2d43212c3399ab5458e9af64c40640c14`
 
-**Tree:** `8f59f5901845be291b818989f0947117407f27f0`
+**Tree:** `8b027b4ef29c830215461cd7e3a89df81e8f4971`
 
 **Base:** `f5067d96d67a9ec3193a9b8bbadfa54c16525aa3`
 
@@ -18,7 +18,7 @@ installed-harness conformance. OMP remains governing and Pi remains unselected.
 | `a3f039d0bfba79fbf5c83d0b15954d5b852371dfd6a765876ede2c2f2b62b297` | `foundry/ci/validate_fr15aa.exs` |
 | `c8a0f96761d22420afb0e1090bea5de5129b68737459610d0328fd212b4e5201` | `foundry/docs/README.md` |
 | `3ceecfc0bf5b4cd9de7c390cc1356334325563e4a57396a3843954057254739e` | `foundry/docs/fr-15a/provisioning-manifest.exs` |
-| `14f90fc20c5fd27aa222fba5d144bbdcf292c08cb8f64f03cd7b8c13af4b6766` | `foundry/docs/fr-15a/provisioning-specification.md` |
+| `e6f90482419617e58cb14bba4dde27e75d5daa21e6792bb8813c793fde35e448` | `foundry/docs/fr-15a/provisioning-specification.md` |
 | `8ff186e13332bc6da9b25f8b7039fb144c2956132ccaafaabb7c21a246e39d17` | `foundry/test/pramana_foundry/repair/fr15aa_provisioning_test.exs` |
 
 ## Commands and results
@@ -27,9 +27,9 @@ Commands ran in `/private/tmp/pramana-fr15aa` unless a `cd foundry` is shown.
 
 ```text
 git rev-parse HEAD
-  97b0ea4375f309cee8e65763d312d622038c62c8
+  ca4094e2d43212c3399ab5458e9af64c40640c14
 git rev-parse HEAD^{tree}
-  8f59f5901845be291b818989f0947117407f27f0
+  8b027b4ef29c830215461cd7e3a89df81e8f4971
 
 cd foundry
 elixir ci/validate_fr15aa.exs
@@ -43,11 +43,11 @@ mix format --check-formatted ci/validate_fr15aa.exs \
 
 MIX_ENV=test elixir -r test/test_helper.exs \
   test/pramana_foundry/repair/fr15aa_provisioning_test.exs
-  seed 781696; 5 passed; exit 0
+  seed 982154; 5 passed; exit 0
 
 cd ..
 elixir bin/check_docs.exs
-  seed 582796; 80 passed; exit 0
+  seed 136571; 80 passed; exit 0
 
 git diff --cached --check
   no output; exit 0
