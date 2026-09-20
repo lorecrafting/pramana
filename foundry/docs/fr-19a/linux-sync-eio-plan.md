@@ -41,6 +41,18 @@ authoritative FR-19A obligation is an attributable physical/kernel sync failure,
 particular errno. This plan therefore accepts `EIO` or provenance-checked `EROFS`; this is
 not a waiver and the result is never relabeled as `EIO`.
 
+Run `35498046373` and artifact `10600583609` at revision
+`97aabf406aecceba32b910221056748b24e67bc3`
+proved the unchanged Gateway path returned a typed storage failure after an exact-path
+`fsync` returned kernel `EIO`; recovery mode and a later protected-operation refusal also
+passed. It was diagnostic rather than acceptance evidence because offline verification
+was attempted while ext4 remained in `emergency_ro`, and the detached loop's
+machine-readable unbound row was conservatively classified as unavailable. The corrected
+sequence closes all owned descriptors, stops the Gateway, performs an ordinary unmount
+and fresh mount of the same revalidated mapper, and only then verifies retained content.
+It separately classifies an exact unbound loop row as absent ownership rather than a
+foreign or unavailable binding.
+
 ## Boundary
 
 The branch-only [workflow](../../../.github/workflows/fr19a-sync-eio.yml) uses an ephemeral
@@ -94,8 +106,13 @@ The fixture also requires the public backup result to carry the same typed reaso
 `{:storage_unavailable, {:backup_failed, reason}}`, gateway recovery mode, refusal of a
 later protected effect, complete prior commands/events/projections/effects/claims/ledger
 generations/reservations, unchanged source baseline, and retained content-verifiable
-destination after restoring the exact linear table. Restoring the mapper is not described
-as filesystem recovery when ext4 remains `emergency_ro`.
+destination after restoring the exact linear table, closing the exercised descriptor and
+Gateway, and ordinarily unmounting and freshly mounting the same owned filesystem. The
+fresh mount must be writable and must no longer report `emergency_ro`; no fsck, mkfs,
+replacement, forced/lazy unmount or other repair is permitted. The pre-unmount destination
+digest must equal the post-remount and post-verification digest. This proves retained
+content recovery after restoration and orderly remount, not failed-sync persistence,
+power-loss survival or media durability.
 
 ## Cleanup and evidence
 
@@ -119,6 +136,7 @@ capability produces an honest unavailable artifact. A green workflow is still on
 candidate evidence input: independent review must bind the exact revision, inspect the
 artifact and decide whether the unwaived FR-19A sync obligation is satisfied.
 
-This acceptance proves the exercised Gateway backup `:file.sync` path only. It does not
-prove SQLite `xSync`, WAL durability, power-loss survival, controller/cache flush or media
-durability.
+This acceptance proves the exercised Gateway backup `:file.sync` failure, fencing and
+retained content recovery after restoration and orderly remount only. It does not prove
+failed-sync persistence, SQLite `xSync`, WAL durability, power-loss survival,
+controller/cache flush or media durability.

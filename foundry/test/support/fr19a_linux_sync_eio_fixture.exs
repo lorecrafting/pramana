@@ -205,7 +205,7 @@ end
     protected.("SYNC-EIO")
   )
 
-{:ok, %{content: baseline}} = Gateway.backup(seed, baseline_path)
+{:ok, %{content: baseline, reconstruction: baseline_replay}} = Gateway.backup(seed, baseline_path)
 assert_complete.(baseline)
 baseline_digest = file_digest.(baseline_path)
 :ok = GenServer.stop(seed)
@@ -263,6 +263,7 @@ dirty_holder =
   end
 
 :ok = restore_and_stop.(dirty_holder)
+IO.puts("DIRTY_HELPER_JOINED=pass")
 
 case backup_result do
   {:error, {:storage_unavailable, {:backup_failed, reason}}}
@@ -288,20 +289,37 @@ IO.puts("GATEWAY_RECOVERY_MODE=pass")
 
 IO.puts("LATER_PROTECTED_REFUSAL=pass")
 
+:ok = GenServer.stop(gateway)
+IO.puts("GATEWAY_STOPPED=pass")
 unless File.exists?(destination), do: raise("partial backup destination was removed")
+destination_size = File.stat!(destination).size
+if destination_size <= 0, do: raise("retained backup destination is empty")
 partial_digest = file_digest.(destination)
-{:ok, %{content: ^baseline}} = Maintenance.verify(destination)
+^baseline_digest = file_digest.(baseline_path)
+IO.puts("DESTINATION_PRE_REMOUNT_SIZE=#{destination_size}")
+IO.puts("DESTINATION_PRE_REMOUNT_SHA256=#{partial_digest}")
+
+:ok = run_host.("recover-remount")
+IO.puts("ORDERLY_REMOUNT_RECOVERY=pass")
+
+^partial_digest = file_digest.(destination)
+{:ok, %{content: ^baseline, replay: ^baseline_replay}} = Maintenance.verify(destination)
 ^partial_digest = file_digest.(destination)
 ^baseline_digest = file_digest.(baseline_path)
 IO.puts("DESTINATION_VERIFICATION=pass")
-:ok = GenServer.stop(gateway)
 
 {:ok, reopened} = Gateway.start_link(path: source, protected_capability: capability)
-{:ok, %{content: ^baseline}} = Gateway.backup(reopened, recovered_path)
+
+{:ok, %{content: ^baseline, reconstruction: ^baseline_replay}} =
+  Gateway.backup(reopened, recovered_path)
+
 assert_complete.(baseline)
 :ok = GenServer.stop(reopened)
+{:ok, %{content: ^baseline, replay: ^baseline_replay}} = Maintenance.verify(recovered_path)
+^baseline_digest = file_digest.(baseline_path)
 IO.puts("SOURCE_AUTHORITY=pass")
-IO.puts("FILESYSTEM_RECOVERY=not_claimed")
+IO.puts("FILESYSTEM_RECOVERY=orderly_remount")
+IO.puts("FAILED_SYNC_PERSISTENCE=not_claimed")
 
 IO.puts("BASELINE_SHA256=#{baseline_digest}")
 IO.puts("PARTIAL_SHA256=#{partial_digest}")

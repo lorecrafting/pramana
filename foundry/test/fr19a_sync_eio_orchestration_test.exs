@@ -21,6 +21,7 @@ defmodule PramanaFoundry.CI.FR19ASyncEIOOrchestrationTest do
     assert worker == holder.pid
     assert_receive {:fr19a_pwrite_finished, ^token, ^worker, :ok}, 100
     assert :ok = Orchestration.stop_pwrite_holder(holder)
+    refute Process.alive?(holder.pid)
     assert File.read!(path) == block
   end
 
