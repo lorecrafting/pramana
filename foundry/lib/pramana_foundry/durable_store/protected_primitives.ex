@@ -5450,19 +5450,16 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp valid_settlement_shape?(_settlement), do: false
 
-  # Mirrors Gateway.atomic_domain_request/1. The stored request names the envelope's real
-  # carrier, so a proposal-bearing row keeps the exact three-key shape it always had and
-  # existing histories validate unchanged, while a plan-bearing row records its plan
-  # rather than a nil proposal.
-  defp expected_bundle_domain_request(envelope) do
-    carrier = if Map.has_key?(envelope, "plan"), do: "plan", else: "proposal"
-
-    %{
-      "command" => envelope["command"],
-      "inputs" => envelope["inputs"],
-      carrier => envelope[carrier]
-    }
-  end
+  # Delegates to Gateway rather than mirroring it. A hand-copied rule would be correct
+  # only while both sides happen to agree: add a third carrier, update one side, and a
+  # legitimately committed bundle reads as :protected_corrupt on its next validation.
+  #
+  # This is deliberately unlike the TransitionPlan/Kernel.Plan duplication, which exists
+  # because those are different trust tiers and root must never execute candidate code.
+  # Gateway and ProtectedPrimitives are the same trust tier, so duplication here buys
+  # nothing and costs a silent divergence.
+  defp expected_bundle_domain_request(envelope),
+    do: PramanaFoundry.DurableStore.Gateway.atomic_domain_request(envelope)
 
   defp valid_bundle_domain_row?(row, envelope, result) do
     case row do
