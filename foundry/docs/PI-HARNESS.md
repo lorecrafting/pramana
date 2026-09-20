@@ -407,6 +407,19 @@ If the UI accidentally exposes `write` during review, the gateway still refuses 
 the UI hides `write` during work, the assignment merely loses convenience; authority is
 not inferred from visibility.
 
+Keep two separate sets:
+
+- **CapabilityGrant** — everything this authenticated execution may request; this is the
+  authority ceiling and is enforced by Foundry.
+- **PresentedToolSurface** — the compact set of tool contracts currently shown to the
+  model; this is a context/ergonomics optimization and may be much smaller.
+
+A hidden tool remains unauthorized unless it is in the CapabilityGrant; a visible tool
+remains denied when it is outside the grant. Progressive/deferred tool discovery may
+therefore reduce repeated schema/context tax without becoming a security mechanism.
+Discovery itself must return only controller-admitted tool metadata, and invoking a
+newly discovered tool still crosses the normal authenticated gateway.
+
 There is no governed equivalent of an unrestricted "bypass permissions" mode.
 
 ### 8.2 Plan mode — P0/P1 UX
@@ -447,6 +460,13 @@ Initial governed skills should be few and durable, for example:
 Governed runs should initially load only controller-approved, digest-pinned skills.
 Project-controlled candidate text can be supplied as attributed context, but it is not
 new governing policy merely because Pi calls it a skill.
+
+Prefer a small pinned skill catalog plus progressive reads over injecting every skill body
+at session bootstrap. The model may list approved skill names/short descriptions and
+request one or more exact skill/reference digests when relevant. The bridge must not fall
+back to ambient global/project skill discovery when a governed manifest is present.
+Skill retrieval is context loading, not authority expansion, and skill text cannot weaken
+mandatory policy or alter the execution's grant.
 
 The root `AGENTS.md` remains the provider-neutral repository router. A Pi adapter must
 explicitly supply it when Pi does not natively apply that repository convention.
@@ -629,6 +649,31 @@ The safer loop is:
 
 A lesson cannot silently become policy or weaken a mandatory gate.
 
+
+### 8.14 Notebook/local composition — evaluation candidate
+
+A persistent execution-local notebook or code-composition runtime can reduce model turns
+by composing multiple admitted reads/searches/transforms/checks before returning a bounded
+result. Treat this as an optimization candidate, not as another workflow engine.
+
+Rules for a governed notebook:
+
+- it receives only the PresentedToolSurface and execution-scoped handles admitted for the
+  current assignment;
+- every nested external effect still crosses Foundry authorization and request/effect
+  accounting; composing calls in one cell does not batch away authority checks;
+- persistent bindings, checkpoints and cached values are disposable execution-local
+  computation state, not durable workflow/evidence/budget truth;
+- restart/reset cannot restore expired grants, erase acknowledged effects, refund budget
+  or establish acceptance;
+- raw tool results may be reduced inside the notebook, but telemetry records both raw
+  result size and model-visible admitted size so the saving is measurable;
+- notebook/runtime code is pinned and sandboxed with the same scrutiny as any other
+  model-directed executable path.
+
+Evaluate notebook/code composition against ordinary structured tools on the same task set;
+do not adopt it from an external benchmark alone.
+
 ## 9. Tool gateway sketch
 
 The exact protocol is an implementation decision, but the bridge should expose a small
@@ -804,8 +849,22 @@ Minimum useful event families:
 - operator intervention.
 
 Record bounded metadata rather than raw prompts/responses by default. Tool observation
-should include invocation identity, admitted capability, duration, result size,
-truncation/error status and bounded context admission.
+should include invocation identity, admitted capability, duration, raw result size,
+model-visible result size, truncation/error status and bounded context admission.
+
+Measure **harness tax** explicitly where observable. Useful fields include bootstrap/
+initial-context tokens, attributed system-instruction/tool-contract/skill/project-context
+tokens, raw versus model-visible tool-result bytes, request/turn/tool counts, cache
+read/write usage, compaction counts, context before/after compaction, tool/preflight
+errors, and orchestrator wakeups that produced no actionable state change. Attribution may
+be estimated, but the quality label must remain attached. Do not infer a component split
+by subtracting incompatible provider counters.
+
+Waiting on child work should be event/future driven where the runtime permits it. A
+deterministic controller may wait without invoking an LLM; the orchestrator/model is
+woken when an admitted event, deadline, operator decision or meaningful state change needs
+reasoning. Polling an expensive model only to learn "nothing completed" is measurable
+orchestration tax, not progress.
 
 Failed, retried, corrected and reviewed work stays in the denominator. A "cheaper"
 execution that produces more correction/review/operator effort is not a proven
@@ -826,17 +885,20 @@ owning work is admissible.
 2. Build a strict pinned Pi RPC adapter with JSONL framing and protocol validation.
 3. Define a controller-owned governed loadout/instruction/session manifest and refuse
    ambient executable configuration or foreign-session resume.
-4. Implement the minimal trusted bridge and gateway path needed for a useful coding task
+4. Add deterministic execution-profile preflight for required/available binaries,
+   toolchain versions, workspace readability, isolation/network mode and registered
+   checks so model turns are not spent rediscovering knowable environment facts.
+5. Implement the minimal trusted bridge and gateway path needed for a useful coding task
    without ambient model-visible host filesystem/process/network access.
-5. Prove provider/model/billing selection, per-request durable reservation/receipt and
+6. Prove provider/model/billing selection, per-request durable reservation/receipt and
    fail-closed no-paid-fallback behavior for the intended real route.
-6. Prove credential/filesystem/network/process isolation with synthetic secrets and
+7. Prove credential/filesystem/network/process isolation with synthetic secrets and
    controlled endpoints.
-7. Connect Pi usage/context/compaction observations to FR-18's versioned telemetry path.
-8. Provide inspect/plan/work/review tool projections backed by actual grants.
-9. Supply the repository router/context explicitly and prove mandatory context survives
+8. Connect Pi usage/context/compaction observations to FR-18's versioned telemetry path.
+9. Provide inspect/plan/work/review tool projections backed by actual grants.
+10. Supply the repository router/context explicitly and prove mandatory context survives
    compaction.
-10. Pass lifecycle/restart/cancellation/reconciliation conformance and one bounded useful
+11. Pass lifecycle/restart/cancellation/reconciliation conformance and one bounded useful
     developer/reviewer flow.
 
 P0 does not require polishing the interactive TUI or matching every Claude Code feature.
@@ -890,6 +952,8 @@ cases must be executable against the exact candidate.
 
 ### Configuration/supply chain
 
+- deterministic preflight reports the exact admitted/available toolchain before the first
+  model turn and missing expected binaries do not require exploratory LLM/tool churn;
 - malicious project-local extension is ignored/refused in governed mode;
 - malicious user-level extension/config is ignored/refused;
 - candidate-modified `AGENTS.md`/skill/prompt is visible as candidate data but cannot
@@ -960,6 +1024,20 @@ cases must be executable against the exact candidate.
 - revoked/narrowed grant remains revoked after session branch;
 - accepted/deployed pointers do not move from a local rewind.
 
+### Efficiency/context behavior
+
+- CapabilityGrant can remain broad while PresentedToolSurface is narrowed without changing
+  gateway authorization outcomes;
+- a deferred/discovered tool cannot be invoked unless it was already admitted, and
+  discovery cannot reveal ambient/unadmitted tools;
+- progressive skill reads are restricted to the pinned catalog/digests;
+- an execution-local notebook/code-composition runtime cannot retain authority across
+  reset/restart or bypass per-effect/per-request accounting;
+- event-driven child waiting produces zero model requests while no meaningful event,
+  deadline or operator decision requires reasoning;
+- raw versus admitted tool-result size and bootstrap/context attribution are observable
+  without retaining sensitive prompt bodies.
+
 ### Useful completion
 
 At least one representative software task must complete with:
@@ -994,11 +1072,18 @@ lifecycle, denial and cleanup cases.
 Under explicit existing authorization, prove the intended real subscription route plus
 synthetic-secret, network and filesystem denial. Record actual usage signals and unknowns.
 
-### Stage D — software workflow trial
+### Stage D — software workflow and harness-efficiency trial
 
 Run one bounded developer/check/reviewer/correction flow without autonomous merge or
 activation. Compare evidence/operator effort with the current reference path where a
 valid reference exists.
+
+Use a fixed task/evaluation set to compare only admitted variants, for example structured
+tools versus progressive/deferred presentation, eager versus progressive skills, ordinary
+tool turns versus notebook/code composition, and baseline versus managed context. Hold
+model/profile, Foundry authority, isolation, provider route and acceptance checks constant
+when attributing a harness effect. Record failures and rework; external benchmark scores
+are hypotheses, not substitution evidence.
 
 ### Stage E — substitution decision
 
