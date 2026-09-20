@@ -16,6 +16,14 @@ probe therefore validates both setup-beam executable paths, passes a fixed runti
 `PATH` explicitly across sudo, and captures the capability command status inside a
 conditional before the separate refusal step owns any failure.
 
+Run `35495816592` at revision `d7031a34c4a7ed4ef2c3e040362e3c71a9c052be`
+and artifact `10600459221` were also diagnostic only. The raw probe reached the exact
+suspended mapper, then deadlocked by waiting synchronously for a `pwrite` that the
+suspension itself prevented from completing; the run was cancelled and exact cleanup
+succeeded. Both probes now start the `pwrite` in a tracked helper, establish that it is
+pending, load the error table and resume before awaiting its bounded outcome. Cleanup
+restores the mapper before bounded helper termination.
+
 ## Boundary
 
 The branch-only [workflow](../../../.github/workflows/fr19a-sync-eio.yml) uses an ephemeral
@@ -45,10 +53,13 @@ The raw capability probe and the actual Gateway fixture both:
 
 1. open and pre-read a block from the target while the linear mapping is healthy;
 2. suspend only the exact mapper;
-3. `pwrite` the identical cached bytes through a second valid descriptor, leaving logical
-   content unchanged while making the inode dirty;
-4. load `0 <exact-sectors> error` and resume the mapper;
-5. invoke a real sync on an already valid descriptor.
+3. start a `pwrite` of the identical cached bytes through a second valid descriptor in a
+   tracked helper, and establish that it is pending rather than wait on the suspended
+   device;
+4. load `0 <exact-sectors> error`, resume the mapper and collect the bounded helper
+   outcome;
+5. invoke a real sync on an already valid descriptor. A helper-only `pwrite` EIO does not
+   satisfy this obligation.
 
 For the Gateway case, steps 1–4 run through the existing
 `maintenance_fault: {:during, :during_backup_sync, fun}` seam after the verified backup is
