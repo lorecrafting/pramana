@@ -52,12 +52,14 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @slots %{
     "launch_planned.authority" => {"launch_planned", "authority", "launch_authority_v1"},
     "check_planned.authority" => {"check_planned", "authority", "launch_authority_v1"},
+    "build_planned.authority" => {"build_planned", "authority", "launch_authority_v1"},
     "review_planned.authority" => {"review_planned", "authority", "launch_authority_v1"},
     "integration_planned.authority" =>
       {"integration_planned", "authority", "launch_authority_v1"},
     "pm_launch_planned.authority" => {"pm_launch_planned", "authority", "launch_authority_v1"},
     "launch_settled.settlement" => {"launch_settled", "settlement", "nonstart_settlement_v1"},
     "check_settled.settlement" => {"check_settled", "settlement", "nonstart_settlement_v1"},
+    "build_settled.settlement" => {"build_settled", "settlement", "nonstart_settlement_v1"},
     "review_settled.settlement" => {"review_settled", "settlement", "nonstart_settlement_v1"},
     "integration_settled.settlement" =>
       {"integration_settled", "settlement", "nonstart_settlement_v1"},

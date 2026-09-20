@@ -31,7 +31,7 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
   # transition-plan destination slots require, rather than the full R4 seed, so every
   # name here is justified by a concrete binding. FR-08B adds the remainder as its
   # reduction is written; additions are cheap, redefinition is forbidden.
-  @lifecycle_event_types ~w(launch_planned launch_settled check_planned check_settled review_planned review_settled integration_planned integration_settled pm_launch_planned pm_launch_settled control_changed ticket_reset)
+  @lifecycle_event_types ~w(launch_planned launch_settled check_planned check_settled build_planned build_settled review_planned review_settled integration_planned integration_settled pm_launch_planned pm_launch_settled control_changed ticket_reset)
 
   @event_types @legacy_event_types ++ @lifecycle_event_types
 

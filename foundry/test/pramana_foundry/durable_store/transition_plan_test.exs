@@ -613,7 +613,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     # could not express two of R4a's four domain-owner rows. It checks coverage of the
     # contract, not mechanics.
     test "every R4a domain owner has a settlement destination slot" do
-      for owner <- ~w(launch check review integration pm_launch) do
+      for owner <- ~w(launch check build review integration pm_launch) do
         slot = "#{owner}_settled.settlement"
 
         assert {:ok, {_type, "settlement", "nonstart_settlement_v1"}} =
@@ -623,7 +623,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     end
 
     test "every declared admission slot can actually bind an authority fact" do
-      for owner <- ~w(launch check review integration pm_launch) do
+      for owner <- ~w(launch check build review integration pm_launch) do
         slot = "#{owner}_planned.authority"
         assert {:ok, {_type, "authority", kind}} = TransitionPlan.slot(slot)
 
