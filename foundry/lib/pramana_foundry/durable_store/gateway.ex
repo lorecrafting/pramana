@@ -594,8 +594,9 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          ^actor_id <- normalized_input["actor_id"],
          true <- plain_map?(normalized_input["inputs"]),
          {:ok, command} <- RecordCodec.normalize(:command, normalized_input["command"]),
-         {:ok, carried} <- normalize_atomic_carrier(carrier, normalized_input[carrier]),
          {:ok, operations} <- normalize_atomic_operations(normalized_input["operations"]),
+         {:ok, carried} <-
+           normalize_atomic_carrier(carrier, normalized_input[carrier], operations),
          normalized <- %{
            "schema_version" => 2,
            "actor_id" => actor_id,
@@ -1314,10 +1315,10 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   # one fixed protected function rather than dispatching on caller-supplied text.
   defp protected_discriminator(
          conn,
-         %{"discriminator_kind" => "infrastructure_limit_v1"},
+         %{"discriminator_kind" => "infrastructure_limit_v1"} = plan,
          results
        ) do
-    with {:ok, settlement} <- staged_settlement_fact(results) do
+    with {:ok, settlement} <- staged_settlement_fact(plan, results) do
       ProtectedPrimitives.infrastructure_discriminator(
         conn,
         settlement["effect_id"],
@@ -1329,15 +1330,24 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp protected_discriminator(_conn, _plan, _results),
     do: {:error, :unsupported_discriminator_kind}
 
-  defp staged_settlement_fact(results) do
-    settlements =
-      Enum.flat_map(results, fn result ->
-        List.wrap(get_in(result, ["result", "facts", "infrastructure_settlement"]))
-      end)
+  # Resolved through the ordinal the plan's settlement binding declares, not by scanning
+  # every staged result for a unique settlement. The scanning form failed closed, but it
+  # would have refused a legitimate bundle settling two independent role launches
+  # atomically, and it let the discriminator describe a settlement the plan never bound.
+  defp staged_settlement_fact(plan, results) do
+    case Enum.filter(plan["bindings"], &(&1["output_kind"] == "nonstart_settlement_v1")) do
+      [binding] ->
+        settlement =
+          results
+          |> Enum.find(%{}, &(&1["ordinal"] == binding["operation_ordinal"]))
+          |> get_in(["result", "facts", "infrastructure_settlement"])
 
-    case settlements do
-      [settlement] -> {:ok, settlement}
-      _ -> {:error, :discriminator_settlement_unavailable}
+        if is_map(settlement),
+          do: {:ok, settlement},
+          else: {:error, :discriminator_settlement_unavailable}
+
+      _ ->
+        {:error, :discriminator_settlement_unavailable}
     end
   end
 
@@ -1364,8 +1374,30 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     }
   end
 
-  defp normalize_atomic_carrier("proposal", value), do: normalize_candidate(value)
-  defp normalize_atomic_carrier("plan", value), do: TransitionPlan.validate(value)
+  defp normalize_atomic_carrier("proposal", value, _operations), do: normalize_candidate(value)
+
+  defp normalize_atomic_carrier("plan", value, operations) do
+    with {:ok, plan} <- TransitionPlan.validate(value),
+         :ok <- plan_describes_operations(plan, operations) do
+      {:ok, plan}
+    end
+  end
+
+  # A plan whose declared operations disagree with the ones the envelope actually stages
+  # is incoherent. derive_output/2 validates against the real staged result, so this was
+  # not unsound, but an incoherent plan should be refused here rather than tolerated
+  # because a later check happens to catch the consequence.
+  defp plan_describes_operations(plan, operations) do
+    declared =
+      Enum.map(plan["protected_operations"], &{&1["ordinal"], &1["type"]})
+
+    staged =
+      operations
+      |> Enum.with_index()
+      |> Enum.map(fn {entry, index} -> {index, entry["operation"]["type"]} end)
+
+    if declared == staged, do: :ok, else: {:error, :plan_operations_mismatch}
+  end
 
   defp normalize_candidate(proposal) do
     case Kernel.normalize_bundle(proposal) do

@@ -1386,5 +1386,43 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       assert :ok = Sqlite3.close(raw)
       assert %{"value" => %{"phase" => "blocked"}} = bytes |> :json.decode() |> normalize_json()
     end
+
+    test "a plan whose declared operations disagree with the envelope is refused", ctx do
+      seed_issued_launch!(ctx)
+
+      incoherent =
+        nonstart_plan_bundle("PLAN12")
+        |> put_in(["plan", "protected_operations"], [
+          %{"schema_version" => 1, "ordinal" => 0, "type" => "set_control", "input" => %{}}
+        ])
+
+      # Refused at normalization rather than tolerated until derive_output/2 happens to
+      # catch the consequence against the real staged result.
+      assert {:error, :plan_operations_mismatch} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", incoherent)
+    end
+
+    test "the discriminator needs the settlement its own plan binds", ctx do
+      seed_issued_launch!(ctx)
+
+      # A plan that binds no settlement cannot supply the infrastructure discriminator,
+      # even though the envelope stages a settle_claim whose settlement a global scan
+      # would have found and silently used.
+      unbound =
+        nonstart_plan_bundle("PLAN13")
+        |> put_in(["plan", "bindings"], [
+          %{
+            "name" => "settled",
+            "operation_ordinal" => 0,
+            "output_kind" => "control_fact_v1",
+            "destination_slot" => "control_changed.control"
+          }
+        ])
+
+      assert {:ok, %{"disposition" => "rejected", "reason_code" => reason}, _} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unbound)
+
+      assert reason == "discriminator_settlement_unavailable"
+    end
   end
 end
