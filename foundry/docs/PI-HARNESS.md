@@ -1,6 +1,6 @@
 # Foundry Pi harness design
 
-**Status:** design candidate, 2026-09-19. This document does **not** adopt Pi, replace
+**Status:** design candidate, updated 2026-09-20. This document does **not** adopt Pi, replace
 OMP, enable automatic model execution, approve a provider/billing route, or weaken any
 repair gate. The active [repair plan](REPAIR-PLAN.md) and
 [workflow contract](WORKFLOW-CONTRACT.md) remain governing until their owning requirements
@@ -8,6 +8,7 @@ are explicitly revised and re-reviewed.
 
 [Foundry strategy](STRATEGY.md#pi-explicit-session-contracts-and-replaceable-execution) ·
 [Observability](OBSERVABILITY.md) ·
+[Jido / Jido.Harness evaluation](JIDO-HARNESS.md) ·
 [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md) ·
 [Research sources](../../docs/strategy/RESEARCH.md)
 
@@ -16,7 +17,7 @@ are explicitly revised and re-reviewed.
 | Task | Section |
 |---|---|
 | Understand the architecture/ownership split | [Decision summary](#1-decision-summary), [ownership](#4-ownership-boundary), [topology](#6-recommended-governed-topology) |
-| Implement the adapter | [Execution contract](#5-harness-neutral-execution-contract), [loadout](#7-deterministic-loadout-and-configuration), then the P0/P1/P2 scope below |
+| Implement/evaluate the adapter | [Execution contract](#5-harness-neutral-execution-contract), [Jido / Jido.Harness evaluation](JIDO-HARNESS.md), [loadout](#7-deterministic-loadout-and-configuration), then the P0/P1/P2 scope below |
 | Add Claude-like ergonomics | [Feature disposition](#8-claude-like-feature-disposition) |
 | Review security/isolation | [Threat model](#10-bridge-threat-model), [provider/billing](#11-provider-and-billing-boundary), [conformance](#14-conformance-matrix) |
 | Review observability/efficiency | [Observability](#12-observability-integration), then the context/compaction feature disposition |
@@ -24,8 +25,10 @@ are explicitly revised and re-reviewed.
 
 ## 1. Decision summary
 
-Use Pi as the preferred **replacement harness candidate**, not as a new Foundry control
-plane. The target is "Claude-quality coding ergonomics under Foundry-quality authority":
+Use Pi as the preferred **replacement agent/harness workload candidate**, not as a new Foundry control
+plane. Do not assume the bridge must be custom: compare direct pinned Pi RPC with pinned
+Jido.Harness/ACP behind the same Foundry execution contract before selecting the
+production adapter. The target is "Claude-quality coding ergonomics under Foundry-quality authority":
 
 - Pi owns the model/session loop, streaming, context plumbing, compaction hooks and
   optional interactive UI.
@@ -33,8 +36,9 @@ plane. The target is "Claude-quality coding ergonomics under Foundry-quality aut
   provider/billing authorization, budgets, child-work admission, effect execution,
   evidence, acceptance, recovery and activation.
 - A small pinned Foundry bridge may translate Pi tool/lifecycle events into Foundry
-  requests and observations. It must not become a scheduler, authority store, retry
-  engine or second workflow runtime.
+  requests and observations. That bridge may be direct Pi RPC or a proven
+  Jido.Harness/ACP adapter; either way it must not become a scheduler, authority store,
+  retry engine or second workflow runtime.
 - Governed runs load an explicit pinned Pi build, bridge and approved resources. They do
   not inherit arbitrary user-level or project-local extensions, agents, prompts, skills,
   MCP servers or configuration.
@@ -823,7 +827,10 @@ owning work is admissible.
 
 1. Define a harness-neutral Elixir behaviour around start/observe/prompt/interrupt/
    reconcile/close/usage.
-2. Build a strict pinned Pi RPC adapter with JSONL framing and protocol validation.
+2. Build two bounded adapter candidates against the same behaviour: direct pinned Pi RPC
+   with strict JSONL framing/protocol validation, and pinned Jido.Harness/ACP. Measure
+   lifecycle code removed versus extra protocol/dependency surface, then retain only the
+   candidate that passes conformance with lower maintenance burden.
 3. Define a controller-owned governed loadout/instruction/session manifest and refuse
    ambient executable configuration or foreign-session resume.
 4. Implement the minimal trusted bridge and gateway path needed for a useful coding task
@@ -980,14 +987,17 @@ still required for harness/provider/billing claims.
 
 ### Stage A — protocol fixture
 
-Implement the generic harness boundary and Pi JSONL parser against captured/pinned
-fixtures. No real provider or automatic execution.
+Implement the generic harness boundary and deterministic fixtures for both direct Pi JSONL
+and the pinned Jido.Harness/ACP path. No real provider or automatic execution. Exercise
+normalization gaps explicitly rather than assuming ACP preserves provider-native fields.
 
 ### Stage B — pinned local candidate
 
-Run exact Pi/bridge builds in an isolated test environment with protocol fixtures or an
-otherwise controlled provider test route plus the effect gateway. Exercise configuration,
-lifecycle, denial and cleanup cases.
+Run exact Pi and bridge-candidate builds in an isolated test environment with protocol
+fixtures or an otherwise controlled provider test route plus the effect gateway. Exercise
+configuration, lifecycle, replay, cancellation, restart/reconcile, denial and cleanup
+cases. Do not carry both candidates beyond this stage unless both are still required to
+complete the comparison.
 
 ### Stage C — bounded provider/isolation smoke
 
@@ -1087,6 +1097,14 @@ Primary references checked for this design:
   https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/sessions.md
 - Pi containerization/security guidance:
   https://github.com/earendil-works/pi/blob/46c9de402bddf46b03c3b9f46487b777aaa41861/packages/coding-agent/docs/containerization.md
+- Jido.Harness README (pinned):
+  https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/README.md
+- Jido.Harness normalization/data model (pinned):
+  https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/guides/normalization_and_data_model.md
+- Jido.Harness ExMCP/ACP boundary (pinned):
+  https://github.com/agentjido/jido_harness/blob/07870f722cbb6aa19a556b232f34528a821b98e8/docs/decisions/exmcp-acp-boundary.md
+- Agent Client Protocol:
+  https://agentclientprotocol.com/
 - Claude Code feature overview:
   https://code.claude.com/docs/en/features-overview
 - Claude Code permissions:
@@ -1106,7 +1124,8 @@ available mechanisms and design inspiration, not Foundry acceptance evidence.
 
 The design leaves these decisions for measured implementation work:
 
-- exact local IPC transport for the Pi bridge and provider-request broker/adapter;
+- whether direct Pi RPC or pinned Jido.Harness/ACP is the selected bridge after the
+  bounded substitution comparison, and only then the exact local IPC/adapter details;
 - which Pi-internal pure/session/UI tools can remain direct after the resource-path
   inventory proves they cannot access project/host resources;
 - exact sandbox/runtime implementation;
