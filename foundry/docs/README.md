@@ -19,6 +19,7 @@ contract still govern implementation.
 | Inspect the FR-15aA host/provisioning specification and executable inventory | [FR-15aA provisioning specification](fr-15a/provisioning-specification.md), its [machine-readable manifest](fr-15a/provisioning-manifest.exs), then the governing FR-15aB/FR-09 criteria; the specification enables no execution |
 | Resume active repairs | [Repair plan](REPAIR-PLAN.md), the current ticket's acceptance criteria and its referenced evidence |
 | Implement FR-08B after its atomic prerequisite | [Command-ingress inventory and acceptance matrix](fr-08/fr08b-ingress-inventory.md), then the [atomic-composition diagnosis](fr-08/atomic-composition-diagnosis.md) and governing repair-plan section |
+| Resolve FR-08B protected-result/domain binding | [Root-fact composition diagnosis](fr-08/fr08b-root-fact-composition-diagnosis.md), a proposed bounded interface correction with exact inspected revisions |
 | Understand current alignment, known source gaps and the FR-07→FR-08 disposition | [Independent alignment audit](ALIGNMENT-AUDIT-2026-09-19.md), then [repair plan](REPAIR-PLAN.md) and [FR-08 investigation](fr-08/investigation.md) |
 | Inspect the exact disposition candidate and its independent verdict | [Candidate record](alignment-disposition-2026-09-19.md) and [Astra-high PASS](alignment-disposition-review-2026-09-19.md) |
 | Inspect the H0 accepted-FR-07 boundary candidate and review | [H0 candidate](fr-08/h0-boundary-candidate.md) and [independent blocker review](fr-08/h0-boundary-review.md) |
