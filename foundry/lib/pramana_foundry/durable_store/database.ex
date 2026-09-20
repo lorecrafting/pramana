@@ -6,6 +6,176 @@ defmodule PramanaFoundry.DurableStore.Database do
 
   @schema_version 1
 
+  # FR-08A evolves the protected authority schema independently from the v1 domain
+  # command/event protocol.  The migration is additive so accepted FR-07 history is
+  # never rewritten merely to gain protected lifecycle primitives.
+  @protected_schema_version 1
+
+  @protected_schema """
+  CREATE TABLE IF NOT EXISTS root_commands (
+    seq INTEGER PRIMARY KEY,
+    command_id TEXT NOT NULL UNIQUE,
+    actor_id TEXT NOT NULL,
+    request_digest TEXT NOT NULL,
+    canonical_request BLOB NOT NULL,
+    schema_version INTEGER NOT NULL CHECK (schema_version = 1),
+    operation TEXT NOT NULL,
+    disposition TEXT NOT NULL CHECK (disposition IN ('accepted', 'rejected')),
+    reason_code TEXT,
+    result BLOB NOT NULL,
+    UNIQUE(command_id, actor_id, request_digest)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS authenticated_inboxes (
+    execution_id TEXT PRIMARY KEY,
+    actor_id TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    last_sequence INTEGER NOT NULL CHECK (last_sequence >= 0),
+    sealed_sequence INTEGER CHECK (sealed_sequence IS NULL OR sealed_sequence >= 0),
+    state BLOB NOT NULL,
+    CHECK (sealed_sequence IS NULL OR sealed_sequence <= last_sequence)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS authenticated_inbox_items (
+    execution_id TEXT NOT NULL REFERENCES authenticated_inboxes(execution_id),
+    sequence INTEGER NOT NULL CHECK (sequence > 0),
+    item_kind TEXT NOT NULL CHECK (item_kind IN ('result', 'exit', 'observation')),
+    disposition TEXT NOT NULL CHECK (disposition IN ('accepted', 'late')),
+    item_digest TEXT NOT NULL,
+    item BLOB NOT NULL,
+    PRIMARY KEY(execution_id, sequence),
+    UNIQUE(execution_id, item_digest)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_policies (
+    policy_id TEXT PRIMARY KEY,
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_policy_history (
+    policy_id TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    prior_revision INTEGER,
+    command_id TEXT NOT NULL REFERENCES root_commands(command_id) DEFERRABLE INITIALLY DEFERRED,
+    state BLOB NOT NULL,
+    PRIMARY KEY(policy_id, revision),
+    CHECK ((revision = 0 AND prior_revision IS NULL) OR prior_revision = revision - 1)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_controls (
+    control_id TEXT PRIMARY KEY,
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_control_history (
+    control_id TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    prior_revision INTEGER,
+    command_id TEXT NOT NULL REFERENCES root_commands(command_id) DEFERRABLE INITIALLY DEFERRED,
+    state BLOB NOT NULL,
+    PRIMARY KEY(control_id, revision),
+    CHECK ((revision = 0 AND prior_revision IS NULL) OR prior_revision = revision - 1)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_ledgers (
+    ledger_id TEXT NOT NULL,
+    generation INTEGER NOT NULL CHECK (generation >= 0),
+    parent_ledger_id TEXT,
+    parent_generation INTEGER,
+    dimension TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+    authorized INTEGER NOT NULL CHECK (authorized >= 0),
+    available INTEGER NOT NULL CHECK (available >= 0),
+    held INTEGER NOT NULL CHECK (held >= 0),
+    consumed INTEGER NOT NULL CHECK (consumed >= 0),
+    delegated INTEGER NOT NULL CHECK (delegated >= 0),
+    retired INTEGER NOT NULL CHECK (retired >= 0),
+    state BLOB NOT NULL,
+    PRIMARY KEY(ledger_id, generation),
+    UNIQUE(ledger_id, generation, dimension),
+    FOREIGN KEY(parent_ledger_id, parent_generation, dimension)
+      REFERENCES root_ledgers(ledger_id, generation, dimension),
+    CHECK ((parent_ledger_id IS NULL) = (parent_generation IS NULL)),
+    CHECK (authorized = available + held + consumed + delegated + retired)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_reservations (
+    reservation_id TEXT PRIMARY KEY,
+    ledger_id TEXT NOT NULL,
+    generation INTEGER NOT NULL,
+    dimension TEXT NOT NULL,
+    owner_kind TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    units INTEGER NOT NULL CHECK (units > 0),
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    status TEXT NOT NULL CHECK (status IN ('reserved', 'issued_unknown', 'consumed', 'released', 'retired')),
+    claim_id TEXT,
+    state BLOB NOT NULL,
+    FOREIGN KEY(ledger_id, generation, dimension) REFERENCES root_ledgers(ledger_id, generation, dimension),
+    FOREIGN KEY(claim_id) REFERENCES root_claims(claim_id)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_effects (
+    effect_id TEXT PRIMARY KEY,
+    request_digest TEXT NOT NULL,
+    policy_id TEXT NOT NULL REFERENCES root_policies(policy_id),
+    policy_revision INTEGER NOT NULL CHECK (policy_revision >= 0),
+    control_id TEXT NOT NULL REFERENCES root_controls(control_id),
+    control_revision INTEGER NOT NULL CHECK (control_revision >= 0),
+    operation TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    ticket_id TEXT NOT NULL,
+    attempt_id TEXT NOT NULL,
+    execution_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'claimed', 'issued', 'unknown', 'succeeded', 'failed', 'non_started', 'cancelled', 'reconciliation_required')),
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  CREATE UNIQUE INDEX IF NOT EXISTS root_one_live_effect_operation
+    ON root_effects(execution_id, operation)
+    WHERE status IN ('pending', 'claimed', 'issued', 'unknown', 'reconciliation_required');
+  CREATE TABLE IF NOT EXISTS root_claims (
+    claim_id TEXT PRIMARY KEY,
+    effect_id TEXT NOT NULL REFERENCES root_effects(effect_id),
+    writer_epoch TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('claimed', 'issued', 'unknown', 'succeeded', 'failed', 'non_started', 'cancelled', 'reconciliation_required')),
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  CREATE UNIQUE INDEX IF NOT EXISTS root_one_live_claim_per_effect
+    ON root_claims(effect_id)
+    WHERE status IN ('claimed', 'issued', 'unknown');
+  CREATE TABLE IF NOT EXISTS root_receipts (
+    receipt_id TEXT PRIMARY KEY,
+    claim_id TEXT NOT NULL REFERENCES root_claims(claim_id),
+    request_id TEXT NOT NULL,
+    outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'failed', 'non_started', 'unknown')),
+    receipt_digest TEXT NOT NULL,
+    state BLOB NOT NULL,
+    UNIQUE(request_id),
+    UNIQUE(claim_id, receipt_digest)
+  ) STRICT;
+  CREATE TABLE IF NOT EXISTS root_leases (
+    lease_id TEXT PRIMARY KEY,
+    claim_id TEXT NOT NULL REFERENCES root_claims(claim_id),
+    resource_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('held', 'released', 'retained')),
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  CREATE UNIQUE INDEX IF NOT EXISTS root_one_active_lease_per_resource
+    ON root_leases(resource_id)
+    WHERE status IN ('held', 'retained');
+  CREATE TABLE IF NOT EXISTS root_pointers (
+    pointer_kind TEXT PRIMARY KEY CHECK (pointer_kind IN ('accepted_source', 'selected_deployment', 'healthy_build')),
+    producer_status TEXT NOT NULL CHECK (producer_status IN ('absent', 'unavailable', 'present')),
+    revision INTEGER NOT NULL CHECK (revision >= 0),
+    state BLOB NOT NULL
+  ) STRICT;
+  CREATE INDEX IF NOT EXISTS root_reservations_ledger_idx
+    ON root_reservations(ledger_id, generation, reservation_id);
+  CREATE INDEX IF NOT EXISTS root_reservations_claim_idx
+    ON root_reservations(claim_id, reservation_id);
+  CREATE INDEX IF NOT EXISTS root_receipts_claim_idx
+    ON root_receipts(claim_id, receipt_id);
+  CREATE INDEX IF NOT EXISTS authenticated_inbox_items_order_idx
+    ON authenticated_inbox_items(execution_id, sequence);
+  """
+
   @schema """
   CREATE TABLE metadata (
     key TEXT PRIMARY KEY,
@@ -150,9 +320,11 @@ defmodule PramanaFoundry.DurableStore.Database do
     WHERE projection_namespace IS NOT NULL;
   CREATE INDEX effects_command_idx ON effects(command_id);
   CREATE INDEX reservations_generation_idx ON reservations(generation_id);
+  #{@protected_schema}
   """
 
   def schema_version, do: @schema_version
+  def protected_schema_version, do: @protected_schema_version
 
   def expected_schema_contract do
     case Sqlite3.open(":memory:") do
@@ -333,6 +505,48 @@ defmodule PramanaFoundry.DurableStore.Database do
     end)
   end
 
+  def migrate_protected_owned(%{
+        __struct__: PramanaFoundry.DurableStore.Owner,
+        identity: %PathIdentity{mode: :existing} = identity
+      }) do
+    case Sqlite3.open(identity.path, mode: :readwrite) do
+      {:ok, conn} ->
+        try do
+          with :ok <- PathIdentity.revalidate(identity),
+               :ok <- configure(conn),
+               {:ok, :ok} <-
+                 transaction(conn, fn ->
+                   with :ok <- Sqlite3.execute(conn, @protected_schema),
+                        :ok <- seed_root_pointers(conn),
+                        :ok <-
+                          execute(
+                            conn,
+                            "INSERT INTO metadata(key, value) VALUES ('protected_schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                            [Integer.to_string(@protected_schema_version)]
+                          ),
+                        :ok <-
+                          execute(
+                            conn,
+                            "INSERT INTO metadata(key, value) VALUES ('migration_fr08a_v1', 'complete') ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+                          ),
+                        {:ok, _checked} <- Authority.read(conn, :all) do
+                     :ok
+                   end
+                 end),
+               :ok <- PathIdentity.revalidate(identity) do
+            :ok
+          end
+        after
+          _ = Sqlite3.close(conn)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def migrate_protected_owned(_owner), do: {:error, :invalid_store_owner}
+
   defp commit(conn, value) do
     case Sqlite3.execute(conn, "COMMIT") do
       :ok -> {:ok, value}
@@ -378,6 +592,7 @@ defmodule PramanaFoundry.DurableStore.Database do
          {:ok, :ok} <-
            transaction(conn, fn ->
              with :ok <- Sqlite3.execute(conn, @schema),
+                  :ok <- seed_root_pointers(conn),
                   :ok <- Sqlite3.execute(conn, "PRAGMA user_version = #{@schema_version}"),
                   :ok <-
                     execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
@@ -398,6 +613,16 @@ defmodule PramanaFoundry.DurableStore.Database do
                     execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
                       "projection_version",
                       "1"
+                    ]),
+                  :ok <-
+                    execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
+                      "protected_schema_version",
+                      Integer.to_string(@protected_schema_version)
+                    ]),
+                  :ok <-
+                    execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
+                      "migration_fr08a_v1",
+                      "complete"
                     ]),
                   :ok <-
                     execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
@@ -448,6 +673,34 @@ defmodule PramanaFoundry.DurableStore.Database do
 
   defp random_id do
     16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+  end
+
+  defp seed_root_pointers(conn) do
+    Enum.reduce_while(
+      ~w(accepted_source selected_deployment healthy_build),
+      :ok,
+      fn kind, :ok ->
+        state = %{
+          "schema_version" => 1,
+          "pointer_kind" => kind,
+          "producer_status" => "absent",
+          "revision" => 0,
+          "value" => nil
+        }
+
+        with {:ok, bytes} <- PramanaFoundry.DurableStore.Encoding.json(state),
+             :ok <-
+               execute(
+                 conn,
+                 "INSERT INTO root_pointers(pointer_kind, producer_status, revision, state) VALUES (?, 'absent', 0, ?) ON CONFLICT(pointer_kind) DO NOTHING",
+                 [kind, {:blob, bytes}]
+               ) do
+          {:cont, :ok}
+        else
+          {:error, _reason} = error -> {:halt, error}
+        end
+      end
+    )
   end
 
   defp schema_table_contracts(conn, tables) do
