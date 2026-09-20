@@ -24,6 +24,7 @@ defmodule PramanaFoundry.Assignments.Correction do
 
       # Read max_corrections from ticket, e.g. ticket.corrections.max
       ticket = Map.get(assignment, "ticket", %{})
+
       max_corrections =
         get_in(ticket, ["corrections", "max"]) || @default_max_corrections
 

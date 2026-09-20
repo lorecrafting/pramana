@@ -43,7 +43,12 @@ defmodule PramanaFoundry.CLI.Validators do
       |> check_required(map, "findings", "list of specific issues found during review")
       |> check_verdict(map)
       |> check_type(map, "findings", &is_list/1, "must be a list of strings")
-      |> check_optional_type(map, "remaining_risks", &is_list/1, "must be a list of risk descriptions")
+      |> check_optional_type(
+        map,
+        "remaining_risks",
+        &is_list/1,
+        "must be a list of risk descriptions"
+      )
       |> check_optional_type(map, "checks", &is_map/1, "must be a map of check names to results")
 
     if errors == [], do: :ok, else: {:error, errors}
@@ -78,15 +83,17 @@ defmodule PramanaFoundry.CLI.Validators do
 
   @doc "Validate a commit SHA. Returns :ok or {:error, message}."
   def validate_commit_sha(nil), do: :ok
+
   def validate_commit_sha(sha) when is_binary(sha) do
     if String.match?(sha, @commit_sha_regex) do
       :ok
     else
       {:error,
        "Field 'commit' must be a 40-character hex SHA, got '#{sha}'\n" <>
-       "  Fix: Provide the full 40-character commit hash (run: git rev-parse HEAD)"}
+         "  Fix: Provide the full 40-character commit hash (run: git rev-parse HEAD)"}
     end
   end
+
   def validate_commit_sha(other) do
     {:error, "Field 'commit' must be a string, got #{inspect(other)}"}
   end
@@ -98,19 +105,22 @@ defmodule PramanaFoundry.CLI.Validators do
         case decode_json(contents) do
           {:ok, data} when is_map(data) ->
             {:ok, data}
+
           {:ok, _} ->
             {:error,
              "File '#{path}' must contain a JSON object (got array/string/number)\n" <>
-             "  Fix: Write the artifact as a JSON object with named fields (e.g. {'outcome': 'completed', ...})"}
+               "  Fix: Write the artifact as a JSON object with named fields (e.g. {'outcome': 'completed', ...})"}
+
           {:error, reason} ->
             {:error,
              "File '#{path}' is not valid JSON: #{inspect(reason)}\n" <>
-             "  Fix: Ensure the file contains valid JSON syntax"}
+               "  Fix: Ensure the file contains valid JSON syntax"}
         end
+
       {:error, reason} ->
         {:error,
          "File '#{path}' could not be read: #{reason}\n" <>
-         "  Fix: Write the handoff artifact to '#{path}' before submitting"}
+           "  Fix: Write the handoff artifact to '#{path}' before submitting"}
     end
   end
 
@@ -127,7 +137,7 @@ defmodule PramanaFoundry.CLI.Validators do
     else
       {:error,
        "Directory '#{path}' does not exist\n" <>
-       "  Fix: The checkout directory should exist — check the task_id is correct"}
+         "  Fix: The checkout directory should exist — check the task_id is correct"}
     end
   end
 
@@ -138,7 +148,7 @@ defmodule PramanaFoundry.CLI.Validators do
     else
       {:error,
        "Task ID '#{id}' is invalid — must be non-empty with no spaces\n" <>
-       "  Fix: Use the exact task_id from the ticket (e.g. 'FIX-42')"}
+         "  Fix: Use the exact task_id from the ticket (e.g. 'FIX-42')"}
     end
   end
 
@@ -151,19 +161,23 @@ defmodule PramanaFoundry.CLI.Validators do
   defp check_required(errors, map, field, hint) do
     case Map.get(map, field) do
       nil ->
-        errors ++ [
-          "Missing required field '#{field}'\n" <>
-          "  Fix: Add '#{field}' to the artifact — #{hint}"
-        ]
+        errors ++
+          [
+            "Missing required field '#{field}'\n" <>
+              "  Fix: Add '#{field}' to the artifact — #{hint}"
+          ]
+
       val when is_binary(val) ->
         if String.trim(val) == "" do
-          errors ++ [
-            "Field '#{field}' must not be empty\n" <>
-            "  Fix: Provide a non-empty value for '#{field}' — #{hint}"
-          ]
+          errors ++
+            [
+              "Field '#{field}' must not be empty\n" <>
+                "  Fix: Provide a non-empty value for '#{field}' — #{hint}"
+            ]
         else
           errors
         end
+
       _val ->
         errors
     end
@@ -171,37 +185,45 @@ defmodule PramanaFoundry.CLI.Validators do
 
   defp check_type(errors, map, field, type_check, message) do
     case Map.get(map, field) do
-      nil -> errors
+      nil ->
+        errors
+
       val ->
         if type_check.(val) do
           errors
         else
-          errors ++ [
-            "Field '#{field}' #{message}, got '#{inspect(val)}'\n" <>
-            "  Fix: Correct the type of '#{field}'"
-          ]
+          errors ++
+            [
+              "Field '#{field}' #{message}, got '#{inspect(val)}'\n" <>
+                "  Fix: Correct the type of '#{field}'"
+            ]
         end
     end
   end
 
   defp check_optional_type(errors, map, field, type_check, message) do
     case Map.get(map, field) do
-      nil -> errors
+      nil ->
+        errors
+
       val ->
         if type_check.(val) do
           errors
         else
-          errors ++ [
-            "Field '#{field}' #{message}, got '#{inspect(val)}'\n" <>
-            "  Fix: Correct the type of '#{field}'"
-          ]
+          errors ++
+            [
+              "Field '#{field}' #{message}, got '#{inspect(val)}'\n" <>
+                "  Fix: Correct the type of '#{field}'"
+            ]
         end
     end
   end
 
   defp check_commit_sha(errors, map) do
     case map["commit"] do
-      nil -> errors
+      nil ->
+        errors
+
       sha ->
         case validate_commit_sha(sha) do
           :ok -> errors
@@ -212,39 +234,56 @@ defmodule PramanaFoundry.CLI.Validators do
 
   defp check_changed_files(errors, map) do
     case Map.get(map, "changed_files") do
-      nil -> errors
-      files when is_list(files) -> errors
+      nil ->
+        errors
+
+      files when is_list(files) ->
+        errors
+
       other ->
-        errors ++ [
-          "Field 'changed_files' must be a list of file paths, got '#{inspect(other)}'\n" <>
-          "  Fix: List the files that were changed during this assignment"
-        ]
+        errors ++
+          [
+            "Field 'changed_files' must be a list of file paths, got '#{inspect(other)}'\n" <>
+              "  Fix: List the files that were changed during this assignment"
+          ]
     end
   end
 
   defp check_verdict(errors, map) do
     case Map.get(map, "verdict") do
-      nil -> errors
-      v when v in @valid_verdicts -> errors
+      nil ->
+        errors
+
+      v when v in @valid_verdicts ->
+        errors
+
       other ->
         valid = Enum.join(@valid_verdicts, ", ")
-        errors ++ [
-          "Field 'verdict' must be one of: #{valid}, got '#{inspect(other)}'\n" <>
-          "  Fix: Set verdict to one of: #{valid}"
-        ]
+
+        errors ++
+          [
+            "Field 'verdict' must be one of: #{valid}, got '#{inspect(other)}'\n" <>
+              "  Fix: Set verdict to one of: #{valid}"
+          ]
     end
   end
 
   defp check_priority(errors, map) do
     case Map.get(map, "priority") do
-      nil -> errors
-      p when p in @valid_priorities -> errors
+      nil ->
+        errors
+
+      p when p in @valid_priorities ->
+        errors
+
       other ->
         valid = Enum.join(@valid_priorities, ", ")
-        errors ++ [
-          "Field 'priority' must be one of: #{valid}, got '#{inspect(other)}'\n" <>
-          "  Fix: Set priority to one of: #{valid}"
-        ]
+
+        errors ++
+          [
+            "Field 'priority' must be one of: #{valid}, got '#{inspect(other)}'\n" <>
+              "  Fix: Set priority to one of: #{valid}"
+          ]
     end
   end
 end
