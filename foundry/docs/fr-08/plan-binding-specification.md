@@ -179,6 +179,44 @@ kernel owner rather than inferred from the preserved work-in-progress, because t
 revision is unreviewed and mid-correction. Until it lands, the binding path is
 structurally complete but cannot commit a lifecycle transition end to end.
 
+## Subcommit 4 envelope and digest shape
+
+Decided here because it is a protocol decision, not an implementation detail.
+
+`normalize_atomic_envelope/2` currently requires the exact key set
+`actor_id command inputs operations proposal schema_version` and computes the bundle's
+semantic digest over the normalized envelope. A plan-bearing envelope carries `plan`
+where a proposal-bearing one carries `proposal`. **Exactly one is required**; an envelope
+carrying both, or neither, rejects. Proposal-bearing envelopes keep working unchanged, so
+no existing caller or stored history is affected.
+
+**The digest covers the unresolved plan, never the resolved proposal.** The diagnosis
+requires authenticating the complete unresolved plan — canonical command, actor, explicit
+inputs, ordered operations, bindings and all alternatives — and requires the original plan
+and the resolved proposal to be distinct typed records rather than interchangeable copies.
+Digesting the resolved proposal would defeat both: the same command would digest
+differently depending on which alternative the protected discriminator selected, so
+idempotent retry of a lost reply could not find its original result.
+
+Consequences that the implementation must honor:
+
+- Same actor, command ID and complete semantic digest returns the original complete
+  result before current CAS, including after a lost reply and restart, because the digest
+  is stable across discriminator outcomes.
+- A changed plan or read set under the same command ID conflicts.
+- The resolved carriers are persisted alongside the original plan and the selected
+  discriminator, and revalidated against the original plan on lookup, reopen, replay and
+  backup validation.
+
+## Structural provenance, restated as an interface change
+
+The recorded requirement is that provenance be structural rather than checked. Concretely,
+`TransitionPlan.bind/3` stops accepting a pre-derived outputs map and instead accepts the
+staged `operation_results`, calling `derive_outputs/2` internally. That removes the unsafe
+call shape from the API rather than relying on every caller using it correctly, and it
+means no seam exists at which a different map could be substituted. The existing
+`bind/3` arity is replaced, not supplemented; leaving both would preserve the seam.
+
 ## Subcommit plan
 
 The correction is split into attributable subcommits under one candidate freeze, each
