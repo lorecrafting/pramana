@@ -545,6 +545,201 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     assert snapshot["pointers"]["accepted_source"]["producer_status"] == "absent"
   end
 
+  test "reset closes an allocation, revokes unissued authority and parent-funds the new generation",
+       %{gateway: gateway, capability: capability} do
+    seed_policy_and_control(gateway, capability)
+
+    accept!(gateway, capability, "R-GRANT", %{"ledger/objective/0" => "absent"}, %{
+      "type" => "grant_ledger",
+      "ledger_id" => "objective",
+      "generation" => 0,
+      "dimension" => "starts.developer",
+      "units" => 5
+    })
+
+    accept!(
+      gateway,
+      capability,
+      "R-DELEGATE",
+      %{"ledger/objective/0" => 0, "ledger/ticket-reset/0" => "absent"},
+      %{
+        "type" => "delegate_allocation",
+        "parent_ledger_id" => "objective",
+        "parent_generation" => 0,
+        "child_ledger_id" => "ticket-reset",
+        "child_generation" => 0,
+        "dimension" => "starts.developer",
+        "units" => 3
+      }
+    )
+
+    accept!(
+      gateway,
+      capability,
+      "R-RESERVE",
+      %{"ledger/ticket-reset/0" => 0, "reservation/reset-reservation" => "absent"},
+      %{
+        "type" => "reserve",
+        "reservation_id" => "reset-reservation",
+        "ledger_id" => "ticket-reset",
+        "generation" => 0,
+        "owner_kind" => "effect",
+        "owner_id" => "reset-effect",
+        "units" => 2
+      }
+    )
+
+    effect = %{
+      "type" => "create_effect",
+      "effect_id" => "reset-effect",
+      "request" => %{"profile" => "sol"},
+      "operation" => "launch",
+      "scope" => "ticket:T1",
+      "ticket_id" => "T1",
+      "attempt_id" => "RESET-A1",
+      "execution_id" => "RESET-X1",
+      "policy_id" => "policy-1",
+      "policy_revision" => 0,
+      "control_id" => "control-1",
+      "control_revision" => 0,
+      "reservation_ids" => ["reset-reservation"],
+      "leases" => [%{"lease_id" => "reset-lease", "resource_id" => "reset-slot"}]
+    }
+
+    accept!(
+      gateway,
+      capability,
+      "R-EFFECT",
+      %{
+        "effect/reset-effect" => "absent",
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "reservation/reset-reservation" => 0,
+        "ledger/ticket-reset/0" => 1,
+        "lease/reset-lease" => "absent"
+      },
+      effect
+    )
+
+    accept!(
+      gateway,
+      capability,
+      "R-CLAIM",
+      %{
+        "effect/reset-effect" => 0,
+        "claim/reset-claim" => "absent",
+        "reservation/reset-reservation" => 0,
+        "ledger/ticket-reset/0" => 1
+      },
+      %{
+        "type" => "claim_effect",
+        "effect_id" => "reset-effect",
+        "claim_id" => "reset-claim",
+        "writer_epoch" => "writer-epoch-fr08a"
+      }
+    )
+
+    reset = %{
+      "type" => "reset_generation",
+      "ledger_id" => "ticket-reset",
+      "old_generation" => 0,
+      "new_generation" => 1,
+      "parent_ledger_id" => "objective",
+      "parent_generation" => 0,
+      "units" => 1
+    }
+
+    assert {:ok, incomplete, :committed} =
+             protected(
+               gateway,
+               capability,
+               "R-RESET-INCOMPLETE",
+               %{
+                 "ledger/ticket-reset/0" => 1,
+                 "ledger/ticket-reset/1" => "absent",
+                 "ledger/objective/0" => 1
+               },
+               reset
+             )
+
+    assert incomplete["reason_code"] == "incomplete_read_set"
+
+    accept!(
+      gateway,
+      capability,
+      "R-RESET",
+      %{
+        "ledger/ticket-reset/0" => 1,
+        "ledger/ticket-reset/1" => "absent",
+        "ledger/objective/0" => 1,
+        "reservation/reset-reservation" => 1,
+        "effect/reset-effect" => 1,
+        "claim/reset-claim" => 0,
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "lease/reset-lease" => 0
+      },
+      reset
+    )
+
+    assert {:ok, old} =
+             Gateway.protected_query(gateway, capability, ledger_query("ticket-reset", 0))
+
+    assert {:ok, fresh} =
+             Gateway.protected_query(gateway, capability, ledger_query("ticket-reset", 1))
+
+    assert {:ok, claim} =
+             Gateway.protected_query(
+               gateway,
+               capability,
+               query("claim", "claim_id", "reset-claim")
+             )
+
+    assert {:ok, effect_fact} =
+             Gateway.protected_query(
+               gateway,
+               capability,
+               query("effect", "effect_id", "reset-effect")
+             )
+
+    assert {:ok, lease} =
+             Gateway.protected_query(
+               gateway,
+               capability,
+               query("lease", "lease_id", "reset-lease")
+             )
+
+    assert old["status"] == "closed"
+    assert old["available"] == 0
+    assert old["held"] == 0
+    assert old["retired"] == 3
+    assert fresh["status"] == "open"
+    assert fresh["authorized"] == 1
+    assert fresh["available"] == 1
+    assert claim["status"] == "cancelled"
+    assert effect_fact["status"] == "cancelled"
+    assert lease["status"] == "released"
+
+    accept!(
+      gateway,
+      capability,
+      "R-RETURN",
+      %{"ledger/ticket-reset/1" => 0, "ledger/objective/0" => 2},
+      %{
+        "type" => "return_allocation",
+        "child_ledger_id" => "ticket-reset",
+        "child_generation" => 1,
+        "units" => 1
+      }
+    )
+
+    assert {:ok, returned} =
+             Gateway.protected_query(gateway, capability, ledger_query("ticket-reset", 1))
+
+    assert returned["authorized"] == 0
+    assert returned["available"] == 0
+  end
+
   defp seed_policy_and_control(gateway, capability) do
     assert {:ok, _, :committed} =
              protected(
@@ -578,6 +773,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
 
   defp protected(gateway, capability, id, reads, operation) do
     Gateway.protected_command(gateway, capability, "operator", command(id, reads, operation))
+  end
+
+  defp accept!(gateway, capability, id, reads, operation) do
+    assert {:ok, %{"disposition" => "accepted"} = result, :committed} =
+             protected(gateway, capability, id, reads, operation)
+
+    result
+  end
+
+  defp query(type, key, value), do: %{"schema_version" => 1, "type" => type, key => value}
+
+  defp ledger_query(id, generation) do
+    %{"schema_version" => 1, "type" => "ledger", "ledger_id" => id, "generation" => generation}
   end
 
   defp command(id, reads, operation) do

@@ -1129,14 +1129,36 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp operation_read_keys(_conn, "close_generation", op),
     do: {:ok, [ledger_key(op["ledger_id"], op["generation"])]}
 
-  defp operation_read_keys(_conn, "reset_generation", op),
-    do:
-      {:ok,
-       [
-         ledger_key(op["ledger_id"], op["old_generation"]),
-         ledger_key(op["ledger_id"], op["new_generation"]),
-         ledger_key(op["parent_ledger_id"], op["parent_generation"])
-       ]}
+  defp operation_read_keys(conn, "reset_generation", op) do
+    base = [
+      ledger_key(op["ledger_id"], op["old_generation"]),
+      ledger_key(op["ledger_id"], op["new_generation"]),
+      ledger_key(op["parent_ledger_id"], op["parent_generation"])
+    ]
+
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT reservation_id, owner_kind, owner_id, claim_id FROM root_reservations WHERE ledger_id = ? AND generation = ? AND status = 'reserved' ORDER BY reservation_id",
+             [op["ledger_id"], op["old_generation"]]
+           ) do
+      dependent =
+        Enum.flat_map(rows, fn [reservation_id, owner_kind, owner_id, claim_id] ->
+          claim_keys = if is_binary(claim_id), do: ["claim/" <> claim_id], else: []
+
+          effect_keys =
+            if owner_kind == "effect" do
+              effect_authority_keys(conn, owner_id)
+            else
+              []
+            end
+
+          ["reservation/" <> reservation_id | claim_keys ++ effect_keys]
+        end)
+
+      {:ok, Enum.uniq(base ++ dependent)}
+    end
+  end
 
   defp operation_read_keys(conn, "create_effect", op) do
     base = [
@@ -1257,6 +1279,21 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp full_reservation_keys(reservation),
     do: ["reservation/" <> reservation.reservation_id | reservation_keys(reservation)]
+
+  defp effect_authority_keys(conn, effect_id) do
+    case load_effect(conn, effect_id) do
+      {:ok, effect} ->
+        [
+          "effect/" <> effect.effect_id,
+          "policy/" <> effect.policy_id,
+          "control/" <> effect.control_id
+          | Enum.map(effect.lease_specs, &("lease/" <> &1["lease_id"]))
+        ]
+
+      _ ->
+        ["effect/" <> to_string(effect_id)]
+    end
+  end
 
   defp current_revision(conn, "policy/" <> id),
     do: simple_revision(conn, "root_policies", "policy_id", id)
