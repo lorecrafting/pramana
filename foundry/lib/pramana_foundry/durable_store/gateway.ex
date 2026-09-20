@@ -84,7 +84,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   def command(server, command_id), do: GenServer.call(server, {:command, command_id})
   def counts(server), do: GenServer.call(server, :counts)
   def backup(server, path), do: GenServer.call(server, {:backup, path}, :infinity)
-  def operational_health(server), do: GenServer.call(server, :operational_health)
+  def operational_health(server), do: GenServer.call(server, :operational_health, :infinity)
 
   def recent_events(server, limit) when is_integer(limit),
     do: GenServer.call(server, {:recent_events, limit})
@@ -130,9 +130,30 @@ defmodule PramanaFoundry.DurableStore.Gateway do
        %{capacity: %{status: :unknown}, last_durable_sequence: :unknown}}}, state}
   end
 
-  def handle_call(:operational_health, _from, state) do
-    result = build_operational_health(state)
-    {:reply, result, transition_after_result(state, result)}
+  def handle_call(:operational_health, from, state) do
+    case read_operational_health(state) do
+      {:ok, health} ->
+        owner = self()
+        token = make_ref()
+
+        {pid, monitor} =
+          spawn_monitor(fn ->
+            physical =
+              capacity_result(
+                state.capacity_probe,
+                state.path,
+                state.capacity_probe_timeout_ms
+              )
+
+            send(owner, {:operational_health_capacity, token, physical})
+          end)
+
+        request = %{from: from, health: health, pid: pid, monitor: monitor}
+        {:noreply, put_in(state.operational_health_requests[token], request)}
+
+      {:error, _reason} = result ->
+        {:reply, result, transition_after_result(state, result)}
+    end
   end
 
   def handle_call({:recent_events, _limit}, _from, %{mode: :recovery} = state) do
@@ -226,6 +247,33 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     {:reply, result, transition_after_result(state, result)}
   end
 
+  @impl true
+  def handle_info({:operational_health_capacity, token, physical}, state) do
+    case Map.pop(state.operational_health_requests, token) do
+      {nil, _requests} ->
+        {:noreply, state}
+
+      {request, requests} ->
+        Process.demonitor(request.monitor, [:flush])
+        GenServer.reply(request.from, {:ok, add_physical_capacity(request.health, physical)})
+        {:noreply, %{state | operational_health_requests: requests}}
+    end
+  end
+
+  def handle_info({:DOWN, monitor, :process, pid, reason}, state) do
+    case Enum.find(state.operational_health_requests, fn {_token, request} ->
+           request.monitor == monitor and request.pid == pid
+         end) do
+      nil ->
+        {:noreply, state}
+
+      {token, request} ->
+        physical = {:unknown, {:capacity_probe_worker_exit, reason}}
+        GenServer.reply(request.from, {:ok, add_physical_capacity(request.health, physical)})
+        {:noreply, update_in(state.operational_health_requests, &Map.delete(&1, token))}
+    end
+  end
+
   defp open(identity, opts) do
     path = identity.path
 
@@ -252,6 +300,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
                capacity_probe: Keyword.get(opts, :capacity_probe, &Capacity.probe/1),
                capacity_probe_timeout_ms:
                  Keyword.get(opts, :capacity_probe_timeout_ms, @capacity_probe_timeout_ms),
+               operational_health_requests: %{},
                protected_capability:
                  Keyword.get_lazy(opts, :protected_capability, fn -> make_ref() end)
              }}
@@ -905,15 +954,12 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   defp maybe_limit_pages(_conn, _pages), do: {:error, :invalid_page_limit}
 
-  defp build_operational_health(state) do
+  defp read_operational_health(state) do
     with {:ok, [[page_count]]} <- Database.query(state.conn, "PRAGMA page_count"),
          {:ok, [[page_size]]} <- Database.query(state.conn, "PRAGMA page_size"),
          {:ok, [[max_page_count]]} <- Database.query(state.conn, "PRAGMA max_page_count"),
          {:ok, [[last_sequence]]} <-
            Database.query(state.conn, "SELECT coalesce(max(seq), 0) FROM events") do
-      physical =
-        capacity_result(state.capacity_probe, state.path, state.capacity_probe_timeout_ms)
-
       {:ok,
        %{
          mode: :ready,
@@ -921,17 +967,25 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          database_bytes: page_count * page_size,
          wal_bytes: file_size(state.path <> "-wal"),
          capacity: %{
-           physical_available_bytes: physical,
            sqlite_page_count: page_count,
            sqlite_max_page_count: max_page_count,
-           sqlite_available_bytes: max(max_page_count - page_count, 0) * page_size,
-           status: if(is_integer(physical), do: :known, else: :unknown)
+           sqlite_available_bytes: max(max_page_count - page_count, 0) * page_size
          }
        }}
     else
       {:error, reason} -> {:error, {:storage_unavailable, reason}}
       other -> {:error, {:storage_unavailable, {:invalid_health_result, other}}}
     end
+  end
+
+  defp add_physical_capacity(health, physical) do
+    capacity =
+      Map.merge(health.capacity, %{
+        physical_available_bytes: physical,
+        status: if(is_integer(physical), do: :known, else: :unknown)
+      })
+
+    %{health | capacity: capacity}
   end
 
   defp query_recent_events(_conn, limit) when limit < 1 or limit > 1_000,
@@ -962,6 +1016,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp checkpoint_database(conn, fault) do
     with {:ok, before_view} <- Authority.read(conn, :all),
          :ok <- inject_maintenance(fault, :before_checkpoint),
+         :ok <- start_maintenance_fault(fault, :during_checkpoint, conn),
          {:ok, [[busy, log_frames, checkpointed_frames]]} <-
            Database.query(conn, "PRAGMA wal_checkpoint(TRUNCATE)"),
          true <- busy == 0,
@@ -989,6 +1044,11 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp inject_maintenance({:halt, point}, point), do: System.halt(74)
   defp inject_maintenance({:error, point}, point), do: {:error, {:injected_maintenance, point}}
   defp inject_maintenance(_fault, _point), do: :ok
+
+  defp start_maintenance_fault({:during, point, fun}, point, conn) when is_function(fun, 1),
+    do: fun.(conn)
+
+  defp start_maintenance_fault(_fault, _point, _conn), do: :ok
 
   defp capacity_result(probe, path, timeout_ms)
        when is_function(probe, 1) and is_integer(timeout_ms) and timeout_ms > 0 do
@@ -1053,16 +1113,28 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          {:ok, source} <- PathIdentity.existing(source_path),
          :ok <- PathIdentity.validate_new_database(target),
          :ok <- PathIdentity.validate_publication(source, [target]),
-         false <- PathIdentity.collision?(source, target),
-         escaped <- String.replace(target.path, "'", "''"),
-         :ok <- Database.execute(conn, "VACUUM INTO '#{escaped}'"),
-         :ok <- maybe_interrupt_backup(fault),
-         {:ok, snapshot} <- PathIdentity.existing(target.path) do
-      verify_backup(snapshot, source_view)
+         false <- PathIdentity.collision?(source, target) do
+      perform_backup(conn, target, source_view, fault)
     else
       {:error, :target_exists} -> {:error, :backup_exists}
       true -> {:error, :backup_path_collision}
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp perform_backup(conn, target, source_view, fault) do
+    escaped = String.replace(target.path, "'", "''")
+
+    with :ok <- start_maintenance_fault(fault, :during_backup, conn),
+         :ok <- Database.execute(conn, "VACUUM INTO '#{escaped}'"),
+         :ok <- maybe_interrupt_backup(fault),
+         {:ok, snapshot} <- PathIdentity.existing(target.path),
+         {:ok, result} <- verify_backup(snapshot, source_view) do
+      {:ok, result}
+    else
+      {:error, {:storage_unavailable, _reason} = reason} -> {:error, reason}
+      {:error, reason} -> {:error, {:storage_unavailable, {:backup_failed, reason}}}
+      other -> {:error, {:storage_unavailable, {:backup_failed, other}}}
     end
   end
 
@@ -1136,7 +1208,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
       fault: nil,
       maintenance_fault: nil,
       capacity_probe: &Capacity.probe/1,
-      capacity_probe_timeout_ms: @capacity_probe_timeout_ms
+      capacity_probe_timeout_ms: @capacity_probe_timeout_ms,
+      operational_health_requests: %{}
     }
   end
 
