@@ -503,20 +503,35 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   defp insert_events(conn, events, command_id) do
     reduce_insert(events, fn event ->
-      with {:ok, encoded} <- RecordCodec.encode(:event, event) do
+      with {:ok, encoded} <- RecordCodec.encode(:event, event),
+           {projection_namespace, projection_entity_id} <- event_carrier(event) do
         Database.execute(
           conn,
-          "INSERT INTO events(event_id, command_id, schema_version, event_type, event) VALUES (?, ?, 1, ?, ?)",
-          [get(event, :event_id), command_id, get(event, :type), {:blob, encoded}]
+          "INSERT INTO events(event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event) VALUES (?, ?, 1, ?, ?, ?, ?)",
+          [
+            get(event, :event_id),
+            command_id,
+            get(event, :type),
+            projection_namespace,
+            projection_entity_id,
+            {:blob, encoded}
+          ]
         )
       end
     end)
   end
 
+  defp event_carrier(event) do
+    case get(event, :payload)["projection"] do
+      nil -> {nil, nil}
+      projection -> {projection["namespace"], projection["entity_id"]}
+    end
+  end
+
   defp insert_projections(conn, events, projections) do
     with {:ok, plan} <- RecordCodec.projection_plan(events, projections),
          {:ok, initial} <- projection_initial_state(conn, plan) do
-      Enum.reduce_while(plan, {:ok, initial}, fn {_carrier, projection} = step, {:ok, state} ->
+      Enum.reduce_while(plan, {:ok, initial}, fn {carrier, projection} = step, {:ok, state} ->
         key = {projection["namespace"], projection["entity_id"]}
 
         with {:ok, next} <- RecordCodec.apply_projection(state, step),
@@ -531,7 +546,10 @@ defmodule PramanaFoundry.DurableStore.Gateway do
              :ok <- materialize_projection(conn, projection, encoded),
              {:ok, [[1]]} <- Database.query(conn, "SELECT changes()"),
              {:ok, %{value: stored}} <-
-               Authority.read(conn, {:revision, {:projection, elem(key, 0), elem(key, 1)}}),
+               Authority.read(
+                 conn,
+                 {:materialized_projection, elem(key, 0), elem(key, 1), carrier["event_id"]}
+               ),
              true <- stored == projection do
           {:cont, {:ok, next}}
         else
@@ -554,7 +572,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     end)
     |> Enum.uniq()
     |> Enum.reduce_while({:ok, %{}}, fn {namespace, entity_id} = key, {:ok, state} ->
-      case Authority.read(conn, {:revision, {:projection, namespace, entity_id}}) do
+      case Authority.read(conn, {:materialized_projection, namespace, entity_id, :stored}) do
         {:ok, :absent} ->
           {:cont, {:ok, state}}
 
@@ -713,10 +731,14 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   end
 
   defp fetch_command(conn, command_id) do
-    case Authority.read(conn, {:command, command_id}) do
-      {:ok, :absent} -> {:error, :not_found}
-      {:ok, %{result: result}} -> {:ok, result}
-      {:error, _reason} = error -> error
+    if valid_identity?(command_id) do
+      case Authority.read(conn, {:command, command_id}) do
+        {:ok, :absent} -> {:error, :not_found}
+        {:ok, %{result: result}} -> {:ok, result}
+        {:error, _reason} = error -> error
+      end
+    else
+      {:error, :invalid_command_id}
     end
   end
 
@@ -784,32 +806,13 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   end
 
   defp read_revision(conn, key) when is_binary(key) do
-    typed =
-      case String.split(key, "/", parts: 3) do
-        ["projection", namespace, entity_id] ->
-          {:projection, decode_key(namespace), decode_key(entity_id)}
-
-        ["dependency", namespace, entity_id] ->
-          {:dependency, decode_key(namespace), decode_key(entity_id)}
-
-        ["policy", encoded_id] ->
-          {:policy, decode_key(encoded_id)}
-
-        ["control", encoded_id] ->
-          {:control, decode_key(encoded_id)}
-
-        ["ledger", encoded_id] ->
-          {:ledger, decode_key(encoded_id)}
-
-        _other ->
-          {:error, {:unsupported_revision_key, key}}
-      end
+    typed = RecordCodec.decode_revision_key(key)
 
     case typed do
-      {:error, _reason} = error ->
-        error
+      {:error, reason} ->
+        {:error, {reason, key}}
 
-      typed_key ->
+      {:ok, typed_key} ->
         with {:ok, value} <- Authority.read(conn, {:revision, typed_key}) do
           case value do
             :absent -> {:ok, "absent"}
@@ -817,8 +820,6 @@ defmodule PramanaFoundry.DurableStore.Gateway do
           end
         end
     end
-  rescue
-    _ -> {:error, {:invalid_revision_key, key}}
   end
 
   defp projection_key(namespace, entity_id) do
@@ -826,10 +827,13 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   end
 
   defp encode_key(value), do: Base.url_encode64(value, padding: false)
-  defp decode_key(value), do: Base.url_decode64!(value, padding: false)
 
-  defp validate_actor(actor_id) when is_binary(actor_id) and actor_id != "", do: :ok
+  defp validate_actor(actor_id) when is_binary(actor_id) and actor_id != "" do
+    if String.valid?(actor_id), do: :ok, else: {:error, :invalid_actor}
+  end
+
   defp validate_actor(_actor_id), do: {:error, :invalid_actor}
+  defp valid_identity?(value), do: is_binary(value) and value != "" and String.valid?(value)
 
   defp reduce_insert(values, fun) do
     Enum.reduce_while(values, :ok, fn value, :ok ->

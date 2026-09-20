@@ -86,6 +86,12 @@ policy/control revisions, artifact references and legacy-import evidence. Foreig
 bind owners. Unique constraints cover command, event, effect, receipt/request and
 outstanding-claim identities. Effect and claim status retain
 `pending/claimed/issued/unknown/succeeded/failed/non_started/cancelled` distinctions.
+Startup and global reads compare every table, key, foreign key and index—including the
+active-claim partial predicate—with a reference contract instantiated from the same
+trusted DDL used for initialization; matching object names alone are not accepted.
+Projection carriers are stored beside ordered events and indexed by entity. Their values
+are checked against canonical event bodies, and live reads stream only the requested
+entity through the shared reducer while proving the retained row is its final carrier.
 
 ## Offline legacy import
 
@@ -102,6 +108,9 @@ The importer validates strict path identities against the database, its
 sidecars, archive and manifest before writing. It parses only the digest-verified archive
 and holds the same exclusive owner as the gateway. Import and manifest-publication
 interruptions can rerun without duplicate database rows.
+Archive staging is exclusively created. Preexisting staging evidence is adopted only when
+its identity and full digest match the planned archive; mismatched evidence is refused and
+left untouched, and cleanup is restricted to staging created by the current operation.
 
 The importer does not remove or relocate the source. FR-19 still owns live-handle/space
 preflight, retention, checkpoint interruption, archival removal and collision-safe

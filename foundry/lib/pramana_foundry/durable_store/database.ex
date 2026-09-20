@@ -42,7 +42,10 @@ defmodule PramanaFoundry.DurableStore.Database do
     command_id TEXT NOT NULL REFERENCES commands(command_id),
     schema_version INTEGER NOT NULL CHECK (schema_version = 1),
     event_type TEXT NOT NULL,
-    event BLOB NOT NULL
+    projection_namespace TEXT,
+    projection_entity_id TEXT,
+    event BLOB NOT NULL,
+    CHECK ((projection_namespace IS NULL) = (projection_entity_id IS NULL))
   ) STRICT;
   CREATE TABLE projections (
     namespace TEXT NOT NULL,
@@ -143,11 +146,39 @@ defmodule PramanaFoundry.DurableStore.Database do
     PRIMARY KEY(source_digest, line_number)
   ) STRICT;
   CREATE INDEX events_command_idx ON events(command_id, seq);
+  CREATE INDEX events_projection_idx ON events(projection_namespace, projection_entity_id, seq)
+    WHERE projection_namespace IS NOT NULL;
   CREATE INDEX effects_command_idx ON effects(command_id);
   CREATE INDEX reservations_generation_idx ON reservations(generation_id);
   """
 
   def schema_version, do: @schema_version
+
+  def expected_schema_contract do
+    case Sqlite3.open(":memory:") do
+      {:ok, reference} ->
+        try do
+          with :ok <- Sqlite3.execute(reference, @schema), do: schema_contract(reference)
+        after
+          _ = Sqlite3.close(reference)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  def schema_contract(conn) do
+    with {:ok, objects} <-
+           query(
+             conn,
+             "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE type IN ('table', 'index') ORDER BY type, name"
+           ),
+         tables <- for(["table", name, _owner, _sql] <- objects, do: name),
+         {:ok, table_contracts} <- schema_table_contracts(conn, tables) do
+      {:ok, %{objects: objects, tables: table_contracts}}
+    end
+  end
 
   def initialize(path_or_identity, opts \\ [])
 
@@ -418,4 +449,39 @@ defmodule PramanaFoundry.DurableStore.Database do
   defp random_id do
     16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
   end
+
+  defp schema_table_contracts(conn, tables) do
+    Enum.reduce_while(tables, {:ok, %{}}, fn table, {:ok, acc} ->
+      quoted = quote_pragma_identifier(table)
+
+      with {:ok, columns} <- query(conn, "PRAGMA table_xinfo(#{quoted})"),
+           {:ok, table_list} <- query(conn, "PRAGMA table_list(#{quoted})"),
+           {:ok, foreign_keys} <- query(conn, "PRAGMA foreign_key_list(#{quoted})"),
+           {:ok, indexes} <- query(conn, "PRAGMA index_list(#{quoted})"),
+           {:ok, index_contracts} <- schema_index_contracts(conn, indexes) do
+        contract = %{
+          columns: columns,
+          table_list: table_list,
+          foreign_keys: foreign_keys,
+          indexes: indexes,
+          index_columns: index_contracts
+        }
+
+        {:cont, {:ok, Map.put(acc, table, contract)}}
+      else
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp schema_index_contracts(conn, indexes) do
+    Enum.reduce_while(indexes, {:ok, %{}}, fn [_seq, name | _rest], {:ok, acc} ->
+      case query(conn, "PRAGMA index_xinfo(#{quote_pragma_identifier(name)})") do
+        {:ok, rows} -> {:cont, {:ok, Map.put(acc, name, rows)}}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp quote_pragma_identifier(value), do: "'" <> String.replace(value, "'", "''") <> "'"
 end

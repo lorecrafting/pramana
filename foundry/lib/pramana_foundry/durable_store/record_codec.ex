@@ -230,8 +230,7 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
          :ok <- keys(map, @command, @command),
          :ok <- nonempty(map, ~w(command_id type)),
          true <- map["type"] in @command_types,
-         true <- plain_map?(map["expected_revisions"]),
-         :ok <- revision_reads(map["expected_revisions"]),
+         {:ok, _reads} <- normalize_revision_reads(map["expected_revisions"]),
          true <- plain_map?(map["target_ids"]),
          true <- plain_map?(map["payload"]) do
       {:ok, map}
@@ -289,6 +288,43 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
       _ -> {:error, :invalid_scaffold}
     end
   end
+
+  def normalize_revision_reads(reads) when is_map(reads) and not is_struct(reads) do
+    Enum.reduce_while(reads, {:ok, %{}}, fn {key, value}, {:ok, acc} ->
+      with {:ok, _typed} <- decode_revision_key(key),
+           true <- value == "absent" or (is_integer(value) and value >= 0) do
+        {:cont, {:ok, Map.put(acc, key, value)}}
+      else
+        _ -> {:halt, {:error, :invalid_expected_revisions}}
+      end
+    end)
+  end
+
+  def normalize_revision_reads(_reads), do: {:error, :invalid_expected_revisions}
+
+  def decode_revision_key(key) when is_binary(key) and key != "" do
+    case String.split(key, "/", parts: 3) do
+      ["projection", namespace, entity_id] ->
+        decode_projection_key(:projection, namespace, entity_id)
+
+      ["dependency", namespace, entity_id] ->
+        decode_projection_key(:dependency, namespace, entity_id)
+
+      ["policy", encoded_id] ->
+        decode_single_key(:policy, encoded_id)
+
+      ["control", encoded_id] ->
+        decode_single_key(:control, encoded_id)
+
+      ["ledger", encoded_id] ->
+        decode_single_key(:ledger, encoded_id)
+
+      _other ->
+        {:error, :unsupported_revision_key}
+    end
+  end
+
+  def decode_revision_key(_key), do: {:error, :invalid_revision_key}
 
   def materialize_result(candidate, committed_seq)
       when is_integer(committed_seq) and committed_seq >= 0 do
@@ -754,13 +790,24 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
   defp legacy_error(false, error) when is_binary(error) and error != "", do: :ok
   defp legacy_error(_valid, _error), do: {:error, :invalid_legacy_error}
 
-  defp revision_reads(reads) do
-    if Enum.all?(reads, fn {key, value} ->
-         is_binary(key) and key != "" and
-           (value == "absent" or (is_integer(value) and value >= 0))
-       end),
-       do: :ok,
-       else: {:error, :invalid_expected_revisions}
+  defp decode_identity(value) do
+    with {:ok, decoded} <- Base.url_decode64(value, padding: false),
+         true <- decoded != "" and String.valid?(decoded) do
+      {:ok, decoded}
+    else
+      _ -> {:error, :invalid_revision_key}
+    end
+  end
+
+  defp decode_projection_key(kind, namespace, entity_id) do
+    with {:ok, decoded_namespace} <- decode_identity(namespace),
+         {:ok, decoded_entity_id} <- decode_identity(entity_id) do
+      {:ok, {kind, decoded_namespace, decoded_entity_id}}
+    end
+  end
+
+  defp decode_single_key(kind, encoded_id) do
+    with {:ok, decoded_id} <- decode_identity(encoded_id), do: {:ok, {kind, decoded_id}}
   end
 
   defp lowercase_digest?(value) when is_binary(value),

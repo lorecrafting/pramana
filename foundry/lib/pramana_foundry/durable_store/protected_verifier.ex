@@ -10,6 +10,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedVerifier do
     with :ok <- exact_keys(facts, @fact_keys),
          writer_epoch when is_binary(writer_epoch) and writer_epoch != "" <-
            fetch(facts, :writer_epoch),
+         true <- String.valid?(writer_epoch),
          :ok <- validate_required_revisions(command, fetch(facts, :required_revisions)),
          generations when is_list(generations) <- fetch(facts, :ledger_generations),
          true <- proper_list?(generations),
@@ -34,17 +35,18 @@ defmodule PramanaFoundry.DurableStore.ProtectedVerifier do
 
   def derive(_command, _proposal, _facts), do: {:error, :invalid_protected_facts}
 
-  defp validate_required_revisions(command, required) when is_map(required) do
+  defp validate_required_revisions(command, required) do
     supplied = fetch(command, :expected_revisions)
 
-    if is_map(supplied) and
-         Enum.all?(required, fn {key, value} -> Map.get(supplied, key) == value end),
-       do: :ok,
-       else: {:error, :incomplete_protected_read_set}
+    with {:ok, normalized} <- RecordCodec.normalize_revision_reads(required),
+         {:ok, normalized_supplied} <- RecordCodec.normalize_revision_reads(supplied),
+         true <- Enum.all?(normalized, fn {key, value} -> normalized_supplied[key] == value end) do
+      :ok
+    else
+      false -> {:error, :incomplete_protected_read_set}
+      {:error, _reason} -> {:error, :invalid_required_revisions}
+    end
   end
-
-  defp validate_required_revisions(_command, _required),
-    do: {:error, :invalid_required_revisions}
 
   defp normalize_generations(generations) do
     Enum.reduce_while(generations, {:ok, []}, fn generation, {:ok, acc} ->
@@ -183,8 +185,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedVerifier do
 
   defp identity(map, key) do
     case fetch(map, key) do
-      value when is_binary(value) and value != "" -> :ok
-      _ -> {:error, :invalid_identity}
+      value when is_binary(value) and value != "" ->
+        if String.valid?(value), do: :ok, else: {:error, :invalid_identity}
+
+      _ ->
+        {:error, :invalid_identity}
     end
   end
 
