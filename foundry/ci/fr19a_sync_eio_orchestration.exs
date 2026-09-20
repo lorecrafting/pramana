@@ -39,32 +39,45 @@ defmodule PramanaFoundry.CI.FR19ASyncEIOOrchestration do
     monitor = Process.monitor(worker)
     send(worker, {:fr19a_pwrite_close, token, self()})
 
-    {result, down?} =
+    result =
       receive do
         {:fr19a_pwrite_closed, ^token, ^worker, :ok} ->
-          {:ok, false}
+          await_holder_down(worker, monitor)
 
         {:fr19a_pwrite_closed, ^token, ^worker, other} ->
-          {{:error, {:close_failed, other}}, false}
+          _ = terminate_holder(worker, monitor)
+          {:error, {:close_failed, other}}
 
         {:DOWN, ^monitor, :process, ^worker, _reason} ->
-          {:ok, true}
+          :ok
       after
         timeout ->
-          Process.exit(worker, :kill)
-          {:ok, false}
+          _ = terminate_holder(worker, monitor)
+          {:error, :holder_close_timeout}
       end
-
-    unless down? do
-      receive do
-        {:DOWN, ^monitor, :process, ^worker, _reason} -> :ok
-      after
-        2_000 -> Process.exit(worker, :kill)
-      end
-    end
 
     Process.demonitor(monitor, [:flush])
     result
+  end
+
+  defp await_holder_down(worker, monitor) do
+    receive do
+      {:DOWN, ^monitor, :process, ^worker, _reason} -> :ok
+    after
+      2_000 ->
+        _ = terminate_holder(worker, monitor)
+        {:error, :holder_exit_timeout}
+    end
+  end
+
+  defp terminate_holder(worker, monitor) do
+    Process.exit(worker, :kill)
+
+    receive do
+      {:DOWN, ^monitor, :process, ^worker, _reason} -> :ok
+    after
+      2_000 -> {:error, :holder_kill_timeout}
+    end
   end
 
   def resume_before_await(worker, token, resume, opts \\ [])

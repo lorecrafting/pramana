@@ -43,6 +43,44 @@ queried_offset=0
 queried_sizelimit=134217728
 validate_loop_identity
 
+queried_back_file=
+queried_back_ino=
+queried_back_maj_min=
+queried_offset=
+queried_sizelimit=
+if classify_loop_fields; then
+  printf 'accepted unbound loop as owned binding\n' >&2
+  exit 1
+else
+  loop_state=$?
+  [[ $loop_state -eq 4 ]] || { printf 'unbound exact loop was not classified as unbound\n' >&2; exit 1; }
+fi
+
+queried_loop_maj_min=7:8
+if classify_loop_fields; then
+  printf 'accepted foreign unbound loop identity\n' >&2
+  exit 1
+else
+  loop_state=$?
+  [[ $loop_state -eq 3 ]] || { printf 'foreign loop was not classified as foreign\n' >&2; exit 1; }
+fi
+
+queried_loop_maj_min=$expected_loop_maj_min
+queried_back_file=$expected_back_file
+if classify_loop_fields; then
+  printf 'accepted partially-null binding\n' >&2
+  exit 1
+else
+  loop_state=$?
+  [[ $loop_state -eq 2 ]] || { printf 'partial binding was not classified as unavailable\n' >&2; exit 1; }
+fi
+
+queried_back_ino=$expected_back_ino
+queried_back_maj_min=$expected_back_maj_min
+queried_offset=0
+queried_sizelimit=134217728
+classify_loop_fields
+
 queried_back_ino=99999
 if validate_loop_identity; then
   printf 'accepted mismatched backing inode\n' >&2
@@ -50,6 +88,15 @@ if validate_loop_identity; then
 else
   identity_status=$?
   [[ $identity_status -eq 3 ]] || { printf 'identity mismatch was not classified as mismatch\n' >&2; exit 1; }
+fi
+
+query_loop_identity() { return 1; }
+if verify_loop_identity regression-query-absent; then
+  printf 'accepted absent loop as owned\n' >&2
+  exit 1
+else
+  query_status=$?
+  [[ $query_status -eq 1 ]] || { printf 'zero-row query was not classified as absent\n' >&2; exit 1; }
 fi
 
 query_loop_identity() { return 2; }

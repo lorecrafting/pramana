@@ -133,6 +133,18 @@ record_mapper() {
   } >>"$artifact_dir/mapper-transitions.txt"
 }
 
+classify_loop_fields() {
+  [[ -n $queried_loop_name && -n $queried_loop_maj_min ]] || return 2
+  if [[ -z $queried_back_file && -z $queried_back_ino && -z $queried_back_maj_min &&
+        -z $queried_offset && -z $queried_sizelimit ]]; then
+    [[ $queried_loop_name == "$expected_loop_name" ]] || return 3
+    [[ -z ${expected_loop_maj_min:-} || $queried_loop_maj_min == "$expected_loop_maj_min" ]] || return 3
+    return 4
+  fi
+  [[ -n $queried_back_file && -n $queried_back_ino && -n $queried_back_maj_min &&
+    -n $queried_offset && -n $queried_sizelimit ]] || return 2
+}
+
 query_loop_identity() {
   local phase=$1
   local stdout_file="$artifact_dir/loop-query-$phase.json"
@@ -162,7 +174,7 @@ query_loop_identity() {
   queried_offset=$(jq -r '.loopdevices[0].offset // empty' "$stdout_file")
   queried_sizelimit=$(jq -r '.loopdevices[0].sizelimit // empty' "$stdout_file")
 
-  [[ -n $queried_back_file ]] || return 2
+  classify_loop_fields || return $?
   queried_back_file=$(realpath -e "$queried_back_file") || return 2
   return 0
 }
@@ -225,6 +237,13 @@ restore_linear() {
     return 1
   fi
 
+  current_table=$(as_root dmsetup table "$map_name") || return 1
+  if [[ $current_table == "$linear_table" ]] && ! mapper_suspended; then
+    record "exact linear table is already active: $linear_table"
+    record_mapper restored
+    return 0
+  fi
+
   if ! mapper_suspended; then
     as_root dmsetup suspend --noflush --nolockfs "$map_name"
   fi
@@ -237,7 +256,8 @@ restore_linear() {
 cleanup_state() {
   require_state_path
   mkdir -p "$artifact_dir"
-  : >"$artifact_dir/cleanup.txt"
+  touch "$artifact_dir/cleanup.txt"
+  printf 'cleanup_attempt_epoch=%s\n' "$(date +%s)" >>"$artifact_dir/cleanup.txt"
 
   if [[ -f $state_dir/map && -f $state_dir/loop && -f $state_dir/sectors &&
         -f $state_dir/image && -f $state_dir/mount && -f $state_dir/linear-table ]]; then
@@ -294,7 +314,7 @@ cleanup_state() {
       printf 'detached_loop=%s\n' "$loop_device" >>"$artifact_dir/cleanup.txt"
     else
       loop_state=$?
-      [[ $loop_state -eq 1 ]] || {
+      [[ $loop_state -eq 1 || $loop_state -eq 4 ]] || {
         record "refusing cleanup: loop identity unavailable or mismatched ($loop_state)"
         return 1
       }
@@ -341,7 +361,7 @@ assert_clean() {
         failed=1
       else
         loop_state=$?
-        if [[ $loop_state -ne 1 ]]; then
+        if [[ $loop_state -ne 1 && $loop_state -ne 4 ]]; then
           printf 'loop_identity=unavailable_or_mismatched:%s\n' "$loop_state" \
             >>"$artifact_dir/cleanup.txt"
           failed=1
@@ -355,6 +375,58 @@ assert_clean() {
   fi
 
   return "$failed"
+}
+
+recover_remount() {
+  read_state
+  verify_loop_identity recover-pre-unmount || {
+    status=$?
+    record "refusing recovery remount: loop identity status $status"
+    return 1
+  }
+  query_mapper recover-pre-unmount || {
+    status=$?
+    record "refusing recovery remount: mapper identity status $status"
+    return 1
+  }
+  [[ $(as_root dmsetup table "$map_name") == "$linear_table" ]] || {
+    record "refusing recovery remount: mapper does not reference recorded loop identity"
+    return 1
+  }
+
+  local mounted
+  mounted=$(as_root findmnt -rn -M "$mount_path" -o SOURCE,TARGET,FSTYPE,OPTIONS) || {
+    record "refusing recovery remount: exact mount is unavailable"
+    return 1
+  }
+  [[ $mounted == "/dev/mapper/$map_name $mount_path ext4 "* ]] || {
+    record "refusing recovery remount: exact mount identity mismatch"
+    return 1
+  }
+  printf 'before_unmount=%s\n' "$mounted" >>"$artifact_dir/recovery-remount.txt"
+
+  as_root umount "$mount_path"
+  if as_root findmnt -rn -M "$mount_path" >"$artifact_dir/recovery-findmnt-after-unmount.txt" 2>&1; then
+    record "ordinary unmount did not remove exact mount"
+    return 1
+  fi
+  printf 'ordinary_unmount=pass\n' >>"$artifact_dir/recovery-remount.txt"
+
+  verify_loop_identity recover-pre-mount || return 1
+  query_mapper recover-pre-mount || return 1
+  [[ $(as_root dmsetup table "$map_name") == "$linear_table" ]] || return 1
+  as_root mount -o nodev,nosuid,noexec "/dev/mapper/$map_name" "$mount_path"
+
+  mounted=$(as_root findmnt -rn -M "$mount_path" -o SOURCE,TARGET,FSTYPE,OPTIONS) || return 1
+  [[ $mounted == "/dev/mapper/$map_name $mount_path ext4 "* ]] || return 1
+  options=${mounted#* ext4 }
+  [[ ,$options, == *,rw,* && ,$options, == *,nodev,* && ,$options, == *,nosuid,* &&
+    ,$options, == *,noexec,* && ,$options, != *,emergency_ro,* ]] || {
+    record "ordinary remount did not produce expected writable recovered filesystem"
+    return 1
+  }
+  printf 'after_remount=%s\nordinary_remount_recovery=pass\n' "$mounted" \
+    >>"$artifact_dir/recovery-remount.txt"
 }
 
 setup_state() {
@@ -620,6 +692,9 @@ case "$mode" in
   restore)
     restore_linear
     ;;
+  recover-remount)
+    recover_remount
+    ;;
   cleanup)
     cleanup_state
     ;;
@@ -627,7 +702,7 @@ case "$mode" in
     assert_clean
     ;;
   *)
-    printf 'usage: %s capability|setup|suspend|error-resume|restore|cleanup|assert-clean STATE ARTIFACTS\n' \
+    printf 'usage: %s capability|setup|suspend|error-resume|restore|recover-remount|cleanup|assert-clean STATE ARTIFACTS\n' \
       "$0" >&2
     exit 64
     ;;

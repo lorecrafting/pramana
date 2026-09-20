@@ -12,6 +12,7 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
          {:ok, typed_errno} <- typed_errno(fixture),
          {:ok, sync} <- exact_sync_failure(events, destination, typed_errno),
          {:ok, open} <- matching_open(events, destination, sync),
+         {:ok, close} <- matching_close(events, destination, sync),
          {:ok, load_time} <- phase_time(phase, "load"),
          {:ok, resume_time} <- phase_time(phase, "resume"),
          {:ok, assert_time} <- phase_time(phase, "semantic-assert"),
@@ -29,9 +30,11 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
         "resume_timestamp=#{format_time(resume_time)}",
         "assert_timestamp=#{format_time(assert_time)}",
         "sync_timestamp=#{sync.timestamp}",
+        "close_timestamp=#{close.timestamp}",
         "controlled_error_table=true",
         "ext4_emergency_ro=#{typed_errno == "erofs"}",
-        "filesystem_recovery_claimed=false",
+        "retained_content_recovery=orderly_remount",
+        "failed_sync_persistence_claimed=false",
         "gateway_storage_failure=#{typed_errno}",
         "result=pass",
         "",
@@ -128,6 +131,23 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
     end
   end
 
+  defp matching_close(events, destination, sync) do
+    pattern =
+      ~r/^close\(#{Regex.escape(sync.fd)}<#{Regex.escape(destination)}>\)\s+=\s+0\b/
+
+    matches =
+      Enum.filter(events, fn event ->
+        event.trace == sync.trace and event.time > sync.time and
+          Regex.match?(pattern, event.syscall)
+      end)
+
+    case matches do
+      [match] -> {:ok, match}
+      [] -> {:error, :missing_exact_path_close_after_sync_failure}
+      _many -> {:error, :multiple_exact_path_closes_after_sync_failure}
+    end
+  end
+
   defp phase_time(phase, name) do
     pattern = ~r/^epoch_ns=(\d+) phase=#{Regex.escape(name)} status=0$/m
 
@@ -156,12 +176,16 @@ defmodule PramanaFoundry.CI.FR19ASyncFaultParse do
     fixture =~ "TRACED_CONTEXT=pass" and
       fixture =~ "NESTED_SUDO=pass" and
       fixture =~ "HEX_SCM=pass" and
+      fixture =~ "DIRTY_HELPER_JOINED=pass" and
       Regex.match?(~r/^DIRTY_PWRITE=(?:ok|error:eio|error:erofs)$/m, fixture) and
       fixture =~ "GATEWAY_RECOVERY_MODE=pass" and
       fixture =~ "LATER_PROTECTED_REFUSAL=pass" and
+      fixture =~ "GATEWAY_STOPPED=pass" and
+      fixture =~ "ORDERLY_REMOUNT_RECOVERY=pass" and
       fixture =~ "DESTINATION_VERIFICATION=pass" and
       fixture =~ "SOURCE_AUTHORITY=pass" and
-      fixture =~ "FILESYSTEM_RECOVERY=not_claimed" and
+      fixture =~ "FILESYSTEM_RECOVERY=orderly_remount" and
+      fixture =~ "FAILED_SYNC_PERSISTENCE=not_claimed" and
       fixture =~ "FIXTURE_RESULT=pass"
   end
 
