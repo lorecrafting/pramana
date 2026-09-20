@@ -746,7 +746,7 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
     assert {:ok, plan} =
              Database.query(
                conn,
-               "EXPLAIN QUERY PLAN SELECT schema_version, event_id, command_id, event_type, event FROM events WHERE projection_namespace = ? AND projection_entity_id = ? ORDER BY seq",
+               "EXPLAIN QUERY PLAN SELECT seq, event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event FROM events WHERE projection_namespace = ? AND projection_entity_id = ? ORDER BY seq",
                ["kernel-v1", "ticket-A"]
              )
 
@@ -794,6 +794,89 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
 
     assert {:ok, [[0]]} =
              Database.query(conn, "SELECT count(*) FROM commands WHERE command_id='B'")
+  end
+
+  test "an earlier indexed carrier is bound before projection reduction", ctx do
+    for {entrypoint, damage} <- [public_command: :absent, mutation: :mismatch] do
+      path = Path.join(ctx.root, "earlier-carrier-#{entrypoint}-#{damage}.sqlite3")
+      assert :ok = Gateway.initialize(path)
+
+      gateway =
+        start_supervised!({Gateway, path: path}, id: {:earlier_carrier, entrypoint})
+
+      assert {:ok, _result, :committed} =
+               Gateway.transact(gateway, "actor", command("A"), bundle("A"))
+
+      update_command = put_in(command("B")["expected_revisions"], %{projection_key("A") => 0})
+
+      update_event =
+        bundle("B").events
+        |> hd()
+        |> put_in([:payload, "projection", "entity_id"], "ticket-A")
+        |> put_in([:payload, "projection", "revision"], 1)
+
+      update_projection =
+        bundle("B").projections
+        |> hd()
+        |> Map.merge(%{entity_id: "ticket-A", expected_revision: 0, revision: 1})
+
+      assert {:ok, _result, :committed} =
+               Gateway.transact(gateway, "actor", update_command, %{
+                 bundle("B")
+                 | events: [update_event],
+                   projections: [update_projection]
+               })
+
+      conn = :sys.get_state(gateway).conn
+
+      assert {:ok, [[event_bytes]]} =
+               Database.query(conn, "SELECT event FROM events WHERE event_id='event-A'")
+
+      assert {:ok, event} = RecordCodec.decode(:event, event_bytes)
+
+      damaged =
+        case damage do
+          :absent -> Map.put(event, "payload", %{})
+          :mismatch -> put_in(event["payload"]["projection"]["entity_id"], "ticket-OTHER")
+        end
+
+      assert {:ok, damaged_bytes} = RecordCodec.encode(:event, damaged)
+
+      assert :ok =
+               Database.execute(conn, "UPDATE events SET event=? WHERE event_id='event-A'", [
+                 {:blob, damaged_bytes}
+               ])
+
+      before = sql_snapshot(conn)
+      expected = {:authority_corrupt, "events", "event-A", :relational_binding_mismatch}
+
+      assert {:error, ^expected} =
+               Authority.read(conn, {:revision, {:projection, "kernel-v1", "ticket-A"}})
+
+      assert {:error, ^expected} =
+               Authority.read(conn, {:revision, {:dependency, "kernel-v1", "ticket-A"}})
+
+      case entrypoint do
+        :public_command ->
+          assert {:error, {:recovery_mode, ^expected}} = Gateway.command(gateway, "B")
+
+        :mutation ->
+          dependent = put_in(command("C")["expected_revisions"], %{projection_key("A") => 1})
+
+          assert {:error, ^expected} =
+                   Gateway.transact(gateway, "actor", dependent, %{
+                     schema_version: 1,
+                     result: %{schema_version: 1, disposition: "accepted"}
+                   })
+      end
+
+      assert Process.alive?(gateway)
+      assert %{mode: :recovery, reason: ^expected} = Gateway.status(gateway)
+      assert before == sql_snapshot(conn)
+
+      assert {:ok, [[0]]} =
+               Database.query(conn, "SELECT count(*) FROM commands WHERE command_id='C'")
+    end
   end
 
   test "projection and ledger dependencies reject impossible owner result watermarks", ctx do
@@ -1005,6 +1088,13 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
       )
 
     digest
+  end
+
+  defp sql_snapshot(conn) do
+    Map.new(Authority.registry(), fn {table, ordering, _columns} ->
+      assert {:ok, rows} = Database.query(conn, "SELECT * FROM #{table} ORDER BY #{ordering}")
+      {table, rows}
+    end)
   end
 
   defp valid_legacy_line do

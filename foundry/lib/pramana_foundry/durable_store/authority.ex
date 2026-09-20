@@ -322,30 +322,37 @@ defmodule PramanaFoundry.DurableStore.Authority do
   end
 
   defp decode_events(rows) do
-    Enum.reduce_while(rows, {:ok, []}, fn [
-                                            seq,
-                                            id,
-                                            command_id,
-                                            schema,
-                                            type,
-                                            projection_namespace,
-                                            projection_entity_id,
-                                            bytes
-                                          ],
-                                          {:ok, acc} ->
-      case bound("events", id, :event, bytes, %{schema_version: schema, event_id: id, type: type}) do
-        {:ok, value} ->
-          if event_carrier_matches?(value, projection_namespace, projection_entity_id) do
-            {:cont, {:ok, [%{seq: seq, id: id, command_id: command_id, value: value} | acc]}}
-          else
-            {:halt, corrupt("events", id, :relational_binding_mismatch)}
-          end
-
-        error ->
-          {:halt, error}
+    Enum.reduce_while(rows, {:ok, []}, fn row, {:ok, acc} ->
+      case decode_event_row(row) do
+        {:ok, event} -> {:cont, {:ok, [event | acc]}}
+        {:error, _reason} = error -> {:halt, error}
       end
     end)
     |> reverse_ok()
+  end
+
+  defp decode_event_row([
+         seq,
+         id,
+         command_id,
+         schema,
+         type,
+         projection_namespace,
+         projection_entity_id,
+         bytes
+       ]) do
+    with {:ok, value} <-
+           bound("events", id, :event, bytes, %{
+             schema_version: schema,
+             event_id: id,
+             type: type
+           }),
+         true <- event_carrier_matches?(value, projection_namespace, projection_entity_id) do
+      {:ok, %{seq: seq, id: id, command_id: command_id, value: value}}
+    else
+      false -> corrupt("events", id, :relational_binding_mismatch)
+      {:error, _reason} = error -> error
+    end
   end
 
   defp decode_projections(rows) do
@@ -963,15 +970,9 @@ defmodule PramanaFoundry.DurableStore.Authority do
              sql,
              params,
              initial,
-             fn [schema, event_id, command_id, type, bytes], acc ->
-               case RecordCodec.decode_bound(:event, bytes, %{
-                      schema_version: schema,
-                      event_id: event_id,
-                      type: type
-                    }) do
-                 {:ok, event} ->
-                   transition = event["payload"]["projection"]
-
+             fn row, acc ->
+               case decode_projection_carrier(row, projection) do
+                 {:ok, %{id: event_id, command_id: command_id, transition: transition}} ->
                    candidate = %{
                      "schema_version" => 1,
                      "namespace" => transition["namespace"],
@@ -1001,8 +1002,8 @@ defmodule PramanaFoundry.DurableStore.Authority do
                         )}
                    end
 
-                 {:error, reason} ->
-                   {:halt, corrupt("events", event_id, reason)}
+                 {:error, _reason} = error ->
+                   {:halt, error}
                end
              end
            ),
@@ -1039,7 +1040,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
 
   defp projection_chain_query(projection, mode, last_seq) do
     base =
-      "SELECT schema_version, event_id, command_id, event_type, event FROM events WHERE projection_namespace = ? AND projection_entity_id = ?"
+      "SELECT seq, event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event FROM events WHERE projection_namespace = ? AND projection_entity_id = ?"
 
     params = [projection["namespace"], projection["entity_id"]]
 
@@ -1058,6 +1059,30 @@ defmodule PramanaFoundry.DurableStore.Authority do
         {:error, :invalid_projection_validation_scope}
     end
   end
+
+  defp decode_projection_carrier(row, projection) do
+    with {:ok, event} <- decode_event_row(row),
+         %{
+           value: %{
+             "payload" => %{
+               "projection" =>
+                 %{
+                   "namespace" => namespace,
+                   "entity_id" => entity_id
+                 } = transition
+             }
+           }
+         } <- event,
+         true <- namespace == projection["namespace"] and entity_id == projection["entity_id"] do
+      {:ok, Map.put(event, :transition, transition)}
+    else
+      {:error, _reason} = error -> error
+      _other -> corrupt("events", event_identity(row), :relational_binding_mismatch)
+    end
+  end
+
+  defp event_identity([_seq, event_id | _rest]), do: event_id
+  defp event_identity(_row), do: "projection_carrier"
 
   defp validate_command_owners(conn, command_ids) do
     Enum.reduce_while(command_ids, :ok, fn command_id, :ok ->
