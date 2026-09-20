@@ -1424,5 +1424,131 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
       assert reason == "discriminator_settlement_unavailable"
     end
+
+    defp commit_plan!(ctx, id) do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, _, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle(id)
+               )
+    end
+
+    defp reopen_status(ctx) do
+      stop_supervised!(Gateway)
+
+      reopened =
+        start_supervised!({Gateway, path: ctx.path, protected_capability: ctx.capability})
+
+      Gateway.status(reopened)
+    end
+
+    test "a plan-bound commit survives reopen and verified backup unchanged", ctx do
+      commit_plan!(ctx, "REV1")
+
+      assert {:ok, _} = Gateway.backup(ctx.gateway, ctx.path <> ".rev-backup")
+      assert %{mode: :ready} = reopen_status(ctx)
+    end
+
+    # Verified non-vacuous: neutralising valid_plan_binding?/4 makes this test fail,
+    # so the new revalidation is what detects it, not a pre-existing check.
+    test "mutating a committed carrier is detected on reopen", ctx do
+      commit_plan!(ctx, "REV2")
+      stop_supervised!(Gateway)
+
+      # Rewrite the committed event's bound settlement. The protected root can no longer
+      # reproduce this event by re-running the binding, so it must refuse.
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(raw, "SELECT event FROM events WHERE event_type = ?", [
+                 "launch_settled"
+               ])
+
+      tampered =
+        bytes
+        |> :json.decode()
+        |> normalize_json()
+        |> put_in(["payload", "settlement", "ordinal"], 99)
+
+      assert {:ok, encoded} = Encoding.json(tampered)
+
+      assert :ok =
+               Database.execute(raw, "UPDATE events SET event = ? WHERE event_type = ?", [
+                 {:blob, encoded},
+                 "launch_settled"
+               ])
+
+      assert :ok = Sqlite3.close(raw)
+
+      reopened =
+        start_supervised!({Gateway, path: ctx.path, protected_capability: ctx.capability})
+
+      assert %{mode: :recovery} = Gateway.status(reopened)
+    end
+
+    # Honest attribution: this passes with valid_plan_binding?/4 neutralised, so the
+    # detection comes from the pre-existing durable result-record validation, not from
+    # the new revalidation. Kept because the property matters and should stay asserted,
+    # but it is not evidence that the plan binding is revalidated.
+    test "mutating the recorded discriminator is detected by result validation", ctx do
+      commit_plan!(ctx, "REV3")
+      stop_supervised!(Gateway)
+
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(raw, "SELECT result FROM command_results WHERE command_id = ?", [
+                 "REV3"
+               ])
+
+      tampered =
+        bytes
+        |> :json.decode()
+        |> normalize_json()
+        |> Map.put("selected_discriminator", "infrastructure_limit_reached")
+
+      assert {:ok, encoded} = Encoding.json(tampered)
+
+      assert :ok =
+               Database.execute(
+                 raw,
+                 "UPDATE command_results SET result = ? WHERE command_id = ?",
+                 [
+                   {:blob, encoded},
+                   "REV3"
+                 ]
+               )
+
+      assert :ok = Sqlite3.close(raw)
+
+      reopened =
+        start_supervised!({Gateway, path: ctx.path, protected_capability: ctx.capability})
+
+      assert %{mode: :recovery} = Gateway.status(reopened)
+    end
+
+    test "revalidation never recomputes the discriminator, so a policy revision is safe", ctx do
+      commit_plan!(ctx, "REV4")
+
+      # Revising the policy makes recomputation impossible — the effect's recorded
+      # policy_revision no longer matches, and infrastructure_discriminator/3 fails
+      # closed. A revalidation that recomputed would now report a valid commit as corrupt.
+      accept_current!(ctx, %{
+        "type" => "set_policy",
+        "policy_id" => "policy-1",
+        "value" => %{
+          "allowed_operations" => ["launch"],
+          "allowed_scopes" => ["ticket:T1"],
+          "infrastructure_attempt_limits" => %{"developer" => 9}
+        }
+      })
+
+      assert {:ok, _} = Gateway.backup(ctx.gateway, ctx.path <> ".rev4-backup")
+      assert %{mode: :ready} = reopen_status(ctx)
+    end
   end
 end

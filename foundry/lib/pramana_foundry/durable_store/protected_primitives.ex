@@ -1,7 +1,7 @@
 defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   @moduledoc false
 
-  alias PramanaFoundry.DurableStore.{Database, Encoding}
+  alias PramanaFoundry.DurableStore.{Database, Encoding, TransitionPlan}
 
   @dimensions ~w(starts.pm starts.developer starts.reviewer starts.check starts.build operations.integration operations.activation model_requests validations)
   @operation_types ~w(set_policy set_control append_inbox seal_inbox grant_ledger delegate_allocation return_allocation reserve release_reservation close_generation reset_generation create_effect claim_effect reclaim_claim issue_claim cancel_effect settle_claim)
@@ -5132,10 +5132,59 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            |> Enum.all?(fn tuple ->
              valid_bundle_protected_row?(conn, digest, result, tuple)
            end),
-         true <- valid_bundle_domain_row?(domain_row, envelope, result) do
+         true <- valid_bundle_domain_row?(domain_row, envelope, result),
+         true <- valid_bundle_plan_binding?(conn, envelope, result) do
       :ok
     else
       _ -> {:error, :invalid_bundle_operation_binding}
+    end
+  end
+
+  # Revalidates a plan-bound commit by reconstructing it. Re-running the binding against
+  # the original plan, the recorded discriminator and the persisted protected outcomes
+  # must reproduce the committed events exactly. That proves those events could only have
+  # come from that plan, those results and that discriminator, and it subsumes field-level
+  # comparison rather than enumerating checks that need extending whenever a slot is added.
+  #
+  # The recorded discriminator is used and never recomputed.
+  # infrastructure_discriminator/3 derives from the current policy row and fails closed
+  # once that policy is revised, so recomputing here would turn a valid historical commit
+  # into a corruption report the moment an operator changed policy.
+  defp valid_bundle_plan_binding?(conn, envelope, result) do
+    case envelope["plan"] do
+      nil -> true
+      plan -> valid_plan_binding?(conn, plan, envelope, result)
+    end
+  end
+
+  # A bundle that committed no domain carriers has no binding to revalidate.
+  defp valid_plan_binding?(_conn, _plan, _envelope, %{"disposition" => disposition})
+       when disposition != "accepted",
+       do: true
+
+  defp valid_plan_binding?(conn, plan, envelope, result) do
+    with discriminator when is_binary(discriminator) <- result["selected_discriminator"],
+         staged when is_list(staged) <- result["operations"],
+         {:ok, proposal} <- TransitionPlan.bind(plan, discriminator, staged),
+         {:ok, committed} <- committed_bundle_events(conn, envelope["command"]["command_id"]) do
+      proposal["events"] == committed
+    else
+      _ -> false
+    end
+  end
+
+  defp committed_bundle_events(conn, command_id) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT event FROM events WHERE command_id = ? ORDER BY seq",
+             [command_id]
+           ),
+         decoded <- Enum.map(rows, fn [bytes] -> decode(bytes) end),
+         true <- Enum.all?(decoded, &match?({:ok, _}, &1)) do
+      {:ok, Enum.map(decoded, fn {:ok, event} -> event end)}
+    else
+      _ -> {:error, :unreadable_committed_events}
     end
   end
 
