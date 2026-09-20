@@ -38,6 +38,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
           end)
           |> case do
             {:ok, result} -> {:ok, result, :committed}
+            {:error, :invalid_fields} -> {:error, :invalid_protected_request}
             {:error, reason} -> {:error, {:storage_unavailable, reason}}
           end
 
