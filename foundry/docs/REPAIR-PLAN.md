@@ -1084,13 +1084,31 @@ as well as successful final runs and demonstrate that a cheaper token path canno
 worse review, acceptance or operator-effort outcomes.
 
 **OpenTelemetry convergence:** [the observability route](OBSERVABILITY.md) stages this
-work and assigns every step here. Export is the **last** of five steps and is gated on the
-first four: freeze the canonical observation envelope and identity vocabulary, repair the
-producers, repair numeric retention, bridge the selected harness, and only then add pinned
-OpenTelemetry dependencies and export against a pinned semantic-convention version.
-Exporters are optional sinks and never a new source of truth. Exporting a telemetry model
-before its semantics are repaired only publishes the wrong model in a portable format, so
-no flag-day logging rewrite is acceptable.
+work across seven steps. Steps 2 through 5 are FR-18B's; step 1 is split, with FR-18A
+owning the identity, source/quality and unknown vocabulary and FR-18B reconciling the
+telemetry schemas to it; steps 6 and 7 have no owner recorded and must be assigned before
+either is started. Export is **step 5 of 7**, gated on steps 1 through 4, and steps 6 and
+7 follow it.
+
+Two architectural commitments from that route are recorded here because the plan is the
+acceptance authority and did not previously carry them. **Erlang `:telemetry` is the
+in-process seam**, with durable local analytics, OpenTelemetry traces/metrics, and the
+board and Improver as independent consumers of one canonical observation envelope — not a
+chain in which one consumer's format becomes another's contract. And **observability is
+not authority**: telemetry may explain a workflow or effect outcome and may never decide
+one, so no OpenTelemetry mapping, exporter or consumer is a source of workflow truth. The
+GenAI semantic-convention mapping is an adapter and export concern, never Foundry's stored
+authority schema.
+
+**Export is routed to FR-18B but is not an FR-18B acceptance obligation.** Exporters are
+optional sinks, never a new source of truth, so FR-18B may close without export having
+been done. If export is ever required, it becomes a distinct deliverable with its own
+pinned semantic-convention acceptance and needs its own ticket rather than an extension of
+this one. Recording the routing without this sentence would leave it ambiguous whether
+FR-18B had silently acquired an obligation its acceptance paragraph never states.
+
+Exporting a telemetry model before its semantics are repaired only publishes the wrong
+model in a portable format, so no flag-day logging rewrite is acceptable.
 
 **Excludes:** Building a new dashboard framework.
 

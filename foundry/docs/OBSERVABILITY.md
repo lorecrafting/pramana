@@ -225,10 +225,17 @@ observability backend samples or expires traces.
 
 ### Staged convergence under FR-18B
 
-All five steps belong to FR-18B, not FR-18A. FR-18A is the minimal honest observation
-surface — identities, source and quality, and explicit unknown, unavailable and corrupt
-outcomes — and it is deliberately silent about producers. The producer chain, numeric
-retention and any export are FR-18B's scope.
+Ownership is split, and step 1 is the part that is easy to misassign. FR-18A owns the
+identity, source/quality and unknown vocabulary — its acceptance requires binding every
+observation to revision, source and quality, and distinguishing unknown, unavailable and
+corrupt from empty healthy state — and it has delivered that. What remains of step 1 is
+FR-18B's: reconciling the `command`, `llm_phase` and lifecycle telemetry schemas *to*
+that vocabulary rather than re-freezing it, which is why FR-18B depends on FR-18A.
+
+Steps 2 through 5 are FR-18B's without qualification. **Steps 6 and 7 have no owner
+recorded here.** Step 6 touches the Improver, which FR-20 owns and which depends on
+FR-18B; step 7 reads like the efficiency refinement. Assign them explicitly before either
+is started rather than inferring an owner from adjacency.
 
 Do not perform a flag-day logging rewrite. Route the work through the owning FR-18B
 requirements:
