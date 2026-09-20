@@ -6,6 +6,16 @@ evidence. It does not change the blocked disposition in
 exact committed revision and produce the required uploaded proof before the kernel-sync
 obligation can be reconsidered.
 
+Run `35495623228` at revision `6b75fa3e8954bf32f8bfeee60af2d3f82466cf8c`
+was diagnostic only and is not acceptance evidence. Its uploaded artifact
+`10600049347` proved the disposable loop, device-mapper `error` target, ext4 mount
+and exact cleanup were available, but the raw probe exited 127 before a capability
+verdict because the elevated Elixir wrapper could not resolve `erl`. The runner also
+inherited shell errexit before recording the intended unavailable result. The corrected
+probe therefore validates both setup-beam executable paths, passes a fixed runtime
+`PATH` explicitly across sudo, and captures the capability command status inside a
+conditional before the separate refusal step owns any failure.
+
 ## Boundary
 
 The branch-only [workflow](../../../.github/workflows/fr19a-sync-eio.yml) uses an ephemeral
