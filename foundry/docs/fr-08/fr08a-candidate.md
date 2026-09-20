@@ -8,8 +8,8 @@ a provider or daemon, activate Git/deployment state, or claim FR-22 completion.
 ## Exact identity
 
 - Baseline: `fa636fb592eacf4ebd31b72fa377b0a86a6d3e3e`.
-- Protected core subject: `1e3a1ae60ada4e9634ffc20ccc4b68db149aa03d`,
-  tree `964a1e756c1704f5e4f5d142680ec4e941b34e92`.
+- Protected core subject: `aacbd1c407eb5f76afdfaf09e6793f7ecb19c8da`,
+  tree `d0e3d258fef13915b78080cd484c68d84f5337c4`.
 - Gate/provider layer: `64b011a0589fa93028951f82e6591a1e668cfdf1`,
   tree `047486de4a2711e5e9d4874d647647d7c58f95ee`.
 - Historical-H0 evolution test: `b7484482ac1305eb47d81be2787fc9a836683339`,
@@ -19,7 +19,7 @@ a provider or daemon, activate Git/deployment state, or claim FR-22 completion.
 
 The frozen report is `fr08a-protected-report.txt`. It binds the four protected source
 files by SHA-256 and reports 7 pass, 0 fail, 0 unavailable, `ready=true`.
-Its SHA-256 is `2b57b3dcb1a23af102956dfc8bb073a4feceea9982dfe84bd531261c1ff82d79`.
+Its SHA-256 is `7f3695ad25c3df9e1118066e0911222ded64881c1eed879584fc453a65b82745`.
 
 ## Protected authority and migration
 
@@ -85,14 +85,14 @@ regressions are not hidden.
 This candidate record is excluded to avoid a recursive self-hash.
 
 ```text
-2b57b3dcb1a23af102956dfc8bb073a4feceea9982dfe84bd531261c1ff82d79  foundry/docs/fr-08/fr08a-protected-report.txt
+7f3695ad25c3df9e1118066e0911222ded64881c1eed879584fc453a65b82745  foundry/docs/fr-08/fr08a-protected-report.txt
 d0b94ba108f8a1be0b3c17db4478bcbe25783991ceb17bc5ca3bb8edd886d99c  foundry/lib/pramana_foundry/durable_store/authority.ex
 eb33981a78b6a973f26f8610f660f660c149ba57e2d8c046f09556bb1fd4b6e5  foundry/lib/pramana_foundry/durable_store/database.ex
 693fad9919d9bbf91b3a1157f5a775442a95fd3994553757c7912ec22862551b  foundry/lib/pramana_foundry/durable_store/gateway.ex
-ef3d27382df97b3919791610da445f3b42e7ec79aaa4bf81dbd165408b030447  foundry/lib/pramana_foundry/durable_store/protected_primitives.ex
-3b562b3d6b787e966970932d193d37c23df1eb450c1cc126f10c1fbd069568a9  foundry/lib/pramana_foundry/repair/fr08a_protected_boundary.ex
-2a194970b618832e6feda4c27607627fa8f05fc29dc0f637526b26f546609a48  foundry/test/pramana_foundry/durable_store/protected_primitives_test.exs
-b7c0abdff1437e7408146eb4d271ec93523c7317401416a5e4239fc6977c34ee  foundry/test/pramana_foundry/repair/fr08a_protected_boundary_test.exs
+df075738ec53580e52e06fbc28187192a65feb4dbaa5777985017b490b38d5cf  foundry/lib/pramana_foundry/durable_store/protected_primitives.ex
+9538f9ef5219666a2ae60071a036ed4892e80a55596aa9970bb33dc6dfb88eec  foundry/lib/pramana_foundry/repair/fr08a_protected_boundary.ex
+de67636ef47598166b3201dbc64b9499083205f9fed7059fff85db2bef687825  foundry/test/pramana_foundry/durable_store/protected_primitives_test.exs
+bfd7ebb5f16673b667428a04ba8a2c321b8293a9fbaf57a38dfa25099dd2d8df  foundry/test/pramana_foundry/repair/fr08a_protected_boundary_test.exs
 e762a8827a0c4a82f14bb92154692b2d52bd1337e2580af26133f7415ebd189b  foundry/test/pramana_foundry/repair/h0_accepted_fr07_boundary_test.exs
 ```
 

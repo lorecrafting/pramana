@@ -7,8 +7,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     report = FR08AProtectedBoundary.report()
 
     assert report.identity.implementation_binding == "verified:source-sha256/v1"
-    assert report.identity.subject_revision == "1e3a1ae60ada4e9634ffc20ccc4b68db149aa03d"
-    assert report.identity.subject_tree == "964a1e756c1704f5e4f5d142680ec4e941b34e92"
+    assert report.identity.subject_revision == "aacbd1c407eb5f76afdfaf09e6793f7ecb19c8da"
+    assert report.identity.subject_tree == "d0e3d258fef13915b78080cd484c68d84f5337c4"
     assert FR08HandoffGate.ready?(report.gate)
     assert report.gate.passed_count == 7
     assert report.gate.failed_count == 0
@@ -42,6 +42,6 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     assert first =~ "implementation_binding=verified:source-sha256/v1\n"
 
     assert first =~
-             "protected_primitives.ex|sha256:ef3d27382df97b3919791610da445f3b42e7ec79aaa4bf81dbd165408b030447"
+             "protected_primitives.ex|sha256:df075738ec53580e52e06fbc28187192a65feb4dbaa5777985017b490b38d5cf"
   end
 end

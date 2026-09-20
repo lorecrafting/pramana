@@ -13,14 +13,14 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   alias PramanaFoundry.DurableStore.{Gateway, LegacyImport}
   alias PramanaFoundry.Repair.FR08HandoffGate
 
-  @subject_revision "1e3a1ae60ada4e9634ffc20ccc4b68db149aa03d"
-  @subject_tree "964a1e756c1704f5e4f5d142680ec4e941b34e92"
+  @subject_revision "aacbd1c407eb5f76afdfaf09e6793f7ecb19c8da"
+  @subject_tree "d0e3d258fef13915b78080cd484c68d84f5337c4"
   @source_identity %{
     "authority.ex" => "d0b94ba108f8a1be0b3c17db4478bcbe25783991ceb17bc5ca3bb8edd886d99c",
     "database.ex" => "eb33981a78b6a973f26f8610f660f660c149ba57e2d8c046f09556bb1fd4b6e5",
     "gateway.ex" => "693fad9919d9bbf91b3a1157f5a775442a95fd3994553757c7912ec22862551b",
     "protected_primitives.ex" =>
-      "ef3d27382df97b3919791610da445f3b42e7ec79aaa4bf81dbd165408b030447"
+      "df075738ec53580e52e06fbc28187192a65feb4dbaa5777985017b490b38d5cf"
   }
 
   def identity do
