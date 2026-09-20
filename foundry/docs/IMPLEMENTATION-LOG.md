@@ -1441,3 +1441,17 @@ steps.
   exact acceptance evidence. Continue checkpoint F only inside its stated synthetic,
   provider-free boundary. Use Astra-medium for a genuinely narrow FR-19A critical
   rereview and Astra-high for FR-08A's first critical review.
+
+## Coordination-efficiency policy made durable — 2026-09-19
+
+- The operator requested that the token/speed recommendations survive goal resumption.
+  `REPAIR-PLAN.md` now records the complete coordination discipline beside the existing
+  two-level finish line, batches and review tiers: one writer per shared interface,
+  compact evidence packets, focused-development/full-freeze validation, mechanically
+  generated provenance, reusable hostile probes, stable implementer ownership, fresh
+  frozen-candidate review, contradiction-first diagnosis, read-only downstream
+  preparation and handle-based waiting instead of busy polling.
+- These rules optimize execution only. They do not alter ticket status, dependencies,
+  acceptance obligations, F01–F24 routing, provider/spending authority or FR-22's final
+  lifecycle ownership. Future resumed coordination reads the authoritative repair plan
+  and this log before dispatch.

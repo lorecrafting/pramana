@@ -141,6 +141,40 @@ suite at candidate freeze and again after integration, reusable reviewer-owned f
 probes, and one manifest/evidence packet for the frozen batch. Batch review reduces
 duplicated context; it never converts missing per-ticket evidence into a pass.
 
+### Coordination efficiency discipline
+
+These rules reduce duplicated context and execution without weakening any dependency,
+acceptance paragraph or F01–F24 obligation:
+
+- Keep one active implementation writer for each shared subsystem or unsettled interface.
+  Parallel agents may investigate, design tests or review read-only, but they do not edit
+  the same authority surface. Integrate shared-interface candidates sequentially.
+- Give each bounded agent the ticket, exact base/candidate, relevant contract passages,
+  acceptance matrix, known blockers and permitted files—not the full historical corpus.
+  Expand context only when a concrete crossed interface requires it.
+- Run focused tests while developing. Run the full relevant model-free suite at candidate
+  freeze, during independent review when required, and after integration; do not repeat
+  identical full runs after every local edit.
+- Generate hashes, manifests, revision/tree identities and evidence inventories
+  mechanically. Reuse independently owned hostile/fault probes across later tickets when
+  their contract remains applicable, while recording the exact revision each run tested.
+- Keep a ticket's bounded implementation owner for concrete corrections. Use a different,
+  fresh reviewer only after the candidate is frozen; a moving source tree has no review
+  verdict. Narrow re-reviews cover the reproduced defect and affected invariant family.
+- Batch coherent lifecycle work as defined above, with attributable subcommits and a
+  per-ticket acceptance matrix. A batch review never hides a missing ticket obligation.
+- When evidence contradicts an invariant or prerequisite, stop that implementation path
+  and diagnose the abstraction once. Do not accumulate patches or retries against an
+  interface already shown to be wrong.
+- Prepare downstream work concurrently only through bounded read-only inventories or test
+  design until its dependency interface freezes. Do not code against a speculative API.
+- Wait on confirmed live agent/process handles rather than busy-polling. Persist and report
+  state changes, candidate identities, verdicts and blockers; repeated unchanged status is
+  not progress evidence.
+
+These are coordination rules, not permission to skip independent review, physical or
+provider acceptance, actual Git/restart/activation evidence, or FR-22 lifecycle proof.
+
 Use Astra-high at the critical FR-08A authority gate, FR-09 + FR-15aB execution/isolation
 gate, FR-13 + FR-14 artifact/Git-custody gate, and FR-17/FR-22 activation/final-lifecycle
 gate. Use Astra-medium only for narrow corrections at those gates, Sol-high for routine
