@@ -170,8 +170,8 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     assert_receive {:DOWN, ^probe_monitor, :process, ^probe, :killed}, 1_000
     assert_receive {:DOWN, ^controller_monitor, :process, ^controller, :normal}, 1_000
 
-    {:ok, recovered} =
-      Gateway.start_link(
+    recovered =
+      start_recovered_gateway(
         path: ctx.path,
         recovery_evidence: "observed killed test owner",
         capacity_probe: fn _path -> {:ok, 321} end
@@ -619,6 +619,36 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
   defp ready_gateway(path, opts) do
     assert :ok = Gateway.initialize(path, installation_id: "installation", repository_id: "repo")
     start_supervised!({Gateway, Keyword.put(opts, :path, path)})
+  end
+
+  defp start_recovered_gateway(opts) do
+    deadline = System.monotonic_time(:millisecond) + 2_000
+    start_recovered_gateway(opts, deadline)
+  end
+
+  defp start_recovered_gateway(opts, deadline) do
+    {:ok, gateway} = Gateway.start_link(opts)
+
+    case Gateway.status(gateway) do
+      %{mode: :ready} ->
+        gateway
+
+      %{mode: :recovery, reason: {:store_owner_unavailable, "database is locked"}} ->
+        :ok = GenServer.stop(gateway)
+
+        if System.monotonic_time(:millisecond) < deadline do
+          receive do
+          after
+            10 -> start_recovered_gateway(opts, deadline)
+          end
+        else
+          flunk("killed Gateway retained its SQLite lock beyond the recovery deadline")
+        end
+
+      status ->
+        :ok = GenServer.stop(gateway)
+        flunk("unexpected recovery status after killed Gateway: #{inspect(status)}")
+    end
   end
 
   defp start_store(path, opts) do
