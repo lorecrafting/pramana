@@ -119,7 +119,7 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
     corrupt = initialized_path(root, "corrupt")
     execute_raw!(corrupt, "DROP TABLE root_pointers")
 
-    assert {:error, {:authority_corrupt, "sqlite_schema", "inventory", :schema_mismatch}} =
+    assert {:error, {:unsupported_protected_migration, :partial_or_future_protected_state}} =
              Gateway.migrate(corrupt)
 
     refute table_exists?(corrupt, "root_pointers")

@@ -3,8 +3,16 @@
 # Required-behavior assertions deliberately fail on the reviewed candidate.
 ExUnit.start(seed: 92022)
 base = File.read!("test/pramana_foundry/durable_store/atomic_bundle_test.exs")
-base = String.replace(base, "PramanaFoundry.DurableStore.AtomicBundleTest", "PramanaFoundry.AtomicCompositionIndependentReview")
+
+base =
+  String.replace(
+    base,
+    "PramanaFoundry.DurableStore.AtomicBundleTest",
+    "PramanaFoundry.AtomicCompositionIndependentReview"
+  )
+
 base = Regex.replace(~r/\nend\s*\z/, base, "\n")
+
 extra = ~S"""
   alias PramanaFoundry.DurableStore.Encoding
 
@@ -136,10 +144,12 @@ extra = ~S"""
     assert {:ok, _, :committed} = Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", nonstart_bundle("first-receipt"))
     b = nonstart_bundle("same-receipt") |> put_in(["operations", Access.at(0), "expected_revisions"], %{
       "claim/claim-1" => 2, "effect/effect-1" => 3, "policy/policy-1" => 0,
-      "control/control-1" => 0, "reservation/reservation-1" => 4, "ledger/ledger-1/0" => 2, "receipt/receipt-1" => 0
+      "control/control-1" => 0, "reservation/reservation-1" => 4, "ledger/ledger-1/0" => 2,
+      "receipt/receipt-1" => 0, "settlement/effect-1" => 0,
+      infrastructure_key("developer", "1") => 1
     })
     result = Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", b)
-    assert {:ok, %{"disposition" => "accepted", "operations" => [%{"result" => %{"facts" => %{"infrastructure_settlement" => %{"ordinal" => 1}}}}]}, :committed} = result
+    assert {:ok, %{"disposition" => "rejected", "operations" => [%{"result" => %{"facts" => %{"infrastructure_settlement" => %{"ordinal" => 1}}}}]}, :rejected} = result
   end
 
   test "review: stale read rejects while preserving exact retry and root state", ctx do
@@ -173,6 +183,9 @@ extra = ~S"""
     b = nonstart_bundle("unknown-start")
       |> put_in(["operations", Access.at(0), "operation", "outcome"], "unknown")
       |> put_in(["operations", Access.at(0), "operation", "proof"], "outcome_unknown")
+      |> update_in(["operations", Access.at(0), "expected_revisions"], fn reads ->
+        Map.drop(reads, ["settlement/effect-1", infrastructure_key("developer", "1")])
+      end)
     assert {:ok, %{"disposition" => "accepted"}, :committed} = Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", b)
     ctx = reopen_review(ctx)
     assert {:ok, %{"held" => 1, "available" => 1}} = Gateway.protected_query(ctx.gateway, ctx.capability, %{"schema_version" => 1, "type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
@@ -228,4 +241,5 @@ extra = ~S"""
   end
 end
 """
+
 Code.eval_string(base <> extra, [], file: __ENV__.file)

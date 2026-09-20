@@ -72,7 +72,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
                  ctx.gateway,
                  ctx.capability,
                  "operator",
-                 nonstart_bundle("role-#{suffix}", suffix)
+                 nonstart_bundle("role-#{suffix}", suffix, role)
                )
 
       settlement =
@@ -145,6 +145,94 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
     assert {:ok, ^result, :idempotent} =
              Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", envelope)
+
+    assert_dependent_stage!(ctx)
+  end
+
+  defp assert_dependent_stage!(ctx) do
+    accept_current!(ctx, %{
+      "type" => "set_policy",
+      "policy_id" => "dependent-policy",
+      "value" => %{
+        "allowed_operations" => ["launch"],
+        "allowed_scopes" => ["ticket:dependent"]
+      }
+    })
+
+    accept_current!(ctx, %{
+      "type" => "set_control",
+      "control_id" => "dependent-control",
+      "value" => %{"status" => "active"}
+    })
+
+    accept_current!(ctx, %{
+      "type" => "grant_ledger",
+      "ledger_id" => "dependent-ledger",
+      "generation" => 0,
+      "dimension" => "starts.developer",
+      "units" => 1
+    })
+
+    envelope =
+      domain_envelope("dependent-stage")
+      |> Map.put("operations", [
+        %{
+          "schema_version" => 1,
+          "expected_revisions" => %{
+            "ledger/dependent-ledger/0" => 0,
+            "reservation/dependent-reservation" => "absent"
+          },
+          "operation" => %{
+            "type" => "reserve",
+            "reservation_id" => "dependent-reservation",
+            "ledger_id" => "dependent-ledger",
+            "generation" => 0,
+            "owner_kind" => "effect",
+            "owner_id" => "dependent-effect",
+            "units" => 1
+          }
+        },
+        %{
+          "schema_version" => 1,
+          "expected_revisions" => %{
+            "effect/dependent-effect" => "absent",
+            "policy/dependent-policy" => 0,
+            "control/dependent-control" => 0,
+            "reservation/dependent-reservation" => "absent"
+          },
+          "operation" => %{
+            "type" => "create_effect",
+            "effect_id" => "dependent-effect",
+            "request" => %{
+              "request_id" => "dependent-request",
+              "role" => "developer",
+              "profile" => "sol",
+              "phase_generation" => 0,
+              "operation_ordinal" => 0
+            },
+            "operation" => "launch",
+            "scope" => "ticket:dependent",
+            "ticket_id" => "dependent",
+            "attempt_id" => "attempt",
+            "execution_id" => "dependent-execution",
+            "policy_id" => "dependent-policy",
+            "policy_revision" => 0,
+            "control_id" => "dependent-control",
+            "control_revision" => 0,
+            "reservation_ids" => ["dependent-reservation"],
+            "leases" => []
+          }
+        }
+      ])
+
+    assert {:ok, %{"disposition" => "accepted", "operations" => operations}, :committed} =
+             Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", envelope)
+
+    assert Enum.map(operations, & &1["execution_status"]) == ["committed", "committed"]
+    assert {:ok, %{"status" => "pending"}} = fact(ctx, "effect", "effect_id", "dependent-effect")
+
+    assert {:ok, %{"status" => "reserved", "revision" => 1}} =
+             fact(ctx, "reservation", "reservation_id", "dependent-reservation")
   end
 
   test "protected, domain and pre-commit failures roll back the complete bundle", ctx do
@@ -354,7 +442,9 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
         "control/control-1" => 0,
         "reservation/reservation-1" => 4,
         "ledger/ledger-1/0" => 2,
-        "receipt/receipt-1" => 0
+        "receipt/receipt-1" => 0,
+        "settlement/effect-1" => 0,
+        infrastructure_key("developer", "1") => 1
       })
 
     assert {:ok, %{"disposition" => "rejected"}, :rejected} =
@@ -471,7 +561,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     })
   end
 
-  defp nonstart_bundle(id, suffix \\ "1") do
+  defp nonstart_bundle(id, suffix \\ "1", role \\ "developer") do
     domain_envelope(id)
     |> Map.put("operations", [
       %{
@@ -483,7 +573,9 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
           "control/control-#{suffix}" => 0,
           "reservation/reservation-#{suffix}" => 3,
           "ledger/ledger-#{suffix}/0" => 1,
-          "receipt/receipt-#{suffix}" => "absent"
+          "receipt/receipt-#{suffix}" => "absent",
+          "settlement/effect-#{suffix}" => "absent",
+          infrastructure_key(role, suffix) => 0
         },
         "operation" => %{
           "type" => "settle_claim",
@@ -609,6 +701,14 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     "projection/" <>
       Base.url_encode64("atomic-v2", padding: false) <>
       "/" <> Base.url_encode64(id, padding: false)
+  end
+
+  defp infrastructure_key(role, suffix) do
+    owner = "T#{suffix}:A#{suffix}:#{role}"
+
+    "infrastructure/" <>
+      Base.url_encode64(role, padding: false) <>
+      "/" <> Base.url_encode64(owner, padding: false) <> "/0"
   end
 
   defp unique_id, do: "root-#{System.unique_integer([:positive, :monotonic])}"

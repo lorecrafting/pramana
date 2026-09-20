@@ -10,6 +10,8 @@ defmodule PramanaFoundry.DurableStore.Database do
   # command/event protocol.  The migration is additive so accepted FR-07 history is
   # never rewritten merely to gain protected lifecycle primitives.
   @protected_schema_version 2
+  @protected_v1_tables ~w(authenticated_inbox_items authenticated_inboxes root_claims root_commands root_control_history root_controls root_effects root_leases root_ledgers root_pointers root_policies root_policy_history root_receipts root_reservations)
+  @atomic_v2_tables ~w(atomic_bundles durable_operations root_infrastructure_settlements)
 
   @atomic_bundle_schema """
   CREATE TABLE IF NOT EXISTS atomic_bundles (
@@ -634,25 +636,29 @@ defmodule PramanaFoundry.DurableStore.Database do
          {:ok, table_rows} <-
            query(
              conn,
-             "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'root_%' OR name LIKE 'authenticated_inbox%') ORDER BY name"
+             "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'root_%' OR name LIKE 'authenticated_inbox%' OR name IN ('atomic_bundles', 'durable_operations')) ORDER BY name"
            ),
-         tables <- Enum.map(table_rows, &hd/1) do
+         tables <- Enum.map(table_rows, &hd/1),
+         table_set <- MapSet.new(tables),
+         protected_v1_set <- MapSet.new(@protected_v1_tables),
+         current_set <- MapSet.union(protected_v1_set, MapSet.new(@atomic_v2_tables)) do
       cond do
         metadata["schema_version"] != Integer.to_string(@schema_version) ->
           {:ok, {:unsupported, :outer_schema_version}}
 
         metadata["protected_schema_version"] == Integer.to_string(@protected_schema_version) and
           metadata["migration_fr08a_v1"] == "complete" and
-            metadata["migration_atomic_bundle_v2"] == "complete" ->
+          metadata["migration_atomic_bundle_v2"] == "complete" and table_set == current_set ->
           {:ok, :current}
 
         metadata["protected_schema_version"] == "1" and
           metadata["migration_fr08a_v1"] == "complete" and
-            is_nil(metadata["migration_atomic_bundle_v2"]) ->
+          is_nil(metadata["migration_atomic_bundle_v2"]) and table_set == protected_v1_set ->
           {:ok, :protected_v1}
 
         is_nil(metadata["protected_schema_version"]) and
-          is_nil(metadata["migration_fr08a_v1"]) and tables == [] ->
+          is_nil(metadata["migration_fr08a_v1"]) and
+          is_nil(metadata["migration_atomic_bundle_v2"]) and table_set == MapSet.new() ->
           {:ok, :accepted_v1_without_protected}
 
         true ->
