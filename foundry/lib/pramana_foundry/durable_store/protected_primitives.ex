@@ -58,6 +58,10 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         "control" -> simple_fact(conn, "root_controls", "control_id", query["control_id"])
         "ledger" -> ledger_fact(conn, query["ledger_id"], query["generation"])
         "effect" -> effect_fact(conn, query["effect_id"])
+        "claim" -> claim_fact(conn, query["claim_id"])
+        "reservation" -> reservation_fact(conn, query["reservation_id"])
+        "receipt" -> receipt_fact(conn, query["receipt_id"])
+        "lease" -> lease_fact(conn, query["lease_id"])
         "command" -> command_fact(conn, query["command_id"])
         "pointer" -> pointer_fact(conn, query["pointer_kind"])
         _ -> {:error, :unsupported_protected_query}
@@ -84,6 +88,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          {:ok, [[event_seq]]} <- Database.query(conn, "SELECT coalesce(max(seq), 0) FROM events"),
          {:ok, [[root_seq]]} <-
            Database.query(conn, "SELECT coalesce(max(seq), 0) FROM root_commands"),
+         {:ok, revision_frontiers} <- revision_frontiers(conn),
          {:ok, pointers} <- all_pointer_facts(conn) do
       {:ok,
        %{
@@ -98,6 +103,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          "projection_version" => metadata["projection_version"],
          "last_domain_event_sequence" => event_seq,
          "last_protected_command_sequence" => root_seq,
+         "fact_revision_frontiers" => revision_frontiers,
          "pointers" => pointers
        }}
     end
@@ -2493,6 +2499,88 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        |> Map.put("claims", claim_facts)
        |> Map.put("reservations", Enum.map(reservations, &public_reservation/1))}
     end
+  end
+
+  defp claim_fact(conn, id) do
+    with {:ok, claim} <- load_claim(conn, id),
+         {:ok, receipts} <- receipts_for_claim(conn, id),
+         {:ok, reservations} <- reservations_for_claim(conn, id),
+         {:ok, leases} <-
+           protected_rows(
+             conn,
+             "SELECT state FROM root_leases WHERE claim_id = ? ORDER BY lease_id",
+             [id]
+           ) do
+      {:ok,
+       public_claim(claim)
+       |> Map.put("receipts", Enum.map(receipts, &public_receipt/1))
+       |> Map.put("reservations", Enum.map(reservations, &public_reservation/1))
+       |> Map.put("leases", leases)}
+    end
+  end
+
+  defp reservation_fact(conn, id) do
+    with {:ok, reservation} <- load_reservation(conn, id) do
+      {:ok, public_reservation(reservation)}
+    end
+  end
+
+  defp receipt_fact(conn, id) do
+    protected_row(conn, "SELECT state FROM root_receipts WHERE receipt_id = ?", [id])
+  end
+
+  defp lease_fact(conn, id) do
+    protected_row(conn, "SELECT state FROM root_leases WHERE lease_id = ?", [id])
+  end
+
+  defp protected_row(conn, sql, parameters) do
+    with {:ok, rows} <- protected_rows(conn, sql, parameters) do
+      case rows do
+        [row] -> {:ok, row}
+        [] -> {:error, :not_found}
+        _ -> {:error, :duplicate_protected_identity}
+      end
+    end
+  end
+
+  defp protected_rows(conn, sql, parameters) do
+    with {:ok, rows} <- Database.query(conn, sql, parameters) do
+      Enum.reduce_while(rows, {:ok, []}, fn
+        [bytes], {:ok, acc} ->
+          case decode(bytes) do
+            {:ok, value} -> {:cont, {:ok, [value | acc]}}
+            {:error, _reason} = error -> {:halt, error}
+          end
+
+        _row, _acc ->
+          {:halt, {:error, :corrupt_protected_row}}
+      end)
+      |> then(fn
+        {:ok, values} -> {:ok, Enum.reverse(values)}
+        error -> error
+      end)
+    end
+  end
+
+  defp revision_frontiers(conn) do
+    sources = [
+      {"inbox", "authenticated_inboxes"},
+      {"policy", "root_policies"},
+      {"control", "root_controls"},
+      {"ledger", "root_ledgers"},
+      {"reservation", "root_reservations"},
+      {"effect", "root_effects"},
+      {"claim", "root_claims"},
+      {"lease", "root_leases"}
+    ]
+
+    Enum.reduce_while(sources, {:ok, %{}}, fn {name, table}, {:ok, acc} ->
+      case Database.query(conn, "SELECT coalesce(max(revision), -1) FROM #{table}") do
+        {:ok, [[revision]]} -> {:cont, {:ok, Map.put(acc, name, revision)}}
+        {:error, _reason} = error -> {:halt, error}
+        _ -> {:halt, {:error, :corrupt_revision_frontier}}
+      end
+    end)
   end
 
   defp command_fact(conn, id) do
