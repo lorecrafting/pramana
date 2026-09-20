@@ -227,7 +227,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-15 | Implement durable steering and optional PM planning | FR-08B, FR-12, FR-15aB | Blocked | F15, F22 |
 | FR-16 | Implement bounded subscription switching | FR-01, FR-09, FR-12, FR-15 | Blocked | F01, F11 |
 | FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
-| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | **In progress: bounded protected effect query independently reviewed and integrated; one recorded execution-summary coverage gap remains before completion** | F17, F18 |
+| FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | **In progress: bounded protected effect query independently reviewed and integrated; the recorded execution-summary coverage gap is closed; remaining completion obligations are unchanged** | F17, F18 |
 | FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
 | FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Complete: physical ENOSPC/kernel-sync and bounded maintenance recovery independently reviewed and integrated** | F20, F21 |
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |

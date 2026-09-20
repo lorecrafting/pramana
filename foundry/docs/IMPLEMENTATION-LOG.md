@@ -1727,3 +1727,25 @@ latest prose here, remains authoritative for status and dependencies.
   and this integration claims no producer, board, activation, provider execution or
   FR-22 acceptance.
 
+## FR-18A execution summary coverage gap closed — 2026-09-20
+
+- The gap recorded by the B5 correction rereview is closed at
+  `cb136fa`. `bounded_execution_summary/1` enumerates four statuses; against a real store
+  only `result` and `absent` were covered, and `sealed_without_result_or_exit` appeared
+  nowhere in `test/`. Three real-store cases now drive `append_inbox` and `seal_inbox`
+  through the public protected command path to reach `open`, `exit` and
+  `sealed_without_result_or_exit`, asserting the sealed sequence and the presence or
+  absence of the accepted item sequence.
+- All three pass against the unchanged implementation, so the gap closed without
+  exposing a defect. The commit touches no runtime file. Observations suite 20 passed at
+  seed 20930; full model-free suite 649 passed, 13 skipped and one optional exclusion at
+  seed 0.
+- **Operational finding for anyone running these checks.** The physical fault tests
+  (`SyncFaultTest`, `OperationalStorageTest` ENOSPC/xSync/checkpoint cases) are not safe
+  to run concurrently with another suite run on the same machine. Two concurrent runs
+  produced two spurious failures each; both runs passed when rerun serially with nothing
+  else running. Candidate and integration evidence must therefore come from a serial run.
+- This closes one recorded obligation. FR-18A's other completion obligations are
+  unchanged, and no producer, board, activation, provider execution or FR-22 acceptance
+  is claimed.
+
