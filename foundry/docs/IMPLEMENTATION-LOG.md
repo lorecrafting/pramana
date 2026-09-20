@@ -1496,3 +1496,28 @@ latest prose here, remains authoritative for status and dependencies.
   daemon, Herdr command, installation, deployment or activation was used. FR-15aA is now
   ready to turn the recorded blocked topology into a concrete provisioning specification;
   FR-09 and FR-15aB remain blocked by their other dependencies and actual conformance.
+
+## FR-15aA provisioning specification integration — 2026-09-19
+
+- Initial substantive candidate `ca4094e2d43212c3399ab5458e9af64c40640c14`
+  received Astra-high **BLOCKER** review
+  `edd22b21fe548bdf32818f78bc9119e205109a65`: it omitted the distinct R3 workflow-
+  kernel principal, accepted seven hostile manifest mutations, and could confuse failed
+  observations or pre-existing identities with safe provisioning/rollback state.
+- Correction `5a7eb4633a0c63a12cd1bbf84c87be7ad9ef03a9` closed the kernel and
+  ownership/preflight families. Focused Astra-medium rereview
+  `5902944c065185ebbc3d716749cecd5eab0fdfdc` retained one B2 blocker: incomplete pin
+  identity and last-write-wins duplicate security records.
+- Final substantive candidate `9ed32575f2840e90fe3e1ebb1f1ebcd0bd54040b`, tree
+  `1c5dd96f0da66286ecb47eec029c09b2f3733802`, makes every pin field mandatory,
+  selects repository byte reads from trusted roots, and rejects duplicate principals,
+  channels, pins, routes, callers, dependencies and kernel-authority lists before map
+  construction. Final independent review `f093cbfabcd1be2b43eacf68fd42865f3d317c11`
+  returned **PASS**.
+- The complete attributable chain is integrated on `main` through
+  `a1c66de64e7c4ec5d41a7d273bbdf54720710fef`. Integrated checks passed the
+  manifest validator, 22 maintained hostile tests, independent mutation probes,
+  formatting and the 80-test documentation gate. No host account, network, provider,
+  credential, daemon, Herdr, installation or execution capability changed. FR-15aA is
+  complete; FR-15aB still owns actual isolation and FR-09 owns installed-harness and
+  subscription conformance.

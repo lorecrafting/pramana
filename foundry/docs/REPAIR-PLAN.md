@@ -222,7 +222,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-12 | Wire admission, resource scheduling and review capacity | FR-08B, FR-10, FR-11 | Blocked | F04, F11, F15 |
 | FR-13 | Verify artifacts, candidate scope and check receipts | FR-02, FR-05, FR-10, FR-12, FR-15aB | Blocked; FR-15 edge removed only under the ownership condition below | F03, F04, F16 |
 | FR-14 | Perform serialized recoverable Git integration | FR-13 | Blocked | F12 |
-| FR-15aA | Specify feasibility, provisioning and complete executable-path inventory | F | **Ready: F complete; provisioning specification remains** | F01, F04, F06, F13, F14, F22 |
+| FR-15aA | Specify feasibility, provisioning and complete executable-path inventory | F | **Complete: executable specification and hostile validator independently reviewed and integrated; no host provisioning performed** | F01, F04, F06, F13, F14, F22 |
 | FR-15aB | Prove actual principal/channel/auth/network isolation and useful conformance | FR-02, FR-03, FR-05, FR-06, FR-08B, FR-15aA | Blocked | F01, F04, F06, F13, F14, F22 |
 | FR-15 | Implement durable steering and optional PM planning | FR-08B, FR-12, FR-15aB | Blocked | F15, F22 |
 | FR-16 | Implement bounded subscription switching | FR-01, FR-09, FR-12, FR-15 | Blocked | F01, F11 |
@@ -830,6 +830,20 @@ path. Name every required adapter or provisioning change. A paper design, same-u
 directory convention, sandboxed shell with unsandboxed extensions, copied credentials,
 direct provider calls or permissive mock cannot pass. This slice closes no production
 capability and does not replace the parent acceptance below.
+
+**Completion — 2026-09-19:** The executable provisioning specification, machine-readable
+manifest, fail-closed validator and hostile controls are integrated through
+`a1c66de64e7c4ec5d41a7d273bbdf54720710fef`. The final substantive candidate was
+`9ed32575f2840e90fe3e1ebb1f1ebcd0bd54040b` (tree
+`1c5dd96f0da66286ecb47eec029c09b2f3733802`); focused independent review passed in
+`f093cbfabcd1be2b43eacf68fd42865f3d317c11`. Integrated validation passed the manifest,
+22 maintained tests, independent hostile mutations, formatting and all 80 documentation
+checks. The record inventories the distinct protected root, workflow kernel, auth harness,
+tool/worker and role principals; exact channels, pinned inputs, executable dependencies,
+network/IPC/environment boundaries, provisioning ownership and rollback. This is a
+provider-free provisioning result only: no account, network, credential, daemon, Herdr or
+host change was made. Actual isolation remains FR-15aB; installed-harness/subscription
+conformance remains FR-09.
 
 #### FR-15aB — Actual isolation and conformance
 
