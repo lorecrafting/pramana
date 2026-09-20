@@ -35,6 +35,19 @@ else
   fail=1
 fi
 
+# 2b. `mix compile` covers lib/ only; test files compile at `mix test` time, so a warning
+#     in test/**/*.exs is invisible to the check above. Running with a tag no test carries
+#     compiles every test file and executes none, in about two seconds. Its exit status is
+#     nonzero by design ("no test was executed"), so only the output is inspected.
+MIX_ENV=test mix test --only preflight_compile_probe >/tmp/preflight-tests.log 2>&1
+if grep -q "warning:" /tmp/preflight-tests.log; then
+  say "test files compile clean" "FAIL"
+  grep -A 2 "warning:" /tmp/preflight-tests.log | head -6 | sed 's/^/    /'
+  fail=1
+else
+  say "test files compile clean" "ok"
+fi
+
 # 3. Cheap, and the gate checks it.
 if mix format --check-formatted >/tmp/preflight-format.log 2>&1; then
   say "formatting" "ok"

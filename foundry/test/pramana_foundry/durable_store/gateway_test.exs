@@ -455,8 +455,8 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
       legacy = RecordCodec.legacy_event_types()
       lifecycle = RecordCodec.lifecycle_event_types()
 
-      assert legacy != []
-      assert lifecycle != []
+      refute Enum.empty?(legacy)
+      refute Enum.empty?(lifecycle)
       assert MapSet.disjoint?(MapSet.new(legacy), MapSet.new(lifecycle))
       assert Enum.sort(legacy ++ lifecycle) == Enum.sort(RecordCodec.event_types())
     end
