@@ -27,7 +27,7 @@ defmodule PramanaFoundry.Observations.GatewaySource do
       case fun.() do
         {:ok, value} when is_map(value) -> {:ok, value, observed_at}
         {:error, :not_found} -> {:error, :not_found}
-        {:error, {:recovery_mode, _reason}} -> {:error, :unavailable}
+        {:error, {:recovery_mode, reason}} -> classify_recovery(reason)
         {:error, {:storage_unavailable, _reason}} -> {:error, :unavailable}
         {:error, :unauthorized_protected_operation} -> {:error, :unavailable}
         {:error, _reason} -> {:error, :corrupt}
@@ -37,4 +37,11 @@ defmodule PramanaFoundry.Observations.GatewaySource do
       :exit, _reason -> {:error, :unavailable}
     end
   end
+
+  defp classify_recovery({:authority_corrupt, _table, _identity, _reason}),
+    do: {:error, :corrupt}
+
+  defp classify_recovery({:protected_corrupt, _table, _identity}), do: {:error, :corrupt}
+  defp classify_recovery({:protected_corrupt, _table, _identity, _reason}), do: {:error, :corrupt}
+  defp classify_recovery(_reason), do: {:error, :unavailable}
 end

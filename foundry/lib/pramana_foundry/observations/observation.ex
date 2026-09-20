@@ -6,7 +6,7 @@ defmodule PramanaFoundry.Observations.Observation do
 
   @type t :: %__MODULE__{
           kind: :pointer | :effect_context,
-          status: :present | :absent,
+          status: :present | :absent | :unavailable,
           quality: :canonical,
           identity: map(),
           fact: map()

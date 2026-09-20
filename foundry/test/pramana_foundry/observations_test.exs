@@ -1,6 +1,7 @@
 defmodule PramanaFoundry.ObservationsTest do
   use ExUnit.Case, async: true
 
+  alias Exqlite.Sqlite3
   alias PramanaFoundry.DurableStore.Gateway
   alias PramanaFoundry.Observations
   alias PramanaFoundry.Observations.Query
@@ -83,18 +84,25 @@ defmodule PramanaFoundry.ObservationsTest do
       "scope" => "ticket:ticket-1",
       "profile" => "sol",
       "channel" => "local",
-      "status" => "issued",
+      "status" => "unknown",
       "revision" => 2,
       "policy_revision" => 1,
       "control_revision" => 3,
       "phase_generation" => 0,
       "operation_ordinal" => 0,
       "predecessor_effect_id" => nil,
+      "deadline" => %{"sk-secret-map-key-abcdef12" => "nested"},
       "claims" => [
         %{
+          "schema_version" => 1,
           "claim_id" => "claim-1",
+          "effect_id" => "effect-1",
+          "writer_epoch" => "writer-epoch-1",
+          "status" => "unknown",
+          "revision" => 1,
           "receipts" => [
             %{
+              "schema_version" => 1,
               "outcome" => "unknown",
               "payload" => %{"api_key" => "sk-do-not-expose"}
             }
@@ -120,6 +128,7 @@ defmodule PramanaFoundry.ObservationsTest do
       "sealed_sequence" => 2,
       "resolution" => %{
         "status" => "result",
+        "sequence" => 1,
         "payload" => %{"token" => "do-not-expose"}
       }
     }
@@ -154,7 +163,14 @@ defmodule PramanaFoundry.ObservationsTest do
            }
 
     assert item.fact["execution"]["status"] == "result"
-    assert item.fact["outcome"] == %{"status" => "unknown"}
+    assert item.fact["deadline"] == nil
+
+    assert item.fact["outcome"] == %{
+             "status" => "unknown",
+             "reason" => "outcome_unknown",
+             "receipt_history" => ["unknown"]
+           }
+
     assert item.fact["usage"] == %{"status" => "unknown", "reason" => "not_produced"}
     refute inspect(page) =~ "do-not-expose"
     refute inspect(page) =~ "sk-"
@@ -239,19 +255,458 @@ defmodule PramanaFoundry.ObservationsTest do
 
     on_exit(fn -> File.rm_rf!(root) end)
 
+    seed_effect!(gateway, capability, "ticket-1")
+
+    assert %{status: :ok, items: [item]} =
+             Observations.query(
+               %Query{include_pointers: false, effect_ids: ["effect-1"]},
+               gateway,
+               capability
+             )
+
+    assert item.identity == %{
+             "effect_id" => "effect-1",
+             "ticket_id" => "ticket-1",
+             "attempt_id" => "attempt-1",
+             "execution_id" => "execution-1",
+             "control_id" => "control-1"
+           }
+
+    assert item.fact["control"] == %{
+             "control_id" => "control-1",
+             "revision" => 0,
+             "status" => "active"
+           }
+
+    assert item.fact["execution"] == %{
+             "execution_id" => "execution-1",
+             "status" => "absent"
+           }
+  end
+
+  test "a missing live store is unavailable, never healthy empty" do
+    root = unique_tmp("missing")
+    gateway = start_supervised!({Gateway, path: Path.join(root, "missing.sqlite3")})
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    assert %{status: :unavailable, items: [], error_code: :source_unavailable} =
+             Observations.query(%Query{include_pointers: false}, gateway, make_ref())
+  end
+
+  test "live corrupt reopen, unauthorized capability and dead source stay distinct" do
+    corrupt_root = unique_tmp("corrupt")
+    corrupt_path = Path.join(corrupt_root, "authority.sqlite3")
+    capability = make_ref()
+
+    assert :ok =
+             Gateway.initialize(corrupt_path,
+               installation_id: "installation-fr18a",
+               repository_id: "repository-fr18a"
+             )
+
+    {:ok, conn} = Sqlite3.open(corrupt_path, mode: :readwrite)
+
+    :ok =
+      Sqlite3.execute(conn, "UPDATE metadata SET value = '2' WHERE key = 'projection_version'")
+
+    :ok = Sqlite3.close(conn)
+
+    corrupt_gateway =
+      start_supervised!(
+        {Gateway,
+         path: corrupt_path, protected_capability: capability, writer_epoch: "writer-epoch-fr18a"},
+        id: :corrupt_observation_gateway
+      )
+
+    on_exit(fn -> File.rm_rf!(corrupt_root) end)
+
+    assert %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+             Observations.query(%Query{include_pointers: false}, corrupt_gateway, capability)
+
+    live_root = unique_tmp("availability")
+    live_path = Path.join(live_root, "authority.sqlite3")
+    live_capability = make_ref()
+
+    assert :ok =
+             Gateway.initialize(live_path,
+               installation_id: "installation-fr18a",
+               repository_id: "repository-fr18a"
+             )
+
+    live_gateway =
+      start_supervised!(
+        {Gateway,
+         path: live_path,
+         protected_capability: live_capability,
+         writer_epoch: "writer-epoch-fr18a"},
+        id: :availability_observation_gateway
+      )
+
+    on_exit(fn -> File.rm_rf!(live_root) end)
+
+    assert %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+             Observations.query(%Query{include_pointers: false}, live_gateway, make_ref())
+
+    stop_supervised!(:availability_observation_gateway)
+
+    assert %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+             Observations.query(%Query{include_pointers: false}, live_gateway, live_capability)
+  end
+
+  test "terminal protected state governs reconciled and quarantined outcomes" do
+    for {terminal, expected} <- [{"succeeded", "succeeded"}, {"failed", "failed"}] do
+      {root, gateway, capability} = live_effect("outcome-#{terminal}", "ticket-1")
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      settle!(
+        gateway,
+        capability,
+        "unknown",
+        1,
+        2,
+        "receipt-unknown",
+        "unknown",
+        "outcome_unknown",
+        3,
+        1
+      )
+
+      settle!(
+        gateway,
+        capability,
+        "terminal",
+        2,
+        3,
+        "receipt-terminal",
+        terminal,
+        "delivered",
+        3,
+        1
+      )
+
+      assert %{status: :ok, items: [item]} =
+               Observations.query(
+                 %Query{include_pointers: false, effect_ids: ["effect-1"]},
+                 gateway,
+                 capability
+               )
+
+      assert item.fact["status"] == expected
+
+      assert item.fact["outcome"] == %{
+               "status" => expected,
+               "receipt_history" => ["unknown", expected]
+             }
+    end
+
+    {root, gateway, capability} = live_effect("outcome-conflict", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    settle!(
+      gateway,
+      capability,
+      "success",
+      1,
+      2,
+      "receipt-success",
+      "succeeded",
+      "delivered",
+      3,
+      1
+    )
+
+    assert {:ok, %{"disposition" => "rejected", "reason_code" => "conflicting_receipt"},
+            :committed} =
+             protected(
+               gateway,
+               capability,
+               "conflict",
+               %{
+                 "claim/claim-1" => 2,
+                 "effect/effect-1" => 3,
+                 "policy/policy-1" => 0,
+                 "control/control-1" => 0,
+                 "reservation/reservation-1" => 4,
+                 "ledger/root/0" => 2,
+                 "receipt/receipt-conflict" => "absent"
+               },
+               settle_operation("receipt-conflict", "failed", "delivered")
+             )
+
+    assert %{status: :ok, items: [item]} =
+             Observations.query(
+               %Query{include_pointers: false, effect_ids: ["effect-1"]},
+               gateway,
+               capability
+             )
+
+    assert item.fact["status"] == "reconciliation_required"
+
+    assert item.fact["outcome"] == %{
+             "status" => "unknown",
+             "reason" => "reconciliation_required",
+             "receipt_history" => ["succeeded"]
+           }
+  end
+
+  test "redaction covers live identities and source provenance" do
+    secret_ticket = "sk-live-ticket-abcdef12"
+    secret_installation = "sk-live-installation-abcdef12"
+    secret_repository = "sk-live-repository-abcdef12"
+    secret_writer = "sk-live-writer-abcdef12"
+    root = unique_tmp("redaction")
+    path = Path.join(root, "authority.sqlite3")
+    capability = make_ref()
+
+    assert :ok =
+             Gateway.initialize(path,
+               installation_id: secret_installation,
+               repository_id: secret_repository
+             )
+
+    gateway =
+      start_supervised!(
+        {Gateway, path: path, protected_capability: capability, writer_epoch: secret_writer},
+        id: :redaction_observation_gateway
+      )
+
+    on_exit(fn -> File.rm_rf!(root) end)
+    seed_effect!(gateway, capability, secret_ticket)
+
+    page =
+      Observations.query(
+        %Query{include_pointers: false, effect_ids: ["effect-1"]},
+        gateway,
+        capability
+      )
+
+    assert %{status: :ok, source: source, items: [item]} = page
+    assert source["installation_id"] == "[REDACTED]"
+    assert source["repository_id"] == "[REDACTED]"
+    assert source["writer_epoch"] == "[REDACTED]"
+    assert item.identity["ticket_id"] == "[REDACTED]"
+    assert item.fact["ticket_id"] == "[REDACTED]"
+    refute inspect(page) =~ secret_ticket
+    refute inspect(page) =~ secret_installation
+    refute inspect(page) =~ secret_repository
+    refute inspect(page) =~ secret_writer
+  end
+
+  test "malformed versions and execution fields cannot be canonical" do
+    observed_at = ~U[2026-09-20 12:00:00Z]
+
+    for field <-
+          ~w(sql_schema_version protected_schema_version protocol_version event_version projection_version) do
+      malformed = put_in(source(observed_at).snapshot[field], nil)
+
+      assert %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+               Observations.query_source(
+                 %Query{include_pointers: false},
+                 {FakeSource, malformed},
+                 now: observed_at
+               )
+    end
+
+    base_facts = fake_effect_facts()
+
+    malformed_inboxes = [
+      Map.put(base_facts[{"inbox", "execution-1"}], "revision", "bad"),
+      Map.put(base_facts[{"inbox", "execution-1"}], "last_sequence", -1),
+      Map.put(base_facts[{"inbox", "execution-1"}], "sealed_sequence", 2),
+      put_in(base_facts[{"inbox", "execution-1"}]["resolution"]["status"], "pending")
+    ]
+
+    for inbox <- malformed_inboxes do
+      facts = Map.put(base_facts, {"inbox", "execution-1"}, inbox)
+
+      assert %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+               Observations.query_source(
+                 %Query{include_pointers: false, effect_ids: ["effect-1"]},
+                 {FakeSource, %{source(observed_at) | facts: facts}},
+                 now: observed_at
+               )
+    end
+  end
+
+  test "pointer vocabulary matches absent, unavailable and present protected states" do
+    observed_at = ~U[2026-09-20 12:00:00Z]
+
+    for {producer_status, observation_status} <-
+          [{"absent", :absent}, {"unavailable", :unavailable}, {"present", :present}] do
+      source = source(observed_at)
+
+      changed_source =
+        put_in(
+          source.snapshot["pointers"]["accepted_source"]["producer_status"],
+          producer_status
+        )
+
+      assert %{status: :ok, items: [item | _]} =
+               Observations.query_source(
+                 %Query{},
+                 {FakeSource, changed_source},
+                 now: observed_at
+               )
+
+      assert item.status == observation_status
+      assert item.fact["producer_status"] == producer_status
+    end
+  end
+
+  defp source(observed_at) do
+    %{
+      observed_at: observed_at,
+      facts: %{},
+      snapshot: %{
+        "schema_version" => 1,
+        "installation_id" => "installation-1",
+        "repository_id" => "repository-1",
+        "writer_epoch" => "writer-epoch-1",
+        "last_protected_command_sequence" => 4,
+        "last_domain_event_sequence" => 7,
+        "sql_schema_version" => "1",
+        "protected_schema_version" => "1",
+        "protocol_version" => "1",
+        "event_version" => "1",
+        "projection_version" => "1",
+        "pointers" => %{
+          "accepted_source" => pointer("accepted_source"),
+          "selected_deployment" => pointer("selected_deployment"),
+          "healthy_build" => pointer("healthy_build")
+        }
+      }
+    }
+  end
+
+  defp pointer(kind) do
+    %{
+      "schema_version" => 1,
+      "pointer_kind" => kind,
+      "producer_status" => "absent",
+      "revision" => 0
+    }
+  end
+
+  defp fake_effect_facts do
+    %{
+      {"effect", "effect-1"} => %{
+        "schema_version" => 1,
+        "effect_id" => "effect-1",
+        "ticket_id" => "ticket-1",
+        "attempt_id" => "attempt-1",
+        "execution_id" => "execution-1",
+        "control_id" => "control-1",
+        "policy_id" => "policy-1",
+        "request_id" => "request-1",
+        "assignment_id" => "assignment-1",
+        "role" => "developer",
+        "operation" => "launch",
+        "scope" => "ticket:ticket-1",
+        "profile" => "sol",
+        "channel" => "protected-gateway",
+        "status" => "pending",
+        "revision" => 0,
+        "policy_revision" => 0,
+        "control_revision" => 0,
+        "phase_generation" => 0,
+        "operation_ordinal" => 0,
+        "predecessor_effect_id" => nil,
+        "claims" => [],
+        "reservations" => []
+      },
+      {"control", "control-1"} => %{
+        "schema_version" => 1,
+        "control_id" => "control-1",
+        "revision" => 0,
+        "value" => %{"status" => "active"}
+      },
+      {"inbox", "execution-1"} => %{
+        "schema_version" => 1,
+        "execution_id" => "execution-1",
+        "revision" => 0,
+        "last_sequence" => 0,
+        "sealed_sequence" => nil,
+        "resolution" => %{"status" => "open"}
+      }
+    }
+  end
+
+  defp live_effect(label, ticket_id) do
+    root = unique_tmp(label)
+    path = Path.join(root, "authority.sqlite3")
+    capability = make_ref()
+
+    assert :ok =
+             Gateway.initialize(path,
+               installation_id: "installation-fr18a",
+               repository_id: "repository-fr18a"
+             )
+
+    gateway =
+      start_supervised!(
+        {Gateway,
+         path: path, protected_capability: capability, writer_epoch: "writer-epoch-fr18a"},
+        id: {:live_effect_gateway, label}
+      )
+
+    seed_effect!(gateway, capability, ticket_id)
+
+    accept!(
+      gateway,
+      capability,
+      "claim-command",
+      %{
+        "effect/effect-1" => 0,
+        "claim/claim-1" => "absent",
+        "reservation/reservation-1" => 1,
+        "ledger/root/0" => 1,
+        "policy/policy-1" => 0,
+        "control/control-1" => 0
+      },
+      %{
+        "type" => "claim_effect",
+        "effect_id" => "effect-1",
+        "claim_id" => "claim-1",
+        "writer_epoch" => "writer-epoch-fr18a"
+      }
+    )
+
+    accept!(
+      gateway,
+      capability,
+      "issue-command",
+      %{
+        "claim/claim-1" => 0,
+        "effect/effect-1" => 1,
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "reservation/reservation-1" => 2,
+        "ledger/root/0" => 1
+      },
+      %{
+        "type" => "issue_claim",
+        "claim_id" => "claim-1",
+        "writer_epoch" => "writer-epoch-fr18a"
+      }
+    )
+
+    {root, gateway, capability}
+  end
+
+  defp seed_effect!(gateway, capability, ticket_id) do
     accept!(gateway, capability, "policy-command", %{"policy/policy-1" => "absent"}, %{
       "type" => "set_policy",
       "policy_id" => "policy-1",
       "value" => %{
         "allowed_operations" => ["launch"],
-        "allowed_scopes" => ["ticket:ticket-1"]
+        "allowed_scopes" => ["ticket:#{ticket_id}"]
       }
     })
 
     accept!(gateway, capability, "control-command", %{"control/control-1" => "absent"}, %{
       "type" => "set_control",
       "control_id" => "control-1",
-      "value" => %{"status" => "active"}
+      "value" => %{"status" => "active", "sk-secret-key-abcdef12" => "private"}
     })
 
     accept!(gateway, capability, "ledger-command", %{"ledger/root/0" => "absent"}, %{
@@ -298,8 +753,8 @@ defmodule PramanaFoundry.ObservationsTest do
           "profile" => "sol"
         },
         "operation" => "launch",
-        "scope" => "ticket:ticket-1",
-        "ticket_id" => "ticket-1",
+        "scope" => "ticket:#{ticket_id}",
+        "ticket_id" => ticket_id,
         "attempt_id" => "attempt-1",
         "execution_id" => "execution-1",
         "policy_id" => "policy-1",
@@ -310,75 +765,50 @@ defmodule PramanaFoundry.ObservationsTest do
         "leases" => []
       }
     )
-
-    assert %{status: :ok, items: [item]} =
-             Observations.query(
-               %Query{include_pointers: false, effect_ids: ["effect-1"]},
-               gateway,
-               capability
-             )
-
-    assert item.identity == %{
-             "effect_id" => "effect-1",
-             "ticket_id" => "ticket-1",
-             "attempt_id" => "attempt-1",
-             "execution_id" => "execution-1",
-             "control_id" => "control-1"
-           }
-
-    assert item.fact["control"] == %{
-             "control_id" => "control-1",
-             "revision" => 0,
-             "status" => "active"
-           }
-
-    assert item.fact["execution"] == %{
-             "execution_id" => "execution-1",
-             "status" => "absent"
-           }
   end
 
-  test "a missing live store is unavailable, never healthy empty" do
-    root = unique_tmp("missing")
-    gateway = start_supervised!({Gateway, path: Path.join(root, "missing.sqlite3")})
-    on_exit(fn -> File.rm_rf!(root) end)
-
-    assert %{status: :unavailable, items: [], error_code: :source_unavailable} =
-             Observations.query(%Query{include_pointers: false}, gateway, make_ref())
+  defp settle!(
+         gateway,
+         capability,
+         command_id,
+         claim_revision,
+         effect_revision,
+         receipt_id,
+         outcome,
+         proof,
+         reservation_revision,
+         ledger_revision
+       ) do
+    accept!(
+      gateway,
+      capability,
+      command_id,
+      %{
+        "claim/claim-1" => claim_revision,
+        "effect/effect-1" => effect_revision,
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "reservation/reservation-1" => reservation_revision,
+        "ledger/root/0" => ledger_revision,
+        "receipt/#{receipt_id}" => "absent"
+      },
+      settle_operation(receipt_id, outcome, proof)
+    )
   end
 
-  defp source(observed_at) do
+  defp settle_operation(receipt_id, outcome, proof) do
     %{
-      observed_at: observed_at,
-      facts: %{},
-      snapshot: %{
-        "schema_version" => 1,
-        "installation_id" => "installation-1",
-        "repository_id" => "repository-1",
-        "writer_epoch" => "writer-epoch-1",
-        "last_protected_command_sequence" => 4,
-        "last_domain_event_sequence" => 7,
-        "protected_schema_version" => "1",
-        "projection_version" => "1",
-        "pointers" => %{
-          "accepted_source" => pointer("accepted_source"),
-          "selected_deployment" => pointer("selected_deployment"),
-          "healthy_build" => pointer("healthy_build")
-        }
-      }
+      "type" => "settle_claim",
+      "claim_id" => "claim-1",
+      "receipt_id" => receipt_id,
+      "request_id" => "request-1",
+      "outcome" => outcome,
+      "proof" => proof,
+      "payload" => %{"representative" => true}
     }
   end
 
-  defp pointer(kind) do
-    %{
-      "schema_version" => 1,
-      "pointer_kind" => kind,
-      "producer_status" => "absent",
-      "revision" => 0
-    }
-  end
-
-  defp accept!(gateway, capability, command_id, expected_revisions, operation) do
+  defp protected(gateway, capability, command_id, expected_revisions, operation) do
     request = %{
       "schema_version" => 1,
       "command_id" => command_id,
@@ -386,8 +816,12 @@ defmodule PramanaFoundry.ObservationsTest do
       "operation" => operation
     }
 
+    Gateway.protected_command(gateway, capability, "operator", request)
+  end
+
+  defp accept!(gateway, capability, command_id, expected_revisions, operation) do
     assert {:ok, %{"disposition" => "accepted"}, :committed} =
-             Gateway.protected_command(gateway, capability, "operator", request)
+             protected(gateway, capability, command_id, expected_revisions, operation)
   end
 
   defp unique_tmp(label) do

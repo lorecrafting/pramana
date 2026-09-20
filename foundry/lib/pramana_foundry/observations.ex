@@ -16,6 +16,13 @@ defmodule PramanaFoundry.Observations do
   @min_page_bytes 8_192
   @max_page_bytes 262_144
   @max_related_ids 20
+  @version_fields ~w(sql_schema_version protected_schema_version protocol_version event_version projection_version)
+  @supported_version "1"
+  @effect_statuses ~w(pending claimed issued unknown reconciliation_required succeeded failed non_started cancelled)
+  @claim_statuses ~w(claimed issued unknown reconciliation_required succeeded failed non_started cancelled)
+  @receipt_outcomes ~w(succeeded failed non_started unknown)
+  @control_statuses ~w(active cancel_requested)
+  @execution_statuses ~w(open result exit sealed_without_result_or_exit)
 
   @effect_fields ~w(effect_id ticket_id attempt_id execution_id control_id policy_id request_id assignment_id role operation scope profile channel status revision policy_revision control_revision phase_generation operation_ordinal predecessor_effect_id)
 
@@ -138,13 +145,11 @@ defmodule PramanaFoundry.Observations do
              quality: :canonical,
              identity: identity,
              fact:
-               redact(
-                 Map.merge(effect_fact, %{
-                   "control" => control,
-                   "execution" => execution,
-                   "usage" => %{"status" => "unknown", "reason" => "not_produced"}
-                 })
-               )
+               Map.merge(effect_fact, %{
+                 "control" => control,
+                 "execution" => execution,
+                 "usage" => %{"status" => "unknown", "reason" => "not_produced"}
+               })
            }}
         end
 
@@ -160,9 +165,11 @@ defmodule PramanaFoundry.Observations do
          ^effect_id <- effect["effect_id"],
          true <- Enum.all?(identity_fields, &valid_id?(effect[&1])),
          revision when is_integer(revision) and revision >= 0 <- effect["revision"],
+         status when status in @effect_statuses <- effect["status"],
          claims when is_list(claims) <- effect["claims"],
          reservations when is_list(reservations) <- effect["reservations"],
-         true <- Enum.all?(claims, &valid_claim?/1),
+         true <- Enum.all?(claims, &valid_claim?(&1, effect_id)),
+         true <- Enum.all?(claims, &(&1["status"] == status)),
          true <- Enum.all?(reservations, &valid_related?(&1, "reservation_id")) do
       claim_ids = bounded_ids(claims, "claim_id")
       reservation_ids = bounded_ids(reservations, "reservation_id")
@@ -174,7 +181,7 @@ defmodule PramanaFoundry.Observations do
         |> Map.put("claims_truncated", length(claims) > @max_related_ids)
         |> Map.put("reservation_ids", reservation_ids)
         |> Map.put("reservations_truncated", length(reservations) > @max_related_ids)
-        |> Map.put("outcome", canonical_outcome(claims))
+        |> Map.put("outcome", canonical_outcome(status, claims))
 
       {:ok, Map.take(effect, identity_fields), fact}
     else
@@ -189,32 +196,54 @@ defmodule PramanaFoundry.Observations do
     |> Enum.filter(&valid_id?/1)
   end
 
-  defp valid_claim?(claim) do
-    is_map(claim) and valid_id?(claim["claim_id"]) and is_list(claim["receipts"]) and
-      Enum.all?(claim["receipts"], &is_map/1)
+  defp valid_claim?(claim, effect_id) do
+    is_map(claim) and claim["schema_version"] == 1 and valid_id?(claim["claim_id"]) and
+      claim["effect_id"] == effect_id and valid_id?(claim["writer_epoch"]) and
+      claim["status"] in @claim_statuses and is_integer(claim["revision"]) and
+      claim["revision"] >= 0 and is_list(claim["receipts"]) and
+      Enum.all?(claim["receipts"], &valid_receipt?/1)
   end
 
   defp valid_related?(value, key), do: is_map(value) and valid_id?(value[key])
 
-  defp canonical_outcome([]), do: %{"status" => "unknown", "reason" => "not_issued"}
+  defp valid_receipt?(receipt) do
+    is_map(receipt) and receipt["schema_version"] == 1 and
+      receipt["outcome"] in @receipt_outcomes
+  end
 
-  defp canonical_outcome(claims) do
-    outcomes =
+  defp canonical_outcome(status, claims) do
+    history =
       claims
       |> Enum.flat_map(fn claim ->
         claim
         |> Map.get("receipts", [])
         |> Enum.map(& &1["outcome"])
       end)
-      |> Enum.filter(&(&1 in ~w(succeeded failed non_started unknown)))
       |> Enum.uniq()
+      |> Enum.sort_by(&receipt_outcome_order/1)
 
-    case outcomes do
-      [outcome] -> %{"status" => outcome}
-      [] -> %{"status" => "unknown", "reason" => "no_terminal_receipt"}
-      _ -> %{"status" => "unknown", "reason" => "conflicting_receipts"}
-    end
+    outcome =
+      case status do
+        terminal when terminal in ~w(succeeded failed non_started cancelled) ->
+          %{"status" => terminal}
+
+        "unknown" ->
+          %{"status" => "unknown", "reason" => "outcome_unknown"}
+
+        "reconciliation_required" ->
+          %{"status" => "unknown", "reason" => "reconciliation_required"}
+
+        _nonterminal ->
+          %{"status" => "unknown", "reason" => "no_terminal_receipt"}
+      end
+
+    Map.put(outcome, "receipt_history", history)
   end
+
+  defp receipt_outcome_order("unknown"), do: 0
+  defp receipt_outcome_order("non_started"), do: 1
+  defp receipt_outcome_order("succeeded"), do: 2
+  defp receipt_outcome_order("failed"), do: 3
 
   defp read_control(adapter, source_state, effect) do
     id = effect["control_id"]
@@ -225,7 +254,7 @@ defmodule PramanaFoundry.Observations do
       when is_integer(revision) and revision >= 0 ->
         status = get_in(fact, ["value", "status"])
 
-        if is_binary(status) do
+        if status in @control_statuses do
           {:ok, %{"control_id" => id, "revision" => revision, "status" => status}}
         else
           {:error, :corrupt}
@@ -249,14 +278,16 @@ defmodule PramanaFoundry.Observations do
       {:ok, %{"schema_version" => 1, "execution_id" => ^id} = fact, _observed_at} ->
         resolution = Map.get(fact, "resolution", %{})
 
-        {:ok,
-         %{
-           "execution_id" => id,
-           "status" => Map.get(resolution, "status", "unknown"),
-           "revision" => fact["revision"],
-           "last_sequence" => fact["last_sequence"],
-           "sealed_sequence" => fact["sealed_sequence"]
-         }}
+        with :ok <- valid_execution_fact(fact, resolution) do
+          {:ok,
+           %{
+             "execution_id" => id,
+             "status" => resolution["status"],
+             "revision" => fact["revision"],
+             "last_sequence" => fact["last_sequence"],
+             "sealed_sequence" => fact["sealed_sequence"]
+           }}
+        end
 
       {:error, :not_found} ->
         {:ok, %{"execution_id" => id, "status" => "absent"}}
@@ -272,18 +303,61 @@ defmodule PramanaFoundry.Observations do
   defp fact_query(type, key, value),
     do: %{"schema_version" => 1, "type" => type, key => value}
 
+  defp valid_execution_fact(fact, resolution) do
+    revision = fact["revision"]
+    last_sequence = fact["last_sequence"]
+    sealed_sequence = fact["sealed_sequence"]
+    status = resolution["status"]
+
+    valid_sealed? =
+      is_nil(sealed_sequence) or
+        (is_integer(sealed_sequence) and sealed_sequence >= 0 and sealed_sequence <= last_sequence)
+
+    valid_resolution? =
+      case status do
+        "open" ->
+          is_nil(sealed_sequence)
+
+        status when status in ["result", "exit"] ->
+          valid_resolution_sequence?(resolution, sealed_sequence)
+
+        "sealed_without_result_or_exit" ->
+          is_integer(sealed_sequence)
+
+        _ ->
+          false
+      end
+
+    if is_integer(revision) and revision >= 0 and is_integer(last_sequence) and
+         last_sequence >= 0 and valid_sealed? and status in @execution_statuses and
+         valid_resolution? do
+      :ok
+    else
+      {:error, :corrupt}
+    end
+  end
+
+  defp valid_resolution_sequence?(resolution, sealed_sequence) do
+    sequence = resolution["sequence"]
+
+    is_integer(sequence) and is_integer(sealed_sequence) and sequence >= 1 and
+      sequence <= sealed_sequence
+  end
+
   defp redact(value) when is_map(value) do
     Map.new(value, fn {key, nested} ->
-      if sensitive_key?(key), do: {key, "[REDACTED]"}, else: {key, redact(nested)}
+      cond do
+        sensitive_key?(key) -> {key, "[REDACTED]"}
+        secret_shaped?(key) -> {"[REDACTED_KEY]", redact(nested)}
+        true -> {key, redact(nested)}
+      end
     end)
   end
 
   defp redact(value) when is_list(value), do: Enum.map(value, &redact/1)
 
   defp redact(value) when is_binary(value) do
-    if String.match?(value, ~r/(?:bearer\s+|sk-[a-z0-9_-]{8,}|api[_-]?key\s*[=:])/i),
-      do: "[REDACTED]",
-      else: value
+    if secret_shaped?(value), do: "[REDACTED]", else: value
   end
 
   defp redact(value), do: value
@@ -293,12 +367,29 @@ defmodule PramanaFoundry.Observations do
 
   defp sensitive_key?(_key), do: false
 
+  defp secret_shaped?(value) when is_binary(value),
+    do: String.match?(value, ~r/(?:bearer\s+|sk-[a-z0-9_-]{8,}|api[_-]?key\s*[=:])/i)
+
+  defp secret_shaped?(_value), do: false
+
   defp pointer_state(kind, fact) do
-    with %{"pointer_kind" => ^kind, "producer_status" => status, "revision" => revision} <-
+    with %{
+           "schema_version" => 1,
+           "pointer_kind" => ^kind,
+           "producer_status" => status,
+           "revision" => revision
+         } <-
            fact,
-         true <- status in ["absent", "available"],
+         true <- status in ["absent", "unavailable", "present"],
          true <- is_integer(revision) and revision >= 0 do
-      {:ok, if(status == "absent", do: :absent, else: :present), revision}
+      observation_status =
+        case status do
+          "absent" -> :absent
+          "unavailable" -> :unavailable
+          "present" -> :present
+        end
+
+      {:ok, observation_status, revision}
     else
       _ -> {:error, :corrupt}
     end
@@ -312,6 +403,7 @@ defmodule PramanaFoundry.Observations do
          protected when is_integer(protected) and protected >= 0 <-
            snapshot["last_protected_command_sequence"],
          domain when is_integer(domain) and domain >= 0 <- snapshot["last_domain_event_sequence"],
+         true <- Enum.all?(@version_fields, &(snapshot[&1] == @supported_version)),
          pointers when is_map(pointers) <- snapshot["pointers"],
          true <- Enum.sort(Map.keys(pointers)) == Enum.sort(@pointer_kinds),
          true <-
@@ -326,7 +418,10 @@ defmodule PramanaFoundry.Observations do
          "writer_epoch" => snapshot["writer_epoch"],
          "last_protected_command_sequence" => protected,
          "last_domain_event_sequence" => domain,
+         "sql_schema_version" => snapshot["sql_schema_version"],
          "protected_schema_version" => snapshot["protected_schema_version"],
+         "protocol_version" => snapshot["protocol_version"],
+         "event_version" => snapshot["event_version"],
          "projection_version" => snapshot["projection_version"],
          "pointers" => pointers
        }}
@@ -337,7 +432,7 @@ defmodule PramanaFoundry.Observations do
 
   defp stable_source(before, after_source) do
     stable_keys =
-      ~w(installation_id repository_id writer_epoch last_protected_command_sequence last_domain_event_sequence protected_schema_version projection_version pointers)
+      ~w(installation_id repository_id writer_epoch last_protected_command_sequence last_domain_event_sequence sql_schema_version protected_schema_version protocol_version event_version projection_version pointers)
 
     if Map.take(before, stable_keys) == Map.take(after_source, stable_keys),
       do: :ok,
@@ -368,13 +463,13 @@ defmodule PramanaFoundry.Observations do
       freshness: freshness,
       observed_at: observed_at,
       source: Map.delete(source, "pointers"),
-      items: items,
+      items: Enum.map(items, &redact_observation/1),
       next_cursor: next_cursor,
       size_bytes: 0,
       error_code: nil
     }
 
-    sized = put_size(page)
+    sized = page |> redact_page() |> put_size()
 
     if sized.size_bytes <= request.max_bytes do
       sized
@@ -382,6 +477,12 @@ defmodule PramanaFoundry.Observations do
       error_page(:corrupt, :page_size_limit_exceeded)
     end
   end
+
+  defp redact_observation(%Observation{} = observation) do
+    %{observation | identity: redact(observation.identity), fact: redact(observation.fact)}
+  end
+
+  defp redact_page(%Page{} = page), do: %{page | source: redact(page.source)}
 
   defp error_page(status, code) do
     %Page{
