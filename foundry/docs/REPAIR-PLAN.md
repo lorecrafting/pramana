@@ -174,7 +174,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-01 | Remove automatic paid execution paths | — | **Complete: reviewed static containment** | F01 |
 | FR-02 | Transport CLI arguments as inert data | — | **Complete: reviewed inert transport** | F06 |
 | FR-03 | Fence startup and fail closed on legacy persistence errors | — | **Complete: reviewed containment** | F14, F02 |
-| FR-04 | Restrict cleanup to verified owned resources | — | **Historical reviewed containment complete; current-revision false-death correction ready** | F05, F23 |
+| FR-04 | Restrict cleanup to verified owned resources | — | **Complete: historical containment plus reviewed current-revision false-death correction integrated** | F05, F23 |
 | FR-05 | Contain acceptance and mutable-source activation bypasses | — | **Complete: reviewed containment** | F03, F04, F12, F13, F22 |
 | FR-06 | Decide durable workflow and authority contracts | — | **Complete: focused R4a design verification passed** | F02, F07–F09, F13, F22 |
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |

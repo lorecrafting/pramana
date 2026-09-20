@@ -1328,3 +1328,27 @@ steps.
   Astra-medium for narrow corrections, and Astra-xhigh only for a newly demonstrated
   whole-system contradiction. Tests run focused per subcommit, full at freeze and after
   integration, with reusable hostile probes and one evidence manifest per batch.
+
+## FR-04 current-process-state correction integration — 2026-09-19
+
+- The bounded implementation candidate `1495bca24e0d76b20fbbf633255e437df9783816`
+  corrected the current-source false-death predicate by binding observations to PID,
+  process-group ID and start time and treating only matching `Z` state or actual absence
+  as gone. Live command text containing `defunct`, recycled identity and observation
+  failure no longer become cancellation success.
+- Independent Sol-high review commit
+  `bf5ee29e207aabd5819147a21a09ad4180212a00` returned **PASS** for this bounded
+  correction. It reproduced the base defect, reran the 32 focused checks and retained
+  FR-10's descendant/issuer/channel and whole-group reconciliation as open work. Candidate
+  and exact-base standalone CI reproduced the same 74 pre-existing macOS
+  `:database_parent_symlink_not_allowed` failures, so neither report claims a full-suite
+  pass.
+- The candidate, evidence and review were integrated on current main as
+  `861055043f903b0858e1777265b2d05914e59996`,
+  `4ec47527ca6b954ef856b807032bb3ad37d8a36a` and
+  `d48cb135ad121b64b3fa6b36298f24d1d9c4cd0e` (tree
+  `b7a0e9ba3e1ee94272b98b62b01c495fd385f153`). The reviewed four source/test files
+  remained byte-identical. An initial isolated validation stopped before compilation
+  because its fresh dependency root was empty; after fetching the unchanged lockfile,
+  warnings-as-errors compilation passed for 105 files and the focused suite passed 32/32
+  at seed 8021. This changes no provider, daemon, deployment or activation state.

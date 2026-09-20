@@ -310,9 +310,9 @@ proceed meanwhile. No production implementation, runtime probe or model invocati
 
 Next resumable Foundry work, under exact repair-plan ownership:
 
-1. Correct the bounded current-revision `ProcessGroup.gone?/1` false-death predicate and
-   its `Checks.Runner` caller cases before reusing it for quiescence; retain historical
-   FR-04 PASS and leave FR-10's full reconciliation open.
+1. The bounded current-revision `ProcessGroup.gone?/1` false-death correction and its
+   `Checks.Runner` caller cases are independently reviewed and integrated. Retain its
+   evidence and leave FR-10's descendant/issuer/channel reconciliation open.
 2. Produce H0's revision-bound accepted-FR-07 supported/unavailable inventory. It may
    remain blocked; no direct SQL, empty-table inference or synthetic adapter may pass it.
 3. Run the bounded joint FR-09/15a Pi-first feasibility/provisioning investigation with
