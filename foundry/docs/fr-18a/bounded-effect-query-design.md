@@ -79,6 +79,22 @@ A successful query returns:
     "status" => status,
     "revision" => effect_revision
   },
+  "control" => %{
+    "schema_version" => 1,
+    "control_id" => control_id,
+    "revision" => non_negative_integer,
+    "status" => "active" | "cancel_requested"
+  },
+  "execution" => %{
+    "schema_version" => 1,
+    "execution_id" => execution_id,
+    "status" => "absent" | "open" | "result" | "exit" |
+      "sealed_without_result_or_exit",
+    "revision" => non_negative_integer,
+    "last_sequence" => non_negative_integer,
+    "sealed_sequence" => nil | non_negative_integer,
+    "sequence" => optional_resolution_sequence
+  },
   "relations" => [
     %{"kind" => "claim", ...},
     %{"kind" => "receipt", ...},
@@ -98,6 +114,7 @@ A successful query returns:
     "ordinal" => positive_ordinal
   },
   "settlement" => %{
+    "schema_version" => 1,
     "status" => authoritative_effect_status,
     "receipt_history" => "complete" | "unknown"
   },
@@ -111,9 +128,11 @@ A successful query returns:
 }
 ```
 
-Every relation is a discriminated, allowlisted scalar DTO. The query never selects or
-returns protected `state` blobs, effect request bodies, receipt payload or proof, control
-values, generic rows, or SQL identifiers.
+Every relation and summary is a discriminated, allowlisted scalar DTO. The control
+summary extracts only its status and revision through fixed SQL. The execution summary
+uses fixed scalar inbox metadata plus ordered aggregate sequence selection; it never
+selects an inbox item blob. The query never returns protected `state` blobs, effect
+request bodies, receipt payload or proof, generic rows, or SQL identifiers.
 
 The atomic-core integration at `057f2902580235d844679c43ece571056b60b8a5` added the
 authoritative singleton `root_infrastructure_settlements` table after the original B5
@@ -122,12 +141,17 @@ assumption. It is selected by exact effect identity in the same read snapshot, f
 allowlisted scalar columns only, and its encoded bytes count toward the page cap. It is a
 header, not a fifth paginated relation: the schema permits at most one row per effect.
 
-When present, its effect, claim and receipt identities must join to the observed effect;
-effect, claim and receipt must all have `non_started` semantics; generation is
-nonnegative; ordinal is positive; and role, owner and failure class are nonempty bounded
-text. A missing carrier is healthy only when no accepted attributable atomic non-start
-operation requires one. Required absence, an unexpected carrier, or any mismatch is
-corrupt. The encoded `state` blob is never selected or returned.
+When present, its effect, claim and receipt identities must join to the observed effect,
+and the immutable receipt must have `non_started` semantics. Current effect and claim
+status may either both be `non_started`, or both be `reconciliation_required` when a
+later durable quarantined conflicting receipt proves that supported transition. The
+latter reports current outcome `unknown/reconciliation_required` while retaining the
+historical settlement. Role, work owner, generation and predecessor must match bounded
+authoritative effect-state scalars; failure class must match the bounded receipt scalar;
+all singleton fields must match the accepted atomic-operation result; and ordinal must
+match its exact predecessor lineage. Required absence, an unexpected carrier, an
+unsupported transition or any scalar mismatch is corrupt. No state/result blob is
+materialized into the runtime or returned.
 
 The `settlement` summary remains the bounded current effect outcome, with receipt
 traversal recorded only as provenance. Until the receipt section is exhausted,
@@ -137,13 +161,16 @@ record an `unknown` result.
 
 ## Materialization and consistency invariants
 
-1. The effect header and all relation sections are read in one read transaction, giving
+1. The effect header, control/execution summaries, settlement and all relation sections
+   are read in one read transaction, giving
    the call one SQLite snapshot even if another connection can write concurrently.
 2. Relation order is fixed: claims, receipts, reservations, then leases. Each section
    has static parameterized SQL, deterministic ordering and `LIMIT remaining + 1`.
 3. `Database.fold/5` consumes at most that bounded result and stops again before either
    the item or byte budget is crossed. No call to `fetch_all` may precede these bounds.
-4. SQL selects byte lengths and bounded prefixes for every text value. A value outside
+4. SQL selects byte lengths and bounded prefixes for every emitted text value. Control
+   and accepted-operation values use fixed JSON scalar extraction; inbox resolution uses
+   fixed aggregates. A value outside
    the observation contract is not fully copied into the BEAM or returned to the caller.
 5. The encoded protected DTO size is checked before appending each relation. A returned
    page is never larger than its requested byte cap. If an ordinary next row would cross
@@ -224,17 +251,22 @@ Add focused tests to `durable_store/protected_primitives_test.exs` for:
 - unchanged continuation with deterministic ordering and no overlap or gap;
 - any protected append between pages returning stale/unavailable.
 - present, absent, required-but-missing and mismatched infrastructure-settlement carriers,
-  including non-start correlation and header byte accounting.
+  including every singleton field, non-start correlation, the valid later-conflict
+  transition and header byte accounting.
 
 Add public tests to `observations_test.exs` for:
 
 - end-to-end truncation before public materialization, plus a usable continuation;
+- a large control state and multiple large inbox items, proving the public adapter only
+  materializes the bounded effect page and never calls the legacy materializers;
 - complete versus incomplete receipt provenance and authoritative terminal settlement;
 - healthy absence distinct from unknown, unavailable and corrupt;
 - secret-shaped identities and values in every emitted relation/source region, nested
   keys, live protected facts and continuation data, asserting against the serialized
   complete page;
 - final public item and byte caps after redaction.
+- malformed/cross-source page provenance, nested effect/relation/control/execution/
+  settlement versions, page size/count and cursor frontier correlation.
 
 Add lifecycle composition tests to
 `durable_store/fr08a_fr19a_integration_test.exs` for clean reopen and verified-backup

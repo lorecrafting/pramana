@@ -1,5 +1,11 @@
 # FR-18A minimal honest observations candidate
 
+> Historical pre-B5 freeze. The exact current bounded-query candidate and canonical
+> evidence are recorded in
+> [FR-18A B5 bounded effect-query candidate](bounded-effect-query-candidate.md). The
+> revision and CI identities below are retained as earlier evidence, not the current
+> candidate.
+
 Frozen implementation candidate, 2026-09-20 (Hawaii). This candidate supplies the
 read-only canonical observation/query slice required by FR-09/15a trials and later
 activation. It does not repair the legacy board or telemetry producer chain, create any
@@ -129,10 +135,11 @@ bd2520c1338b7975565717ab0132087dd85683a8bca578df0392fd554c030783  foundry/lib/pr
 44da8603ede58cd669af7432349b0433a2717f1a4cea9e905a6680bfcd7ab7ef  foundry/test/pramana_foundry/observations_test.exs
 ```
 
-The FR-08A `effect` query still materializes its associated protected rows before this
-layer caps the returned identities; this candidate bounds the public DTO, not the internal
-FR-08A query implementation. It deliberately provides explicit-ID lookup rather than
-unbounded store enumeration. FR-17 still owns pointer producers and activation receipts.
+The later B5 correction replaces this historical limitation with an exact-effect query
+whose relation rows and control/execution summaries are bounded before runtime
+materialization; see the current candidate linked above. It deliberately provides
+explicit-ID lookup rather than unbounded store enumeration. FR-17 still owns pointer
+producers and activation receipts.
 FR-18B still owns producer-to-store-to-board/classifier/usage wiring, lifecycle telemetry
 and board behavior. No provider, daemon, credentials, deployment, activation or push was
 used, changed or tested.

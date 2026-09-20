@@ -15,13 +15,18 @@ or replace the outstanding independent review.
 - Integrated-schema design correction: `2e801ea66b186f8c6bdbe5156369ae5ac5d6333c`,
   tree `ab5b2b6594a71752a3eca0e1e13d7664f0804a99`.
 - Revision-bound FR-08A read-boundary evidence:
-  `fd774c3b1dbf01c6a9ea8d64c18653b660388c11`, tree
-  `13ffc27489651349cd51573e50384d64bfbc35f1`.
+  original `fd774c3b1dbf01c6a9ea8d64c18653b660388c11`.
+- B5a–B5d correction implementation and tests:
+  `98b6ef9fe4236d4741d54888845f64049d8ba738`, tree
+  `92607c146bd3bfca6d27ed498710e77390ddb40e`.
+- Corrected revision-bound FR-08A evidence:
+  `aa173780365d732e1b6fe8ea07b86ca9348c863e`, tree
+  `94fa3654e46bee4eb888e7cb5a7b9664126199f6`.
 
-The FR-08A report is bound to the B5 implementation commit, not to this later evidence
-record. Its protected-primitives source identity is SHA-256
-`4f0dd34f26ec1efe00e12f052aaa25804e45e82569eabbc432322abb42ccbb90`
-and BEAM MD5 `870e4c17641ab3dce71bf92241c14349`; all seven public probes remain ready.
+The FR-08A report is bound to the corrected implementation commit, not to the later
+evidence record. Its protected-primitives source identity is SHA-256
+`df93af4558f98742913c8195763349ade952ca6201f9176314b59fe081f2d420`
+and BEAM MD5 `bf52660f7228f46993d8db997a4587f6`; all seven public probes remain ready.
 
 ## Implemented boundary
 
@@ -36,6 +41,19 @@ the fixed claims, receipts, reservations and leases order. The optional authorit
 infrastructure settlement is a separately bounded singleton header, correlated to its
 effect, claim and non-start receipt without returning the stored state blob.
 
+The correction also derives control and execution summaries inside that transaction.
+Fixed SQL selects only control status/revision and inbox metadata plus ordered aggregate
+result/exit sequences. The public observation path therefore never invokes the legacy
+unbounded control or inbox materializers. All summary bytes count toward the protected
+page budget.
+
+Every settlement scalar is checked against bounded authoritative effect, receipt,
+accepted-operation and predecessor-lineage values. A historical non-start settlement
+remains valid after a durable quarantined conflicting receipt moves the current claim and
+effect to `reconciliation_required`; the public outcome is then explicitly
+`unknown/reconciliation_required`. Unsupported transitions and any one-field mismatch
+remain corruption.
+
 Continuation binds effect scope, installation/repository identity, global protected
 sequence and effect revision. A mutation between pages returns stale/unavailable rather
 than mixing snapshots. Clean reopen and a verified backup continue an unchanged cursor;
@@ -44,31 +62,43 @@ cursors, healthy absence, unavailable sources and corruption remain distinct. Pu
 correlation precedes recursive redaction of facts, identities, source, nested keys and
 continuation data.
 
+Before assigning canonical quality, the public layer validates the response/source
+schema, installation/repository/frontier and effect revision against the surrounding
+snapshot, all nested schema versions, relation count, encoded page size, and continuation
+frontier/shape.
+
 No atomic write operation, Gateway mutation route, Authority, Database schema, workflow
 reducer, Coordinator, FR-08B path, pointer producer or activation path changed in the B5
 implementation commit.
 
 ## Checks
 
-Focused checks on the candidate:
+Focused checks on the corrected candidate:
 
 - warnings-as-errors compilation: passed;
-- protected query, public observations, atomic settlement and rebound FR-08A boundary:
-  `39 passed`, no failures;
-- documentation gate: `80 passed`, no failures.
+- maintained observations, protected primitives, atomic settlement and FR-08A/FR-19A
+  integration matrix: `44 passed`, no failures;
+- corrected independent hostile probes: `26 passed`, no failures;
+- rebound FR-08A source/BEAM identity and all seven public capabilities: `4 passed`, no
+  failures.
 
-Canonical Foundry CI ran from the clean evidence commit/tree above with repository-pinned
+Canonical Foundry CI ran from clean evidence commit `aa17378` / tree `94fa365` with pinned
 Elixir 1.20.3, OTP 29.0.5 and ERTS 17.0.5:
 
 - result: passed, exit 0;
-- model-free suite: `643 passed`, `13 skipped`, `1 excluded`;
+- model-free suite: `646 passed`, `13 skipped`, `1 excluded`;
 - locked dependency restore, dependency policy, warnings-as-errors compile, format gate,
   dependency inventory and escript build: all passed;
 - source postflight: the same clean commit and tree;
-- provenance: `/private/tmp/fr18a-b5-ci-fd774c3/provenance.json`, SHA-256
-  `eb9b2245d675cf2fb86906915e20308b4d70dc337f1f143457494f791af3c378`;
+- provenance: `/private/tmp/fr18a-b5-correction-ci-aa17378/provenance.json`, SHA-256
+  `8381d68e96c556030e4e705d5f8c38ab912b5f44efba8f0c4eb300ce6f8a41ab`;
 - generated escript SHA-256:
-  `6deec271a67375ee1a1971f47a50e9b1d805b3fff0f1c8a3d8b55c78f5dbd09a`.
+  `760dcf8ec70b1c39d5cd95eb27bd37a940db511884315e981747324053d9c677`.
+
+An earlier correction CI ran before the mandatory FR-08A revision-bound identity was
+rebound. Its runtime suite reached `644/646 passed` and failed exactly the two stale
+source/report identity assertions. That run is diagnostic only; the clean rebound run
+above is the credited canonical evidence.
 
 The one excluded test is the already inventoried external Python/tiktoken recomputation.
 Real-provider, live-daemon, activation, corpus and service evidence remain absent or out of
@@ -87,7 +117,8 @@ manifest independently verified the exact expected toolchain.
 
 ## Remaining review boundary
 
-Independent review must inspect the typed SQL allowlist, prefix/encoded-size accounting,
-cursor stability and exhaustion semantics, infrastructure-settlement required-absence
-check, public redaction and the new tests. FR-18A remains unaccepted until that review.
+Independent rereview must inspect the B5a–B5d correction, especially fixed SQL summary
+selection, settlement conflict provenance/lineage, source/schema correlation and the
+corrected hostile probes. This candidate does not claim FR-18A PASS; acceptance remains
+with the independent reviewer/coordinator.
 FR-18B, FR-09/15a, FR-17, FR-19B and FR-22 ownership is unchanged.
