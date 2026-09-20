@@ -10,6 +10,7 @@ on:
       - "foundry/ci/fr19a_raw_sync_eio.exs"
       - "foundry/ci/fr19a_sync_eio_orchestration.exs"
       - "foundry/ci/fr19a_sync_eio_host.sh"
+      - "foundry/ci/fr19a_sync_eio_host_test.sh"
       - "foundry/ci/fr19a_sync_eio_parse.exs"
       - "foundry/test/fr19a_sync_eio_orchestration_test.exs"
       - "foundry/test/support/fr19a_linux_sync_eio_fixture.exs"
@@ -82,6 +83,7 @@ jobs:
               ci/fr19a_raw_sync_eio.exs \
               ci/fr19a_sync_eio_orchestration.exs \
               ci/fr19a_sync_eio_host.sh \
+              ci/fr19a_sync_eio_host_test.sh \
               ci/fr19a_sync_eio_parse.exs \
               test/fr19a_sync_eio_orchestration_test.exs \
               test/support/fr19a_linux_sync_eio_fixture.exs
@@ -158,7 +160,7 @@ jobs:
             RUNNER_TEMP="$RUNNER_TEMP" \
             GITHUB_RUN_ID="$GITHUB_RUN_ID" \
             GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
-            strace -ff -yy \
+            strace -ff -yy -ttt \
               -e trace=fsync,fdatasync,pwrite64,write,openat,close \
               -o "$trace_prefix" \
               mix run --no-start --no-compile --no-deps-check \
