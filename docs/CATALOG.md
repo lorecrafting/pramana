@@ -197,6 +197,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`foundry/docs/fr-07/review-v7.md`](../foundry/docs/fr-07/review-v7.md)
 - [`foundry/docs/fr-07/review-v8.md`](../foundry/docs/fr-07/review-v8.md)
 - [`foundry/docs/fr-19a/candidate.md`](../foundry/docs/fr-19a/candidate.md)
+- [`foundry/docs/fr-19a/correction-checkpoint.md`](../foundry/docs/fr-19a/correction-checkpoint.md)
 - [`foundry/docs/fr-19a/review.md`](../foundry/docs/fr-19a/review.md)
 - [`foundry/docs/fr-02/integration-attestation.md`](../foundry/docs/fr-02/integration-attestation.md)
 - [`foundry/docs/fr-02/review-v1.md`](../foundry/docs/fr-02/review-v1.md)
