@@ -51,7 +51,7 @@ defmodule PramanaFoundry.Observations do
          {:ok, source} <- canonical_source(before),
          {:ok, targets} <- targets(request, before),
          {:ok, items, effect_cursor} <-
-           read_targets(adapter, source_state, targets, request),
+           read_targets(adapter, source_state, targets, request, source),
          {:ok, after_snapshot, after_at} <- adapter.snapshot(source_state),
          {:ok, after_source} <- canonical_source(after_snapshot),
          :ok <- stable_source(source, after_source),
@@ -147,7 +147,7 @@ defmodule PramanaFoundry.Observations do
   defp take_through_first_effect([target | rest], acc),
     do: take_through_first_effect(rest, [target | acc])
 
-  defp read_targets(adapter, source_state, targets, request) do
+  defp read_targets(adapter, source_state, targets, request, source) do
     start_offset = public_target_offset(request.cursor)
 
     targets
@@ -155,7 +155,7 @@ defmodule PramanaFoundry.Observations do
     |> Enum.reduce_while({:ok, [], nil}, fn {target, target_offset}, {:ok, items, nil} ->
       cursor = if target_offset == start_offset, do: protected_effect_cursor(request.cursor)
 
-      case read_target(adapter, source_state, target, request, cursor) do
+      case read_target(adapter, source_state, target, request, cursor, source) do
         {:ok, nil, nil} ->
           {:cont, {:ok, items, nil}}
 
@@ -181,7 +181,7 @@ defmodule PramanaFoundry.Observations do
     end
   end
 
-  defp read_target(_adapter, _source_state, {:pointer, kind, fact}, _request, nil) do
+  defp read_target(_adapter, _source_state, {:pointer, kind, fact}, _request, nil, _source) do
     with {:ok, status, revision} <- pointer_state(kind, fact) do
       {:ok,
        %Observation{
@@ -194,7 +194,7 @@ defmodule PramanaFoundry.Observations do
     end
   end
 
-  defp read_target(adapter, source_state, {:effect, effect_id}, request, cursor) do
+  defp read_target(adapter, source_state, {:effect, effect_id}, request, cursor, source) do
     protected_max_bytes = max(request.max_bytes - @protected_envelope_reserve, 1_024)
 
     query = %{
@@ -211,10 +211,10 @@ defmodule PramanaFoundry.Observations do
         {:ok, nil, nil}
 
       {:ok, effect, _observed_at} ->
-        with {:ok, identity, effect_fact, next_cursor} <- canonical_effect(effect_id, effect),
-             effect_header <- protected_effect_header(effect),
-             {:ok, control} <- read_control(adapter, source_state, effect_header),
-             {:ok, execution} <- read_execution(adapter, source_state, effect_header) do
+        with {:ok, identity, effect_fact, next_cursor, summaries} <-
+               canonical_effect(effect_id, effect, source),
+             {:ok, control, execution} <-
+               effect_summaries(adapter, source_state, effect, summaries) do
           {:ok,
            %Observation{
              kind: :effect_context,
@@ -235,31 +235,46 @@ defmodule PramanaFoundry.Observations do
     end
   end
 
-  defp protected_effect_header(%{"type" => "effect_observation_page", "effect" => effect}),
-    do: effect
+  defp effect_summaries(_adapter, _source_state, _effect, {:bounded, control, execution}),
+    do: {:ok, Map.delete(control, "schema_version"), Map.delete(execution, "schema_version")}
 
-  defp protected_effect_header(effect), do: effect
+  defp effect_summaries(adapter, source_state, effect, :legacy) do
+    with {:ok, control} <- read_control(adapter, source_state, effect),
+         {:ok, execution} <- read_execution(adapter, source_state, effect) do
+      {:ok, control, execution}
+    end
+  end
 
   defp canonical_effect(
          effect_id,
          %{
            "schema_version" => 1,
            "type" => "effect_observation_page"
-         } = page
+         } = page,
+         source
        ) do
     effect = page["effect"]
     relations = page["relations"]
     protected_page = page["page"]
     settlement = page["settlement"]
 
-    with true <- is_map(effect),
+    with true <-
+           exact_map_keys?(
+             page,
+             ~w(schema_version type source effect control execution relations infrastructure_settlement settlement page)
+           ),
+         true <- valid_effect_page_source?(page["source"], source, effect),
+         true <- is_map(effect),
          ^effect_id <- effect["effect_id"],
          true <- is_list(relations),
          true <- is_map(protected_page),
          true <- is_map(settlement),
          true <- valid_effect_header?(effect),
          true <- valid_effect_relations?(relations, effect_id),
-         true <- valid_protected_effect_page?(protected_page),
+         true <- valid_protected_effect_page?(protected_page, relations, page),
+         true <- valid_control_summary?(page["control"], effect),
+         true <- valid_execution_summary?(page["execution"], effect),
+         1 <- settlement["schema_version"],
          true <- settlement["status"] == effect["status"],
          true <- settlement["receipt_history"] in ["complete", "unknown"],
          true <-
@@ -294,13 +309,15 @@ defmodule PramanaFoundry.Observations do
         |> Map.put("outcome", outcome)
 
       identity = Map.take(effect, ~w(effect_id ticket_id attempt_id execution_id control_id))
-      {:ok, identity, fact, protected_page["next_cursor"]}
+
+      {:ok, identity, fact, protected_page["next_cursor"],
+       {:bounded, page["control"], page["execution"]}}
     else
       _ -> {:error, :corrupt}
     end
   end
 
-  defp canonical_effect(effect_id, effect) do
+  defp canonical_effect(effect_id, effect, _source) do
     identity_fields = ~w(effect_id ticket_id attempt_id execution_id control_id)
 
     with 1 <- effect["schema_version"],
@@ -325,17 +342,18 @@ defmodule PramanaFoundry.Observations do
         |> Map.put("reservations_truncated", length(reservations) > @max_related_ids)
         |> Map.put("outcome", canonical_outcome(status, claims))
 
-      {:ok, Map.take(effect, identity_fields), fact, nil}
+      {:ok, Map.take(effect, identity_fields), fact, nil, :legacy}
     else
       _ -> {:error, :corrupt}
     end
   end
 
   defp valid_effect_header?(effect) do
-    Enum.all?(
-      ~w(effect_id ticket_id attempt_id execution_id control_id policy_id operation scope),
-      &valid_id?(effect[&1])
-    ) and effect["status"] in @effect_statuses and is_integer(effect["revision"]) and
+    effect["schema_version"] == 1 and
+      Enum.all?(
+        ~w(effect_id ticket_id attempt_id execution_id control_id policy_id operation scope),
+        &valid_id?(effect[&1])
+      ) and effect["status"] in @effect_statuses and is_integer(effect["revision"]) and
       effect["revision"] >= 0 and is_integer(effect["policy_revision"]) and
       effect["policy_revision"] >= 0 and is_integer(effect["control_revision"]) and
       effect["control_revision"] >= 0
@@ -344,19 +362,23 @@ defmodule PramanaFoundry.Observations do
   defp valid_effect_relations?(relations, effect_id) do
     Enum.all?(relations, fn
       %{"kind" => "claim", "effect_id" => ^effect_id} = claim ->
-        valid_id?(claim["claim_id"]) and valid_id?(claim["writer_epoch"]) and
+        claim["schema_version"] == 1 and valid_id?(claim["claim_id"]) and
+          valid_id?(claim["writer_epoch"]) and
           claim["status"] in @claim_statuses and nonnegative?(claim["revision"])
 
       %{"kind" => "receipt"} = receipt ->
-        Enum.all?(~w(receipt_id claim_id request_id receipt_digest), &valid_id?(receipt[&1])) and
+        receipt["schema_version"] == 1 and
+          Enum.all?(~w(receipt_id claim_id request_id receipt_digest), &valid_id?(receipt[&1])) and
           receipt["outcome"] in @receipt_outcomes
 
       %{"kind" => "reservation"} = reservation ->
-        valid_id?(reservation["reservation_id"]) and reservation["owner_kind"] == "effect" and
+        reservation["schema_version"] == 1 and valid_id?(reservation["reservation_id"]) and
+          reservation["owner_kind"] == "effect" and
           reservation["owner_id"] == effect_id and nonnegative?(reservation["revision"])
 
       %{"kind" => "lease"} = lease ->
-        valid_id?(lease["lease_id"]) and valid_id?(lease["claim_id"]) and
+        lease["schema_version"] == 1 and valid_id?(lease["lease_id"]) and
+          valid_id?(lease["claim_id"]) and
           nonnegative?(lease["revision"])
 
       _ ->
@@ -364,20 +386,90 @@ defmodule PramanaFoundry.Observations do
     end)
   end
 
-  defp valid_protected_effect_page?(page) do
-    is_integer(page["item_count"]) and page["item_count"] >= 0 and
+  defp valid_protected_effect_page?(page, relations, envelope) do
+    exact_map_keys?(page, ~w(item_count size_bytes truncated truncated_reason next_cursor)) and
+      page["item_count"] == length(relations) and
+      page["size_bytes"] == :erlang.external_size(envelope) and
+      is_integer(page["item_count"]) and page["item_count"] >= 0 and
       page["item_count"] <= @max_related_ids and is_integer(page["size_bytes"]) and
       page["size_bytes"] >= 0 and is_boolean(page["truncated"]) and
       page["truncated_reason"] in [nil, "item_limit", "byte_limit"] and
-      ((page["truncated"] and is_map(page["next_cursor"])) or
-         (not page["truncated"] and is_nil(page["next_cursor"])))
+      ((page["truncated"] and valid_protected_cursor?(page["next_cursor"], envelope)) or
+         (not page["truncated"] and is_nil(page["next_cursor"]) and
+            is_nil(page["truncated_reason"])))
   end
+
+  defp valid_effect_page_source?(page_source, source, effect) when is_map(page_source) do
+    exact_map_keys?(
+      page_source,
+      ~w(installation_id repository_id last_protected_command_sequence effect_revision)
+    ) and
+      page_source["installation_id"] == source["installation_id"] and
+      page_source["repository_id"] == source["repository_id"] and
+      page_source["last_protected_command_sequence"] == source["last_protected_command_sequence"] and
+      is_map(effect) and page_source["effect_revision"] == effect["revision"]
+  end
+
+  defp valid_effect_page_source?(_page_source, _source, _effect), do: false
+
+  defp valid_protected_cursor?(cursor, envelope) when is_map(cursor) do
+    source = envelope["source"]
+    effect = envelope["effect"]
+
+    exact_map_keys?(
+      cursor,
+      ~w(schema_version query_type scope_digest source_digest protected_sequence effect_revision section offset)
+    ) and
+      cursor["schema_version"] == 1 and cursor["query_type"] == "effect_observation_page" and
+      digest?(cursor["scope_digest"]) and digest?(cursor["source_digest"]) and
+      cursor["protected_sequence"] == source["last_protected_command_sequence"] and
+      cursor["effect_revision"] == effect["revision"] and
+      cursor["section"] in ~w(claims receipts reservations leases) and
+      nonnegative?(cursor["offset"])
+  end
+
+  defp valid_protected_cursor?(_cursor, _envelope), do: false
+
+  defp digest?(value),
+    do: is_binary(value) and byte_size(value) == 64 and String.match?(value, ~r/\A[0-9a-f]+\z/)
+
+  defp exact_map_keys?(value, keys) when is_map(value),
+    do: Enum.sort(Map.keys(value)) == Enum.sort(keys)
+
+  defp exact_map_keys?(_value, _keys), do: false
+
+  defp valid_control_summary?(control, effect) when is_map(control) do
+    exact_map_keys?(control, ~w(schema_version control_id revision status)) and
+      control["schema_version"] == 1 and control["control_id"] == effect["control_id"] and
+      nonnegative?(control["revision"]) and control["status"] in @control_statuses
+  end
+
+  defp valid_control_summary?(_control, _effect), do: false
+
+  defp valid_execution_summary?(%{"status" => "absent"} = execution, effect) do
+    exact_map_keys?(execution, ~w(schema_version execution_id status)) and
+      execution["schema_version"] == 1 and execution["execution_id"] == effect["execution_id"]
+  end
+
+  defp valid_execution_summary?(execution, effect) when is_map(execution) do
+    base_keys = ~w(schema_version execution_id status revision last_sequence sealed_sequence)
+
+    allowed_keys =
+      if(execution["status"] in ~w(result exit), do: base_keys ++ ["sequence"], else: base_keys)
+
+    exact_map_keys?(execution, allowed_keys) and execution["schema_version"] == 1 and
+      execution["execution_id"] == effect["execution_id"] and
+      valid_execution_fact(execution, execution) == :ok
+  end
+
+  defp valid_execution_summary?(_execution, _effect), do: false
 
   defp valid_infrastructure_settlement?(nil, _effect_id, _effect_status), do: true
 
   defp valid_infrastructure_settlement?(settlement, effect_id, effect_status)
        when is_map(settlement) do
-    effect_status == "non_started" and settlement["effect_id"] == effect_id and
+    settlement["schema_version"] == 1 and effect_status in ~w(non_started reconciliation_required) and
+      settlement["effect_id"] == effect_id and
       Enum.all?(
         ~w(claim_id receipt_id role work_owner failure_class),
         &valid_id?(settlement[&1])

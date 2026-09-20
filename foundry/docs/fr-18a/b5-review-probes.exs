@@ -5,12 +5,20 @@ ExUnit.start(seed: 18055)
 defmodule FR18AReviewTap do
   alias PramanaFoundry.Observations.GatewaySource
   def snapshot(state), do: GatewaySource.snapshot(state)
+
   def fact(state, query) do
     result = GatewaySource.fact(state, query)
+
     if match?({:ok, _, _}, result) do
       {:ok, fact, _} = result
-      send(self(), {:materialized, query["type"], :erlang.external_size(fact), length(Map.get(fact, "items", []))})
+
+      send(
+        self(),
+        {:materialized, query["type"], :erlang.external_size(fact),
+         length(Map.get(fact, "items", []))}
+      )
     end
+
     result
   end
 end
@@ -18,17 +26,27 @@ end
 defmodule FR18AReviewChangedSource do
   alias PramanaFoundry.Observations.GatewaySource
   def snapshot(state), do: GatewaySource.snapshot(state)
+
   def fact(state, %{"type" => "effect_observation_page"} = query) do
     with {:ok, fact, at} <- GatewaySource.fact(state, query) do
       {:ok, state.change.(fact), at}
     end
   end
+
   def fact(state, query), do: GatewaySource.fact(state, query)
 end
 
 base = File.read!("test/pramana_foundry/durable_store/atomic_bundle_test.exs")
-base = String.replace(base, "PramanaFoundry.DurableStore.AtomicBundleTest", "PramanaFoundry.FR18AB5Review")
+
+base =
+  String.replace(
+    base,
+    "PramanaFoundry.DurableStore.AtomicBundleTest",
+    "PramanaFoundry.FR18AB5Review"
+  )
+
 base = Regex.replace(~r/\nend\s*\z/, base, "\n")
+
 extra = ~S"""
   alias PramanaFoundry.Observations
   alias PramanaFoundry.Observations.Query
@@ -37,7 +55,7 @@ extra = ~S"""
     %{"schema_version" => 1, "type" => "effect_observation_page", "effect_id" => "effect-1", "limit" => limit, "max_bytes" => bytes, "cursor" => nil}
   end
 
-  test "review: public page still materializes control and inbox payloads beyond its cap", ctx do
+  test "correction: public page materializes only the bounded effect DTO", ctx do
     seed_issued_launch!(ctx)
     payload = String.duplicate("x", 262_144)
     accept_current!(ctx, %{"type" => "set_control", "control_id" => "control-1", "value" => %{"status" => "active", "diagnostic" => payload}})
@@ -48,11 +66,10 @@ extra = ~S"""
     page = Observations.query_source(query, {FR18AReviewTap, ctx})
     assert page.status == :ok
     assert page.size_bytes <= query.max_bytes
-    assert_received {:materialized, "control", control_bytes, 0}
-    assert_received {:materialized, "inbox", inbox_bytes, 8}
-    assert control_bytes > 262_144
-    assert inbox_bytes > 2_097_152
-    IO.puts("REPRODUCED: 8 KiB public cap materializes control >256 KiB and 8 inbox rows >2 MiB")
+    assert_received {:materialized, "effect_observation_page", effect_bytes, 0}
+    assert effect_bytes <= 8_192
+    refute_received {:materialized, "control", _, _}
+    refute_received {:materialized, "inbox", _, _}
   end
 
   test "review: valid nonstart conflict is mislabeled corrupt", ctx do
@@ -67,9 +84,10 @@ extra = ~S"""
     assert {:ok, %{"status" => "reconciliation_required"}} = fact(ctx, "effect", "effect_id", "effect-1")
     assert {:ok, _} = Gateway.backup(ctx.gateway, ctx.path <> ".backup")
     page = Observations.query(%Query{effect_ids: ["effect-1"], include_pointers: false}, ctx.gateway, ctx.capability)
-    assert page.status == :corrupt
-    assert page.error_code == :source_corrupt
-    IO.puts("REPRODUCED: verified-backup-valid nonstart conflict becomes source_corrupt")
+    assert page.status == :ok
+    assert hd(page.items).fact["status"] == "reconciliation_required"
+    assert hd(page.items).fact["outcome"]["reason"] == "reconciliation_required"
+    assert hd(page.items).fact["infrastructure_settlement"]["ordinal"] == 1
   end
 
   for {column, value} <- [{"role", "pm"}, {"work_owner", "wrong-owner"}, {"infrastructure_generation", 9}, {"predecessor_effect_id", "wrong-predecessor"}, {"failure_class", "wrong-failure"}, {"ordinal", 900}] do
@@ -82,10 +100,9 @@ extra = ~S"""
       assert :ok = Database.execute(raw, "UPDATE root_infrastructure_settlements SET " <> @review_column <> " = ? WHERE effect_id = ?", [@review_value, "effect-1"])
       assert :ok = Sqlite3.close(raw)
       page = Observations.query(%Query{effect_ids: ["effect-1"], include_pointers: false}, ctx.gateway, ctx.capability)
-      assert page.status == :ok
-      assert page.quality == :canonical
-      assert hd(page.items).fact["infrastructure_settlement"][@review_column] == @review_value
-      IO.puts("REPRODUCED: canonical settlement accepts mismatched " <> @review_column)
+      assert page.status == :corrupt
+      assert page.quality == :corrupt
+      assert page.error_code == :source_corrupt
     end
   end
 
@@ -120,9 +137,9 @@ extra = ~S"""
     ]
     for {label, change} <- changes do
       page = Observations.query_source(%Query{effect_ids: ["effect-1"], include_pointers: false}, {FR18AReviewChangedSource, Map.put(ctx, :change, change)})
-      assert page.status == :ok
-      assert page.quality == :canonical
-      IO.puts("REPRODUCED: canonical page ignores " <> label)
+      assert page.status == :corrupt, label
+      assert page.quality == :corrupt
+      assert page.error_code == :source_corrupt
     end
   end
 
@@ -163,4 +180,5 @@ extra = ~S"""
   end
 end
 """
+
 Code.compile_string(base <> extra, "fr18a_b5_review_generated.exs")

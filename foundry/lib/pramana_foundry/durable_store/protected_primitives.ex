@@ -3891,10 +3891,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              source["last_protected_command_sequence"],
              effect["revision"]
            ),
+         {:ok, control} <- bounded_effect_control(conn, effect),
+         {:ok, execution} <- bounded_effect_execution(conn, effect),
          {:ok, settlement} <- bounded_infrastructure_settlement(conn, effect),
          context <- %{
            source: Map.put(source, "effect_revision", effect["revision"]),
            effect: effect,
+           control: control,
+           execution: execution,
            settlement: settlement,
            scope_digest: scope_digest,
            source_digest: source_digest,
@@ -3904,8 +3908,116 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            max_bytes: request.max_bytes
          },
          {:ok, state} <- initial_effect_observation_state(context, request.cursor),
-         {:ok, completed} <- read_effect_observation_sections(conn, context, state) do
-      {:ok, effect_observation_response(context, completed)}
+         {:ok, completed} <- read_effect_observation_sections(conn, context, state),
+         response <- effect_observation_response(context, completed),
+         true <- :erlang.external_size(response) <= context.max_bytes do
+      {:ok, response}
+    else
+      false -> {:error, :protected_observation_oversized}
+      error -> error
+    end
+  end
+
+  # These summaries deliberately select only bounded scalar prefixes. In particular,
+  # neither the control state nor inbox item blobs cross the SQLite boundary.
+  defp bounded_effect_control(conn, effect) do
+    columns = [
+      {"control_id", :text},
+      {"revision", :integer},
+      {"json_extract(CAST(state AS TEXT), '$.value.status')", "status", :text}
+    ]
+
+    sql = "SELECT " <> bounded_select_list(columns) <> " FROM root_controls WHERE control_id = ?"
+
+    with {:ok, rows} <- Database.query(conn, sql, [effect["control_id"]]),
+         [row] <- rows,
+         {:ok, control} <- decode_bounded_row(row, columns),
+         true <- control["control_id"] == effect["control_id"],
+         true <- nonnegative_integer?(control["revision"]),
+         true <- control["status"] in ~w(active cancel_requested) do
+      {:ok, Map.put(control, "schema_version", 1)}
+    else
+      {:error, _reason} = error -> error
+      _ -> protected_observation_corrupt(effect["effect_id"])
+    end
+  end
+
+  defp bounded_effect_execution(conn, effect) do
+    columns = [
+      {"i.execution_id", "execution_id", :text},
+      {"i.revision", "revision", :integer},
+      {"i.last_sequence", "last_sequence", :integer},
+      {"coalesce(i.sealed_sequence, -1)", "sealed_sequence", :integer},
+      {"coalesce((SELECT min(x.sequence) FROM authenticated_inbox_items x WHERE x.execution_id = i.execution_id AND x.disposition = 'accepted' AND x.item_kind = 'result'), -1)",
+       "result_sequence", :integer},
+      {"coalesce((SELECT min(x.sequence) FROM authenticated_inbox_items x WHERE x.execution_id = i.execution_id AND x.disposition = 'accepted' AND x.item_kind = 'exit'), -1)",
+       "exit_sequence", :integer}
+    ]
+
+    sql =
+      "SELECT " <>
+        bounded_select_list(columns) <>
+        " FROM authenticated_inboxes i WHERE i.execution_id = ?"
+
+    with {:ok, rows} <- Database.query(conn, sql, [effect["execution_id"]]) do
+      case rows do
+        [] ->
+          {:ok,
+           %{
+             "schema_version" => 1,
+             "execution_id" => effect["execution_id"],
+             "status" => "absent"
+           }}
+
+        [row] ->
+          with {:ok, inbox} <- decode_bounded_row(row, columns),
+               true <- inbox["execution_id"] == effect["execution_id"],
+               true <- nonnegative_integer?(inbox["revision"]),
+               true <- nonnegative_integer?(inbox["last_sequence"]),
+               {:ok, summary} <- bounded_execution_summary(inbox) do
+            {:ok, Map.merge(%{"schema_version" => 1}, summary)}
+          else
+            {:error, _reason} = error -> error
+            _ -> protected_observation_corrupt(effect["effect_id"])
+          end
+
+        _ ->
+          protected_observation_corrupt(effect["effect_id"])
+      end
+    end
+  end
+
+  defp bounded_execution_summary(%{"sealed_sequence" => -1} = inbox) do
+    {:ok,
+     inbox
+     |> Map.take(~w(execution_id revision last_sequence))
+     |> Map.put("sealed_sequence", nil)
+     |> Map.put("status", "open")}
+  end
+
+  defp bounded_execution_summary(inbox) do
+    sealed = inbox["sealed_sequence"]
+    result = inbox["result_sequence"]
+    exit = inbox["exit_sequence"]
+
+    with true <- nonnegative_integer?(sealed) and sealed <= inbox["last_sequence"],
+         true <- result == -1 or (is_integer(result) and result in 1..sealed),
+         true <- exit == -1 or (is_integer(exit) and exit in 1..sealed) do
+      {status, sequence} =
+        cond do
+          result != -1 -> {"result", result}
+          exit != -1 -> {"exit", exit}
+          true -> {"sealed_without_result_or_exit", nil}
+        end
+
+      summary =
+        inbox
+        |> Map.take(~w(execution_id revision last_sequence sealed_sequence))
+        |> Map.put("status", status)
+
+      {:ok, if(is_nil(sequence), do: summary, else: Map.put(summary, "sequence", sequence))}
+    else
+      _ -> protected_observation_corrupt(inbox["execution_id"])
     end
   end
 
@@ -4012,7 +4124,15 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       {"c.effect_id", "claim_effect_id", :text},
       {"c.status", "claim_status", :text},
       {"r.claim_id", "receipt_claim_id", :text},
-      {"r.outcome", "receipt_outcome", :text}
+      {"r.outcome", "receipt_outcome", :text},
+      {"json_extract(CAST(e.state AS TEXT), '$.role')", "effect_role", :text},
+      {"json_extract(CAST(e.state AS TEXT), '$.assignment_id')", "effect_work_owner", :text},
+      {"json_extract(CAST(e.state AS TEXT), '$.phase_generation')", "effect_generation",
+       :integer},
+      {"json_extract(CAST(e.state AS TEXT), '$.predecessor_effect_id')", "effect_predecessor",
+       :nullable_text},
+      {"json_extract(CAST(r.state AS TEXT), '$.payload.failure_class')", "receipt_failure_class",
+       :text}
     ]
 
     sql =
@@ -4021,37 +4141,38 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         " FROM root_infrastructure_settlements s " <>
         "JOIN root_claims c ON c.claim_id = s.claim_id " <>
         "JOIN root_receipts r ON r.receipt_id = s.receipt_id " <>
+        "JOIN root_effects e ON e.effect_id = s.effect_id " <>
         "WHERE s.effect_id = ?"
 
     with {:ok, rows} <- Database.query(conn, sql, [effect_id]),
-         {:ok, required_count} <- required_infrastructure_settlement_count(conn, effect_id) do
-      case {rows, required_count} do
-        {[], 0} ->
+         {:ok, required} <- required_infrastructure_settlement(conn, effect_id) do
+      case {rows, required} do
+        {[], nil} ->
           {:ok, nil}
 
-        {[], count} when count > 0 ->
+        {[], required} when is_map(required) ->
           protected_observation_corrupt(effect_id)
 
-        {[row], 1} ->
+        {[row], required} when is_map(required) ->
           with {:ok, value} <- decode_bounded_row(row, columns),
                ^effect_id <- value["effect_id"],
                ^effect_id <- value["claim_effect_id"],
                claim_id when is_binary(claim_id) <- value["claim_id"],
                ^claim_id <- value["receipt_claim_id"],
-               "non_started" <- effect["status"],
-               "non_started" <- value["claim_status"],
+               true <- valid_settlement_current_status?(conn, effect, value),
                "non_started" <- value["receipt_outcome"],
-               true <- nonempty_text?(value["role"]),
-               true <- nonempty_text?(value["work_owner"]),
-               true <- nonnegative_integer?(value["infrastructure_generation"]),
-               true <-
-                 is_nil(value["predecessor_effect_id"]) or
-                   nonempty_text?(value["predecessor_effect_id"]),
-               true <- nonempty_text?(value["failure_class"]),
-               true <- is_integer(value["ordinal"]) and value["ordinal"] > 0 do
+               true <- value["role"] == value["effect_role"],
+               true <- value["work_owner"] == value["effect_work_owner"],
+               true <- value["infrastructure_generation"] == value["effect_generation"],
+               true <- value["predecessor_effect_id"] == value["effect_predecessor"],
+               true <- value["failure_class"] == value["receipt_failure_class"],
+               true <- settlement_matches_required?(value, required),
+               :ok <- validate_bounded_settlement_lineage(conn, value) do
             {:ok,
              value
-             |> Map.drop(~w(claim_effect_id claim_status receipt_claim_id receipt_outcome))
+             |> Map.drop(
+               ~w(claim_effect_id claim_status receipt_claim_id receipt_outcome effect_role effect_work_owner effect_generation effect_predecessor receipt_failure_class)
+             )
              |> Map.put("schema_version", 1)}
           else
             {:error, _reason} = error -> error
@@ -4064,9 +4185,32 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
-  defp required_infrastructure_settlement_count(conn, effect_id) do
+  defp required_infrastructure_settlement(conn, effect_id) do
+    columns = [
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.effect_id')",
+       "effect_id", :text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.claim_id')",
+       "claim_id", :text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.receipt_id')",
+       "receipt_id", :text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.role')",
+       "role", :text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.work_owner')",
+       "work_owner", :text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.infrastructure_generation')",
+       "infrastructure_generation", :integer},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.predecessor_effect_id')",
+       "predecessor_effect_id", :nullable_text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.failure_class')",
+       "failure_class", :text},
+      {"json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.infrastructure_settlement.ordinal')",
+       "ordinal", :integer}
+    ]
+
     sql =
-      "SELECT count(*) FROM durable_operations d " <>
+      "SELECT " <>
+        bounded_select_list(columns) <>
+        " FROM durable_operations d " <>
         "JOIN atomic_bundles b ON b.command_id = d.owner_id " <>
         "WHERE d.owner_kind = 'bundle_v2' AND d.operation_kind = 'protected' " <>
         "AND d.operation_type = 'settle_claim' AND b.disposition = 'accepted' " <>
@@ -4075,11 +4219,80 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.effect.effect_id') = ?"
 
     case Database.query(conn, sql, [effect_id]) do
-      {:ok, [[count]]} when is_integer(count) and count >= 0 -> {:ok, count}
+      {:ok, []} -> {:ok, nil}
+      {:ok, [row]} -> decode_bounded_row(row, columns)
       {:error, _reason} = error -> error
       _ -> protected_observation_corrupt(effect_id)
     end
   end
+
+  defp settlement_matches_required?(value, required) do
+    Enum.all?(
+      ~w(effect_id claim_id receipt_id role work_owner infrastructure_generation predecessor_effect_id failure_class ordinal),
+      &(value[&1] == required[&1])
+    )
+  end
+
+  defp validate_bounded_settlement_lineage(_conn, %{
+         "predecessor_effect_id" => nil,
+         "ordinal" => 1
+       }),
+       do: :ok
+
+  defp validate_bounded_settlement_lineage(conn, value) do
+    columns = [
+      {"role", :text},
+      {"work_owner", :text},
+      {"infrastructure_generation", :integer},
+      {"ordinal", :integer}
+    ]
+
+    sql =
+      "SELECT " <>
+        bounded_select_list(columns) <>
+        " FROM root_infrastructure_settlements WHERE effect_id = ?"
+
+    with predecessor when is_binary(predecessor) <- value["predecessor_effect_id"],
+         {:ok, [row]} <- Database.query(conn, sql, [predecessor]),
+         {:ok, prior} <- decode_bounded_row(row, columns),
+         true <- prior["role"] == value["role"],
+         true <- prior["work_owner"] == value["work_owner"],
+         true <- prior["infrastructure_generation"] == value["infrastructure_generation"],
+         true <- prior["ordinal"] + 1 == value["ordinal"] do
+      :ok
+    else
+      _ -> protected_observation_corrupt(value["effect_id"])
+    end
+  end
+
+  defp valid_settlement_current_status?(_conn, %{"status" => "non_started"}, %{
+         "claim_status" => "non_started"
+       }),
+       do: true
+
+  defp valid_settlement_current_status?(
+         conn,
+         %{"effect_id" => effect_id, "status" => "reconciliation_required"},
+         %{
+           "claim_id" => claim_id,
+           "claim_status" => "reconciliation_required"
+         }
+       ) do
+    sql =
+      "SELECT count(*) FROM durable_operations d JOIN atomic_bundles b ON b.command_id = d.owner_id " <>
+        "WHERE d.owner_kind = 'bundle_v2' AND d.operation_kind = 'protected' " <>
+        "AND d.operation_type = 'settle_claim' AND b.disposition = 'quarantined' " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.execution_status') = 'committed' " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.effect.effect_id') = ? " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.effect.status') = 'reconciliation_required' " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.claim.claim_id') = ? " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.claim.status') = 'reconciliation_required' " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.attempted_receipt.outcome') <> 'non_started'"
+
+    match?({:ok, [[count]]} when count > 0, Database.query(conn, sql, [effect_id, claim_id]))
+  end
+
+  defp valid_settlement_current_status?(_conn, _effect, _value), do: false
 
   defp validate_effect_observation_cursor(
          nil,
@@ -4318,9 +4531,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       "type" => "effect_observation_page",
       "source" => context.source,
       "effect" => context.effect,
+      "control" => context.control,
+      "execution" => context.execution,
       "relations" => state.relations,
       "infrastructure_settlement" => context.settlement,
       "settlement" => %{
+        "schema_version" => 1,
         "status" => context.effect["status"],
         "receipt_history" => if(state.receipts_complete, do: "complete", else: "unknown")
       },
@@ -4351,8 +4567,17 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   end
 
   defp put_effect_observation_size(response) do
-    first = put_in(response, ["page", "size_bytes"], :erlang.external_size(response))
-    put_in(first, ["page", "size_bytes"], :erlang.external_size(first))
+    sized = put_in(response, ["page", "size_bytes"], :erlang.external_size(response))
+    stabilize_effect_observation_size(sized)
+  end
+
+  defp stabilize_effect_observation_size(response) do
+    size = :erlang.external_size(response)
+
+    if response["page"]["size_bytes"] == size,
+      do: response,
+      else:
+        response |> put_in(["page", "size_bytes"], size) |> stabilize_effect_observation_size()
   end
 
   defp effect_observation_cursor(context, section, offset) do

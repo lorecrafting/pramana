@@ -3,6 +3,8 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
   alias Exqlite.Sqlite3
   alias PramanaFoundry.DurableStore.{Authority, Database, Encoding, Gateway}
+  alias PramanaFoundry.Observations
+  alias PramanaFoundry.Observations.Query
 
   setup do
     root =
@@ -58,6 +60,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert observation["infrastructure_settlement"] == settlement
 
     assert observation["settlement"] == %{
+             "schema_version" => 1,
              "status" => "non_started",
              "receipt_history" => "complete"
            }
@@ -622,6 +625,85 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
                "type" => "infrastructure_settlement",
                "effect_id" => "effect-1"
              })
+
+    assert %{status: :ok, items: [item]} =
+             Observations.query(
+               %Query{include_pointers: false, effect_ids: ["effect-1"]},
+               ctx.gateway,
+               ctx.capability
+             )
+
+    assert item.fact["status"] == "reconciliation_required"
+
+    assert item.fact["outcome"] == %{
+             "status" => "unknown",
+             "reason" => "reconciliation_required",
+             "receipt_history" => ["non_started"]
+           }
+
+    assert item.fact["infrastructure_settlement"]["ordinal"] == 1
+  end
+
+  test "bounded settlement rejects every scalar that diverges from accepted provenance", ctx do
+    seed_issued_launch!(ctx)
+
+    assert {:ok, _, :committed} =
+             Gateway.atomic_bundle(
+               ctx.gateway,
+               ctx.capability,
+               "operator",
+               nonstart_bundle("settlement-provenance")
+             )
+
+    assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
+
+    for {column, wrong} <- [
+          {"role", "pm"},
+          {"work_owner", "wrong-owner"},
+          {"infrastructure_generation", 99},
+          {"predecessor_effect_id", "wrong-predecessor"},
+          {"failure_class", "wrong-failure"},
+          {"ordinal", 900}
+        ] do
+      assert {:ok, [[original]]} =
+               Database.query(
+                 raw,
+                 "SELECT " <>
+                   column <>
+                   " FROM root_infrastructure_settlements WHERE effect_id = ?",
+                 ["effect-1"]
+               )
+
+      assert :ok =
+               Database.execute(
+                 raw,
+                 "UPDATE root_infrastructure_settlements SET " <>
+                   column <>
+                   " = ? WHERE effect_id = ?",
+                 [wrong, "effect-1"]
+               )
+
+      assert {:error, {:protected_corrupt, "effect_observation_page", "effect-1"}} =
+               Gateway.protected_query(ctx.gateway, ctx.capability, %{
+                 "schema_version" => 1,
+                 "type" => "effect_observation_page",
+                 "effect_id" => "effect-1",
+                 "limit" => 50,
+                 "max_bytes" => 65_536,
+                 "cursor" => nil
+               })
+
+      assert :ok =
+               Database.execute(
+                 raw,
+                 "UPDATE root_infrastructure_settlements SET " <>
+                   column <>
+                   " = ? WHERE effect_id = ?",
+                 [original, "effect-1"]
+               )
+    end
+
+    assert :ok = Sqlite3.close(raw)
   end
 
   defp seed_issued_launch!(ctx, role \\ "developer", suffix \\ "1") do

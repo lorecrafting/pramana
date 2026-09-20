@@ -45,6 +45,40 @@ defmodule PramanaFoundry.ObservationsTest do
       do: {:reply, {:error, {:recovery_mode, reason}}, reason}
   end
 
+  defmodule MaterializationTap do
+    alias PramanaFoundry.Observations.GatewaySource
+
+    def snapshot(state), do: GatewaySource.snapshot(state)
+
+    def fact(state, query) do
+      result = GatewaySource.fact(state, query)
+
+      case result do
+        {:ok, fact, _at} ->
+          send(self(), {:materialized, query["type"], :erlang.external_size(fact)})
+
+        _ ->
+          :ok
+      end
+
+      result
+    end
+  end
+
+  defmodule ChangedEffectPage do
+    alias PramanaFoundry.Observations.GatewaySource
+
+    def snapshot(state), do: GatewaySource.snapshot(state)
+
+    def fact(state, %{"type" => "effect_observation_page"} = query) do
+      with {:ok, fact, at} <- GatewaySource.fact(state, query) do
+        {:ok, state.change.(fact), at}
+      end
+    end
+
+    def fact(state, query), do: GatewaySource.fact(state, query)
+  end
+
   test "healthy empty, unavailable and corrupt sources are distinct" do
     observed_at = ~U[2026-09-20 12:00:00Z]
     healthy = source(observed_at)
@@ -297,6 +331,89 @@ defmodule PramanaFoundry.ObservationsTest do
              "execution_id" => "execution-1",
              "status" => "absent"
            }
+  end
+
+  test "public effect observation materializes only the bounded protected DTO" do
+    {root, gateway, capability} = live_effect("bounded-materialization", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+    payload = String.duplicate("x", 262_144)
+
+    accept!(gateway, capability, "large-control", %{"control/control-1" => 0}, %{
+      "type" => "set_control",
+      "control_id" => "control-1",
+      "value" => %{"status" => "active", "diagnostic" => payload}
+    })
+
+    for sequence <- 1..8 do
+      expected = if(sequence == 1, do: "absent", else: sequence - 2)
+
+      accept!(
+        gateway,
+        capability,
+        "large-inbox-#{sequence}",
+        %{"inbox/execution-1" => expected},
+        %{
+          "type" => "append_inbox",
+          "execution_id" => "execution-1",
+          "sequence" => sequence,
+          "item_kind" => if(sequence == 8, do: "result", else: "observation"),
+          "payload" => %{"diagnostic" => payload}
+        }
+      )
+    end
+
+    accept!(gateway, capability, "seal-large-inbox", %{"inbox/execution-1" => 7}, %{
+      "type" => "seal_inbox",
+      "execution_id" => "execution-1",
+      "last_sequence" => 8
+    })
+
+    source = %{gateway: gateway, capability: capability}
+
+    assert %{status: :ok, size_bytes: size, items: [item]} =
+             Observations.query_source(
+               %Query{
+                 include_pointers: false,
+                 effect_ids: ["effect-1"],
+                 max_bytes: 8_192,
+                 limit: 1
+               },
+               {MaterializationTap, source}
+             )
+
+    assert size <= 8_192
+    assert item.fact["control"]["status"] == "active"
+    assert item.fact["execution"]["status"] == "result"
+    assert item.fact["execution"]["sealed_sequence"] == 8
+    assert_received {:materialized, "effect_observation_page", protected_bytes}
+    assert protected_bytes <= 8_192
+    refute_received {:materialized, "control", _}
+    refute_received {:materialized, "inbox", _}
+  end
+
+  test "public canonical quality requires bounded page source and nested schema correlation" do
+    {root, gateway, capability} = live_effect("bounded-schema", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    changes = [
+      &Map.delete(&1, "source"),
+      &put_in(&1, ["source", "repository_id"], "another-repository"),
+      &put_in(&1, ["source", "last_protected_command_sequence"], 999_999),
+      &put_in(&1, ["source", "effect_revision"], 999_999),
+      &put_in(&1, ["effect", "schema_version"], 999),
+      &put_in(&1, ["relations", Access.at(0), "schema_version"], 999),
+      &put_in(&1, ["control", "schema_version"], 999),
+      &put_in(&1, ["execution", "schema_version"], 999),
+      &put_in(&1, ["settlement", "schema_version"], 999)
+    ]
+
+    for change <- changes do
+      assert %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+               Observations.query_source(
+                 %Query{include_pointers: false, effect_ids: ["effect-1"]},
+                 {ChangedEffectPage, %{gateway: gateway, capability: capability, change: change}}
+               )
+    end
   end
 
   test "live effect continuations are stable, redacted and stale after a protected append" do
@@ -618,7 +735,7 @@ defmodule PramanaFoundry.ObservationsTest do
       "source" => %{
         "installation_id" => secret,
         "repository_id" => secret,
-        "last_protected_command_sequence" => 9,
+        "last_protected_command_sequence" => 4,
         "effect_revision" => 3
       },
       "effect" => %{
@@ -635,6 +752,17 @@ defmodule PramanaFoundry.ObservationsTest do
         "revision" => 3,
         "policy_revision" => 0,
         "control_revision" => 0
+      },
+      "control" => %{
+        "schema_version" => 1,
+        "control_id" => "control-1",
+        "revision" => 0,
+        "status" => "active"
+      },
+      "execution" => %{
+        "schema_version" => 1,
+        "execution_id" => "execution-1",
+        "status" => "absent"
       },
       "relations" => [
         %{
@@ -659,10 +787,14 @@ defmodule PramanaFoundry.ObservationsTest do
         "failure_class" => secret,
         "ordinal" => 1
       },
-      "settlement" => %{"status" => "non_started", "receipt_history" => "unknown"},
+      "settlement" => %{
+        "schema_version" => 1,
+        "status" => "non_started",
+        "receipt_history" => "unknown"
+      },
       "page" => %{
         "item_count" => 1,
-        "size_bytes" => 2_048,
+        "size_bytes" => 0,
         "truncated" => true,
         "truncated_reason" => "item_limit",
         "next_cursor" => %{
@@ -670,13 +802,15 @@ defmodule PramanaFoundry.ObservationsTest do
           "query_type" => "effect_observation_page",
           "scope_digest" => String.duplicate("a", 64),
           "source_digest" => String.duplicate("b", 64),
-          "protected_sequence" => 9,
+          "protected_sequence" => 4,
           "effect_revision" => 3,
           "section" => "receipts",
           "offset" => 1
         }
       }
     }
+
+    effect_page = protected_page_size(effect_page)
 
     facts =
       fake_effect_facts()
@@ -685,7 +819,11 @@ defmodule PramanaFoundry.ObservationsTest do
     page =
       Observations.query_source(
         %Query{include_pointers: false, effect_ids: ["effect-1"]},
-        {FakeSource, %{source(observed_at) | facts: facts}},
+        {FakeSource,
+         source(observed_at)
+         |> put_in([:snapshot, "installation_id"], secret)
+         |> put_in([:snapshot, "repository_id"], secret)
+         |> Map.put(:facts, facts)},
         now: observed_at
       )
 
@@ -694,6 +832,15 @@ defmodule PramanaFoundry.ObservationsTest do
     assert item.fact["infrastructure_settlement"]["work_owner"] == "[REDACTED]"
     assert is_map(cursor)
     refute inspect(page) =~ secret
+  end
+
+  defp protected_page_size(page) do
+    size = :erlang.external_size(page)
+    updated = put_in(page, ["page", "size_bytes"], size)
+
+    if :erlang.external_size(updated) == size,
+      do: updated,
+      else: protected_page_size(updated)
   end
 
   test "malformed versions and execution fields cannot be canonical" do
