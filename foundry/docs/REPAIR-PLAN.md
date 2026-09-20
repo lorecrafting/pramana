@@ -233,12 +233,15 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
-| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21 | Blocked | F01–F24 |
+| FR-23 | Retire legacy surfaces, decompose god modules and restore code hygiene | FR-08B, FR-12, FR-19B | Blocked | F23, F24 |
+| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21, FR-23 | Blocked | F01–F24 |
 
-There are **23 ticket nodes: FR-01 through FR-22, plus child ticket FR-15a**. H0 and F
+There are **24 ticket nodes: FR-01 through FR-23, plus child ticket FR-15a**. H0 and F
 are bounded evidence checkpoints, and the A/B labels are slices of their existing parent
-tickets; none creates FR-23 or FR-24. F23 and F24 are audit findings routed to existing
-owners in the checksum below. Every parent outcome, scope, acceptance paragraph and
+tickets. **FR-23 is a ticket; F23 and F24 are audit findings** routed to existing owners in
+the checksum below. The similar names are unrelated: findings use the `F` prefix and
+tickets the `FR` prefix. FR-23 was added on 2026-09-20 by operator direction after repair
+work accumulated concrete hygiene evidence; it creates no FR-24. Every parent outcome, scope, acceptance paragraph and
 exclusion remains binding across its slices.
 
 Removing FR-15 as a direct FR-13 dependency is valid only because FR-08A/B and FR-15aB
@@ -1134,6 +1137,54 @@ bounded and separately reported. Publish excluded coverage rather than implying 
 
 **Excludes:** Waiting for the whole repair before adding CI; extend this job in each
 subsequent ticket as new lifecycle tests land.
+
+### FR-23 — Retire legacy surfaces, decompose god modules and restore code hygiene
+
+**Outcome:** The repaired system is left in a state a maintainer can safely change, with
+no dead vocabulary, no module too large to review as a unit, and no legacy surface still
+implying it decides live truth.
+
+**Scope:** One exhaustive, evidence-backed sweep in three separable parts.
+
+*Dead surface removal.* Remove or explicitly retire identifiers that no longer dispatch.
+Evidence gathered 2026-09-20 at `9dd30c3`: `RecordCodec`'s `@command_types` contains
+`reset`, `propose`, `submit_artifact` and `submit_review`, each with zero uses anywhere in
+`lib/` outside the list literal itself. Twenty distinct `legacy_*` identifiers and six
+modules referencing `events.jsonl`/`EventLog` remain. Each is either genuinely required
+compatibility, and says so, or is removed.
+
+*Module decomposition.* Evidence at `9dd30c3`: twelve modules exceed 800 lines and
+`protected_primitives.ex` is 7,547 — roughly a fifth of the whole `lib/` tree in one file,
+and the single most contended file in the repair, which serialised FR-18A against the
+FR-08A binding correction purely by file granularity rather than by any logical dependency.
+
+*General hygiene.* Formatter baseline debt, accumulated worktrees and branches, and
+documentation routes left pointing at superseded evidence.
+
+**Sequencing, and why it is not literally last:** this ticket must land **before** FR-22,
+not after it. FR-22 is whole-lifecycle acceptance bound to exact revisions. A sweep
+performed after FR-22 would invalidate that acceptance wholesale. This is demonstrated,
+not predicted: on 2026-09-20 adding a single function to `protected_primitives.ex` changed
+its source SHA-256 and loaded BEAM MD5, broke the frozen FR-08A attestation and reported
+`ready=false` until the evidence was rebound. A decomposition changes every pinned
+identity at once. FR-22 therefore depends on FR-23.
+
+**Acceptance:** Each part is behavior-preserving and demonstrated so: the full model-free
+suite passes before and after with no test deleted or weakened to accommodate a move, and
+every revision-bound attestation is rebound in the same commit that changes its subject,
+never in a follow-up. Decomposition preserves public interfaces or migrates every caller
+in the same change, using the [dependency review runbook](../../docs/agents/DEPENDENCY_REVIEW.md).
+Removal of any identifier is justified by a recorded search showing no dispatch, not by
+inspection alone. Documentation routes and the catalog resolve after the sweep.
+
+**Excludes:** Behavioral change of any kind, including "obvious" fixes found while moving
+code. A defect found during the sweep is recorded and routed to its owning ticket, never
+repaired inside a refactoring commit. This ticket does not relitigate settled design,
+rename durable record fields, change any persisted format, or alter policy.
+
+**Ownership boundaries:** FR-08B owns legacy JSONL's retirement from deciding live workflow
+truth; FR-19B owns offline relocation's repair or retirement. FR-23 covers what those leave
+behind and must not duplicate or pre-empt them.
 
 ### FR-22 — Prove full lifecycle and reconcile operating docs
 
