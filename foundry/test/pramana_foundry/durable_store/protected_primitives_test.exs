@@ -773,6 +773,152 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     assert returned["available"] == 0
   end
 
+  test "effect observation query is capability-bound, paginated and stale after any append", %{
+    gateway: gateway,
+    capability: capability
+  } do
+    seed_observation_effect!(gateway, capability, "ticket-observation")
+
+    request = effect_observation_query("effect-observation", 1, 8_192)
+
+    assert {:error, :unauthorized_protected_operation} =
+             Gateway.protected_query(gateway, make_ref(), request)
+
+    assert {:ok, first} = Gateway.protected_query(gateway, capability, request)
+    assert first["effect"]["effect_id"] == "effect-observation"
+    assert first["infrastructure_settlement"] == nil
+    assert first["settlement"]["receipt_history"] == "complete"
+    assert [%{"kind" => "claim", "claim_id" => "claim-observation"}] = first["relations"]
+    assert first["page"]["truncated"]
+    assert first["page"]["truncated_reason"] == "item_limit"
+    assert first["page"]["size_bytes"] <= 8_192
+
+    cursor = first["page"]["next_cursor"]
+    refute inspect(cursor) =~ "effect-observation"
+    refute inspect(cursor) =~ "ticket-observation"
+
+    assert {:ok, second} =
+             Gateway.protected_query(gateway, capability, %{request | "cursor" => cursor})
+
+    assert [%{"kind" => "reservation", "reservation_id" => "reservation-observation"}] =
+             second["relations"]
+
+    assert {:ok, third} =
+             Gateway.protected_query(gateway, capability, %{
+               request
+               | "cursor" => second["page"]["next_cursor"]
+             })
+
+    assert [%{"kind" => "lease", "lease_id" => "lease-observation"}] = third["relations"]
+    assert third["page"]["next_cursor"] == nil
+    assert third["settlement"]["receipt_history"] == "complete"
+
+    assert {:error, :invalid_protected_query} =
+             Gateway.protected_query(gateway, capability, %{
+               request
+               | "cursor" => Map.put(cursor, "section", "root_claims")
+             })
+
+    assert {:error, :invalid_protected_query} =
+             Gateway.protected_query(gateway, capability, %{
+               request
+               | "cursor" => Map.put(cursor, "scope_digest", String.duplicate("0", 64))
+             })
+
+    assert {:error, :stale_protected_cursor} =
+             Gateway.protected_query(gateway, capability, %{
+               request
+               | "cursor" => Map.put(cursor, "source_digest", String.duplicate("0", 64))
+             })
+
+    accept!(gateway, capability, "OBS-CONTROL-UPDATE", %{"control/control-1" => 0}, %{
+      "type" => "set_control",
+      "control_id" => "control-1",
+      "value" => %{"status" => "active", "revision_note" => "append"}
+    })
+
+    assert {:error, :stale_protected_cursor} =
+             Gateway.protected_query(gateway, capability, %{request | "cursor" => cursor})
+  end
+
+  test "effect observation rejects oversized scalar before returning protected data", %{
+    gateway: gateway,
+    capability: capability
+  } do
+    secret_ticket = "sk-" <> String.duplicate("a", 300)
+    seed_observation_effect!(gateway, capability, secret_ticket, claim?: false)
+
+    assert {:error, :protected_observation_oversized} =
+             Gateway.protected_query(
+               gateway,
+               capability,
+               effect_observation_query("effect-observation", 20, 8_192)
+             )
+  end
+
+  test "effect observation cursor survives clean reopen and verified backup but not another source",
+       %{
+         gateway: gateway,
+         capability: capability,
+         path: path
+       } do
+    seed_observation_effect!(gateway, capability, "ticket-observation")
+    request = effect_observation_query("effect-observation", 1, 8_192)
+    assert {:ok, first} = Gateway.protected_query(gateway, capability, request)
+    cursor = first["page"]["next_cursor"]
+
+    backup = Path.join(Path.dirname(path), "bounded-observation-backup.sqlite3")
+    assert {:ok, _evidence} = Gateway.backup(gateway, backup)
+
+    stop_supervised!(Gateway)
+
+    reopened =
+      start_supervised!(
+        {Gateway,
+         path: path, protected_capability: capability, writer_epoch: "writer-epoch-reopened"},
+        id: :bounded_observation_reopened
+      )
+
+    assert {:ok, reopened_page} =
+             Gateway.protected_query(reopened, capability, %{request | "cursor" => cursor})
+
+    assert [%{"kind" => "reservation"}] = reopened_page["relations"]
+    stop_supervised!(:bounded_observation_reopened)
+
+    copied =
+      start_supervised!(
+        {Gateway,
+         path: backup, protected_capability: capability, writer_epoch: "writer-epoch-backup"},
+        id: :bounded_observation_backup
+      )
+
+    assert {:ok, backup_page} =
+             Gateway.protected_query(copied, capability, %{request | "cursor" => cursor})
+
+    assert backup_page["relations"] == reopened_page["relations"]
+    stop_supervised!(:bounded_observation_backup)
+
+    assert {:ok, raw} = Sqlite3.open(backup, mode: :readwrite)
+
+    assert :ok =
+             Sqlite3.execute(
+               raw,
+               "UPDATE metadata SET value = 'repository-other' WHERE key = 'repository_id'"
+             )
+
+    assert :ok = Sqlite3.close(raw)
+
+    other_source =
+      start_supervised!(
+        {Gateway,
+         path: backup, protected_capability: capability, writer_epoch: "writer-epoch-other"},
+        id: :bounded_observation_other_source
+      )
+
+    assert {:error, :stale_protected_cursor} =
+             Gateway.protected_query(other_source, capability, %{request | "cursor" => cursor})
+  end
+
   defp seed_policy_and_control(gateway, capability) do
     assert {:ok, _, :committed} =
              protected(
@@ -802,6 +948,115 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                  "value" => %{"status" => "active"}
                }
              )
+  end
+
+  defp seed_observation_effect!(gateway, capability, ticket_id, opts \\ []) do
+    accept!(gateway, capability, "SEED-POLICY", %{"policy/policy-1" => "absent"}, %{
+      "type" => "set_policy",
+      "policy_id" => "policy-1",
+      "value" => %{
+        "allowed_operations" => ["launch"],
+        "allowed_scopes" => ["ticket:#{ticket_id}"]
+      }
+    })
+
+    accept!(gateway, capability, "SEED-CONTROL", %{"control/control-1" => "absent"}, %{
+      "type" => "set_control",
+      "control_id" => "control-1",
+      "value" => %{"status" => "active"}
+    })
+
+    accept!(gateway, capability, "OBS-LEDGER", %{"ledger/root/0" => "absent"}, %{
+      "type" => "grant_ledger",
+      "ledger_id" => "root",
+      "generation" => 0,
+      "dimension" => "starts.developer",
+      "units" => 1
+    })
+
+    accept!(
+      gateway,
+      capability,
+      "OBS-RESERVATION",
+      %{"ledger/root/0" => 0, "reservation/reservation-observation" => "absent"},
+      %{
+        "type" => "reserve",
+        "reservation_id" => "reservation-observation",
+        "ledger_id" => "root",
+        "generation" => 0,
+        "owner_kind" => "effect",
+        "owner_id" => "effect-observation",
+        "units" => 1
+      }
+    )
+
+    accept!(
+      gateway,
+      capability,
+      "OBS-EFFECT",
+      %{
+        "effect/effect-observation" => "absent",
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "reservation/reservation-observation" => 0,
+        "ledger/root/0" => 0,
+        "lease/lease-observation" => "absent"
+      },
+      %{
+        "type" => "create_effect",
+        "effect_id" => "effect-observation",
+        "request" => %{
+          "request_id" => "request-observation",
+          "role" => "developer",
+          "profile" => "sol"
+        },
+        "operation" => "launch",
+        "scope" => "ticket:#{ticket_id}",
+        "ticket_id" => ticket_id,
+        "attempt_id" => "attempt-observation",
+        "execution_id" => "execution-observation",
+        "policy_id" => "policy-1",
+        "policy_revision" => 0,
+        "control_id" => "control-1",
+        "control_revision" => 0,
+        "reservation_ids" => ["reservation-observation"],
+        "leases" => [%{"lease_id" => "lease-observation", "resource_id" => "slot-observation"}]
+      }
+    )
+
+    if Keyword.get(opts, :claim?, true) do
+      accept!(
+        gateway,
+        capability,
+        "OBS-CLAIM",
+        %{
+          "effect/effect-observation" => 0,
+          "claim/claim-observation" => "absent",
+          "reservation/reservation-observation" => 1,
+          "ledger/root/0" => 1,
+          "policy/policy-1" => 0,
+          "control/control-1" => 0,
+          "lease/lease-observation" => "absent"
+        },
+        %{
+          "type" => "claim_effect",
+          "effect_id" => "effect-observation",
+          "claim_id" => "claim-observation",
+          "writer_epoch" => "writer-epoch-fr08a"
+        }
+      )
+    end
+  end
+
+  defp effect_observation_query(effect_id, limit, max_bytes) do
+    %{
+      "schema_version" => 1,
+      "type" => "effect_observation_page",
+      "effect_id" => effect_id,
+      "limit" => limit,
+      "max_bytes" => max_bytes,
+      "cursor" => nil
+    }
   end
 
   defp protected(gateway, capability, id, reads, operation) do

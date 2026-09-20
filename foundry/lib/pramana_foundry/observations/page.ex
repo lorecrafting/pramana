@@ -31,7 +31,7 @@ defmodule PramanaFoundry.Observations.Page do
           observed_at: DateTime.t() | nil,
           source: map() | nil,
           items: [PramanaFoundry.Observations.Observation.t()],
-          next_cursor: non_neg_integer() | nil,
+          next_cursor: non_neg_integer() | map() | nil,
           size_bytes: non_neg_integer(),
           error_code: atom() | nil
         }

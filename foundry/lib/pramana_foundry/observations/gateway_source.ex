@@ -32,6 +32,8 @@ defmodule PramanaFoundry.Observations.GatewaySource do
       case fun.() do
         {:ok, value} when is_map(value) -> {:ok, value, observed_at}
         {:error, :not_found} -> {:error, :not_found}
+        {:error, :stale_protected_cursor} -> {:error, :stale}
+        {:error, :protected_observation_oversized} -> {:error, :oversized}
         {:error, {:recovery_mode, reason}} -> classify_recovery(reason)
         {:error, {:storage_unavailable, _reason}} -> {:error, :unavailable}
         {:error, :unauthorized_protected_operation} -> {:error, :unavailable}

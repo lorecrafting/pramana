@@ -5,6 +5,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   @dimensions ~w(starts.pm starts.developer starts.reviewer starts.check starts.build operations.integration operations.activation model_requests validations)
   @operation_types ~w(set_policy set_control append_inbox seal_inbox grant_ledger delegate_allocation return_allocation reserve release_reservation close_generation reset_generation create_effect claim_effect reclaim_claim issue_claim cancel_effect settle_claim)
+  @effect_observation_sections ~w(claims receipts reservations leases)
+  @effect_observation_max_items 50
+  @effect_observation_max_offset 1_000_000
+  @effect_observation_min_bytes 1_024
+  @effect_observation_max_bytes 262_144
+  @effect_observation_max_scalar_bytes 256
 
   @doc false
   def supported_operation_type?(type), do: type in @operation_types
@@ -536,6 +542,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
         "effect" ->
           effect_fact(conn, query["effect_id"])
+
+        "effect_observation_page" ->
+          effect_observation_page(conn, query)
 
         "claim" ->
           claim_fact(conn, query["claim_id"])
@@ -3808,6 +3817,644 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        )}
     end
   end
+
+  defp effect_observation_page(conn, query) do
+    with {:ok, request} <- normalize_effect_observation_request(query) do
+      Database.transaction(conn, fn -> effect_observation_snapshot(conn, request) end)
+    end
+  end
+
+  defp normalize_effect_observation_request(query) do
+    with :ok <-
+           exact_keys(query, ~w(schema_version type effect_id limit max_bytes cursor)),
+         :ok <- bounded_observation_identity(query["effect_id"]),
+         limit when is_integer(limit) and limit in 1..@effect_observation_max_items <-
+           query["limit"],
+         max_bytes
+         when is_integer(max_bytes) and max_bytes >= @effect_observation_min_bytes and
+                max_bytes <= @effect_observation_max_bytes <- query["max_bytes"],
+         {:ok, cursor} <- normalize_effect_observation_cursor(query["cursor"]) do
+      {:ok,
+       %{
+         effect_id: query["effect_id"],
+         limit: limit,
+         max_bytes: max_bytes,
+         cursor: cursor
+       }}
+    else
+      _ -> {:error, :invalid_protected_query}
+    end
+  end
+
+  defp normalize_effect_observation_cursor(nil), do: {:ok, nil}
+
+  defp normalize_effect_observation_cursor(cursor) do
+    with {:ok, cursor} <- string_map(cursor),
+         :ok <-
+           exact_keys(
+             cursor,
+             ~w(schema_version query_type scope_digest source_digest protected_sequence effect_revision section offset)
+           ),
+         1 <- cursor["schema_version"],
+         "effect_observation_page" <- cursor["query_type"],
+         true <- digest_string?(cursor["scope_digest"]),
+         true <- digest_string?(cursor["source_digest"]),
+         sequence when is_integer(sequence) and sequence >= 0 <- cursor["protected_sequence"],
+         revision when is_integer(revision) and revision >= 0 <- cursor["effect_revision"],
+         section when section in @effect_observation_sections <- cursor["section"],
+         offset
+         when is_integer(offset) and offset >= 0 and
+                offset <= @effect_observation_max_offset <- cursor["offset"] do
+      {:ok, cursor}
+    else
+      _ -> {:error, :invalid_protected_query}
+    end
+  end
+
+  defp effect_observation_snapshot(conn, request) do
+    with {:ok, source} <- effect_observation_source(conn),
+         {:ok, effect} <- bounded_effect_header(conn, request.effect_id),
+         {:ok, scope_digest} <-
+           Encoding.semantic_digest("pramana-foundry-effect-observation-scope-v1", %{
+             "effect_id" => request.effect_id
+           }),
+         {:ok, source_digest} <-
+           Encoding.semantic_digest("pramana-foundry-effect-observation-source-v1", %{
+             "installation_id" => source["installation_id"],
+             "repository_id" => source["repository_id"]
+           }),
+         :ok <-
+           validate_effect_observation_cursor(
+             request.cursor,
+             scope_digest,
+             source_digest,
+             source["last_protected_command_sequence"],
+             effect["revision"]
+           ),
+         {:ok, settlement} <- bounded_infrastructure_settlement(conn, effect),
+         context <- %{
+           source: Map.put(source, "effect_revision", effect["revision"]),
+           effect: effect,
+           settlement: settlement,
+           scope_digest: scope_digest,
+           source_digest: source_digest,
+           protected_sequence: source["last_protected_command_sequence"],
+           effect_revision: effect["revision"],
+           limit: request.limit,
+           max_bytes: request.max_bytes
+         },
+         {:ok, state} <- initial_effect_observation_state(context, request.cursor),
+         {:ok, completed} <- read_effect_observation_sections(conn, context, state) do
+      {:ok, effect_observation_response(context, completed)}
+    end
+  end
+
+  defp effect_observation_source(conn) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT key, CAST(substr(CAST(value AS BLOB), 1, ? + 1) AS TEXT), length(CAST(value AS BLOB)) FROM metadata WHERE key IN ('installation_id', 'repository_id') ORDER BY key",
+             [@effect_observation_max_scalar_bytes]
+           ),
+         {:ok, metadata} <- bounded_metadata(rows),
+         {:ok, [[sequence]]} <-
+           Database.query(conn, "SELECT coalesce(max(seq), 0) FROM root_commands"),
+         true <- is_integer(sequence) and sequence >= 0 do
+      {:ok,
+       %{
+         "installation_id" => metadata["installation_id"],
+         "repository_id" => metadata["repository_id"],
+         "last_protected_command_sequence" => sequence
+       }}
+    else
+      {:error, _reason} = error -> error
+      _ -> protected_observation_corrupt(:source)
+    end
+  end
+
+  defp bounded_metadata(rows) when length(rows) == 2 do
+    Enum.reduce_while(rows, {:ok, %{}}, fn
+      [key, value, bytes], {:ok, acc} when key in ["installation_id", "repository_id"] ->
+        case bounded_text_value(value, bytes, false) do
+          {:ok, decoded} -> {:cont, {:ok, Map.put(acc, key, decoded)}}
+          {:error, _reason} = error -> {:halt, error}
+        end
+
+      _row, _acc ->
+        {:halt, protected_observation_corrupt(:source)}
+    end)
+    |> case do
+      {:ok, %{"installation_id" => _, "repository_id" => _} = metadata} -> {:ok, metadata}
+      {:ok, _metadata} -> protected_observation_corrupt(:source)
+      error -> error
+    end
+  end
+
+  defp bounded_metadata(_rows), do: protected_observation_corrupt(:source)
+
+  defp bounded_effect_header(conn, effect_id) do
+    columns = [
+      {"effect_id", :text},
+      {"ticket_id", :text},
+      {"attempt_id", :text},
+      {"execution_id", :text},
+      {"control_id", :text},
+      {"policy_id", :text},
+      {"operation", :text},
+      {"scope", :text},
+      {"status", :text},
+      {"revision", :integer},
+      {"policy_revision", :integer},
+      {"control_revision", :integer}
+    ]
+
+    sql =
+      "SELECT " <> bounded_select_list(columns) <> " FROM root_effects WHERE effect_id = ?"
+
+    with {:ok, rows} <- Database.query(conn, sql, [effect_id]) do
+      case rows do
+        [] ->
+          {:error, :not_found}
+
+        [row] ->
+          with {:ok, effect} <- decode_bounded_row(row, columns),
+               ^effect_id <- effect["effect_id"],
+               true <-
+                 effect["status"] in ~w(pending claimed issued unknown succeeded failed non_started cancelled reconciliation_required),
+               true <- nonnegative_integer?(effect["revision"]),
+               true <- nonnegative_integer?(effect["policy_revision"]),
+               true <- nonnegative_integer?(effect["control_revision"]) do
+            {:ok, Map.put(effect, "schema_version", 1)}
+          else
+            {:error, _reason} = error -> error
+            _ -> protected_observation_corrupt(effect_id)
+          end
+
+        _ ->
+          protected_observation_corrupt(effect_id)
+      end
+    end
+  end
+
+  defp bounded_infrastructure_settlement(conn, effect) do
+    effect_id = effect["effect_id"]
+
+    columns = [
+      {"s.effect_id", "effect_id", :text},
+      {"s.claim_id", "claim_id", :text},
+      {"s.receipt_id", "receipt_id", :text},
+      {"s.role", "role", :text},
+      {"s.work_owner", "work_owner", :text},
+      {"s.infrastructure_generation", "infrastructure_generation", :integer},
+      {"s.predecessor_effect_id", "predecessor_effect_id", :nullable_text},
+      {"s.failure_class", "failure_class", :text},
+      {"s.ordinal", "ordinal", :integer},
+      {"c.effect_id", "claim_effect_id", :text},
+      {"c.status", "claim_status", :text},
+      {"r.claim_id", "receipt_claim_id", :text},
+      {"r.outcome", "receipt_outcome", :text}
+    ]
+
+    sql =
+      "SELECT " <>
+        bounded_select_list(columns) <>
+        " FROM root_infrastructure_settlements s " <>
+        "JOIN root_claims c ON c.claim_id = s.claim_id " <>
+        "JOIN root_receipts r ON r.receipt_id = s.receipt_id " <>
+        "WHERE s.effect_id = ?"
+
+    with {:ok, rows} <- Database.query(conn, sql, [effect_id]),
+         {:ok, required_count} <- required_infrastructure_settlement_count(conn, effect_id) do
+      case {rows, required_count} do
+        {[], 0} ->
+          {:ok, nil}
+
+        {[], count} when count > 0 ->
+          protected_observation_corrupt(effect_id)
+
+        {[row], 1} ->
+          with {:ok, value} <- decode_bounded_row(row, columns),
+               ^effect_id <- value["effect_id"],
+               ^effect_id <- value["claim_effect_id"],
+               claim_id when is_binary(claim_id) <- value["claim_id"],
+               ^claim_id <- value["receipt_claim_id"],
+               "non_started" <- effect["status"],
+               "non_started" <- value["claim_status"],
+               "non_started" <- value["receipt_outcome"],
+               true <- nonempty_text?(value["role"]),
+               true <- nonempty_text?(value["work_owner"]),
+               true <- nonnegative_integer?(value["infrastructure_generation"]),
+               true <-
+                 is_nil(value["predecessor_effect_id"]) or
+                   nonempty_text?(value["predecessor_effect_id"]),
+               true <- nonempty_text?(value["failure_class"]),
+               true <- is_integer(value["ordinal"]) and value["ordinal"] > 0 do
+            {:ok,
+             value
+             |> Map.drop(~w(claim_effect_id claim_status receipt_claim_id receipt_outcome))
+             |> Map.put("schema_version", 1)}
+          else
+            {:error, _reason} = error -> error
+            _ -> protected_observation_corrupt(effect_id)
+          end
+
+        _ ->
+          protected_observation_corrupt(effect_id)
+      end
+    end
+  end
+
+  defp required_infrastructure_settlement_count(conn, effect_id) do
+    sql =
+      "SELECT count(*) FROM durable_operations d " <>
+        "JOIN atomic_bundles b ON b.command_id = d.owner_id " <>
+        "WHERE d.owner_kind = 'bundle_v2' AND d.operation_kind = 'protected' " <>
+        "AND d.operation_type = 'settle_claim' AND b.disposition = 'accepted' " <>
+        "AND json_extract(CAST(d.request AS TEXT), '$.operation.outcome') = 'non_started' " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.execution_status') = 'committed' " <>
+        "AND json_extract(CAST(d.result AS TEXT), '$.operation_result.facts.effect.effect_id') = ?"
+
+    case Database.query(conn, sql, [effect_id]) do
+      {:ok, [[count]]} when is_integer(count) and count >= 0 -> {:ok, count}
+      {:error, _reason} = error -> error
+      _ -> protected_observation_corrupt(effect_id)
+    end
+  end
+
+  defp validate_effect_observation_cursor(
+         nil,
+         _scope_digest,
+         _source_digest,
+         _sequence,
+         _revision
+       ),
+       do: :ok
+
+  defp validate_effect_observation_cursor(cursor, scope_digest, source_digest, sequence, revision) do
+    cond do
+      cursor["scope_digest"] != scope_digest -> {:error, :invalid_protected_query}
+      cursor["source_digest"] != source_digest -> {:error, :stale_protected_cursor}
+      cursor["protected_sequence"] != sequence -> {:error, :stale_protected_cursor}
+      cursor["effect_revision"] != revision -> {:error, :stale_protected_cursor}
+      true -> :ok
+    end
+  end
+
+  defp initial_effect_observation_state(context, cursor) do
+    {section, offset} =
+      case cursor do
+        nil -> {hd(@effect_observation_sections), 0}
+        cursor -> {cursor["section"], cursor["offset"]}
+      end
+
+    state = %{
+      section: section,
+      offset: offset,
+      relations: [],
+      item_count: 0,
+      truncated_reason: nil,
+      receipts_complete: section in ~w(reservations leases)
+    }
+
+    if effect_observation_size(context, state, true) <= context.max_bytes,
+      do: {:ok, state},
+      else: {:error, :protected_observation_oversized}
+  end
+
+  defp read_effect_observation_sections(_conn, _context, %{truncated_reason: reason} = state)
+       when not is_nil(reason),
+       do: {:ok, state}
+
+  defp read_effect_observation_sections(conn, context, state) do
+    section_index = Enum.find_index(@effect_observation_sections, &(&1 == state.section))
+
+    if is_nil(section_index) do
+      {:error, :invalid_protected_query}
+    else
+      with {:ok, read} <- read_effect_observation_section(conn, context, state) do
+        cond do
+          not is_nil(read.truncated_reason) ->
+            {:ok, read}
+
+          section_index == length(@effect_observation_sections) - 1 ->
+            {:ok, %{read | section: nil, offset: 0}}
+
+          true ->
+            next_section = Enum.at(@effect_observation_sections, section_index + 1)
+
+            read_effect_observation_sections(conn, context, %{
+              read
+              | section: next_section,
+                offset: 0,
+                receipts_complete: read.receipts_complete or state.section == "receipts"
+            })
+        end
+      end
+    end
+  end
+
+  defp read_effect_observation_section(conn, context, state) do
+    remaining = context.limit - state.item_count
+    {sql, parameters, columns, kind} = observation_section_query(state.section, context.effect)
+    params = parameters ++ [remaining + 1, state.offset]
+
+    Database.fold(conn, sql, params, state, fn row, acc ->
+      cond do
+        acc.item_count >= context.limit ->
+          {:halt, {:ok, %{acc | truncated_reason: "item_limit"}}}
+
+        true ->
+          case decode_bounded_row(row, columns) do
+            {:ok, decoded} ->
+              relation = decoded |> Map.put("schema_version", 1) |> Map.put("kind", kind)
+
+              if valid_effect_observation_relation?(relation, context.effect["effect_id"]) do
+                candidate = %{
+                  acc
+                  | relations: acc.relations ++ [relation],
+                    item_count: acc.item_count + 1,
+                    offset: acc.offset + 1
+                }
+
+                if effect_observation_size(context, candidate, true) <= context.max_bytes do
+                  {:cont, candidate}
+                else
+                  {:halt,
+                   {:ok,
+                    %{
+                      acc
+                      | truncated_reason:
+                          if(acc.item_count == 0, do: "oversized_row", else: "byte_limit")
+                    }}}
+                end
+              else
+                {:halt, protected_observation_corrupt(context.effect["effect_id"])}
+              end
+
+            {:error, _reason} = error ->
+              {:halt, error}
+          end
+      end
+    end)
+    |> case do
+      {:ok, %{truncated_reason: "oversized_row", item_count: 0}} ->
+        {:error, :protected_observation_oversized}
+
+      other ->
+        other
+    end
+  end
+
+  defp observation_section_query("claims", effect) do
+    columns = [
+      {"claim_id", :text},
+      {"effect_id", :text},
+      {"writer_epoch", :text},
+      {"status", :text},
+      {"revision", :integer}
+    ]
+
+    {"SELECT " <>
+       bounded_select_list(columns) <>
+       " FROM root_claims WHERE effect_id = ? ORDER BY claim_id LIMIT ? OFFSET ?",
+     [effect["effect_id"]], columns, "claim"}
+  end
+
+  defp observation_section_query("receipts", effect) do
+    columns = [
+      {"r.receipt_id", "receipt_id", :text},
+      {"r.claim_id", "claim_id", :text},
+      {"r.request_id", "request_id", :text},
+      {"r.outcome", "outcome", :text},
+      {"r.receipt_digest", "receipt_digest", :text}
+    ]
+
+    {"SELECT " <>
+       bounded_select_list(columns) <>
+       " FROM root_receipts r JOIN root_claims c ON c.claim_id = r.claim_id " <>
+       "WHERE c.effect_id = ? ORDER BY r.claim_id, r.receipt_id LIMIT ? OFFSET ?",
+     [effect["effect_id"]], columns, "receipt"}
+  end
+
+  defp observation_section_query("reservations", effect) do
+    columns = [
+      {"reservation_id", :text},
+      {"ledger_id", :text},
+      {"generation", :integer},
+      {"dimension", :text},
+      {"owner_kind", :text},
+      {"owner_id", :text},
+      {"units", :integer},
+      {"revision", :integer},
+      {"status", :text},
+      {"claim_id", :nullable_text}
+    ]
+
+    {"SELECT " <>
+       bounded_select_list(columns) <>
+       " FROM root_reservations WHERE owner_kind = 'effect' AND owner_id = ? " <>
+       "ORDER BY reservation_id LIMIT ? OFFSET ?", [effect["effect_id"]], columns, "reservation"}
+  end
+
+  defp observation_section_query("leases", effect) do
+    columns = [
+      {"l.lease_id", "lease_id", :text},
+      {"l.claim_id", "claim_id", :text},
+      {"l.resource_id", "resource_id", :text},
+      {"l.status", "status", :text},
+      {"l.revision", "revision", :integer}
+    ]
+
+    {"SELECT " <>
+       bounded_select_list(columns) <>
+       " FROM root_leases l JOIN root_claims c ON c.claim_id = l.claim_id " <>
+       "WHERE c.effect_id = ? ORDER BY l.claim_id, l.lease_id LIMIT ? OFFSET ?",
+     [effect["effect_id"]], columns, "lease"}
+  end
+
+  defp valid_effect_observation_relation?(%{"kind" => "claim"} = relation, effect_id) do
+    relation["effect_id"] == effect_id and nonempty_text?(relation["claim_id"]) and
+      nonempty_text?(relation["writer_epoch"]) and
+      relation["status"] in ~w(claimed issued unknown succeeded failed non_started cancelled reconciliation_required) and
+      nonnegative_integer?(relation["revision"])
+  end
+
+  defp valid_effect_observation_relation?(%{"kind" => "receipt"} = relation, _effect_id) do
+    Enum.all?(
+      ~w(receipt_id claim_id request_id receipt_digest),
+      &nonempty_text?(relation[&1])
+    ) and relation["outcome"] in ~w(succeeded failed non_started unknown)
+  end
+
+  defp valid_effect_observation_relation?(%{"kind" => "reservation"} = relation, effect_id) do
+    nonempty_text?(relation["reservation_id"]) and nonempty_text?(relation["ledger_id"]) and
+      nonnegative_integer?(relation["generation"]) and nonempty_text?(relation["dimension"]) and
+      relation["owner_kind"] == "effect" and relation["owner_id"] == effect_id and
+      is_integer(relation["units"]) and relation["units"] > 0 and
+      nonnegative_integer?(relation["revision"]) and
+      relation["status"] in ~w(proposed reserved issued_unknown consumed released retired) and
+      (is_nil(relation["claim_id"]) or nonempty_text?(relation["claim_id"]))
+  end
+
+  defp valid_effect_observation_relation?(%{"kind" => "lease"} = relation, _effect_id) do
+    nonempty_text?(relation["lease_id"]) and nonempty_text?(relation["claim_id"]) and
+      nonempty_text?(relation["resource_id"]) and
+      relation["status"] in ~w(held released retained) and
+      nonnegative_integer?(relation["revision"])
+  end
+
+  defp valid_effect_observation_relation?(_relation, _effect_id), do: false
+
+  defp effect_observation_response(context, state) do
+    next_cursor =
+      if is_nil(state.section) do
+        nil
+      else
+        effect_observation_cursor(context, state.section, state.offset)
+      end
+
+    response = %{
+      "schema_version" => 1,
+      "type" => "effect_observation_page",
+      "source" => context.source,
+      "effect" => context.effect,
+      "relations" => state.relations,
+      "infrastructure_settlement" => context.settlement,
+      "settlement" => %{
+        "status" => context.effect["status"],
+        "receipt_history" => if(state.receipts_complete, do: "complete", else: "unknown")
+      },
+      "page" => %{
+        "item_count" => state.item_count,
+        "size_bytes" => 0,
+        "truncated" => not is_nil(next_cursor),
+        "truncated_reason" => state.truncated_reason,
+        "next_cursor" => next_cursor
+      }
+    }
+
+    put_effect_observation_size(response)
+  end
+
+  defp effect_observation_size(context, state, assume_truncated?) do
+    section = state.section || List.last(@effect_observation_sections)
+
+    provisional = %{
+      state
+      | section: if(assume_truncated?, do: section, else: state.section),
+        truncated_reason: state.truncated_reason || if(assume_truncated?, do: "byte_limit")
+    }
+
+    context
+    |> effect_observation_response(provisional)
+    |> :erlang.external_size()
+  end
+
+  defp put_effect_observation_size(response) do
+    first = put_in(response, ["page", "size_bytes"], :erlang.external_size(response))
+    put_in(first, ["page", "size_bytes"], :erlang.external_size(first))
+  end
+
+  defp effect_observation_cursor(context, section, offset) do
+    %{
+      "schema_version" => 1,
+      "query_type" => "effect_observation_page",
+      "scope_digest" => context.scope_digest,
+      "source_digest" => context.source_digest,
+      "protected_sequence" => context.protected_sequence,
+      "effect_revision" => context.effect_revision,
+      "section" => section,
+      "offset" => offset
+    }
+  end
+
+  defp bounded_select_list(columns) do
+    columns
+    |> Enum.flat_map(fn
+      {column, :text} -> bounded_text_select(column)
+      {column, :nullable_text} -> bounded_text_select(column)
+      {column, :integer} -> [column]
+      {column, _key, :text} -> bounded_text_select(column)
+      {column, _key, :nullable_text} -> bounded_text_select(column)
+      {column, _key, :integer} -> [column]
+    end)
+    |> Enum.join(", ")
+  end
+
+  defp bounded_text_select(column) do
+    [
+      "CAST(substr(CAST(#{column} AS BLOB), 1, #{@effect_observation_max_scalar_bytes + 1}) AS TEXT)",
+      "length(CAST(#{column} AS BLOB))"
+    ]
+  end
+
+  defp decode_bounded_row(row, columns), do: decode_bounded_row(row, columns, %{})
+
+  defp decode_bounded_row([], [], acc), do: {:ok, acc}
+
+  defp decode_bounded_row([value, bytes | rest], [column | columns], acc)
+       when elem(column, tuple_size(column) - 1) in [:text, :nullable_text] do
+    {key, kind} = bounded_column_key_kind(column)
+
+    case bounded_text_value(value, bytes, kind == :nullable_text) do
+      {:ok, decoded} -> decode_bounded_row(rest, columns, Map.put(acc, key, decoded))
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp decode_bounded_row([value | rest], [column | columns], acc) do
+    {key, :integer} = bounded_column_key_kind(column)
+
+    if is_integer(value) do
+      decode_bounded_row(rest, columns, Map.put(acc, key, value))
+    else
+      protected_observation_corrupt(key)
+    end
+  end
+
+  defp decode_bounded_row(_row, _columns, _acc), do: protected_observation_corrupt(:row_shape)
+
+  defp bounded_column_key_kind({column, kind}), do: {List.last(String.split(column, ".")), kind}
+  defp bounded_column_key_kind({_column, key, kind}), do: {key, kind}
+
+  defp bounded_text_value(nil, nil, true), do: {:ok, nil}
+
+  defp bounded_text_value(value, bytes, _nullable?)
+       when is_binary(value) and is_integer(bytes) and bytes >= 0 do
+    cond do
+      bytes > @effect_observation_max_scalar_bytes ->
+        {:error, :protected_observation_oversized}
+
+      bytes == 0 ->
+        protected_observation_corrupt(:empty_scalar)
+
+      byte_size(value) != bytes or not String.valid?(value) ->
+        protected_observation_corrupt(:invalid_scalar)
+
+      true ->
+        {:ok, value}
+    end
+  end
+
+  defp bounded_text_value(_value, _bytes, _nullable?),
+    do: protected_observation_corrupt(:invalid_scalar)
+
+  defp bounded_observation_identity(value) do
+    with :ok <- identity(value),
+         true <- byte_size(value) <= @effect_observation_max_scalar_bytes do
+      :ok
+    else
+      _ -> {:error, :invalid_identity}
+    end
+  end
+
+  defp digest_string?(value),
+    do: is_binary(value) and byte_size(value) == 64 and String.match?(value, ~r/\A[0-9a-f]+\z/)
+
+  defp nonempty_text?(value), do: is_binary(value) and value != "" and String.valid?(value)
+
+  defp protected_observation_corrupt(identity),
+    do: {:error, {:protected_corrupt, "effect_observation_page", identity}}
 
   defp effect_fact(conn, id) do
     with {:ok, effect} <- load_effect(conn, id),

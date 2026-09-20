@@ -18,14 +18,16 @@ defmodule PramanaFoundry.ObservationsTest do
     @impl true
     def fact(source, %{"type" => type} = query) do
       id = query[identity_key(type)]
+      stored_type = if(type == "effect_observation_page", do: "effect", else: type)
 
-      case Map.get(source.facts, {type, id}, {:error, :not_found}) do
+      case Map.get(source.facts, {stored_type, id}, {:error, :not_found}) do
         {:error, reason} -> {:error, reason}
         fact -> {:ok, fact, source.observed_at}
       end
     end
 
     defp identity_key("effect"), do: "effect_id"
+    defp identity_key("effect_observation_page"), do: "effect_id"
     defp identity_key("control"), do: "control_id"
     defp identity_key("inbox"), do: "execution_id"
   end
@@ -297,6 +299,53 @@ defmodule PramanaFoundry.ObservationsTest do
            }
   end
 
+  test "live effect continuations are stable, redacted and stale after a protected append" do
+    {root, gateway, capability} = live_effect("bounded-continuation", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    request = %Query{
+      include_pointers: false,
+      effect_ids: ["effect-1"],
+      limit: 1,
+      max_bytes: 8_192
+    }
+
+    assert %{status: :ok, items: [first_item], next_cursor: cursor} =
+             Observations.query(request, gateway, capability)
+
+    assert is_map(cursor)
+    assert first_item.fact["relations_truncated"]
+    assert Enum.map(first_item.fact["relations"], & &1["kind"]) == ["claim"]
+    refute inspect(cursor) =~ "effect-1"
+    refute inspect(cursor) =~ "installation-fr18a"
+
+    assert %{status: :ok, items: [second_item], next_cursor: nil} =
+             Observations.query(%{request | cursor: cursor}, gateway, capability)
+
+    assert Enum.map(second_item.fact["relations"], & &1["kind"]) == ["reservation"]
+    refute second_item.fact["relations_truncated"]
+
+    accept!(gateway, capability, "cursor-staling-command", %{"control/control-1" => 0}, %{
+      "type" => "set_control",
+      "control_id" => "control-1",
+      "value" => %{"status" => "active", "revision_note" => "stale cursor"}
+    })
+
+    assert %{
+             status: :unavailable,
+             quality: :unavailable,
+             items: [],
+             error_code: :stale_protected_cursor
+           } = Observations.query(%{request | cursor: cursor}, gateway, capability)
+
+    assert %{status: :corrupt, error_code: :invalid_query} =
+             Observations.query(
+               %{request | cursor: Map.put(cursor, "unexpected", true)},
+               gateway,
+               capability
+             )
+  end
+
   test "a missing live store is unavailable, never healthy empty" do
     root = unique_tmp("missing")
     gateway = start_supervised!({Gateway, path: Path.join(root, "missing.sqlite3")})
@@ -559,6 +608,94 @@ defmodule PramanaFoundry.ObservationsTest do
     refute inspect(page) =~ secret_writer
   end
 
+  test "redaction covers bounded relation, settlement and continuation envelopes" do
+    observed_at = ~U[2026-09-20 12:00:00Z]
+    secret = "sk-bounded-secret-abcdef12"
+
+    effect_page = %{
+      "schema_version" => 1,
+      "type" => "effect_observation_page",
+      "source" => %{
+        "installation_id" => secret,
+        "repository_id" => secret,
+        "last_protected_command_sequence" => 9,
+        "effect_revision" => 3
+      },
+      "effect" => %{
+        "schema_version" => 1,
+        "effect_id" => "effect-1",
+        "ticket_id" => secret,
+        "attempt_id" => "attempt-1",
+        "execution_id" => "execution-1",
+        "control_id" => "control-1",
+        "policy_id" => "policy-1",
+        "operation" => "launch",
+        "scope" => "ticket:bounded",
+        "status" => "non_started",
+        "revision" => 3,
+        "policy_revision" => 0,
+        "control_revision" => 0
+      },
+      "relations" => [
+        %{
+          "schema_version" => 1,
+          "kind" => "receipt",
+          "receipt_id" => secret,
+          "claim_id" => "claim-1",
+          "request_id" => "request-1",
+          "outcome" => "non_started",
+          "receipt_digest" => String.duplicate("a", 64)
+        }
+      ],
+      "infrastructure_settlement" => %{
+        "schema_version" => 1,
+        "effect_id" => "effect-1",
+        "claim_id" => "claim-1",
+        "receipt_id" => secret,
+        "role" => "developer",
+        "work_owner" => secret,
+        "infrastructure_generation" => 0,
+        "predecessor_effect_id" => nil,
+        "failure_class" => secret,
+        "ordinal" => 1
+      },
+      "settlement" => %{"status" => "non_started", "receipt_history" => "unknown"},
+      "page" => %{
+        "item_count" => 1,
+        "size_bytes" => 2_048,
+        "truncated" => true,
+        "truncated_reason" => "item_limit",
+        "next_cursor" => %{
+          "schema_version" => 1,
+          "query_type" => "effect_observation_page",
+          "scope_digest" => String.duplicate("a", 64),
+          "source_digest" => String.duplicate("b", 64),
+          "protected_sequence" => 9,
+          "effect_revision" => 3,
+          "section" => "receipts",
+          "offset" => 1
+        }
+      }
+    }
+
+    facts =
+      fake_effect_facts()
+      |> Map.put({"effect", "effect-1"}, effect_page)
+
+    page =
+      Observations.query_source(
+        %Query{include_pointers: false, effect_ids: ["effect-1"]},
+        {FakeSource, %{source(observed_at) | facts: facts}},
+        now: observed_at
+      )
+
+    assert %{status: :ok, items: [item], next_cursor: cursor} = page
+    assert item.identity["ticket_id"] == "[REDACTED]"
+    assert item.fact["infrastructure_settlement"]["work_owner"] == "[REDACTED]"
+    assert is_map(cursor)
+    refute inspect(page) =~ secret
+  end
+
   test "malformed versions and execution fields cannot be canonical" do
     observed_at = ~U[2026-09-20 12:00:00Z]
 
@@ -632,7 +769,7 @@ defmodule PramanaFoundry.ObservationsTest do
         "last_protected_command_sequence" => 4,
         "last_domain_event_sequence" => 7,
         "sql_schema_version" => "1",
-        "protected_schema_version" => "1",
+        "protected_schema_version" => "2",
         "protocol_version" => "1",
         "event_version" => "1",
         "projection_version" => "1",

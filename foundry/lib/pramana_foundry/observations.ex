@@ -16,8 +16,15 @@ defmodule PramanaFoundry.Observations do
   @min_page_bytes 8_192
   @max_page_bytes 262_144
   @max_related_ids 20
+  @protected_envelope_reserve 4_096
   @version_fields ~w(sql_schema_version protected_schema_version protocol_version event_version projection_version)
-  @supported_version "1"
+  @supported_versions %{
+    "sql_schema_version" => "1",
+    "protected_schema_version" => "2",
+    "protocol_version" => "1",
+    "event_version" => "1",
+    "projection_version" => "1"
+  }
   @effect_statuses ~w(pending claimed issued unknown reconciliation_required succeeded failed non_started cancelled)
   @claim_statuses ~w(claimed issued unknown reconciliation_required succeeded failed non_started cancelled)
   @receipt_outcomes ~w(succeeded failed non_started unknown)
@@ -43,14 +50,15 @@ defmodule PramanaFoundry.Observations do
          {:ok, before, _before_at} <- adapter.snapshot(source_state),
          {:ok, source} <- canonical_source(before),
          {:ok, targets} <- targets(request, before),
-         {:ok, items} <- read_targets(adapter, source_state, targets),
+         {:ok, items, effect_cursor} <-
+           read_targets(adapter, source_state, targets, request),
          {:ok, after_snapshot, after_at} <- adapter.snapshot(source_state),
          {:ok, after_source} <- canonical_source(after_snapshot),
          :ok <- stable_source(source, after_source),
          now <- Keyword.get(opts, :now, DateTime.utc_now()),
          true <- match?(%DateTime{}, now),
          {:ok, freshness} <- freshness(after_at, now, request.max_age_ms) do
-      build_page(request, source, items, after_at, freshness, targets)
+      build_page(request, source, items, after_at, freshness, targets, effect_cursor)
     else
       {:error, :invalid_query} -> error_page(:corrupt, :invalid_query)
       false -> error_page(:corrupt, :invalid_clock)
@@ -58,6 +66,8 @@ defmodule PramanaFoundry.Observations do
       {:error, :not_found} -> error_page(:corrupt, :source_snapshot_missing)
       {:error, :corrupt} -> error_page(:corrupt, :source_corrupt)
       {:error, :source_changed} -> error_page(:unavailable, :source_changed_during_query)
+      {:error, :stale} -> error_page(:unavailable, :stale_protected_cursor)
+      {:error, :oversized} -> error_page(:unavailable, :protected_observation_oversized)
       {:error, :invalid_freshness} -> error_page(:corrupt, :invalid_freshness)
       {:error, _reason} -> error_page(:corrupt, :source_corrupt)
     end
@@ -72,7 +82,7 @@ defmodule PramanaFoundry.Observations do
         length(Enum.uniq(query.effect_ids)) == length(query.effect_ids)
 
     if query.schema_version == 1 and valid_ids? and is_boolean(query.include_pointers) and
-         is_integer(query.cursor) and query.cursor >= 0 and is_integer(query.limit) and
+         valid_public_cursor?(query.cursor) and is_integer(query.limit) and
          query.limit >= 1 and query.limit <= @max_limit and is_integer(query.max_bytes) and
          query.max_bytes >= @min_page_bytes and query.max_bytes <= @max_page_bytes and
          is_integer(query.max_age_ms) and query.max_age_ms >= 0 do
@@ -85,6 +95,23 @@ defmodule PramanaFoundry.Observations do
   defp valid_id?(value),
     do: is_binary(value) and byte_size(value) in 1..@max_id_bytes and String.valid?(value)
 
+  defp valid_public_cursor?(cursor) when is_integer(cursor), do: cursor >= 0
+
+  defp valid_public_cursor?(cursor) when is_map(cursor) and not is_struct(cursor) do
+    Map.keys(cursor) |> Enum.sort() ==
+      ~w(effect_cursor schema_version target_offset) and cursor["schema_version"] == 1 and
+      is_integer(cursor["target_offset"]) and cursor["target_offset"] >= 0 and
+      is_map(cursor["effect_cursor"]) and not is_struct(cursor["effect_cursor"])
+  end
+
+  defp valid_public_cursor?(_cursor), do: false
+
+  defp public_target_offset(cursor) when is_integer(cursor), do: cursor
+  defp public_target_offset(cursor), do: cursor["target_offset"]
+
+  defp protected_effect_cursor(cursor) when is_map(cursor), do: cursor["effect_cursor"]
+  defp protected_effect_cursor(_cursor), do: nil
+
   defp targets(request, snapshot) do
     pointer_targets =
       if request.include_pointers do
@@ -95,28 +122,66 @@ defmodule PramanaFoundry.Observations do
 
     all = pointer_targets ++ Enum.map(request.effect_ids, &{:effect, &1})
 
-    if request.cursor <= length(all) do
-      {:ok, all |> Enum.drop(request.cursor) |> Enum.take(request.limit)}
+    offset = public_target_offset(request.cursor)
+
+    if offset <= length(all) do
+      selected = all |> Enum.drop(offset) |> Enum.take(request.limit)
+
+      if is_map(request.cursor) and not match?([{:effect, _id} | _], selected) do
+        {:error, :invalid_query}
+      else
+        {:ok, take_through_first_effect(selected)}
+      end
     else
       {:error, :invalid_query}
     end
   end
 
-  defp read_targets(adapter, source_state, targets) do
-    Enum.reduce_while(targets, {:ok, []}, fn target, {:ok, items} ->
-      case read_target(adapter, source_state, target) do
-        {:ok, nil} -> {:cont, {:ok, items}}
-        {:ok, item} -> {:cont, {:ok, [item | items]}}
-        {:error, reason} -> {:halt, {:error, reason}}
+  defp take_through_first_effect(targets), do: take_through_first_effect(targets, [])
+
+  defp take_through_first_effect([], acc), do: Enum.reverse(acc)
+
+  defp take_through_first_effect([{:effect, _id} = target | _rest], acc),
+    do: Enum.reverse([target | acc])
+
+  defp take_through_first_effect([target | rest], acc),
+    do: take_through_first_effect(rest, [target | acc])
+
+  defp read_targets(adapter, source_state, targets, request) do
+    start_offset = public_target_offset(request.cursor)
+
+    targets
+    |> Enum.with_index(start_offset)
+    |> Enum.reduce_while({:ok, [], nil}, fn {target, target_offset}, {:ok, items, nil} ->
+      cursor = if target_offset == start_offset, do: protected_effect_cursor(request.cursor)
+
+      case read_target(adapter, source_state, target, request, cursor) do
+        {:ok, nil, nil} ->
+          {:cont, {:ok, items, nil}}
+
+        {:ok, item, nil} ->
+          {:cont, {:ok, [item | items], nil}}
+
+        {:ok, item, next_effect_cursor} ->
+          public_cursor = %{
+            "schema_version" => 1,
+            "target_offset" => target_offset,
+            "effect_cursor" => next_effect_cursor
+          }
+
+          {:halt, {:ok, [item | items], public_cursor}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
       end
     end)
     |> case do
-      {:ok, items} -> {:ok, Enum.reverse(items)}
+      {:ok, items, cursor} -> {:ok, Enum.reverse(items), cursor}
       error -> error
     end
   end
 
-  defp read_target(_adapter, _source_state, {:pointer, kind, fact}) do
+  defp read_target(_adapter, _source_state, {:pointer, kind, fact}, _request, nil) do
     with {:ok, status, revision} <- pointer_state(kind, fact) do
       {:ok,
        %Observation{
@@ -125,19 +190,31 @@ defmodule PramanaFoundry.Observations do
          quality: :canonical,
          identity: %{"pointer_kind" => kind},
          fact: %{"producer_status" => fact["producer_status"], "revision" => revision}
-       }}
+       }, nil}
     end
   end
 
-  defp read_target(adapter, source_state, {:effect, effect_id}) do
-    case adapter.fact(source_state, fact_query("effect", "effect_id", effect_id)) do
+  defp read_target(adapter, source_state, {:effect, effect_id}, request, cursor) do
+    protected_max_bytes = max(request.max_bytes - @protected_envelope_reserve, 1_024)
+
+    query = %{
+      "schema_version" => 1,
+      "type" => "effect_observation_page",
+      "effect_id" => effect_id,
+      "limit" => min(request.limit, @max_related_ids),
+      "max_bytes" => protected_max_bytes,
+      "cursor" => cursor
+    }
+
+    case adapter.fact(source_state, query) do
       {:error, :not_found} ->
-        {:ok, nil}
+        {:ok, nil, nil}
 
       {:ok, effect, _observed_at} ->
-        with {:ok, identity, effect_fact} <- canonical_effect(effect_id, effect),
-             {:ok, control} <- read_control(adapter, source_state, effect),
-             {:ok, execution} <- read_execution(adapter, source_state, effect) do
+        with {:ok, identity, effect_fact, next_cursor} <- canonical_effect(effect_id, effect),
+             effect_header <- protected_effect_header(effect),
+             {:ok, control} <- read_control(adapter, source_state, effect_header),
+             {:ok, execution} <- read_execution(adapter, source_state, effect_header) do
           {:ok,
            %Observation{
              kind: :effect_context,
@@ -150,11 +227,76 @@ defmodule PramanaFoundry.Observations do
                  "execution" => execution,
                  "usage" => %{"status" => "unknown", "reason" => "not_produced"}
                })
-           }}
+           }, next_cursor}
         end
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  defp protected_effect_header(%{"type" => "effect_observation_page", "effect" => effect}),
+    do: effect
+
+  defp protected_effect_header(effect), do: effect
+
+  defp canonical_effect(
+         effect_id,
+         %{
+           "schema_version" => 1,
+           "type" => "effect_observation_page"
+         } = page
+       ) do
+    effect = page["effect"]
+    relations = page["relations"]
+    protected_page = page["page"]
+    settlement = page["settlement"]
+
+    with true <- is_map(effect),
+         ^effect_id <- effect["effect_id"],
+         true <- is_list(relations),
+         true <- is_map(protected_page),
+         true <- is_map(settlement),
+         true <- valid_effect_header?(effect),
+         true <- valid_effect_relations?(relations, effect_id),
+         true <- valid_protected_effect_page?(protected_page),
+         true <- settlement["status"] == effect["status"],
+         true <- settlement["receipt_history"] in ["complete", "unknown"],
+         true <-
+           valid_infrastructure_settlement?(
+             page["infrastructure_settlement"],
+             effect_id,
+             effect["status"]
+           ) do
+      claims = Enum.filter(relations, &(&1["kind"] == "claim"))
+      receipts = Enum.filter(relations, &(&1["kind"] == "receipt"))
+      reservations = Enum.filter(relations, &(&1["kind"] == "reservation"))
+      leases = Enum.filter(relations, &(&1["kind"] == "lease"))
+
+      receipt_history =
+        receipts
+        |> Enum.map(& &1["outcome"])
+        |> Enum.uniq()
+        |> Enum.sort_by(&receipt_outcome_order/1)
+
+      outcome = canonical_outcome_from_page(effect["status"], receipt_history, settlement)
+
+      fact =
+        effect
+        |> Map.take(@effect_fields)
+        |> Map.put("claim_ids", bounded_ids(claims, "claim_id"))
+        |> Map.put("reservation_ids", bounded_ids(reservations, "reservation_id"))
+        |> Map.put("lease_ids", bounded_ids(leases, "lease_id"))
+        |> Map.put("relations", relations)
+        |> Map.put("relations_truncated", protected_page["truncated"])
+        |> Map.put("receipt_history_quality", settlement["receipt_history"])
+        |> Map.put("infrastructure_settlement", page["infrastructure_settlement"])
+        |> Map.put("outcome", outcome)
+
+      identity = Map.take(effect, ~w(effect_id ticket_id attempt_id execution_id control_id))
+      {:ok, identity, fact, protected_page["next_cursor"]}
+    else
+      _ -> {:error, :corrupt}
     end
   end
 
@@ -183,10 +325,89 @@ defmodule PramanaFoundry.Observations do
         |> Map.put("reservations_truncated", length(reservations) > @max_related_ids)
         |> Map.put("outcome", canonical_outcome(status, claims))
 
-      {:ok, Map.take(effect, identity_fields), fact}
+      {:ok, Map.take(effect, identity_fields), fact, nil}
     else
       _ -> {:error, :corrupt}
     end
+  end
+
+  defp valid_effect_header?(effect) do
+    Enum.all?(
+      ~w(effect_id ticket_id attempt_id execution_id control_id policy_id operation scope),
+      &valid_id?(effect[&1])
+    ) and effect["status"] in @effect_statuses and is_integer(effect["revision"]) and
+      effect["revision"] >= 0 and is_integer(effect["policy_revision"]) and
+      effect["policy_revision"] >= 0 and is_integer(effect["control_revision"]) and
+      effect["control_revision"] >= 0
+  end
+
+  defp valid_effect_relations?(relations, effect_id) do
+    Enum.all?(relations, fn
+      %{"kind" => "claim", "effect_id" => ^effect_id} = claim ->
+        valid_id?(claim["claim_id"]) and valid_id?(claim["writer_epoch"]) and
+          claim["status"] in @claim_statuses and nonnegative?(claim["revision"])
+
+      %{"kind" => "receipt"} = receipt ->
+        Enum.all?(~w(receipt_id claim_id request_id receipt_digest), &valid_id?(receipt[&1])) and
+          receipt["outcome"] in @receipt_outcomes
+
+      %{"kind" => "reservation"} = reservation ->
+        valid_id?(reservation["reservation_id"]) and reservation["owner_kind"] == "effect" and
+          reservation["owner_id"] == effect_id and nonnegative?(reservation["revision"])
+
+      %{"kind" => "lease"} = lease ->
+        valid_id?(lease["lease_id"]) and valid_id?(lease["claim_id"]) and
+          nonnegative?(lease["revision"])
+
+      _ ->
+        false
+    end)
+  end
+
+  defp valid_protected_effect_page?(page) do
+    is_integer(page["item_count"]) and page["item_count"] >= 0 and
+      page["item_count"] <= @max_related_ids and is_integer(page["size_bytes"]) and
+      page["size_bytes"] >= 0 and is_boolean(page["truncated"]) and
+      page["truncated_reason"] in [nil, "item_limit", "byte_limit"] and
+      ((page["truncated"] and is_map(page["next_cursor"])) or
+         (not page["truncated"] and is_nil(page["next_cursor"])))
+  end
+
+  defp valid_infrastructure_settlement?(nil, _effect_id, _effect_status), do: true
+
+  defp valid_infrastructure_settlement?(settlement, effect_id, effect_status)
+       when is_map(settlement) do
+    effect_status == "non_started" and settlement["effect_id"] == effect_id and
+      Enum.all?(
+        ~w(claim_id receipt_id role work_owner failure_class),
+        &valid_id?(settlement[&1])
+      ) and nonnegative?(settlement["infrastructure_generation"]) and
+      is_integer(settlement["ordinal"]) and settlement["ordinal"] > 0 and
+      (is_nil(settlement["predecessor_effect_id"]) or
+         valid_id?(settlement["predecessor_effect_id"]))
+  end
+
+  defp valid_infrastructure_settlement?(_settlement, _effect_id, _effect_status), do: false
+
+  defp nonnegative?(value), do: is_integer(value) and value >= 0
+
+  defp canonical_outcome_from_page(status, history, _settlement) do
+    base =
+      case status do
+        terminal when terminal in ~w(succeeded failed non_started cancelled) ->
+          %{"status" => terminal}
+
+        "unknown" ->
+          %{"status" => "unknown", "reason" => "outcome_unknown"}
+
+        "reconciliation_required" ->
+          %{"status" => "unknown", "reason" => "reconciliation_required"}
+
+        _ ->
+          %{"status" => "unknown", "reason" => "no_terminal_receipt"}
+      end
+
+    Map.put(base, "receipt_history", history)
   end
 
   defp bounded_ids(values, key) do
@@ -403,7 +624,7 @@ defmodule PramanaFoundry.Observations do
          protected when is_integer(protected) and protected >= 0 <-
            snapshot["last_protected_command_sequence"],
          domain when is_integer(domain) and domain >= 0 <- snapshot["last_domain_event_sequence"],
-         true <- Enum.all?(@version_fields, &(snapshot[&1] == @supported_version)),
+         true <- Enum.all?(@version_fields, &(snapshot[&1] == @supported_versions[&1])),
          pointers when is_map(pointers) <- snapshot["pointers"],
          true <- Enum.sort(Map.keys(pointers)) == Enum.sort(@pointer_kinds),
          true <-
@@ -452,10 +673,14 @@ defmodule PramanaFoundry.Observations do
 
   defp freshness(_observed_at, _now, _max_age_ms), do: {:error, :invalid_freshness}
 
-  defp build_page(request, source, items, observed_at, freshness, targets) do
+  defp build_page(request, source, items, observed_at, freshness, targets, effect_cursor) do
     total_targets = if(request.include_pointers, do: 3, else: 0) + length(request.effect_ids)
     consumed = length(targets)
-    next_cursor = if request.cursor + consumed < total_targets, do: request.cursor + consumed
+    offset = public_target_offset(request.cursor)
+
+    next_cursor =
+      effect_cursor ||
+        if(offset + consumed < total_targets, do: offset + consumed)
 
     page = %Page{
       status: :ok,
@@ -464,7 +689,7 @@ defmodule PramanaFoundry.Observations do
       observed_at: observed_at,
       source: Map.delete(source, "pointers"),
       items: Enum.map(items, &redact_observation/1),
-      next_cursor: next_cursor,
+      next_cursor: redact(next_cursor),
       size_bytes: 0,
       error_code: nil
     }
@@ -474,7 +699,7 @@ defmodule PramanaFoundry.Observations do
     if sized.size_bytes <= request.max_bytes do
       sized
     else
-      error_page(:corrupt, :page_size_limit_exceeded)
+      error_page(:unavailable, :page_size_limit_exceeded)
     end
   end
 

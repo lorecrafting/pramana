@@ -3,7 +3,8 @@ defmodule PramanaFoundry.Observations.Source do
 
   @type state :: term()
   @type read_result ::
-          {:ok, map(), DateTime.t()} | {:error, :not_found | :unavailable | :corrupt}
+          {:ok, map(), DateTime.t()}
+          | {:error, :not_found | :unavailable | :corrupt | :stale | :oversized}
 
   @callback snapshot(state()) :: read_result()
   @callback fact(state(), map()) :: read_result()

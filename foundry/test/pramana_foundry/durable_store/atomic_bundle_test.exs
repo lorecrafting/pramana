@@ -45,6 +45,25 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert settlement["failure_class"] == "backend_refused_start"
     assert settlement["ordinal"] == 1
 
+    assert {:ok, observation} =
+             Gateway.protected_query(ctx.gateway, ctx.capability, %{
+               "schema_version" => 1,
+               "type" => "effect_observation_page",
+               "effect_id" => "effect-1",
+               "limit" => 50,
+               "max_bytes" => 65_536,
+               "cursor" => nil
+             })
+
+    assert observation["infrastructure_settlement"] == settlement
+
+    assert observation["settlement"] == %{
+             "status" => "non_started",
+             "receipt_history" => "complete"
+           }
+
+    assert Enum.any?(observation["relations"], &(&1["kind"] == "receipt"))
+
     assert {:ok, %{"status" => "non_started"}} = fact(ctx, "claim", "claim_id", "claim-1")
 
     assert {:ok, %{"status" => "released"}} =
@@ -61,6 +80,20 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert {:ok, copied} = Database.open(backup)
     assert {:ok, %{content: ^live_content}} = Authority.read(copied, :all)
     assert :ok = Database.close(copied)
+
+    assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
+    assert :ok = Sqlite3.execute(raw, "DELETE FROM root_infrastructure_settlements")
+    assert :ok = Sqlite3.close(raw)
+
+    assert {:error, {:protected_corrupt, "effect_observation_page", "effect-1"}} =
+             Gateway.protected_query(ctx.gateway, ctx.capability, %{
+               "schema_version" => 1,
+               "type" => "effect_observation_page",
+               "effect_id" => "effect-1",
+               "limit" => 50,
+               "max_bytes" => 65_536,
+               "cursor" => nil
+             })
   end
 
   test "developer, reviewer and PM non-start settlements survive reopen", ctx do
