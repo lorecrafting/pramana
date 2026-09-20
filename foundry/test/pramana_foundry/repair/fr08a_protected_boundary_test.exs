@@ -7,8 +7,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     report = FR08AProtectedBoundary.report()
 
     assert report.identity.implementation_binding == "verified:source-sha256+beam-md5/v1"
-    assert report.identity.subject_revision == "71e558b86da225757abba21adfa6364abdb18577"
-    assert report.identity.subject_tree == "efaeba1cfbce8c5f4ad1486c66ae4025100b05a3"
+    assert report.identity.subject_revision == "43ee08e153434c9ffe99c66485a2b4f6fc271e2e"
+    assert report.identity.subject_tree == "a7b6216cbf5e416a854ca5e9e72f246c3a43b05a"
     assert length(report.identity.exercised_api) == 9
     assert FR08HandoffGate.ready?(report.gate)
     assert report.gate.passed_count == 7
