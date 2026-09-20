@@ -18,34 +18,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
         {:error, :not_found} ->
           with :ok <- validate_operation_envelope(request["operation"]) do
-            Database.transaction(conn, fn ->
-              case apply_new(conn, actor_id, request, writer_epoch) do
-                {:ok, facts} ->
-                  with {:ok, result} <-
-                         persist_result(conn, actor_id, request, digest, "accepted", nil, facts),
-                       :ok <- inject(fault, :before_commit) do
-                    {:ok, result}
-                  end
-
-                {:reject, reason, facts} ->
-                  with {:ok, result} <-
-                         persist_result(
-                           conn,
-                           actor_id,
-                           request,
-                           digest,
-                           "rejected",
-                           Atom.to_string(reason),
-                           facts
-                         ),
-                       :ok <- inject(fault, :before_commit) do
-                    {:ok, result}
-                  end
-
-                {:error, _reason} = error ->
-                  error
-              end
-            end)
+            execute_new(conn, actor_id, request, writer_epoch, digest, fault)
             |> case do
               {:ok, result} ->
                 if fault == :after_commit_before_reply,
@@ -68,6 +41,77 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         {:error, _reason} = error ->
           error
       end
+    end
+  end
+
+  defp execute_new(conn, actor_id, request, writer_epoch, digest, fault) do
+    Database.transaction(conn, fn ->
+      case apply_new(conn, actor_id, request, writer_epoch) do
+        {:ok, facts} ->
+          persist_committed_result(
+            conn,
+            actor_id,
+            request,
+            digest,
+            "accepted",
+            nil,
+            facts,
+            fault
+          )
+
+        {:quarantine, reason, facts} ->
+          persist_committed_result(
+            conn,
+            actor_id,
+            request,
+            digest,
+            "rejected",
+            Atom.to_string(reason),
+            facts,
+            fault
+          )
+
+        {:reject, reason, facts} ->
+          {:error, {:semantic_rejection, reason, facts}}
+
+        {:error, _reason} = error ->
+          error
+      end
+    end)
+    |> case do
+      {:error, {:semantic_rejection, reason, facts}} ->
+        Database.transaction(conn, fn ->
+          persist_committed_result(
+            conn,
+            actor_id,
+            request,
+            digest,
+            "rejected",
+            Atom.to_string(reason),
+            facts,
+            fault
+          )
+        end)
+
+      result ->
+        result
+    end
+  end
+
+  defp persist_committed_result(
+         conn,
+         actor_id,
+         request,
+         digest,
+         disposition,
+         reason,
+         facts,
+         fault
+       ) do
+    with {:ok, result} <-
+           persist_result(conn, actor_id, request, digest, disposition, reason, facts),
+         :ok <- inject(fault, :before_commit) do
+      {:ok, result}
     end
   end
 
@@ -289,7 +333,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- validate_reservations(conn),
          :ok <- validate_state_bindings(conn),
          :ok <- validate_effect_relations(conn),
-         :ok <- validate_semantic_relations(conn) do
+         :ok <- validate_semantic_relations(conn),
+         :ok <- validate_authority_command_provenance(conn) do
       :ok
     end
   end
@@ -676,7 +721,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     with :ok <- exact_keys(operation, ~w(type ledger_id generation)),
          {:ok, ledgers} <-
            subtree_ledgers(conn, operation["ledger_id"], operation["generation"]),
-         true <- ledgers != [] and Enum.all?(ledgers, &(&1.status == "open")),
+         {:ok, %{"status" => "open"}} <-
+           ledger_fact(conn, operation["ledger_id"], operation["generation"]),
          :ok <- close_subtree(conn, ledgers),
          {:ok, closed} <-
            subtree_ledgers(conn, operation["ledger_id"], operation["generation"]) do
@@ -709,7 +755,6 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          {:ok, :absent} <-
            load_ledger(conn, operation["ledger_id"], operation["new_generation"]),
          {:ok, subtree} <- subtree_ledgers(conn, old.ledger_id, old.generation),
-         true <- Enum.all?(subtree, &(&1.status == "open")),
          :ok <- close_subtree(conn, subtree),
          {:ok, closed} <- load_existing_ledger(conn, old.ledger_id, old.generation),
          fresh <- %{
@@ -764,7 +809,6 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          {:ok, :absent} <-
            load_ledger(conn, operation["ledger_id"], operation["new_generation"]),
          {:ok, subtree} <- subtree_ledgers(conn, old.ledger_id, old.generation),
-         true <- Enum.all?(subtree, &(&1.status == "open")),
          :ok <- close_subtree(conn, subtree),
          {:ok, closed} <- load_existing_ledger(conn, old.ledger_id, old.generation),
          next_parent <- %{
@@ -822,6 +866,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          operation_ordinal when is_integer(operation_ordinal) and operation_ordinal >= 0 <-
            Map.get(operation["request"], "operation_ordinal", 0),
          predecessor_effect_id <- operation["request"]["predecessor_effect_id"],
+         :ok <- semantic_effect_available(conn, operation),
          :ok <-
            predecessor_guard(
              conn,
@@ -848,7 +893,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          true <- policy.revision == operation["policy_revision"],
          true <- control.revision == operation["control_revision"],
          :ok <- allowed_effect?(policy.value, control.value, operation),
-         :ok <- semantic_effect_available(conn, operation),
+         :ok <- nonstart_allowance(conn, policy.value, operation),
          {:ok, reservations} <- load_effect_reservations(conn, operation),
          :ok <- reservation_dimensions(operation, reservations),
          {:ok, lease_specs} <- normalize_lease_specs(operation["leases"]),
@@ -890,11 +935,13 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          },
          :ok <- insert_effect(conn, effect),
          {:ok, activated_reservations} <- activate_reservations(conn, reservations),
-         :ok <- insert_pending_leases(conn, operation["effect_id"], lease_specs) do
+         :ok <- insert_pending_leases(conn, operation["effect_id"], lease_specs),
+         {:ok, ledgers} <- ledger_facts_for_reservations(conn, activated_reservations) do
       {:ok,
        %{
          "effect" => public_effect(effect),
-         "reservation_ids" => Enum.map(activated_reservations, & &1.reservation_id),
+         "reservations" => Enum.map(activated_reservations, &public_reservation/1),
+         "ledgers" => ledgers,
          "lease_specs" => lease_specs
        }}
     else
@@ -912,6 +959,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              :duplicate_semantic_operation,
              :duplicate_request_identity,
              :operation_dimension_mismatch,
+             :nonstart_allowance_exhausted,
              :predecessor_not_terminal,
              :predecessor_identity_mismatch
            ] ->
@@ -940,6 +988,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          true <- policy.revision == effect.policy_revision,
          true <- control.revision == effect.control_revision,
          :ok <- control_active?(control.value),
+         :ok <- predecessor_current?(conn, effect),
          {:ok, reservations} <- reservations_for_effect(conn, effect.effect_id),
          true <- reservations != [],
          true <- Enum.all?(reservations, &(&1.status == "reserved" and is_nil(&1.claim_id))),
@@ -969,6 +1018,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       {:error, reason}
       when reason in [
              :control_not_active,
+             :predecessor_not_terminal,
              :ledger_closed,
              :ledger_generation_superseded,
              :lease_conflict
@@ -996,6 +1046,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          true <- policy.revision == effect.policy_revision,
          true <- control.revision == effect.control_revision,
          :ok <- control_active?(control.value),
+         :ok <- predecessor_current?(conn, effect),
          {:ok, reservations} <- reservations_for_claim(conn, claim.claim_id),
          true <- reservations != [] and Enum.all?(reservations, &(&1.status == "reserved")),
          :ok <- reservations_open?(conn, reservations),
@@ -1015,6 +1066,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
       {:error, :control_not_active} ->
         {:reject, :control_not_active, %{}}
+
+      {:error, :predecessor_not_terminal} ->
+        {:reject, :predecessor_not_terminal, %{}}
 
       {:error, :ledger_closed} ->
         {:reject, :ledger_closed, %{}}
@@ -1095,11 +1149,17 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- settlement_provenance(operation, claim, effect),
          {:ok, digest} <- receipt_digest(operation),
          {:ok, prior_receipts} <- receipts_for_claim(conn, claim.claim_id),
-         {:ok, request_receipts} <- receipts_for_request(conn, operation["request_id"]) do
-      if Enum.any?(request_receipts, &(&1.claim_id != claim.claim_id)) do
-        quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
-      else
-        settle_with_receipts(conn, operation, digest, claim, effect, prior_receipts)
+         {:ok, request_receipts} <- receipts_for_request(conn, operation["request_id"]),
+         {:ok, observation_receipts} <- receipts_for_id(conn, operation["receipt_id"]) do
+      cond do
+        observation_conflict?(observation_receipts, operation, digest, claim) ->
+          quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
+
+        Enum.any?(request_receipts, &(&1.claim_id != claim.claim_id)) ->
+          quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
+
+        true ->
+          settle_with_receipts(conn, operation, digest, claim, effect, prior_receipts)
       end
     else
       {:error, :not_found} ->
@@ -1129,6 +1189,16 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   end
 
   defp apply_operation(_conn, _operation), do: {:reject, :unsupported_operation, %{}}
+
+  defp observation_conflict?([], _operation, _digest, _claim), do: false
+
+  defp observation_conflict?(receipts, operation, digest, claim) do
+    not Enum.all?(receipts, fn receipt ->
+      receipt.receipt_id == operation["receipt_id"] and receipt.claim_id == claim.claim_id and
+        receipt.request_id == operation["request_id"] and
+        receipt.outcome == operation["outcome"] and receipt.receipt_digest == digest
+    end)
+  end
 
   defp subtree_ledgers(conn, ledger_id, generation) do
     sql =
@@ -1187,14 +1257,17 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp close_subtree(conn, ledgers) do
     with :ok <-
            Enum.reduce_while(ledgers, :ok, fn ledger, :ok ->
-             case revoke_unissued_generation(conn, ledger) do
+             case if(ledger.status == "open",
+                    do: revoke_unissued_generation(conn, ledger),
+                    else: :ok
+                  ) do
                :ok -> {:cont, :ok}
                error -> {:halt, error}
              end
            end) do
       Enum.reduce_while(ledgers, :ok, fn ledger, :ok ->
         with {:ok, current} <- load_existing_ledger(conn, ledger.ledger_id, ledger.generation),
-             true <- current.status == "open",
+             true <- current.status in ["open", "closed"],
              next <- %{
                current
                | revision: current.revision + 1,
@@ -1202,7 +1275,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
                  retired: current.retired + current.available,
                  available: 0
              },
-             :ok <- update_ledger(conn, current, next) do
+             :ok <-
+               if(current.status == "closed", do: :ok, else: update_ledger(conn, current, next)) do
           {:cont, :ok}
         else
           {:error, _reason} = error -> {:halt, error}
@@ -1524,7 +1598,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     with :ok <- update_claim(conn, claim, next_claim),
          :ok <- update_effect(conn, effect, next_effect),
          :ok <- retain_leases(conn, claim.claim_id) do
-      {:reject, :conflicting_receipt,
+      {:quarantine, :conflicting_receipt,
        %{
          "claim" => public_claim(next_claim),
          "effect" => public_effect(next_effect),
@@ -1776,7 +1850,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
                 "effect/" <> effect.effect_id,
                 "policy/" <> effect.policy_id,
                 "control/" <> effect.control_id
-              ] ++ Enum.map(effect.lease_specs, &("lease/" <> &1["lease_id"]))
+              ] ++
+                predecessor_read_keys(effect) ++
+                Enum.map(effect.lease_specs, &("lease/" <> &1["lease_id"]))
 
             _ ->
               []
@@ -1824,13 +1900,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
           "effect/" <> effect.effect_id,
           "policy/" <> effect.policy_id,
           "control/" <> effect.control_id
-          | Enum.map(effect.lease_specs, &("lease/" <> &1["lease_id"]))
-        ]
+        ] ++
+          predecessor_read_keys(effect) ++
+          Enum.map(effect.lease_specs, &("lease/" <> &1["lease_id"]))
 
       _ ->
         ["effect/" <> to_string(effect_id)]
     end
   end
+
+  defp predecessor_read_keys(%{predecessor_effect_id: id}) when is_binary(id),
+    do: ["effect/" <> id]
+
+  defp predecessor_read_keys(_effect), do: []
 
   defp current_revision(conn, "policy/" <> id),
     do: simple_revision(conn, "root_policies", "policy_id", id)
@@ -2533,12 +2615,49 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     with :ok <- control_active?(control),
          operations when is_list(operations) <- policy["allowed_operations"],
          scopes when is_list(scopes) <- policy["allowed_scopes"],
+         roles when is_list(roles) <- policy["allowed_roles"] || [operation["request"]["role"]],
+         profiles when is_list(profiles) <-
+           policy["allowed_profiles"] || [operation["request"]["profile"] || "unspecified"],
          true <- operation["operation"] in operations,
-         true <- operation["scope"] in scopes do
+         true <- operation["scope"] in scopes,
+         true <- operation["scope"] == "ticket:" <> operation["ticket_id"],
+         true <- operation["request"]["role"] in roles,
+         true <- Map.get(operation["request"], "profile", "unspecified") in profiles,
+         true <- deadline_allowed?(policy, operation["request"]["deadline"]) do
       :ok
     else
       {:error, _reason} = error -> error
       _ -> {:error, :effect_not_allowed}
+    end
+  end
+
+  defp deadline_allowed?(_policy, nil), do: true
+
+  defp deadline_allowed?(policy, deadline) do
+    is_integer(deadline) and deadline in Map.get(policy, "allowed_deadlines", [])
+  end
+
+  defp nonstart_allowance(conn, policy, operation) do
+    limit = Map.get(policy, "launch_non_start_limit", 0)
+
+    with true <- is_integer(limit) and limit >= 0,
+         {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT state FROM root_effects WHERE ticket_id = ? AND attempt_id = ? AND operation = ? AND status = 'non_started'",
+             [operation["ticket_id"], operation["attempt_id"], operation["operation"]]
+           ),
+         count <-
+           Enum.count(rows, fn [bytes] ->
+             case decode(bytes) do
+               {:ok, state} -> state["role"] == operation["request"]["role"]
+               _ -> true
+             end
+           end),
+         true <- count < limit or rows == [] do
+      :ok
+    else
+      _ -> {:error, :nonstart_allowance_exhausted}
     end
   end
 
@@ -2683,27 +2802,59 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp assignment_id(ticket_id, attempt_id, role),
     do: Enum.join([ticket_id, attempt_id, role], ":")
 
-  defp predecessor_guard(_conn, _operation, _generation, 0, nil), do: :ok
+  defp predecessor_guard(conn, operation, generation, ordinal, predecessor) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT effect_id, state FROM root_effects WHERE ticket_id = ? AND attempt_id = ? AND operation = ? ORDER BY effect_id",
+             [operation["ticket_id"], operation["attempt_id"], operation["operation"]]
+           ),
+         lineage <-
+           Enum.flat_map(rows, fn [id, bytes] ->
+             case decode(bytes) do
+               {:ok, state} ->
+                 if state["role"] == operation["request"]["role"], do: [{id, state}], else: []
 
-  defp predecessor_guard(conn, operation, generation, ordinal, predecessor)
-       when ordinal > 0 and is_binary(predecessor) do
-    with {:ok, prior} <- load_effect(conn, predecessor),
-         true <- prior.status in ~w(succeeded failed non_started cancelled),
-         true <- prior.ticket_id == operation["ticket_id"],
-         true <- prior.attempt_id == operation["attempt_id"],
-         true <- prior.role == operation["request"]["role"],
-         true <- prior.phase_generation == generation,
-         true <- prior.operation_ordinal == ordinal - 1 do
-      :ok
-    else
-      {:error, :not_found} -> {:error, :predecessor_not_terminal}
-      false -> {:error, :predecessor_identity_mismatch}
-      {:error, _reason} = error -> error
+               _ ->
+                 []
+             end
+           end) do
+      case lineage do
+        [] ->
+          if generation == 0 and ordinal == 0 and is_nil(predecessor),
+            do: :ok,
+            else: {:error, :predecessor_identity_mismatch}
+
+        values ->
+          {latest_id, latest} =
+            Enum.max_by(values, fn {_id, state} -> state["operation_ordinal"] end)
+
+          if predecessor == latest_id and generation == latest["phase_generation"] and
+               ordinal == latest["operation_ordinal"] + 1 and
+               latest["status"] in ~w(succeeded failed non_started cancelled) do
+            :ok
+          else
+            {:error, :predecessor_not_terminal}
+          end
+      end
     end
   end
 
-  defp predecessor_guard(_conn, _operation, _generation, _ordinal, _predecessor),
-    do: {:error, :predecessor_identity_mismatch}
+  defp predecessor_current?(_conn, %{operation_ordinal: 0, predecessor_effect_id: nil}),
+    do: :ok
+
+  defp predecessor_current?(conn, effect) do
+    with predecessor when is_binary(predecessor) <- effect.predecessor_effect_id,
+         {:ok, prior} <- load_effect(conn, predecessor),
+         true <- prior.status in ~w(succeeded failed non_started cancelled),
+         true <- prior.assignment_id == effect.assignment_id,
+         true <- prior.phase_generation == effect.phase_generation,
+         true <- prior.operation_ordinal + 1 == effect.operation_ordinal do
+      :ok
+    else
+      _ -> {:error, :predecessor_not_terminal}
+    end
+  end
 
   defp reservation_dimensions(operation, reservations) do
     role = operation["request"]["role"]
@@ -3070,6 +3221,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       conn,
       "SELECT receipt_id, claim_id, request_id, outcome, receipt_digest, state FROM root_receipts WHERE request_id = ? ORDER BY receipt_id",
       [request_id]
+    )
+  end
+
+  defp receipts_for_id(conn, receipt_id) do
+    receipt_rows(
+      conn,
+      "SELECT receipt_id, claim_id, request_id, outcome, receipt_digest, state FROM root_receipts WHERE receipt_id = ? ORDER BY receipt_id",
+      [receipt_id]
     )
   end
 
@@ -3677,6 +3836,109 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       :ok
     end
   end
+
+  defp validate_authority_command_provenance(conn) do
+    with :ok <- validate_ledger_result_provenance(conn),
+         :ok <- validate_effect_command_provenance(conn) do
+      :ok
+    end
+  end
+
+  defp validate_ledger_result_provenance(conn) do
+    with {:ok, command_rows} <-
+           Database.query(
+             conn,
+             "SELECT result FROM root_commands WHERE disposition = 'accepted' ORDER BY seq"
+           ),
+         {:ok, result_ledgers} <-
+           Enum.reduce_while(command_rows, {:ok, []}, fn [bytes], {:ok, acc} ->
+             case decode(bytes) do
+               {:ok, result} ->
+                 {:cont, {:ok, collect_schema_facts(result["facts"], "ledger_id") ++ acc}}
+
+               _ ->
+                 {:halt, {:error, :invalid_command_result}}
+             end
+           end),
+         {:ok, ledger_rows} <-
+           Database.query(
+             conn,
+             "SELECT ledger_id, generation, parent_ledger_id, parent_generation, dimension, revision, status, authorized, available, held, consumed, delegated, retired FROM root_ledgers"
+           ) do
+      Enum.reduce_while(ledger_rows, :ok, fn row, :ok ->
+        ledger = public_ledger(ledger_from_row(row))
+
+        origin? =
+          Enum.any?(result_ledgers, fn fact ->
+            fact["ledger_id"] == ledger["ledger_id"] and
+              fact["generation"] == ledger["generation"] and fact["revision"] == 0 and
+              fact["dimension"] == ledger["dimension"] and
+              fact["parent_ledger_id"] == ledger["parent_ledger_id"] and
+              fact["parent_generation"] == ledger["parent_generation"] and
+              ledger["authorized"] <= fact["authorized"]
+          end)
+
+        if origin?,
+          do: {:cont, :ok},
+          else: {:halt, {:error, {:protected_corrupt, "root_ledgers", :command_provenance}}}
+      end)
+    end
+  end
+
+  defp validate_effect_command_provenance(conn) do
+    with {:ok, command_rows} <-
+           Database.query(
+             conn,
+             "SELECT actor_id, canonical_request, disposition FROM root_commands WHERE operation = 'create_effect' ORDER BY seq"
+           ),
+         {:ok, effect_rows} <- Database.query(conn, "SELECT effect_id FROM root_effects") do
+      Enum.reduce_while(effect_rows, :ok, fn [id], :ok ->
+        with {:ok, effect} <- load_effect(conn, id),
+             [{actor, operation}] <-
+               Enum.flat_map(command_rows, fn [actor, bytes, disposition] ->
+                 with "accepted" <- disposition,
+                      {:ok, %{"request" => %{"operation" => operation}}} <- decode(bytes),
+                      ^id <- operation["effect_id"] do
+                   [{actor, operation}]
+                 else
+                   _ -> []
+                 end
+               end),
+             true <- actor == effect.issuer and effect.channel == "protected-gateway",
+             {:ok, digest} <-
+               Encoding.semantic_digest("pramana-foundry-effect-request-v1", %{
+                 "effect_id" => operation["effect_id"],
+                 "operation" => operation["operation"],
+                 "scope" => operation["scope"],
+                 "ticket_id" => operation["ticket_id"],
+                 "attempt_id" => operation["attempt_id"],
+                 "execution_id" => operation["execution_id"],
+                 "request" => operation["request"]
+               }),
+             true <- digest == effect.request_digest,
+             true <- effect.request_id == operation["request"]["request_id"],
+             true <- effect.role == operation["request"]["role"],
+             true <- effect.profile == Map.get(operation["request"], "profile", "unspecified"),
+             true <- effect.deadline == operation["request"]["deadline"] do
+          {:cont, :ok}
+        else
+          _ -> {:halt, {:error, {:protected_corrupt, "root_effects", id}}}
+        end
+      end)
+    end
+  end
+
+  defp collect_schema_facts(value, identity_key) when is_map(value) do
+    current =
+      if value["schema_version"] == 1 and is_binary(value[identity_key]), do: [value], else: []
+
+    current ++ Enum.flat_map(Map.values(value), &collect_schema_facts(&1, identity_key))
+  end
+
+  defp collect_schema_facts(value, identity_key) when is_list(value),
+    do: Enum.flat_map(value, &collect_schema_facts(&1, identity_key))
+
+  defp collect_schema_facts(_value, _identity_key), do: []
 
   defp validate_effect_authority_relations(conn) do
     with {:ok, rows} <-
