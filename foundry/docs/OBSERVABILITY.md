@@ -8,7 +8,7 @@ zero, success or reusable budget.
 
 **Current-state warning, 2026-09-20:** the repository has useful telemetry schemas,
 storage, exports, duration observations and VM/process metrics, but the live agent
-lifecycle is not yet a coherent end-to-end telemetry pipeline. FR-18 owns alignment of
+lifecycle is not yet a coherent end-to-end telemetry pipeline. FR-18B owns alignment of
 real producers, validators and consumers. Do not infer complete token/cost accounting
 from the presence of the `llm_phase` schema. Foundry is **not currently unified under
 OpenTelemetry**: `foundry/mix.exs` declares no OpenTelemetry packages and Foundry's own
@@ -96,7 +96,7 @@ These are current source findings, not hypothetical future requirements.
    initial-context attribution, tool-contract/skill context, orchestrator wakeups, idle
    polling, or operator steering/review/recovery effort.
 
-Until FR-18 closes these gaps, lifecycle tables and dashboards should describe intended
+Until FR-18B closes these gaps, lifecycle tables and dashboards should describe intended
 or partial observations, not claim complete measurement.
 
 ## OpenTelemetry and normalization direction
@@ -223,9 +223,14 @@ OTel exporters are therefore optional sinks. Foundry should still be able to opt
 locally/offline and should not lose its self-improvement history when an external
 observability backend samples or expires traces.
 
-### Staged convergence under FR-18
+### Staged convergence under FR-18B
 
-Do not perform a flag-day logging rewrite. Route the work through the owning FR-18
+All five steps belong to FR-18B, not FR-18A. FR-18A is the minimal honest observation
+surface — identities, source and quality, and explicit unknown, unavailable and corrupt
+outcomes — and it is deliberately silent about producers. The producer chain, numeric
+retention and any export are FR-18B's scope.
+
+Do not perform a flag-day logging rewrite. Route the work through the owning FR-18B
 requirements:
 
 1. **Freeze the canonical observation envelope and identity vocabulary.** Reconcile
@@ -491,7 +496,7 @@ pramana_foundry telemetry-export jsonl|csv INPUT OUTPUT
 | Per-process memory/mailbox/reductions | `SystemMetrics.per_process/0` | Detect memory leaks, stuck agents |
 | Agent child list with resources | `SystemMetrics.agent_servers/0` | Track agent count, detect orphaned panes |
 | VM memory breakdown | `SystemMetrics.system/0` | Diagnose OOM, ETS bloat, atom table growth |
-| Agent step timings | Intended lifecycle observation; current AgentServer emitter is schema-misaligned | Profile launch bottlenecks after FR-18 producer repair |
+| Agent step timings | Intended lifecycle observation; current AgentServer emitter is schema-misaligned | Profile launch bottlenecks after FR-18B producer repair |
 | Agent lifecycle timeline | Coordinator/events plus intended telemetry | Reconstruct lifespan only after correlating authoritative execution identity and aligned producers |
 | Token usage | Telemetry `llm_phase.metrics.*` schema only today | Requires selected-harness bridge and numeric-retention repair before end-to-end accounting |
 | Duration forecasts | `Telemetry.Forecast.estimate/3` | Predict completion times from historical observations |

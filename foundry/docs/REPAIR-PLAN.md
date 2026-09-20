@@ -1083,6 +1083,15 @@ compare like task classes over time. Acceptance tests cover failed/retried/corre
 as well as successful final runs and demonstrate that a cheaper token path cannot hide
 worse review, acceptance or operator-effort outcomes.
 
+**OpenTelemetry convergence:** [the observability route](OBSERVABILITY.md) stages this
+work and assigns every step here. Export is the **last** of five steps and is gated on the
+first four: freeze the canonical observation envelope and identity vocabulary, repair the
+producers, repair numeric retention, bridge the selected harness, and only then add pinned
+OpenTelemetry dependencies and export against a pinned semantic-convention version.
+Exporters are optional sinks and never a new source of truth. Exporting a telemetry model
+before its semantics are repaired only publishes the wrong model in a portable format, so
+no flag-day logging rewrite is acceptable.
+
 **Excludes:** Building a new dashboard framework.
 
 ### FR-19 — Bound storage and make offline maintenance safe
