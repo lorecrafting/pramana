@@ -17,7 +17,12 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
 
   alias PramanaFoundry.DurableStore.RecordCodec
 
-  @plan ~w(schema_version command_id disposition reason_code expected_domain_revision domain_reads protected_operations bindings alternatives)
+  @plan ~w(schema_version command_id disposition reason_code expected_domain_revision domain_reads protected_operations bindings alternatives discriminator_kind)
+
+  # Names the protected derivation that selects among a plan's alternatives. Closed, so
+  # a candidate cannot nominate arbitrary code to run inside the transaction; Gateway maps
+  # each name to one fixed protected function. A terminal plan carries nil.
+  @discriminator_kinds ~w(infrastructure_limit_v1)
   @operation ~w(schema_version ordinal type input)
   @binding ~w(name operation_ordinal output_kind destination_slot)
   @alternative ~w(discriminator proposal)
@@ -85,6 +90,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
          true <- plan["disposition"] in @dispositions,
          true <- is_nil(plan["reason_code"]) or identifier?(plan["reason_code"]),
          true <- nonnegative_integer?(plan["expected_domain_revision"]),
+         true <- valid_discriminator_kind?(plan),
          :ok <- validate_domain_reads(plan["domain_reads"]),
          :ok <- validate_operations(plan["protected_operations"]),
          :ok <- validate_bindings(plan["bindings"], plan["protected_operations"]),
@@ -242,7 +248,25 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @spec slot(String.t()) :: {:ok, {String.t(), String.t(), String.t()}} | :error
   def slot(name), do: Map.fetch(@slots, name)
 
+  @doc """
+  The closed set of protected derivations a plan may nominate.
+  """
+  @spec discriminator_kinds() :: [String.t()]
+  def discriminator_kinds, do: @discriminator_kinds
+
   # --- plan schema -----------------------------------------------------------------
+
+  # An accepted plan chooses among alternatives, so it must name its derivation. A
+  # terminal plan has nothing to choose and must not name one.
+  defp valid_discriminator_kind?(%{"disposition" => d, "discriminator_kind" => nil})
+       when d in @terminal_dispositions,
+       do: true
+
+  defp valid_discriminator_kind?(%{"disposition" => d}) when d in @terminal_dispositions,
+    do: false
+
+  defp valid_discriminator_kind?(%{"discriminator_kind" => kind}),
+    do: kind in @discriminator_kinds
 
   defp validate_domain_reads(reads) when is_list(reads) do
     if Enum.all?(reads, &domain_read?/1) and

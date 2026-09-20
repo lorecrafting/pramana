@@ -89,7 +89,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
         ],
         "alternatives" => [
           %{"discriminator" => "below_infrastructure_limit", "proposal" => settled_proposal()}
-        ]
+        ],
+        "discriminator_kind" => "infrastructure_limit_v1"
       },
       overrides
     )
@@ -225,15 +226,41 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
           "disposition" => "blocked",
           "reason_code" => "capacity_denied",
           "bindings" => [],
-          "alternatives" => []
+          "alternatives" => [],
+          "discriminator_kind" => nil
         })
 
       assert {:ok, _plan} = TransitionPlan.validate(terminal)
     end
 
     test "rejects a terminal plan that still carries alternatives" do
-      terminal = plan(%{"disposition" => "blocked", "reason_code" => "capacity_denied"})
+      # discriminator_kind is nil so this isolates the alternatives failure rather than
+      # tripping the earlier check that a terminal plan names no derivation.
+      terminal =
+        plan(%{
+          "disposition" => "blocked",
+          "reason_code" => "capacity_denied",
+          "discriminator_kind" => nil
+        })
+
       assert {:error, :invalid_terminal_plan} = TransitionPlan.validate(terminal)
+    end
+
+    test "rejects a terminal plan that still names a discriminator" do
+      terminal =
+        plan(%{
+          "disposition" => "blocked",
+          "reason_code" => "capacity_denied",
+          "bindings" => [],
+          "alternatives" => []
+        })
+
+      assert {:error, :invalid_transition_plan} = TransitionPlan.validate(terminal)
+    end
+
+    test "rejects an accepted plan naming an unknown derivation" do
+      assert {:error, :invalid_transition_plan} =
+               TransitionPlan.validate(plan(%{"discriminator_kind" => "arbitrary_code_v1"}))
     end
   end
 
@@ -260,7 +287,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
           "disposition" => "blocked",
           "reason_code" => "capacity_denied",
           "bindings" => [],
-          "alternatives" => []
+          "alternatives" => [],
+          "discriminator_kind" => nil
         })
 
       assert {:error, :invalid_bound_plan} =

@@ -1100,4 +1100,147 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
                ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", settlement)
     end
   end
+
+  describe "plan-bearing atomic bundles" do
+    defp plan_alternative(id, phase, with_marker?) do
+      event_id = "event-#{id}"
+
+      payload =
+        %{
+          "projection" => %{
+            "namespace" => "atomic-v2",
+            "entity_id" => id,
+            "revision" => 0,
+            "value" => %{"phase" => phase}
+          }
+        }
+        |> then(fn p ->
+          if with_marker?, do: Map.put(p, "settlement", %{"binding" => "settled"}), else: p
+        end)
+
+      %{
+        "schema_version" => 1,
+        "result" => %{"schema_version" => 1, "disposition" => "accepted"},
+        "events" => [
+          %{
+            "schema_version" => 1,
+            "event_id" => event_id,
+            "type" => "launch_settled",
+            "payload" => payload
+          }
+        ],
+        "projections" => [
+          %{
+            "schema_version" => 1,
+            "namespace" => "atomic-v2",
+            "entity_id" => id,
+            "expected_revision" => -1,
+            "revision" => 0,
+            "last_event_id" => event_id,
+            "value" => %{"phase" => phase}
+          }
+        ],
+        "intents" => []
+      }
+    end
+
+    defp nonstart_plan_bundle(id) do
+      nonstart_bundle(id)
+      |> Map.delete("proposal")
+      |> Map.put("plan", %{
+        "schema_version" => 1,
+        "command_id" => id,
+        "disposition" => "accepted",
+        "reason_code" => nil,
+        "expected_domain_revision" => 0,
+        "domain_reads" => [],
+        "protected_operations" => [
+          %{"schema_version" => 1, "ordinal" => 0, "type" => "settle_claim", "input" => %{}}
+        ],
+        "bindings" => [
+          %{
+            "name" => "settled",
+            "operation_ordinal" => 0,
+            "output_kind" => "nonstart_settlement_v1",
+            "destination_slot" => "launch_settled.settlement"
+          }
+        ],
+        "discriminator_kind" => "infrastructure_limit_v1",
+        "alternatives" => [
+          %{
+            "discriminator" => "below_infrastructure_limit",
+            "proposal" => plan_alternative(id, "queued", true)
+          },
+          %{
+            "discriminator" => "infrastructure_limit_reached",
+            "proposal" => plan_alternative(id, "blocked", false)
+          }
+        ]
+      })
+    end
+
+    test "a plan binds its authoritative settlement and commits", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, %{"disposition" => "accepted"}, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN1")
+               )
+
+      # The settlement the protected layer assigned inside this transaction reached the
+      # committed domain event. Nothing predicted or copied it.
+      assert {:ok, settlement} = fact(ctx, "infrastructure_settlement", "effect_id", "effect-1")
+      assert settlement["ordinal"] == 1
+
+      assert {:ok, events} = Gateway.recent_events(ctx.gateway, 20)
+      assert Enum.any?(events, &(&1.event_type == "launch_settled"))
+    end
+
+    test "the protected discriminator selects the alternative, not the caller", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, %{"disposition" => "accepted"}, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLAN2")
+               )
+
+      # Ordinal 1 is below the seeded developer limit of 3, so the protected derivation
+      # must have chosen the below-limit alternative and queued rather than blocked.
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(
+                 raw,
+                 "SELECT projection FROM projections WHERE namespace = ? AND entity_id = ?",
+                 ["atomic-v2", "PLAN2"]
+               )
+
+      assert :ok = Sqlite3.close(raw)
+      assert %{"value" => %{"phase" => "queued"}} = bytes |> :json.decode() |> normalize_json()
+    end
+
+    test "an envelope carrying both a plan and a proposal is refused", ctx do
+      seed_issued_launch!(ctx)
+
+      both = Map.put(nonstart_plan_bundle("PLAN3"), "proposal", %{})
+
+      assert {:error, :invalid_atomic_bundle} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", both)
+    end
+
+    test "an envelope carrying neither is refused", ctx do
+      seed_issued_launch!(ctx)
+
+      neither = Map.delete(nonstart_plan_bundle("PLAN4"), "plan")
+
+      assert {:error, :invalid_atomic_bundle} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", neither)
+    end
+  end
 end

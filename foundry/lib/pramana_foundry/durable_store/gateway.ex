@@ -20,7 +20,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     PathIdentity,
     ProtectedPrimitives,
     ProtectedVerifier,
-    RecordCodec
+    RecordCodec,
+    TransitionPlan
   }
 
   def initialize(path, opts \\ []) do
@@ -588,14 +589,12 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp normalize_atomic_envelope(actor_id, envelope) do
     with :ok <- validate_actor(actor_id),
          {:ok, normalized_input} <- canonical_value(envelope),
-         true <-
-           Map.keys(normalized_input) |> Enum.sort() ==
-             ~w(actor_id command inputs operations proposal schema_version),
+         {:ok, carrier} <- atomic_carrier(normalized_input),
          2 <- normalized_input["schema_version"],
          ^actor_id <- normalized_input["actor_id"],
          true <- plain_map?(normalized_input["inputs"]),
          {:ok, command} <- RecordCodec.normalize(:command, normalized_input["command"]),
-         {:ok, proposal} <- normalize_candidate(normalized_input["proposal"]),
+         {:ok, carried} <- normalize_atomic_carrier(carrier, normalized_input[carrier]),
          {:ok, operations} <- normalize_atomic_operations(normalized_input["operations"]),
          normalized <- %{
            "schema_version" => 2,
@@ -603,7 +602,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
            "inputs" => normalized_input["inputs"],
            "command" => command,
            "operations" => operations,
-           "proposal" => proposal
+           carrier => carried
          },
          {:ok, canonical} <- Encoding.canonical(normalized),
          {:ok, digest} <-
@@ -971,10 +970,11 @@ defmodule PramanaFoundry.DurableStore.Gateway do
        ) do
     actor_id = envelope["actor_id"]
     command = envelope["command"]
-    proposal = envelope["proposal"]
     {domain_canonical, domain_digest} = prepare_command!(actor_id, command)
 
-    with :ok <- check_expected_revisions(conn, command, proposal, %{}),
+    with {:ok, proposal, _discriminator} <-
+           atomic_domain_proposal(conn, envelope, operation_results),
+         :ok <- check_expected_revisions(conn, command, proposal, %{}),
          {:ok, {:accepted, domain_result}} <-
            commit_accepted_bundle(
              conn,
@@ -1259,6 +1259,68 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp normalize_json(value), do: value
 
   defp plain_map?(value), do: is_map(value) and not is_struct(value)
+
+  # A v2 envelope carries either a precomputed proposal or an unresolved transition plan,
+  # never both and never neither. The digest is computed over whichever it carries, so a
+  # plan-bearing command digests over its *unresolved* plan: the same command must digest
+  # identically regardless of which alternative the protected discriminator later selects,
+  # or an idempotent retry after a lost reply could not find its original result.
+  # A proposal-bearing envelope commits what it carried. A plan-bearing one is resolved
+  # here: the protected layer derives the discriminator from facts staged inside this same
+  # transaction, and the codec mechanically selects and substitutes. Gateway never
+  # executes candidate code to decide what commits, and never accepts a caller's copy of
+  # an authoritative fact — bind/3 takes the staged results, not a supplied map.
+  defp atomic_domain_proposal(_conn, %{"proposal" => proposal}, _results),
+    do: {:ok, proposal, nil}
+
+  defp atomic_domain_proposal(conn, %{"plan" => plan}, results) do
+    with {:ok, discriminator} <- protected_discriminator(conn, plan, results),
+         {:ok, proposal} <- TransitionPlan.bind(plan, discriminator, results) do
+      {:ok, proposal, discriminator}
+    end
+  end
+
+  # The kind is a closed vocabulary validated by TransitionPlan, so this maps a name to
+  # one fixed protected function rather than dispatching on caller-supplied text.
+  defp protected_discriminator(
+         conn,
+         %{"discriminator_kind" => "infrastructure_limit_v1"},
+         results
+       ) do
+    with {:ok, settlement} <- staged_settlement_fact(results) do
+      ProtectedPrimitives.infrastructure_discriminator(
+        conn,
+        settlement["effect_id"],
+        settlement
+      )
+    end
+  end
+
+  defp protected_discriminator(_conn, _plan, _results),
+    do: {:error, :unsupported_discriminator_kind}
+
+  defp staged_settlement_fact(results) do
+    settlements =
+      Enum.flat_map(results, fn result ->
+        List.wrap(get_in(result, ["result", "facts", "infrastructure_settlement"]))
+      end)
+
+    case settlements do
+      [settlement] -> {:ok, settlement}
+      _ -> {:error, :discriminator_settlement_unavailable}
+    end
+  end
+
+  defp atomic_carrier(input) do
+    case Enum.sort(Map.keys(input)) do
+      ~w(actor_id command inputs operations proposal schema_version) -> {:ok, "proposal"}
+      ~w(actor_id command inputs operations plan schema_version) -> {:ok, "plan"}
+      _ -> {:error, :invalid_atomic_bundle}
+    end
+  end
+
+  defp normalize_atomic_carrier("proposal", value), do: normalize_candidate(value)
+  defp normalize_atomic_carrier("plan", value), do: TransitionPlan.validate(value)
 
   defp normalize_candidate(proposal) do
     case Kernel.normalize_bundle(proposal) do
