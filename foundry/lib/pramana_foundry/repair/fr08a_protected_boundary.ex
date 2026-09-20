@@ -13,8 +13,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   alias PramanaFoundry.DurableStore.{Gateway, LegacyImport}
   alias PramanaFoundry.Repair.FR08HandoffGate
 
-  @subject_revision "44a56be3b4854b7cd392215beef6e01f4f30097a"
-  @subject_tree "08aeb550ae5bf6b4c178ac8b933bcfc7e7d956df"
+  @subject_revision "066e29e1b50535759730b64583876b466629195b"
+  @subject_tree "ca0339489e051f3c8ae6e0315bdd0139771b21de"
   @api_identity [
     {PramanaFoundry.DurableStore.Authority, "lib/pramana_foundry/durable_store/authority.ex",
      "d0b94ba108f8a1be0b3c17db4478bcbe25783991ceb17bc5ca3bb8edd886d99c",
@@ -27,8 +27,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
      "291a5f116748dc0c31f59d4735d46b97"},
     {PramanaFoundry.DurableStore.ProtectedPrimitives,
      "lib/pramana_foundry/durable_store/protected_primitives.ex",
-     "f08d975d1ce5f7d12352d2de0b5d20ef9cf261c0afe78666f350f64426e88bf7",
-     "6ba705f41c1d9f1c3fb08b7f1ef9968b"},
+     "9e5dc8e8d3e132008871c546e145ad67d77ae2ee144dd28fac5ab553651eeab0",
+     "186122c68a2a4ad8268aea7e79aa6eec"},
     {PramanaFoundry.DurableStore.Kernel, "lib/pramana_foundry/durable_store/kernel.ex",
      "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac",
      "e43949e9a2658ebbd12afabdf2f30086"},
