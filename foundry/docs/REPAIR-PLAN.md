@@ -105,6 +105,49 @@ dependency completion evidence, and current source—not the entire audit conver
 Read more when an interface crosses the assigned scope. Switching models alone is
 not a reason to discard useful context.
 
+### Two-level delivery strategy
+
+The repair has two explicit finish lines. They are milestones over this authoritative
+ticket graph, not a second backlog, and they do not change any dependency, finding owner,
+ticket acceptance paragraph or F01–F24 obligation.
+
+1. **Supervised dogfood alpha.** Foundry can accept real tickets, durably track and replay
+   them, produce bounded work packets, accept independently reviewed results, and recover
+   after restart. Execution remains supervised/manual until the autonomous provider and
+   isolation path has its own required evidence. This milestone permits using Foundry to
+   harden Foundry; it is not deployment, autonomous-execution approval, ticket completion
+   by implication, or FR-22 lifecycle acceptance.
+2. **Full repaired system.** Complete the remaining isolation, automatic execution,
+   conserved budgets, Git integration, immutable activation/rollback, maintenance,
+   constrained improvement and FR-22 whole-lifecycle acceptance. Only this second finish
+   line can close the repair backlog.
+
+Use coherent batches to reach those milestones without creating one unreviewable
+FR-08–FR-22 change:
+
+- **Batch A:** current FR-04 correction, H0 and FR-19A may proceed concurrently under
+  disjoint ownership; freeze and review each candidate separately.
+- **Batch B:** FR-08A plus the minimal FR-18A slice enabled by its settled protected
+  interfaces; freeze one critical batch candidate with a per-ticket acceptance matrix.
+- **Batch C:** FR-08B, FR-10, FR-11 and FR-12 as one lifecycle branch with attributable
+  subcommits and every parent obligation retained; freeze and review the batch as a unit.
+- **Batch D:** establish the supervised dogfood lane using manual work packets and durable
+  review receipts. It must not silently enable an unproved autonomous provider path.
+- **Batch E:** complete isolation/harness conformance, artifact and Git custody, activation,
+  and final lifecycle work in the dependency inventory's order.
+
+During a batch, run focused checks for each attributable subcommit, the full relevant
+suite at candidate freeze and again after integration, reusable reviewer-owned failure
+probes, and one manifest/evidence packet for the frozen batch. Batch review reduces
+duplicated context; it never converts missing per-ticket evidence into a pass.
+
+Use Astra-high at the critical FR-08A authority gate, FR-09 + FR-15aB execution/isolation
+gate, FR-13 + FR-14 artifact/Git-custody gate, and FR-17/FR-22 activation/final-lifecycle
+gate. Use Astra-medium only for narrow corrections at those gates, Sol-high for routine
+independent review, and Sol-medium for implementation. Re-escalate when a correction
+crosses invariant families or exposes an abstraction contradiction; reserve Astra-xhigh
+for an explicitly chosen new whole-system audit.
+
 Suggested fresh-session instruction:
 
 > Implement FR-01 from foundry/docs/REPAIR-PLAN.md. Read project instructions and

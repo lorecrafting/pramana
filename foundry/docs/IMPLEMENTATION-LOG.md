@@ -1307,3 +1307,24 @@ steps.
   certify current ProcessGroup cleanup, authorize provider/host work, or establish
   deployment/activation readiness. No source, runtime, policy or credential changed in
   this evidence-only follow-up.
+
+## Durable execution acceleration strategy — 2026-09-19
+
+- The operator accepted two explicit finish lines. The first is a supervised dogfood alpha:
+  real ticket intake, durable tracking/replay, bounded work packets, durable independent
+  review receipts and restart recovery, with execution still supervised/manual. The second
+  is the full repaired system, ending only with the remaining isolation, automatic
+  execution, conserved budgets, Git custody, immutable activation/rollback, maintenance,
+  constrained improvement and FR-22 lifecycle acceptance.
+- `REPAIR-PLAN.md` remains the sole backlog. The milestone overlay changes no ticket
+  status, dependency, finding route or acceptance obligation and gives no authority to
+  enable an unproved provider path.
+- Work is grouped into coherent Batches A–E: current FR-04/H0/FR-19A; FR-08A + minimal
+  FR-18A; FR-08B/10/11/12; supervised dogfood; then isolation/harness, artifact/Git,
+  activation and final lifecycle. Per-ticket subcommits and acceptance matrices remain
+  attributable even when a batch receives one frozen-candidate review.
+- The durable review economy is Sol-medium implementation, Sol-high routine review,
+  Astra-high at the four critical authority/isolation/Git/activation lifecycle gates,
+  Astra-medium for narrow corrections, and Astra-xhigh only for a newly demonstrated
+  whole-system contradiction. Tests run focused per subcommit, full at freeze and after
+  integration, with reusable hostile probes and one evidence manifest per batch.

@@ -332,6 +332,15 @@ changes or repeated failures expose an abstraction defect. FR-22 receives Astra-
 xhigh is only an explicit choice for a concrete cross-cutting audit. Historical review
 model labels remain unchanged.
 
+Execution now has two durable finish lines. A supervised dogfood alpha may begin once
+Foundry can accept real tickets, durably track/replay them, produce bounded work packets,
+record independently reviewed results and recover after restart; it keeps execution
+manual/supervised and does not claim autonomous-provider or FR-22 acceptance. The full
+finish line remains every routed obligation through isolation, budgets, Git custody,
+immutable activation/rollback, maintenance, improvement and FR-22 lifecycle acceptance.
+The batching and critical-review gates are defined in `foundry/docs/REPAIR-PLAN.md`; they
+reduce duplicated work but alter no ticket dependency, status or acceptance requirement.
+
 Use the audit's per-stage acceptance evidence, not the existing component-suite pass
 count, to decide completion. Documentation and tests accompany each repair. No paid
 fallback, weakening of mandatory acceptance gates, or increase in Foundry's authority
