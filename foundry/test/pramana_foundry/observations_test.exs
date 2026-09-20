@@ -1185,4 +1185,77 @@ defmodule PramanaFoundry.ObservationsTest do
     File.mkdir_p!(root)
     root
   end
+
+  # The bounded protected execution summary enumerates four statuses. "result" and
+  # "absent" were already covered against a real store; "open", "exit" and
+  # "sealed_without_result_or_exit" were not, and sealed_without_result_or_exit did not
+  # appear anywhere in test/. These close that recorded FR-18A gap.
+
+  defp append_first!(gateway, capability, item_kind) do
+    accept!(gateway, capability, "append-#{item_kind}", %{"inbox/execution-1" => "absent"}, %{
+      "type" => "append_inbox",
+      "execution_id" => "execution-1",
+      "sequence" => 1,
+      "item_kind" => item_kind,
+      "payload" => %{"note" => item_kind}
+    })
+  end
+
+  defp seal_first!(gateway, capability) do
+    accept!(gateway, capability, "seal-first", %{"inbox/execution-1" => 0}, %{
+      "type" => "seal_inbox",
+      "execution_id" => "execution-1",
+      "last_sequence" => 1
+    })
+  end
+
+  defp execution_summary(gateway, capability) do
+    assert %{status: :ok, items: [item]} =
+             Observations.query(
+               %Query{include_pointers: false, effect_ids: ["effect-1"]},
+               gateway,
+               capability
+             )
+
+    item.fact["execution"]
+  end
+
+  test "an unsealed inbox reports an open execution" do
+    {root, gateway, capability} = live_effect("execution-open", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    append_first!(gateway, capability, "result")
+    summary = execution_summary(gateway, capability)
+
+    assert summary["status"] == "open"
+    assert summary["sealed_sequence"] == nil
+    assert summary["last_sequence"] == 1
+    refute Map.has_key?(summary, "sequence")
+  end
+
+  test "a sealed inbox whose accepted item is an exit reports that exit" do
+    {root, gateway, capability} = live_effect("execution-exit", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    append_first!(gateway, capability, "exit")
+    seal_first!(gateway, capability)
+    summary = execution_summary(gateway, capability)
+
+    assert summary["status"] == "exit"
+    assert summary["sequence"] == 1
+    assert summary["sealed_sequence"] == 1
+  end
+
+  test "a sealed inbox carrying neither a result nor an exit says so explicitly" do
+    {root, gateway, capability} = live_effect("execution-neither", "ticket-1")
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    append_first!(gateway, capability, "observation")
+    seal_first!(gateway, capability)
+    summary = execution_summary(gateway, capability)
+
+    assert summary["status"] == "sealed_without_result_or_exit"
+    assert summary["sealed_sequence"] == 1
+    refute Map.has_key?(summary, "sequence")
+  end
 end
