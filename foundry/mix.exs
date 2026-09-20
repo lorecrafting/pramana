@@ -10,6 +10,7 @@ defmodule PramanaFoundry.MixProject do
       escript: [main_module: PramanaFoundry.CLI],
       releases: [pramana_foundry: [include_executables_for: [:unix], vm_args: "rel/vm.args"]],
       deps: [
+        {:exqlite, "== 0.40.0"},
         {:owl, "~> 0.12"}
       ]
     ]
