@@ -254,9 +254,6 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @spec slot(String.t()) :: {:ok, {String.t(), String.t(), String.t()}} | :error
   def slot(name), do: Map.fetch(@slots, name)
 
-  @doc """
-  The closed set of protected derivations a plan may nominate.
-  """
   @doc "The producing protected operation for each derivable output kind."
   @spec producer_operations() :: [{String.t(), String.t()}]
   def producer_operations, do: Enum.map(@producers, fn {kind, {type, _fact}} -> {kind, type} end)
@@ -265,6 +262,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @spec operation_types() :: [String.t()]
   def operation_types, do: @operation_types
 
+  @doc "The closed set of protected derivations a plan may nominate."
   @spec discriminator_kinds() :: [String.t()]
   def discriminator_kinds, do: @discriminator_kinds
 
