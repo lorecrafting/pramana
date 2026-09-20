@@ -7,30 +7,20 @@ defmodule PramanaFoundry.CI.FR19ARawSyncEIO do
 
   def main([path, host_script, state_dir, artifact_dir]) do
     {:ok, file} = :file.open(String.to_charlist(path), [:read, :write, :binary, :raw])
-    {:ok, dirty_file} = :file.open(String.to_charlist(path), [:read, :write, :binary, :raw])
 
     try do
       block = :binary.copy("R", 4096)
       :ok = :file.write(file, block)
       :ok = :file.sync(file)
       {:ok, ^block} = :file.pread(file, 0, byte_size(block))
-      {:ok, ^block} = :file.pread(dirty_file, 0, byte_size(block))
+      {:ok, dirty_holder} = Orchestration.start_pwrite_holder(path, byte_size(block))
+      Process.put(:fr19a_dirty_holder, dirty_holder)
 
       :ok = host!(host_script, "suspend", state_dir, artifact_dir)
-      parent = self()
-      token = make_ref()
-
-      dirty_worker =
-        spawn(fn ->
-          send(parent, {:fr19a_pwrite_entered, token, self()})
-          result = :file.pwrite(dirty_file, 0, block)
-          send(parent, {:fr19a_pwrite_finished, token, self(), result})
-        end)
-
-      Process.put(:fr19a_dirty_worker, dirty_worker)
+      :ok = Orchestration.start_pwrite(dirty_holder)
 
       dirty_result =
-        Orchestration.resume_before_await(dirty_worker, token, fn ->
+        Orchestration.resume_before_await(dirty_holder.pid, dirty_holder.token, fn ->
           host!(host_script, "error-resume", state_dir, artifact_dir)
         end)
 
@@ -50,10 +40,14 @@ defmodule PramanaFoundry.CI.FR19ARawSyncEIO do
           2
       end
     after
-      _ = host!(host_script, "restore", state_dir, artifact_dir)
-      stop_dirty_worker()
-      _ = :file.close(dirty_file)
+      restore_result = safe_restore(host_script, state_dir, artifact_dir)
+      stop_dirty_holder()
       _ = :file.close(file)
+
+      case restore_result do
+        :ok -> :ok
+        {:error, error, stacktrace} -> reraise error, stacktrace
+      end
     end
   end
 
@@ -63,29 +57,17 @@ defmodule PramanaFoundry.CI.FR19ARawSyncEIO do
   defp format_result({:error, reason}), do: "error:#{inspect(reason)}"
   defp format_result(other), do: inspect(other)
 
-  defp stop_dirty_worker do
-    case Process.delete(:fr19a_dirty_worker) do
-      pid when is_pid(pid) ->
-        monitor = Process.monitor(pid)
-
-        unless receive_down(monitor, pid, 1_000) do
-          Process.exit(pid, :kill)
-          _ = receive_down(monitor, pid, 2_000)
-        end
-
-        Process.demonitor(monitor, [:flush])
-
-      _other ->
-        :ok
+  defp stop_dirty_holder do
+    case Process.delete(:fr19a_dirty_holder) do
+      %{pid: _pid, token: _token} = holder -> Orchestration.stop_pwrite_holder(holder)
+      _other -> :ok
     end
   end
 
-  defp receive_down(monitor, pid, timeout) do
-    receive do
-      {:DOWN, ^monitor, :process, ^pid, _reason} -> true
-    after
-      timeout -> false
-    end
+  defp safe_restore(host_script, state_dir, artifact_dir) do
+    host!(host_script, "restore", state_dir, artifact_dir)
+  rescue
+    error -> {:error, error, __STACKTRACE__}
   end
 
   defp host!(script, mode, state, artifacts) do

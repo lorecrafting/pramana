@@ -65,6 +65,10 @@ mapper_exists() {
   as_root dmsetup info "$map_name" >/dev/null 2>&1
 }
 
+mapper_suspended() {
+  as_root dmsetup info "$map_name" | grep -Eq '^State:[[:space:]]+SUSPENDED'
+}
+
 record_mapper() {
   local phase=$1
   {
@@ -86,7 +90,9 @@ restore_linear() {
   mapper_exists || return 0
   loop_matches || { record "refusing restore: loop identity mismatch"; return 1; }
 
-  as_root dmsetup suspend "$map_name" >/dev/null 2>&1 || true
+  if ! mapper_suspended; then
+    as_root dmsetup suspend --noflush --nolockfs "$map_name"
+  fi
   printf '%s\n' "$linear_table" | as_root dmsetup load "$map_name"
   as_root dmsetup resume "$map_name"
   record "restored exact linear table: $linear_table"
@@ -343,7 +349,11 @@ case "$mode" in
     loop_matches || { record "refusing error load: loop identity mismatch"; exit 1; }
     mapper_exists || { record "refusing error load: mapper missing"; exit 1; }
     printf '%s\n' "$error_table" | as_root dmsetup load "$map_name"
-    as_root dmsetup resume "$map_name"
+    if ! as_root dmsetup resume "$map_name"; then
+      record "error-table resume failed; restoring exact linear table"
+      restore_linear
+      exit 1
+    fi
     [[ $(as_root dmsetup table "$map_name") == "$error_table" ]]
     record "loaded exact error table: $error_table"
     record_mapper error

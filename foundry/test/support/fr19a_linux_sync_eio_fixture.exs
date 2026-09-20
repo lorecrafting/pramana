@@ -140,64 +140,28 @@ run_host = fn mode ->
   end
 end
 
-holder = fn controller ->
-  {:ok, file} = :file.open(String.to_charlist(destination), [:read, :write, :binary, :raw])
-  {:ok, bytes} = :file.pread(file, 0, 4096)
-  send(controller, {:holder_ready, self()})
-
-  receive do
-    {:dirty, reply_to, token} ->
-      send(reply_to, {:fr19a_pwrite_entered, token, self()})
-      result = :file.pwrite(file, 0, bytes)
-      send(reply_to, {:fr19a_pwrite_finished, token, self(), result})
-  end
-
-  receive do
-    {:close, reply_to} ->
-      result = :file.close(file)
-      send(reply_to, {:holder_closed, self(), result})
-  end
-end
-
-stop_holder = fn worker ->
-  monitor = Process.monitor(worker)
-  send(worker, {:close, self()})
-
-  closed =
-    receive do
-      {:holder_closed, ^worker, result} -> result
-      {:DOWN, ^monitor, :process, ^worker, _reason} -> :already_down
-    after
-      3_000 -> :timeout
-    end
-
-  if closed == :timeout do
-    Process.exit(worker, :kill)
-  end
-
-  unless closed == :already_down do
-    receive do
-      {:DOWN, ^monitor, :process, ^worker, _reason} -> :ok
-    after
-      2_000 -> Process.exit(worker, :kill)
-    end
-  end
-
-  Process.demonitor(monitor, [:flush])
-
-  case closed do
-    :ok -> :ok
-    :already_down -> :ok
-    :timeout -> :ok
-    other -> raise "dirty holder close failed: #{inspect(other)}"
-  end
-end
-
 assert_complete = fn content ->
   for table <- ~w(commands events projections effects claims ledger_generations reservations) do
     unless content[table].count == 1 do
       raise "incomplete #{table}: #{inspect(content[table])}"
     end
+  end
+end
+
+restore_and_stop = fn dirty_holder ->
+  restore_result =
+    try do
+      run_host.("restore")
+    rescue
+      error -> {:error, error, __STACKTRACE__}
+    end
+
+  stop_result = Orchestration.stop_pwrite_holder(dirty_holder)
+
+  case {restore_result, stop_result} do
+    {:ok, :ok} -> :ok
+    {{:error, error, stacktrace}, _stop} -> reraise error, stacktrace
+    {:ok, {:error, reason}} -> raise "dirty holder cleanup failed: #{inspect(reason)}"
   end
 end
 
@@ -220,22 +184,14 @@ baseline_digest = file_digest.(baseline_path)
 :ok = GenServer.stop(seed)
 
 fault = fn _gateway_file ->
-  controller = self()
-  dirty_holder = spawn(fn -> holder.(controller) end)
+  {:ok, dirty_holder} = Orchestration.start_pwrite_holder(destination)
   send(parent, {:dirty_holder, dirty_holder})
-
-  receive do
-    {:holder_ready, ^dirty_holder} -> :ok
-  after
-    10_000 -> raise "dirty holder did not open and pre-read the target"
-  end
 
   try do
     run_host.("suspend")
-    token = make_ref()
-    send(dirty_holder, {:dirty, controller, token})
+    :ok = Orchestration.start_pwrite(dirty_holder)
 
-    case Orchestration.resume_before_await(dirty_holder, token, fn ->
+    case Orchestration.resume_before_await(dirty_holder.pid, dirty_holder.token, fn ->
            run_host.("error-resume")
          end) do
       {:ok, :ok} ->
@@ -254,8 +210,7 @@ fault = fn _gateway_file ->
     end
   rescue
     error ->
-      _ = run_host.("restore")
-      _ = stop_holder.(dirty_holder)
+      _ = restore_and_stop.(dirty_holder)
       reraise error, __STACKTRACE__
   end
 end
@@ -271,13 +226,12 @@ backup_result = Gateway.backup(gateway, destination)
 
 dirty_holder =
   receive do
-    {:dirty_holder, pid} -> pid
+    {:dirty_holder, holder} -> holder
   after
     10_000 -> raise "maintenance hook did not return the dirty holder"
   end
 
-:ok = run_host.("restore")
-:ok = stop_holder.(dirty_holder)
+:ok = restore_and_stop.(dirty_holder)
 
 case backup_result do
   {:error, {:storage_unavailable, {:backup_failed, :eio}}} ->
