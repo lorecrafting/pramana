@@ -306,15 +306,7 @@ defmodule PramanaFoundry.Repair.H0AcceptedFR07Boundary do
   end
 
   defp legacy_fixture do
-    unknown = %{
-      "schema_version" => 99,
-      "event" => "unsupported_h0_event",
-      "at" => "2026-09-19T00:00:00Z",
-      "attributes" => %{},
-      "evidence" => %{}
-    }
-
-    IO.iodata_to_binary([:json.encode(unknown), "\n", "{malformed}\n"])
+    ~s({"schema_version":99,"event":"unsupported_h0_event","at":"2026-09-19T00:00:00Z","attributes":{},"evidence":{}}\n{malformed}\n)
   end
 
   defp receipt(label, value) do
