@@ -1404,3 +1404,40 @@ steps.
   tests with 13 intentional FR-19B skips and one optional tokenizer exclusion. No candidate
   source was changed by review. Next action is the smallest B1/B2 correction plus physical
   acceptance disposition, a newly frozen candidate and renewed independent review.
+
+## Safe coordination pause — 2026-09-19
+
+- Coordinator baseline remains pushed `main`/`origin/main`
+  `fa636fb592eacf4ebd31b72fa377b0a86a6d3e3e`; the unrelated untracked root
+  `apps/` tree remains untouched. No candidate below is integrated or accepted.
+- FR-19A correction worktree `/private/tmp/pramana-fr19a-correction`, branch
+  `repair/fr19a-correction`, is clean at checkpoint
+  `9bd19022a096409081b531a1911fb201d8089ac5`, tree
+  `b4730b90349ce591538670d576acb9fab295734a`. This source-only checkpoint moves
+  the capacity probe to an internally bounded monitored worker so the gateway can
+  remain responsive, and classifies post-preflight backup failures for fencing.
+  Formatting, warnings-as-errors compilation of 107 files and `git diff --check`
+  passed. It is **not** a frozen candidate: default-deadline responsiveness and
+  in-operation failure regressions, complete retained-authority checks, physical
+  filesystem ENOSPC/kernel-sync evidence, candidate documentation and full CI remain.
+- FR-08A worktree `/private/tmp/pramana-fr08a`, branch
+  `repair/fr08a-protected-primitives`, is clean and unchanged at
+  `fa636fb592eacf4ebd31b72fa377b0a86a6d3e3e`. Inspection confirmed the three H0
+  unavailable areas and the additive implementation boundary: a versioned protected
+  semantic API and migration through the existing Gateway, preserving the no-direct-SQL
+  and single-store contract. Resume with migration/API plus focused read-set and
+  idempotency tests before claim/receipt/lease/R5 lifecycle work.
+- Checkpoint F worktree `/private/tmp/pramana-checkpoint-f`, branch
+  `repair/checkpoint-f-feasibility`, is clean at partial evidence commit
+  `5604afc4540e1bbab34bfbeec327f64ac0f6d8fc`, tree
+  `5ac34ecb7375087916a6accaf8a6a4ecf04cbdea`. Its report records pinned local Pi,
+  OMP and Herdr versions/digests and an honest blocked installed-Pi disposition.
+  Documentation checks passed 80/80. No provider, RPC session, live daemon,
+  installation, configuration contents or credential contents were used. The partial
+  checkpoint still needs isolated synthetic Pi roots/endpoints, lifecycle/denial probes
+  and a model-free useful build/test path before independent review or disposition.
+- On resume, continue FR-19A regression/evidence work and FR-08A implementation in
+  their existing isolated branches. Neither may be reviewed until newly frozen with
+  exact acceptance evidence. Continue checkpoint F only inside its stated synthetic,
+  provider-free boundary. Use Astra-medium for a genuinely narrow FR-19A critical
+  rereview and Astra-high for FR-08A's first critical review.
