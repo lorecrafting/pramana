@@ -85,6 +85,18 @@ A successful query returns:
     %{"kind" => "reservation", ...},
     %{"kind" => "lease", ...}
   ],
+  "infrastructure_settlement" => nil | %{
+    "schema_version" => 1,
+    "effect_id" => effect_id,
+    "claim_id" => claim_id,
+    "receipt_id" => receipt_id,
+    "role" => role,
+    "work_owner" => work_owner,
+    "infrastructure_generation" => generation,
+    "predecessor_effect_id" => predecessor_effect_id,
+    "failure_class" => failure_class,
+    "ordinal" => positive_ordinal
+  },
   "settlement" => %{
     "status" => authoritative_effect_status,
     "receipt_history" => "complete" | "unknown"
@@ -103,11 +115,25 @@ Every relation is a discriminated, allowlisted scalar DTO. The query never selec
 returns protected `state` blobs, effect request bodies, receipt payload or proof, control
 values, generic rows, or SQL identifiers.
 
-There is no protected settlement table. Settlement is a bounded summary of the current
-authoritative effect and claim state, with receipt traversal recorded only as provenance.
-Until the receipt section is exhausted, `receipt_history` is `unknown`; paging must not
-manufacture a complete settlement history. Terminal protected effect state remains the
-authoritative outcome when earlier receipts record an `unknown` result.
+The atomic-core integration at `057f2902580235d844679c43ece571056b60b8a5` added the
+authoritative singleton `root_infrastructure_settlements` table after the original B5
+design was frozen. The optional `infrastructure_settlement` above corrects that stale
+assumption. It is selected by exact effect identity in the same read snapshot, from
+allowlisted scalar columns only, and its encoded bytes count toward the page cap. It is a
+header, not a fifth paginated relation: the schema permits at most one row per effect.
+
+When present, its effect, claim and receipt identities must join to the observed effect;
+effect, claim and receipt must all have `non_started` semantics; generation is
+nonnegative; ordinal is positive; and role, owner and failure class are nonempty bounded
+text. A missing carrier is healthy only when no accepted attributable atomic non-start
+operation requires one. Required absence, an unexpected carrier, or any mismatch is
+corrupt. The encoded `state` blob is never selected or returned.
+
+The `settlement` summary remains the bounded current effect outcome, with receipt
+traversal recorded only as provenance. Until the receipt section is exhausted,
+`receipt_history` is `unknown`; paging must not manufacture a complete settlement
+history. Terminal protected effect state remains authoritative when earlier receipts
+record an `unknown` result.
 
 ## Materialization and consistency invariants
 
@@ -123,6 +149,8 @@ authoritative outcome when earlier receipts record an `unknown` result.
    page is never larger than its requested byte cap. If an ordinary next row would cross
    the cap, the page stops before it. If one row cannot fit an otherwise empty page, the
    result is `unavailable/oversized_row` rather than an oversized or partial row.
+   The singleton infrastructure-settlement header is subject to the same bounded-prefix
+   and encoded-size checks before any relation is read.
 6. The protected sequence and effect revision are captured with the page. Continuation
    succeeds only when both still match. Any protected append between pages, including an
    unrelated append, conservatively makes the cursor stale, preventing gaps or duplicates.
@@ -165,7 +193,7 @@ Unavailable, corrupt and unknown states never collapse into an empty canonical r
   - extend `query/2` with the new type;
   - add private `effect_observation_page/2`, strict request/cursor validation, source
     frontier capture, four bounded section readers, bounded row decoding and the size
-    accumulator;
+    accumulator and exact singleton infrastructure-settlement reader;
   - leave `execute/**`, all mutation helpers and the legacy `"effect"` query unchanged.
 - `foundry/lib/pramana_foundry/observations.ex`
   - make `read_target/3` use the bounded protected query;
@@ -195,6 +223,8 @@ Add focused tests to `durable_store/protected_primitives_test.exs` for:
 - malformed, extra-field, cross-effect and cross-source cursors;
 - unchanged continuation with deterministic ordering and no overlap or gap;
 - any protected append between pages returning stale/unavailable.
+- present, absent, required-but-missing and mismatched infrastructure-settlement carriers,
+  including non-start correlation and header byte accounting.
 
 Add public tests to `observations_test.exs` for:
 
@@ -213,11 +243,11 @@ and retained physical/structured corruption.
 
 ## Rebase and ownership constraint
 
-The protected-core atomic correction owns the overlapping files until it freezes and is
-integrated. B5 implementation must wait for explicit coordinator release, rebase this
-FR-18A branch onto that exact correction, and then add a new read-only query commit. It
-must not transplant the current `ProtectedPrimitives` file or revise the atomic writer's
-transaction, result or recovery protocol. If the integrated correction changes protected
-fact shapes, adapt only the allowlisted scalar readers and rerun the full protected
-atomicity/recovery matrix. Until that separately reviewed implementation exists, B5 and
-FR-18A remain blocked.
+The protected-core atomic correction is integrated at
+`057f2902580235d844679c43ece571056b60b8a5`, and the coordinator released only this
+read-query slice. The implementation must be additive atop that exact correction. It
+must not transplant an earlier `ProtectedPrimitives` file or revise the atomic writer's
+transaction, result or recovery protocol. The integrated infrastructure-settlement
+carrier is consumed through allowlisted scalar reads and validated without changing its
+write path. The full protected atomicity/recovery matrix remains mandatory. Until this
+implementation is independently reviewed, B5 and FR-18A remain blocked.
