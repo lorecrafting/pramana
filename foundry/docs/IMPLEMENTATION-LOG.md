@@ -1455,3 +1455,28 @@ steps.
   acceptance obligations, F01–F24 routing, provider/spending authority or FR-22's final
   lifecycle ownership. Future resumed coordination reads the authoritative repair plan
   and this log before dispatch.
+
+## Checkpoint F provider-free feasibility integration — 2026-09-19
+
+- Initial candidate `6582c9a79671af926bf49eb44b7faee54401ae74` received independent
+  Sol-high **BLOCKER** review `a306a59af850cb439628c70b261de516d583c078`:
+  `Port.open/2` overlaid the parent environment and Pi/Jiti wrote compiled extension
+  state outside the owned root. Credited loopback lifecycle and denial findings were
+  retained; no production capability was accepted.
+- Corrected candidate `148476c93497653abbbc52fb040cf76927478d3f`, tree
+  `e23217f94f295c115b893ac936c86ab719331647`, launches through fixed
+  `/usr/bin/env -i`, proves hostile provider/proxy/auth/runtime variables and an extra
+  inherited descriptor absent from Pi, RPC Bash and the explicit extension, and binds
+  Pi/Jiti/npm/XDG/config/session/temp/cache state beneath one removed owned root.
+- Fresh independent Sol-high rereview `ca8c6d0b5edc9a5cfb9c265e710b29f3210f5cbe`,
+  tree `0f68389cb1f8ebea8536009ff65b6378c31ba52f`, returned **PASS**. Plain and
+  restricted loopback-only probes passed, including quoted paths; documentation passed
+  80/80. The review confirms only an honest F inventory: raw Pi RPC is feasible, while
+  credential custody, R1/R5 request authorization/accounting, extension/tool/principal
+  isolation, subscription conformance and governed execution remain blocked. OMP remains
+  the selected contract.
+- The complete partial-candidate, blocker-review, correction and PASS chain was integrated
+  on current `main` through `2448599`. No provider/model, real credential content, live
+  daemon, Herdr command, installation, deployment or activation was used. FR-15aA is now
+  ready to turn the recorded blocked topology into a concrete provisioning specification;
+  FR-09 and FR-15aB remain blocked by their other dependencies and actual conformance.

@@ -317,9 +317,12 @@ Next resumable Foundry work, under exact repair-plan ownership:
    four capabilities pass and three are honestly unavailable, so `ready=false`. FR-08A is
    now ready and owns those missing protected capabilities; no direct SQL, empty-table
    inference or synthetic adapter may pass them.
-3. Run the bounded joint FR-09/15a Pi-first feasibility/provisioning investigation with
-   synthetic credentials and controlled endpoints. OMP remains the governing baseline;
-   unsupported host/provider requirements remain blocked.
+3. Checkpoint F's bounded Pi-first provider-free inventory is complete and independently
+   reviewed. It proves raw RPC feasibility but records missing credential custody, R1/R5
+   request authorization/accounting, extension/tool/principal isolation and subscription
+   conformance; OMP remains governing. Continue the now-ready FR-15aA provisioning
+   specification without enabling execution or treating the synthetic endpoint as provider
+   evidence.
 4. Implement and critically review FR-08A's missing protected primitives/full handoff
    evidence, then FR-08B's one-reducer migration for every command ingress.
 5. Continue actual isolation, selected-harness conformance, durable effects/lifecycle,

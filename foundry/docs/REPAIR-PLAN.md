@@ -215,14 +215,14 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Complete: independently reviewed; 4 pass, 3 unavailable, not ready** | Inherits FR-07/08 handoff evidence only |
 | FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Ready: H0 assigns the 3 unavailable protected capabilities here** | F07, F16 |
 | FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | Blocked | F07, F16 |
-| F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Ready for synthetic/local investigation; provider/host action remains separately authorized** | Inherits FR-09/15a evidence only |
+| F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Complete: provider-free inventory independently reviewed; governed execution remains blocked** | Inherits FR-09/15a evidence only |
 | FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08B, FR-09 | Blocked | F08, F09 |
 | FR-11 | Close correction, timeout and review lifecycles | FR-10 | Blocked | F09, F10, F16 |
 | FR-12 | Wire admission, resource scheduling and review capacity | FR-08B, FR-10, FR-11 | Blocked | F04, F11, F15 |
 | FR-13 | Verify artifacts, candidate scope and check receipts | FR-02, FR-05, FR-10, FR-12, FR-15aB | Blocked; FR-15 edge removed only under the ownership condition below | F03, F04, F16 |
 | FR-14 | Perform serialized recoverable Git integration | FR-13 | Blocked | F12 |
-| FR-15aA | Specify feasibility, provisioning and complete executable-path inventory | F | Ready after bounded F evidence | F01, F04, F06, F13, F14, F22 |
+| FR-15aA | Specify feasibility, provisioning and complete executable-path inventory | F | **Ready: F complete; provisioning specification remains** | F01, F04, F06, F13, F14, F22 |
 | FR-15aB | Prove actual principal/channel/auth/network isolation and useful conformance | FR-02, FR-03, FR-05, FR-06, FR-08B, FR-15aA | Blocked | F01, F04, F06, F13, F14, F22 |
 | FR-15 | Implement durable steering and optional PM planning | FR-08B, FR-12, FR-15aB | Blocked | F15, F22 |
 | FR-16 | Implement bounded subscription switching | FR-01, FR-09, FR-12, FR-15 | Blocked | F01, F11 |
@@ -1228,3 +1228,16 @@ OMP contract, and updates review tiers/dependencies. No source, runtime, provide
 credential, policy, deployment or activation changed. Next resumable work is the bounded
 FR-04 current-revision correction and H0 accepted-boundary report; either may proceed
 without claiming FR-08A readiness or enabling execution.
+
+2026-09-19, checkpoint F: corrected provider-free candidate
+`148476c93497653abbbc52fb040cf76927478d3f`, tree
+`e23217f94f295c115b893ac936c86ab719331647`, received a fresh independent Sol-high
+[PASS](fr-09/checkpoint-f-rereview.md) at review commit
+`ca8c6d0b5edc9a5cfb9c265e710b29f3210f5cbe`. The exact synthetic Pi RPC fixture
+proved its bounded raw lifecycle and useful model-free Bash path while also reproducing
+the missing credential gateway, R1/R5 broker/reservations, startup-extension denial,
+principal/process/Git and network/IPC isolation. Its first review remains preserved as
+the evidence that environment overlay and an escaped Jiti cache were corrected. This
+completes only the honest F inventory and makes FR-15aA specification ready. OMP remains
+governing; FR-09, FR-15aA/B, subscription conformance and automatic execution remain open.
+No provider/model, live daemon, Herdr operation, installation or host-policy change ran.
