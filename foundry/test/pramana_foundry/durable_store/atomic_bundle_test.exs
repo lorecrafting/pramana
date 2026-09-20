@@ -2,7 +2,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
   use ExUnit.Case, async: false
 
   alias Exqlite.Sqlite3
-  alias PramanaFoundry.DurableStore.{Authority, Database, Encoding, Gateway}
+  alias PramanaFoundry.DurableStore.{Authority, Database, Encoding, Gateway, ProtectedPrimitives}
   alias PramanaFoundry.Observations
   alias PramanaFoundry.Observations.Query
 
@@ -993,4 +993,111 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
   defp canonical_tmp,
     do: if(File.dir?("/private/tmp"), do: "/private/tmp", else: System.tmp_dir!())
+
+  describe "infrastructure discriminator" do
+    defp discriminator_conn(ctx) do
+      assert {:ok, conn} = Sqlite3.open(ctx.path, mode: :readonly)
+      on_exit(fn -> Sqlite3.close(conn) end)
+      conn
+    end
+
+    defp settled_effect!(ctx) do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, _, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_bundle("disc")
+               )
+
+      assert {:ok, settlement} = fact(ctx, "infrastructure_settlement", "effect_id", "effect-1")
+      settlement
+    end
+
+    test "an ordinal below the policy limit selects the permissive branch", ctx do
+      settlement = settled_effect!(ctx)
+      conn = discriminator_conn(ctx)
+
+      assert settlement["ordinal"] == 1
+
+      assert {:ok, "below_infrastructure_limit"} =
+               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", settlement)
+    end
+
+    # The seeded policy allows three developer attempts. The comparison itself is
+    # exercised by presenting an ordinal at that limit; only role and ordinal are read
+    # from the settlement, so this is a faithful test of the boundary.
+    test "an ordinal at the policy limit selects the exhausted branch", ctx do
+      settlement = settled_effect!(ctx)
+      conn = discriminator_conn(ctx)
+
+      assert {:ok, "infrastructure_limit_reached"} =
+               ProtectedPrimitives.infrastructure_discriminator(
+                 conn,
+                 "effect-1",
+                 Map.put(settlement, "ordinal", 3)
+               )
+    end
+
+    test "a settlement role disagreeing with the effect fails closed", ctx do
+      settlement = settled_effect!(ctx)
+      conn = discriminator_conn(ctx)
+
+      assert {:error, :infrastructure_limit_undecidable} =
+               ProtectedPrimitives.infrastructure_discriminator(
+                 conn,
+                 "effect-1",
+                 Map.put(settlement, "role", "reviewer")
+               )
+    end
+
+    test "a non-positive ordinal fails closed", ctx do
+      settlement = settled_effect!(ctx)
+      conn = discriminator_conn(ctx)
+
+      assert {:error, :infrastructure_limit_undecidable} =
+               ProtectedPrimitives.infrastructure_discriminator(
+                 conn,
+                 "effect-1",
+                 Map.put(settlement, "ordinal", 0)
+               )
+    end
+
+    test "an unknown effect fails closed", ctx do
+      settlement = settled_effect!(ctx)
+      conn = discriminator_conn(ctx)
+
+      assert {:error, :infrastructure_limit_undecidable} =
+               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-absent", settlement)
+    end
+
+    test "a settlement that is not a map fails closed", ctx do
+      settled_effect!(ctx)
+      conn = discriminator_conn(ctx)
+
+      assert {:error, :infrastructure_limit_undecidable} =
+               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", nil)
+    end
+
+    test "a policy revised after the effect was created fails closed", ctx do
+      settlement = settled_effect!(ctx)
+
+      accept_current!(ctx, %{
+        "type" => "set_policy",
+        "policy_id" => "policy-1",
+        "value" => %{
+          "allowed_operations" => ["launch"],
+          "allowed_scopes" => ["ticket:T1"],
+          "infrastructure_attempt_limits" => %{"developer" => 9}
+        }
+      })
+
+      conn = discriminator_conn(ctx)
+
+      assert {:error, :infrastructure_limit_undecidable} =
+               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", settlement)
+    end
+  end
 end
