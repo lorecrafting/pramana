@@ -591,6 +591,109 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     end
 
     test "fails closed on an output kind with no specified producer" do
+      # launch_authority_v1 gained a producer when the admission slots were made
+      # bindable; terminal_settlement_v1 and reset_fact_v1 remain declarable but
+      # unproducible, and must still refuse rather than default to a caller copy.
+      bindings = [
+        %{
+          "name" => "authority",
+          "operation_ordinal" => 0,
+          "output_kind" => "terminal_settlement_v1",
+          "destination_slot" => "launch_settled.settlement"
+        }
+      ]
+
+      assert {:error, :unsupported_output_kind} =
+               TransitionPlan.derive_outputs(bindings, [staged()])
+    end
+  end
+
+  describe "R4a coverage of the slot and producer vocabulary" do
+    # This is the assertion whose absence let two independent reviews pass a codec that
+    # could not express two of R4a's four domain-owner rows. It checks coverage of the
+    # contract, not mechanics.
+    test "every R4a domain owner has a settlement destination slot" do
+      for owner <- ~w(launch check review integration pm_launch) do
+        slot = "#{owner}_settled.settlement"
+
+        assert {:ok, {_type, "settlement", "nonstart_settlement_v1"}} =
+                 TransitionPlan.slot(slot),
+               "R4a domain owner #{owner} has no settlement slot"
+      end
+    end
+
+    test "every declared admission slot can actually bind an authority fact" do
+      for owner <- ~w(launch check review integration pm_launch) do
+        slot = "#{owner}_planned.authority"
+        assert {:ok, {_type, "authority", kind}} = TransitionPlan.slot(slot)
+
+        # Declarable is not enough; the kind must have a producer or the slot is inert.
+        assert kind in TransitionPlan.output_kinds()
+
+        assert {:ok, %{"settled" => _}} =
+                 TransitionPlan.derive_outputs(
+                   [
+                     %{
+                       "name" => "settled",
+                       "operation_ordinal" => 0,
+                       "output_kind" => kind,
+                       "destination_slot" => slot
+                     }
+                   ],
+                   [issued_effect_result()]
+                 ),
+               "admission slot #{slot} declares #{kind}, which has no producer"
+      end
+    end
+  end
+
+  describe "launch_authority_v1 derivation" do
+    test "projects the authoritative issued effect into the declared shape" do
+      assert {:ok, %{"authority" => authority}} =
+               TransitionPlan.derive_outputs(
+                 [
+                   %{
+                     "name" => "authority",
+                     "operation_ordinal" => 0,
+                     "output_kind" => "launch_authority_v1",
+                     "destination_slot" => "launch_planned.authority"
+                   }
+                 ],
+                 [issued_effect_result()]
+               )
+
+      # The projection renames: the effect's assignment_id is the work owner and its
+      # phase_generation is the infrastructure generation.
+      assert authority["work_owner"] == "owner-1"
+      assert authority["infrastructure_generation"] == 0
+      assert authority["effect_id"] == "effect-1"
+      refute Map.has_key?(authority, "assignment_id")
+      refute Map.has_key?(authority, "phase_generation")
+
+      # Nothing not authoritatively carried by one operation leaks in.
+      refute Map.has_key?(authority, "reservation_id")
+      refute Map.has_key?(authority, "ledger_id")
+    end
+
+    test "an effect missing an authoritative field fails closed" do
+      broken = put_in(issued_effect_result(), ["result", "facts", "effect", "role"], nil)
+
+      assert {:error, :invalid_authoritative_fact} =
+               TransitionPlan.derive_outputs(
+                 [
+                   %{
+                     "name" => "authority",
+                     "operation_ordinal" => 0,
+                     "output_kind" => "launch_authority_v1",
+                     "destination_slot" => "launch_planned.authority"
+                   }
+                 ],
+                 [issued_effect_result()]
+                 |> List.replace_at(0, broken)
+               )
+    end
+
+    test "a forged authority output is refused by bind/3's shape gate" do
       bindings = [
         %{
           "name" => "authority",
@@ -600,8 +703,44 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
         }
       ]
 
-      assert {:error, :unsupported_output_kind} =
-               TransitionPlan.derive_outputs(bindings, [staged()])
+      assert {:error, :invalid_binding_outputs} =
+               TransitionPlan.bind(
+                 plan(%{"bindings" => bindings}),
+                 "below_infrastructure_limit",
+                 %{"authority" => %{"schema_version" => 1, "effect_id" => "only-one-field"}}
+               )
     end
+  end
+
+  defp issued_effect_result do
+    %{
+      "ordinal" => 0,
+      "operation_kind" => "protected",
+      "operation_type" => "issue_claim",
+      "execution_status" => "committed",
+      "request" => %{},
+      "result" => %{
+        "facts" => %{
+          "effect" => %{
+            "schema_version" => 1,
+            "effect_id" => "effect-1",
+            "role" => "developer",
+            "assignment_id" => "owner-1",
+            "ticket_id" => "T1",
+            "attempt_id" => "A1",
+            "execution_id" => "execution-1",
+            "policy_id" => "policy-1",
+            "policy_revision" => 0,
+            "control_id" => "control-1",
+            "control_revision" => 0,
+            "predecessor_effect_id" => nil,
+            "phase_generation" => 0,
+            "request_digest" => "digest",
+            "operation" => "launch",
+            "scope" => "ticket:T1"
+          }
+        }
+      }
+    }
   end
 end

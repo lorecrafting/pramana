@@ -36,10 +36,16 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   # caller-supplied data. Their producing facts must be specified before use.
   @producers %{
     "nonstart_settlement_v1" => {"settle_claim", "infrastructure_settlement"},
-    "control_fact_v1" => {"set_control", "root_control"}
+    "control_fact_v1" => {"set_control", "root_control"},
+    "launch_authority_v1" => {"issue_claim", "effect"}
   }
 
   @settlement_fields ~w(effect_id claim_id receipt_id role work_owner infrastructure_generation predecessor_effect_id failure_class ordinal)
+
+  # Projected from the authoritative issued effect. Reservation and ledger identities are
+  # deliberately absent: no single protected operation's facts carry them authoritatively,
+  # so binding them would require its own producer rather than a copy taken on trust.
+  @authority_fields ~w(effect_id role work_owner ticket_id attempt_id execution_id policy_id policy_revision control_id control_revision predecessor_effect_id infrastructure_generation)
 
   # A destination slot names the event type and the payload field the bound fact
   # occupies. The closed set is part of the codec, not caller-supplied text.
@@ -51,6 +57,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
       {"integration_planned", "authority", "launch_authority_v1"},
     "pm_launch_planned.authority" => {"pm_launch_planned", "authority", "launch_authority_v1"},
     "launch_settled.settlement" => {"launch_settled", "settlement", "nonstart_settlement_v1"},
+    "check_settled.settlement" => {"check_settled", "settlement", "nonstart_settlement_v1"},
+    "review_settled.settlement" => {"review_settled", "settlement", "nonstart_settlement_v1"},
     "integration_settled.settlement" =>
       {"integration_settled", "settlement", "nonstart_settlement_v1"},
     "pm_launch_settled.settlement" =>
@@ -176,6 +184,28 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     candidate = Map.put(fact, "schema_version", 1)
 
     if settlement_shape?(candidate),
+      do: {:ok, candidate},
+      else: {:error, :invalid_authoritative_fact}
+  end
+
+  defp project("launch_authority_v1", fact) do
+    candidate = %{
+      "schema_version" => 1,
+      "effect_id" => fact["effect_id"],
+      "role" => fact["role"],
+      "work_owner" => fact["assignment_id"],
+      "ticket_id" => fact["ticket_id"],
+      "attempt_id" => fact["attempt_id"],
+      "execution_id" => fact["execution_id"],
+      "policy_id" => fact["policy_id"],
+      "policy_revision" => fact["policy_revision"],
+      "control_id" => fact["control_id"],
+      "control_revision" => fact["control_revision"],
+      "predecessor_effect_id" => fact["predecessor_effect_id"],
+      "infrastructure_generation" => fact["phase_generation"]
+    }
+
+    if authority_shape?(candidate),
       do: {:ok, candidate},
       else: {:error, :invalid_authoritative_fact}
   end
@@ -340,6 +370,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   defp valid_output?(kind, value) when kind in ~w(nonstart_settlement_v1 terminal_settlement_v1),
     do: settlement_shape?(value)
 
+  defp valid_output?("launch_authority_v1", value), do: authority_shape?(value)
+
   defp valid_output?("control_fact_v1", value) do
     plain_map?(value) and exact_keys?(value, ~w(schema_version control_id control_revision)) and
       value["schema_version"] == 1 and identifier?(value["control_id"]) and
@@ -347,6 +379,20 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   end
 
   defp valid_output?(_kind, _value), do: false
+
+  defp authority_shape?(value) do
+    plain_map?(value) and value["schema_version"] == 1 and
+      exact_keys?(Map.drop(value, ["schema_version"]), @authority_fields) and
+      Enum.all?(
+        ~w(effect_id role work_owner ticket_id attempt_id execution_id policy_id control_id),
+        &identifier?(value[&1])
+      ) and
+      Enum.all?(
+        ~w(policy_revision control_revision infrastructure_generation),
+        &nonnegative_integer?(value[&1])
+      ) and
+      (is_nil(value["predecessor_effect_id"]) or identifier?(value["predecessor_effect_id"]))
+  end
 
   defp settlement_shape?(value) do
     plain_map?(value) and value["schema_version"] == 1 and
