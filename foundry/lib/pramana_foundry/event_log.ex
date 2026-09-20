@@ -1,7 +1,15 @@
 defmodule PramanaFoundry.EventLog do
   @moduledoc "Append-only event publication with per-record flush and fsync."
 
+  alias PramanaFoundry.DurableStore.CompatibilityWriter
   alias PramanaFoundry.Schema
+
+  def append({:durable_store, gateway, actor_id, command_id}, event) do
+    case CompatibilityWriter.append(gateway, actor_id, command_id, event) do
+      {:ok, _validated, _disposition} -> :ok
+      {:error, _reason} = error -> error
+    end
+  end
 
   def append(path, event) do
     with {:ok, validated} <- Schema.validate(:event, event),
