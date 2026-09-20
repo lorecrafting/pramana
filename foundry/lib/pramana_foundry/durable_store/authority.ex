@@ -728,25 +728,9 @@ defmodule PramanaFoundry.DurableStore.Authority do
 
   defp read_command_closure(conn, [id, _input_id, _actor, _digest, _type, _protocol]) do
     with {:ok, owner} <- read_command_owner(conn, id),
-         {:ok, event_rows} <-
-           query(
-             conn,
-             "SELECT seq, event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event FROM events WHERE command_id = ? ORDER BY seq",
-             [id]
-           ),
-         {:ok, effect_rows} <-
-           query(
-             conn,
-             "SELECT effect_id, command_id, schema_version, request_digest, status, intent FROM effects WHERE command_id = ? ORDER BY effect_id",
-             [id]
-           ),
-         {:ok, [[max_seq]]} <- query(conn, "SELECT coalesce(max(seq), 0) FROM events"),
-         {:ok, events} <- decode_events(event_rows),
-         {:ok, effects} <- decode_effects(effect_rows),
-         true <- valid_scoped_result?(owner.result, events, effects, max_seq),
          :ok <- validate_sequence_frontier(conn),
-         :ok <- validate_event_projection_closures(conn, events),
-         :ok <- validate_scoped_effects(conn, effects) do
+         :ok <- validate_event_projection_closures(conn, owner.events),
+         :ok <- validate_scoped_effects(conn, owner.effects) do
       {:ok,
        %{
          id: id,
@@ -754,8 +738,8 @@ defmodule PramanaFoundry.DurableStore.Authority do
          digest: owner.digest,
          request: owner.request,
          result: owner.result,
-         events: events,
-         effects: effects
+         events: owner.events,
+         effects: owner.effects
        }}
     else
       [] -> corrupt("commands", id, :required_relation_missing)
@@ -791,9 +775,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
              committed_seq
            ]
          ] <- rows,
-         true <-
-           is_binary(request) and is_integer(schema) and is_binary(disposition) and
-             is_binary(result) and is_integer(committed_seq),
+         :ok <- validate_owner_fields(id, request, schema, disposition, result, committed_seq),
          {:ok, request_value} <-
            bound("inputs", input_id, :command_request, request, %{
              input_id: input_id,
@@ -809,11 +791,45 @@ defmodule PramanaFoundry.DurableStore.Authority do
              disposition: disposition,
              reason_code: reason,
              committed_seq: committed_seq
-           }) do
-      {:ok, %{actor_id: actor, digest: digest, request: request_value, result: result_value}}
+           }),
+         {:ok, event_rows} <-
+           query(
+             conn,
+             "SELECT seq, event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event FROM events WHERE command_id = ? ORDER BY seq",
+             [id]
+           ),
+         {:ok, effect_rows} <-
+           query(
+             conn,
+             "SELECT effect_id, command_id, schema_version, request_digest, status, intent FROM effects WHERE command_id = ? ORDER BY effect_id",
+             [id]
+           ),
+         {:ok, [[max_seq]]} <- query(conn, "SELECT coalesce(max(seq), 0) FROM events"),
+         {:ok, events} <- decode_events(event_rows),
+         {:ok, effects} <- decode_effects(effect_rows),
+         true <- valid_scoped_result?(result_value, events, effects, max_seq) do
+      {:ok,
+       %{
+         actor_id: actor,
+         digest: digest,
+         request: request_value,
+         result: result_value,
+         events: events,
+         effects: effects
+       }}
     else
+      false -> corrupt("command_results", id, :invalid_sequence_or_disposition)
       {:error, _reason} = error -> error
       _other -> corrupt("commands", id, :required_relation_missing)
+    end
+  end
+
+  defp validate_owner_fields(id, request, schema, disposition, result, committed_seq) do
+    if is_binary(request) and is_integer(schema) and is_binary(disposition) and
+         is_binary(result) and is_integer(committed_seq) do
+      :ok
+    else
+      corrupt("commands", id, :required_relation_missing)
     end
   end
 
@@ -856,7 +872,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
            ) do
       case rows do
         [] ->
-          {:ok, :absent}
+          validate_projection_absence(conn, namespace, entity_id, mode)
 
         [[^namespace, ^entity_id, schema, revision, last_event_id, bytes]] ->
           with {:ok, projection} <-
@@ -894,6 +910,28 @@ defmodule PramanaFoundry.DurableStore.Authority do
 
         _ ->
           corrupt("projections", {namespace, entity_id}, :duplicate_identity)
+      end
+    end
+  end
+
+  defp validate_projection_absence(_conn, _namespace, _entity_id, :stored), do: {:ok, :absent}
+
+  defp validate_projection_absence(conn, namespace, entity_id, _mode) do
+    with {:ok, rows} <-
+           query(
+             conn,
+             "SELECT event_id FROM events WHERE projection_namespace = ? AND projection_entity_id = ? ORDER BY seq LIMIT 1",
+             [namespace, entity_id]
+           ) do
+      case rows do
+        [] ->
+          {:ok, :absent}
+
+        [[event_id]] ->
+          corrupt("projections", {namespace, entity_id}, {:missing_for_carrier, event_id})
+
+        _other ->
+          corrupt("projections", {namespace, entity_id}, :invalid_event_relation)
       end
     end
   end
@@ -1111,6 +1149,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
         {:cont, :ok}
       else
         {:error, _reason} = error -> {:halt, error}
+        _other -> {:halt, corrupt("effects", effect_id, :invalid_command_owner)}
       end
     end)
   end
@@ -1166,6 +1205,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
         false -> {:halt, corrupt("reservations", reservation_id, :required_relation_missing)}
         nil -> {:halt, corrupt("reservations", reservation_id, :required_relation_missing)}
         {:error, _reason} = error -> {:halt, error}
+        _other -> {:halt, corrupt("reservations", reservation_id, :invalid_command_owner)}
       end
     end)
   end
