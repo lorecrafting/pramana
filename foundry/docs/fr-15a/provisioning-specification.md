@@ -20,16 +20,22 @@ without Mix, a provider or a daemon:
 
 Candidate commands/results and remaining gates are frozen in
 [`evidence.md`](evidence.md). The initial frozen candidate received an independent
-[`BLOCKER` review](independent-review.md); this revision addresses only its B1–B3 findings.
+[`BLOCKER` review](independent-review.md); its focused
+[`rereview`](independent-rereview.md) retains the residual B2 identity and duplicate-ID
+controls corrected here. This revision addresses only those bounded B1–B3 findings.
 
 ```sh
 elixir ci/validate_fr15aa.exs
 ```
 
 The validator requires every executable category, principal, channel, credential policy,
-network policy and acceptance probe, rejects unknown pins, and requires every blocked or
-unavailable route to fail closed. Its ExUnit controls delete one required route, remove a
-route mapping, make a blocked route fail open and attempt to select Pi.
+network policy and acceptance probe, rejects unknown or duplicate security identities,
+and requires every blocked or unavailable route to fail closed. Each pin is bound to its
+exact ID, kind, version, path, disposition and digest. Repository-pin bytes are selected
+from that frozen identity beneath the source root, never from a manifest-directed path.
+Its ExUnit controls include erased and redirected pin identities, contradictory duplicate
+auth-channel and shell declarations, deletion of a required route, removal of a route
+mapping, fail-open promotion and attempted Pi selection.
 
 ## 1. Frozen facts and present limits
 

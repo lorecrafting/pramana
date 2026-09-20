@@ -187,6 +187,107 @@ defmodule PramanaFoundry.CI.FR15aAValidator do
   @blocked_pins MapSet.new(
                   ~w(npm workflow-kernel protected-launcher request-gateway effect-bridge fetch-service)
                 )
+  @pin_metadata %{
+    "omp" => {"executable", "18.2.2", "/Users/raymondluong/.local/bin/omp", "governing_unproved"},
+    "pi" => {"executable", "0.85.1", "/opt/homebrew/bin/pi", "candidate_blocked"},
+    "pi-package" =>
+      {"package_manifest", "0.85.1", "installed:@earendil-works/pi-coding-agent/package.json",
+       "inventory_only"},
+    "pi-production-tree" =>
+      {"package_inventory", "186-manifest-offline-npm-ls",
+       "installed:@earendil-works/pi-coding-agent", "inventory_only"},
+    "node" => {"executable", "26.8.2", "/opt/homebrew/bin/node", "candidate_runtime"},
+    "npm" => {"executable", "11.19.1", "resolved-with-node-installation", "blocked"},
+    "herdr" => {"executable", "0.9.0", "/opt/homebrew/bin/herdr", "presentation_unproved"},
+    "elixir-ci" => {"toolchain", "1.20.3", "foundry/ci/toolchain.exs", "policy_pin"},
+    "otp-ci" => {"toolchain", "29.0.5/ERTS-17.0.5", "foundry/ci/toolchain.exs", "policy_pin"},
+    "foundry-lock" => {"package_lock", "base-f5067d9", "foundry/mix.lock", "repository_pin"},
+    "foundry-config" =>
+      {"config", "base-f5067d9", "foundry/config/config.exs", "legacy_not_provisioning"},
+    "assignment-schema" =>
+      {"config", "v1-base-f5067d9", "foundry/config/schemas/assignment-v1.json", "repository_pin"},
+    "current-coordinator" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/coordinator.ex",
+       "legacy_blocked_route"},
+    "current-tick" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/coordinator/tick.ex",
+       "legacy_blocked_route"},
+    "current-agent-server" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/agent_server.ex",
+       "legacy_blocked_route"},
+    "current-herdr-adapter" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/herdr/adapter.ex",
+       "legacy_blocked_route"},
+    "current-herdr-argv" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/herdr/argv.ex",
+       "legacy_blocked_route"},
+    "current-herdr-runner" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/herdr/runner.ex",
+       "legacy_blocked_route"},
+    "current-launch-effect" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/effects/launch.ex",
+       "legacy_blocked_route"},
+    "current-prompt-effect" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/effects/prompt_delivery.ex",
+       "legacy_blocked_route"},
+    "current-check-runner" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/checks/runner.ex",
+       "legacy_blocked_route"},
+    "current-process-group" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/effects/process_group.ex",
+       "legacy_blocked_route"},
+    "current-cli-rpc" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/cli/rpc.ex",
+       "temporary_inert_transport_not_authority"},
+    "current-git-evidence" =>
+      {"source_route", "base-f5067d9", "foundry/lib/pramana_foundry/git_evidence.ex",
+       "legacy_blocked_route"},
+    "checkpoint-f-probe" =>
+      {"evidence_fixture", "candidate-148476c", "foundry/docs/fr-09/pi_rpc_probe.exs",
+       "accepted_provider_free_evidence"},
+    "workflow-kernel" =>
+      {"required_adapter", "fr06-r3-bundle-v1",
+       "/Library/PramanaFoundry/releases/kernel/CANDIDATE_SHA/bin/pramana-kernel", "blocked"},
+    "host-sh" => {"host_executable", "macos-26.6.2-25G83-arm64", "/bin/sh", "host_profile_pin"},
+    "host-env" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/usr/bin/env", "host_profile_pin"},
+    "host-python3" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/usr/bin/python3", "host_profile_pin"},
+    "host-git" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/usr/bin/git", "host_profile_pin"},
+    "host-pgrep" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/usr/bin/pgrep", "host_profile_pin"},
+    "host-lsof" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/usr/sbin/lsof", "host_profile_pin"},
+    "host-pfctl" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/sbin/pfctl", "host_profile_pin"},
+    "host-launchctl" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/bin/launchctl", "host_profile_pin"},
+    "host-dscl" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/usr/bin/dscl", "host_profile_pin"},
+    "host-ps" => {"host_executable", "macos-26.6.2-25G83-arm64", "/bin/ps", "host_profile_pin"},
+    "host-kill" =>
+      {"host_executable", "macos-26.6.2-25G83-arm64", "/bin/kill", "host_profile_pin"},
+    "host-elixir" =>
+      {"host_executable", "1.20.4-otp-29", "/opt/homebrew/bin/elixir",
+       "host_profile_inventory_only"},
+    "host-mix" =>
+      {"host_executable", "1.20.4-otp-29", "/opt/homebrew/bin/mix", "host_profile_inventory_only"},
+    "protected-launcher" =>
+      {"required_adapter", "fr15aa-v1", "/Library/PramanaFoundry/bin/pf-launch", "blocked"},
+    "request-gateway" =>
+      {"required_adapter", "fr15aa-v1", "/Library/PramanaFoundry/bin/pf-auth-gateway", "blocked"},
+    "effect-bridge" =>
+      {"required_adapter", "fr15aa-v1", "/Library/PramanaFoundry/bin/pf-effect-bridge", "blocked"},
+    "fetch-service" =>
+      {"required_adapter", "fr15aa-v1", "/Library/PramanaFoundry/bin/pf-fetch", "blocked"}
+  }
+  @repository_pin_ids MapSet.new(~w(
+    elixir-ci otp-ci foundry-lock foundry-config assignment-schema current-coordinator
+    current-tick current-agent-server current-herdr-adapter current-herdr-argv
+    current-herdr-runner current-launch-effect current-prompt-effect current-check-runner
+    current-process-group current-cli-rpc current-git-evidence checkpoint-f-probe
+  ))
   @pin_digests %{
     "omp" => "e0302a99643efefb62bf3d0601d5d84ebab6ed1f3ad105cc2874c8274af448a9",
     "pi" => "e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c",
@@ -236,29 +337,33 @@ defmodule PramanaFoundry.CI.FR15aAValidator do
 
   @spec validate(term()) :: :ok | {:error, [String.t()]}
   def validate(spec) when is_map(spec) do
-    errors =
-      []
-      |> check(spec[:schema] == @schema, "unexpected or missing schema")
-      |> check(spec[:source] == @source, "source/specification provenance profile mismatch")
-      |> check(spec[:authority][:host_profile] == @host_profile, "host profile mismatch")
-      |> check(spec[:authority][:governing_harness] == "omp", "OMP must remain governing")
-      |> check(
-        spec[:authority][:replacement_disposition] == "evaluated_blocked_not_selected",
-        "Pi must remain an unselected blocked candidate"
-      )
-      |> check(
-        spec[:authority][:production_disposition] == "blocked_pending_fr15ab_and_fr09",
-        "production must remain blocked behind FR-15aB and FR-09"
-      )
-      |> validate_principals(spec[:principals])
-      |> validate_channels(spec[:channels])
-      |> validate_kernel(spec[:kernel_protocol])
-      |> validate_pins(spec[:pins])
-      |> validate_routes(spec)
+    with :ok <- validate_security_collection_uniqueness(spec) do
+      errors =
+        []
+        |> check(spec[:schema] == @schema, "unexpected or missing schema")
+        |> check(spec[:source] == @source, "source/specification provenance profile mismatch")
+        |> check(spec[:authority][:host_profile] == @host_profile, "host profile mismatch")
+        |> check(spec[:authority][:governing_harness] == "omp", "OMP must remain governing")
+        |> check(
+          spec[:authority][:replacement_disposition] == "evaluated_blocked_not_selected",
+          "Pi must remain an unselected blocked candidate"
+        )
+        |> check(
+          spec[:authority][:production_disposition] == "blocked_pending_fr15ab_and_fr09",
+          "production must remain blocked behind FR-15aB and FR-09"
+        )
+        |> validate_principals(spec[:principals])
+        |> validate_channels(spec[:channels])
+        |> validate_kernel(spec[:kernel_protocol])
+        |> validate_pins(spec[:pins])
+        |> validate_routes(spec)
 
-    case Enum.reverse(errors) do
-      [] -> :ok
-      failures -> {:error, failures}
+      case Enum.reverse(errors) do
+        [] -> :ok
+        failures -> {:error, failures}
+      end
+    else
+      {:error, message} -> {:error, [message]}
     end
   rescue
     _error -> {:error, ["manifest structure is invalid"]}
@@ -266,41 +371,71 @@ defmodule PramanaFoundry.CI.FR15aAValidator do
 
   def validate(_spec), do: {:error, ["manifest must be a map"]}
 
+  defp validate_security_collection_uniqueness(spec) do
+    with :ok <- unique_ids(spec[:principals], "principal"),
+         :ok <- unique_ids(spec[:channels], "channel"),
+         :ok <- unique_ids(spec[:pins], "pin"),
+         :ok <- unique_ids(spec[:routes], "route"),
+         :ok <- unique_nested_values(spec[:channels], :callers, "channel caller"),
+         :ok <- unique_nested_values(spec[:routes], :executable_ids, "route executable"),
+         :ok <-
+           unique_values(spec[:kernel_protocol][:allowed_operations], "kernel allowed operation"),
+         :ok <- unique_values(spec[:kernel_protocol][:forbidden_fields], "kernel forbidden field"),
+         :ok <- unique_values(spec[:kernel_protocol][:root_checks], "kernel root check") do
+      :ok
+    end
+  end
+
   defp validate_principals(errors, principals) when is_list(principals) do
-    actual =
-      Map.new(principals, fn principal ->
-        {principal[:id], {principal[:account], principal[:trust], principal[:login]}}
-      end)
+    case unique_ids(principals, "principal") do
+      :ok ->
+        actual =
+          Map.new(principals, fn principal ->
+            {principal[:id], {principal[:account], principal[:trust], principal[:login]}}
+          end)
 
-    accounts = Enum.map(principals, & &1[:account])
+        accounts = Enum.map(principals, & &1[:account])
 
-    errors
-    |> check(actual == @principals, "principal identities/trust/login differ from profile")
-    |> check(
-      length(accounts) == length(Enum.uniq(accounts)),
-      "principal accounts must be distinct"
-    )
+        errors
+        |> check(actual == @principals, "principal identities/trust/login differ from profile")
+        |> check(
+          length(accounts) == length(Enum.uniq(accounts)),
+          "principal accounts must be distinct"
+        )
+
+      {:error, message} ->
+        [message | errors]
+    end
   end
 
   defp validate_principals(errors, _), do: ["principal inventory must be a list" | errors]
 
   defp validate_channels(errors, channels) when is_list(channels) do
-    actual =
-      Map.new(channels, fn channel ->
-        {channel[:id], {channel[:transport], channel[:path], channel[:server], channel[:callers]}}
-      end)
+    with :ok <- unique_ids(channels, "channel"),
+         :ok <- unique_nested_values(channels, :callers, "channel caller") do
+      actual =
+        Map.new(channels, fn channel ->
+          {channel[:id],
+           {channel[:transport], channel[:path], channel[:server], channel[:callers]}}
+        end)
 
-    check(
-      errors,
-      actual == @channels,
-      "channel transport/path/server/callers differ from profile"
-    )
+      check(
+        errors,
+        actual == @channels,
+        "channel transport/path/server/callers differ from profile"
+      )
+    else
+      {:error, message} -> [message | errors]
+    end
   end
 
   defp validate_channels(errors, _), do: ["channel inventory must be a list" | errors]
 
   defp validate_kernel(errors, p) when is_map(p) do
     errors
+    |> validate_unique_values(p[:allowed_operations], "kernel allowed operation")
+    |> validate_unique_values(p[:forbidden_fields], "kernel forbidden field")
+    |> validate_unique_values(p[:root_checks], "kernel root check")
     |> check(p[:version] == "fr06-r3-bundle/v1", "kernel protocol version mismatch")
     |> check(
       p[:caller] == "workflow_kernel" and p[:verifier] == "root" and
@@ -324,105 +459,186 @@ defmodule PramanaFoundry.CI.FR15aAValidator do
   defp validate_kernel(errors, _), do: ["kernel protocol missing" | errors]
 
   defp validate_pins(errors, pins) when is_list(pins) do
-    actual = Map.new(pins, &{&1.id, &1})
+    case unique_ids(pins, "pin") do
+      :ok ->
+        actual = Map.new(pins, &{&1.id, &1})
 
-    errors =
-      check(
-        errors,
-        MapSet.new(Map.keys(actual)) == MapSet.new(Map.keys(@pin_digests)),
-        "pin inventory differs from frozen profile"
-      )
+        errors =
+          check(
+            errors,
+            MapSet.new(Map.keys(actual)) == MapSet.new(Map.keys(@pin_digests)),
+            "pin inventory differs from frozen profile"
+          )
 
-    Enum.reduce(@pin_digests, errors, fn {id, expected}, acc ->
-      pin = actual[id]
-      blocked? = MapSet.member?(@blocked_pins, id)
-      digest = pin && pin[:sha256]
+        Enum.reduce(@pin_digests, errors, fn {id, expected_digest}, acc ->
+          pin = actual[id]
+          blocked? = MapSet.member?(@blocked_pins, id)
+          digest = pin && pin[:sha256]
+          {expected_kind, expected_version, expected_path, expected_status} = @pin_metadata[id]
 
-      acc
-      |> check(not is_nil(pin), "missing pin #{id}")
-      |> check(digest == expected, "pin #{id} digest differs from frozen profile")
-      |> check(
-        blocked? == (pin && pin[:status] == "blocked"),
-        "pin #{id} blocked/implemented disposition mismatch"
-      )
-      |> check(blocked? or valid_digest?(digest), "pin #{id} needs a nonzero exact SHA-256")
-      |> validate_repository_pin(pin)
-    end)
+          acc
+          |> check(not is_nil(pin), "missing pin #{id}")
+          |> check(
+            pin &&
+              {pin[:kind], pin[:version], pin[:path], pin[:status]} ==
+                {expected_kind, expected_version, expected_path, expected_status},
+            "pin #{id} kind/version/path/status identity differs from frozen profile"
+          )
+          |> check(
+            digest == expected_digest,
+            "pin #{id} digest differs from frozen profile"
+          )
+          |> check(
+            blocked? == (pin && pin[:status] == "blocked"),
+            "pin #{id} blocked/implemented disposition mismatch"
+          )
+          |> check(
+            blocked? or valid_digest?(digest),
+            "pin #{id} needs a nonzero exact SHA-256"
+          )
+          |> validate_repository_pin(id, expected_path, expected_digest)
+        end)
+
+      {:error, message} ->
+        [message | errors]
+    end
   end
 
   defp validate_pins(errors, _), do: ["pin inventory must be a list" | errors]
 
-  defp validate_repository_pin(errors, %{path: "foundry/" <> _ = path, sha256: expected}) do
-    case File.read(Path.expand("../../#{path}", __DIR__)) do
-      {:ok, bytes} ->
-        check(
-          errors,
-          sha256(bytes) == expected,
-          "repository pin #{path} does not match file bytes"
-        )
+  defp validate_repository_pin(errors, id, path, expected) do
+    if MapSet.member?(@repository_pin_ids, id) do
+      repository_root = Path.expand("../..", __DIR__)
+      absolute_path = Path.expand(path, repository_root)
+      relative_path = Path.relative_to(absolute_path, repository_root)
 
-      {:error, _} ->
-        ["repository pin #{path} is unavailable" | errors]
+      if String.starts_with?(path, "foundry/") and
+           relative_path == path and not String.starts_with?(relative_path, "../") do
+        case File.read(absolute_path) do
+          {:ok, bytes} ->
+            check(
+              errors,
+              sha256(bytes) == expected,
+              "repository pin #{path} does not match file bytes"
+            )
+
+          {:error, _} ->
+            ["repository pin #{path} is unavailable" | errors]
+        end
+      else
+        ["trusted repository pin #{id} escapes the frozen source root" | errors]
+      end
+    else
+      errors
     end
   end
 
-  defp validate_repository_pin(errors, _), do: errors
-
   defp validate_routes(errors, spec) do
-    routes = Map.new(spec.routes, &{&1.id, &1})
-    pins = Map.new(spec.pins, &{&1.id, &1})
+    with :ok <- unique_ids(spec.routes, "route"),
+         :ok <- unique_ids(spec.pins, "pin"),
+         :ok <- unique_nested_values(spec.routes, :executable_ids, "route executable") do
+      routes = Map.new(spec.routes, &{&1.id, &1})
+      pins = Map.new(spec.pins, &{&1.id, &1})
 
-    errors =
-      check(
-        errors,
-        MapSet.new(Map.keys(routes)) == MapSet.new(Map.keys(@routes)),
-        "route inventory differs from frozen profile"
-      )
+      errors =
+        check(
+          errors,
+          MapSet.new(Map.keys(routes)) == MapSet.new(Map.keys(@routes)),
+          "route inventory differs from frozen profile"
+        )
 
-    Enum.reduce(@routes, errors, fn {id, {category, principal, channel, status, dependencies}},
-                                    acc ->
-      route = routes[id]
-      deps = route && route[:executable_ids]
-      supported? = route && route[:production_status] == "supported"
+      Enum.reduce(@routes, errors, fn {id, {category, principal, channel, status, dependencies}},
+                                      acc ->
+        route = routes[id]
+        deps = route && route[:executable_ids]
+        supported? = route && route[:production_status] == "supported"
 
-      implemented? =
-        is_list(deps) and deps != [] and
-          Enum.all?(deps, &(pins[&1] && pins[&1][:status] != "blocked"))
+        implemented? =
+          is_list(deps) and deps != [] and
+            Enum.all?(deps, &(pins[&1] && pins[&1][:status] != "blocked"))
 
-      if is_nil(route) do
-        ["missing route #{id}" | acc]
-      else
-        acc
-        |> check(
-          {route.category, route.principal, route.channel, route.production_status} ==
-            {category, principal, channel, status},
-          "route #{id} principal/channel/status contract mismatch"
-        )
-        |> check(
-          route.executable_ids == dependencies,
-          "route #{id} executable provenance mismatch"
-        )
-        |> check(
-          Enum.all?(@mapped_fields, &non_empty?(route[&1])),
-          "route #{id} lacks principal/channel/credential/network/probe mapping"
-        )
-        |> check(
-          route.fail_closed == true and non_empty?(route.blocker),
-          "route #{id} must remain explicitly blocked/fail-closed"
-        )
-        |> check(
-          not supported? or implemented?,
-          "supported route #{id} references an unimplemented adapter"
-        )
-        |> check(
-          route.category != "shell" or
-            (route.principal not in ["root", "auth_gateway"] and
-               route.channel not in ["root-command", "model-request", "kernel-bundle"]),
-          "shell route cannot use root/auth/kernel authority channel"
-        )
+        if is_nil(route) do
+          ["missing route #{id}" | acc]
+        else
+          acc
+          |> check(
+            {route.category, route.principal, route.channel, route.production_status} ==
+              {category, principal, channel, status},
+            "route #{id} principal/channel/status contract mismatch"
+          )
+          |> check(
+            route.executable_ids == dependencies,
+            "route #{id} executable provenance mismatch"
+          )
+          |> check(
+            Enum.all?(@mapped_fields, &non_empty?(route[&1])),
+            "route #{id} lacks principal/channel/credential/network/probe mapping"
+          )
+          |> check(
+            route.fail_closed == true and non_empty?(route.blocker),
+            "route #{id} must remain explicitly blocked/fail-closed"
+          )
+          |> check(
+            not supported? or implemented?,
+            "supported route #{id} references an unimplemented adapter"
+          )
+          |> check(
+            route.category != "shell" or
+              (route.principal not in ["root", "auth_gateway"] and
+                 route.channel not in ["root-command", "model-request", "kernel-bundle"]),
+            "shell route cannot use root/auth/kernel authority channel"
+          )
+        end
+      end)
+    else
+      {:error, message} -> [message | errors]
+    end
+  end
+
+  defp unique_ids(entries, label) do
+    ids = Enum.map(entries, &Map.get(&1, :id))
+
+    cond do
+      Enum.any?(ids, &(not non_empty?(&1))) ->
+        {:error, "#{label} IDs must be nonempty strings"}
+
+      length(ids) != length(Enum.uniq(ids)) ->
+        {:error, "duplicate #{label} IDs are forbidden"}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp unique_nested_values(entries, field, label) do
+    Enum.reduce_while(entries, :ok, fn entry, :ok ->
+      case Map.get(entry, field) do
+        values when is_list(values) ->
+          case unique_values(values, label) do
+            :ok -> {:cont, :ok}
+            error -> {:halt, error}
+          end
+
+        _ ->
+          {:cont, :ok}
       end
     end)
   end
+
+  defp validate_unique_values(errors, values, label) do
+    case unique_values(values, label) do
+      :ok -> errors
+      {:error, message} -> [message | errors]
+    end
+  end
+
+  defp unique_values(values, label) when is_list(values) do
+    if length(values) == length(Enum.uniq(values)),
+      do: :ok,
+      else: {:error, "duplicate #{label} values are forbidden"}
+  end
+
+  defp unique_values(_values, _label), do: :ok
 
   defp valid_digest?(digest) when is_binary(digest),
     do: Regex.match?(~r/\A[0-9a-f]{64}\z/, digest) and digest != String.duplicate("0", 64)
