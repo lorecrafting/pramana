@@ -19,8 +19,45 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
   @command_types ~w(legacy_event_append enqueue steer pause resume cancel reset propose submit_artifact submit_review request_effect record_receipt)
   @manifest ~w(schema_version source_path archived_path source_digest source_bytes byte_range line_count valid_count invalid_count errors)
   @manifest_error ~w(line byte_start byte_end record_digest error)
-  @event_types ~w(legacy_event ticket_created ticket_enqueued ticket_steered ticket_paused ticket_resumed ticket_cancelled effect_requested receipt_recorded)
+  # Two disjoint vocabularies share one flat namespace. A name identifies exactly one
+  # event contract, so no version dispatch is needed and no stored record can disagree
+  # with its own type. See docs/fr-08/event-vocabulary-design.md.
+  #
+  # Legacy: the pre-repair vocabulary. Never remove, rename or re-point a member; stored
+  # histories depend on these names validating unchanged.
+  @legacy_event_types ~w(legacy_event ticket_created ticket_enqueued ticket_steered ticket_paused ticket_resumed ticket_cancelled effect_requested receipt_recorded)
+
+  # Lifecycle: the v2 vocabulary. Seeded with exactly the event types the FR-08A
+  # transition-plan destination slots require, rather than the full R4 seed, so every
+  # name here is justified by a concrete binding. FR-08B adds the remainder as its
+  # reduction is written; additions are cheap, redefinition is forbidden.
+  @lifecycle_event_types ~w(launch_planned launch_settled check_planned review_planned integration_planned integration_settled pm_launch_planned pm_launch_settled control_changed ticket_reset)
+
+  @event_types @legacy_event_types ++ @lifecycle_event_types
+
+  # A reused name would silently give one stored type two contracts, which is the single
+  # failure this design must prevent. Enforced at compile time, not left to a test.
+  shared = @legacy_event_types -- (@legacy_event_types -- @lifecycle_event_types)
+
+  if shared != [] do
+    raise CompileError,
+      description:
+        "legacy and lifecycle event vocabularies must stay disjoint; shared: #{inspect(shared)}"
+  end
+
   @intent_types ~w(launch prompt check freeze build integrate activate cleanup git_update)
+
+  @doc "The pre-repair event vocabulary. Stored histories depend on these names."
+  @spec legacy_event_types() :: [String.t()]
+  def legacy_event_types, do: @legacy_event_types
+
+  @doc "The v2 lifecycle event vocabulary, disjoint from the legacy one."
+  @spec lifecycle_event_types() :: [String.t()]
+  def lifecycle_event_types, do: @lifecycle_event_types
+
+  @doc "Every accepted event type."
+  @spec event_types() :: [String.t()]
+  def event_types, do: @event_types
 
   def normalize_bundle(value) do
     with {:ok, map} <- normalize_map(value),

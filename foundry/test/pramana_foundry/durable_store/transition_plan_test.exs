@@ -363,17 +363,32 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     end
   end
 
-  describe "bind/3 durable event vocabulary prerequisite" do
-    # Subcommit 0 of this correction must extend the durable codec's accepted event
-    # vocabulary. Until it lands, a structurally valid plan that passes every
-    # TransitionPlan check is still refused by RecordCodec because the lifecycle event
-    # type is not accepted. This test pins the prerequisite as executable evidence and
-    # must be replaced by the end-to-end binding assertion when that subcommit lands.
-    test "a fully valid plan is refused by the durable codec's event vocabulary" do
-      assert {:error, :invalid_event} =
+  describe "bind/3 end to end and output validation" do
+    # Subcommit 0 landed the lifecycle event vocabulary, so the plan that was previously
+    # refused by RecordCodec now binds through to a normalized proposal. This replaces the
+    # pinned prerequisite assertion that recorded the block.
+    test "a valid plan binds its authoritative fact into a normalized proposal" do
+      assert {:ok, proposal} =
                TransitionPlan.bind(plan(), "below_infrastructure_limit", %{
                  "settled" => settlement()
                })
+
+      assert [event] = proposal["events"]
+      assert event["type"] == "launch_settled"
+      assert event["payload"]["settlement"] == settlement()
+
+      # The codec's carrier duality holds after substitution.
+      assert [projection] = proposal["projections"]
+      assert projection["last_event_id"] == event["event_id"]
+      assert projection["value"]["settlement"] == settlement()
+
+      # No unsubstituted marker survives anywhere in the bound proposal.
+      refute inspect(proposal) =~ ~s("binding")
+    end
+
+    test "binding is refused when the authoritative fact is absent" do
+      assert {:error, :invalid_binding_outputs} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", %{})
     end
 
     test "a marker naming a binding the plan never declared rejects" do
