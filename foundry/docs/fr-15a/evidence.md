@@ -95,3 +95,71 @@ not isolated build/test conformance.
 - Full Foundry CI was not run from this fresh worktree because its locked dependencies
   were absent and this ticket prohibited installation/acquisition. No runtime source was
   changed. The exact docs/validator/test checks above are the candidate evidence.
+
+## B1–B3 correction candidate
+
+The independent blocker review at
+`edd22b21fe548bdf32818f78bc9119e205109a65` reproduced three bounded A-level defects.
+Correction commit `5a7eb4633a0c63a12cd1bbf84c87be7ad9ef03a9`, tree
+`a4110079973c4bfdd81c44257f530f77a6daf0b6`, changes only the manifest,
+specification, validator and focused test:
+
+| SHA-256 | Corrected path |
+|---|---|
+| `2277ad95d53a698899c71686af2303190e539737ca1a7e5e1f74279b63678dc1` | `foundry/ci/validate_fr15aa.exs` |
+| `3e63d13a563fa0663b2250a4a6ad494947559e93753671101c1a67beff7a730e` | `foundry/docs/fr-15a/provisioning-manifest.exs` |
+| `3348b298e12056d10af2f4c14859377d8c64c6399dab75aed2be58760fec304a` | `foundry/docs/fr-15a/provisioning-specification.md` |
+| `d5408a9113eb07b6ba6b18b131cede926390aec84265df4cea1e558753f39c58` | `foundry/test/pramana_foundry/repair/fr15aa_provisioning_test.exs` |
+
+B1 is corrected at specification level by a distinct `_pramana_kernel` principal,
+blocked exact kernel artifact, protected `kernel.sock`, structured
+`fr06-r3-bundle/v1` operation/forbidden-field/root-check profile, host provisioning and
+rollback identity, and positive/forged/stale-epoch acceptance probes. Root still never
+loads candidate kernel code. No kernel artifact or isolation was implemented.
+
+B2 is corrected by exact validation of source/specification and host profiles, distinct
+principal account/trust/login tuples, channel transport/path/server/callers, kernel
+protocol, nonzero frozen pin digests and repository bytes, blocked adapter disposition,
+and complete per-route executable dependencies. The seven reviewer mutations are now
+maintained negative tests, including root account collapse, erased channels, unsupported
+promotion, root/auth shell reassignment, missing provenance, zero digests and package-lock-
+only dependencies.
+
+B3 is corrected by separate source/specification roots, explicit user and group-name plus
+numeric-ID collision checks, present/absent/unknown observer semantics, a durable
+preexisting/created/modified/backup attempt ledger, and rollback limited to resources
+proved newly created by that exact attempt. Pure tests retain the earlier-live/final-absent,
+observer-error and ownership-contradiction cases without host mutation.
+
+Post-commit commands and results:
+
+```text
+cd /private/tmp/pramana-fr15aa/foundry
+elixir ci/validate_fr15aa.exs
+  FR-15aA provisioning manifest: valid; exit 0
+
+mix format --check-formatted ci/validate_fr15aa.exs \
+  docs/fr-15a/provisioning-manifest.exs \
+  test/pramana_foundry/repair/fr15aa_provisioning_test.exs
+  exit 0
+
+MIX_ENV=test elixir -r test/test_helper.exs \
+  test/pramana_foundry/repair/fr15aa_provisioning_test.exs
+  seed 838389; 16 passed; exit 0
+
+cd /private/tmp/pramana-fr15aa
+elixir bin/check_docs.exs
+  seed 904468; 80 passed; exit 0
+
+git diff f5067d96d67a9ec3193a9b8bbadfa54c16525aa3..HEAD --check
+  no output; exit 0
+```
+
+The review reproduction script remains historical evidence for candidate `ca4094e`; its
+old expectation that hostile mutations return `:ok` is deliberately not an acceptance
+gate. The maintained focused tests now require those mutations to return errors. No Mix
+dependency fetch, full Foundry CI, provider/model, credential read, daemon/Herdr operation,
+host account, sudo/network change, provisioning, installation or deployment occurred.
+FR-15aB still owns actual principal/channel/network denial and useful conformance; FR-09
+still owns governing installed OMP/subscription/presentation conformance. Pi remains
+unselected.
