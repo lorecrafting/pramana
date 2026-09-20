@@ -1686,3 +1686,44 @@ latest prose here, remains authoritative for status and dependencies.
   source-bound cursors, explicit truncation/unknown/error semantics and acceptance tests.
   It changes no runtime. Implementation waits for the FR-08A protected-core correction
   to pass and integrate, avoiding concurrent ownership of `ProtectedPrimitives`.
+
+## FR-18A bounded effect query B5 correction integrated — 2026-09-20
+
+- The B5a-B5d correction `98b6ef9fe4236d4741d54888845f64049d8ba738` and its rebound
+  FR-08A evidence `aa173780365d732e1b6fe8ea07b86ca9348c863e` were frozen as candidate
+  `f3f038809262963e5f26e1b2dd127bc89c6bd3c9`, tree
+  `490cb434b3110b2eee987b7e3bbf57c6eb8d0c9e`.
+- Independent narrow rereview `2f5a30817febc490eed3156c37ffdf80cabf86a6` returned
+  **PASS** for all four blockers. Reviewer identity: Claude Opus 5, fresh session,
+  separate from the implementer; recorded as the evidence identity actually used.
+  [Its durable record](fr-18a/b5-correction-rereview.md) verified rather than accepted
+  the diff: the new control/execution summaries never reach the legacy unbounded
+  materializers and are charged to the byte budget by `effect_observation_size/3` before
+  section reads; the closed `active|cancel_requested` vocabulary is enforced at the write
+  boundary, so no healthy store can present a control value the reader calls corrupt;
+  the reconciliation path admits only a durably quarantined conflicting receipt, and a
+  duplicate non-start is refused before reaching that state; and the settlement binding
+  is three-way across settlement row, authoritative effect/receipt scalars and the
+  accepted operation record, verified from the authoritative side as well as the
+  settlement side.
+- Evidence: 23 independent [rereview probes](fr-18a/b5-correction-rereview-probes.exs)
+  at seed 20926, of which 10 were authored by the reviewer; 42 maintained focused tests
+  at seed 20927; 26 corrected B5 review probes at seed 18055; canonical CI at the frozen
+  candidate with six stages passed and an empty dirty set; documentation gate 80/80.
+- **Recorded gap, outstanding before FR-18A completion:**
+  `bounded_execution_summary/1` enumerates four statuses, but the `exit` and
+  `sealed_without_result_or_exit` branches have no executable coverage against a real
+  store, and `sealed_without_result_or_exit` does not appear in `test/` at all. Those
+  branches carry sequence-range validation whose failure would misreport terminal
+  execution state. This is a coverage gap, not a reproduced defect, and did not block
+  integrating the correction.
+- Current-main documentation and the exact reviewed branch merged at
+  `850489ca5fccaeafe5128fbf6500f5962c3e5e6c`. Runtime, test, CI-runner and lockfile paths
+  are byte-identical to the reviewed candidate; only documentation differs. Exact clean
+  integrated CI on pinned Elixir 1.20.3 / OTP 29.0.5 passed all six stages at tree
+  `fa056dab9ccce5f1e63c46ddd3dc3736c2cfb2a3`; provenance is `/private/tmp/claude-501/-Users-raymondluong-dev-pramana/3cec5694-5089-47fb-a6c1-b782b0717815/scratchpad/ci-artifacts-integrated/provenance.json`. Documentation passed 80/80.
+- Integration releases the `ProtectedPrimitives` ownership that the FR-08A
+  protected-result/domain-plan binding correction was waiting on. FR-18A is not complete,
+  and this integration claims no producer, board, activation, provider execution or
+  FR-22 acceptance.
+
