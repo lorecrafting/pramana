@@ -1166,3 +1166,20 @@ steps.
   applying the bounded B1–B6 correction with executable regressions. A changed candidate
   requires renewed independent review; credited 18-table, import-completeness, shared-reducer
   and VFS evidence must not be weakened.
+
+### FR-07 candidate v7 and renewed review
+
+- V7 review revision `c75bb340a4e94c8969df201b6d98cc0f35d56831`, tree
+  `e15eaca44f7e744496654efb3424603e86bb79cd`, claimed B1–B6 corrections and added
+  permanent regressions. Implementer evidence passed warnings-as-errors compilation and
+  75 durable-store tests; its full run was 507/508 with only the known missing-`tiktoken`
+  projection benchmark mismatch.
+- Renewed Astra-high review SHA-256
+  `d7a2f287b463d7abc2dd5ec72205b8849e759d2737d376cc8385546a71379c86`
+  returned **FAIL** after matching all 50 hashes. Independent compile, 88 focused tests,
+  508 full-suite tests and the full-row VFS oracle passed. B3–B6 are corrected.
+- Two local retained-reader blockers remain: a missing projection row with retained carriers
+  is accepted as an absent dependency, and projection/ledger owner traversal accepts an
+  impossible committed sequence; a rejected retained effect owner also raises instead of
+  returning typed corruption. V7 is rejected and unintegrated. The implementation owner is
+  making only this bounded v8 correction before another renewed review.
