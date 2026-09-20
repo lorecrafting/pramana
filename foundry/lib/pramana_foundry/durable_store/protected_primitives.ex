@@ -3864,7 +3864,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp validate_authority_command_provenance(conn) do
     with :ok <- validate_ledger_result_provenance(conn),
          :ok <- validate_effect_command_provenance(conn),
-         :ok <- validate_claim_command_provenance(conn) do
+         :ok <- validate_claim_command_provenance(conn),
+         :ok <- validate_current_transition_provenance(conn),
+         :ok <- validate_reservation_command_provenance(conn) do
       :ok
     end
   end
@@ -4115,6 +4117,382 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       _ -> {:halt, {:error, :invalid_claim_command_provenance}}
     end
   end
+
+  defp validate_current_transition_provenance(conn) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT seq, operation, disposition, canonical_request, result FROM root_commands ORDER BY seq"
+           ),
+         {:ok, snapshots} <- transition_snapshots(rows),
+         :ok <- validate_current_ledger_snapshots(conn, snapshots.ledgers, rows),
+         :ok <- validate_current_effect_snapshots(conn, snapshots.effects, rows),
+         :ok <- validate_current_claim_snapshots(conn, snapshots.claims, rows) do
+      :ok
+    end
+  end
+
+  defp transition_snapshots(rows) do
+    Enum.reduce_while(rows, {:ok, %{ledgers: %{}, effects: %{}, claims: %{}}}, fn
+      [sequence, _type, _disposition, _request, result_bytes], {:ok, acc} ->
+        with {:ok, result} <- decode(result_bytes),
+             {:ok, next} <- collect_transition_snapshots(result["facts"], sequence, acc) do
+          {:cont, {:ok, next}}
+        else
+          {:error, _reason} = error -> {:halt, error}
+          _ -> {:halt, {:error, :invalid_transition_result}}
+        end
+    end)
+  end
+
+  defp collect_transition_snapshots(value, sequence, acc) when is_map(value) do
+    with {:ok, acc} <- maybe_put_transition_snapshot(value, sequence, acc) do
+      Enum.reduce_while(Map.values(value), {:ok, acc}, fn child, {:ok, nested} ->
+        case collect_transition_snapshots(child, sequence, nested) do
+          {:ok, next} -> {:cont, {:ok, next}}
+          error -> {:halt, error}
+        end
+      end)
+    end
+  end
+
+  defp collect_transition_snapshots(values, sequence, acc) when is_list(values) do
+    Enum.reduce_while(values, {:ok, acc}, fn child, {:ok, nested} ->
+      case collect_transition_snapshots(child, sequence, nested) do
+        {:ok, next} -> {:cont, {:ok, next}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp collect_transition_snapshots(_value, _sequence, acc), do: {:ok, acc}
+
+  defp maybe_put_transition_snapshot(
+         %{"ledger_id" => id, "generation" => generation, "authorized" => _units} = fact,
+         seq,
+         acc
+       )
+       when is_binary(id) and is_integer(generation),
+       do: put_transition_snapshot(acc, :ledgers, {id, generation}, fact, seq)
+
+  defp maybe_put_transition_snapshot(%{"claim_id" => id, "effect_id" => _effect} = fact, seq, acc)
+       when is_binary(id),
+       do: put_transition_snapshot(acc, :claims, id, fact, seq)
+
+  defp maybe_put_transition_snapshot(%{"effect_id" => id} = fact, seq, acc)
+       when is_binary(id),
+       do: put_transition_snapshot(acc, :effects, id, fact, seq)
+
+  defp maybe_put_transition_snapshot(_fact, _seq, acc), do: {:ok, acc}
+
+  defp put_transition_snapshot(acc, kind, key, fact, sequence) do
+    revision = fact["revision"]
+    current = get_in(acc, [kind, key])
+
+    cond do
+      not is_integer(revision) or revision < 0 ->
+        {:error, :invalid_transition_revision}
+
+      is_nil(current) or revision > current.fact["revision"] ->
+        {:ok, put_in(acc, [kind, key], %{sequence: sequence, fact: fact})}
+
+      revision == current.fact["revision"] and fact == current.fact ->
+        {:ok, put_in(acc, [kind, key], %{sequence: sequence, fact: fact})}
+
+      true ->
+        {:error, {:conflicting_transition_result, kind, key}}
+    end
+  end
+
+  defp validate_current_ledger_snapshots(conn, snapshots, rows) do
+    with {:ok, ledger_rows} <-
+           Database.query(
+             conn,
+             "SELECT ledger_id, generation, parent_ledger_id, parent_generation, dimension, revision, status, authorized, available, held, consumed, delegated, retired FROM root_ledgers"
+           ) do
+      Enum.reduce_while(ledger_rows, :ok, fn row, :ok ->
+        current = public_ledger(ledger_from_row(row))
+
+        case Map.get(snapshots, {current["ledger_id"], current["generation"]}) do
+          %{sequence: sequence, fact: expected} ->
+            valid =
+              current == expected or
+                (current["revision"] > expected["revision"] and
+                   ledger_immutable_transition_fields(current) ==
+                     ledger_immutable_transition_fields(expected) and
+                   implicit_authority_transition_after?(conn, rows, sequence, current))
+
+            if valid,
+              do: {:cont, :ok},
+              else: {:halt, {:error, {:protected_corrupt, "root_ledgers", :transition}}}
+
+          _ ->
+            {:halt, {:error, {:protected_corrupt, "root_ledgers", :missing_transition}}}
+        end
+      end)
+    end
+  end
+
+  defp ledger_immutable_transition_fields(ledger),
+    do:
+      Map.take(
+        ledger,
+        ~w(schema_version ledger_id generation parent_ledger_id parent_generation dimension status authorized)
+      )
+
+  defp validate_current_effect_snapshots(conn, snapshots, rows) do
+    with {:ok, effect_rows} <- Database.query(conn, "SELECT effect_id FROM root_effects") do
+      Enum.reduce_while(effect_rows, :ok, fn [id], :ok ->
+        with {:ok, effect} <- load_effect(conn, id),
+             current <- public_effect(effect),
+             %{sequence: sequence, fact: expected} <- Map.get(snapshots, id),
+             true <-
+               effect_transition_fields(current) == effect_transition_fields(expected) or
+                 implicit_cancelled_snapshot?(conn, rows, sequence, effect, expected) do
+          {:cont, :ok}
+        else
+          _ -> {:halt, {:error, {:protected_corrupt, "root_effects", :transition}}}
+        end
+      end)
+    end
+  end
+
+  defp effect_transition_fields(effect),
+    do: Map.take(effect, ~w(effect_id status revision))
+
+  defp validate_current_claim_snapshots(conn, snapshots, rows) do
+    with {:ok, claim_rows} <- Database.query(conn, "SELECT claim_id FROM root_claims") do
+      Enum.reduce_while(claim_rows, :ok, fn [id], :ok ->
+        with {:ok, claim} <- load_claim(conn, id),
+             current <- public_claim(claim),
+             %{sequence: sequence, fact: expected} <- Map.get(snapshots, id),
+             true <-
+               current == expected or
+                 implicit_cancelled_claim_snapshot?(conn, rows, sequence, claim, expected) do
+          {:cont, :ok}
+        else
+          _ -> {:halt, {:error, {:protected_corrupt, "root_claims", :transition}}}
+        end
+      end)
+    end
+  end
+
+  defp implicit_cancelled_snapshot?(conn, rows, sequence, effect, expected) do
+    effect.status == "cancelled" and effect.revision == expected["revision"] + 1 and
+      implicit_authority_transition_after?(conn, rows, sequence, effect)
+  end
+
+  defp implicit_cancelled_claim_snapshot?(conn, rows, sequence, claim, expected) do
+    with true <- claim.status == "cancelled" and claim.revision == expected["revision"] + 1,
+         {:ok, effect} <- load_effect(conn, claim.effect_id) do
+      implicit_authority_transition_after?(conn, rows, sequence, effect)
+    else
+      _ -> false
+    end
+  end
+
+  defp implicit_authority_transition_after?(conn, rows, sequence, authority) do
+    Enum.any?(rows, fn
+      [seq, type, "accepted", request_bytes, _result] when seq > sequence ->
+        with {:ok, %{"request" => %{"operation" => operation}}} <- decode(request_bytes) do
+          case type do
+            "set_control" ->
+              operation["control_id"] == Map.get(authority, :control_id) and
+                get_in(operation, ["value", "status"]) == "cancel_requested"
+
+            type when type in ["close_generation", "reset_generation"] ->
+              authority_in_generation?(conn, authority, operation)
+
+            _ ->
+              false
+          end
+        else
+          _ -> false
+        end
+
+      _ ->
+        false
+    end)
+  end
+
+  defp authority_in_generation?(conn, %{effect_id: effect_id}, operation) do
+    case reservations_for_effect(conn, effect_id) do
+      {:ok, reservations} ->
+        Enum.any?(reservations, &reservation_in_generation?(conn, &1, operation))
+
+      _ ->
+        false
+    end
+  end
+
+  defp authority_in_generation?(conn, ledger, operation) do
+    ledger_in_generation?(
+      conn,
+      ledger["ledger_id"],
+      ledger["generation"],
+      operation["ledger_id"],
+      operation["generation"] || operation["old_generation"]
+    )
+  end
+
+  defp reservation_in_generation?(conn, reservation, operation),
+    do:
+      ledger_in_generation?(
+        conn,
+        reservation.ledger_id,
+        reservation.generation,
+        operation["ledger_id"],
+        operation["generation"] || operation["old_generation"]
+      )
+
+  defp ledger_in_generation?(_conn, ledger_id, generation, ledger_id, generation), do: true
+
+  defp ledger_in_generation?(conn, ledger_id, generation, ancestor_id, ancestor_generation) do
+    case load_existing_ledger(conn, ledger_id, generation) do
+      {:ok, %{parent_ledger_id: parent, parent_generation: parent_generation}}
+      when is_binary(parent) ->
+        ledger_in_generation?(conn, parent, parent_generation, ancestor_id, ancestor_generation)
+
+      _ ->
+        false
+    end
+  end
+
+  defp validate_reservation_command_provenance(conn) do
+    with {:ok, command_rows} <-
+           Database.query(
+             conn,
+             "SELECT canonical_request FROM root_commands WHERE operation = 'reserve' AND disposition = 'accepted' ORDER BY seq"
+           ),
+         {:ok, origins} <- reservation_origins(command_rows),
+         {:ok, reservation_rows} <-
+           Database.query(
+             conn,
+             "SELECT reservation_id, ledger_id, generation, dimension, owner_kind, owner_id, units, revision, status, claim_id FROM root_reservations"
+           ) do
+      Enum.reduce_while(reservation_rows, :ok, fn row, :ok ->
+        reservation = reservation_from_row(row)
+
+        with operation when is_map(operation) <- Map.get(origins, reservation.reservation_id),
+             true <- reservation.ledger_id == operation["ledger_id"],
+             true <- reservation.generation == operation["generation"],
+             true <- reservation.owner_kind == operation["owner_kind"],
+             true <- reservation.owner_id == operation["owner_id"],
+             true <- reservation.units == operation["units"],
+             :ok <- validate_reservation_transition_status(conn, reservation) do
+          {:cont, :ok}
+        else
+          _ -> {:halt, {:error, {:protected_corrupt, "root_reservations", :transition}}}
+        end
+      end)
+    end
+  end
+
+  defp reservation_origins(rows) do
+    Enum.reduce_while(rows, {:ok, %{}}, fn [bytes], {:ok, acc} ->
+      with {:ok, %{"request" => %{"operation" => %{"type" => "reserve"} = operation}}} <-
+             decode(bytes),
+           id when is_binary(id) <- operation["reservation_id"],
+           false <- Map.has_key?(acc, id) do
+        {:cont, {:ok, Map.put(acc, id, operation)}}
+      else
+        _ -> {:halt, {:error, :invalid_reservation_command_provenance}}
+      end
+    end)
+  end
+
+  defp validate_reservation_transition_status(conn, reservation) do
+    if reservation.status in ["released", "retired"] and
+         reservation_explicitly_released?(conn, reservation.reservation_id) do
+      :ok
+    else
+      validate_reservation_owner_status(conn, reservation)
+    end
+  end
+
+  defp validate_reservation_owner_status(conn, reservation) do
+    case load_effect(conn, reservation.owner_id) do
+      {:error, :not_found} ->
+        if reservation.status == "proposed" and is_nil(reservation.claim_id),
+          do: :ok,
+          else: {:error, :invalid_reservation_transition}
+
+      {:ok, effect} ->
+        with {:ok, claims} <-
+               Database.query(conn, "SELECT claim_id FROM root_claims WHERE effect_id = ?", [
+                 effect.effect_id
+               ]),
+             claim_id <- if(claims == [], do: nil, else: claims |> hd() |> hd()),
+             true <- reservation.claim_id == claim_id,
+             true <- reservation.status in reservation_statuses(conn, effect, claim_id) do
+          :ok
+        else
+          _ -> {:error, :invalid_reservation_transition}
+        end
+
+      _ ->
+        {:error, :invalid_reservation_transition}
+    end
+  end
+
+  defp reservation_explicitly_released?(conn, reservation_id) do
+    case Database.query(
+           conn,
+           "SELECT canonical_request FROM root_commands WHERE operation = 'release_reservation' AND disposition = 'accepted' ORDER BY seq",
+           []
+         ) do
+      {:ok, rows} ->
+        Enum.any?(rows, fn [bytes] ->
+          case decode(bytes) do
+            {:ok, %{"request" => %{"operation" => operation}}} ->
+              operation["reservation_id"] == reservation_id and operation["proof"] == "unissued"
+
+            _ ->
+              false
+          end
+        end)
+
+      _ ->
+        false
+    end
+  end
+
+  defp reservation_statuses(_conn, %{status: "pending"}, nil), do: ["reserved"]
+
+  defp reservation_statuses(_conn, %{status: "claimed"}, claim_id) when is_binary(claim_id),
+    do: ["reserved"]
+
+  defp reservation_statuses(_conn, %{status: status}, claim_id)
+       when status in ["issued", "unknown"] and is_binary(claim_id),
+       do: ["issued_unknown"]
+
+  defp reservation_statuses(conn, %{status: "reconciliation_required"}, claim_id)
+       when is_binary(claim_id) do
+    case receipts_for_claim(conn, claim_id) do
+      {:ok, receipts} ->
+        cond do
+          Enum.any?(receipts, &(&1.outcome in ["succeeded", "failed"])) -> ["consumed"]
+          Enum.any?(receipts, &(&1.outcome == "non_started")) -> ["released", "retired"]
+          true -> ["issued_unknown"]
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  defp reservation_statuses(_conn, %{status: status}, claim_id)
+       when status in ["succeeded", "failed"] and is_binary(claim_id),
+       do: ["consumed"]
+
+  defp reservation_statuses(_conn, %{status: "non_started"}, claim_id)
+       when is_binary(claim_id),
+       do: ["released", "retired"]
+
+  defp reservation_statuses(_conn, %{status: "cancelled"}, _claim_id),
+    do: ["released", "retired"]
+
+  defp reservation_statuses(_conn, _effect, _claim_id), do: []
 
   defp validate_effect_authority_relations(conn) do
     with {:ok, rows} <-

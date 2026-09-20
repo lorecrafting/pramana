@@ -2,9 +2,9 @@ defmodule PramanaFoundry.DurableStore.FR08ARereviewMatrixTest do
   use ExUnit.Case, async: false
 
   @tag timeout: 120_000
-  test "the maintained hostile final-review matrix passes all twenty-two public cases" do
+  test "the maintained hostile acceptance matrix passes all forty-one public cases" do
     foundry_root = Path.expand("../../..", __DIR__)
-    probe = Path.join(foundry_root, "docs/fr-08/fr08a-final-review-probes.exs")
+    probe = Path.join(foundry_root, "docs/fr-08/fr08a-acceptance-review-probes.exs")
 
     {output, status} =
       System.cmd(
@@ -20,7 +20,7 @@ defmodule PramanaFoundry.DurableStore.FR08ARereviewMatrixTest do
       )
 
     assert status == 0, output
-    assert output =~ "Result: 22 passed", output
+    assert output =~ "Result: 41 passed", output
   end
 
   defp canonical_tmp do
