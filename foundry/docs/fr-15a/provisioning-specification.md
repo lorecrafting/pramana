@@ -159,6 +159,27 @@ reusing an account does not create independent review. A slot cannot change role
 any process, descriptor, socket, mount, capability or uncertain issued effect from its
 previous assignment remains.
 
+The root derives these maximum capability sets; a request may narrow but never enlarge
+them:
+
+| Role / service | Maximum operations | Explicit denials |
+|---|---|---|
+| root verifier/store | verify/admit, R1 claim/issue/settle, R5 reserve/settle, capability issue/revoke, protected evidence/ref/activation decisions | candidate-loaded code and model-directed arbitrary execution |
+| launcher | one fixed manifest launch, observe exact incarnation, owned cleanup/quarantine | arbitrary argv, policy mutation, provider request, candidate/Git mutation |
+| auth gateway | one exact claimed model request and attributable reconciliation/receipt | arbitrary URL/header, CONNECT, tool execution, new grant/session/route |
+| harness | start/observe/prompt/interrupt/reconcile/close its exact session; submit typed tool/request calls | reusable auth, direct provider/IP, local shell/file/build, grant minting |
+| developer slot | admitted workspace read/write/search/edit, bounded shell/job/check request, candidate handoff output | protected refs/store/policy, other roles/slots, acceptance or provider route |
+| reviewer slot | exact candidate/evidence read, bounded checks, review artifact write | candidate mutation, developer identity, self-acceptance, integration/provider route |
+| PM slot | admitted status/spec/context read and proposal artifact write | candidate/policy/admission mutation, execution grant, acceptance/integration |
+| build | one registered check/build specification over immutable input and new output | source/integration mutation, provider/root credentials, undeclared network |
+| runtime | start/stop/health for one accepted immutable release and scoped service state | build/source/Git/provider/root access or activation decision |
+| fetch | one admitted URL/host/redirect/digest/size acquisition | generic proxy, provider auth, caller-selected destination path |
+| presentation | sanitized attach/read and interrupt request against exact presentation ID | workflow completion/verdict, direct signal, operator shell, raw secret/capability |
+
+Child/delegated execution receives a separate identity, claim, reservation and capability
+set no broader than its parent. No caller-supplied role, path, provider or model string is
+authorization.
+
 ### Protected paths and listeners
 
 | Path / listener | Owner and mode | Rule |
