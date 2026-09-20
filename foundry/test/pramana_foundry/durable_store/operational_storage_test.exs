@@ -206,17 +206,31 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
           capacity_probe: fn _path -> {:ok, 1} end
         )
 
-      commit_protected(seed, "#{operation}-PRIOR", capability, 4_000_000)
+      prior_count = 4
+
+      for index <- 1..prior_count do
+        commit_protected(seed, "#{operation}-PRIOR-#{index}", capability, 4_000_000)
+      end
+
       baseline_path = Path.join(ctx.root, "#{operation}-baseline.sqlite3")
       assert {:ok, %{content: baseline}} = Gateway.backup(seed, baseline_path)
       baseline_digest = file_digest(baseline_path)
-      assert_complete_authority(baseline)
+      assert_complete_authority(baseline, prior_count)
       assert :ok = stop_supervised(Path.basename(path))
 
       parent = self()
 
       fault = fn conn ->
-        worker = spawn(fn -> interrupt_connection(conn) end)
+        ready = make_ref()
+        callback = self()
+        worker = spawn(fn -> interrupt_connection(conn, callback, ready) end)
+
+        receive do
+          {:maintenance_interrupter_ready, ^ready, ^worker} -> :ok
+        after
+          1_000 -> raise "maintenance interrupter did not start"
+        end
+
         send(parent, {:maintenance_interrupter, operation, worker})
         :ok
       end
@@ -273,7 +287,7 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
 
       recovered_path = Path.join(ctx.root, "#{operation}-recovered.sqlite3")
       assert {:ok, %{content: ^baseline}} = Gateway.backup(reopened, recovered_path)
-      assert_complete_authority(baseline)
+      assert_complete_authority(baseline, prior_count)
       assert file_digest(baseline_path) == baseline_digest
 
       if partial do
@@ -630,6 +644,11 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     path |> File.read!() |> then(&:crypto.hash(:sha256, &1)) |> Base.encode16(case: :lower)
   end
 
+  defp interrupt_connection(conn, parent, ready) do
+    send(parent, {:maintenance_interrupter_ready, ready, self()})
+    interrupt_connection(conn)
+  end
+
   defp interrupt_connection(conn) do
     receive do
       :stop ->
@@ -641,14 +660,14 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     end
   end
 
-  defp assert_complete_authority(content) do
-    assert content["commands"].count == 1
-    assert content["events"].count == 1
-    assert content["projections"].count == 1
-    assert content["effects"].count == 1
-    assert content["claims"].count == 1
-    assert content["ledger_generations"].count == 1
-    assert content["reservations"].count == 1
+  defp assert_complete_authority(content, expected \\ 1) do
+    assert content["commands"].count == expected
+    assert content["events"].count == expected
+    assert content["projections"].count == expected
+    assert content["effects"].count == expected
+    assert content["claims"].count == expected
+    assert content["ledger_generations"].count == expected
+    assert content["reservations"].count == expected
   end
 
   defp attach_disk_image(root, name, size_mb) do
