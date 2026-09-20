@@ -18,6 +18,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     Kernel,
     Owner,
     PathIdentity,
+    ProtectedPrimitives,
     ProtectedVerifier,
     RecordCodec
   }
@@ -50,6 +51,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          {:ok, owner} <- Owner.acquire(identity, opts) do
       try do
         with :ok <- PathIdentity.revalidate(owner.identity),
+             :ok <- Database.migrate_protected_owned(owner),
              {:ok, conn} <- Database.open(owner.identity),
              :ok <- PathIdentity.revalidate(owner.identity) do
           result = Database.record_v1_migration(conn)
@@ -82,6 +84,19 @@ defmodule PramanaFoundry.DurableStore.Gateway do
       )
 
   def command(server, command_id), do: GenServer.call(server, {:command, command_id})
+
+  @doc "Executes one capability-authenticated protected semantic command."
+  def protected_command(server, capability, actor_id, request),
+    do: GenServer.call(server, {:protected_command, capability, actor_id, request})
+
+  @doc "Reads a bounded root-derived protected fact without exposing SQL or table names."
+  def protected_query(server, capability, query),
+    do: GenServer.call(server, {:protected_query, capability, query})
+
+  @doc "Returns bounded store identity, sequence frontiers and typed root pointer slots."
+  def protected_snapshot(server, capability),
+    do: GenServer.call(server, {:protected_snapshot, capability})
+
   def counts(server), do: GenServer.call(server, :counts)
   def backup(server, path), do: GenServer.call(server, {:backup, path}, :infinity)
   def operational_health(server), do: GenServer.call(server, :operational_health, :infinity)
@@ -211,7 +226,16 @@ defmodule PramanaFoundry.DurableStore.Gateway do
       ) do
     result =
       with true <- capability === state.protected_capability do
-        do_verified_transact(state.conn, actor_id, command, proposal, facts, state.fault)
+        case ProtectedPrimitives.authority_mode(state.conn) do
+          {:ok, :root} ->
+            {:error, :legacy_protected_route_retired}
+
+          {:ok, _legacy_mode} ->
+            do_verified_transact(state.conn, actor_id, command, proposal, facts, state.fault)
+
+          {:error, _reason} = error ->
+            error
+        end
       else
         false -> {:error, :unauthorized_protected_operation}
       end
@@ -230,6 +254,78 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     next = transition_after_result(state, result)
     reply = if next.mode == :recovery, do: {:error, {:recovery_mode, next.reason}}, else: result
     {:reply, reply, next}
+  end
+
+  def handle_call(
+        {:protected_command, _capability, _actor_id, _request},
+        _from,
+        %{mode: :recovery} = state
+      ) do
+    {:reply, {:error, {:recovery_mode, state.reason}}, state}
+  end
+
+  def handle_call({:protected_command, capability, actor_id, request}, _from, state) do
+    result =
+      if capability === state.protected_capability do
+        case ProtectedPrimitives.authority_mode(state.conn) do
+          {:ok, :legacy} ->
+            {:error, :legacy_authority_mode_active}
+
+          {:ok, _mode} ->
+            ProtectedPrimitives.execute(
+              state.conn,
+              actor_id,
+              request,
+              state.writer_epoch,
+              state.fault
+            )
+
+          {:error, _reason} = error ->
+            error
+        end
+      else
+        {:error, :unauthorized_protected_operation}
+      end
+
+    {:reply, result, transition_after_result(state, result)}
+  end
+
+  def handle_call(
+        {:protected_query, _capability, _query},
+        _from,
+        %{mode: :recovery} = state
+      ) do
+    {:reply, {:error, {:recovery_mode, state.reason}}, state}
+  end
+
+  def handle_call({:protected_query, capability, query}, _from, state) do
+    result =
+      if capability === state.protected_capability do
+        ProtectedPrimitives.query(state.conn, query)
+      else
+        {:error, :unauthorized_protected_operation}
+      end
+
+    {:reply, result, transition_after_result(state, result)}
+  end
+
+  def handle_call(
+        {:protected_snapshot, _capability},
+        _from,
+        %{mode: :recovery} = state
+      ) do
+    {:reply, {:error, {:recovery_mode, state.reason}}, state}
+  end
+
+  def handle_call({:protected_snapshot, capability}, _from, state) do
+    result =
+      if capability === state.protected_capability do
+        ProtectedPrimitives.snapshot(state.conn, state.writer_epoch)
+      else
+        {:error, :unauthorized_protected_operation}
+      end
+
+    {:reply, result, transition_after_result(state, result)}
   end
 
   def handle_call(:counts, _from, %{mode: :recovery} = state) do
@@ -347,7 +443,11 @@ defmodule PramanaFoundry.DurableStore.Gateway do
                  Keyword.get(opts, :capacity_probe_timeout_ms, @capacity_probe_timeout_ms),
                operational_health_requests: %{},
                protected_capability:
-                 Keyword.get_lazy(opts, :protected_capability, fn -> make_ref() end)
+                 Keyword.get_lazy(opts, :protected_capability, fn -> make_ref() end),
+               writer_epoch:
+                 Keyword.get_lazy(opts, :writer_epoch, fn ->
+                   16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+                 end)
              }}
           else
             {:error, reason} ->
@@ -830,18 +930,22 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   end
 
   defp existing(conn, command_id, actor_id, digest) do
-    case Authority.read(conn, {:command, command_id}) do
-      {:ok, :absent} ->
-        {:error, :not_found}
+    if ProtectedPrimitives.root_command_id_exists?(conn, command_id) do
+      {:error, :idempotency_conflict}
+    else
+      case Authority.read(conn, {:command, command_id}) do
+        {:ok, :absent} ->
+          {:error, :not_found}
 
-      {:ok, %{actor_id: ^actor_id, digest: ^digest, result: result}} ->
-        {:ok, result}
+        {:ok, %{actor_id: ^actor_id, digest: ^digest, result: result}} ->
+          {:ok, result}
 
-      {:ok, %{}} ->
-        {:error, :idempotency_conflict}
+        {:ok, %{}} ->
+          {:error, :idempotency_conflict}
 
-      {:error, _reason} = error ->
-        error
+        {:error, _reason} = error ->
+          error
+      end
     end
   end
 
@@ -990,9 +1094,18 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp maybe_limit_pages(_conn, nil), do: :ok
 
   defp maybe_limit_pages(conn, pages) when is_integer(pages) and pages > 0 do
-    case Database.query(conn, "PRAGMA max_page_count = #{pages}") do
-      {:ok, [[actual]]} when actual <= pages -> :ok
-      {:ok, rows} -> {:error, {:page_limit_failed, rows}}
+    with {:ok, [[current]]} <- Database.query(conn, "PRAGMA page_count") do
+      # A schema migration can legitimately make an existing absolute fixture limit
+      # smaller than the already committed database.  In that case retain the same
+      # bounded-growth fault probe by treating the requested pages as additional room.
+      target = if pages <= current, do: current + pages, else: pages
+
+      case Database.query(conn, "PRAGMA max_page_count = #{target}") do
+        {:ok, [[actual]]} when actual <= target -> :ok
+        {:ok, rows} -> {:error, {:page_limit_failed, rows}}
+        {:error, reason} -> {:error, reason}
+      end
+    else
       {:error, reason} -> {:error, reason}
     end
   end
