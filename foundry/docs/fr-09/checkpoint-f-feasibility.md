@@ -62,6 +62,31 @@ Pi's direct RPC `bash` command and observed `80 passed`. This proves a useful lo
 but the shell ran in Pi's same-user harness principal and is therefore evidence of the
 missing tool-isolation boundary, not production conformance.
 
+### Evidence-fixture containment correction
+
+Independent Sol-high review `a306a59af850cb439628c70b261de516d583c078` of candidate
+`6582c9a79671af926bf49eb44b7faee54401ae74` credited the raw protocol evidence but
+reproduced two fixture-containment blockers: `Port.open/2` overlaid rather than cleared
+the parent environment, and Jiti compiled the explicit extension beneath ambient
+`TMPDIR`. The corrected fixture preserves every credited behavior while closing only
+those evidence defects.
+
+The parent BEAM replaces named provider, proxy, SSH-agent, Git-helper, package/runtime
+and operator-root variables with hostile **synthetic** sentinels without reading their
+prior values. A fixed Elixir-controlled launch invokes `/usr/bin/env -i`, supplies an
+explicit allowlist, opens synthetic FD 9, and immediately `exec`s the exact Pi path.
+RPC Bash and the CLI-explicit extension both prove every hostile sentinel absent and the
+expected synthetic allowlist present. This makes the probe self-contained; it is not the
+production principal or credential gateway required by FR-15aB.
+
+`HOME`, `TMPDIR`/`TMP`/`TEMP`, all XDG roots, npm cache, Pi config and Pi sessions point
+beneath the one owned probe root. The explicit extension still executes and Jiti's
+compiled output is positively observed beneath owned `TMPDIR/jiti`. Bounded pre/post
+inventories of the ambient temporary Jiti directory, user cache Jiti directory and
+installed-package Jiti cache find no immediate-child path change. Cleanup removes and
+verifies absence of the exact owned root only; it neither scans nor deletes unrelated
+user state.
+
 ## Contract disposition
 
 | Required capability | Result at this freeze | Exact evidence and required change |
@@ -73,9 +98,9 @@ missing tool-isolation boundary, not production conformance.
 | `interrupt` | **Supported raw; blocked contract** | `abort` during a deliberately stalled loopback response returned only after idle. Queued messages, active tools, process loss, child work and attributable external non-delivery still require adapter tests and R1 reconciliation. |
 | `reconcile` / session persistence | **Supported narrow; blocked contract** | Restart with the isolated session root recovered the same session ID/file. Live-process reattachment, incarnation proof, foreign-session denial and unknown possible provider outcomes remain unimplemented. Conversation continuity is not execution authority. |
 | `close` / cleanup | **Supported narrow; blocked contract** | Controller `SIGTERM` ended the verified Pi PID and the probe observed process absence. Idempotent owned cleanup, tool/background descendants, uncertain resources and Herdr presentation cleanup remain separate requirements. |
-| Credential separation | **Blocked** | The fixture's synthetic bearer was sent directly by Pi. A synthetic inherited environment secret was readable by RPC Bash; an explicit startup extension read an inherited FD. Real credential contents were never read. Put reusable authentication in another protected principal/gateway, scrub environment, close descriptors and deny auth files/keychains/process memory/IPC by OS policy. |
+| Credential separation | **Blocked** | The fixture's synthetic bearer was sent directly by Pi. RPC Bash read the deliberately allowlisted synthetic secret, while hostile synthetic parent-only provider/proxy/auth sentinels were absent from Bash and the Pi-process extension. An explicit startup extension read deliberately passed FD 9. Real credential contents were never read. Put reusable authentication in another protected principal/gateway, close all unintended descriptors and deny auth files/keychains/process memory/IPC by OS policy. |
 | Pre-request R5 reservation | **Blocked** | Both fixture prompts reached the endpoint without any Foundry reservation/claim handshake. Add protected per-request claims covering first prompt, continuations, retry and compaction, retaining unknown holds after possible issue. |
-| Tool/extension/startup isolation | **Blocked** | Discovery flags denied synthetic ambient-user and project extensions, but a CLI-explicit extension executed despite `--no-extensions` and read an inherited FD. `get_commands` also exposed bundled inline `llama` extension code. RPC Bash read inherited environment, could signal the same-user probe parent and could read shared Git metadata. Add a manifest-enforced launcher and separate restricted worker principal; CLI flags alone cannot pass. |
+| Tool/extension/startup isolation | **Blocked** | Discovery flags denied synthetic ambient-user and project extensions, but a CLI-explicit extension executed despite `--no-extensions` and read deliberately passed FD 9. `get_commands` also exposed bundled inline `llama` extension code. RPC Bash read its allowlisted environment, could signal the same-user probe parent and could read shared Git metadata. Add a manifest-enforced launcher and separate restricted worker principal; CLI flags alone cannot pass. |
 | Useful local model-free build/test path | **Supported raw; blocked isolation** | Direct RPC Bash ran `elixir bin/check_docs.exs` and observed `80 passed`. This is technically useful but runs shell in the Pi principal, bypasses typed capability/R1/R5 mediation and therefore cannot be the production path. |
 
 ## Candidate-controlled execution-path inventory
@@ -99,10 +124,13 @@ FR-15aA can pass. Current disposition is **blocked unless noted**.
   not remove build-hook or subprocess risk.
 - **Environment and file descriptors:** the initial investigation shell inherited the
   name of a provider-secret variable plus `SSH_AUTH_SOCK`; no real values were read. In
-  the synthetic fixture, RPC Bash read an inherited environment secret. Its child did
-  close the deliberately passed FD, but a CLI-explicit startup extension in the Pi
-  process read that FD. A future launcher must use an allowlist and close inherited
-  descriptors, sockets and proxy variables before any extension/startup code can run.
+  the corrected synthetic fixture, the trusted `env -i` launch removes hostile synthetic
+  parent-only provider/proxy/auth/runtime sentinels before Pi, RPC Bash or extensions.
+  RPC Bash reads only the deliberately allowlisted synthetic secret. Its child closes
+  deliberately passed FD 9, but a CLI-explicit startup extension in the Pi process reads
+  that FD. Production must additionally close every unintended descriptor and enforce
+  the separation with actual principals rather than treating this fixture launcher as
+  the FR-15aB boundary.
 - **Network:** Pi supports direct provider requests and `--offline` is a voluntary process
   setting, not worker egress enforcement. Even with offline mode it made the configured
   loopback model requests and attached the synthetic bearer. This positively proves
@@ -118,7 +146,10 @@ FR-15aA can pass. Current disposition is **blocked unless noted**.
 - **Sessions/caches/logs:** Pi, OMP and Herdr retain same-user session/config/log roots.
   Several ordinary OMP/Herdr metadata and log paths are world-readable (`0644`) and Pi's
   settings are `0644`; confidential contents were not inspected. Assignment-scoped roots,
-  retention/redaction and cross-assignment denial remain required.
+  retention/redaction and cross-assignment denial remain required. The corrected probe
+  binds all of its Pi/Jiti/npm/XDG temp, cache, config and session state beneath its owned
+  disposable root and proves no path change in the bounded known ambient Jiti
+  locations; that fixture containment is not cross-assignment OS isolation.
 - **Foundry source path:** current execution modules implement Herdr-specific launch,
   prompt, inspect, interrupt and pane cleanup over legacy checkpoints. There is no
   harness-neutral Pi behaviour, protected request broker, R5 request reservation adapter,
@@ -139,6 +170,7 @@ pi --help; omp --help; herdr --help
 stat/find metadata for ~/.pi, ~/.omp, ~/.config/herdr (names/modes only)
 env | cut -d= -f1 | sort | restricted name filter (names only)
 elixir foundry/docs/fr-09/pi_rpc_probe.exs
+  # internally: /usr/bin/env -i <allowlist> /bin/sh -c <fixed exec wrapper> ...
 HOME=<temporary> npm_config_cache=<temporary> npm ls --prefix <installed-pi> \
   --omit=dev --all --json | shasum -a 256
 shasum -a 256 <Pi executable> <Pi package.json> /opt/homebrew/bin/node
@@ -152,7 +184,8 @@ secrets. It did not attempt process-memory reads; `kill -0` established same-use
 visibility/signalling authority without sending a signal. It did not establish OS-level
 network denial, protected Git custody, provider entitlement, quota visibility, hidden
 retry accounting, or a pre-request reservation boundary. No daemon query or live Herdr
-command was run.
+command was run. The hostile variables used for negative controls were synthetic and
+their prior parent values were overwritten without being read.
 
 ## Checkpoint conclusion and required next work
 
