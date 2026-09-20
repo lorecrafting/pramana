@@ -7,8 +7,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     report = FR08AProtectedBoundary.report()
 
     assert report.identity.implementation_binding == "verified:source-sha256+beam-md5/v1"
-    assert report.identity.subject_revision == "066e29e1b50535759730b64583876b466629195b"
-    assert report.identity.subject_tree == "ca0339489e051f3c8ae6e0315bdd0139771b21de"
+    assert report.identity.subject_revision == "e79a88a163202ef38cf32ea65ed348554a3dedc1"
+    assert report.identity.subject_tree == "5afd76721c082c596ddd32898c46520a1f23d775"
     assert length(report.identity.exercised_api) == 9
     assert FR08HandoffGate.ready?(report.gate)
     assert report.gate.passed_count == 7
@@ -43,7 +43,7 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     assert first =~ "implementation_binding=verified:source-sha256+beam-md5/v1\n"
 
     assert first =~
-             "protected_primitives.ex|sha256:9e5dc8e8d3e132008871c546e145ad67d77ae2ee144dd28fac5ab553651eeab0|beam_md5:186122c68a2a4ad8268aea7e79aa6eec"
+             "protected_primitives.ex|sha256:c1641774feaf9348ead1a2259d64541c44bc24038188f153eb0c1f5b0c05d460|beam_md5:5066da564cc1baa04b3a5a5e9778c13d"
   end
 
   test "changed loaded Gateway implementation refuses all positive evidence" do
