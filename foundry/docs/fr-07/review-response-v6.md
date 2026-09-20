@@ -1,6 +1,6 @@
 # FR-07 v6 recovered review response
 
-Date: 2026-09-19  
+Date: 2026-09-19
 Review: `review-v6.md`, SHA-256
 `7151d544e1d64e757d75f33428e361d668c84356631b09fed1d3daeda491f35f`
 

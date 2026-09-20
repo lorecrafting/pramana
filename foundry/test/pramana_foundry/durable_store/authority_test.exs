@@ -766,6 +766,147 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
              Authority.read(conn, :all)
   end
 
+  test "a retained carrier makes a missing completed projection corrupt", ctx do
+    gateway = start_supervised!({Gateway, path: ctx.path})
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact(gateway, "actor", command("A"), bundle("A"))
+
+    conn = :sys.get_state(gateway).conn
+    assert :ok = Database.execute(conn, "DELETE FROM projections WHERE entity_id='ticket-A'")
+
+    assert {:error,
+            {:authority_corrupt, "projections", {"kernel-v1", "ticket-A"},
+             {:missing_for_carrier, "event-A"}}} =
+             Authority.read(conn, {:revision, {:projection, "kernel-v1", "ticket-A"}})
+
+    dependent = put_in(command("B")["expected_revisions"], %{projection_key("A") => "absent"})
+
+    assert {:error,
+            {:authority_corrupt, "projections", {"kernel-v1", "ticket-A"},
+             {:missing_for_carrier, "event-A"}}} =
+             Gateway.transact(gateway, "actor", dependent, %{
+               schema_version: 1,
+               result: %{schema_version: 1, disposition: "accepted"}
+             })
+
+    assert %{mode: :recovery} = Gateway.status(gateway)
+
+    assert {:ok, [[0]]} =
+             Database.query(conn, "SELECT count(*) FROM commands WHERE command_id='B'")
+  end
+
+  test "projection and ledger dependencies reject impossible owner result watermarks", ctx do
+    for family <- [:projection, :ledger] do
+      path = Path.join(ctx.root, "owner-watermark-#{family}.sqlite3")
+      assert :ok = Gateway.initialize(path)
+      capability = make_ref()
+
+      gateway =
+        start_supervised!(
+          {Gateway, path: path, protected_capability: capability},
+          id: {:owner_watermark, family}
+        )
+
+      assert {:ok, _result, :committed} =
+               Gateway.transact_verified(
+                 gateway,
+                 capability,
+                 "actor",
+                 command("A"),
+                 protected_bundle("A"),
+                 protected("A")
+               )
+
+      conn = :sys.get_state(gateway).conn
+
+      assert {:ok, durable} =
+               RecordCodec.materialize_result(
+                 %{schema_version: 1, disposition: "accepted"},
+                 999
+               )
+
+      assert {:ok, encoded} = RecordCodec.encode(:result, durable)
+
+      assert :ok =
+               Database.execute(
+                 conn,
+                 "UPDATE command_results SET committed_seq=999, result=? WHERE command_id='A'",
+                 [{:blob, encoded}]
+               )
+
+      key =
+        if family == :projection,
+          do: projection_key("A"),
+          else: "ledger/" <> Base.url_encode64("generation-A", padding: false)
+
+      dependent = put_in(command("B")["expected_revisions"], %{key => 0})
+
+      assert {:error,
+              {:authority_corrupt, "command_results", "A", :invalid_sequence_or_disposition}} =
+               Gateway.transact(gateway, "actor", dependent, %{
+                 schema_version: 1,
+                 result: %{schema_version: 1, disposition: "accepted"}
+               })
+
+      assert %{mode: :recovery} = Gateway.status(gateway)
+
+      assert {:ok, [[0]]} =
+               Database.query(conn, "SELECT count(*) FROM commands WHERE command_id='B'")
+    end
+  end
+
+  test "a rejected owner retaining effects returns typed corruption", ctx do
+    capability = make_ref()
+    gateway = start_supervised!({Gateway, path: ctx.path, protected_capability: capability})
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact_verified(
+               gateway,
+               capability,
+               "actor",
+               command("A"),
+               protected_bundle("A"),
+               protected("A")
+             )
+
+    conn = :sys.get_state(gateway).conn
+
+    assert {:ok, durable} =
+             RecordCodec.materialize_result(
+               %{schema_version: 1, disposition: "rejected", reason_code: "manual"},
+               1
+             )
+
+    assert {:ok, encoded} = RecordCodec.encode(:result, durable)
+
+    assert :ok =
+             Database.execute(
+               conn,
+               "UPDATE command_results SET disposition='rejected', reason_code='manual', result=? WHERE command_id='A'",
+               [{:blob, encoded}]
+             )
+
+    assert {:error,
+            {:authority_corrupt, "command_results", "A", :invalid_sequence_or_disposition}} =
+             Authority.read(conn, {:revision, {:ledger, "generation-A"}})
+
+    ledger_key = "ledger/" <> Base.url_encode64("generation-A", padding: false)
+    dependent = put_in(command("B")["expected_revisions"], %{ledger_key => 0})
+
+    assert {:error,
+            {:authority_corrupt, "command_results", "A", :invalid_sequence_or_disposition}} =
+             Gateway.transact(gateway, "actor", dependent, %{
+               schema_version: 1,
+               result: %{schema_version: 1, disposition: "accepted"}
+             })
+
+    assert %{mode: :recovery} = Gateway.status(gateway)
+
+    assert {:ok, [[0]]} =
+             Database.query(conn, "SELECT count(*) FROM commands WHERE command_id='B'")
+  end
+
   defp command(id) do
     %{
       "schema_version" => 1,
