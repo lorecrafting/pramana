@@ -1092,33 +1092,37 @@ either is started. Export is **step 5 of 7**, gated on steps 1 through 4, and st
 
 **The four JSONL surfaces need named owners.** The observability route documents
 fragmentation across `coordinator.jsonl`, `telemetry.jsonl`, `events.jsonl` and
-`findings.jsonl`. Only `events.jsonl` appears anywhere in this plan, once, in FR-08B's
-exclusions. Assigning the rest here so none is retired by assumption: `events.jsonl` is
-FR-08B's, which may keep it only as checked import/export or diagnostic compatibility once
-it stops deciding live workflow truth; `coordinator.jsonl` is FR-08B's through its
-command-ingress migration; `telemetry.jsonl` is FR-18B's through producer repair; and
-`findings.jsonl` is FR-20's, since it carries improvement findings. FR-23 sweeps whatever
-those leave behind and must not pre-empt them.
+`findings.jsonl`. Assigning them so none is retired by assumption:
 
-**The correlation model this route proposes is longer than the one this ticket requires,
-and the difference is load-bearing.** The refinement above asks to correlate ticket,
-attempt, execution and effect identities — four links. The route proposes objective →
-ticket → attempt → execution → request/tool/effect → candidate → review → accepted
-outcome. The tail is what makes the economics requirement checkable: demonstrating that a
-cheaper token path cannot hide worse review, acceptance or operator-effort outcomes
-requires correlating cost to the *accepted outcome*, which a chain ending at the effect
-cannot express. Treat the longer chain as the requirement; the four-identity phrasing is a
-floor, not a ceiling.
+- `coordinator.jsonl` is **FR-18B's**. It is a free-form diagnostic log, and the
+  measurement refinement above already names its producer — "Coordinator writes a
+  different EventLog-style shape" — as part of the split FR-18B must repair. FR-08B routes
+  Coordinator *mutation ingress* through the kernel, which governs whether Coordinator
+  decisions become commands, not what it writes as diagnostics.
+- `telemetry.jsonl` is **FR-18B's for its producers**, and **FR-19B's for retention,
+  rotation and bounded query behavior**. Neither supersedes the other.
+- `events.jsonl` is **FR-08B's** for when it stops deciding live workflow truth, after
+  which FR-08B's exclusion permits it only as checked import/export or diagnostic
+  compatibility. **FR-23** then sweeps the remaining module references, which its scope
+  already enumerates.
+- `findings.jsonl` is **FR-20's**, whose scope requires persisting finding, proposal and
+  admission outcomes separately. The metrics snapshots the route says this file also
+  carries belong to route step 6, which has no recorded owner.
 
-Two architectural commitments from that route are recorded here because the plan is the
-acceptance authority and did not previously carry them. **Erlang `:telemetry` is the
-in-process seam**, with durable local analytics, OpenTelemetry traces/metrics, and the
-board and Improver as independent consumers of one canonical observation envelope — not a
-chain in which one consumer's format becomes another's contract. And **observability is
-not authority**: telemetry may explain a workflow or effect outcome and may never decide
-one, so no OpenTelemetry mapping, exporter or consumer is a source of workflow truth. The
-GenAI semantic-convention mapping is an adapter and export concern, never Foundry's stored
-authority schema.
+These are cross-ticket assignments recorded inside one ticket's section, which is the
+one-side-knows drift this clause exists to prevent. Each named ticket should carry a
+pointer back here, or the table should move somewhere neutral, before any of them starts.
+
+**The correlation model is already required; the route extends it as direction, not
+obligation.** The measurement refinement above already requires correlation "through
+ticket/attempt/execution/request and exact candidate/review outcome", and that tail is
+what makes the economics claim checkable: showing a cheaper token path cannot hide worse
+review or acceptance outcomes needs cost tied to the accepted outcome, which a chain
+ending at the effect cannot express. **That refinement text is the acceptance chain.** The
+route additionally proposes an `objective_id` at the head, which appears in no ticket; the
+envelope should be able to carry it, but it is design direction and not an acceptance
+obligation. Acceptance text must be exact enough to test, so no clause here widens the
+chain open-endedly.
 
 **Trace and metric roles are separated by cardinality.** Identities that are unique per
 unit of work — request, tool call, effect, candidate, review — belong on traces, where
