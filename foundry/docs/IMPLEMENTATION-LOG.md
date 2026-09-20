@@ -1616,6 +1616,26 @@ latest prose here, remains authoritative for status and dependencies.
   passed 173/176. The exact-base ENOSPC fixture passed while the candidate fixture
   returned zero-frame success, so that difference remains an explicit diagnosis item.
   The original implementer owns the bounded B1–B7 correction; nothing is integrated.
+- Runtime corrections `940ccfb3efbcfb533ebeec0f46d67c1f83d3681f`,
+  `0cadb1f1c936304240c0b053503c45156c53f4e4` and
+  `67a2b923ef58f98290457f4640561bc5d44f9db8` close the seven original blocker groups,
+  copied settlement provenance/shape and mandatory non-start carrier presence. Evidence
+  commit `721a9e86ed51b776785a7260890b39f894fc1c5a` binds the final corrected source.
+  Astra-medium rereview PASS `bae065ba183833b3fb30c6f3c6326c00e49a1039`
+  verified the final B3/B5 boundary after earlier blocker records were preserved.
+- The ENOSPC discrepancy was traced to the new typed history crossing SQLite's default
+  1,000-frame auto-checkpoint threshold, not a checkpoint implementation regression.
+  The owned physical fixture now disables auto-checkpoint only for the test, asserts a
+  nonempty wholly uncheckpointed WAL using `wal_checkpoint(NOOP)`, then proves physical
+  ENOSPC. Production WAL behavior is unchanged.
+- Current-main documentation and the exact reviewed branch were merged at
+  `f3ef50340548fa1c430f922a0913f132bae9786f`. Runtime/test paths are byte-identical to
+  the reviewed candidate. Exact clean integrated CI on pinned Elixir 1.20.3 / OTP 29.0.5
+  passed 625 tests with 13 intentional skips and one optional exclusion; provenance is
+  `/private/tmp/fr08a-atomic-integrated-ci-f3ef503/provenance.json`, tree
+  `3c36362dc9d4b6a49bbd6fa8b0d41f20832dfa86`. Documentation passed 80/80. FR-08B is
+  dependency-ready and FR-18A may now add its separately designed bounded read query.
+  No provider, daemon, activation or deployment ran.
 
 ## FR-18A minimal honest observations — 2026-09-20
 
