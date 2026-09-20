@@ -1,1393 +1,1168 @@
 defmodule PramanaFoundry.Workflow.Kernel do
-  @moduledoc """
-  Deterministic FR-08B domain decision function and sole domain event reducer.
-
-  `decide/3` performs no I/O and requires time, identities, observations and protected
-  authority facts as explicit immutable inputs. `apply/2` is used for both live state
-  and replay. Protected facts are reduced to opaque bindings; this state can neither
-  represent nor manufacture root balances, claims, receipts or acceptance pointers.
-  """
+  @moduledoc "Pure FR-08B decision, typed transition-plan and semantic replay kernel."
 
   import Kernel, except: [apply: 2]
+  alias PramanaFoundry.Workflow.Kernel.{Event, Plan, State}
 
-  alias PramanaFoundry.Workflow.Kernel.State
-
-  @command_types ~w(legacy_event_append enqueue steer pause resume cancel reset propose submit_artifact submit_review request_effect record_receipt)
-  @ticket_phases ~w(draft queued developing awaiting_review reviewing ready_to_integrate integrating integrated blocked exhausted rejected cancelled)
-  @terminal_phases ~w(integrated rejected cancelled)
+  @commands ~w(legacy_event_append enqueue steer pause resume cancel reset propose submit_artifact submit_review request_effect record_receipt)
+  @terminal ~w(integrated rejected cancelled)
   @roles ~w(developer reviewer pm check integration)
-  @reserved_payload_keys ~w(authority authority_facts claim_status ledger_balance policy_valid protected protected_facts receipt_valid root root_facts)
-  @binding_keys ~w(policy_id policy_revision control_id control_revision ledger_id ledger_generation dimension candidate_id check_set_id review_id receipt_id claim_id)
-  @protected_input_keys ~w(admission allocation candidate candidate_id check_retry check_set_id checks claim_id cleanup control control_id control_revision developer_allocation dimension draining failure_class freeze generation_change infrastructure_generation infrastructure_limit infrastructure_ordinal integration integration_retry ledger_generation ledger_id outstanding_work owned_work pm_reservation policy_id policy_revision predecessor_effect_id prior_workers receipt_id ref_update reservation resume retry review_id settlement reason)
 
-  @guard_matrix [
-    %{row: 1, source: "objective_without_spec", command: "steer:create_objective"},
-    %{row: 2, source: "draft", command: "enqueue"},
-    %{row: 3, source: "queued|blocked", command: "propose:amend|park"},
-    %{row: 4, source: "queued", command: "request_effect:developer"},
-    %{row: 5, source: "developing", command: "submit_artifact:valid"},
-    %{row: 6, source: "developing|awaiting_review", command: "steer:freeze_failed"},
-    %{row: 7, source: "awaiting_review", command: "steer:developer_closed"},
-    %{row: 8, source: "developing", command: "submit_artifact:none"},
-    %{row: 9, source: "developing", command: "submit_artifact:blocked|partial"},
-    %{row: 10, source: "developing", command: "submit_artifact:invalid"},
-    %{row: 11, source: "awaiting_review", command: "steer:start_checks"},
-    %{row: 12, source: "checking", command: "steer:check_result:passed"},
-    %{row: 13, source: "checking", command: "steer:check_result:assertion_failed"},
-    %{row: 14, source: "checking", command: "steer:check_result:infrastructure"},
-    %{row: 15, source: "awaiting_review", command: "request_effect:reviewer"},
-    %{row: 16, source: "reviewing", command: "submit_review:approved"},
-    %{row: 17, source: "reviewing", command: "submit_review:changes_requested"},
-    %{row: 18, source: "reviewing", command: "submit_review:rejected"},
-    %{row: 19, source: "reviewing", command: "submit_review:none"},
-    %{row: 20, source: "ready_to_integrate", command: "request_effect:integration"},
-    %{row: 21, source: "ready_to_integrate|integrating", command: "steer:base_moved"},
-    %{row: 22, source: "integrating", command: "record_receipt:integration:succeeded"},
-    %{row: 23, source: "integrating", command: "record_receipt:integration:failed|unknown"},
-    %{row: 24, source: "blocked", command: "steer:resume_ticket"},
-    %{row: 25, source: "exhausted", command: "reset"},
-    %{row: 26, source: "integrated|rejected|cancelled", command: "ordinary_lifecycle"},
-    %{row: 27, source: "nonterminal", command: "cancel"},
-    %{row: 28, source: "cancel_requested", command: "steer:finalize_cancel"}
-  ]
+  def new, do: State.new()
+  def supported_commands, do: @commands
+  def bind(plan, discriminator, outputs), do: Plan.bind(plan, discriminator, outputs)
 
-  @type decision :: map()
-
-  @spec new() :: map()
-  defdelegate new(), to: State
-
-  @spec supported_commands() :: [String.t()]
-  def supported_commands, do: @command_types
-
-  @spec guard_matrix() :: [map()]
-  def guard_matrix, do: @guard_matrix
-
-  @spec decide(map(), map(), map()) :: {:ok, decision()} | {:error, atom()}
   def decide(state, command, inputs) do
-    with true <- State.valid?(state),
-         {:ok, command} <- command(command),
-         {:ok, inputs} <- inputs(inputs),
-         true <- no_reserved_payload?(command["payload"]) do
-      dispatch(state, command, inputs)
+    with true <- State.valid?(state), {:ok, command} <- command(command),
+         {:ok, inputs} <- inputs(inputs), :ok <- expected_state(command, state),
+         result <- dispatch(state, command, inputs), :ok <- validate_decision(result) do
+      result
     else
-      false -> {:error, :invalid_domain_input}
-      {:error, _reason} = error -> error
+      false -> {:error, :invalid_domain_state}
+      {:error, _} = error -> error
+      _ -> {:error, :invalid_decision}
     end
+  rescue
+    _ -> {:error, :invalid_domain_input}
+  catch
+    _, _ -> {:error, :invalid_domain_input}
   end
 
-  @spec apply(map(), map()) :: {:ok, map()} | {:error, atom()}
   def apply(state, event) do
-    with true <- State.valid?(state),
-         {:ok, event} <- event(event),
-         {:ok, next} <- apply_changes(state, event["changes"]),
-         next <- Map.put(next, "last_event_id", event["event_id"]),
+    with true <- State.valid?(state), :ok <- Event.validate(event),
+         true <- event["expected_state_revision"] == state["revision"],
+         false <- event["event_id"] == state["last_event_id"],
+         {:ok, next} <- reduce(state, event),
+         next <- %{next | "revision" => state["revision"] + 1, "last_event_id" => event["event_id"]},
          true <- State.valid?(next) do
       {:ok, next}
     else
-      false -> {:error, :invalid_domain_state}
-      {:error, _reason} = error -> error
+      false -> {:error, :event_order_or_state_invalid}
+      {:error, _} = error -> error
+      _ -> {:error, :invalid_semantic_transition}
     end
+  rescue
+    _ -> {:error, :invalid_semantic_transition}
+  catch
+    _, _ -> {:error, :invalid_semantic_transition}
   end
 
-  @spec rebuild([map()]) :: {:ok, map()} | {:error, atom()}
-  def rebuild(events) when is_list(events),
-    do: Enum.reduce_while(events, {:ok, new()}, &rebuild_event/2)
-
-  def rebuild(_events), do: {:error, :invalid_event_stream}
-
-  defp rebuild_event(event, {:ok, state}) do
-    case apply(state, event) do
-      {:ok, next} -> {:cont, {:ok, next}}
-      {:error, _reason} = error -> {:halt, error}
-    end
-  end
-
-  defp dispatch(_state, %{"type" => "legacy_event_append"}, _inputs),
-    do: rejected("legacy_jsonl_not_authoritative")
-
-  defp dispatch(state, %{"type" => "pause"} = command, inputs),
-    do: control(state, command, inputs, "paused", true, "workflow_paused")
-
-  defp dispatch(state, %{"type" => "resume"} = command, inputs) do
-    case command["payload"]["operation"] do
-      "clear_drain" -> control(state, command, inputs, "draining", false, "drain_cleared")
-      "workflow" -> control(state, command, inputs, "paused", false, "workflow_resumed")
-      _ -> rejected("unsupported_resume_operation")
-    end
-  end
-
-  defp dispatch(state, %{"type" => "enqueue"} = command, inputs),
-    do: enqueue(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "steer"} = command, inputs),
-    do: steer(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "propose"} = command, inputs),
-    do: propose(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "request_effect"} = command, inputs),
-    do: request_effect(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "submit_artifact"} = command, inputs),
-    do: submit_artifact(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "submit_review"} = command, inputs),
-    do: submit_review(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "record_receipt"} = command, inputs),
-    do: record_receipt(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "cancel"} = command, inputs),
-    do: cancel(state, command, inputs)
-
-  defp dispatch(state, %{"type" => "reset"} = command, inputs),
-    do: reset(state, command, inputs)
-
-  defp dispatch(_state, _command, _inputs), do: rejected("unsupported_command")
-
-  # R4 rows 1-3: objectives, common admission and PM evidence.
-  defp enqueue(state, command, inputs) do
-    ticket_id = target(command, "ticket_id")
-    payload = command["payload"]
-    facts = inputs["protected"]
-
-    cond do
-      not identity?(ticket_id) or not identity?(target(command, "objective_id")) or
-          not identity?(inputs["ids"]["spec_revision_id"]) ->
-        rejected("missing_admission_identity")
-
-      Map.has_key?(state["tickets"], ticket_id) ->
-        rejected("ticket_already_exists")
-
-      state["control"]["draining"] ->
-        blocked("draining")
-
-      facts["admission"] not in ["eligible", "blocked"] ->
-        rejected("missing_admission_fact")
-
-      not valid_spec?(payload["spec"]) ->
-        rejected("malformed_spec")
-
-      true ->
-        phase = if facts["admission"] == "eligible", do: "queued", else: "blocked"
-
-        ticket = %{
-          "ticket_id" => ticket_id,
-          "objective_id" => target(command, "objective_id"),
-          "phase" => phase,
-          "resume_phase" => if(phase == "blocked", do: "queued", else: nil),
-          "reason" =>
-            if(phase == "blocked", do: facts["reason"] || "admission_blocked", else: nil),
-          "spec_revision_id" => inputs["ids"]["spec_revision_id"],
-          "spec" => payload["spec"],
-          "attempt" => nil,
-          "prior_attempts" => [],
-          "cancel_status" => nil,
-          "authority_bindings" => bindings(facts),
-          "history" => []
-        }
-
-        accepted(inputs, "ticket_admitted", [change("ticket", ticket_id, ticket)])
-    end
-  end
-
-  defp steer(state, command, inputs) do
-    operation = command["payload"]["operation"]
-
-    case operation do
-      "create_objective" -> create_objective(state, command, inputs)
-      "amend" -> amend_or_park(state, command, inputs, :amend)
-      "park" -> amend_or_park(state, command, inputs, :park)
-      "block" -> public_block(state, command, inputs)
-      "resume_ticket" -> resume_ticket(state, command, inputs)
-      "developer_closed" -> developer_closed(state, command, inputs)
-      "freeze_failed" -> freeze_failed(state, command, inputs)
-      "start_checks" -> start_checks(state, command, inputs)
-      "check_result" -> check_result(state, command, inputs)
-      "reviewer_closed" -> reviewer_closed(state, command, inputs)
-      "base_moved" -> base_moved(state, command, inputs)
-      "finalize_cancel" -> finalize_cancel(state, command, inputs)
-      "drain" -> control(state, command, inputs, "draining", true, "drain_started")
-      "stop" -> stop(state, command, inputs)
-      _ -> rejected("unsupported_steering_operation")
-    end
-  end
-
-  defp create_objective(state, command, inputs) do
-    objective_id = target(command, "objective_id")
-
-    cond do
-      not identity?(objective_id) or not identity?(inputs["ids"]["planning_owner_id"]) ->
-        rejected("missing_objective_identity")
-
-      Map.has_key?(state["objectives"], objective_id) ->
-        rejected("objective_already_exists")
-
-      inputs["protected"]["pm_reservation"] != "reserved" ->
-        blocked("pm_budget")
-
-      true ->
-        objective = %{
-          "objective_id" => objective_id,
-          "phase" => "draft",
-          "planning_owner_id" => inputs["ids"]["planning_owner_id"],
-          "authority_bindings" => bindings(inputs["protected"])
-        }
-
-        accepted(inputs, "objective_created", [change("objective", objective_id, objective)])
-    end
-  end
-
-  defp amend_or_park(state, command, inputs, operation) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] in ~w(queued blocked) do
-      next =
-        case operation do
-          :amend ->
-            case inputs["ids"]["spec_revision_id"] do
-              id when is_binary(id) and id != "" ->
-                ticket
-                |> Map.put("spec_revision_id", id)
-                |> Map.put("spec", command["payload"]["spec"])
-
-              _ ->
-                nil
-            end
-
-          :park ->
-            ticket
-            |> Map.put("phase", "blocked")
-            |> Map.put("resume_phase", ticket["phase"])
-            |> Map.put("reason", command["payload"]["reason"] || "parked")
-        end
-
-      if is_map(next) and (operation == :park or valid_spec?(next["spec"])) do
-        accepted(inputs, "ticket_#{operation}ed", [change("ticket", ticket_id, next)])
-      else
-        rejected("malformed_spec")
+  def rebuild(events) when is_list(events) do
+    Enum.reduce_while(events, {:ok, new()}, fn event, {:ok, state} ->
+      case apply(state, event) do
+        {:ok, next} -> {:cont, {:ok, next}}
+        {:error, _} = error -> {:halt, error}
       end
+    end)
+  rescue
+    _ -> {:error, :invalid_event_stream}
+  end
+  def rebuild(_), do: {:error, :invalid_event_stream}
+
+  # Decisions
+  defp dispatch(state, %{"type" => "legacy_event_append"} = c, _i), do: result(state, c, "rejected", "legacy_jsonl_not_authoritative")
+  defp dispatch(state, %{"type" => "enqueue"} = c, i), do: enqueue(state, c, i)
+  defp dispatch(state, %{"type" => "pause"} = c, i), do: control(state, c, i, true, state["control"]["draining"], "running")
+  defp dispatch(state, %{"type" => "resume"} = c, i) do
+    case c["payload"]["operation"] do
+      "workflow" -> control(state, c, i, false, state["control"]["draining"], "running")
+      "clear_drain" -> control(state, c, i, state["control"]["paused"], false, "running")
+      _ -> result(state, c, "rejected", "unsupported_resume_operation")
+    end
+  end
+  defp dispatch(state, %{"type" => "steer"} = c, i), do: steer(state, c, i)
+  defp dispatch(state, %{"type" => "propose"} = c, i), do: propose(state, c, i)
+  defp dispatch(state, %{"type" => "request_effect"} = c, i), do: request_effect(state, c, i)
+  defp dispatch(state, %{"type" => "record_receipt"} = c, i), do: receipt(state, c, i)
+  defp dispatch(state, %{"type" => "submit_artifact"} = c, i), do: artifact(state, c, i)
+  defp dispatch(state, %{"type" => "submit_review"} = c, i), do: review(state, c, i)
+  defp dispatch(state, %{"type" => "cancel"} = c, i), do: cancel(state, c, i)
+  defp dispatch(state, %{"type" => "reset"} = c, i), do: reset(state, c, i)
+  defp dispatch(state, c, _i), do: result(state, c, "rejected", "unsupported_command")
+
+  defp enqueue(state, c, i) do
+    tid = target(c, "ticket_id"); oid = target(c, "objective_id")
+    cond do
+      not ids?([tid, oid, i["ids"]["spec_revision_id"]]) -> result(state, c, "rejected", "missing_admission_identity")
+      Map.has_key?(state["tickets"], tid) -> result(state, c, "rejected", "ticket_already_exists")
+      state["control"]["draining"] -> result(state, c, "blocked", "draining")
+      not spec?(c["payload"]["spec"]) -> result(state, c, "rejected", "malformed_spec")
+      true ->
+        e = event(state, i, "ticket_admitted", 0, %{"ticket_id" => tid, "objective_id" => oid, "spec_revision_id" => i["ids"]["spec_revision_id"], "spec" => c["payload"]["spec"], "phase" => "queued", "reason" => nil})
+        accepted(state, c, [read("ticket", tid, "absent")], [], [], [{"always", [e]}])
+    end
+  end
+
+  defp steer(state, c, i) do
+    case c["payload"]["operation"] do
+      "create_objective" -> objective(state, c, i)
+      "amend" -> amend(state, c, i)
+      "park" -> park(state, c, i)
+      "drain" -> control(state, c, i, state["control"]["paused"], true, "running")
+      "stop" -> control(state, c, i, state["control"]["paused"], state["control"]["draining"], c["payload"]["status"] || "stop_requested")
+      "developer_closed" -> close_developer(state, c, i)
+      "start_checks" -> start_checks(state, c, i)
+      "check_result" -> check_result(state, c, i)
+      "reviewer_closed" -> close_reviewer(state, c, i)
+      "freeze_failed" -> freeze_failed(state, c, i)
+      "resume_ticket" -> resume_ticket(state, c, i)
+      "base_moved" -> base_moved(state, c, i)
+      "finalize_cancel" -> finalize_cancel(state, c, i)
+      "block" -> result(state, c, "rejected", "public_block_requires_developer_result")
+      _ -> result(state, c, "rejected", "unsupported_steering_operation")
+    end
+  end
+
+  defp objective(state, c, i) do
+    oid = target(c, "objective_id"); owner = i["ids"]["planning_owner_id"]
+    if ids?([oid, owner]) and not Map.has_key?(state["objectives"], oid) do
+      e = event(state, i, "objective_created", 0, %{"objective_id" => oid, "planning_owner_id" => owner})
+      accepted(state, c, [read("objective", oid, "absent")], [], [], [{"always", [e]}])
     else
-      false -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
+      result(state, c, "rejected", "objective_guard")
     end
   end
 
-  defp propose(state, command, inputs) do
-    objective_id = target(command, "objective_id")
-    proposal_id = inputs["ids"]["proposal_id"]
-    operation = command["payload"]["operation"]
-
-    cond do
-      not identity?(objective_id) or not identity?(proposal_id) ->
-        rejected("missing_proposal_identity")
-
-      operation not in ~w(create amend park prioritize block) ->
-        rejected("unsupported_proposal")
-
-      not Map.has_key?(state["objectives"], objective_id) ->
-        rejected("unknown_objective")
-
-      true ->
-        proposal = %{
-          "proposal_id" => proposal_id,
-          "objective_id" => objective_id,
-          "operation" => operation,
-          "status" => "evidence_only",
-          "recorded_at" => inputs["recorded_at"]
-        }
-
-        accepted(inputs, "pm_proposal_recorded", [change("pm", proposal_id, proposal)])
-    end
+  defp amend(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] in ~w(queued blocked),
+         true <- id?(i["ids"]["spec_revision_id"]) and spec?(c["payload"]["spec"]) do
+      e = event(state, i, "ticket_amended", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "spec_revision_id" => i["ids"]["spec_revision_id"], "spec" => c["payload"]["spec"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "source_state_guard") end
   end
 
-  # R4 rows 4, 11, 15 and 20 plus R4a pre-intent denial.
-  defp request_effect(state, command, inputs) do
-    role = command["payload"]["role"]
-    outcome = inputs["observation"]["outcome"]
+  defp park(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] in ~w(queued blocked), true <- id?(c["payload"]["reason"]) do
+      e = event(state, i, "ticket_parked", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "reason" => c["payload"]["reason"], "resume_phase" => t["phase"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "source_state_guard") end
+  end
 
-    if role not in @roles do
-      rejected("unsupported_role")
+  defp control(state, c, i, paused, draining, stop) do
+    cid = i["ids"]["control_id"]
+    if id?(cid) and stop in ~w(running stop_requested stop_blocked stop_completed) do
+      op = op(0, "set_control", %{"control_id" => cid, "expected_revision" => state["control"]["revision"], "paused" => paused, "draining" => draining, "stop_status" => stop})
+      e = event(state, i, "control_changed", state["control"]["revision"] + 1, %{"paused" => paused, "draining" => draining, "stop_status" => stop, "control_id" => cid, "control_revision" => state["control"]["revision"] + 1})
+      accepted(state, c, [read("state", "workflow", state["revision"])], [op], [], [{"always", [e]}])
     else
-      case role do
-        "pm" -> request_pm_launch(state, command, inputs, outcome)
-        _ -> request_ticket_effect(state, command, inputs, role, outcome)
-      end
+      result(state, c, "rejected", "invalid_control")
     end
   end
 
-  defp request_pm_launch(state, command, inputs, "pre_intent_denied") do
-    objective_id = target(command, "objective_id")
-
-    if Map.has_key?(state["objectives"], objective_id),
-      do: blocked(inputs["observation"]["reason"] || "launch_ineligible"),
-      else: rejected("unknown_objective")
-  end
-
-  defp request_pm_launch(state, command, inputs, "admitted") do
-    objective_id = target(command, "objective_id")
-    objective = state["objectives"][objective_id]
-
-    cond do
-      is_nil(objective) ->
-        rejected("unknown_objective")
-
-      state["control"]["paused"] ->
-        blocked("paused")
-
-      state["control"]["draining"] ->
-        blocked("draining")
-
-      get_in(state, ["pm", objective_id, "status"]) in ~w(pending unknown) ->
-        blocked("pm_execution_outstanding")
-
-      not effect_ids?(inputs) ->
-        rejected("missing_effect_identity")
-
-      inputs["protected"]["reservation"] != "reserved" ->
-        blocked("pm_budget")
-
-      true ->
-        pm = execution(inputs, "pm", objective_id, nil)
-        accepted(inputs, "pm_launch_requested", [change("pm", objective_id, pm)])
-    end
-  end
-
-  defp request_pm_launch(_state, _command, _inputs, _outcome),
-    do: rejected("invalid_admission_outcome")
-
-  defp request_ticket_effect(state, command, inputs, role, outcome) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         :ok <- phase_guard(ticket, role) do
-      cond do
-        outcome == "pre_intent_denied" ->
-          blocked(inputs["observation"]["reason"] || "launch_ineligible")
-
-        outcome != "admitted" ->
-          rejected("invalid_admission_outcome")
-
-        state["control"]["paused"] ->
-          blocked("paused")
-
-        state["control"]["draining"] and role == "developer" ->
-          blocked("draining")
-
-        ticket["cancel_status"] == "cancel_requested" ->
-          blocked("cancel_requested")
-
-        not effect_ids?(inputs) ->
-          rejected("missing_effect_identity")
-
-        role == "developer" and is_nil(ticket["attempt"]) and
-            not identity?(inputs["ids"]["attempt_id"]) ->
-          rejected("missing_attempt_identity")
-
-        inputs["protected"]["reservation"] != "reserved" ->
-          blocked("#{role}_budget")
-
-        true ->
-          admit_effect(ticket_id, ticket, role, inputs)
-      end
+  defp propose(state, c, i) do
+    oid = target(c, "objective_id"); pid = i["ids"]["proposal_id"]; operation = c["payload"]["operation"]
+    if ids?([oid, pid]) and Map.has_key?(state["objectives"], oid) and operation in ~w(create amend park prioritize block) do
+      e = event(state, i, "pm_proposal_recorded", state["pm"] |> Map.get(pid, %{"revision" => -1}) |> Map.get("revision") |> Kernel.+(1), %{"proposal_id" => pid, "objective_id" => oid, "operation" => operation})
+      accepted(state, c, [read("objective", oid, state["objectives"][oid]["revision"]), read("pm", pid, if(Map.has_key?(state["pm"], pid), do: state["pm"][pid]["revision"], else: "absent"))], [], [], [{"always", [e]}])
     else
-      {:error, reason} -> rejected(reason)
+      result(state, c, "rejected", "proposal_guard")
     end
   end
 
-  defp admit_effect(ticket_id, ticket, "developer", inputs) do
-    attempt =
-      case ticket["attempt"] do
-        %{"phase" => "active", "resume_phase" => "developing"} = retained -> retained
-        _ -> new_attempt(inputs, ticket)
-      end
-
-    attempt =
-      put_execution(attempt, execution(inputs, "developer", ticket_id, attempt["attempt_id"]))
-
-    next =
-      ticket
-      |> Map.put("phase", "developing")
-      |> Map.put("resume_phase", nil)
-      |> Map.put("reason", nil)
-      |> Map.put("attempt", attempt)
-
-    accepted(inputs, "developer_launch_requested", [change("ticket", ticket_id, next)])
+  defp request_effect(state, c, i) do
+    role = c["payload"]["role"]
+    cond do
+      role not in @roles -> result(state, c, "rejected", "unsupported_role")
+      i["observations"]["eligibility"] == "denied" -> result(state, c, "blocked", i["observations"]["reason"] || "launch_ineligible")
+      state["control"]["paused"] -> result(state, c, "blocked", "paused")
+      role in ~w(developer pm) and state["control"]["draining"] -> result(state, c, "blocked", "draining")
+      role == "pm" -> pm_launch(state, c, i)
+      true -> ticket_launch(state, c, i, role)
+    end
   end
 
-  defp admit_effect(ticket_id, ticket, "reviewer", inputs) do
-    attempt =
-      ticket["attempt"]
-      |> put_execution(execution(inputs, "reviewer", ticket_id, ticket["attempt"]["attempt_id"]))
-      |> Map.put("phase", "reviewing")
-
-    next = ticket |> Map.put("phase", "reviewing") |> Map.put("attempt", attempt)
-    accepted(inputs, "reviewer_launch_requested", [change("ticket", ticket_id, next)])
+  defp ticket_launch(state, c, i, role) do
+    with {:ok, t} <- ticket(state, c), false <- t["phase"] in @terminal,
+         :ok <- launch_phase(t, role), true <- launch_ids?(i),
+         {:ok, aid} <- attempt_identity(t, role, i["ids"]["attempt_id"]) do
+      op0 = op(0, "reserve", Map.take(i["ids"], ~w(reservation_id execution_id)))
+      op1 = op(1, "create_effect", Map.take(i["ids"], ~w(effect_id execution_id reservation_id)))
+      binding = binding("launch_authority", 1, "launch_authority_v1", slot(role))
+      type = %{"developer" => "launch_planned", "reviewer" => "review_planned", "check" => "check_planned", "integration" => "integration_planned"}[role]
+      payload = launch_payload(type, t, aid, i)
+      e = event(state, i, type, t["revision"] + 1, Map.put(payload, "authority", %{"binding" => "launch_authority"}))
+      accepted(state, c, ticket_reads(state, t), [op0, op1], [binding], [{"admitted", [e]}])
+    else
+      {:error, reason} -> result(state, c, "rejected", reason)
+      false -> result(state, c, "rejected", "source_state_guard")
+      _ -> result(state, c, "rejected", "invalid_launch")
+    end
   end
 
-  defp admit_effect(ticket_id, ticket, role, inputs) when role in ~w(check integration) do
-    attempt =
-      ticket["attempt"]
-      |> put_execution(execution(inputs, role, ticket_id, ticket["attempt"]["attempt_id"]))
-      |> Map.put("phase", if(role == "check", do: "checking", else: "integrating"))
-
-    phase = if role == "check", do: "awaiting_review", else: "integrating"
-    next = ticket |> Map.put("phase", phase) |> Map.put("attempt", attempt)
-    accepted(inputs, "#{role}_launch_requested", [change("ticket", ticket_id, next)])
+  defp pm_launch(state, c, i) do
+    oid = target(c, "objective_id"); objective = state["objectives"][oid]; current = state["pm"][oid]
+    cond do
+      not is_map(objective) -> result(state, c, "rejected", "unknown_objective")
+      is_map(current) and current["status"] in ~w(pending running unknown) -> result(state, c, "blocked", "pm_execution_outstanding")
+      not launch_ids?(i) -> result(state, c, "rejected", "missing_effect_identity")
+      true ->
+        op0 = op(0, "reserve", Map.take(i["ids"], ~w(reservation_id execution_id)))
+        op1 = op(1, "create_effect", Map.take(i["ids"], ~w(effect_id execution_id reservation_id)))
+        b = binding("launch_authority", 1, "launch_authority_v1", "pm_launch_planned.authority")
+        e = event(state, i, "pm_launch_planned", if(current, do: current["revision"] + 1, else: 0), %{"objective_id" => oid, "planning_owner_id" => objective["planning_owner_id"], "authority" => %{"binding" => "launch_authority"}})
+        accepted(state, c, [read("objective", oid, objective["revision"]), read("pm", oid, if(current, do: current["revision"], else: "absent"))], [op0, op1], [b], [{"admitted", [e]}])
+    end
   end
 
-  # R4 rows 5, 9 and 10. The public blocked/partial result is an accepted
-  # lifecycle transition; malformed input is a durable rejection with no event.
-  defp submit_artifact(state, command, inputs) do
-    result = command["payload"]["result"]
+  defp receipt(state, c, i) do
+    role = c["payload"]["role"]; outcome = c["payload"]["outcome"]
+    cond do
+      role not in @roles or outcome not in ~w(succeeded failed non_started unknown) -> result(state, c, "rejected", "invalid_receipt")
+      not receipt_ids?(i) -> result(state, c, "rejected", "missing_receipt_identity")
+      role == "pm" -> pm_receipt(state, c, i, outcome)
+      true -> ticket_receipt(state, c, i, role, outcome)
+    end
+  end
 
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] == "developing",
-         true <- identity?(inputs["ids"]["observation_id"]) do
-      case result do
+  defp ticket_receipt(state, c, i, role, outcome) do
+    with {:ok, t} <- ticket(state, c), {:ok, a} <- current_attempt(t),
+         e when is_map(e) <- a["executions"][i["ids"]["execution_id"]], true <- e["role"] == role and e["status"] != "closed" do
+      op = op(0, "settle_claim", Map.merge(Map.take(i["ids"], ~w(claim_id receipt_id execution_id)), %{"outcome" => outcome}))
+      kind = if outcome == "non_started", do: "nonstart_settlement_v1", else: "terminal_settlement_v1"
+      type = if role == "integration", do: "integration_settled", else: "launch_settled"
+      b = binding("settlement", 0, kind, if(role == "integration", do: "integration_settled.settlement", else: "launch_settled.settlement"))
+      alternatives = settlement_alternatives(state, role, outcome, t, a, e, i, type)
+      accepted(state, c, ticket_reads(state, t), [op], [b], alternatives)
+    else _ -> result(state, c, "rejected", "settlement_identity_or_source_guard") end
+  end
+
+  defp pm_receipt(state, c, i, outcome) do
+    oid = target(c, "objective_id"); pm = state["pm"][oid]
+    if is_map(pm) and is_map(pm["execution"]) and pm["execution"]["execution_id"] == i["ids"]["execution_id"] and pm["execution"]["status"] != "closed" do
+      op = op(0, "settle_claim", Map.merge(Map.take(i["ids"], ~w(claim_id receipt_id execution_id)), %{"outcome" => outcome}))
+      kind = if outcome == "non_started", do: "nonstart_settlement_v1", else: "terminal_settlement_v1"
+      b = binding("settlement", 0, kind, "pm_launch_settled.settlement")
+      alternatives = pm_settlement_alternatives(state, outcome, pm, i)
+      accepted(state, c, [read("pm", oid, pm["revision"])], [op], [b], alternatives)
+    else
+      result(state, c, "rejected", "settlement_identity_or_source_guard")
+    end
+  end
+
+  defp settlement_alternatives(state, role, outcome, t, a, exec, i, type) do
+    base = fn disposition, discriminator ->
+      payload = %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "execution_id" => exec["execution_id"], "outcome" => outcome, "disposition" => disposition, "settlement" => %{"binding" => "settlement"}}
+      {discriminator, [event(state, i, type, t["revision"] + 1, payload)]}
+    end
+    if outcome != "non_started" do
+      disposition = if outcome == "unknown", do: "hold_unknown", else: if(role == "integration" and outcome == "succeeded", do: "integrated", else: "record_terminal")
+      [base.(disposition, "terminal")]
+    else
+      role_discriminators(role) |> Enum.map(fn {d, disposition} -> base.(disposition, d) end)
+    end
+  end
+
+  defp role_discriminators("developer"), do: [{"below_infrastructure_limit", "queue_developer"}, {"infrastructure_limit_reached", "block_developer_infrastructure"}, {"paused", "block_paused"}, {"draining", "block_draining"}, {"cancelled", "cancel_pending"}, {"allocation_exhausted", "exhaust_developer"}, {"allocation_blocked", "block_developer_budget"}, {"policy_revoked", "block_policy"}, {"generation_changed", "block_generation"}]
+  defp role_discriminators("reviewer"), do: [{"below_infrastructure_limit", "queue_reviewer"}, {"infrastructure_limit_reached", "block_reviewer_infrastructure"}, {"paused", "block_paused"}, {"draining", "queue_reviewer"}, {"cancelled", "cancel_pending"}, {"allocation_exhausted", "exhaust_reviewer"}, {"allocation_blocked", "block_reviewer_budget"}, {"policy_revoked", "block_policy"}, {"generation_changed", "block_generation"}]
+  defp role_discriminators(role) when role in ~w(check integration), do: [{"below_infrastructure_limit", "retry_phase"}, {"infrastructure_limit_reached", "block_phase"}, {"paused", "block_paused"}, {"draining", "retry_phase"}, {"cancelled", "cancel_pending"}, {"allocation_exhausted", "exhaust_phase"}, {"allocation_blocked", "block_budget"}, {"policy_revoked", "block_policy"}, {"generation_changed", "block_generation"}]
+
+  defp pm_settlement_alternatives(state, outcome, pm, i) do
+    base = fn disposition, d -> {d, [event(state, i, "pm_launch_settled", pm["revision"] + 1, %{"objective_id" => pm["objective_id"], "outcome" => outcome, "disposition" => disposition, "settlement" => %{"binding" => "settlement"}})]} end
+    if outcome != "non_started", do: [base.(if(outcome == "unknown", do: "hold_unknown", else: "record_terminal"), "terminal")], else: Enum.map([{"below_infrastructure_limit", "queue_pm"}, {"infrastructure_limit_reached", "block_pm_infrastructure"}, {"paused", "block_paused"}, {"draining", "block_draining"}, {"cancelled", "cancel_pending"}, {"allocation_exhausted", "exhaust_pm"}, {"allocation_blocked", "block_pm_budget"}, {"policy_revoked", "block_policy"}, {"generation_changed", "block_generation"}], fn {d, x} -> base.(x, d) end)
+  end
+
+  defp artifact(state, c, i) do
+    result_value = c["payload"]["result"]
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "developing", {:ok, a} <- current_attempt(t),
+         exec when is_map(exec) <- role_execution(a, "developer"), true <- id?(i["ids"]["observation_id"]) do
+      case result_value do
         "valid" ->
-          freeze_candidate(ticket_id, ticket, inputs)
+          if id?(i["ids"]["candidate_id"]) do
+            e = event(state, i, "artifact_frozen", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "candidate_id" => i["ids"]["candidate_id"], "observation_id" => i["ids"]["observation_id"]})
+            accepted(state, c, ticket_reads(state, t), [op(0, "consume_validation", %{"observation_id" => i["ids"]["observation_id"]})], [], [{"always", [e]}])
+          else result(state, c, "rejected", "missing_candidate_identity") end
+        x when x in ~w(blocked partial) ->
+          e = event(state, i, "artifact_blocked", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "observation_id" => i["ids"]["observation_id"], "result" => x, "reason" => c["payload"]["reason"] || "developer_#{x}"})
+          accepted(state, c, ticket_reads(state, t), [op(0, "consume_validation", %{"observation_id" => i["ids"]["observation_id"]})], [], [{"always", [e]}])
+        "invalid" -> result(state, c, "rejected", "invalid_submission")
+        "none" -> no_result(state, c, i, t, a, exec)
+        _ -> result(state, c, "rejected", "malformed_submission")
+      end
+    else _ -> result(state, c, "rejected", "source_state_guard") end
+  end
 
-        verdict when verdict in ~w(blocked partial) ->
-          block_from_result(ticket_id, ticket, inputs, verdict)
+  defp no_result(state, c, i, t, a, exec) do
+    if i["observations"]["stream_status"] == "sealed" and i["observations"]["termination"] in ~w(exited timed_out) do
+      result_value = if i["observations"]["termination"] == "timed_out", do: "none", else: "failed"
+      e = event(state, i, "execution_observed", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "execution_id" => exec["execution_id"], "observation" => i["observations"]["termination"], "stream_status" => "sealed", "result" => result_value})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else result(state, c, "blocked", "stream_completeness_unknown") end
+  end
 
-        "invalid" ->
-          rejected("invalid_submission")
+  defp close_developer(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "awaiting_review", {:ok, a} <- current_attempt(t),
+         exec when is_map(exec) <- role_execution(a, "developer"), true <- exec["result"] == "valid" and exec["stream_status"] == "sealed",
+         true <- i["observations"]["verified_termination"] == true do
+      e = event(state, i, "developer_closed", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "execution_id" => exec["execution_id"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "developer_close_guard") end
+  end
 
-        "none" ->
-          execution_without_result(ticket_id, ticket, inputs)
+  defp start_checks(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "awaiting_review", {:ok, a} <- current_attempt(t),
+         true <- a["phase"] == "candidate_frozen" and a["developer_closed"] do
+      e = event(state, i, "checks_started", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "checks_require_developer_close") end
+  end
+
+  defp check_result(state, c, i) do
+    with {:ok, t} <- ticket(state, c), {:ok, a} <- current_attempt(t), true <- a["phase"] == "checking",
+         check when is_map(check) <- a["checks"][i["ids"]["check_id"]], true <- c["payload"]["status"] in ~w(passed failed timed_out unknown) do
+      disposition = case c["payload"]["status"] do "passed" -> "await_review"; "failed" -> "needs_correction"; "unknown" -> "hold_unknown"; _ -> "block_infrastructure" end
+      e = event(state, i, "check_recorded", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "check_id" => check["check_id"], "status" => c["payload"]["status"], "disposition" => disposition, "reason" => c["payload"]["reason"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "check_result_guard") end
+  end
+
+  defp review(state, c, i) do
+    verdict = c["payload"]["verdict"]
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "reviewing", {:ok, a} <- current_attempt(t),
+         exec when is_map(exec) <- role_execution(a, "reviewer"), true <- exec["status"] == "running",
+         true <- verdict in ~w(approved changes_requested rejected none), true <- ids?([i["ids"]["review_id"], i["ids"]["check_set_id"]]),
+         true <- i["observations"]["stream_status"] in ~w(open sealed) do
+      review = %{"review_id" => i["ids"]["review_id"], "candidate_id" => a["candidate_id"], "check_set_id" => i["ids"]["check_set_id"], "execution_id" => exec["execution_id"], "verdict" => verdict, "stream_status" => i["observations"]["stream_status"], "verified_closed" => false, "revision" => 0}
+      e = event(state, i, "review_recorded", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "review" => review})
+      accepted(state, c, ticket_reads(state, t), [op(0, "consume_validation", %{"review_id" => i["ids"]["review_id"]})], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "review_custody_guard") end
+  end
+
+  defp close_reviewer(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "reviewing", {:ok, a} <- current_attempt(t),
+         review when is_map(review) <- a["review"], true <- review["stream_status"] == "sealed",
+         exec when is_map(exec) <- a["executions"][review["execution_id"]], true <- exec["status"] in ~w(running closing),
+         true <- i["observations"]["verified_termination"] == true do
+      disposition = %{"approved" => "ready_to_integrate", "changes_requested" => "needs_correction", "rejected" => "rejected", "none" => "review_retry"}[review["verdict"]]
+      e = event(state, i, "reviewer_closed", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "execution_id" => exec["execution_id"], "disposition" => disposition})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "reviewer_close_guard") end
+  end
+
+  defp freeze_failed(state, c, i), do: simple_attempt_disposition(state, c, i, "freeze_failed", ~w(developing awaiting_review), c["payload"]["disposition"], c["payload"]["reason"])
+  defp base_moved(state, c, i), do: simple_attempt_disposition(state, c, i, "freeze_failed", ~w(ready_to_integrate integrating), "superseded_base", "superseded_base")
+
+  defp simple_attempt_disposition(state, c, i, type, phases, disposition, reason) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] in phases, {:ok, a} <- current_attempt(t), true <- id?(disposition) and id?(reason) do
+      e = event(state, i, type, t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "attempt_id" => a["attempt_id"], "disposition" => disposition, "reason" => reason})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "source_state_guard") end
+  end
+
+  defp resume_ticket(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "blocked", true <- is_binary(t["resume_phase"]) do
+      e = event(state, i, "ticket_resumed", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "phase" => t["resume_phase"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "resume_guard") end
+  end
+
+  defp cancel(state, c, i) do
+    with {:ok, t} <- ticket(state, c), false <- t["phase"] in @terminal do
+      e = event(state, i, "cancellation_requested", t["revision"] + 1, %{"ticket_id" => t["ticket_id"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "terminal_ticket") end
+  end
+
+  defp finalize_cancel(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["cancel_status"] == "cancel_requested", true <- c["payload"]["disposition"] in ~w(cancelled integrated) do
+      e = event(state, i, "cancellation_finalized", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "disposition" => c["payload"]["disposition"]})
+      accepted(state, c, ticket_reads(state, t), [], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "cancellation_guard") end
+  end
+
+  defp reset(state, c, i) do
+    with {:ok, t} <- ticket(state, c), true <- t["phase"] == "exhausted", true <- ids?([i["ids"]["ledger_id"]]), true <- is_integer(i["ids"]["ledger_generation"]) and i["ids"]["ledger_generation"] >= 0 do
+      op = op(0, "reset_generation", Map.take(i["ids"], ~w(ledger_id ledger_generation)))
+      e = event(state, i, "ticket_reset", t["revision"] + 1, %{"ticket_id" => t["ticket_id"], "ledger_id" => i["ids"]["ledger_id"], "ledger_generation" => i["ids"]["ledger_generation"]})
+      accepted(state, c, ticket_reads(state, t), [op], [], [{"always", [e]}])
+    else _ -> result(state, c, "rejected", "reset_guard") end
+  end
+
+  # Semantic reducer
+  defp reduce(state, e) do
+    case e["type"] do
+      "objective_created" -> reduce_objective(state, e)
+      "ticket_admitted" -> reduce_admit(state, e)
+      "ticket_amended" -> update_ticket(state, e, ~w(queued blocked), &Map.merge(&1, %{"spec_revision_id" => e["payload"]["spec_revision_id"], "spec" => e["payload"]["spec"]}))
+      "ticket_parked" -> update_ticket(state, e, ~w(queued blocked), &Map.merge(&1, %{"phase" => "blocked", "resume_phase" => e["payload"]["resume_phase"], "reason" => e["payload"]["reason"]}))
+      "control_changed" -> reduce_control(state, e)
+      "pm_proposal_recorded" -> reduce_proposal(state, e)
+      "launch_planned" -> reduce_launch(state, e, "developer")
+      "review_planned" -> reduce_launch(state, e, "reviewer")
+      "check_planned" -> reduce_launch(state, e, "check")
+      "integration_planned" -> reduce_launch(state, e, "integration")
+      "pm_launch_planned" -> reduce_pm_launch(state, e)
+      "launch_settled" -> reduce_settlement(state, e)
+      "integration_settled" -> reduce_settlement(state, e)
+      "pm_launch_settled" -> reduce_pm_settlement(state, e)
+      "artifact_frozen" -> reduce_artifact_frozen(state, e)
+      "artifact_blocked" -> reduce_artifact_blocked(state, e)
+      "execution_observed" -> reduce_execution_observed(state, e)
+      "developer_closed" -> reduce_developer_closed(state, e)
+      "checks_started" -> update_attempt(state, e, fn t, a -> if a["phase"] == "candidate_frozen" and a["developer_closed"], do: {:ok, t, %{a | "phase" => "checking", "revision" => a["revision"] + 1}}, else: {:error, :checks_guard} end)
+      "check_recorded" -> reduce_check_recorded(state, e)
+      "review_recorded" -> reduce_review_recorded(state, e)
+      "reviewer_closed" -> reduce_reviewer_closed(state, e)
+      "freeze_failed" -> reduce_freeze_failed(state, e)
+      "ticket_resumed" -> update_ticket(state, e, ~w(blocked), &Map.merge(&1, %{"phase" => e["payload"]["phase"], "resume_phase" => nil, "reason" => nil}))
+      "ticket_reset" -> update_ticket(state, e, ~w(exhausted), &Map.merge(&1, %{"phase" => "queued", "resume_phase" => nil, "reason" => nil, "current_attempt_id" => nil}))
+      "cancellation_requested" -> update_ticket(state, e, @terminal -- @terminal, &Map.put(&1, "cancel_status", "cancel_requested"), allow_any_nonterminal: true)
+      "cancellation_finalized" -> reduce_cancel_final(state, e)
+      _ -> {:error, :unsupported_semantic_event}
+    end
+  end
+
+  defp reduce_objective(state, e) do
+    p = e["payload"]
+
+    if e["entity_revision"] == 0 and not Map.has_key?(state["objectives"], p["objective_id"]) do
+      objective = %{
+        "objective_id" => p["objective_id"],
+        "phase" => "draft",
+        "planning_owner_id" => p["planning_owner_id"],
+        "revision" => 0
+      }
+
+      {:ok, put_in(state, ["objectives", p["objective_id"]], objective)}
+    else
+      {:error, :objective_guard}
+    end
+  end
+
+  defp reduce_admit(state, e) do
+    p = e["payload"]
+
+    if e["entity_revision"] == 0 and not Map.has_key?(state["tickets"], p["ticket_id"]) do
+      ticket = %{
+        "ticket_id" => p["ticket_id"],
+        "objective_id" => p["objective_id"],
+        "phase" => p["phase"],
+        "resume_phase" => nil,
+        "reason" => p["reason"],
+        "spec_revision_id" => p["spec_revision_id"],
+        "spec" => p["spec"],
+        "attempts" => %{},
+        "current_attempt_id" => nil,
+        "cancel_status" => nil,
+        "revision" => 0
+      }
+
+      {:ok, put_in(state, ["tickets", p["ticket_id"]], ticket)}
+    else
+      {:error, :admission_guard}
+    end
+  end
+
+  defp reduce_control(state, e) do
+    p = e["payload"]
+    control = state["control"]
+
+    if e["entity_revision"] == control["revision"] + 1 do
+      next = %{
+        "revision" => e["entity_revision"],
+        "paused" => p["paused"],
+        "draining" => p["draining"],
+        "stop_status" => p["stop_status"]
+      }
+
+      {:ok, Map.put(state, "control", next)}
+    else
+      {:error, :control_revision}
+    end
+  end
+
+  defp reduce_proposal(state, e) do
+    p = e["payload"]
+    current = state["pm"][p["proposal_id"]]
+    expected = if current, do: current["revision"] + 1, else: 0
+
+    if e["entity_revision"] == expected do
+      pm = %{
+        "objective_id" => p["objective_id"],
+        "planning_owner_id" => p["proposal_id"],
+        "execution" => nil,
+        "infrastructure" => %{"proposal" => p["operation"]},
+        "status" => "closed",
+        "revision" => e["entity_revision"]
+      }
+
+      {:ok, put_in(state, ["pm", p["proposal_id"]], pm)}
+    else
+      {:error, :proposal_revision}
+    end
+  end
+
+  defp reduce_launch(state, e, role) do
+    p = e["payload"]
+    authority = p["authority"]
+
+    with {:ok, ticket} <- fetch_ticket(state, p["ticket_id"]),
+         true <- e["entity_revision"] == ticket["revision"] + 1,
+         :ok <- launch_phase(ticket, role),
+         :ok <- authority_matches?(authority, role, p["ticket_id"], p["attempt_id"]),
+         {:ok, next} <- install_execution(ticket, role, p, authority) do
+      {:ok, put_in(state, ["tickets", ticket["ticket_id"]], bump_ticket(next, e))}
+    else
+      _ -> {:error, :launch_guard}
+    end
+  end
+
+  defp reduce_pm_launch(state, e) do
+    p = e["payload"]
+    authority = p["authority"]
+    current = state["pm"][p["objective_id"]]
+    expected = if current, do: current["revision"] + 1, else: 0
+
+    if e["entity_revision"] == expected and
+         authority_matches?(authority, "pm", p["objective_id"], nil) == :ok do
+      pm = %{
+        "objective_id" => p["objective_id"],
+        "planning_owner_id" => p["planning_owner_id"],
+        "execution" => execution(authority),
+        "infrastructure" => %{},
+        "status" => "pending",
+        "revision" => e["entity_revision"]
+      }
+
+      {:ok, put_in(state, ["pm", p["objective_id"]], pm)}
+    else
+      {:error, :pm_launch_guard}
+    end
+  end
+
+  defp reduce_settlement(state, e) do
+    p = e["payload"]
+
+    with {:ok, ticket} <- fetch_ticket(state, p["ticket_id"]),
+         true <- e["entity_revision"] == ticket["revision"] + 1,
+         {:ok, attempt} <- attempt(ticket, p["attempt_id"]),
+         execution when is_map(execution) <- attempt["executions"][p["execution_id"]],
+         :ok <- settlement_matches?(p["settlement"], execution, ticket, attempt, p["outcome"]),
+         {:ok, next_ticket, next_attempt} <- settle_ticket(ticket, attempt, execution, p) do
+      next = put_attempt(next_ticket, next_attempt)
+      {:ok, put_in(state, ["tickets", ticket["ticket_id"]], bump_ticket(next, e))}
+    else
+      _ -> {:error, :settlement_guard}
+    end
+  end
+
+  defp reduce_pm_settlement(state, e) do
+    p = e["payload"]
+    pm = state["pm"][p["objective_id"]]
+
+    if is_map(pm) and e["entity_revision"] == pm["revision"] + 1 and
+         settlement_matches?(
+           p["settlement"],
+           pm["execution"],
+           %{"ticket_id" => pm["objective_id"]},
+           %{"attempt_id" => nil},
+           p["outcome"]
+         ) == :ok do
+      next = %{
+        pm
+        | "execution" => settled_execution(pm["execution"], p["outcome"]),
+          "status" => pm_status(p["disposition"]),
+          "revision" => e["entity_revision"],
+          "infrastructure" => infra(p["settlement"])
+      }
+
+      {:ok, put_in(state, ["pm", p["objective_id"]], next)}
+    else
+      {:error, :pm_settlement_guard}
+    end
+  end
+
+  defp reduce_artifact_frozen(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      p = e["payload"]
+      execution = role_execution(attempt, "developer")
+
+      if ticket["phase"] == "developing" and is_map(execution) and
+           execution["status"] in ~w(running starting) do
+        closed = %{
+          execution
+          | "result" => "valid",
+            "stream_status" => "sealed",
+            "status" => "closing",
+            "revision" => execution["revision"] + 1
+        }
+
+        next_attempt =
+          attempt
+          |> Map.put("phase", "candidate_frozen")
+          |> Map.put("candidate_id", p["candidate_id"])
+          |> put_exec(closed)
+          |> Map.update!("revision", &(&1 + 1))
+
+        {:ok, %{ticket | "phase" => "awaiting_review"}, next_attempt}
+      else
+        {:error, :artifact_guard}
+      end
+    end)
+  end
+
+  defp reduce_artifact_blocked(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      execution = role_execution(attempt, "developer")
+
+      if ticket["phase"] == "developing" and is_map(execution) do
+        closed = %{
+          execution
+          | "result" => e["payload"]["result"],
+            "stream_status" => "sealed",
+            "status" => "closing",
+            "revision" => execution["revision"] + 1
+        }
+
+        next_attempt = attempt |> put_exec(closed) |> terminal_attempt("blocked")
+        {:ok, %{ticket | "phase" => "blocked", "reason" => e["payload"]["reason"]}, next_attempt}
+      else
+        {:error, :artifact_guard}
+      end
+    end)
+  end
+
+  defp reduce_execution_observed(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      p = e["payload"]
+      execution = attempt["executions"][p["execution_id"]]
+
+      if is_map(execution) and execution["status"] != "closed" do
+        closed = %{
+          execution
+          | "status" => "closed",
+            "stream_status" => p["stream_status"],
+            "result" => p["result"],
+            "verified_closed" => true,
+            "revision" => execution["revision"] + 1
+        }
+
+        disposition = if p["observation"] == "timed_out", do: "timed_out", else: "failed"
+        next_attempt = attempt |> put_exec(closed) |> terminal_attempt(disposition)
+        {:ok, %{ticket | "phase" => "queued", "reason" => disposition}, next_attempt}
+      else
+        {:error, :observation_guard}
+      end
+    end)
+  end
+
+  defp reduce_developer_closed(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      p = e["payload"]
+      execution = attempt["executions"][p["execution_id"]]
+
+      if is_map(execution) and execution["role"] == "developer" and
+           execution["result"] == "valid" and execution["stream_status"] == "sealed" and
+           execution["status"] == "closing" do
+        closed = %{
+          execution
+          | "status" => "closed",
+            "verified_closed" => true,
+            "revision" => execution["revision"] + 1
+        }
+
+        next_attempt =
+          attempt
+          |> put_exec(closed)
+          |> Map.put("developer_closed", true)
+          |> Map.update!("revision", &(&1 + 1))
+
+        {:ok, ticket, next_attempt}
+      else
+        {:error, :close_guard}
+      end
+    end)
+  end
+
+  defp reduce_check_recorded(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      p = e["payload"]
+      check = attempt["checks"][p["check_id"]]
+
+      if is_map(check) do
+        next_check = %{check | "status" => p["status"], "revision" => check["revision"] + 1}
+        updated = put_in(attempt, ["checks", p["check_id"]], next_check)
+
+        case p["disposition"] do
+          "await_review" ->
+            {:ok, %{ticket | "phase" => "awaiting_review"},
+             %{updated | "phase" => "awaiting_review", "revision" => updated["revision"] + 1}}
+
+          "needs_correction" ->
+            {:ok, %{ticket | "phase" => "queued", "reason" => p["reason"]},
+             terminal_attempt(updated, "needs_correction")}
+
+          "hold_unknown" ->
+            {:ok,
+             %{
+               ticket
+               | "phase" => "blocked",
+                 "resume_phase" => "awaiting_review",
+                 "reason" => "check_unknown"
+             }, updated}
+
+          _ ->
+            {:ok,
+             %{
+               ticket
+               | "phase" => "blocked",
+                 "resume_phase" => "awaiting_review",
+                 "reason" => p["reason"]
+             }, updated}
+        end
+      else
+        {:error, :check_guard}
+      end
+    end)
+  end
+
+  defp reduce_review_recorded(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      review = e["payload"]["review"]
+      execution = attempt["executions"][review["execution_id"]]
+
+      if ticket["phase"] == "reviewing" and is_map(execution) and
+           execution["status"] == "running" and review["candidate_id"] == attempt["candidate_id"] do
+        {:ok, ticket, %{attempt | "review" => review, "revision" => attempt["revision"] + 1}}
+      else
+        {:error, :review_guard}
+      end
+    end)
+  end
+
+  defp reduce_reviewer_closed(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      p = e["payload"]
+      review = attempt["review"]
+      execution = attempt["executions"][p["execution_id"]]
+
+      if is_map(review) and review["stream_status"] == "sealed" and is_map(execution) and
+           execution["status"] in ~w(running closing) do
+        closed = %{
+          execution
+          | "status" => "closed",
+            "verified_closed" => true,
+            "revision" => execution["revision"] + 1
+        }
+
+        closed_review = %{
+          review
+          | "verified_closed" => true,
+            "revision" => review["revision"] + 1
+        }
+
+        updated = attempt |> put_exec(closed) |> Map.put("review", closed_review)
+
+        case p["disposition"] do
+          "ready_to_integrate" ->
+            {:ok, %{ticket | "phase" => "ready_to_integrate"},
+             %{
+               updated
+               | "phase" => "ready_to_integrate",
+                 "revision" => updated["revision"] + 1
+             }}
+
+          "needs_correction" ->
+            {:ok, %{ticket | "phase" => "queued", "reason" => "review_changes_requested"},
+             terminal_attempt(updated, "needs_correction")}
+
+          "rejected" ->
+            {:ok, %{ticket | "phase" => "rejected"}, terminal_attempt(updated, "rejected")}
+
+          _ ->
+            {:ok, %{ticket | "phase" => "awaiting_review"},
+             %{updated | "phase" => "awaiting_review", "revision" => updated["revision"] + 1}}
+        end
+      else
+        {:error, :review_close_guard}
+      end
+    end)
+  end
+
+  defp reduce_freeze_failed(state, e) do
+    update_attempt(state, e, fn ticket, attempt ->
+      p = e["payload"]
+
+      case p["disposition"] do
+        "superseded_base" ->
+          {:ok, %{ticket | "phase" => "queued", "reason" => p["reason"]},
+           terminal_attempt(attempt, "superseded_base")}
+
+        "retry" ->
+          {:ok, %{ticket | "phase" => "awaiting_review", "reason" => p["reason"]}, attempt}
 
         _ ->
-          rejected("malformed_submission")
+          {:ok,
+           %{
+             ticket
+             | "phase" => "blocked",
+               "resume_phase" => "awaiting_review",
+               "reason" => p["reason"]
+           }, attempt}
       end
-    else
-      false -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
+    end)
   end
 
-  defp freeze_candidate(ticket_id, ticket, inputs) do
-    candidate_id = inputs["ids"]["candidate_id"]
-
-    if identity?(candidate_id) and inputs["protected"]["candidate"] == "frozen" do
-      attempt =
-        ticket["attempt"]
-        |> Map.put("phase", "candidate_frozen")
-        |> Map.put("candidate_id", candidate_id)
-        |> Map.put("productive_sealed", true)
-
-      next = ticket |> Map.put("phase", "awaiting_review") |> Map.put("attempt", attempt)
-      accepted(inputs, "candidate_frozen", [change("ticket", ticket_id, next)])
-    else
-      rejected("candidate_not_root_verified")
-    end
+  defp reduce_cancel_final(state, e) do
+    update_ticket(
+      state,
+      e,
+      [],
+      fn ticket ->
+        ticket
+        |> Map.put("phase", e["payload"]["disposition"])
+        |> Map.put("cancel_status", "cancel_finalized")
+      end,
+      allow_any_nonterminal: true
+    )
   end
 
-  defp block_from_result(ticket_id, ticket, inputs, verdict) do
-    attempt = terminal_attempt(ticket["attempt"], "blocked")
+  # reducer helpers
+  defp install_execution(t, "developer", p, auth) do
+    case t["current_attempt_id"] do
+      nil ->
+        attempt = new_attempt(p["attempt_id"], t, auth)
 
-    next =
-      ticket
-      |> Map.put("phase", "blocked")
-      |> Map.put("resume_phase", nil)
-      |> Map.put("reason", "developer_#{verdict}")
-      |> Map.put("attempt", attempt)
+        {:ok,
+         t
+         |> put_attempt(attempt)
+         |> Map.put("current_attempt_id", attempt["attempt_id"])
+         |> Map.put("phase", "developing")}
 
-    accepted(inputs, "developer_#{verdict}", [change("ticket", ticket_id, next)])
-  end
+      attempt_id ->
+        attempt = t["attempts"][attempt_id]
 
-  defp execution_without_result(ticket_id, ticket, inputs) do
-    observation = inputs["observation"]
+        cond do
+          attempt["phase"] == "terminal" and p["attempt_id"] != attempt_id ->
+            next = new_attempt(p["attempt_id"], t, auth)
 
-    if observation["stream"] == "sealed" and observation["termination"] in ~w(exited timed_out) do
-      disposition = if observation["termination"] == "timed_out", do: "timed_out", else: "failed"
-      attempt = terminal_attempt(ticket["attempt"], disposition)
+            {:ok,
+             t
+             |> put_attempt(next)
+             |> Map.put("current_attempt_id", next["attempt_id"])
+             |> Map.put("phase", "developing")}
 
-      next =
-        if inputs["protected"]["retry"] == "eligible" do
-          ticket
-          |> Map.put("phase", "queued")
-          |> Map.put("reason", disposition)
-          |> Map.put("attempt", attempt)
-        else
-          ticket
-          |> Map.put("phase", "exhausted")
-          |> Map.put("reason", "developer_budget")
-          |> Map.put("attempt", %{attempt | "disposition" => "exhausted"})
+          attempt["phase"] == "active" and
+              not Map.has_key?(attempt["executions"], auth["execution_id"]) ->
+            updated =
+              attempt
+              |> put_exec(execution(auth))
+              |> Map.update!("revision", &(&1 + 1))
+
+            {:ok, t |> put_attempt(updated) |> Map.put("phase", "developing")}
+
+          true ->
+            {:error, :attempt_identity_reuse}
         end
-
-      accepted(inputs, "developer_#{disposition}", [change("ticket", ticket_id, next)])
-    else
-      blocked("stream_completeness_unknown")
     end
   end
 
-  # R4 rows 12-19: check/review exact-candidate custody and overwrite guards.
-  defp start_checks(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] == "awaiting_review",
-         %{"phase" => "candidate_frozen", "candidate_id" => candidate_id} = attempt <-
-           ticket["attempt"],
-         true <- inputs["protected"]["candidate_id"] == candidate_id do
-      next_attempt = attempt |> Map.put("phase", "checking") |> Map.put("checks", %{})
-      next = Map.put(ticket, "attempt", next_attempt)
-      accepted(inputs, "checks_started", [change("ticket", ticket_id, next)])
-    else
-      false -> rejected("source_state_guard")
-      nil -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp check_result(state, command, inputs) do
-    verdict = command["payload"]["verdict"]
-
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         %{"phase" => "checking"} = attempt <- ticket["attempt"] do
-      check_result_decision(ticket_id, ticket, attempt, verdict, inputs)
-    else
-      nil -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp check_result_decision(ticket_id, ticket, attempt, "passed", inputs) do
-    if inputs["protected"]["checks"] == "complete" do
+  defp install_execution(t, role, p, auth) do
+    with {:ok, attempt} <- current_attempt(t),
+         false <- Map.has_key?(attempt["executions"], auth["execution_id"]) do
       next_attempt =
         attempt
-        |> Map.put("phase", "awaiting_review")
-        |> Map.put("check_set_id", inputs["protected"]["check_set_id"])
+        |> put_exec(execution(auth))
+        |> maybe_install_check(role, p, auth)
+        |> Map.update!("revision", &(&1 + 1))
 
-      next = ticket |> Map.put("phase", "awaiting_review") |> Map.put("attempt", next_attempt)
-      accepted(inputs, "checks_passed", [change("ticket", ticket_id, next)])
+      next_attempt =
+        case role do
+          "reviewer" -> %{next_attempt | "phase" => "reviewing"}
+          "integration" -> %{next_attempt | "phase" => "integrating"}
+          _ -> next_attempt
+        end
+
+      next_ticket = put_attempt(t, next_attempt)
+
+      next_ticket =
+        case role do
+          "reviewer" -> %{next_ticket | "phase" => "reviewing"}
+          "integration" -> %{next_ticket | "phase" => "integrating"}
+          "check" -> next_ticket
+        end
+
+      {:ok, next_ticket}
     else
-      rejected("checks_not_root_verified")
+      _ -> {:error, :execution_identity_reuse}
     end
   end
 
-  defp check_result_decision(ticket_id, ticket, attempt, "assertion_failed", inputs) do
-    next_attempt = terminal_attempt(attempt, "needs_correction")
+  defp maybe_install_check(attempt, "check", p, auth) do
+    check = %{
+      "check_id" => p["check_id"],
+      "candidate_id" => attempt["candidate_id"],
+      "execution_id" => auth["execution_id"],
+      "status" => "pending",
+      "revision" => 0
+    }
 
-    {phase, reason} =
-      cond do
-        inputs["protected"]["developer_allocation"] != "eligible" ->
-          {"exhausted", "developer_budget"}
-
-        inputs["protected"]["draining"] == true ->
-          {"blocked", "draining"}
-
-        true ->
-          {"queued", "check_assertion_failed"}
-      end
-
-    next =
-      ticket
-      |> Map.put("phase", phase)
-      |> Map.put("reason", reason)
-      |> Map.put("attempt", next_attempt)
-
-    accepted(inputs, "checks_failed", [change("ticket", ticket_id, next)])
+    put_in(attempt, ["checks", p["check_id"]], check)
   end
 
-  defp check_result_decision(ticket_id, ticket, attempt, verdict, inputs)
-       when verdict in ~w(infrastructure_failed timed_out unknown) do
-    reason = if verdict == "unknown", do: "check_unknown", else: "check_infrastructure"
+  defp maybe_install_check(attempt, _role, _p, _auth), do: attempt
 
-    phase =
-      if inputs["protected"]["check_retry"] == "eligible" and verdict != "unknown",
-        do: "awaiting_review",
-        else: "blocked"
+  defp settle_ticket(ticket, attempt, execution, p) do
+    settled = settled_execution(execution, p["outcome"])
 
-    next_attempt = Map.put(attempt, "phase", "checking")
-
-    next =
-      ticket
-      |> Map.put("phase", phase)
-      |> Map.put("resume_phase", "awaiting_review")
-      |> Map.put("reason", reason)
-      |> Map.put("attempt", next_attempt)
-
-    accepted(inputs, "check_#{verdict}", [change("ticket", ticket_id, next)])
-  end
-
-  defp check_result_decision(_ticket_id, _ticket, _attempt, _verdict, _inputs),
-    do: rejected("invalid_check_verdict")
-
-  defp submit_review(state, command, inputs) do
-    verdict = command["payload"]["verdict"]
-
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] == "reviewing",
-         attempt when is_map(attempt) <- ticket["attempt"],
-         true <- identity?(inputs["ids"]["review_id"]),
-         true <- inputs["protected"]["candidate_id"] == attempt["candidate_id"] do
-      review_decision(ticket_id, ticket, attempt, verdict, inputs)
-    else
-      false -> rejected("source_state_guard")
-      nil -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp review_decision(ticket_id, ticket, attempt, "approved", inputs) do
     next_attempt =
       attempt
-      |> Map.put("review_verdict", "approved")
-      |> Map.put("review_id", inputs["ids"]["review_id"])
+      |> put_exec(settled)
+      |> Map.put(
+        "infrastructure",
+        Map.put(attempt["infrastructure"], execution["role"], infra(p["settlement"]))
+      )
+      |> Map.update!("revision", &(&1 + 1))
 
-    next = Map.put(ticket, "attempt", next_attempt)
-    accepted(inputs, "review_approved", [change("ticket", ticket_id, next)])
-  end
-
-  defp review_decision(ticket_id, ticket, attempt, "changes_requested", inputs) do
-    next_attempt =
-      terminal_attempt(attempt, "needs_correction")
-      |> Map.put("review_id", inputs["ids"]["review_id"])
-
-    phase = if inputs["protected"]["draining"] == true, do: "blocked", else: "queued"
-    reason = if phase == "blocked", do: "draining", else: "review_changes_requested"
-
-    next =
-      ticket
-      |> Map.put("phase", phase)
-      |> Map.put("reason", reason)
-      |> Map.put("attempt", next_attempt)
-
-    accepted(inputs, "review_changes_requested", [change("ticket", ticket_id, next)])
-  end
-
-  defp review_decision(ticket_id, ticket, attempt, "rejected", inputs) do
-    next_attempt =
-      terminal_attempt(attempt, "rejected") |> Map.put("review_id", inputs["ids"]["review_id"])
-
-    next = ticket |> Map.put("phase", "rejected") |> Map.put("attempt", next_attempt)
-    accepted(inputs, "review_rejected", [change("ticket", ticket_id, next)])
-  end
-
-  defp review_decision(_ticket_id, _ticket, _attempt, "none", inputs) do
-    if inputs["observation"]["stream"] == "sealed",
-      do: blocked("review_retry_required"),
-      else: blocked("review_stream_open")
-  end
-
-  defp review_decision(_ticket_id, _ticket, _attempt, _verdict, _inputs),
-    do: rejected("malformed_review")
-
-  defp reviewer_closed(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] == "reviewing",
-         %{"review_verdict" => "approved"} = attempt <- ticket["attempt"],
-         true <- inputs["observation"]["termination"] == "verified_closed" do
-      next_attempt = Map.put(attempt, "phase", "ready_to_integrate")
-      next = ticket |> Map.put("phase", "ready_to_integrate") |> Map.put("attempt", next_attempt)
-      accepted(inputs, "reviewer_closed", [change("ticket", ticket_id, next)])
-    else
-      false -> rejected("source_state_guard")
-      nil -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  # R4a plus integration receipts. Protected settlement truth is required as input
-  # and only an immutable reference is retained in domain state.
-  defp record_receipt(state, command, inputs) do
-    role = command["payload"]["role"]
-    outcome = command["payload"]["outcome"]
+    disposition = p["disposition"]
 
     cond do
-      role not in @roles ->
-        rejected("unsupported_role")
+      disposition == "hold_unknown" ->
+        {:ok, %{ticket | "reason" => "#{execution["role"]}_unknown"}, next_attempt}
 
-      outcome not in ~w(succeeded failed non_started unknown) ->
-        rejected("invalid_receipt_outcome")
+      disposition == "integrated" ->
+        {:ok, %{ticket | "phase" => "integrated"}, terminal_attempt(next_attempt, "integrated")}
 
-      not receipt_ids?(inputs) ->
-        rejected("missing_receipt_identity")
+      disposition in ~w(queue_developer retry_phase) ->
+        {:ok,
+         %{
+           ticket
+           | "phase" => if(execution["role"] == "developer", do: "queued", else: ticket["phase"]),
+             "resume_phase" =>
+               if(execution["role"] == "developer", do: "developing", else: ticket["resume_phase"]),
+             "reason" => "#{execution["role"]}_launch_non_started"
+         }, next_attempt}
 
-      inputs["protected"]["settlement"] != outcome ->
-        rejected("receipt_not_root_verified")
+      disposition == "queue_reviewer" ->
+        {:ok, %{ticket | "phase" => "awaiting_review", "reason" => "reviewer_launch_non_started"},
+         %{next_attempt | "phase" => "awaiting_review"}}
 
-      role == "pm" ->
-        pm_receipt(state, command, inputs, outcome)
+      String.starts_with?(disposition, "block_") ->
+        {:ok,
+         %{
+           ticket
+           | "phase" => "blocked",
+             "resume_phase" => resume_for(execution["role"]),
+             "reason" => disposition
+         }, next_attempt}
 
-      true ->
-        ticket_receipt(state, command, inputs, role, outcome)
-    end
-  end
+      String.starts_with?(disposition, "exhaust_") ->
+        {:ok, %{ticket | "phase" => "exhausted", "reason" => disposition},
+         terminal_attempt(next_attempt, "exhausted")}
 
-  defp ticket_receipt(state, command, inputs, role, outcome) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         attempt when is_map(attempt) <- ticket["attempt"],
-         execution when is_map(execution) <-
-           find_execution(attempt, inputs["ids"]["execution_id"], role),
-         true <- execution["status"] != "closed" do
-      launch_receipt_decision(ticket_id, ticket, attempt, execution, role, outcome, inputs)
-    else
-      false -> rejected("execution_already_settled")
-      nil -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp launch_receipt_decision(ticket_id, ticket, attempt, execution, role, "unknown", inputs) do
-    updated =
-      Map.merge(execution, %{
-        "status" => "unknown",
-        "settlement_binding" => bindings(inputs["protected"])
-      })
-
-    next_attempt = replace_execution(attempt, updated)
-
-    next =
-      ticket |> Map.put("reason", "#{role}_launch_unknown") |> Map.put("attempt", next_attempt)
-
-    accepted(inputs, "#{role}_launch_unknown", [change("ticket", ticket_id, next)])
-  end
-
-  defp launch_receipt_decision(ticket_id, ticket, attempt, execution, role, "non_started", inputs) do
-    ordinal = inputs["protected"]["infrastructure_ordinal"]
-    limit = inputs["protected"]["infrastructure_limit"]
-    allocation = inputs["protected"]["allocation"]
-
-    if positive_integer?(ordinal) and positive_integer?(limit) and
-         allocation in ~w(eligible exhausted blocked) do
-      updated =
-        Map.merge(execution, %{
-          "status" => "closed",
-          "result" => "non_started",
-          "settlement_binding" => bindings(inputs["protected"])
-        })
-
-      next_attempt = attempt |> replace_execution(updated) |> put_infrastructure(role, inputs)
-
-      {phase, resume_phase, reason, final_attempt} =
-        nonstart_outcome(role, next_attempt, ordinal, limit, allocation, ticket)
-
-      next =
-        ticket
-        |> Map.put("phase", phase)
-        |> Map.put("resume_phase", resume_phase)
-        |> Map.put("reason", reason)
-        |> Map.put("attempt", final_attempt)
-
-      accepted(inputs, "#{role}_launch_non_started", [change("ticket", ticket_id, next)])
-    else
-      rejected("invalid_non_start_settlement")
-    end
-  end
-
-  defp launch_receipt_decision(ticket_id, ticket, attempt, execution, role, outcome, inputs)
-       when outcome in ~w(succeeded failed) do
-    case {role, outcome} do
-      {"integration", "succeeded"} ->
-        integrate_success(ticket_id, ticket, attempt, execution, inputs)
-
-      {"integration", "failed"} ->
-        integration_failed(ticket_id, ticket, attempt, execution, inputs)
-
-      _ ->
-        updated =
-          Map.merge(execution, %{
-            "status" => if(outcome == "succeeded", do: "running", else: "closed"),
-            "result" => outcome,
-            "settlement_binding" => bindings(inputs["protected"])
-          })
-
-        next = Map.put(ticket, "attempt", replace_execution(attempt, updated))
-        accepted(inputs, "#{role}_launch_#{outcome}", [change("ticket", ticket_id, next)])
-    end
-  end
-
-  defp integration_failed(ticket_id, ticket, attempt, execution, inputs) do
-    updated =
-      Map.merge(execution, %{
-        "status" => "closed",
-        "result" => "failed",
-        "settlement_binding" => bindings(inputs["protected"])
-      })
-
-    {phase, resume_phase, reason} =
-      case inputs["protected"]["integration_retry"] do
-        "eligible" -> {"integrating", nil, "integration_retry"}
-        _ -> {"blocked", "integrating", "integration_failure"}
-      end
-
-    next =
-      ticket
-      |> Map.put("phase", phase)
-      |> Map.put("resume_phase", resume_phase)
-      |> Map.put("reason", reason)
-      |> Map.put("attempt", replace_execution(attempt, updated))
-
-    accepted(inputs, "integration_failed", [change("ticket", ticket_id, next)])
-  end
-
-  defp integrate_success(ticket_id, ticket, attempt, execution, inputs) do
-    if inputs["protected"]["ref_update"] == "succeeded" and
-         inputs["protected"]["prior_workers"] == "closed" do
-      updated =
-        Map.merge(execution, %{
-          "status" => "closed",
-          "result" => "succeeded",
-          "settlement_binding" => bindings(inputs["protected"])
-        })
-
-      next_attempt = attempt |> replace_execution(updated) |> terminal_attempt("integrated")
-      next = ticket |> Map.put("phase", "integrated") |> Map.put("attempt", next_attempt)
-      accepted(inputs, "ticket_integrated", [change("ticket", ticket_id, next)])
-    else
-      blocked("integration_prerequisites_open")
-    end
-  end
-
-  defp nonstart_outcome("developer", attempt, ordinal, limit, allocation, _ticket) do
-    cond do
-      allocation == "exhausted" ->
-        {"exhausted", nil, "developer_budget", terminal_attempt(attempt, "exhausted")}
-
-      allocation == "blocked" ->
-        {"blocked", "developing", "developer_budget",
-         Map.put(attempt, "resume_phase", "developing")}
-
-      ordinal >= limit ->
-        {"blocked", "developing", "developer_launch_infrastructure",
-         Map.put(attempt, "resume_phase", "developing")}
+      disposition == "cancel_pending" ->
+        {:ok, %{ticket | "cancel_status" => "cancel_requested", "reason" => disposition},
+         next_attempt}
 
       true ->
-        {"queued", "developing", "developer_launch_non_started",
-         Map.put(attempt, "resume_phase", "developing")}
+        {:ok, ticket, next_attempt}
     end
   end
 
-  defp nonstart_outcome("reviewer", attempt, ordinal, limit, allocation, _ticket) do
-    cond do
-      allocation == "exhausted" ->
-        {"blocked", "awaiting_review", "reviewer_budget",
-         Map.put(attempt, "phase", "awaiting_review")}
-
-      allocation == "blocked" ->
-        {"blocked", "awaiting_review", "reviewer_budget",
-         Map.put(attempt, "phase", "awaiting_review")}
-
-      ordinal >= limit ->
-        {"blocked", "awaiting_review", "reviewer_launch_infrastructure",
-         Map.put(attempt, "phase", "awaiting_review")}
-
-      true ->
-        {"awaiting_review", nil, "reviewer_launch_non_started",
-         Map.put(attempt, "phase", "awaiting_review")}
-    end
-  end
-
-  defp nonstart_outcome(role, attempt, _ordinal, _limit, _allocation, ticket)
-       when role in ~w(check integration) do
-    {ticket["phase"], ticket["resume_phase"], "#{role}_launch_non_started", attempt}
-  end
-
-  defp pm_receipt(state, command, inputs, outcome) do
-    objective_id = target(command, "objective_id")
-    owner = state["pm"][objective_id]
-
-    cond do
-      not is_map(owner) ->
-        rejected("source_state_guard")
-
-      owner["execution_id"] != inputs["ids"]["execution_id"] ->
-        rejected("execution_identity_mismatch")
-
-      outcome == "unknown" ->
-        next =
-          owner
-          |> Map.put("status", "unknown")
-          |> Map.put("settlement_binding", bindings(inputs["protected"]))
-
-        accepted(inputs, "pm_launch_unknown", [change("pm", objective_id, next)])
-
-      outcome == "non_started" ->
-        ordinal = inputs["protected"]["infrastructure_ordinal"]
-        limit = inputs["protected"]["infrastructure_limit"]
-
-        if positive_integer?(ordinal) and positive_integer?(limit) do
-          status = if ordinal >= limit, do: "blocked", else: "queued"
-
-          reason =
-            if ordinal >= limit, do: "pm_launch_infrastructure", else: "pm_launch_non_started"
-
-          next =
-            owner
-            |> Map.put("status", status)
-            |> Map.put("reason", reason)
-            |> Map.put("infrastructure", infrastructure("pm", inputs))
-            |> Map.put("settlement_binding", bindings(inputs["protected"]))
-
-          accepted(inputs, "pm_launch_non_started", [change("pm", objective_id, next)])
-        else
-          rejected("invalid_non_start_settlement")
-        end
-
-      true ->
-        next =
-          owner
-          |> Map.put("status", outcome)
-          |> Map.put("settlement_binding", bindings(inputs["protected"]))
-
-        accepted(inputs, "pm_launch_#{outcome}", [change("pm", objective_id, next)])
-    end
-  end
-
-  # R4 rows 20-23.
-  defp base_moved(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] in ~w(ready_to_integrate integrating) do
-      attempt = terminal_attempt(ticket["attempt"], "superseded_base")
-
-      phase =
-        if inputs["protected"]["developer_allocation"] == "eligible",
-          do: "queued",
-          else: "exhausted"
-
-      next =
-        ticket
-        |> Map.put("phase", phase)
-        |> Map.put("reason", "superseded_base")
-        |> Map.put("attempt", attempt)
-
-      accepted(inputs, "base_superseded", [change("ticket", ticket_id, next)])
-    else
-      false -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  # R4 rows 24-28 and global control behavior.
-  defp public_block(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         false <- ticket["phase"] in @terminal_phases do
-      attempt =
-        if is_map(ticket["attempt"]),
-          do: terminal_attempt(ticket["attempt"], "blocked"),
-          else: nil
-
-      next =
-        ticket
-        |> Map.put("phase", "blocked")
-        |> Map.put("resume_phase", nil)
-        |> Map.put("reason", command["payload"]["reason"] || "operator_blocked")
-        |> Map.put("attempt", attempt)
-
-      accepted(inputs, "ticket_blocked", [change("ticket", ticket_id, next)])
-    else
-      true -> rejected("terminal_ticket")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp resume_ticket(state, command, inputs) do
-    with {:ok, ticket_id, %{"phase" => "blocked"} = ticket} <- mutable_ticket(state, command),
-         resume_phase when resume_phase in @ticket_phases <- ticket["resume_phase"],
-         "eligible" <- inputs["protected"]["resume"] do
-      next =
-        ticket
-        |> Map.put("phase", resume_phase)
-        |> Map.put("resume_phase", nil)
-        |> Map.put("reason", nil)
-        |> Map.put("authority_bindings", bindings(inputs["protected"]))
-
-      accepted(inputs, "ticket_resumed", [change("ticket", ticket_id, next)])
-    else
-      nil -> rejected("missing_resume_phase")
-      false -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-      _ -> blocked("resume_ineligible")
-    end
-  end
-
-  defp cancel(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         false <- ticket["phase"] in @terminal_phases do
-      next =
-        ticket
-        |> Map.put("cancel_status", "cancel_requested")
-        |> Map.put("authority_bindings", bindings(inputs["protected"]))
-
-      accepted(inputs, "cancellation_requested", [change("ticket", ticket_id, next)])
-    else
-      true -> rejected("terminal_ticket")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp finalize_cancel(state, command, inputs) do
-    with {:ok, ticket_id, %{"cancel_status" => "cancel_requested"} = ticket} <-
-           mutable_ticket(state, command),
-         "terminal" <- inputs["protected"]["owned_work"],
-         "reconciled" <- inputs["protected"]["cleanup"] do
-      {phase, reason} =
-        if inputs["protected"]["integration"] == "succeeded",
-          do: {"integrated", "cancelled_after_integration"},
-          else: {"cancelled", nil}
-
-      attempt =
-        if is_map(ticket["attempt"]), do: terminal_attempt(ticket["attempt"], phase), else: nil
-
-      next =
-        ticket
-        |> Map.put("phase", phase)
-        |> Map.put("reason", reason)
-        |> Map.put("cancel_status", "cancel_finalized")
-        |> Map.put("attempt", attempt)
-
-      accepted(inputs, "cancellation_finalized", [change("ticket", ticket_id, next)])
-    else
-      {:error, reason} -> rejected(reason)
-      _ -> blocked("cancellation_reconciliation_pending")
-    end
-  end
-
-  defp reset(state, command, inputs) do
-    with {:ok, ticket_id, %{"phase" => "exhausted"} = ticket} <- mutable_ticket(state, command),
-         true <- inputs["protected"]["generation_change"] == "granted",
-         generation when is_integer(generation) and generation >= 0 <-
-           inputs["protected"]["ledger_generation"] do
-      prior_attempts =
-        if is_map(ticket["attempt"]),
-          do: ticket["prior_attempts"] ++ [ticket["attempt"]],
-          else: ticket["prior_attempts"]
-
-      next =
-        ticket
-        |> Map.put("phase", "queued")
-        |> Map.put("reason", nil)
-        |> Map.put("attempt", nil)
-        |> Map.put("prior_attempts", prior_attempts)
-        |> Map.put("authority_bindings", bindings(inputs["protected"]))
-
-      accepted(inputs, "ticket_generation_reset", [change("ticket", ticket_id, next)])
-    else
-      false -> rejected("reset_not_authorized")
-      nil -> rejected("reset_not_authorized")
-      {:error, reason} -> rejected(reason)
-      _ -> rejected("invalid_generation_change")
-    end
-  end
-
-  defp control(state, _command, inputs, field, value, event_type) do
-    if inputs["protected"]["control"] == "committed" do
-      control =
-        state["control"]
-        |> Map.put(field, value)
-        |> Map.put("generation", state["control"]["generation"] + 1)
-
-      accepted(inputs, event_type, [change("control", "global", control)])
-    else
-      rejected("control_not_root_verified")
-    end
-  end
-
-  defp stop(state, _command, inputs) do
-    if inputs["protected"]["control"] != "committed" do
-      rejected("control_not_root_verified")
-    else
-      {status, reason} =
-        case inputs["protected"]["outstanding_work"] do
-          "none" -> {"stop_completed", nil}
-          "unknown" -> {"stop_blocked", "unknown_work"}
-          _ -> {"stop_requested", "outstanding_work"}
-        end
-
-      control =
-        state["control"]
-        |> Map.put("stop_status", status)
-        |> Map.put("generation", state["control"]["generation"] + 1)
-
-      accepted(inputs, "workflow_stop", [change("control", "global", control)], reason)
-    end
-  end
-
-  defp developer_closed(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] == "awaiting_review",
-         %{"candidate_id" => candidate_id} <- ticket["attempt"],
-         true <- identity?(candidate_id),
-         true <- inputs["observation"]["termination"] == "verified_closed" do
-      accepted(inputs, "developer_closed", [change("ticket", ticket_id, ticket)])
-    else
-      false -> rejected("source_state_guard")
-      nil -> rejected("source_state_guard")
-      {:error, reason} -> rejected(reason)
-    end
-  end
-
-  defp freeze_failed(state, command, inputs) do
-    with {:ok, ticket_id, ticket} <- mutable_ticket(state, command),
-         true <- ticket["phase"] in ~w(developing awaiting_review),
-         verdict when verdict in ~w(retry blocked unknown) <- inputs["protected"]["freeze"] do
-      {phase, reason} =
-        case verdict do
-          "retry" -> {"awaiting_review", "freeze_retry"}
-          "blocked" -> {"blocked", "freeze_failure"}
-          "unknown" -> {"blocked", "freeze_unknown"}
-        end
-
-      next =
-        ticket
-        |> Map.put("phase", phase)
-        |> Map.put("resume_phase", "awaiting_review")
-        |> Map.put("reason", reason)
-
-      accepted(inputs, "freeze_#{verdict}", [change("ticket", ticket_id, next)])
-    else
-      false -> rejected("source_state_guard")
-      nil -> rejected("freeze_not_root_verified")
-      {:error, reason} -> rejected(reason)
-      _ -> rejected("freeze_not_root_verified")
-    end
-  end
-
-  defp phase_guard(ticket, "developer") do
-    if ticket["phase"] == "queued" or
-         (ticket["phase"] == "blocked" and ticket["resume_phase"] == "developing"),
-       do: :ok,
-       else: {:error, "source_state_guard"}
-  end
-
-  defp phase_guard(ticket, "reviewer") do
-    if ticket["phase"] == "awaiting_review" and is_map(ticket["attempt"]) and
-         ticket["attempt"]["phase"] == "awaiting_review",
-       do: :ok,
-       else: {:error, "source_state_guard"}
-  end
-
-  defp phase_guard(ticket, "check") do
-    if ticket["phase"] == "awaiting_review" and is_map(ticket["attempt"]) and
-         ticket["attempt"]["phase"] == "candidate_frozen",
-       do: :ok,
-       else: {:error, "source_state_guard"}
-  end
-
-  defp phase_guard(ticket, "integration") do
-    if ticket["phase"] == "ready_to_integrate",
-      do: :ok,
-      else: {:error, "source_state_guard"}
-  end
-
-  defp new_attempt(inputs, ticket) do
+  defp new_attempt(id, ticket, authority) do
     %{
-      "attempt_id" => inputs["ids"]["attempt_id"],
+      "attempt_id" => id,
       "phase" => "active",
       "disposition" => nil,
-      "resume_phase" => nil,
       "lineage" => %{
         "spec_revision_id" => ticket["spec_revision_id"],
-        "policy_id" => inputs["protected"]["policy_id"],
-        "policy_revision" => inputs["protected"]["policy_revision"]
+        "policy_id" => authority["policy_id"],
+        "policy_revision" => authority["policy_revision"]
       },
       "candidate_id" => nil,
-      "executions" => %{},
-      "infrastructure" => %{}
+      "developer_closed" => false,
+      "checks" => %{},
+      "review" => nil,
+      "executions" => %{authority["execution_id"] => execution(authority)},
+      "infrastructure" => %{},
+      "revision" => 0
     }
   end
 
-  defp execution(inputs, role, owner_id, attempt_id) do
+  defp execution(authority) do
+    Map.merge(
+      Map.take(
+        authority,
+        ~w(execution_id effect_id reservation_id role owner_id attempt_id predecessor_effect_id policy_id policy_revision control_id control_revision ledger_id ledger_generation infrastructure_generation)
+      ),
+      %{
+        "status" => "pending",
+        "result" => nil,
+        "stream_status" => "open",
+        "verified_closed" => false,
+        "revision" => 0
+      }
+    )
+  end
+
+  defp settled_execution(execution, "unknown"),
+    do: %{execution | "status" => "unknown", "revision" => execution["revision"] + 1}
+
+  defp settled_execution(execution, "succeeded") do
     %{
-      "execution_id" => inputs["ids"]["execution_id"],
-      "effect_id" => inputs["ids"]["effect_id"],
-      "reservation_id" => inputs["ids"]["reservation_id"],
-      "role" => role,
-      "owner_id" => owner_id,
-      "attempt_id" => attempt_id,
-      "status" => "pending",
-      "result" => nil,
-      "recorded_at" => inputs["recorded_at"],
-      "authority_bindings" => bindings(inputs["protected"])
+      execution
+      | "status" => "running",
+        "result" => "succeeded",
+        "revision" => execution["revision"] + 1
     }
   end
 
-  defp put_execution(attempt, execution),
-    do: put_in(attempt, ["executions", execution["execution_id"]], execution)
+  defp settled_execution(execution, outcome) do
+    %{
+      execution
+      | "status" => "closed",
+        "result" => outcome,
+        "verified_closed" => outcome == "non_started",
+        "revision" => execution["revision"] + 1
+    }
+  end
 
-  defp find_execution(attempt, execution_id, role) do
-    case get_in(attempt, ["executions", execution_id]) do
-      %{"role" => ^role} = execution -> execution
-      _ -> nil
+  defp settlement_matches?(settlement, execution, ticket, attempt, outcome) do
+    if is_map(settlement) and settlement["role"] == execution["role"] and
+         settlement["owner_id"] == ticket["ticket_id"] and
+         settlement["attempt_id"] == attempt["attempt_id"] and
+         settlement["execution_id"] == execution["execution_id"] and
+         settlement["effect_id"] == execution["effect_id"] and
+         settlement["reservation_id"] == execution["reservation_id"] and
+         settlement["predecessor_effect_id"] == execution["predecessor_effect_id"] and
+         settlement["ledger_id"] == execution["ledger_id"] and
+         settlement["ledger_generation"] == execution["ledger_generation"] and
+         settlement["infrastructure_generation"] == execution["infrastructure_generation"] and
+         settlement["outcome"] == outcome do
+      :ok
+    else
+      {:error, :settlement_identity}
     end
   end
 
-  defp replace_execution(attempt, execution),
-    do: put_in(attempt, ["executions", execution["execution_id"]], execution)
-
-  defp put_infrastructure(attempt, role, inputs),
-    do: put_in(attempt, ["infrastructure", role], infrastructure(role, inputs))
-
-  defp infrastructure(role, inputs) do
-    %{
-      "role" => role,
-      "generation" => inputs["protected"]["infrastructure_generation"],
-      "ordinal" => inputs["protected"]["infrastructure_ordinal"],
-      "limit" => inputs["protected"]["infrastructure_limit"],
-      "predecessor_effect_id" => inputs["protected"]["predecessor_effect_id"],
-      "failure_class" => inputs["protected"]["failure_class"]
-    }
+  defp authority_matches?(authority, role, owner, attempt) do
+    if is_map(authority) and authority["role"] == role and authority["owner_id"] == owner and
+         authority["attempt_id"] == attempt do
+      :ok
+    else
+      {:error, :authority_identity}
+    end
   end
+
+  defp update_attempt(state, e, fun) do
+    p = e["payload"]
+
+    with {:ok, ticket} <- fetch_ticket(state, p["ticket_id"]),
+         true <- e["entity_revision"] == ticket["revision"] + 1,
+         {:ok, attempt} <- attempt(ticket, p["attempt_id"]),
+         {:ok, next_ticket, next_attempt} <- fun.(ticket, attempt) do
+      next = put_attempt(next_ticket, next_attempt)
+      {:ok, put_in(state, ["tickets", ticket["ticket_id"]], bump_ticket(next, e))}
+    else
+      _ -> {:error, :attempt_transition_guard}
+    end
+  end
+
+  defp update_ticket(state, e, phases, fun, opts \\ []) do
+    p = e["payload"]
+
+    with {:ok, ticket} <- fetch_ticket(state, p["ticket_id"]),
+         true <- e["entity_revision"] == ticket["revision"] + 1,
+         true <-
+           (Keyword.get(opts, :allow_any_nonterminal, false) and ticket["phase"] not in @terminal) or
+             ticket["phase"] in phases do
+      {:ok, put_in(state, ["tickets", ticket["ticket_id"]], bump_ticket(fun.(ticket), e))}
+    else
+      _ -> {:error, :ticket_transition_guard}
+    end
+  end
+
+  defp bump_ticket(ticket, e), do: %{ticket | "revision" => e["entity_revision"]}
 
   defp terminal_attempt(attempt, disposition),
-    do: attempt |> Map.put("phase", "terminal") |> Map.put("disposition", disposition)
-
-  defp command(command) when is_map(command) and not is_struct(command) do
-    required = ~w(schema_version command_id type target_ids payload)
-
-    if Map.keys(command) |> Enum.sort() == Enum.sort(required) and
-         command["schema_version"] == 1 and identity?(command["command_id"]) and
-         command["type"] in @command_types and plain_map?(command["target_ids"]) and
-         plain_map?(command["payload"]),
-       do: {:ok, command},
-       else: {:error, :invalid_command}
-  end
-
-  defp command(_command), do: {:error, :invalid_command}
-
-  defp inputs(inputs) when is_map(inputs) and not is_struct(inputs) do
-    required = ~w(recorded_at event_id ids observation protected)
-
-    if Map.keys(inputs) |> Enum.sort() == Enum.sort(required) and
-         identity?(inputs["recorded_at"]) and identity?(inputs["event_id"]) and
-         plain_map?(inputs["ids"]) and plain_map?(inputs["observation"]) and
-         plain_map?(inputs["protected"]) and
-         Enum.all?(Map.keys(inputs["protected"]), &(&1 in @protected_input_keys)),
-       do: {:ok, inputs},
-       else: {:error, :invalid_decision_inputs}
-  end
-
-  defp inputs(_inputs), do: {:error, :invalid_decision_inputs}
-
-  defp event(event) when is_map(event) and not is_struct(event) do
-    required = ~w(schema_version event_id type recorded_at changes)
-
-    if Map.keys(event) |> Enum.sort() == Enum.sort(required) and event["schema_version"] == 1 and
-         identity?(event["event_id"]) and identity?(event["type"]) and
-         identity?(event["recorded_at"]) and is_list(event["changes"]) and
-         Enum.all?(event["changes"], &valid_change?/1),
-       do: {:ok, event},
-       else: {:error, :invalid_domain_event}
-  end
-
-  defp event(_event), do: {:error, :invalid_domain_event}
-
-  defp valid_change?(%{"kind" => kind, "id" => id, "value" => value} = change)
-       when kind in ~w(control objective ticket pm) and is_binary(id) and is_map(value),
-       do: Map.keys(change) |> Enum.sort() == ~w(id kind value) and no_root_state?(value)
-
-  defp valid_change?(_change), do: false
-
-  defp apply_changes(state, changes) do
-    Enum.reduce_while(changes, {:ok, state}, fn change, {:ok, acc} ->
-      case change do
-        %{"kind" => "control", "id" => "global", "value" => value} ->
-          {:cont, {:ok, Map.put(acc, "control", value)}}
-
-        %{"kind" => "objective", "id" => id, "value" => value} ->
-          {:cont, {:ok, put_in(acc, ["objectives", id], value)}}
-
-        %{"kind" => "ticket", "id" => id, "value" => value} ->
-          if value["phase"] in @ticket_phases and value["ticket_id"] == id,
-            do: {:cont, {:ok, put_in(acc, ["tickets", id], value)}},
-            else: {:halt, {:error, :invalid_ticket_change}}
-
-        %{"kind" => "pm", "id" => id, "value" => value} ->
-          {:cont, {:ok, put_in(acc, ["pm", id], value)}}
-
-        _ ->
-          {:halt, {:error, :invalid_domain_change}}
-      end
-    end)
-  end
-
-  defp accepted(inputs, type, changes, reason \\ nil) do
-    event = %{
-      "schema_version" => 1,
-      "event_id" => inputs["event_id"],
-      "type" => type,
-      "recorded_at" => inputs["recorded_at"],
-      "changes" => changes
+    do: %{
+      attempt
+      | "phase" => "terminal",
+        "disposition" => disposition,
+        "revision" => attempt["revision"] + 1
     }
 
-    {:ok,
-     %{
-       "schema_version" => 1,
-       "disposition" => "accepted",
-       "reason_code" => reason,
-       "events" => [event]
-     }}
-  end
+  defp put_attempt(ticket, attempt),
+    do: put_in(ticket, ["attempts", attempt["attempt_id"]], attempt)
 
-  defp rejected(reason),
-    do:
-      {:ok,
-       %{
-         "schema_version" => 1,
-         "disposition" => "rejected",
-         "reason_code" => reason,
-         "events" => []
-       }}
+  defp put_exec(attempt, execution),
+    do: put_in(attempt, ["executions", execution["execution_id"]], execution)
 
-  defp blocked(reason),
-    do:
-      {:ok,
-       %{
-         "schema_version" => 1,
-         "disposition" => "blocked",
-         "reason_code" => reason,
-         "events" => []
-       }}
-
-  defp change(kind, id, value), do: %{"kind" => kind, "id" => id, "value" => value}
-  defp target(command, key), do: command["target_ids"][key]
-
-  defp mutable_ticket(state, command) do
-    ticket_id = target(command, "ticket_id")
-
-    case state["tickets"][ticket_id] do
-      nil -> {:error, "unknown_ticket"}
-      %{"phase" => phase} when phase in @terminal_phases -> {:error, "terminal_ticket"}
-      ticket -> {:ok, ticket_id, ticket}
+  defp attempt(ticket, id) do
+    case ticket["attempts"][id] do
+      nil -> {:error, :unknown_attempt}
+      attempt -> {:ok, attempt}
     end
   end
 
-  defp bindings(facts) do
-    facts
-    |> Map.take(@binding_keys)
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Map.new()
+  defp current_attempt(ticket), do: attempt(ticket, ticket["current_attempt_id"])
+
+  defp fetch_ticket(state, id) do
+    case state["tickets"][id] do
+      nil -> {:error, :unknown_ticket}
+      ticket -> {:ok, ticket}
+    end
   end
 
-  defp effect_ids?(inputs),
-    do: Enum.all?(~w(execution_id effect_id reservation_id), &identity?(inputs["ids"][&1]))
+  defp role_execution(attempt, role),
+    do: Enum.find_value(attempt["executions"], fn {_id, execution} -> if execution["role"] == role, do: execution end)
 
-  defp receipt_ids?(inputs),
-    do: Enum.all?(~w(execution_id claim_id receipt_id), &identity?(inputs["ids"][&1]))
-
-  defp valid_spec?(spec),
-    do: plain_map?(spec) and identity?(spec["title"]) and is_list(spec["scope"] || [])
-
-  defp no_reserved_payload?(value) when is_map(value) and not is_struct(value) do
-    Enum.all?(value, fn {key, nested} ->
-      key not in @reserved_payload_keys and no_reserved_payload?(nested)
-    end)
+  defp infra(settlement) do
+    %{
+      "generation" => settlement["infrastructure_generation"],
+      "ordinal" => settlement["infrastructure_ordinal"],
+      "predecessor_effect_id" => settlement["predecessor_effect_id"],
+      "failure_class" => settlement["failure_class"]
+    }
   end
 
-  defp no_reserved_payload?(value) when is_list(value),
-    do: Enum.all?(value, &no_reserved_payload?/1)
-
-  defp no_reserved_payload?(_value), do: true
-
-  defp no_root_state?(value) when is_map(value) do
-    Enum.all?(value, fn {key, nested} ->
-      key not in ~w(root root_facts protected protected_facts ledger_balance claim_status receipt_valid accepted_ref) and
-        no_root_state?(nested)
-    end)
+  defp pm_status(disposition) do
+    cond do
+      disposition == "hold_unknown" -> "unknown"
+      disposition == "queue_pm" -> "queued"
+      String.starts_with?(disposition, "exhaust_") -> "exhausted"
+      String.starts_with?(disposition, "block_") or disposition in ~w(cancel_pending) -> "blocked"
+      true -> "closed"
+    end
   end
 
-  defp no_root_state?(value) when is_list(value), do: Enum.all?(value, &no_root_state?/1)
-  defp no_root_state?(_value), do: true
+  defp resume_for("developer"), do: "developing"
+  defp resume_for("reviewer"), do: "awaiting_review"
+  defp resume_for(_), do: "integrating"
 
-  defp plain_map?(value), do: is_map(value) and not is_struct(value)
-  defp identity?(value), do: is_binary(value) and value != "" and String.valid?(value)
-  defp positive_integer?(value), do: is_integer(value) and value > 0
+  # plan/validation helpers
+  defp accepted(state,c,reads,ops,bindings,alts),do:plan(state,c,"accepted",nil,reads,ops,bindings,alts)
+  defp result(state,c,d,r),do:plan(state,c,d,r,[read("state","workflow",state["revision"])],[],[],[])
+  defp plan(state,c,d,r,reads,ops,bindings,alts) do
+    p=%{"schema_version"=>1,"command_id"=>c["command_id"],"disposition"=>d,"reason_code"=>r,"expected_domain_revision"=>state["revision"],"domain_reads"=>uniq_reads([read("state","workflow",state["revision"])|reads]),"protected_operations"=>ops,"bindings"=>bindings,"alternatives"=>Enum.map(alts,fn {disc,events}->%{"discriminator"=>disc,"events"=>events} end)};{:ok,p}
+  end
+  defp validate_decision({:ok,p}),do:Plan.validate(p);defp validate_decision({:error,_}),do::ok;defp validate_decision(_),do:{:error,:invalid_decision}
+  defp event(state,i,type,er,payload),do:%{"schema_version"=>1,"event_id"=>i["event_id"],"type"=>type,"recorded_at"=>i["recorded_at"],"expected_state_revision"=>state["revision"],"entity_revision"=>er,"payload"=>payload}
+  defp op(n,t,input),do:%{"schema_version"=>1,"ordinal"=>n,"type"=>t,"input"=>input}
+  defp binding(n,o,k,s),do:%{"name"=>n,"operation_ordinal"=>o,"output_kind"=>k,"destination_slot"=>s}
+  defp read(k,id,r),do:%{"kind"=>k,"entity_id"=>id,"revision"=>r}
+  defp uniq_reads(rs),do:Enum.uniq_by(rs,&{&1["kind"],&1["entity_id"]})
+  defp ticket_reads(state,t),do:[read("ticket",t["ticket_id"],t["revision"]),read("state","workflow",state["revision"])]
+  defp launch_payload("launch_planned",t,aid,_i),do:%{"ticket_id"=>t["ticket_id"],"attempt_id"=>aid}
+  defp launch_payload("review_planned",t,aid,_i),do:%{"ticket_id"=>t["ticket_id"],"attempt_id"=>aid}
+  defp launch_payload("integration_planned",t,aid,_i),do:%{"ticket_id"=>t["ticket_id"],"attempt_id"=>aid}
+  defp launch_payload("check_planned",t,aid,i),do:%{"ticket_id"=>t["ticket_id"],"attempt_id"=>aid,"check_id"=>i["ids"]["check_id"]}
+  defp slot("developer"),do:"launch_planned.authority";defp slot("reviewer"),do:"review_planned.authority";defp slot("check"),do:"check_planned.authority";defp slot("integration"),do:"integration_planned.authority"
+  defp launch_phase(t,"developer"),do:if(t["phase"]=="queued" or t["phase"]=="blocked" and t["resume_phase"]=="developing",do::ok,else:{:error,"source_state_guard"})
+  defp launch_phase(t,"reviewer"),do:with {:ok,a}<-current_attempt(t),true<-t["phase"]=="awaiting_review" and a["phase"]=="awaiting_review" do :ok else _->{:error,"source_state_guard"} end
+  defp launch_phase(t,"check"),do:with {:ok,a}<-current_attempt(t),true<-t["phase"]=="awaiting_review" and a["phase"]=="checking" and a["developer_closed"] do :ok else _->{:error,"source_state_guard"} end
+  defp launch_phase(t,"integration"),do:if(t["phase"]=="ready_to_integrate",do::ok,else:{:error,"source_state_guard"})
+  defp attempt_identity(t,"developer",id) do if id?(id) do case t["current_attempt_id"] do nil->{:ok,id};aid->a=t["attempts"][aid];if a["phase"]=="terminal",do:{:ok,id},else:if(a["phase"]=="active",do:{:ok,aid},else:{:error,"active_attempt_guard"}) end else {:error,"missing_attempt_identity"} end end
+  defp attempt_identity(t,_role,_id),do:with {:ok,a}<-current_attempt(t),do:{:ok,a["attempt_id"]}
+  defp ticket(state,c),do:case state["tickets"][target(c,"ticket_id")] do nil->{:error,"unknown_ticket"};%{"phase"=>p} when p in @terminal->{:error,"terminal_ticket"};t->{:ok,t} end
+  defp target(c,k),do:c["target_ids"][k]
+  defp expected_state(c,s),do:if(c["expected_revisions"]["state/workflow"]==s["revision"],do::ok,else:{:error,:stale_or_incomplete_domain_reads})
+  defp command(c) do if plain?(c) and exact?(c,~w(schema_version command_id expected_revisions type target_ids payload)) and c["schema_version"]==1 and id?(c["command_id"]) and c["type"] in @commands and plain?(c["expected_revisions"]) and plain?(c["target_ids"]) and plain?(c["payload"]),do:{:ok,c},else:{:error,:invalid_command} end rescue _->{:error,:invalid_command} end
+  defp inputs(i) do if plain?(i) and exact?(i,~w(recorded_at event_id ids observations)) and id?(i["recorded_at"]) and id?(i["event_id"]) and plain?(i["ids"]) and plain?(i["observations"]),do:{:ok,i},else:{:error,:invalid_decision_inputs} end rescue _->{:error,:invalid_decision_inputs} end
+  defp spec?(s),do:plain?(s) and id?(s["title"]) and is_list(s["scope"]||[]) and Enum.all?(s["scope"]||[],&is_binary/1)
+  defp launch_ids?(i),do:ids?(Enum.map(~w(execution_id effect_id reservation_id),&i["ids"][&1]))
+  defp receipt_ids?(i),do:ids?(Enum.map(~w(execution_id claim_id receipt_id),&i["ids"][&1]))
+  defp ids?(vs),do:Enum.all?(vs,&id?/1)
+  defp exact?(m,ks),do:Enum.sort(Map.keys(m))==Enum.sort(ks)
+  defp id?(v),do:is_binary(v) and v!="" and String.valid?(v)
+  defp plain?(v),do:is_map(v) and not is_struct(v)
 end
