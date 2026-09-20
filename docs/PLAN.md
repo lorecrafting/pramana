@@ -331,13 +331,12 @@ Next resumable Foundry work, under exact repair-plan ownership:
 6. Complete honest observation/storage baselines before immutable activation; then finish
    steering, switching, maintenance, constrained improvement and FR-22 lifecycle closure.
 
-FR-19A candidate `d1ce73ee9da548a64a447106f83d3d7f8ce1b567` remains
-unintegrated after independent Astra-high **BLOCKER** review
-`705e7b604483c631b2ac968c9a99ca627d8ad616`. Correct the default capacity-probe/public
-call deadline race and maintenance failure fencing/interruption coverage; required physical
-filesystem ENOSPC and kernel-sync conformance remains open without an operator waiver.
-Preserve the candidate's credited bounded-query, verified-backup/checkpoint, corruption,
-authority-retention and relocation-containment behavior and obtain renewed review.
+FR-19A is complete, independently reviewed and integrated. It now supplies bounded
+capacity health, owner-death-safe probes, verified backup/replay, operation-local
+checkpoint/VACUUM interruption, corruption containment, physical filesystem ENOSPC and an
+attributed Linux kernel-sync failure with fencing, same-device recovery, complete authority
+verification and exact cleanup. Power-loss and physical-media durability remain explicitly
+unclaimed. FR-19B still owns diagnostic retention and offline relocation closure.
 
 Current review policy is Sol-medium implementation, Sol-high routine independent review,
 Astra-high first critical authority/persistence/replay/budget/Git/activation review and

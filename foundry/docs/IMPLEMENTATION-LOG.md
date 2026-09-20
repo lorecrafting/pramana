@@ -1521,3 +1521,34 @@ latest prose here, remains authoritative for status and dependencies.
   credential, daemon, Herdr, installation or execution capability changed. FR-15aA is
   complete; FR-15aB still owns actual isolation and FR-09 owns installed-harness and
   subscription conformance.
+
+## FR-19A operational storage integration — 2026-09-19
+
+- Initial candidate `d1ce73ee9da548a64a447106f83d3d7f8ce1b567` received Astra-high
+  **BLOCKER** review `705e7b604483c631b2ac968c9a99ca627d8ad616` for the default health
+  deadline race, incomplete maintenance fencing/interruption, and missing physical
+  ENOSPC/kernel-sync evidence. The correction retained all credited backup, corruption,
+  authority and relocation-containment behavior.
+- Linux workflow run `35498430877` supplies the bounded physical sync record: an exact
+  owned device-mapper/loop/ext4 stack, unchanged Gateway backup descriptor returning
+  `fsync EIO`, typed public failure and fencing, deterministic map restoration, orderly
+  same-device remount, digest-stable complete destination/source authority and replay,
+  and exact cleanup. The independently downloaded artifact ZIP hash is
+  `ad315c15657068a921a1faeb73831a66c08bbecd252dc79145f539c7cca76959`.
+  An owned Darwin filesystem separately proved physical ENOSPC. Neither result claims
+  power-loss, failed-sync persistence, cache flush or media durability.
+- Astra-high rereview `7ce0c65c0a4f72ec146abdbb26d8f0381f5e96d4` credited the physical
+  evidence but retained B1 owner-death probe cleanup and B2 a zero-WAL interruption false
+  positive. Implementation `6c1e5acb29b10e0cd40c692de87f05f1155804c8` added an independent
+  controller/watchdog and a positive-frame, operation-scoped checkpoint/VACUUM fixture.
+  Focused Astra-medium rereview `95eccd6b160b6f339376cfd79e7de81f997c4ba6` returned **PASS**.
+- The complete chain is integrated through
+  `efd8e89967ad90e7ea30dddd08864de5afadd4d1`. Composition exposed that H0's test
+  incorrectly required the live post-FR-07 Gateway to remain byte-identical forever;
+  reviewed compatibility commit `b7484482ac1305eb47d81be2787fc9a836683339` preserves the frozen
+  accepted-v9 artifact while requiring the historical provider to refuse positive credit
+  for evolved code. In a clean detached checkout with pinned Elixir 1.20.3 / OTP 29.0.5,
+  bundled Exqlite headers and a canonical temporary root, integrated CI passed 590 tests,
+  13 intentional skips and one optional exclusion. Provenance SHA-256:
+  `76b45e0e364464e52919012acdf955b46516473163e15bebfeb1bcd4fa0be0dd`.
+  No daemon, provider, credential, deployment or activation was used. FR-19B remains open.

@@ -229,7 +229,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
 | FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | Blocked | F17, F18 |
 | FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
-| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Candidate review BLOCKER: B1/B2 correction ready; physical ENOSPC/sync acceptance open** | F20, F21 |
+| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | **Complete: physical ENOSPC/kernel-sync and bounded maintenance recovery independently reviewed and integrated** | F20, F21 |
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
@@ -1028,6 +1028,21 @@ and old claim/ledger evidence on every failure.
 checkpoint/backup, full disk and corrupt SQLite with originals retained and effects fenced.
 Record measured limits and unsupported physical guarantees. This baseline is required by
 FR-17 but does not close the parent's diagnostic-retention or cross-device obligations.
+
+**Completion — 2026-09-19:** Final implementation
+`6c1e5acb29b10e0cd40c692de87f05f1155804c8` and frozen candidate
+`8cfd983b40e5ad6edce4e863ee64906960220f92` received focused independent PASS
+`95eccd6b160b6f339376cfd79e7de81f997c4ba6` after the earlier Astra-high blocker
+reviews. The accepted evidence covers bounded/unknown capacity health, owner-death-safe
+probe cleanup, verified backup/replay, genuine nonempty-WAL checkpoint and VACUUM
+interruption, corrupt input, an owned Darwin filesystem reaching physical ENOSPC, and a
+Linux device-mapper run where the unchanged Gateway backup path received kernel
+`fsync EIO`, fenced, restored the same device, remounted ordinarily, verified complete
+content/replay/source authority and removed every owned resource. Integration is through
+`efd8e89967ad90e7ea30dddd08864de5afadd4d1`; clean-checkout pinned CI passed 590
+tests with 13 intentional skips and one optional exclusion. This does not prove power-loss,
+failed-sync persistence, controller/cache flush or media durability. FR-19B still owns
+diagnostic retention and offline relocation closure; FR-17/22 own activation/lifecycle.
 
 #### FR-19B — Diagnostic retention and offline relocation
 
