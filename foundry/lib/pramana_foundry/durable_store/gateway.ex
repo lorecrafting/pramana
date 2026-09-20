@@ -169,7 +169,16 @@ defmodule PramanaFoundry.DurableStore.Gateway do
       ) do
     result =
       with true <- capability === state.protected_capability do
-        do_verified_transact(state.conn, actor_id, command, proposal, facts, state.fault)
+        case ProtectedPrimitives.authority_mode(state.conn) do
+          {:ok, :root} ->
+            {:error, :legacy_protected_route_retired}
+
+          {:ok, _legacy_mode} ->
+            do_verified_transact(state.conn, actor_id, command, proposal, facts, state.fault)
+
+          {:error, _reason} = error ->
+            error
+        end
       else
         false -> {:error, :unauthorized_protected_operation}
       end
@@ -201,7 +210,22 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   def handle_call({:protected_command, capability, actor_id, request}, _from, state) do
     result =
       if capability === state.protected_capability do
-        ProtectedPrimitives.execute(state.conn, actor_id, request)
+        case ProtectedPrimitives.authority_mode(state.conn) do
+          {:ok, :legacy} ->
+            {:error, :legacy_authority_mode_active}
+
+          {:ok, _mode} ->
+            ProtectedPrimitives.execute(
+              state.conn,
+              actor_id,
+              request,
+              state.writer_epoch,
+              state.fault
+            )
+
+          {:error, _reason} = error ->
+            error
+        end
       else
         {:error, :unauthorized_protected_operation}
       end

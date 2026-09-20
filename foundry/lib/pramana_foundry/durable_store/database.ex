@@ -103,7 +103,7 @@ defmodule PramanaFoundry.DurableStore.Database do
     owner_id TEXT NOT NULL,
     units INTEGER NOT NULL CHECK (units > 0),
     revision INTEGER NOT NULL CHECK (revision >= 0),
-    status TEXT NOT NULL CHECK (status IN ('reserved', 'issued_unknown', 'consumed', 'released', 'retired')),
+    status TEXT NOT NULL CHECK (status IN ('proposed', 'reserved', 'issued_unknown', 'consumed', 'released', 'retired')),
     claim_id TEXT,
     state BLOB NOT NULL,
     FOREIGN KEY(ledger_id, generation, dimension) REFERENCES root_ledgers(ledger_id, generation, dimension),
@@ -125,9 +125,6 @@ defmodule PramanaFoundry.DurableStore.Database do
     revision INTEGER NOT NULL CHECK (revision >= 0),
     state BLOB NOT NULL
   ) STRICT;
-  CREATE UNIQUE INDEX IF NOT EXISTS root_one_live_effect_operation
-    ON root_effects(execution_id, operation)
-    WHERE status IN ('pending', 'claimed', 'issued', 'unknown', 'reconciliation_required');
   CREATE TABLE IF NOT EXISTS root_claims (
     claim_id TEXT PRIMARY KEY,
     effect_id TEXT NOT NULL REFERENCES root_effects(effect_id),
@@ -146,7 +143,6 @@ defmodule PramanaFoundry.DurableStore.Database do
     outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'failed', 'non_started', 'unknown')),
     receipt_digest TEXT NOT NULL,
     state BLOB NOT NULL,
-    UNIQUE(request_id),
     UNIQUE(claim_id, receipt_digest)
   ) STRICT;
   CREATE TABLE IF NOT EXISTS root_leases (
@@ -514,25 +510,8 @@ defmodule PramanaFoundry.DurableStore.Database do
         try do
           with :ok <- PathIdentity.revalidate(identity),
                :ok <- configure(conn),
-               {:ok, :ok} <-
-                 transaction(conn, fn ->
-                   with :ok <- Sqlite3.execute(conn, @protected_schema),
-                        :ok <- seed_root_pointers(conn),
-                        :ok <-
-                          execute(
-                            conn,
-                            "INSERT INTO metadata(key, value) VALUES ('protected_schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                            [Integer.to_string(@protected_schema_version)]
-                          ),
-                        :ok <-
-                          execute(
-                            conn,
-                            "INSERT INTO metadata(key, value) VALUES ('migration_fr08a_v1', 'complete') ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-                          ),
-                        {:ok, _checked} <- Authority.read(conn, :all) do
-                     :ok
-                   end
-                 end),
+               {:ok, migration_state} <- protected_migration_state(conn),
+               :ok <- apply_protected_migration(conn, migration_state),
                :ok <- PathIdentity.revalidate(identity) do
             :ok
           end
@@ -546,6 +525,68 @@ defmodule PramanaFoundry.DurableStore.Database do
   end
 
   def migrate_protected_owned(_owner), do: {:error, :invalid_store_owner}
+
+  defp apply_protected_migration(conn, :current) do
+    with {:ok, _checked} <- Authority.read(conn, :all), do: :ok
+  end
+
+  defp apply_protected_migration(conn, :accepted_v1_without_protected) do
+    with {:ok, :ok} <-
+           transaction(conn, fn ->
+             with :ok <- Sqlite3.execute(conn, @protected_schema),
+                  :ok <- seed_root_pointers(conn),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('protected_schema_version', ?)",
+                      [Integer.to_string(@protected_schema_version)]
+                    ),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('migration_fr08a_v1', 'complete')"
+                    ),
+                  {:ok, _checked} <- Authority.read(conn, :all) do
+               :ok
+             end
+           end) do
+      :ok
+    end
+  end
+
+  defp apply_protected_migration(_conn, {:unsupported, reason}),
+    do: {:error, {:unsupported_protected_migration, reason}}
+
+  defp protected_migration_state(conn) do
+    with {:ok, metadata_rows} <-
+           query(
+             conn,
+             "SELECT key, value FROM metadata WHERE key IN ('schema_version', 'protected_schema_version', 'migration_fr08a_v1')"
+           ),
+         metadata <- Map.new(metadata_rows, fn [key, value] -> {key, value} end),
+         {:ok, table_rows} <-
+           query(
+             conn,
+             "SELECT name FROM sqlite_master WHERE type = 'table' AND (name LIKE 'root_%' OR name LIKE 'authenticated_inbox%') ORDER BY name"
+           ),
+         tables <- Enum.map(table_rows, &hd/1) do
+      cond do
+        metadata["schema_version"] != Integer.to_string(@schema_version) ->
+          {:ok, {:unsupported, :outer_schema_version}}
+
+        metadata["protected_schema_version"] == Integer.to_string(@protected_schema_version) and
+            metadata["migration_fr08a_v1"] == "complete" ->
+          {:ok, :current}
+
+        is_nil(metadata["protected_schema_version"]) and
+          is_nil(metadata["migration_fr08a_v1"]) and tables == [] ->
+          {:ok, :accepted_v1_without_protected}
+
+        true ->
+          {:ok, {:unsupported, :partial_or_future_protected_state}}
+      end
+    end
+  end
 
   defp commit(conn, value) do
     case Sqlite3.execute(conn, "COMMIT") do

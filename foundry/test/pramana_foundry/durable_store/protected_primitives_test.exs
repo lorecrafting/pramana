@@ -9,7 +9,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     root =
       Path.join(
         canonical_tmp(),
-        "protected-primitives-#{System.unique_integer([:positive, :monotonic])}"
+        "protected-primitives-#{System.pid()}-#{System.unique_integer([:positive, :monotonic])}"
       )
 
     File.mkdir!(root)
@@ -204,7 +204,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
 
   test "parent-funded ledger, claims, leases and settlement conserve authority", %{
     gateway: gateway,
-    capability: capability
+    capability: capability,
+    path: path
   } do
     seed_policy_and_control(gateway, capability)
 
@@ -280,7 +281,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     effect = %{
       "type" => "create_effect",
       "effect_id" => "effect-1",
-      "request" => %{"profile" => "sol"},
+      "request" => %{
+        "request_id" => "provider-request-1",
+        "role" => "developer",
+        "profile" => "sol"
+      },
       "operation" => "launch",
       "scope" => "ticket:T1",
       "ticket_id" => "T1",
@@ -303,7 +308,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                  "effect/effect-1" => "absent",
                  "policy/policy-1" => 0,
                  "control/control-1" => 0,
-                 "reservation/reservation-1" => 0,
+                 "reservation/reservation-1" => 1,
                  "lease/lease-1" => "absent"
                },
                effect
@@ -321,7 +326,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                  "policy/policy-1" => 0,
                  "control/control-1" => 0,
                  "reservation/reservation-1" => 0,
-                 "ledger/ticket-T1/0" => 1,
+                 "ledger/ticket-T1/0" => 0,
                  "lease/lease-1" => "absent"
                },
                effect
@@ -344,8 +349,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                %{
                  "effect/effect-1" => 0,
                  "claim/claim-1" => "absent",
-                 "reservation/reservation-1" => 0,
-                 "ledger/ticket-T1/0" => 1
+                 "reservation/reservation-1" => 1,
+                 "ledger/ticket-T1/0" => 1,
+                 "policy/policy-1" => 0,
+                 "control/control-1" => 0,
+                 "lease/lease-1" => "absent"
                },
                claim
              )
@@ -368,7 +376,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                  "effect/effect-1" => 1,
                  "policy/policy-1" => 0,
                  "control/control-1" => 0,
-                 "reservation/reservation-1" => 1,
+                 "reservation/reservation-1" => 2,
                  "ledger/ticket-T1/0" => 1,
                  "lease/lease-1" => 0
                },
@@ -393,7 +401,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                  "policy/policy-1" => 0,
                  "control/control-1" => 0,
                  "claim/claim-1" => 1,
-                 "reservation/reservation-1" => 2,
+                 "reservation/reservation-1" => 3,
                  "ledger/ticket-T1/0" => 1,
                  "lease/lease-1" => 0
                },
@@ -418,7 +426,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
       "effect/effect-1" => 2,
       "policy/policy-1" => 0,
       "control/control-1" => 0,
-      "reservation/reservation-1" => 2,
+      "reservation/reservation-1" => 3,
       "ledger/ticket-T1/0" => 1,
       "lease/lease-1" => 0,
       "receipt/receipt-1" => "absent"
@@ -461,7 +469,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                  "effect/effect-1" => 3,
                  "policy/policy-1" => 0,
                  "control/control-1" => 0,
-                 "reservation/reservation-1" => 3,
+                 "reservation/reservation-1" => 4,
                  "ledger/ticket-T1/0" => 2,
                  "lease/lease-1" => 1,
                  "receipt/receipt-1" => 0
@@ -491,6 +499,24 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
 
     assert unchanged_ledger["consumed"] == 1
     assert unchanged_ledger["available"] == 2
+
+    stop_supervised!(Gateway)
+
+    restarted =
+      start_supervised!(
+        {Gateway,
+         path: path, protected_capability: capability, writer_epoch: "writer-epoch-fr08a"},
+        id: :settled_restart
+      )
+
+    assert %{mode: :ready} = Gateway.status(restarted)
+
+    assert {:ok, %{"status" => "reconciliation_required"}} =
+             Gateway.protected_query(
+               restarted,
+               capability,
+               query("effect", "effect_id", "effect-1")
+             )
   end
 
   test "accepted v1-shaped stores migrate additively and rerun without changing legacy content",
@@ -592,7 +618,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     effect = %{
       "type" => "create_effect",
       "effect_id" => "reset-effect",
-      "request" => %{"profile" => "sol"},
+      "request" => %{
+        "request_id" => "reset-provider-request",
+        "role" => "developer",
+        "profile" => "sol"
+      },
       "operation" => "launch",
       "scope" => "ticket:T1",
       "ticket_id" => "T1",
@@ -615,7 +645,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
         "policy/policy-1" => 0,
         "control/control-1" => 0,
         "reservation/reset-reservation" => 0,
-        "ledger/ticket-reset/0" => 1,
+        "ledger/ticket-reset/0" => 0,
         "lease/reset-lease" => "absent"
       },
       effect
@@ -628,8 +658,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
       %{
         "effect/reset-effect" => 0,
         "claim/reset-claim" => "absent",
-        "reservation/reset-reservation" => 0,
-        "ledger/ticket-reset/0" => 1
+        "reservation/reset-reservation" => 1,
+        "ledger/ticket-reset/0" => 1,
+        "policy/policy-1" => 0,
+        "control/control-1" => 0,
+        "lease/reset-lease" => "absent"
       },
       %{
         "type" => "claim_effect",
@@ -672,7 +705,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
         "ledger/ticket-reset/0" => 1,
         "ledger/ticket-reset/1" => "absent",
         "ledger/objective/0" => 1,
-        "reservation/reset-reservation" => 1,
+        "reservation/reset-reservation" => 2,
         "effect/reset-effect" => 1,
         "claim/reset-claim" => 0,
         "policy/policy-1" => 0,
