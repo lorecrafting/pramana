@@ -30,6 +30,19 @@ defmodule PramanaFoundry.ObservationsTest do
     defp identity_key("inbox"), do: "execution_id"
   end
 
+  defmodule RecoveryGateway do
+    use GenServer
+
+    def start_link(reason), do: GenServer.start_link(__MODULE__, reason)
+
+    @impl true
+    def init(reason), do: {:ok, reason}
+
+    @impl true
+    def handle_call(_request, _from, reason),
+      do: {:reply, {:error, {:recovery_mode, reason}}, reason}
+  end
+
   test "healthy empty, unavailable and corrupt sources are distinct" do
     observed_at = ~U[2026-09-20 12:00:00Z]
     healthy = source(observed_at)
@@ -351,6 +364,60 @@ defmodule PramanaFoundry.ObservationsTest do
 
     assert %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
              Observations.query(%Query{include_pointers: false}, live_gateway, live_capability)
+  end
+
+  test "physical SQLite corruption is corrupt while raw availability failures remain unavailable" do
+    root = unique_tmp("physical-corrupt")
+    path = Path.join(root, "authority.sqlite3")
+    capability = make_ref()
+
+    assert :ok =
+             Gateway.initialize(path,
+               installation_id: "installation-fr18a",
+               repository_id: "repository-fr18a"
+             )
+
+    {:ok, file} = :file.open(String.to_charlist(path), [:read, :write, :binary, :raw])
+    :ok = :file.pwrite(file, 100, :binary.copy(<<0>>, 256))
+    :ok = :file.sync(file)
+    :ok = :file.close(file)
+
+    gateway =
+      start_supervised!(
+        {Gateway,
+         path: path, protected_capability: capability, writer_epoch: "writer-epoch-fr18a"},
+        id: :physical_corruption_observation_gateway
+      )
+
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    assert %{mode: :recovery, reason: "database disk image is malformed"} =
+             Gateway.status(gateway)
+
+    assert %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+             Observations.query(%Query{include_pointers: false}, gateway, capability)
+
+    for {reason, id} <- [
+          {"disk I/O error", :raw_io_unavailable_gateway},
+          {"database disk image is malformed while remote storage is unavailable",
+           :nonexact_corruption_text_gateway}
+        ] do
+      unavailable = start_supervised!({RecoveryGateway, reason}, id: id)
+
+      assert %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+               Observations.query(%Query{include_pointers: false}, unavailable, make_ref())
+    end
+
+    for {reason, id} <- [
+          {{:authority_corrupt, "table", "identity", :invalid},
+           :structured_authority_corrupt_gateway},
+          {{:protected_corrupt, "table", "identity"}, :structured_protected_corrupt_gateway}
+        ] do
+      corrupt = start_supervised!({RecoveryGateway, reason}, id: id)
+
+      assert %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+               Observations.query(%Query{include_pointers: false}, corrupt, make_ref())
+    end
   end
 
   test "terminal protected state governs reconciled and quarantined outcomes" do

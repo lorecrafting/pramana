@@ -10,6 +10,11 @@ defmodule PramanaFoundry.Observations.GatewaySource do
 
   alias PramanaFoundry.DurableStore.Gateway
 
+  @sqlite_corruption_reasons MapSet.new([
+                               "database disk image is malformed",
+                               "file is not a database"
+                             ])
+
   @impl true
   def snapshot(%{gateway: gateway, capability: capability}) do
     read(fn -> Gateway.protected_snapshot(gateway, capability) end)
@@ -43,5 +48,12 @@ defmodule PramanaFoundry.Observations.GatewaySource do
 
   defp classify_recovery({:protected_corrupt, _table, _identity}), do: {:error, :corrupt}
   defp classify_recovery({:protected_corrupt, _table, _identity, _reason}), do: {:error, :corrupt}
+
+  defp classify_recovery(reason) when is_binary(reason) do
+    if MapSet.member?(@sqlite_corruption_reasons, reason),
+      do: {:error, :corrupt},
+      else: {:error, :unavailable}
+  end
+
   defp classify_recovery(_reason), do: {:error, :unavailable}
 end
