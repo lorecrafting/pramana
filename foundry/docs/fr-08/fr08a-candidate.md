@@ -2,6 +2,7 @@
 
 Refrozen 2026-09-19 (Hawaii) after correcting the first critical review's B1–B9,
 the independent rereview's R1–R6 and the fresh final review's F1–F3 blocker families.
+It also closes the acceptance review's residual F2/G1 current-transition recovery gap.
 This candidate implements
 the protected semantic boundary required before FR-08B and reports all seven executable
 handoff capabilities passed. It does not perform the FR-08B all-ingress migration, launch
@@ -10,10 +11,12 @@ a provider or daemon, activate Git/deployment state, or claim FR-22 completion.
 ## Exact identity
 
 - Baseline: `fa636fb592eacf4ebd31b72fa377b0a86a6d3e3e`.
-- Final-review-corrected protected core subject: `e79a88a163202ef38cf32ea65ed348554a3dedc1`,
+- Transition-recovery protected core subject: `35ebb1d6d2d9a1661686f9f14e17c0dbeb0d2de0`,
+  tree `2ed0b1ebf0e3aaa34ad404c62cb805b696679930`.
+- Rebound loaded-code evidence: `0582f198118525090ed03858285a24d2378de085`,
+  tree `425a793c6a08bf0807124d52bf2eaf2123f44a49`.
+- Earlier final-review-corrected core: `e79a88a163202ef38cf32ea65ed348554a3dedc1`,
   tree `5afd76721c082c596ddd32898c46520a1f23d775`.
-- Rebound loaded-code evidence: `408fd0d21d7ba8a07170809dab2a2f1e30c5d5b2`,
-  tree `9e33ee71bca59c9df0767575b3cd0d1c42b25d35`.
 - Earlier rereview-corrected core: `066e29e1b50535759730b64583876b466629195b`,
   tree `ca0339489e051f3c8ae6e0315bdd0139771b21de`.
 - Bounded inherited format-debt identity correction: `8688b7a3f5079e4a2ed154d681f281f878003271`,
@@ -31,7 +34,7 @@ ProtectedPrimitives, Authority, Kernel, RecordCodec, Encoding, LegacyImport and 
 handoff gate. Its fresh-BEAM negative control changes executable Gateway behavior while
 leaving source unchanged and proves all seven capabilities become unavailable. The report
 records 7 pass, 0 fail, 0 unavailable, `ready=true`; its SHA-256 is
-`7dbece07e252b5a7d45e07a48c87591b622f7c758e7fd1c0793af4a54f03f139`.
+`cd42b8dc901dbe02fc755e9276b1616659e5324ff0170e28a9bf2d47f69753d9`.
 
 ## Protected authority and migration
 
@@ -58,6 +61,14 @@ origin. Immutable effect issuer, assignment, generation, ordinal, predecessor, r
 and admission fields are reconstructed from the originating authenticated command.
 Claim writer epoch is reconstructed from the authenticated initial claim and linear
 quiescent reclaim commands rather than trusted from mutually consistent rows.
+Recovery also reconstructs the latest ledger, effect and claim transition snapshots from
+the ordered command/result journal, validates immutable reservations against their
+authenticated reserve commands, and derives reservation status from the protected
+effect/claim/receipt lifecycle. Issued-to-claimed rewind, closed-to-open generation
+rewind and quantitative hold reduction without settlement therefore fence recovery even
+when every current carrier and canonical blob agrees with the forgery. Legitimate
+multi-reclaim, issue, settlement, quarantine, close/reset and late-observation histories
+remain restartable.
 
 The bounded snapshot includes installation and repository identity, writer epoch,
 SQL/protected/protocol/event/projection versions, domain/protected sequence frontiers,
@@ -84,10 +95,13 @@ request ID, issuer/channel, profile and deadline.
 The maintained critical-correction tests additionally cover explicit epoch reclaim,
 control cancellation, dimension/semantic identity bypasses, recursive closure, mutually
 exclusive legacy/root modes, precommit rollback and postcommit lost-reply recovery. A
-maintained wrapper executes all 22 independently authored final-review probes, covering
+maintained wrapper executes all 41 independently authored acceptance probes, covering
 semantic-rejection rollback, derived phase/ordinal/policy identity, predecessor fencing,
 complete owner-chain quarantine, authenticated ledger/effect/claim recovery provenance,
-mandatory declared deadlines, receipt observation collision and mixed-subtree close.
+current transition reconstruction, mandatory declared deadlines, receipt observation
+collision and mixed-subtree close/reset. Positive cases include five-deep terminal
+ancestry across restart, two sequential epoch reclaims, bounded-deadline settlement,
+quarantine restart and durable reset/idempotent replay.
 The focused suite covers additive migration/reopen, accepted-v1 content preservation, root
 pointer absence, semantic snapshot identity, restart after inbox boundaries and full
 claim/receipt/lease/ledger settlement. The executable provider uses
@@ -101,15 +115,15 @@ Pinned Elixir 1.20.3 / OTP 29.0.5 / ERTS 17.0.5 and canonical `/private/tmp` roo
 - warnings-as-errors compile: exit 0, 108 files;
 - focused protected/correction tests: passed;
 - independent recovery probes at seed 9283: 7 passed;
-- independently authored final-review probes at seed 9302: 22 passed;
+- independently authored acceptance probes at seed 9302: 41 passed;
 - native xSync fixture after its bounded dependency-path correction: 2 passed;
-- full model-free suite at seed 9302: 572 passed, 1 optional Python/tiktoken recomputation
+- full model-free suite at seed 9313: 572 passed, 1 optional Python/tiktoken recomputation
   excluded;
 - canonical `ci/run.exs`: exit 0, 572 passed, 1 optional recomputation excluded; dependency
   policy, warnings-as-errors compile, formatting, escript and clean-source postflight all
   passed. All seven inherited format-debt paths matched their bounded current identities.
   Provenance SHA-256:
-  `fd2aa2e1cbddf092a2afd0c9eb0dd998934368d1f27211902f88fc576fd8f70d`.
+  `44aae003f07ed7dc2f3a7ee156a2a4853ec27631b33715d6f9bc8e1cccb55ce5`.
 
 The first unchanged canonical invocation observed one unrelated live-process identity
 race: the same PID changed transient state from `Rs` to `Ss` between consecutive reads;
@@ -126,21 +140,22 @@ both pass. This changes no runtime checkpoint, backup or FR-19A path.
 This candidate record is excluded to avoid a recursive self-hash.
 
 ```text
-7dbece07e252b5a7d45e07a48c87591b622f7c758e7fd1c0793af4a54f03f139  foundry/docs/fr-08/fr08a-protected-report.txt
+cd42b8dc901dbe02fc755e9276b1616659e5324ff0170e28a9bf2d47f69753d9  foundry/docs/fr-08/fr08a-protected-report.txt
 fc3b6c7685a9a2743e84ed338551ce9aaa7aeed5ce1b0e2c270cd865d351ab99  foundry/ci/format_debt.exs
 d0b94ba108f8a1be0b3c17db4478bcbe25783991ceb17bc5ca3bb8edd886d99c  foundry/lib/pramana_foundry/durable_store/authority.ex
 bf21cc2dc37b58cdec0de191025a7753529fc08d66b887f15331d8bdf026e464  foundry/lib/pramana_foundry/durable_store/database.ex
 e60158b2f95ace9c1f143f3a9b8a12d8c6cf08ca279bbe7c90ced6b955793d1e  foundry/lib/pramana_foundry/durable_store/gateway.ex
-c1641774feaf9348ead1a2259d64541c44bc24038188f153eb0c1f5b0c05d460  foundry/lib/pramana_foundry/durable_store/protected_primitives.ex
-584cbd54d058853314849ca7139ed07af2bcff0146778818b981e00157b3409e  foundry/lib/pramana_foundry/repair/fr08a_protected_boundary.ex
+909cae2e73e8e5c7153567ed6d09f55d9254aa1db2ff074316a73082d4122264  foundry/lib/pramana_foundry/durable_store/protected_primitives.ex
+70745277240dc14c92ee0a88b1d676dd77ae61ef27c08cd3ec23809970fb1062  foundry/lib/pramana_foundry/repair/fr08a_protected_boundary.ex
 a78f590a4692ec8bd7e7999ab1d26d9dd776a6e319d35c3cefeb6ba416448965  foundry/test/pramana_foundry/durable_store/protected_primitives_test.exs
 2c077d8de958f1d331a518798496ec6126b9a5580bba95031664ecd7f2fdfa3d  foundry/test/pramana_foundry/durable_store/fr08a_critical_corrections_test.exs
-2d0c5e79fc59133da362c17980770c4a1425d1a8d593c5a63d473e12d9e879c7  foundry/test/pramana_foundry/durable_store/fr08a_rereview_matrix_test.exs
+7ab15f7ea84b4f377a93414d820339f1e3909005a904d2a4caf58d557217d87c  foundry/test/pramana_foundry/durable_store/fr08a_rereview_matrix_test.exs
 95c16a61d9ce79d5a246b72f6051c3a535cd2ba6b8bc47a5f6424646f83df124  foundry/test/pramana_foundry/durable_store/sync_fault_test.exs
-db709821c7323bced4dd373d2611d130e2d26c449342a3735e12d2531cc3c238  foundry/test/pramana_foundry/repair/fr08a_protected_boundary_test.exs
+42220415838690b44a2c6f319ef1abeda2520acd793c14de77188d1903f0923a  foundry/test/pramana_foundry/repair/fr08a_protected_boundary_test.exs
 a680b6f036515f673fabb248cb7fdaeb089041db633f08be053825ac84ebf527  foundry/test/support/fr08a_identity_negative_fixture.exs
 04cd3821181cb003f237d8c25c8a955951570e864b1dddbd58c28ccd733f8f3f  foundry/docs/fr-08/fr08a-rereview-probes.exs
 ba29f581504c44494777b7ec5128fbed8a6bf71049bfaa457ec8371079af3bc5  foundry/docs/fr-08/fr08a-final-review-probes.exs
+f2261d351f95b829d02d6c32d4265874dfe79e2fb16c938bf2d1aaae12b4980d  foundry/docs/fr-08/fr08a-acceptance-review-probes.exs
 ```
 
 Independent Astra-high critical review is required before integration. FR-08B must not
