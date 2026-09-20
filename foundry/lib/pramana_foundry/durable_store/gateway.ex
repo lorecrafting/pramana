@@ -113,6 +113,11 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   @impl true
   def terminate(_reason, state) do
+    Enum.each(state.operational_health_requests, fn {_token, request} ->
+      Process.cancel_timer(request.timer)
+      Process.exit(request.pid, :kill)
+    end)
+
     _ = Database.close(state.conn)
     if state.owner, do: Owner.release(state.owner)
     :ok
@@ -138,17 +143,26 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
         {pid, monitor} =
           spawn_monitor(fn ->
-            physical =
-              capacity_result(
-                state.capacity_probe,
-                state.path,
-                state.capacity_probe_timeout_ms
-              )
-
-            send(owner, {:operational_health_capacity, token, physical})
+            result = invoke_capacity_probe(state.capacity_probe, state.path)
+            send(owner, {:operational_health_capacity, token, result})
           end)
 
-        request = %{from: from, health: health, pid: pid, monitor: monitor}
+        timer =
+          Process.send_after(
+            owner,
+            {:operational_health_capacity_timeout, token},
+            state.capacity_probe_timeout_ms
+          )
+
+        request = %{
+          from: from,
+          health: health,
+          pid: pid,
+          monitor: monitor,
+          caller_monitor: Process.monitor(elem(from, 0)),
+          timer: timer
+        }
+
         {:noreply, put_in(state.operational_health_requests[token], request)}
 
       {:error, _reason} = result ->
@@ -248,30 +262,69 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   end
 
   @impl true
-  def handle_info({:operational_health_capacity, token, physical}, state) do
+  def handle_info({:operational_health_capacity, token, result}, state) do
     case Map.pop(state.operational_health_requests, token) do
       {nil, _requests} ->
         {:noreply, state}
 
       {request, requests} ->
+        Process.cancel_timer(request.timer)
         Process.demonitor(request.monitor, [:flush])
+        Process.demonitor(request.caller_monitor, [:flush])
+        physical = normalize_capacity_result(result)
         GenServer.reply(request.from, {:ok, add_physical_capacity(request.health, physical)})
         {:noreply, %{state | operational_health_requests: requests}}
     end
   end
 
+  def handle_info({:operational_health_capacity_timeout, token}, state) do
+    case Map.pop(state.operational_health_requests, token) do
+      {nil, _requests} ->
+        {:noreply, state}
+
+      {request, requests} ->
+        Process.exit(request.pid, :kill)
+        Process.demonitor(request.monitor, [:flush])
+        Process.demonitor(request.caller_monitor, [:flush])
+
+        GenServer.reply(
+          request.from,
+          {:ok, add_physical_capacity(request.health, {:unknown, :capacity_probe_timeout})}
+        )
+
+        {:noreply, %{state | operational_health_requests: requests}}
+    end
+  end
+
   def handle_info({:DOWN, monitor, :process, pid, reason}, state) do
-    case Enum.find(state.operational_health_requests, fn {_token, request} ->
-           request.monitor == monitor and request.pid == pid
-         end) do
+    case find_health_request(state.operational_health_requests, monitor, pid) do
       nil ->
         {:noreply, state}
 
-      {token, request} ->
+      {token, request, :worker} ->
+        Process.cancel_timer(request.timer)
+        Process.demonitor(request.caller_monitor, [:flush])
+
         physical = {:unknown, {:capacity_probe_worker_exit, reason}}
         GenServer.reply(request.from, {:ok, add_physical_capacity(request.health, physical)})
         {:noreply, update_in(state.operational_health_requests, &Map.delete(&1, token))}
+
+      {token, request, :caller} ->
+        Process.cancel_timer(request.timer)
+        Process.exit(request.pid, :kill)
+        Process.demonitor(request.monitor, [:flush])
+        {:noreply, update_in(state.operational_health_requests, &Map.delete(&1, token))}
     end
+  end
+
+  defp find_health_request(requests, monitor, pid) do
+    Enum.find_value(requests, fn {token, request} ->
+      cond do
+        request.monitor == monitor and request.pid == pid -> {token, request, :worker}
+        request.caller_monitor == monitor -> {token, request, :caller}
+        true -> nil
+      end
+    end)
   end
 
   defp open(identity, opts) do
@@ -1050,33 +1103,6 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   defp start_maintenance_fault(_fault, _point, _conn), do: :ok
 
-  defp capacity_result(probe, path, timeout_ms)
-       when is_function(probe, 1) and is_integer(timeout_ms) and timeout_ms > 0 do
-    caller = self()
-    token = make_ref()
-
-    {pid, monitor} =
-      spawn_monitor(fn -> send(caller, {token, invoke_capacity_probe(probe, path)}) end)
-
-    receive do
-      {^token, result} ->
-        Process.demonitor(monitor, [:flush])
-        normalize_capacity_result(result)
-
-      {:DOWN, ^monitor, :process, ^pid, reason} ->
-        {:unknown, {:capacity_probe_exit, reason}}
-    after
-      timeout_ms ->
-        Process.exit(pid, :kill)
-
-        receive do
-          {:DOWN, ^monitor, :process, ^pid, _reason} -> :ok
-        end
-
-        {:unknown, :capacity_probe_timeout}
-    end
-  end
-
   defp invoke_capacity_probe(probe, path) do
     probe.(path)
   rescue
@@ -1129,7 +1155,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          :ok <- Database.execute(conn, "VACUUM INTO '#{escaped}'"),
          :ok <- maybe_interrupt_backup(fault),
          {:ok, snapshot} <- PathIdentity.existing(target.path),
-         {:ok, result} <- verify_backup(snapshot, source_view) do
+         {:ok, result} <- verify_backup(snapshot, source_view, fault) do
       {:ok, result}
     else
       {:error, {:storage_unavailable, _reason} = reason} -> {:error, reason}
@@ -1140,7 +1166,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
   defp maybe_interrupt_backup(fault), do: inject_maintenance(fault, :after_backup_snapshot)
 
-  defp verify_backup(snapshot, source_view) do
+  defp verify_backup(snapshot, source_view, fault) do
     path = snapshot.path
 
     open_result =
@@ -1156,7 +1182,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
           with {:ok, backup_view} <- Authority.read(backup, :all),
                true <- source_view.content == backup_view.content,
                true <- source_view.reconstructed == backup_view.reconstructed,
-               :ok <- sync_snapshot(path) do
+               :ok <- sync_snapshot(path, fault) do
             {:ok,
              %{
                path: path,
@@ -1176,15 +1202,40 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     end
   end
 
-  defp sync_snapshot(path) do
-    with {:ok, file} <- :file.open(String.to_charlist(path), [:read, :binary, :raw]),
-         :ok <- :file.sync(file),
-         :ok <- :file.close(file),
-         {:ok, directory} <-
-           :file.open(String.to_charlist(Path.dirname(path)), [:read, :raw, :directory]),
-         :ok <- :file.sync(directory),
-         :ok <- :file.close(directory) do
+  defp sync_snapshot(path, fault) do
+    with :ok <- sync_file(path, fault),
+         :ok <- sync_directory(Path.dirname(path)) do
       :ok
+    end
+  end
+
+  defp sync_file(path, fault) do
+    case :file.open(String.to_charlist(path), [:read, :binary, :raw]) do
+      {:ok, file} ->
+        try do
+          with :ok <- start_maintenance_fault(fault, :during_backup_sync, file) do
+            :file.sync(file)
+          end
+        after
+          _ = :file.close(file)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp sync_directory(path) do
+    case :file.open(String.to_charlist(path), [:read, :raw, :directory]) do
+      {:ok, directory} ->
+        try do
+          :file.sync(directory)
+        after
+          _ = :file.close(directory)
+        end
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
