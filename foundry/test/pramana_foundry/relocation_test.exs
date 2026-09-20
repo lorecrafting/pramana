@@ -71,6 +71,7 @@ defmodule PramanaFoundry.RelocationTest do
     refute main_repo in step_sources
   end
 
+  @tag skip: "mutating relocation is disabled until FR-19B"
   test "execute performs full end-to-end relocation with byte invariance, runtime protection, and path mapping",
        %{
          main_repo: main_repo,

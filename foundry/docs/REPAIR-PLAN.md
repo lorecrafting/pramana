@@ -195,7 +195,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-17 | Activate immutable accepted builds and recover failures | FR-05, FR-07, FR-14, FR-15, FR-18A, FR-19A, FR-21 | Blocked | F13, F22 |
 | FR-18A | Supply minimal canonical observations, identities, unknowns and failure visibility | FR-08A | Blocked | F17, F18 |
 | FR-18B | Complete producer→store→board/classifier/usage chain | FR-18A, FR-10, FR-11 | Blocked | F17, F18 |
-| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | Ready | F20, F21 |
+| FR-19A | Establish operational storage/backup/recovery and maintenance containment | FR-07 | Candidate prepared; independent review pending | F20, F21 |
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
@@ -959,6 +959,16 @@ worse review, acceptance or operator-effort outcomes.
 **Outcome:** Diagnostic growth and maintenance failures cannot erase authoritative work.
 
 #### FR-19A — Operational storage, backup and recovery baseline
+
+**Status (2026-09-19): Candidate implementation prepared; independent review pending.**
+The bounded implementation adds capacity/last-sequence health, limited event diagnostics,
+serialized content-checked WAL checkpointing, offline owner-locked backup replay
+verification and fail-closed relocation mutation containment. It preserves prior claim and
+ledger rows through backup, checkpoint and deterministic process-interruption probes. The
+host could not safely provide physical filesystem ENOSPC, power-loss, kernel `fsync(2)` or
+media-flush evidence; SQLite logical-full, kernel file-size-limit and injected VFS `xSync`
+evidence retain their exact narrower attribution. FR-19B diagnostic retention/compaction
+and cross-device relocation remain open.
 
 **Scope:** After FR-07, establish bounded operational queries/capacity health, verified
 SQLite backup/replay and explicit offline maintenance containment. Exercise physical

@@ -123,7 +123,7 @@ foundry/
     herdr/                   — typed adapter for the Herdr agent CLI
     effects/                 — checkpointed launch, prompt, and process lifecycle
     board/                   — terminal kanban dashboard
-    relocation/              — journaled workspace move
+    relocation/              — historical move code; mutation disabled pending FR-19B
   test/
   roles/
   docs/

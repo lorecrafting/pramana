@@ -5,6 +5,7 @@ defmodule PramanaFoundry.Relocation.CrashRecoveryTest do
   alias PramanaFoundry.Relocation.{Digest, Journal, PathMap}
 
   @moduletag :crash_recovery
+  @moduletag skip: "mutating relocation recovery is disabled until FR-19B"
 
   setup do
     root = Path.join(System.tmp_dir!(), "crash-test-#{System.unique_integer([:positive])}")
