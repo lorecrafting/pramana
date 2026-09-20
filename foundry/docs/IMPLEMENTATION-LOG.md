@@ -1605,3 +1605,21 @@ latest prose here, remains authoritative for status and dependencies.
   FR-18A observation slice. The correction requires a fresh Astra-high authority,
   persistence and replay review before integration. The historical FR-08A PASS remains
   valid only for its exact candidate and does not prove this new handoff surface.
+
+## FR-18A minimal honest observations — 2026-09-20
+
+- Sol-medium source candidate `fa74cabb7ce8c4d12cf94e756c92b7310733192a`, tree
+  `6228757bd34a1d639ebb693413dd45b43d50fc0c`, adds only a typed observation surface,
+  DTOs, a protected-Gateway adapter and tests. Candidate evidence commit
+  `8f266ea087791345f1318785e80fa2f754a15b00` records 22 focused passes, exact-source
+  pinned CI with 619 passes, 13 intentional skips and one optional exclusion, and an
+  80/80 documentation gate. It changes no Coordinator, reducer or protected writer.
+- Fresh Sol-high review `84848a1b13278d052ee590705a12fb384abbd5c6` returned
+  **BLOCKER**. Hostile probes reproduced corrupt authority collapse to unavailable,
+  contradictory unknown-to-success effect reporting, secret-shaped identity leakage,
+  canonical quality on malformed versions and post-materialization limits that do not
+  bound the protected query. It also found a protected pointer-vocabulary mismatch.
+- The original implementer is correcting the disjoint observation defects. The bounded
+  protected effect query is deliberately serialized behind the active FR-08A atomic
+  bundle writer because both require the same Gateway/protected-core files. FR-18A is not
+  complete, and its green component/full-suite counts do not override the hostile review.
