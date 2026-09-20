@@ -122,6 +122,13 @@ ticket acceptance paragraph or F01–F24 obligation.
    constrained improvement and FR-22 whole-lifecycle acceptance. Only this second finish
    line can close the repair backlog.
 
+**Current operator-directed target, set 2026-09-20: supervised dogfood alpha**, the first
+finish line above. This is recorded here rather than only in a session's memory so that a
+restarted or cleared session finds it by reading this plan. It changes no dependency,
+acceptance paragraph or F01–F24 obligation; it states which finish line is currently being
+worked toward. Reaching it means Batch C and then Batch D below. The second finish line
+remains the only one that can close the backlog.
+
 Use coherent batches to reach those milestones without creating one unreviewable
 FR-08–FR-22 change:
 
@@ -140,6 +147,25 @@ During a batch, run focused checks for each attributable subcommit, the full rel
 suite at candidate freeze and again after integration, reusable reviewer-owned failure
 probes, and one manifest/evidence packet for the frozen batch. Batch review reduces
 duplicated context; it never converts missing per-ticket evidence into a pass.
+
+**Contract coverage is a separate review dimension from candidate correctness.** A
+candidate review asks whether the code does what it claims, correctly and safely. A
+coverage review asks whether what it claims is enough to satisfy the governing contract.
+These are different questions and a candidate can pass the first while failing the second.
+
+Added 2026-09-20 on evidence: two independent reviews passed the FR-08A transition-plan
+codec on candidate correctness, and both were right on their own terms. The codec
+nonetheless could not express two of R4a's four domain-owner rows — it had no
+`review_settled` and no check-worker settlement slot — and could not bind admission
+authority on any role, because `launch_authority_v1` had no producer. Neither review was
+asked whether the mechanism covered R4a, so neither looked.
+
+Every batch freeze therefore requires one review pass that walks the governing contract
+rows — R4's transition table and R4a's domain-owner rows for a lifecycle batch — and, for
+each, names where the candidate satisfies it or records that it does not. An obligation
+with no home is a blocker, not a gap to be discovered later. Prefer executable coverage
+assertions over prose: a test that enumerates the contract's rows and fails when one has
+no destination is durable, while a reviewer's row-by-row read is not.
 
 ### Coordination efficiency discipline
 
