@@ -26,6 +26,19 @@ defmodule FR18ACorrectionRereviewProbe do
     defp identity_key("inbox"), do: "execution_id"
   end
 
+  defmodule RecoveryGateway do
+    use GenServer
+
+    def start_link(reason), do: GenServer.start_link(__MODULE__, reason)
+
+    @impl true
+    def init(reason), do: {:ok, reason}
+
+    @impl true
+    def handle_call(_request, _from, reason),
+      do: {:reply, {:error, {:recovery_mode, reason}}, reason}
+  end
+
   def run do
     root =
       Path.join(
@@ -40,7 +53,10 @@ defmodule FR18ACorrectionRereviewProbe do
       terminal_outcomes!(root)
       whole_envelope_redaction!(root)
       malformed_versions_and_pointer_vocabulary!()
-      IO.puts("FR-18A correction rereview: B2-B4/pointers pass; physical-corruption B1 remains")
+
+      IO.puts(
+        "FR-18A final B1 rereview: corruption/availability classification passes; B2-B4/pointers preserved"
+      )
     after
       File.rm_rf!(root)
     end
@@ -79,10 +95,20 @@ defmodule FR18ACorrectionRereviewProbe do
     %{mode: :recovery, reason: reason} = Gateway.status(physical)
     true = is_binary(reason)
 
-    %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+    %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
       Observations.query(%Query{include_pointers: false}, physical, capability)
 
     :ok = GenServer.stop(physical)
+
+    not_database_path = Path.join(root, "not-a-database.sqlite3")
+    File.write!(not_database_path, "this is deliberately not SQLite")
+    not_database = start_gateway!(not_database_path, capability, "not-a-database")
+    %{mode: :recovery, reason: "file is not a database"} = Gateway.status(not_database)
+
+    %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+      Observations.query(%Query{include_pointers: false}, not_database, capability)
+
+    :ok = GenServer.stop(not_database)
 
     missing = start_gateway!(Path.join(root, "missing.sqlite3"), capability, "missing")
 
@@ -90,6 +116,48 @@ defmodule FR18ACorrectionRereviewProbe do
       Observations.query(%Query{include_pointers: false}, missing, capability)
 
     :ok = GenServer.stop(missing)
+
+    available_path = Path.join(root, "available.sqlite3")
+    initialize!(available_path)
+    available = start_gateway!(available_path, capability, "available")
+
+    %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+      Observations.query(%Query{include_pointers: false}, available, make_ref())
+
+    :ok = GenServer.stop(available)
+
+    %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+      Observations.query(%Query{include_pointers: false}, available, capability)
+
+    for reason <- [
+          {:authority_corrupt, "table", "identity", :invalid},
+          {:protected_corrupt, "table", "identity"},
+          {:protected_corrupt, "table", "identity", :invalid},
+          "database disk image is malformed",
+          "file is not a database"
+        ] do
+      recovery = start_recovery_gateway!(reason)
+
+      %{status: :corrupt, quality: :corrupt, error_code: :source_corrupt} =
+        Observations.query(%Query{include_pointers: false}, recovery, make_ref())
+
+      :ok = GenServer.stop(recovery)
+    end
+
+    for reason <- [
+          "disk I/O error",
+          "database disk image is malformed while remote storage is unavailable",
+          "prefix: file is not a database",
+          {:storage_unavailable, "file is not a database"},
+          :not_initialized
+        ] do
+      recovery = start_recovery_gateway!(reason)
+
+      %{status: :unavailable, quality: :unavailable, error_code: :source_unavailable} =
+        Observations.query(%Query{include_pointers: false}, recovery, make_ref())
+
+      :ok = GenServer.stop(recovery)
+    end
   end
 
   defp terminal_outcomes!(root) do
@@ -482,6 +550,12 @@ defmodule FR18ACorrectionRereviewProbe do
         writer_epoch: writer_epoch
       )
 
+    Process.unlink(gateway)
+    gateway
+  end
+
+  defp start_recovery_gateway!(reason) do
+    {:ok, gateway} = RecoveryGateway.start_link(reason)
     Process.unlink(gateway)
     gateway
   end
