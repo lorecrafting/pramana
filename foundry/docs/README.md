@@ -15,7 +15,7 @@ contract still govern implementation.
 | Task | Read |
 |---|---|
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
-| Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the [checkpoint F feasibility candidate](fr-09/checkpoint-f-feasibility.md) and its [independent blocker review](fr-09/checkpoint-f-review.md), repair plan/workflow contract and affected FR-09/15a/18 requirements before implementation |
+| Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the [checkpoint F feasibility record](fr-09/checkpoint-f-feasibility.md) and its [independent blocker review](fr-09/checkpoint-f-review.md), repair plan/workflow contract and affected FR-09/15a/18 requirements before implementation |
 | Resume active repairs | [Repair plan](REPAIR-PLAN.md), the current ticket's acceptance criteria and its referenced evidence |
 | Understand current alignment, known source gaps and the FR-07→FR-08 disposition | [Independent alignment audit](ALIGNMENT-AUDIT-2026-09-19.md), then [repair plan](REPAIR-PLAN.md) and [FR-08 investigation](fr-08/investigation.md) |
 | Inspect the exact disposition candidate and its independent verdict | [Candidate record](alignment-disposition-2026-09-19.md) and [Astra-high PASS](alignment-disposition-review-2026-09-19.md) |

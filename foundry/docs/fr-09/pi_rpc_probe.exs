@@ -163,6 +163,8 @@ defmodule CheckpointF.FakeProvider do
 end
 
 defmodule CheckpointF.RPC do
+  @fixed_path "/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
   def start(root, endpoint, extra_args \\ []) do
     config = Path.join(root, "controlled-config")
     sessions = Path.join(root, "controlled-sessions")
@@ -195,12 +197,23 @@ defmodule CheckpointF.RPC do
     synthetic_home = Path.join(root, "ambient-home")
     File.mkdir_p!(synthetic_home)
 
+    owned_paths = owned_paths(root)
+    Enum.each(owned_paths, fn {_name, path} -> File.mkdir_p!(path) end)
+
     fd_source = Path.join(root, "synthetic-fd-secret")
     File.write!(fd_source, "synthetic-explicit-extension-fd")
 
     env = [
       {"HOME", synthetic_home},
-      {"PATH", System.fetch_env!("PATH")},
+      {"PATH", @fixed_path},
+      {"TMPDIR", owned_paths.tmp},
+      {"TMP", owned_paths.tmp},
+      {"TEMP", owned_paths.tmp},
+      {"XDG_CACHE_HOME", owned_paths.xdg_cache},
+      {"XDG_CONFIG_HOME", owned_paths.xdg_config},
+      {"XDG_DATA_HOME", owned_paths.xdg_data},
+      {"XDG_STATE_HOME", owned_paths.xdg_state},
+      {"NPM_CONFIG_CACHE", owned_paths.npm_cache},
       {"PI_CODING_AGENT_DIR", config},
       {"PI_CODING_AGENT_SESSION_DIR", sessions},
       {"PI_OFFLINE", "1"},
@@ -238,20 +251,29 @@ defmodule CheckpointF.RPC do
     # All variable values remain argv or quoted environment data, never shell fragments.
     wrapper = "exec 9<\"$CHECKPOINT_F_FD_PATH\"; exec /opt/homebrew/bin/pi \"$@\""
 
+    clean_env_args = ["-i"] ++ Enum.map(env, fn {name, value} -> "#{name}=#{value}" end)
+
     port =
-      Port.open({:spawn_executable, "/bin/sh"}, [
+      Port.open({:spawn_executable, "/usr/bin/env"}, [
         :binary,
         :exit_status,
         {:line, 1_048_576},
-        {:args, ["-c", wrapper, "checkpoint-f" | args]},
-        {:cd, workspace},
-        {:env,
-         Enum.map(env, fn {name, value} ->
-           {String.to_charlist(name), String.to_charlist(value)}
-         end)}
+        {:args, clean_env_args ++ ["/bin/sh", "-c", wrapper, "checkpoint-f" | args]},
+        {:cd, workspace}
       ])
 
     %{port: port, workspace: workspace, config: config, sessions: sessions}
+  end
+
+  def owned_paths(root) do
+    %{
+      tmp: Path.join(root, "tmp"),
+      xdg_cache: Path.join(root, "xdg/cache"),
+      xdg_config: Path.join(root, "xdg/config"),
+      xdg_data: Path.join(root, "xdg/data"),
+      xdg_state: Path.join(root, "xdg/state"),
+      npm_cache: Path.join(root, "npm-cache")
+    }
   end
 
   def send_command(rpc, type, fields \\ %{}) do
@@ -327,12 +349,34 @@ defmodule CheckpointF.Probe do
   alias CheckpointF.{FakeProvider, RPC}
 
   @repo Path.expand("../../..", __DIR__)
+  @installed_pi_cache "/opt/homebrew/lib/node_modules/@earendil-works/pi-coding-agent/node_modules/.cache/jiti"
+  @hostile_parent_environment %{
+    "CHECKPOINT_F_PARENT_ONLY" => "must-not-reach-pi",
+    "OPENAI_API_KEY" => "synthetic-hostile-openai",
+    "ANTHROPIC_API_KEY" => "synthetic-hostile-anthropic",
+    "HTTPS_PROXY" => "http://synthetic-hostile.invalid:9",
+    "ALL_PROXY" => "socks5://synthetic-hostile.invalid:9",
+    "http_proxy" => "http://synthetic-hostile.invalid:9",
+    "SSH_AUTH_SOCK" => "/synthetic/hostile/ssh-agent.sock",
+    "AWS_PROFILE" => "synthetic-hostile-profile",
+    "GIT_ASKPASS" => "/synthetic/hostile/askpass",
+    "HERDR_CONFIG_PATH" => "/synthetic/hostile/herdr.toml",
+    "PRAMANA_OPERATOR_RUNTIME_ROOT" => "/synthetic/hostile/operator-root",
+    "PI_PACKAGE_DIR" => "/synthetic/hostile/pi-packages",
+    "NODE_OPTIONS" => "--no-warnings",
+    "NPM_CONFIG_USERCONFIG" => "/synthetic/hostile/npmrc"
+  }
 
   def run do
+    # Replace any same-named parent values with synthetic sentinels without reading them.
+    # The trusted /usr/bin/env -i boundary below must remove every one before Pi starts.
+    Enum.each(@hostile_parent_environment, fn {name, value} -> System.put_env(name, value) end)
+
     server = FakeProvider.start(self())
     endpoint = "http://127.0.0.1:#{server.port}/v1"
     root = Path.join(System.tmp_dir!(), "checkpoint-f-pi-#{System.unique_integer([:positive])}")
     File.mkdir_p!(root)
+    outside_before = outside_cache_snapshot()
 
     try do
       prepare_discovery_fixtures(root)
@@ -370,6 +414,7 @@ defmodule CheckpointF.Probe do
       assert(get_in(response!(rpc, "get_state"), ["data", "isStreaming"]) == false, "not idle")
 
       assert_bash(rpc, ~s(test "$CHECKPOINT_F_INHERITED_SECRET" = synthetic-env-secret))
+      assert_bash(rpc, environment_assertion_command(root))
       assert_bash_fails(rpc, ~s|test "$(cat /dev/fd/9)" = synthetic-explicit-extension-fd|)
       assert_bash(rpc, "kill -0 #{System.pid()}")
 
@@ -397,6 +442,7 @@ defmodule CheckpointF.Probe do
 
       RPC.close(resumed)
       explicit_extension_probe(root, endpoint)
+      assert_owned_jiti_cache(root)
 
       requests = FakeProvider.requests(server)
       assert(length(requests) == 2, "unexpected provider request count")
@@ -406,9 +452,16 @@ defmodule CheckpointF.Probe do
 
       version = isolated_version(root)
 
+      outside_after = outside_cache_snapshot()
+
+      assert(
+        outside_after == outside_before,
+        "candidate-created Jiti/cache path escaped owned root"
+      )
+
       IO.puts(
         :json.encode(%{
-          schema: "checkpoint-f-pi-rpc-probe-v1",
+          schema: "checkpoint-f-pi-rpc-probe-v2",
           pi_version: version,
           provider: "loopback-only synthetic OpenAI-compatible fixture",
           provider_requests: length(requests),
@@ -422,11 +475,16 @@ defmodule CheckpointF.Probe do
           },
           discovery_denials: %{
             ambient_extension: "denied by isolated config and flags",
-            project_extension: "denied by flags"
+            project_extension: "denied by flags",
+            hostile_parent_environment: "denied by trusted env -i launcher",
+            jiti_cache_escape: "denied; compiled extension cache stayed under owned TMPDIR"
+          },
+          environment_boundary: %{
+            hostile_parent_sentinels: "absent in Pi extension and RPC Bash",
+            allowlisted_synthetic_environment: "present in Pi extension and RPC Bash"
           },
           isolation_denials: %{
             explicit_extension_with_no_extensions: "FAILED: executed",
-            inherited_environment: "FAILED: readable",
             inherited_file_descriptor:
               "FAILED: explicit startup extension read it; RPC bash child closed it",
             same_user_process_visibility: "FAILED: visible/signalable",
@@ -439,6 +497,7 @@ defmodule CheckpointF.Probe do
     after
       FakeProvider.stop(server)
       File.rm_rf!(root)
+      assert(not File.exists?(root), "owned probe root cleanup failed")
     end
   end
 
@@ -465,7 +524,15 @@ defmodule CheckpointF.Probe do
       extension,
       "import fs from 'node:fs';\n" <>
         "const inherited = fs.readFileSync('/dev/fd/9', 'utf8');\n" <>
-        "fs.writeFileSync(#{:json.encode(marker)}, inherited);\n" <>
+        "const forbidden = #{:json.encode(Map.keys(@hostile_parent_environment))};\n" <>
+        "const leaked = forbidden.filter((name) => process.env[name] !== undefined);\n" <>
+        "const result = { inherited, leaked, allowlisted: {\n" <>
+        "  secret: process.env.CHECKPOINT_F_INHERITED_SECRET,\n" <>
+        "  home: process.env.HOME, tmpdir: process.env.TMPDIR,\n" <>
+        "  cache: process.env.XDG_CACHE_HOME, config: process.env.PI_CODING_AGENT_DIR,\n" <>
+        "  sessions: process.env.PI_CODING_AGENT_SESSION_DIR\n" <>
+        "}};\n" <>
+        "fs.writeFileSync(#{:json.encode(marker)}, JSON.stringify(result));\n" <>
         "export default function () {}\n"
     )
 
@@ -473,22 +540,110 @@ defmodule CheckpointF.Probe do
     response!(rpc, "get_state")
     RPC.close(rpc)
 
+    observed = marker |> File.read!() |> :json.decode()
+    assert(observed["inherited"] == "synthetic-explicit-extension-fd", "FD not inherited")
+    assert(observed["leaked"] == [], "hostile parent environment reached extension/Pi")
+
     assert(
-      File.read!(marker) == "synthetic-explicit-extension-fd",
-      "explicit extension did not read inherited FD"
+      get_in(observed, ["allowlisted", "secret"]) == "synthetic-env-secret",
+      "allowlist lost"
     )
+
+    assert_owned_environment(observed["allowlisted"], root)
   end
 
   defp isolated_version(root) do
-    env = [
-      {"HOME", Path.join(root, "ambient-home")},
-      {"PI_CODING_AGENT_DIR", Path.join(root, "controlled-config")},
-      {"PI_OFFLINE", "1"},
-      {"PI_TELEMETRY", "0"}
+    paths = RPC.owned_paths(root)
+
+    args = [
+      "-i",
+      "HOME=#{Path.join(root, "ambient-home")}",
+      "PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+      "TMPDIR=#{paths.tmp}",
+      "XDG_CACHE_HOME=#{paths.xdg_cache}",
+      "PI_CODING_AGENT_DIR=#{Path.join(root, "controlled-config")}",
+      "PI_OFFLINE=1",
+      "PI_TELEMETRY=0",
+      "/opt/homebrew/bin/pi",
+      "--version"
     ]
 
-    {version, 0} = System.cmd("/opt/homebrew/bin/pi", ["--version"], env: env)
+    {version, 0} = System.cmd("/usr/bin/env", args)
     String.trim(version)
+  end
+
+  defp environment_assertion_command(root) do
+    paths = RPC.owned_paths(root)
+
+    forbidden =
+      Enum.map(Map.keys(@hostile_parent_environment), fn name ->
+        ~s|test -z "${#{name}+x}"|
+      end)
+
+    allowlisted = [
+      ~s|test "$CHECKPOINT_F_INHERITED_SECRET" = synthetic-env-secret|,
+      ~s|test "$HOME" = #{shell_quote(Path.join(root, "ambient-home"))}|,
+      ~s|test "$TMPDIR" = #{shell_quote(paths.tmp)}|,
+      ~s|test "$XDG_CACHE_HOME" = #{shell_quote(paths.xdg_cache)}|,
+      ~s|test "$XDG_CONFIG_HOME" = #{shell_quote(paths.xdg_config)}|,
+      ~s|test "$XDG_DATA_HOME" = #{shell_quote(paths.xdg_data)}|,
+      ~s|test "$XDG_STATE_HOME" = #{shell_quote(paths.xdg_state)}|,
+      ~s|test "$NPM_CONFIG_CACHE" = #{shell_quote(paths.npm_cache)}|,
+      ~s|test "$PI_CODING_AGENT_DIR" = #{shell_quote(Path.join(root, "controlled-config"))}|,
+      ~s|test "$PI_CODING_AGENT_SESSION_DIR" = #{shell_quote(Path.join(root, "controlled-sessions"))}|
+    ]
+
+    Enum.join(forbidden ++ allowlisted, " && ")
+  end
+
+  defp assert_owned_environment(observed, root) do
+    expected = %{
+      "secret" => "synthetic-env-secret",
+      "home" => Path.join(root, "ambient-home"),
+      "tmpdir" => RPC.owned_paths(root).tmp,
+      "cache" => RPC.owned_paths(root).xdg_cache,
+      "config" => Path.join(root, "controlled-config"),
+      "sessions" => Path.join(root, "controlled-sessions")
+    }
+
+    assert(observed == expected, "extension did not receive exact allowlisted environment")
+  end
+
+  defp assert_owned_jiti_cache(root) do
+    jiti_root = Path.join(RPC.owned_paths(root).tmp, "jiti")
+
+    files =
+      Path.wildcard(Path.join(jiti_root, "**/*"), match_dot: true)
+      |> Enum.filter(&File.regular?/1)
+
+    assert(files != [], "explicit extension did not create the expected owned Jiti cache")
+    assert(Enum.all?(files, &inside?(&1, root)), "Jiti cache escaped owned root")
+  end
+
+  defp outside_cache_snapshot do
+    known_dirs = [
+      Path.join(System.tmp_dir!(), "jiti"),
+      Path.join(System.user_home!(), ".cache/jiti"),
+      @installed_pi_cache
+    ]
+
+    Map.new(known_dirs, fn directory ->
+      matching =
+        case File.ls(directory) do
+          {:ok, names} ->
+            Enum.sort(names)
+
+          {:error, :enoent} ->
+            []
+        end
+
+      {directory, matching}
+    end)
+  end
+
+  defp inside?(path, root) do
+    relative = Path.relative_to(Path.expand(path), Path.expand(root))
+    relative != ".." and not String.starts_with?(relative, "../")
   end
 
   defp response!(rpc, type, timeout \\ 30_000) do
