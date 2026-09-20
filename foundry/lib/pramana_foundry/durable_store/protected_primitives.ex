@@ -4167,6 +4167,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       ],
       :ok ->
         with {:ok, envelope} <- decode(envelope_bytes),
+             true <- is_map(envelope),
+             true <- is_map(envelope["command"]),
              2 <- envelope["schema_version"],
              ^id <- get_in(envelope, ["command", "command_id"]),
              ^actor <- envelope["actor_id"],
@@ -4174,15 +4176,18 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              {:ok, ^digest} <-
                Encoding.semantic_digest("pramana-foundry-atomic-bundle-v2", envelope),
              {:ok, domain_request} <- decode(domain_request_bytes),
+             true <- is_map(domain_request),
              ^actor <- domain_request["actor_id"],
              true <- domain_request["command"] == envelope["command"],
              {:ok, expected_domain_bytes} <- Encoding.canonical(domain_request),
              true <- Encoding.digest(expected_domain_bytes) == domain_digest,
              {:ok, result} <- decode(result_bytes),
+             true <- is_map(result),
              true <-
                Map.keys(result) |> Enum.sort() ==
                  ~w(command_id committed_seq disposition domain_result operations reason_code schema_version),
              {:ok, domain_result} <- decode(domain_result_bytes),
+             true <- is_map(domain_result),
              ^id <- result["command_id"],
              ^disposition <- result["disposition"],
              ^reason <- result["reason_code"],
@@ -4243,7 +4248,10 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       [ordinal, "protected", type, request_bytes, stored_bytes] ->
         expected_id = "atomic-v2/#{digest}/#{ordinal}"
 
-        with true <- operation["ordinal"] == ordinal,
+        with true <- is_map(bundle_result),
+             true <- is_map(operation),
+             true <- is_map(operation_result),
+             true <- operation["ordinal"] == ordinal,
              true <- operation["operation_type"] == type,
              true <-
                Map.keys(operation_result) |> Enum.sort() ==
@@ -4300,7 +4308,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   defp valid_operation_reason?(_bundle, "committed", _result), do: true
 
   defp valid_operation_reason?(bundle, status, result)
-       when status in ["duplicate", "rolled_back", "unexecuted"],
+       when is_map(bundle) and is_map(result) and
+              status in ["duplicate", "rolled_back", "unexecuted"],
        do: result["reason_code"] == bundle["reason_code"]
 
   defp valid_operation_reason?(_bundle, _status, _result), do: false
@@ -4314,6 +4323,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          operation_result
        ) do
     with {:ok, request} <- decode(request_bytes),
+         true <- is_map(request),
+         true <- is_map(operation_result),
          {:ok, [[^type, root_request_bytes, root_result_bytes]]} <-
            Database.query(
              conn,
@@ -4322,8 +4333,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            ),
          {:ok, root_request} <- decode(root_request_bytes),
          {:ok, root_result} <- decode(root_result_bytes),
+         true <- is_map(root_request),
+         true <- is_map(root_result),
          true <- root_request["request"] == request,
-         true <- root_result == without_settlement_carrier(operation_result) do
+         true <- root_result == without_settlement_carrier(operation_result),
+         true <-
+           valid_committed_settlement_carrier(conn, request, root_result, operation_result) do
       true
     else
       _ -> false
@@ -4338,7 +4353,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          _request,
          result
        ) do
-    with "rolled_back" <- result["disposition"],
+    with true <- is_map(result),
+         "rolled_back" <- result["disposition"],
          ^command_id <- result["command_id"],
          true <-
            Map.keys(result) |> Enum.sort() ==
@@ -4354,23 +4370,26 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
-  defp valid_protected_outcome_provenance(conn, "duplicate", command_id, _type, _request, result) do
-    settlement = get_in(result, ["facts", "infrastructure_settlement"])
-
-    with "duplicate" <- result["disposition"],
+  defp valid_protected_outcome_provenance(
+         conn,
+         "duplicate",
+         command_id,
+         _type,
+         request_bytes,
+         result
+       ) do
+    with true <- is_map(result),
+         facts when is_map(facts) <- result["facts"],
+         settlement when is_map(settlement) <- facts["infrastructure_settlement"],
+         {:ok, request} <- decode(request_bytes),
+         true <- is_map(request),
+         "duplicate" <- result["disposition"],
          ^command_id <- result["command_id"],
          true <-
            Map.keys(result) |> Enum.sort() ==
              ~w(command_id disposition facts reason_code schema_version),
-         true <- Map.keys(result["facts"] || %{}) == ["infrastructure_settlement"],
-         effect_id when is_binary(effect_id) <- settlement["effect_id"],
-         {:ok, settlement_bytes} <- encode(settlement),
-         {:ok, [[^settlement_bytes]]} <-
-           Database.query(
-             conn,
-             "SELECT state FROM root_infrastructure_settlements WHERE effect_id = ?",
-             [effect_id]
-           ),
+         true <- Map.keys(facts) == ["infrastructure_settlement"],
+         true <- valid_duplicate_settlement_carrier(conn, request, settlement),
          {:ok, [[0]]} <-
            Database.query(conn, "SELECT count(*) FROM root_commands WHERE command_id = ?", [
              command_id
@@ -4382,7 +4401,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   end
 
   defp valid_protected_outcome_provenance(conn, "unexecuted", command_id, _type, _request, result) do
-    with "unexecuted" <- result["disposition"],
+    with true <- is_map(result),
+         "unexecuted" <- result["disposition"],
          ^command_id <- result["command_id"],
          true <-
            Map.keys(result) |> Enum.sort() ==
@@ -4412,6 +4432,106 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     do: %{result | "facts" => Map.delete(facts, "infrastructure_settlement")}
 
   defp without_settlement_carrier(result), do: result
+
+  defp valid_committed_settlement_carrier(conn, request, root_result, operation_result) do
+    operation = request["operation"]
+    root_facts = root_result["facts"]
+    operation_facts = operation_result["facts"]
+
+    with true <- is_map(operation),
+         true <- is_map(root_facts),
+         true <- is_map(operation_facts) do
+      settlement = operation_facts["infrastructure_settlement"]
+
+      case {operation["type"], operation["outcome"], settlement} do
+        {"settle_claim", "non_started", settlement} when is_map(settlement) ->
+          valid_authoritative_settlement(conn, operation, root_facts, settlement)
+
+        {_type, _outcome, nil} ->
+          true
+
+        _ ->
+          false
+      end
+    else
+      _ -> false
+    end
+  end
+
+  defp valid_authoritative_settlement(conn, operation, root_facts, settlement) do
+    effect = root_facts["effect"]
+    claim = root_facts["claim"]
+    receipt = root_facts["receipt"]
+    receipt_payload = if(is_map(receipt), do: receipt["payload"], else: nil)
+
+    with true <- valid_settlement_shape?(settlement),
+         true <- is_map(effect) and is_map(claim) and is_map(receipt),
+         true <- is_map(receipt_payload),
+         true <- settlement["effect_id"] == effect["effect_id"],
+         true <- settlement["claim_id"] == claim["claim_id"],
+         true <- settlement["receipt_id"] == receipt["receipt_id"],
+         true <- settlement["role"] == effect["role"],
+         true <- settlement["work_owner"] == effect["assignment_id"],
+         true <- settlement["infrastructure_generation"] == effect["phase_generation"],
+         true <- settlement["predecessor_effect_id"] == effect["predecessor_effect_id"],
+         true <- settlement["claim_id"] == operation["claim_id"],
+         true <- settlement["receipt_id"] == operation["receipt_id"],
+         true <- receipt["request_id"] == operation["request_id"],
+         true <- receipt["outcome"] == "non_started",
+         true <- settlement["failure_class"] == receipt_payload["failure_class"],
+         {:ok, settlement_bytes} <- encode(settlement),
+         {:ok, [[^settlement_bytes]]} <-
+           Database.query(
+             conn,
+             "SELECT state FROM root_infrastructure_settlements WHERE effect_id = ? AND claim_id = ? AND receipt_id = ?",
+             [settlement["effect_id"], settlement["claim_id"], settlement["receipt_id"]]
+           ) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp valid_duplicate_settlement_carrier(conn, request, settlement) do
+    operation = request["operation"]
+    payload = if(is_map(operation), do: operation["payload"], else: nil)
+
+    with true <- is_map(operation),
+         true <- is_map(payload),
+         "settle_claim" <- operation["type"],
+         "non_started" <- operation["outcome"],
+         true <- valid_settlement_shape?(settlement),
+         true <- settlement["claim_id"] == operation["claim_id"],
+         true <- settlement["receipt_id"] == operation["receipt_id"],
+         true <- settlement["failure_class"] == payload["failure_class"],
+         {:ok, settlement_bytes} <- encode(settlement),
+         {:ok, [[^settlement_bytes]]} <-
+           Database.query(
+             conn,
+             "SELECT state FROM root_infrastructure_settlements WHERE effect_id = ? AND claim_id = ? AND receipt_id = ?",
+             [settlement["effect_id"], settlement["claim_id"], settlement["receipt_id"]]
+           ) do
+      true
+    else
+      _ -> false
+    end
+  end
+
+  defp valid_settlement_shape?(settlement) when is_map(settlement) do
+    Map.keys(settlement) |> Enum.sort() ==
+      ~w(claim_id effect_id failure_class infrastructure_generation ordinal predecessor_effect_id receipt_id role schema_version work_owner) and
+      settlement["schema_version"] == 1 and is_binary(settlement["effect_id"]) and
+      is_binary(settlement["claim_id"]) and is_binary(settlement["receipt_id"]) and
+      is_binary(settlement["role"]) and is_binary(settlement["work_owner"]) and
+      is_integer(settlement["infrastructure_generation"]) and
+      settlement["infrastructure_generation"] >= 0 and
+      (is_nil(settlement["predecessor_effect_id"]) or
+         is_binary(settlement["predecessor_effect_id"])) and
+      is_binary(settlement["failure_class"]) and is_integer(settlement["ordinal"]) and
+      settlement["ordinal"] > 0
+  end
+
+  defp valid_settlement_shape?(_settlement), do: false
 
   defp valid_bundle_domain_row?(row, envelope, result) do
     case row do

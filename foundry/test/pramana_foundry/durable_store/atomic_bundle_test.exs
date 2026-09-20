@@ -2,7 +2,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
   use ExUnit.Case, async: false
 
   alias Exqlite.Sqlite3
-  alias PramanaFoundry.DurableStore.{Authority, Database, Gateway}
+  alias PramanaFoundry.DurableStore.{Authority, Database, Encoding, Gateway}
 
   setup do
     root =
@@ -370,6 +370,51 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert %{mode: :ready} = Gateway.status(ctx.gateway)
   end
 
+  test "malformed nested bundle operation result enters recovery", ctx do
+    assert {:ok, _result, :committed} =
+             Gateway.atomic_bundle(
+               ctx.gateway,
+               ctx.capability,
+               "operator",
+               policy_bundle("scalar-outcome", "scalar-policy")
+             )
+
+    gateway =
+      corrupt_bundle_result!(ctx, "scalar-outcome", false, fn result ->
+        Map.put(result, "operations", [17])
+      end)
+
+    assert %{mode: :recovery} = Gateway.status(gateway)
+  end
+
+  test "copied settlement carrier is bound to authoritative receipt-derived settlement", ctx do
+    seed_issued_launch!(ctx)
+
+    assert {:ok, _result, :committed} =
+             Gateway.atomic_bundle(
+               ctx.gateway,
+               ctx.capability,
+               "operator",
+               nonstart_bundle("forged-settlement-carrier")
+             )
+
+    gateway =
+      corrupt_bundle_result!(ctx, "forged-settlement-carrier", true, fn result ->
+        [operation] = result["operations"]
+
+        operation =
+          put_in(
+            operation,
+            ["result", "facts", "infrastructure_settlement", "ordinal"],
+            900
+          )
+
+        Map.put(result, "operations", [operation])
+      end)
+
+    assert %{mode: :recovery} = Gateway.status(gateway)
+  end
+
   test "protected v1 history migrates to typed singleton operations and reruns safely", ctx do
     accept_current!(ctx, %{
       "type" => "set_policy",
@@ -696,6 +741,57 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       key => value
     })
   end
+
+  defp corrupt_bundle_result!(ctx, command_id, sync_operation?, transform) do
+    stop_supervised!(Gateway)
+    assert {:ok, conn} = Sqlite3.open(ctx.path, mode: :readwrite)
+
+    assert {:ok, [[bytes]]} =
+             Database.query(conn, "SELECT result FROM atomic_bundles WHERE command_id = ?", [
+               command_id
+             ])
+
+    result = bytes |> :json.decode() |> normalize_json() |> transform.()
+    assert {:ok, encoded} = Encoding.json(result)
+
+    assert :ok =
+             Database.execute(conn, "UPDATE atomic_bundles SET result = ? WHERE command_id = ?", [
+               {:blob, encoded},
+               command_id
+             ])
+
+    if sync_operation? do
+      [%{"execution_status" => status, "result" => operation_result}] = result["operations"]
+
+      assert {:ok, encoded_operation} =
+               Encoding.json(%{
+                 "schema_version" => 1,
+                 "execution_status" => status,
+                 "operation_result" => operation_result
+               })
+
+      assert :ok =
+               Database.execute(
+                 conn,
+                 "UPDATE durable_operations SET result = ? WHERE owner_kind = 'bundle_v2' AND owner_id = ? AND ordinal = 0",
+                 [{:blob, encoded_operation}, command_id]
+               )
+    end
+
+    assert :ok = Sqlite3.close(conn)
+
+    start_supervised!(
+      {Gateway, path: ctx.path, protected_capability: ctx.capability, writer_epoch: "epoch-B"}
+    )
+  end
+
+  defp normalize_json(:null), do: nil
+
+  defp normalize_json(value) when is_map(value),
+    do: Map.new(value, fn {key, nested} -> {key, normalize_json(nested)} end)
+
+  defp normalize_json(value) when is_list(value), do: Enum.map(value, &normalize_json/1)
+  defp normalize_json(value), do: value
 
   defp projection_key(id) do
     "projection/" <>
