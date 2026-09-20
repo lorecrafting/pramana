@@ -13,6 +13,7 @@ on:
       - "foundry/ci/fr19a_sync_eio_host_test.sh"
       - "foundry/ci/fr19a_sync_eio_parse.exs"
       - "foundry/test/fr19a_sync_eio_orchestration_test.exs"
+      - "foundry/test/fr19a_sync_eio_workflow_test.exs"
       - "foundry/test/support/fr19a_linux_sync_eio_fixture.exs"
       - "foundry/lib/pramana_foundry/durable_store/**"
       - "foundry/mix.exs"
@@ -86,6 +87,7 @@ jobs:
               ci/fr19a_sync_eio_host_test.sh \
               ci/fr19a_sync_eio_parse.exs \
               test/fr19a_sync_eio_orchestration_test.exs \
+              test/fr19a_sync_eio_workflow_test.exs \
               test/support/fr19a_linux_sync_eio_fixture.exs
           } >"$FR19A_ARTIFACT_DIR/revision.txt"
 
@@ -178,7 +180,7 @@ jobs:
               -e trace=fsync,fdatasync,pwrite64,write,openat,close \
               -o "$trace_prefix" \
               mix run --no-start --no-compile --no-deps-check \
-              test/support/fr19a_linux_sync_eio_fixture.exs -- \
+              test/support/fr19a_linux_sync_eio_fixture.exs \
               "$source_root/authority.sqlite3" \
               "$source_root/baseline.sqlite3" \
               "$destination" \
