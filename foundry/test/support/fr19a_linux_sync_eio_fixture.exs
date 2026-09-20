@@ -6,6 +6,33 @@ alias PramanaFoundry.CI.FR19ASyncEIOOrchestration, as: Orchestration
 [source, baseline_path, destination, recovered_path, host_script, state_dir, artifact_dir] =
   System.argv()
 
+expected_user = System.fetch_env!("FR19A_EXPECTED_RUNNER_USER")
+expected_uid = System.fetch_env!("FR19A_EXPECTED_RUNNER_UID")
+expected_gid = System.fetch_env!("FR19A_EXPECTED_RUNNER_GID")
+
+identity = fn args ->
+  case System.cmd("/usr/bin/id", args, stderr_to_stdout: true) do
+    {value, 0} -> String.trim(value)
+    {output, status} -> raise "id #{inspect(args)} failed with #{status}: #{output}"
+  end
+end
+
+^expected_user = identity.(["-un"])
+^expected_uid = identity.(["-u"])
+^expected_gid = identity.(["-g"])
+{sudo_uid, 0} = System.cmd("/usr/bin/sudo", ["-n", "/usr/bin/id", "-u"], stderr_to_stdout: true)
+"0" = String.trim(sudo_uid)
+mix = System.find_executable("mix") || raise "mix is unavailable in traced runner context"
+
+_elixir =
+  System.find_executable("elixir") || raise "elixir is unavailable in traced runner context"
+
+_erl = System.find_executable("erl") || raise "erl is unavailable in traced runner context"
+{_hex_help, 0} = System.cmd(mix, ["help", "hex"], stderr_to_stdout: true)
+IO.puts("TRACED_CONTEXT=pass")
+IO.puts("NESTED_SUDO=pass")
+IO.puts("HEX_SCM=pass")
+
 parent = self()
 capability = make_ref()
 

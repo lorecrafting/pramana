@@ -151,8 +151,15 @@ jobs:
           destination="$(<"$FR19A_PROBE_STATE/mount")/backup.sqlite3"
           trace_prefix="$FR19A_ARTIFACT_DIR/gateway/strace"
           fixture_log="$FR19A_ARTIFACT_DIR/gateway/fixture.log"
+          runner_user="$(id -un)"
+          runner_uid="$(id -u)"
+          runner_gid="$(id -g)"
+          runner_home="$HOME"
+          runner_mix_home="${MIX_HOME:-$HOME/.mix}"
+          strace_path="$(command -v strace)"
 
-          if [[ $(id -u) -eq 0 ]]; then
+          if [[ $runner_uid -eq 0 || ! $runner_user =~ ^[a-z_][a-z0-9_-]*$ || \
+            $(id -u "$runner_user") != "$runner_uid" || $strace_path != /* ]]; then
             printf 'Gateway BEAM context unexpectedly runs as root\n' >&2
             exit 1
           fi
@@ -161,13 +168,17 @@ jobs:
             printf 'mix=%s\n' "$(command -v mix)"
             printf 'elixir=%s\n' "$(command -v elixir)"
             printf 'erl=%s\n' "$(command -v erl)"
+            printf 'runner_user=%s\nrunner_gid=%s\nrunner_home=%s\nmix_home=%s\nstrace=%s\n' \
+              "$runner_user" "$runner_gid" "$runner_home" "$runner_mix_home" "$strace_path"
             mix --version
             mix help hex >/dev/null
             printf 'hex_scm=available\n'
           } >"$FR19A_ARTIFACT_DIR/gateway/beam-context.txt"
 
-          if env \
+          if sudo -n /usr/bin/env \
             PATH="$PATH" \
+            HOME="$runner_home" \
+            MIX_HOME="$runner_mix_home" \
             MIX_ENV="$MIX_ENV" \
             MIX_BUILD_PATH="$MIX_BUILD_PATH" \
             MIX_DEPS_PATH="$MIX_DEPS_PATH" \
@@ -176,7 +187,10 @@ jobs:
             RUNNER_TEMP="$RUNNER_TEMP" \
             GITHUB_RUN_ID="$GITHUB_RUN_ID" \
             GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
-            strace -ff -yy -ttt \
+            FR19A_EXPECTED_RUNNER_USER="$runner_user" \
+            FR19A_EXPECTED_RUNNER_UID="$runner_uid" \
+            FR19A_EXPECTED_RUNNER_GID="$runner_gid" \
+            "$strace_path" -u "$runner_user" -ff -yy -ttt \
               -e trace=fsync,fdatasync,pwrite64,write,openat,close \
               -o "$trace_prefix" \
               mix run --no-start --no-compile --no-deps-check \
