@@ -92,8 +92,9 @@ These are current source findings, not hypothetical future requirements.
 
 6. **Cost, tool-context and human-effort accounting are not canonical.** There is no
    general production record for provider-reported monetary cost, subscription capacity,
-   cache writes, total tokens, tool-result bytes admitted to context, context-source
-   attribution, or operator steering/review/recovery effort.
+   cache writes, total tokens, raw versus model-visible tool-result bytes, bootstrap/
+   initial-context attribution, tool-contract/skill context, orchestrator wakeups, idle
+   polling, or operator steering/review/recovery effort.
 
 Until FR-18 closes these gaps, lifecycle tables and dashboards should describe intended
 or partial observations, not claim complete measurement.
@@ -280,8 +281,15 @@ reported cost where available. Each value names its source and quality; a later 
 estimate is a different field from provider-reported cost.
 
 A **tool observation** should bind the admitted capability/tool, invocation identity,
-duration, result size, truncation/error status and how much of the result was subsequently
-admitted to model context. Tool output itself need not be duplicated into telemetry.
+duration, raw result size, model-visible/admitted result size, truncation/error status,
+preflight/execution phase and how much of the result was subsequently admitted to model
+context. Tool output itself need not be duplicated into telemetry.
+
+An **orchestration observation** should distinguish deterministic controller waits from
+model invocations and record wake reason (event/deadline/operator/poll), whether the wake
+had an actionable state change, child/job count and subsequent model request identity
+when one was actually issued. This makes repeated "nothing completed yet" LLM polling
+visible instead of hiding it inside generic turn counts.
 
 A **context attribution observation** should record counts/digests rather than prompt
 bodies for categories such as mandatory policy, role instructions, task/spec, source
@@ -313,6 +321,12 @@ custom handler does not report a metric. Do not sum overlapping session/cumulati
 as if each were an independent request; the adapter must define and test settlement rules
 for request-level and session-level usage.
 
+For harness-efficiency experiments, also record the exact presentation/configuration
+revision: active versus deferred tool-contract set, skill-loading mode, context/compaction
+policy and ordinary structured-tool versus notebook/code-composition mode. These are
+experimental factors, not authority. Keep the underlying CapabilityGrant, provider/model,
+isolation and acceptance profile fixed when claiming a harness-level difference.
+
 ## Efficiency projections
 
 The primary Foundry product measure remains trustworthy accepted delivery with low
@@ -326,8 +340,11 @@ operator burden. Useful secondary projections include:
 | first-pass acceptance rate | Shows how much work avoids correction |
 | correction/review/failed-work tax | Makes rework and rejected attempts visible |
 | cache-read/write effectiveness | Tests whether caching reduces real repeated input |
+| bootstrap/harness context tax | Separates mandatory task context from repeated system/tool/skill overhead |
 | context-source tax | Finds large context categories that do not improve accepted outcomes |
-| tool-result context tax | Detects oversized or repeatedly irrelevant tool output |
+| tool-result context tax | Compares raw tool output with bytes/tokens actually admitted to the model |
+| orchestration wakeup tax | Counts model wakeups with no actionable state change, especially idle child polling |
+| preflight miss tax | Counts model/tool churn caused by deterministically knowable missing environment capabilities |
 | wall-clock and queue time / accepted outcome | Separates model speed from scheduling/operational delay |
 
 Do not optimize one projection in isolation. A lower-token run that increases missed

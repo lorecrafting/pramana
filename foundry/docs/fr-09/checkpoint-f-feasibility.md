@@ -103,6 +103,28 @@ user state.
 | Tool/extension/startup isolation | **Blocked** | Discovery flags denied synthetic ambient-user and project extensions, but a CLI-explicit extension executed despite `--no-extensions` and read deliberately passed FD 9. `get_commands` also exposed bundled inline `llama` extension code. RPC Bash read its allowlisted environment, could signal the same-user probe parent and could read shared Git metadata. Add a manifest-enforced launcher and separate restricted worker principal; CLI flags alone cannot pass. |
 | Useful local model-free build/test path | **Supported raw; blocked isolation** | Direct RPC Bash ran `elixir bin/check_docs.exs` and observed `80 passed`. This is technically useful but runs shell in the Pi principal, bypasses typed capability/R1/R5 mediation and therefore cannot be the production path. |
 
+## Follow-on efficiency hypotheses — not checkpoint evidence
+
+Subsequent Pi ecosystem work suggests experiments worth adding to the eventual governed
+candidate evaluation: a broad admitted CapabilityGrant with a much smaller model-visible
+tool surface, deferred tool discovery, progressive skill loading, persistent
+notebook/code composition, remote/context-management strategies and deterministic
+environment preflight. These may reduce repeated schema/context/tool-turn tax, but this
+checkpoint did not test them and records **no performance result** for them.
+
+Any such experiment remains subordinate to this checkpoint's blockers. Deferred discovery
+does not authorize a tool; a notebook does not become workflow state; third-party Pi
+extensions execute code and must not be loaded into the protected principal merely because
+they demonstrate a useful UX. Prefer reproducing the minimum mechanism in the pinned
+Foundry bridge or audit/vendor an exact revision, then run the same FR-09/15a denial,
+request-reservation, lifecycle and useful-completion tests.
+
+Measure the variants on a fixed task set with the same model/profile, provider route,
+CapabilityGrant, isolation and acceptance checks. Record bootstrap/context attribution,
+raw versus model-visible tool results, request/turn/tool counts, compaction/cache usage,
+missing-environment churn and model wakeups that observe no actionable child state.
+External benchmark claims remain hypothesis generators rather than acceptance evidence.
+
 ## Candidate-controlled execution-path inventory
 
 The following paths must all be denied, mediated, or explicitly proved inert before

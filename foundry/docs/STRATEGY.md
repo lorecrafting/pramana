@@ -492,6 +492,14 @@ conversation continuity separate from workflow authority. The current contract c
 a fresh developer after correction, not re-prompting the old developer; useful context
 can transfer without reviving old execution authority.
 
+Also separate **admitted capability** from **model-visible presentation**. Foundry may
+authorize a broad bounded set while Pi presents only the few tool contracts/skills needed
+for the current turn or exposes controller-approved discovery. This is a context-efficiency
+optimization, never the enforcement boundary. Prefer progressive skills and deferred tool
+metadata when controlled experiments show lower harness tax without worse accepted
+outcomes. Execution-local notebook/code composition may similarly reduce model turns, but
+its state is disposable and every nested effect/request remains individually governed.
+
 The current source's implemented execution path still targets OMP, while production
 automatic execution remains blocked.
 The investment direction is now to evaluate Pi first as the replacement candidate before
@@ -629,11 +637,14 @@ for mandatory policy, role instructions, task/spec, source files, retrieved docs
 results, conversation history and correction history. Estimated attribution must remain
 labelled estimated even when the provider's total is exact.
 
-Record tool execution separately: tool/capability identity, duration, result size,
-truncation/error and the amount subsequently admitted to model context. Link developer,
-reviewer, PM/assessor and correction consumption to the exact attempt/candidate so failed
-work and rework are not hidden by a successful final run. Retention/compaction must
-preserve numeric usage totals and provenance needed for longitudinal comparison.
+Record tool execution separately: tool/capability identity, duration, raw and
+model-visible result size, truncation/error and the amount subsequently admitted to model
+context. Also separate deterministic controller waiting from model wakeups and record
+whether a wake had an actionable event, deadline or operator decision. Idle child polling
+should not consume model requests merely to rediscover that nothing changed. Link
+developer, reviewer, PM/assessor and correction consumption to the exact attempt/candidate
+so failed work and rework are not hidden by a successful final run. Retention/compaction
+must preserve numeric usage totals and provenance needed for longitudinal comparison.
 
 The primary optimization target is trustworthy accepted delivery with low operator burden,
 not minimum tokens. Compare like task classes using measures such as accepted outcomes per
