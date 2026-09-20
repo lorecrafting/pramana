@@ -97,20 +97,23 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   end
 
   @doc """
-  Selects the alternative matching `discriminator` and substitutes `outputs`.
+  Selects the alternative matching `discriminator` and substitutes authoritative facts.
 
-  `outputs` must already have been derived from authoritative staged protected results;
-  this function never accepts a caller-supplied fact copy on its own authority. The
-  returned proposal is normalized by `RecordCodec`, so the event/projection bijection is
-  re-established after substitution rather than assumed.
+  Takes the staged protected `operation_results` and derives the substitution values
+  itself. It deliberately does **not** accept a pre-derived outputs map: provenance is
+  structural rather than checked, so no seam exists at which a different map could be
+  substituted for the one the protected layer produced. A caller cannot supply a fact
+  copy here because the interface offers nowhere to put one.
+
+  The returned proposal is normalized by `RecordCodec`, so the event/projection bijection
+  is re-established after substitution rather than assumed.
   """
-  @spec bind(map(), term(), map()) :: {:ok, map()} | {:error, atom()}
-  def bind(plan, discriminator, outputs) do
+  @spec bind(map(), term(), [map()]) :: {:ok, map()} | {:error, atom()}
+  def bind(plan, discriminator, operation_results) do
     with {:ok, plan} <- validate(plan),
          true <- plan["disposition"] == "accepted",
          true <- identifier?(discriminator),
-         true <- plain_map?(outputs),
-         :ok <- outputs_match_bindings(plan["bindings"], outputs),
+         {:ok, outputs} <- derive_outputs(plan["bindings"], operation_results),
          :ok <- outputs_match_declared_kinds(plan["bindings"], outputs),
          {:ok, alternative} <- select(plan["alternatives"], discriminator),
          :ok <- every_marker_is_declared(plan["bindings"], alternative["proposal"]),
@@ -333,12 +336,6 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     end
   end
 
-  defp outputs_match_bindings(bindings, outputs) do
-    if Enum.sort(Map.keys(outputs)) == Enum.sort(Enum.map(bindings, & &1["name"])),
-      do: :ok,
-      else: {:error, :invalid_binding_outputs}
-  end
-
   # A marker naming a binding the plan never declared has no authoritative source. Left
   # unchecked, substitution would raise on the missing key instead of rejecting, so the
   # codec would fail with an opaque exception rather than its specified refusal.
@@ -361,8 +358,9 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   defp marker_names(value) when is_list(value), do: Enum.flat_map(value, &marker_names/1)
   defp marker_names(_value), do: []
 
-  # bind/3 is reachable with any outputs map, so it re-checks each value against its
-  # binding's declared output kind rather than assuming derive_outputs/2 produced it.
+  # derive_outputs/2 produces these values now, so a wrong shape means the projection is
+  # wrong rather than that a caller forged one. Retained as a post-condition on the
+  # projection, not as a gate against untrusted input.
   defp outputs_match_declared_kinds(bindings, outputs) do
     if Enum.all?(bindings, &valid_output?(&1["output_kind"], outputs[&1["name"]])),
       do: :ok,
