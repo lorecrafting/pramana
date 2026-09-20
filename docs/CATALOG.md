@@ -239,6 +239,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`foundry/docs/fr-08/fr08a-independent-review.md`](../foundry/docs/fr-08/fr08a-independent-review.md)
 - [`foundry/docs/fr-08/fr08a-independent-rereview.md`](../foundry/docs/fr-08/fr08a-independent-rereview.md)
 - [`foundry/docs/fr-08/fr08a-final-critical-review.md`](../foundry/docs/fr-08/fr08a-final-critical-review.md)
+- [`foundry/docs/fr-08/fr08a-acceptance-review.md`](../foundry/docs/fr-08/fr08a-acceptance-review.md)
 - [`foundry/docs/fr-08/investigation.md`](../foundry/docs/fr-08/investigation.md)
 - [`foundry/docs/fr-21/acceptance-v2.md`](../foundry/docs/fr-21/acceptance-v2.md)
 - [`foundry/docs/fr-21/candidate-v2.md`](../foundry/docs/fr-21/candidate-v2.md)
