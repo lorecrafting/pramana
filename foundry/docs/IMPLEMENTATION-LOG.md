@@ -1749,3 +1749,54 @@ latest prose here, remains authoritative for status and dependencies.
   unchanged, and no producer, board, activation, provider execution or FR-22 acceptance
   is claimed.
 
+## FR-08A protected-result/domain-plan binding, partial candidate — 2026-09-20
+
+- The root-fact composition diagnosis assigns this interface correction to FR-08A.
+  [Its implementation specification](fr-08/plan-binding-specification.md) records the
+  confirmed defect at base `3f06a5a` with exact source lines: `commit_accepted_atomic_bundle/6`
+  binds `proposal = envelope["proposal"]` and commits it unchanged, while
+  `operation_results` — already carrying the authoritative settlement and its ordinal —
+  reaches the durable record but never the domain proposal.
+- Three attributable subcommits are complete. `24b8431` adds the trusted
+  `DurableStore.TransitionPlan` codec: closed schema validation, discriminator selection,
+  slot-enforced substitution and post-normalization carrier agreement. `aa0debe` adds
+  `derive_outputs/2`, which resolves each binding against the staged protected result at
+  its declared ordinal and projects facts into fixed shapes. `d1b190d` adds
+  `ProtectedPrimitives.infrastructure_discriminator/3` and, with it, the first evaluation
+  of `infrastructure_attempt_limits` anywhere in `lib/`.
+- The codec deliberately does not depend on `Workflow.Kernel.Plan`. It also enforces the
+  declared destination slot, which the candidate-side copy does not: a bound fact may
+  occupy only the declared payload field of one event of the declared type, that event's
+  embedded projection transition value, and the paired projection's value.
+- **Subcommits 0, 4 and 5 are outstanding.** There is no Gateway wiring, no existing path
+  changes behavior, and a bound lifecycle transition cannot commit. Subcommit 0 is a
+  versioned durable event vocabulary extension, blocked on a decision belonging with the
+  FR-08B kernel contract; subcommits 4 and 5 depend on it.
+- Independent critical review by Claude Fable 5.1, fresh session, separate from the
+  implementer; recorded as the evidence identity actually used. It returned **BLOCKER**
+  twice before passing.
+  - First: `bind/3` raised `KeyError` instead of rejecting a marker naming an undeclared
+    binding, which the specification required and the implementation omitted. Corrected
+    at `ce9b4a1` by `every_marker_is_declared/2`.
+  - Second: that correction was incomplete. `marker_names/1` filtered on `is_binary`, so a
+    marker named by an integer, `nil` or a list still reached `substitute/2` and raised.
+    All three shapes were reproduced. Corrected at `1952ff4` by collecting names
+    regardless of type.
+  - **PASS** at `1952ff4`, after the reviewer re-ran its own reproductions and seven
+    further marker shapes, including a marker-shaped value nested inside an authoritative
+    output, which the pre-existing shape gate refuses.
+- The review also established that `bind/3`'s output-kind check is a **shape gate, not a
+  provenance gate**: a well-shaped but entirely fabricated settlement passes it. This is
+  unexploitable at this candidate, which cannot commit anything, and is recorded as a
+  binding requirement on subcommit 4 rather than deferred to discovery.
+- Two operational findings. The revision-bound FR-08A attestation pins the source SHA-256
+  and loaded BEAM MD5 of `protected_primitives.ex`, so adding one function there broke the
+  frozen artifact and reported `ready=false`; the full suite at candidate freeze caught
+  what focused runs did not, and `c7673b4` rebinds it. Separately, a build directory used
+  for `mix run` and later reused for a full `mix test` produces stale-artifact failures in
+  unrelated modules; this is distinct from the concurrency effect recorded above, and both
+  were reproduced. Use a fresh `MIX_BUILD_PATH` for each full-suite validation run.
+- Exact clean CI at each frozen revision on pinned Elixir 1.20.3 / OTP 29.0.5, run
+  serially; full model-free suite 701 passed, 13 skipped and one optional exclusion at
+  seed 0. No provider, daemon, credential, activation or deployment was used.
+

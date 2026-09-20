@@ -399,7 +399,6 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     end
 
     for {label, name} <- [{"integer", 42}, {"nil", nil}, {"list", ["settled"]}] do
-      @marker_label label
       @marker_name name
 
       test "a marker named by a #{label} rejects instead of raising" do
