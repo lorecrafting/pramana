@@ -1552,3 +1552,35 @@ latest prose here, remains authoritative for status and dependencies.
   13 intentional skips and one optional exclusion. Provenance SHA-256:
   `76b45e0e364464e52919012acdf955b46516473163e15bebfeb1bcd4fa0be0dd`.
   No daemon, provider, credential, deployment or activation was used. FR-19B remains open.
+
+## FR-08A protected authority and combined integration — 2026-09-20
+
+- The initial protected-primitives candidates passed broad component suites but repeated
+  Astra-high hostile review exposed loaded-code binding, epoch/control ordering, semantic
+  launch identity, recursive ledger closure, receipt provenance, migration, dual-authority,
+  rejection atomicity and recovery-provenance defects. Every blocker record and correction
+  remains routed under `foundry/docs/fr-08/`; green test totals were never treated as a
+  substitute for closing the reproduced invariant.
+- Final branch correction `f9e35b42d2eb768f4407543ac0f84e2758409ab4`, gate binding
+  `3ccbbc3639ae31cbb76daa08254523ecefe63aa7` and evidence
+  `f2e4a9110d46bee19f3438e74e467335c60e677f` enforce typed command/result replay,
+  contiguous revisions and exact singular/plural carrier schemas without recursively
+  interpreting opaque payload data. Focused Astra-medium review
+  `5851c9be9b6d0cfb7f3fad5d41e06fa139b852bd` returned **PASS** after maintained 57,
+  prior 39 and 98 fresh carrier cases.
+- A read-only merge inventory showed no textual conflict with accepted FR-19A but correctly
+  invalidated revision-bound evidence. The reviewed branch was therefore combined with
+  current main in explicit merge `1d0b128ff7c78bf72577d23658e267d7508e4763`; cross-feature
+  tests `240d16f6823a8b9118c4d2b52d305314c6a97203` and rebound evidence
+  `b05f8342fbb83cb26a0fa157472bee15a020ad7e` produced frozen candidate
+  `176dab44354b5bbdde5b488f44766849c9d8927d`.
+- Fresh Astra-high combined review `a22753569254ca42773f04632ca42a72573c9a2e`
+  returned **PASS**. It independently recreated the merge tree, verified every manifest
+  and artifact, passed combined 6, focused 46, independent 11, prior 41/39/57/98 and
+  isolated native-sync 2, reproduced the exact 7/7 source/BEAM-bound report and rejected
+  altered loaded code. Clean canonical CI passed 612 tests, 13 intentional skips and one
+  optional exclusion. The exact reviewed branch fast-forwarded main with no post-review
+  source change. No provider, daemon, credential, activation or deployment was used.
+- FR-08A is complete. FR-08B and FR-18A are ready; FR-15aB still waits for FR-08B. The
+  protected verifier is not a second workflow reducer, and completion does not claim live
+  execution, presentation, activation or FR-22 acceptance.
