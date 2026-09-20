@@ -132,6 +132,35 @@ defmodule PramanaFoundry.Checks.RunnerTest do
     _ = await_completion(spec, 3_000)
   end
 
+  test "cancellation does not report success for a mismatched live argv containing defunct", %{
+    spec: build_spec
+  } do
+    port =
+      Port.open({:spawn_executable, System.find_executable("python3")}, [
+        :binary,
+        :exit_status,
+        :stderr_to_stdout,
+        args: ["-c", "import time; time.sleep(30)", "defunct-runner-caller"]
+      ])
+
+    on_exit(fn -> if Port.info(port), do: Port.close(port) end)
+
+    {:os_pid, pid} = Port.info(port, :os_pid)
+    assert {:ok, identity} = ProcessGroup.identity(pid)
+    assert identity.command =~ "defunct-runner-caller"
+
+    forged = %{identity | started_at: "recycled incarnation"}
+    spec = build_spec.(["unused"])
+
+    assert {:error, :stale_identity} = Runner.terminate(spec, forged, "must not signal foreign")
+    assert {:ok, actual} = ProcessGroup.identity(pid)
+
+    assert Map.take(actual, [:pid, :process_group_id, :started_at]) ==
+             Map.take(identity, [:pid, :process_group_id, :started_at])
+
+    assert File.exists?(spec.cancellation_path)
+  end
+
   test "deadline expiry outranks a late zero exit when read back through Checks.Status", %{
     spec: build_spec
   } do
