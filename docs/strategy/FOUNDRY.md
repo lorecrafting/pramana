@@ -61,11 +61,11 @@ The workflow kernel decides domain transitions; the protected verifier owns safe
 and authority checks. Middleware can shape context or diagnostics inside those
 boundaries. A plugin, model response or general evaluation tool cannot be allowed
 to replace the checks that constrain it. The current source still uses OMP through
-Herdr, but the durable execution boundary should be harness-neutral. Pi's pinned
-headless RPC is the preferred first replacement candidate to evaluate before further
-OMP-specific investment; it is not adopted until FR-09/15a conformance and any
-OMP-specific governing-contract text are explicitly revised and re-reviewed. Herdr
-remains initial optional presentation.
+Herdr, but the durable execution boundary should be harness-neutral. Pi remains the
+preferred first replacement agent candidate; before writing a custom bridge, compare
+direct pinned Pi RPC with pinned Jido.Harness/ACP behind the same Foundry contract.
+Neither path is adopted until FR-09/15a conformance and any OMP-specific governing-contract
+text are explicitly revised and re-reviewed. Herdr remains initial optional presentation.
 
 A subagent used as a tool returns bounded findings while the parent retains task
 ownership. A lifecycle handoff changes the responsible assignment/role with durable
@@ -276,10 +276,12 @@ not count as productive completion. An empty queue can be healthy and idle; dist
 Use [Foundry observability](../../foundry/docs/OBSERVABILITY.md) to measure the complete
 resource path from task/attempt/execution through model requests, tools, corrections,
 review and final acceptance. Preserve source-qualified token/cache/cost/context data when
-the selected harness exposes it, plus human steering/review/recovery effort. Optimize
-accepted outcomes per operator hour and comparable per-accepted-outcome costs; raw token
-reduction is not a success metric when it increases defects, correction cycles or operator
-attention.
+the selected harness exposes it, plus human steering/review/recovery effort. Converge
+runtime producers on one canonical observation envelope and an Erlang `:telemetry` seam,
+with durable local analytics and optional OpenTelemetry traces/metrics as separate sinks;
+OpenTelemetry is not the workflow/effect ledger. Optimize accepted outcomes per operator
+hour and comparable per-accepted-outcome costs; raw token reduction is not a success
+metric when it increases defects, correction cycles or operator attention.
 
 Read-cache receipts are hints, not authorization or durable memory. Recheck the
 file hash/revision before relying on cached content, and invalidate on external
