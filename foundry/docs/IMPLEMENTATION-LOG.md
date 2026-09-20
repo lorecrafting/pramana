@@ -1806,3 +1806,37 @@ latest prose here, remains authoritative for status and dependencies.
   `5c2c42e03c9257e78c4e99d40373ff998fdd8c2e`. Integration adds no caller: both new symbols
   remain unreferenced by production code, so no existing behavior changes.
 
+## FR-08A durable event vocabulary, subcommit 0 — 2026-09-20
+
+- The blocking prerequisite recorded against the binding correction is resolved. The
+  [design](fr-08/event-vocabulary-design.md) required two revisions: revision 1 proposed
+  versioning the durable event record and was returned **BLOCKER** because
+  `events.schema_version` carries `CHECK (schema_version = 1)` on a STRICT table,
+  `insert_events/3` writes that version as a SQL literal, and relaxing the CHECK without
+  fixing the literal would have written a column and blob that disagree — a new way to
+  manufacture the partial version state the repair exists to eliminate.
+- Revision 2 replaced the mechanism outright. The constrained column was never the one
+  that needed to change: `event_type` carries no CHECK, and within the durable store the
+  vocabulary is enforced in exactly one place. Extending it needs no schema change, no
+  migration and no version dispatch. Two disjoint vocabularies now share one flat
+  namespace, so a name identifies exactly one contract and no stored record can disagree
+  with its own type.
+- Implementation `7fc5c46` seeds the lifecycle set with exactly the ten event types the
+  transition-plan destination slots require, so every name is justified by a concrete
+  binding; FR-08B adds the remainder. Disjointness is enforced at compile time, verified
+  non-vacuous by introducing a collision and confirming the build fails.
+- Evidence commit `a68fa8a` rebinds the FR-08A attestation, because `record_codec.ex` is
+  pinned by source SHA-256 and loaded BEAM MD5. This was the second such break in one
+  session and is the evidence behind FR-23's same-commit rebinding requirement.
+- Independent review by Claude Fable 5.1 returned **PASS**, having re-derived every claim
+  rather than accepting the summary: it broke the compile-time guard on purpose and
+  reverted it, recomputed the pinned hash independently, and confirmed the recovered test
+  coverage was intact after a bad bulk edit was restored from git. It also established a
+  precision point now recorded in the test itself — the backup reconstruction is agnostic
+  to the event type string, so the reconstruction assertions alone do not prove the name
+  survived storage; the `recent_events` assertions are what establish that.
+- **FR-08A is reopened, not complete.** Its row was marked complete before the binding
+  correction reopened it. Subcommits 4 and 5, Gateway wiring and replay revalidation,
+  remain outstanding, and subcommit 4 is additionally bound by its recorded structural
+  provenance requirement.
+

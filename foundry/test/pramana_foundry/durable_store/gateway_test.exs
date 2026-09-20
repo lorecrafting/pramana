@@ -480,6 +480,13 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
       # A verified backup reconstructs from the durable events and refuses to publish
       # unless that reconstruction matches live authority, so a successful backup is the
       # replay evidence. Capture it for comparison across reopen.
+      #
+      # Note what each half of this test proves. The reconstruction is built from
+      # event["payload"]["projection"] and is agnostic to the type string, so the
+      # reconstruction-equality assertions alone would not establish that the name
+      # "launch_settled" survived storage — only that some event with that projection
+      # payload did. The recent_events assertions are what prove the type string itself
+      # round-trips, which is the property this test exists for. Both halves are needed.
       assert {:ok, %{reconstruction: reconstruction}} =
                Gateway.backup(gateway, path <> ".lifecycle-backup")
 
