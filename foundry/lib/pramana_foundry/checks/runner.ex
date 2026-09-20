@@ -166,7 +166,7 @@ defmodule PramanaFoundry.Checks.Runner do
         # a failure. Only when the pid is confirmed still occupied (a genuine
         # replacement owner, not a caller-verified identity that just finished
         # exiting because our own cancellation succeeded) is this still refused.
-        if ProcessGroup.gone?(identity.pid), do: :ok, else: {:error, :stale_identity}
+        if ProcessGroup.gone?(identity), do: :ok, else: {:error, :stale_identity}
 
       other ->
         other
