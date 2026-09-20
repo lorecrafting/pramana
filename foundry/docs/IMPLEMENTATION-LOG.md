@@ -1183,3 +1183,19 @@ steps.
   impossible committed sequence; a rejected retained effect owner also raises instead of
   returning typed corruption. V7 is rejected and unintegrated. The implementation owner is
   making only this bounded v8 correction before another renewed review.
+
+### FR-07 candidate v8 and renewed review
+
+- V8 review revision `edd91cca8af35d5078808c3b1645077700b922e7`, tree
+  `54d1f8a262a971aaa0eb88fe39dbce29fd5077cb`, closed the exact V7-R1/R2 traces.
+  Implementer evidence passed 91 focused tests; its full run was 510/511 with only the
+  known missing-`tiktoken` benchmark mismatch.
+- Renewed Astra-high review SHA-256
+  `60353069c5b144f21f0124d5d59b2c3912e18f8eb8d335ec0561c7fb63b3d72b`
+  returned **FAIL** after matching all 53 hashes. The exact target closure probes, build,
+  91 focused tests and full-row VFS oracle passed. The review's full run was 510/511 due
+  one unrelated telemetry timing assertion that passed alone.
+- One local blocker remains: the indexed scoped projection reader can decode a legal
+  carrier-free event whose retained index columns claim a carrier, then raise before shared
+  binding validation. V8 remains rejected and unintegrated. V9 is restricted to validating
+  bound carrier rows before reduction and adding the exact no-exception regression.

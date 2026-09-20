@@ -67,9 +67,9 @@ fence, path namespace and shared narrow projection reducer. The lost mutable v6 
 recovered from its exact rollout journal onto current main and frozen as candidate
 `103ee1de234af8929d504e78c51297b6d9907d71`; warnings-as-errors compilation and the
 68-test durable-store suite pass. Fresh Astra-high review reproduced five blockers and one
-bounded-query shortfall. V7 corrected B3–B6, but renewed review found two remaining local
-retained-reader completeness defects; a bounded v8 correction is in progress. FR-07 remains
-incomplete.
+bounded-query shortfall. V7 corrected B3–B6; v8 closed the two target retained-reader
+defects, but its renewed review found one adjacent carrier-binding exception. A bounded v9
+correction is in progress. FR-07 remains incomplete.
 FR-21's focused v3 CI/provenance correction
 passed renewed
 independent review, is integrated, and passed independent post-integration 432-test
