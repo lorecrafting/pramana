@@ -163,3 +163,68 @@ host account, sudo/network change, provisioning, installation or deployment occu
 FR-15aB still owns actual principal/channel/network denial and useful conformance; FR-09
 still owns governing installed OMP/subscription/presentation conformance. Pi remains
 unselected.
+
+## Residual B2 identity and duplicate-ID correction
+
+The focused rereview at `5902944c065185ebbc3d716749cecd5eab0fdfdc`
+left only the bounded B2 pin-identity and duplicate-ID defects open. Substantive
+correction commit `9ed32575f2840e90fe3e1ebb1f1ebcd0bd54040b`, tree
+`1c5dd96f0da66286ecb47eec029c09b2f3733802`, has parent exactly that rereview commit and
+changes only the validator, FR-15aA specification and focused test:
+
+| SHA-256 | Residual-correction path |
+|---|---|
+| `87d7433990f81315c07614d7519e3c928a7a302210cabf53897f6120f04f2564` | `foundry/ci/validate_fr15aa.exs` |
+| `7f97089e2a3c8dfcb2d7e114898068eb5024c7de1b59a6d6749408524986e72e` | `foundry/docs/fr-15a/provisioning-specification.md` |
+| `6a0e27fe6980863ded3969135e8175c723567ce56856908add685d4c172b2a57` | `foundry/test/pramana_foundry/repair/fr15aa_provisioning_test.exs` |
+
+Every pin now requires its exact frozen ID, kind, version, path, disposition and digest.
+Repository-backed byte reads are selected by the validator's trusted pin table and remain
+beneath the repository source root; a manifest path cannot select or skip the read.
+Uniqueness is preflighted across principals, channels, pins, routes, channel callers,
+route executable dependencies and kernel authority lists before any runtime inventory is
+converted to a lookup map. Contradictory records therefore have no declaration-order
+semantics. The rereview's erased pin metadata, redirected config, duplicate auth channel
+and duplicate shell route mutations are maintained negative tests, with both duplicate
+orders covered. Additional controls cover duplicate principal/pin IDs, caller grants and
+route dependencies.
+
+Post-commit commands and results:
+
+```text
+cd /private/tmp/pramana-fr15aa/foundry
+elixir ci/validate_fr15aa.exs
+  FR-15aA provisioning manifest: valid; exit 0
+
+MIX_ENV=test elixir -r test/test_helper.exs \
+  test/pramana_foundry/repair/fr15aa_provisioning_test.exs
+  seed 673062; 22 passed; exit 0
+
+mix format --check-formatted ci/validate_fr15aa.exs \
+  docs/fr-15a/provisioning-manifest.exs \
+  test/pramana_foundry/repair/fr15aa_provisioning_test.exs
+  exit 0
+
+cd /private/tmp/pramana-fr15aa
+elixir bin/check_docs.exs
+  seed 856299; 80 passed; exit 0
+
+git diff 5902944c065185ebbc3d716749cecd5eab0fdfdc..\
+  9ed32575f2840e90fe3e1ebb1f1ebcd0bd54040b --check
+  no output; exit 0
+```
+
+An earlier documentation-gate run returned `79/80` because the rereview document newly
+added at `5902944` was not reachable from a documentation router. The correction links it
+from this ticket's specification; the recorded final gate above passes `80/80`. A format
+invocation from the repository root using Foundry-relative `ci/` and `test/` arguments
+also exited `1` with “Could not find a file to format”; rerunning from `foundry/` produced
+the recorded success. Neither failure exercised or changed a host/provider surface.
+
+The rereview probe remains immutable historical reproduction because it deliberately
+expects the now-corrected defects to return `:ok`; the maintained focused suite is the
+acceptance control and requires rejection. No provider/model, credential access, daemon,
+Herdr, host account, sudo, network policy, provisioning, installation, push or integration
+occurred. B1 and B3 remain unchanged. This remains FR-15aA specification evidence only:
+FR-15aB still owns actual host isolation/provisioning, and FR-09 still owns governing OMP
+installed-harness conformance. OMP remains governing and Pi remains unselected.
