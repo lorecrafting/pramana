@@ -19,7 +19,8 @@ The machine-readable source of truth is
 without Mix, a provider or a daemon:
 
 Candidate commands/results and remaining gates are frozen in
-[`evidence.md`](evidence.md).
+[`evidence.md`](evidence.md). The initial frozen candidate received an independent
+[`BLOCKER` review](independent-review.md); this revision addresses only its B1–B3 findings.
 
 ```sh
 elixir ci/validate_fr15aa.exs
@@ -59,7 +60,7 @@ The installed pins are recorded without opening credential/configuration content
 
 | Item | Version / identity | SHA-256 or limitation |
 |---|---|---|
-| governing OMP | `/Users/raymondluong/.local/bin/omp`, `omp/18.2.2` | `e0302a99643efb62bf3d0601d5d84ebab6ed1f3ad105cc2874c8274af448a9` |
+| governing OMP | `/Users/raymondluong/.local/bin/omp`, `omp/18.2.2` | `e0302a99643efefb62bf3d0601d5d84ebab6ed1f3ad105cc2874c8274af448a9` |
 | Pi candidate | `/opt/homebrew/bin/pi`, `0.85.1` | `e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c` |
 | Pi package manifest | installed `package.json` | `f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c` |
 | Pi production inventory | 186 offline `npm ls` manifests | `661ce1b6472d947977928059d6c6ae155dbd2941eee3affad2d922c29313f816`; inventory, not lock provenance |
@@ -70,8 +71,16 @@ The installed pins are recorded without opening credential/configuration content
 | current legacy config | `config/config.exs` at the frozen input | `d38fca63c3463b4bbbb5c56afcd66a900d4f6e4d5c5434bf3ec0157f372a7b16`; not the provisioning config |
 | assignment schema | v1 at the frozen input | `3042a56aa668c2852a4fdcf21c35eb70bd36d350e210e05f151177b60449ba8f` |
 
-The proposed launcher, request gateway, effect bridge and acquisition service have no
-artifact yet. Their required paths are pinned in the manifest with SHA-256
+The manifest also pins the inspected host profile (macOS `26.6.2`, build `25G83`,
+`arm64`) and exact hashes for the shell, environment scrubber, Python, Git, process
+observers/signaller, packet filter, launch service, directory service, Elixir and Mix.
+The validator binds every route to its complete declared dependency list; a package lock
+alone cannot stand in for an executable, adapter or helper. npm's standalone executable
+digest was not recorded at checkpoint F, so that pin is explicitly blocked rather than
+treated as implemented provenance.
+
+The proposed workflow kernel, launcher, request gateway, effect bridge and acquisition
+service have no artifact yet. Their required paths are pinned in the manifest with SHA-256
 `unimplemented`; provisioning must refuse them until FR-15aB supplies independently
 reviewed artifacts and replaces those markers with real digests. The absent `expert` LSP
 is unavailable, not an implied dependency to install.
@@ -141,6 +150,7 @@ changing directory modes under the operator's account cannot satisfy this topolo
 | Principal | Purpose | May hold | Must never hold |
 |---|---|---|---|
 | `root` | verifier, durable store, policy, R1/R5 transitions, accepted refs and activation root | root signing/verification material, store, policy, recovery authority | model-visible checkout or candidate-loaded code |
+| `_pramana_kernel` | autonomously repairable workflow kernel: pure decide/apply, scheduling, recovery proposals and domain projections | exact admitted kernel artifact, canonical command/receipt inputs, versioned bundle capability, kernel-owned cache | SQLite/OS/root/provider credential or authority to assert protected fields |
 | `_pramana_launcher` | fixed root-installed launcher and slot lifecycle broker | one-operation launch/cleanup capability | provider credential, steering credential, arbitrary argv authority |
 | `_pramana_auth` | fixed-route provider adapter and authentication refresh | reusable provider authentication, fixed provider/account/profile route | candidate checkout, shell/build tools, general proxy service |
 | `_pramana_harness` | pinned OMP process; later Pi only after explicit selection | execution capability, assignment session, request capability | reusable provider authentication, operator home, direct project shell |
@@ -165,6 +175,7 @@ them:
 | Role / service | Maximum operations | Explicit denials |
 |---|---|---|
 | root verifier/store | verify/admit, R1 claim/issue/settle, R5 reserve/settle, capability issue/revoke, protected evidence/ref/activation decisions | candidate-loaded code and model-directed arbitrary execution |
+| workflow kernel | query canonical retained inputs; propose supported domain events/projection CAS, effects, schedules and recovery bundles | SQL/filesystem root, arbitrary event/command evaluation, budgets/claims/policy/receipts/acceptance/integration/deployment fields |
 | launcher | one fixed manifest launch, observe exact incarnation, owned cleanup/quarantine | arbitrary argv, policy mutation, provider request, candidate/Git mutation |
 | auth gateway | one exact claimed model request and attributable reconciliation/receipt | arbitrary URL/header, CONNECT, tool execution, new grant/session/route |
 | harness | start/observe/prompt/interrupt/reconcile/close its exact session; submit typed tool/request calls | reusable auth, direct provider/IP, local shell/file/build, grant minting |
@@ -188,12 +199,14 @@ authorization.
 | `/Library/PramanaFoundry/manifests` | `root:wheel`, `0555`; files `0444` | active artifact/loadout/policy digests; candidate proposals never become active in place |
 | `/Library/PramanaFoundry/releases` | `root:wheel`, `0555` | immutable accepted release objects; activation pointer root-owned |
 | `/var/db/pramana-foundry` | `root:wheel`, `0700` | durable store, R1/R5, policy, capability digests, accepted Git custody |
+| `/var/empty/pramana-foundry/kernel` | `_pramana_kernel`, `0700` | neutral kernel home and disposable cache only; no protected database or candidate checkout |
 | `/var/run/pramana-foundry/root.sock` | root with a dedicated peer ACL, `0660` | scoped local commands only; no BEAM distribution/eval |
 | `launch.sock` | root/launcher peer pair, `0660` | fixed launch/cleanup operations |
 | `auth.sock` | auth/harness peer pair, `0660` | fixed model requests only; never CONNECT or caller-supplied auth headers |
 | `effect.sock` | controller/harness peer pair, `0660` | typed invocation requests; workers receive a fixed operation over an owned pipe |
 | `fetch.sock` | root/fetch peer pair, `0660` | admitted immutable acquisition only |
 | `presentation.sock` | root/presentation peer pair, `0660` | one-way sanitized events and bounded presentation controls |
+| `kernel.sock` | root/kernel peer pair, `0660` | versioned R3 transaction bundles and canonical queries only; never SQL, eval or shell |
 | `/var/empty/pramana-foundry/<principal>` | matching service account, `0700` | neutral homes; harness CWD is a controller-owned empty directory |
 | `/var/tmp/pramana-foundry/slots/<slot>/<execution>` | matching slot, `0700` | execution-scoped home, session, cache, temp and disposable Git/object view |
 | `/var/tmp/pramana-foundry/build/<build-id>` | `_pramana_build`, `0700` | untrusted hooks and build outputs |
@@ -203,6 +216,29 @@ Socket servers must verify kernel-derived peer credentials before capability val
 Capabilities bind actor, role, execution, allowed operation/resource, candidate generation,
 policy/control revision, revocation generation and expiry; only digests persist. The
 operator steering credential is absent from every service account above.
+
+### R3 kernel bundle protocol
+
+Root never loads a candidate scheduler, reducer, replay implementation or recovery planner
+into its BEAM. The exact admitted kernel artifact runs as `_pramana_kernel`, with IP
+network denied, and connects only to `kernel.sock`. Its capability binds kernel artifact,
+candidate, policy/control revision and current writer epoch. The versioned
+`fr06-r3-bundle/v1` protocol permits only canonical-input queries and proposals for a
+supported domain event, projection CAS, effect, schedule or recovery action.
+
+The verifier retains the authenticated original command and raw receipts before kernel
+interpretation, validates the complete revision read set and current writer epoch, and
+derives protected values itself. A bundle containing budget balances, claim state, policy,
+receipt/review/check validity, accepted/integrated/deployed pointers, activation pointer or
+writer epoch is rejected before mutation. Unknown bundle/event/write versions fail closed.
+A stale kernel connection cannot mint a new claim after epoch takeover. A valid exact-
+candidate kernel repair can be independently checked and activated behind unchanged root
+gates; bad kernel logic can block progress but cannot manufacture authority.
+
+FR-15aB must prove a valid supported bundle commits and that forged budget/acceptance/
+receipt fields, direct store access and a stale writer epoch are denied with no protected
+mutation. FR-17/22 retain actual kernel upgrade/rollback acceptance. This section specifies
+that boundary; no kernel artifact, protocol or OS isolation is implemented by FR-15aA.
 
 ## 3. Request reservation and settlement
 
@@ -328,22 +364,32 @@ policy and independent review.
 ### 8.1 Preflight and artifact verification
 
 ```sh
-cd /path/to/exact/pramana
-test "$(git rev-parse HEAD)" = f5067d96d67a9ec3193a9b8bbadfa54c16525aa3
-test "$(git rev-parse HEAD^{tree})" = f19af86efd775fa0debd75868f571b13feaa748d
-test "$(shasum -a 256 foundry/mix.lock | awk '{print $1}')" = bf2a61f815533a96b2abec87b1690ae49145bec56e60703a22b4db178c56e954
-cd foundry
-elixir ci/validate_fr15aa.exs
+set -eu
+source_checkout=/path/to/exact/source-at-f5067d9
+spec_checkout=/path/to/independently-reviewed-fr15aa-candidate
+
+# Source input and specification/tool provenance are deliberately separate.
+test "$(git -C "$source_checkout" rev-parse HEAD)" = f5067d96d67a9ec3193a9b8bbadfa54c16525aa3
+test "$(git -C "$source_checkout" rev-parse HEAD^{tree})" = f19af86efd775fa0debd75868f571b13feaa748d
+test "$(shasum -a 256 "$source_checkout/foundry/mix.lock" | awk '{print $1}')" = bf2a61f815533a96b2abec87b1690ae49145bec56e60703a22b4db178c56e954
+test -f "$spec_checkout/foundry/ci/validate_fr15aa.exs"
+test -f "$spec_checkout/foundry/docs/fr-15a/provisioning-manifest.exs"
+(cd "$spec_checkout/foundry" && elixir ci/validate_fr15aa.exs)
+
+# Record the exact reviewed specification separately; operator approval supplies these.
+test "$(git -C "$spec_checkout" rev-parse HEAD)" = "$APPROVED_FR15AA_COMMIT"
+test "$(git -C "$spec_checkout" rev-parse HEAD^{tree})" = "$APPROVED_FR15AA_TREE"
 
 # Must fail today: do not continue until reviewed FR-15aB artifacts exist.
+test -x /staging/pramana-kernel
 test -x /staging/pf-launch
 test -x /staging/pf-auth-gateway
 test -x /staging/pf-effect-bridge
 test -x /staging/pf-fetch
-shasum -a 256 /staging/pf-launch /staging/pf-auth-gateway /staging/pf-effect-bridge /staging/pf-fetch
+shasum -a 256 /staging/pramana-kernel /staging/pf-launch /staging/pf-auth-gateway /staging/pf-effect-bridge /staging/pf-fetch
 ```
 
-Compare the last four hashes with the independently reviewed manifest. The present
+Compare the last five hashes with the independently reviewed manifest. The present
 manifest says `unimplemented`, so the deliberate result is stop/blocked.
 
 ### 8.2 Accounts and protected directories
@@ -353,25 +399,82 @@ unused. The operator may approve a different collision-free table only by creati
 profile revision and rerunning conformance.
 
 ```sh
+set -eu
+
+record_absent() {
+  record_path=$1
+  if record_output=$(dscl . -read "$record_path" 2>&1); then
+    echo "collision: $record_path already exists" >&2
+    exit 1
+  else
+    record_exit=$?
+  fi
+  if test "$record_exit" -ne 56 || ! printf '%s\n' "$record_output" | grep -q 'eDSRecordNotFound'; then
+    echo "unknown: cannot prove $record_path absent (exit $record_exit)" >&2
+    exit 1
+  fi
+}
+
+if ! user_ids=$(dscl . -list /Users UniqueID); then
+  echo "unknown: cannot list user numeric IDs" >&2
+  exit 1
+fi
+if ! group_ids=$(dscl . -list /Groups PrimaryGroupID); then
+  echo "unknown: cannot list group numeric IDs" >&2
+  exit 1
+fi
+
 for pair in \
   _pramana_launcher:451 _pramana_auth:452 _pramana_harness:453 \
   _pramana_present:454 _pramana_fetch:455 _pramana_slot01:456 \
-  _pramana_slot02:457 _pramana_slot03:458 _pramana_build:459 _pramana_runtime:460
+  _pramana_slot02:457 _pramana_slot03:458 _pramana_build:459 _pramana_runtime:460 \
+  _pramana_kernel:461
 do
   name=${pair%:*}; ident=${pair#*:}
-  ! dscl . -read "/Users/$name" >/dev/null 2>&1
-  ! dscl . -list /Users UniqueID | awk -v id="$ident" '$2 == id {found=1} END {exit !found}'
-  ! dscl . -list /Groups PrimaryGroupID | awk -v id="$ident" '$2 == id {found=1} END {exit !found}'
+  record_absent "/Users/$name"
+  record_absent "/Groups/$name"
+  if printf '%s\n' "$user_ids" | awk -v id="$ident" '$2 == id {found=1} END {exit !found}'; then
+    echo "collision: user numeric ID $ident already exists" >&2
+    exit 1
+  elif test "$?" -ne 1; then
+    echo "unknown: cannot evaluate user numeric ID $ident" >&2
+    exit 1
+  fi
+  if printf '%s\n' "$group_ids" | awk -v id="$ident" '$2 == id {found=1} END {exit !found}'; then
+    echo "collision: group numeric ID $ident already exists" >&2
+    exit 1
+  elif test "$?" -ne 1; then
+    echo "unknown: cannot evaluate group numeric ID $ident" >&2
+    exit 1
+  fi
 done
 ```
 
-After explicit operator approval, create all ten records with the exact name/ID table:
+Before any account, policy or protected-path mutation, create a root-owned attempt ledger
+in a newly allocated exact directory and record: attempt ID; source commit/tree;
+specification commit/tree; operator policy revision; every account/group name and numeric
+ID; every directory, file, launchd label, socket and packet-filter path; its observation as
+`absent`, `present` or `unknown`; pre-change owner/mode/hash where present; backup path; and
+later `created_by_attempt`/`modified_by_attempt` results. An unknown observation aborts.
+The ledger directory records itself as newly created, is fsynced after each mutation, and
+is copied into the final protected evidence store. Existing resources are never labelled
+created by this attempt.
+
+For `/etc/pf.conf` and an existing anchor, make root-owned same-filesystem backups, record
+their hashes in the ledger and verify the copies before editing. Record absent launchd
+labels and protected paths explicitly; if one is present, either stop or preserve it as a
+preexisting resource under a separately reviewed migration—never overwrite and later
+delete it as though this attempt created it.
+
+After explicit operator approval and a complete all-known ledger, create all eleven
+records with the exact name/ID table:
 
 ```sh
 for pair in \
   _pramana_launcher:451 _pramana_auth:452 _pramana_harness:453 \
   _pramana_present:454 _pramana_fetch:455 _pramana_slot01:456 \
-  _pramana_slot02:457 _pramana_slot03:458 _pramana_build:459 _pramana_runtime:460
+  _pramana_slot02:457 _pramana_slot03:458 _pramana_build:459 _pramana_runtime:460 \
+  _pramana_kernel:461
 do
   name=${pair%:*}; ident=${pair#*:}; short=${name#_pramana_}
   home="/var/empty/pramana-foundry/$short"
@@ -393,10 +496,13 @@ Then create protected roots:
 
 ```sh
 sudo install -d -o root -g wheel -m 0555 /Library/PramanaFoundry/bin /Library/PramanaFoundry/manifests /Library/PramanaFoundry/releases
+sudo install -d -o root -g wheel -m 0555 /Library/PramanaFoundry/releases/kernel /Library/PramanaFoundry/releases/kernel/CANDIDATE_SHA /Library/PramanaFoundry/releases/kernel/CANDIDATE_SHA/bin
 sudo install -d -o root -g wheel -m 0700 /var/db/pramana-foundry
 sudo install -d -o root -g wheel -m 0711 /var/run/pramana-foundry
 sudo install -d -o root -g wheel -m 0711 /var/tmp/pramana-foundry /var/tmp/pramana-foundry/slots /var/tmp/pramana-foundry/build
 sudo install -d -o _pramana_runtime -g _pramana_runtime -m 0700 /var/lib/pramana-foundry/runtime
+sudo install -d -o _pramana_kernel -g _pramana_kernel -m 0700 /var/empty/pramana-foundry/kernel
+sudo install -o root -g wheel -m 0555 /staging/pramana-kernel /Library/PramanaFoundry/releases/kernel/CANDIDATE_SHA/bin/pramana-kernel
 sudo install -o root -g wheel -m 0555 /staging/pf-launch /Library/PramanaFoundry/bin/pf-launch
 sudo install -o root -g wheel -m 0555 /staging/pf-auth-gateway /Library/PramanaFoundry/bin/pf-auth-gateway
 sudo install -o root -g wheel -m 0555 /staging/pf-effect-bridge /Library/PramanaFoundry/bin/pf-effect-bridge
@@ -411,8 +517,8 @@ the only root service. Never use `sudo -E`.
 ### 8.3 Packet filter and channel activation
 
 Create a reviewed `/etc/pf.anchors/pramana-foundry` that blocks outbound traffic for
-`_pramana_harness`, `_pramana_present`, every `_pramana_slot*`, `_pramana_build` and
-`_pramana_runtime`; permits `_pramana_auth` only to the protected provider TLS table and
+`_pramana_kernel`, `_pramana_harness`, `_pramana_present`, every `_pramana_slot*`,
+`_pramana_build` and `_pramana_runtime`; permits `_pramana_auth` only to the protected provider TLS table and
 resolver; and permits `_pramana_fetch` only to its separately admitted artifact table and
 resolver. Add one `anchor "pramana-foundry"` and one matching `load anchor` line to
 `/etc/pf.conf`. Before loading:
@@ -430,8 +536,8 @@ Hostname resolution at rule-load time is not a durable allowlist; protected poli
 maintain reviewed address tables and fail closed when stale/unknown. The actual denial
 probes in section 9, not successful `pfctl` output, establish conformance.
 
-Bootstrap services in dependency order: root verifier/store, launcher, auth gateway,
-effect gateway, fetch service, then sanitized presentation. Verify socket owners/modes and
+Bootstrap services in dependency order: root verifier/store, launcher, restricted workflow
+kernel, auth gateway, effect gateway, fetch service, then sanitized presentation. Verify socket owners/modes and
 peer rejection before enabling any harness profile. OMP/Pi profiles remain disabled until
 FR-15aB and FR-09 pass.
 
@@ -444,6 +550,7 @@ subscription proof.
 | Family | Positive probe | Required hostile probes |
 |---|---|---|
 | manifest/start | exact OMP digest starts from neutral CWD with assignment session | changed digest/config, candidate CWD, user/project config, startup loader, explicit extension and unknown setting refuse |
+| workflow kernel | exact admitted kernel submits a supported versioned bundle and root commits it | direct SQL/root files, unknown schema/write, forbidden budget/claim/policy/receipt/acceptance fields and stale writer epoch refuse without protected mutation |
 | request authority | one request has R5 reserve, R1 claim/issue and attributable fake-provider receipt | forged/duplicate ID, wrong peer/route/body, arbitrary URL/header, second OMP/curl, retry/continuation/compaction without a new reservation refuse |
 | settlement | delivered consumes; proved non-delivery releases | gateway/root crash after possible issue stays unknown/held and cannot retry |
 | tool bridge | developer read/edit and provider-free docs check complete in its slot | reviewer write, PM write, traversal, absolute/symlink/hardlink/swap, unknown tool/schema and oversized/ambiguous input refuse |
@@ -472,34 +579,69 @@ or quarantined every issued effect, and archived the durable store/evidence. Nev
 slot with an unknown issued provider, tool, build, Git or activation effect.
 
 ```sh
-# Record exact state first.
-sudo launchctl print system/org.pramana.foundry.root
-sudo pfctl -a pramana-foundry -sr
-sudo lsof -nP -U | grep /var/run/pramana-foundry
+set -eu
+ledger=/exact/root-owned/attempt-ledger.tsv
+test -f "$ledger"
 
-# Boot out only the reviewed labels, reverse dependency order.
-sudo launchctl bootout system/org.pramana.foundry.presentation
-sudo launchctl bootout system/org.pramana.foundry.fetch
-sudo launchctl bootout system/org.pramana.foundry.effect
-sudo launchctl bootout system/org.pramana.foundry.auth
-sudo launchctl bootout system/org.pramana.foundry.launcher
-sudo launchctl bootout system/org.pramana.foundry.root
+# Record exact state first. Every observer failure is unknown and blocks rollback.
+sudo launchctl print system/org.pramana.foundry.root >/dev/null
+sudo pfctl -a pramana-foundry -sr >/dev/null
 
-# Verify no service-account process or protected socket remains. Any output blocks removal.
-for name in _pramana_launcher _pramana_auth _pramana_harness _pramana_present _pramana_fetch _pramana_slot01 _pramana_slot02 _pramana_slot03 _pramana_build _pramana_runtime; do
-  ! pgrep -U "$name"
+# Boot out only labels recorded created_by_attempt=true, in reverse dependency order.
+# The reviewed rollback helper reads the canonical ledger and refuses unknown ownership.
+sudo /Library/PramanaFoundry/bin/pf-launch rollback-services --ledger "$ledger"
+
+# Verify every account independently; present or observer error blocks removal.
+for name in _pramana_launcher _pramana_auth _pramana_harness _pramana_present \
+  _pramana_fetch _pramana_slot01 _pramana_slot02 _pramana_slot03 \
+  _pramana_build _pramana_runtime _pramana_kernel
+do
+  if process_output=$(pgrep -U "$name" 2>&1); then
+    test -n "$process_output" || {
+      echo "unknown: pgrep returned success without identity for $name" >&2
+      exit 1
+    }
+    echo "present: process remains for $name" >&2
+    exit 1
+  else
+    process_exit=$?
+  fi
+  test "$process_exit" -eq 1 || {
+    echo "unknown: pgrep failed for $name (exit $process_exit)" >&2
+    exit 1
+  }
 done
-test -z "$(sudo lsof -nP -U | grep /var/run/pramana-foundry || true)"
+
+if ! socket_inventory=$(sudo lsof -nP -U 2>&1); then
+  echo "unknown: lsof could not inspect Unix sockets" >&2
+  exit 1
+fi
+if printf '%s\n' "$socket_inventory" | grep -q /var/run/pramana-foundry; then
+  echo "present: protected socket remains" >&2
+  exit 1
+else
+  grep_exit=$?
+fi
+test "$grep_exit" -eq 1 || {
+  echo "unknown: socket filter failed" >&2
+  exit 1
+}
 ```
 
-Restore the pre-provision `/etc/pf.conf` and anchor from the operator's recorded backup,
-validate with `pfctl -vnf`, then reload it. Move (do not destroy) `/var/db/pramana-foundry`,
-manifests and service evidence into a root-owned timestamped rollback archive on the same
-filesystem. Only after verifying the archive and confirming there are no outstanding
-claims may the operator remove the exact service files/directories and delete the ten
-explicit user/group records with `dscl . -delete`. Never use a wildcard or a broad recursive
-target. If a state migration prevents compatible restart, retain the archive and report
-`recovery_required`; do not synthesize a healthy rollback.
+Restore `/etc/pf.conf` and the anchor only from ledger-bound, hash-verified pre-change
+backups, validate with `pfctl -vnf`, then reload. If the ledger says either file was absent,
+remove only the exact file created by this attempt; if it was present, restore rather than
+delete it. Move (do not destroy) newly created store/manifests/evidence into a root-owned
+timestamped archive on the same filesystem. Preserve every preexisting path.
+
+Only after verifying the archive and confirming no outstanding claim may the reviewed
+rollback helper remove an exact resource whose ledger row says both `preexisting=false`
+and `created_by_attempt=true`. Accounts/groups, paths and labels with any other or unknown
+ownership remain untouched and produce `recovery_required`. Delete only the explicit
+eleven user/group records actually created by this attempt; never use a wildcard or broad
+recursive target. A partial install uses the same ledger, so it removes only completed
+creation steps. If state migration prevents compatible restart, retain the archive and
+report `recovery_required`; do not synthesize a healthy rollback.
 
 ## 11. Disposition and remaining authority
 
@@ -508,7 +650,7 @@ target. If a state migration prevents compatible restart, retain the archive and
 | exact inventory, pins, topology, capability mapping, handshake, commands and rollback | **supported as validated specification** |
 | checkpoint-F raw Pi lifecycle and provider-free docs path | **supported raw evidence only** |
 | OMP subscription route, fixed gateway routing, disabled startup code and remote tools | **blocked; FR-09 after FR-15aB** |
-| root/auth/harness/tool/build/runtime accounts, sockets, packet filter and protected paths | **blocked; requires operator/root host authority and FR-15aB artifacts** |
+| root/kernel/auth/harness/tool/build/runtime accounts, sockets, packet filter and protected paths | **blocked; requires operator/root host authority and FR-15aB artifacts** |
 | R1 claims, R5 request reservations and settlement in accepted protected storage | **blocked; depends on FR-08A/B and FR-15aB** |
 | actual environment/FD/network/proxy/IPC/process/Git/cross-slot denial | **blocked; FR-15aB conformance** |
 | installed LSP (`expert`) | **unavailable; no installation attempted** |

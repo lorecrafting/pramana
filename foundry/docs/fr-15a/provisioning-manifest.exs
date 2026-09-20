@@ -4,14 +4,22 @@
     base_commit: "f5067d96d67a9ec3193a9b8bbadfa54c16525aa3",
     base_tree: "f19af86efd775fa0debd75868f571b13feaa748d",
     checkpoint_f_candidate: "148476c93497653abbbc52fb040cf76927478d3f",
-    checkpoint_f_review: "ca8c6d0b5edc9a5cfb9c265e710b29f3210f5cbe"
+    checkpoint_f_review: "ca8c6d0b5edc9a5cfb9c265e710b29f3210f5cbe",
+    specification_profile: "fr15aa-provisioning-v2",
+    validator_path: "foundry/ci/validate_fr15aa.exs"
   },
   authority: %{
     governing_harness: "omp",
     replacement_candidate: "pi",
     replacement_disposition: "evaluated_blocked_not_selected",
     production_disposition: "blocked_pending_fr15ab_and_fr09",
-    host_profile: "macos-dedicated-local-principals-v1"
+    host_profile: %{
+      id: "macos-dedicated-local-principals-v1",
+      os: "macOS",
+      version: "26.6.2",
+      build: "25G83",
+      architecture: "arm64"
+    }
   },
   pins: [
     %{
@@ -59,8 +67,8 @@
       kind: "executable",
       version: "11.19.1",
       path: "resolved-with-node-installation",
-      sha256: "not-recorded-checkpoint-f",
-      status: "inventory_only"
+      sha256: "unimplemented",
+      status: "blocked"
     },
     %{
       id: "herdr",
@@ -215,6 +223,118 @@
       status: "accepted_provider_free_evidence"
     },
     %{
+      id: "workflow-kernel",
+      kind: "required_adapter",
+      version: "fr06-r3-bundle-v1",
+      path: "/Library/PramanaFoundry/releases/kernel/CANDIDATE_SHA/bin/pramana-kernel",
+      sha256: "unimplemented",
+      status: "blocked"
+    },
+    %{
+      id: "host-sh",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/bin/sh",
+      sha256: "c0eaf44f9242d5bbc2e14f4e8b7dccc1eff7f2976d64dc18914d5ef9f373e100",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-env",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/usr/bin/env",
+      sha256: "75690864f0e7397db05bcc0f4439915559ce24c2d834d530e4e619c14b938556",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-python3",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/usr/bin/python3",
+      sha256: "b8763cf250e607a778bb4603cecb5b90338814d0a3dfcba0d57b1de242f610e9",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-git",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/usr/bin/git",
+      sha256: "b8763cf250e607a778bb4603cecb5b90338814d0a3dfcba0d57b1de242f610e9",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-pgrep",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/usr/bin/pgrep",
+      sha256: "0d1ffd0bb78cb9e9cba51bb013d67ec48f75bb21eefeec99c7321053fe23fd19",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-lsof",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/usr/sbin/lsof",
+      sha256: "b1b9151bbc56f4749890dbe4e533af9a4f8700240ad431a6c9ddf70fe137c165",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-pfctl",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/sbin/pfctl",
+      sha256: "675449d18fdca83c4e892b719215832092f8362d193fe9c72cd230918b5d150b",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-launchctl",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/bin/launchctl",
+      sha256: "b4dbf509754d8e1117f7851baa93ede75bc75218c48d6ddf19fbb1505d261be7",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-dscl",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/usr/bin/dscl",
+      sha256: "7870543dca5d253c509d2cb6c16893e53b688537b33f81d47d533d8693eb67f4",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-ps",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/bin/ps",
+      sha256: "3bbba882e30d91fc4ff6e6844ca7c59fef4351b9a3fea35dca55708d6d487d1c",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-kill",
+      kind: "host_executable",
+      version: "macos-26.6.2-25G83-arm64",
+      path: "/bin/kill",
+      sha256: "9354b1505290ffea73ddf52ca46fd9333466569a921f228df41b0346a1c8d592",
+      status: "host_profile_pin"
+    },
+    %{
+      id: "host-elixir",
+      kind: "host_executable",
+      version: "1.20.4-otp-29",
+      path: "/opt/homebrew/bin/elixir",
+      sha256: "5cb23d89a78f75589b06fade3097e217b77e63416d61c1800f674579748c4307",
+      status: "host_profile_inventory_only"
+    },
+    %{
+      id: "host-mix",
+      kind: "host_executable",
+      version: "1.20.4-otp-29",
+      path: "/opt/homebrew/bin/mix",
+      sha256: "0a48d65a9980f2b923bba597e0ebdde3049e3271089ffffb9265d5cf7954b659",
+      status: "host_profile_inventory_only"
+    },
+    %{
       id: "protected-launcher",
       kind: "required_adapter",
       version: "fr15aa-v1",
@@ -249,6 +369,12 @@
   ],
   principals: [
     %{id: "root", account: "root", trust: "protected_verifier_store", login: false},
+    %{
+      id: "workflow_kernel",
+      account: "_pramana_kernel",
+      trust: "restricted_candidate_workflow_kernel",
+      login: false
+    },
     %{
       id: "launcher",
       account: "_pramana_launcher",
@@ -294,37 +420,117 @@
     %{
       id: "root-command",
       transport: "unix_socket_peer_credential_plus_scoped_capability",
-      path: "/var/run/pramana-foundry/root.sock"
+      path: "/var/run/pramana-foundry/root.sock",
+      server: "root",
+      callers: ["launcher"]
     },
     %{
       id: "launch",
       transport: "unix_socket_peer_credential_plus_single_operation",
-      path: "/var/run/pramana-foundry/launch.sock"
+      path: "/var/run/pramana-foundry/launch.sock",
+      server: "launcher",
+      callers: ["root"]
     },
     %{
       id: "model-request",
       transport: "unix_socket_peer_credential_plus_request_capability",
-      path: "/var/run/pramana-foundry/auth.sock"
+      path: "/var/run/pramana-foundry/auth.sock",
+      server: "auth_gateway",
+      callers: ["harness"]
     },
     %{
       id: "effect",
       transport: "unix_socket_peer_credential_plus_invocation_capability",
-      path: "/var/run/pramana-foundry/effect.sock"
+      path: "/var/run/pramana-foundry/effect.sock",
+      server: "launcher",
+      callers: ["harness"]
     },
     %{
       id: "fetch",
       transport: "unix_socket_peer_credential_plus_digest_request",
-      path: "/var/run/pramana-foundry/fetch.sock"
+      path: "/var/run/pramana-foundry/fetch.sock",
+      server: "fetch",
+      callers: ["root"]
     },
     %{
       id: "presentation",
       transport: "sanitized_one_way_event_feed",
-      path: "/var/run/pramana-foundry/presentation.sock"
+      path: "/var/run/pramana-foundry/presentation.sock",
+      server: "presentation",
+      callers: ["root"]
     },
-    %{id: "owned-pipe", transport: "close_on_exec_pipe", path: "per-execution"},
-    %{id: "none", transport: "denied_no_channel", path: "none"}
+    %{
+      id: "kernel-bundle",
+      transport: "unix_socket_peer_credential_plus_versioned_bundle_capability",
+      path: "/var/run/pramana-foundry/kernel.sock",
+      server: "root",
+      callers: ["workflow_kernel"]
+    },
+    %{
+      id: "owned-pipe",
+      transport: "close_on_exec_pipe",
+      path: "per-execution",
+      server: "launcher",
+      callers: ["slot_developer", "slot_reviewer", "slot_pm", "build", "runtime"]
+    },
+    %{id: "none", transport: "denied_no_channel", path: "none", server: "root", callers: []}
   ],
+  kernel_protocol: %{
+    version: "fr06-r3-bundle/v1",
+    caller: "workflow_kernel",
+    verifier: "root",
+    channel: "kernel-bundle",
+    allowed_operations: [
+      "domain_event.append_supported",
+      "domain_projection.cas",
+      "effect.propose",
+      "schedule.propose",
+      "recovery.propose",
+      "query.canonical_inputs"
+    ],
+    forbidden_fields: [
+      "accepted_ref",
+      "activation_pointer",
+      "budget_authorized",
+      "budget_available",
+      "budget_consumed",
+      "budget_held",
+      "claim_state",
+      "deployed_release",
+      "integrated_ref",
+      "mandatory_check_valid",
+      "policy_revision",
+      "receipt_valid",
+      "review_valid",
+      "writer_epoch"
+    ],
+    root_checks: [
+      "authenticated_original_command_retained",
+      "bundle_schema_supported",
+      "complete_revision_cas",
+      "current_writer_epoch",
+      "protected_fields_absent",
+      "raw_receipts_retained",
+      "role_profile_operation_scope_allowed"
+    ]
+  },
   routes: [
+    %{
+      id: "workflow-kernel-bundle",
+      category: "workflow_kernel",
+      executable_ids: ["workflow-kernel"],
+      principal: "workflow_kernel",
+      channel: "kernel-bundle",
+      credential_policy:
+        "peer UID plus exact kernel artifact, candidate, policy and writer-epoch capability; no SQL/OS/root credential",
+      network_policy: "deny IP; kernel.sock only",
+      acceptance_probe:
+        "valid supported bundle commits through verifier; forged budgets/acceptance/receipts and stale writer epoch refuse without protected mutation",
+      production_status: "blocked",
+      fail_closed: true,
+      blocker:
+        "isolated kernel artifact, versioned bundle gateway and old-epoch fencing are unimplemented"
+    },
     %{
       id: "governing-omp",
       category: "harness",
@@ -338,7 +544,9 @@
         "current-herdr-argv",
         "current-herdr-runner",
         "current-launch-effect",
-        "current-prompt-effect"
+        "current-prompt-effect",
+        "herdr",
+        "host-env"
       ],
       principal: "harness",
       channel: "launch",
@@ -360,7 +568,8 @@
         "pi-production-tree",
         "node",
         "protected-launcher",
-        "checkpoint-f-probe"
+        "checkpoint-f-probe",
+        "host-env"
       ],
       principal: "harness",
       channel: "launch",
@@ -391,7 +600,14 @@
     %{
       id: "shell",
       category: "shell",
-      executable_ids: ["effect-bridge", "current-check-runner", "current-process-group"],
+      executable_ids: [
+        "effect-bridge",
+        "current-check-runner",
+        "current-process-group",
+        "host-python3",
+        "host-ps",
+        "host-kill"
+      ],
       principal: "slot_developer",
       channel: "effect",
       credential_policy: "credential-free inert argv; no harness/root capability",
@@ -618,7 +834,7 @@
     %{
       id: "git-custody",
       category: "git_metadata",
-      executable_ids: ["effect-bridge", "current-git-evidence"],
+      executable_ids: ["effect-bridge", "current-git-evidence", "host-git"],
       principal: "slot_developer",
       channel: "effect",
       credential_policy:
@@ -633,7 +849,13 @@
     %{
       id: "shared-state",
       category: "shared_state",
-      executable_ids: ["protected-launcher", "effect-bridge"],
+      executable_ids: [
+        "protected-launcher",
+        "effect-bridge",
+        "host-pgrep",
+        "host-lsof",
+        "host-launchctl"
+      ],
       principal: "slot_developer",
       channel: "effect",
       credential_policy:
@@ -677,7 +899,13 @@
     %{
       id: "cleanup",
       category: "cleanup",
-      executable_ids: ["protected-launcher", "effect-bridge"],
+      executable_ids: [
+        "protected-launcher",
+        "effect-bridge",
+        "host-pgrep",
+        "host-lsof",
+        "host-launchctl"
+      ],
       principal: "launcher",
       channel: "root-command",
       credential_policy: "root recovery claim identifies exact owned process group and roots",
@@ -714,7 +942,12 @@
         "foundry-lock",
         "current-check-runner",
         "current-process-group",
-        "current-cli-rpc"
+        "current-cli-rpc",
+        "host-python3",
+        "host-ps",
+        "host-kill",
+        "host-elixir",
+        "host-mix"
       ],
       principal: "build",
       channel: "effect",
