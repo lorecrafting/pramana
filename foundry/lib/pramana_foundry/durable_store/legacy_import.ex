@@ -237,19 +237,72 @@ defmodule PramanaFoundry.DurableStore.LegacyImport do
   defp copy_and_sync(source_path, archived_path, expected_digest) do
     temp = archived_path <> ".tmp-" <> String.slice(expected_digest, 0, 16)
 
-    with {:ok, _bytes} <- File.copy(source_path, temp),
-         :ok <- sync_file(temp),
+    case :file.open(String.to_charlist(temp), [:write, :binary, :raw, :exclusive]) do
+      {:ok, file} ->
+        copy_owned_temp(file, source_path, temp, archived_path, expected_digest)
+
+      {:error, :eexist} ->
+        adopt_verified_temp(temp, archived_path, expected_digest)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp copy_owned_temp(file, source_path, temp, archived_path, expected_digest) do
+    identity_result = PathIdentity.existing(temp)
+
+    result =
+      with {:ok, identity} <- identity_result,
+           {:ok, _bytes} <- File.copy(source_path, file),
+           :ok <- :file.sync(file),
+           :ok <- :file.close(file),
+           :ok <- PathIdentity.revalidate(identity),
+           :ok <- verify_digest(temp, expected_digest),
+           :ok <- publish_verified_temp(identity, archived_path, expected_digest) do
+        :ok
+      end
+
+    case result do
+      :ok ->
+        :ok
+
+      {:error, _reason} = error ->
+        _ = :file.close(file)
+        cleanup_owned_temp(identity_result)
+        error
+    end
+  end
+
+  defp adopt_verified_temp(temp, archived_path, expected_digest) do
+    with {:ok, identity} <- PathIdentity.existing(temp),
          :ok <- verify_digest(temp, expected_digest),
-         :ok <- File.rename(temp, archived_path),
+         :ok <- PathIdentity.revalidate(identity),
+         :ok <- publish_verified_temp(identity, archived_path, expected_digest) do
+      :ok
+    else
+      {:error, {:archive_digest_mismatch, _actual, _expected}} ->
+        {:error, {:archive_staging_occupied, temp}}
+
+      {:error, _reason} = error ->
+        error
+    end
+  end
+
+  defp publish_verified_temp(identity, archived_path, expected_digest) do
+    with :ok <- PathIdentity.revalidate(identity),
+         :ok <- File.rename(identity.path, archived_path),
          :ok <- sync_directory(Path.dirname(archived_path)),
          :ok <- verify_digest(archived_path, expected_digest) do
       :ok
-    else
-      {:error, reason} = error ->
-        _ = File.rm(temp)
-        if reason == :eexist, do: verify_digest(archived_path, expected_digest), else: error
     end
   end
+
+  defp cleanup_owned_temp({:ok, identity}) do
+    with :ok <- PathIdentity.revalidate(identity), do: File.rm(identity.path)
+  end
+
+  defp cleanup_owned_temp(_identity_result), do: :ok
 
   defp verify_digest(path, expected) do
     case file_digest(path) do
@@ -268,14 +321,6 @@ defmodule PramanaFoundry.DurableStore.LegacyImport do
     {:ok, context |> :crypto.hash_final() |> Base.encode16(case: :lower)}
   rescue
     exception -> {:error, {:digest_failed, exception}}
-  end
-
-  defp sync_file(path) do
-    with {:ok, file} <- :file.open(String.to_charlist(path), [:read, :binary, :raw]),
-         :ok <- :file.sync(file),
-         :ok <- :file.close(file) do
-      :ok
-    end
   end
 
   defp sync_directory(path) do

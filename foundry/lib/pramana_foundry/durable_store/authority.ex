@@ -11,7 +11,8 @@ defmodule PramanaFoundry.DurableStore.Authority do
      ~w(command_id input_id actor_id request_digest command_type protocol_version)},
     {"command_results", "command_id",
      ~w(command_id schema_version disposition reason_code result committed_seq)},
-    {"events", "seq", ~w(seq event_id command_id schema_version event_type event)},
+    {"events", "seq",
+     ~w(seq event_id command_id schema_version event_type projection_namespace projection_entity_id event)},
     {"projections", "namespace, entity_id",
      ~w(namespace entity_id schema_version revision last_event_id projection)},
     {"effects", "effect_id",
@@ -37,12 +38,11 @@ defmodule PramanaFoundry.DurableStore.Authority do
   ]
 
   @unsupported ~w(receipts leases policy_revisions control_revisions artifact_references)
-  @required_indexes ~w(one_active_claim_per_effect events_command_idx effects_command_idx reservations_generation_idx)
-
   def registry, do: @registry
 
   def read(conn, :all) do
-    with :ok <- validate_schema(conn),
+    with :ok <- validate_foreign_keys(conn),
+         :ok <- validate_schema(conn),
          {:ok, rows} <- validation_rows(conn),
          {:ok, view} <- validate_content(conn, rows),
          {:ok, content} <- content(conn) do
@@ -70,6 +70,12 @@ defmodule PramanaFoundry.DurableStore.Authority do
 
   def read(conn, {:revision, {:dependency, namespace, entity_id}}),
     do: read_projection(conn, namespace, entity_id)
+
+  def read(conn, {:materialized_projection, namespace, entity_id, :stored}),
+    do: read_projection(conn, namespace, entity_id, :stored)
+
+  def read(conn, {:materialized_projection, namespace, entity_id, carrier_event_id}),
+    do: read_projection(conn, namespace, entity_id, {:through, carrier_event_id})
 
   def read(conn, {:revision, {:ledger, generation_id}}),
     do: read_ledger(conn, generation_id)
@@ -152,55 +158,15 @@ defmodule PramanaFoundry.DurableStore.Authority do
   end
 
   defp validate_schema(conn) do
-    expected = Enum.map(@registry, &elem(&1, 0)) |> MapSet.new()
-
-    with {:ok, table_rows} <-
-           query(
-             conn,
-             "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name"
-           ),
-         actual <- MapSet.new(table_rows, fn [name] -> name end),
-         true <- actual == expected,
-         :ok <- validate_table_shapes(conn),
-         {:ok, index_rows} <-
-           query(
-             conn,
-             "SELECT name FROM sqlite_schema WHERE type='index' AND sql IS NOT NULL ORDER BY name"
-           ),
-         index_names <- MapSet.new(index_rows, fn [name] -> name end),
-         true <- Enum.all?(@required_indexes, &MapSet.member?(index_names, &1)) do
+    with {:ok, expected} <- Database.expected_schema_contract(),
+         {:ok, actual} <- Database.schema_contract(conn),
+         true <- actual == expected do
       :ok
     else
       false -> corrupt("sqlite_schema", "inventory", :schema_mismatch)
       {:error, _reason} = error -> error
     end
   end
-
-  defp validate_table_shapes(conn) do
-    Enum.reduce_while(@registry, :ok, fn
-      {"sqlite_sequence", _ordering, columns}, :ok ->
-        validate_columns(conn, "sqlite_sequence", columns, false)
-
-      {table, _ordering, columns}, :ok ->
-        validate_columns(conn, table, columns, true)
-    end)
-  end
-
-  defp validate_columns(conn, table, expected, strict?) do
-    with {:ok, column_rows} <- query(conn, "PRAGMA table_info('#{table}')"),
-         ^expected <- Enum.map(column_rows, fn [_cid, name | _] -> name end),
-         {:ok, table_rows} <- query(conn, "PRAGMA table_list('#{table}')"),
-         true <- valid_table_list?(table_rows, strict?) do
-      {:cont, :ok}
-    else
-      _ -> {:halt, corrupt(table, "schema", :schema_mismatch)}
-    end
-  end
-
-  defp valid_table_list?([[_schema, _name, "table", _ncol, _wr, strict]], expected),
-    do: strict == if(expected, do: 1, else: 0)
-
-  defp valid_table_list?(_rows, _expected), do: false
 
   defp validate_content(conn, content) do
     with :ok <- validate_metadata(content["metadata"]),
@@ -215,6 +181,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
          {:ok, reservations} <- decode_reservations(content["reservations"]),
          :ok <- validate_command_relations(commands, events, effects),
          :ok <- validate_event_owners(events, commands),
+         :ok <- validate_effect_owners(effects, commands),
          :ok <- validate_protected(effects, ledgers, claims, reservations),
          {:ok, reconstructed} <- validate_reconstruction(events, projections),
          {:ok, imports} <- validate_imports(conn, content["import_runs"]) do
@@ -355,11 +322,24 @@ defmodule PramanaFoundry.DurableStore.Authority do
   end
 
   defp decode_events(rows) do
-    Enum.reduce_while(rows, {:ok, []}, fn [seq, id, command_id, schema, type, bytes],
+    Enum.reduce_while(rows, {:ok, []}, fn [
+                                            seq,
+                                            id,
+                                            command_id,
+                                            schema,
+                                            type,
+                                            projection_namespace,
+                                            projection_entity_id,
+                                            bytes
+                                          ],
                                           {:ok, acc} ->
       case bound("events", id, :event, bytes, %{schema_version: schema, event_id: id, type: type}) do
         {:ok, value} ->
-          {:cont, {:ok, [%{seq: seq, id: id, command_id: command_id, value: value} | acc]}}
+          if event_carrier_matches?(value, projection_namespace, projection_entity_id) do
+            {:cont, {:ok, [%{seq: seq, id: id, command_id: command_id, value: value} | acc]}}
+          else
+            {:halt, corrupt("events", id, :relational_binding_mismatch)}
+          end
 
         error ->
           {:halt, error}
@@ -542,6 +522,18 @@ defmodule PramanaFoundry.DurableStore.Authority do
     case Enum.find(events, &(not Map.has_key?(commands, &1.command_id))) do
       nil -> :ok
       event -> corrupt("events", event.id, :missing_command)
+    end
+  end
+
+  defp validate_effect_owners(effects, commands) do
+    case Enum.find(effects, fn {_id, effect} ->
+           case commands[effect.command_id] do
+             %{result: %{"disposition" => "accepted"}} -> false
+             _other -> true
+           end
+         end) do
+      nil -> :ok
+      {id, _effect} -> corrupt("effects", id, :missing_command)
     end
   end
 
@@ -734,23 +726,12 @@ defmodule PramanaFoundry.DurableStore.Authority do
     summary |> Map.put(:errors, Enum.reverse(summary.errors)) |> Map.put(:digest, digest)
   end
 
-  defp read_command_closure(conn, [id, input_id, actor, digest, type, protocol]) do
-    with {:ok, input_rows} <-
-           query(
-             conn,
-             "SELECT input_id, actor_id, request_digest, canonical_request, protocol_version FROM inputs WHERE input_id = ?",
-             [input_id]
-           ),
-         {:ok, result_rows} <-
-           query(
-             conn,
-             "SELECT command_id, schema_version, disposition, reason_code, result, committed_seq FROM command_results WHERE command_id = ?",
-             [id]
-           ),
+  defp read_command_closure(conn, [id, _input_id, _actor, _digest, _type, _protocol]) do
+    with {:ok, owner} <- read_command_owner(conn, id),
          {:ok, event_rows} <-
            query(
              conn,
-             "SELECT seq, event_id, command_id, schema_version, event_type, event FROM events WHERE command_id = ? ORDER BY seq",
+             "SELECT seq, event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event FROM events WHERE command_id = ? ORDER BY seq",
              [id]
            ),
          {:ok, effect_rows} <-
@@ -760,8 +741,59 @@ defmodule PramanaFoundry.DurableStore.Authority do
              [id]
            ),
          {:ok, [[max_seq]]} <- query(conn, "SELECT coalesce(max(seq), 0) FROM events"),
-         [[^input_id, ^actor, ^digest, request, ^protocol]] <- input_rows,
-         [[^id, schema, disposition, reason, result, committed_seq]] <- result_rows,
+         {:ok, events} <- decode_events(event_rows),
+         {:ok, effects} <- decode_effects(effect_rows),
+         true <- valid_scoped_result?(owner.result, events, effects, max_seq),
+         :ok <- validate_sequence_frontier(conn),
+         :ok <- validate_event_projection_closures(conn, events),
+         :ok <- validate_scoped_effects(conn, effects) do
+      {:ok,
+       %{
+         id: id,
+         actor_id: owner.actor_id,
+         digest: owner.digest,
+         request: owner.request,
+         result: owner.result,
+         events: events,
+         effects: effects
+       }}
+    else
+      [] -> corrupt("commands", id, :required_relation_missing)
+      false -> corrupt("command_results", id, :invalid_sequence_or_disposition)
+      {:error, _reason} = error -> error
+      _ -> corrupt("commands", id, :required_relation_missing)
+    end
+  end
+
+  defp read_command_owner(conn, id) do
+    with {:ok, rows} <-
+           query(
+             conn,
+             "SELECT c.input_id, c.actor_id, c.request_digest, c.command_type, c.protocol_version, i.input_id, i.actor_id, i.request_digest, i.canonical_request, i.protocol_version, r.schema_version, r.disposition, r.reason_code, r.result, r.committed_seq FROM commands c LEFT JOIN inputs i ON i.input_id = c.input_id LEFT JOIN command_results r ON r.command_id = c.command_id WHERE c.command_id = ?",
+             [id]
+           ),
+         [
+           [
+             input_id,
+             actor,
+             digest,
+             type,
+             protocol,
+             input_id,
+             actor,
+             digest,
+             request,
+             protocol,
+             schema,
+             disposition,
+             reason,
+             result,
+             committed_seq
+           ]
+         ] <- rows,
+         true <-
+           is_binary(request) and is_integer(schema) and is_binary(disposition) and
+             is_binary(result) and is_integer(committed_seq),
          {:ok, request_value} <-
            bound("inputs", input_id, :command_request, request, %{
              input_id: input_id,
@@ -777,28 +809,11 @@ defmodule PramanaFoundry.DurableStore.Authority do
              disposition: disposition,
              reason_code: reason,
              committed_seq: committed_seq
-           }),
-         {:ok, events} <- decode_events(event_rows),
-         {:ok, effects} <- decode_effects(effect_rows),
-         true <- valid_scoped_result?(result_value, events, effects, max_seq),
-         :ok <- validate_sequence_frontier(conn),
-         :ok <- validate_event_projection_closures(conn, events),
-         :ok <- validate_scoped_effects(conn, effects) do
-      {:ok,
-       %{
-         id: id,
-         actor_id: actor,
-         digest: digest,
-         request: request_value,
-         result: result_value,
-         events: events,
-         effects: effects
-       }}
+           }) do
+      {:ok, %{actor_id: actor, digest: digest, request: request_value, result: result_value}}
     else
-      [] -> corrupt("commands", id, :required_relation_missing)
-      false -> corrupt("command_results", id, :invalid_sequence_or_disposition)
       {:error, _reason} = error -> error
-      _ -> corrupt("commands", id, :required_relation_missing)
+      _other -> corrupt("commands", id, :required_relation_missing)
     end
   end
 
@@ -832,7 +847,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
     end)
   end
 
-  defp read_projection(conn, namespace, entity_id) do
+  defp read_projection(conn, namespace, entity_id, mode \\ :final) do
     with {:ok, rows} <-
            query(
              conn,
@@ -855,18 +870,13 @@ defmodule PramanaFoundry.DurableStore.Authority do
                {:ok, event_rows} <-
                  query(
                    conn,
-                   "SELECT schema_version, event_id, event_type, event FROM events WHERE event_id = ?",
+                   "SELECT seq, event_id, command_id, schema_version, event_type, projection_namespace, projection_entity_id, event FROM events WHERE event_id = ?",
                    [last_event_id]
                  ),
-               [[event_schema, ^last_event_id, event_type, event_bytes]] <- event_rows,
-               {:ok, event} <-
-                 bound("events", last_event_id, :event, event_bytes, %{
-                   schema_version: event_schema,
-                   event_id: last_event_id,
-                   type: event_type
-                 }),
+               {:ok, [%{value: event}]} <- decode_events(event_rows),
                true <- projection_matches_event?(projection, event),
-               :ok <- validate_projection_chain(conn, projection) do
+               chain_mode <- if(mode == :stored, do: {:through, last_event_id}, else: mode),
+               :ok <- validate_projection_chain(conn, projection, chain_mode) do
             {:ok, %{revision: revision, value: projection}}
           else
             [] ->
@@ -902,44 +912,62 @@ defmodule PramanaFoundry.DurableStore.Authority do
     end
   end
 
-  defp validate_projection_chain(conn, projection) do
+  defp validate_projection_chain(conn, projection, mode) do
     last_event_id = projection["last_event_id"]
 
     with {:ok, [[last_seq]]} <-
            query(conn, "SELECT seq FROM events WHERE event_id = ?", [last_event_id]),
-         {:ok, reversed} <-
+         {:ok, {sql, params}} <- projection_chain_query(projection, mode, last_seq),
+         initial <- %{state: %{}, commands: MapSet.new(), last_event_id: nil},
+         {:ok, summary} <-
            Database.fold(
              conn,
-             "SELECT schema_version, event_id, event_type, event FROM events WHERE seq <= ? ORDER BY seq",
-             [last_seq],
-             [],
-             fn [schema, event_id, type, bytes], acc ->
+             sql,
+             params,
+             initial,
+             fn [schema, event_id, command_id, type, bytes], acc ->
                case RecordCodec.decode_bound(:event, bytes, %{
                       schema_version: schema,
                       event_id: event_id,
                       type: type
                     }) do
                  {:ok, event} ->
-                   [event | acc]
+                   transition = event["payload"]["projection"]
+
+                   candidate = %{
+                     "schema_version" => 1,
+                     "namespace" => transition["namespace"],
+                     "entity_id" => transition["entity_id"],
+                     "expected_revision" => transition["revision"] - 1,
+                     "revision" => transition["revision"],
+                     "last_event_id" => event_id,
+                     "value" => transition["value"]
+                   }
+
+                   carrier = %{"event_id" => event_id, "transition" => transition}
+
+                   case RecordCodec.apply_projection(acc.state, {carrier, candidate}) do
+                     {:ok, state} ->
+                       %{
+                         state: state,
+                         commands: MapSet.put(acc.commands, command_id),
+                         last_event_id: event_id
+                       }
+
+                     {:error, reason} ->
+                       {:halt,
+                        corrupt(
+                          "projections",
+                          {projection["namespace"], projection["entity_id"]},
+                          reason
+                        )}
+                   end
 
                  {:error, reason} ->
                    {:halt, corrupt("events", event_id, reason)}
                end
              end
            ),
-         matching <-
-           reversed
-           |> Enum.reverse()
-           |> Enum.filter(fn event ->
-             case event["payload"]["projection"] do
-               %{"namespace" => namespace, "entity_id" => entity_id} ->
-                 namespace == projection["namespace"] and entity_id == projection["entity_id"]
-
-               _ ->
-                 false
-             end
-           end),
-         true <- length(matching) == projection["revision"] + 1,
          expected_stored <- %{
            {projection["namespace"], projection["entity_id"]} => %{
              revision: projection["revision"],
@@ -947,7 +975,9 @@ defmodule PramanaFoundry.DurableStore.Authority do
              value: projection["value"]
            }
          },
-         {:ok, ^expected_stored} <- RecordCodec.reconstruct(matching, expected_stored) do
+         true <- summary.last_event_id == last_event_id,
+         true <- summary.state == expected_stored,
+         :ok <- validate_projection_owners(conn, summary.commands, mode) do
       :ok
     else
       false ->
@@ -968,6 +998,43 @@ defmodule PramanaFoundry.DurableStore.Authority do
         )
     end
   end
+
+  defp projection_chain_query(projection, mode, last_seq) do
+    base =
+      "SELECT schema_version, event_id, command_id, event_type, event FROM events WHERE projection_namespace = ? AND projection_entity_id = ?"
+
+    params = [projection["namespace"], projection["entity_id"]]
+
+    case mode do
+      :final ->
+        {:ok, {base <> " ORDER BY seq", params}}
+
+      {:through, event_id} ->
+        if event_id == projection["last_event_id"] do
+          {:ok, {base <> " AND seq <= ? ORDER BY seq", params ++ [last_seq]}}
+        else
+          {:error, :invalid_projection_validation_scope}
+        end
+
+      _other ->
+        {:error, :invalid_projection_validation_scope}
+    end
+  end
+
+  defp validate_command_owners(conn, command_ids) do
+    Enum.reduce_while(command_ids, :ok, fn command_id, :ok ->
+      case read_command_owner(conn, command_id) do
+        {:ok, %{result: %{"disposition" => "accepted"}}} -> {:cont, :ok}
+        {:ok, _owner} -> {:halt, corrupt("commands", command_id, :invalid_event_owner)}
+        {:error, _reason} = error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp validate_projection_owners(_conn, _command_ids, {:through, _event_id}), do: :ok
+
+  defp validate_projection_owners(conn, command_ids, :final),
+    do: validate_command_owners(conn, command_ids)
 
   defp read_ledger(conn, generation_id) do
     with {:ok, rows} <-
@@ -1030,8 +1097,10 @@ defmodule PramanaFoundry.DurableStore.Authority do
   end
 
   defp validate_scoped_effects(conn, effects) do
-    Enum.reduce_while(effects, :ok, fn {effect_id, _effect}, :ok ->
-      with {:ok, rows} <-
+    Enum.reduce_while(effects, :ok, fn {effect_id, effect}, :ok ->
+      with {:ok, %{result: %{"disposition" => "accepted"}}} <-
+             read_command_owner(conn, effect.command_id),
+           {:ok, rows} <-
              query(
                conn,
                "SELECT claim_id, effect_id, writer_epoch, status, claim FROM claims WHERE effect_id = ? ORDER BY claim_id",
@@ -1084,6 +1153,9 @@ defmodule PramanaFoundry.DurableStore.Authority do
              ),
            {:ok, effects} <- decode_effects(effect_rows),
            true <- Map.has_key?(effects, effect_id),
+           %{command_id: command_id} <- effects[effect_id],
+           {:ok, %{result: %{"disposition" => "accepted"}}} <-
+             read_command_owner(conn, command_id),
            {:ok, [[reservation_count]]} <-
              query(conn, "SELECT count(*) FROM reservations WHERE claim_id = ?", [
                reservation.claim_id
@@ -1115,6 +1187,24 @@ defmodule PramanaFoundry.DurableStore.Authority do
       false -> corrupt("sqlite_sequence", "events", :invalid_sequence)
       {:error, _reason} = error -> error
       _ -> corrupt("events", "sequence", :sequence_gap)
+    end
+  end
+
+  defp validate_foreign_keys(conn) do
+    case query(conn, "PRAGMA foreign_key_check") do
+      {:ok, []} -> :ok
+      {:ok, rows} -> corrupt("sqlite", "physical", rows)
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp event_carrier_matches?(event, nil, nil),
+    do: event["payload"]["projection"] == nil
+
+  defp event_carrier_matches?(event, namespace, entity_id) do
+    case event["payload"]["projection"] do
+      %{"namespace" => ^namespace, "entity_id" => ^entity_id} -> true
+      _other -> false
     end
   end
 

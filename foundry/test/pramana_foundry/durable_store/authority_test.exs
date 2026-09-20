@@ -1,7 +1,14 @@
 defmodule PramanaFoundry.DurableStore.AuthorityTest do
   use ExUnit.Case, async: false
 
-  alias PramanaFoundry.DurableStore.{Database, Encoding, Gateway, LegacyImport, RecordCodec}
+  alias PramanaFoundry.DurableStore.{
+    Authority,
+    Database,
+    Encoding,
+    Gateway,
+    LegacyImport,
+    RecordCodec
+  }
 
   setup do
     root = Path.join(System.tmp_dir!(), "fr07-authority-#{System.unique_integer([:positive])}")
@@ -490,6 +497,273 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
       assert %{mode: :recovery, reason: {:authority_corrupt, ^table, "retained", _reason}} =
                Gateway.status(reopened)
     end
+  end
+
+  test "a genuine historical projection cannot replace the final retained carrier", ctx do
+    gateway = start_supervised!({Gateway, path: ctx.path})
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact(gateway, "actor", command("A"), bundle("A"))
+
+    conn = :sys.get_state(gateway).conn
+    assert {:ok, [[historic]]} = Database.query(conn, "SELECT projection FROM projections")
+
+    update_command = put_in(command("B")["expected_revisions"], %{projection_key("A") => 0})
+
+    update_event =
+      bundle("B").events
+      |> hd()
+      |> put_in([:payload, "projection", "entity_id"], "ticket-A")
+      |> put_in([:payload, "projection", "revision"], 1)
+
+    update_projection =
+      bundle("B").projections
+      |> hd()
+      |> Map.merge(%{entity_id: "ticket-A", expected_revision: 0, revision: 1})
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact(gateway, "actor", update_command, %{
+               bundle("B")
+               | events: [update_event],
+                 projections: [update_projection]
+             })
+
+    assert :ok =
+             Database.execute(
+               conn,
+               "UPDATE projections SET revision=0, last_event_id='event-A', projection=?",
+               [{:blob, historic}]
+             )
+
+    assert {:error, {:authority_corrupt, "projections", _identity, _reason}} =
+             Authority.read(conn, {:revision, {:projection, "kernel-v1", "ticket-A"}})
+
+    assert {:error, {:recovery_mode, {:authority_corrupt, "projections", _identity, _reason}}} =
+             Gateway.command(gateway, "B")
+  end
+
+  test "scoped projection and ledger reads require complete command ownership", ctx do
+    for family <- [:projection, :ledger] do
+      path = Path.join(ctx.root, "owner-#{family}.sqlite3")
+      assert :ok = Gateway.initialize(path)
+      capability = make_ref()
+
+      gateway =
+        start_supervised!(
+          {Gateway, path: path, protected_capability: capability},
+          id: {:owner_closure, family}
+        )
+
+      assert {:ok, _result, :committed} =
+               Gateway.transact_verified(
+                 gateway,
+                 capability,
+                 "actor",
+                 command("A"),
+                 protected_bundle("A"),
+                 protected("A")
+               )
+
+      conn = :sys.get_state(gateway).conn
+      assert :ok = Database.execute(conn, "DELETE FROM command_results WHERE command_id='A'")
+
+      key =
+        if family == :projection,
+          do: projection_key("A"),
+          else: "ledger/" <> Base.url_encode64("generation-A", padding: false)
+
+      dependent = put_in(command("B")["expected_revisions"], %{key => 0})
+
+      assert {:error, {:authority_corrupt, _table, _identity, :required_relation_missing}} =
+               Gateway.transact(gateway, "actor", dependent, %{
+                 schema_version: 1,
+                 result: %{schema_version: 1, disposition: "accepted"}
+               })
+
+      assert %{mode: :recovery} = Gateway.status(gateway)
+    end
+  end
+
+  test "global reads reject orphan effects before backup publication", ctx do
+    capability = make_ref()
+    gateway = start_supervised!({Gateway, path: ctx.path, protected_capability: capability})
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact_verified(
+               gateway,
+               capability,
+               "actor",
+               command("A"),
+               protected_bundle("A"),
+               protected("A")
+             )
+
+    conn = :sys.get_state(gateway).conn
+    assert :ok = Database.execute(conn, "PRAGMA foreign_keys=OFF")
+    assert :ok = Database.execute(conn, "UPDATE effects SET command_id='missing'")
+    assert :ok = Database.execute(conn, "PRAGMA foreign_keys=ON")
+
+    assert {:error, {:authority_corrupt, "sqlite", "physical", _rows}} =
+             Authority.read(conn, :all)
+
+    backup = Path.join(ctx.root, "orphan-backup.sqlite3")
+
+    assert {:error, {:authority_corrupt, "sqlite", "physical", _rows}} =
+             Gateway.backup(gateway, backup)
+
+    refute File.exists?(backup)
+    assert %{mode: :recovery} = Gateway.status(gateway)
+  end
+
+  test "malformed protected facts and command lookups are total and nonfencing", ctx do
+    capability = make_ref()
+    gateway = start_supervised!({Gateway, path: ctx.path, protected_capability: capability})
+
+    malformed = [
+      %{protected("A") | required_revisions: %URI{scheme: "x"}},
+      %{protected("A") | required_revisions: %{<<255>> => "absent"}},
+      %{protected("A") | writer_epoch: <<255>>},
+      put_in(protected("A"), [:effect_authorizations, Access.at(0), :claim_id], <<255>>)
+    ]
+
+    Enum.each(malformed, fn facts ->
+      assert {:error, _reason} =
+               Gateway.transact_verified(
+                 gateway,
+                 capability,
+                 "actor",
+                 command("A"),
+                 protected_bundle("A"),
+                 facts
+               )
+
+      assert Process.alive?(gateway)
+      assert %{mode: :ready} = Gateway.status(gateway)
+    end)
+
+    for command_id <- ["", <<255>>, %URI{scheme: "x"}] do
+      assert {:error, :invalid_command_id} = Gateway.command(gateway, command_id)
+      assert %{mode: :ready} = Gateway.status(gateway)
+    end
+
+    assert {:ok, counts} = Gateway.counts(gateway)
+    assert Enum.all?(counts, fn {_table, count} -> count == 0 end)
+  end
+
+  test "archive staging adopts only exact evidence and preserves foreign bytes", ctx do
+    source = Path.join(ctx.root, "source.jsonl")
+    archive = Path.join(ctx.root, "archive")
+    bytes = "{}\n"
+    File.write!(source, bytes)
+    File.mkdir!(archive)
+    digest = Encoding.digest(bytes)
+    temp = Path.join(archive, digest <> ".jsonl.tmp-" <> String.slice(digest, 0, 16))
+    File.write!(temp, "PRESERVE PREEXISTING EVIDENCE")
+
+    assert {:error, {:archive_staging_occupied, ^temp}} =
+             LegacyImport.run(ctx.path, source, archive)
+
+    assert File.read!(temp) == "PRESERVE PREEXISTING EVIDENCE"
+    refute File.exists?(Path.join(archive, digest <> ".jsonl"))
+
+    {:ok, conn} = Database.open(ctx.path)
+
+    assert {:ok, [[0, 0]]} =
+             Database.query(
+               conn,
+               "SELECT (SELECT count(*) FROM import_runs), (SELECT count(*) FROM legacy_records)"
+             )
+
+    assert :ok = Database.close(conn)
+    File.rm!(temp)
+    File.write!(temp, bytes)
+
+    assert {:ok, %{"source_digest" => ^digest}} = LegacyImport.run(ctx.path, source, archive)
+    refute File.exists?(temp)
+    assert File.read!(Path.join(archive, digest <> ".jsonl")) == bytes
+  end
+
+  test "schema validation checks exact uniqueness keys and partial predicates", ctx do
+    corruptions = [
+      "CREATE INDEX one_active_claim_per_effect ON claims(writer_epoch)",
+      "CREATE UNIQUE INDEX one_active_claim_per_effect ON claims(effect_id) WHERE status IN ('pending', 'claimed')"
+    ]
+
+    for {replacement, index} <- Enum.with_index(corruptions) do
+      path = Path.join(ctx.root, "schema-#{index}.sqlite3")
+      assert :ok = Gateway.initialize(path)
+      gateway = start_supervised!({Gateway, path: path}, id: {:schema_contract, index})
+      conn = :sys.get_state(gateway).conn
+      assert :ok = Database.execute(conn, "DROP INDEX one_active_claim_per_effect")
+      assert :ok = Database.execute(conn, replacement)
+
+      assert {:error, {:authority_corrupt, "sqlite_schema", "inventory", :schema_mismatch}} =
+               Authority.read(conn, :all)
+
+      backup = Path.join(ctx.root, "schema-backup-#{index}.sqlite3")
+
+      assert {:error, {:authority_corrupt, "sqlite_schema", "inventory", :schema_mismatch}} =
+               Gateway.backup(gateway, backup)
+
+      refute File.exists?(backup)
+      assert %{mode: :recovery} = Gateway.status(gateway)
+    end
+
+    path = Path.join(ctx.root, "schema-foreign-key.sqlite3")
+    assert :ok = Gateway.initialize(path)
+    gateway = start_supervised!({Gateway, path: path}, id: :schema_foreign_key)
+    conn = :sys.get_state(gateway).conn
+    assert :ok = Database.execute(conn, "DROP TABLE command_results")
+
+    assert :ok =
+             Database.execute(
+               conn,
+               "CREATE TABLE command_results (command_id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL CHECK (schema_version = 1), disposition TEXT NOT NULL CHECK (disposition IN ('accepted', 'rejected', 'blocked')), reason_code TEXT, result BLOB NOT NULL, committed_seq INTEGER NOT NULL) STRICT"
+             )
+
+    assert {:error, {:authority_corrupt, "sqlite_schema", "inventory", :schema_mismatch}} =
+             Authority.read(conn, :all)
+
+    backup = Path.join(ctx.root, "schema-foreign-key-backup.sqlite3")
+
+    assert {:error, {:authority_corrupt, "sqlite_schema", "inventory", :schema_mismatch}} =
+             Gateway.backup(gateway, backup)
+
+    refute File.exists?(backup)
+  end
+
+  test "scoped projection validation does not retain or decode unrelated history", ctx do
+    gateway = start_supervised!({Gateway, path: ctx.path})
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact(gateway, "actor", command("A"), bundle("A"))
+
+    assert {:ok, _result, :committed} =
+             Gateway.transact(gateway, "actor", command("B"), bundle("B"))
+
+    conn = :sys.get_state(gateway).conn
+
+    assert {:ok, plan} =
+             Database.query(
+               conn,
+               "EXPLAIN QUERY PLAN SELECT schema_version, event_id, command_id, event_type, event FROM events WHERE projection_namespace = ? AND projection_entity_id = ? ORDER BY seq",
+               ["kernel-v1", "ticket-A"]
+             )
+
+    assert Enum.any?(plan, fn [_id, _parent, _unused, detail] ->
+             detail =~ "events_projection_idx"
+           end)
+
+    assert :ok =
+             Database.execute(conn, "UPDATE events SET event=x'00' WHERE event_id='event-B'")
+
+    assert {:ok, %{revision: 0}} =
+             Authority.read(conn, {:revision, {:projection, "kernel-v1", "ticket-A"}})
+
+    assert {:ok, %{"disposition" => "accepted"}} = Gateway.command(gateway, "A")
+
+    assert {:error, {:authority_corrupt, "events", "event-B", _reason}} =
+             Authority.read(conn, :all)
   end
 
   defp command(id) do
