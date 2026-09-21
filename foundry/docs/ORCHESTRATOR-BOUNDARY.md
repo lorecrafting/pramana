@@ -680,6 +680,133 @@ A semantic reviewer receives the exact candidate plus read/simulation/certificat
 surfaces and no candidate mutation capability. Release receives only the exact certified,
 accepted artifact and protected promotion route.
 
+## Distribution shape: Core + Standard Controller + external controllers
+
+Do not force a choice between "Foundry has no workflow" and "Foundry builds a general
+workflow platform".
+
+The preferred product shape is:
+
+~~~text
+Foundry Core
+  authority / evidence / acceptance / effects / budgets / protocol
+        |
+        +-- Foundry Standard Controller      optional, bundled reference workflow
+        |
+        +-- Cloudflare OrchestratorAdapter   external rich/product workflows
+        |
+        +-- AX / Pi / future controllers
+~~~
+
+### Foundry Core
+
+The Core should be useful headlessly. It owns no permanent PM/developer/reviewer topology
+and should not require the Standard Controller to be running. An external controller can
+drive the full governed lifecycle through the same semantic protocol.
+
+### Foundry Standard Controller
+
+Ship a small reference/default controller with Foundry so a new installation can perform
+useful governed work without first deploying another orchestration product.
+
+Its purposes are:
+
+- provide an out-of-box software-development workflow for initial dogfood;
+- remain the executable reference implementation of the OrchestratorAdapter contract;
+- exercise every protected boundary in Core end to end;
+- provide a local/offline fallback and conformance oracle;
+- make failures attributable: if an external controller behaves differently, compare it
+  against the same Foundry facts and acceptance gates;
+- provide a simple workflow for users whose needs do not justify Cloudflare/AX/etc.
+
+The Standard Controller is **above Core**, not part of protected authority.
+
+### Small composable vocabulary, not a general workflow engine
+
+The Standard Controller may become configurable, but only through a deliberately small
+set of controller-level combinators learned from real workloads:
+
+~~~text
+sequence
+bounded parallel
+gate / requirement
+handoff
+correction loop
+sub-workflow
+wait for durable event/deadline
+escalate / request broader assignment
+~~~
+
+Role names, model choices, context policy, requested capabilities and acceptance profile
+come from ProjectProfile/WorkflowProfile inputs. The controller interprets those inputs;
+the protected Core independently limits their authority.
+
+Do not preemptively build:
+
+- a Turing-complete workflow DSL;
+- a universal DAG engine;
+- another distributed queue/scheduler platform;
+- a visual workflow builder;
+- a plugin marketplace;
+- a large role taxonomy;
+- controller-specific state into the protected schema.
+
+Cloudflare OS, AX and future systems are better places to compete on rich orchestration.
+Foundry should generalize its Standard Controller only when at least two real workloads
+need the same controller primitive.
+
+### Initial workflow is retained, then factored
+
+The current software PM/developer/reviewer repair workflow should not be discarded simply
+because external orchestration is now possible. It is already the vehicle proving
+Foundry's protected lifecycle and failure semantics.
+
+The migration target is:
+
+~~~text
+today:
+  current fixed software workflow
+       tightly coupled to current implementation
+
+after repair:
+  Foundry Core semantic boundary
+       ^
+       |
+  Standard Controller
+       |
+  software_workflow_v1 profile/template
+~~~
+
+First preserve behavior and prove the repair. Then factor software-specific scheduling,
+role selection and correction logic out of protected authority into the Standard
+Controller. Do not rewrite the repair mid-flight merely to achieve conceptual purity.
+
+### Cloudflare is the first external-controller portability test
+
+As soon as the semantic authority/observation seam is usable, run one bounded workflow
+through Cloudflare OS rather than expanding the Standard Controller broadly.
+
+A useful first comparison is:
+
+~~~text
+same Foundry Core
+same ProjectProfile
+same CapabilityGrant ceilings
+same acceptance profile
+same task class
+
+A: Foundry Standard Controller
+B: Cloudflare OS controller
+~~~
+
+Compare accepted-outcome correctness, token/cost use, latency, correction/review tax,
+operator effort, recovery behavior and idle orchestration wakeups.
+
+If Cloudflare supplies richer workflow composition better, keep using it. If a small
+primitive repeatedly proves useful across both controllers/workloads, it may justify
+generalizing the Standard Controller. This lets evidence, rather than architecture taste,
+decide how much workflow machinery Foundry should own.
+
 ## Default Foundry workflow kernel remains useful
 
 Making orchestrators replaceable does not require deleting the current workflow kernel.
