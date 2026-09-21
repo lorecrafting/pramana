@@ -93,6 +93,9 @@ disabled/routed to their containment owners until rewritten.
 - [`docs/AX-SUBSTRATE.md`](docs/AX-SUBSTRATE.md) — 2026-09-21 research on Google AX and
   Agent Substrate as a replaceable distributed execution backend beneath Foundry's
   authority/evidence boundary.
+- [`docs/CLOUDFLARE-OS.md`](docs/CLOUDFLARE-OS.md) — 2026-09-21 research on Cloudflare
+  OS Gatekeepers, observation provenance and Cloudflare execution primitives as capability
+  and alternate execution-substrate design pressure.
 - [`docs/MIGRATION.md`](docs/MIGRATION.md) — historical destination architecture, runtime
   and storage boundaries, parity matrix, cutover and rollback design.
 - [`docs/MIGRATION-TICKETS.md`](docs/MIGRATION-TICKETS.md) — historical eight-ticket
