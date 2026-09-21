@@ -157,6 +157,19 @@ Foundry execution identity. Use high-cardinality IDs for trace/span correlation 
 durable analysis records; do not make them metric labels that explode time-series
 cardinality.
 
+For workflow experiments, observations may additionally carry versioned experimental
+dimensions such as planning strategy/revision, ProjectProfile, context policy, harness,
+model/profile, review topology and concurrency policy. Those are analysis dimensions,
+not new authority identities. A planning label cannot substitute for objective/ticket/
+execution/candidate lineage.
+
+Measure **reorientation tax** where the selected harness exposes enough data: handoff or
+resume to first productive effect, model calls before that effect, tokens/context bytes
+spent reconstructing prior state, repeated reads after handoff, stale-context failures,
+and operator time spent reconstructing current state. This supports experiments with
+compact continuity capsules or other context projections without treating those
+projections as durable truth. See [Planning strategies](PLANNING-STRATEGIES.md).
+
 The normalized model should cover at least these event families:
 
 | Family | Required useful measurements |
