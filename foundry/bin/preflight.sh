@@ -15,13 +15,20 @@ fail=0
 
 say() { printf '%-34s %s\n' "$1" "$2"; }
 
-# 1. The gate validates the COMMIT and refuses a dirty tree. Local test runs read the
-#    working tree, so unstaged edits pass locally and fail the gate. This was the single
-#    most common cause of a red gate after a green local run.
-dirty=$(git status --porcelain=v1 --untracked-files=all | wc -l | tr -d ' ')
-if [ "$dirty" = "0" ]; then say "committed tree clean" "ok"; else
-  say "committed tree clean" "FAIL ($dirty uncommitted paths)"
-  git status --porcelain=v1 --untracked-files=all | head -5 | sed 's/^/    /'
+# 1. The gate validates the COMMIT, not the working tree. Local test runs read the working
+#    tree, so unstaged edits pass locally and are then absent from what the gate builds.
+#    This was the single most common cause of a red gate after a green local run.
+#
+#    Scoped to the Foundry subtree deliberately. ci/run.exs performs no git check of its
+#    own, so this check exists only to model "what the gate will actually build", and only
+#    a Foundry path can change that. Repository-wide it also failed on the sibling
+#    Pramana system's generated output - apps/*/cover HTML and apps/*/tmp test scratch -
+#    which no Foundry commit can contain, so an unrelated system's byproducts blocked
+#    every Foundry freeze.
+dirty=$(git status --porcelain=v1 --untracked-files=all -- . | wc -l | tr -d ' ')
+if [ "$dirty" = "0" ]; then say "committed Foundry tree clean" "ok"; else
+  say "committed Foundry tree clean" "FAIL ($dirty uncommitted paths)"
+  git status --porcelain=v1 --untracked-files=all -- . | head -5 | sed 's/^/    /'
   fail=1
 fi
 
