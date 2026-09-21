@@ -331,6 +331,15 @@ defmodule PramanaFoundry.Workflow.Kernel do
        |> Map.put("phase", "queued")
        |> Map.put("reason", nil)
        |> Map.put("resume_phase", nil)
+       # R4a reads two ways here and the choice is recorded rather than left implied.
+       # "Restart, new execution IDs, profile changes, attempt resumption and duplicate
+       # receipts do not reset the ordinal" - none of which is a policy reset. "A policy
+       # reset may create a new infrastructure generation with an explicit finite
+       # allowance; it never erases predecessor records." A new generation carries its own
+       # allowance, so its count starts at zero; the predecessor records it must not erase
+       # are the durable non-start records in the protected layer, not this counter. If a
+       # reviewer reads that sentence as binding on the counter itself, this is the line to
+       # challenge.
        |> update_in(["infrastructure", "generation"], &(&1 + 1))
        |> put_in(
          ["infrastructure", "ordinals"],
@@ -1351,9 +1360,15 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # Without this it could close the developer's execution and still advance the ticket to
   # ready_to_integrate, since the verdict is read from the review rather than the argument.
   # A verdict arriving after its reviewer is closed is late evidence, not authority: R4a
-  # says messages after sealing "are late evidence, never silently attached". Before this
-  # an approved verdict could be recorded on a closed reviewer, where nothing could advance
-  # it - the walks did it nine times.
+  # says messages after sealing "are late evidence, never silently attached".
+  #
+  # **This guard is currently unreachable**, and was claimed as a fix when it was not one.
+  # Once `reviewer_closed` nils the review on the no-verdict branch, every route to a
+  # closed reviewer on a `reviewing` attempt is refused earlier, by the recorded-verdict
+  # guard or by phase. Exhaustive search confirms it across 88,777 states at depth eight,
+  # and `r4_exhaustive_test.exs` asserts that unreachability so a future change that opens
+  # a route fails rather than silently relying on a guard nothing has ever exercised. It is
+  # kept because the rule is right, not because it is doing work today.
   defp require_reviewer_open(ticket) do
     review = active_attempt(ticket)["review"] || %{}
     execution = active_attempt(ticket)["executions"][review["execution_id"]] || %{}
@@ -1461,8 +1476,18 @@ defmodule PramanaFoundry.Workflow.Kernel do
       "integrated" ->
         require_attempt_phase(ticket, ~w(integrating))
 
+      # R4: "ready_to_integrate/integrating; accepted base moved **before issuance**". From
+      # ready_to_integrate no integration effect exists yet, so the clause is satisfied by
+      # the phase. From `integrating` one does, and the clause is only satisfied while it
+      # has not been issued - which in this state is an execution still `pending`. R1 owns
+      # the real issuance boundary; `pending` is the kernel's faithful proxy for it, and is
+      # recorded as an interpretation rather than presented as the contract's own words.
       "superseded_base" ->
-        require_attempt_phase(ticket, ~w(ready_to_integrate integrating))
+        with :ok <- require_attempt_phase(ticket, ~w(ready_to_integrate integrating)) do
+          if attempt["phase"] == "integrating" and integration_issued?(attempt),
+            do: {:error, :integration_already_issued},
+            else: :ok
+        end
 
       "rejected" ->
         if verdict == "rejected",
@@ -1523,6 +1548,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4 row 12 is "checking; **actual check assertion fails**", and its outcome is terminal.
   # Counting a timeout as an assertion failure terminalised an attempt row 13 says to
   # preserve, which is the row this kernel was misreading as that one.
+  defp integration_issued?(attempt),
+    do:
+      Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
+        execution["role"] == "integration" and execution["lifecycle"] != "pending"
+      end)
+
   defp failed_check?(attempt),
     do:
       Elixir.Enum.any?(attempt["checks"] || %{}, fn {_id, check} ->

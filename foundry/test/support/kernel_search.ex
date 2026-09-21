@@ -116,6 +116,48 @@ defmodule PramanaFoundry.Test.KernelSearch do
   defp strip(collection),
     do: Map.new(collection, fn {k, v} -> {k, Map.drop(v, ~w(revision last_event_id))} end)
 
+  @doc """
+  Every rejection reason the kernel actually produces within `depth`.
+
+  The dual of `search/2`: instead of the states reached, the refusals encountered getting
+  there. A guard whose reason never appears cannot fire on any sequence within the bound,
+  which makes it dead code rather than defence in depth — `require_reviewer_open` was
+  exactly that, and was claimed as a fix. Comparing this against the error atoms the module
+  declares turns "is this guard reachable" from a question someone answers by reading into
+  one the suite answers.
+  """
+  def rejection_reasons(depth \\ @default_depth, opts \\ []) do
+    tickets = Keyword.get(opts, :tickets, ["T1"])
+
+    depth
+    |> search(opts)
+    |> Enum.reduce(MapSet.new(), fn {state, path}, acc ->
+      state
+      |> proposals(tickets)
+      |> Enum.reduce(acc, fn proposal, acc ->
+        event = build(state, proposal, length(path) + 1)
+
+        case WorkflowKernel.apply(state, event) do
+          {:error, reason} when is_atom(reason) -> MapSet.put(acc, reason)
+          {:error, {reason, _}} when is_atom(reason) -> MapSet.put(acc, reason)
+          _ -> acc
+        end
+      end)
+    end)
+  end
+
+  @doc "Every error atom the kernel module can return, read from its source."
+  def declared_reasons do
+    __ENV__.file
+    |> Path.join("../../../lib/pramana_foundry/workflow/kernel.ex")
+    |> Path.expand()
+    |> File.read!()
+    |> then(&Regex.scan(~r/\{:error, :([a-z_]+)\}/, &1))
+    |> Enum.map(&List.last/1)
+    |> Enum.map(&String.to_atom/1)
+    |> MapSet.new()
+  end
+
   @doc "Renders a path as a readable event list, for a counterexample message."
   def render(path) do
     path

@@ -412,7 +412,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
   defp attempt_level(_tid, nil), do: []
 
   defp attempt_level(tid, %{"active_attempt_id" => nil} = ticket),
-    do: settled_cleanup(tid, ticket)
+    do: settled_cleanup(tid, ticket) ++ adversarial(tid, ticket) ++ adversarial(tid, ticket)
 
   defp attempt_level(tid, ticket) do
     attempt = ticket["attempts"][ticket["active_attempt_id"]]
@@ -421,7 +421,9 @@ defmodule PramanaFoundry.Test.KernelWalk do
     checks = Map.keys(attempt["checks"])
     candidate = attempt["candidate_id"] || "cand-1"
 
-    settle(tid, id) ++
+    adversarial(tid, ticket) ++
+      adversarial(tid, ticket) ++
+      settle(tid, id) ++
       artifacts(tid, id, candidate) ++
       per_execution(tid, id, executions) ++
       settled_cleanup(tid, ticket) ++
@@ -708,6 +710,83 @@ defmodule PramanaFoundry.Test.KernelWalk do
              }}
           ] do
       {type, tid, payload}
+    end
+  end
+
+  # Adversarial proposals: events that are well-formed but name the wrong thing.
+  #
+  # The proposer had only ever offered cooperative events - always the active attempt id,
+  # always a fresh check id, always an honest resume target - so the guards that exist to
+  # refuse forged references were never exercised by any walk or by the exhaustive search.
+  # Dead-guard detection found them: `not_the_active_attempt`, `unknown_attempt`,
+  # `retained_attempt_must_be_reused`, `check_already_exists`, `resume_phase_disagrees` and
+  # `no_stored_resume_phase` were all declared and never fired.
+  #
+  # These are rejections by construction, so they expand no state and cost only their own
+  # evaluation. That is the point: a guard nothing ever trips is indistinguishable from one
+  # that does not work.
+  defp adversarial(tid, ticket) do
+    active = ticket["active_attempt_id"]
+    someone_elses = Enum.find(Map.keys(ticket["attempts"]), &(&1 != active))
+    refs = Enum.reject(["#{tid}-GHOST", someone_elses], &is_nil/1)
+
+    forged =
+      for ref <- refs,
+          {type, payload} <- [
+            {"artifact_frozen",
+             %{
+               "ticket_id" => tid,
+               "attempt_id" => ref,
+               "candidate_id" => "cand-forged",
+               "observation_id" => "obs-forged",
+               "sealed_generation" => "gen-forged"
+             }},
+            {"attempt_settled",
+             %{
+               "ticket_id" => tid,
+               "attempt_id" => ref,
+               "disposition" => "failed",
+               "reason_code" => nil,
+               "settlement" => settlement()
+             }},
+            {"launch_planned",
+             %{
+               "ticket_id" => tid,
+               "attempt_id" => ref,
+               "authority" => authority(tid, "XF", "developer")
+             }},
+            # Closure addresses an execution through the attempt that owns it, so a forged
+            # attempt reference here is refused by a different guard than the lifecycle
+            # events above - `unknown_attempt` rather than `not_the_active_attempt`.
+            {"developer_closed",
+             %{"ticket_id" => tid, "attempt_id" => ref, "execution_id" => "X1"}},
+            {"worker_closed", %{"ticket_id" => tid, "attempt_id" => ref, "execution_id" => "K1"}}
+          ],
+          do: {type, tid, payload}
+
+    forged ++ duplicate_check(tid, ticket) ++ dishonest_resume(tid, ticket)
+  end
+
+  # R4 gives a check run one sealed result; re-reserving a live one must be refused.
+  defp duplicate_check(tid, ticket) do
+    attempt = ticket["attempts"][ticket["active_attempt_id"]] || %{}
+
+    for check_id <- Map.keys(attempt["checks"] || %{}) do
+      {"check_planned", tid,
+       %{
+         "ticket_id" => tid,
+         "attempt_id" => attempt["attempt_id"],
+         "check_id" => check_id,
+         "authority" => authority(tid, "KDUP", "check")
+       }}
+    end
+  end
+
+  # R4's resume row returns a ticket "to stored resume_phase". Resuming anywhere else, or
+  # resuming a ticket that stored nothing, must be refused.
+  defp dishonest_resume(tid, ticket) do
+    for phase <- ~w(integrating reviewing), phase != ticket["resume_phase"] do
+      {"ticket_unblocked", tid, %{"ticket_id" => tid, "phase" => phase}}
     end
   end
 

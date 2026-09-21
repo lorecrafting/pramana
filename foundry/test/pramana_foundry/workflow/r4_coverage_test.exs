@@ -146,6 +146,142 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ]
   }
 
+  # Every clause of every outcome cell that no scenario asserts.
+  #
+  # `@clauses` checks that what a scenario cites still exists in the contract. This is the
+  # converse, and it is the one that was missing: nothing checked whether the contract said
+  # things no scenario tested. The third review found that gap by reading - uncited clauses
+  # in `integration_failure`, `freeze_failure`, `admission` and `checks_passed` - which is
+  # exactly the work a list like this does mechanically.
+  #
+  # 54 clauses are asserted and 59 are not, so the coverage suite currently tests a little
+  # under half of what R4 and R4a say. That is a fair statement of where this subcommit is,
+  # and it is the first time the number has been knowable. Entries leave this list only by
+  # being asserted; a clause appearing here that is not recorded fails the test, so a
+  # contract edit cannot quietly add an untested requirement.
+  #
+  # Many of these belong to later subcommits by construction - allocation, budgets, leases
+  # and drain are protected policy this kernel may not restate - and those will move to
+  # @partial as their rows gain the mechanism. They are listed rather than excused because
+  # "a later subcommit owns it" is a claim, and claims in this repair have needed checking.
+  @uncited %{
+    admission: [
+      "Common admission validates full assignment/policy/budget allocation",
+      "malformed spec rejected"
+    ],
+    amend_or_park: [
+      "active assignments never edited",
+      "amendment does not reset budgets"
+    ],
+    base_moved: [
+      "fresh bounded rebase developer plus renewed checks/review",
+      "blocked under drain or budget exhaustion"
+    ],
+    blocked_result: [
+      "close developer, no review."
+    ],
+    cancel_finalized: [
+      "already terminal dispositions retained.",
+      "suppress deployment"
+    ],
+    cancel_requested: [
+      "Set orthogonal control, cancel pending/unissued effects, request owned interrupts"
+    ],
+    checks_passed: [
+      "queue independent reviewer",
+      "checks with explicit policy-empty set follow same guarded transition"
+    ],
+    developer_exit_after_freeze: [
+      "preserve frozen candidate."
+    ],
+    freeze_failure: [
+      "Retain submitted bytes",
+      "bounded starts.check retry after owned worker closure",
+      "unknown preserves lease."
+    ],
+    freeze_success: [
+      "kernel requests developer close through broker immediately"
+    ],
+    integration_failure: [
+      "Same phase with bounded integration-effect retry after old issuer termination",
+      "Conflict uses moved-base row",
+      "unknown blocks reconciliation"
+    ],
+    integration_start: [
+      "root integration intent, then R1 claim/issue"
+    ],
+    integration_success: [
+      "deployment is separate."
+    ],
+    launch: [
+      "Create a fresh attempt unless R4a retained a resumable developer attempt",
+      "Pre-intent denial remains queued and consumes no start unit or infrastructure ordinal"
+    ],
+    no_valid_candidate: [
+      "after cleanup queue fresh bounded attempt or exhaust",
+      "normal exit alone is not success"
+    ],
+    nonstart_developer: [
+      "Release launch resources.",
+      "Release its checkout/conflict lease only after proving the checkout was never exposed or mutated, then reacquire/revalidate it before retry",
+      "otherwise retain the lease and block affected work.",
+      "At the limit, ticket becomes `blocked(developer_launch_infrastructure)` while the attempt remains active and resumable.",
+      "Exhaustion of current developer allocation instead makes the attempt terminal `exhausted` and ticket `exhausted`"
+    ],
+    nonstart_pm: [
+      "infer no proposal.",
+      "Release launch-only resources.",
+      "Below the PM limit, return to its PM queue",
+      "at the limit or without current allocation, block as `pm_launch_infrastructure` or `pm_budget`."
+    ],
+    nonstart_reviewer: [
+      "never enter developer retry or correction.",
+      "Release reviewer launch resources",
+      "retain candidate custody and candidate/check leases.",
+      "Below the limit, return to the durable reviewer queue.",
+      "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)` with `resume_phase: awaiting_review`",
+      "the same attempt/candidate remain resumable.",
+      "Missing current reviewer allocation yields `blocked(reviewer_budget)` or `exhausted` under protected policy, without discarding or approving the candidate"
+    ],
+    nonstart_worker: [
+      "apply that phase's existing infrastructure retry/block row.",
+      "Release only proved-unused launch resources."
+    ],
+    objective_steering: [
+      "Durable objective and bounded PM reservation"
+    ],
+    reset: [
+      "block if that role lacks allocation",
+      "never reset prior consumption"
+    ],
+    resume: [
+      "Revalidate spec/control/policy and existing allocation",
+      "fresh attempt only if prior attempt terminal.",
+      "Partial/rescope and explicit operator blocks require steering, not automatic unblocking"
+    ],
+    review_start: [
+      "R4a returns a proved non-start to this same candidate/role queue"
+    ],
+    reviewer_crash: [
+      "exhaust if unavailable"
+    ],
+    terminal_rejection: [
+      "preserve terminal facts.",
+      "New work requires explicit admission linked to predecessor, with parent-funded allocation"
+    ],
+    verdict_approved: [
+      "Close/seal reviewer",
+      "no Git success inferred"
+    ],
+    verdict_correction: [
+      "never re-prompt old developer"
+    ],
+    verdict_rejected: [
+      "cleanup pending separately",
+      "later work needs explicitly admitted revision"
+    ]
+  }
+
   describe "the row inventory tracks the contract" do
     # Compared as sorted lists, not sets. A set comparison passed when a duplicate
     # from-cell with a contradictory outcome was appended to the contract, because the
@@ -194,6 +330,39 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
       assert uncited == [],
              "rows whose scenario asserts nothing traceable to the contract: #{inspect(uncited)}"
+    end
+
+    test "no clause of any outcome cell is silently untested" do
+      fragments = fn text ->
+        text
+        |> String.split(~r/;|(?<=\.)\s+/)
+        |> Enum.map(&String.trim/1)
+        |> Enum.reject(&(&1 == "" or String.length(&1) < 12))
+      end
+
+      cited = @clauses |> Map.values() |> List.flatten()
+
+      uncited =
+        for id <- R4Rows.ids(),
+            fragment <- fragments.(R4Rows.outcome(id)),
+            not Enum.any?(cited, fn c ->
+              String.contains?(fragment, c) or String.contains?(c, fragment)
+            end),
+            do: {id, fragment}
+
+      recorded =
+        for {id, fs} <- @uncited, f <- fs, do: {id, f}
+
+      surprising = Enum.sort(uncited) -- Enum.sort(recorded)
+      resolved = Enum.sort(recorded) -- Enum.sort(uncited)
+
+      assert surprising == [],
+             "contract clauses nothing asserts and nothing records:\n" <>
+               Enum.map_join(surprising, "\n", fn {id, f} -> "  #{id}: #{inspect(f)}" end)
+
+      assert resolved == [],
+             "clauses now asserted but still listed as uncited - shrink @uncited:\n" <>
+               Enum.map_join(resolved, "\n", fn {id, f} -> "  #{id}: #{inspect(f)}" end)
     end
   end
 
