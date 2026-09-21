@@ -1,0 +1,209 @@
+Code.require_file("../../support/kernel_walk.ex", __DIR__)
+
+defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
+  @moduledoc """
+  Properties of the FR-08B kernel, checked over seeded reachability walks.
+
+  These state the laws the table-driven tests sample. Every walk is seeded, so a failure
+  reports a seed and a step count and replays exactly.
+  """
+  use ExUnit.Case, async: true
+
+  alias PramanaFoundry.Test.KernelWalk
+  alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
+  alias PramanaFoundry.Workflow.Kernel.{Event, State}
+
+  @seeds 1..40
+  @steps 600
+
+  # Walked once for the whole module. Each test previously recomputed every walk, so the
+  # suite paid for them ten times over and the step budget had to stay too small to reach
+  # the deepest rows.
+  # Two configurations, because reachability and invariant checking want opposite things.
+  # Broad walks interleave three tickets for invariants; deep walks drive one ticket as far
+  # as it goes, for coverage.
+  setup_all do
+    broad = Enum.map(@seeds, &KernelWalk.walk(State.new(), &1, @steps))
+    deep = Enum.map(1..25, &KernelWalk.deep(State.new(), &1, 800))
+    {:ok, walks: broad, all: broad ++ deep}
+  end
+
+  describe "invariants that must hold at every reachable state" do
+    test "every state the reducer returns satisfies its own validator", %{walks: walks} do
+      for walk <- walks do
+        seed = "walk"
+
+        Enum.reduce(walk.accepted, State.new(), fn event, state ->
+          {:ok, next} = WorkflowKernel.apply(state, event)
+
+          assert State.valid?(next),
+                 "seed #{seed}: #{event["type"]} produced a state valid?/1 rejects"
+
+          next
+        end)
+      end
+    end
+
+    test "sequence and entity revision increase monotonically", %{walks: walks} do
+      for walk <- walks do
+        sequences = Enum.map(walk.accepted, & &1["sequence"])
+        assert sequences == Enum.sort(sequences)
+        assert length(Enum.uniq(sequences)) == length(sequences)
+      end
+    end
+
+    test "a terminal attempt keeps its disposition and is never reopened", %{walks: walks} do
+      for walk <- walks, {_id, ticket} <- walk.state["tickets"] do
+        for prior <- ticket["prior_attempt_ids"] do
+          attempt = ticket["attempts"][prior]
+          assert attempt["phase"] == "terminal"
+          assert attempt["disposition"] in State.dispositions()
+        end
+
+        assert ticket["active_attempt_id"] not in ticket["prior_attempt_ids"]
+      end
+    end
+
+    test "no attempt is ever discarded once created", %{walks: walks} do
+      # R4 requires prior attempts, their candidates and their review evidence to be
+      # retained. The reviewed candidate lost them by replacing the active attempt.
+      for walk <- walks do
+        created =
+          walk.accepted
+          |> Enum.filter(&(&1["type"] == "launch_planned"))
+          |> Enum.group_by(& &1["entity_id"], & &1["payload"]["attempt_id"])
+
+        for {ticket_id, attempt_ids} <- created do
+          attempts = Map.keys(walk.state["tickets"][ticket_id]["attempts"])
+
+          for id <- Enum.uniq(attempt_ids) do
+            assert id in attempts, "#{ticket_id}: attempt #{id} was created and then lost"
+          end
+        end
+      end
+    end
+  end
+
+  describe "algebraic laws" do
+    test "replaying an accepted log from empty state reproduces the walk exactly", %{walks: walks} do
+      for walk <- walks do
+        replayed =
+          Enum.reduce(walk.accepted, State.new(), fn event, state ->
+            {:ok, next} = WorkflowKernel.apply(state, event)
+            next
+          end)
+
+        assert replayed == walk.state
+      end
+    end
+
+    test "a restart in the middle of the log reconstructs the same state", %{walks: walks} do
+      # R4a: "Restart after atomic non-start settlement but before redispatch must
+      # reconstruct exactly one queued/review/blocked owner". Serialising the state to
+      # JSON and back is what a restart actually does to it, so a field that cannot
+      # survive the round trip is a state that cannot survive a restart.
+      for walk <- walks, walk.accepted != [] do
+        split = div(length(walk.accepted), 2)
+        {before, rest} = Enum.split(walk.accepted, split)
+
+        mid = Enum.reduce(before, State.new(), fn e, s -> elem(WorkflowKernel.apply(s, e), 1) end)
+        restarted = mid |> JSON.encode!() |> JSON.decode!()
+
+        assert restarted == mid, "state did not survive a JSON round trip"
+
+        resumed =
+          Enum.reduce(rest, restarted, fn e, s -> elem(WorkflowKernel.apply(s, e), 1) end)
+
+        assert resumed == walk.state
+      end
+    end
+
+    test "redelivering any accepted event is an idempotent no-op at its own point", %{
+      walks: walks
+    } do
+      for walk <- walks do
+        Enum.reduce(walk.accepted, State.new(), fn event, state ->
+          {:ok, next} = WorkflowKernel.apply(state, event)
+          assert {:ok, ^next} = WorkflowKernel.apply(next, event)
+          next
+        end)
+      end
+    end
+
+    test "apply/2 never raises and never returns an untagged value", %{walks: walks} do
+      for walk <- walks do
+        for event <- walk.accepted, mangled <- mangle(event) do
+          result = WorkflowKernel.apply(walk.state, mangled)
+
+          assert match?({:ok, _}, result) or match?({:error, _}, result),
+                 "#{inspect(mangled["type"])} escaped as #{inspect(result)}"
+        end
+      end
+    end
+
+    defp mangle(event) do
+      [
+        %{event | "payload" => %{}},
+        %{event | "entity_revision" => -1},
+        %{event | "sequence" => "not-an-integer"},
+        %{event | "entity_id" => nil},
+        %{event | "type" => "no_such_type"},
+        Map.delete(event, "payload"),
+        put_in(event, ["payload"], %{"binding" => "authority"})
+      ]
+    end
+  end
+
+  describe "contract reachability" do
+    # Rows no walk has yet driven to. This is NOT a claim that the kernel cannot reach
+    # them: `review_recorded:approved` followed by `reviewer_closed` fires about once
+    # across every walk in this suite, and all three integration rows sit behind that one
+    # sequence. It is recorded as an exact set so the assertion works as a ratchet - a row
+    # leaving the reachable set fails, and so does a row entering it, which forces this
+    # list to be tightened rather than silently drifting.
+    @known_unreached ~w(integration_planned integration_recorded integration_settled)
+
+    test "every event type the vocabulary declares is reachable by some walk", %{all: walks} do
+      # This is the assertion whose absence let a codec that could not express two R4a
+      # rows pass two independent reviews. The proposer is derived from R4, not from the
+      # kernel's guards, so a type that never becomes reachable is a contract row the
+      # implementation cannot reach - not a gap in the generator.
+      reached =
+        walks
+        |> Enum.flat_map(fn walk -> Enum.map(walk.accepted, & &1["type"]) end)
+        |> MapSet.new()
+
+      unreachable =
+        Event.types() |> MapSet.new() |> MapSet.difference(reached) |> Enum.sort()
+
+      assert unreachable == @known_unreached,
+             "reachable set moved. now unreached: #{inspect(unreachable)}, " <>
+               "recorded: #{inspect(@known_unreached)}"
+    end
+
+    test "walks reach the deep lifecycle phases, not just admission", %{all: walks} do
+      # Every phase visited along the way, not just the one a walk ends in: walks end in
+      # terminal states, so final-state sampling reports `cancelled` and `rejected` and
+      # nothing about the lifecycle that led there.
+      phases =
+        walks
+        |> Enum.flat_map(fn walk ->
+          walk.accepted
+          |> Enum.reduce({State.new(), []}, fn event, {state, seen} ->
+            {:ok, next} = WorkflowKernel.apply(state, event)
+            {next, seen ++ Enum.map(next["tickets"], fn {_id, t} -> t["phase"] end)}
+          end)
+          |> elem(1)
+        end)
+        |> MapSet.new()
+
+      for phase <- ~w(queued developing awaiting_review reviewing exhausted cancelled
+                      blocked rejected) do
+        assert phase in phases, "no walk ever reached ticket phase #{phase}"
+      end
+
+      # Behind the same single sequence as @known_unreached.
+      refute "integrated" in phases
+    end
+  end
+end

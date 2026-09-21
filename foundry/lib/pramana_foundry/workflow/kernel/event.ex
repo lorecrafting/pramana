@@ -53,19 +53,23 @@ defmodule PramanaFoundry.Workflow.Kernel.Event do
   @envelope ~w(schema_version event_id type sequence entity_kind entity_id entity_revision payload)
 
   @payloads %{
-    # Family 1. The bound protected fact occupies the field named by the destination slot:
+    # Family 1. Every settlement names the execution it settles, because R4a requires a
+    # proved non-start to close that execution; a settlement that cannot name one leaves
+    # an execution open that no later event can close.
+    #
+    # The bound protected fact occupies the field named by the destination slot:
     # `authority` for launch_authority_v1, `settlement` for the settlement kinds,
     # `control` for control_fact_v1 and `generation` for reset_fact_v1.
     "launch_planned" => ~w(ticket_id attempt_id authority),
     "launch_settled" => ~w(ticket_id attempt_id execution_id settlement),
     "check_planned" => ~w(ticket_id attempt_id check_id authority),
-    "check_settled" => ~w(ticket_id attempt_id check_id settlement),
+    "check_settled" => ~w(ticket_id attempt_id check_id execution_id settlement),
     "build_planned" => ~w(ticket_id attempt_id build_id authority),
-    "build_settled" => ~w(ticket_id attempt_id build_id settlement),
+    "build_settled" => ~w(ticket_id attempt_id build_id execution_id settlement),
     "review_planned" => ~w(ticket_id attempt_id authority),
-    "review_settled" => ~w(ticket_id attempt_id settlement),
+    "review_settled" => ~w(ticket_id attempt_id execution_id settlement),
     "integration_planned" => ~w(ticket_id attempt_id authority),
-    "integration_settled" => ~w(ticket_id attempt_id settlement),
+    "integration_settled" => ~w(ticket_id attempt_id execution_id settlement),
     "pm_launch_planned" => ~w(objective_id planning_owner_id authority),
     "pm_launch_settled" => ~w(objective_id settlement),
     # control_fact_v1 is an identity/revision fact only, so the flags R4 calls orthogonal

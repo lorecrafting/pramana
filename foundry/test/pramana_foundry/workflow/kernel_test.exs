@@ -422,7 +422,21 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "lifecycle" => "closed"
         })
 
-      assert {:error, :invalid_execution_lifecycle} = WorkflowKernel.apply(state, forged)
+      # X1 is already closed by this point, and closure is terminal, so the stronger guard
+      # answers first. Both refusals are correct; the point is that no observation reopens
+      # or closes an execution.
+      assert {:error, :execution_already_closed} = WorkflowKernel.apply(state, forged)
+
+      open =
+        event("execution_observed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "K1",
+          "observation" => "process exited",
+          "lifecycle" => "closed"
+        })
+
+      assert {:error, :unknown_execution} = WorkflowKernel.apply(state, open)
     end
 
     test "worker_closed refuses an execution that is not a worker" do
@@ -493,7 +507,12 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       {state, _} =
         drive(reviewing(), [
           {"review_settled", "T1",
-           %{"ticket_id" => "T1", "attempt_id" => "A1", "settlement" => %{"schema_version" => 1}}}
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "R1",
+             "settlement" => %{"schema_version" => 1}
+           }}
         ])
 
       ticket = state["tickets"]["T1"]

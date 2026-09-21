@@ -39,7 +39,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
                   infrastructure revision last_event_id)
   @infrastructure_keys ~w(ordinal generation)
   @attempt_keys ~w(attempt_id phase disposition reason_code candidate_id sealed_generation
-                   executions checks review)
+                   ref_receipt_id executions checks review)
   @execution_keys ~w(execution_id role lifecycle result sealed_sequence)
   @check_keys ~w(check_id status reason_code)
   @review_keys ~w(candidate_id verdict execution_id)
@@ -165,6 +165,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
       optional_identifier?(attempt["reason_code"]) and
       optional_identifier?(attempt["candidate_id"]) and
       optional_identifier?(attempt["sealed_generation"]) and
+      optional_identifier?(attempt["ref_receipt_id"]) and
       valid_collection?(attempt["executions"], "execution_id", &valid_execution?/1) and
       valid_collection?(attempt["checks"], "check_id", &valid_check?/1) and
       (is_nil(attempt["review"]) or valid_review?(attempt["review"]))
