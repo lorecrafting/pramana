@@ -151,6 +151,7 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`foundry/docs/alignment-disposition-review-2026-09-19.md`](../foundry/docs/alignment-disposition-review-2026-09-19.md)
 - [`foundry/docs/AUDIT-2026-09-12.md`](../foundry/docs/AUDIT-2026-09-12.md)
 - [`foundry/docs/CI.md`](../foundry/docs/CI.md)
+- [`foundry/docs/ECOSYSTEM-BOUNDARY.md`](../foundry/docs/ECOSYSTEM-BOUNDARY.md)
 - [`foundry/docs/EVENT_SOURCING.md`](../foundry/docs/EVENT_SOURCING.md)
 - [`foundry/docs/FR-06-DESIGN-REVIEW-V2.md`](../foundry/docs/FR-06-DESIGN-REVIEW-V2.md)
 - [`foundry/docs/FR-06-DESIGN-REVIEW.md`](../foundry/docs/FR-06-DESIGN-REVIEW.md)
