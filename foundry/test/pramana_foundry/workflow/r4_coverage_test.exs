@@ -39,17 +39,13 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   # what does not. Each entry names the exact clause, so the gap stays visible without
   # understating the row.
   @partial %{
-    nonstart_reviewer:
-      ~S|below-limit return is driven; "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)`" needs the R4a limit product, blocker B3 in subcommit 2|,
     # Re-keyed: this entry quoted "or blocked(check_infrastructure)/exhausted", which is
     # `check_infrastructure_failed`'s outcome text, not this row's. The row it named had no
     # entry at all, so its clause was both undriven and unrecorded. A quoted clause that
     # belongs to a different row is worse than none: it reads as coverage of a row nobody
     # covered. The test below now checks every @partial quote against its own row.
     nonstart_worker:
-      ~S|preserve-phase retry is driven; "apply that phase's existing infrastructure retry/block row" needs the R4a limit product|,
-    check_infrastructure_failed:
-      ~S|"pending same phase" is driven; "or blocked(check_infrastructure)/exhausted" needs the same limit product|,
+      ~S|preserve-phase retry and its infrastructure block both drive; "consumes its finite role-specific infrastructure allowance" is recorded but the allowance itself is protected policy, so nothing here can reach its limit|,
     # Once an attempt terminalises, the ticket is queued with no active attempt, and
     # exhaustion can only be settled on an active one. R4 offers exhaustion as an
     # alternative outcome of these rows, and choosing it turns on allocation - protected
@@ -100,6 +96,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     check_infrastructure_failed: [
       "Preserve candidate, bounded new check-run reservation after cleanup",
       "pending same phase",
+      "or blocked(check_infrastructure)/exhausted",
       "Unknown check retains lease and blocks retry"
     ],
     review_start: [
@@ -136,11 +133,13 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     nonstart_developer: [
       "Keep the **same nonterminal attempt**",
       "return ticket `developing → queued` with `resume_phase: developing` and reason `developer_launch_non_started`",
-      "Below the infrastructure limit, queue a bounded developer retry"
+      "Below the infrastructure limit, queue a bounded developer retry",
+      "At the limit, ticket becomes `blocked(developer_launch_infrastructure)` while the attempt remains active and resumable"
     ],
     nonstart_reviewer: [
       "Keep attempt and ticket `awaiting_review`",
-      "Close only the failed reviewer execution; never enter developer retry or correction"
+      "Close only the failed reviewer execution; never enter developer retry or correction",
+      "the same attempt/candidate remain resumable"
     ],
     nonstart_pm: [
       "Keep the same objective/spec-planning owner; infer no proposal",
@@ -232,7 +231,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       "Release launch resources.",
       "Release its checkout/conflict lease only after proving the checkout was never exposed or mutated, then reacquire/revalidate it before retry",
       "otherwise retain the lease and block affected work.",
-      "At the limit, ticket becomes `blocked(developer_launch_infrastructure)` while the attempt remains active and resumable.",
       "Exhaustion of current developer allocation instead makes the attempt terminal `exhausted` and ticket `exhausted`"
     ],
     nonstart_pm: [
@@ -247,7 +245,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       "retain candidate custody and candidate/check leases.",
       "Below the limit, return to the durable reviewer queue.",
       "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)` with `resume_phase: awaiting_review`",
-      "the same attempt/candidate remain resumable.",
       "Missing current reviewer allocation yields `blocked(reviewer_budget)` or `exhausted` under protected policy, without discarding or approving the candidate"
     ],
     nonstart_worker: [
@@ -992,6 +989,25 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       })
 
     assert {:error, :check_already_exists} = WorkflowKernel.apply(unknown, forged)
+
+    # "or blocked(check_infrastructure)/exhausted" - the row's other alternative, which
+    # was deferred with the R4a at-limit clauses and is reachable for the same reason they
+    # now are. The candidate survives the block, which is what makes it a retry rather than
+    # a failure.
+    {blocked, _} =
+      drive({state, 60}, [
+        {"ticket_blocked", "T1",
+         %{
+           "ticket_id" => "T1",
+           "reason" => "check_infrastructure",
+           "resume_phase" => "awaiting_review"
+         }}
+      ])
+
+    at_limit = blocked["tickets"]["T1"]
+    assert at_limit["phase"] == "blocked"
+    assert at_limit["reason"] == "check_infrastructure"
+    assert at_limit["attempts"]["A1"]["candidate_id"] == "cand-1"
     :driven
   end
 
@@ -1420,7 +1436,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # attempt whose only developer execution is the closed non-start.
     {resumed, _} =
       drive(nonstart(), [
-        {"ticket_parked", "T1",
+        {"ticket_blocked", "T1",
          %{
            "ticket_id" => "T1",
            "reason" => "developer_launch_infrastructure",
@@ -1460,7 +1476,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # developer that never ran.
     {parked, sequence} =
       drive(nonstart(), [
-        {"ticket_parked", "T1",
+        {"ticket_blocked", "T1",
          %{
            "ticket_id" => "T1",
            "reason" => "developer_launch_infrastructure",
@@ -1508,6 +1524,35 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # "never enter developer retry": the developer's allowance is untouched.
     assert ticket["infrastructure"]["ordinals"]["reviewer"] == 1
     assert ticket["infrastructure"]["ordinals"]["developer"] == 0
+
+    # "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)` with
+    # `resume_phase: awaiting_review`; the same attempt/candidate remain resumable."
+    #
+    # This clause was deferred to subcommit 2 on the argument that reaching it would mean
+    # widening ticket_parked and re-conflating R4's PM park row with R4a's infrastructure
+    # block. The third review pointed out the deferral was inconsistent: the developer's
+    # identical clause was being driven through ticket_parked already, working only because
+    # a developer non-start happens to land in `queued`. That is a phase coincidence, not a
+    # principle. `ticket_blocked` is the row's own event, so all three at-limit clauses now
+    # drive and none of them borrows the park.
+    {blocked, _} =
+      drive({state, 50}, [
+        {"ticket_blocked", "T1",
+         %{
+           "ticket_id" => "T1",
+           "reason" => "reviewer_launch_infrastructure",
+           "resume_phase" => "awaiting_review"
+         }}
+      ])
+
+    at_limit = blocked["tickets"]["T1"]
+    assert at_limit["phase"] == "blocked"
+    assert at_limit["reason"] == "reviewer_launch_infrastructure"
+    assert at_limit["resume_phase"] == "awaiting_review"
+    # "the same attempt/candidate remain resumable"
+    assert at_limit["active_attempt_id"] == "A1"
+    assert at_limit["attempts"]["A1"]["candidate_id"] == "cand-1"
+    assert at_limit["attempts"]["A1"]["checks"]["C1"]["status"] == "passed"
     :driven
   end
 

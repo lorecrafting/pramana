@@ -382,6 +382,21 @@ defmodule PramanaFoundry.Test.KernelWalk do
        %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "queued"}},
       {"ticket_parked", tid,
        %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "developing"}},
+      # R4a's infrastructure block, which is a different row from the PM park above and
+      # applies from wherever the work stands. Proposed with the ticket's own phase and
+      # with its stored target, since those are the two honest resume targets.
+      {"ticket_blocked", tid,
+       %{
+         "ticket_id" => tid,
+         "reason" => "developer_launch_infrastructure",
+         "resume_phase" => ticket["phase"]
+       }},
+      {"ticket_blocked", tid,
+       %{
+         "ticket_id" => tid,
+         "reason" => "check_infrastructure",
+         "resume_phase" => ticket["resume_phase"] || ticket["phase"]
+       }},
       {"ticket_unblocked", tid, %{"ticket_id" => tid, "phase" => ticket["resume_phase"]}},
       {"ticket_reset", tid, %{"ticket_id" => tid, "generation" => reset_fact()}},
       {"cancellation_requested", tid, %{"ticket_id" => tid}},

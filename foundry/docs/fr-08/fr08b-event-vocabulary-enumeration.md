@@ -225,6 +225,27 @@ occasion enumerate settlement slots for the six R4a domain owners; they do not y
 that every declared slot has a producer. Adding that assertion is part of prerequisite 1,
 so the next missing producer fails a test rather than waiting for a reviewer.
 
+### Correction, 2026-09-20: `ticket_blocked`, a row that was borrowing another's event
+
+R4a's at-limit outcomes — "At the limit, ticket becomes `blocked(<role>_launch_
+infrastructure)`" — and R4 row 13's "or blocked(check_infrastructure)" were being expressed
+through `ticket_parked`, whose own row is R4's "queued/blocked; PM amend/park". Two
+different rows, one event.
+
+Narrowing `ticket_parked` to its own row made that visible: the reviewer and worker
+at-limit clauses became unexpressible, while the developer's kept working — because a
+developer non-start happens to land in `queued`, which `ticket_parked` accepts. The third
+review refused to accept that as a principle, correctly: it is a phase-guard coincidence,
+and deferring two clauses while the third worked by accident was incoherent.
+
+`ticket_blocked` is the infrastructure block's own event. Payload `ticket_id reason
+resume_phase`, accepted from any working phase, holding the resume target to the same
+honesty rule as a park. The kernel **records** the block; deciding that a limit was reached
+is protected allocation policy and stays with the R4a allowance product in subcommit 2 —
+the same split `freeze_failed` already uses for its blocked alternative.
+
+This makes the extension **23 new types on top of the existing 14**, not 22.
+
 ### Correction, 2026-09-20: two payloads the subcommit 1 review forced
 
 `checks_started` gained `policy_empty`. R4's row — "checks with explicit policy-empty set
@@ -293,7 +314,7 @@ The 9 additions fall into two groups.
   smoothed over, because it is evidence about how these gaps are actually found.
 
 Counted against the durable codec rather than against the preserved file, the extension is
-22 new types on top of the existing 14.
+23 new types on top of the existing 14 — 22 as first enumerated, plus `ticket_blocked`.
 
 The preserved file's structural devices are adopted: a closed type list, an exact payload
 key set per type, exact outer-envelope keys, and a `template?` mode that admits a

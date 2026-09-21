@@ -53,6 +53,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   @terminal_ticket_phases ~w(integrated rejected cancelled)
 
+  # Every phase in which R4a can block work at its infrastructure limit. `blocked` is
+  # absent: a ticket already blocked is not blocked again, and `exhausted` has its own
+  # reset row.
+  @blockable_phases ~w(queued developing awaiting_review reviewing ready_to_integrate
+                       integrating)
+
   # Cleanup evidence about an already-terminal ticket's processes. Each records a fact
   # about an execution and none moves the ticket, so none can resurrect a terminal one.
   @terminal_cleanup_events ~w(stream_sealed execution_observed developer_closed
@@ -294,6 +300,26 @@ defmodule PramanaFoundry.Workflow.Kernel do
     payload = event["payload"]
 
     with :ok <- require_phase(ticket, ~w(queued blocked)),
+         :ok <- require_resume_phase(payload["resume_phase"]),
+         :ok <- require_honest_resume_target(ticket, payload["resume_phase"]) do
+      {:ok,
+       ticket
+       |> Map.put("phase", "blocked")
+       |> Map.put("reason", payload["reason"])
+       |> Map.put("resume_phase", payload["resume_phase"])}
+    end
+  end
+
+  # R4a: "At the limit, ticket becomes `blocked(<role>_launch_infrastructure)`", and R4 row
+  # 13's "or blocked(check_infrastructure)". Unlike R4's PM park this applies from whatever
+  # phase the work was in, because R4a blocks each role where it stands and keeps its
+  # attempt resumable - the reviewer row is explicit that the candidate and checks survive.
+  # The resume target is held to the same honesty rule as a park: it is where the ticket is
+  # now, or the target it already stored.
+  defp do_transition("ticket_blocked", ticket, event, _state) do
+    payload = event["payload"]
+
+    with :ok <- require_phase(ticket, @blockable_phases),
          :ok <- require_resume_phase(payload["resume_phase"]),
          :ok <- require_honest_resume_target(ticket, payload["resume_phase"]) do
       {:ok,

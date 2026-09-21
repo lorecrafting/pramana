@@ -1080,10 +1080,10 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       end
     end
 
-    test "the kernel covers every durable lifecycle type, and 22 are not yet durable" do
+    test "the kernel covers every durable lifecycle type, and 23 are not yet durable" do
       # The kernel's vocabulary must be a superset of the durable one, or a type the store
       # already accepts would have no reducer. The converse gap is the extension FR-08B
-      # still owes: these 22 names cannot be persisted until RecordCodec's lifecycle set
+      # still owes: these 23 names cannot be persisted until RecordCodec's lifecycle set
       # grows, which gates subcommit 2. Asserting the exact number keeps that extension a
       # deliberate act rather than something discovered when a write fails.
       durable = PramanaFoundry.DurableStore.RecordCodec.lifecycle_event_types()
@@ -1091,7 +1091,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert durable -- Event.types() == [],
              "a durable lifecycle type has no reducer clause"
 
-      assert length(Event.types() -- durable) == 22
+      assert length(Event.types() -- durable) == 23
     end
 
     test "a payload missing or gaining one key is rejected" do

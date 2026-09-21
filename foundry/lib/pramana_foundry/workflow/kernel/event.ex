@@ -36,7 +36,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Event do
   # protected derivation: allocation and reservation truth stays in the R5 ledger and the
   # protected tables rather than being copied into an event payload.
   @steering_types ~w(
-    objective_created ticket_admitted ticket_amended ticket_parked ticket_unblocked
+    objective_created ticket_admitted ticket_amended ticket_parked ticket_blocked
+    ticket_unblocked
     cancellation_requested cancellation_finalized pm_proposal_recorded
   )
 
@@ -82,6 +83,19 @@ defmodule PramanaFoundry.Workflow.Kernel.Event do
     "ticket_admitted" => ~w(ticket_id objective_id spec_revision_id spec phase reason),
     "ticket_amended" => ~w(ticket_id spec_revision_id spec),
     "ticket_parked" => ~w(ticket_id reason resume_phase),
+    # R4a's at-limit outcomes are a different row from R4's PM park, and were being
+    # expressed through it. "At the limit, ticket becomes `blocked(reviewer_launch_
+    # infrastructure)` with `resume_phase: awaiting_review`" happens from awaiting_review;
+    # R4's park row is "queued/blocked; PM amend/park". Narrowing ticket_parked to its own
+    # row made the reviewer and worker at-limit clauses unexpressible while the developer's
+    # kept working by accident, because a developer non-start happens to land in `queued` -
+    # a phase-guard coincidence that the third review correctly refused to accept as a
+    # principle. This is the infrastructure block, with its own row and its own sources.
+    #
+    # The kernel records the block; deciding that a limit was reached is protected policy,
+    # so the at-limit *decision* stays with the R4a allowance product in subcommit 2. That
+    # is the same split freeze_failed already uses for its blocked alternative.
+    "ticket_blocked" => ~w(ticket_id reason resume_phase),
     # R4 calls this row's input "explicit resume", but the name `ticket_resumed` is already
     # taken by the pre-repair vocabulary in `RecordCodec.@legacy_event_types`, where it is a
     # record type carrying a projection payload. The codec raises at compile time when the
