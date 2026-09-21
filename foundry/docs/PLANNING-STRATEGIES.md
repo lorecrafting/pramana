@@ -87,6 +87,12 @@ The strategy-specific planner artifact is deliberately opaque to the protected k
 except for bounded fields that the kernel genuinely must validate. A future strategy must
 not require a migration merely because its internal planning representation differs.
 
+“Opaque” does not mean trusted or executable. If retained, the artifact is bounded,
+content-addressed/contextual data under the applicable size, schema and retention rules.
+It cannot install controller code, select a weaker protected policy, broaden a grant or
+turn a strategy identifier into an admission bypass. Only the normalized proposal fields
+accepted by the governing command/policy path may drive protected effects.
+
 For example:
 
 ```text
@@ -281,8 +287,10 @@ fresh-as-of event/revision
 ```
 
 A capsule is context, not authority. It must link to exact evidence rather than replacing
-it. It cannot mint a receipt, erase an unresolved failure or authorize a transition.
-If a capsule is poor or stale, discard and regenerate it.
+it. It cannot mint a receipt, erase an unresolved failure, authorize a transition or
+grant permission merely because it names a “next action.” The receiving assignment must
+still be independently admitted and capability-checked. If a capsule is poor or stale,
+discard and regenerate it.
 
 This makes resumption context intentionally smaller than a full transcript while retaining
 a route to the underlying facts.
