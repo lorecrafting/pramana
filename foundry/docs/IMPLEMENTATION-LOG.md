@@ -1953,3 +1953,59 @@ latest prose here, remains authoritative for status and dependencies.
   are all pinned by source SHA-256 and loaded BEAM MD5; that repetition is the evidence
   behind FR-23's same-commit rebinding requirement.
 
+
+## FR-08A plan replay revalidation, subcommit 5 — 2026-09-20
+
+- This entry was missing when FR-08B resumed: the code landed on `main` and the ticket
+  rows still said replay revalidation was outstanding. Recorded now from the commits and
+  the attestation rather than from memory, and the rows are corrected in the same commit.
+- Subcommit 4 resolved a plan and committed the result but never revalidated it
+  afterwards. [The design](fr-08/plan-replay-revalidation-design.md) closes that on every
+  path that validates protected authority — in-transaction, on reopen and during verified
+  backup — by **re-running the binding** rather than inspecting fields. `b5d19e9`
+  re-decodes the original plan from the canonical envelope, re-derives outputs from the
+  persisted `durable_operations` rows through the commit path's own `derive_outputs/2`,
+  re-runs `TransitionPlan.bind/3`, and requires the result to equal the committed carriers
+  exactly. That subsumes field comparison instead of enumerating checks that need
+  extending whenever a slot is added, and it reuses the commit path's code so the two
+  cannot drift. Non-vacuity was verified rather than assumed: neutralising
+  `valid_plan_binding?/4` makes the corruption test fail.
+- Independent review returned **BLOCKER** on two defects, both reproduced by the reviewer
+  and both verified against source before correction at `e491e41`.
+  - Revalidation **trusted the recorded discriminator**, and the stated reason for trusting
+    it was false. The claim was that `infrastructure_discriminator/3` reads the current
+    policy head row and fails closed after a revision, so recomputation would turn a valid
+    historical commit into a corruption report. But `root_policy_history` retains every
+    revision under `PRIMARY KEY(policy_id, revision)` with a chain constraint validated on
+    open, so the limit in force at the effect's recorded `policy_revision` is recoverable
+    and integrity-checked. Because the recorded value was the only free input and nothing
+    reconstructed it, a **coherently tampered store revalidated as valid**: flip the
+    discriminator, regenerate the events from the trusted binder's own other alternative,
+    set the projection to match, and reopen accepted a domain state the policy in force
+    never authorized. `infrastructure_discriminator_at_revision/3` now reconstructs from
+    history and revalidation requires equality; the policy-revision safety test still
+    passes, because a history lookup does not depend on the head row.
+  - The plan/operation coherence check added at `8379ba1` had **silently disabled half the
+    codec**. `TransitionPlan` could not declare `issue_claim`, which `@producers` names as
+    the sole producer of `launch_authority_v1`, so once declared-equals-staged became
+    load-bearing no plan could bind any of the six admission slots. It also declared
+    `consume_validation`, which is not a protected operation at all. Both vocabularies are
+    corrected and two tests now enforce agreement in both directions.
+- Review also replaced a test that did not establish what its name claimed: the
+  discriminator-mutation test mutated `command_results` rather than `atomic_bundles`, so
+  it never touched the recorded discriminator and was caught by unrelated domain-result
+  validation. The replacement performs the coherent tamper above.
+- Why comparing events suffices is now recorded in the code: `Authority`'s
+  `projection_matches_event` and `validate_reconstruction` run ahead of this check in the
+  same read, so pinning events pins projections transitively. If that order ever changed,
+  a projection comparison would be required here.
+- Evidence `81e71a6` and `a32ebbd` rebind the FR-08A attestation, the ninth rebind of the
+  session; `a32ebbd` commits a rebind that had been left in the working tree. The report at
+  `foundry/docs/fr-08/fr08a-protected-report.txt` is bound to subject revision `e491e41`
+  and reports `ready=true`, 7 mandatory capabilities passed, 0 failed, 0 unavailable.
+- Suites at freeze: 56 transition plan tests at seed 20991; 37 atomic bundle tests at seed
+  20990; full model-free suite 733 passed, 13 skipped and 1 excluded at seed 0, run
+  serially.
+- **FR-08A is complete.** Every subcommit of the binding correction that reopened it is
+  integrated and independently reviewed. FR-08B's dependency is satisfied, which discharges
+  the B4 blocker of the pure-kernel review; B1, B2 and B3 remain outstanding.
