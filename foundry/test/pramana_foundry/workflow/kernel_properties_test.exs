@@ -273,14 +273,21 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     # after_integration branch of R4's cancel row, and the `unknown` execution lifecycle
     # that require_workers_closed wrongly counted as closed. Neither was ever proposed, and
     # the type-level assertion above was green throughout.
-    # One entry, and unlike its predecessor its justification is proved rather than
-    # asserted: `kernel_test.exs` drives R4's second cancel branch end to end in sixteen
-    # events, so the row is satisfiable and this records only that the seeded ordering does
-    # not happen to find it. It needs the cancel requested inside the narrow window while
-    # the ticket is `integrating`. Any other variant joining this list is a defect until a
-    # hand-built R4-legal sequence says otherwise - that is the standard the previous
-    # ratchet failed, having claimed a depth limit that independent review measured false.
-    @known_unreached_variants ~w(cancellation_finalized:after_integration)
+    # Empty, and the one entry it used to hold is the reason this comment is here. That
+    # entry claimed `cancellation_finalized:after_integration` was unreached because "the
+    # seeded ordering does not happen to find it". Independent review measured that false:
+    # the walks entered the window six times and three ended sitting in exactly the state
+    # the row describes. They could never finalize, because the prober dropped a terminal
+    # ticket from its proposals and could not close a settled attempt's executions - the
+    # same custody defect the kernel had just been corrected for, uncorrected in the tool
+    # that was supposed to detect it. Both are fixed, and the variant now fires fifteen
+    # times.
+    #
+    # The standard this list is held to: a variant may only be recorded here with a
+    # hand-built R4-legal sequence proving the row is satisfiable, and "the search does not
+    # find it" is not a reason until the search itself has been checked. Two ratchets in
+    # this module have now rested on false justifications.
+    @known_unreached_variants []
 
     test "every variant the contract distinguishes is reachable by some walk", %{all: walks} do
       reached =

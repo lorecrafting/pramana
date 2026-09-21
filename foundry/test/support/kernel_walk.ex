@@ -274,11 +274,31 @@ defmodule PramanaFoundry.Test.KernelWalk do
     end
   end
 
+  # "Live" means something can still legitimately happen to this ticket, not merely that
+  # it is nonterminal. Dropping a terminal ticket from the proposal set made R4's second
+  # cancel branch unreachable by construction - an integrated ticket with a requested
+  # cancel and an open execution was never offered worker_closed or cancellation_finalized
+  # again - and that was then recorded as an ordering limitation. It was not; it was this
+  # function. R4 gives terminal tickets cleanup evidence and a cancel finalisation, so a
+  # ticket stays live until its executions are closed and any cancel is finalised.
   defp live_ticket?(state, id) do
     case state["tickets"][id] do
-      nil -> false
-      ticket -> ticket["phase"] not in ~w(integrated rejected cancelled)
+      nil ->
+        false
+
+      ticket ->
+        ticket["phase"] not in ~w(integrated rejected cancelled) or
+          open_execution?(ticket) or
+          (ticket["cancel_requested"] and ticket["phase"] != "cancelled")
     end
+  end
+
+  defp open_execution?(ticket) do
+    Enum.any?(ticket["attempts"], fn {_id, attempt} ->
+      Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
+        execution["lifecycle"] != "closed"
+      end)
+    end)
   end
 
   defp control(walk) do
@@ -377,11 +397,18 @@ defmodule PramanaFoundry.Test.KernelWalk do
     ]
   end
 
-  # Everything that names an attempt. Proposed against the active attempt when there is
-  # one, because R4's rows are written about the attempt that owns the work.
+  # Everything that names an attempt. The lifecycle rows are proposed against the active
+  # attempt, because R4 writes them about the attempt that owns the work - but cleanup is
+  # not a lifecycle row. R4 orders closure *after* settlement in four rows, so a settled
+  # attempt's executions must still be offered their closure events. Without this the
+  # prober could not express the custody the kernel had just been corrected to support,
+  # and R4's second cancel branch was unreachable: an integrated ticket's open execution
+  # was never offered worker_closed, so cancellation_finalized was refused 8967 times
+  # across the suite for executions nothing could close.
   defp attempt_level(_tid, nil), do: []
 
-  defp attempt_level(_tid, %{"active_attempt_id" => nil}), do: []
+  defp attempt_level(tid, %{"active_attempt_id" => nil} = ticket),
+    do: settled_cleanup(tid, ticket)
 
   defp attempt_level(tid, ticket) do
     attempt = ticket["attempts"][ticket["active_attempt_id"]]
@@ -393,6 +420,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
     settle(tid, id) ++
       artifacts(tid, id, candidate) ++
       per_execution(tid, id, executions) ++
+      settled_cleanup(tid, ticket) ++
       per_check(tid, id, checks) ++
       checkwork(tid, id, attempt, checks) ++
       reviewwork(tid, id, attempt, candidate) ++
@@ -642,6 +670,33 @@ defmodule PramanaFoundry.Test.KernelWalk do
            "ref_receipt_id" => "ref-1"
          }}
       end
+  end
+
+  # Closure and observation for every attempt that is no longer active. Keyed off the
+  # ticket rather than the active pointer, which is the same correction the kernel needed.
+  defp settled_cleanup(tid, ticket) do
+    for {attempt_id, attempt} <- ticket["attempts"],
+        attempt_id != ticket["active_attempt_id"],
+        {execution_id, execution} <- attempt["executions"] || %{},
+        execution["lifecycle"] != "closed",
+        {type, payload} <-
+          [
+            {"worker_closed",
+             %{"ticket_id" => tid, "attempt_id" => attempt_id, "execution_id" => execution_id}},
+            {"developer_closed",
+             %{"ticket_id" => tid, "attempt_id" => attempt_id, "execution_id" => execution_id}},
+            {"reviewer_closed",
+             %{"ticket_id" => tid, "attempt_id" => attempt_id, "execution_id" => execution_id}},
+            {"stream_sealed",
+             %{
+               "ticket_id" => tid,
+               "attempt_id" => attempt_id,
+               "execution_id" => execution_id,
+               "last_accepted_sequence" => 99
+             }}
+          ] do
+      {type, tid, payload}
+    end
   end
 
   defp next_attempt(tid, ticket),
