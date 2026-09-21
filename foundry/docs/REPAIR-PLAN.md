@@ -310,6 +310,28 @@ converts a reading-check into a running-check is therefore worth more than anoth
 and is cheaper: a full independent review costs roughly 200,000 tokens, while the tools
 below run in seconds and never get tired.
 
+**Recorded 2026-09-21, and not yet acted on.** An independent review commissioned on the
+evidence architecture itself concluded that five mechanisms is too many, and that the set
+should collapse to two: contract-to-predicate conformance, and instrumented exploration
+carrying semantic invariants and first-failure witnesses. Its four concrete proposals, with
+the only worked design so far named first:
+
+1. **Replace the hour-long guard mutation sweep with guard-site instrumentation**, so the
+   audit becomes a gate step. Designed in [coverage-guided sweep](COVERAGE-GUIDED-SWEEP.md),
+   which also records why the obvious instrumentation is unsound. Not built.
+2. **Replace clause fragmentation with semantic clause IDs in the contract itself**, so
+   coverage is keyed on identifiers the contract owns rather than on transcribed fragments.
+   Not designed.
+3. **Split `State.valid?/1` into `well_formed?` and `invariant?`**, separating the shape
+   validator from the relational one. Not designed.
+4. **A canonicalisation congruence test**, so the search's state-merging key cannot silently
+   collapse states that differ. Not designed.
+
+Items 2–4 have no home other than [the review's findings](fr-08/fr08b-subcommit1-review4-sol-findings.md)
+and are recorded here so a fresh session finds them. The review also declined a
+guards-as-data design as too much architecture for an evidence problem. None of this is a
+ticket; whether any becomes one is a scope decision.
+
 Prefer, in this order, and build the mechanism rather than repeating the check by hand:
 
 1. **Drive the contract's rows.** Parse the governing table out of the contract itself and
@@ -413,7 +435,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-07 | Implement durable store and compatibility boundary | FR-03, FR-06 | **Complete: independently reviewed and locally integrated; not deployed** | F02, F20, F21 |
 | H0 | Honest accepted-FR-07 boundary inventory/report (evidence checkpoint, not a ticket) | FR-07 | **Complete: independently reviewed; 4 pass, 3 unavailable, not ready** | Inherits FR-07/08 handoff evidence only |
 | FR-08A | Complete protected primitives and substantive revision-bound handoff proof | H0 | **Complete: protected authority, typed recovery and the atomic protected/domain handoff are independently reviewed and integrated, and the protected-result/domain-plan binding correction that reopened the ticket is closed. All six subcommits — lifecycle event vocabulary, codec, authoritative output derivation, protected discriminator, Gateway plan resolution and replay revalidation — are integrated and independently reviewed; the revision-bound attestation is rebound at `e491e41` and reports ready=true on 7 of 7 capabilities** | F07, F16 |
-| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **In progress: FR-08A is satisfied in full, discharging B4. Subcommit 1 — the pure state and event contract answering B1 and the reducer-level half of B2 — has been independently reviewed three times and blocked three times. The first two blocks shared one finding shape, guards that refuse a reported counterexample while the R4 row stays unexpressible, which is why the third attempt replaced the method rather than the guards: R4 and R4a's rows are parsed from the contract and driven through the kernel, per [the row-driven design](fr-08/fr08b-row-driven-coverage.md). The third review judged that method sound and should be kept, and blocked on the mechanism being incomplete — its outcome side was unverified — plus eight further findings, all now closed. All 32 rows drive; four clauses stay recorded as partial pending the R4a allowance product. Five mechanisms now carry the evidence, per [mechanical evidence discipline](#mechanical-evidence-discipline). Awaiting a fourth independent review. B3 and subcommits 2–5 are outstanding** | F07, F16 |
+| FR-08B | Migrate every command ingress to one live/replay reducer | FR-08A | **In progress: FR-08A is satisfied in full, discharging B4. Subcommit 1 — the pure state and event contract answering B1 and the reducer-level half of B2 — has been independently reviewed five times and blocked five times. The first two blocks shared one finding shape, guards that refuse a reported counterexample while the R4 row stays unexpressible, which is why the third attempt replaced the method rather than the guards: R4 and R4a's rows are parsed from the contract and driven through the kernel, per [the row-driven design](fr-08/fr08b-row-driven-coverage.md). The third review judged that method sound and should be kept, and blocked on the mechanism being incomplete — its outcome side was unverified — plus eight further findings, all now closed. All 32 rows drive; four clauses stay recorded as partial pending the R4a allowance product. Five mechanisms now carry the evidence, per [mechanical evidence discipline](#mechanical-evidence-discipline), and an independent review of the evidence architecture has recommended reducing them to two — see the reduction note in that section. Subcommit 1 is closed and gate-validated at `e41fae73` (911 passed / 13 skipped / 1 excluded), with the fourth and fifth reviews' findings discharged. One reachable `@legal_pairs` violation found by the fifth review is reproduced and recorded in the implementation log, unfixed, and needs a scope decision. B3 and subcommits 2–5 are outstanding** | F07, F16 |
 | F | Bounded Pi-first FR-09/15a execution feasibility (evidence checkpoint, not a ticket) | FR-01, FR-02, FR-03, FR-04, FR-05, FR-06 | **Complete: provider-free inventory independently reviewed; governed execution remains blocked** | Inherits FR-09/15a evidence only |
 | FR-09 | Prove the selected execution and presentation contract (OMP governs until reviewed substitution) | FR-01, FR-04, FR-06, FR-15aB, FR-18A, F | Blocked | F08–F10 |
 | FR-10 | Persist owned effects and reconcile executions | FR-08B, FR-09 | Blocked | F08, F09 |
