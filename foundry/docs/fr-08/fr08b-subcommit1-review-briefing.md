@@ -18,6 +18,29 @@ of **B2**. There is no `decide/3` and no plan production; those begin at subcomm
 **B4 is discharged** by FR-08A's completion and is not in scope. **B3** is not in scope:
 the R4a control and allocation product belongs to `decide/3`.
 
+## What to read, and one paragraph to disregard
+
+Read [WORKFLOW-CONTRACT.md](../WORKFLOW-CONTRACT.md) **§R4 and §R4a** — the legal lifecycle
+rows, the entity state vocabularies and the launch non-start recovery table. That is the
+authority this candidate is judged against. §R5 is useful context for the settlement rows
+but nothing here writes a ledger. Do not read the full plan, history or tutorial; the
+repository's routing asks for the topic, not the corpus.
+
+**Disregard the R3 paragraph "Observability is not authority" when judging this candidate.**
+The contract is at revision 4 because the implementer added that paragraph **in the same
+session as this code, and then implemented against it**. It is marked in the contract itself
+as not independently reviewed. If you judge the kernel against it you are checking one
+author's text against the same author's code, and consistency proves nothing.
+
+Judge the closure and custody rules against **revision 3's R4/R4a rows**, which were
+independently verified — specifically: "closed requires verified process/session termination
+or proved non-start", "A check failure uses its controller exit/receipt reason_code... not
+an agent's assertion", "Separate write-once sealed result", and the R4a domain-owner table.
+If the candidate only satisfies the new R3 paragraph and not those rows, that is a finding.
+
+Reviewing whether that R3 paragraph *should* be in the contract is a separate job and is
+out of scope here.
+
 ## Settled facts — supplied as given, do not re-derive
 
 Spot-check any of these and say so, but re-establishing them as routine is waste.
