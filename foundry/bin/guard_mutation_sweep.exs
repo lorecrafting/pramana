@@ -159,12 +159,25 @@ File.write!(target, original)
 IO.puts("\nre-checking #{length(survivors)} survivors against every suite")
 
 final =
-  Enum.filter(survivors, fn site ->
+  survivors
+  |> Enum.with_index(1)
+  |> Enum.reduce([], fn {site, i}, acc ->
+    IO.write("  phase 2 #{i}/#{length(survivors)} #{String.slice(site, 0, 58)} ... ")
     File.write!(target, String.replace(original, "<- " <> site, "<- :ok", global: true))
     verdict = run.(slow)
     File.write!(target, original)
-    verdict != :caught
+
+    case verdict do
+      :caught ->
+        IO.puts("caught")
+        acc
+
+      other ->
+        IO.puts("#{other} SURVIVED")
+        [site | acc]
+    end
   end)
+  |> Enum.reverse()
 
 File.write!(target, original)
 
