@@ -8,8 +8,9 @@ at pinned revisions, not comparative performance measurements or certification o
 operator's machine.
 
 [Documentation index](README.md) · [Repair plan](REPAIR-PLAN.md) ·
-[Workflow contract](WORKFLOW-CONTRACT.md) · [Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) ·
-[AX/Substrate backend](AX-SUBSTRATE.md) · [Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
+[Workflow contract](WORKFLOW-CONTRACT.md) · [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) ·
+[Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) · [AX/Substrate backend](AX-SUBSTRATE.md) ·
+[Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
 [Broader product strategy](../../docs/strategy/FOUNDRY.md)
 
 ## Working summary
@@ -55,6 +56,50 @@ authority-fence, unknown-effect and observation-provenance mechanisms are strong
 pressure for the resource/effect boundary. None may mint Foundry completion, budgets,
 grants, evidence binding or acceptance. Every candidate remains pinned behind hostile
 conformance before adoption.
+
+## Replaceable orchestrators: wrap authority, not the controller
+
+The post-repair target now distinguishes a controller/orchestrator from the protected
+authority plane. Cloudflare OS, AX, Pi, Claude/Codex harnesses, the default Foundry
+workflow kernel or a future planner may all decide how to decompose, sequence, parallelize,
+wait and correct work. They consume canonical Foundry facts and propose bounded semantic
+transitions through the same machine protocol.
+
+Keep two paths separate:
+
+- the **authority path** is low-volume, durable and idempotent for admission, grants,
+  reservations, execution issuance, exact candidate/evidence registration, consequential
+  effects, acceptance and promotion;
+- the **observation path** is high-volume and non-authoritative for model/tool/runtime
+  activity, tokens, latency, controller waits, context and diagnostics.
+
+The CLI is an operator client of those semantics, not the required controller integration
+mechanism. Controllers should query/subscribe to facts and eligibility, then choose their
+own strategy; they should not receive a generic protected `advance()` primitive. Event-driven
+subscriptions should wake deterministic controller code on meaningful state changes rather
+than repeatedly spending model calls polling child completion.
+
+The detailed boundary, controller responsibilities, candidate API vocabulary and
+conformance obligations are in
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md). This is post-repair guidance: the active
+workflow contract remains authoritative for current identities and transitions.
+
+### Ship a reference controller without making it the kernel
+
+Foundry should still work out of the box. The preferred distribution is **Foundry Core +
+an optional bundled Standard Controller**, with external controllers using the same Core
+protocol.
+
+The Standard Controller should initially preserve the repaired software workflow and later
+factor it into a small configurable reference pipeline. Its controller vocabulary should
+stay modest (sequence, bounded parallelism, gates, handoffs, correction, durable waits,
+sub-workflows/escalation) and remain outside protected authority. Do not build a universal
+DAG/workflow platform before real portability evidence.
+
+Cloudflare OS should be the first materially different external-controller experiment once
+the semantic seam is available. Compare it against the Standard Controller under the same
+ProjectProfile, capability ceilings and acceptance profile. Generalize Foundry-owned
+workflow machinery only where repeated cross-workload evidence justifies it.
 
 ## Authority and document ownership
 
@@ -153,9 +198,11 @@ isolated worktree, Git, shell and compiler tools; a content-authoring workflow m
 only a typed Builder API, simulation and certification operations. Reusing the same
 model in both cases does not imply equal authority. Child work and sub-workflows inherit
 bounded parent scope/budget ceilings unless protected policy grants less; composition
-cannot expand authority. Avoid a Turing-complete workflow DSL or a second orchestrator:
-start with small composable lifecycle primitives and introduce generalization only after
-real portability evidence.
+cannot expand authority. Avoid a Turing-complete **protected** workflow DSL or a second
+internal authority-bearing orchestrator inside Foundry. External controllers are
+replaceable strategy implementations behind
+[the orchestrator boundary](ORCHESTRATOR-BOUNDARY.md), not competing protected state
+machines. Introduce generalization only after real portability evidence.
 
 ### Project-declared roles and capability surfaces
 

@@ -4,17 +4,21 @@
 adoption, repair-ticket reprioritization, production authorization or evidence that
 Cloudflare OS satisfies Foundry conformance.
 
-[Foundry strategy](STRATEGY.md) · [Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) ·
-[AX/Substrate backend](AX-SUBSTRATE.md) · [Workflow contract](WORKFLOW-CONTRACT.md) ·
+[Foundry strategy](STRATEGY.md) · [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) ·
+[Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) · [AX/Substrate backend](AX-SUBSTRATE.md) ·
+[Workflow contract](WORKFLOW-CONTRACT.md) ·
 [Broader research register](../../docs/strategy/RESEARCH.md)
 
 ## Source snapshot
 
-This note was checked against Cloudflare OS at pinned revision
-[baa4f7cc4ab628c5d157c68054b315695de02fa1](https://github.com/cloudflare/cloudflare-os/tree/baa4f7cc4ab628c5d157c68054b315695de02fa1),
-including its README, Gatekeeper API, Gatekeeper action journal and usage contract,
-observer/information-flow design, and repository agent/runtime guidance at that exact
-revision.
+This note was rechecked against Cloudflare OS current main at pinned revision
+[b09c64cb66c13eb106f5f825e8c5f71636f09eb8](https://github.com/cloudflare/cloudflare-os/tree/b09c64cb66c13eb106f5f825e8c5f71636f09eb8),
+including its README, Gatekeeper API/kit, action journal and simulation contract,
+observer/information-flow design, agent spawners/callable agents, Blueprints, scheduler,
+worktrees and repository agent/runtime guidance. The previous architecture pass used
+`baa4f7cc4ab628c5d157c68054b315695de02fa1`; current main is one commit later and that
+intervening commit is shared frontend/hierarchical-list work, not a change to the
+architectural conclusions below.
 
 The broader execution-ladder comparison also checked Cloudflare's
 [Project Think](https://blog.cloudflare.com/project-think/) and
@@ -120,9 +124,155 @@ because an integration would then have two answers for questions such as:
 - Which state is authoritative after reconnect/retry?
 - Which system decides the output is acceptable?
 
-The correct use of Cloudflare OS is as a **design comparator** and source of independently
-developed mechanisms. Reuse lower-level Cloudflare primitives only through Foundry-owned
-contracts.
+Do not place Cloudflare OS's existing control plane **beneath** Foundry as if it were a
+passive runtime; that would create competing authority. There are two clean uses instead:
+
+1. treat its Gatekeeper/runtime mechanisms as replaceable ResourceAdapter/ExecutionBackend
+   implementations behind Foundry-owned contracts; or
+2. place Cloudflare OS **above/beside Foundry as an external orchestrator/product shell**,
+   where Gadgets/agent spawners choose workflow strategy but every Foundry-authoritative
+   transition still crosses the Foundry controller protocol.
+
+The second option is described in
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md). In both cases Cloudflare-native
+approvals, action journals, job state and agent completion remain resource/controller
+state unless Foundry verifies the corresponding protected fact.
+
+## Cloudflare OS as a replaceable orchestrator for Loka and other workflows
+
+Cloudflare OS has enough orchestration mechanism to implement materially different project
+workflows even though it does not expose a generic Foundry-style protected workflow DSL.
+Its current source provides agent spawners with snapshotted binding environments,
+per-task RPC capabilities, callable agents, durable workspace state, hooks/scheduling,
+Gadget/Blueprint templates, worktrees and Gatekeeper-mediated resources.
+
+That makes this a valid topology:
+
+~~~text
+Foundry canonical facts / grants / acceptance
+                  |
+                  v
+       Cloudflare OrchestratorAdapter
+                  |
+                  v
+            Cloudflare OS
+          /       |       \
+        PM      builder   reviewer
+                  |
+            scoped bindings
+                  |
+           Loka Builder API
+             Cartridge Lab
+~~~
+
+A Loka world-builder spawner can receive only Builder API and Lab capabilities, while an
+engine-capability developer can receive an isolated source/build environment and a
+semantic reviewer can receive read/simulate surfaces without candidate mutation. If a
+builder encounters a missing L2 primitive, Cloudflare may propose a separate engine
+assignment; Foundry decides whether that broader sibling/root assignment is admitted.
+
+Blueprints can package reusable product-side workflow applications and their required
+Gatekeeper/model/spawner binding shapes. They are useful templates, not protected
+WorkflowProfile authority: a Blueprint cannot grant itself secrets, engine source,
+publication power or acceptance.
+
+This is the same separation Foundry wants across all controllers:
+
+~~~text
+Cloudflare decides:
+  who/what to run next, parallelism, correction strategy, UI, waiting
+
+Foundry decides:
+  what is admitted, what capability is real, what evidence counts,
+  whether effects may issue, whether an exact result is accepted/promotable
+~~~
+
+The integration should be event-driven. Cloudflare can subscribe/wait on Foundry state
+changes and wake its controller/agent only when a candidate, review, effect, deadline or
+operator decision changes eligibility. Internal Cloudflare activity streams through the
+non-authoritative observation path rather than synchronously calling Foundry for every
+read, thought or token.
+
+## Cloudflare OS extension model: plugin-like, but split by responsibility
+
+Cloudflare OS does not revolve around one universal "plugin" abstraction. Its extension
+points are deliberately split:
+
+| Cloudflare mechanism | Closest conventional analogy | What it extends |
+|---|---|---|
+| **Gatekeeper Worker** | connector / capability plugin / device driver | typed access to one external service/resource family, auth, observations, approvals and actions |
+| **MCP Gatekeeper** | generic plugin bridge | turns an arbitrary MCP server into a scoped Gadget capability; grants can cover one server or named tools |
+| **MCP Portal Gatekeeper** | organization-managed plugin catalog/gateway | exposes administrator-approved MCP servers one scoped upstream server at a time |
+| **Blueprint** | app/workflow template/package | reusable Gadget code plus required Gatekeeper/model/agent-spawner binding shapes, without credentials/state |
+| **Agent Spawner** | role/worker factory | creates agents with a snapshotted binding environment plus per-task RPC capabilities |
+| **Slash commands from Gatekeepers** | command extension | exposes provider-backed commands through a Gatekeeper-controlled read/authorization boundary |
+| **Gadget** | user-modifiable mini-application/workflow | product/UI/orchestration logic running inside the Cloudflare OS sandbox |
+
+Custom Gatekeepers are deployed as Workers and registered through `GATEKEEPER_*` service
+bindings; the Workshop backend auto-discovers them. The official deployment starter
+explicitly supports wrapper-owned custom Gatekeepers and service bindings without patching
+upstream Cloudflare OS.
+
+The generic MCP Gatekeeper is particularly plugin-like: one Worker can connect to arbitrary
+MCP endpoints, perform OAuth discovery, generate a typed session API from their tool
+schemas, scope a grant to named tools, record reads as observations and queue non-read-only
+calls for approval. That is useful for broad ecosystem reach, but its own documentation
+notes limits important to Foundry: no scoping below tool names, no simulation/revert/hooks
+for generic MCP, and tool-list changes are adopted rather than fully pinned.
+
+For high-assurance Foundry authority calls, prefer a dedicated Foundry integration adapter
+or custom Gatekeeper over treating a generic MCP bridge as the protected contract. MCP may
+be useful for read/query convenience or early experiments; Foundry's idempotency,
+revision/CAS, exact-effect and evidence semantics remain the real authority protocol.
+
+## Native Cloudflare workflows versus Foundry-governed workflows
+
+Cloudflare OS should remain useful without Foundry.
+
+A simple personal/productivity Gadget can use Cloudflare's own user/workspace authority,
+Gatekeepers and approval model directly:
+
+~~~text
+user
+  |
+  v
+Cloudflare OS Gadget / agent
+  |
+  v
+Gatekeepers / MCP
+  |
+  v
+email / calendar / docs / SaaS
+~~~
+
+No Foundry objective, assignment, candidate or acceptance fact is necessary.
+
+For a governed project workflow:
+
+~~~text
+user or Cloudflare workflow
+          |
+          v
+     Foundry admission
+          |
+          v
+Cloudflare OrchestratorAdapter
+          |
+          v
+agents / Gadgets / Gatekeepers
+~~~
+
+A workflow may also **escalate** from native to governed. For example, an email agent may
+summarize and draft replies entirely inside Cloudflare OS, but if a message requests a
+Lokacore release or protected code change it can submit a new Foundry objective. The
+native session supplies provenance/context; it does not inherit Foundry authority merely
+because it requested escalation.
+
+Foundry therefore does not need to start the Cloudflare OS service itself. Cloudflare OS is
+normally a running product/controller environment. Governed work can be initiated either
+Cloudflare-first (the Gadget asks Foundry to admit work) or Foundry-first (Foundry admits
+an objective and an adapter instantiates/selects the relevant Cloudflare Blueprint/Gadget
+and agents). Both routes converge on the same protected Foundry facts and grants.
 
 ## Two independent substitution axes
 

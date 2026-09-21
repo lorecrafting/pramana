@@ -5,7 +5,7 @@ change the active repair plan, workflow contract, launch policy, provider entitl
 or current runtime behavior.
 
 [Foundry strategy](STRATEGY.md) · [Workflow contract](WORKFLOW-CONTRACT.md) ·
-[Validation](../../docs/strategy/VALIDATION.md)
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) · [Validation](../../docs/strategy/VALIDATION.md)
 
 ## 1. Purpose
 
@@ -35,6 +35,42 @@ the kernel should consume only the bounded proposal fields it needs for admissio
 vertical-slice planner, goal-graph planner or future domain-specific planner should be
 replaceable without changing the authority/evidence ledger. See
 [Replaceable planning strategies and human work projections](PLANNING-STRATEGIES.md).
+
+## 1.1 Workflow profile versus orchestrator
+
+A ProjectProfile/WorkflowPlan defines the **admitted contract and requested capability
+shape**, not the implementation of one mandatory orchestration engine.
+
+A controller may be the default Foundry workflow kernel, Cloudflare OS, AX, Pi, a
+Claude/Codex harness, a human-driven CLI flow or a future system. It may choose planning
+strategy, temporary role topology, concurrency, waiting and correction behavior. Foundry
+consumes only the bounded proposals and evidence needed to maintain protected facts.
+
+The split is:
+
+~~~text
+ProjectProfile / protected policy
+        |
+        | bounds
+        v
+CapabilityGrant + acceptance requirements
+        |
+        v
+replaceable orchestrator/controller
+        |
+        | proposes assignments / executes work / returns evidence
+        v
+Foundry authority/evidence/acceptance boundary
+~~~
+
+Repository/project configuration may request a workflow template and an orchestrator may
+interpret it, but neither may treat that template as a capability token. The same admitted
+workflow can therefore be exercised by multiple controllers without changing the
+acceptance criteria used to compare them.
+
+Controller-native state such as a DAG node, Gadget chat, AX Task, Pi session or Claude
+subagent remains a projection/execution identity mapped to Foundry's durable objective,
+assignment, execution, candidate and evidence identities. It does not replace them.
 
 ## 2. Separate role meaning from authority
 

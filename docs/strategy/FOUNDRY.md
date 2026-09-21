@@ -5,8 +5,9 @@
 
 For the operator's Foundry-first investment direction, architecture boundaries and
 lessons from FirstMate/Pi/OMP, read the [Foundry strategy brief](../../foundry/docs/STRATEGY.md).
-That brief guides the repair investment; this chapter retains post-repair initiatives
-and portfolio sequencing. Neither replaces the repair plan or workflow contract.
+For the controller-neutral authority/observation split, read the
+[orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md). These guide
+post-repair investment; neither replaces the repair plan or workflow contract.
 
 ## Mission and boundary
 
@@ -123,6 +124,30 @@ quest author in another because authority follows the assignment, not the model 
 Released game/runtime artifacts should remain independently useful without Foundry or an
 LLM. This is a future portability target, not part of the current Pramāṇa repair scope.
 
+## Replaceable controllers over one authority plane
+
+Post-repair portability should not require Foundry to own one permanent orchestration
+runtime. The default workflow kernel can remain the reference/local controller while
+Cloudflare OS, AX, Pi, Claude/Codex harnesses or future systems drive the same protected
+facts through a narrow OrchestratorAdapter.
+
+Use two paths:
+
+- **authority:** semantic, durable, idempotent commands for admission, grants, execution
+  issuance, evidence binding, consequential effects, acceptance and promotion;
+- **observation:** high-volume non-authoritative model/tool/runtime/controller telemetry
+  with common correlation IDs and optional OpenTelemetry export.
+
+Controllers consume facts/eligibility and propose what to do next. They do not receive a
+generic protected `advance()` operation and their own "completed"/"approved" states do not
+become Foundry facts automatically. Event subscriptions should let deterministic
+controller code wait without repeatedly waking a model to poll child status.
+
+This makes Foundry a neutral referee for workflow experiments: keep authority and
+acceptance fixed, swap controllers, and compare accepted-outcome correctness, token/cost
+usage, latency, correction tax and operator effort. See
+[Orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md).
+
 ## Positioning: own the contract, not commodity infrastructure
 
 Foundry must earn its custom infrastructure. Its durable product boundary is the
@@ -132,13 +157,15 @@ binding, independence constraints, acceptance, reconciliation and controlled pro
 Agent loops, software-factory UIs, workflow runtimes, sandboxes, policy languages and
 model routers are implementation choices unless the governing contract proves otherwise.
 
-Separate two commodity boundaries that are easy to conflate. An `ExecutionBackend`
-answers where/how admitted code runs. A `ResourceAdapter` or capability broker answers
-what external resources that execution may read or affect without gaining ambient
-credentials. The first may be implemented by a local Linux worker, AX/Agent Substrate,
-Cloudflare Dynamic Workers/Sandbox or future runtimes. The second may use provider-specific
-Gatekeeper-like mediation. Neither layer may create Foundry grants, settle budgets or
-accept its own output. The [AX/Substrate](../../foundry/docs/AX-SUBSTRATE.md) and
+Separate three replaceable boundaries that are easy to conflate. An
+`OrchestratorAdapter` answers how an external controller consumes Foundry facts and
+proposes work. An `ExecutionBackend` answers where/how admitted code runs. A
+`ResourceAdapter` or capability broker answers what external resources that execution
+may read or affect without gaining ambient credentials. The controller seam may be implemented by the default Foundry kernel,
+Cloudflare OS, AX, Pi or future orchestrators. Execution may use a local Linux worker,
+AX/Agent Substrate, Cloudflare Dynamic Workers/Sandbox or future runtimes. Resource
+mediation may use provider-specific Gatekeeper-like brokers. None may create Foundry
+grants, settle budgets from self-reported counters or accept its own output. The [AX/Substrate](../../foundry/docs/AX-SUBSTRATE.md) and
 [Cloudflare OS](../../foundry/docs/CLOUDFLARE-OS.md) reviews record the current evidence
 and non-authority constraints.
 
