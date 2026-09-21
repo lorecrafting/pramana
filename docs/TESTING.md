@@ -14,6 +14,7 @@ Foundry dispatch or a public deployment merely to validate a documentation chang
 | Umbrella formatting | `mix format --check-formatted` | Pinned umbrella toolchain and formatting dependencies |
 | Umbrella code | `mix compile --warnings-as-errors`, `mix credo --strict`, `mix test --cover` | Umbrella dependencies, Rust NIF, PostgreSQL with required extensions; not a live corpus gate |
 | Foundry code or contract work | From `foundry/`: `elixir ci/run.exs --output /tmp/foundry-ci-artifacts` | Isolated model-free runner; see [Foundry CI](../foundry/docs/CI.md). Does not prove real-provider execution or activation. |
+| A guard, transition or refusal test in a guarded reducer | From `foundry/`: `TMPDIR=/private/tmp SWEEP_SITES=<file> elixir bin/guard_mutation_sweep.exs`, plus the gate | See [evidence tools](../foundry/docs/EVIDENCE-TOOLS.md). The gate runs row coverage, bounded search, semantic invariants and guard reachability automatically; it does **not** run the mutation sweep, so a green gate after adding a guard does not establish that any test exercises it. Scope the sweep to the guards you touched — the full run is about an hour and holds a sentinel that fails `preflight.sh`. |
 | Corpus and retrieval acceptance | `mix pramana.gate` | Acquired/loaded corpus, matching database, required models and toolchain; see [detailed checks](../pramana/docs/CHECKS.md) |
 | Re-running one declared source task | `mix help pramana.<task>` | Replace the placeholder with an actual task from [the CLI index](../pramana/docs/CLI.md) and inspect its options |
 

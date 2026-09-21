@@ -1,5 +1,6 @@
 Code.require_file("../../support/kernel_walk.ex", __DIR__)
 Code.require_file("../../support/kernel_search.ex", __DIR__)
+Code.require_file("../../support/semantic_invariants.ex", __DIR__)
 
 defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
   @moduledoc """
@@ -19,7 +20,7 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
   """
   use ExUnit.Case, async: true
 
-  alias PramanaFoundry.Test.KernelSearch
+  alias PramanaFoundry.Test.{KernelSearch, SemanticInvariants}
   alias PramanaFoundry.Workflow.Kernel.State
 
   @depth 7
@@ -127,6 +128,63 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
         end)
       end)
     end)
+  end
+
+  # ── The oracle the fourth review said was missing ─────────────────────────────────
+
+  # Every test above asks a question about ONE transition: was this admitted, or refused,
+  # and with which atom. None asks whether the facts in the resulting state cohere. The
+  # stale-resume defect is the demonstration: this search REACHED the bad state — three of
+  # them at this exact depth — and no oracle called it illegal, so it was found by two
+  # reviewers reading instead. `State.valid?/1` accepted it, correctly, because nothing
+  # about it was malformed.
+  test "every reachable state satisfies the contract's relations, not just its shapes",
+       %{states: states} do
+    check(states, fn state ->
+      case SemanticInvariants.violations(state) do
+        [] -> :ok
+        violations -> {:error, Enum.join(violations, "; ")}
+      end
+    end)
+  end
+
+  # Red control. An invariant oracle that reports nothing is indistinguishable from one
+  # that checks nothing, and five mechanisms in this subcommit shipped in exactly that
+  # condition. So the oracle has to demonstrate it fires on the defect it was built for.
+  #
+  # The state is no longer reachable, which is the point — and is also why the first
+  # version of this control was hand-written and WRONG: `State.valid?/1` rejected it, so it
+  # would have "passed" by tripping a different check entirely. It is now built from a real
+  # reachable state with exactly one field corrupted, which is precisely what the defect
+  # did: `artifact_frozen` still leaves the stale `developing` target, and before the
+  # honesty fix a block-and-unblock could put the ticket back on it.
+  test "the oracle catches the state the search had already reached", %{states: states} do
+    {reachable, _path} =
+      Enum.find(states, fn {state, _path} ->
+        Enum.any?(state["tickets"] || %{}, fn {_id, t} ->
+          t["phase"] == "awaiting_review" and t["resume_phase"] == "developing" and
+            get_in(t, ["attempts", t["active_attempt_id"], "phase"]) == "candidate_frozen"
+        end)
+      end) ||
+        flunk("the precondition state is gone; this control is testing nothing")
+
+    assert SemanticInvariants.violations(reachable) == [],
+           "the uncorrupted state must be clean, or the corruption below proves nothing"
+
+    bad = put_in(reachable, ["tickets", "T1", "phase"], "developing")
+
+    assert State.valid?(bad),
+           "the red control must be WELL-FORMED, or it proves nothing this validator " <>
+             "did not already prove"
+
+    violations = SemanticInvariants.violations(bad)
+
+    assert Enum.any?(violations, &(&1 =~ "ticket developing with attempt candidate_frozen")),
+           "phase agreement did not fire on the defect it exists for: #{inspect(violations)}"
+
+    assert length(violations) == 1,
+           "exactly one relation should break from exactly one corrupted field: " <>
+             inspect(violations)
   end
 
   test "the search actually explored a meaningful space", %{states: states} do

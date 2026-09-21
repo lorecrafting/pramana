@@ -1675,6 +1675,200 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     ])
   end
 
+  # ── The fourth review's reproduced defects ─────────────────────────────────────────
+
+  describe "review 4 — a non-start may not erase evidence that already exists" do
+    # R4a's non-start rows exist for a worker that never ran. They are not a way to undo
+    # what a worker that DID run produced. Both defects below are the same shape as the
+    # settlement-role binding corrected after review three, one level further out: the
+    # developer and integration siblings were guarded and the reviewer and check ones were
+    # not, so "as one rule over the vocabulary" was again true of part of the vocabulary.
+
+    # R4: "validated review result takes precedence over later execution exit status", and
+    # R4a: a proved non-start is "not charged as a launch failure". One event erased an
+    # approved verdict, returned the ticket to awaiting_review and charged the ordinal.
+    for verdict <- ~w(approved rejected correction) do
+      test "a reviewer non-start cannot erase a recorded #{verdict} verdict" do
+        {state, sequence} = verdict_recorded(unquote(verdict))
+
+        forged =
+          event("review_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+            "ticket_id" => "T1",
+            "attempt_id" => "A1",
+            "execution_id" => "R1",
+            "settlement" => %{"schema_version" => 1}
+          })
+
+        assert {:error, :verdict_already_recorded} = WorkflowKernel.apply(state, forged)
+      end
+    end
+
+    # R4 makes a check receipt a write-once sealed result, and the integration row requires
+    # "all mandatory check receipts passed". Settling a check that had already recorded
+    # `passed` deleted the receipt, after which the attempt could reach awaiting_review
+    # with a mandatory check simply absent - which `require_checks_passed` cannot see,
+    # because it folds over the checks that are still there.
+    test "a check non-start cannot delete a receipt that already recorded" do
+      {state, sequence} =
+        drive(checking(), [
+          {"check_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "check_id" => "C1",
+             "authority" => authority("K1", "check")
+           }},
+          {"check_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "check_id" => "C2",
+             "authority" => authority("K2", "check")
+           }},
+          {"check_recorded", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "check_id" => "C1",
+             "status" => "passed",
+             "reason_code" => nil
+           }}
+        ])
+
+      forged =
+        event("check_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "check_id" => "C1",
+          "execution_id" => "K1",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :check_already_settled} = WorkflowKernel.apply(state, forged)
+    end
+  end
+
+  describe "review 4 — an advancing transition retires its resume target" do
+    # Both reviewers reproduced this independently. `launch_settled` stores resume_phase
+    # `developing`; the retry succeeds and `artifact_frozen` advances the ticket to
+    # awaiting_review without clearing it; `require_honest_resume_target` accepted the
+    # stored value from ANY phase, so a block could resurrect an obsolete recovery point
+    # and the unblock returned a candidate_frozen attempt to `developing`.
+    #
+    # The implementer found this state, called it harmless because the guards refuse
+    # everything from there, and deferred it. That was wrong twice over: a ticket from
+    # which no productive event is accepted is a livelock, not a safe refusal, and
+    # `launch_planned` is accepted - opening a third developer execution on an attempt that
+    # has already frozen its candidate.
+    test "a stale resume target cannot be named once the ticket has moved on" do
+      {state, sequence} =
+        drive(admitted(), [
+          {"launch_planned", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X1")}},
+          {"launch_settled", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "X1",
+             "settlement" => %{"schema_version" => 1}
+           }},
+          {"launch_planned", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X2")}},
+          {"artifact_frozen", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "candidate_id" => "cand-1",
+             "observation_id" => "obs-1",
+             "sealed_generation" => "gen-1"
+           }}
+        ])
+
+      assert state["tickets"]["T1"]["phase"] == "awaiting_review"
+
+      assert state["tickets"]["T1"]["resume_phase"] == "developing",
+             "the stale target is the precondition; if this changes the defect moved"
+
+      forged =
+        event("ticket_blocked", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "reason" => "reviewer_launch_infrastructure",
+          "resume_phase" => "developing"
+        })
+
+      assert {:error, :resume_target_not_current_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4a's developer non-start is the case the stored target exists for: the ticket lands
+    # in `queued` holding resume_phase `developing` and a retained attempt the row calls
+    # resumable, so a block from `queued` must be able to keep `developing` rather than
+    # overwrite it with `queued`. This is why the fix is scoped to phase rather than
+    # removing the stored alternative.
+    test "R4a's developer non-start target survives a block from queued" do
+      {state, sequence} =
+        drive(admitted(), [
+          {"launch_planned", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X1")}},
+          {"launch_settled", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "X1",
+             "settlement" => %{"schema_version" => 1}
+           }}
+        ])
+
+      assert state["tickets"]["T1"]["phase"] == "queued"
+
+      {blocked, _} =
+        drive({state, sequence}, [
+          {"ticket_blocked", "T1",
+           %{
+             "ticket_id" => "T1",
+             "reason" => "developer_launch_infrastructure",
+             "resume_phase" => "developing"
+           }}
+        ])
+
+      assert blocked["tickets"]["T1"]["resume_phase"] == "developing"
+    end
+  end
+
+  describe "review 4 — variants the walks reach only by luck" do
+    # `integration_recorded:infrastructure_failed` sits about twelve events from empty, so
+    # whether a seeded random walk arrives is trajectory luck. The ratchet stood at zero
+    # unreached by luck, and the resume-target fix changed refusals early enough to change
+    # trajectories — the guard it touches is called only from ticket_parked and
+    # ticket_blocked, neither of which is on the integration path, so coverage did not
+    # regress; the sampling did.
+    #
+    # A driven witness does not depend on a seed.
+    test "an integration effect can fail on infrastructure without a ref receipt" do
+      {state, _sequence} =
+        drive(approved_and_closed(), [
+          {"integration_recorded", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "I1",
+             "outcome" => "infrastructure_failed",
+             "ref_receipt_id" => nil
+           }}
+        ])
+
+      ticket = state["tickets"]["T1"]
+      attempt = ticket["attempts"]["A1"]
+
+      # R4's row for this outcome is "or blocked(integration_failure)", not the
+      # same-phase retry of `no_ref_change`. The first draft of this test asserted the
+      # retry, from reading the comment above the branch rather than the branch.
+      assert ticket["phase"] == "blocked"
+      assert ticket["reason"] == "integration_failure"
+      assert ticket["resume_phase"] == "ready_to_integrate"
+      assert is_nil(attempt["ref_receipt_id"]), "R4: no Git success inferred"
+    end
+  end
+
   # ── Every remaining call site, one row each ────────────────────────────────────────
 
   describe "each guard call site, not each guard" do
@@ -1717,6 +1911,18 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       {392, :cancel_requested_with_attempt, "cancellation_finalized",
        %{"ticket_id" => "T1", "disposition" => "cancelled"}, :attempt_still_active},
 
+      # 450, 472 and 489 — `require_attempt_phase(~w(active))` in artifact_frozen,
+      # artifact_blocked and freeze_failed — had exactly one reachable witness between
+      # them, and it was the stale-resume defect. Fixing that defect removed it: no
+      # reachable state now has a `developing` ticket whose active attempt is not `active`
+      # (searched after the fix — 58,324 states at depth 7, none).
+      #
+      # They are therefore redundant with `require_phase(~w(developing))` above them GIVEN
+      # the invariant `ticket.phase == developing => active attempt.phase == active`, which
+      # `SemanticInvariants` now asserts over every state the search reaches. They are NOT
+      # recorded as unreachable: a bounded search is not a proof, and treating absence as
+      # one is the habit this review told us to drop. Deleting them is the right end state
+      # and is a decision for review, not a side effect of a defect fix.
       # The developing family: phase, active attempt, attempt phase — in four handlers.
       {431, :developing, "launch_settled",
        %{
@@ -1741,14 +1947,6 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "observation_id" => "obs-9",
          "sealed_generation" => "gen-2"
        }, :not_the_active_attempt},
-      {450, :developing_with_frozen_candidate, "artifact_frozen",
-       %{
-         "ticket_id" => "T1",
-         "attempt_id" => "A1",
-         "candidate_id" => "cand-2",
-         "observation_id" => "obs-9",
-         "sealed_generation" => "gen-2"
-       }, :wrong_attempt_phase},
       {470, :checking, "artifact_blocked",
        %{
          "ticket_id" => "T1",
@@ -1765,14 +1963,6 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "result" => "blocked",
          "reason" => "dep"
        }, :not_the_active_attempt},
-      {472, :developing_with_frozen_candidate, "artifact_blocked",
-       %{
-         "ticket_id" => "T1",
-         "attempt_id" => "A1",
-         "observation_id" => "obs-9",
-         "result" => "blocked",
-         "reason" => "dep"
-       }, :wrong_attempt_phase},
       {487, :checking, "freeze_failed",
        %{
          "ticket_id" => "T1",
@@ -1780,13 +1970,6 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "disposition" => "retry",
          "reason" => "import"
        }, :wrong_source_phase},
-      {489, :developing_with_frozen_candidate, "freeze_failed",
-       %{
-         "ticket_id" => "T1",
-         "attempt_id" => "A1",
-         "disposition" => "retry",
-         "reason" => "import"
-       }, :wrong_attempt_phase},
       {526, :developing, "submission_rejected",
        %{
          "ticket_id" => "T1",
@@ -1998,7 +2181,6 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     defp fixture(:approved_and_closed), do: approved_and_closed()
     defp fixture(:blocked_with_active_attempt), do: blocked_with_active_attempt()
     defp fixture(:cancel_requested_with_attempt), do: cancel_requested_with_attempt()
-    defp fixture(:developing_with_frozen_candidate), do: developing_with_frozen_candidate()
   end
 
   # ── States the second sweep needed, each one searched for rather than guessed ───────
@@ -2033,36 +2215,6 @@ defmodule PramanaFoundry.Workflow.KernelTest do
   # Whether `artifact_frozen` ought to clear the stale resume target is a live question for
   # review — it is R4 semantics, not a test concern, and is not changed here. What matters
   # for these three sites is that the state is reachable and the guards refuse it.
-  defp developing_with_frozen_candidate do
-    drive(admitted(), [
-      {"launch_planned", "T1",
-       %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X1")}},
-      {"launch_settled", "T1",
-       %{
-         "ticket_id" => "T1",
-         "attempt_id" => "A1",
-         "execution_id" => "X1",
-         "settlement" => %{"schema_version" => 1}
-       }},
-      {"launch_planned", "T1",
-       %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X2")}},
-      {"artifact_frozen", "T1",
-       %{
-         "ticket_id" => "T1",
-         "attempt_id" => "A1",
-         "candidate_id" => "cand-1",
-         "observation_id" => "obs-1",
-         "sealed_generation" => "gen-1"
-       }},
-      {"ticket_blocked", "T1",
-       %{
-         "ticket_id" => "T1",
-         "reason" => "reviewer_launch_infrastructure",
-         "resume_phase" => "developing"
-       }},
-      {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "developing"}}
-    ])
-  end
 
   defp checking_with_check do
     drive(checking(), [

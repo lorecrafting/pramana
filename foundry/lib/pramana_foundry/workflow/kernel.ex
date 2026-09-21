@@ -664,7 +664,13 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_attempt_phase(ticket, ~w(checking)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_check(ticket, payload["check_id"]) do
+         :ok <- require_check(ticket, payload["check_id"]),
+         # A check receipt is a write-once sealed result, and R4's integration row wants
+         # "all mandatory check receipts passed". Deleting a check that had already
+         # recorded `passed` let the attempt reach awaiting_review with a mandatory check
+         # simply absent - which `require_checks_passed` cannot see, since it folds over
+         # the checks that are still there.
+         :ok <- require_check_unsettled(ticket, payload["check_id"]) do
       with {:ok, ticket} <-
              close_execution(ticket, payload["attempt_id"], payload["execution_id"], ~w(check)) do
         {:ok,
@@ -729,7 +735,14 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_phase(ticket, ~w(reviewing)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_reviewer_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
+         :ok <- require_reviewer_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         # R4: "validated review result takes precedence over later execution exit status",
+         # and R4a says a proved non-start is "not charged as a launch failure". This row
+         # is for a reviewer that never ran; without the guard one event erased a recorded
+         # verdict, returned the ticket to awaiting_review and charged the ordinal. The
+         # developer and integration siblings were already guarded - the same partial
+         # generalisation corrected after review three, one level further out.
+         :ok <- require_no_recorded_verdict(ticket) do
       with {:ok, ticket} <-
              close_execution(ticket, payload["attempt_id"], payload["execution_id"], ~w(reviewer)) do
         {:ok,
@@ -1457,11 +1470,31 @@ defmodule PramanaFoundry.Workflow.Kernel do
     honest =
       case ticket["phase"] do
         # An already-blocked ticket has no current phase to promise; its only honest target
-        # is the one it already stored. R4a's developer row retains `developing` across a
-        # non-start, and an at-limit park that overwrote it with `queued` would lose the
-        # attempt the same row calls resumable.
-        "blocked" -> [ticket["resume_phase"]]
-        phase -> [phase, ticket["resume_phase"]]
+        # is the one it already stored.
+        "blocked" ->
+          [ticket["resume_phase"]]
+
+        # R4a's developer row retains `developing` across a non-start, which lands the
+        # ticket in `queued`; an at-limit park that overwrote the target with `queued`
+        # would lose the attempt the same row calls resumable. This is the one working
+        # phase whose stored target is still a promise about where the work is.
+        "queued" ->
+          [ticket["phase"], ticket["resume_phase"]]
+
+        # Every other phase names itself and nothing else. Accepting the stored value from
+        # anywhere resurrected an obsolete recovery point: `launch_settled` stores
+        # `developing`, the retry succeeds, `artifact_frozen` advances the ticket to
+        # awaiting_review without clearing it, and a later block could then name
+        # `developing` — returning a candidate_frozen attempt to `developing`, where no
+        # productive event is accepted and `launch_planned` opens a third developer on an
+        # attempt that has already frozen its candidate. Seven events from empty, found by
+        # exhaustive search and reproduced independently by two reviewers.
+        #
+        # The fix is here rather than at every advancing transition because one guard is
+        # smaller than N writers and cannot be partially applied, which is how the sibling
+        # defects above were introduced.
+        phase ->
+          [phase]
       end
 
     if resume_phase in honest,

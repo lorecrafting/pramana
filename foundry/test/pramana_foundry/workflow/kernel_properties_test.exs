@@ -288,7 +288,15 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     # hand-built R4-legal sequence proving the row is satisfiable, and "the search does not
     # find it" is not a reason until the search itself has been checked. Two ratchets in
     # this module have now rested on false justifications.
-    @known_unreached_variants []
+    # Walk-unreached, but DRIVEN deterministically. `integration_recorded:
+    # infrastructure_failed` sits about twelve events from empty, so a seeded random walk
+    # arriving is trajectory luck; this ratchet stood at zero by luck. It is exercised by
+    # "an integration effect can fail on infrastructure without a ref receipt" in
+    # kernel_test.exs, which asserts R4's blocked(integration_failure) outcome.
+    #
+    # An entry here must cite a driven witness. Without that rule this list is just a place
+    # to put variants nothing reaches, which is the ratchet resting on a defect again.
+    @known_unreached_variants ["integration_recorded:infrastructure_failed"]
 
     test "every variant the contract distinguishes is reachable by some walk", %{all: walks} do
       reached =

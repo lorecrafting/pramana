@@ -72,8 +72,27 @@ original = File.read!(target)
 # id"])` in six, so one red test anywhere cleared all of them and up to nine untested
 # siblings could hide behind one tested handler. Found while writing the review briefing
 # that was about to ask a reviewer to check exactly this.
+# `<- require_foo(` was the shape for as long as every guard sat in a `with` chain. Six do
+# not: `require_settlement_source/2` dispatches on disposition and each branch calls a
+# guard directly or in tail position, e.g. `"cancelled" -> require_cancel_requested(ticket)`.
+# Those six were invisible, so neutralising the outer `require_settlement_source` measured
+# all six collectively and one disposition branch could vouch for another. 108 was reported;
+# there are 114 across 70 distinct texts. Fifth time this tool's number has been weaker than
+# its claim, and the second time in one day.
+#
+# Any `require_*(` that is not a definition now counts, wherever it appears.
 call_sites = fn source ->
-  Regex.scan(~r/<- (require_[a-z_]+\()/, source, return: :index)
+  Regex.scan(~r/(?<![a-z_])(require_[a-z_]+\()/, source, return: :index)
+  |> Enum.reject(fn [_, {start, _len}] ->
+    # A definition, not a call: `defp require_foo(`.
+    line_start =
+      case :binary.matches(binary_part(source, 0, start), "\n") do
+        [] -> 0
+        matches -> matches |> List.last() |> elem(0) |> Kernel.+(1)
+      end
+
+    binary_part(source, line_start, start - line_start) |> String.trim() == "defp"
+  end)
   |> Enum.map(fn [_, {start, len}] ->
     {depth, stop} =
       Enum.reduce_while((start + len)..(byte_size(source) - 1)//1, {1, start + len}, fn i, {d, _} ->
@@ -95,6 +114,55 @@ line_of = fn offset ->
 end
 
 label = fn {text, offset} -> "#{text} :#{line_of.(offset)}" end
+
+# Red control, run before anything else. Every shape a guard call takes in this kernel,
+# including the ones that were invisible for five runs. A scanner that quietly matches
+# fewer shapes than it should produces a clean report about a smaller population, which is
+# this tool's single recurring failure. It now has to demonstrate it can see them first.
+red_control = """
+defp require_defined(x), do: :ok
+defp handler(t, e) do
+  with :ok <- require_one(t),
+       :ok <- require_two(t, e["payload"]["k"]),
+       :ok <-
+         require_multiline(
+           t,
+           e
+         ) do
+    {:ok, t}
+  end
+end
+defp dispatch(t, d) do
+  case d do
+    "x" -> require_tail(t)
+    "y" -> with :ok <- require_one(t), do: require_nested(t)
+    "z" -> if true, do: require_inline(t), else: :ok
+  end
+end
+"""
+
+expected_control =
+  ~w(require_one require_two require_multiline require_tail require_one require_nested
+     require_inline)
+  |> Enum.sort()
+
+found_control =
+  red_control
+  |> call_sites.()
+  |> Enum.map(fn {text, _} -> text |> String.split("(") |> hd() end)
+  |> Enum.sort()
+
+if found_control != expected_control do
+  IO.puts("""
+  RED CONTROL FAILED - the site scanner cannot see every guard shape, so any number it
+  reports is about a smaller population than the kernel has.
+
+    expected: #{inspect(expected_control)}
+    found:    #{inspect(found_control)}
+  """)
+
+  System.halt(4)
+end
 
 all_sites = call_sites.(original)
 all_texts = all_sites |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
@@ -232,8 +300,25 @@ results =
   )
   |> Enum.flat_map(fn {:ok, slice_results} -> slice_results end)
 
-File.write!(target, original)
 Enum.each(roots, &File.rm_rf!/1)
+
+# This used to be `File.write!(target, original)`, restoring a file the sweep never
+# modifies: mutations happen only in the worker trees. A "restore" of an unmodified file is
+# a silent clobber of anything legitimately written to it during the hour this runs, and
+# parallel sessions in this repository do write. The sweep now VERIFIES instead, and fails
+# loudly if the target moved under it.
+if File.read!(target) != original do
+  IO.puts("""
+
+  FAIL: #{target} changed while the sweep ran.
+
+  The sweep does not write to the repository, so this is someone else's edit - or a
+  crashed worker. Nothing has been overwritten. Compare against the last known-good
+  revision before trusting any result above.
+  """)
+
+  System.halt(3)
+end
 
 survivors = for {site, :survived} <- results, do: site
 errors = for {site, :build_error} <- results, do: site
@@ -251,4 +336,4 @@ if errors != [] do
 end
 
 IO.puts("\nelapsed: #{System.monotonic_time(:second) - started}s")
-IO.puts("source restored byte-identical: #{File.read!(target) == original}")
+IO.puts("repository target unchanged: true")
