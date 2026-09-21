@@ -16,13 +16,19 @@
 
 target = System.argv() |> List.first() || "lib/pramana_foundry/workflow/kernel.ex"
 
+# Phase one is the two suites that are both broad and sub-second. The exhaustive and
+# guard-reachability suites each run a full state search, which is cheap once and ruinous
+# sixty-six times - putting them here turned a twenty-minute sweep into a three-hour one.
+# Phase two runs everything, but only for the mutations phase one did not catch.
 fast = ~w(
   test/pramana_foundry/workflow/kernel_test.exs
   test/pramana_foundry/workflow/r4_coverage_test.exs
+)
+slow = fast ++ ~w(
   test/pramana_foundry/workflow/r4_exhaustive_test.exs
   test/pramana_foundry/workflow/r4_guard_reachability_test.exs
+  test/pramana_foundry/workflow/kernel_properties_test.exs
 )
-slow = fast ++ ["test/pramana_foundry/workflow/kernel_properties_test.exs"]
 
 original = File.read!(target)
 
@@ -43,7 +49,7 @@ call_sites = fn source ->
   end)
   |> Enum.reject(&is_nil/1)
   |> Enum.uniq()
-}
+end
 
 run = fn files ->
   {out, _} =
@@ -52,12 +58,15 @@ run = fn files ->
       stderr_to_stdout: true
     )
 
+  # This repository uses a custom formatter: "Result: N passed" when green, and
+  # "Result: N/M passed" when something failed. Matching ExUnit's default
+  # "N tests, 0 failures" therefore matched nothing, and the catch-all reported every
+  # mutation as surviving - a sweep that would have claimed 66 untested guards. A tool
+  # built to find vacuous evidence produced vacuous evidence on its first run.
   cond do
-    String.contains?(out, "test(s)") and String.contains?(out, ", 0 failure") -> :all_passed
-    Regex.match?(~r/\n\s*\d+ (doctests?, )?\d* ?tests?, 0 failures/, out) -> :all_passed
-    String.contains?(out, "failure") -> :caught
-    String.contains?(out, "error") -> :build_error
-    true -> :all_passed
+    Regex.match?(~r/Result: \d+\/\d+ passed/, out) -> :caught
+    Regex.match?(~r/Result: \d+ passed/, out) -> :all_passed
+    true -> :build_error
   end
 end
 
@@ -83,8 +92,12 @@ survivors =
           IO.puts("#{i}/#{length(sites)} #{String.slice(site, 0, 60)} -- caught")
           acc
 
-        other ->
-          IO.puts("#{i}/#{length(sites)} #{String.slice(site, 0, 60)} -- #{other} SURVIVED")
+        :build_error ->
+          IO.puts("#{i}/#{length(sites)} #{site} -- DID NOT COMPILE, nothing measured")
+          acc
+
+        :all_passed ->
+          IO.puts("#{i}/#{length(sites)} #{site} -- SURVIVED")
           [site | acc]
       end
     end

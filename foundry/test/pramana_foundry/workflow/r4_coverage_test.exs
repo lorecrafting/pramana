@@ -40,9 +40,16 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   # understating the row.
   @partial %{
     nonstart_reviewer:
-      ~S|below-limit return is driven; "At the limit, ticket becomes blocked(reviewer_launch_infrastructure)" needs the R4a limit product, blocker B3 in subcommit 2|,
+      ~S|below-limit return is driven; "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)`" needs the R4a limit product, blocker B3 in subcommit 2|,
+    # Re-keyed: this entry quoted "or blocked(check_infrastructure)/exhausted", which is
+    # `check_infrastructure_failed`'s outcome text, not this row's. The row it named had no
+    # entry at all, so its clause was both undriven and unrecorded. A quoted clause that
+    # belongs to a different row is worse than none: it reads as coverage of a row nobody
+    # covered. The test below now checks every @partial quote against its own row.
     nonstart_worker:
-      ~S|preserve-phase retry is driven; "or blocked(check_infrastructure)/exhausted" needs the same limit product|,
+      ~S|preserve-phase retry is driven; "apply that phase's existing infrastructure retry/block row" needs the R4a limit product|,
+    check_infrastructure_failed:
+      ~S|"pending same phase" is driven; "or blocked(check_infrastructure)/exhausted" needs the same limit product|,
     # Once an attempt terminalises, the ticket is queued with no active attempt, and
     # exhaustion can only be settled on an active one. R4 offers exhaustion as an
     # alternative outcome of these rows, and choosing it turns on allocation - protected
@@ -325,6 +332,27 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       end
     end
 
+    # A @partial entry quotes the clause it cannot yet express. That quote must come from
+    # its own row's outcome cell - one entry quoted another row's text, which read as
+    # coverage of a row nothing covered and left the real row unrecorded.
+    test "every partial entry quotes a clause of its own row" do
+      for {id, note} <- @partial do
+        outcome = R4Rows.outcome(id)
+        assert is_binary(outcome), "#{id} matches no contract row"
+
+        quoted = Regex.scan(~r/"([^"]{12,})"/, note) |> Enum.map(&List.last/1)
+
+        assert quoted != [], "#{id} records no quoted clause, so what is deferred is unstated"
+
+        for clause <- quoted do
+          assert String.contains?(outcome, clause),
+                 "#{id} defers a clause that is not in its own outcome cell:\n" <>
+                   "  quoted:  #{inspect(clause)}\n" <>
+                   "  outcome: #{inspect(outcome)}"
+        end
+      end
+    end
+
     test "every row with a scenario cites at least one clause of its outcome" do
       uncited = Enum.reject(R4Rows.ids(), &Map.has_key?(@clauses, &1))
 
@@ -367,6 +395,16 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   end
 
   describe "every contract row is driven" do
+    # One test per row. The aggregate test below still holds the ratchets, but it stops at
+    # its first failure, so a run reporting one broken row said nothing about the other
+    # thirty-one. Naming each row also makes a failure legible without reading the harness.
+    for row <- R4Rows.ids() do
+      test "#{row}" do
+        assert run(unquote(row)) in [:driven, :unexpressible],
+               "#{unquote(row)} has no scenario and is not recorded as unexpressible"
+      end
+    end
+
     test "each row has a scenario that drives it, or is recorded as unexpressible" do
       results = Map.new(R4Rows.ids(), fn id -> {id, run(id)} end)
 
@@ -1211,15 +1249,13 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   end
 
   defp scenario(:reset) do
+    # Reset from a ticket that has actually spent an allowance. Starting from a fresh
+    # attempt made the "never reset prior consumption" assertion vacuous: zero before and
+    # zero after is true of every state.
+    {consumed, sequence} = nonstart()
+
     {exhausted, sequence} =
-      drive(developing(), [
-        {"stream_sealed", "T1",
-         %{
-           "ticket_id" => "T1",
-           "attempt_id" => "A1",
-           "execution_id" => "X1",
-           "last_accepted_sequence" => 4
-         }},
+      drive({consumed, sequence}, [
         {"attempt_settled", "T1",
          %{
            "ticket_id" => "T1",
@@ -1246,10 +1282,15 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert "A1" in ticket["prior_attempt_ids"]
     assert ticket["infrastructure"]["generation"] == 1
 
-    # R4a: "Restart, new execution IDs, profile changes, attempt resumption and duplicate
-    # receipts do not reset the ordinal" - but a policy reset "may create a new
-    # infrastructure generation". The generation advances; the row's own consumption record
-    # is what the new generation supersedes.
+    # Finding 6: this asserted the developer ordinal was zero after a reset, from a state
+    # where it had always been zero - true of any state, and so evidence of nothing. The
+    # reset path now runs from an attempt that actually consumed an ordinal, so the
+    # assertion distinguishes "the new generation starts clean" from "nothing ever
+    # happened". Which of those R4a intends is argued at `ticket_reset` in the kernel and is
+    # open to challenge; what is not open is asserting it without exercising it.
+    assert consumed["tickets"]["T1"]["infrastructure"]["ordinals"]["developer"] == 1,
+           "the fixture did not consume an ordinal, so the reset assertion proves nothing"
+
     assert ticket["infrastructure"]["ordinals"]["developer"] == 0
 
     # Note the boundary: this drives in the *reducer*. `ticket_reset`'s generation binds
@@ -1441,18 +1482,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     :driven
   end
 
-  defp nonstart do
-    drive(developing(), [
-      {"launch_settled", "T1",
-       %{
-         "ticket_id" => "T1",
-         "attempt_id" => "A1",
-         "execution_id" => "X1",
-         "settlement" => settlement()
-       }}
-    ])
-  end
-
   defp scenario(:nonstart_reviewer) do
     {state, _} =
       drive(reviewing(), [
@@ -1541,6 +1570,18 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   defp scenario(_id), do: :no_scenario
 
   # ── Fixtures ───────────────────────────────────────────────────────────────────────
+
+  defp nonstart do
+    drive(developing(), [
+      {"launch_settled", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "X1",
+         "settlement" => settlement()
+       }}
+    ])
+  end
 
   defp admitted do
     drive({State.new(), 0}, [
