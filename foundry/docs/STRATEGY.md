@@ -8,7 +8,7 @@ at pinned revisions, not comparative performance measurements or certification o
 operator's machine.
 
 [Documentation index](README.md) · [Repair plan](REPAIR-PLAN.md) ·
-[Workflow contract](WORKFLOW-CONTRACT.md) ·
+[Workflow contract](WORKFLOW-CONTRACT.md) · [Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) ·
 [Broader product strategy](../../docs/strategy/FOUNDRY.md)
 
 ## Working summary
@@ -183,6 +183,15 @@ specialized projects and will continue to improve. Before substantial post-repai
 on any such layer, perform a bounded substitution evaluation against the best available
 candidate. If a candidate satisfies the required contract with lower operator,
 maintenance and security burden, use it and delete or avoid overlapping Foundry code.
+
+The [ecosystem boundary synthesis](ECOSYSTEM-BOUNDARY.md) records the 2026-09-20 comparison
+against AgentLedger, Restate/Temporal, Microsoft AGT/ACS, Cedar/OPA, Tandem and Permission
+Protocol. Its central integration rule is deliberately stronger than ordinary dependency
+hygiene: **external systems may execute, evaluate, isolate, observe or present
+Foundry-governed work, but none may independently create authoritative Foundry facts.**
+In particular, an external durable runtime's "completed" state, a policy engine's verdict,
+a trace, or a sandbox exit status remains an input to the protected decision unless the
+workflow contract explicitly defines otherwise.
 
 Evaluate one responsibility at a time rather than adopting a new stack wholesale:
 
