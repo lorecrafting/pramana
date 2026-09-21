@@ -2767,3 +2767,28 @@ what was being asserted unchecked as it does about the tools.
   clause calls that "a ticket nothing can move" while a sibling clause already encodes the
   cancel exception it lacks — so the likely answer is the oracle. Likely is not classified, and
   reading the first of 190 counterexamples is how six of this subcommit's defects were made.
+
+## Unrelated to FR-08B: the Improver has never completed a cycle — 2026-09-21
+
+Recorded, not fixed. It is outside every FR-08B candidate and wants its own, but it is a live
+failure rather than hygiene, so it should not wait unrecorded behind a blocked ticket.
+
+- `system_metrics.ex:43` computes `ets_table_count` as
+  `length(:erlang.system_info(:ets_data) |> elem(0))`. **There is no `:ets_data` system info
+  item.** Verified directly: the call raises `ArgumentError, "1st argument: invalid system info
+  item"` on OTP 29.0.5. The expression is malformed twice over — even had the item existed,
+  `length(elem(_, 0))` is not a table count. `:erlang.system_info(:ets_count)` returns it
+  directly, as does `length(:ets.all())`; both report 21 here.
+- So `SystemMetrics.system/0` raises on **every** call, unconditionally, and has since it was
+  written. It is not a rare path: `improver.ex:138` calls `log_metrics/1` on the cycle path
+  with no guard, and the Improver's interval is 300s. **The Improver has therefore crashed on
+  every cycle and the `metrics_snapshot` record has never once been written.** The second
+  caller is `cli.ex:106`, so the operator-facing metrics command fails the same way.
+- **Nothing in the suite mentions `SystemMetrics`** — grepped, zero test files. That is why a
+  function which raises on every call passes a gate with 915 tests. Same shape as the seventh
+  vacuous mechanism recorded above, one layer out: the gate proves the suite passes, not that
+  the suite looks at anything.
+- The fix is one expression. The candidate is the fix plus the test that would have caught it,
+  and the question of whether `log_metrics/1` should be allowed to take down a cycle at all —
+  a metrics snapshot failing is not a reason to abandon an improvement cycle, and the crash has
+  been masking whatever else that cycle does.

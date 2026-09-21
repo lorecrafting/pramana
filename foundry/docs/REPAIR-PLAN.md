@@ -456,7 +456,7 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
-| FR-23 | Retire legacy surfaces, decompose god modules and restore code hygiene | FR-08B, FR-12, FR-19B | Blocked | F23, F24 |
+| FR-23 | Retire legacy surfaces, decompose god modules and restore code hygiene | FR-08B, FR-12, FR-19B | **Blocked. Carries one recorded live defect: `SystemMetrics.system/0` raises on every call, so the Improver has never completed a cycle — see the implementation log for 2026-09-21** | F23, F24 |
 | FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21, FR-23 | Blocked | F01–F24 |
 
 There are **24 ticket nodes: FR-01 through FR-23, plus child ticket FR-15a**. H0 and F
