@@ -27,8 +27,10 @@ candidate/evidence registration, consequential effect state, acceptance and prom
 Those commands use the protected transaction protocol and its idempotency/revision rules.
 
 The observation path carries model/tool/runtime/controller activity. It should be cheap to
-batch, asynchronous where possible and safe to drop/export independently without changing
-authority. OpenTelemetry belongs on this path.
+batch and asynchronous where possible. Losing an observation must never create authority
+or false success, but required local retention/quality still matters for diagnosis, cost
+accounting and self-improvement; non-authoritative does not mean disposable.
+OpenTelemetry belongs on this path.
 
 Do not turn convenience telemetry into authority. Examples:
 
