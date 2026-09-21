@@ -118,6 +118,13 @@ weaken mandatory review, acceptance, publication or activation predicates. A mid
 change is a new admitted decision, not a silent mutation of history. Project
 configuration may request authority but cannot mint it.
 
+Planning methodology is equally replaceable. Vertical work slices are a promising
+human-facing strategy, not a protected ontology; a future goal graph, blackboard,
+next-best-action planner or domain-specific method should be able to propose bounded work
+through the same admission contract. Human work views and handoff summaries are rebuildable
+projections over acknowledged state and evidence. See [Replaceable planning strategies
+and human work projections](PLANNING-STRATEGIES.md).
+
 Do not bake today's PM/developer/reviewer names or one software lifecycle into protected
 storage and authority semantics. Preserve generic identities such as project, workflow,
 workflow revision, role, assignment, principal, capability set, artifact/evidence type,
