@@ -19,7 +19,10 @@
 # own source tree and build path, because they mutate the same file.
 
 target = System.argv() |> List.first() || "lib/pramana_foundry/workflow/kernel.ex"
-workers = String.to_integer(System.get_env("SWEEP_WORKERS") || "6")
+# Four rather than six: six oversubscribed the cores badly enough that per-task wall clock
+# was roughly three times its solo cost, and the measured speedup against serial was about
+# 2.5x rather than the 6x the worker count suggests.
+workers = String.to_integer(System.get_env("SWEEP_WORKERS") || "4")
 
 # Ordered cheapest first so a mutation can be judged as soon as anything catches it. Phase
 # one is broad and seconds long; phase two adds the two suites that each run a full state
@@ -154,23 +157,32 @@ end
 
 started = System.monotonic_time(:second)
 
+# Each worker owns a slice and walks it sequentially. Assigning roots by `rem(index,
+# workers)` inside an async_stream looks equivalent and is not: the stream starts a new
+# task whenever *any* task finishes, not in index order, so task 6 could take root 0 while
+# task 0 was still using it. Two tasks then mutated and restored the same file, and
+# whichever was mid-test measured unmutated source and reported the guard as surviving.
+#
+# It produced 24 survivors against the serial run's 13 on a kernel that had gained eleven
+# tests in between - the contradiction is what exposed it. A tool for finding false
+# evidence generating false evidence, for the third time.
 results =
   sites
-  |> Enum.with_index()
+  |> Enum.chunk_every(ceil(length(sites) / workers))
+  |> Enum.zip(roots)
   |> Task.async_stream(
-    fn {site, i} ->
-      root = Enum.at(roots, rem(i, workers))
-      {site, judge.(root, site)}
+    fn {slice, root} ->
+      Enum.map(slice, fn site ->
+        verdict = judge.(root, site)
+        IO.puts("  #{Path.basename(root)} #{String.slice(site, 0, 58)} — #{verdict}")
+        {site, verdict}
+      end)
     end,
     max_concurrency: workers,
     timeout: :infinity,
     ordered: false
   )
-  |> Enum.map(fn {:ok, result} -> result end)
-
-for {site, verdict} <- results do
-  IO.puts("  #{String.slice(site, 0, 70)} — #{verdict}")
-end
+  |> Enum.flat_map(fn {:ok, slice_results} -> slice_results end)
 
 File.write!(target, original)
 Enum.each(roots, &File.rm_rf!/1)
