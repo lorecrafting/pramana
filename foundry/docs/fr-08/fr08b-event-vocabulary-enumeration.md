@@ -82,7 +82,7 @@ It does not carry an allocation: R4's row says common admission validates full
 assignment/policy/budget allocation, and that validation's authoritative record is the R5
 ledger, not a number copied into an event.
 
-## Family 3 — sealed domain evidence (13 new)
+## Family 3 — sealed domain evidence (14 new)
 
 | Event | Justifying R4 row | Payload key set | Slot |
 |---|---|---|---|
@@ -93,6 +93,7 @@ ledger, not a number copied into an event.
 | `execution_observed` | candidate_frozen; developer exit/timeout/abnormal exit — cleanup observation only | `ticket_id attempt_id execution_id observation lifecycle` | none |
 | `stream_sealed` | On exit, the broker seals that execution's input stream with its last accepted sequence | `ticket_id attempt_id execution_id last_accepted_sequence` | none |
 | `developer_closed` | developing; kernel requests developer close through broker immediately | `ticket_id attempt_id execution_id` | none |
+| `worker_closed` | queue fresh developer after all check workers close; prior role/check workers closed | `ticket_id attempt_id execution_id` | none |
 | `checks_started` | candidate_frozen; developer closed, check capacity eligible | `ticket_id attempt_id` | none |
 | `check_recorded` | checking; receipts passed / assertion fails / tool failure or timeout | `ticket_id attempt_id check_id status reason_code` | none |
 | `review_recorded` | reviewing; approved exact-candidate / correction / rejected verdict | `ticket_id attempt_id candidate_id verdict` | none |
@@ -100,7 +101,7 @@ ledger, not a number copied into an event.
 | `integration_recorded` | integrating; successful ref receipt / proved no ref change | `ticket_id attempt_id execution_id outcome ref_receipt_id` | none |
 | `attempt_settled` | R4 entity state: attempt disposition is set once on terminal | `ticket_id attempt_id disposition reason_code settlement` | **`attempt_settled.settlement` — does not exist, see prerequisites** |
 
-### Four decisions inside family 3, each answering a named blocker
+### Five decisions inside family 3, each answering a named blocker
 
 **`stream_sealed` is its own event, not a field of an observation.** B2's specific defect
 was that `reviewer_closed` "trusts an ordinary observation string." Sealing is a once-only
@@ -131,6 +132,29 @@ terminalize: a failing `check_recorded` records the failed receipt, and the
 `attempt_settled(needs_correction)` in the same bundle terminalizes. That separation is
 also what B2 asks for, since it stops a verdict string from being both the evidence and
 the disposition.
+
+**`worker_closed` exists because the first four decisions missed it.** The enumeration
+named a closure event for the developer and one for the reviewer and none for the check,
+build or integration workers, even though R4 requires their closure in three separate rows:
+"queue fresh developer after all check workers close", "bounded new check-run reservation
+after cleanup", and "successful ref receipt and prior role/check workers closed". The gap
+was not found by re-reading the table. It was found by implementing
+`require_workers_closed/1`, which made R4's integration row unreachable — the same failure
+mode as the codec's missing `launch_authority_v1` producer, one level up, and found the
+same way: by asking whether a mechanism can express a contract row rather than whether it
+is internally consistent.
+
+The rule it generalises is recorded with it. R4 states that an execution lifecycle of
+`closed` "requires verified process/session termination or proved non-start", so
+`execution_observed` may move an execution through every lifecycle **except** `closed`.
+Closure has its own guarded events. That is B2's finding — `reviewer_closed` trusted an
+ordinary observation string — stated as a property of the vocabulary rather than as a fix
+to one path.
+
+The kernel *records* worker closure rather than verifying it, and says so: verified
+termination is a protected reconciliation fact owned by FR-10, and the link from a check
+execution to its receipt that would let the kernel demand a recorded status first belongs
+with subcommit 4's check/build/integration workers.
 
 ## Events deliberately not created
 
@@ -191,11 +215,11 @@ so the next missing producer fails a test rather than waiting for a reviewer.
 ## Reconciliation with the preserved work in progress
 
 The preserved `kernel/event.ex` at `059546b` enumerated 27 types. This enumeration keeps
-**all 27** and adds 8, for a total of 35. Nothing is renamed and nothing is dropped: every
+**all 27** and adds 9, for a total of 36. Nothing is renamed and nothing is dropped: every
 preserved name maps to an R4 row, which is the evidence that the preserved work had read
 the contract carefully even though its code does not compile.
 
-The 8 additions fall into two groups of four.
+The 9 additions fall into two groups.
 
 - **Four already exist in the durable codec and were simply absent from the preserved
   file**, which predates the R4a coverage correction: `check_settled`, `review_settled`,
@@ -203,11 +227,13 @@ The 8 additions fall into two groups of four.
   At the time it was written the codec had no such slots, so `check_recorded` was the only
   place a check non-start could go, and it was carrying both the receipt and the
   settlement. The coverage correction split them, and this enumeration inherits the split.
-- **Four are new here**: `stream_sealed`, `submission_rejected`, `integration_recorded`
-  and `attempt_settled`, each for the reason given above.
+- **Five are new here**: `stream_sealed`, `submission_rejected`, `integration_recorded`,
+  `attempt_settled` and `worker_closed`, each for the reason given above. The last was
+  added during implementation, not during enumeration; that is recorded rather than
+  smoothed over, because it is evidence about how these gaps are actually found.
 
 Counted against the durable codec rather than against the preserved file, the extension is
-21 new types on top of the existing 14.
+22 new types on top of the existing 14.
 
 The preserved file's structural devices are adopted: a closed type list, an exact payload
 key set per type, exact outer-envelope keys, and a `template?` mode that admits a
