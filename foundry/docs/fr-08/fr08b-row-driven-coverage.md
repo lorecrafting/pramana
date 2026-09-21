@@ -75,6 +75,38 @@ second review's finding 7 is the case for keeping both: the variant ratchet was 
 attempt's executions, a defect the coverage harness would never see because its scenarios
 build their own sequences.
 
+## The hand-built half, and how it stops being hand-built
+
+Each scenario has three parts, and they generalise very differently.
+
+1. **The path to the row's precondition.** Hand-written today: `reviewing()` drives nine
+   events to put a ticket in `reviewing`. This is the most brittle part of the suite and
+   the target of the third review's sharpest question — "does each scenario drive the row
+   it is NAMED for, or something adjacent?" A hand-built fixture cannot answer that,
+   because the thing being asserted and the thing being built are the same author's guess.
+2. **The input event.** A row-to-event mapping, currently implicit in each scenario.
+3. **The outcome assertions.** A hand transcription of the outcome cell, now pinned to the
+   contract's words by clause citation.
+
+Part 1 is already generatable and should be generated. `KernelSearch` enumerates every
+reachable state, so a row can declare its precondition — `attempt.phase == reviewing and
+attempt.review.verdict == rejected` — and have the path found rather than built. That is
+strictly stronger than the fixture: the search proves the precondition is reached, and a
+precondition that becomes unreachable fails loudly instead of silently testing a state next
+to the one intended.
+
+Part 3 is the part that cannot be derived. An outcome cell is English, and translating
+English to a predicate mechanically would be a fourth hand-maintained encoding of the
+contract — the failure this whole document exists to stop. It stays hand-written and
+clause-cited.
+
+That leaves the shape a workflow declaration would take, if one is ever wanted: per row, a
+**precondition predicate, an input event, and outcome predicates each citing their
+clause**. The predicate language over state is the portable piece — phases, roles and
+entity kinds differ between workflows, but "predicate, event, predicate" does not. Nothing
+here commits to building that; it records what the shape would be, having been arrived at
+from the correctness side rather than designed up front.
+
 ## Where it goes next
 
 Batch C's entry in the repair plan asks for the prober's proposals to be generated from

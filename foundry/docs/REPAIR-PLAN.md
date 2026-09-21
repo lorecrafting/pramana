@@ -138,9 +138,25 @@ FR-08–FR-22 change:
   interfaces; freeze one critical batch candidate with a per-ticket acceptance matrix.
 - **Batch C:** FR-08B, FR-10, FR-11 and FR-12 as one lifecycle branch with attributable
   subcommits and every parent obligation retained; freeze and review the batch as a unit.
-  Within FR-08B, make R4's transition rows **executable data** and drive the reachability
-  prober's proposals from that table rather than from a second hand-written encoding of the
-  same rows. This is a correctness obligation, not an abstraction exercise: two
+  Within FR-08B, **stop hand-writing the second encoding of R4**. Two items, both
+  correctness obligations rather than abstraction exercises, and both scoped to FR-08B's
+  remaining subcommits:
+
+  1. Drive the reachability prober's proposals from the row table instead of from
+     `KernelWalk.candidates/1`, a separate hand-written encoding of the same rows.
+  2. Derive each row scenario's **precondition state by search** rather than by a
+     hand-built fixture. `KernelSearch` already enumerates every reachable state, so a row
+     can state its precondition declaratively and have the path found, instead of a
+     hand-driven sequence that may arrive somewhere adjacent. The third review asked
+     exactly this of the coverage suite — "does each scenario drive the row it is NAMED
+     for, or something adjacent?" — and a hand-built fixture cannot answer it. A
+     declarative precondition also fails loudly when a row's precondition becomes
+     unreachable, which is a defect no scenario currently detects.
+
+  Together these leave one encoding of R4 where there are now three, and they are the
+  portable half: a precondition predicate, an input event and an outcome predicate are the
+  same shape for any workflow, while the phases and roles inside them are not. See
+  [the mechanism/definition seam note](fr-08/workflow-definition-seam.md). This is a correctness obligation, not an abstraction exercise: two
   hand-maintained encodings of one contract drift toward each other under pressure, which
   is exactly what the subcommit 1 review confirmed on `ticket_parked`, where prober and
   kernel were both widened until they agreed on a state R4 forbids. It also discharges the
@@ -237,6 +253,49 @@ each, names where the candidate satisfies it or records that it does not. An obl
 with no home is a blocker, not a gap to be discovered later. Prefer executable coverage
 assertions over prose: a test that enumerates the contract's rows and fails when one has
 no destination is durable, while a reviewer's row-by-row read is not.
+
+### Mechanical evidence discipline
+
+Recorded 2026-09-20, after FR-08B subcommit 1 was blocked three times and the majority of
+what the reviews found was not wrong code but **green tests that tested nothing**: a
+ratchet resting on a defect, a coverage claim measurement showed false, three guards no
+test exercised, a scenario named for a contract row that never asserted the row's
+distinction, and a guard that could not fire being claimed in a commit message as a fix.
+
+The pattern is that every one of those was found by a person reading code. Anything that
+converts a reading-check into a running-check is therefore worth more than another reader,
+and is cheaper: a full independent review costs roughly 200,000 tokens, while the tools
+below run in seconds and never get tired.
+
+Prefer, in this order, and build the mechanism rather than repeating the check by hand:
+
+1. **Drive the contract's rows.** Parse the governing table out of the contract itself and
+   assert each row's stated outcome, so an inventory cannot drift from the document. Cite
+   each asserted clause verbatim and check the citation still exists, so the assertions are
+   pinned to the contract's words rather than a transcription. Track the clauses nothing
+   asserts, so coverage is a number rather than an impression.
+2. **Enumerate the reachable state space** within a bounded depth instead of sampling it.
+   An invariant then holds for the bound rather than for whatever a seed happened to visit,
+   and a violation returns the exact sequence. Canonicalise away revisions and event ids
+   before memoising, or no two paths converge and the search degenerates into a tree.
+3. **Detect guards that cannot fire.** Compare every refusal the search provokes against
+   every error the module declares. A guard nothing can trip is dead code that reads as a
+   safeguard, and it will otherwise be counted as evidence.
+4. **Mutate each guard and see whether anything notices.** Neutralise at the call site, not
+   the definition — renaming a definition breaks the build and measures nothing. A
+   surviving mutation is a guard no test exercises.
+5. **Propose adversarial events, not only cooperative ones.** A prober that always names
+   the active attempt and always resumes honestly leaves every forged-reference guard
+   unexercised. Rejections expand no state, so they are nearly free.
+
+These are properties of any guarded reducer judged against a written contract, not of this
+workflow, so they carry to later tickets and to any future workflow. Their inputs — the
+reducer, the proposer, the contract document — are what changes.
+
+`bin/preflight.sh` and `bin/freeze-evidence.sh` cover the other repeated hand step:
+producing a candidate's evidence. Transcribing suite counts from memory is how a freeze
+comes to report a number rather than a measurement, and the delta check is what catches a
+suite that quietly stopped being loaded.
 
 ### Coordination efficiency discipline
 
