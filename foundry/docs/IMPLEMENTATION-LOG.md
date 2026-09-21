@@ -2708,3 +2708,21 @@ what was being asserted unchecked as it does about the tools.
 - The pattern the previous entry named held again, one level up: the kernel defect was real,
   and so was the defect in the fix for it — but only the review found the second, because every
   mechanism was silent on both.
+- **EV-4 landed in the same pass** (`96ad2f22`), the first of the three evidence-reduction
+  tickets. The quotient it proves is not incidental: at depth 5, 16,289 tree states collapse to
+  2,736 classes and 2,250 of those classes merge something. Enumeration runs under
+  `identity_key/1`, because grouping `search/2`'s own output would return one state per class
+  and compare nothing — using the quotient to check the quotient. Depth 4 in the suite: 1,388
+  comparisons over 371 merging classes, 0 violations, 3.1s. Depth 5 run once: 13,553
+  comparisons, 0 violations, 22s, left out because a 22-second permanent acceptance step that
+  found nothing new at depth 4 is the sweep's cost mistake in miniature. Red control is
+  permanent rather than a one-off: the same comparison under a phase-dropping key finds 25
+  disagreements, and neutralising `key/1` itself turns the real test red at 25 of 1,399.
+- Gate on `771d0d66`: **passes**, **915 passed / 13 skipped / 1 excluded**, suite **302.3s**,
+  provenance `result: passed`, `exit_code: 0`, `dirty_paths: []` before and after. Both numbers
+  were predicted before the run and both landed — 912 + 2 from EV-4 + 1 from the remediation,
+  and 300–312s after the previous entry's duration prediction was too narrow. Workflow suites
+  **180 at seed 0**. `bin/preflight.sh` passes with the 4 pre-existing warnings, in
+  `stress_test.exs` and `jev_test.exs`, neither touched by this candidate — checked rather than
+  restated from the previous entry, where the sampled warning text had changed while the count
+  had not.
