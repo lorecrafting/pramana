@@ -60,6 +60,13 @@ The durable rule is:
 
 This is a refinement of the existing ecosystem boundary, not a new kernel architecture.
 
+The separate [Cloudflare OS review](CLOUDFLARE-OS.md) adds an important qualification:
+AX/Substrate should not be declared the universal backend. Foundry should keep the
+`ExecutionBackend` contract plural and select by workload class. AX/Substrate is currently
+the stronger candidate for distributed heavyweight/stateful sandbox work; Cloudflare
+Dynamic Workers/Sandbox are alternate candidates for lighter capability-bound code or full
+VM execution. The two can coexist because neither is allowed to become Foundry's ontology.
+
 ## Why the September AX rewrite matters
 
 AX's 2026-09-20 rewrite changes its architectural role.
