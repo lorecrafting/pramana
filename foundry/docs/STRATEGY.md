@@ -18,7 +18,10 @@ comprehensive coding harness or a permanently hard-coded agent graph. Models may
 task decomposition, roles, workflow shape, context, tools, checks and corrections.
 Foundry owns admitted intent, identities, capability grants, durable acknowledged state,
 budgets, external-effect control, evidence, acceptance, recovery and controlled
-self-improvement.
+self-improvement. The resulting boundary should also make Foundry an experimentation
+kernel: hold authority/evidence/acceptance invariants stable while comparing workflow
+strategies, models, harnesses, context policies, tool configurations, review topologies
+and concurrency by accepted-outcome correctness, effort, latency and resource cost.
 
 Retain the standalone Elixir/OTP project. Beneath the current fail-closed launch gate,
 the implemented execution path still targets OMP through Herdr; that is implementation
@@ -114,6 +117,13 @@ inject or require gates that a proposed workflow omitted; a project or model can
 weaken mandatory review, acceptance, publication or activation predicates. A mid-run
 change is a new admitted decision, not a silent mutation of history. Project
 configuration may request authority but cannot mint it.
+
+Planning methodology is equally replaceable. Vertical work slices are a promising
+human-facing strategy, not a protected ontology; a future goal graph, blackboard,
+next-best-action planner or domain-specific method should be able to propose bounded work
+through the same admission contract. Human work views and handoff summaries are rebuildable
+projections over acknowledged state and evidence. See [Replaceable planning strategies
+and human work projections](PLANNING-STRATEGIES.md).
 
 Do not bake today's PM/developer/reviewer names or one software lifecycle into protected
 storage and authority semantics. Preserve generic identities such as project, workflow,

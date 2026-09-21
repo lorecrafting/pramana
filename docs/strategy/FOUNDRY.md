@@ -260,6 +260,23 @@ handoff/review phases remain part of the active repair baseline. Post-repair por
 must remove those assumptions only after the fixed workflow is proven and a materially
 different typed-content workflow demonstrates the generalization.
 
+## Foundry as an experimental workflow kernel
+
+The long-term boundary should permit controlled comparison of planning/workflow strategy,
+model/profile, harness, context policy, tool surface, reviewer topology and concurrency
+without changing the protected authority/evidence rules for each experiment. Compare
+matched task classes by accepted outcomes, correctness, operator effort, correction tax,
+latency, token/context use, provider-reported cost where available and recovery burden;
+do not optimize raw token count or throughput in isolation.
+
+Vertical work slices are a useful current planning hypothesis, not Foundry ontology. A
+PM/Shaper may use slices to turn an objective into human-recognizable outcomes and then
+propose bounded tickets, but a future goal graph, blackboard, dynamic DAG or repeated
+next-best-action planner should be able to use the same admission boundary. Human work
+views and compact continuity capsules should remain replaceable projections over durable
+state and evidence. The detailed boundary is in
+[Replaceable planning strategies](../../foundry/docs/PLANNING-STRATEGIES.md).
+
 ## First post-repair investment: useful context and honest feedback
 
 Measure where the operator loses time, then try one bounded improvement. Candidate

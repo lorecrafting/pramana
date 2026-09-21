@@ -29,6 +29,13 @@ roles and workflows, while the kernel continues to enforce the same durable prop
 
 A project definition may **request** power. It never mints power.
 
+Planning strategy is also project/workflow vocabulary rather than protected ontology.
+A ProjectProfile may request a planner role and a strategy-specific artifact shape, but
+the kernel should consume only the bounded proposal fields it needs for admission. A
+vertical-slice planner, goal-graph planner or future domain-specific planner should be
+replaceable without changing the authority/evidence ledger. See
+[Replaceable planning strategies and human work projections](PLANNING-STRATEGIES.md).
+
 ## 2. Separate role meaning from authority
 
 A role name is descriptive workflow vocabulary, not a security principal by itself.

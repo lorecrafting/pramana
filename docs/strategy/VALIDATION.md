@@ -52,6 +52,14 @@ infrastructure/storage and human effort. Subscriptions and local infrastructure 
 not free merely because marginal cash billing is absent. Unknown usage remains
 unknown and cannot relax the protected budget ledger.
 
+Treat workflow strategy, planner revision, model/profile, harness, context policy, tool
+surface, reviewer topology and concurrency as candidate experimental dimensions rather
+than permanent Foundry ontology. Comparisons should pin the relevant dimensions, use
+matched task classes and keep the protected acceptance boundary comparable. Record enough
+lineage to attribute an accepted outcome and its corrections, failures and operator effort
+to the exact experimental arm. See
+[Replaceable planning strategies](../../foundry/docs/PLANNING-STRATEGIES.md).
+
 ## Pilot protocol
 
 For the Chinese-first pilot, the execution ceilings, bilingual evaluation rubric, critical-failure taxonomy and rehearsal pass rules are frozen in [PILOT_ACCEPTANCE](PILOT_ACCEPTANCE.md); consent, retention/deletion, withdrawal, current-alternative intake and study denominator rules are frozen in [PILOT_PARTICIPANTS](PILOT_PARTICIPANTS.md); the charter owns participant-level thresholds. At G1, preregister the remaining live scope, current alternatives, evaluator identities and measured baselines before execution. A reasonable **proposed
@@ -70,7 +78,7 @@ and ordinary functional tests remain necessary even when a model reviewer agrees
 
 ## Experiment contract
 
-Each model, retrieval, context or tooling experiment records:
+Each model, workflow/planning, retrieval, context or tooling experiment records:
 
 - Hypothesis, target failure class and smallest meaningful benefit; baseline and
   comparison arm; exact code, corpus, index, model, settings and policy identities.

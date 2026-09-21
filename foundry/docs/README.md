@@ -28,6 +28,7 @@ contract still govern implementation.
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
 | Review the frozen FR-08A atomic-composition correction | [Settlement-presence correction narrow PASS](fr-08/atomic-composition-presence-review.md), [prior presence BLOCKER](fr-08/atomic-composition-final-rereview.md), [earlier rereview](fr-08/atomic-composition-rereview.md) and [first review](fr-08/atomic-composition-review.md), each with exact candidate scope |
 | Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
+| Understand replaceable planning strategies, PM/Shaper responsibility, human work projections and workflow experiments | [Planning strategies](PLANNING-STRATEGIES.md), then [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), [Observability](OBSERVABILITY.md) and the governing strategy |
 | Understand why repairs exist | [Architecture/lifecycle audit](AUDIT-2026-09-12.md) and its dated verification records |
 | Inspect the durable store's actual tables, columns and constraints | [Generated schema reference](DURABLE-STORE-SCHEMA.md); it is generated from `database.ex` and a test fails if the two disagree, so prefer it over reading the schema by hand |
 | Build or run model-free checks | [Independent CI](CI.md) and `ci/run.exs` |
