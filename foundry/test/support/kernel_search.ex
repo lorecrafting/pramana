@@ -68,6 +68,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
   # the whole budget where the question is.
   defp explore(depth, opts) do
     initial = Keyword.get(opts, :from) || State.new()
+    key_fun = Keyword.get(opts, :key, &key/1)
 
     # Durable sequence is strictly increasing across the whole log, so proposals must
     # continue the seed's numbering rather than restart at 1. Without this every proposal
@@ -80,9 +81,9 @@ defmodule PramanaFoundry.Test.KernelSearch do
     {frontier, states, seen, reasons} =
       Enum.reduce(
         1..depth,
-        {[{initial, []}], [{initial, []}], MapSet.new([key(initial)]), MapSet.new()},
+        {[{initial, []}], [{initial, []}], MapSet.new([key_fun.(initial)]), MapSet.new()},
         fn _level, {frontier, states, seen, reasons} ->
-          {next, seen, reasons} = expand(frontier, seen, reasons, opts)
+          {next, seen, reasons} = expand(frontier, seen, reasons, opts, key_fun)
           {next, states ++ next, seen, reasons}
         end
       )
@@ -90,12 +91,12 @@ defmodule PramanaFoundry.Test.KernelSearch do
     # The deepest frontier is reached but never expanded, so nothing has yet proposed from
     # it. Its refusals are as real as any other's, and omitting them made two guards look
     # unreachable that are not. One more proposal pass, discarding the states.
-    {_ignored, _seen, reasons} = expand(frontier, seen, reasons, opts)
+    {_ignored, _seen, reasons} = expand(frontier, seen, reasons, opts, key_fun)
 
     {states, reasons}
   end
 
-  defp expand(frontier, seen, reasons, opts) do
+  defp expand(frontier, seen, reasons, opts, key_fun) do
     tickets = Keyword.get(opts, :tickets, ["T1"])
 
     Enum.reduce(frontier, {[], seen, reasons}, fn {state, path}, acc ->
@@ -106,7 +107,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
 
         case WorkflowKernel.apply(state, event) do
           {:ok, next} ->
-            k = key(next)
+            k = key_fun.(next)
 
             if MapSet.member?(seen, k),
               do: {acc, seen, reasons},
@@ -152,9 +153,15 @@ defmodule PramanaFoundry.Test.KernelSearch do
   defp revision(state, "objective", id), do: get_in(state, ["objectives", id, "revision"]) || 0
   defp revision(state, _kind, id), do: get_in(state, ["tickets", id, "revision"]) || 0
 
-  # Bookkeeping is stripped so two paths reaching the same domain content converge. Without
-  # this every path is distinct and the search never merges.
-  defp key(state) do
+  @doc """
+  The canonical identity two paths must share to be merged: domain content with per-path
+  bookkeeping stripped.
+
+  Public because the quotient it defines is a proof obligation, not an implementation
+  detail. `r4_congruence_test.exs` enumerates under `&identity_key/1` and groups by this,
+  which is the only way to obtain two states the search itself would have merged.
+  """
+  def key(state) do
     %{
       "control" => Map.drop(state["control"], ~w(revision last_event_id)),
       "objectives" => strip(state["objectives"]),
@@ -164,6 +171,33 @@ defmodule PramanaFoundry.Test.KernelSearch do
 
   defp strip(collection),
     do: Map.new(collection, fn {k, v} -> {k, Map.drop(v, ~w(revision last_event_id))} end)
+
+  @doc """
+  A key that merges nothing. Enumerating under it yields the tree `key/1` quotients, which
+  is what a congruence check needs on both sides of the comparison.
+  """
+  def identity_key(state), do: state
+
+  @doc """
+  Every proposal's outcome from `state`: `{proposal, :accepted, successor_key}` or
+  `{proposal, :refused, reason}`.
+
+  Each event is built against `state`'s own revision and next sequence, because those are
+  exactly the fields `key/1` strips — comparing two key-equal states means comparing what
+  each does with its own bookkeeping, not forcing one state's bookkeeping onto the other.
+  """
+  def outcomes(state, tickets \\ ["T1"]) do
+    sequence = (state["last_sequence"] || 0) + 1
+
+    state
+    |> proposals(tickets)
+    |> Enum.map(fn proposal ->
+      case WorkflowKernel.apply(state, build(state, proposal, sequence)) do
+        {:ok, next} -> {proposal, :accepted, key(next)}
+        {:error, reason} -> {proposal, :refused, unwrap(reason)}
+      end
+    end)
+  end
 
   @doc "Every error atom the kernel module can return, read from its source."
   def declared_reasons do
