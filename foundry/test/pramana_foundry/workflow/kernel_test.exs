@@ -1988,13 +1988,11 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # Named rather than `apply/3`, which cannot reach a private function — and keeping the
     # fixtures private is worth one dispatcher, since making fifteen builders public to
     # satisfy a table would be the table changing the code it tests.
-    defp fixture(:admitted), do: admitted()
     defp fixture(:developing), do: developing()
     defp fixture(:candidate_frozen), do: candidate_frozen()
     defp fixture(:checking), do: checking()
     defp fixture(:checking_with_check), do: checking_with_check()
     defp fixture(:checked_passed), do: checked("passed")
-    defp fixture(:reviewing), do: reviewing()
     defp fixture(:sealed_reviewer), do: sealed_reviewer()
     defp fixture(:ready_to_integrate), do: ready_to_integrate()
     defp fixture(:approved_and_closed), do: approved_and_closed()
