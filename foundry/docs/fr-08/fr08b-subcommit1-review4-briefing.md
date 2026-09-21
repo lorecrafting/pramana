@@ -5,7 +5,7 @@ Date: 2026-09-21
 Reviewer: a **fresh** Claude Fable 5.1 session, independent of the implementer and of all
 three previous reviewers. Not a fork.
 
-Candidate: `c71fc70` on `repair/fr08b-kernel`. Base: `main` at `a319b39`. Evidence in
+Candidate: `34d6833` on `repair/fr08b-kernel`. Base: `main` at `a319b39`. Evidence in
 "Settled facts" below.
 
 ## Three blocks, and what changed between them
@@ -121,15 +121,16 @@ Measured on `4358d44`, not transcribed from memory:
 
 | | |
 |---|---|
-| Workflow suites | **131 passed**, seed 0 |
-| Full model-free suite | **867 passed, 13 skipped**, seed 0, serial (`--max-cases 1`), fresh `MIX_BUILD_PATH`, **460s** |
-| Canonical gate `elixir ci/run.exs` | **GATE_RESULT** |
+| Workflow suites | **166 passed**, seed 0 |
+| Full model-free suite | **901 passed, 13 skipped, 1 excluded** at the gate. A serial run with a fresh `MIX_BUILD_PATH` before the last 35 tests was 867 + 13; 867 + 35 = 902 = 901 + 1 excluded, so the delta is exactly what was added |
+| Canonical gate `elixir ci/run.exs` | **passes**, suite 302.0s, total **312s** — no prior entry recorded one |
 | `bin/preflight.sh` | passes; 4 pre-existing test-file warnings, none in the files this candidate touches |
-| Guard mutation sweep | 66 call sites; **4 survive** |
+| Guard mutation sweep | **108** call sites; **6 survive**, all six recorded as unable to fire |
 
-The full-suite count is the previously recorded 796 plus exactly the 71 tests added since
-— 56 in the pass before this one, 15 in this one. The delta is the check; the absolute
-number alone would not have caught a suite that quietly stopped being loaded.
+The delta is the check, not the absolute number: an absolute count alone would not catch a
+suite that quietly stopped being loaded. The kernel diff across this whole pass is
+**comments only** — no behaviour changed, so every number above moved because tests were
+added.
 
 ### The mutation sweep, in full
 

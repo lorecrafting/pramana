@@ -2268,3 +2268,89 @@ what was being asserted unchecked as it does about the tools.
 - The rule these leave: **no guard is described as working until a neutralisation has
   turned a test red**, and no tool's first result is trusted until a known-good input shows
   the expected colour.
+
+## FR-08B kernel, subcommit 1 — the sweep was measuring less than it claimed — 2026-09-21
+
+- Started from a supervisor correction, and that is the entry's point. A full mutation
+  sweep reported **19 guards no test exercises**. The implementer explained the number away
+  as a tooling artefact. The supervisor refused it, neutralised one guard by hand, and all
+  five suites stayed green. The number was real. **A number being explained is not the same
+  as a number being investigated**, and the explanation cost nothing to produce, which is
+  exactly why it was wrong.
+- Three causes. **Loose assertions**: `{:error, _}` is satisfied by any guard in a `with`
+  chain, so neutralising the one a test is named for still matches via whichever guard
+  refuses next. That was review one's finding 9, deferred as cosmetic; it was hiding most of
+  the rest. **Guards shipped without tests**: fifteen, several arriving with the corrections
+  that closed review three. **Guards that cannot fire**: four.
+- Pinning the assertions immediately reclassified one. `r4_coverage_test.exs` cited R4's
+  "failed candidate never goes to approval" and was being refused on the attempt phase, not
+  by `require_checks_passed`. `maybe_finish_checks` only advances an attempt to
+  `awaiting_review` once every check has passed, and no event can add or relabel a check
+  afterwards, so the guard's question is answered before it runs. Its recorded reason was
+  not imprecise but wrong: it said "deeper than the bound", and raising the depth does not
+  reach it.
+- **Then the tool turned out to be understating itself, and this is the larger finding.**
+  Writing the review briefing — in the sentence asking a reviewer to check whether the
+  sweep's granularity was honest — it became clear it was not. The sweep neutralised by
+  **global** string replacement, so identical call-site text was mutated in every handler
+  holding it and one red test anywhere cleared all of them. It printed "guard call sites:
+  66". There are **108**. `require_active_attempt(ticket, payload["attempt_id"])` occurs
+  twelve times, `require_attempt_phase(ticket, ~w(active))` five. **42 call sites had never
+  been individually exercised.** Fourth time this one tool has produced evidence weaker than
+  its own claim.
+- Swept per occurrence, 37 of the 42 had no test. Thirty-five now do, as one row per site
+  naming its fixture, event and exact atom; the fixture is always the state in which every
+  guard *before* the target passes, which is the whole difficulty and the reason a shared
+  `{:error, _}` hid the class for three reviews. The other two cannot fire.
+- **Four of the states the table needed were searched for rather than built.** The sharpest
+  is a ticket back in `developing` whose attempt has already frozen its candidate:
+  `launch_settled` stores resume_phase `developing`, `artifact_frozen` advances the ticket
+  to `awaiting_review` without clearing it, a block may then honestly name the stale stored
+  target, and the unblock returns a candidate_frozen attempt to `developing`. Three such
+  states at depth 7. The guards refuse it, so nothing is broken; whether `artifact_frozen`
+  should clear the stale target is R4 semantics and was left for review rather than changed
+  at freeze. Same defect shape already recorded for `apply_terminal_phase`'s blocked branch.
+- **The reachability claims were resting on almost nothing, and the measurement is the
+  finding.** `@unreachable` asks whether an atom ever fired in the bounded search, which
+  conflates "no sequence can trip this" with "the prober never offered it". Re-checking each
+  claim by searching reachable *states* for the guard's trip condition meant first asking
+  how far the search gets: at depth 8 over 238,000 states it reaches **45** states with an
+  attempt in `reviewing`, **156** in `awaiting_review`, and **zero** with a recorded
+  verdict. Two claims stood on 45 and 156 witnesses; anything past a verdict could not be
+  bounded at all.
+- `KernelSearch` gained `:from`, so a search starts from a driven state and spends its
+  budget where the question is. Seeded from a sealed reviewer: 164,648 states, 13,846
+  holding an approved verdict.
+- **It returned a vacuous result on its first run** — one state, zero of every predicate —
+  because proposals restarted sequence numbering at 1 against a seed at 10 and were all
+  refused as `out_of_order_event`. It looked exactly like a proof that nothing was
+  reachable. Fifth vacuous first run this session, and the only reason it did not survive is
+  that a sealed reviewer obviously can accept a verdict.
+- **Seeded, it overturned a hand argument within one run.** `reviewer_closed`'s approved
+  branch had been reasoned unreachable; the loose form of that reasoning has 3,612
+  witnesses. The conclusion survived on the exact precondition — zero across 164,648 seeded
+  states — and the reasoning did not. Two wrong calls in one hand-maintained list, again.
+- Two more unreachable call sites found and recorded at the site rather than in
+  `@unreachable`, which is keyed by error atom and cannot express them:
+  `ticket_reset`'s `require_no_active_attempt` (10,024 exhausted states, none with an
+  attempt; its twins in `ticket_amended` and `cancellation_finalized` both fire) and
+  `reviewer_closed`'s `require_attempt_phase(~w(reviewing))`. **The gap is open: a dead call
+  site is invisible to everything except an hour-long sweep.** Named in the briefing as the
+  question worth a reviewer's attention.
+- A state probe reported 774 witnesses for "attempt phase is not active" by matching `nil` —
+  no attempt at all. Caught by reading the counterexample it printed. Predicates over absent
+  entities are the shape to distrust.
+- The kernel diff across this whole pass is **comments only**. No behaviour changed.
+- Two incidents. The gate was run while the working tree was being edited and failed at
+  `source_postflight` — the mirror image of the sweep-holds-the-tree incident, and the rule
+  generalises: no tracked file is edited while any tool holds the tree. And preflight's
+  test-file warning count went 4 to 6, which is the only reason two dead dispatcher clauses
+  were caught; that check reports a number rather than a pass precisely for this.
+- Suites: workflow **166 at seed 0**, from 116. Full model-free suite measured at the gate:
+  **901 passed, 13 skipped, 1 excluded**. The prior serial run with a fresh `MIX_BUILD_PATH`
+  was 867 passed, 13 skipped, and 867 + 35 = 902 = 901 + 1 excluded, so the delta is exactly
+  the tests added and nothing quietly stopped being loaded. Canonical gate `elixir
+  ci/run.exs`: **passes, suite 302.0s, total 312s** — the first duration any entry records. `bin/preflight.sh`
+  passes with the 4 pre-existing test-file warnings.
+- Sweep, final: 108 call sites; all 62 previously-unmeasured occurrences re-swept; **6
+  survive**, exactly the six recorded as unable to fire.
