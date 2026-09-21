@@ -385,6 +385,30 @@ Observation provenance
 
 Those are different facts.
 
+### Current Cloudflare observation enforcement is useful, not complete
+
+Do not overread the pattern as proof that Cloudflare OS already solves general
+information-flow control. The pinned observer design explicitly keeps v1 enforcement
+coarse (including no per-thread hiding) and records known fail-open windows. For example,
+it documents a first-time observer-registration interval in which an observer id may be
+known to Gatekeepers before the overseer's reverse record exists, and a retained binding
+loopback case where stored graph state can say a resource left scope while a previously
+minted capability can still reach it. Those are tracked as required fixes in Cloudflare's
+own design.
+
+That honesty is itself useful design pressure for Foundry:
+
+- observation provenance and revocation must be tested against escaped capabilities, not only
+  current graph/config state;
+- "not present in the index" cannot automatically mean "not currently authorized/active";
+- revocation must cover already-issued capabilities and live sessions;
+- a provenance model is only as strong as every egress/effect path that consumes it;
+- fail-open residuals must remain visible instead of being hidden behind a high-level
+  "information-flow aware" label.
+
+Any Foundry experiment should therefore reproduce these adversarial classes rather than
+copy only Cloudflare's happy-path observation API.
+
 ## Candidate ObservationReceipt
 
 Do **not** add this to the protected ontology during the current repair merely because the
