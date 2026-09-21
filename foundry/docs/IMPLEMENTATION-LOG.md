@@ -2421,3 +2421,73 @@ what was being asserted unchecked as it does about the tools.
   fragmentation with semantic clause IDs in the contract itself. It also declined the
   guards-as-data idea as too much architecture for an evidence problem.
 - Suites: workflow **172 at seed 0**.
+
+## FR-08B kernel, subcommit 1 — the inventory that could not see one of its two spellings — 2026-09-21
+
+- `KernelSearch.declared_reasons/0` claimed to inventory the kernel's declared error set
+  mechanically and scanned for one of the **two** spellings a refusal is written in. It
+  matched literal `{:error, :atom}` and could not see `kernel.ex:80`, where the reason is
+  lifted from a fetch: `Event.entity_kind(...) |> ok_or(:unknown_entity_kind)`. It had read
+  69 of 70 declared reasons for three reviews and reported a complete inventory. Extraction
+  is now `reasons_in/1` over source text — separate from the file read so a fixture can be
+  fed to it — and covers both `ok_or` call forms rather than only the piped one the kernel
+  happens to use. Red control: a fixture carrying every declaration shape and both
+  `ok_or/2` definition clauses, which must not be read as declarations. Neutralising the
+  added spelling turns two tests red.
+- `:unknown_entity_kind` surfaced as never-fired and is recorded as **dead by construction**
+  with an inductive argument rather than as bounded absence. `@entity_kind_of` is
+  `Map.new(@types, ...)`, so its key set *is* the type vocabulary, and `Event.validate/1`
+  runs first in `apply/2` requiring `type in @types`. A total map looked up with a key proven
+  to be in its domain cannot return `:error`. Both halves are already enforced mechanically —
+  the map by its own construction, the totality by kernel_test's "every type has an exact
+  payload key set and an entity kind" — so nothing new was added to assert it.
+- **Full sweep: 116 call sites, 14 survivors, 84 minutes.** The count is 116 and not the
+  recorded 114 because `028b4965` added two guard calls; confirmed by per-name diff against
+  `34d6833` — `require_no_recorded_verdict` and `require_check_unsettled`, one each — rather
+  than assumed. Nine survivors were already on the books: the six recorded as unable to fire,
+  plus the three `require_attempt_phase(~w(active))` sites that lost their only witness to the
+  stale-resume fix and are recorded as redundant-given-an-invariant. **Five were real**, three
+  of them inside `require_settlement_source`, whose six sites had never been individually
+  measured. That correction paid for itself on its first full run.
+- Three are closed, each pinned to its exact atom and each **confirmed by scoped re-sweep
+  rather than by going green**: `require_phase(~w(queued blocked))` in `ticket_amended` (:289)
+  and `ticket_parked` (:302), and the `"blocked"` branch of `require_settlement_source` (:1595).
+- **A test was written for the wrong site, and only the sweep caught it.** The first version of
+  the :1595 row settled `failed` from `checking`, which exercises the failed/timed_out branch at
+  :1585 — already covered — while the row's name claimed :1595, which stayed a survivor. The
+  branch-to-line mapping was read by eye out of a `case` with six clauses. The test was green and
+  `kernel_test` went 109 to 112. Nothing else in the suite compares a test's claim against the
+  site it actually exercises, which is the strongest argument yet for the coverage-guided
+  rebuild: that mapping is what an instrumented run emits as a by-product.
+- **Two survivors are unwitnessed, and the denominator is why they are not invariants.** :1557
+  (`integrated` needs `integrating`) and :1574 (`rejected` needs `reviewing`) are each shadowed
+  at the call site — measured, not argued: the probes return `:no_ref_receipt` and
+  `:no_rejected_verdict`. Reaching either phase guard needs a state the bound does not produce.
+  At depth 7 over **58,324 states, 0** have an active attempt holding a ref receipt and **0**
+  have one with any recorded verdict. Adding the implied relations to `SemanticInvariants` — the
+  precedent this repo set for exactly this shape — would have asserted them over 58,324 states
+  none of which can trip them. That is the sixth vacuous mechanism, avoided by measuring the
+  denominator *before* writing the check rather than after.
+- The sweep's full verdict table and both neutralisation confirmations are committed as
+  [evidence](fr-08/fr08b-subcommit1-sweep-2026-09-21.md), assembled by script from the tool's own
+  output. Every hand-carried count from this tool has been weaker than its claim five times
+  running, so nothing in it is transcribed. It is also the **answer key** a coverage-guided
+  replacement must reproduce exactly.
+- Known defect, recorded rather than fixed: `@sites` line numbers are stale by +11 below
+  `review_settled` after `028b4965`, and this candidate adds rows carrying fresh ones. The field
+  is documented as "a convenience rather than an assertion", and coverage is unaffected — every
+  site but the eleven dispositioned survivors is confirmed caught, so no open gap can hide behind
+  a wrong label. It is a documentation defect that costs a reader time, and the rows do not record
+  which guard they target, so renumbering would be guesswork. Decision for review.
+- The kernel diff across this pass is **empty**. No behaviour changed; every number below moved
+  because tests were added.
+- Suites: workflow **176 at seed 0**, from 172. Full model-free suite serial with a fresh
+  `MIX_BUILD_PATH`: **912 passed, 13 skipped**, 451s. The delta is the check — 901 at `34d6833`
+  plus 7 added by `028b4965` (counted in the diff; the brief's estimate of ~11 was wrong) plus 4
+  this session = 912 exactly, so nothing quietly stopped being loaded. Canonical gate
+  `elixir ci/run.exs` on `21b5cd77`: **passes**, 911 passed / 13 skipped / 1 excluded, suite
+  **295.6s**, total **306s** (prior entry: 302.0s / 312s). The gate excludes three provider tags
+  the serial run does not, so 912 serial and 911 + 1 excluded at the gate are the same set; that
+  was predicted before the run rather than reconciled after. `bin/preflight.sh` passes with the 4
+  pre-existing test-file warnings, none in the files this candidate touches. Provenance records
+  `dirty_paths: []`.
