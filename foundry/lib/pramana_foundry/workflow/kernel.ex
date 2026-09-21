@@ -472,10 +472,23 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4: "any open submission phase; malformed result" — a durable rejected submission. It
   # charges a validation action in the R5 ledger, which is not the kernel's to write, and
   # it moves no phase.
+  # R4: "any open submission phase; malformed result | **Durable rejected submission, charge
+  # one validation action**; further submission allowed only while **stream open** and
+  # budget remains; exhaustion closes execution and exhausts ticket."
+  #
+  # This accepted the event and changed nothing, so there was no durable record to charge
+  # against and the row was unimplementable - the enumeration created the event for exactly
+  # this reason and then the reducer dropped it. The charge is recorded on the attempt; the
+  # budget it is charged against is protected allocation, so exhaustion arrives as
+  # attempt_settled(exhausted) rather than being derived here.
   defp do_transition("submission_rejected", ticket, event, _state) do
+    payload = event["payload"]
+
     with :ok <- require_phase(ticket, ~w(developing reviewing)),
-         :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]) do
-      {:ok, ticket}
+         :ok <- require_active_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_open_submission_stream(ticket) do
+      {:ok,
+       update_active_attempt(ticket, &Map.update!(&1, "rejected_submissions", fn n -> n + 1 end))}
     end
   end
 
@@ -973,7 +986,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
           "executions" => %{},
           "checks" => %{},
           "review" => nil,
-          "policy_empty_checks" => false
+          "policy_empty_checks" => false,
+          "rejected_submissions" => 0
         }
 
         {:ok,
@@ -1032,14 +1046,46 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp consume_infrastructure_ordinal(owner, role),
     do: update_in(owner, ["infrastructure", "ordinals", role], &(&1 + 1))
 
+  # R4 row 13: "Preserve candidate, **bounded new check-run reservation after cleanup**;
+  # pending same phase". A check_id names the check the root mandates; planning it reserves
+  # a run. A run that failed for infrastructure reasons or timed out may be re-reserved,
+  # which is what "new check-run reservation ... pending same phase" means - before this
+  # the attempt sat in `checking` forever, because every run had to be `passed` and a
+  # reused id was refused outright.
+  #
+  # An assertion failure may never be re-reserved: that is row 12, whose outcome is a
+  # terminal needs_correction attempt, and "failed candidate never goes to approval". Nor
+  # may `unknown`, because R4 says "Unknown check retains lease and blocks retry". The
+  # distinction is the controller's reason_code, which R4 makes load-bearing: "A check
+  # failure uses its controller exit/receipt reason_code (assertion_failed,
+  # infrastructure_failed or timed_out), not an agent's assertion."
   defp add_check(ticket, check_id) do
-    if Map.has_key?(active_attempt(ticket)["checks"], check_id) do
-      {:error, :check_already_exists}
-    else
-      check = %{"check_id" => check_id, "status" => "pending", "reason_code" => nil}
-      {:ok, update_active_attempt(ticket, &put_in(&1, ["checks", check_id], check))}
+    case active_attempt(ticket)["checks"][check_id] do
+      nil ->
+        {:ok,
+         update_active_attempt(ticket, &put_in(&1, ["checks", check_id], fresh_check(check_id)))}
+
+      check ->
+        if retryable_check?(check),
+          do:
+            {:ok,
+             update_active_attempt(
+               ticket,
+               &put_in(&1, ["checks", check_id], fresh_check(check_id))
+             )},
+          else: {:error, :check_already_exists}
     end
   end
+
+  defp fresh_check(check_id),
+    do: %{"check_id" => check_id, "status" => "pending", "reason_code" => nil}
+
+  defp retryable_check?(%{"status" => "timed_out"}), do: true
+
+  defp retryable_check?(%{"status" => "failed", "reason_code" => "infrastructure_failed"}),
+    do: true
+
+  defp retryable_check?(_check), do: false
 
   defp active_attempt(ticket), do: ticket["attempts"][ticket["active_attempt_id"]] || %{}
 
@@ -1434,11 +1480,27 @@ defmodule PramanaFoundry.Workflow.Kernel do
       else: :ok
   end
 
+  # R4 row 12 is "checking; **actual check assertion fails**", and its outcome is terminal.
+  # Counting a timeout as an assertion failure terminalised an attempt row 13 says to
+  # preserve, which is the row this kernel was misreading as that one.
   defp failed_check?(attempt),
     do:
       Elixir.Enum.any?(attempt["checks"] || %{}, fn {_id, check} ->
-        check["status"] in ~w(failed timed_out)
+        check["status"] == "failed" and check["reason_code"] == "assertion_failed"
       end)
+
+  # "further submission allowed only while stream **open**". Once the broker has sealed the
+  # stream, a later arrival is late evidence: R4a says messages after sealing are "never
+  # silently attached to a new attempt", so they cannot be charged as a fresh submission
+  # either.
+  defp require_open_submission_stream(ticket) do
+    open? =
+      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
+        execution["role"] in ~w(developer reviewer) and is_nil(execution["sealed_sequence"])
+      end)
+
+    if open?, do: :ok, else: {:error, :submission_stream_sealed}
+  end
 
   defp require_developer_result(attempt, results) do
     sealed? =

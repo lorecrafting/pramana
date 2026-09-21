@@ -25,16 +25,24 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   # it. This is a ratchet over *contract rows*, which is the thing that matters - unlike a
   # ratchet over event types the prober happened to reach, a row here is unambiguous: the
   # contract requires it and the kernel cannot do it.
-  @unexpressible %{
-    base_moved: "no event produces superseded_base; R4's moved-base row has no vocabulary",
-    malformed_submission:
-      "submission_rejected is a no-op: no durable rejected submission, no validation charge, no exhaustion",
-    check_infrastructure_failed:
-      "finding 4: a timed_out check settles needs_correction, and a fresh passing run cannot clear the old one",
+  # Empty: every R4 and R4a row can now be driven through the reducer. That is a claim
+  # about *this* module only - subcommit 1 is the pure kernel, so a row driving here means
+  # the reducer can express it, not that the whole mechanism behind it works. `reset` is
+  # the clearest case: it drives, because the kernel validates its payload's shape, while
+  # `reset_fact_v1` still has no producer in the durable codec, so nothing can yet bind the
+  # protected fact the payload carries. The gaps that remain live in @partial and in the
+  # recorded prerequisites, not here.
+  @unexpressible %{}
+
+  # Rows the kernel drives, but only part of. A row is more than one clause, and calling a
+  # mostly-working row "unexpressible" hides what works while calling it "driven" hides
+  # what does not. Each entry names the exact clause, so the gap stays visible without
+  # understating the row.
+  @partial %{
     nonstart_reviewer:
-      "finding 5: ticket_parked no longer accepts awaiting_review, so blocked(reviewer_launch_infrastructure) is gone",
-    nonstart_worker: "finding 5: same, for blocked(check_infrastructure) from checking",
-    reset: "ticket_reset has no producer for reset_fact_v1; recorded prerequisite for subcommit 3"
+      ~S|below-limit return is driven; "At the limit, ticket becomes blocked(reviewer_launch_infrastructure)" needs the R4a limit product, blocker B3 in subcommit 2|,
+    nonstart_worker:
+      ~S|preserve-phase retry is driven; "or blocked(check_infrastructure)/exhausted" needs the same limit product|
   }
 
   describe "the row inventory tracks the contract" do
@@ -72,6 +80,13 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       assert unexpressible == Enum.sort(Map.keys(@unexpressible)),
              "the unexpressible set moved. now: #{inspect(unexpressible)}, " <>
                "recorded: #{inspect(Enum.sort(Map.keys(@unexpressible)))}"
+    end
+
+    test "every partially expressible row is still declared, and still driven" do
+      for {id, _clause} <- @partial do
+        assert id in R4Rows.ids(), "#{id} is not a contract row"
+        assert run(id) == :driven, "#{id} is recorded as partial but no longer drives"
+      end
     end
   end
 
@@ -268,6 +283,76 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     :driven
   end
 
+  defp scenario(:malformed_submission) do
+    {state, sequence} =
+      drive(developing(), [
+        {"submission_rejected", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "observation_id" => "obs-3",
+           "reason" => "malformed"
+         }},
+        {"submission_rejected", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "observation_id" => "obs-4",
+           "reason" => "malformed"
+         }}
+      ])
+
+    attempt = state["tickets"]["T1"]["attempts"]["A1"]
+    # "Durable rejected submission, charge one validation action" - each rejection is a
+    # separate charge, and the attempt is not terminalised by one.
+    assert attempt["rejected_submissions"] == 2
+    assert attempt["phase"] == "active"
+    assert is_nil(attempt["candidate_id"])
+
+    # "further submission allowed only while stream open".
+    {sealed, sequence} =
+      drive({state, sequence}, [
+        {"stream_sealed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "X1",
+           "last_accepted_sequence" => 9
+         }}
+      ])
+
+    forged =
+      event("submission_rejected", "T1", sealed["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "observation_id" => "obs-5",
+        "reason" => "malformed"
+      })
+
+    assert {:error, :submission_stream_sealed} = WorkflowKernel.apply(sealed, forged)
+
+    # "exhaustion closes execution and exhausts ticket" - the budget is protected
+    # allocation, so exhaustion arrives as a settlement rather than being derived here.
+    {exhausted, _} =
+      drive({sealed, sequence}, [
+        {"attempt_settled", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "disposition" => "exhausted",
+           "reason_code" => "validation_budget",
+           "settlement" => settlement()
+         }},
+        {"developer_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}}
+      ])
+
+    ticket = exhausted["tickets"]["T1"]
+    assert ticket["phase"] == "exhausted"
+    assert ticket["attempts"]["A1"]["executions"]["X1"]["lifecycle"] == "closed"
+    :driven
+  end
+
   defp scenario(:checks_start) do
     {state, _} = checking()
     ticket = state["tickets"]["T1"]
@@ -367,6 +452,120 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       })
 
     assert {:error, _} = WorkflowKernel.apply(failed, forged)
+    :driven
+  end
+
+  defp scenario(:check_infrastructure_failed) do
+    {state, sequence} =
+      drive(checking(), [
+        {"check_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "authority" => authority("K1", "check")
+         }},
+        {"check_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "status" => "timed_out",
+           "reason_code" => "timed_out"
+         }}
+      ])
+
+    ticket = state["tickets"]["T1"]
+    # "Preserve candidate ... pending same phase" - not a terminal attempt.
+    assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
+    assert ticket["attempts"]["A1"]["phase"] == "checking"
+    assert ticket["attempts"]["A1"]["disposition"] == nil
+
+    # "bounded new check-run reservation after cleanup": the worker closes, a new run is
+    # reserved for the same check, and passing it clears the attempt to review.
+    {state, _} =
+      drive({state, sequence}, [
+        {"worker_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "K1"}},
+        {"check_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "authority" => authority("K2", "check")
+         }},
+        {"check_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "status" => "passed",
+           "reason_code" => nil
+         }}
+      ])
+
+    assert state["tickets"]["T1"]["attempts"]["A1"]["phase"] == "awaiting_review"
+
+    # Row 12 is the other row: an assertion failure may never be re-reserved, or a failed
+    # candidate would reach approval by retrying instead of by relabelling.
+    {failed, sequence} =
+      drive(checking(), [
+        {"check_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "authority" => authority("K1", "check")
+         }},
+        {"check_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "status" => "failed",
+           "reason_code" => "assertion_failed"
+         }}
+      ])
+
+    forged =
+      event("check_planned", "T1", failed["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "check_id" => "C1",
+        "authority" => authority("K2", "check")
+      })
+
+    assert {:error, :check_already_exists} = WorkflowKernel.apply(failed, forged)
+
+    # "Unknown check retains lease and blocks retry."
+    {unknown, sequence} =
+      drive(checking(), [
+        {"check_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "authority" => authority("K1", "check")
+         }},
+        {"check_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "status" => "unknown",
+           "reason_code" => nil
+         }}
+      ])
+
+    forged =
+      event("check_planned", "T1", unknown["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "check_id" => "C1",
+        "authority" => authority("K2", "check")
+      })
+
+    assert {:error, :check_already_exists} = WorkflowKernel.apply(unknown, forged)
     :driven
   end
 
@@ -581,6 +780,31 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     :driven
   end
 
+  defp scenario(:base_moved) do
+    {state, _} =
+      drive(ready_to_integrate(), [
+        {"attempt_settled", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "disposition" => "superseded_base",
+           "reason_code" => "base_moved",
+           "settlement" => settlement()
+         }}
+      ])
+
+    ticket = state["tickets"]["T1"]
+    # "Terminal superseded_base attempt; fresh bounded rebase developer plus renewed
+    # checks/review."
+    assert ticket["attempts"]["A1"]["disposition"] == "superseded_base"
+    assert ticket["phase"] == "queued"
+
+    # The candidate and its review are retained as prior evidence, not discarded.
+    assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
+    assert "A1" in ticket["prior_attempt_ids"]
+    :driven
+  end
+
   defp scenario(:resume) do
     {state, _} =
       drive(
@@ -595,6 +819,55 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["phase"] == "queued"
     assert is_nil(ticket["reason"])
     assert is_nil(ticket["resume_phase"])
+    :driven
+  end
+
+  defp scenario(:reset) do
+    {exhausted, sequence} =
+      drive(developing(), [
+        {"stream_sealed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "X1",
+           "last_accepted_sequence" => 4
+         }},
+        {"attempt_settled", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "disposition" => "exhausted",
+           "reason_code" => "developer_allocation",
+           "settlement" => settlement()
+         }}
+      ])
+
+    assert exhausted["tickets"]["T1"]["phase"] == "exhausted"
+
+    {state, _} =
+      drive({exhausted, sequence}, [
+        {"ticket_reset", "T1", %{"ticket_id" => "T1", "generation" => %{"schema_version" => 1}}}
+      ])
+
+    ticket = state["tickets"]["T1"]
+    # "Keep old attempt terminal; queue a fresh developer attempt using retained evidence
+    # as context ... never reset prior consumption."
+    assert ticket["phase"] == "queued"
+    assert ticket["attempts"]["A1"]["phase"] == "terminal"
+    assert ticket["attempts"]["A1"]["disposition"] == "exhausted"
+    assert "A1" in ticket["prior_attempt_ids"]
+    assert ticket["infrastructure"]["generation"] == 1
+
+    # R4a: "Restart, new execution IDs, profile changes, attempt resumption and duplicate
+    # receipts do not reset the ordinal" - but a policy reset "may create a new
+    # infrastructure generation". The generation advances; the row's own consumption record
+    # is what the new generation supersedes.
+    assert ticket["infrastructure"]["ordinals"]["developer"] == 0
+
+    # Note the boundary: this drives in the *reducer*. `ticket_reset`'s generation binds
+    # reset_fact_v1, which has no producer in the durable codec, so the protected fact the
+    # payload carries cannot yet be derived. That is a recorded subcommit 3 prerequisite,
+    # not a kernel gap, and it is why "driven here" is not "works end to end".
     :driven
   end
 
@@ -711,6 +984,69 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       })
 
     assert {:error, :wrong_execution_role} = WorkflowKernel.apply(state, forged)
+    :driven
+  end
+
+  defp scenario(:nonstart_reviewer) do
+    {state, _} =
+      drive(reviewing(), [
+        {"review_settled", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "R1",
+           "settlement" => settlement()
+         }}
+      ])
+
+    ticket = state["tickets"]["T1"]
+    # "Keep attempt and ticket awaiting_review, immutable candidate/check receipts and
+    # reviewer ownership. Close only the failed reviewer execution; never enter developer
+    # retry or correction."
+    assert ticket["phase"] == "awaiting_review"
+    assert ticket["attempts"]["A1"]["phase"] == "awaiting_review"
+    assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
+    assert ticket["attempts"]["A1"]["checks"]["C1"]["status"] == "passed"
+    assert ticket["attempts"]["A1"]["executions"]["R1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["disposition"] == nil
+
+    # "never enter developer retry": the developer's allowance is untouched.
+    assert ticket["infrastructure"]["ordinals"]["reviewer"] == 1
+    assert ticket["infrastructure"]["ordinals"]["developer"] == 0
+    :driven
+  end
+
+  defp scenario(:nonstart_worker) do
+    {state, _} =
+      drive(checking(), [
+        {"check_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "authority" => authority("K1", "check")
+         }},
+        {"check_settled", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "execution_id" => "K1",
+           "settlement" => settlement()
+         }}
+      ])
+
+    ticket = state["tickets"]["T1"]
+    # "Preserve its candidate/deployment phase and verified inputs; apply that phase's
+    # existing infrastructure retry/block row ... infer no successful check receipt."
+    assert ticket["attempts"]["A1"]["phase"] == "checking"
+    assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
+    assert ticket["attempts"]["A1"]["executions"]["K1"]["lifecycle"] == "closed"
+    refute Map.has_key?(ticket["attempts"]["A1"]["checks"], "C1")
+
+    # "consumes its finite role-specific infrastructure allowance".
+    assert ticket["infrastructure"]["ordinals"]["check"] == 1
+    assert ticket["infrastructure"]["ordinals"]["developer"] == 0
     :driven
   end
 
