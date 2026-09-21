@@ -63,6 +63,19 @@ infer one from them.
 | `control_changed` | R4 Control entity; R4a control crossing after non-start | `control_changed.control` |
 | `ticket_reset` | exhausted; authenticated reset grants eligible units and explicitly resumes | `ticket_reset.generation` — **unbindable, see prerequisites** |
 
+### Correction, 2026-09-20: every settlement names its execution
+
+`check_settled`, `build_settled`, `review_settled` and `integration_settled` originally
+carried no `execution_id`, while `launch_settled` did. That asymmetry had no justification
+and made R4a unsatisfiable: a proved non-start must "close the execution", and a settlement
+that cannot name one leaves an execution open that no later event can close. Because
+`reviewer_closed` requires the `reviewing` phase, a settled reviewer execution was
+unclosable **forever**, so R4's "prior role/check workers closed" could never hold and the
+integration row was unreachable.
+
+Found by the reachability walk, not by re-reading this table. All five settlements now
+carry `execution_id`.
+
 ## Family 2 — admission and steering (8 new)
 
 | Event | Justifying R4 row | Payload key set | Slot |
@@ -241,6 +254,19 @@ key set per type, exact outer-envelope keys, and a `template?` mode that admits 
 with the same validator as a bound event. That last device is what lets the substitution
 law — binding a planned projection must equal applying its concretely bound event to the
 same prestate — be checked with one validator rather than two.
+
+## What the reachability prober changed about this document
+
+This enumeration was written to stop contract rows being unreachable, and it still missed
+things that only became visible when the rows were executed. `worker_closed` was absent
+entirely. Four of the five settlements could not name the execution they settle. Both were
+found by walking the state machine rather than by reading R4 again.
+
+That is the same lesson the FR-08A codec taught twice, and it is worth stating plainly:
+**careful reading is not a mechanism.** An enumeration is a claim about coverage, and a
+claim about coverage has to be executable before it is worth anything. The prober and its
+`@known_unreached` ratchet are where that claim now lives; this document is its rationale,
+not its evidence.
 
 ## What subcommit 1 still owes
 
