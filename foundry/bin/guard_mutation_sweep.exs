@@ -43,16 +43,22 @@ end
 File.write!(sentinel, "#{System.pid()} #{DateTime.utc_now()} #{target}\n")
 System.at_exit(fn _ -> File.rm(sentinel) end)
 
-# Phase one is the two suites that are both broad and sub-second. The exhaustive and
+# Phase one is the suites that are broad and cheap. The exhaustive suite belongs here
+# despite running a full state search: it takes three seconds and is the most sensitive
+# thing available, so it converts survivors into catches at the best rate of anything in
+# the set. Leaving it out of phase one left 46 of 67 mutations for the slow phase.
+#
+# The guard-reachability suite does not belong here. It re-proposes at every reached state,
+# which costs a minute - cheap once and ruinous sixty-seven times. The exhaustive and
 # guard-reachability suites each run a full state search, which is cheap once and ruinous
 # sixty-six times - putting them here turned a twenty-minute sweep into a three-hour one.
 # Phase two runs everything, but only for the mutations phase one did not catch.
 fast = ~w(
   test/pramana_foundry/workflow/kernel_test.exs
   test/pramana_foundry/workflow/r4_coverage_test.exs
+  test/pramana_foundry/workflow/r4_exhaustive_test.exs
 )
 slow = fast ++ ~w(
-  test/pramana_foundry/workflow/r4_exhaustive_test.exs
   test/pramana_foundry/workflow/r4_guard_reachability_test.exs
   test/pramana_foundry/workflow/kernel_properties_test.exs
 )
@@ -97,8 +103,26 @@ run = fn files ->
   end
 end
 
-sites = call_sites.(original)
-IO.puts("guard call sites found: #{length(sites)}\n")
+all_sites = call_sites.(original)
+
+# Incremental mode: sweep only the guards whose lines changed since a given revision. A
+# subcommit usually touches ten guards, not sixty-seven, and a full sweep of the untouched
+# ones re-proves what the last freeze already proved. Full sweep stays the default, because
+# "unchanged" is a claim about the diff and the diff can be wrong.
+since = System.get_env("SWEEP_SINCE")
+
+sites =
+  if since do
+    {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", target], stderr_to_stdout: true)
+    touched = Enum.filter(all_sites, &String.contains?(diff, &1))
+
+    IO.puts("incremental sweep against #{since}: #{length(touched)} of #{length(all_sites)} guards\n")
+
+    touched
+  else
+    IO.puts("guard call sites found: #{length(all_sites)}\n")
+    all_sites
+  end
 
 survivors =
   sites
