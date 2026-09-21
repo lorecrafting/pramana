@@ -2547,6 +2547,26 @@ what was being asserted unchecked as it does about the tools.
 - The evidence document claimed "assembled by script, not transcribed" with neither script nor
   log committed — an unverifiable provenance claim in the document written to make provenance
   verifiable. The raw, unedited output of all three sweep runs is now committed beside it.
+- **The confirmation pass found a seventh.** The remediation above treated the two sites as one
+  argument, and for the receipt site the decisive link was itself a vacuous appeal. The receipt
+  is written under `require_phase(~w(integrating))` — the *ticket's* phase — and lands on the
+  active attempt, so the base case needs ticket-integrating implies attempt-integrating. The
+  remediation cited `@legal_pairs` "already asserted over the reachable set": true, and worthless
+  here, because that set holds **zero** integrating tickets — `@unreachable` says so itself, at
+  "integration row: ~12 events". Thousands of witnesses for the `developing` row are not
+  witnesses for this one. Worse, the seeded run starts from a state that *already holds* the
+  receipt, so it measures preservation and could never have caught this. The argument that holds
+  is structural coupling: ticket phase `integrating` is set at one site and the same pipe sets
+  the attempt's phase on the next line, `integration_settled` moves both off together, and
+  `attempt_settled` clears the slot — set together, cleared together, which is the form
+  `semantic_invariants.ex` uses for developing/active. The verdict site never needed the link:
+  `review_recorded` guards the attempt's own phase and writes to that attempt.
+- Follow-up recorded and not taken, also from the fifth review: key `@sites` rows on the guard
+  **call text** rather than deleting the identifier outright. It is what the sweep prints and what
+  `SWEEP_SITES` consumes, it does not drift, it distinguishes the sites sharing an atom by their
+  branch, and it asserts cheaply — the kernel either still contains that text or the guard was
+  renamed or removed, which is the one time a row should fail. Better than deletion or
+  renumber-and-assert; deferred as out of scope for this candidate.
 - Residual, recorded not fixed: `reasons_in/1`'s `ok_or` regex is single-line and greedy, so a
   formatter-wrapped call or a chained call on the same line would be missed. Today's kernel has
   three `ok_or` lines and none has that shape; it wants a fixture row when one appears.

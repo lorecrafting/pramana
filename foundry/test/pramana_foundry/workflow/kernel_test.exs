@@ -1894,6 +1894,14 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # The sweep is the measurement; these rows are not. Site identity comes back for free
     # when the coverage-guided design lands - see docs/COVERAGE-GUIDED-SWEEP.md - and it
     # will be derived rather than typed.
+    #
+    # Follow-up not taken here, from the fifth review: key each row on the guard CALL TEXT
+    # instead, which is what the sweep prints verbatim and what SWEEP_SITES consumes. It does
+    # not drift, it matches the survivor list directly, it tells the six sites sharing
+    # `:wrong_attempt_phase` apart by their branch, and it can assert cheaply - the kernel
+    # source either contains that text or the guard was removed or renamed, which is the one
+    # time a row should fail. Better than either deletion or renumber-and-assert; deferred
+    # only because it is not what this candidate is for.
     # `authority/2` is a function and @sites is a module attribute, so the attribute is
     # built before the function exists. Same map, spelled as compile-time data.
     @auth %{
@@ -2213,15 +2221,28 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     #   ref receipt   => integrating:  29,109 states, 20,488 hold the precondition, 0 violate
     #   rejected verdict => reviewing: 79,163 states, 39,024 hold the precondition, 0 violate
     #
-    # And the inductive argument, which is what makes this more than an enumeration:
-    # `ref_receipt_id` is written at exactly one site (kernel.ex:905), inside a handler
-    # guarded by `require_phase(~w(integrating))`, and all three integration handlers carry
-    # `require_no_ref_receipt`, so it is written once and only from `integrating`. The
-    # ticket-to-attempt phase agreement that carries it to the attempt is
-    # `SemanticInvariants`'s `@legal_pairs`, which is asserted over the reachable set with
-    # witnesses in the thousands. The verdict case is the same shape: `review_recorded`
-    # requires `reviewing`, and the only branch of `reviewer_closed` that moves the attempt
-    # off `reviewing` is the approved one.
+    # And the inductive arguments, which are what make these more than enumerations. The two
+    # are NOT the same shape, and the first version of this comment treated them as one.
+    #
+    # The verdict site is direct. `review_recorded` guards the ATTEMPT's phase itself -
+    # `require_attempt_phase(ticket, ~w(reviewing))` - and writes the verdict to that same
+    # attempt, so establishment needs no intermediate step. Preservation is the seeded run
+    # above plus `require_no_recorded_verdict`, which makes a recorded verdict sticky.
+    #
+    # The receipt site needs one more link, and the first version of this argument was
+    # vacuous at exactly that link. The receipt is written at one site, under
+    # `require_phase(~w(integrating))` - the TICKET's phase - and lands on the active
+    # attempt, so the base case needs ticket-integrating => attempt-integrating. Citing
+    # `SemanticInvariants`'s `@legal_pairs` for that is worth nothing here: it is asserted
+    # over the unseeded depth-7 set, which holds zero integrating tickets, as @unreachable's
+    # own "integration row: ~12 events" says. Thousands of witnesses for the developing row
+    # are not witnesses for this one. The argument that does hold is structural coupling -
+    # ticket phase `integrating` is set at exactly one site and the same pipe sets the
+    # attempt's phase on the next line; `integration_settled` moves both off together, and
+    # `attempt_settled` terminalises the attempt and clears the slot. Set together, cleared
+    # together, which is the argument semantic_invariants.ex makes for developing/active.
+    # And the seeded run above seeds from a state that already holds the receipt, so it
+    # measures preservation and not establishment - it could not have caught this.
     #
     # Both guards are therefore redundant given an invariant, not unwitnessed. They stay,
     # for the same reason the other belt-and-braces guards stay, and neither is recorded in
