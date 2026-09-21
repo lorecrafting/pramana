@@ -18,7 +18,10 @@ comprehensive coding harness or a permanently hard-coded agent graph. Models may
 task decomposition, roles, workflow shape, context, tools, checks and corrections.
 Foundry owns admitted intent, identities, capability grants, durable acknowledged state,
 budgets, external-effect control, evidence, acceptance, recovery and controlled
-self-improvement.
+self-improvement. The resulting boundary should also make Foundry an experimentation
+kernel: hold authority/evidence/acceptance invariants stable while comparing workflow
+strategies, models, harnesses, context policies, tool configurations, review topologies
+and concurrency by accepted-outcome correctness, effort, latency and resource cost.
 
 Retain the standalone Elixir/OTP project. Beneath the current fail-closed launch gate,
 the implemented execution path still targets OMP through Herdr; that is implementation
