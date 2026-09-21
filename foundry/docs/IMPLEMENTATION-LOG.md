@@ -2504,3 +2504,55 @@ what was being asserted unchecked as it does about the tools.
   was predicted before the run rather than reconciled after. `bin/preflight.sh` passes with the 4
   pre-existing test-file warnings, none in the files this candidate touches. Provenance records
   `dirty_paths: []`.
+
+## FR-08B kernel, subcommit 1 — fifth review, and two false numbers of my own — 2026-09-21
+
+- Candidate `be407674` was reviewed by an independent session briefed on the **delta only**,
+  with the settled numbers listed as not-to-recompute. It returned **BLOCK** on narrow
+  grounds, no kernel change required, and every finding was verified here before being acted
+  on rather than taken on the reviewer's word.
+- **The sharpest finding was about this log.** The previous entry argued that hand-carried
+  counts from the sweep tooling have been weaker than their claim five times running, and
+  then carried a sixth: "`@sites` line numbers are stale by +11 below `review_settled` after
+  `028b4965`". That was never measured. `028b4965`'s kernel hunks are +6, +7 and +20; the +11
+  belongs to `c71fc70d`, the commit that **introduced** the table while adding 23 kernel
+  lines, so the labels were wrong the day they were written. Drift at HEAD is piecewise, not
+  uniform, and not confined below `review_settled`. "Renumbering would be guesswork" was also
+  false — the offsets derive from two hunk headers, and six spot-checked renumberings each
+  land on a `require_` line.
+- **The field is deleted rather than renumbered.** Coverage was never affected: the sweep is
+  the measurement and these labels are not. But a number with no check, in a table whose
+  purpose is that claims get checked, rots again at the next kernel edit — and it had already
+  misled once this session, when the `attempt_settled`/`blocked` row was written against a
+  line read off a six-clause `case` by eye. Rows now key on fixture/type/atom, collision-free
+  across all 35. `COVERAGE-GUIDED-SWEEP.md` derives site identity properly.
+- **"Unwitnessed" was the wrong exit, and the vacuity argument named the wrong precedent.**
+  Rule 3 says label *then* prove inductively or delete; labelling is the interim step. And the
+  precedent for a zero-witness claim is not `SemanticInvariants` — whose `@legal_pairs` has
+  witnesses in the thousands, which is why it was never vacuous — but `kernel.ex`'s
+  `reviewer_closed` comment, which met the same problem by **seeding** the search rather than
+  declining to assert. The delta named the seeded search three times without running it.
+- Run, at depth 6 from `integrating_with_receipt` and from a rejected verdict: **29,109 states,
+  20,488 holding a ref receipt, 0 violating**; **79,163 states, 39,024 holding a rejected
+  verdict, 0 violating**. With the inductive argument beside it — `ref_receipt_id` is written
+  at exactly one site, under `require_phase(~w(integrating))`, behind `require_no_ref_receipt`
+  in all three integration handlers, and carried to the attempt by the `@legal_pairs` agreement
+  already asserted over the reachable set — both sites are **redundant given an invariant**,
+  not unwitnessed.
+- `:unknown_entity_kind` survived the attack and is stronger than it was recorded: the decisive
+  enforcement is `event.ex:192`, which performs the identical lookup after `:191` constrains
+  the kind, so a missing key is refused before `kernel.ex:80` runs. Unlike the `reviewer_closed`
+  argument that a looser predicate falsified with 3,612 witnesses, this one is local to a single
+  `with` over an immutable event and a compile-time map; there is no state to evolve.
+- The evidence document claimed "assembled by script, not transcribed" with neither script nor
+  log committed — an unverifiable provenance claim in the document written to make provenance
+  verifiable. The raw, unedited output of all three sweep runs is now committed beside it.
+- Residual, recorded not fixed: `reasons_in/1`'s `ok_or` regex is single-line and greedy, so a
+  formatter-wrapped call or a chained call on the same line would be missed. Today's kernel has
+  three `ok_or` lines and none has that shape; it wants a fixture row when one appears.
+- Two of my own claims this session read as measurements and were not, and a third test named a
+  site it never exercised. The sweep caught one, the review caught two. That is the argument for
+  mechanisms that derive their numbers rather than restate them.
+- Gate on `1b9c660e`: **passes**, 911 passed / 13 skipped / 1 excluded, suite **284.0s**, total
+  **295s**, provenance `dirty_paths: []`. Workflow suites **176 at seed 0**, unchanged — this
+  pass adds and removes no tests. `bin/preflight.sh` passes with the 4 pre-existing warnings.
