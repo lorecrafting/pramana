@@ -2196,3 +2196,75 @@ latest prose here, remains authoritative for status and dependencies.
 - Suites: workflow 60 at seed 0 (3 coverage, 44 table, 13 properties); full model-free suite
   **796 passed, 13 skipped at seed 0**, serial, fresh `MIX_BUILD_PATH`, which is the prior
   791 plus exactly the tests added. `foundry/bin/preflight.sh` passes.
+
+
+## FR-08B kernel, subcommit 1 — third review and the tools it forced — 2026-09-20
+
+- The third independent review returned **BLOCK** on `4715c25`, with a judgement that
+  mattered more than the verdict: the row-driven method is sound and should be kept, but it
+  was not yet what its own design claimed. All nine findings are now closed.
+- **The mechanism was half-built and the design note overstated it.** `R4Rows.outcome/1`
+  was defined and called nowhere, so the harness pinned each row's *from-state* cell and
+  nothing at all on the outcome side: edit a contract outcome from "Terminal rejected" to
+  "Terminal integrated" and every test stayed green. The note's sentence "Nothing is
+  duplicated, so nothing can drift" was true of the key and false of everything the key
+  pointed at. Each scenario now cites its assertions verbatim from the outcome cell and a
+  test checks those citations still exist; editing that cell now fails, naming the row, the
+  citation and the new text. The bijection also compares lists rather than sets, because a
+  duplicated from-cell with a contradictory outcome had collapsed into its twin.
+- **The same-sibling pattern recurred twice more.** `apply_terminal_phase`'s `"blocked"`
+  branch left the stale resume target that the branch directly below it had just been
+  corrected to clear. And the settlement role binding, which the *previous* correction
+  claimed to have generalised "as one rule over the vocabulary", had been applied to
+  `review_settled` alone — `build_settled` could close the developer's execution unsealed
+  and let `checks_started` walk around the seal requirement.
+- Three R4 rows order a fresh developer after cleanup, in three phrasings of one rule, and
+  none was a guard. R4 rows 12 and 13 were one row to this kernel, so a timed-out check
+  terminalised an attempt row 13 says to preserve and its retry could never clear the old
+  run. `submission_rejected` accepted its event and changed nothing. `base_moved` and
+  `reset` had been recorded unexpressible **by inspection** and drove on first attempt —
+  two wrong calls in one hand-maintained list, which is the argument for the list being
+  executable.
+- **R4a's infrastructure block was borrowing R4's PM park.** Narrowing `ticket_parked` to
+  its own row broke the reviewer and worker at-limit clauses while the developer's kept
+  working, because a developer non-start lands in `queued`, which the park accepts. The
+  correction deferred the two that broke and kept the one that worked — incoherent, as the
+  review said. `ticket_blocked` is now the block's own event and all three clauses drive.
+  The durable extension is 23 types, not 22.
+
+### The tools this produced, and what each found on its first run
+
+Recorded because every one of them found something immediately, which says as much about
+what was being asserted unchecked as it does about the tools.
+
+- **Exhaustive bounded search.** Enumerates every reachable state — 22,180 at depth 7 in
+  three seconds — so invariants are proved for the bound rather than sampled, and a
+  violation returns its event sequence. First run produced a four-event counterexample to
+  an invariant that was itself wrong (R4's cancel row legitimately holds phase while
+  effects reconcile), then a five-event real defect introduced an hour earlier.
+- **Dead-guard detection.** Compares refusals the search provokes against errors the module
+  declares. Confirmed `require_reviewer_open` can never fire — it had been claimed in a
+  commit message as a fix — and then found that the prober only ever proposed *cooperative*
+  events, leaving every forged-reference guard unexercised. The prober now forges
+  references; five such guards fire that never had.
+- **Clause coverage.** The converse of citation: 54 clauses asserted, 59 not. The number was
+  not knowable before and can only go down.
+- **Guard mutation sweep.** Neutralises each guard at its call site and reports what no test
+  notices.
+
+### Two incidents, recorded rather than smoothed over
+
+- **A mutation was committed.** `421c0b2` shipped `:ok <- :ok` in place of
+  `require_cleanup_complete/1`, because `git add -A` ran while the sweep held the tree.
+  Every check passed, since the suite was measuring the mutation. Restored by exact string
+  and verified byte-identical to the last unmutated revision. The sweep now writes a
+  sentinel and preflight fails while one exists, because a green preflight taken during a
+  sweep is worse than no preflight.
+- **The sweep's first two runs were themselves vacuous.** It reported all 66 guards as
+  surviving, because this repository uses a custom formatter (`Result: N passed`) and the
+  verdict matched ExUnit's default. A tool built to find vacuous evidence produced vacuous
+  evidence. A second run mis-scoped its fast phase to include two full state searches,
+  turning twenty minutes into three hours.
+- The rule these leave: **no guard is described as working until a neutralisation has
+  turned a test red**, and no tool's first result is trusted until a known-good input shows
+  the expected colour.
