@@ -108,9 +108,14 @@ restart property must assert R4a's "exactly one queued/review/blocked owner and 
 execution", and the sequence property must test the kernel rather than the walker's
 counter.
 
-## Recorded prerequisite for subcommit 2: a vocabulary collision
+## Resolved during the corrections: a vocabulary collision
 
-Found by read-only inventory during the review, and not previously recorded.
+Found by read-only inventory during the review. **Correction to an earlier claim in this
+document: it was not unrecorded.** [The vocabulary design](event-vocabulary-design.md)
+called it at FR-08A subcommit 0 — "The legacy and lifecycle sets currently collide on one
+name, `ticket_resumed`. The lifecycle event takes a distinct name instead. Which name is
+FR-08B's call" — and the FR-08B enumeration lost it. The mechanism was already decided; only
+the name was outstanding.
 
 `RecordCodec` holds fourteen lifecycle types (`record_codec.ex:34`); the kernel declares
 thirty-six; the extension is exactly the twenty-two the enumeration names. But
@@ -119,9 +124,23 @@ a `CompileError` when the two vocabularies share a name — deliberately: "a reu
 would silently give one stored type two contracts, which is the single failure this design
 must prevent."
 
-Legacy members are explicitly immutable, so the resolution belongs on the kernel side. It
-is the only collision among the twenty-two, and it must be settled before subcommit 2's
-codec extension compiles.
+Legacy members are explicitly immutable, so the resolution belongs on the kernel side, as
+the vocabulary design already required.
+
+**Resolved: the lifecycle event is `ticket_unblocked`.** R4 calls the input "explicit
+resume", but that row also ends "explicit operator blocks require steering, not automatic
+**unblocking**", so `unblocked` is the contract's own word. It is also the more accurate
+one: the source phase is always `blocked` however the ticket got there — a PM park,
+`blocked(check_infrastructure)`, `blocked(draining)` — so a name pairing it with
+`ticket_parked` would claim it only undoes a park. The asymmetry with `ticket_parked` is
+the state machine's: parking is one of several ways into `blocked`, and this is the only
+way out.
+
+Verified mechanically rather than by inspection: extending the codec's lifecycle vocabulary
+by the kernel's remaining 22 types now yields no shared name, so the extension satisfies the
+codec's compile-time rule. Two maintained assertions were added so the next such collision
+fails a test rather than breaking a later build — one that no kernel type reuses a legacy
+name, and its converse, that no durable lifecycle type is missing from the kernel.
 
 Both subcommit-3 prerequisites stand unchanged: `reset_fact_v1` has a slot and no producer,
 `terminal_settlement_v1` has neither.

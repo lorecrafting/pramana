@@ -36,7 +36,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Event do
   # protected derivation: allocation and reservation truth stays in the R5 ledger and the
   # protected tables rather than being copied into an event payload.
   @steering_types ~w(
-    objective_created ticket_admitted ticket_amended ticket_parked ticket_resumed
+    objective_created ticket_admitted ticket_amended ticket_parked ticket_unblocked
     cancellation_requested cancellation_finalized pm_proposal_recorded
   )
 
@@ -82,7 +82,22 @@ defmodule PramanaFoundry.Workflow.Kernel.Event do
     "ticket_admitted" => ~w(ticket_id objective_id spec_revision_id spec phase reason),
     "ticket_amended" => ~w(ticket_id spec_revision_id spec),
     "ticket_parked" => ~w(ticket_id reason resume_phase),
-    "ticket_resumed" => ~w(ticket_id phase),
+    # R4 calls this row's input "explicit resume", but the name `ticket_resumed` is already
+    # taken by the pre-repair vocabulary in `RecordCodec.@legacy_event_types`, where it is a
+    # record type carrying a projection payload. The codec raises at compile time when the
+    # legacy and lifecycle vocabularies share a name, deliberately: "a reused name would
+    # silently give one stored type two contracts". Legacy names are immutable, so the
+    # lifecycle event takes a distinct one - a resolution the vocabulary design already
+    # required, leaving the choice of name to FR-08B.
+    #
+    # `unblocked` rather than a decorated `resumed`: R4's own row ends "explicit operator
+    # blocks require steering, not automatic **unblocking**", so this is the contract's
+    # word. It is also the more accurate one. The source phase is always `blocked`, however
+    # the ticket got there - a PM park, blocked(check_infrastructure), blocked(draining) -
+    # so a name pairing it with `ticket_parked` would claim it only undoes a park. The
+    # asymmetry with `ticket_parked` is the state machine's, not an oversight: parking is
+    # one of several ways into `blocked` and this is the only way out.
+    "ticket_unblocked" => ~w(ticket_id phase),
     "cancellation_requested" => ~w(ticket_id),
     "cancellation_finalized" => ~w(ticket_id disposition),
     "pm_proposal_recorded" => ~w(proposal_id objective_id operation),

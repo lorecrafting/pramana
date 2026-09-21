@@ -242,14 +242,28 @@ Both were found the same way as `worker_closed` and the settlement `execution_id
 asymmetry: by executing the rows, not by re-reading the table. The count of new types is
 unchanged at 22; these are payload corrections within it.
 
-### Recorded prerequisite: a name collision with the legacy codec vocabulary
+### Correction, 2026-09-20: `ticket_resumed` is renamed `ticket_unblocked`
 
-`ticket_resumed` is already a member of `RecordCodec.@legacy_event_types`, and the codec
-raises a `CompileError` when the legacy and lifecycle vocabularies share a name — by
-design: "a reused name would silently give one stored type two contracts, which is the
-single failure this design must prevent." Legacy members are explicitly immutable, so the
-resolution belongs on the kernel side. It is the only collision among the 22 and it blocks
-subcommit 2's codec extension.
+This enumeration named the resume event `ticket_resumed`, which is already a member of
+`RecordCodec.@legacy_event_types` — there a record type carrying a projection payload, not
+a steering fact. The codec raises a `CompileError` when the legacy and lifecycle
+vocabularies share a name, by design: "a reused name would silently give one stored type
+two contracts, which is the single failure this design must prevent."
+
+**This was a regression in this document, not a discovery.**
+[The vocabulary design](event-vocabulary-design.md) had already identified the collision
+and already decided the mechanism — "the lifecycle event takes a distinct name instead;
+which name is FR-08B's call" — and this enumeration reintroduced the legacy name while
+claiming every one of its 36 types was justified by a row. It was the third thing this
+document asserted and did not check.
+
+The name is `ticket_unblocked`. R4's row ends "explicit operator blocks require steering,
+not automatic **unblocking**", so it is the contract's own word, and the source phase is
+always `blocked` however the ticket got there — a name pairing it with `ticket_parked`
+would wrongly claim it only undoes a park.
+
+Two maintained assertions now hold the line in both directions: no kernel type may reuse a
+legacy name, and no durable lifecycle type may be missing from the kernel.
 
 Still unproduced, and now with one addition: `terminal_settlement_v1` has neither a
 producer nor a slot; `reset_fact_v1` has a slot and no producer; and the execution result

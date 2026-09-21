@@ -32,7 +32,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
   A phase in a payload is a snapshot to install, which is the defect above. Phase is
   derived here from the event under its source guard. The two exceptions are
   `ticket_admitted`, whose phase is the admission outcome R4's own row names ("queued or
-  blocked with reason"), and `ticket_resumed`, whose phase must equal the `resume_phase`
+  blocked with reason"), and `ticket_unblocked`, whose phase must equal the `resume_phase`
   already stored on the ticket — checked, not trusted.
 
   ### Why one settlement event does not decide a ticket's fate
@@ -306,7 +306,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   # R4: "blocked; explicit resume or recorded dependency/resource recovery" — returns to
   # the stored resume_phase. The event's phase is checked against it, never trusted.
-  defp do_transition("ticket_resumed", ticket, event, _state) do
+  defp do_transition("ticket_unblocked", ticket, event, _state) do
     with :ok <- require_phase(ticket, ~w(blocked)),
          :ok <- require_resume_target(ticket) do
       if ticket["resume_phase"] == event["payload"]["phase"] do

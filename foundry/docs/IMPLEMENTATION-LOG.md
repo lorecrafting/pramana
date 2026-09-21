@@ -2083,3 +2083,35 @@ latest prose here, remains authoritative for status and dependencies.
 - Suites at freeze: kernel 42 table tests and 13 properties, 55 at seed 0; full model-free
   suite **791 passed, 13 skipped at seed 0**, run serially with a fresh `MIX_BUILD_PATH`.
   That is the prior 776 plus the 15 tests added. `foundry/bin/preflight.sh` passes.
+
+
+## FR-08B kernel, vocabulary collision resolved — 2026-09-20
+
+- `ticket_resumed`, one of the kernel's 36 event types, is a member of
+  `RecordCodec.@legacy_event_types`, where it is a record type carrying a projection
+  payload. The codec raises a `CompileError` when the legacy and lifecycle vocabularies
+  share a name, so subcommit 2's codec extension could not have compiled.
+- **The collision was already recorded, and the mechanism already decided.**
+  [The vocabulary design](fr-08/event-vocabulary-design.md) called it at FR-08A subcommit 0:
+  "The legacy and lifecycle sets currently collide on one name, `ticket_resumed`. The
+  lifecycle event takes a distinct name instead. Which name is FR-08B's call." The FR-08B
+  enumeration then reintroduced the legacy name while asserting every one of its 36 types
+  was justified by an R4 row. An earlier note in this repair described the collision as
+  previously unrecorded; that was wrong, and the correction is recorded rather than quietly
+  fixed, because the failure is a regression against a settled decision rather than a
+  discovery.
+- The lifecycle event is now **`ticket_unblocked`**. R4's resume row ends "explicit operator
+  blocks require steering, not automatic **unblocking**", so this is the contract's own
+  word. It is also more accurate than a decorated `resumed`: the source phase is always
+  `blocked` however the ticket got there — a PM park, `blocked(check_infrastructure)`,
+  `blocked(draining)` — so a name pairing it with `ticket_parked` would claim it only undoes
+  a park. The asymmetry is the state machine's; parking is one of several ways into
+  `blocked` and this is the only way out.
+- Verified mechanically rather than by inspection: extending the codec's lifecycle
+  vocabulary by the kernel's remaining 22 types now produces no shared name, and no durable
+  lifecycle type is missing from the kernel.
+- Two maintained assertions added, in both directions, so the next collision fails a test
+  rather than a later build. Non-vacuity checked by restoring the legacy name, confirming
+  exactly one test failed with the colliding name in its message, then reversing the exact
+  string.
+- Kernel suites: 44 table tests, 13 properties at seed 0.

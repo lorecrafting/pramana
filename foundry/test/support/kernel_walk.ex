@@ -358,7 +358,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
        %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "queued"}},
       {"ticket_parked", tid,
        %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "developing"}},
-      {"ticket_resumed", tid, %{"ticket_id" => tid, "phase" => ticket["resume_phase"]}},
+      {"ticket_unblocked", tid, %{"ticket_id" => tid, "phase" => ticket["resume_phase"]}},
       {"ticket_reset", tid, %{"ticket_id" => tid, "generation" => reset_fact()}},
       {"cancellation_requested", tid, %{"ticket_id" => tid}},
       {"cancellation_finalized", tid, %{"ticket_id" => tid, "disposition" => "cancelled"}},
