@@ -1,8 +1,11 @@
 # Foundry workflow contract — FR-06
 
-Revision **3 (R4a correction independently verified)**, 2026-09-12. The
+Revision **4 (R3 observability boundary added; independent re-review outstanding)**,
+2026-09-20. Revision 3's R4a correction remains independently verified: the
 [focused review](fr-06/r4a-focused-review.md) returned **PASS** against the exact
-revision-3 manifest. This is the
+revision-3 manifest, and revision 4 changes no R1, R2, R4, R4a or R5 decision. The added
+R3 paragraph has **not** been independently reviewed, and no candidate may cite it as
+verified contract text until it has. This is the
 interface contract for the [repair backlog](REPAIR-PLAN.md), subordinate to its agreed
 operator contract. The [audit](AUDIT-2026-09-12.md), [independent review v1](FR-06-DESIGN-REVIEW.md),
 [response v2](fr-06/review-response-v2.md) and [independent review v2](FR-06-DESIGN-REVIEW-V2.md)
@@ -100,6 +103,27 @@ supplied by kernel events. Kernel projection labels never serve as acceptance ev
 Authenticated original commands and raw receipts are durably retained before kernel
 interpretation; the candidate cannot rewrite/drop them or acknowledge an uncommitted
 command. Bad lifecycle proposals can block progress, but cannot manufacture authority.
+
+**Observability is not authority.** An observation, telemetry record or diagnostic log is
+evidence *about* the system, never a fact the system may decide on. No observation may
+establish a lifecycle disposition, a closed execution, a check or review outcome, or any
+protected fact. The R4 rows already say this one case at a time — a closed execution
+requires verified process/session termination or proved non-start, a check failure uses
+its controller's own `reason_code` rather than an agent's assertion, a review verdict is
+read only from a sealed stream, and pane closure alone cannot assert completion — and
+stating it once here makes it reviewable as a boundary instead of re-derived per row. A
+projection, board or analytics surface computed from observations is likewise a view, not
+a source. This holds whichever surface an observation reaches: the canonical observation
+envelope, a JSONL diagnostic file, or an exported trace. It is also why the observability
+work may change what is measured, how it is retained and where it is exported without
+ever changing what is decided.
+
+Recorded at revision 4 on implementation evidence rather than from first principles. The
+FR-08B kernel enforced this rule three separate times in one subcommit — `execution_observed`
+may not close an execution, a verdict string is not a disposition, and a review verdict
+needs a sealed stream — and each was re-derived from individual R4 row text because the
+rule was written nowhere. A rule stated only inside FR-18B would also become ownerless when
+that ticket closes, while the boundary must outlive it.
 
 For every effect claim the verifier independently checks: authentic admitted assignment,
 current control/policy revision, allowed role/profile/operation/scope, sufficient ledger

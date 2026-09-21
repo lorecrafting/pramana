@@ -1086,9 +1086,29 @@ worse review, acceptance or operator-effort outcomes.
 **OpenTelemetry convergence:** [the observability route](OBSERVABILITY.md) stages this
 work across seven steps. Steps 2 through 5 are FR-18B's; step 1 is split, with FR-18A
 owning the identity, source/quality and unknown vocabulary and FR-18B reconciling the
-telemetry schemas to it; steps 6 and 7 have no owner recorded and must be assigned before
-either is started. Export is **step 5 of 7**, gated on steps 1 through 4, and steps 6 and
-7 follow it.
+telemetry schemas to it. Export is **step 5 of 7**, gated on steps 1 through 4, and steps 6
+and 7 follow it.
+
+**Steps 6 and 7 are assigned, 2026-09-20.** Both were recorded as unowned and required
+assignment before either started.
+
+- **Step 6 — move Improver/status to canonical observations — splits**, the same way
+  `telemetry.jsonl` already does. **FR-18B** owns the canonical observation contract those
+  producers must emit into, and owns retiring `ConsolidatedLog` over heterogeneous files as
+  the long-term analytics contract, because that is an observability-contract decision.
+  **FR-20** owns making Improver and status actually emit into it, because FR-20 already
+  owns `findings.jsonl` and this clause already assigns that file's metrics snapshots to
+  step 6. Neither supersedes the other, and neither may retire the other's surface by
+  assumption.
+- **Step 7 — validate optimization loops — is FR-20's**, as an acceptance obligation rather
+  than a new scope item: showing that a proposed token/context optimization lowers
+  accepted-outcome cost or operator burden without reducing quality or safety is a claim
+  about the constrained improvement loop, which is FR-20's subject. It is **gated on
+  FR-18B's correlation chain**, since the claim is only checkable when cost is tied to the
+  accepted outcome.
+
+Neither step is on the supervised dogfood alpha path, so this assignment closes a recorded
+gap; it starts nothing and moves no ticket out of Blocked.
 
 **The four JSONL surfaces need named owners.** The observability route documents
 fragmentation across `coordinator.jsonl`, `telemetry.jsonl`, `events.jsonl` and
@@ -1107,11 +1127,14 @@ fragmentation across `coordinator.jsonl`, `telemetry.jsonl`, `events.jsonl` and
   already enumerates.
 - `findings.jsonl` is **FR-20's**, whose scope requires persisting finding, proposal and
   admission outcomes separately. The metrics snapshots the route says this file also
-  carries belong to route step 6, which has no recorded owner.
+  carries belong to route step 6, whose ownership is assigned above.
 
 These are cross-ticket assignments recorded inside one ticket's section, which is the
 one-side-knows drift this clause exists to prevent. Each named ticket should carry a
 pointer back here, or the table should move somewhere neutral, before any of them starts.
+The step 6 and 7 assignment recorded above is the same kind of clause and carries the same
+obligation: FR-20 in particular gains an acceptance obligation from a paragraph in FR-18B's
+section, and must carry a pointer to it before FR-20 starts.
 
 **The correlation model is already required; the route extends it as direction, not
 obligation.** The measurement refinement above already requires correlation "through
