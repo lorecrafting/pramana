@@ -1,6 +1,6 @@
 # Foundry ecosystem boundary and positioning
 
-**Date:** 2026-09-20. **Type:** research synthesis and architecture guidance, not an
+**Date:** 2026-09-20. **Updated:** 2026-09-21 for AX/Agent Substrate. **Type:** research synthesis and architecture guidance, not an
 implementation inventory, repair-ticket disposition, dependency selection or authorization
 to activate execution.
 
