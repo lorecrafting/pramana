@@ -1,3 +1,5 @@
+Code.require_file("../../support/semantic_invariants.ex", __DIR__)
+
 defmodule PramanaFoundry.Workflow.KernelTest do
   @moduledoc """
   Subcommit 1 of the FR-08B kernel correction: the pure state and event contract.
@@ -11,6 +13,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
   alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.DurableStore.RecordCodec
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
+  alias PramanaFoundry.Test.SemanticInvariants
 
   # ── Builders ───────────────────────────────────────────────────────────────────────
 
@@ -1870,6 +1873,61 @@ defmodule PramanaFoundry.Workflow.KernelTest do
   end
 
   # ── Every remaining call site, one row each ────────────────────────────────────────
+
+  describe "review 5 — a block must leave the attempt where its resume target promises" do
+    # `integration_settled` moves ticket AND attempt to `ready_to_integrate` in one pipe.
+    # The `infrastructure_failed` branch beside it moved only the ticket, which is the
+    # seventh instance of this subcommit's most repeated defect shape: a rule applied to one
+    # sibling and not the other.
+    #
+    # Nothing complained while blocked, because `blocked` is not a key in `@legal_pairs` and
+    # so the oracle is silent there by construction. The violation appears one event later,
+    # when `ticket_unblocked` honours a resume target the attempt never followed. That delay
+    # is why `State.valid?/1` — correctly — accepts every step: nothing is malformed.
+    #
+    # No search reaches it. It is roughly 14 events from empty against a depth-7 bound, the
+    # same reason the stale-resume defect needed a hand-driven sequence. The assertion is on
+    # the oracle rather than on the two phase strings so that the whole relation is the
+    # regression control, not the one field this branch happened to get wrong.
+    test "integration infrastructure failure does not strand the attempt at integrating" do
+      {state, sequence} = approved_and_closed()
+      ticket = state["tickets"]["T1"]
+
+      assert ticket["phase"] == "integrating"
+
+      assert get_in(ticket, ["attempts", ticket["active_attempt_id"], "phase"]) == "integrating",
+             "the precondition is a matched pair; if this changes the defect moved"
+
+      {state, sequence} =
+        drive({state, sequence}, [
+          {"integration_recorded", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "I1",
+             "outcome" => "infrastructure_failed",
+             "ref_receipt_id" => nil
+           }}
+        ])
+
+      assert state["tickets"]["T1"]["phase"] == "blocked"
+      assert state["tickets"]["T1"]["resume_phase"] == "ready_to_integrate"
+
+      assert SemanticInvariants.violations(state) == [],
+             "blocked is not a @legal_pairs key, so a stranded attempt is invisible here"
+
+      {state, _sequence} =
+        drive({state, sequence}, [
+          {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "ready_to_integrate"}}
+        ])
+
+      assert State.valid?(state),
+             "nothing is malformed, which is why the shape validator never caught this"
+
+      assert SemanticInvariants.violations(state) == [],
+             "the resume target promised ready_to_integrate and the attempt did not follow"
+    end
+  end
 
   describe "each guard call site, not each guard" do
     # The sweep used to neutralise by global string replacement, so identical call-site

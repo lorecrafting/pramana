@@ -916,12 +916,18 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
         # R4: "or blocked(integration_failure)". Carried on the row's own event, the way
         # freeze_failed carries its blocked alternative, rather than borrowing the PM park.
+        # The attempt moves with the ticket. `integration_settled` above sets both to
+        # `ready_to_integrate` in one pipe; this branch set only the ticket, so the block
+        # stranded the attempt at `integrating` — invisible while blocked, because `blocked`
+        # has no legal attempt phase, and a violation the moment `ticket_unblocked` honours
+        # the resume target this line promises.
         "infrastructure_failed" ->
           {:ok,
            ticket
            |> Map.put("phase", "blocked")
            |> Map.put("reason", "integration_failure")
-           |> Map.put("resume_phase", "ready_to_integrate")}
+           |> Map.put("resume_phase", "ready_to_integrate")
+           |> update_active_attempt(&Map.put(&1, "phase", "ready_to_integrate"))}
 
         _ ->
           {:error, :invalid_integration_outcome}
