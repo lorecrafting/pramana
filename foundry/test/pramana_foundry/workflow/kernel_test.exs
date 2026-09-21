@@ -95,7 +95,6 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     ])
   end
 
-  # Drives a ticket to a frozen candidate with the developer closed and checks started.
   # The step before `checking`: candidate frozen, developer closed, checks not yet
   # started. Split out because `checks_started`'s own guards can only be aimed at the
   # state that sits directly in front of it.
@@ -190,7 +189,9 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     ])
   end
 
-  defp approved_and_closed do
+  # Everything R4's integration row requires before an issuer is planned: approved,
+  # reviewer and check workers closed, no integration execution yet.
+  defp ready_to_integrate do
     drive(reviewing(), [
       {"stream_sealed", "T1",
        %{
@@ -209,7 +210,12 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       {"reviewer_closed", "T1",
        %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}},
       {"worker_closed", "T1",
-       %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "K1"}},
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "K1"}}
+    ])
+  end
+
+  defp approved_and_closed do
+    drive(ready_to_integrate(), [
       {"integration_planned", "T1",
        %{
          "ticket_id" => "T1",
@@ -1665,6 +1671,409 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "disposition" => "integrated",
          "reason_code" => nil,
          "settlement" => %{"schema_version" => 1}
+       }}
+    ])
+  end
+
+  # ── Every remaining call site, one row each ────────────────────────────────────────
+
+  describe "each guard call site, not each guard" do
+    # The sweep used to neutralise by global string replacement, so identical call-site
+    # text was mutated in every handler holding it and one red test anywhere cleared the
+    # lot. It reported 66 call sites. There are 108. Swept per occurrence, 37 had never
+    # been exercised — up to eleven untested siblings hiding behind one tested handler.
+    #
+    # One row per site. `state` names the fixture, which is the state in which every guard
+    # BEFORE the target passes, so the refusal can only come from the target; `atom` is
+    # pinned, because a shared `{:error, _}` is exactly what hid this class for three
+    # reviews. Line numbers are the sweep's, and are a convenience rather than an
+    # assertion — the pairing that matters is state-and-payload to atom.
+    # `authority/2` is a function and @sites is a module attribute, so the attribute is
+    # built before the function exists. Same map, spelled as compile-time data.
+    @auth %{
+      "schema_version" => 1,
+      "work_owner" => "own-1",
+      "ticket_id" => "T1",
+      "attempt_id" => "A1",
+      "policy_id" => "pol-1",
+      "policy_revision" => 0,
+      "control_id" => "ctl-1",
+      "control_revision" => 0,
+      "predecessor_effect_id" => nil,
+      "infrastructure_generation" => 0
+    }
+
+    @sites [
+      # ticket_amended (290), ticket_blocked (323-324), ticket_reset, cancellation_finalized (392)
+      {290, :blocked_with_active_attempt, "ticket_amended",
+       %{"ticket_id" => "T1", "spec_revision_id" => "spec-2", "spec" => %{}},
+       :attempt_still_active},
+      {323, :developing, "ticket_blocked",
+       %{"ticket_id" => "T1", "reason" => "drain", "resume_phase" => "blocked"},
+       :invalid_resume_phase},
+      {324, :developing, "ticket_blocked",
+       %{"ticket_id" => "T1", "reason" => "drain", "resume_phase" => "reviewing"},
+       :resume_target_not_current_phase},
+      {392, :cancel_requested_with_attempt, "cancellation_finalized",
+       %{"ticket_id" => "T1", "disposition" => "cancelled"}, :attempt_still_active},
+
+      # The developing family: phase, active attempt, attempt phase — in four handlers.
+      {431, :developing, "launch_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "execution_id" => "X1",
+         "settlement" => %{"schema_version" => 1}
+       }, :not_the_active_attempt},
+      {448, :checking, "artifact_frozen",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "candidate_id" => "cand-2",
+         "observation_id" => "obs-9",
+         "sealed_generation" => "gen-2"
+       }, :wrong_source_phase},
+      {449, :developing, "artifact_frozen",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "candidate_id" => "cand-2",
+         "observation_id" => "obs-9",
+         "sealed_generation" => "gen-2"
+       }, :not_the_active_attempt},
+      {450, :developing_with_frozen_candidate, "artifact_frozen",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "candidate_id" => "cand-2",
+         "observation_id" => "obs-9",
+         "sealed_generation" => "gen-2"
+       }, :wrong_attempt_phase},
+      {470, :checking, "artifact_blocked",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "observation_id" => "obs-9",
+         "result" => "blocked",
+         "reason" => "dep"
+       }, :wrong_source_phase},
+      {471, :developing, "artifact_blocked",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "observation_id" => "obs-9",
+         "result" => "blocked",
+         "reason" => "dep"
+       }, :not_the_active_attempt},
+      {472, :developing_with_frozen_candidate, "artifact_blocked",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "observation_id" => "obs-9",
+         "result" => "blocked",
+         "reason" => "dep"
+       }, :wrong_attempt_phase},
+      {487, :checking, "freeze_failed",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "disposition" => "retry",
+         "reason" => "import"
+       }, :wrong_source_phase},
+      {489, :developing_with_frozen_candidate, "freeze_failed",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "disposition" => "retry",
+         "reason" => "import"
+       }, :wrong_attempt_phase},
+      {526, :developing, "submission_rejected",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "observation_id" => "obs-9",
+         "reason" => "malformed"
+       }, :not_the_active_attempt},
+
+      # Closure and observation address an attempt by name, so a forged name is the test.
+      {539, :developing, "execution_observed",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-ghost",
+         "execution_id" => "X1",
+         "observation" => "running",
+         "lifecycle" => "running"
+       }, :unknown_attempt},
+      {559, :developing, "stream_sealed",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-ghost",
+         "execution_id" => "X1",
+         "last_accepted_sequence" => 3
+       }, :unknown_attempt},
+      {560, :developing, "stream_sealed",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "X-ghost",
+         "last_accepted_sequence" => 3
+       }, :unknown_execution},
+      {610, :developing, "worker_closed",
+       %{"ticket_id" => "T1", "attempt_id" => "A-ghost", "execution_id" => "X1"},
+       :unknown_attempt},
+
+      # The check family.
+      {625, :candidate_frozen, "checks_started",
+       %{"ticket_id" => "T1", "attempt_id" => "A-other", "policy_empty" => false},
+       :not_the_active_attempt},
+      {643, :checking, "check_planned",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "check_id" => "C2",
+         "authority" =>
+           Map.merge(@auth, %{"execution_id" => "K2", "role" => "check", "effect_id" => "eff-K2"})
+       }, :not_the_active_attempt},
+      {654, :candidate_frozen, "check_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C1",
+         "execution_id" => "K1",
+         "settlement" => %{"schema_version" => 1}
+       }, :wrong_attempt_phase},
+      {655, :checking_with_check, "check_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "check_id" => "C1",
+         "execution_id" => "K1",
+         "settlement" => %{"schema_version" => 1}
+       }, :not_the_active_attempt},
+      {675, :candidate_frozen, "check_recorded",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C1",
+         "status" => "passed",
+         "reason_code" => nil
+       }, :wrong_attempt_phase},
+      {676, :checking_with_check, "check_recorded",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "check_id" => "C1",
+         "status" => "passed",
+         "reason_code" => nil
+       }, :not_the_active_attempt},
+      {677, :checking_with_check, "check_recorded",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C-ghost",
+         "status" => "passed",
+         "reason_code" => nil
+       }, :unknown_check},
+
+      # The review family.
+      {694, :developing, "review_planned",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "authority" =>
+           Map.merge(@auth, %{
+             "execution_id" => "R1",
+             "role" => "reviewer",
+             "effect_id" => "eff-R1"
+           })
+       }, :wrong_source_phase},
+      {695, :checked_passed, "review_planned",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "authority" =>
+           Map.merge(@auth, %{
+             "execution_id" => "R1",
+             "role" => "reviewer",
+             "effect_id" => "eff-R1"
+           })
+       }, :not_the_active_attempt},
+      {744, :sealed_reviewer, "review_recorded",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "candidate_id" => "cand-1",
+         "verdict" => "approved"
+       }, :not_the_active_attempt},
+
+      # The integration family, which no walk reaches: it sits about a dozen events in.
+      {818, :ready_to_integrate, "integration_planned",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "authority" =>
+           Map.merge(@auth, %{
+             "execution_id" => "I1",
+             "role" => "integration",
+             "effect_id" => "eff-I1"
+           })
+       }, :not_the_active_attempt},
+      {830, :developing, "integration_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "I1",
+         "settlement" => %{"schema_version" => 1}
+       }, :wrong_source_phase},
+      {831, :approved_and_closed, "integration_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "execution_id" => "I1",
+         "settlement" => %{"schema_version" => 1}
+       }, :not_the_active_attempt},
+      {855, :approved_and_closed, "integration_recorded",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "execution_id" => "I1",
+         "outcome" => "ref_created",
+         "ref_receipt_id" => "ref-1"
+       }, :not_the_active_attempt},
+      {857, :approved_and_closed, "integration_recorded",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "X-ghost",
+         "outcome" => "ref_created",
+         "ref_receipt_id" => "ref-1"
+       }, :unknown_execution},
+
+      # Build executions are planned and settled against the active attempt like any other.
+      {947, :developing, "build_planned",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "build_id" => "B1",
+         "authority" =>
+           Map.merge(@auth, %{"execution_id" => "B1", "role" => "build", "effect_id" => "eff-B1"})
+       }, :not_the_active_attempt},
+      {954, :developing, "build_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A-other",
+         "build_id" => "B1",
+         "execution_id" => "B1",
+         "settlement" => %{"schema_version" => 1}
+       }, :not_the_active_attempt}
+    ]
+
+    for {line, fixture, type, payload, atom} <- @sites do
+      test "kernel.ex:#{line} #{type} refuses with #{atom} (#{fixture})" do
+        {state, sequence} = fixture(unquote(fixture))
+
+        forged =
+          event(
+            unquote(type),
+            "T1",
+            state["tickets"]["T1"]["revision"],
+            sequence + 1,
+            unquote(Macro.escape(payload))
+          )
+
+        assert {:error, unquote(atom)} = WorkflowKernel.apply(state, forged)
+      end
+    end
+
+    # Named rather than `apply/3`, which cannot reach a private function — and keeping the
+    # fixtures private is worth one dispatcher, since making fifteen builders public to
+    # satisfy a table would be the table changing the code it tests.
+    defp fixture(:admitted), do: admitted()
+    defp fixture(:developing), do: developing()
+    defp fixture(:candidate_frozen), do: candidate_frozen()
+    defp fixture(:checking), do: checking()
+    defp fixture(:checking_with_check), do: checking_with_check()
+    defp fixture(:checked_passed), do: checked("passed")
+    defp fixture(:reviewing), do: reviewing()
+    defp fixture(:sealed_reviewer), do: sealed_reviewer()
+    defp fixture(:ready_to_integrate), do: ready_to_integrate()
+    defp fixture(:approved_and_closed), do: approved_and_closed()
+    defp fixture(:blocked_with_active_attempt), do: blocked_with_active_attempt()
+    defp fixture(:cancel_requested_with_attempt), do: cancel_requested_with_attempt()
+    defp fixture(:developing_with_frozen_candidate), do: developing_with_frozen_candidate()
+  end
+
+  # ── States the second sweep needed, each one searched for rather than guessed ───────
+
+  # R4 row 9 leaves the attempt active while the ticket blocks, so `queued/blocked with an
+  # active attempt` is a real state — 22,879 of them at depth 7 — and it is what
+  # `ticket_amended`'s refusal is for.
+  defp blocked_with_active_attempt do
+    drive(developing(), [
+      {"artifact_blocked", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "observation_id" => "obs-2",
+         "result" => "blocked",
+         "reason" => "dependency missing"
+       }}
+    ])
+  end
+
+  defp cancel_requested_with_attempt do
+    drive(developing(), [{"cancellation_requested", "T1", %{"ticket_id" => "T1"}}])
+  end
+
+  # A ticket back in `developing` whose attempt has already frozen its candidate. Found by
+  # exhaustive search, not constructed by hand — three such states exist at depth 7 and
+  # this is the shortest path to one. `launch_settled` stores resume_phase `developing`;
+  # `artifact_frozen` advances the ticket to awaiting_review without clearing it; a block
+  # may then honestly name the stale stored target, and the unblock returns a
+  # candidate_frozen attempt to `developing`.
+  #
+  # Whether `artifact_frozen` ought to clear the stale resume target is a live question for
+  # review — it is R4 semantics, not a test concern, and is not changed here. What matters
+  # for these three sites is that the state is reachable and the guards refuse it.
+  defp developing_with_frozen_candidate do
+    drive(admitted(), [
+      {"launch_planned", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X1")}},
+      {"launch_settled", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "X1",
+         "settlement" => %{"schema_version" => 1}
+       }},
+      {"launch_planned", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X2")}},
+      {"artifact_frozen", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "candidate_id" => "cand-1",
+         "observation_id" => "obs-1",
+         "sealed_generation" => "gen-1"
+       }},
+      {"ticket_blocked", "T1",
+       %{
+         "ticket_id" => "T1",
+         "reason" => "reviewer_launch_infrastructure",
+         "resume_phase" => "developing"
+       }},
+      {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "developing"}}
+    ])
+  end
+
+  defp checking_with_check do
+    drive(checking(), [
+      {"check_planned", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C1",
+         "authority" => authority("K1", "check")
        }}
     ])
   end

@@ -32,6 +32,8 @@ defmodule PramanaFoundry.Test.KernelSearch do
 
   Returns `[{state, path}]`, `path` oldest first, including the initial state with an
   empty path. Each level expands only what the previous produced.
+
+  Options: `:tickets`, and `:from` to begin from a state other than `State.new/0`.
   """
   def search(depth \\ @default_depth, opts \\ []) do
     {states, _reasons} = explore(depth, opts)
@@ -56,8 +58,24 @@ defmodule PramanaFoundry.Test.KernelSearch do
   # so collecting reasons separately re-ran the whole search to recompute what the first
   # pass had in hand — which is most of why the guard-reachability suite cost a minute and
   # had to be kept out of the mutation sweep's fast phase.
+  # `:from` seeds the search with a hand-built state instead of the empty one. Depth is a
+  # cost choice, and the cost is paid on the way IN: the review and integration rows sit
+  # roughly a dozen events from empty, so a bound affordable enough to run reaches them
+  # with almost no states to spare - 45 with an attempt in `reviewing` and none at all with
+  # a recorded verdict, at depth 8 over 238,000 states. Every reachability claim about a
+  # guard past that point was therefore being made on a sample of nearly nothing, which is
+  # indistinguishable from a proof until someone counts. Seeding from a driven state spends
+  # the whole budget where the question is.
   defp explore(depth, opts) do
-    initial = State.new()
+    initial = Keyword.get(opts, :from) || State.new()
+
+    # Durable sequence is strictly increasing across the whole log, so proposals must
+    # continue the seed's numbering rather than restart at 1. Without this every proposal
+    # from a seeded state is refused as `out_of_order_event` and the search returns the
+    # seed alone - which it did, reporting zero of every predicate asked of it and looking
+    # exactly like a proof that nothing is reachable.
+    offset = Keyword.get(opts, :from) |> then(&if(&1, do: &1["last_sequence"] || 0, else: 0))
+    opts = Keyword.put(opts, :sequence_offset, offset)
 
     {frontier, states, seen, reasons} =
       Enum.reduce(
@@ -84,7 +102,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
       state
       |> proposals(tickets)
       |> Enum.reduce(acc, fn proposal, {acc, seen, reasons} ->
-        event = build(state, proposal, length(path) + 1)
+        event = build(state, proposal, length(path) + 1 + Keyword.get(opts, :sequence_offset, 0))
 
         case WorkflowKernel.apply(state, event) do
           {:ok, next} ->

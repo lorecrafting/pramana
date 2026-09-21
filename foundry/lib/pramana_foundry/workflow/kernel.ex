@@ -350,6 +350,17 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4: "exhausted; authenticated reset grants eligible units and explicitly resumes".
   # The old attempt stays terminal, so a reset with work still active is refused.
   defp do_transition("ticket_reset", ticket, _event, _state) do
+    # The second guard here cannot fire, unlike its twins in `ticket_amended` and
+    # `cancellation_finalized`, which both can. `attempt_settled(exhausted)` is the only
+    # route into the exhausted phase and it clears the active slot in the same step, so an
+    # exhausted ticket never has an active attempt. Measured rather than argued, and
+    # bounded so the answer is not an artefact of depth: 10,024 reachable states hold an
+    # exhausted ticket at depth 7 and none of them holds an active attempt.
+    #
+    # Kept, because the rule R4 states is right. Noted because `@unreachable` in the
+    # guard-reachability suite is keyed by error ATOM and this is a property of one CALL
+    # SITE — `:attempt_still_active` is reachable, just not from here — so that ratchet
+    # cannot hold this fact and only the per-occurrence mutation sweep can see it.
     with :ok <- require_phase(ticket, ~w(exhausted)),
          :ok <- require_no_active_attempt(ticket) do
       {:ok,
@@ -778,6 +789,18 @@ defmodule PramanaFoundry.Workflow.Kernel do
         ticket["active_attempt_id"] != attempt_id ->
           {:ok, ticket}
 
+        # Unreachable, for the same reason `require_reviewer_open` is and recorded the same
+        # way. Reaching it needs an approved verdict on an attempt whose phase is no longer
+        # `reviewing`, while its reviewer execution is still sealed-and-open — but the only
+        # thing that moves the attempt off `reviewing` after an approval is this very
+        # branch, and it closes that execution on the way, so a second arrival is refused
+        # by `require_not_closed`. Searched from a sealed reviewer rather than from empty,
+        # because an unseeded search reaches zero recorded verdicts at depth 8 and would
+        # have "proved" this vacuously: 164,648 seeded states, 13,846 holding an approved
+        # verdict, none satisfying the precondition.
+        #
+        # A hand argument said the same thing and was wrong once already — the looser
+        # predicate it suggested has 3,612 witnesses. The number above is the claim.
         verdict == "approved" ->
           with :ok <- require_attempt_phase(ticket, ~w(reviewing)) do
             {:ok,
