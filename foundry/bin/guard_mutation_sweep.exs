@@ -64,6 +64,14 @@ original = File.read!(target)
 # where this finds 67, because a `with` clause that wraps across lines has no closing paren
 # on the line the call starts. Twenty guards would have gone unswept while the sweep
 # reported success, which is the failure this tool exists to catch.
+#
+# Each occurrence is kept with its byte offset, and mutation splices at that offset. It
+# used to `Enum.uniq` the text and mutate every match of it at once, which made the tool
+# coarser than the name "call site" promises: `require_phase(ticket, ~w(developing))`
+# appears in four handlers and `require_active_attempt(ticket, event["payload"]["attempt_
+# id"])` in six, so one red test anywhere cleared all of them and up to nine untested
+# siblings could hide behind one tested handler. Found while writing the review briefing
+# that was about to ask a reviewer to check exactly this.
 call_sites = fn source ->
   Regex.scan(~r/<- (require_[a-z_]+\()/, source, return: :index)
   |> Enum.map(fn [_, {start, len}] ->
@@ -76,13 +84,20 @@ call_sites = fn source ->
         end
       end)
 
-    if depth == 0, do: binary_part(source, start, stop - start + 1), else: nil
+    if depth == 0, do: {binary_part(source, start, stop - start + 1), start}, else: nil
   end)
   |> Enum.reject(&is_nil/1)
-  |> Enum.uniq()
 end
 
+# The line a byte offset falls on, so a survivor can be opened rather than searched for.
+line_of = fn offset ->
+  original |> binary_part(0, offset) |> :binary.matches("\n") |> length() |> Kernel.+(1)
+end
+
+label = fn {text, offset} -> "#{text} :#{line_of.(offset)}" end
+
 all_sites = call_sites.(original)
+all_texts = all_sites |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
 
 # Incremental mode: only the guards whose lines changed since a revision. A subcommit
 # usually touches ten guards, not sixty-five. Full sweep stays the default, because
@@ -99,20 +114,24 @@ only = System.get_env("SWEEP_SITES")
 sites =
   if only do
     wanted = only |> File.read!() |> String.split("\n", trim: true) |> Enum.map(&String.trim/1)
-    {known, unknown} = Enum.split_with(wanted, &(&1 in all_sites))
 
-    if unknown != [] do
-      IO.puts("no such call site in #{target}:")
-      Enum.each(unknown, &IO.puts("  #{&1}"))
-      System.halt(2)
+    case Enum.reject(wanted, &(&1 in all_texts)) do
+      [] -> :ok
+      unknown ->
+        IO.puts("no such call site in #{target}:")
+        Enum.each(unknown, &IO.puts("  #{&1}"))
+        System.halt(2)
     end
 
-    IO.puts("listed sites: #{length(known)} of #{length(all_sites)} guards")
-    known
+    # Every occurrence of a listed text, not one of them.
+    listed = Enum.filter(all_sites, fn {text, _} -> text in wanted end)
+    IO.puts("listed sites: #{length(listed)} occurrences of #{length(wanted)} guards, " <>
+              "of #{length(all_sites)} total")
+    listed
   else
     if since do
       {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", target], stderr_to_stdout: true)
-      touched = Enum.filter(all_sites, &String.contains?(diff, &1))
+      touched = Enum.filter(all_sites, fn {text, _} -> String.contains?(diff, text) end)
       IO.puts("incremental against #{since}: #{length(touched)} of #{length(all_sites)} guards")
       touched
     else
@@ -162,9 +181,16 @@ end
 
 # Cheapest suites first, stopping as soon as anything catches the mutation. A mutation only
 # needs one test to notice it, so running the slow suites after a catch buys nothing.
-judge = fn root, site ->
+judge = fn root, {text, offset} ->
   path = Path.join(root, target)
-  File.write!(path, String.replace(original, "<- " <> site, "<- :ok", global: true))
+  len = byte_size(text)
+
+  mutated =
+    binary_part(original, 0, offset) <>
+      ":ok" <>
+      binary_part(original, offset + len, byte_size(original) - offset - len)
+
+  File.write!(path, mutated)
 
   verdict =
     case run.(root, fast) do
@@ -196,7 +222,7 @@ results =
     fn {slice, root} ->
       Enum.map(slice, fn site ->
         verdict = judge.(root, site)
-        IO.puts("  #{Path.basename(root)} #{String.slice(site, 0, 58)} — #{verdict}")
+        IO.puts("  #{Path.basename(root)} #{String.slice(label.(site), 0, 64)} — #{verdict}")
         {site, verdict}
       end)
     end,
@@ -212,12 +238,16 @@ Enum.each(roots, &File.rm_rf!/1)
 survivors = for {site, :survived} <- results, do: site
 errors = for {site, :build_error} <- results, do: site
 
-IO.puts("\n=== #{length(survivors)} guards no test exercises ===")
-Enum.each(survivors, &IO.puts("  #{&1}"))
+IO.puts("\n=== #{length(survivors)} call sites no test exercises ===")
+Enum.each(survivors, &IO.puts("  #{label.(&1)}"))
+
+# Deduplicated, so the list can be fed straight back in via SWEEP_SITES.
+IO.puts("\n=== the #{survivors |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> length()} distinct guards behind them ===")
+survivors |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.each(&IO.puts("  #{&1}"))
 
 if errors != [] do
   IO.puts("\n=== #{length(errors)} did not compile, so nothing was measured ===")
-  Enum.each(errors, &IO.puts("  #{&1}"))
+  Enum.each(errors, &IO.puts("  #{label.(&1)}"))
 end
 
 IO.puts("\nelapsed: #{System.monotonic_time(:second) - started}s")
