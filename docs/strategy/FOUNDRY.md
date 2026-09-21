@@ -99,6 +99,14 @@ operator policy, project scope, workflow/role allowance and the specific assignm
 Repository-controlled configuration can never grant itself secrets, billing authority,
 arbitrary shell/network access or publication power.
 
+For future non-code workflows, effective policy may also need attributable **observation
+provenance**: what protected data an execution or artifact actually consumed can matter to
+whether it may later be shared or published. Cloudflare OS provides useful design pressure
+here, but this is not a current repair-time ontology change. A future ObservationReceipt
+should begin as evidence/provenance and earn any protected policy role through a separate
+bounded experiment; connector/provider claims must never become self-authenticating
+Foundry authority.
+
 Pin every admitted workflow definition/revision to the run that used it. If a model or
 project changes the plan mid-run, record and admit a new revision instead of rewriting
 history. Child work and sub-workflows inherit parent scope and budget ceilings unless
@@ -124,12 +132,24 @@ binding, independence constraints, acceptance, reconciliation and controlled pro
 Agent loops, software-factory UIs, workflow runtimes, sandboxes, policy languages and
 model routers are implementation choices unless the governing contract proves otherwise.
 
+Separate two commodity boundaries that are easy to conflate. An `ExecutionBackend`
+answers where/how admitted code runs. A `ResourceAdapter` or capability broker answers
+what external resources that execution may read or affect without gaining ambient
+credentials. The first may be implemented by a local Linux worker, AX/Agent Substrate,
+Cloudflare Dynamic Workers/Sandbox or future runtimes. The second may use provider-specific
+Gatekeeper-like mediation. Neither layer may create Foundry grants, settle budgets or
+accept its own output. The [AX/Substrate](../../foundry/docs/AX-SUBSTRATE.md) and
+[Cloudflare OS](../../foundry/docs/CLOUDFLARE-OS.md) reviews record the current evidence
+and non-authority constraints.
+
 Before post-repair work adds or substantially extends one of those implementation layers,
 run a bounded substitution evaluation against the strongest available alternative.
 Current candidate classes include Warp Factories for software-factory orchestration,
 LangGraph for agent/workflow runtime, Restate/Temporal/DBOS for durable execution,
-Dagger plus OS/container/micro-VM primitives for execution isolation, and OPA/Cedar for
-bounded authorization-policy evaluation. These names are candidates, not dependencies.
+AX/Agent Substrate and Cloudflare execution primitives behind a common ExecutionBackend,
+Gatekeeper-like brokers for narrow resource/effect mediation, Dagger plus
+OS/container/micro-VM primitives for execution isolation, and OPA/Cedar for bounded
+authorization-policy evaluation. These names are candidates, not dependencies.
 
 A substitution evaluation compares the actual Foundry cases—not feature lists—including
 lost acknowledgments, duplicate delivery, unknown side-effect outcomes, durable budgets,
