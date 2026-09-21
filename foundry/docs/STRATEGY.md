@@ -181,9 +181,11 @@ isolated worktree, Git, shell and compiler tools; a content-authoring workflow m
 only a typed Builder API, simulation and certification operations. Reusing the same
 model in both cases does not imply equal authority. Child work and sub-workflows inherit
 bounded parent scope/budget ceilings unless protected policy grants less; composition
-cannot expand authority. Avoid a Turing-complete workflow DSL or a second orchestrator:
-start with small composable lifecycle primitives and introduce generalization only after
-real portability evidence.
+cannot expand authority. Avoid a Turing-complete **protected** workflow DSL or a second
+internal authority-bearing orchestrator inside Foundry. External controllers are
+replaceable strategy implementations behind
+[the orchestrator boundary](ORCHESTRATOR-BOUNDARY.md), not competing protected state
+machines. Introduce generalization only after real portability evidence.
 
 ### Project-declared roles and capability surfaces
 
