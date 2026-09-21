@@ -8,8 +8,9 @@ at pinned revisions, not comparative performance measurements or certification o
 operator's machine.
 
 [Documentation index](README.md) · [Repair plan](REPAIR-PLAN.md) ·
-[Workflow contract](WORKFLOW-CONTRACT.md) · [Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) ·
-[AX/Substrate backend](AX-SUBSTRATE.md) · [Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
+[Workflow contract](WORKFLOW-CONTRACT.md) · [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) ·
+[Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) · [AX/Substrate backend](AX-SUBSTRATE.md) ·
+[Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
 [Broader product strategy](../../docs/strategy/FOUNDRY.md)
 
 ## Working summary
@@ -55,6 +56,33 @@ authority-fence, unknown-effect and observation-provenance mechanisms are strong
 pressure for the resource/effect boundary. None may mint Foundry completion, budgets,
 grants, evidence binding or acceptance. Every candidate remains pinned behind hostile
 conformance before adoption.
+
+## Replaceable orchestrators: wrap authority, not the controller
+
+The post-repair target now distinguishes a controller/orchestrator from the protected
+authority plane. Cloudflare OS, AX, Pi, Claude/Codex harnesses, the default Foundry
+workflow kernel or a future planner may all decide how to decompose, sequence, parallelize,
+wait and correct work. They consume canonical Foundry facts and propose bounded semantic
+transitions through the same machine protocol.
+
+Keep two paths separate:
+
+- the **authority path** is low-volume, durable and idempotent for admission, grants,
+  reservations, execution issuance, exact candidate/evidence registration, consequential
+  effects, acceptance and promotion;
+- the **observation path** is high-volume and non-authoritative for model/tool/runtime
+  activity, tokens, latency, controller waits, context and diagnostics.
+
+The CLI is an operator client of those semantics, not the required controller integration
+mechanism. Controllers should query/subscribe to facts and eligibility, then choose their
+own strategy; they should not receive a generic protected `advance()` primitive. Event-driven
+subscriptions should wake deterministic controller code on meaningful state changes rather
+than repeatedly spending model calls polling child completion.
+
+The detailed boundary, controller responsibilities, candidate API vocabulary and
+conformance obligations are in
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md). This is post-repair guidance: the active
+workflow contract remains authoritative for current identities and transitions.
 
 ## Authority and document ownership
 
