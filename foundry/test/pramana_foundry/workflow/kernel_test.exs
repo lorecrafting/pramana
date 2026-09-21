@@ -2236,13 +2236,29 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # `SemanticInvariants`'s `@legal_pairs` for that is worth nothing here: it is asserted
     # over the unseeded depth-7 set, which holds zero integrating tickets, as @unreachable's
     # own "integration row: ~12 events" says. Thousands of witnesses for the developing row
-    # are not witnesses for this one. The argument that does hold is structural coupling -
-    # ticket phase `integrating` is set at exactly one site and the same pipe sets the
-    # attempt's phase on the next line; `integration_settled` moves both off together, and
-    # `attempt_settled` terminalises the attempt and clears the slot. Set together, cleared
-    # together, which is the argument semantic_invariants.ex makes for developing/active.
-    # And the seeded run above seeds from a state that already holds the receipt, so it
-    # measures preservation and not establishment - it could not have caught this.
+    # are not witnesses for this one. The argument that does hold is structural coupling, and
+    # it needs its enumeration stated rather than assumed - an earlier version of this said
+    # "set at exactly one site" without grepping for the writers, and that was false.
+    #
+    # Two transitions put a ticket in `integrating`. `integration_planned` sets ticket and
+    # attempt in the same pipe, so it couples by construction. `ticket_unblocked` restores a
+    # stored resume target, and `@blockable_phases` includes `integrating` while
+    # `ticket_blocked` does not touch the attempt - so block-then-unblock writes
+    # ticket-`integrating` without ever naming the attempt. What makes that safe is that the
+    # target was coupled when it was stored, and that nothing rewrites the active attempt's
+    # phase during the blocked window. The second half is MEASURED, not argued: `kernel_walk`
+    # proposes `ticket_blocked` and `ticket_unblocked`, so the blocked window lies inside the
+    # seeded run above, and none of its 20,488 receipt-holders violated.
+    #
+    # "Cleared together" is not universally true either. `integration_recorded`'s
+    # `infrastructure_failed` branch moves the ticket to `blocked` and leaves the attempt at
+    # `integrating`. It cannot carry a receipt - that branch runs under
+    # `require_no_ref_receipt` and writes none - so it is inert for THIS invariant. It is not
+    # inert in general: it produces a reachable `@legal_pairs` violation, recorded in the
+    # implementation log for 2026-09-21 as a kernel defect rather than an evidence one.
+    #
+    # The seeded run seeds from a state that already holds the receipt, so it measures
+    # preservation and not establishment - it could not have caught any of this.
     #
     # Both guards are therefore redundant given an invariant, not unwitnessed. They stay,
     # for the same reason the other belt-and-braces guards stay, and neither is recorded in

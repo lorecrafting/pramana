@@ -2561,6 +2561,26 @@ what was being asserted unchecked as it does about the tools.
   `attempt_settled` clears the slot — set together, cleared together, which is the form
   `semantic_invariants.ex` uses for developing/active. The verdict site never needed the link:
   `review_recorded` guards the attempt's own phase and writes to that attempt.
+- **A reachable kernel defect, found by the confirmation pass and not fixed here.**
+  `integration_recorded`'s `infrastructure_failed` branch moves the ticket to `blocked` with a
+  `ready_to_integrate` resume target and **leaves the active attempt at `integrating`**.
+  `ticket_blocked` never touches the attempt, `blocked` is not a key in `@legal_pairs`, so
+  nothing complains while blocked — and on `ticket_unblocked` the ticket lands on
+  `ready_to_integrate` with the attempt still `integrating`, which `@legal_pairs` calls a
+  violation. Reproduced end to end:
+
+      integration_planned    ticket=integrating        attempt=integrating        clean
+      infrastructure_failed  ticket=blocked            attempt=integrating        clean
+      ticket_unblocked       ticket=ready_to_integrate attempt=integrating        VIOLATION
+
+  `State.valid?/1` accepts every step, correctly — nothing is malformed. This is the same class
+  as the stale-resume defect that blocked review 4: a state the oracle would call illegal that no
+  search reaches, here ~14 events from empty against a depth-7 bound. It is also the same shape
+  as the six recorded partial generalisations — `integration_settled` moves ticket *and* attempt
+  to `ready_to_integrate` in one pipe, and the `infrastructure_failed` branch beside it moves only
+  the ticket. The likely fix is one line in that branch. **Not applied**: it is a behaviour change
+  on a gate-validated candidate, it needs independent review of its own, and subcommit 1 was not
+  scoped to it. Recorded for a scope decision.
 - Follow-up recorded and not taken, also from the fifth review: key `@sites` rows on the guard
   **call text** rather than deleting the identifier outright. It is what the sweep prints and what
   `SWEEP_SITES` consumes, it does not drift, it distinguishes the sites sharing an atom by their
@@ -2573,6 +2593,12 @@ what was being asserted unchecked as it does about the tools.
 - Two of my own claims this session read as measurements and were not, and a third test named a
   site it never exercised. The sweep caught one, the review caught two. That is the argument for
   mechanisms that derive their numbers rather than restate them.
+- Rule 2 wants one clause, on the fifth review's recommendation and not yet applied: a claim of
+  absence should report how many states were checked, **how many held the precondition**, and how
+  many violated — a precondition count of zero is rule 1's vacuous mechanism with a number
+  attached, not rule 2 compliance. `kernel.ex`'s `reviewer_closed` comment and this session's
+  seeded runs already use that three-number format; the rule does not yet ask for it. Editing the
+  rule list is a decision for the repository owner, not something to slip in beside a candidate.
 - Gate on `1b9c660e`: **passes**, 911 passed / 13 skipped / 1 excluded, suite **284.0s**, total
   **295s**, provenance `dirty_paths: []`. Workflow suites **176 at seed 0**, unchanged — this
   pass adds and removes no tests. `bin/preflight.sh` passes with the 4 pre-existing warnings.
