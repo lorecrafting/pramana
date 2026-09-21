@@ -2602,3 +2602,52 @@ what was being asserted unchecked as it does about the tools.
 - Gate on `1b9c660e`: **passes**, 911 passed / 13 skipped / 1 excluded, suite **284.0s**, total
   **295s**, provenance `dirty_paths: []`. Workflow suites **176 at seed 0**, unchanged — this
   pass adds and removes no tests. `bin/preflight.sh` passes with the 4 pre-existing warnings.
+
+## FR-08B kernel, subcommit 1 — the defect the fifth review left recorded, fixed — 2026-09-21
+
+- Taken as **its own candidate**, not folded into subcommit 1 or 2. Subcommit 1 is closed at
+  seven commits and four green gates, and reopening it buys a sixth independent review of all
+  seven; subcommit 2 is `decide/3`, a different surface, and shipping it on a kernel holding a
+  recorded reachable violation makes its reviewer reason around one. One review of a two-file
+  delta is the cheapest of the three.
+- **The enumeration was grepped, not asserted.** Six sites write `phase => "blocked"`.
+  `ticket_parked` (:307) and `ticket_blocked` (:327) route through
+  `require_honest_resume_target`, whose target is the ticket's own current phase, so the
+  attempt is untouched and the pair is preserved. `artifact_blocked` (:487) and
+  `freeze_failed` (:508) block from `developing` with resume `developing` and leave the attempt
+  `active`, which is legal. `attempt_settled` (:1051) clears the active slot.
+  `integration_recorded`'s `infrastructure_failed` branch is the only site whose resume target
+  differs from the ticket's phase while an active attempt survives, and the only blocked-writer
+  that bypasses the honesty guard entirely. So rule 4 does not force a vocabulary-wide edit
+  here: it is a singleton, and the general path already routes through one guard. The previous
+  entry called this a partial generalisation and was right about the shape; the grep is what
+  establishes there is no sibling to carry the fix to.
+- **Red before the fix existed, and red in the right place.** The regression drives
+  `approved_and_closed` → `infrastructure_failed` → `ticket_unblocked` and failed at the final
+  assertion only. The blocked-window assertion passed, which is the half worth recording: it
+  confirms the oracle's silence at `blocked` is this defect's delay rather than a second defect.
+  `State.valid?/1` accepts every step, so the shape validator was never going to see it.
+- The assertion is `SemanticInvariants.violations(state) == []`, not the two phase strings, so
+  the control covers the relation rather than the one field this branch got wrong.
+  `kernel_test.exs` now requires `semantic_invariants.ex` the way `r4_exhaustive_test.exs` does.
+- **No guard was added or changed**, so no sweep site moved and `SWEEP_SITES` has nothing to
+  scope. This is precisely the class the sweep cannot see: it neutralises conditions, and here
+  every guard was already correct and the post-state write was wrong. That is the standing
+  argument for EV-3, now scoped rather than recorded.
+- Sol's three undesigned proposals are scoped as work items in
+  [the evidence-reduction tickets](fr-08/fr08b-evidence-reduction-tickets.md), with the two
+  orderings that decide the sequence stated: payoff per unit cost runs EV-4, EV-3, EV-2, while
+  cost-growth-if-deferred runs the reverse. They create no FR node; the namespace is closed at
+  FR-23. **EV-4 first** — every "N states, M holding the precondition, 0 violating" recorded in
+  this subcommit is computed over the quotient rather than the reachable set, so rule 2's
+  denominators are conditional on a congruence nobody has proved.
+- Measured while scoping EV-2, not transcribed: `r4_coverage_test.exs` stands at **57 clauses
+  asserted and 57 uncited over 32 rows, with 4 `@partial` entries**. Its own comment says "54
+  clauses are asserted and 59 are not". Left unedited, because a stale count inside the file
+  whose purpose is that counts get checked is the argument for EV-2 rather than a footnote to it.
+- Workflow suites **177 at seed 0**, from 176: one test added, no ratchet shifted. Gate on
+  `4fa3bc96`: **passes**, **912 passed / 13 skipped / 1 excluded**, suite **298.3s**,
+  provenance `result: passed`, `exit_code: 0`, `dirty_paths: []`. The count was predicted
+  exactly before the run (911 + 1). The duration was predicted as 285–295s and came in at
+  298.3s, outside the stated range — recorded rather than widened after the fact, since a
+  prediction adjusted to its own result measures nothing.
