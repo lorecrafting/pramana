@@ -1,21 +1,21 @@
 # Foundry ecosystem boundary and positioning
 
-**Date:** 2026-09-20. **Updated:** 2026-09-21 for AX/Agent Substrate. **Type:** research synthesis and architecture guidance, not an
+**Date:** 2026-09-20. **Updated:** 2026-09-21 for AX/Agent Substrate and Cloudflare OS. **Type:** research synthesis and architecture guidance, not an
 implementation inventory, repair-ticket disposition, dependency selection or authorization
 to activate execution.
 
 [Foundry strategy](STRATEGY.md) · [Workflow contract](WORKFLOW-CONTRACT.md) ·
 [Planning strategies](PLANNING-STRATEGIES.md) ·
 [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md) ·
-[AX/Substrate backend](AX-SUBSTRATE.md) ·
+[AX/Substrate backend](AX-SUBSTRATE.md) · [Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
 [Broader research record](../../docs/strategy/RESEARCH.md)
 
 ## Executive conclusion
 
-Recent comparison against Google AX/Agent Substrate, AgentLedger, Restate, Temporal,
-Microsoft Agent Governance Toolkit/Agent Control Specification (AGT/ACS), Cedar/OPA,
-Tandem and Permission Protocol mostly **confirms the existing Foundry direction rather
-than overturning it**.
+Recent comparison against Google AX/Agent Substrate, Cloudflare OS, AgentLedger, Restate,
+Temporal, Microsoft Agent Governance Toolkit/Agent Control Specification (AGT/ACS),
+Cedar/OPA, Tandem and Permission Protocol mostly **confirms the existing Foundry direction
+rather than overturning it**.
 
 The ecosystem is converging on a common split:
 
@@ -110,10 +110,15 @@ The desirable direction is a small family of contracts such as:
 ```text
 HarnessAdapter
 ExecutionBackend
+ResourceAdapter
 PolicyProvider
 EffectAdapter
 ReceiptExporter
 ```
+
+`ResourceAdapter` is a provisional umbrella for typed read/observe/resource-scoped access
+inspired by Gatekeeper-like brokers; it may ultimately compose or subsume existing
+provider-facing `EffectAdapter` responsibilities rather than becoming a sixth service.
 
 These are architecture seams, not authorization to create five new services or a new
 repair backlog. Existing repair ownership remains unchanged.
@@ -179,6 +184,40 @@ AX now exists to provide. Keep a direct Substrate adapter as an escape hatch onl
 demonstrated requirement cannot be satisfied through AX. In either path, Foundry remains
 the sole authority for grants, budgets, exact source/evidence binding, completion meaning,
 acceptance and promotion.
+
+### Cloudflare OS: capability/effect design comparator; runtime primitives are backend candidates
+
+The 2026-09-21 [focused review](CLOUDFLARE-OS.md) checked Cloudflare OS at
+`baa4f7cc4ab628c5d157c68054b315695de02fa1` plus the current Project Think execution
+ladder and Sandbox security documentation. Cloudflare OS is not simply another execution
+runtime: its own "kernel" owns users, workspaces, sharing, approvals, observations,
+credential mediation and effect journals. Integrating the whole product beneath Foundry
+would therefore create overlapping authority rather than remove commodity infrastructure.
+
+Its **Gatekeeper** pattern is nevertheless strong design pressure for Foundry's external
+resource boundary: start agents/apps with no ambient resource access; keep provider
+credentials behind typed, resource-scoped capabilities; stage consequential actions for
+approval; fence staged actions to the authority generation under which they were created;
+and preserve an explicit unknown provider outcome instead of retrying blindly.
+
+Cloudflare OS also tracks what protected resources a workspace has actually **observed**.
+Its sharing/security model can re-verify collaborators against observed provider data, and
+sensitive observations can latch stricter downstream action/sharing behavior. Foundry
+should not copy that product policy directly, but should preserve a future
+`ObservationReceipt`/provenance seam so policy can eventually distinguish "may do" from
+"has seen" where non-code workflows require it.
+
+Separately, Cloudflare's lower-level execution primitives are plausible backend candidates:
+Dynamic Workers for low-ambient-authority generated code, Durable Objects/fibers for
+lightweight durable waits/state, and Sandbox for VM-isolated full-OS work. Project Think's
+execution ladder suggests selecting the least-privileged runtime capable of an admitted
+assignment rather than giving every task a Linux machine.
+
+**Position:** keep Cloudflare OS itself beside Foundry as a product/control-plane comparator.
+Mine Gatekeeper, authority-fence, unknown-effect and observation-provenance mechanics.
+Evaluate Cloudflare Dynamic Worker/Sandbox only behind the same vendor-neutral
+`ExecutionBackend` contract used for local and AX paths, by workload class rather than as
+a universal replacement.
 
 ### AgentLedger: closest design peer; mine the semantics, do not depend on it yet
 
@@ -387,6 +426,8 @@ The same applies to policy engines and observability:
 - harness/model usage reports are evidence; they do not mint budgets or acceptance.
 - sandbox/container success establishes process-level facts; it does not prove task-level
   correctness.
+- Gatekeeper/resource-broker observations, approvals and action journals are external
+  evidence/runtime state; they do not mint Foundry grants, effect settlement or acceptance.
 
 ## Substitution contracts and conformance
 
@@ -435,6 +476,26 @@ At minimum preserve:
 - bounded tool surface and isolation assumptions;
 - restart/reconciliation semantics;
 - no credential or paid-fallback route outside admitted policy.
+
+### ResourceAdapter conformance
+
+For a typed resource/capability broker, at minimum test:
+
+- provider credentials are not directly available to the agent/process;
+- admitted resource scope is narrower than provider-account authority where requested;
+- an ungranted operation is denied even when the underlying credential would permit it;
+- resource/operation identity and current Foundry authority generation are attributable;
+- credential reconnect/rotation cannot silently apply an action staged under stale authority;
+- observations identify the actual resource/scope read rather than only the connector name;
+- a sensitive observation cannot leak through an unrelated/public effect path when policy says
+  it is restricted;
+- approval is bound to the exact staged payload, resource and authority generation;
+- adapter restart cannot replay a landed effect;
+- simulation/projection is distinguishable from provider truth;
+- provider-specific ACL/identity claims remain evidence inputs rather than Foundry authority.
+
+Whether this becomes a distinct interface or an umbrella over existing EffectAdapter behavior
+should be decided by the smallest implementation that preserves these semantics.
 
 ### EffectAdapter conformance
 
