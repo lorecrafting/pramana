@@ -156,7 +156,26 @@ FR-08–FR-22 change:
   Together these leave one encoding of R4 where there are now three, and they are the
   portable half: a precondition predicate, an input event and an outcome predicate are the
   same shape for any workflow, while the phases and roles inside them are not. See
-  [the mechanism/definition seam note](fr-08/workflow-definition-seam.md). This is a correctness obligation, not an abstraction exercise: two
+  [the mechanism/definition seam note](fr-08/workflow-definition-seam.md).
+
+  A third candidate, weaker evidence and therefore proposed rather than scheduled:
+  **collapse `checks` and `review` into executions.** `@attempt_keys` carries `executions`
+  alongside separate `checks` and `review` maps, while `@execution_keys` already holds a
+  `role` covering `check` and `reviewer` and a write-once `result`. A check run is an
+  execution with a role and a result; a review is an execution with a role and a verdict.
+  They are separate maps because R4 discusses them separately, not because the model
+  requires it, and the redundancy is already load-bearing in the wrong way:
+  `require_reviewer_execution` cross-references `review.execution_id` against `executions`,
+  and `check_settled` closes an execution while separately mutating `checks`. Two places
+  holding facts about one thing, kept in step by hand, is the shape behind most of what
+  three reviews found.
+
+  Justified on this workflow's own merits rather than on a second workflow's needs — though
+  it is also the single most workflow-specific thing in the entity model, and a domain with
+  no first-class "review" would force the collapse anyway. Weigh it against the cost of
+  moving the state shape again after subcommit 2 has built `decide/3` on it: if it is done
+  at all, it is cheapest before subcommit 3 adds the reviewer role, and it should not be
+  done at all while a review is outstanding on the current shape. This is a correctness obligation, not an abstraction exercise: two
   hand-maintained encodings of one contract drift toward each other under pressure, which
   is exactly what the subcommit 1 review confirmed on `ticket_parked`, where prober and
   kernel were both widened until they agreed on a state R4 forbids. It also discharges the
