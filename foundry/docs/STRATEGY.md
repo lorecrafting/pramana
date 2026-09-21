@@ -1,6 +1,6 @@
 # Foundry strategy brief
 
-**Date:** 2026-09-19. **Type:** investment direction and design guidance, not an
+**Date:** 2026-09-19. **Updated:** 2026-09-21 for AX/Agent Substrate positioning. **Type:** investment direction and design guidance, not an
 implementation inventory or authorization to execute. Records the operator's
 Foundry-first investment direction, the model-directed-work vision and the lessons from
 FirstMate, Pi, OMP and no-mistakes. External capabilities below are source observations
