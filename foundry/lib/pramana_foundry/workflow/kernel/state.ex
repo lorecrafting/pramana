@@ -66,7 +66,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   def objective_roles, do: @objective_roles
 
   @doc "A fresh per-role infrastructure record for a work owner of the given roles."
-  @spec infrastructure(([String.t()])) :: map()
+  @spec infrastructure([String.t()]) :: map()
   def infrastructure(roles),
     do: %{"generation" => 0, "ordinals" => Map.new(roles, &{&1, 0})}
 

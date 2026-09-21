@@ -332,7 +332,10 @@ defmodule PramanaFoundry.Workflow.Kernel do
        |> Map.put("reason", nil)
        |> Map.put("resume_phase", nil)
        |> update_in(["infrastructure", "generation"], &(&1 + 1))
-       |> put_in(["infrastructure", "ordinals"], State.infrastructure(State.ticket_roles())["ordinals"])}
+       |> put_in(
+         ["infrastructure", "ordinals"],
+         State.infrastructure(State.ticket_roles())["ordinals"]
+       )}
     end
   end
 
@@ -363,12 +366,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
           if integration_occurred?(ticket),
             do: {:ok, Map.put(ticket, "phase", "integrated")},
             else: {:error, :no_integration_to_finalize}
+
         _ ->
           {:error, :invalid_cancellation_disposition}
       end
     end
   end
-
 
   # R4: "queued; dependencies/resources/profile/reservation eligible" — a fresh attempt
   # unless R4a retained a resumable one, then its launch intent, then developing.
@@ -525,7 +528,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_attempt(ticket, payload["attempt_id"]),
          :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
-         :ok <- require_developer_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         :ok <-
+           require_developer_execution(ticket, payload["attempt_id"], payload["execution_id"]),
          :ok <- require_sealed(ticket, payload["attempt_id"], payload["execution_id"]) do
       close_execution(ticket, payload["attempt_id"], payload["execution_id"])
     end
@@ -589,7 +593,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- require_attempt_phase(ticket, ~w(checking)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_check(ticket, payload["check_id"]) do
-      with {:ok, ticket} <- close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
+      with {:ok, ticket} <-
+             close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
         {:ok,
          ticket
          |> update_active_attempt(fn attempt ->
@@ -653,7 +658,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- require_phase(ticket, ~w(reviewing)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_reviewer_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
-      with {:ok, ticket} <- close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
+      with {:ok, ticket} <-
+             close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
         {:ok,
          ticket
          |> Map.put("phase", "awaiting_review")
@@ -735,7 +741,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("integration_settled", ticket, event, _state) do
     with :ok <- require_phase(ticket, ~w(integrating)),
          :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]) do
-      with {:ok, ticket} <- close_execution(ticket, event["payload"]["attempt_id"], event["payload"]["execution_id"]) do
+      with {:ok, ticket} <-
+             close_execution(
+               ticket,
+               event["payload"]["attempt_id"],
+               event["payload"]["execution_id"]
+             ) do
         {:ok,
          ticket
          |> Map.put("phase", "ready_to_integrate")
@@ -850,7 +861,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   defp do_transition("build_settled", ticket, event, _state) do
     with :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
-         {:ok, ticket} <- close_execution(ticket, event["payload"]["attempt_id"], event["payload"]["execution_id"]) do
+         {:ok, ticket} <-
+           close_execution(
+             ticket,
+             event["payload"]["attempt_id"],
+             event["payload"]["execution_id"]
+           ) do
       {:ok, consume_infrastructure_ordinal(ticket, "build")}
     end
   end
