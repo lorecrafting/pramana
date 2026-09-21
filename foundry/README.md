@@ -90,6 +90,9 @@ disabled/routed to their containment owners until rewritten.
   read-only current-source alignment audit and exact limitations.
 - [`docs/OBSERVABILITY.md`](docs/OBSERVABILITY.md) — telemetry records, health probe,
   system metrics, CLI diagnostics, self-healing classifiers.
+- [`docs/AX-SUBSTRATE.md`](docs/AX-SUBSTRATE.md) — 2026-09-21 research on Google AX and
+  Agent Substrate as a replaceable distributed execution backend beneath Foundry's
+  authority/evidence boundary.
 - [`docs/MIGRATION.md`](docs/MIGRATION.md) — historical destination architecture, runtime
   and storage boundaries, parity matrix, cutover and rollback design.
 - [`docs/MIGRATION-TICKETS.md`](docs/MIGRATION-TICKETS.md) — historical eight-ticket
