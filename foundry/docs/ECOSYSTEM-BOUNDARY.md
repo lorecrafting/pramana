@@ -7,13 +7,15 @@ to activate execution.
 [Foundry strategy](STRATEGY.md) · [Workflow contract](WORKFLOW-CONTRACT.md) ·
 [Planning strategies](PLANNING-STRATEGIES.md) ·
 [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md) ·
+[AX/Substrate backend](AX-SUBSTRATE.md) ·
 [Broader research record](../../docs/strategy/RESEARCH.md)
 
 ## Executive conclusion
 
-Recent comparison against AgentLedger, Restate, Temporal, Microsoft Agent Governance
-Toolkit/Agent Control Specification (AGT/ACS), Cedar/OPA, Tandem and Permission Protocol
-mostly **confirms the existing Foundry direction rather than overturning it**.
+Recent comparison against Google AX/Agent Substrate, AgentLedger, Restate, Temporal,
+Microsoft Agent Governance Toolkit/Agent Control Specification (AGT/ACS), Cedar/OPA,
+Tandem and Permission Protocol mostly **confirms the existing Foundry direction rather
+than overturning it**.
 
 The ecosystem is converging on a common split:
 
@@ -136,6 +138,47 @@ Those components may be important. They are replaceable infrastructure around th
 boundary.
 
 ## Comparative findings
+
+### Google AX + Agent Substrate: preferred distributed execution candidate, not authority
+
+The 2026-09-21 [focused review](AX-SUBSTRATE.md) checked AX at
+`d8ed0fe38bceb7842d3c47817d53d16ccdfcb601` and Agent Substrate at
+`bb0effed188e06a44e03862cb6ea993e58f86893`. AX's September 20 rewrite is materially
+different from its earlier harness-centric shape: it now exposes a small declarative
+`Task`/`Workspace`/`Gateway`/`Model` control plane, stores high-churn task state in
+Redis, distributes reconciliation through Redis Streams and delegates sandbox execution to
+Agent Substrate. Substrate in turn owns the actor/worker split, suspend/resume, snapshots,
+sandbox classes and actor-aware routing on top of Kubernetes.
+
+That division is unusually compatible with the intended `ExecutionBackend` seam:
+
+```text
+Foundry authority/evidence/acceptance
+                |
+                v
+         AX ExecutionBackend
+                |
+                v
+        Agent Substrate
+                |
+                v
+          Kubernetes
+```
+
+The current implementation is not yet acceptable as a trusted Foundry boundary by default.
+The inspected AX reconciler falls back to `*:443` when no Gateway is supplied and
+continues after an egress-policy application failure; the default runner does not feed
+child-command exit into authoritative Task completion; workspace Git materialization is
+branch/ref-oriented rather than an explicit immutable Foundry source identity; and
+model-assisted workspace bootstrap can fail while the runner continues. Schema presence
+also cannot be treated as enforcement without conformance proof.
+
+**Position:** prefer AX over direct Substrate as the first distributed execution experiment,
+because bypassing AX would make Foundry rebuild workload resources and reconciliation that
+AX now exists to provide. Keep a direct Substrate adapter as an escape hatch only when a
+demonstrated requirement cannot be satisfied through AX. In either path, Foundry remains
+the sole authority for grants, budgets, exact source/evidence binding, completion meaning,
+acceptance and promotion.
 
 ### AgentLedger: closest design peer; mine the semantics, do not depend on it yet
 
