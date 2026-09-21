@@ -58,7 +58,12 @@ empty.
 
 It is **not** in the gate: an hour per run makes it an audit, not a gate step. That is a
 cost decision, not a statement that it matters less. Historically it has found more real
-defects per run than any other mechanism here.
+defects per run than any other mechanism here — which is why the cost is worth attacking
+rather than accepting. [COVERAGE-GUIDED-SWEEP.md](COVERAGE-GUIDED-SWEEP.md) is the design
+that would move it into the gate: one instrumented run maps each site to the tests that
+evaluate it, and each trial then runs only those tests instead of the whole suite. Same
+mutation, same verdicts, a fraction of the work. Read it before optimising this script or
+rebuilding it as pure instrumentation, which is unsound for a reason recorded there.
 
 Gotchas, each of which has cost real work:
 
@@ -103,6 +108,14 @@ These are not style preferences. Each was bought with a review round.
 
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
   other way is outside it.
+- Nothing except the sweep checks that a test exercises the site it *claims* to. On
+  2026-09-21 a row named `kernel.ex:1595` and exercised `:1585`; it passed, and the site it
+  named stayed a survivor. A site-to-test map would close this, and is the by-product of the
+  design above.
+- The declared-reason inventory reads the kernel's source with regexes, so a refusal spelled
+  a third way is invisible to it. It scanned for one of the two current spellings for three
+  reviews. `KernelSearch.reasons_in/1` has a red control over every shape known today; a new
+  shape needs a new fixture row.
 - Guard reachability is keyed by **error atom**, so it cannot express "this guard cannot
   fire *at this call site*" when the same atom fires elsewhere. Two such sites exist and are
   recorded at the site in `kernel.ex`. Only the sweep can currently see that class.
