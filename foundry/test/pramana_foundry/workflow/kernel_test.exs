@@ -320,6 +320,175 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     end
   end
 
+  describe "guards the mutation sweep found untested" do
+    # Eleven of sixty-seven guard call sites survived neutralisation: removing them left
+    # all 105 tests green. Two others survived because they cannot fire at all and are
+    # recorded in the guard-reachability suite; these eleven can fire and nothing tripped
+    # them. The suite had been reporting confidence it had not earned.
+    #
+    # The first entry is the one that stings: verdict write-once was a correction from the
+    # *first* independent review, written up as fixed, with nothing testing it.
+
+    test "a verdict is write-once" do
+      {state, sequence} = verdict_recorded("approved")
+
+      forged =
+        event("review_recorded", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "candidate_id" => "cand-1",
+          "verdict" => "rejected"
+        })
+
+      assert {:error, :verdict_already_recorded} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a verdict outside the contract's vocabulary is refused" do
+      {state, sequence} = sealed_reviewer()
+
+      forged =
+        event("review_recorded", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "candidate_id" => "cand-1",
+          "verdict" => "looks_fine"
+        })
+
+      assert {:error, :invalid_verdict} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4: a `closed` lifecycle "requires verified process/session termination or proved
+    # non-start", so closure has its own guarded events and an observation may never
+    # produce it. This is B2's finding stated as a property of the vocabulary.
+    test "an observation cannot close an execution" do
+      {state, sequence} = developing()
+
+      forged =
+        event("execution_observed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "X1",
+          "observation" => "exited",
+          "lifecycle" => "closed"
+        })
+
+      assert {:error, :invalid_execution_lifecycle} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "worker closure is refused for a non-worker execution" do
+      {state, sequence} = developing()
+
+      forged =
+        event("worker_closed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "X1"
+        })
+
+      assert {:error, :wrong_execution_role} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "closure addressed to an attempt that does not exist is refused" do
+      {state, sequence} = developing()
+
+      forged =
+        event("developer_closed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A-ghost",
+          "execution_id" => "X1"
+        })
+
+      assert {:error, :unknown_attempt} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "closure naming an execution the attempt does not own is refused" do
+      {state, sequence} = developing()
+
+      forged =
+        event("developer_closed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "X-ghost"
+        })
+
+      assert {:error, :unknown_execution} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4a settles a reviewer non-start against the attempt that owns the review. A
+    # settlement naming another attempt is a forged reference.
+    test "a review settlement naming another attempt is refused" do
+      {state, sequence} = reviewing()
+
+      forged =
+        event("review_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A-other",
+          "execution_id" => "R1",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :not_the_active_attempt} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a review settlement is refused unless the ticket is reviewing" do
+      {state, sequence} = checking()
+
+      forged =
+        event("review_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "R1",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :wrong_source_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4: "any **open submission phase**; malformed result". A ticket that is neither
+    # developing nor reviewing has no open submission to reject.
+    test "a submission rejection is refused outside an open submission phase" do
+      {state, sequence} = admitted()
+
+      forged =
+        event("submission_rejected", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "observation_id" => "obs-9",
+          "reason" => "malformed"
+        })
+
+      assert {:error, :wrong_source_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a control change outside the stop vocabulary is refused" do
+      {state, sequence} = admitted()
+
+      forged =
+        event("control_changed", "control", state["control"]["revision"], sequence + 1, %{
+          "control" => control_fact(),
+          "paused" => false,
+          "draining" => false,
+          "stop_status" => "halting"
+        })
+
+      assert {:error, :invalid_stop_status} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a control flag that is not a boolean is refused" do
+      {state, sequence} = admitted()
+
+      forged =
+        event("control_changed", "control", state["control"]["revision"], sequence + 1, %{
+          "control" => control_fact(),
+          "paused" => "yes",
+          "draining" => false,
+          "stop_status" => "running"
+        })
+
+      assert {:error, :invalid_control_flag} = WorkflowKernel.apply(state, forged)
+    end
+  end
+
   # ── The subcommit 1 review's counterexamples ───────────────────────────────────────
 
   describe "subcommit 1 review — terminal states reachable only through their lifecycle" do
@@ -1138,6 +1307,34 @@ defmodule PramanaFoundry.Workflow.KernelTest do
   end
 
   # ── Longer lifecycles used by several tests ────────────────────────────────────────
+
+  defp control_fact,
+    do: %{"schema_version" => 1, "control_id" => "ctl-1", "control_revision" => 1}
+
+  # A reviewing attempt whose reviewer stream is sealed, so a verdict may be recorded.
+  defp sealed_reviewer do
+    drive(reviewing(), [
+      {"stream_sealed", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "R1",
+         "last_accepted_sequence" => 12
+       }}
+    ])
+  end
+
+  defp verdict_recorded(value) do
+    drive(sealed_reviewer(), [
+      {"review_recorded", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "candidate_id" => "cand-1",
+         "verdict" => value
+       }}
+    ])
+  end
 
   defp reviewing do
     drive(checking(), [
