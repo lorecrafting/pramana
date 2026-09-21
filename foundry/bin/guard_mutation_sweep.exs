@@ -1,30 +1,39 @@
 # Guard mutation sweep.
 #
 # Neutralises each guard call site in turn and reports the ones whose removal no test
-# notices. A surviving mutation is a guard nothing exercises - which this repair has now
-# shipped four times, each found by a reviewer reading code or by a hand sweep that only
-# covered the guards someone thought to check.
+# notices. A surviving mutation is a guard nothing exercises — which this repair has
+# shipped repeatedly, each time found by a reviewer reading code or by a hand sweep that
+# only covered the guards someone thought to check.
 #
-#   elixir bin/guard_mutation_sweep.exs [path/to/module.ex]
-#
-# Two phases, because the properties suite dominates the runtime: every mutation is run
-# against the fast suites, then the survivors are re-run against all of them, so a guard
-# covered only by a property is not reported falsely.
+#   cd foundry && bin/guard_mutation_sweep.exs [path/to/module.ex]
+#   SWEEP_SINCE=<rev>   sweep only guards whose lines changed since <rev>
+#   SWEEP_WORKERS=<n>   parallel workers (default 6)
 #
 # Guards are neutralised at their CALL SITE, never at their definition. Renaming a
-# definition breaks the build and measures nothing - a lesson from the first hand sweep.
+# definition breaks the build and measures nothing — a lesson from the first hand sweep.
+#
+# Parallelism is safe here and was verified rather than assumed: eight concurrent runs of
+# the workflow suites against unmutated source returned eight identical greens. This
+# repository's concurrency flakiness is in the physical fault tests, which simulate ENOSPC
+# and sync failures; the workflow suites are pure computation. Each worker still gets its
+# own source tree and build path, because they mutate the same file.
 
 target = System.argv() |> List.first() || "lib/pramana_foundry/workflow/kernel.ex"
+workers = String.to_integer(System.get_env("SWEEP_WORKERS") || "6")
 
-# This tool edits a source file in place, so for the minutes it runs the working tree does
-# not mean what it usually means. That is not hypothetical: a `git add -A` during a sweep
-# committed a neutralised guard into the repository, and the mutation survived into a
-# tagged candidate because every local check still passed - the suite was measuring the
-# mutation, not the kernel.
-#
-# The sentinel makes the window visible. `bin/preflight.sh` refuses to pass while it
-# exists, so a freeze cannot be taken from a mutated tree, and a second sweep cannot start
-# on top of a first.
+# Ordered cheapest first so a mutation can be judged as soon as anything catches it. Phase
+# one is broad and seconds long; phase two adds the two suites that each run a full state
+# search and cost a minute apiece, and is only reached by mutations phase one missed.
+fast = ~w(
+  test/pramana_foundry/workflow/kernel_test.exs
+  test/pramana_foundry/workflow/r4_coverage_test.exs
+  test/pramana_foundry/workflow/r4_exhaustive_test.exs
+)
+slow = ~w(
+  test/pramana_foundry/workflow/kernel_properties_test.exs
+  test/pramana_foundry/workflow/r4_guard_reachability_test.exs
+)
+
 sentinel = "/private/tmp/guard-mutation-sweep.running"
 
 if File.exists?(sentinel) do
@@ -34,7 +43,7 @@ if File.exists?(sentinel) do
     #{sentinel}
 
   If no sweep is running, the tree may hold a mutation. Compare the target against the
-  last known-good revision before deleting this file - do not assume it is clean.
+  last known-good revision before deleting this file — do not assume it is clean.
   """)
 
   System.halt(2)
@@ -42,26 +51,6 @@ end
 
 File.write!(sentinel, "#{System.pid()} #{DateTime.utc_now()} #{target}\n")
 System.at_exit(fn _ -> File.rm(sentinel) end)
-
-# Phase one is the suites that are broad and cheap. The exhaustive suite belongs here
-# despite running a full state search: it takes three seconds and is the most sensitive
-# thing available, so it converts survivors into catches at the best rate of anything in
-# the set. Leaving it out of phase one left 46 of 67 mutations for the slow phase.
-#
-# The guard-reachability suite does not belong here. It re-proposes at every reached state,
-# which costs a minute - cheap once and ruinous sixty-seven times. The exhaustive and
-# guard-reachability suites each run a full state search, which is cheap once and ruinous
-# sixty-six times - putting them here turned a twenty-minute sweep into a three-hour one.
-# Phase two runs everything, but only for the mutations phase one did not catch.
-fast = ~w(
-  test/pramana_foundry/workflow/kernel_test.exs
-  test/pramana_foundry/workflow/r4_coverage_test.exs
-  test/pramana_foundry/workflow/r4_exhaustive_test.exs
-)
-slow = fast ++ ~w(
-  test/pramana_foundry/workflow/r4_guard_reachability_test.exs
-  test/pramana_foundry/workflow/kernel_properties_test.exs
-)
 
 original = File.read!(target)
 
@@ -89,103 +78,113 @@ call_sites = fn source ->
   |> Enum.uniq()
 end
 
-run = fn files ->
-  {out, _} =
-    System.cmd("mix", ["test" | files] ++ ["--seed", "0"],
-      env: [{"TMPDIR", "/private/tmp"}, {"MIX_BUILD_PATH", "/private/tmp/mutation/_build"}],
-      stderr_to_stdout: true
-    )
-
-  # This repository uses a custom formatter: "Result: N passed" when green, and
-  # "Result: N/M passed" when something failed. Matching ExUnit's default
-  # "N tests, 0 failures" therefore matched nothing, and the catch-all reported every
-  # mutation as surviving - a sweep that would have claimed 66 untested guards. A tool
-  # built to find vacuous evidence produced vacuous evidence on its first run.
-  cond do
-    Regex.match?(~r/Result: \d+\/\d+ passed/, out) -> :caught
-    Regex.match?(~r/Result: \d+ passed/, out) -> :all_passed
-    true -> :build_error
-  end
-end
-
 all_sites = call_sites.(original)
 
-# Incremental mode: sweep only the guards whose lines changed since a given revision. A
-# subcommit usually touches ten guards, not sixty-seven, and a full sweep of the untouched
-# ones re-proves what the last freeze already proved. Full sweep stays the default, because
-# "unchanged" is a claim about the diff and the diff can be wrong.
+# Incremental mode: only the guards whose lines changed since a revision. A subcommit
+# usually touches ten guards, not sixty-five. Full sweep stays the default, because
+# "unchanged" is a claim about a diff and a diff can be wrong.
 since = System.get_env("SWEEP_SINCE")
 
 sites =
   if since do
     {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", target], stderr_to_stdout: true)
     touched = Enum.filter(all_sites, &String.contains?(diff, &1))
-
-    IO.puts("incremental sweep against #{since}: #{length(touched)} of #{length(all_sites)} guards\n")
-
+    IO.puts("incremental against #{since}: #{length(touched)} of #{length(all_sites)} guards")
     touched
   else
-    IO.puts("guard call sites found: #{length(all_sites)}\n")
+    IO.puts("guard call sites: #{length(all_sites)}")
     all_sites
   end
 
-survivors =
+# Each worker needs its own tree, because they mutate the same file. Hard links make the
+# copy near-free; the mutated file's link is broken so a worker's edit cannot reach the
+# repository. `docs` is required: the row harness reads the contract at test time rather
+# than holding a copy of it, which is the property that makes it drift-proof.
+IO.puts("preparing #{workers} workers")
+
+roots =
+  for w <- 1..workers do
+    root = "/private/tmp/sweep-w#{w}"
+    File.rm_rf!(root)
+    File.mkdir_p!(root)
+
+    {_, 0} =
+      System.cmd("cp", ["-al", "lib", "test", "config", "docs", "mix.exs", "mix.lock", "deps", root])
+
+    File.rm!(Path.join(root, target))
+    File.write!(Path.join(root, target), original)
+    root
+  end
+
+run = fn root, files ->
+  {out, _} =
+    System.cmd("mix", ["test" | files] ++ ["--seed", "0"],
+      cd: root,
+      env: [{"TMPDIR", "/private/tmp"}, {"MIX_BUILD_PATH", Path.join(root, "_build")}],
+      stderr_to_stdout: true
+    )
+
+  # This repository's formatter prints "Result: N passed" when green and "Result: N/M
+  # passed" when not. Matching ExUnit's default "N tests, 0 failures" instead is how an
+  # earlier version of this tool reported every guard as untested: nothing matched, and the
+  # catch-all called it a pass.
+  cond do
+    Regex.match?(~r/Result: \d+\/\d+ passed/, out) -> :caught
+    Regex.match?(~r/Result: \d+ passed/, out) -> :survived
+    true -> :build_error
+  end
+end
+
+# Cheapest suites first, stopping as soon as anything catches the mutation. A mutation only
+# needs one test to notice it, so running the slow suites after a catch buys nothing.
+judge = fn root, site ->
+  path = Path.join(root, target)
+  File.write!(path, String.replace(original, "<- " <> site, "<- :ok", global: true))
+
+  verdict =
+    case run.(root, fast) do
+      :caught -> :caught
+      :build_error -> :build_error
+      :survived -> run.(root, slow)
+    end
+
+  File.write!(path, original)
+  verdict
+end
+
+started = System.monotonic_time(:second)
+
+results =
   sites
-  |> Enum.with_index(1)
-  |> Enum.reduce([], fn {site, i}, acc ->
-    mutated = String.replace(original, "<- " <> site, "<- :ok", global: true)
+  |> Enum.with_index()
+  |> Task.async_stream(
+    fn {site, i} ->
+      root = Enum.at(roots, rem(i, workers))
+      {site, judge.(root, site)}
+    end,
+    max_concurrency: workers,
+    timeout: :infinity,
+    ordered: false
+  )
+  |> Enum.map(fn {:ok, result} -> result end)
 
-    if mutated == original do
-      IO.puts("#{i}/#{length(sites)} #{site} -- could not apply, skipped")
-      acc
-    else
-      File.write!(target, mutated)
-      verdict = run.(fast)
-      File.write!(target, original)
-
-      case verdict do
-        :caught ->
-          IO.puts("#{i}/#{length(sites)} #{String.slice(site, 0, 60)} -- caught")
-          acc
-
-        :build_error ->
-          IO.puts("#{i}/#{length(sites)} #{site} -- DID NOT COMPILE, nothing measured")
-          acc
-
-        :all_passed ->
-          IO.puts("#{i}/#{length(sites)} #{site} -- SURVIVED")
-          [site | acc]
-      end
-    end
-  end)
+for {site, verdict} <- results do
+  IO.puts("  #{String.slice(site, 0, 70)} — #{verdict}")
+end
 
 File.write!(target, original)
+Enum.each(roots, &File.rm_rf!/1)
 
-IO.puts("\nre-checking #{length(survivors)} survivors against every suite")
+survivors = for {site, :survived} <- results, do: site
+errors = for {site, :build_error} <- results, do: site
 
-final =
-  survivors
-  |> Enum.with_index(1)
-  |> Enum.reduce([], fn {site, i}, acc ->
-    IO.write("  phase 2 #{i}/#{length(survivors)} #{String.slice(site, 0, 58)} ... ")
-    File.write!(target, String.replace(original, "<- " <> site, "<- :ok", global: true))
-    verdict = run.(slow)
-    File.write!(target, original)
+IO.puts("\n=== #{length(survivors)} guards no test exercises ===")
+Enum.each(survivors, &IO.puts("  #{&1}"))
 
-    case verdict do
-      :caught ->
-        IO.puts("caught")
-        acc
+if errors != [] do
+  IO.puts("\n=== #{length(errors)} did not compile, so nothing was measured ===")
+  Enum.each(errors, &IO.puts("  #{&1}"))
+end
 
-      other ->
-        IO.puts("#{other} SURVIVED")
-        [site | acc]
-    end
-  end)
-  |> Enum.reverse()
-
-File.write!(target, original)
-
-IO.puts("\n=== #{length(final)} guards no test exercises ===")
-Enum.each(final, &IO.puts("  #{&1}"))
-IO.puts("\nsource restored byte-identical: #{File.read!(target) == original}")
+IO.puts("\nelapsed: #{System.monotonic_time(:second) - started}s")
+IO.puts("source restored byte-identical: #{File.read!(target) == original}")
