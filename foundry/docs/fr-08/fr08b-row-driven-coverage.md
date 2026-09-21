@@ -29,7 +29,27 @@ durable, while a reviewer's row-by-row read is not."
 reads `WORKFLOW-CONTRACT.md`, locates R4's transition table and R4a's domain-owner table by
 their header cells, and returns their rows. The inventory holds only each row's **verbatim
 from-state cell** as a handle key. Edit a row in the contract and the lookup fails, naming
-it; add one and the bijection test fails. Nothing is duplicated, so nothing can drift.
+it; add one, or duplicate one, and the bijection test fails.
+
+That sentence originally ended "Nothing is duplicated, so nothing can drift", and the third
+review demonstrated it false. It was true of the **key** and false of everything the key
+pointed at: `R4Rows.outcome/1` was defined and called nowhere, so an outcome cell could be
+edited from "Terminal rejected attempt/ticket" to "Terminal integrated attempt/ticket" and
+every test stayed green while the scenarios went on asserting the old outcome. Each
+scenario's assertions were a hand transcription of that cell, which is precisely the
+translation step where the first two corrections failed.
+
+**Both cells are pinned now.** Each scenario cites the clauses it asserts, verbatim from the
+outcome cell, and a test checks every citation is still a substring of the live row. Editing
+an outcome now fails, naming the row, the citation and the text that replaced it —
+demonstrated by doing it and reversing it. A citation does not prove the scenario asserts
+what it cites; nothing short of the assertion can. It proves the assertion is pinned to the
+contract's words rather than to someone's memory of them, which is the failure that
+actually occurred.
+
+The converse is tracked too: 54 clauses are asserted and 59 are not, so this suite tests a
+little under half of what R4 and R4a say. That number was unknowable before and can only go
+down.
 
 **Every row must be driven.** `r4_coverage_test.exs` pairs each handle with a scenario that
 applies real events through `Kernel.apply/2` and asserts the outcome the contract states. A
