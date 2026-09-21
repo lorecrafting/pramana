@@ -327,10 +327,12 @@ the only worked design so far named first:
 4. **A canonicalisation congruence test**, so the search's state-merging key cannot silently
    collapse states that differ. Not designed.
 
-Items 2–4 have no home other than [the review's findings](fr-08/fr08b-subcommit1-review4-sol-findings.md)
-and are recorded here so a fresh session finds them. The review also declined a
-guards-as-data design as too much architecture for an evidence problem. None of this is a
-ticket; whether any becomes one is a scope decision.
+Items 2–4 are now scoped as work items inside FR-08B's remaining subcommits, in
+[the evidence-reduction tickets](fr-08/fr08b-evidence-reduction-tickets.md): EV-4
+(congruence) first and independent, EV-3 (invariant split) before subcommit 2 builds
+`decide/3`, EV-2 (clause IDs) between subcommits and before subcommit 3. They create no FR
+node. The review also declined a guards-as-data design as too much architecture for an
+evidence problem.
 
 Prefer, in this order, and build the mechanism rather than repeating the check by hand:
 
