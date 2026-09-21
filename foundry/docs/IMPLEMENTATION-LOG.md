@@ -2115,3 +2115,84 @@ latest prose here, remains authoritative for status and dependencies.
   exactly one test failed with the colliding name in its message, then reversing the exact
   string.
 - Kernel suites: 44 table tests, 13 properties at seed 0.
+
+
+## FR-08B kernel, subcommit 1 — the method changed — 2026-09-20
+
+- The correction at `40ac559` was independently reviewed and returned **BLOCK**, the second
+  block on this subcommit. The verdict's own summary is the important part: "the correction
+  fixed the eight counterexamples. It did not fix the rows." Four of the eight blockers were
+  answered by guards that refused the reported sequence while the row stayed unexpressible
+  or its sibling stayed open.
+- Two findings were about the implementer rather than the code, and are recorded as such.
+  The first review's lesson was that a right principle had been applied to one sibling and
+  not the other; the correction design claimed to have generalised the execution binding
+  "as one rule over the vocabulary" and had applied it to `review_settled` alone, leaving
+  four settlements able to close any execution they named — `build_settled` could close the
+  developer's execution unsealed and let `checks_started` walk around the seal requirement.
+  And the new variant ratchet's justification was false in the same way the old one had
+  been: `cancellation_finalized:after_integration` was recorded as missed by ordering when
+  it was unreachable by construction, because `admissible/1` — written in the same commit —
+  drops a terminal ticket from the proposal set.
+- **Two reviews, two blocks, one failure shape is evidence about the method.** Hand-writing
+  one guard per event from a prose table has no step that asks whether a row can be driven,
+  so a guard written to stop a counterexample and a guard derived from a row are
+  indistinguishable by construction. Both times the gap was found by a reviewer reading
+  prose against code, because that was the only mechanism capable of finding it: the table
+  tests ask what the kernel accepts and the walks ask what the prober can reach, and
+  neither asks what the contract requires.
+- The third attempt therefore replaces the method. [The row-driven
+  design](fr-08/fr08b-row-driven-coverage.md) records it. R4's transition table and R4a's
+  domain-owner table are **parsed from the contract** and each row is driven through
+  `Kernel.apply/2` with the outcome the contract states asserted; rows stating a
+  prohibition assert the refusal too, since driving the happy path would pass while the
+  kernel accepted every contradiction. The inventory holds only each row's verbatim
+  from-state cell, so it cannot drift: the bijection is exact at 32 rows and fails if the
+  contract gains, loses or edits one.
+- Running it the first time found six undrivable rows — precisely what two reviews had been
+  reporting in prose. Two more, `base_moved` and `reset`, had been marked unexpressible **by
+  inspection** and drove on the first attempt. Two wrong calls in one hand-maintained list
+  is the argument for the list being executable.
+- Fixed with their rows driving them: every settlement bound to the execution of its own
+  role; R4's integration row made atomic and exclusive, so once a ref receipt exists nothing
+  further may be recorded, planned or settled; `attempt_settled(blocked)` requiring the
+  blocked or partial result its row names; a retained attempt reused rather than orphaned;
+  the reviewer crash row returning the attempt to `awaiting_review` with its candidate so a
+  bounded new reviewer can launch; R4 rows 12 and 13 separated by the controller reason_code
+  the contract makes load-bearing, so an infrastructure failure or timeout may be
+  re-reserved and an assertion failure may not; `submission_rejected` recording a durable
+  validation charge instead of accepting its event and changing nothing; and the R4a
+  retained-attempt retry made launchable from the phase a resume actually lands in.
+- Five clauses are recorded as **partial** rather than the rows being called driven or
+  broken: the two R4a at-limit blocks and three "or exhausted" alternatives. All five turn
+  on allocation, which is protected policy the kernel may not restate, so they need the R4a
+  limit product — blocker B3, subcommit 2 — rather than vocabulary invented here. Widening
+  `ticket_parked` to reach them would re-conflate R4's PM park row with R4a's infrastructure
+  block, which is what narrowing it was for.
+- The prober had the same custody defect it existed to detect: it could not propose closure
+  for a settled attempt's executions and dropped terminal tickets from its proposals
+  entirely, which is why R4's second cancel branch was unreachable. Both corrected, and the
+  variant ratchet is now empty.
+- Recorded boundary: a row driving here means the **reducer** can express it, not that the
+  mechanism behind it works. `reset` drives while `reset_fact_v1` still has no producer.
+- **The non-vacuity sweep found three of the six new guards untested**, and that is the most
+  instructive result of this pass. Neutralising `require_running_developer`, the `exhausted`
+  phase guard and the row-12/13 separation left all sixty tests green. The last is the
+  sharpest: a scenario named `check_infrastructure_failed` existed, a commit message said
+  the rows were "separated by the controller reason_code", and nothing in the scenario
+  depended on `failed_check?/1` — it asserted the retry path and never asserted that a
+  timeout is refused as correction evidence, which is the entire distinction between R4
+  rows 12 and 13. A green suite and a true claim had come apart again, one level up from
+  where the reviews had been finding it.
+- The repair of that had the same defect one level up again: the edit adding the missing
+  `exhausted` assertion was a string replacement that silently did not match, so a test was
+  reported as added and did not exist. The second sweep caught it. Edits are now verified to
+  have landed rather than assumed, and the first sweep's one `NO RESULT` was likewise an
+  error in the probe — it matched a guard's definition line and renamed it, breaking the
+  build rather than neutralising anything.
+- All six guards are now confirmed non-vacuous, each turning exactly the intended test red,
+  each reversed by exact string replacement rather than `git checkout`. The rule this leaves:
+  no guard is described as working until a neutralisation has turned a test red.
+- Suites: workflow 60 at seed 0 (3 coverage, 44 table, 13 properties); full model-free suite
+  **796 passed, 13 skipped at seed 0**, serial, fresh `MIX_BUILD_PATH`, which is the prior
+  791 plus exactly the tests added. `foundry/bin/preflight.sh` passes.

@@ -189,6 +189,8 @@ defmodule PramanaFoundry.Test.KernelWalk do
       "freeze_failed" -> "freeze_failed:" <> to_string(payload["disposition"])
       "cancellation_finalized" -> "cancellation_finalized:" <> to_string(payload["disposition"])
       "execution_observed" -> "execution_observed:" <> to_string(payload["lifecycle"])
+      "artifact_blocked" -> "artifact_blocked:" <> to_string(payload["result"])
+      "checks_started" -> "checks_started:" <> to_string(payload["policy_empty"])
       other -> other
     end
   end
@@ -207,8 +209,9 @@ defmodule PramanaFoundry.Test.KernelWalk do
   """
   def variants do
     Enum.sort(
-      for({d, _} <- [{nil, nil}], do: d) ++
-        Enum.map(State.dispositions(), &"attempt_settled:#{&1}") ++
+      # R4's blocked row is "valid blocked/**partial** result" - two outcomes, and the
+      # prober proposed only one, so the variant model could not count the other.
+      Enum.map(State.dispositions(), &"attempt_settled:#{&1}") ++
         Enum.map(State.verdicts(), &"review_recorded:#{&1}") ++
         Enum.map(State.check_statuses(), &"check_recorded:#{&1}") ++
         Enum.map(
@@ -218,9 +221,10 @@ defmodule PramanaFoundry.Test.KernelWalk do
         Enum.map(~w(queued blocked), &"ticket_admitted:#{&1}") ++
         Enum.map(~w(retry blocked unknown), &"freeze_failed:#{&1}") ++
         Enum.map(~w(cancelled after_integration), &"cancellation_finalized:#{&1}") ++
-        Enum.map(State.execution_lifecycles() -- ["closed"], &"execution_observed:#{&1}")
+        Enum.map(State.execution_lifecycles() -- ["closed"], &"execution_observed:#{&1}") ++
+        Enum.map(~w(blocked partial), &"artifact_blocked:#{&1}") ++
+        Enum.map(~w(true false), &"checks_started:#{&1}")
     )
-    |> Enum.reject(&is_nil/1)
   end
 
   # Two demoted tiers, each admitted on its own period. The decision is per step, not per
@@ -458,6 +462,14 @@ defmodule PramanaFoundry.Test.KernelWalk do
          "observation_id" => "obs-2",
          "result" => "partial",
          "reason" => "partial_result"
+       }},
+      {"artifact_blocked", tid,
+       %{
+         "ticket_id" => tid,
+         "attempt_id" => id,
+         "observation_id" => "obs-2b",
+         "result" => "blocked",
+         "reason" => "needs_decision"
        }},
       {"freeze_failed", tid,
        %{

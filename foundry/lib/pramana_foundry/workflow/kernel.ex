@@ -378,7 +378,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("launch_planned", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_phase(ticket, ~w(queued)),
+    with :ok <- require_phase(ticket, ~w(queued developing)),
+         :ok <- require_no_open_developer(ticket),
          {:ok, ticket} <- open_attempt(ticket, payload["attempt_id"]),
          {:ok, ticket} <- add_execution(ticket, payload, "developer") do
       {:ok, Map.put(ticket, "phase", "developing")}
@@ -410,7 +411,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_phase(ticket, ~w(developing)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_attempt_phase(ticket, ~w(active)) do
+         :ok <- require_attempt_phase(ticket, ~w(active)),
+         :ok <- require_running_developer(ticket) do
       {:ok,
        ticket
        |> Map.put("phase", "awaiting_review")
@@ -946,12 +948,30 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # attempt; the row's drain and exhaustion alternatives are emitted as a second event.
   defp apply_terminal_phase(ticket, disposition) do
     case disposition do
-      "integrated" -> Map.put(ticket, "phase", "integrated")
-      "rejected" -> Map.put(ticket, "phase", "rejected")
-      "cancelled" -> ticket
-      "exhausted" -> Map.put(ticket, "phase", "exhausted")
-      "blocked" -> ticket
-      _ -> Map.put(ticket, "phase", "queued")
+      "integrated" ->
+        Map.put(ticket, "phase", "integrated")
+
+      "rejected" ->
+        Map.put(ticket, "phase", "rejected")
+
+      "cancelled" ->
+        ticket
+
+      "exhausted" ->
+        Map.put(ticket, "phase", "exhausted")
+
+      "blocked" ->
+        ticket
+
+      # R4: "queue fresh bounded attempt". A ticket requeued after a terminal attempt is
+      # not blocked any more, so keeping the previous block's reason and resume target left
+      # a queued ticket carrying a stale promise - which a later park could then honour,
+      # producing a developing ticket with no attempt at all.
+      _ ->
+        ticket
+        |> Map.put("phase", "queued")
+        |> Map.put("reason", nil)
+        |> Map.put("resume_phase", nil)
     end
   end
 
@@ -1461,8 +1481,15 @@ defmodule PramanaFoundry.Workflow.Kernel do
       "cancelled" ->
         require_cancel_requested(ticket)
 
+      # R4 and R4a place exhaustion in four phases: developer allocation (active), the
+      # check rows' "blocked(check_infrastructure)/exhausted" and "blocked(drain)/exhausted"
+      # (checking), and the reviewer rows' "exhaust if unavailable" and "blocked(reviewer_
+      # budget) or exhausted" (awaiting_review and reviewing). `candidate_frozen` has only
+      # the cleanup-observation row, which says "no attempt failure", and the integrating
+      # phases have their own terminal rows - so exhausting from those was a terminal state
+      # without a lifecycle, the one hole the allocation argument left open.
       "exhausted" ->
-        :ok
+        require_attempt_phase(ticket, ~w(active checking awaiting_review reviewing))
     end
   end
 
@@ -1500,6 +1527,34 @@ defmodule PramanaFoundry.Workflow.Kernel do
       end)
 
     if open?, do: :ok, else: {:error, :submission_stream_sealed}
+  end
+
+  # R4a returns a developer non-start to `queued` with `resume_phase: developing` and keeps
+  # the attempt. Resuming therefore lands the ticket in `developing` holding an attempt
+  # whose only developer execution is the closed non-start, and a retry could not be
+  # launched from there - the ticket was stranded, and artifact_frozen was then accepted
+  # for a developer that had never run. A launch is legal from either phase, so long as no
+  # developer is already running: that is what "bounded developer retry" needs, and what
+  # stops a second developer being launched beside a live one.
+  defp require_no_open_developer(ticket) do
+    open? =
+      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
+        execution["role"] == "developer" and execution["lifecycle"] != "closed"
+      end)
+
+    if open?, do: {:error, :developer_already_running}, else: :ok
+  end
+
+  # R4's freeze row is "developing; success artifact validates and freezes" - a developer
+  # must actually have been running to produce one. Without this a ticket resumed to
+  # developing could freeze a candidate with no developer execution open at all.
+  defp require_running_developer(ticket) do
+    running? =
+      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
+        execution["role"] == "developer" and execution["lifecycle"] != "closed"
+      end)
+
+    if running?, do: :ok, else: {:error, :no_running_developer}
   end
 
   defp require_developer_result(attempt, results) do

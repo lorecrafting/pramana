@@ -42,7 +42,17 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     nonstart_reviewer:
       ~S|below-limit return is driven; "At the limit, ticket becomes blocked(reviewer_launch_infrastructure)" needs the R4a limit product, blocker B3 in subcommit 2|,
     nonstart_worker:
-      ~S|preserve-phase retry is driven; "or blocked(check_infrastructure)/exhausted" needs the same limit product|
+      ~S|preserve-phase retry is driven; "or blocked(check_infrastructure)/exhausted" needs the same limit product|,
+    # Once an attempt terminalises, the ticket is queued with no active attempt, and
+    # exhaustion can only be settled on an active one. R4 offers exhaustion as an
+    # alternative outcome of these rows, and choosing it turns on allocation - protected
+    # policy the kernel may not restate - so it needs the same limit product as the R4a
+    # at-limit clauses rather than new vocabulary invented here.
+    check_assertion_failed:
+      ~S|the terminal needs_correction outcome is driven; "or blocked(drain)/exhausted" needs the R4a limit product|,
+    verdict_correction:
+      ~S|the terminal needs_correction outcome is driven; "or blocked(drain)/exhausted" needs the same|,
+    no_valid_candidate: ~S|"queue fresh bounded attempt" is driven; "or exhaust" needs the same|
   }
 
   describe "the row inventory tracks the contract" do
@@ -197,6 +207,26 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert attempt["candidate_id"] == "cand-1"
     assert attempt["phase"] == "candidate_frozen"
     assert attempt["executions"]["X1"]["lifecycle"] == "closing"
+
+    # "No new developer and **no attempt failure**". R4 gives candidate_frozen only this
+    # cleanup row, so exhaustion has no source here - and exhaustion is the one disposition
+    # whose guard is otherwise deliberately permissive, because every row producing it
+    # turns on protected allocation the kernel may not restate. This is the hole that
+    # argument leaves, stated as the refusal it is.
+    {frozen_state, sequence} = frozen()
+
+    forged =
+      event("attempt_settled", "T1", frozen_state["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "disposition" => "exhausted",
+        "reason_code" => "developer_allocation",
+        "settlement" => settlement()
+      })
+
+    assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(frozen_state, forged),
+           "an attempt was exhausted from candidate_frozen, which R4 gives no exhaustion row"
+
     :driven
   end
 
@@ -480,6 +510,22 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
     assert ticket["attempts"]["A1"]["phase"] == "checking"
     assert ticket["attempts"]["A1"]["disposition"] == nil
+
+    # The distinction between this row and row 12, stated as the refusal it is. Without
+    # this the scenario passed whether or not the kernel told the rows apart: nothing else
+    # in it depends on failed_check?/1, so counting a timeout as an assertion failure -
+    # exactly the misreading this correction is for - left every assertion green.
+    forged =
+      event("attempt_settled", "T1", ticket["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "disposition" => "needs_correction",
+        "reason_code" => "timed_out",
+        "settlement" => settlement()
+      })
+
+    assert {:error, :no_correction_evidence} = WorkflowKernel.apply(state, forged),
+           "a timed-out check terminalised the attempt row 13 says to preserve"
 
     # "bounded new check-run reservation after cleanup": the worker closes, a new run is
     # reserved for the same check, and passing it clears the attempt to review.
@@ -984,7 +1030,85 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       })
 
     assert {:error, :wrong_execution_role} = WorkflowKernel.apply(state, forged)
+
+    # "Below the infrastructure limit, queue a bounded developer retry" - and the retry has
+    # to be launchable from where a resume actually puts the ticket. R4a stores
+    # resume_phase: developing, so resuming lands in `developing` holding the retained
+    # attempt whose only developer execution is the closed non-start.
+    {resumed, _} =
+      drive(nonstart(), [
+        {"ticket_parked", "T1",
+         %{
+           "ticket_id" => "T1",
+           "reason" => "developer_launch_infrastructure",
+           "resume_phase" => "developing"
+         }},
+        {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "developing"}},
+        {"launch_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "authority" => authority("X2", "developer")
+         }}
+      ])
+
+    attempt = resumed["tickets"]["T1"]["attempts"]["A1"]
+    assert resumed["tickets"]["T1"]["phase"] == "developing"
+    assert attempt["executions"]["X2"]["lifecycle"] == "pending"
+    # The retained attempt is reused, not replaced, and the old non-start is retained.
+    assert attempt["executions"]["X1"]["lifecycle"] == "closed"
+    assert map_size(resumed["tickets"]["T1"]["attempts"]) == 1
+
+    # A second developer may not be launched beside a live one.
+    {live, sequence} = resumed |> then(&{&1, 99})
+
+    forged =
+      event("launch_planned", "T1", live["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "authority" => authority("X3", "developer")
+      })
+
+    assert {:error, :developer_already_running} = WorkflowKernel.apply(live, forged)
+
+    # R4's freeze row is "developing; success artifact validates and freezes" - a developer
+    # has to have been running to produce one. A ticket resumed to developing holds only
+    # the closed non-start, so without this guard it could freeze a candidate for a
+    # developer that never ran.
+    {parked, sequence} =
+      drive(nonstart(), [
+        {"ticket_parked", "T1",
+         %{
+           "ticket_id" => "T1",
+           "reason" => "developer_launch_infrastructure",
+           "resume_phase" => "developing"
+         }},
+        {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "developing"}}
+      ])
+
+    forged =
+      event("artifact_frozen", "T1", parked["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "candidate_id" => "cand-x",
+        "observation_id" => "obs-x",
+        "sealed_generation" => "gen-x"
+      })
+
+    assert {:error, :no_running_developer} = WorkflowKernel.apply(parked, forged)
     :driven
+  end
+
+  defp nonstart do
+    drive(developing(), [
+      {"launch_settled", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "X1",
+         "settlement" => settlement()
+       }}
+    ])
   end
 
   defp scenario(:nonstart_reviewer) do
