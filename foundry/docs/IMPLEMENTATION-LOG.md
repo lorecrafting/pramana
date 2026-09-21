@@ -2354,3 +2354,70 @@ what was being asserted unchecked as it does about the tools.
   passes with the 4 pre-existing test-file warnings.
 - Sweep, final: 108 call sites; all 62 previously-unmeasured occurrences re-swept; **6
   survive**, exactly the six recorded as unable to fire.
+
+## FR-08B kernel, subcommit 1 — fourth review, and two reviewers who agreed — 2026-09-21
+
+- Candidate `34d6833` was reviewed twice in parallel by independent sessions that did not
+  see each other's work: one on the kernel, one commissioned specifically on the **evidence
+  architecture**, with endorsement named in its brief as a failed answer. Both returned
+  BLOCK. The four things they agreed on are worth more than either review alone.
+- **They agreed the mutation sweep's site inventory was still wrong.** Its scanner matched
+  `<- require_(` only, missing six guard calls that dispatch directly or in tail position
+  inside `require_settlement_source/2`. 114 sites across 70 texts, not 108/66 — and 108 was
+  itself yesterday's correction of 66. Fifth time this tool's number has been weaker than
+  its claim. It now runs a **red control at startup** over every guard shape — normal,
+  multiline, duplicated, nested, tail — and halts if it cannot see them all.
+- **They agreed the stale resume target was a defect, not a semantics question.** Both
+  reproduced it from the same seven-event sequence. The implementer had found that state,
+  called it harmless because the guards refuse everything from there, and deferred it to
+  review. Wrong twice over: a ticket from which no productive event is accepted is a
+  livelock, and `launch_planned` **is** accepted — opening a third developer execution on
+  an attempt that has already frozen its candidate.
+- **They agreed on what all five mechanisms were blind to**, arriving from opposite
+  directions: relational post-state correctness. Every oracle in the suite asked whether one
+  event was admitted or refused; none asked whether the facts in the resulting state cohere.
+  The exhaustive search had **reached** the bad state — three of them at depth 7 — and did
+  exactly its job. `State.valid?/1` accepted it, correctly, being a well-formedness
+  validator. The failure was not reachability but an absent oracle.
+- **They agreed atom-keyed dead-guard detection is the wrong granularity.**
+- Two kernel defects the evidence review did not need to find, because the kernel reviewer
+  reproduced them: `review_settled` erased a recorded verdict in one event, and
+  `check_settled` deleted a check receipt that had already recorded `passed`. Both fixes are
+  **one line calling a guard that already existed**, and both are the sixth and seventh
+  occurrences of partial generalisation — a rule applied to part of a vocabulary and
+  described in a commit message as applied to all of it.
+- `SemanticInvariants` is the oracle. Its **red control failed twice before passing**: the
+  first fixture was hand-built and not well-formed, so it would have "passed" by tripping
+  `State.valid?/1` instead; the second revealed that the invariant as written was stricter
+  than the fix both reviewers proposed, asserting an obligation neither the contract nor the
+  review states. It now builds from a real reachable state with one corrupted field, and the
+  stale-resume *residue* is documented as permitted-and-inert rather than asserted away.
+- Fixing the resume target made `developing` with a non-active attempt unreachable, removing
+  the only witness three call sites had. Recorded as **redundant given an invariant**, not as
+  unreachable: bounded absence is not proof, and the reviewers were explicit that treating it
+  as one is the habit to drop.
+- **An active data-loss hazard, found by the evidence review.** The sweep ended with
+  `File.write!(target, original)` — restoring a file it never modifies. Any legitimate edit
+  to `kernel.ex` during the hour it runs was silently overwritten. It verifies and fails
+  loudly now. Parallel sessions in this repository do write.
+- `integration_recorded:infrastructure_failed` left the variant ratchet. The guard the fix
+  touches is called only from `ticket_parked` and `ticket_blocked`, neither on the
+  integration path, so sampling regressed rather than coverage: the variant sits ~12 events
+  deep and the ratchet stood at zero by walk luck. It now has a driven witness, and an entry
+  in that ratchet requires one.
+- **The tools had no home.** All five were described in exactly one place — a 1,667-line
+  plan that `AGENTS.md` tells agents not to preload — and no entry document mentioned them.
+  A fresh session in any harness routed straight past four review rounds of method.
+  [EVIDENCE-TOOLS.md](EVIDENCE-TOOLS.md) records what the gate enforces automatically (four
+  of five), what must be run by hand and when, the six rules that decide whether a green
+  result means anything, and the known gaps. Routed from `AGENTS.md`, this index and
+  `docs/TESTING.md`, and written against a guarded reducer judged by a written contract
+  rather than against this kernel. Six orphaned FR-08B documents routed at the same time;
+  the documentation gate is 80/80, having been 79/80 since before this session.
+- The evidence review's central recommendation is recorded and **not** implemented here:
+  reduce five mechanisms to two — contract-to-predicate conformance, and instrumented
+  exploration with semantic invariants and first-failure witnesses — replacing the hour-long
+  sweep with AST guard-site instrumentation that costs one run, and replacing clause
+  fragmentation with semantic clause IDs in the contract itself. It also declined the
+  guards-as-data idea as too much architecture for an evidence problem.
+- Suites: workflow **172 at seed 0**.
