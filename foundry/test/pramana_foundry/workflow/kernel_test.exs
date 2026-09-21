@@ -116,10 +116,10 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }},
       {"developer_closed", "T1",
        %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}},
-      {"checks_started", "T1", %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => false}}
+      {"checks_started", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => false}}
     ])
   end
-
 
   # ── Builders for the subcommit 1 review's counterexamples ─────────────────────────
 
@@ -837,89 +837,89 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # The lifecycle both tests need, up to and including the finalisation.
     defp cancel_racing_integration do
       drive({State.new(), 0}, [
-          {"ticket_admitted", "T1",
-           %{
-             "ticket_id" => "T1",
-             "objective_id" => nil,
-             "spec_revision_id" => "spec-1",
-             "spec" => %{},
-             "phase" => "queued",
-             "reason" => nil
-           }},
-          {"launch_planned", "T1",
-           %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X0")}},
-          {"artifact_frozen", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "candidate_id" => "cand-1",
-             "observation_id" => "obs-1",
-             "sealed_generation" => "gen-1"
-           }},
-          {"stream_sealed", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "execution_id" => "X0",
-             "last_accepted_sequence" => 3
-           }},
-          {"developer_closed", "T1",
-           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X0"}},
-          # R4: "checks with explicit policy-empty set follow same guarded transition".
-          {"checks_started", "T1",
-           %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => true}},
-          {"review_planned", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "authority" => authority("R1", "reviewer")
-           }},
-          {"stream_sealed", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "execution_id" => "R1",
-             "last_accepted_sequence" => 9
-           }},
-          {"review_recorded", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "candidate_id" => "cand-1",
-             "verdict" => "approved"
-           }},
-          {"reviewer_closed", "T1",
-           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}},
-          {"integration_planned", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "authority" => authority("I1", "integration")
-           }},
-          # The race: cancel is requested while the integration is already in flight.
-          {"cancellation_requested", "T1", %{"ticket_id" => "T1"}},
-          {"integration_recorded", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "execution_id" => "I1",
-             "outcome" => "ref_created",
-             "ref_receipt_id" => "ref-1"
-           }},
-          {"attempt_settled", "T1",
-           %{
-             "ticket_id" => "T1",
-             "attempt_id" => "A1",
-             "disposition" => "integrated",
-             "reason_code" => nil,
-             "settlement" => %{"schema_version" => 1}
-           }},
-          # Closure after settlement, which the active-attempt addressing made impossible.
-          {"worker_closed", "T1",
-           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "I1"}},
-          {"cancellation_finalized", "T1",
-           %{"ticket_id" => "T1", "disposition" => "after_integration"}}
-        ])
+        {"ticket_admitted", "T1",
+         %{
+           "ticket_id" => "T1",
+           "objective_id" => nil,
+           "spec_revision_id" => "spec-1",
+           "spec" => %{},
+           "phase" => "queued",
+           "reason" => nil
+         }},
+        {"launch_planned", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X0")}},
+        {"artifact_frozen", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "candidate_id" => "cand-1",
+           "observation_id" => "obs-1",
+           "sealed_generation" => "gen-1"
+         }},
+        {"stream_sealed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "X0",
+           "last_accepted_sequence" => 3
+         }},
+        {"developer_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X0"}},
+        # R4: "checks with explicit policy-empty set follow same guarded transition".
+        {"checks_started", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => true}},
+        {"review_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "authority" => authority("R1", "reviewer")
+         }},
+        {"stream_sealed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "R1",
+           "last_accepted_sequence" => 9
+         }},
+        {"review_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "candidate_id" => "cand-1",
+           "verdict" => "approved"
+         }},
+        {"reviewer_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}},
+        {"integration_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "authority" => authority("I1", "integration")
+         }},
+        # The race: cancel is requested while the integration is already in flight.
+        {"cancellation_requested", "T1", %{"ticket_id" => "T1"}},
+        {"integration_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "I1",
+           "outcome" => "ref_created",
+           "ref_receipt_id" => "ref-1"
+         }},
+        {"attempt_settled", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "disposition" => "integrated",
+           "reason_code" => nil,
+           "settlement" => %{"schema_version" => 1}
+         }},
+        # Closure after settlement, which the active-attempt addressing made impossible.
+        {"worker_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "I1"}},
+        {"cancellation_finalized", "T1",
+         %{"ticket_id" => "T1", "disposition" => "after_integration"}}
+      ])
     end
 
     test "a cancel that races a successful integration finalizes as after_integration" do
