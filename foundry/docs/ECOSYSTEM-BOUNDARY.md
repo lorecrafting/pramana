@@ -5,6 +5,7 @@ implementation inventory, repair-ticket disposition, dependency selection or aut
 to activate execution.
 
 [Foundry strategy](STRATEGY.md) · [Workflow contract](WORKFLOW-CONTRACT.md) ·
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) ·
 [Planning strategies](PLANNING-STRATEGIES.md) ·
 [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md) ·
 [AX/Substrate backend](AX-SUBSTRATE.md) · [Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
@@ -108,6 +109,7 @@ not through feature-list similarity or adapter presence.
 The desirable direction is a small family of contracts such as:
 
 ```text
+OrchestratorAdapter
 HarnessAdapter
 ExecutionBackend
 ResourceAdapter
@@ -122,6 +124,37 @@ provider-facing `EffectAdapter` responsibilities rather than becoming a sixth se
 
 These are architecture seams, not authorization to create five new services or a new
 repair backlog. Existing repair ownership remains unchanged.
+
+## Orchestrators are controllers over Foundry facts
+
+The ecosystem boundary now distinguishes **orchestration** from **authority** explicitly.
+A workflow runtime may own planning, agent graphs, controller reconciliation, scheduling,
+parallelism and retries without becoming the canonical source of Foundry facts.
+
+The stable integration shape is:
+
+~~~text
+Foundry authority/evidence/acceptance
+              |
+              | facts, eligibility, issued grants
+              v
+        OrchestratorAdapter
+              |
+              v
+ Cloudflare / AX / Pi / custom controller
+~~~
+
+The adapter has two paths:
+
+- an **authority path** for low-volume semantic commands whose accepted disposition changes
+  protected Foundry state or authorizes a consequential effect;
+- an **observation path** for high-volume controller/model/tool/runtime telemetry that
+  remains non-authoritative and may feed local analytics/OpenTelemetry.
+
+This prevents two opposite mistakes: making Foundry reimplement every controller, or
+letting an external controller's own "completed"/"approved" state silently become Foundry
+acceptance. See [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) for the candidate
+protocol and conformance suite.
 
 ## What Foundry should deliberately not become
 
@@ -213,11 +246,13 @@ lightweight durable waits/state, and Sandbox for VM-isolated full-OS work. Proje
 execution ladder suggests selecting the least-privileged runtime capable of an admitted
 assignment rather than giving every task a Linux machine.
 
-**Position:** keep Cloudflare OS itself beside Foundry as a product/control-plane comparator.
-Mine Gatekeeper, authority-fence, unknown-effect and observation-provenance mechanics.
-Evaluate Cloudflare Dynamic Worker/Sandbox only behind the same vendor-neutral
-`ExecutionBackend` contract used for local and AX paths, by workload class rather than as
-a universal replacement.
+**Position:** do not put Cloudflare OS's existing control plane underneath Foundry as a
+second authority. Keep its Gatekeeper/runtime primitives as ResourceAdapter/ExecutionBackend
+candidates, and additionally evaluate Cloudflare OS **above/beside Foundry as an external
+orchestrator/product shell** through the vendor-neutral OrchestratorAdapter contract. This
+is especially promising for Loka's role-specific Builder API workflows. In every topology,
+Cloudflare completion, approvals and action journals remain controller/resource state until
+the corresponding Foundry fact is verified.
 
 ### AgentLedger: closest design peer; mine the semantics, do not depend on it yet
 
