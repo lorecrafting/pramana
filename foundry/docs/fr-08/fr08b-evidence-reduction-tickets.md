@@ -150,11 +150,48 @@ spread.
 subcommits and no review is outstanding on it; never while a candidate is under review, for
 the same reason the plan refuses to move `kernel.ex` under a reviewer.
 
+## EV-5 — the relations test cannot fail, and 190 reachable states violate
+
+Found by the seventh review, outside the delta it was reviewing. Not one of Sol's proposals;
+recorded here because it is the same oracle EV-3 proposes to promote.
+
+**What is wrong.** `r4_exhaustive_test.exs:141-148` — "every reachable state satisfies the
+contract's relations, not just its shapes" — passes its lambda to `check/2` (`:207-231`),
+which matches `{:violation, message}`. The lambda returns `{:error, message}`. The `_ -> nil`
+clause swallows it, so **the test cannot fail**. Introduced in `028b4965`.
+
+**What it was hiding.** Measured, not argued: at depth 6 from empty, **190 of 13,290 reachable
+states** have `SemanticInvariants.violations != []`. The shortest is four events —
+`ticket_admitted:queued` → `launch_planned` → `cancellation_requested` →
+`attempt_settled:cancelled` — reporting "ticket is developing with no active attempt".
+
+**It is probably the oracle, not the kernel, and that is the work.** `apply_terminal_phase`
+returns the ticket unchanged for `cancelled` (`kernel.ex:1042-1043`), so a cancelled settlement
+deliberately leaves the ticket in its working phase awaiting `cancellation_finalized`.
+`phase_agreement/3`'s nil clause calls that "a ticket nothing can move", which is false while
+`cancel_requested` is set — and a sibling clause in the same module already encodes a cancel
+exception this one lacks, so the two halves of one oracle disagree. But the shortest path is
+one of 190 and the rest are unclassified; deciding this from the first counterexample is the
+exact move that produced six of the defects in this subcommit.
+
+**Scope.** Fix the `{:error, _}` / `{:violation, _}` mismatch first and watch the test go red —
+that is its missing red control, and the fix is worth nothing without seeing it fail. Then
+classify all 190: each is either an oracle gap (add the exception, citing the contract row that
+licenses it) or a kernel defect (its own candidate). Report rule 2's three numbers at each step.
+
+**Why it sequences before EV-3.** EV-3 promotes `SemanticInvariants` out of `test/support` so
+it judges every transition the suite drives. Promoting an oracle whose only exhaustive
+application is dead, and which disagrees with itself on the cancel path, would propagate that
+disagreement into `lib` and assert it everywhere. Fix the oracle, then promote it.
+
+**Cost.** The mismatch is one word. The classification is the ticket.
+
 ## Order to take them
 
 | | Ticket | Cost | Gate |
 |---|---|---|---|
-| 1 | EV-4 congruence | ~a day | Its own; no dependency |
+| — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
+| 1 | EV-5 relations test | one word, then a classification | Before EV-3: the oracle EV-3 promotes is the broken one |
 | 2 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
 | 3 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
 

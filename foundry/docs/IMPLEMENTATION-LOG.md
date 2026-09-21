@@ -2677,18 +2677,30 @@ what was being asserted unchecked as it does about the tools.
   `:integration_already_issued` sits in guard reachability's `@unreachable` — so the ratchet
   had no witness to lose. "Shifts no ratchet" was true and meant nothing. Four green gates and
   a passing regression test would have shipped it.
-- **The wrong field was `resume_phase`, not the attempt phase.** R4's row is "integrating;
-  proved no ref change, command infrastructure failed → **Same phase** with bounded
-  integration-effect retry after old issuer termination; or blocked(integration_failure)". The
-  branch stored `ready_to_integrate`. Storing `integrating` — a permitted `@resume_phases`
-  value — restores the coupled pair on unblock, leaves the attempt where it is, and keeps the
-  issuance guard live. One word, and strictly smaller than the change it replaces.
-- **The obvious alternative is a trap, recorded so it is not rediscovered.** Making
+- **The wrong field was `resume_phase`, not the attempt phase.** The branch stored
+  `ready_to_integrate`. Storing `integrating` — a permitted `@resume_phases` value — restores
+  the coupled pair on unblock, leaves the attempt where it is, and keeps the issuance guard
+  live. One word, and strictly smaller than the change it replaces.
+  **Corrected by the seventh review:** the warrant is `WORKFLOW-CONTRACT.md:493-494`, "A
+  resumable resource or infrastructure block **retains its attempt phase** unless a row
+  explicitly terminates it" — which settles it directly, since a retained `integrating`
+  attempt makes `integrating` the only `@legal_pairs`-legal target. The commit cited row
+  :486's "Same phase" instead, and that phrase attaches grammatically to the row's *retry*
+  alternative, not to its blocked alternative. Right answer, over-read citation.
+- **The obvious alternative is a trap, and the seventh review found the real reason.** Making
   `integration_issued?` phase-independent looks like the root-cause fix — delete the premise,
-  keep the real test. It is wrong: `integration_settled` is the *non-start* settlement and
-  closes the integration execution, so a legitimately `ready_to_integrate` attempt holds an
-  execution with lifecycle `closed`, which `integration_issued?` reads as issued. That fix
-  would refuse `superseded_base` on a path that has always accepted it.
+  keep the real test. It breaks a path that has always worked, because `integration_settled`
+  is the *non-start* settlement and closes the integration execution, so a legitimately
+  `ready_to_integrate` attempt holds one with lifecycle `closed`, which the predicate reads as
+  issued. But that is the symptom. The defect is that `integration_issued?` (:1640) scans
+  **any** integration execution rather than the **current** one, and it is already wrong today
+  without any phase change: after a retry — I1 `closed`, I2 `pending`, attempt `integrating` —
+  `attempt_settled(superseded_base)` is refused `:integration_already_issued` although the
+  current effect is unissued, which makes contract row :484 unexpressible for a retried
+  integration. Reachable before this delta via `no_ref_change` → `worker_closed` →
+  `integration_planned`, and this remediation routes blocked tickets onto exactly that path.
+  A "newest integration execution is pending" predicate would be phase-independent and correct
+  on both cases. Recorded, not fixed: it is a separate defect and wants its own candidate.
 - **The regression control was oracle-dependent.** The review showed that deleting one line
   from `@legal_pairs` — `"ready_to_integrate" => ~w(ready_to_integrate)` — turned the new test
   green with the defect present, and nothing else in the suite pins that pair. The test now
@@ -2726,3 +2738,32 @@ what was being asserted unchecked as it does about the tools.
   `stress_test.exs` and `jev_test.exs`, neither touched by this candidate — checked rather than
   restated from the previous entry, where the sampled warning text had changed while the count
   had not.
+- **Seventh review: ACCEPT on both pieces**, with the two log corrections above, and it
+  reproduced the gate count independently — 915 passed / 13 skipped / 1 excluded, 300.7s, in
+  its own worktree with a fresh build path. It also verified what the previous entry only
+  claimed: EV-4's depth-5 numbers (16,289 / 2,736 / 2,250 / 13,553 / 0) match exactly, and
+  `outcomes/2` is a faithful model of the search's own event construction, because
+  `state["last_sequence"] == length(path)` holds for all 1,898 depth-4 states. It strengthened
+  EV-4's red control too: eleven further lossy keys all produce disagreement, and the four
+  fields that produce none also merge no extra classes at depth 4, so they are determined by
+  other fields rather than being a weakness in the control.
+- **The review's largest finding is outside both pieces, and outranks them.**
+  `r4_exhaustive_test.exs:141-148` — the test that applies `SemanticInvariants` to every state
+  the search reaches — **cannot fail**. Its lambda returns `{:error, msg}` and `check/2` matches
+  `{:violation, msg}`, so the `_ -> nil` clause swallows every violation. Verified here before
+  acting: at depth 6 from empty, **190 of 13,290 reachable states violate**, the shortest four
+  events from empty (`ticket_admitted:queued` → `launch_planned` → `cancellation_requested` →
+  `attempt_settled:cancelled`, "ticket is developing with no active attempt"). Introduced in
+  `028b4965`.
+- That makes it the **seventh vacuous mechanism** in this subcommit, and the most expensive
+  one, because the claim it supports has been repeated as settled: "`SemanticInvariants` now
+  asserts over every state the search reaches" appears in this log and in a `kernel_test.exs`
+  comment, and has been false since it was written. Rule 1 exists for exactly this and was not
+  applied to the mechanism that enforces the other rules' oracle.
+- Filed as **EV-5**, sequenced ahead of EV-3 rather than fixed here. The one-word fix turns the
+  test red, so it is not a fix — it is the start of classifying 190 states, each of which is
+  either an oracle gap or a kernel defect. `apply_terminal_phase` deliberately leaves a
+  cancelled ticket in its working phase awaiting `cancellation_finalized`, and the oracle's nil
+  clause calls that "a ticket nothing can move" while a sibling clause already encodes the
+  cancel exception it lacks — so the likely answer is the oracle. Likely is not classified, and
+  reading the first of 190 counterexamples is how six of this subcommit's defects were made.
