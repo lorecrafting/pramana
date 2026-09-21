@@ -55,16 +55,145 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     no_valid_candidate: ~S|"queue fresh bounded attempt" is driven; "or exhaust" needs the same|
   }
 
+  # The clauses each scenario asserts, quoted from the contract's own outcome cell. A test
+  # checks every one of these is still a substring of `R4Rows.outcome(id)`, which is what
+  # makes the outcome side of this harness drift-proof rather than a hand transcription
+  # nothing checks.
+  @clauses %{
+    objective_steering: ["PM proposal is evidence, not authority"],
+    admission: ["queued or blocked with reason"],
+    amend_or_park: ["New future spec revision or explicit blocked state"],
+    launch: ["create its launch intent and enter developing"],
+    freeze_success: [
+      "Attempt candidate_frozen; ticket awaiting_review",
+      "seal productive capability/deadline generation"
+    ],
+    freeze_failure: ["blocked(freeze_failure) when unavailable", "never a frozen result"],
+    developer_exit_after_freeze: [
+      "Cleanup observation only; preserve frozen candidate",
+      "No new developer and no attempt failure"
+    ],
+    no_valid_candidate: ["Attempt terminal failed/timed_out"],
+    blocked_result: [
+      "Terminal blocked attempt, blocked ticket; close developer, no review",
+      "Resume/rescope requires explicit command and fresh attempt"
+    ],
+    malformed_submission: [
+      "Durable rejected submission, charge one validation action",
+      "further submission allowed only while stream open",
+      "exhaustion closes execution and exhausts ticket"
+    ],
+    checks_start: ["checking attempt, awaiting_review ticket", "retaining immutable candidate"],
+    checks_passed: ["awaiting_review attempt"],
+    check_assertion_failed: [
+      "Terminal needs_correction attempt",
+      "failed candidate never goes to approval",
+      "queue fresh developer after all check workers close"
+    ],
+    check_infrastructure_failed: [
+      "Preserve candidate, bounded new check-run reservation after cleanup",
+      "pending same phase",
+      "Unknown check retains lease and blocks retry"
+    ],
+    review_start: [
+      "reviewing attempt/ticket, independent reviewer launch with its own reservation"
+    ],
+    verdict_approved: ["after verified close ready_to_integrate"],
+    verdict_correction: [
+      "Terminal needs_correction attempt",
+      "close/seal reviewer, then queued fresh developer"
+    ],
+    verdict_rejected: ["Terminal rejected attempt/ticket"],
+    reviewer_crash: [
+      "Preserve candidate, close reviewer then bounded new reviewer execution",
+      "developer ledger untouched"
+    ],
+    integration_start: ["integrating ticket/attempt"],
+    base_moved: ["Terminal superseded_base attempt"],
+    integration_success: [
+      "integrated ticket; terminal integrated attempt",
+      "Exit notifications cannot overwrite this"
+    ],
+    integration_failure: ["or blocked(integration_failure)"],
+    resume: ["return to stored resume_phase"],
+    reset: [
+      "Keep old attempt terminal",
+      "queue a fresh developer attempt using retained evidence as context"
+    ],
+    terminal_rejection: ["Reject transition; preserve terminal facts"],
+    cancel_requested: ["hold phase/evidence while issued effects reconcile"],
+    cancel_finalized: [
+      "If no integration occurred: cancelled ticket and active attempt terminal cancelled",
+      "If integration occurred: integrated and cancel_finalized(after_integration)"
+    ],
+    nonstart_developer: [
+      "Keep the **same nonterminal attempt**",
+      "return ticket `developing → queued` with `resume_phase: developing` and reason `developer_launch_non_started`",
+      "Below the infrastructure limit, queue a bounded developer retry"
+    ],
+    nonstart_reviewer: [
+      "Keep attempt and ticket `awaiting_review`",
+      "Close only the failed reviewer execution; never enter developer retry or correction"
+    ],
+    nonstart_pm: [
+      "Keep the same objective/spec-planning owner; infer no proposal",
+      "Admit no ticket and create no objective allocation"
+    ],
+    nonstart_worker: [
+      "Preserve its candidate/deployment phase and verified inputs",
+      "consumes its finite role-specific infrastructure allowance",
+      "infer no successful check/build/ref/release receipt"
+    ]
+  }
+
   describe "the row inventory tracks the contract" do
+    # Compared as sorted lists, not sets. A set comparison passed when a duplicate
+    # from-cell with a contradictory outcome was appended to the contract, because the
+    # duplicate collapsed into the existing member - the third review demonstrated it.
     test "every contract transition row has a declared handle, and vice versa" do
-      contract = MapSet.new(R4Rows.contract_rows(), &elem(&1, 0))
-      declared = MapSet.new(R4Rows.ids(), &R4Rows.declared_from/1)
+      contract = Enum.map(R4Rows.contract_rows(), &elem(&1, 0))
+      declared = Enum.map(R4Rows.ids(), &R4Rows.declared_from/1)
 
-      assert MapSet.difference(contract, declared) |> Enum.to_list() == [],
-             "contract rows with no handle - the contract gained a row this suite ignores"
+      assert Enum.sort(contract) -- Enum.sort(declared) == [],
+             "contract rows with no handle - the contract gained or duplicated a row"
 
-      assert MapSet.difference(declared, contract) |> Enum.to_list() == [],
+      assert Enum.sort(declared) -- Enum.sort(contract) == [],
              "handles matching no contract row - a row was edited or removed"
+
+      assert length(contract) == length(Enum.uniq(contract)),
+             "the contract has two rows with the same from-state cell"
+    end
+
+    # The from-cell side of this harness was drift-proof and the outcome side was not:
+    # `R4Rows.outcome/1` existed and was called nowhere, so editing a contract outcome cell
+    # left every test green while the scenarios went on asserting the old outcome. Each
+    # scenario's assertions are a hand transcription of that cell, which is the exact
+    # translation step where the first two corrections failed.
+    #
+    # Citing the clause does not prove the scenario asserts it - nothing short of the
+    # assertion itself can - but it does pin the transcription to the contract's words, so
+    # a reworded or deleted clause fails here instead of silently leaving a scenario
+    # asserting something the contract no longer says.
+    test "every clause a scenario claims to assert is still in the contract's outcome cell" do
+      for {id, clauses} <- @clauses do
+        outcome = R4Rows.outcome(id)
+
+        assert is_binary(outcome), "#{id} matches no contract row, so its clauses are unanchored"
+
+        for clause <- clauses do
+          assert String.contains?(outcome, clause),
+                 "#{id} cites a clause the contract's outcome cell no longer contains:\n" <>
+                   "  cited:   #{inspect(clause)}\n" <>
+                   "  outcome: #{inspect(outcome)}"
+        end
+      end
+    end
+
+    test "every row with a scenario cites at least one clause of its outcome" do
+      uncited = Enum.reject(R4Rows.ids(), &Map.has_key?(@clauses, &1))
+
+      assert uncited == [],
+             "rows whose scenario asserts nothing traceable to the contract: #{inspect(uncited)}"
     end
   end
 
@@ -240,6 +369,11 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "execution_id" => "X1",
            "last_accepted_sequence" => 4
          }},
+        # "verified exit/timeout" - the seal makes "no valid candidate" a fact, the close
+        # makes the exit verified. This scenario previously settled with the developer
+        # still pending, which is how it failed to notice the guard was missing.
+        {"developer_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}},
         {"attempt_settled", "T1",
          %{
            "ticket_id" => "T1",
@@ -256,6 +390,45 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["phase"] == "queued"
     # R4's "Execution result" entity state: a sealed stream with no candidate is `none`.
     assert ticket["attempts"]["A1"]["executions"]["X1"]["result"] == "none"
+
+    # "verified exit/timeout", stated as the refusal. A sealed stream alone is not a
+    # verified exit, and settling on one synthesizes a failure for a developer that may
+    # never have run.
+    {sealed_only, sequence} =
+      drive(developing(), [
+        {"stream_sealed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "X1",
+           "last_accepted_sequence" => 4
+         }}
+      ])
+
+    forged =
+      event("attempt_settled", "T1", sealed_only["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "disposition" => "failed",
+        "reason_code" => "no_valid_candidate",
+        "settlement" => settlement()
+      })
+
+    assert {:error, :exit_not_verified} = WorkflowKernel.apply(sealed_only, forged)
+
+    # "after cleanup queue fresh bounded attempt" - the fresh attempt waits for cleanup.
+    {settled, sequence} = {ticket, sequence} |> then(fn _ -> {state, 40} end)
+
+    open_worker =
+      event("launch_planned", "T1", settled["tickets"]["T1"]["revision"], sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A2",
+        "authority" => authority("X2", "developer")
+      })
+
+    assert {:ok, _} = WorkflowKernel.apply(settled, open_worker),
+           "cleanup was complete, so a fresh attempt should launch"
+
     :driven
   end
 

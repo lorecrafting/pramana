@@ -380,6 +380,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_phase(ticket, ~w(queued developing)),
          :ok <- require_no_open_developer(ticket),
+         :ok <- require_cleanup_complete(ticket),
          {:ok, ticket} <- open_attempt(ticket, payload["attempt_id"]),
          {:ok, ticket} <- add_execution(ticket, payload, "developer") do
       {:ok, Map.put(ticket, "phase", "developing")}
@@ -960,8 +961,20 @@ defmodule PramanaFoundry.Workflow.Kernel do
       "exhausted" ->
         Map.put(ticket, "phase", "exhausted")
 
+      # R4: "Terminal blocked attempt, blocked ticket; **Resume/rescope requires explicit
+      # command and fresh attempt**". The row makes the *settlement* block the ticket; the
+      # first correction here only cleared the resume target and relied on artifact_blocked
+      # having already blocked the ticket. Exhaustive search found the five-event sequence
+      # where it had not: admit, launch, artifact_blocked, **ticket_unblocked**, settle -
+      # leaving a `developing` ticket with no attempt and no cancel, which nothing can move.
+      # Leaving `resume_phase: developing` set meant ticket_unblocked returned the ticket
+      # to `developing` with no attempt at all, the state the requeue branch below was
+      # corrected to avoid. The correction was applied to that branch and not to this one,
+      # which is the third time in this subcommit a right rule reached one sibling only.
       "blocked" ->
         ticket
+        |> Map.put("phase", "blocked")
+        |> Map.put("resume_phase", "queued")
 
       # R4: "queue fresh bounded attempt". A ticket requeued after a terminal attempt is
       # not blocked any more, so keeping the previous block's reason and resume target left
@@ -1523,7 +1536,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp require_open_submission_stream(ticket) do
     open? =
       Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] in ~w(developer reviewer) and is_nil(execution["sealed_sequence"])
+        execution["role"] in ~w(developer reviewer) and is_nil(execution["sealed_sequence"]) and
+          execution["lifecycle"] != "closed"
       end)
 
     if open?, do: :ok, else: {:error, :submission_stream_sealed}
@@ -1543,6 +1557,25 @@ defmodule PramanaFoundry.Workflow.Kernel do
       end)
 
     if open?, do: {:error, :developer_already_running}, else: :ok
+  end
+
+  # Three R4 rows order a fresh developer after cleanup, in three phrasings of one rule:
+  # "after cleanup queue fresh bounded attempt", "queue fresh developer **after all check
+  # workers close**", and "close/seal reviewer, **then** queued fresh developer". None was
+  # a guard, and `require_no_open_developer/1` reads only the active attempt, so its stated
+  # purpose held within one attempt while a new attempt could launch beside a live reviewer
+  # or check worker of the attempt just settled.
+  #
+  # `unknown` blocks too, per R4: "If cleanup is unknown, block affected work and retain
+  # capacity". Only `closed` is cleanup.
+  defp require_cleanup_complete(ticket) do
+    open =
+      for {_aid, attempt} <- ticket["attempts"],
+          {execution_id, execution} <- attempt["executions"] || %{},
+          execution["lifecycle"] != "closed",
+          do: execution_id
+
+    if open == [], do: :ok, else: {:error, :cleanup_incomplete}
   end
 
   # R4's freeze row is "developing; success artifact validates and freezes" - a developer
@@ -1572,13 +1605,20 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4: "sealed stream has no valid candidate" — the seal is what makes "no valid candidate"
   # a fact rather than an absence, since "unknown stream completeness blocks reconciliation;
   # it is not a failed attempt".
+  # R4's left cell is "sealed stream has no valid candidate, **verified exit/timeout**", so
+  # both halves are required: the seal makes "no valid candidate" a fact rather than an
+  # absence, and the verified exit is a closed execution. Requiring only the seal let an
+  # attempt settle `failed` with its developer still `pending` - never started, never
+  # closed - which is the "no crash/timeout/result is synthesized" rule R4a states for the
+  # non-start path, broken on the ordinary path.
   defp require_developer_stream_sealed(attempt) do
-    sealed? =
+    exited? =
       Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "developer" and is_integer(execution["sealed_sequence"])
+        execution["role"] == "developer" and is_integer(execution["sealed_sequence"]) and
+          execution["lifecycle"] == "closed"
       end)
 
-    if sealed?, do: :ok, else: {:error, :stream_not_sealed}
+    if exited?, do: :ok, else: {:error, :exit_not_verified}
   end
 
   defp require_resume_target(ticket),
