@@ -2009,3 +2009,77 @@ latest prose here, remains authoritative for status and dependencies.
 - **FR-08A is complete.** Every subcommit of the binding correction that reopened it is
   integrated and independently reviewed. FR-08B's dependency is satisfied, which discharges
   the B4 blocker of the pure-kernel review; B1, B2 and B3 remain outstanding.
+
+
+## FR-08B kernel, subcommit 1 corrections — 2026-09-20
+
+- Independent review of `be1e19c` returned **BLOCK** with eight blocking findings, recorded
+  in full at [the review findings](fr-08/fr08b-subcommit1-review-findings.md). Four were
+  confirmed by the implementer by direct reading before the verdict was accepted.
+- **The finding that mattered most was about the evidence, not the kernel.** The property
+  suite's `@known_unreached` recorded three integration rows as unreached and justified it
+  as a depth limit behind a `review_recorded:approved` → `reviewer_closed` sequence firing
+  "about once across every walk". Measured on the suite's exact configuration, that
+  sequence fires **zero** times and no walk reaches `ready_to_integrate`. Worse, all nine
+  attempts that reached `review_planned` got there only because `check_recorded:passed`
+  could overwrite a non-passed check, and `check_settled` permanently poisoned the attempt
+  — two defects cancelling each other where a type-level ratchet could not see them. The
+  briefing had asked the reviewer to test that claim precisely because every previous
+  investigation of it had found a real defect. It did again.
+- Sorting the nineteen findings gave **two abstraction defects**, not nineteen patches, and
+  six of the guard corrections could not be written until they landed.
+  - Executions were addressed through the active-attempt pointer, so every execution became
+    permanently unreachable the instant `attempt_settled` cleared it — while R4 orders
+    closure *after* settlement in four rows and R4a's restart sentence requires
+    reconstructing "no live execution". Every integrated ticket reported a live execution
+    forever. An execution now belongs to the attempt that created it. Two guards fell out
+    of the same correction: `developer_closed` no longer requires a frozen candidate, which
+    made R4's rows 8 and 9 unexpressible, and the terminal-ticket refusal narrows from all
+    events to transitions, because recording a termination preserves a terminal fact.
+  - The infrastructure ordinal was one counter per ticket where R4a sets
+    `launch_non_start_limit` "per role and work owner", so a reviewer non-start spent the
+    developer's allowance and the PM limit was unrepresentable. **This was subcommit 2's
+    real blocker**: `decide/3` cannot evaluate "below the infrastructure limit" for a role
+    whose consumption it cannot see, so subcommit 2 was gated on a state shape that could
+    not answer its own central question.
+- `attempt_settled` guarded only the `integrated` disposition, leaving eight of nine
+  reachable from any phase. Each now has its R4 source row, and `timed_out` is confined to
+  the developing row because R4's reviewer crash/timeout row says "Preserve candidate,
+  close reviewer then bounded new reviewer execution" — it must not terminalise, and it
+  did. `cancellation_finalized` never tested the condition stated in its own row, so
+  `after_integration` produced an integrated ticket with no attempt, candidate, check,
+  review or ref receipt: blocker B1's headline counterexample, reachable in three events.
+- Two corrections of `202b8e4` had applied a right principle to one sibling and not the
+  other — write-once to verdicts but not checks, execution binding to `reviewer_closed` but
+  not `review_settled`. Both are now rules over the vocabulary rather than guards attached
+  to whichever event a walk happened to reach.
+- **The prober's own defects are corrected here**, because they are why six blockers were
+  invisible. It admits a successor ticket, so deep walks no longer die with their single
+  ticket — twenty of twenty-five ended cancelled — and idle hundreds of steps. It proposes
+  every variant R4 names rather than a hand-picked subset. And it derives a park's resume
+  target from R4 rather than from the ticket's current phase, which was the confirmed
+  circularity: both sides had moved until they agreed on a blocked ticket with no reason
+  and no resume target, a state R4's resume row forbids.
+- `@known_unreached` is now **empty**; every declared type is reachable. A second,
+  variant-level ratchet covers what a type-level one marked covered on its first variant,
+  which is exactly where two blockers lived. Its single entry is **proved rather than
+  asserted**: a table test drives R4's second cancel branch end to end in sixteen events,
+  so the row is satisfiable and only the seeded ordering misses it. That is the standard
+  the previous ratchet failed.
+- Two properties that did not establish what their names claimed are corrected: the
+  sequence property tested the walker's own counter, and the restart property cited an R4a
+  sentence it did not test. Both now test the kernel, and a per-role allowance property was
+  added for the ordinal correction.
+- Every new guard was verified non-vacuous by neutralising it and confirming exactly the
+  intended tests fail, then reversing the exact string rather than by `git checkout`.
+- Recorded for subcommit 2: `ticket_resumed` collides with `RecordCodec`'s **legacy**
+  vocabulary, and the codec raises at compile time when the two vocabularies share a name.
+  It is the only collision among the 22 and it blocks the codec extension.
+- The question of supporting other workflows was raised during this work and is analysed
+  at [the mechanism/definition seam](fr-08/workflow-definition-seam.md). It is deliberately
+  not scheduled. One step *is* scheduled inside Batch C on its own correctness merits:
+  make R4's rows executable data and drive the prober from that table, so two
+  hand-maintained encodings can no longer be tuned against each other.
+- Suites at freeze: kernel 42 table tests and 13 properties, 55 at seed 0; full model-free
+  suite **791 passed, 13 skipped at seed 0**, run serially with a fresh `MIX_BUILD_PATH`.
+  That is the prior 776 plus the 15 tests added. `foundry/bin/preflight.sh` passes.
