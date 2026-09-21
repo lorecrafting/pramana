@@ -107,7 +107,7 @@ ledger, not a number copied into an event.
 | `stream_sealed` | On exit, the broker seals that execution's input stream with its last accepted sequence | `ticket_id attempt_id execution_id last_accepted_sequence` | none |
 | `developer_closed` | developing; kernel requests developer close through broker immediately | `ticket_id attempt_id execution_id` | none |
 | `worker_closed` | queue fresh developer after all check workers close; prior role/check workers closed | `ticket_id attempt_id execution_id` | none |
-| `checks_started` | candidate_frozen; developer closed, check capacity eligible | `ticket_id attempt_id` | none |
+| `checks_started` | candidate_frozen; developer closed, check capacity eligible | `ticket_id attempt_id policy_empty` | none |
 | `check_recorded` | checking; receipts passed / assertion fails / tool failure or timeout | `ticket_id attempt_id check_id status reason_code` | none |
 | `review_recorded` | reviewing; approved exact-candidate / correction / rejected verdict | `ticket_id attempt_id candidate_id verdict` | none |
 | `reviewer_closed` | reviewing; close/seal reviewer, then after verified close ready_to_integrate | `ticket_id attempt_id execution_id` | none |
@@ -224,6 +224,39 @@ started rather than during it. The maintained coverage assertions added after th
 occasion enumerate settlement slots for the six R4a domain owners; they do not yet assert
 that every declared slot has a producer. Adding that assertion is part of prerequisite 1,
 so the next missing producer fails a test rather than waiting for a reviewer.
+
+### Correction, 2026-09-20: two payloads the subcommit 1 review forced
+
+`checks_started` gained `policy_empty`. R4's row — "checks with explicit policy-empty set
+follow same guarded transition" — was unreachable without it, because an attempt that has
+not planned its checks yet and one whose policy set is genuinely empty are the same state.
+Emptiness is protected policy, so it is carried rather than inferred from an empty map.
+
+`integration_recorded` gained a third `outcome` value, `infrastructure_failed`, for the
+second half of R4's row "Same phase with bounded integration-effect retry after old issuer
+termination; **or blocked(integration_failure)**". It is carried on the row's own event the
+way `freeze_failed` carries its blocked alternative, rather than borrowing `ticket_parked`,
+whose row is the PM park and whose sources R4 limits to queued and blocked.
+
+Both were found the same way as `worker_closed` and the settlement `execution_id`
+asymmetry: by executing the rows, not by re-reading the table. The count of new types is
+unchanged at 22; these are payload corrections within it.
+
+### Recorded prerequisite: a name collision with the legacy codec vocabulary
+
+`ticket_resumed` is already a member of `RecordCodec.@legacy_event_types`, and the codec
+raises a `CompileError` when the legacy and lifecycle vocabularies share a name — by
+design: "a reused name would silently give one stored type two contracts, which is the
+single failure this design must prevent." Legacy members are explicitly immutable, so the
+resolution belongs on the kernel side. It is the only collision among the 22 and it blocks
+subcommit 2's codec extension.
+
+Still unproduced, and now with one addition: `terminal_settlement_v1` has neither a
+producer nor a slot; `reset_fact_v1` has a slot and no producer; and the execution result
+value `invalid` has no event that produces it, since R4 attributes it to "Git/scope
+validation failure is invalid submission", a distinction `freeze_failed` does not yet draw.
+The other four result values are produced by `artifact_frozen`, `artifact_blocked` and the
+sealed-no-candidate settlement.
 
 ## Reconciliation with the preserved work in progress
 

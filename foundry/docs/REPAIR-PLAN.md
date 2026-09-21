@@ -138,6 +138,17 @@ FR-08–FR-22 change:
   interfaces; freeze one critical batch candidate with a per-ticket acceptance matrix.
 - **Batch C:** FR-08B, FR-10, FR-11 and FR-12 as one lifecycle branch with attributable
   subcommits and every parent obligation retained; freeze and review the batch as a unit.
+  Within FR-08B, make R4's transition rows **executable data** and drive the reachability
+  prober's proposals from that table rather than from a second hand-written encoding of the
+  same rows. This is a correctness obligation, not an abstraction exercise: two
+  hand-maintained encodings of one contract drift toward each other under pressure, which
+  is exactly what the subcommit 1 review confirmed on `ticket_parked`, where prober and
+  kernel were both widened until they agreed on a state R4 forbids. It also discharges the
+  plan's own preference for executable coverage over a reviewer's row-by-row read. The
+  broader question of supporting *other* workflows is analysed in
+  [the mechanism/definition seam note](fr-08/workflow-definition-seam.md) and is
+  deliberately **not** scheduled: it waits for a second workflow, where the variation
+  surface can be observed instead of guessed.
 - **Batch D:** establish the supervised dogfood lane using manual work packets and durable
   review receipts. It must not silently enable an unproved autonomous provider path.
 - **Batch E:** complete isolation/harness conformance, artifact and Git custody, activation,

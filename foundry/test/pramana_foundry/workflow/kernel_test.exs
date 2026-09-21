@@ -28,11 +28,13 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     }
   end
 
-  defp authority(execution_id) do
+  defp authority(execution_id), do: authority(execution_id, "developer")
+
+  defp authority(execution_id, role) do
     %{
       "schema_version" => 1,
       "effect_id" => "eff-#{execution_id}",
-      "role" => "developer",
+      "role" => role,
       "work_owner" => "own-1",
       "ticket_id" => "T1",
       "attempt_id" => "A1",
@@ -114,8 +116,351 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }},
       {"developer_closed", "T1",
        %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}},
-      {"checks_started", "T1", %{"ticket_id" => "T1", "attempt_id" => "A1"}}
+      {"checks_started", "T1", %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => false}}
     ])
+  end
+
+
+  # ── Builders for the subcommit 1 review's counterexamples ─────────────────────────
+
+  defp developing do
+    drive(admitted(), [
+      {"launch_planned", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X1")}}
+    ])
+  end
+
+  # A check driven to the given terminal status, so relabelling it can be attempted.
+  defp checked(status) do
+    drive(checking(), [
+      {"check_planned", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C1",
+         "authority" => authority("K1")
+       }},
+      {"check_recorded", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C1",
+         "status" => status,
+         "reason_code" => "assertion_failed"
+       }}
+    ])
+  end
+
+  # R4: "reviewing; correction verdict | Terminal needs_correction attempt; close/seal
+  # reviewer, **then** queued fresh developer". The attempt settles first, so the reviewer
+  # execution must remain closable afterwards.
+  defp correction_settled do
+    drive(reviewing(), [
+      {"stream_sealed", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "R1",
+         "last_accepted_sequence" => 11
+       }},
+      {"review_recorded", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "candidate_id" => "cand-1",
+         "verdict" => "correction"
+       }},
+      {"attempt_settled", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "disposition" => "needs_correction",
+         "reason_code" => nil,
+         "settlement" => %{"schema_version" => 1}
+       }}
+    ])
+  end
+
+  defp approved_and_closed do
+    drive(reviewing(), [
+      {"stream_sealed", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "R1",
+         "last_accepted_sequence" => 11
+       }},
+      {"review_recorded", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "candidate_id" => "cand-1",
+         "verdict" => "approved"
+       }},
+      {"reviewer_closed", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}},
+      {"worker_closed", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "K1"}},
+      {"integration_planned", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "authority" => authority("I1", "integration")
+       }}
+    ])
+  end
+
+  defp integrating_with_receipt do
+    drive(approved_and_closed(), [
+      {"integration_recorded", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "execution_id" => "I1",
+         "outcome" => "ref_created",
+         "ref_receipt_id" => "ref-1"
+       }}
+    ])
+  end
+
+  # The same state, except the check worker is `unknown` rather than closed.
+  defp integrating_with_unknown_worker do
+    drive(
+      drive(reviewing(), [
+        {"stream_sealed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "R1",
+           "last_accepted_sequence" => 11
+         }},
+        {"review_recorded", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "candidate_id" => "cand-1",
+           "verdict" => "approved"
+         }},
+        {"reviewer_closed", "T1",
+         %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}},
+        {"execution_observed", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "execution_id" => "K1",
+           "observation" => "unknown",
+           "lifecycle" => "unknown"
+         }},
+        {"integration_planned", "T1",
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "authority" => authority("I1", "integration")
+         }}
+      ]),
+      []
+    )
+  end
+
+  # A reviewing attempt that also owns a check execution, so a settlement can be aimed at
+  # the wrong one.
+  defp reviewing_with_check_execution do
+    drive(checking(), [
+      {"check_planned", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C9",
+         "authority" => authority("K9", "check")
+       }},
+      {"check_recorded", "T1",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "check_id" => "C9",
+         "status" => "passed",
+         "reason_code" => nil
+       }},
+      {"review_planned", "T1",
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("R1", "reviewer")}}
+    ])
+  end
+
+  # ── The subcommit 1 review's counterexamples ───────────────────────────────────────
+
+  describe "subcommit 1 review — terminal states reachable only through their lifecycle" do
+    # Finding 1. attempt_settled guarded only the `integrated` disposition, so eight of the
+    # nine were reachable from any phase. R4 gives each of them a source row.
+    test "a developing attempt cannot settle rejected without a rejected verdict" do
+      {state, sequence} = developing()
+
+      forged =
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "rejected",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :no_rejected_verdict} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "an attempt cannot settle cancelled when no cancel was requested" do
+      {state, sequence} = developing()
+
+      forged =
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "cancelled",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :cancel_not_requested} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4: "reviewing; sealed stream no valid verdict and reviewer crash/timeout | Preserve
+    # candidate, close reviewer then bounded new reviewer execution". The candidate must
+    # survive; before this guard a reviewer timeout terminalised the attempt and threw the
+    # frozen candidate away.
+    test "a reviewer timeout does not terminalise the attempt" do
+      {state, sequence} = reviewing()
+
+      forged =
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "timed_out",
+          "reason_code" => "reviewer_timeout",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # Finding 2, and blocker B1's headline counterexample one step removed: three events
+    # from an empty state produced an integrated ticket with no attempt at all.
+    test "cancellation cannot finalize as after_integration with nothing integrated" do
+      {state, sequence} =
+        drive(admitted(), [{"cancellation_requested", "T1", %{"ticket_id" => "T1"}}])
+
+      forged =
+        event("cancellation_finalized", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "disposition" => "after_integration"
+        })
+
+      assert {:error, :no_integration_to_finalize} = WorkflowKernel.apply(state, forged)
+    end
+
+    # Finding 7. The split stopped R4's integration row contradicting itself but left its
+    # halves independent, so an attempt that had just created a ref could settle `failed`.
+    test "an attempt holding a ref receipt can only settle integrated" do
+      {state, sequence} = integrating_with_receipt()
+
+      forged =
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "failed",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :ref_receipt_admits_only_integrated} = WorkflowKernel.apply(state, forged)
+    end
+  end
+
+  describe "subcommit 1 review — custody, write-once evidence and closure" do
+    # Finding 4. Correction 7 of 202b8e4 made the verdict write-once and left the check
+    # receipt writable. Every attempt that reached review in the property suite got there
+    # this way.
+    test "a settled check cannot be relabelled" do
+      {state, sequence} = checked("failed")
+
+      forged =
+        event("check_recorded", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "check_id" => "C1",
+          "status" => "passed",
+          "reason_code" => nil
+        })
+
+      assert {:error, :check_already_settled} = WorkflowKernel.apply(state, forged)
+    end
+
+    # Finding 3. Executions were addressed through the active-attempt pointer, so every one
+    # became unreachable the instant its attempt settled - and R4 orders closure *after*
+    # settlement in four rows.
+    test "an execution in a settled attempt can still be closed" do
+      {state, sequence} = correction_settled()
+
+      closed =
+        event("reviewer_closed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "R1"
+        })
+
+      assert {:ok, next} = WorkflowKernel.apply(state, closed)
+      assert State.valid?(next)
+
+      assert next["tickets"]["T1"]["attempts"]["A1"]["executions"]["R1"]["lifecycle"] ==
+               "closed"
+    end
+
+    # Finding 8. R4a: an `unknown` execution "permits no replacement launch until R1
+    # reconciliation"; R4: "If cleanup is unknown, block affected work and retain capacity".
+    test "an unknown worker execution does not satisfy the integration row" do
+      {state, sequence} = integrating_with_unknown_worker()
+
+      forged =
+        event("integration_recorded", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "I1",
+          "outcome" => "ref_created",
+          "ref_receipt_id" => "ref-1"
+        })
+
+      assert {:error, :workers_not_closed} = WorkflowKernel.apply(state, forged)
+    end
+
+    # Finding 10. Correction 8 bound reviewer_closed to its reviewer execution and left
+    # review_settled unbound, so a settlement could close a check execution and leak the
+    # reviewer's.
+    test "a review settlement cannot close another role's execution" do
+      {state, sequence} = reviewing_with_check_execution()
+
+      forged =
+        event("review_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "K9",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :not_the_reviewer_execution} = WorkflowKernel.apply(state, forged)
+    end
+
+    # Finding 9, the confirmed prober circularity. R4's resume row returns a ticket "to
+    # stored resume_phase"; `blocked` is not a phase to return to, and accepting it left a
+    # ticket blocked with no reason and no target, unresumable forever.
+    test "a park cannot promise to resume at blocked" do
+      {state, sequence} = admitted()
+
+      forged =
+        event("ticket_parked", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "reason" => "dependency",
+          "resume_phase" => "blocked"
+        })
+
+      assert {:error, :invalid_resume_phase} = WorkflowKernel.apply(state, forged)
+    end
   end
 
   # ── The reviewed candidate's counterexamples ───────────────────────────────────────
@@ -270,7 +615,8 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       premature =
         event("checks_started", "T1", state["tickets"]["T1"]["revision"], sequence + 10, %{
           "ticket_id" => "T1",
-          "attempt_id" => "A1"
+          "attempt_id" => "A1",
+          "policy_empty" => false
         })
 
       assert {:error, :developer_not_closed} = WorkflowKernel.apply(state, premature)
@@ -449,7 +795,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "execution_id" => "X1"
         })
 
-      assert {:error, :not_a_worker_execution} = WorkflowKernel.apply(state, forged)
+      assert {:error, :wrong_execution_role} = WorkflowKernel.apply(state, forged)
     end
 
     test "settling an attempt retains it as a prior attempt with all its evidence" do
@@ -478,6 +824,126 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     end
   end
 
+  describe "R4's cancel row, second branch" do
+    # "cancel_requested; every owned session AND non-session claim terminal, cleanup
+    # reconciled | ... If integration occurred: integrated and
+    # cancel_finalized(after_integration)".
+    #
+    # The seeded walks do not reach this variant: it needs the cancel to be requested
+    # inside the narrow window while the ticket is `integrating`, and the walk's ordering
+    # rarely lands there. That is a limitation of the search, and this test is what makes
+    # the distinction checkable rather than asserted - the previous ratchet entry claimed a
+    # depth limit for three other rows and independent review measured the claim false.
+    # The lifecycle both tests need, up to and including the finalisation.
+    defp cancel_racing_integration do
+      drive({State.new(), 0}, [
+          {"ticket_admitted", "T1",
+           %{
+             "ticket_id" => "T1",
+             "objective_id" => nil,
+             "spec_revision_id" => "spec-1",
+             "spec" => %{},
+             "phase" => "queued",
+             "reason" => nil
+           }},
+          {"launch_planned", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X0")}},
+          {"artifact_frozen", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "candidate_id" => "cand-1",
+             "observation_id" => "obs-1",
+             "sealed_generation" => "gen-1"
+           }},
+          {"stream_sealed", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "X0",
+             "last_accepted_sequence" => 3
+           }},
+          {"developer_closed", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X0"}},
+          # R4: "checks with explicit policy-empty set follow same guarded transition".
+          {"checks_started", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => true}},
+          {"review_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "authority" => authority("R1", "reviewer")
+           }},
+          {"stream_sealed", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "R1",
+             "last_accepted_sequence" => 9
+           }},
+          {"review_recorded", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "candidate_id" => "cand-1",
+             "verdict" => "approved"
+           }},
+          {"reviewer_closed", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}},
+          {"integration_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "authority" => authority("I1", "integration")
+           }},
+          # The race: cancel is requested while the integration is already in flight.
+          {"cancellation_requested", "T1", %{"ticket_id" => "T1"}},
+          {"integration_recorded", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "I1",
+             "outcome" => "ref_created",
+             "ref_receipt_id" => "ref-1"
+           }},
+          {"attempt_settled", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "disposition" => "integrated",
+             "reason_code" => nil,
+             "settlement" => %{"schema_version" => 1}
+           }},
+          # Closure after settlement, which the active-attempt addressing made impossible.
+          {"worker_closed", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "I1"}},
+          {"cancellation_finalized", "T1",
+           %{"ticket_id" => "T1", "disposition" => "after_integration"}}
+        ])
+    end
+
+    test "a cancel that races a successful integration finalizes as after_integration" do
+      {state, _} = cancel_racing_integration()
+
+      ticket = state["tickets"]["T1"]
+      assert ticket["phase"] == "integrated"
+      assert ticket["attempts"]["A1"]["disposition"] == "integrated"
+      assert ticket["cancel_requested"]
+    end
+
+    test "the cancelled branch is refused once an integration has occurred" do
+      {state, sequence} = cancel_racing_integration()
+
+      forged =
+        event("cancellation_finalized", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "disposition" => "cancelled"
+        })
+
+      assert {:error, :integration_occurred} = WorkflowKernel.apply(state, forged)
+    end
+  end
+
   describe "R4a settlement keeps the attempt and consumes an ordinal" do
     test "a developer non-start returns the ticket to queued with the same attempt" do
       {state, _} =
@@ -499,7 +965,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert ticket["reason"] == "developer_launch_non_started"
       assert ticket["active_attempt_id"] == "A1"
       assert ticket["attempts"]["A1"]["phase"] == "active"
-      assert ticket["infrastructure"]["ordinal"] == 1
+      assert ticket["infrastructure"]["ordinals"]["developer"] == 1
       assert ticket["attempts"]["A1"]["executions"]["X1"]["lifecycle"] == "closed"
     end
 
@@ -519,7 +985,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert ticket["phase"] == "awaiting_review"
       assert ticket["attempts"]["A1"]["phase"] == "awaiting_review"
       assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
-      assert ticket["infrastructure"]["ordinal"] == 1
+      assert ticket["infrastructure"]["ordinals"]["reviewer"] == 1
     end
   end
 

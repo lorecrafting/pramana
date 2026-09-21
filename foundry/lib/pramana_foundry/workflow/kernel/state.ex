@@ -29,17 +29,27 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   @verdicts ~w(approved correction rejected)
   @roles ~w(developer reviewer pm check build integration)
 
+  # R4a: "Protected policy sets a finite launch_non_start_limit per role and work owner",
+  # and every proved non-start records (role, work_owner, ..., infrastructure_attempt_ordinal).
+  # One counter per ticket made a reviewer non-start consume the developer's allowance, and
+  # left the PM limit unrepresentable because objectives carried no infrastructure at all.
+  # The work owner holds one ordinal per role it can own; the generation stays per owner,
+  # because R4a's policy reset creates a new generation for the owner, not for one role.
+  @ticket_roles ~w(developer reviewer check build integration)
+  @objective_roles ~w(pm)
+
   @state_keys ~w(schema_version control objectives tickets last_sequence last_event_id)
   @control_keys ~w(paused draining stop_status generation control_id control_revision
                    revision last_event_id)
-  @objective_keys ~w(objective_id planning_owner_id proposals revision last_event_id)
+  @objective_keys ~w(objective_id planning_owner_id proposals infrastructure revision
+                     last_event_id)
   @proposal_keys ~w(proposal_id operation)
   @ticket_keys ~w(ticket_id objective_id spec_revision_id spec phase reason resume_phase
                   cancel_requested attempts active_attempt_id prior_attempt_ids
                   infrastructure revision last_event_id)
-  @infrastructure_keys ~w(ordinal generation)
+  @infrastructure_keys ~w(ordinals generation)
   @attempt_keys ~w(attempt_id phase disposition reason_code candidate_id sealed_generation
-                   ref_receipt_id executions checks review)
+                   ref_receipt_id executions checks review policy_empty_checks)
   @execution_keys ~w(execution_id role lifecycle result sealed_sequence)
   @check_keys ~w(check_id status reason_code)
   @review_keys ~w(candidate_id verdict execution_id)
@@ -52,6 +62,13 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   def check_statuses, do: @check_statuses
   def verdicts, do: @verdicts
   def roles, do: @roles
+  def ticket_roles, do: @ticket_roles
+  def objective_roles, do: @objective_roles
+
+  @doc "A fresh per-role infrastructure record for a work owner of the given roles."
+  @spec infrastructure(([String.t()])) :: map()
+  def infrastructure(roles),
+    do: %{"generation" => 0, "ordinals" => Map.new(roles, &{&1, 0})}
 
   @spec new() :: map()
   def new do
@@ -111,6 +128,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
     exact_keys?(objective, @objective_keys) and identifier?(objective["objective_id"]) and
       identifier?(objective["planning_owner_id"]) and
       valid_collection?(objective["proposals"], "proposal_id", &valid_proposal?/1) and
+      valid_infrastructure?(objective["infrastructure"], @objective_roles) and
       nonnegative_integer?(objective["revision"]) and
       optional_identifier?(objective["last_event_id"])
   end
@@ -130,7 +148,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
       valid_collection?(ticket["attempts"], "attempt_id", &valid_attempt?/1) and
       optional_identifier?(ticket["active_attempt_id"]) and
       valid_attempt_order?(ticket) and
-      valid_infrastructure?(ticket["infrastructure"]) and
+      valid_infrastructure?(ticket["infrastructure"], @ticket_roles) and
       nonnegative_integer?(ticket["revision"]) and
       optional_identifier?(ticket["last_event_id"])
   end
@@ -153,10 +171,15 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
          (Map.has_key?(attempts, active) and attempts[active]["phase"] != "terminal"))
   end
 
-  defp valid_infrastructure?(infrastructure) do
+  # The ordinal map is exact over the owner's roles, not merely a map of integers: a
+  # missing role would make "below the limit" unanswerable for it, and an extra one would
+  # let a role consume an allowance R4a never gave it.
+  defp valid_infrastructure?(infrastructure, roles) do
     plain_map?(infrastructure) and exact_keys?(infrastructure, @infrastructure_keys) and
-      nonnegative_integer?(infrastructure["ordinal"]) and
-      nonnegative_integer?(infrastructure["generation"])
+      nonnegative_integer?(infrastructure["generation"]) and
+      plain_map?(infrastructure["ordinals"]) and
+      exact_keys?(infrastructure["ordinals"], roles) and
+      Enum.all?(Map.values(infrastructure["ordinals"]), &nonnegative_integer?/1)
   end
 
   defp valid_attempt?(attempt) do
@@ -168,6 +191,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
       optional_identifier?(attempt["ref_receipt_id"]) and
       valid_collection?(attempt["executions"], "execution_id", &valid_execution?/1) and
       valid_collection?(attempt["checks"], "check_id", &valid_check?/1) and
+      is_boolean(attempt["policy_empty_checks"]) and
       (is_nil(attempt["review"]) or valid_review?(attempt["review"]))
   end
 

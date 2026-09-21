@@ -96,7 +96,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Event do
     "stream_sealed" => ~w(ticket_id attempt_id execution_id last_accepted_sequence),
     "developer_closed" => ~w(ticket_id attempt_id execution_id),
     "worker_closed" => ~w(ticket_id attempt_id execution_id),
-    "checks_started" => ~w(ticket_id attempt_id),
+    "checks_started" => ~w(ticket_id attempt_id policy_empty),
     "check_recorded" => ~w(ticket_id attempt_id check_id status reason_code),
     "review_recorded" => ~w(ticket_id attempt_id candidate_id verdict),
     "reviewer_closed" => ~w(ticket_id attempt_id execution_id),

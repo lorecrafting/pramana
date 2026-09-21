@@ -52,6 +52,11 @@ defmodule PramanaFoundry.Workflow.Kernel do
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
   @terminal_ticket_phases ~w(integrated rejected cancelled)
+
+  # Cleanup evidence about an already-terminal ticket's processes. Each records a fact
+  # about an execution and none moves the ticket, so none can resurrect a terminal one.
+  @terminal_cleanup_events ~w(stream_sealed execution_observed developer_closed
+                              worker_closed reviewer_closed)
   @creating_types ~w(ticket_admitted objective_created)
 
   @doc """
@@ -191,9 +196,17 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # Found by a seeded reachability walk: without it a cancelled ticket accepted
   # cancellation_finalized 97 times in one walk, advancing its revision each time. Note
   # `exhausted` is deliberately absent - R4's reset row makes it recoverable.
+  #
+  # R4 rejects a terminal *transition* and preserves terminal facts. Recording that a
+  # process terminated preserves such a fact rather than overwriting one, so cleanup
+  # evidence is not a transition and is not refused. Refusing it was over-broad: an
+  # integrated ticket could never close its integration execution and so reported a live
+  # execution forever, contradicting R4a's "reconstructs ... no live execution".
   defp refuse_terminal_ticket(entity, event) do
     if event["entity_kind"] == "ticket" and is_map(entity) and
-         entity["phase"] in @terminal_ticket_phases,
+         entity["phase"] in @terminal_ticket_phases and
+         event["type"] not in @terminal_cleanup_events and
+         not finalizing_integrated_cancel?(entity, event),
        do: {:error, :ticket_terminal},
        else: :ok
   end
@@ -206,7 +219,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
      %{
        "objective_id" => payload["objective_id"],
        "planning_owner_id" => payload["planning_owner_id"],
-       "proposals" => %{}
+       "proposals" => %{},
+       "infrastructure" => State.infrastructure(State.objective_roles())
      }}
   end
 
@@ -225,8 +239,14 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4a PM planning row. The planning owner is kept and no proposal is inferred; the
   # objective carries no phase to move.
   defp do_transition(type, objective, _event, _state)
-       when type in ~w(pm_launch_planned pm_launch_settled),
+       when type == "pm_launch_planned",
        do: {:ok, objective}
+
+  # R4a's PM row: "Below the PM limit, return to its PM queue; at the limit or without
+  # current allocation, block as pm_launch_infrastructure or pm_budget." The limit is the
+  # objective's own, which is why the objective carries infrastructure at all.
+  defp do_transition("pm_launch_settled", objective, _event, _state),
+    do: {:ok, consume_infrastructure_ordinal(objective, "pm")}
 
   # R4: "draft; specific spec or valid PM create" — admission yields queued or blocked.
   defp do_transition("ticket_admitted", :absent, event, _state) do
@@ -250,7 +270,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
          "attempts" => %{},
          "active_attempt_id" => nil,
          "prior_attempt_ids" => [],
-         "infrastructure" => %{"ordinal" => 0, "generation" => 0}
+         "infrastructure" => State.infrastructure(State.ticket_roles())
        }}
     else
       {:error, :invalid_admission_phase}
@@ -273,7 +293,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("ticket_parked", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_phase(ticket, ~w(queued blocked developing awaiting_review)),
+    with :ok <- require_phase(ticket, ~w(queued blocked)),
          :ok <- require_resume_phase(payload["resume_phase"]),
          :ok <- require_honest_resume_target(ticket, payload["resume_phase"]) do
       {:ok,
@@ -312,7 +332,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
        |> Map.put("reason", nil)
        |> Map.put("resume_phase", nil)
        |> update_in(["infrastructure", "generation"], &(&1 + 1))
-       |> put_in(["infrastructure", "ordinal"], 0)}
+       |> put_in(["infrastructure", "ordinals"], State.infrastructure(State.ticket_roles())["ordinals"])}
     end
   end
 
@@ -331,14 +351,24 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # does — so it requires that to have happened already.
   defp do_transition("cancellation_finalized", ticket, event, _state) do
     with :ok <- require_cancel_requested(ticket),
-         :ok <- require_no_active_attempt(ticket) do
+         :ok <- require_no_active_attempt(ticket),
+         :ok <- require_all_executions_closed(ticket) do
       case event["payload"]["disposition"] do
-        "cancelled" -> {:ok, Map.put(ticket, "phase", "cancelled")}
-        "after_integration" -> {:ok, Map.put(ticket, "phase", "integrated")}
-        _ -> {:error, :invalid_cancellation_disposition}
+        "cancelled" ->
+          if integration_occurred?(ticket),
+            do: {:error, :integration_occurred},
+            else: {:ok, Map.put(ticket, "phase", "cancelled")}
+
+        "after_integration" ->
+          if integration_occurred?(ticket),
+            do: {:ok, Map.put(ticket, "phase", "integrated")},
+            else: {:error, :no_integration_to_finalize}
+        _ ->
+          {:error, :invalid_cancellation_disposition}
       end
     end
   end
+
 
   # R4: "queued; dependencies/resources/profile/reservation eligible" — a fresh attempt
   # unless R4a retained a resumable one, then its launch intent, then developing.
@@ -359,13 +389,13 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_phase(ticket, ~w(developing)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         {:ok, ticket} <- close_execution(ticket, payload["execution_id"]) do
+         {:ok, ticket} <- close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
       {:ok,
        ticket
        |> Map.put("phase", "queued")
        |> Map.put("resume_phase", "developing")
        |> Map.put("reason", "developer_launch_non_started")
-       |> update_in(["infrastructure", "ordinal"], &(&1 + 1))}
+       |> consume_infrastructure_ordinal("developer")}
     end
   end
 
@@ -385,21 +415,26 @@ defmodule PramanaFoundry.Workflow.Kernel do
          |> Map.put("phase", "candidate_frozen")
          |> Map.put("candidate_id", payload["candidate_id"])
          |> Map.put("sealed_generation", payload["sealed_generation"])
-       end)}
+       end)
+       |> seal_developer_result(payload["attempt_id"], "valid")}
     end
   end
 
   # R4: "developing; valid blocked/partial result" — blocked ticket, no review. The attempt
   # is terminalised by attempt_settled, not here.
   defp do_transition("artifact_blocked", ticket, event, _state) do
+    payload = event["payload"]
+
     with :ok <- require_phase(ticket, ~w(developing)),
-         :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
-         :ok <- require_attempt_phase(ticket, ~w(active)) do
+         :ok <- require_active_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_attempt_phase(ticket, ~w(active)),
+         :ok <- require_blocked_result(payload["result"]) do
       {:ok,
        ticket
        |> Map.put("phase", "blocked")
-       |> Map.put("reason", event["payload"]["reason"])
-       |> Map.put("resume_phase", "developing")}
+       |> Map.put("reason", payload["reason"])
+       |> Map.put("resume_phase", "developing")
+       |> seal_developer_result(payload["attempt_id"], payload["result"])}
     end
   end
 
@@ -446,12 +481,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("execution_observed", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["execution_id"]),
-         :ok <- require_not_closed(ticket, payload["execution_id"]),
+    with :ok <- require_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         :ok <- require_not_closed(ticket, payload["attempt_id"], payload["execution_id"]),
          :ok <- require_open_lifecycle(payload["lifecycle"]) do
       {:ok,
-       update_active_attempt(ticket, fn attempt ->
+       update_attempt(ticket, payload["attempt_id"], fn attempt ->
          put_in(
            attempt,
            ["executions", payload["execution_id"], "lifecycle"],
@@ -466,11 +501,11 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("stream_sealed", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["execution_id"]),
-         :ok <- require_unsealed(ticket, payload["execution_id"]) do
+    with :ok <- require_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         :ok <- require_unsealed(ticket, payload["attempt_id"], payload["execution_id"]) do
       {:ok,
-       update_active_attempt(ticket, fn attempt ->
+       update_attempt(ticket, payload["attempt_id"], fn attempt ->
          put_in(
            attempt,
            ["executions", payload["execution_id"], "sealed_sequence"],
@@ -482,15 +517,17 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   # R4: "kernel requests developer close through broker immediately". Closure is a durable
   # fact about a sealed execution, not an event carrying the unchanged ticket — B2's first
-  # named defect. It requires the candidate frozen and the stream sealed first.
+  # named defect. What R4 conditions closure on is the sealed stream, not the phase: rows 8
+  # and 9 close the developer after a valid blocked/partial result and after a sealed
+  # stream with no candidate at all, and a candidate_frozen guard made both unexpressible.
   defp do_transition("developer_closed", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_attempt_phase(ticket, ~w(candidate_frozen)),
-         :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["execution_id"]),
-         :ok <- require_sealed(ticket, payload["execution_id"]) do
-      close_execution(ticket, payload["execution_id"])
+    with :ok <- require_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         :ok <- require_developer_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         :ok <- require_sealed(ticket, payload["attempt_id"], payload["execution_id"]) do
+      close_execution(ticket, payload["attempt_id"], payload["execution_id"])
     end
   end
 
@@ -508,10 +545,10 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("worker_closed", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["execution_id"]),
-         :ok <- require_worker_role(ticket, payload["execution_id"]) do
-      close_execution(ticket, payload["execution_id"])
+    with :ok <- require_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
+         :ok <- require_worker_role(ticket, payload["attempt_id"], payload["execution_id"]) do
+      close_execution(ticket, payload["attempt_id"], payload["execution_id"])
     end
   end
 
@@ -522,8 +559,15 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- require_phase(ticket, ~w(awaiting_review)),
          :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
          :ok <- require_attempt_phase(ticket, ~w(candidate_frozen)),
-         :ok <- require_developer_closed(ticket) do
-      {:ok, update_active_attempt(ticket, &Map.put(&1, "phase", "checking"))}
+         :ok <- require_developer_closed(ticket),
+         :ok <- require_boolean(event["payload"]["policy_empty"]) do
+      {:ok,
+       update_active_attempt(ticket, fn attempt ->
+         attempt
+         |> Map.put("phase", "checking")
+         |> Map.put("policy_empty_checks", event["payload"]["policy_empty"])
+         |> then(&maybe_finish_checks/1)
+       end)}
     end
   end
 
@@ -545,13 +589,13 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- require_attempt_phase(ticket, ~w(checking)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_check(ticket, payload["check_id"]) do
-      with {:ok, ticket} <- close_execution(ticket, payload["execution_id"]) do
+      with {:ok, ticket} <- close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
         {:ok,
          ticket
          |> update_active_attempt(fn attempt ->
-           put_in(attempt, ["checks", payload["check_id"], "status"], "cancelled")
+           update_in(attempt, ["checks"], &Map.delete(&1, payload["check_id"]))
          end)
-         |> update_in(["infrastructure", "ordinal"], &(&1 + 1))}
+         |> consume_infrastructure_ordinal("check")}
       end
     end
   end
@@ -565,7 +609,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- require_attempt_phase(ticket, ~w(checking)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_check(ticket, payload["check_id"]),
-         :ok <- require_check_status(payload["status"]) do
+         :ok <- require_check_status(payload["status"]),
+         :ok <- require_check_unsettled(ticket, payload["check_id"]) do
       {:ok,
        update_active_attempt(ticket, fn attempt ->
          attempt
@@ -603,9 +648,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4a reviewer row: keep the attempt and ticket awaiting_review with the same frozen
   # candidate and reviewer ownership; never enter developer retry or correction.
   defp do_transition("review_settled", ticket, event, _state) do
+    payload = event["payload"]
+
     with :ok <- require_phase(ticket, ~w(reviewing)),
-         :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]) do
-      with {:ok, ticket} <- close_execution(ticket, event["payload"]["execution_id"]) do
+         :ok <- require_active_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_reviewer_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
+      with {:ok, ticket} <- close_execution(ticket, payload["attempt_id"], payload["execution_id"]) do
         {:ok,
          ticket
          |> Map.put("phase", "awaiting_review")
@@ -613,7 +661,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
          |> update_active_attempt(fn attempt ->
            attempt |> Map.put("phase", "awaiting_review") |> Map.put("review", nil)
          end)
-         |> update_in(["infrastructure", "ordinal"], &(&1 + 1))}
+         |> consume_infrastructure_ordinal("reviewer")}
       end
     end
   end
@@ -641,32 +689,38 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4: "Close/seal reviewer; after verified close ready_to_integrate; no Git success
   # inferred." Only an approved verdict advances; correction and rejection terminalise
   # through attempt_settled instead.
+  #
+  # Closing the reviewer is cleanup evidence and must outlive settlement: R4's correction
+  # and rejection rows both close the reviewer *after* the attempt terminalises, and
+  # requiring the active attempt made those closures impossible, leaking the execution.
+  # Only an active attempt carrying an approved verdict advances the ticket.
   defp do_transition("reviewer_closed", ticket, event, _state) do
     payload = event["payload"]
+    attempt_id = payload["attempt_id"]
 
-    with :ok <- require_attempt_phase(ticket, ~w(reviewing)),
-         :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["execution_id"]),
-         :ok <- require_reviewer_execution(ticket, payload["execution_id"]),
-         :ok <- require_sealed(ticket, payload["execution_id"]),
-         {:ok, verdict} <- fetch_verdict(ticket),
-         {:ok, ticket} <- close_execution(ticket, payload["execution_id"]) do
-      case verdict do
-        "approved" ->
+    with :ok <- require_attempt(ticket, attempt_id),
+         :ok <- require_execution(ticket, attempt_id, payload["execution_id"]),
+         :ok <- require_reviewer_execution(ticket, attempt_id, payload["execution_id"]),
+         :ok <- require_sealed(ticket, attempt_id, payload["execution_id"]),
+         {:ok, ticket} <- close_execution(ticket, attempt_id, payload["execution_id"]) do
+      if ticket["active_attempt_id"] == attempt_id and
+           attempt(ticket, attempt_id)["review"]["verdict"] == "approved" do
+        with :ok <- require_attempt_phase(ticket, ~w(reviewing)) do
           {:ok,
            ticket
            |> Map.put("phase", "ready_to_integrate")
            |> update_active_attempt(&Map.put(&1, "phase", "ready_to_integrate"))}
-
-        _ ->
-          {:ok, ticket}
+        end
+      else
+        {:ok, ticket}
       end
     end
   end
 
   # R4: "ready_to_integrate; current base/evidence/policy valid".
   defp do_transition("integration_planned", ticket, event, _state) do
-    with :ok <- require_phase(ticket, ~w(ready_to_integrate)),
+    with :ok <- require_phase(ticket, ~w(ready_to_integrate integrating)),
+         :ok <- require_issuer_terminated(ticket),
          :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
          {:ok, ticket} <- add_execution(ticket, event["payload"], "integration") do
       {:ok,
@@ -681,12 +735,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("integration_settled", ticket, event, _state) do
     with :ok <- require_phase(ticket, ~w(integrating)),
          :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]) do
-      with {:ok, ticket} <- close_execution(ticket, event["payload"]["execution_id"]) do
+      with {:ok, ticket} <- close_execution(ticket, event["payload"]["attempt_id"], event["payload"]["execution_id"]) do
         {:ok,
          ticket
          |> Map.put("phase", "ready_to_integrate")
          |> update_active_attempt(&Map.put(&1, "phase", "ready_to_integrate"))
-         |> update_in(["infrastructure", "ordinal"], &(&1 + 1))}
+         |> consume_infrastructure_ordinal("integration")}
       end
     end
   end
@@ -698,7 +752,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_phase(ticket, ~w(integrating)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["execution_id"]),
+         :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
          :ok <- require_workers_closed(ticket) do
       # Records the receipt only. Setting the ticket integrated here was this module's own
       # rule ("evidence events never terminalise") broken in one place, and it made R4's
@@ -713,8 +767,23 @@ defmodule PramanaFoundry.Workflow.Kernel do
              &Map.put(&1, "ref_receipt_id", payload["ref_receipt_id"])
            )}
 
+        # R4: "Same phase with bounded integration-effect retry after old issuer
+        # termination". The ticket stays integrating; integration_planned accepts that
+        # phase once the old issuer's execution is closed, which is what "after old issuer
+        # termination" means. Before this the only exits from integrating were the
+        # non-start settlement, which is semantically wrong once a start occurred, and
+        # attempt_settled — so the row was unexpressible.
         "no_ref_change" ->
           {:ok, ticket}
+
+        # R4: "or blocked(integration_failure)". Carried on the row's own event, the way
+        # freeze_failed carries its blocked alternative, rather than borrowing the PM park.
+        "infrastructure_failed" ->
+          {:ok,
+           ticket
+           |> Map.put("phase", "blocked")
+           |> Map.put("reason", "integration_failure")
+           |> Map.put("resume_phase", "ready_to_integrate")}
 
         _ ->
           {:error, :invalid_integration_outcome}
@@ -730,7 +799,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_disposition(payload["disposition"]),
-         :ok <- require_receipt_for_integration(ticket, payload["disposition"]) do
+         :ok <- require_receipt_for_integration(ticket, payload["disposition"]),
+         :ok <- require_settlement_source(ticket, payload["disposition"]) do
       attempt_id = payload["attempt_id"]
 
       ticket =
@@ -743,6 +813,11 @@ defmodule PramanaFoundry.Workflow.Kernel do
         end)
         |> Map.put("active_attempt_id", nil)
         |> Map.update!("prior_attempt_ids", &(&1 ++ [attempt_id]))
+
+      ticket =
+        if payload["disposition"] in ~w(failed timed_out),
+          do: seal_developer_result(ticket, attempt_id, "none"),
+          else: ticket
 
       {:ok, apply_terminal_phase(ticket, payload["disposition"])}
     end
@@ -775,8 +850,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   defp do_transition("build_settled", ticket, event, _state) do
     with :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
-         {:ok, ticket} <- close_execution(ticket, event["payload"]["execution_id"]) do
-      {:ok, update_in(ticket, ["infrastructure", "ordinal"], &(&1 + 1))}
+         {:ok, ticket} <- close_execution(ticket, event["payload"]["attempt_id"], event["payload"]["execution_id"]) do
+      {:ok, consume_infrastructure_ordinal(ticket, "build")}
     end
   end
 
@@ -784,12 +859,20 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   # R4: "checking; all mandatory check receipts passed" → awaiting_review attempt. An
   # explicit policy-empty set follows the same guarded transition.
+  # R4: "checking; all mandatory check receipts passed | awaiting_review attempt ... checks
+  # with explicit policy-empty set follow same guarded transition". The empty set cannot be
+  # inferred from an empty map, because an attempt that has not planned its checks yet
+  # looks exactly the same; it is carried on checks_started, which is where protected
+  # policy states it. Without that, a policy-empty attempt stayed in `checking` forever.
   defp maybe_finish_checks(attempt) do
     statuses = Elixir.Enum.map(attempt["checks"], fn {_id, check} -> check["status"] end)
 
-    if statuses != [] and Elixir.Enum.all?(statuses, &(&1 == "passed")),
-      do: Map.put(attempt, "phase", "awaiting_review"),
-      else: attempt
+    finished? =
+      if attempt["policy_empty_checks"],
+        do: statuses == [],
+        else: statuses != [] and Elixir.Enum.all?(statuses, &(&1 == "passed"))
+
+    if finished?, do: Map.put(attempt, "phase", "awaiting_review"), else: attempt
   end
 
   # Only the dispositions R4 makes terminal for the whole ticket move the ticket. A
@@ -828,7 +911,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
           "ref_receipt_id" => nil,
           "executions" => %{},
           "checks" => %{},
-          "review" => nil
+          "review" => nil,
+          "policy_empty_checks" => false
         }
 
         {:ok,
@@ -866,16 +950,25 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # check, build and integration executions stayed open with nothing able to close them -
   # reviewer_closed requires the reviewing phase, so a settled reviewer execution was
   # unclosable forever, and R4's "prior role/check workers closed" could never hold.
-  defp close_execution(ticket, execution_id) do
-    with :ok <- require_execution(ticket, execution_id),
-         :ok <- require_not_closed(ticket, execution_id) do
+  defp close_execution(ticket, attempt_id, execution_id) do
+    with :ok <- require_execution(ticket, attempt_id, execution_id),
+         :ok <- require_not_closed(ticket, attempt_id, execution_id) do
       {:ok,
-       update_active_attempt(
+       update_attempt(
          ticket,
+         attempt_id,
          &put_in(&1, ["executions", execution_id, "lifecycle"], "closed")
        )}
     end
   end
+
+  # R4a: "The durable infrastructure ordinal consumes that allowance even though a proved
+  # non-start refunds the process-start unit." The allowance is per role and work owner, so
+  # a reviewer non-start must not spend the developer's. One counter per ticket was the
+  # state-shape defect behind finding 12: decide/3 cannot evaluate "below the infrastructure
+  # limit" for a role whose consumption it cannot see.
+  defp consume_infrastructure_ordinal(owner, role),
+    do: update_in(owner, ["infrastructure", "ordinals", role], &(&1 + 1))
 
   defp add_check(ticket, check_id) do
     if Map.has_key?(active_attempt(ticket)["checks"], check_id) do
@@ -887,6 +980,49 @@ defmodule PramanaFoundry.Workflow.Kernel do
   end
 
   defp active_attempt(ticket), do: ticket["attempts"][ticket["active_attempt_id"]] || %{}
+
+  # R4 orders closure *after* settlement in four rows - "close developer, then queue
+  # fresh", "queue fresh developer after all check workers close", "close/seal reviewer,
+  # then queued fresh developer", "bounded new check-run reservation after cleanup" - and
+  # R4a's restart sentence requires reconstructing "no live execution". Addressing an
+  # execution through the active-attempt pointer made every one of them unreachable the
+  # instant attempt_settled cleared it, so every integrated ticket reported a live
+  # execution forever. An execution belongs to the attempt that created it, whether or not
+  # that attempt is still active.
+  defp attempt(ticket, attempt_id), do: ticket["attempts"][attempt_id] || %{}
+
+  # R4: "Execution result | Separate write-once sealed result: valid, blocked, partial,
+  # invalid, none". The field was declared in the state and never written by any event, so
+  # a declared entity state had no producer — the same class of gap as the codec's
+  # unproduced output kinds, one level up. Each submission-evidence row seals the
+  # developer execution's result, and the seal is write-once because R4 says so.
+  defp seal_developer_result(ticket, attempt_id, result) do
+    executions = attempt(ticket, attempt_id)["executions"] || %{}
+
+    case Elixir.Enum.find(executions, fn {_id, execution} ->
+           execution["role"] == "developer" and is_nil(execution["result"])
+         end) do
+      {execution_id, _execution} ->
+        update_attempt(
+          ticket,
+          attempt_id,
+          &put_in(&1, ["executions", execution_id, "result"], result)
+        )
+
+      nil ->
+        ticket
+    end
+  end
+
+  defp update_attempt(ticket, attempt_id, fun),
+    do: update_in(ticket, ["attempts", attempt_id], fun)
+
+  defp require_attempt(ticket, attempt_id),
+    do:
+      if(is_binary(attempt_id) and is_map(ticket["attempts"][attempt_id]),
+        do: :ok,
+        else: {:error, :unknown_attempt}
+      )
 
   defp update_active_attempt(ticket, fun),
     do: update_in(ticket, ["attempts", ticket["active_attempt_id"]], fun)
@@ -912,12 +1048,49 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp require_no_active_attempt(ticket),
     do: if(is_nil(ticket["active_attempt_id"]), do: :ok, else: {:error, :attempt_still_active})
 
+  # R4's cancel row concludes a cancel that raced an integration: "If integration occurred:
+  # integrated and cancel_finalized(after_integration); suppress deployment". By the time
+  # that finalisation arrives the attempt has already settled `integrated` and the ticket is
+  # already terminal, so a blanket terminal refusal made R4's own second branch unreachable
+  # - the branch exists precisely for the case where the ticket is integrated. It preserves
+  # the terminal fact rather than overwriting it, which is what R4's terminal row protects.
+  defp finalizing_integrated_cancel?(ticket, event),
+    do:
+      event["type"] == "cancellation_finalized" and ticket["phase"] == "integrated" and
+        ticket["cancel_requested"]
+
+  # R4's cancel row is a conditional, and the kernel read only its second half: "If no
+  # integration occurred: cancelled ticket ...; If integration occurred: integrated and
+  # cancel_finalized(after_integration)". Nothing tested the condition, so
+  # after_integration produced an integrated ticket with no attempt, candidate, check,
+  # review or ref receipt at all — blocker B1's headline counterexample, reachable in
+  # three events from an empty state. No walk could see it: the prober proposes only the
+  # `cancelled` disposition, which is finding 17's type-level blind spot.
+  defp integration_occurred?(ticket),
+    do:
+      Elixir.Enum.any?(ticket["attempts"], fn {_id, attempt} ->
+        is_binary(attempt["ref_receipt_id"])
+      end)
+
+  # R4: "every owned session AND non-session claim terminal, cleanup reconciled". Only
+  # expressible now that an execution can be closed after its attempt settles.
+  defp require_all_executions_closed(ticket) do
+    open? =
+      Elixir.Enum.any?(ticket["attempts"], fn {_id, attempt} ->
+        Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
+          execution["lifecycle"] != "closed"
+        end)
+      end)
+
+    if open?, do: {:error, :executions_not_closed}, else: :ok
+  end
+
   defp require_cancel_requested(ticket),
     do: if(ticket["cancel_requested"], do: :ok, else: {:error, :cancel_not_requested})
 
-  defp require_execution(ticket, execution_id),
+  defp require_execution(ticket, attempt_id, execution_id),
     do:
-      if(Map.has_key?(active_attempt(ticket)["executions"] || %{}, execution_id),
+      if(Map.has_key?(attempt(ticket, attempt_id)["executions"] || %{}, execution_id),
         do: :ok,
         else: {:error, :unknown_execution}
       )
@@ -929,14 +1102,14 @@ defmodule PramanaFoundry.Workflow.Kernel do
         else: {:error, :unknown_check}
       )
 
-  defp require_sealed(ticket, execution_id) do
-    if is_integer(active_attempt(ticket)["executions"][execution_id]["sealed_sequence"]),
+  defp require_sealed(ticket, attempt_id, execution_id) do
+    if is_integer(attempt(ticket, attempt_id)["executions"][execution_id]["sealed_sequence"]),
       do: :ok,
       else: {:error, :stream_not_sealed}
   end
 
-  defp require_unsealed(ticket, execution_id) do
-    if is_nil(active_attempt(ticket)["executions"][execution_id]["sealed_sequence"]),
+  defp require_unsealed(ticket, attempt_id, execution_id) do
+    if is_nil(attempt(ticket, attempt_id)["executions"][execution_id]["sealed_sequence"]),
       do: :ok,
       else: {:error, :stream_already_sealed}
   end
@@ -994,11 +1167,16 @@ defmodule PramanaFoundry.Workflow.Kernel do
     end
   end
 
-  defp fetch_verdict(ticket) do
-    case active_attempt(ticket)["review"] do
-      %{"verdict" => verdict} when is_binary(verdict) -> {:ok, verdict}
-      _ -> {:error, :no_recorded_verdict}
-    end
+  # R4: "Same phase with bounded integration-effect retry **after old issuer termination**".
+  # A retry from `integrating` may only be planned once the previous integration execution
+  # is closed; from ready_to_integrate there is no previous issuer to terminate.
+  defp require_issuer_terminated(ticket) do
+    open? =
+      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
+        execution["role"] == "integration" and execution["lifecycle"] != "closed"
+      end)
+
+    if open?, do: {:error, :issuer_not_terminated}, else: :ok
   end
 
   # R4: "successful ref receipt and prior role/check workers closed".
@@ -1007,7 +1185,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     closed? =
       Elixir.Enum.all?(executions, fn {_id, execution} ->
-        execution["role"] == "integration" or execution["lifecycle"] in ~w(closed unknown)
+        execution["role"] == "integration" or execution["lifecycle"] == "closed"
       end)
 
     if closed?, do: :ok, else: {:error, :workers_not_closed}
@@ -1016,27 +1194,46 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # A reviewer close may only close the execution the review is actually bound to.
   # Without this it could close the developer's execution and still advance the ticket to
   # ready_to_integrate, since the verdict is read from the review rather than the argument.
-  defp require_reviewer_execution(ticket, execution_id) do
-    case active_attempt(ticket)["review"] do
+  defp require_reviewer_execution(ticket, attempt_id, execution_id) do
+    case attempt(ticket, attempt_id)["review"] do
       %{"execution_id" => ^execution_id} -> :ok
       _ -> {:error, :not_the_reviewer_execution}
     end
   end
 
-  defp require_worker_role(ticket, execution_id) do
-    role = active_attempt(ticket)["executions"][execution_id]["role"]
-
-    if role in ~w(check build integration),
+  # R4a binds every settlement and closure to the execution it names: "Close **only the
+  # failed reviewer execution**". Correction 8 of 202b8e4 applied that to reviewer_closed
+  # and not to review_settled, which is why the latter could close a check execution and
+  # leak the reviewer's. The binding is therefore one rule over the vocabulary rather than
+  # a guard attached to whichever event a walk happened to reach.
+  defp require_execution_role(ticket, attempt_id, execution_id, roles) do
+    if attempt(ticket, attempt_id)["executions"][execution_id]["role"] in roles,
       do: :ok,
-      else: {:error, :not_a_worker_execution}
+      else: {:error, :wrong_execution_role}
   end
+
+  defp require_developer_execution(ticket, attempt_id, execution_id),
+    do: require_execution_role(ticket, attempt_id, execution_id, ~w(developer))
+
+  defp require_worker_role(ticket, attempt_id, execution_id),
+    do: require_execution_role(ticket, attempt_id, execution_id, ~w(check build integration))
 
   # A park may only promise to return the ticket where it actually is, or where it was
   # already recorded as resumable. A caller-chosen target let a walk park an
   # awaiting_review ticket with resume_phase "queued" and then resume it to queued,
   # abandoning the frozen candidate R4 requires it to keep custody of.
   defp require_honest_resume_target(ticket, resume_phase) do
-    if resume_phase in [ticket["phase"], ticket["resume_phase"]],
+    honest =
+      case ticket["phase"] do
+        # An already-blocked ticket has no current phase to promise; its only honest target
+        # is the one it already stored. R4a's developer row retains `developing` across a
+        # non-start, and an at-limit park that overwrote it with `queued` would lose the
+        # attempt the same row calls resumable.
+        "blocked" -> [ticket["resume_phase"]]
+        phase -> [phase, ticket["resume_phase"]]
+      end
+
+    if resume_phase in honest,
       do: :ok,
       else: {:error, :resume_target_not_current_phase}
   end
@@ -1052,7 +1249,115 @@ defmodule PramanaFoundry.Workflow.Kernel do
       else: {:error, :no_ref_receipt}
   end
 
-  defp require_receipt_for_integration(_ticket, _disposition), do: :ok
+  # The converse, and the other half of R4's integration row. Splitting the row into
+  # integration_recorded and attempt_settled stopped it contradicting itself but left the
+  # two halves independent, so an attempt that had just created a ref could still settle
+  # `failed` — a ref on the accepted branch with a domain that says the attempt failed.
+  # "Exit notifications cannot overwrite this": once a receipt exists the disposition is
+  # determined.
+  defp require_receipt_for_integration(ticket, disposition) do
+    if is_binary(active_attempt(ticket)["ref_receipt_id"]) and disposition != "integrated",
+      do: {:error, :ref_receipt_admits_only_integrated},
+      else: :ok
+  end
+
+  # R4 gives every disposition a source row, and without these guards a terminal state was
+  # reachable without its lifecycle: a developing ticket settled `rejected` with no verdict
+  # recorded at all, and `cancelled` with nothing ever having requested cancellation. That
+  # is B1's premise ("terminal states reachable only through their lifecycle") and this
+  # module's own stated property 3 ("every event names the phase it may apply to"), both
+  # broken in the one event that makes states terminal.
+  #
+  # The rows, in R4's words:
+  #   integrated       "integrating; successful ref receipt and prior workers closed"
+  #   superseded_base  "ready_to_integrate/integrating; accepted base moved before issuance"
+  #   rejected         "reviewing; rejected verdict"
+  #   needs_correction "checking; actual check assertion fails" or "reviewing; correction verdict"
+  #   failed/timed_out "developing; sealed stream has no valid candidate, verified exit/timeout"
+  #   blocked          "developing; valid blocked/partial result"
+  #   cancelled        "cancel_requested; every owned claim terminal"
+  #
+  # `timed_out` is deliberately confined to the developing row. R4's reviewer crash/timeout
+  # row says "Preserve candidate, close reviewer then bounded new reviewer execution" — it
+  # must not terminalise the attempt, and before this guard it did.
+  #
+  # `exhausted` carries no source guard. R4 seals the current attempt with it from several
+  # phases, and every one of them turns on allocation, which is protected policy the kernel
+  # may not restate. Recorded rather than silently permissive.
+  defp require_settlement_source(ticket, disposition) do
+    attempt = active_attempt(ticket)
+    verdict = attempt["review"]["verdict"]
+
+    case disposition do
+      "integrated" ->
+        require_attempt_phase(ticket, ~w(integrating))
+
+      "superseded_base" ->
+        require_attempt_phase(ticket, ~w(ready_to_integrate integrating))
+
+      "rejected" ->
+        if verdict == "rejected",
+          do: require_attempt_phase(ticket, ~w(reviewing)),
+          else: {:error, :no_rejected_verdict}
+
+      "needs_correction" ->
+        cond do
+          attempt["phase"] == "checking" and failed_check?(attempt) -> :ok
+          attempt["phase"] == "reviewing" and verdict == "correction" -> :ok
+          true -> {:error, :no_correction_evidence}
+        end
+
+      d when d in ~w(failed timed_out) ->
+        with :ok <- require_attempt_phase(ticket, ~w(active)),
+             :ok <- require_no_candidate(attempt) do
+          require_developer_stream_sealed(attempt)
+        end
+
+      "blocked" ->
+        require_attempt_phase(ticket, ~w(active))
+
+      "cancelled" ->
+        require_cancel_requested(ticket)
+
+      "exhausted" ->
+        :ok
+    end
+  end
+
+  # R4: "Separate write-once sealed result", and "failed candidate never goes to approval".
+  # Correction 7 of 202b8e4 made the reviewer's verdict write-once and left the check
+  # receipt writable, so a failed check could be relabelled `passed` and reach review. It
+  # was not a hypothetical: every one of the nine attempts that reached review_planned in
+  # the property suite got there through this, which is what the @known_unreached ratchet
+  # was resting on.
+  @terminal_check_statuses ~w(passed failed timed_out)
+
+  defp require_check_unsettled(ticket, check_id) do
+    if active_attempt(ticket)["checks"][check_id]["status"] in @terminal_check_statuses,
+      do: {:error, :check_already_settled},
+      else: :ok
+  end
+
+  defp failed_check?(attempt),
+    do:
+      Elixir.Enum.any?(attempt["checks"] || %{}, fn {_id, check} ->
+        check["status"] in ~w(failed timed_out)
+      end)
+
+  defp require_no_candidate(attempt),
+    do: if(is_nil(attempt["candidate_id"]), do: :ok, else: {:error, :candidate_frozen})
+
+  # R4: "sealed stream has no valid candidate" — the seal is what makes "no valid candidate"
+  # a fact rather than an absence, since "unknown stream completeness blocks reconciliation;
+  # it is not a failed attempt".
+  defp require_developer_stream_sealed(attempt) do
+    sealed? =
+      Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
+        execution["role"] == "developer" and is_integer(execution["sealed_sequence"])
+      end)
+
+    if sealed?, do: :ok, else: {:error, :stream_not_sealed}
+  end
 
   defp require_resume_target(ticket),
     do:
@@ -1061,8 +1366,17 @@ defmodule PramanaFoundry.Workflow.Kernel do
         else: {:error, :no_stored_resume_phase}
       )
 
+  # R4: "blocked; explicit resume ... | return to stored resume_phase". A resume target is
+  # a phase the ticket can be returned *to*, so `blocked` itself and the terminal phases
+  # are not candidates. Accepting `blocked` produced a ticket blocked with no reason and no
+  # resume target, from which resume failed forever — and the prober proposed exactly that,
+  # because it derived the target from the ticket's current phase rather than from R4. Both
+  # sides agreeing on an illegal state is the circularity the design forbids.
+  @resume_phases ~w(queued developing awaiting_review reviewing ready_to_integrate
+                    integrating)
+
   defp require_resume_phase(phase),
-    do: if(phase in State.ticket_phases(), do: :ok, else: {:error, :invalid_resume_phase})
+    do: if(phase in @resume_phases, do: :ok, else: {:error, :invalid_resume_phase})
 
   # Closure is terminal for an execution. Refusing only a `closed` *target* was not
   # enough: an observation could reopen an execution that developer_closed or
@@ -1070,8 +1384,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # left R4's integration row unsatisfiable, since "prior role/check workers closed" could
   # be falsified after the fact. Found by a seeded reachability walk, which kept arriving
   # at `integrating` with a developer and reviewer execution back in `running`.
-  defp require_not_closed(ticket, execution_id) do
-    if active_attempt(ticket)["executions"][execution_id]["lifecycle"] == "closed",
+  defp require_not_closed(ticket, attempt_id, execution_id) do
+    if attempt(ticket, attempt_id)["executions"][execution_id]["lifecycle"] == "closed",
       do: {:error, :execution_already_closed},
       else: :ok
   end
@@ -1092,6 +1406,11 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   defp require_verdict(verdict),
     do: if(verdict in State.verdicts(), do: :ok, else: {:error, :invalid_verdict})
+
+  # R4's row is "valid blocked/partial result", which are two of the five sealed result
+  # values; the other three are produced by their own rows.
+  defp require_blocked_result(result),
+    do: if(result in ~w(blocked partial), do: :ok, else: {:error, :invalid_blocked_result})
 
   defp require_disposition(disposition),
     do: if(disposition in State.dispositions(), do: :ok, else: {:error, :invalid_disposition})

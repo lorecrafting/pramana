@@ -44,11 +44,29 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
       end
     end
 
-    test "sequence and entity revision increase monotonically", %{walks: walks} do
-      for walk <- walks do
-        sequences = Enum.map(walk.accepted, & &1["sequence"])
-        assert sequences == Enum.sort(sequences)
-        assert length(Enum.uniq(sequences)) == length(sequences)
+    # Asserting that the walker's accepted log is ordered tested the walker's counter, not
+    # the kernel - the walker assigns those sequences itself, so the property could not
+    # fail. What the kernel actually owes is that it *refuses* a non-increasing sequence
+    # and a stale entity revision, from a state a walk really reached.
+    test "the kernel refuses a stale sequence or entity revision", %{walks: walks} do
+      for walk <- Enum.take(walks, 10), walk.accepted != [] do
+        state = walk.state
+        last = List.last(walk.accepted)
+
+        stale_sequence = %{last | "sequence" => state["last_sequence"], "event_id" => "replayed"}
+
+        assert {:error, :out_of_order_event} = WorkflowKernel.apply(state, stale_sequence),
+               "the kernel accepted a sequence it had already passed"
+
+        stale_revision = %{
+          last
+          | "sequence" => state["last_sequence"] + 1,
+            "event_id" => "revised",
+            "entity_revision" => 0
+        }
+
+        assert {:error, _} = WorkflowKernel.apply(state, stale_revision),
+               "the kernel accepted an entity revision it had already passed"
       end
     end
 
@@ -118,6 +136,69 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
       end
     end
 
+    # R4a: "Restart after settlement but before redispatch therefore reconstructs exactly
+    # one queued/review/blocked owner and no live execution." The round-trip property above
+    # proves the state survives serialisation; it says nothing about this, which is the
+    # sentence it cited. Stated separately so each can fail for its own reason.
+    test "after a non-start settlement the owner is queued with no live execution", %{
+      all: walks
+    } do
+      settlements = ~w(launch_settled review_settled check_settled integration_settled
+                       build_settled)
+
+      checked =
+        for walk <- walks, reduce: 0 do
+          count ->
+            walk.accepted
+            |> Enum.reduce({State.new(), count}, fn event, {state, count} ->
+              {:ok, next} = WorkflowKernel.apply(state, event)
+
+              if event["type"] in settlements do
+                ticket = next["tickets"][event["payload"]["ticket_id"]]
+                attempt = ticket["attempts"][event["payload"]["attempt_id"]]
+                execution = attempt["executions"][event["payload"]["execution_id"]]
+
+                assert execution["lifecycle"] == "closed",
+                       "#{event["type"]} left its execution #{execution["lifecycle"]}"
+
+                assert ticket["phase"] not in ~w(integrated rejected cancelled),
+                       "#{event["type"]} left the ticket terminal at #{ticket["phase"]}"
+
+                assert is_nil(ticket["active_attempt_id"]) or
+                         ticket["attempts"][ticket["active_attempt_id"]]["phase"] != "terminal",
+                       "#{event["type"]} left a terminal attempt active"
+
+                {next, count + 1}
+              else
+                {next, count}
+              end
+            end)
+            |> elem(1)
+        end
+
+      assert checked > 0, "no walk ever settled a non-start, so this proved nothing"
+    end
+
+    # R4a sets launch_non_start_limit "per role and work owner". One counter per ticket
+    # meant a reviewer non-start spent the developer's allowance, and decide/3 could not
+    # evaluate "below the limit" for any single role.
+    test "each role consumes only its own infrastructure allowance", %{all: walks} do
+      by_role =
+        for walk <- walks, {_id, ticket} <- walk.state["tickets"], reduce: %{} do
+          acc ->
+            Enum.reduce(ticket["infrastructure"]["ordinals"], acc, fn {role, n}, acc ->
+              Map.update(acc, role, n, &(&1 + n))
+            end)
+        end
+
+      assert map_size(by_role) == length(State.ticket_roles())
+
+      consumed = by_role |> Map.values() |> Enum.count(&(&1 > 0))
+
+      assert consumed > 1,
+             "only one role ever consumed an ordinal, so per-role accounting is untested"
+    end
+
     test "redelivering any accepted event is an idempotent no-op at its own point", %{
       walks: walks
     } do
@@ -155,13 +236,18 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
   end
 
   describe "contract reachability" do
-    # Rows no walk has yet driven to. This is NOT a claim that the kernel cannot reach
-    # them: `review_recorded:approved` followed by `reviewer_closed` fires about once
-    # across every walk in this suite, and all three integration rows sit behind that one
-    # sequence. It is recorded as an exact set so the assertion works as a ratchet - a row
-    # leaving the reachable set fails, and so does a row entering it, which forces this
-    # list to be tightened rather than silently drifting.
-    @known_unreached ~w(integration_planned integration_recorded integration_settled)
+    # Every declared type is now reachable. The previous entry here recorded the three
+    # integration rows as unreached and justified it as a depth limit behind a single
+    # `review_recorded:approved` -> `reviewer_closed` sequence. Independent review measured
+    # that sequence firing *zero* times, not once: the walks died on unguarded dispositions
+    # and could not admit a successor ticket, and the review rows the ratchet counted as
+    # reached were reached only because a failed check could be relabelled `passed`. The
+    # ratchet was not hiding a defect so much as standing on one.
+    #
+    # The lesson is recorded rather than smoothed over: an empty list here is only
+    # meaningful because the prober admits successors and proposes every variant R4 names.
+    # A claim about coverage is worth nothing until it is executed.
+    @known_unreached []
 
     test "every event type the vocabulary declares is reachable by some walk", %{all: walks} do
       # This is the assertion whose absence let a codec that could not express two R4a
@@ -179,6 +265,34 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
       assert unreachable == @known_unreached,
              "reachable set moved. now unreached: #{inspect(unreachable)}, " <>
                "recorded: #{inspect(@known_unreached)}"
+    end
+
+    # R4's rows are variants - approved versus rejected verdict, nine dispositions, four
+    # execution lifecycles - so a type-level ratchet marks a row covered the moment any one
+    # of its variants fires. Two confirmed blockers lived exactly in that gap: the
+    # after_integration branch of R4's cancel row, and the `unknown` execution lifecycle
+    # that require_workers_closed wrongly counted as closed. Neither was ever proposed, and
+    # the type-level assertion above was green throughout.
+    # One entry, and unlike its predecessor its justification is proved rather than
+    # asserted: `kernel_test.exs` drives R4's second cancel branch end to end in sixteen
+    # events, so the row is satisfiable and this records only that the seeded ordering does
+    # not happen to find it. It needs the cancel requested inside the narrow window while
+    # the ticket is `integrating`. Any other variant joining this list is a defect until a
+    # hand-built R4-legal sequence says otherwise - that is the standard the previous
+    # ratchet failed, having claimed a depth limit that independent review measured false.
+    @known_unreached_variants ~w(cancellation_finalized:after_integration)
+
+    test "every variant the contract distinguishes is reachable by some walk", %{all: walks} do
+      reached =
+        walks
+        |> Enum.flat_map(fn walk -> Enum.map(walk.accepted, &KernelWalk.label/1) end)
+        |> MapSet.new()
+
+      unreachable =
+        KernelWalk.variants() |> MapSet.new() |> MapSet.difference(reached) |> Enum.sort()
+
+      assert unreachable == @known_unreached_variants,
+             "variant reachability moved. now unreached: #{inspect(Enum.sort(unreachable))}"
     end
 
     test "walks reach the deep lifecycle phases, not just admission", %{all: walks} do
@@ -202,8 +316,11 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
         assert phase in phases, "no walk ever reached ticket phase #{phase}"
       end
 
-      # Behind the same single sequence as @known_unreached.
-      refute "integrated" in phases
+      # This was `refute "integrated" in phases` - a negative assertion that recorded the
+      # walks' inability to reach the row and then entrenched it, so the row becoming
+      # reachable would have failed the suite. It is now the assertion it should always
+      # have been.
+      assert "integrated" in phases
     end
   end
 end
