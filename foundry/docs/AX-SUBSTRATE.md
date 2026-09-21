@@ -281,7 +281,36 @@ end-to-end current implementation populating the usage/approval status fields.
 Foundry must test behavior, not trust schema presence. A declared field that is not enforced
 is unavailable capability, not partial success.
 
-### 6. AX/Agent Substrate are high-churn dependencies
+### 6. Credential materialization needs a stricter Foundry path
+
+The inspected AX reconciler resolves `GEMINI_API_KEY` from a Kubernetes secret and adds
+the resulting value to the environment used to construct the task's Substrate
+ActorTemplate. That is workable for AX's current bootstrap path, but a governed Foundry
+execution should not assume that copying a long-lived provider secret into template
+environment state satisfies credential custody.
+
+Prefer scoped/short-lived credentials or a brokered route whose grant, generation and
+revocation remain attributable to the Foundry execution. A backend adapter must prove that
+unrelated bootstrap, debug and extension processes cannot read a credential merely because
+they share the actor.
+
+### 7. Failed reconciliation and queue recovery need explicit proof
+
+The inspected AX controller acknowledges each Redis task event after processing even when
+`processEvent` returns an error, intentionally preventing a bad task from wedging the
+queue. That means Foundry must not infer a durable retry merely from AX's queue use.
+
+The Redis subscription uses `XREADGROUP` for new entries and leaves unacknowledged entries
+pending when a consumer disappears. At the inspected revision, the subscription code does
+not itself show pending-entry reclaim logic such as an explicit claim/autoclaim path.
+The comments say abandoned entries remain claimable; a Foundry integration must prove the
+actual controller-death/recovery behavior rather than relying on that comment.
+
+Backend reconciliation therefore needs a Foundry-visible distinction between known
+terminal infrastructure failure, retryable non-start, unknown execution state and
+successfully reconciled execution. Retry policy stays above AX.
+
+### 8. AX/Agent Substrate are high-churn dependencies
 
 AX still identifies its API as `v1alpha1` and warns that core concepts/protocols may break
 before a stable release. Agent Substrate is also evolving rapidly, including current work
@@ -402,7 +431,12 @@ In addition to the general `ExecutionBackend` cases in
 12. no provider/model/tool credential is available outside its grant;
 13. AX/Redis/controller restart does not duplicate an unsafe Foundry effect;
 14. Substrate actor migration preserves correlation but does not change authority identity;
-15. upstream version change fails a pinned compatibility test until reviewed.
+15. upstream version change fails a pinned compatibility test until reviewed;
+16. provider credentials are not persisted or exposed beyond the admitted principal/tool
+    boundary merely because an ActorTemplate carries environment state;
+17. controller death with an unacknowledged Redis event is recovered or reconciled without
+    silently losing work, while reconciliation errors cannot trigger unbounded or duplicate
+    execution.
 
 The experiment should include fault injection, not only a happy-path demo.
 
