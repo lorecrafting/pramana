@@ -186,6 +186,32 @@ Every review briefing must therefore:
   Otherwise supply the result and seed. Concurrent full-suite runs additionally produce
   spurious physical-fault failures, so a redundant one is worse than merely expensive.
 
+**Review after each load-bearing design; batch the mechanical work.** Recorded 2026-09-20
+when FR-08B's five subcommits would otherwise have taken five to eight independent reviews
+at roughly 200,000 tokens each. Batch review is already this plan's default, and the
+question is where the batch boundaries fall. They fall after each point where a *wrong
+abstraction could propagate*, not after each code chunk:
+
+- A subcommit that decides a shape everything later depends on gets its own review. FR-08B
+  subcommits 1 and 2 qualify: 1 fixes the state shape and the guards, 2 carries B3 and the
+  R4a control/allocation product.
+- Subcommits doing the same shape of work against an already-frozen contract batch into
+  one. FR-08B's roles and workers (3 and 4) qualify, as do subcommit 5's four ingress
+  splits, which are a migration onto a kernel already proved.
+- The batch freeze review still happens, and still walks the contract rows.
+
+The evidence for drawing it here rather than one grand review: FR-08B subcommit 1 failed
+independent review **twice**, and both times on foundational defects — executions addressed
+through the active-attempt pointer, an infrastructure ordinal shaped wrong for R4a,
+terminal states reachable without their lifecycle. Under a single end-of-ticket review
+those would have been found with three subcommits built on top of them, and the
+execution-addressing correction alone touches every closure path that subcommit 4's check,
+build and integration workers add. Review quality also falls with diff size, and the defect
+this repair keeps hitting is the one a reviewer misses.
+
+Batching harder remains available and is a judgement call, not a rule violation. Its cost
+is stated above so it is chosen rather than drifted into.
+
 **Escalate a narrow re-review to a full one when** the correction touches a different
 file or invariant family than the reported defect, or when a previous correction for that
 same defect already failed review. Both conditions were met on 2026-09-20: one correction
