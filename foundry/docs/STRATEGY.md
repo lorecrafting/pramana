@@ -1,6 +1,6 @@
 # Foundry strategy brief
 
-**Date:** 2026-09-19. **Updated:** 2026-09-21 for AX/Agent Substrate positioning. **Type:** investment direction and design guidance, not an
+**Date:** 2026-09-19. **Updated:** 2026-09-21 for execution/capability substrate positioning. **Type:** investment direction and design guidance, not an
 implementation inventory or authorization to execute. Records the operator's
 Foundry-first investment direction, the model-directed-work vision and the lessons from
 FirstMate, Pi, OMP and no-mistakes. External capabilities below are source observations
@@ -9,7 +9,7 @@ operator's machine.
 
 [Documentation index](README.md) · [Repair plan](REPAIR-PLAN.md) ·
 [Workflow contract](WORKFLOW-CONTRACT.md) · [Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) ·
-[AX/Substrate backend](AX-SUBSTRATE.md) ·
+[AX/Substrate backend](AX-SUBSTRATE.md) · [Cloudflare OS lessons](CLOUDFLARE-OS.md) ·
 [Broader product strategy](../../docs/strategy/FOUNDRY.md)
 
 ## Working summary
@@ -44,13 +44,17 @@ effort per independently accepted outcome, including preparation, review, recove
 Foundry maintenance. Safety without useful completion and apparent productivity without
 valid evidence are both failures.
 
-The 2026-09-21 [AX + Agent Substrate review](AX-SUBSTRATE.md) makes this concrete:
-evaluate Google AX as a preferred future distributed `ExecutionBackend` over Agent
-Substrate, while keeping a direct Substrate adapter only as a demonstrated-need escape
-hatch. AX/Substrate may own workload reconciliation, actor scheduling, sandboxing,
-snapshotting and routing; they may not mint Foundry completion, budgets, grants, evidence
-binding or acceptance. Their current alpha/high-churn state and observed fail-open or
-incomplete semantics require a pinned conformance experiment before adoption.
+The 2026-09-21 [AX + Agent Substrate review](AX-SUBSTRATE.md) and
+[Cloudflare OS review](CLOUDFLARE-OS.md) make the composition rule concrete on two
+independent axes. `ExecutionBackend` should decide where/how admitted code runs; a
+Gatekeeper-like `ResourceAdapter` or capability broker should mediate narrowly scoped
+external resources without handing ambient credentials to the agent. AX/Substrate is the
+stronger first distributed heavy-execution candidate; Cloudflare Dynamic Workers/Sandbox
+are alternate execution candidates by workload class, while Cloudflare's Gatekeeper,
+authority-fence, unknown-effect and observation-provenance mechanisms are stronger design
+pressure for the resource/effect boundary. None may mint Foundry completion, budgets,
+grants, evidence binding or acceptance. Every candidate remains pinned behind hostile
+conformance before adoption.
 
 ## Authority and document ownership
 
