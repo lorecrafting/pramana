@@ -916,18 +916,21 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
         # R4: "or blocked(integration_failure)". Carried on the row's own event, the way
         # freeze_failed carries its blocked alternative, rather than borrowing the PM park.
-        # The attempt moves with the ticket. `integration_settled` above sets both to
-        # `ready_to_integrate` in one pipe; this branch set only the ticket, so the block
-        # stranded the attempt at `integrating` — invisible while blocked, because `blocked`
-        # has no legal attempt phase, and a violation the moment `ticket_unblocked` honours
-        # the resume target this line promises.
+        # The resume target is this row's own "Same phase ... after old issuer termination",
+        # not `ready_to_integrate`. It stored `ready_to_integrate` while leaving the attempt
+        # at `integrating`, so `ticket_unblocked` produced a pair `@legal_pairs` calls a
+        # violation. Moving the attempt instead would have matched the pair and broken
+        # something worse: `require_settlement_source`'s `superseded_base` branch tests
+        # issuance only while the attempt is `integrating`, on the premise that from
+        # `ready_to_integrate` no integration effect exists yet, and an attempt parked there
+        # holding a running integration execution falsifies it. The block does not un-issue
+        # the effect, so neither side of the pair should pretend it does.
         "infrastructure_failed" ->
           {:ok,
            ticket
            |> Map.put("phase", "blocked")
            |> Map.put("reason", "integration_failure")
-           |> Map.put("resume_phase", "ready_to_integrate")
-           |> update_active_attempt(&Map.put(&1, "phase", "ready_to_integrate"))}
+           |> Map.put("resume_phase", "integrating")}
 
         _ ->
           {:error, :invalid_integration_outcome}

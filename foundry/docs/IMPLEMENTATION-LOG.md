@@ -2610,7 +2610,13 @@ what was being asserted unchecked as it does about the tools.
   seven; subcommit 2 is `decide/3`, a different surface, and shipping it on a kernel holding a
   recorded reachable violation makes its reviewer reason around one. One review of a two-file
   delta is the cheapest of the three.
-- **The enumeration was grepped, not asserted.** Six sites write `phase => "blocked"`.
+- **The enumeration was grepped, and the grep matched one spelling.** Six sites write
+  `phase => "blocked"` literally; the sixth review found a seventh writer the pattern cannot
+  see — `ticket_admitted` (:268) writes `"phase" => payload["phase"]`, which is `"blocked"` on
+  the blocked-admission path. Safe, because no attempt exists at admission, so the singleton
+  conclusion survives; but "grepped, not asserted" was itself resting on a regex inventory,
+  which is the known gap `EVIDENCE-TOOLS.md` already records for `declared_reasons/0`. The
+  six literal writers:
   `ticket_parked` (:307) and `ticket_blocked` (:327) route through
   `require_honest_resume_target`, whose target is the ticket's own current phase, so the
   attempt is untouched and the pair is preserved. `artifact_blocked` (:487) and
@@ -2648,6 +2654,57 @@ what was being asserted unchecked as it does about the tools.
 - Workflow suites **177 at seed 0**, from 176: one test added, no ratchet shifted. Gate on
   `4fa3bc96`: **passes**, **912 passed / 13 skipped / 1 excluded**, suite **298.3s**,
   provenance `result: passed`, `exit_code: 0`, `dirty_paths: []`. The count was predicted
-  exactly before the run (911 + 1). The duration was predicted as 285–295s and came in at
+  exactly before the run (911 + 1) — though the artifact records only an `output_sha256` for
+  the test command, not pass/skip/exclude counts, so 912/13/1 is transcribed from the terminal
+  and was independently reproduced by the sixth review at 912/13/1 in a clean worktree. The duration was predicted as 285–295s and came in at
   298.3s, outside the stated range — recorded rather than widened after the fact, since a
   prediction adjusted to its own result measures nothing.
+
+## FR-08B kernel — sixth review blocked the fix, and the fix was mine — 2026-09-21
+
+- `4fa3bc96` was reviewed independently, scoped to that delta, in a detached worktree at that
+  commit. **BLOCK**, and the lead finding is a regression the candidate introduced. Verified
+  here before acting, per the standing rule, by driving the sequence rather than reading it.
+- **The fix made one oracle happy and broke a contract-backed refusal.**
+  `require_settlement_source`'s `superseded_base` branch (:1565-1575) tests issuance only when
+  `attempt["phase"] == "integrating"`, on the premise its own comment states: "From
+  `ready_to_integrate` no integration effect exists yet, so the clause is satisfied by the
+  phase." Moving the attempt to `ready_to_integrate` while it holds a running integration
+  execution falsifies that premise, and R4's "accepted base moved **before issuance**" row
+  then accepts a settlement made after issuance.
+- **Nothing in the evidence architecture could have caught it.** `State.valid?/1` accepts the
+  post-settle state, `SemanticInvariants` accepts it, no sweep site moved, and
+  `:integration_already_issued` sits in guard reachability's `@unreachable` — so the ratchet
+  had no witness to lose. "Shifts no ratchet" was true and meant nothing. Four green gates and
+  a passing regression test would have shipped it.
+- **The wrong field was `resume_phase`, not the attempt phase.** R4's row is "integrating;
+  proved no ref change, command infrastructure failed → **Same phase** with bounded
+  integration-effect retry after old issuer termination; or blocked(integration_failure)". The
+  branch stored `ready_to_integrate`. Storing `integrating` — a permitted `@resume_phases`
+  value — restores the coupled pair on unblock, leaves the attempt where it is, and keeps the
+  issuance guard live. One word, and strictly smaller than the change it replaces.
+- **The obvious alternative is a trap, recorded so it is not rediscovered.** Making
+  `integration_issued?` phase-independent looks like the root-cause fix — delete the premise,
+  keep the real test. It is wrong: `integration_settled` is the *non-start* settlement and
+  closes the integration execution, so a legitimately `ready_to_integrate` attempt holds an
+  execution with lifecycle `closed`, which `integration_issued?` reads as issued. That fix
+  would refuse `superseded_base` on a path that has always accepted it.
+- **The regression control was oracle-dependent.** The review showed that deleting one line
+  from `@legal_pairs` — `"ready_to_integrate" => ~w(ready_to_integrate)` — turned the new test
+  green with the defect present, and nothing else in the suite pins that pair. The test now
+  asserts the attempt phase directly as well as through the oracle. Asserting only the relation
+  was argued in the previous entry as a strength; it was a single point of failure.
+- Two tests now pin `:integration_already_issued` by exact atom, from the blocked window and
+  after unblock (rule 5). Rule 6, run and reversed by exact string: restoring
+  `ready_to_integrate` as the target turns **three** tests red, including the review-4 witness
+  for this row, which had asserted the old target.
+- Doc corrections the review forced: the "six sites write `phase => \"blocked\"`" enumeration
+  missed `ticket_admitted` (:268), which writes `payload["phase"]` — safe, no attempt exists at
+  admission, but the grep matched one spelling, which is the gap already recorded for
+  `declared_reasons/0`. The provenance artifact records `output_sha256` for the test command,
+  not pass/skip/exclude counts, so 912/13/1 was transcribed from the terminal; the review
+  reproduced it independently at 912/13/1. A comment in `kernel_test.exs` still described the
+  branch as defective and is corrected.
+- The pattern the previous entry named held again, one level up: the kernel defect was real,
+  and so was the defect in the fix for it — but only the review found the second, because every
+  mechanism was silent on both.

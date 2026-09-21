@@ -1867,7 +1867,12 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       # retry, from reading the comment above the branch rather than the branch.
       assert ticket["phase"] == "blocked"
       assert ticket["reason"] == "integration_failure"
-      assert ticket["resume_phase"] == "ready_to_integrate"
+
+      # R4's row is "Same phase ... after old issuer termination; or blocked(...)", so the
+      # target is `integrating`. It stored `ready_to_integrate` while leaving the attempt
+      # `integrating`, which `ticket_unblocked` turned into a `@legal_pairs` violation.
+      assert ticket["resume_phase"] == "integrating"
+      assert attempt["phase"] == "integrating", "the block does not advance the attempt"
       assert is_nil(attempt["ref_receipt_id"]), "R4: no Git success inferred"
     end
   end
@@ -1911,21 +1916,88 @@ defmodule PramanaFoundry.Workflow.KernelTest do
         ])
 
       assert state["tickets"]["T1"]["phase"] == "blocked"
-      assert state["tickets"]["T1"]["resume_phase"] == "ready_to_integrate"
+
+      assert state["tickets"]["T1"]["resume_phase"] == "integrating",
+             "R4's row for this outcome is Same phase after old issuer termination"
 
       assert SemanticInvariants.violations(state) == [],
              "blocked is not a @legal_pairs key, so a stranded attempt is invisible here"
 
       {state, _sequence} =
         drive({state, sequence}, [
-          {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "ready_to_integrate"}}
+          {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "integrating"}}
         ])
+
+      ticket = state["tickets"]["T1"]
 
       assert State.valid?(state),
              "nothing is malformed, which is why the shape validator never caught this"
 
+      # Pinned directly as well as through the oracle. Asserting only the oracle made this
+      # control depend on one line of `@legal_pairs`: deleting that key turned the test green
+      # with the defect present, and nothing else in the suite pins the pair.
+      assert get_in(ticket, ["attempts", ticket["active_attempt_id"], "phase"]) == "integrating"
+
       assert SemanticInvariants.violations(state) == [],
-             "the resume target promised ready_to_integrate and the attempt did not follow"
+             "ticket and attempt must agree wherever the resume target lands"
+    end
+
+    # The first fix for the row above moved the ATTEMPT to `ready_to_integrate` and left the
+    # resume target alone. That satisfied `@legal_pairs` and broke a contract-backed refusal:
+    # `require_settlement_source`'s `superseded_base` branch tests issuance only while the
+    # attempt is `integrating`, on the stated premise that "from ready_to_integrate no
+    # integration effect exists yet". An attempt parked at `ready_to_integrate` while holding
+    # a running integration execution falsifies that premise, and R4's
+    # "accepted base moved **before issuance**" row then accepts a settlement after issuance.
+    #
+    # Both oracles were silent on it: `State.valid?/1` and `SemanticInvariants` accept the
+    # post-settle state, and `:integration_already_issued` sits in the guard-reachability
+    # `@unreachable` list, so no ratchet had a witness to lose. Found by an independent
+    # review, which is the argument for this test existing rather than the invariant alone.
+    test "a running integration effect still refuses a superseded_base settlement" do
+      {blocked, sequence} =
+        drive(approved_and_closed(), [
+          {"execution_observed", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "I1",
+             "observation" => "running",
+             "lifecycle" => "running"
+           }},
+          {"integration_recorded", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "I1",
+             "outcome" => "infrastructure_failed",
+             "ref_receipt_id" => nil
+           }}
+        ])
+
+      supersede = fn state, sequence ->
+        WorkflowKernel.apply(
+          state,
+          event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+            "ticket_id" => "T1",
+            "attempt_id" => "A1",
+            "disposition" => "superseded_base",
+            "reason_code" => nil,
+            "settlement" => %{"schema_version" => 1}
+          })
+        )
+      end
+
+      assert {:error, :integration_already_issued} = supersede.(blocked, sequence),
+             "the effect was issued and is running; the block does not un-issue it"
+
+      {resumed, sequence} =
+        drive({blocked, sequence}, [
+          {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "integrating"}}
+        ])
+
+      assert {:error, :integration_already_issued} = supersede.(resumed, sequence),
+             "resuming must not launder an issued effect into a settleable one"
     end
   end
 
@@ -2308,12 +2380,14 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # proposes `ticket_blocked` and `ticket_unblocked`, so the blocked window lies inside the
     # seeded run above, and none of its 20,488 receipt-holders violated.
     #
-    # "Cleared together" is not universally true either. `integration_recorded`'s
+    # "Cleared together" holds for this invariant either way. `integration_recorded`'s
     # `infrastructure_failed` branch moves the ticket to `blocked` and leaves the attempt at
     # `integrating`. It cannot carry a receipt - that branch runs under
-    # `require_no_ref_receipt` and writes none - so it is inert for THIS invariant. It is not
-    # inert in general: it produces a reachable `@legal_pairs` violation, recorded in the
-    # implementation log for 2026-09-21 as a kernel defect rather than an evidence one.
+    # `require_no_ref_receipt` and writes none - so it is inert for THIS invariant. It used
+    # to produce a reachable `@legal_pairs` violation by storing `ready_to_integrate` as the
+    # resume target while leaving the attempt `integrating`; the target is now `integrating`,
+    # which is what R4's row for that outcome says, so block-then-unblock restores the
+    # coupled pair rather than a mismatched one.
     #
     # The seeded run seeds from a state that already holds the receipt, so it measures
     # preservation and not establishment - it could not have caught any of this.
