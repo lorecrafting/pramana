@@ -90,6 +90,13 @@ Those facts belong to Foundry. Planning and orchestration strategy do not.
 The current workflow kernel remains a valid default orchestrator/controller. The protected
 semantics must not require that one implementation forever.
 
+One product may implement more than one replaceable seam, but the responsibilities remain
+separate for authority and conformance. For example, Cloudflare OS may be a controller
+while Dynamic Workers/Sandbox implement ExecutionBackend and Gatekeepers implement
+ResourceAdapter. AX may act as controller while AX/Substrate also implements execution.
+Using one vendor for several seams must not let controller state bypass the protected
+boundary between them.
+
 ## Two paths: authority and observation
 
 An orchestrator integration has two deliberately different paths.
@@ -138,7 +145,10 @@ Foundry determines whether that proposal is a legal authoritative transition.
 ### Observation path
 
 The observation path is high-volume, asynchronous where possible and non-authoritative. It
-captures what the orchestrator, harness, model, tools and runtime actually did.
+captures what the orchestrator, harness, model, tools and runtime actually did. Losing an
+observation must never create authority or false success, but required local
+retention/quality rules still matter for diagnosis, cost accounting and self-improvement;
+"non-authoritative" does not mean "disposable".
 
 Examples:
 
@@ -175,7 +185,10 @@ Keep three classes distinct even when they share correlation IDs.
 | **Telemetry** | tokens, latency, tool events, traces, controller wakes, process metrics | never authoritative by itself |
 
 The observation pipeline may retain or reference evidence artifacts, but it must not
-silently reinterpret telemetry as a protected receipt.
+silently reinterpret telemetry as a protected receipt. A raw artifact or controller event
+can arrive through the observation transport; it becomes Foundry evidence only after the
+applicable protected binding/validation records what exact candidate, execution and policy
+it supports.
 
 ## Machine protocol, not CLI coupling
 
@@ -340,6 +353,27 @@ expiry/revocation generation
 ~~~
 
 The controller may narrow the grant further. It cannot enlarge it.
+
+## Internal subagents versus durable handoffs
+
+Not every child agent, tool call or parallel helper requires a new Foundry assignment.
+
+A controller may spawn internal helpers **inside one admitted execution** when the parent
+retains durable responsibility and every helper stays inside the same effective capability,
+budget, isolation and evidence ceiling. Their activity is execution/observation state.
+
+A new Foundry assignment is required when the workflow creates a new durable responsibility
+or authority boundary, for example:
+
+- capability or writable/readable scope differs materially;
+- a new budget/reservation owner is needed;
+- reviewer/checker independence must be established;
+- the child may produce a separately accepted candidate or consequential effect;
+- responsibility survives or transfers beyond the parent execution;
+- the work is an escalation that the parent's grant cannot cover.
+
+This preserves cheap subagent-as-tool patterns without letting a controller manufacture
+independence or broaden authority merely by spawning another model/session.
 
 ## Resource authority
 
