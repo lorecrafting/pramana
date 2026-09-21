@@ -1,0 +1,196 @@
+# Raw output of bin/guard_mutation_sweep.exs, 2026-09-21. Unedited.
+# Committed so that fr08b-subcommit1-sweep-2026-09-21.md can be checked against its source.
+
+=== run 1: full sweep, all sites ===
+# TMPDIR=/private/tmp elixir bin/guard_mutation_sweep.exs
+guard call sites: 116
+preparing 4 workers
+  sweep-w3 require_check(ticket, payload["check_id"]) :694 — caught
+  sweep-w2 require_active_attempt(ticket, event["payload"]["attempt_id"]) : — caught
+  sweep-w4 require_no_ref_receipt(ticket) :868 — caught
+  sweep-w3 require_check_status(payload["status"]) :695 — caught
+  sweep-w1 require_phase(ticket, ~w(queued blocked)) :289 — survived
+  sweep-w3 require_check_unsettled(ticket, payload["check_id"]) :696 — caught
+  sweep-w1 require_no_active_attempt(ticket) :290 — caught
+  sweep-w2 require_attempt_phase(ticket, ~w(active)) :500 — survived
+  sweep-w3 require_phase(ticket, ~w(awaiting_review)) :711 — caught
+  sweep-w4 require_phase(ticket, ~w(integrating)) :890 — caught
+  sweep-w2 require_phase(ticket, ~w(developing reviewing)) :536 — caught
+  sweep-w3 require_active_attempt(ticket, payload["attempt_id"]) :712 — caught
+  sweep-w4 require_active_attempt(ticket, payload["attempt_id"]) :891 — caught
+  sweep-w2 require_active_attempt(ticket, payload["attempt_id"]) :537 — caught
+  sweep-w4 require_no_ref_receipt(ticket) :892 — caught
+  sweep-w3 require_attempt_phase(ticket, ~w(awaiting_review)) :713 — caught
+  sweep-w1 require_phase(ticket, ~w(queued blocked)) :302 — survived
+  sweep-w4 require_execution(ticket, payload["attempt_id"], payload["execut — caught
+  sweep-w2 require_open_submission_stream(ticket) :538 — caught
+  sweep-w1 require_resume_phase(payload["resume_phase"]) :303 — caught
+  sweep-w4 require_workers_closed(ticket) :894 — caught
+  sweep-w2 require_attempt(ticket, payload["attempt_id"]) :550 — caught
+  sweep-w1 require_honest_resume_target(ticket, payload["resume_phase"]) :3 — caught
+  sweep-w2 require_execution(ticket, payload["attempt_id"], payload["execut — caught
+  sweep-w3 require_checks_passed(ticket) :714 — survived
+  sweep-w3 require_phase(ticket, ~w(reviewing)) :736 — caught
+  sweep-w4 require_active_attempt(ticket, payload["attempt_id"]) :938 — caught
+  sweep-w2 require_not_closed(ticket, payload["attempt_id"], payload["execu — caught
+  sweep-w3 require_active_attempt(ticket, payload["attempt_id"]) :737 — caught
+  sweep-w4 require_disposition(payload["disposition"]) :939 — caught
+  sweep-w2 require_open_lifecycle(payload["lifecycle"]) :553 — caught
+  sweep-w1 require_phase(ticket, @blockable_phases) :322 — caught
+  sweep-w3 require_reviewer_execution(ticket, payload["attempt_id"], payloa — caught
+  sweep-w4 require_receipt_for_integration(ticket, payload["disposition"])  — caught
+  sweep-w2 require_attempt(ticket, payload["attempt_id"]) :570 — caught
+  sweep-w1 require_resume_phase(payload["resume_phase"]) :323 — caught
+  sweep-w3 require_no_recorded_verdict(ticket) :745 — caught
+  sweep-w2 require_execution(ticket, payload["attempt_id"], payload["execut — caught
+  sweep-w1 require_honest_resume_target(ticket, payload["resume_phase"]) :3 — caught
+  sweep-w4 require_settlement_source(ticket, payload["disposition"]) :941 — caught
+  sweep-w1 require_phase(ticket, ~w(blocked)) :336 — caught
+  sweep-w4 require_boolean(payload["paused"]) :968 — caught
+  sweep-w2 require_unsealed(ticket, payload["attempt_id"], payload["executi — caught
+  sweep-w3 require_attempt_phase(ticket, ~w(reviewing)) :767 — caught
+  sweep-w4 require_boolean(payload["draining"]) :969 — caught
+  sweep-w2 require_attempt(ticket, payload["attempt_id"]) :595 — caught
+  sweep-w3 require_active_attempt(ticket, payload["attempt_id"]) :768 — caught
+  sweep-w4 require_stop_status(payload["stop_status"]) :970 — caught
+  sweep-w1 require_resume_target(ticket) :337 — survived
+  sweep-w2 require_execution(ticket, payload["attempt_id"], payload["execut — caught
+  sweep-w3 require_review_candidate(ticket, payload["candidate_id"]) :769 — caught
+  sweep-w4 require_control_fact(payload["control"]) :971 — caught
+  sweep-w1 require_phase(ticket, ~w(exhausted)) :364 — caught
+  sweep-w3 require_verdict(payload["verdict"]) :770 — caught
+  sweep-w2 require_sealed(ticket, payload["attempt_id"], payload["execution — caught
+  sweep-w4 require_active_attempt(ticket, event["payload"]["attempt_id"]) : — caught
+  sweep-w3 require_no_recorded_verdict(ticket) :771 — caught
+  sweep-w2 require_attempt(ticket, payload["attempt_id"]) :621 — caught
+  sweep-w4 require_active_attempt(ticket, event["payload"]["attempt_id"]) : — caught
+  sweep-w2 require_phase(ticket, ~w(awaiting_review)) :635 — caught
+  sweep-w4 require_execution(ticket, attempt_id, execution_id) :1137 — caught
+  sweep-w1 require_no_active_attempt(ticket) :365 — survived
+  sweep-w2 require_active_attempt(ticket, event["payload"]["attempt_id"]) : — caught
+  sweep-w4 require_execution_role(ticket, attempt_id, execution_id, roles)  — caught
+  sweep-w3 require_reviewer_open(ticket) :772 — survived
+  sweep-w2 require_attempt_phase(ticket, ~w(candidate_frozen)) :637 — caught
+  sweep-w3 require_reviewer_stream_sealed(ticket) :773 — caught
+  sweep-w2 require_developer_closed(ticket) :638 — caught
+  sweep-w4 require_not_closed(ticket, attempt_id, execution_id) :1139 — caught
+  sweep-w1 require_cancel_requested(ticket) :402 — caught
+  sweep-w3 require_attempt(ticket, attempt_id) :793 — caught
+  sweep-w2 require_boolean(event["payload"]["policy_empty"]) :639 — caught
+  sweep-w1 require_no_active_attempt(ticket) :403 — caught
+  sweep-w3 require_execution(ticket, attempt_id, payload["execution_id"]) : — caught
+  sweep-w4 require_attempt_phase(ticket, ~w(integrating)) :1557 — survived
+  sweep-w4 require_attempt_phase(ticket, ~w(ready_to_integrate integrating) — caught
+  sweep-w1 require_all_executions_closed(ticket) :404 — caught
+  sweep-w3 require_reviewer_execution(ticket, attempt_id, payload["executio — caught
+  sweep-w2 require_attempt_phase(ticket, ~w(checking)) :653 — caught
+  sweep-w1 require_phase(ticket, ~w(queued developing)) :427 — caught
+  sweep-w2 require_active_attempt(ticket, payload["attempt_id"]) :654 — caught
+  sweep-w1 require_no_open_developer(ticket) :428 — caught
+  sweep-w4 require_attempt_phase(ticket, ~w(reviewing)) :1574 — survived
+  sweep-w3 require_sealed(ticket, attempt_id, payload["execution_id"]) :796 — caught
+  sweep-w2 require_attempt_phase(ticket, ~w(checking)) :665 — caught
+  sweep-w4 require_attempt_phase(ticket, ~w(active)) :1585 — caught
+  sweep-w2 require_active_attempt(ticket, payload["attempt_id"]) :666 — caught
+  sweep-w1 require_cleanup_complete(ticket) :429 — caught
+  sweep-w3 require_attempt_phase(ticket, ~w(reviewing)) :818 — survived
+  sweep-w1 require_phase(ticket, ~w(developing)) :441 — caught
+  sweep-w4 require_no_candidate(attempt) :1586 — survived
+  sweep-w2 require_check(ticket, payload["check_id"]) :667 — caught
+  sweep-w1 require_active_attempt(ticket, payload["attempt_id"]) :442 — caught
+  sweep-w4 require_developer_stream_sealed(attempt) :1587 — caught
+  sweep-w2 require_check_unsettled(ticket, payload["check_id"]) :673 — caught
+  sweep-w1 require_phase(ticket, ~w(developing)) :459 — caught
+  sweep-w2 require_attempt_phase(ticket, ~w(checking)) :692 — caught
+  sweep-w1 require_active_attempt(ticket, payload["attempt_id"]) :460 — caught
+  sweep-w2 require_active_attempt(ticket, payload["attempt_id"]) :693 — caught
+  sweep-w3 require_phase(ticket, ~w(ready_to_integrate integrating)) :851 — caught
+  sweep-w4 require_attempt_phase(ticket, ~w(active)) :1595 — survived
+  sweep-w3 require_no_ref_receipt(ticket) :852 — caught
+  sweep-w4 require_developer_result(attempt, ~w(blocked partial)) :1596 — caught
+  sweep-w3 require_issuer_terminated(ticket) :853 — caught
+  sweep-w1 require_attempt_phase(ticket, ~w(active)) :461 — survived
+  sweep-w4 require_cancel_requested(ticket) :1600 — caught
+  sweep-w3 require_active_attempt(ticket, event["payload"]["attempt_id"]) : — caught
+  sweep-w1 require_running_developer(ticket) :462 — caught
+  sweep-w4 require_attempt_phase(ticket, ~w(active checking awaiting_review — caught
+  sweep-w3 require_phase(ticket, ~w(integrating)) :866 — caught
+  sweep-w1 require_phase(ticket, ~w(developing)) :481 — caught
+  sweep-w3 require_active_attempt(ticket, event["payload"]["attempt_id"]) : — caught
+  sweep-w1 require_active_attempt(ticket, payload["attempt_id"]) :482 — caught
+  sweep-w1 require_attempt_phase(ticket, ~w(active)) :483 — survived
+  sweep-w1 require_blocked_result(payload["result"]) :484 — caught
+  sweep-w1 require_phase(ticket, ~w(developing)) :498 — caught
+
+=== 14 call sites no test exercises ===
+  require_attempt_phase(ticket, ~w(active)) :500
+  require_attempt_phase(ticket, ~w(integrating)) :1557
+  require_attempt_phase(ticket, ~w(reviewing)) :1574
+  require_no_candidate(attempt) :1586
+  require_attempt_phase(ticket, ~w(active)) :1595
+  require_checks_passed(ticket) :714
+  require_reviewer_open(ticket) :772
+  require_attempt_phase(ticket, ~w(reviewing)) :818
+  require_phase(ticket, ~w(queued blocked)) :289
+  require_phase(ticket, ~w(queued blocked)) :302
+  require_resume_target(ticket) :337
+  require_no_active_attempt(ticket) :365
+  require_attempt_phase(ticket, ~w(active)) :461
+  require_attempt_phase(ticket, ~w(active)) :483
+
+=== the 9 distinct guards behind them ===
+  require_attempt_phase(ticket, ~w(active))
+  require_attempt_phase(ticket, ~w(integrating))
+  require_attempt_phase(ticket, ~w(reviewing))
+  require_no_candidate(attempt)
+  require_checks_passed(ticket)
+  require_reviewer_open(ticket)
+  require_phase(ticket, ~w(queued blocked))
+  require_resume_target(ticket)
+  require_no_active_attempt(ticket)
+
+elapsed: 5047s
+repository target unchanged: true
+
+=== run 2: SWEEP_SITES = require_phase(~w(queued blocked)), require_attempt_phase(~w(active)) ===
+listed sites: 7 occurrences of 2 guards, of 116 total
+preparing 4 workers
+  sweep-w1 require_phase(ticket, ~w(queued blocked)) :289 — caught
+  sweep-w1 require_phase(ticket, ~w(queued blocked)) :302 — caught
+  sweep-w3 require_attempt_phase(ticket, ~w(active)) :500 — survived
+  sweep-w4 require_attempt_phase(ticket, ~w(active)) :1595 — survived
+  sweep-w2 require_attempt_phase(ticket, ~w(active)) :461 — survived
+  sweep-w3 require_attempt_phase(ticket, ~w(active)) :1585 — caught
+  sweep-w2 require_attempt_phase(ticket, ~w(active)) :483 — survived
+
+=== 4 call sites no test exercises ===
+  require_attempt_phase(ticket, ~w(active)) :1595
+  require_attempt_phase(ticket, ~w(active)) :500
+  require_attempt_phase(ticket, ~w(active)) :461
+  require_attempt_phase(ticket, ~w(active)) :483
+
+=== the 1 distinct guards behind them ===
+  require_attempt_phase(ticket, ~w(active))
+
+elapsed: 422s
+repository target unchanged: true
+
+=== run 3: SWEEP_SITES = require_attempt_phase(~w(active)), after retargeting the blocked-branch row ===
+listed sites: 5 occurrences of 1 guards, of 116 total
+preparing 4 workers
+  sweep-w3 require_attempt_phase(ticket, ~w(active)) :1595 — caught
+  sweep-w2 require_attempt_phase(ticket, ~w(active)) :500 — survived
+  sweep-w1 require_attempt_phase(ticket, ~w(active)) :461 — survived
+  sweep-w2 require_attempt_phase(ticket, ~w(active)) :1585 — caught
+  sweep-w1 require_attempt_phase(ticket, ~w(active)) :483 — survived
+
+=== 3 call sites no test exercises ===
+  require_attempt_phase(ticket, ~w(active)) :500
+  require_attempt_phase(ticket, ~w(active)) :461
+  require_attempt_phase(ticket, ~w(active)) :483
+
+=== the 1 distinct guards behind them ===
+  require_attempt_phase(ticket, ~w(active))
+
+elapsed: 393s
+repository target unchanged: true

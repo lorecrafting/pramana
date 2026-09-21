@@ -2468,17 +2468,30 @@ what was being asserted unchecked as it does about the tools.
   precedent this repo set for exactly this shape — would have asserted them over 58,324 states
   none of which can trip them. That is the sixth vacuous mechanism, avoided by measuring the
   denominator *before* writing the check rather than after.
+  **Corrected by the fifth review, same day:** stopping at the label was the wrong exit — rule
+  3 says label *then* prove or delete — and `SemanticInvariants` was the wrong precedent to
+  name. The repo's precedent for a zero-witness claim is `kernel.ex`'s `reviewer_closed`
+  comment, which seeded the search rather than declining to assert. Seeded and measured at
+  depth 6: **29,109 states with 20,488 holding a ref receipt, 0 violating**, and **79,163 with
+  39,024 holding a rejected verdict, 0 violating**. With the inductive argument recorded
+  alongside, both sites are now *redundant given an invariant*, not unwitnessed.
 - The sweep's full verdict table and both neutralisation confirmations are committed as
   [evidence](fr-08/fr08b-subcommit1-sweep-2026-09-21.md), assembled by script from the tool's own
   output. Every hand-carried count from this tool has been weaker than its claim five times
   running, so nothing in it is transcribed. It is also the **answer key** a coverage-guided
   replacement must reproduce exactly.
-- Known defect, recorded rather than fixed: `@sites` line numbers are stale by +11 below
-  `review_settled` after `028b4965`, and this candidate adds rows carrying fresh ones. The field
-  is documented as "a convenience rather than an assertion", and coverage is unaffected — every
-  site but the eleven dispositioned survivors is confirmed caught, so no open gap can hide behind
-  a wrong label. It is a documentation defect that costs a reader time, and the rows do not record
-  which guard they target, so renumbering would be guesswork. Decision for review.
+- `@sites` line numbers: **the field is deleted.** The claim originally recorded here — "stale by
+  +11 below `review_settled` after `028b4965`" — was itself wrong, and the fifth review measured
+  it: that commit's kernel hunks are +6, +7 and +20; the +11 came from `c71fc70d`, the commit that
+  *introduced* the table and added 23 kernel lines in the same change, so the labels were wrong the
+  day they were written. Drift at HEAD is piecewise (+0/+11/+17/+24/+36/+56), not uniform, and not
+  confined below `review_settled`. "Renumbering would be guesswork" was also wrong: the offsets
+  derive from two hunk headers, and every renumbered row lands on a `require_` line. Recording an
+  unmeasured "+11" in an entry whose thesis is that hand-carried counts from this tooling have been
+  weaker than their claim five times made it a sixth. Coverage was never affected — the sweep is the
+  measurement and the row labels are not — so the field went rather than being renumbered into a
+  claim that would rot again at the next kernel edit. `COVERAGE-GUIDED-SWEEP.md` derives site
+  identity properly.
 - The kernel diff across this pass is **empty**. No behaviour changed; every number below moved
   because tests were added.
 - Suites: workflow **176 at seed 0**, from 172. Full model-free suite serial with a fresh

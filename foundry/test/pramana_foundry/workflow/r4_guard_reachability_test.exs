@@ -82,11 +82,14 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
         "`@entity_kind_of` is built as `Map.new(@types, ...)`, so its key set is exactly " <>
         "the type vocabulary; `Event.validate/1` runs first in `Kernel.apply/2` and " <>
         "requires `event[\"type\"] in @types`. A total map looked up with a key proven to " <>
-        "be in its domain cannot return `:error`. Both halves are enforced mechanically, " <>
-        "not asserted here: the map is total by its own construction, and kernel_test's " <>
-        "\"every type has an exact payload key set and an entity kind\" fails if any type " <>
-        "lacks one. Surfaced only in this session, when the extractor was widened to see " <>
-        "the `ok_or/2` spelling it is written in."
+        "be in its domain cannot return `:error`. The decisive half is event.ex:192, which " <>
+        "performs the identical lookup - `event[\"entity_kind\"] == @entity_kind_of[type]` - " <>
+        "after :191 has required the kind be one of @entity_kinds, so a missing key yields " <>
+        "nil and validate refuses before kernel.ex:80 runs at all. Unlike the " <>
+        "`reviewer_closed` argument that a looser predicate falsified with 3,612 witnesses, " <>
+        "this one is local to a single `with` over an immutable event and a compile-time " <>
+        "map built from one attribute; there is no state to evolve. Surfaced only in this " <>
+        "session, when the extractor was widened to see the `ok_or/2` spelling it uses."
   }
 
   # Both tests want the same traversal, and computing it twice doubled the cost of the

@@ -1,8 +1,12 @@
 # Guard mutation sweep — full run and confirmations, 2026-09-21
 
-Machine-generated from the sweep's own output. **Not transcribed** — assembled by script
-from `bin/guard_mutation_sweep.exs` logs, because every previous hand-carried count from
-this tool has been weaker than its claim, five times running.
+Assembled from the sweep's own output rather than transcribed, because every previous
+hand-carried count from this tool has been weaker than its claim, five times running.
+
+The raw, unedited output of all three runs is committed beside this file at
+[fr08b-sweep-2026-09-21-raw.txt](fr08b-sweep-2026-09-21-raw.txt), so every figure below can
+be checked against its source. The fifth review flagged that an unverifiable "not
+transcribed" claim is itself the failure this document exists to avoid; it was right.
 
 Kept for two reasons. It is the evidence for the FR-08B subcommit 1 claim that every guard
 call site is either exercised or dispositioned. And it is the **answer key** for the

@@ -1880,8 +1880,20 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # One row per site. `state` names the fixture, which is the state in which every guard
     # BEFORE the target passes, so the refusal can only come from the target; `atom` is
     # pinned, because a shared `{:error, _}` is exactly what hid this class for three
-    # reviews. Line numbers are the sweep's, and are a convenience rather than an
-    # assertion — the pairing that matters is state-and-payload to atom.
+    # reviews. The pairing that matters is state-and-payload to atom.
+    #
+    # Rows used to carry a kernel line number too. It is gone, and the reason is worth
+    # keeping: the numbers were wrong the day they were committed - the commit that added
+    # this table also added 23 kernel lines, so every label below :350 was already off by
+    # eleven - and drift since is piecewise, not uniform. It was a claim with no check, in a
+    # table whose entire purpose is that claims get checked. It also actively misled: the
+    # `attempt_settled`/`blocked` row below was first written against a line read off a
+    # six-clause `case` by eye, exercised a different branch that was already covered, and
+    # passed while the site it named stayed a sweep survivor.
+    #
+    # The sweep is the measurement; these rows are not. Site identity comes back for free
+    # when the coverage-guided design lands - see docs/COVERAGE-GUIDED-SWEEP.md - and it
+    # will be derived rather than typed.
     # `authority/2` is a function and @sites is a module attribute, so the attribute is
     # built before the function exists. Same map, spelled as compile-time data.
     @auth %{
@@ -1899,21 +1911,21 @@ defmodule PramanaFoundry.Workflow.KernelTest do
 
     @sites [
       # ticket_amended (290), ticket_blocked (323-324), ticket_reset, cancellation_finalized (392)
-      {290, :blocked_with_active_attempt, "ticket_amended",
+      {:blocked_with_active_attempt, "ticket_amended",
        %{"ticket_id" => "T1", "spec_revision_id" => "spec-2", "spec" => %{}},
        :attempt_still_active},
-      {323, :developing, "ticket_blocked",
+      {:developing, "ticket_blocked",
        %{"ticket_id" => "T1", "reason" => "drain", "resume_phase" => "blocked"},
        :invalid_resume_phase},
-      {324, :developing, "ticket_blocked",
+      {:developing, "ticket_blocked",
        %{"ticket_id" => "T1", "reason" => "drain", "resume_phase" => "reviewing"},
        :resume_target_not_current_phase},
-      {392, :cancel_requested_with_attempt, "cancellation_finalized",
+      {:cancel_requested_with_attempt, "cancellation_finalized",
        %{"ticket_id" => "T1", "disposition" => "cancelled"}, :attempt_still_active},
 
-      # 450, 472 and 489 — `require_attempt_phase(~w(active))` in artifact_frozen,
-      # artifact_blocked and freeze_failed — had exactly one reachable witness between
-      # them, and it was the stale-resume defect. Fixing that defect removed it: no
+      # `require_attempt_phase(~w(active))` in artifact_frozen, artifact_blocked and
+      # freeze_failed had exactly one reachable witness between them, and it was the
+      # stale-resume defect. Fixing that defect removed it: no
       # reachable state now has a `developing` ticket whose active attempt is not `active`
       # (searched after the fix — 58,324 states at depth 7, none).
       #
@@ -1924,14 +1936,14 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       # one is the habit this review told us to drop. Deleting them is the right end state
       # and is a decision for review, not a side effect of a defect fix.
       # The developing family: phase, active attempt, attempt phase — in four handlers.
-      {431, :developing, "launch_settled",
+      {:developing, "launch_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
          "execution_id" => "X1",
          "settlement" => %{"schema_version" => 1}
        }, :not_the_active_attempt},
-      {448, :checking, "artifact_frozen",
+      {:checking, "artifact_frozen",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -1939,7 +1951,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "observation_id" => "obs-9",
          "sealed_generation" => "gen-2"
        }, :wrong_source_phase},
-      {449, :developing, "artifact_frozen",
+      {:developing, "artifact_frozen",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -1947,7 +1959,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "observation_id" => "obs-9",
          "sealed_generation" => "gen-2"
        }, :not_the_active_attempt},
-      {470, :checking, "artifact_blocked",
+      {:checking, "artifact_blocked",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -1955,7 +1967,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "result" => "blocked",
          "reason" => "dep"
        }, :wrong_source_phase},
-      {471, :developing, "artifact_blocked",
+      {:developing, "artifact_blocked",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -1963,14 +1975,14 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "result" => "blocked",
          "reason" => "dep"
        }, :not_the_active_attempt},
-      {487, :checking, "freeze_failed",
+      {:checking, "freeze_failed",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
          "disposition" => "retry",
          "reason" => "import"
        }, :wrong_source_phase},
-      {526, :developing, "submission_rejected",
+      {:developing, "submission_rejected",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -1979,7 +1991,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }, :not_the_active_attempt},
 
       # Closure and observation address an attempt by name, so a forged name is the test.
-      {539, :developing, "execution_observed",
+      {:developing, "execution_observed",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-ghost",
@@ -1987,29 +1999,29 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "observation" => "running",
          "lifecycle" => "running"
        }, :unknown_attempt},
-      {559, :developing, "stream_sealed",
+      {:developing, "stream_sealed",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-ghost",
          "execution_id" => "X1",
          "last_accepted_sequence" => 3
        }, :unknown_attempt},
-      {560, :developing, "stream_sealed",
+      {:developing, "stream_sealed",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
          "execution_id" => "X-ghost",
          "last_accepted_sequence" => 3
        }, :unknown_execution},
-      {610, :developing, "worker_closed",
+      {:developing, "worker_closed",
        %{"ticket_id" => "T1", "attempt_id" => "A-ghost", "execution_id" => "X1"},
        :unknown_attempt},
 
       # The check family.
-      {625, :candidate_frozen, "checks_started",
+      {:candidate_frozen, "checks_started",
        %{"ticket_id" => "T1", "attempt_id" => "A-other", "policy_empty" => false},
        :not_the_active_attempt},
-      {643, :checking, "check_planned",
+      {:checking, "check_planned",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2017,7 +2029,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "authority" =>
            Map.merge(@auth, %{"execution_id" => "K2", "role" => "check", "effect_id" => "eff-K2"})
        }, :not_the_active_attempt},
-      {654, :candidate_frozen, "check_settled",
+      {:candidate_frozen, "check_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -2025,7 +2037,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "execution_id" => "K1",
          "settlement" => %{"schema_version" => 1}
        }, :wrong_attempt_phase},
-      {655, :checking_with_check, "check_settled",
+      {:checking_with_check, "check_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2033,7 +2045,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "execution_id" => "K1",
          "settlement" => %{"schema_version" => 1}
        }, :not_the_active_attempt},
-      {675, :candidate_frozen, "check_recorded",
+      {:candidate_frozen, "check_recorded",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -2041,7 +2053,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "status" => "passed",
          "reason_code" => nil
        }, :wrong_attempt_phase},
-      {676, :checking_with_check, "check_recorded",
+      {:checking_with_check, "check_recorded",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2049,7 +2061,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "status" => "passed",
          "reason_code" => nil
        }, :not_the_active_attempt},
-      {677, :checking_with_check, "check_recorded",
+      {:checking_with_check, "check_recorded",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -2059,7 +2071,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }, :unknown_check},
 
       # The review family.
-      {694, :developing, "review_planned",
+      {:developing, "review_planned",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -2070,7 +2082,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "effect_id" => "eff-R1"
            })
        }, :wrong_source_phase},
-      {695, :checked_passed, "review_planned",
+      {:checked_passed, "review_planned",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2081,7 +2093,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "effect_id" => "eff-R1"
            })
        }, :not_the_active_attempt},
-      {744, :sealed_reviewer, "review_recorded",
+      {:sealed_reviewer, "review_recorded",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2090,7 +2102,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }, :not_the_active_attempt},
 
       # The integration family, which no walk reaches: it sits about a dozen events in.
-      {818, :ready_to_integrate, "integration_planned",
+      {:ready_to_integrate, "integration_planned",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2101,21 +2113,21 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "effect_id" => "eff-I1"
            })
        }, :not_the_active_attempt},
-      {830, :developing, "integration_settled",
+      {:developing, "integration_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
          "execution_id" => "I1",
          "settlement" => %{"schema_version" => 1}
        }, :wrong_source_phase},
-      {831, :approved_and_closed, "integration_settled",
+      {:approved_and_closed, "integration_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
          "execution_id" => "I1",
          "settlement" => %{"schema_version" => 1}
        }, :not_the_active_attempt},
-      {855, :approved_and_closed, "integration_recorded",
+      {:approved_and_closed, "integration_recorded",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2123,7 +2135,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "outcome" => "ref_created",
          "ref_receipt_id" => "ref-1"
        }, :not_the_active_attempt},
-      {857, :approved_and_closed, "integration_recorded",
+      {:approved_and_closed, "integration_recorded",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -2133,7 +2145,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }, :unknown_execution},
 
       # Build executions are planned and settled against the active attempt like any other.
-      {947, :developing, "build_planned",
+      {:developing, "build_planned",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2141,7 +2153,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "authority" =>
            Map.merge(@auth, %{"execution_id" => "B1", "role" => "build", "effect_id" => "eff-B1"})
        }, :not_the_active_attempt},
-      {954, :developing, "build_settled",
+      {:developing, "build_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A-other",
@@ -2155,17 +2167,17 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       # the stale-resume fix. These three are ordinary untested guards, two of them in
       # handlers whose OTHER guards were all covered - the partial-generalisation shape
       # again, at the level of the handler rather than the rule.
-      {289, :developing, "ticket_amended",
+      {:developing, "ticket_amended",
        %{"ticket_id" => "T1", "spec_revision_id" => "spec-2", "spec" => %{}},
        :wrong_source_phase},
-      {302, :developing, "ticket_parked",
+      {:developing, "ticket_parked",
        %{"ticket_id" => "T1", "reason" => "drain", "resume_phase" => "developing"},
        :wrong_source_phase},
       # The `"blocked"` branch of require_settlement_source, NOT the failed/timed_out one
       # at :1585 - which the sweep had already caught, and which a first version of this
       # row targeted by mistake while claiming :1595. The scoped re-sweep is what found
       # that: the row was green, the site it named still survived.
-      {1595, :checking, "attempt_settled",
+      {:checking, "attempt_settled",
        %{
          "ticket_id" => "T1",
          "attempt_id" => "A1",
@@ -2175,33 +2187,48 @@ defmodule PramanaFoundry.Workflow.KernelTest do
        }, :wrong_attempt_phase}
     ]
 
-    # The two survivors from that sweep that get NO row, and why they do not get one.
+    # The two survivors from that sweep that get NO row, and why they do not need one.
     #
     # `require_settlement_source` dispatches on disposition, and two of its branches guard a
     # phase behind a stronger condition:
     #
-    #   "integrated" -> require_attempt_phase(~w(integrating))   kernel.ex:1557
-    #   "rejected"   -> require_attempt_phase(~w(reviewing))     kernel.ex:1574
+    #   "integrated" -> require_attempt_phase(~w(integrating))
+    #   "rejected"   -> require_attempt_phase(~w(reviewing))
     #
     # Each is shadowed at its call site. Measured, not argued: settling `integrated` from
     # `ready_to_integrate` is refused by `require_receipt_for_integration` with
     # `:no_ref_receipt`, and settling `rejected` without one is refused by the verdict check
-    # with `:no_rejected_verdict`. Reaching the phase guard needs a state where the
-    # shadowing condition holds and the phase does not - an active attempt holding a ref
-    # receipt but not `integrating`, or holding a rejected verdict but not `reviewing`.
+    # with `:no_rejected_verdict`. Reaching the phase guard needs a state where the shadowing
+    # condition holds and the phase does not.
     #
-    # Those states are UNWITNESSED, not proved absent, and the denominator is the point:
-    # at depth 7 over **58,324 reachable states, 0** have an active attempt with a ref
-    # receipt and **0** have an active attempt with any recorded verdict at all. The bound
-    # does not reach the precondition, so a search here proves nothing either way - and
-    # adding the implied relations to `SemanticInvariants` would assert them over 58,324
-    # states none of which can trip them, which is a vacuous mechanism of exactly the kind
-    # this subcommit shipped five of. A seeded search is what would settle it.
+    # The unseeded search cannot speak to this at all: at depth 7 over 58,324 states, ZERO
+    # have an active attempt holding a ref receipt and ZERO have one with any recorded
+    # verdict. That denominator is why these are not `SemanticInvariants` relations - such a
+    # check would run over 58,324 states none of which can trip it.
     #
-    # So: unwitnessed, recorded, and NOT written into `@unreachable` to get green.
+    # So the question was put where it lives, which is what kernel.ex's `reviewer_closed`
+    # comment already does for the same shape. Seeded from `integrating_with_receipt` and
+    # from a rejected verdict, at depth 6:
+    #
+    #   ref receipt   => integrating:  29,109 states, 20,488 hold the precondition, 0 violate
+    #   rejected verdict => reviewing: 79,163 states, 39,024 hold the precondition, 0 violate
+    #
+    # And the inductive argument, which is what makes this more than an enumeration:
+    # `ref_receipt_id` is written at exactly one site (kernel.ex:905), inside a handler
+    # guarded by `require_phase(~w(integrating))`, and all three integration handlers carry
+    # `require_no_ref_receipt`, so it is written once and only from `integrating`. The
+    # ticket-to-attempt phase agreement that carries it to the attempt is
+    # `SemanticInvariants`'s `@legal_pairs`, which is asserted over the reachable set with
+    # witnesses in the thousands. The verdict case is the same shape: `review_recorded`
+    # requires `reviewing`, and the only branch of `reviewer_closed` that moves the attempt
+    # off `reviewing` is the approved one.
+    #
+    # Both guards are therefore redundant given an invariant, not unwitnessed. They stay,
+    # for the same reason the other belt-and-braces guards stay, and neither is recorded in
+    # `@unreachable`: the atom fires elsewhere.
 
-    for {line, fixture, type, payload, atom} <- @sites do
-      test "kernel.ex:#{line} #{type} refuses with #{atom} (#{fixture})" do
+    for {fixture, type, payload, atom} <- @sites do
+      test "#{type} from #{fixture} refuses with #{atom}" do
         {state, sequence} = fixture(unquote(fixture))
 
         forged =
