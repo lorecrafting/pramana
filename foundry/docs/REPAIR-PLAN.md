@@ -158,6 +158,30 @@ FR-08–FR-22 change:
   same shape for any workflow, while the phases and roles inside them are not. See
   [the mechanism/definition seam note](fr-08/workflow-definition-seam.md).
 
+  A fourth, and the only one with evidence from how the work actually went wrong:
+  **split `kernel.ex` by event family before subcommit 5.** It is 1,756 lines, grown by
+  roughly 600 this session, and it crossed the size at which a reader stops reading the
+  file and starts grepping windows into it — a model and a human alike.
+
+  Three of this subcommit's defects are that failure exactly: `apply_terminal_phase`'s
+  `"blocked"` branch was corrected while its sibling four lines below was not; the
+  settlement execution binding was described in a commit message as "one rule over the
+  vocabulary" while being applied to one of five call sites; and a scenario named for R4
+  rows 12 and 13 never asserted the distinction between them. Each is "changed the thing
+  in view, missed its relatives", which is what keyhole traversal produces and what
+  reviewers then find by reading the whole file.
+
+  **Split by family, not by kind.** Admission, evidence and settlement each keep their
+  transitions *and* their guards together. Splitting into `guards.ex` and `transitions.ex`
+  would optimise the line count and make the sibling defect harder to see, since a guard
+  and the row it serves would then live apart. The test is not "how many lines" but "can
+  one read hold everything needed to change this safely".
+
+  Sequence it before subcommit 5, which adds the ingress migration, and after the current
+  review returns — moving a file under a reviewer is its own hazard. FR-23 already owns
+  decomposing `protected_primitives.ex` (7,680 lines) and `gateway.ex` (2,377); the kernel
+  is not on that list because it did not exist when the list was written.
+
   A third candidate, weaker evidence and therefore proposed rather than scheduled:
   **collapse `checks` and `review` into executions.** `@attempt_keys` carries `executions`
   alongside separate `checks` and `review` maps, while `@execution_keys` already holds a
