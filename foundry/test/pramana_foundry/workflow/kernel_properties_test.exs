@@ -65,7 +65,8 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
             "entity_revision" => 0
         }
 
-        assert {:error, _} = WorkflowKernel.apply(state, stale_revision),
+        assert {:error, :stale_entity_revision} =
+                 WorkflowKernel.apply(state, stale_revision),
                "the kernel accepted an entity revision it had already passed"
       end
     end

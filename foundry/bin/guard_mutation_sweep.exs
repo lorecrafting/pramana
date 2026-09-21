@@ -7,6 +7,7 @@
 #
 #   cd foundry && bin/guard_mutation_sweep.exs [path/to/module.ex]
 #   SWEEP_SINCE=<rev>   sweep only guards whose lines changed since <rev>
+#   SWEEP_SITES=<file>  sweep only the call sites listed in <file>, one per line
 #   SWEEP_WORKERS=<n>   parallel workers (default 6)
 #
 # Guards are neutralised at their CALL SITE, never at their definition. Renaming a
@@ -88,15 +89,36 @@ all_sites = call_sites.(original)
 # "unchanged" is a claim about a diff and a diff can be wrong.
 since = System.get_env("SWEEP_SINCE")
 
+# Re-sweeping the previous run's survivors is the common case after adding tests, and
+# `SWEEP_SINCE` cannot express it: the fix for an untested guard is a new *test*, so the
+# target's diff is empty and the incremental filter selects nothing. Sites are matched
+# against the parsed list rather than trusted, so a stale or mistyped entry is reported
+# instead of silently sweeping fewer guards than asked.
+only = System.get_env("SWEEP_SITES")
+
 sites =
-  if since do
-    {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", target], stderr_to_stdout: true)
-    touched = Enum.filter(all_sites, &String.contains?(diff, &1))
-    IO.puts("incremental against #{since}: #{length(touched)} of #{length(all_sites)} guards")
-    touched
+  if only do
+    wanted = only |> File.read!() |> String.split("\n", trim: true) |> Enum.map(&String.trim/1)
+    {known, unknown} = Enum.split_with(wanted, &(&1 in all_sites))
+
+    if unknown != [] do
+      IO.puts("no such call site in #{target}:")
+      Enum.each(unknown, &IO.puts("  #{&1}"))
+      System.halt(2)
+    end
+
+    IO.puts("listed sites: #{length(known)} of #{length(all_sites)} guards")
+    known
   else
-    IO.puts("guard call sites: #{length(all_sites)}")
-    all_sites
+    if since do
+      {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", target], stderr_to_stdout: true)
+      touched = Enum.filter(all_sites, &String.contains?(diff, &1))
+      IO.puts("incremental against #{since}: #{length(touched)} of #{length(all_sites)} guards")
+      touched
+    else
+      IO.puts("guard call sites: #{length(all_sites)}")
+      all_sites
+    end
   end
 
 # Each worker needs its own tree, because they mutate the same file. Hard links make the

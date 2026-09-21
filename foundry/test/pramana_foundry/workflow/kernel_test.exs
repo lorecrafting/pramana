@@ -96,7 +96,10 @@ defmodule PramanaFoundry.Workflow.KernelTest do
   end
 
   # Drives a ticket to a frozen candidate with the developer closed and checks started.
-  defp checking do
+  # The step before `checking`: candidate frozen, developer closed, checks not yet
+  # started. Split out because `checks_started`'s own guards can only be aimed at the
+  # state that sits directly in front of it.
+  defp candidate_frozen do
     drive(admitted(), [
       {"launch_planned", "T1",
        %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("X1")}},
@@ -116,7 +119,12 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "last_accepted_sequence" => 7
        }},
       {"developer_closed", "T1",
-       %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}},
+       %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}}
+    ])
+  end
+
+  defp checking do
+    drive(candidate_frozen(), [
       {"checks_started", "T1",
        %{"ticket_id" => "T1", "attempt_id" => "A1", "policy_empty" => false}}
     ])
@@ -482,6 +490,268 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "control" => control_fact(),
           "paused" => "yes",
           "draining" => false,
+          "stop_status" => "running"
+        })
+
+      assert {:error, :invalid_control_flag} = WorkflowKernel.apply(state, forged)
+    end
+
+    # ── The second sweep, after the assertions were pinned ──────────────────────────
+    #
+    # Nineteen of sixty-six sites survived the next full sweep, and the count was real:
+    # neutralising one by hand left all five suites green. Three causes, and only the
+    # third was a guard that cannot fire.
+    #
+    # The first is why the count had looked smaller than it was. A refusal asserted as
+    # `{:error, _}` is satisfied by *any* guard in the `with`, so neutralising the one
+    # the test was named for still matched — via whichever guard refused next. Every
+    # assertion below names its exact atom, and several of the states had to be rebuilt
+    # once pinning showed the scenario was proving a different guard than its name said.
+    #
+    # The second is guards added late enough that no row scenario reached them. A guard
+    # arriving with its correction and without its test is the shape this repair has
+    # shipped four times now.
+    #
+    # The sibling pattern recurs here too: `require_boolean(payload["paused"])` was
+    # exercised and `require_boolean(payload["draining"])` directly below it was not,
+    # because the one test that sent a non-boolean sent it as `paused` and stopped at the
+    # first guard. The same holds for both `require_execution` call sites and all four
+    # `require_phase(ticket, ~w(developing))` sites.
+
+    test "a reset is refused unless the ticket is exhausted" do
+      {state, sequence} = admitted()
+
+      forged =
+        event("ticket_reset", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "generation" => 1
+        })
+
+      assert {:error, :wrong_source_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4a's developer non-start row starts from `developing`. Aimed at a ticket past that
+    # phase it must be refused on the phase, not on whatever the execution happens to be:
+    # without this guard the settlement reaches `close_execution` and is refused for
+    # closing an already-closed execution, which is a different claim entirely.
+    test "a launch settlement is refused unless the ticket is developing" do
+      {state, sequence} = checking()
+
+      forged =
+        event("launch_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "X1",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :wrong_source_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4 row 9 is "developing; **valid blocked/partial result**". `valid` is a sealed
+    # result value, and it belongs to the freeze row; routing it through this one would
+    # block a ticket on a successful build.
+    test "an artifact block carrying a non-blocked result is refused" do
+      {state, sequence} = developing()
+
+      forged =
+        event("artifact_blocked", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "observation_id" => "obs-2",
+          "result" => "valid",
+          "reason" => "dependency missing"
+        })
+
+      assert {:error, :invalid_blocked_result} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a freeze failure naming another attempt is refused" do
+      {state, sequence} = developing()
+
+      forged =
+        event("freeze_failed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A-other",
+          "disposition" => "retry",
+          "reason" => "import failed"
+        })
+
+      assert {:error, :not_the_active_attempt} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "checks cannot start before the ticket is awaiting review" do
+      {state, sequence} = developing()
+
+      forged =
+        event("checks_started", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "policy_empty" => false
+        })
+
+      assert {:error, :wrong_source_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4: "candidate_frozen; developer closed, check capacity eligible". A second
+    # `checks_started` would restart the check phase over an attempt already in it, and
+    # `maybe_finish_checks` would then read a half-built check set.
+    test "checks cannot start twice on one attempt" do
+      {state, sequence} = checking()
+
+      forged =
+        event("checks_started", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "policy_empty" => false
+        })
+
+      assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # `policy_empty` decides whether an empty check set finishes the phase, so a
+    # non-boolean would make `maybe_finish_checks` truthy on any value at all.
+    test "a non-boolean empty-policy flag is refused" do
+      {state, sequence} = candidate_frozen()
+
+      forged =
+        event("checks_started", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "policy_empty" => "no"
+        })
+
+      assert {:error, :invalid_control_flag} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a check status outside the contract's vocabulary is refused" do
+      {state, sequence} =
+        drive(checking(), [
+          {"check_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "check_id" => "C1",
+             "authority" => authority("K1", "check")
+           }}
+        ])
+
+      forged =
+        event("check_recorded", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "check_id" => "C1",
+          "status" => "green",
+          "reason_code" => nil
+        })
+
+      assert {:error, :invalid_check_status} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a reviewer closure naming an attempt that does not exist is refused" do
+      {state, sequence} = reviewing()
+
+      forged =
+        event("reviewer_closed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A-ghost",
+          "execution_id" => "R1"
+        })
+
+      assert {:error, :unknown_attempt} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a reviewer closure naming an execution the attempt does not own is refused" do
+      {state, sequence} = reviewing()
+
+      forged =
+        event("reviewer_closed", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "X-ghost"
+        })
+
+      assert {:error, :unknown_execution} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4a proves a non-start by closing the execution it names. A settlement naming an
+    # execution the attempt never had proves nothing, and without this guard it is
+    # refused for the execution's *role* instead — reading as a role mismatch when the
+    # execution does not exist at all.
+    test "a launch settlement naming an execution the attempt does not own is refused" do
+      {state, sequence} = developing()
+
+      forged =
+        event("launch_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "X-ghost",
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :unknown_execution} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4: "Same phase with bounded integration-effect retry **after old issuer
+    # termination**". A second issuer planned while the first is still open is two
+    # concurrent integration effects against one base.
+    test "an integration retry is refused while the previous issuer is open" do
+      {state, sequence} = approved_and_closed()
+
+      forged =
+        event("integration_planned", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "authority" => authority("I2", "integration")
+        })
+
+      assert {:error, :issuer_not_terminated} = WorkflowKernel.apply(state, forged)
+    end
+
+    test "a settlement disposition outside the contract's vocabulary is refused" do
+      {state, sequence} = developing()
+
+      forged =
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "shipped",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :invalid_disposition} = WorkflowKernel.apply(state, forged)
+    end
+
+    # R4: "ready_to_integrate/integrating; accepted base moved **before issuance**". From
+    # `developing` no base has been accepted, so there is nothing for a move to supersede
+    # — without the guard the attempt terminalises `superseded_base` from a phase the row
+    # does not list.
+    test "superseded_base is refused from an attempt that never reached integration" do
+      {state, sequence} = developing()
+
+      forged =
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "superseded_base",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(state, forged)
+    end
+
+    # The sibling of the `paused` test above. Both flags are orthogonal controls and both
+    # are copied into the control entity; only the first had a test.
+    test "a non-boolean drain flag is refused" do
+      {state, sequence} = admitted()
+
+      forged =
+        event("control_changed", "control", state["control"]["revision"], sequence + 1, %{
+          "control" => control_fact(),
+          "paused" => false,
+          "draining" => "no",
           "stop_status" => "running"
         })
 

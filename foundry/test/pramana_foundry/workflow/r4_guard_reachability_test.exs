@@ -42,7 +42,6 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
   #     a reviewer can challenge, and is written down so that it can be.
   @unreachable %{
     # Deeper than the bound.
-    checks_not_passed: "review_planned past a failed check: needs the full check lifecycle",
     workers_not_closed: "integration row: ~12 events",
     integration_already_issued: "integration row",
     issuer_not_terminated: "integration retry",
@@ -56,6 +55,15 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
         "close, checks_started, check_planned, check_recorded, check_recorded - and the " <>
         "bound is seven",
     # Genuinely unreachable, and each says why.
+    checks_not_passed:
+      "shadowed by the attempt-phase guard directly above it. `review_planned` requires " <>
+        "the attempt in `awaiting_review`, and `maybe_finish_checks` is the only thing " <>
+        "that puts it there - which it does exactly when every check has passed. No " <>
+        "event can add or relabel a check afterwards, since check_planned, " <>
+        "check_recorded and check_settled all require the `checking` phase. Recorded " <>
+        "here after pinning r4_coverage_test's `{:error, _}` to its atom showed the " <>
+        "scenario naming this guard was being refused by the phase instead. Was listed " <>
+        "as deeper-than-the-bound, which was wrong: raising the depth does not reach it.",
     reviewer_already_closed:
       "once reviewer_closed nils the review on the no-verdict branch, every route to a " <>
         "closed reviewer on a reviewing attempt is refused earlier by phase or by the " <>

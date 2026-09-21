@@ -832,6 +832,15 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
     # "failed candidate never goes to approval" - stated as a refusal, since that is what
     # the clause is.
+    #
+    # Pinned to its exact atom, and that changed what this asserts. As `{:error, _}` it
+    # passed while claiming to exercise `require_checks_passed`, and neutralising that
+    # guard left it green: `maybe_finish_checks` only advances an attempt to
+    # `awaiting_review` once every check has passed, so a failed check leaves the attempt
+    # in `checking` and `review_planned` is refused one guard earlier, on the attempt
+    # phase. The clause holds - a failed candidate cannot reach approval - but the
+    # mechanism enforcing it is the phase, not the check-status guard. That guard is
+    # consequently unreachable and is now recorded as such in the reachability suite.
     {failed, sequence} =
       drive(checking(), [
         {"check_planned", "T1",
@@ -858,7 +867,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("R1", "reviewer")
       })
 
-    assert {:error, _} = WorkflowKernel.apply(failed, forged)
+    assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(failed, forged)
+    assert failed["tickets"]["T1"]["attempts"]["A1"]["phase"] == "checking"
     :driven
   end
 
