@@ -76,7 +76,17 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
         "settlement, which requires an `active` attempt - and artifact_frozen sets the " <>
         "candidate and moves the attempt to candidate_frozen in the same step, so an " <>
         "active attempt never holds a candidate. Belt-and-braces for an invariant the " <>
-        "phase already enforces."
+        "phase already enforces.",
+    unknown_entity_kind:
+      "dead by construction, and the argument is inductive rather than bounded. " <>
+        "`@entity_kind_of` is built as `Map.new(@types, ...)`, so its key set is exactly " <>
+        "the type vocabulary; `Event.validate/1` runs first in `Kernel.apply/2` and " <>
+        "requires `event[\"type\"] in @types`. A total map looked up with a key proven to " <>
+        "be in its domain cannot return `:error`. Both halves are enforced mechanically, " <>
+        "not asserted here: the map is total by its own construction, and kernel_test's " <>
+        "\"every type has an exact payload key set and an entity kind\" fails if any type " <>
+        "lacks one. Surfaced only in this session, when the extractor was widened to see " <>
+        "the `ok_or/2` spelling it is written in."
   }
 
   # Both tests want the same traversal, and computing it twice doubled the cost of the
@@ -104,6 +114,40 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
     assert resurrected == [],
            "guards recorded as unreachable that now fire: #{inspect(resurrected)}. " <>
              "Remove them from @unreachable - and check whether the reason given was ever true."
+  end
+
+  # The red control for the inventory itself. This test asserted a mechanical inventory of
+  # the declared error set for three reviews while scanning for one of the two spellings a
+  # refusal is written in, so it could not see `:unknown_entity_kind` at kernel.ex:80 and
+  # said nothing. A fixture carrying every shape - both declaration spellings, and the
+  # `ok_or/2` definition clause that must not be read as a declaration - fails if the
+  # extractor narrows again.
+  test "the reason extractor sees both spellings and not the ok_or definition" do
+    fixture = """
+    def apply(state, event) do
+      with :ok <- check_state(state),
+           {:ok, kind} <- Event.entity_kind(event["type"]) |> ok_or(:piped_spelling),
+           {:ok, x} <- ok_or(lookup(event), :argument_spelling) do
+        {:ok, state}
+      end
+    end
+
+    defp check_state(state), do: if(valid?(state), do: :ok, else: {:error, :literal_spelling})
+    defp ok_or({:ok, value}, _reason), do: {:ok, value}
+    defp ok_or(:error, reason), do: {:error, reason}
+    """
+
+    found = KernelSearch.reasons_in(fixture)
+
+    assert MapSet.member?(found, :literal_spelling)
+    assert MapSet.member?(found, :piped_spelling)
+    assert MapSet.member?(found, :argument_spelling)
+
+    refute MapSet.member?(found, :error),
+           "the ok_or/2 definition clause is being read as a declaration of `:error`"
+
+    refute MapSet.member?(found, :ok),
+           "the ok_or/2 success clause is being read as a declaration"
   end
 
   test "the forged-reference guards are exercised", %{fired: fired} do

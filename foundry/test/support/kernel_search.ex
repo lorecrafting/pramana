@@ -171,8 +171,28 @@ defmodule PramanaFoundry.Test.KernelSearch do
     |> Path.join("../../../lib/pramana_foundry/workflow/kernel.ex")
     |> Path.expand()
     |> File.read!()
-    |> then(&Regex.scan(~r/\{:error, :([a-z_]+)\}/, &1))
-    |> Enum.map(&List.last/1)
+    |> reasons_in()
+  end
+
+  # Two spellings declare a refusal, and scanning for only the first is how this claimed to
+  # inventory the declared set for three reviews while missing `:unknown_entity_kind` at
+  # kernel.ex:80 entirely.
+  @reason_spellings [
+    # Returned directly.
+    ~r/\{:error, :([a-z_]+)\}/,
+    # Lifted from a `:error`-returning call, piped or as the second argument. The atom must
+    # be the last thing before the closing paren, which is what keeps the definition
+    # clauses - `ok_or({:ok, value}, _reason)` and `ok_or(:error, reason)` - out: they
+    # mention no reason, they receive one.
+    ~r/ok_or\(.*:([a-z_]+)\)/
+  ]
+
+  # Separate from the file read so a fixture can be fed to it; the red control lives in
+  # r4_guard_reachability_test.
+  @doc "Every error atom declared in `source`, in either spelling."
+  def reasons_in(source) do
+    @reason_spellings
+    |> Enum.flat_map(&(&1 |> Regex.scan(source) |> Enum.map(fn [_, atom] -> atom end)))
     |> Enum.map(&String.to_atom/1)
     |> MapSet.new()
   end

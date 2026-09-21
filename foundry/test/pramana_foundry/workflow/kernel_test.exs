@@ -2148,8 +2148,57 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "build_id" => "B1",
          "execution_id" => "B1",
          "settlement" => %{"schema_version" => 1}
-       }, :not_the_active_attempt}
+       }, :not_the_active_attempt},
+
+      # Found by the 2026-09-21 full sweep, which reported 14 survivors where 9 were
+      # recorded: the six "unable to fire" plus the three below that lost their witness to
+      # the stale-resume fix. These three are ordinary untested guards, two of them in
+      # handlers whose OTHER guards were all covered - the partial-generalisation shape
+      # again, at the level of the handler rather than the rule.
+      {289, :developing, "ticket_amended",
+       %{"ticket_id" => "T1", "spec_revision_id" => "spec-2", "spec" => %{}},
+       :wrong_source_phase},
+      {302, :developing, "ticket_parked",
+       %{"ticket_id" => "T1", "reason" => "drain", "resume_phase" => "developing"},
+       :wrong_source_phase},
+      # The `"blocked"` branch of require_settlement_source, NOT the failed/timed_out one
+      # at :1585 - which the sweep had already caught, and which a first version of this
+      # row targeted by mistake while claiming :1595. The scoped re-sweep is what found
+      # that: the row was green, the site it named still survived.
+      {1595, :checking, "attempt_settled",
+       %{
+         "ticket_id" => "T1",
+         "attempt_id" => "A1",
+         "disposition" => "blocked",
+         "reason_code" => "dependency",
+         "settlement" => %{"schema_version" => 1}
+       }, :wrong_attempt_phase}
     ]
+
+    # The two survivors from that sweep that get NO row, and why they do not get one.
+    #
+    # `require_settlement_source` dispatches on disposition, and two of its branches guard a
+    # phase behind a stronger condition:
+    #
+    #   "integrated" -> require_attempt_phase(~w(integrating))   kernel.ex:1557
+    #   "rejected"   -> require_attempt_phase(~w(reviewing))     kernel.ex:1574
+    #
+    # Each is shadowed at its call site. Measured, not argued: settling `integrated` from
+    # `ready_to_integrate` is refused by `require_receipt_for_integration` with
+    # `:no_ref_receipt`, and settling `rejected` without one is refused by the verdict check
+    # with `:no_rejected_verdict`. Reaching the phase guard needs a state where the
+    # shadowing condition holds and the phase does not - an active attempt holding a ref
+    # receipt but not `integrating`, or holding a rejected verdict but not `reviewing`.
+    #
+    # Those states are UNWITNESSED, not proved absent, and the denominator is the point:
+    # at depth 7 over **58,324 reachable states, 0** have an active attempt with a ref
+    # receipt and **0** have an active attempt with any recorded verdict at all. The bound
+    # does not reach the precondition, so a search here proves nothing either way - and
+    # adding the implied relations to `SemanticInvariants` would assert them over 58,324
+    # states none of which can trip them, which is a vacuous mechanism of exactly the kind
+    # this subcommit shipped five of. A seeded search is what would settle it.
+    #
+    # So: unwitnessed, recorded, and NOT written into `@unreachable` to get green.
 
     for {line, fixture, type, payload, atom} <- @sites do
       test "kernel.ex:#{line} #{type} refuses with #{atom} (#{fixture})" do
