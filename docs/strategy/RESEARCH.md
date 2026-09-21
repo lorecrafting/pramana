@@ -1,7 +1,7 @@
 # Research register and dependency policy
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Original-section map](RECONCILIATION.md)
-**Checked:** 2026-09-20. This register distinguishes source evidence from our
+**Checked:** 2026-09-21. This register distinguishes source evidence from our
 recommendations. A retrieved article or README is not local conformance, a licence
 review, a partnership or a benchmark reproduction. Recheck moving upstream sources
 at evaluation/adoption; pin actual package/model/data revisions in that work.
