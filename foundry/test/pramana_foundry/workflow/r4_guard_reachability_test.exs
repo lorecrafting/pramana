@@ -71,9 +71,14 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
         "phase already enforces."
   }
 
-  test "every refusal the kernel declares either fires, or is recorded as unreachable" do
-    fired = KernelSearch.rejection_reasons(@depth)
+  # Both tests want the same traversal, and computing it twice doubled the cost of the
+  # slowest suite in the workflow set for no information.
+  setup_all do
+    {:ok, fired: KernelSearch.rejection_reasons(@depth)}
+  end
 
+  test "every refusal the kernel declares either fires, or is recorded as unreachable",
+       %{fired: fired} do
     never =
       KernelSearch.declared_reasons()
       |> MapSet.difference(fired)
@@ -93,9 +98,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
              "Remove them from @unreachable - and check whether the reason given was ever true."
   end
 
-  test "the forged-reference guards are exercised" do
-    fired = KernelSearch.rejection_reasons(@depth)
-
+  test "the forged-reference guards are exercised", %{fired: fired} do
     for guard <- ~w(not_the_active_attempt unknown_attempt retained_attempt_must_be_reused
                     check_already_exists resume_phase_disagrees)a do
       assert MapSet.member?(fired, guard),

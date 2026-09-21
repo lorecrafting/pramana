@@ -578,10 +578,11 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("developer_closed", ticket, event, _state) do
     payload = event["payload"]
 
+    # The role check below is redone by close_execution; require_execution is not
+    # redundant, because require_sealed indexes into the execution and would raise on one
+    # that is absent.
     with :ok <- require_attempt(ticket, payload["attempt_id"]),
          :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
-         :ok <-
-           require_developer_execution(ticket, payload["attempt_id"], payload["execution_id"]),
          :ok <- require_sealed(ticket, payload["attempt_id"], payload["execution_id"]) do
       close_execution(ticket, payload["attempt_id"], payload["execution_id"], ~w(developer))
     end
@@ -601,9 +602,12 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp do_transition("worker_closed", ticket, event, _state) do
     payload = event["payload"]
 
-    with :ok <- require_attempt(ticket, payload["attempt_id"]),
-         :ok <- require_execution(ticket, payload["attempt_id"], payload["execution_id"]),
-         :ok <- require_worker_role(ticket, payload["attempt_id"], payload["execution_id"]) do
+    # `close_execution/4` checks the execution exists and holds one of the roles it is
+    # given, so repeating both here was two guards deep enough to look like defence and
+    # shallow enough to prove nothing - the mutation sweep reported require_worker_role as
+    # surviving even with a test aimed squarely at it, because its sibling caught the same
+    # case.
+    with :ok <- require_attempt(ticket, payload["attempt_id"]) do
       close_execution(
         ticket,
         payload["attempt_id"],
@@ -1421,12 +1425,6 @@ defmodule PramanaFoundry.Workflow.Kernel do
       do: :ok,
       else: {:error, :wrong_execution_role}
   end
-
-  defp require_developer_execution(ticket, attempt_id, execution_id),
-    do: require_execution_role(ticket, attempt_id, execution_id, ~w(developer))
-
-  defp require_worker_role(ticket, attempt_id, execution_id),
-    do: require_execution_role(ticket, attempt_id, execution_id, ~w(check build integration))
 
   # A park may only promise to return the ticket where it actually is, or where it was
   # already recorded as resumable. A caller-chosen target let a walk park an

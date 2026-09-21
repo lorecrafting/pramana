@@ -34,24 +34,56 @@ defmodule PramanaFoundry.Test.KernelSearch do
   empty path. Each level expands only what the previous produced.
   """
   def search(depth \\ @default_depth, opts \\ []) do
-    initial = State.new()
-    seen = MapSet.new([key(initial)])
-
-    Enum.reduce(1..depth, {[{initial, []}], [{initial, []}], seen}, fn _d,
-                                                                       {frontier, all, seen} ->
-      {next, seen} = expand(frontier, seen, opts)
-      {next, all ++ next, seen}
-    end)
-    |> elem(1)
+    {states, _reasons} = explore(depth, opts)
+    states
   end
 
-  defp expand(frontier, seen, opts) do
+  @doc """
+  Every rejection reason the kernel produces within `depth`.
+
+  A guard whose reason never appears cannot fire on any sequence within the bound, which
+  makes it dead code rather than defence in depth — `require_reviewer_open` was exactly
+  that, and was claimed in a commit message as a fix. Comparing this against the errors the
+  module declares turns "is this guard reachable" from a question someone answers by
+  reading into one the suite answers.
+  """
+  def rejection_reasons(depth \\ @default_depth, opts \\ []) do
+    {_states, reasons} = explore(depth, opts)
+    reasons
+  end
+
+  # One traversal. `search/2` already applies every proposal and threw the errors away,
+  # so collecting reasons separately re-ran the whole search to recompute what the first
+  # pass had in hand — which is most of why the guard-reachability suite cost a minute and
+  # had to be kept out of the mutation sweep's fast phase.
+  defp explore(depth, opts) do
+    initial = State.new()
+
+    {frontier, states, seen, reasons} =
+      Enum.reduce(
+        1..depth,
+        {[{initial, []}], [{initial, []}], MapSet.new([key(initial)]), MapSet.new()},
+        fn _level, {frontier, states, seen, reasons} ->
+          {next, seen, reasons} = expand(frontier, seen, reasons, opts)
+          {next, states ++ next, seen, reasons}
+        end
+      )
+
+    # The deepest frontier is reached but never expanded, so nothing has yet proposed from
+    # it. Its refusals are as real as any other's, and omitting them made two guards look
+    # unreachable that are not. One more proposal pass, discarding the states.
+    {_ignored, _seen, reasons} = expand(frontier, seen, reasons, opts)
+
+    {states, reasons}
+  end
+
+  defp expand(frontier, seen, reasons, opts) do
     tickets = Keyword.get(opts, :tickets, ["T1"])
 
-    Enum.reduce(frontier, {[], seen}, fn {state, path}, {acc, seen} ->
+    Enum.reduce(frontier, {[], seen, reasons}, fn {state, path}, acc ->
       state
       |> proposals(tickets)
-      |> Enum.reduce({acc, seen}, fn proposal, {acc, seen} ->
+      |> Enum.reduce(acc, fn proposal, {acc, seen, reasons} ->
         event = build(state, proposal, length(path) + 1)
 
         case WorkflowKernel.apply(state, event) do
@@ -59,15 +91,18 @@ defmodule PramanaFoundry.Test.KernelSearch do
             k = key(next)
 
             if MapSet.member?(seen, k),
-              do: {acc, seen},
-              else: {[{next, path ++ [event]} | acc], MapSet.put(seen, k)}
+              do: {acc, seen, reasons},
+              else: {[{next, path ++ [event]} | acc], MapSet.put(seen, k), reasons}
 
-          {:error, _reason} ->
-            {acc, seen}
+          {:error, reason} ->
+            {acc, seen, MapSet.put(reasons, unwrap(reason))}
         end
       end)
     end)
   end
+
+  defp unwrap({reason, _detail}) when is_atom(reason), do: reason
+  defp unwrap(reason), do: reason
 
   defp proposals(state, tickets) do
     KernelWalk.candidates(%{
@@ -81,11 +116,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
   end
 
   defp build(state, {type, entity_id, payload}, sequence) do
-    kind =
-      case Event.entity_kind(type) do
-        {:ok, k} -> k
-        _ -> "ticket"
-      end
+    {:ok, kind} = Event.entity_kind(type)
 
     %{
       "schema_version" => 1,
@@ -115,36 +146,6 @@ defmodule PramanaFoundry.Test.KernelSearch do
 
   defp strip(collection),
     do: Map.new(collection, fn {k, v} -> {k, Map.drop(v, ~w(revision last_event_id))} end)
-
-  @doc """
-  Every rejection reason the kernel actually produces within `depth`.
-
-  The dual of `search/2`: instead of the states reached, the refusals encountered getting
-  there. A guard whose reason never appears cannot fire on any sequence within the bound,
-  which makes it dead code rather than defence in depth — `require_reviewer_open` was
-  exactly that, and was claimed as a fix. Comparing this against the error atoms the module
-  declares turns "is this guard reachable" from a question someone answers by reading into
-  one the suite answers.
-  """
-  def rejection_reasons(depth \\ @default_depth, opts \\ []) do
-    tickets = Keyword.get(opts, :tickets, ["T1"])
-
-    depth
-    |> search(opts)
-    |> Enum.reduce(MapSet.new(), fn {state, path}, acc ->
-      state
-      |> proposals(tickets)
-      |> Enum.reduce(acc, fn proposal, acc ->
-        event = build(state, proposal, length(path) + 1)
-
-        case WorkflowKernel.apply(state, event) do
-          {:error, reason} when is_atom(reason) -> MapSet.put(acc, reason)
-          {:error, {reason, _}} when is_atom(reason) -> MapSet.put(acc, reason)
-          _ -> acc
-        end
-      end)
-    end)
-  end
 
   @doc "Every error atom the kernel module can return, read from its source."
   def declared_reasons do

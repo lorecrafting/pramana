@@ -66,6 +66,11 @@ slow = fast ++ ~w(
 original = File.read!(target)
 
 # Every `<- require_foo(...)` call, with balanced parentheses so nested calls survive.
+#
+# A line-anchored regex was tried here and rejected by measurement: it found 47 call sites
+# where this finds 67, because a `with` clause that wraps across lines has no closing paren
+# on the line the call starts. Twenty guards would have gone unswept while the sweep
+# reported success, which is the failure this tool exists to catch.
 call_sites = fn source ->
   Regex.scan(~r/<- (require_[a-z_]+\()/, source, return: :index)
   |> Enum.map(fn [_, {start, len}] ->

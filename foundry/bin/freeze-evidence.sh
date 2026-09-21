@@ -42,9 +42,12 @@ TMPDIR=/private/tmp MIX_BUILD_PATH="$build" mix test --seed 0 --max-cases 1 \
   > /private/tmp/freeze-suite.log 2>&1
 suite_status=$?
 
-line=$(grep -E '^[0-9]+ tests?,|^Result:|passed' /private/tmp/freeze-suite.log | tail -1)
-passed=$(grep -oE '[0-9]+ (tests?|passed)' /private/tmp/freeze-suite.log | tail -1 | grep -oE '[0-9]+')
-skipped=$(grep -oE '[0-9]+ skipped' /private/tmp/freeze-suite.log | tail -1 | grep -oE '[0-9]+' || echo 0)
+# This repository's formatter emits "Result: N passed, M skipped". Matching ExUnit's
+# default "N tests, 0 failures" as well is how the mutation sweep came to report every
+# guard as untested: the wrong format matched nothing and its fallback called it a pass.
+read=$(tail -5 /private/tmp/freeze-suite.log | grep -oE 'Result: [0-9]+ passed(, [0-9]+ skipped)?')
+passed=$(echo "$read" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
+skipped=$(echo "$read" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' || echo 0)
 
 if [ "$suite_status" -eq 0 ]; then
   say "full suite" "${passed:-?} passed, ${skipped:-0} skipped at seed 0"
