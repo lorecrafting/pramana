@@ -9,6 +9,7 @@ operator's machine.
 
 [Documentation index](README.md) · [Repair plan](REPAIR-PLAN.md) ·
 [Workflow contract](WORKFLOW-CONTRACT.md) · [Ecosystem boundary](ECOSYSTEM-BOUNDARY.md) ·
+[AX/Substrate backend](AX-SUBSTRATE.md) ·
 [Broader product strategy](../../docs/strategy/FOUNDRY.md)
 
 ## Working summary
@@ -42,6 +43,14 @@ infrastructure that another system can satisfy under those contracts. Measure op
 effort per independently accepted outcome, including preparation, review, recovery and
 Foundry maintenance. Safety without useful completion and apparent productivity without
 valid evidence are both failures.
+
+The 2026-09-21 [AX + Agent Substrate review](AX-SUBSTRATE.md) makes this concrete:
+evaluate Google AX as a preferred future distributed `ExecutionBackend` over Agent
+Substrate, while keeping a direct Substrate adapter only as a demonstrated-need escape
+hatch. AX/Substrate may own workload reconciliation, actor scheduling, sandboxing,
+snapshotting and routing; they may not mint Foundry completion, budgets, grants, evidence
+binding or acceptance. Their current alpha/high-churn state and observed fail-open or
+incomplete semantics require a pinned conformance experiment before adoption.
 
 ## Authority and document ownership
 
