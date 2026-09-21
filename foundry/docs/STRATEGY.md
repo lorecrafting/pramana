@@ -84,6 +84,23 @@ conformance obligations are in
 [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md). This is post-repair guidance: the active
 workflow contract remains authoritative for current identities and transitions.
 
+### Ship a reference controller without making it the kernel
+
+Foundry should still work out of the box. The preferred distribution is **Foundry Core +
+an optional bundled Standard Controller**, with external controllers using the same Core
+protocol.
+
+The Standard Controller should initially preserve the repaired software workflow and later
+factor it into a small configurable reference pipeline. Its controller vocabulary should
+stay modest (sequence, bounded parallelism, gates, handoffs, correction, durable waits,
+sub-workflows/escalation) and remain outside protected authority. Do not build a universal
+DAG/workflow platform before real portability evidence.
+
+Cloudflare OS should be the first materially different external-controller experiment once
+the semantic seam is available. Compare it against the Standard Controller under the same
+ProjectProfile, capability ceilings and acceptance profile. Generalize Foundry-owned
+workflow machinery only where repeated cross-workload evidence justifies it.
+
 ## Authority and document ownership
 
 The [repair plan](REPAIR-PLAN.md) owns ticket status, ordering, dependencies and
