@@ -389,7 +389,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_phase(ticket, ~w(queued developing)),
          :ok <- require_no_open_developer(ticket),
-         :ok <- :ok,
+         :ok <- require_cleanup_complete(ticket),
          {:ok, ticket} <- open_attempt(ticket, payload["attempt_id"]),
          {:ok, ticket} <- add_execution(ticket, payload, "developer") do
       {:ok, Map.put(ticket, "phase", "developing")}

@@ -16,6 +16,33 @@
 
 target = System.argv() |> List.first() || "lib/pramana_foundry/workflow/kernel.ex"
 
+# This tool edits a source file in place, so for the minutes it runs the working tree does
+# not mean what it usually means. That is not hypothetical: a `git add -A` during a sweep
+# committed a neutralised guard into the repository, and the mutation survived into a
+# tagged candidate because every local check still passed - the suite was measuring the
+# mutation, not the kernel.
+#
+# The sentinel makes the window visible. `bin/preflight.sh` refuses to pass while it
+# exists, so a freeze cannot be taken from a mutated tree, and a second sweep cannot start
+# on top of a first.
+sentinel = "/private/tmp/guard-mutation-sweep.running"
+
+if File.exists?(sentinel) do
+  IO.puts("""
+  A sweep is already running, or one died without cleaning up.
+
+    #{sentinel}
+
+  If no sweep is running, the tree may hold a mutation. Compare the target against the
+  last known-good revision before deleting this file - do not assume it is clean.
+  """)
+
+  System.halt(2)
+end
+
+File.write!(sentinel, "#{System.pid()} #{DateTime.utc_now()} #{target}\n")
+System.at_exit(fn _ -> File.rm(sentinel) end)
+
 # Phase one is the two suites that are both broad and sub-second. The exhaustive and
 # guard-reachability suites each run a full state search, which is cheap once and ruinous
 # sixty-six times - putting them here turned a twenty-minute sweep into a three-hour one.

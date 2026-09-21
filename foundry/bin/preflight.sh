@@ -15,6 +15,16 @@ fail=0
 
 say() { printf '%-34s %s\n' "$1" "$2"; }
 
+# 0. A guard mutation sweep edits a source file in place for the minutes it runs. Every
+#    check below would then describe the mutation rather than the candidate, and a green
+#    result would be actively misleading. This has already put a neutralised guard into a
+#    commit once.
+if [ -f /private/tmp/guard-mutation-sweep.running ]; then
+  say "mutation sweep not running" "FAIL (a sweep holds the tree; nothing below is trustworthy)"
+  exit 1
+fi
+say "mutation sweep not running" "ok"
+
 # 1. The gate validates the COMMIT, not the working tree. Local test runs read the working
 #    tree, so unstaged edits pass locally and are then absent from what the gate builds.
 #    This was the single most common cause of a red gate after a green local run.
