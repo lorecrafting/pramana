@@ -97,6 +97,82 @@ ResourceAdapter. AX may act as controller while AX/Substrate also implements exe
 Using one vendor for several seams must not let controller state bypass the protected
 boundary between them.
 
+## Foundry is optional per workflow, not a mandatory parent process
+
+Cloudflare OS and other controllers may run useful workflows that never enter Foundry.
+
+A deployment should distinguish at least three governance modes:
+
+~~~text
+NATIVE
+  controller owns the workflow
+  controller's own Gatekeeper/approval/security model applies
+  no Foundry objective, assignment, acceptance or promotion facts exist
+
+GOVERNED
+  workflow is admitted into Foundry
+  controller receives bounded Foundry grants and reports exact evidence/effects
+  Foundry owns acceptance and protected promotion
+
+ESCALATING
+  workflow begins native
+  a later request crosses a protected project/authority boundary
+  controller proposes a new Foundry-governed objective/assignment
+  native work does not retroactively become Foundry-authoritative
+~~~
+
+Examples of likely Cloudflare-native work include personal email triage/drafting,
+summarization, low-risk scheduling, research helpers and disposable personal Gadgets where
+Cloudflare's own resource-scoped Gatekeepers and user approvals are the intended authority.
+
+Examples likely to require Foundry include independently accepted software changes,
+protected repository/ref updates, Loka engine or certified-cartridge promotion, durable
+cross-agent review independence, conserved shared budgets, production deployment and any
+workflow whose result must become an authoritative project fact.
+
+The boundary is policy and product specific. "Uses AI" is not itself a reason to involve
+Foundry.
+
+### Escalation does not inherit authority
+
+A native controller workflow that reaches a governed boundary does not obtain authority by
+continuing the same chat/session. It creates a new admission proposal with explicit
+provenance back to the native work:
+
+~~~text
+Cloudflare-native email/research/workflow
+              |
+              | discovers consequential project work
+              v
+      Foundry objective proposal
+              |
+              +-- source provenance
+              +-- requested project/scope
+              +-- requested workflow/role
+              v
+        admitted governed work
+~~~
+
+Foundry may accept, narrow or reject it. Only the admitted child/sibling work receives
+Foundry identities and grants.
+
+### Either side may initiate governed work
+
+Foundry does not need to boot Cloudflare OS. Cloudflare OS is normally a running
+controller/product environment. A governed run can begin from either direction:
+
+~~~text
+Cloudflare-first:
+  user -> Cloudflare Gadget/UI -> Foundry admission -> returned grants -> Cloudflare agents
+
+Foundry-first:
+  user/API -> Foundry admission -> selected Cloudflare adapter -> create/open workflow instance
+           -> spawn Cloudflare agents under returned grants
+~~~
+
+The semantic result is the same. Foundry controls the admitted authority; Cloudflare
+controls the product/workflow experience.
+
 ## Two paths: authority and observation
 
 An orchestrator integration has two deliberately different paths.
