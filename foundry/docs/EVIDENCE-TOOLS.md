@@ -93,8 +93,8 @@ These are not style preferences. Each was bought with a review round.
    denominator cannot drift from the predicate, and the suite prints the per-family table at
    the end of every run. A family whose `held` column is zero is reporting nothing out of
    nothing — and the table is equally how a family stops looking vacuous: `receipt_custody`
-   holds 0 of 58,324 over the bounded search and **8,411** over the 253,383 transitions the
-   suite drives. `terminal_custody` was deleted outright once measurement showed it could
+   holds 0 of 58,324 over the bounded search and **8,411** over the 2,351,003 transitions the
+   suite drives — every witness it has comes from hand-driven tests, not from the search. `terminal_custody` was deleted outright once measurement showed it could
    fire only on states `well_formed?/1` already refuses — 0 of 6,716.
 
    Measuring the bound is what collapsed two standing reachability claims: at depth 8 over

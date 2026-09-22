@@ -3239,15 +3239,20 @@ proposer and the reducer can. `violations/1` is derived from it rather than the 
 suite prints the table after every run via `ExUnit.after_suite/1`, and a family whose `held`
 column is zero is labelled vacuous in place.
 
-Over **253,383 accepted transitions** on the first green run:
+Over **2,351,003 accepted transitions** at the gate-green tip:
 
 | family | held | violated |
 |---|---|---|
-| `phase_agreement_nil` | 7,883 | 0 |
-| `phase_agreement_attempt` | 41,269 | 0 |
-| `resume_target` | 116,605 | 1 |
-| `candidate_custody` | 236,501 | 0 |
+| `phase_agreement_nil` | 27,429 | 0 |
+| `phase_agreement_attempt` | 823,768 | 0 |
+| `resume_target` | 1,092,133 | 1 |
+| `candidate_custody` | 531,007 | 0 |
 | `receipt_custody` | **8,411** | 0 |
+
+(The first green run, before the `kernel_search` exemption was deleted, judged 253,383 and
+held `receipt_custody` 8,411 times. The receipt figure is identical because the bounded search
+never holds that precondition at all — every one of those 8,411 witnesses comes from the
+hand-driven tests, which is exactly the claim.)
 
 Two rows in that table are the ticket's whole argument. `receipt_custody` holds **0 of
 58,324** over the bounded search and **8,411** over the transitions the suite drives — the
