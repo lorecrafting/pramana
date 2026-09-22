@@ -2072,6 +2072,48 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert get_in(settled, ["tickets", "T1", "attempts", "A1", "disposition"]) ==
                "superseded_base"
     end
+
+    # The state the in-flight predicate is WRONG about, pinned to the guard that actually
+    # refuses it. `worker_closed` carries one guard, `require_attempt`, and is the one
+    # route to `closed` that `require_no_ref_receipt` does not stand in front of - so an
+    # integration effect that landed can be closed, and `integration_issued?` then reads
+    # false on an attempt holding a ref receipt. The original claim here was that a closed
+    # integration execution never carries an effect that landed; it does, three events
+    # from a fixture the suite already had, and an independent review drove it.
+    #
+    # Behaviour is correct, by `require_receipt_for_integration` sitting EARLIER in
+    # `attempt_settled`'s `with` chain than `require_settlement_source`. That ordering is
+    # the whole guarantee, and nothing pinned it: the existing
+    # `:ref_receipt_admits_only_integrated` test never closes the execution first, so it
+    # passes whether or not `integration_issued?` would also have refused. Pinned by exact
+    # atom per rule 5, because a shared `{:error, _}` here would be satisfied by the guard
+    # that is not doing the work.
+    test "a landed integration effect that has been closed still refuses superseded_base" do
+      {closed, sequence} =
+        drive(integrating_with_receipt(), [
+          {"worker_closed", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "I1"}}
+        ])
+
+      attempt = get_in(closed, ["tickets", "T1", "attempts", "A1"])
+
+      assert attempt["executions"]["I1"]["lifecycle"] == "closed"
+      assert attempt["ref_receipt_id"] == "ref-1"
+      assert attempt["phase"] == "integrating"
+
+      settle =
+        event("attempt_settled", "T1", closed["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "superseded_base",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+
+      assert {:error, :ref_receipt_admits_only_integrated} =
+               WorkflowKernel.apply(closed, settle),
+             "the receipt guard is what refuses this, not the issuance predicate"
+    end
   end
 
   describe "each guard call site, not each guard" do

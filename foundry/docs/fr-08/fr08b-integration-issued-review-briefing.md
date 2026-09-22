@@ -1,6 +1,12 @@
 # Review briefing — `integration_issued?`, the in-flight predicate
 
 **Candidate:** `b5077625`, on `repair/fr08b-kernel`, parent `f0609c38`.
+**Outcome: BLOCKed, then corrected.** The review found the `closed`-is-unissued argument below
+false — `worker_closed` is not behind `require_no_ref_receipt`, so a landed effect can be
+closed and `integration_issued?` reads false on it. Behaviour was safe by
+`require_receipt_for_integration` sitting earlier in the `with` chain, which the change cited
+nowhere and nothing pinned. Corrected in the follow-up commit; item 1 below is kept verbatim as
+the claim that was wrong, because it is the record of what the review was aimed at.
 **Scope:** one kernel predicate, one deleted qualifier, one test converted to a loop, one
 test added, one log entry plus a correction to an earlier one. Nothing else.
 

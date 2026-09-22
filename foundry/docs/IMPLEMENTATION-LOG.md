@@ -3113,3 +3113,48 @@ Both halves are corrected here.
 - **Also fixed in passing:** the comment block at `kernel.ex:1636-1638` described
   `failed_check?` while sitting on `integration_issued?`. It was recorded as noticed-not-fixed
   in the entry above; it is now on `failed_check?`, where blame says it was authored.
+
+### Correction to the entry above, same day — the review found the safety argument false
+
+An independent review BLOCKed the candidate. The behaviour is correct; three statements about
+*why* were not, and the load-bearing one was mine.
+
+- **"`require_no_ref_receipt` refuses both once a receipt exists, so a closed integration
+  execution never carries an effect that landed" is false.** The two `close_execution` routes
+  were enumerated correctly and then a guard property was asserted across both without
+  checking the second. `require_no_ref_receipt` is called at `kernel.ex:852`, `:868` and `:892`
+  — `integration_planned`, `integration_settled`, `integration_recorded`. **Not
+  `worker_closed`**, which carries one guard, `require_attempt` (`kernel.ex:613-629`). So a
+  landed integration effect can be closed, and `integration_issued?` then reads false on an
+  attempt holding a ref receipt. Three events from `integrating_with_receipt`, a fixture the
+  suite already had. The reviewer drove it; so did I, confirming, before acting on it.
+- **What actually refuses that state is `require_receipt_for_integration` (`kernel.ex:1531`),
+  sitting earlier in `attempt_settled`'s `with` chain than `require_settlement_source`.** The
+  chain ordering is the whole guarantee and the change cited it nowhere. Nothing pinned it
+  either: the existing `:ref_receipt_admits_only_integrated` test never closes the execution
+  first, so it passes whether or not the issuance predicate would also have refused. A test
+  now drives landed → `worker_closed` → `superseded_base` and pins that exact atom (rule 5).
+  Rule 6: neutralising that guard's converse clause turns it **red**, 114/116.
+- **The `unknown` warrant was over-read.** `WORKFLOW-CONTRACT.md:573-576` is quoted accurately
+  but is a reservation-ledger transition entered *at the issued commit* — it says issued things
+  become unknown, not that unknown things were issued, and an execution reaches lifecycle
+  `unknown` from `pending` with no start observed. The real warrant is R4's integration row,
+  "unknown blocks reconciliation" (`:486`). Relabelled; the direction was already the
+  conservative one, so no behaviour changes. This is the second over-read citation on this
+  contract row.
+- **The qualifier deletion survived, with the induction completed by the reviewer.** The
+  missing half: `reviewer_closed` needs the attempt in `reviewing`, and no transition returns
+  an attempt from `ready_to_integrate` or `integrating` to `reviewing`. The reviewer's own
+  argument for shipping it is better than the one given: the qualifier was an *exemption*, so
+  deleting it can only add refusals, and rule 3's instruction for an unwitnessed guard is prove
+  it inductively or delete it.
+- **Two smaller miscounts, both mine.** The misplaced comment was at `kernel.ex:1637-1639`, not
+  `:1636-1638`. And "the single `require_` string in the diff is inside a comment" was five
+  added strings across the kernel comment and the log hunk — the load-bearing claim, that no
+  `require_*(` **call site** changed and no sweep is owed, holds.
+- **The shape, third occurrence this session.** Both earlier ones were a rule applied to the
+  first item of a list just generated; this is the same move with the list held one step
+  longer — enumerate two routes, verify the property on route one, assert it of both. The
+  handoff note carried that exact warning into this session and it did not prevent the
+  recurrence. What caught it was an independent reviewer told explicitly to attack that
+  enumeration, which is the only mechanism that has ever caught this class here.

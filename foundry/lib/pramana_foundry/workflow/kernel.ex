@@ -1575,9 +1575,14 @@ defmodule PramanaFoundry.Workflow.Kernel do
       # false: attempt phase `ready_to_integrate` has two writers, `reviewer_closed` on an
       # approved verdict (no integration execution exists yet) and `integration_settled`
       # (which closes the execution on the way), so no reachable state distinguishes the two
-      # forms. It is deleted rather than kept, because a false premise left in place is what
-      # the next handler builds on. Unwitnessed by construction per rule 3: the deletion has
-      # no red control, and cannot have one until such a state is reachable.
+      # forms. The induction has a second half the first version of this comment left out,
+      # supplied by the review: `reviewer_closed` needs the attempt in `reviewing`, and no
+      # transition returns an attempt from `ready_to_integrate` or `integrating` to
+      # `reviewing`, so no integration execution can exist at that writer at all.
+      # Unwitnessed by construction per rule 3: the deletion has no red control and cannot
+      # have one until such a state is reachable. It ships because the qualifier was an
+      # EXEMPTION - deleting it can only add refusals, never remove one - and rule 3's
+      # instruction for an unwitnessed guard is prove it inductively or delete it.
       "superseded_base" ->
         with :ok <- require_attempt_phase(ticket, ~w(ready_to_integrate integrating)) do
           if integration_issued?(attempt),
@@ -1655,15 +1660,30 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # not expressible without a state-shape change subcommit 2 would then inherit. The
   # lifecycle answers it directly and phase-independently.
   #
-  # `pending` is claimed but not issued. `closed` requires "verified process/session
-  # termination or proved non-start" (contract :390), and an integration execution reaches
-  # it only through `integration_settled` (the non-start settlement) or `worker_closed` on
-  # the `no_ref_change` retry path - `require_no_ref_receipt` refuses both once a receipt
-  # exists, so a closed integration execution never carries an effect that landed.
-  # `unknown` is deliberately on the issued side: R1's ledger holds `issued_unknown`
-  # "unavailable for reuse" (contract :573-576) and R4's integration row says "unknown
-  # blocks reconciliation". R1 still owns the real issuance boundary; this is the kernel's
-  # proxy for it, recorded as an interpretation rather than as the contract's own words.
+  # `pending` is claimed but not issued. **`closed` is not safe on its own, and the first
+  # version of this comment claimed it was.** An integration execution reaches `closed`
+  # through two call sites - `integration_settled` (the non-start settlement) and
+  # `worker_closed` - and only the first is behind `require_no_ref_receipt`.
+  # `worker_closed` (:613) carries one guard, `require_attempt`, so an integration effect
+  # that LANDED can be closed, and this predicate then reads false on an attempt holding a
+  # ref receipt. Three events from the suite's own `integrating_with_receipt` fixture; an
+  # independent review drove it after the claim shipped.
+  #
+  # That state is refused, but not here. `require_receipt_for_integration` (:1531) sits
+  # earlier in `attempt_settled`'s `with` chain than `require_settlement_source` and
+  # refuses it `:ref_receipt_admits_only_integrated`. **That ordering is the guarantee.**
+  # Reordering the chain, or narrowing that guard, opens the hole - so the control for it
+  # is pinned to that atom, not to this predicate. This predicate is only ever the second
+  # line of defence for a landed effect.
+  #
+  # `unknown` is deliberately on the issued side. The warrant is R4's integration row,
+  # "unknown blocks reconciliation" (contract :486). R1's `reserved → issued_unknown`
+  # ledger row (:573-576) is an analogy and is labelled one: it says issued things become
+  # unknown at the issued commit, not that unknown things were issued, and an execution
+  # can reach lifecycle `unknown` from `pending` with no start ever observed. Refusing is
+  # the conservative direction there. R1 still owns the real issuance boundary; this is
+  # the kernel's proxy for it, recorded as an interpretation rather than as the contract's
+  # own words.
   @issued_lifecycles ~w(starting running closing unknown)
 
   defp integration_issued?(attempt),
