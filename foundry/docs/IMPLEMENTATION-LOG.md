@@ -4599,3 +4599,70 @@ an either/or, and the fix has a sibling to copy.
 comparison is most of the work of classifying them, but classifying a row is a per-row pass against
 its handler and doing it as a by-product of a different question is how a citation gets recorded
 that the scenario does not assert — the defect the fourth citation read found. They stay held.
+
+## The identity-drift defect is real, is a race, and is narrower than first claimed — 2026-09-22
+
+The entry for `ebc3ab34` filed a question to FR-04: `same_process?/2` compares `command`, and
+`/usr/bin/python3` re-execs into the framework Python, so two `ps` reads of one live pid disagree.
+It was raised on two reads inside a test and guessed at a consequence — "a check whose command is a
+re-execing shim can become permanently uncancellable". **That guess was wrong, and the measurement
+is how.** The witness is committed at [fr-04/identity-drift-probe.exs](fr-04/identity-drift-probe.exs);
+everything below is its output, not a reading.
+
+### Measured, through the real `Checks.Runner` path
+
+12 launches of `["python3", "-c", "import time; time.sleep(30)"]` — `Runner.launch`,
+`await_child_pid`, `ProcessGroup.identity/1`, which is exactly how a caller builds
+`recorded_identity`. **5 of 12 drifted.** In every drifted run only `command` moved; pid, process
+group and start time all agreed, so it is one process, not pid reuse. The process was `:present` at
+classification time in all five.
+
+| over the 5 drifted | over the 7 stable |
+|---|---|
+| `Status.classify` running → `:uncertain` | → `:running` |
+| `Status.classify` cancelling → `:cancelled` | — |
+| `Adoption.reconcile` → `:uncertain` | → `{:adopted, _}` |
+| `ProcessGroup.signal(recorded)` → `{:error, :stale_identity}`, process still `:present` | → `:ok`, gone |
+
+Same code, same command, same launch path. The only difference is whether the shim had re-exec'd
+before the first read — which is why it is a rate and not a verdict, and why the probe reports one.
+
+### The correction
+
+**Not uncancellable.** `ProcessGroup.signal/2` has exactly one caller in `lib` — `runner.ex:158`,
+inside `terminate/3` — and `terminate/3` writes the cancellation file *before* it signals. The
+trampoline polls that file and `os.killpg`s the group itself, so the refused signal is backstopped
+by a path that never consults identity. Measured separately: 12 launches, 6 drifted, **6 of 6 gone**
+after `Runner.terminate`. Termination works. One of those six returned `{:error, :stale_identity}`
+to its caller while the process did in fact die, which is a false error return rather than a leak.
+
+So the exposure is confined to **classification**, and there it is real:
+
+- A live, healthy check classifies `:uncertain`. `Status`'s own moduledoc says `:uncertain` is
+  "never silently rerun", so the check is neither trusted nor retried.
+- With a cancellation requested, a live check classifies `:cancelled` — a status the process has not
+  earned, reported while it is still running. The trampoline does then kill it, so this is premature
+  rather than false, but nothing in the classifier knows that.
+- `Adoption.reconcile` returns `:uncertain` instead of `{:adopted, _}`, so a check that survived a
+  coordinator restart is never adopted — which is the single case that module exists for.
+
+### Why `sh -c` is not the witness, though it looked like the better one
+
+`runner_test.exs` documents the same class in its own comments: `sh -c "<one command>"` tail-call-execs
+into that command, and two tests append `; true` specifically to stop it, so `command` stays stable
+across two snapshots. That reads like the more realistic shape for a check. Probed, it is not the
+witness: by the time `await_child_pid` has polled the identity file and `identity/1` has run, the
+shell has already exec'd, so both reads see the post-exec argv and agree. The race window is real but
+closes faster than the read. The python3 shim's is slower, and that is the one that lands.
+
+### Not fixed, deliberately
+
+The fix belongs to FR-04 and to a reviewed candidate. `same_process?/2` is the predicate that refuses
+to signal the wrong process; loosening what it compares is a change whose failure mode is signalling
+a process that is not ours, and `@identity_fields`' four-way comparison has its own red control at
+`process_group_test.exs:35` precisely because it is load-bearing. Whether the answer is comparing a
+normalised `command`, comparing argv tail rather than argv[0], recording the identity after the child
+has settled, or dropping `command` in favour of pid/group/start-time alone, is exactly the kind of
+question this repository requires an independent reader for. What is settled is that it is not
+hypothetical: 5 of 12, with the probe committed so the next reader gets their own number rather than
+this one.
