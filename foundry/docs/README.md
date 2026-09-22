@@ -15,6 +15,8 @@ contract still govern implementation.
 | Task | Read |
 |---|---|
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
+| Understand Foundry's ecosystem position, what the kernel must own, and what should remain substitutable | [Ecosystem boundary and positioning](ECOSYSTEM-BOUNDARY.md), then [Foundry strategy](STRATEGY.md) and the governing workflow/repair contracts |
+| Understand how Cloudflare/AX/Pi/Claude/Codex or another controller should drive Foundry without becoming authority | [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md), then [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), [Observability](OBSERVABILITY.md) and the governing workflow contract |
 | Evaluate or implement the Pi replacement candidate and Claude-like ergonomics | [Pi harness design](PI-HARNESS.md), then the [checkpoint F feasibility record](fr-09/checkpoint-f-feasibility.md), its [independent blocker review](fr-09/checkpoint-f-review.md) and [independent correction PASS](fr-09/checkpoint-f-rereview.md), repair plan/workflow contract and affected FR-09/15a/18 requirements before implementation |
 | Evaluate Jido/Jido.Harness/ACP before building a custom harness bridge | [Jido / Jido.Harness evaluation](JIDO-HARNESS.md), then [Pi harness design](PI-HARNESS.md), [Observability](OBSERVABILITY.md) and the same FR-09/15a/18 gates |
 | Inspect the FR-15aA host/provisioning specification and executable inventory | [FR-15aA provisioning specification](fr-15a/provisioning-specification.md), its [machine-readable manifest](fr-15a/provisioning-manifest.exs), then the governing FR-15aB/FR-09 criteria; the specification enables no execution |
@@ -27,7 +29,9 @@ contract still govern implementation.
 | Inspect the H0 accepted-FR-07 boundary candidate and review | [H0 candidate](fr-08/h0-boundary-candidate.md) and [independent blocker review](fr-08/h0-boundary-review.md) |
 | Understand execution authority | [Workflow contract](WORKFLOW-CONTRACT.md), then the applicable repair boundary |
 | Review the frozen FR-08A atomic-composition correction | [Settlement-presence correction narrow PASS](fr-08/atomic-composition-presence-review.md), [prior presence BLOCKER](fr-08/atomic-composition-final-rereview.md), [earlier rereview](fr-08/atomic-composition-rereview.md) and [first review](fr-08/atomic-composition-review.md), each with exact candidate scope |
+| Act on the positioning documentation merged in PRs #43–#46 | [Positioning audit](POSITIONING-AUDIT-2026-09-21.md) — fourteen obligations and eleven proposed edits against `d3e37183`, none applied; read it before extending `ORCHESTRATOR-BOUNDARY.md`, `CLOUDFLARE-OS.md`, `ECOSYSTEM-BOUNDARY.md`, `AX-SUBSTRATE.md` or `PLANNING-STRATEGIES.md` |
 | Understand future project/role portability | [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), then the strategy and validation plan |
+| Understand replaceable planning strategies, PM/Shaper responsibility, human work projections and workflow experiments | [Planning strategies](PLANNING-STRATEGIES.md), then [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), [Observability](OBSERVABILITY.md) and the governing strategy |
 | Understand why repairs exist | [Architecture/lifecycle audit](AUDIT-2026-09-12.md) and its dated verification records |
 | Inspect the durable store's actual tables, columns and constraints | [Generated schema reference](DURABLE-STORE-SCHEMA.md); it is generated from `database.ex` and a test fails if the two disagree, so prefer it over reading the schema by hand |
 | Build or run model-free checks | [Independent CI](CI.md) and `ci/run.exs` |

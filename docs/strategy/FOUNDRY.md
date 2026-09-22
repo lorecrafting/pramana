@@ -5,8 +5,9 @@
 
 For the operator's Foundry-first investment direction, architecture boundaries and
 lessons from FirstMate/Pi/OMP, read the [Foundry strategy brief](../../foundry/docs/STRATEGY.md).
-That brief guides the repair investment; this chapter retains post-repair initiatives
-and portfolio sequencing. Neither replaces the repair plan or workflow contract.
+For the controller-neutral authority/observation split, read the
+[orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md). These guide
+post-repair investment; neither replaces the repair plan or workflow contract.
 
 ## Mission and boundary
 
@@ -99,6 +100,14 @@ operator policy, project scope, workflow/role allowance and the specific assignm
 Repository-controlled configuration can never grant itself secrets, billing authority,
 arbitrary shell/network access or publication power.
 
+For future non-code workflows, effective policy may also need attributable **observation
+provenance**: what protected data an execution or artifact actually consumed can matter to
+whether it may later be shared or published. Cloudflare OS provides useful design pressure
+here, but this is not a current repair-time ontology change. A future ObservationReceipt
+should begin as evidence/provenance and earn any protected policy role through a separate
+bounded experiment; connector/provider claims must never become self-authenticating
+Foundry authority.
+
 Pin every admitted workflow definition/revision to the run that used it. If a model or
 project changes the plan mid-run, record and admit a new revision instead of rewriting
 history. Child work and sub-workflows inherit parent scope and budget ceilings unless
@@ -115,6 +124,30 @@ quest author in another because authority follows the assignment, not the model 
 Released game/runtime artifacts should remain independently useful without Foundry or an
 LLM. This is a future portability target, not part of the current Pramāṇa repair scope.
 
+## Replaceable controllers over one authority plane
+
+Post-repair portability should not require Foundry to own one permanent orchestration
+runtime. The default workflow kernel can remain the reference/local controller while
+Cloudflare OS, AX, Pi, Claude/Codex harnesses or future systems drive the same protected
+facts through a narrow OrchestratorAdapter.
+
+Use two paths:
+
+- **authority:** semantic, durable, idempotent commands for admission, grants, execution
+  issuance, evidence binding, consequential effects, acceptance and promotion;
+- **observation:** high-volume non-authoritative model/tool/runtime/controller telemetry
+  with common correlation IDs and optional OpenTelemetry export.
+
+Controllers consume facts/eligibility and propose what to do next. They do not receive a
+generic protected `advance()` operation and their own "completed"/"approved" states do not
+become Foundry facts automatically. A post-repair subscription surface (I-F5, O1/O2) would let deterministic
+controller code wait without repeatedly waking a model to poll child status.
+
+This makes Foundry a neutral referee for workflow experiments: keep authority and
+acceptance fixed, swap controllers, and compare accepted-outcome correctness, token/cost
+usage, latency, correction tax and operator effort. See
+[Orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md).
+
 ## Positioning: own the contract, not commodity infrastructure
 
 Foundry must earn its custom infrastructure. Its durable product boundary is the
@@ -124,12 +157,26 @@ binding, independence constraints, acceptance, reconciliation and controlled pro
 Agent loops, software-factory UIs, workflow runtimes, sandboxes, policy languages and
 model routers are implementation choices unless the governing contract proves otherwise.
 
+Separate three replaceable boundaries that are easy to conflate. An
+`OrchestratorAdapter` answers how an external controller consumes Foundry facts and
+proposes work. An `ExecutionBackend` answers where/how admitted code runs. A
+`ResourceAdapter` or capability broker answers what external resources that execution
+may read or affect without gaining ambient credentials. The controller seam may be implemented by the default Foundry kernel,
+Cloudflare OS, AX, Pi or future orchestrators. Execution may use a local Linux worker,
+AX/Agent Substrate, Cloudflare Dynamic Workers/Sandbox or future runtimes. Resource
+mediation may use provider-specific Gatekeeper-like brokers. None may create Foundry
+grants, settle budgets from self-reported counters or accept its own output. The [AX/Substrate](../../foundry/docs/AX-SUBSTRATE.md) and
+[Cloudflare OS](../../foundry/docs/CLOUDFLARE-OS.md) reviews record the current evidence
+and non-authority constraints.
+
 Before post-repair work adds or substantially extends one of those implementation layers,
 run a bounded substitution evaluation against the strongest available alternative.
 Current candidate classes include Warp Factories for software-factory orchestration,
 LangGraph for agent/workflow runtime, Restate/Temporal/DBOS for durable execution,
-Dagger plus OS/container/micro-VM primitives for execution isolation, and OPA/Cedar for
-bounded authorization-policy evaluation. These names are candidates, not dependencies.
+AX/Agent Substrate and Cloudflare execution primitives behind a common ExecutionBackend,
+Gatekeeper-like brokers for narrow resource/effect mediation, Dagger plus
+OS/container/micro-VM primitives for execution isolation, and OPA/Cedar for bounded
+authorization-policy evaluation. These names are candidates, not dependencies.
 
 A substitution evaluation compares the actual Foundry cases—not feature lists—including
 lost acknowledgments, duplicate delivery, unknown side-effect outcomes, durable budgets,
@@ -259,6 +306,23 @@ Current runtime code is not yet role-agnostic: software-specific launch roles an
 handoff/review phases remain part of the active repair baseline. Post-repair portability
 must remove those assumptions only after the fixed workflow is proven and a materially
 different typed-content workflow demonstrates the generalization.
+
+## Foundry as an experimental workflow kernel
+
+The long-term boundary should permit controlled comparison of planning/workflow strategy,
+model/profile, harness, context policy, tool surface, reviewer topology and concurrency
+without changing the protected authority/evidence rules for each experiment. Compare
+matched task classes by accepted outcomes, correctness, operator effort, correction tax,
+latency, token/context use, provider-reported cost where available and recovery burden;
+do not optimize raw token count or throughput in isolation.
+
+Vertical work slices are a useful current planning hypothesis, not Foundry ontology. A
+PM/Shaper may use slices to turn an objective into human-recognizable outcomes and then
+propose bounded tickets, but a future goal graph, blackboard, dynamic DAG or repeated
+next-best-action planner should be able to use the same admission boundary. Human work
+views and compact continuity capsules should remain replaceable projections over durable
+state and evidence. The detailed boundary is in
+[Replaceable planning strategies](../../foundry/docs/PLANNING-STRATEGIES.md).
 
 ## First post-repair investment: useful context and honest feedback
 

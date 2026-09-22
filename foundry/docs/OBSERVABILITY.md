@@ -15,6 +15,39 @@ OpenTelemetry**: `foundry/mix.exs` declares no OpenTelemetry packages and Foundr
 runtime producers do not currently emit an application-wide `:telemetry` event contract.
 The Erlang `telemetry` package is present only transitively through current dependencies.
 
+## Authority path versus observation path
+
+The controller-neutral architecture in
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) restates a distinction the workflow
+contract already makes mandatory — the command transaction protocol (FR-06/FR-08) versus
+telemetry surfaces (FR-18):
+**authority-changing commands and high-volume observations are separate paths**.
+
+The authority path carries semantic commands whose durable disposition can change Foundry
+facts: admission, capability issuance/revocation, reservations, execution issuance,
+candidate/evidence registration, consequential effect state, acceptance and promotion.
+Those commands use the protected transaction protocol and its idempotency/revision rules.
+
+The observation path carries model/tool/runtime/controller activity. It should be cheap to
+batch and asynchronous where possible. Losing an observation must never create authority
+or false success, but required local retention/quality still matters for diagnosis, cost
+accounting and self-improvement; non-authoritative does not mean disposable.
+OpenTelemetry belongs on this path.
+
+Do not turn convenience telemetry into authority. Examples:
+
+~~~text
+controller says "completed"        -> observation
+agent says "tests pass"            -> observation/model claim
+process exit 0                      -> observation
+approved exact check receipt       -> evidence accepted by protected predicate
+candidate accepted                 -> protected fact
+~~~
+
+A future OrchestratorAdapter therefore needs both a semantic authority client and an
+observation emitter. One generic "event stream" that allows consumers to infer authority
+from controller activity would collapse the boundary this document is trying to preserve.
+
 ## Data model: four local JSONL surfaces
 
 The current system uses four append-oriented JSONL surfaces under
@@ -157,6 +190,19 @@ Foundry execution identity. Use high-cardinality IDs for trace/span correlation 
 durable analysis records; do not make them metric labels that explode time-series
 cardinality.
 
+For workflow experiments, observations may additionally carry versioned experimental
+dimensions such as planning strategy/revision, ProjectProfile, context policy, harness,
+model/profile, review topology and concurrency policy. Those are analysis dimensions,
+not new authority identities. A planning label cannot substitute for objective/ticket/
+execution/candidate lineage.
+
+I-F1 may measure **reorientation tax** where the selected harness exposes enough data: handoff or
+resume to first productive effect, model calls before that effect, tokens/context bytes
+spent reconstructing prior state, repeated reads after handoff, stale-context failures,
+and operator time spent reconstructing current state. This supports experiments with
+compact continuity capsules or other context projections without treating those
+projections as durable truth. See [Planning strategies](PLANNING-STRATEGIES.md).
+
 The normalized model should cover at least these event families:
 
 | Family | Required useful measurements |
@@ -283,7 +329,19 @@ A selected harness should expose enough information for Foundry to produce one
 source-qualified observation graph while keeping authority elsewhere. The durable
 correlation chain should support:
 
-`objective → ticket → attempt → execution → request/tool/effect → candidate → review → accepted outcome`
+`project/workflow revision → objective → ticket/work item → attempt → assignment → execution → request/tool/effect → candidate → review/check → accepted outcome`
+
+Only the `objective → … → accepted outcome` subset in *Canonical correlation model* above is
+FR-18A/18B scope. `project`, `workflow revision` and `assignment` are post-repair vocabulary
+from the orchestrator boundary, not workflow-contract identities, and FR-18B is not obliged to
+carry them.
+
+**Post-repair (O2):** every orchestrator observation should also preserve the controller source and mapping
+needed to reconstruct its relationship to Foundry without promoting controller-native IDs
+to authority. Where applicable record controller kind/version, adapter version,
+controller job/session ID, Foundry assignment/execution ID, wake reason and whether the
+wake exposed actionable new state. A controller ID is a source-qualified observation
+attribute, never a substitute for the Foundry identity it maps to.
 
 At minimum, a **model-request observation** should bind the exact execution/request,
 role, harness/version, provider/account route, profile/model/reasoning, phase, start/end,

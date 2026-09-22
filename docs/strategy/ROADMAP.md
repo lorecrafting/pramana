@@ -166,7 +166,8 @@ review attribution, private-input protections and repeat collaborative use.
 **Outcome:** agents resume and finish bounded work with less operator intervention.
 **Evidence:** context-reset/restart cases, evidence rehydration, changed-file cache
 invalidation, honest idle states and matched-task effort comparison.
-**Dependencies:** G0 and accepted state/receipt interfaces. **Excludes:** another
+Reorientation-tax measures per
+[OBSERVABILITY](../../foundry/docs/OBSERVABILITY.md) belong here. **Dependencies:** G0 and accepted state/receipt interfaces. **Excludes:** another
 state store, giant mandatory prompt or a fixed tiny context cap that drops constraints.
 
 ### I-F2 — one tooling/quality improvement at a time
@@ -214,6 +215,18 @@ exists. **Evidence:** installed backend tests against [the Foundry requirements]
 including headless behavior and rollback. **Dependencies:** G0, actual availability
 and approved interface/security scope. **Excludes:** treating roadmap promises as
 Herdr parity or making Pramāṇa delivery depend on the migration.
+
+### I-F5 — Core/Standard Controller split and substitution experiments
+
+**Outcome:** the O0–O4 ([orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md)),
+A0–A4 ([AX substrate](../../foundry/docs/AX-SUBSTRATE.md)) and C0–C3
+([Cloudflare OS](../../foundry/docs/CLOUDFLARE-OS.md)) ladders run **one at a time** under
+FOUNDRY's one-bounded-improvement rule, so the Core/Standard Controller distribution is tested
+rather than assumed. **Evidence:** per ladder, a bounded workflow run against the seam it
+names, plus the conformance list that ladder declares. **Dependencies:** G0, the I-F3 software
+baseline. **Excludes:** refactoring protected authority out of the kernel before FR-22; more
+than one ladder active at once; treating any "first experiment" claim in the positioning
+documents as a commitment.
 
 ## Prioritization and formal-roadmap handoff
 
