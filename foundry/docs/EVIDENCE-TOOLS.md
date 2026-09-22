@@ -146,14 +146,22 @@ These are not style preferences. Each was bought with a review round.
   So **a conjunctive precondition needs a refusal test per conjunct, and nothing checks that it
   has one.** [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) now closes the enumeration half of
   this: all **72** from-cell obligations carry an ID in the contract and must each be classified,
-  and the ID set is parsed out at test time so a contract edit fails rather than drifts. **3 of the
+  and the ID set is parsed out at test time so a contract edit fails rather than drifts. **12 of the
   72 are classified so far** — row :467's, including its `{:unguarded, ...}` entry, which is what
-  makes B3 countable — and the remaining 69 are a recorded ratchet, because classifying one is a
+  makes B3 countable — and the remaining 60 are a recorded ratchet, because classifying one is a
   per-row reading pass against its handler. Until a row is classified, its conjuncts are still the
   check to do by hand. `bin/contract_annotation_diff.exs` is the proof that an annotation pass
   changed no contract text, and its header states the three things it does not prove.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
-  other way is outside it.
+  other way is outside it. **Measured: this kernel refuses in four shapes, and only the first is
+  in the population.** `require_*` guards; **9 inline `if`/`case` refusals across 7 handlers**
+  (`pm_proposal_recorded`, `ticket_admitted`, `ticket_unblocked`, `cancellation_requested`,
+  `cancellation_finalized`, `freeze_failed`, `integration_recorded`); pre-dispatch checks in the
+  envelope pipeline (`resolve_entity/3` → `:entity_already_exists`, `check_sequence/2`,
+  `check_revision/2`, `check_state/1`); and function-head pattern matching, which is how
+  `ticket_admitted` requires a ticket to be absent. Two of the nine are the **entire** phase
+  guard for a contract row — R4.02's and R4.27's — so "no surviving mutation" says nothing
+  about either.
 - **`r4_no_direct_apply_test.exs` matches call-site TEXT, so five spellings reach the kernel
   unseen**, each confirmed live in a scratch copy: a capture (`&Kernel.apply/2` then `f.(s, e)`),
   an alias rename (`alias ... as: K` then `K.apply(s, e)`), reflection
@@ -169,6 +177,12 @@ These are not style preferences. Each was bought with a review round.
   a third way is invisible to it. It scanned for one of the two current spellings for three
   reviews. `KernelSearch.reasons_in/1` has a red control over every shape known today; a new
   shape needs a new fixture row.
+- **Two guards can be one predicate under two atoms.** `require_all_executions_closed/1`
+  (`:executions_not_closed`) and `require_cleanup_complete/1` (`:cleanup_incomplete`) are the
+  same check — every execution's lifecycle is `closed` — written twice. Rule 5 pins a refusal
+  test to its exact atom, so tests of the two sites read as covering two rules while exercising
+  identical logic, and rule 4's partial generalisation is pre-loaded: change the rule and one
+  gets updated. Nothing here detects a duplicated predicate; it was found by reading both.
 - Guard reachability is keyed by **error atom**, so it cannot express "this guard cannot
   fire *at this call site*" when the same atom fires elsewhere. Two such sites exist and are
   recorded at the site in `kernel.ex`. Only the sweep can currently see that class.

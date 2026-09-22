@@ -3624,3 +3624,58 @@ ticket; git holds the probe.
 **What is still not proven.** That a scenario's assertions actually discharge the clause it cites.
 Citing pins the transcription to the contract's words, never the assertion to the clause. Five
 scenarios were read closely for this commit; the same reading is owed for the other 59 citations.
+
+## EV-6, commit 3 — nine more obligations classified, and what the reading found — 2026-09-21
+
+12 of 72 from-cell obligations are now classified, up from 3. The ratchet holds the other 60. Three
+things came out of the reading that are worth more than the nine entries.
+
+### The mutation sweep's population is one of four refusal shapes
+
+`EVIDENCE-TOOLS.md` says "the sweep's population is every non-definition `require_*(` call. A
+refusal expressed any other way is outside it." That is qualitative; it now has a denominator. This
+kernel refuses in **four** shapes:
+
+| shape | where | in the sweep |
+|---|---|---|
+| `require_*` guards | 44 definitions, called throughout | yes |
+| inline `if`/`case` in a handler body | **9 sites across 7 handlers** | no |
+| pre-dispatch checks in the envelope pipeline | `resolve_entity/3`, `check_sequence/2`, `check_revision/2`, `check_state/1` | no |
+| function-head pattern matching | `do_transition("ticket_admitted", :absent, ...)` | no |
+
+The seven handlers with inline refusals are `pm_proposal_recorded`, `ticket_admitted`,
+`ticket_unblocked`, `cancellation_requested`, `cancellation_finalized`, `freeze_failed` and
+`integration_recorded`. **Two of the nine are the entire phase guard for a contract row** — R4.02's
+"draft" and R4.27's "nonterminal ticket" — so a clean sweep says nothing whatever about either.
+
+### Two guards, one predicate, two atoms
+
+`require_all_executions_closed/1` returns `:executions_not_closed` and `require_cleanup_complete/1`
+returns `:cleanup_incomplete`, and they are the same check written twice: every execution's
+lifecycle is `closed`. Rule 5 pins each refusal test to its exact atom, so tests of the two sites
+read as covering two rules while exercising identical logic, and rule 4's partial generalisation is
+pre-loaded — change the rule and one of them gets updated. Nothing in the evidence set detects a
+duplicated predicate. It was found by reading both, because R4.28's "cleanup reconciled" sent me to
+compare them. Not fixed here: it is a kernel change and owes its own candidate.
+
+### A fourth disposition the data demanded
+
+`{:input, why}`. A from-cell conjunct often names the **event that selects the handler** rather than
+a precondition on state — "PM amend/park", "cancel requested", "specific spec or valid PM create".
+There is no guard to look for, because dispatch and `Event.validate/2` discharge it. Classifying
+those as `:unguarded` would have manufactured defects; as `:protected` would have been a lie about
+why. Three of the twelve are inputs.
+
+### The nine, and the two left alone
+
+R4.02's "draft" turns out to mean **no ticket exists**, enforced before dispatch by `resolve_entity/3`
+and by the `:absent` function head — no guard in the handler at all. R4.03's and R4.24's phase
+conjuncts agree with their guards **exactly** (`~w(queued blocked)` and `~w(blocked)`), which is the
+contrast that makes R4.04 worth its note: there the guard admits `developing`, which the row does not
+name.
+
+Two are deliberately unclassified rather than guessed. **R4.24.f2** is a disjunction whose branches
+have different dispositions — "explicit resume" is the input, "recorded dependency/resource recovery"
+is a protected fact — and one ID cannot carry both. **R4.28.f3** "cleanup reconciled" is equated by
+the kernel with "every execution closed"; whether the contract's cleanup notion is wider needs a read
+of the contract, not of the kernel, and guessing is what the four stale `@uncited` entries were.

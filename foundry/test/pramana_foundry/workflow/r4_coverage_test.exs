@@ -375,6 +375,9 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   #   {:protected, why}       a protected fact the kernel may not restate - eligibility,
   #                           authenticated grants, "proved no ref change"
   #   {:unguarded, why}       reducer-owned, nothing refuses it. A recorded defect
+  #   {:input, why}           the conjunct names the event that selects the handler, not a
+  #                           precondition on state. Discharged by dispatch and
+  #                           `Event.validate/2`, and there is no guard to look for
   #
   # WHAT THIS DOES NOT DO, so it is not rediscovered as a surprise:
   #
@@ -394,14 +397,59 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.04.f2" =>
       {:protected,
        "dependencies/resources/profile/reservation eligibility is protected policy the kernel may not restate - the same category require_settlement_source/2 records at its own site"},
+    # R4.02 "draft". The kernel encodes "draft" as the ABSENCE of a ticket and enforces it
+    # before dispatch: `resolve_entity/3` (kernel.ex:144-153) refuses a creating event that
+    # names an existing entity, and `do_transition("ticket_admitted", :absent, ...)` (:259)
+    # matches only that case. No require_* guard is involved, which is the point - see the
+    # four refusal shapes recorded in EVIDENCE-TOOLS.
+    "R4.02.f1" =>
+      {:guarded, [:entity_already_exists],
+       "draft means no ticket in state; enforced pre-dispatch by resolve_entity/3 and by the :absent function head, not by a guard in the handler body"},
+    "R4.02.f2" =>
+      {:input,
+       "specific spec or valid PM create is the row's input, not a precondition on state; :invalid_admission_phase refuses the TARGET phase rather than the from-state"},
+
+    # R4.03. Both handlers for this row guard the phase, and the phase set agrees with the
+    # row exactly - unlike R4.04, where the guard admits one the row does not name.
+    "R4.03.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "ticket_amended (kernel.ex:290) and ticket_parked (:303) both require_phase ~w(queued blocked), which is the row's cell exactly"},
+    "R4.03.f2" =>
+      {:input, "PM amend/park is the row's input, carried by two event types rather than one"},
+    "R4.24.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "ticket_unblocked (kernel.ex:337) require_phase ~w(blocked), which is the row's cell exactly"},
+
+    # R4.27 is guarded by an inline `if` rather than a require_* call, so the guard mutation
+    # sweep cannot neutralise it: its population is every non-definition require_*( site.
+    # One of 9 such refusal sites across 7 handlers.
+    "R4.27.f1" =>
+      {:guarded, [:ticket_terminal],
+       "cancellation_requested (kernel.ex:392) refuses a terminal phase with an inline if, OUTSIDE the mutation sweep's population - the guard is real, and nothing at call-site granularity can check that a test exercises it"},
+    "R4.27.f2" =>
+      {:input,
+       "cancel requested is the row's input; the control flag it sets is this row's outcome, not its precondition"},
+    "R4.28.f1" =>
+      {:guarded, [:cancel_not_requested],
+       "cancellation_finalized (kernel.ex:403) require_cancel_requested/1"},
+    "R4.28.f2" =>
+      {:guarded, [:attempt_still_active, :executions_not_closed],
+       "require_no_active_attempt/1 and require_all_executions_closed/1 at kernel.ex:404-405. NOTE require_all_executions_closed/1 and require_cleanup_complete/1 are the SAME predicate under two names and two atoms, so a test pinning either exercises identical logic"},
     "R4.04.f3" =>
       {:unguarded,
        "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
   }
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its
-  # handler, and doing 69 of them in a sitting is the shape that produced six of this
-  # subcommit's defects - "verify the property on item one, assert it of the list".
+  # handler, and doing them in a sitting is the shape that produced six of this subcommit's
+  # defects - "verify the property on item one, assert it of the list". 12 of 72 are
+  # classified; this list holds the other 60 and can only shrink.
+  #
+  # Two are deliberately still here rather than guessed. R4.24.f2 is a disjunction whose
+  # branches have different dispositions - "explicit resume" is the input, "recorded
+  # dependency/resource recovery" is a protected fact. R4.28.f3 "cleanup reconciled" is
+  # equated by the kernel with "every execution closed", which may be narrower than the
+  # contract's cleanup notion; saying which needs a read of the contract, not of the kernel.
   #
   # The measurement that killed the shortcut: a blanket rule for the phase conjunct would
   # have been WRONG for 20 of the kernel's 37 `do_transition` clauses. 17 call
@@ -413,10 +461,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   @from_unclassified [
     "R4.01.f1",
     "R4.01.f2",
-    "R4.02.f1",
-    "R4.02.f2",
-    "R4.03.f1",
-    "R4.03.f2",
     "R4.05.f1",
     "R4.05.f2",
     "R4.06.f1",
@@ -461,17 +505,12 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.23.f1",
     "R4.23.f2",
     "R4.23.f3",
-    "R4.24.f1",
     "R4.24.f2",
     "R4.25.f1",
     "R4.25.f2",
     "R4.25.f3",
     "R4.26.f1",
     "R4.26.f2",
-    "R4.27.f1",
-    "R4.27.f2",
-    "R4.28.f1",
-    "R4.28.f2",
     "R4.28.f3",
     "R4a.01.f1",
     "R4a.01.f2",
@@ -505,7 +544,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
                Enum.map_join(found.absent_guard, "\n", fn {id, a} -> "  #{id}: #{inspect(a)}" end)
     end
 
-    test "every protected or unguarded obligation states why" do
+    test "every obligation that is not simply guarded states why" do
       for {id, disposition} <- @from_obligations do
         why = reason(disposition)
 
@@ -580,6 +619,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   defp reason({:guarded, _atoms, why}), do: why
   defp reason({:protected, why}), do: why
   defp reason({:unguarded, why}), do: why
+  defp reason({:input, why}), do: why
 
   describe "the row inventory tracks the contract" do
     # Compared as sorted lists, not sets. A set comparison passed when a duplicate
