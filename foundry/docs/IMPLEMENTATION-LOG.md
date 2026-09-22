@@ -2888,3 +2888,76 @@ failure rather than hygiene, so it should not wait unrecorded behind a blocked t
   60–120 of the 190 were expected to admit `cancellation_finalized` immediately and **4** do;
   the exhaustive file alone was predicted at 55–70s and ran 53.6s.
 - No independent review yet on this delta.
+
+## FR-08B kernel — EV-5's review blocked it on its own warrant text, and found a bigger defect — 2026-09-21
+
+- `b3c110e3` was reviewed independently, scoped to the delta, in a detached worktree at that
+  commit. **BLOCK**, narrowly: the code was judged right and **every number it finished
+  reproducing matched** — 13,290 / 190, 58,324 / 1,002, 0 post-fix, all five family
+  denominators, 1,002 with `cancel_requested` and 0 without, the four-event shortest path, 0
+  dead of 190, 4 admitting `cancellation_finalized`, 35 of 35 within 5. The block was for two
+  false statements in the candidate's own comment text, and it was right about both.
+- **The corroboration I cited was itself wrong, and citing it made two wrongs agree.**
+  `receipt_custody/2` licensed `cancelled` as a terminal disposition for a receipt-holding
+  attempt, and EV-5's comment offered that as evidence that the same cancel exception belonged
+  in `phase_agreement/3`. But `require_receipt_for_integration/2` (`kernel.ex:1531-1535`)
+  refuses **every** non-integrated settlement of a receipt-holding attempt with
+  `:ref_receipt_admits_only_integrated`, `kernel_test.exs:841-855` pins that atom, and row :491
+  says a cancel that races an integration ends **integrated**. So the allowance was an oracle
+  hole permitting a state the kernel forbids. Verified here against the guard and the row before
+  acting. The clause is now `disposition != "integrated"`, the citation is withdrawn, and the
+  cancel exception stands on row :490 alone — which was always sufficient.
+- **And it was the same rule-4 shape, one clause down, which the first pass walked past.** The
+  exhaustive file ALSO hand-wrote the receipt predicate, using `!= "integrated"` — matching the
+  kernel. So the suite held two encodings of the receipt row that **disagreed**, both with 0 of
+  58,324 preconditioned states, so neither could ever report the disagreement. EV-5 deleted the
+  duplicate for `phase_agreement` and left this one, having printed the table that exposed both.
+  Applying a rule to the first item in a list I had just produced is the same defect as applying
+  it to one handler and not its sibling. Duplicate now deleted, oracle aligned to the kernel,
+  clause labelled **unwitnessed** per rule 3.
+- **A denominator was attached to the wrong set.** "None of the 1,002 is stuck ... every one
+  reaches a terminal ticket phase within 5 more events" — the liveness was measured over the
+  **190 at depth 6**, not the 1,002. The review reproduced ">= 4 successors" for the 1,002
+  itself, so that half holds; the within-5 result is now claimed only for the 190. Rule 2 is
+  about the denominator being right, not merely present.
+- **A refusal atom was attributed to the wrong event.** `:cleanup_incomplete` was named as part
+  of the gate on finalisation. It comes from `launch_planned`'s `require_cleanup_complete/1`
+  (`:1691`); `cancellation_finalized` is refused `:executions_not_closed` (`:1302`) and
+  `:no_integration_to_finalize`. The error was reading the atom out of `rejection_reasons/2`'s
+  union over **all** proposals from a state and attributing it to one of them. The mechanism
+  reported honestly; the reading did not.
+- `assert State.valid?(bad)` in the new cancel control is weaker than the identical line in the
+  older control: `valid?/1` constrains `cancel_requested` only by `is_boolean`, so the flip could
+  not have failed it. Kept, and now labelled as weak rather than left to read as proof.
+- **The review's largest finding is outside the delta and outranks everything in this session.**
+  Contract row **:467** is "queued; dependencies/resources/profile/reservation eligible; **no
+  pause/drain/cancel**". `do_transition("launch_planned", ...)` guards on `require_phase`,
+  `require_no_open_developer` and `require_cleanup_complete`, and consults **none of the three**.
+  Measured here at depth 6, not argued:
+
+  | row :467 condition | reachable states | accept a new `launch_planned` | shortest path |
+  |---|---|---|---|
+  | no cancel | 2,642 | **115** | 2 events |
+  | no pause | 2,304 | **101** | 2 events |
+  | no drain | 2,304 | **101** | 2 events |
+
+  Two events from empty, each of them: `ticket_admitted` → `cancellation_requested` →
+  `launch_planned` accepted, and `ticket_admitted` → `control_changed` → `launch_planned`
+  accepted. A cancelled ticket spawns brand-new work; the new claim then makes row :491's "every
+  owned session AND non-session claim terminal" unsatisfiable, so the cancel can never finalise.
+  `SemanticInvariants` reports `[]` on the post-state.
+- **Why no mechanism saw it, which is the part worth keeping: all five can only see guards that
+  exist.** Guard reachability is keyed by error atom and a missing guard has no atom. The
+  mutation sweep neutralises guards that are present. Row coverage drives row :467 with a
+  scenario that **satisfies** the conjunct rather than testing its negation, so the row counts as
+  driven — the exact "does the scenario drive the row it is NAMED for" question from review 3,
+  now shown to have a second form: a conjunctive precondition needs a refusal test per conjunct,
+  and nothing checks that it has one. `State.valid?/1` is shapes. The oracle has no clause for
+  it. Four green gates and seven reviews.
+- Recorded, not fixed: it is a guard addition on the hottest transition in the kernel, it wants
+  `SWEEP_SITES` over the new sites, and the pause/drain half has a defence the cancel half does
+  not — the ingress inventory keeps the scheduler as "pure selection", so pause/drain may be an
+  admission concern rather than a reducer guard. The cancel half has no such defence:
+  `cancel_requested` is set by the reducer at `:394` and read by it at `:1285` and `:1609`.
+  Its own candidate, with that decision made explicitly.
+- Workflow suites **181 at seed 0**, from 182: one duplicate deleted. Predicted exactly.

@@ -99,14 +99,19 @@ defmodule PramanaFoundry.Test.SemanticInvariants do
   # judged. Measured at depth 7 from empty: **1,002 of 58,324 reachable states** held its
   # precondition and **all 1,002 violated it** — it was never once satisfied. All 1,002 have
   # `cancel_requested` set and every attempt terminal-cancelled; 0 have no pending cancel.
-  # The claim "a ticket nothing can move" was falsified directly rather than argued: none of
-  # the 1,002 is stuck. Each admits at least 4 accepted successors, the reason the other 186
-  # of 190 at depth 6 cannot finalise immediately is `:executions_not_closed` /
-  # `:cleanup_incomplete` — row :491's "every owned session AND non-session claim terminal,
-  # cleanup reconciled" — and every one reaches a terminal ticket phase within 5 more events.
+  # The claim "a ticket nothing can move" was falsified directly rather than argued, and the
+  # denominators below are stated per set because they were measured over different ones.
+  # Over the **190 at depth 6**: 0 are stuck, each admits at least 4 accepted successors, only
+  # 4 admit `cancellation_finalized` immediately, the atom refusing it on the other 186 is
+  # `:executions_not_closed` (`require_all_executions_closed/1`, `kernel.ex:1302`) — row :491's
+  # "every owned session AND non-session claim terminal" — and of the 35 that cannot reach a
+  # terminal ticket phase within 3 further events, 35 do within 5. Over the **1,002 at depth 7**:
+  # 0 are stuck and each admits at least 4 accepted successors. The within-5 result is NOT
+  # claimed for the 1,002; it was measured over the 190 only.
   #
-  # `receipt_custody/2` below already encodes the same cancel exception (`cancelled` is a
-  # licensed terminal disposition there), so the two halves of this oracle disagreed until now.
+  # `:cleanup_incomplete` is not part of this: EV-5's first pass read it out of the union of
+  # every refusal from these states and attributed it to finalisation, but it comes from
+  # `launch_planned` (`require_cleanup_complete/1`, `kernel.ex:1691`). Corrected by review.
   defp phase_agreement(id, ticket, nil) do
     if ticket["phase"] in Map.keys(@legal_pairs) and not ticket["cancel_requested"],
       do: ["#{id}: ticket is #{ticket["phase"]} with no active attempt and no pending cancel"],
@@ -160,11 +165,26 @@ defmodule PramanaFoundry.Test.SemanticInvariants do
 
   # R4's integration row: "Exit notifications cannot overwrite this." A ref receipt decides
   # the disposition, so an attempt holding one may not be terminal as anything else.
+  #
+  # `cancelled` was licensed here and should not have been, which the review of EV-5 caught:
+  # `require_receipt_for_integration/2` (`kernel.ex:1531-1535`) refuses **every** non-integrated
+  # settlement of a receipt-holding attempt with `:ref_receipt_admits_only_integrated`, and
+  # `kernel_test.exs:841-855` pins that atom. Contract row :491 agrees — "If integration
+  # occurred: integrated and `cancel_finalized(after_integration)`" — so a cancel that races an
+  # integration ends `integrated`, never `cancelled`. So the allowance was an oracle hole
+  # permitting a state the kernel forbids, not the contract's own exception. EV-5's first pass
+  # cited it as corroboration for the cancel exception in `phase_agreement/3`; that citation was
+  # wrong and is withdrawn. The exception there stands on row :490 alone, which is enough.
+  #
+  # **Unwitnessed** (rule 3): 0 of 58,324 states at depth 7 hold this clause's precondition, so
+  # neither the old form nor this one has ever been exercised by the exhaustive search. A ref
+  # receipt sits roughly a dozen events from empty. The kernel guard and its unit test are what
+  # currently carry this row; this clause is the relational statement of it, not its evidence.
   defp receipt_custody(id, ticket) do
     for {attempt_id, attempt} <- ticket["attempts"] || %{},
         is_binary(attempt["ref_receipt_id"]),
         attempt["phase"] == "terminal",
-        attempt["disposition"] not in ~w(integrated cancelled),
+        attempt["disposition"] != "integrated",
         do: "#{id}/#{attempt_id}: holds a ref receipt but settled #{attempt["disposition"]}"
   end
 

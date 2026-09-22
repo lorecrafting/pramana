@@ -58,22 +58,15 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
     end)
   end
 
-  # R4: "integrated ticket; terminal integrated attempt ... Exit notifications cannot
-  # overwrite this."
-  test "an attempt holding a ref receipt can only be terminally integrated", %{states: states} do
-    check(states, fn state ->
-      Enum.find_value(state["tickets"], :ok, fn {_tid, ticket} ->
-        Enum.find_value(ticket["attempts"], fn {aid, attempt} ->
-          if is_binary(attempt["ref_receipt_id"]) and attempt["phase"] == "terminal" and
-               attempt["disposition"] != "integrated",
-             do:
-               {:violation,
-                "attempt #{aid} holds #{attempt["ref_receipt_id"]} but settled " <>
-                  inspect(attempt["disposition"])}
-        end)
-      end)
-    end)
-  end
+  # "An attempt holding a ref receipt can only be terminally integrated" was a separate test
+  # here, and it is deleted for the same reason as the cancel one above and found the same way.
+  # It hand-wrote `SemanticInvariants.receipt_custody/2`'s predicate — and the two DISAGREED:
+  # this test used `disposition != "integrated"`, matching the kernel, while the oracle licensed
+  # `cancelled` as well. Two encodings of one contract row, disagreeing, both with 0 of 58,324
+  # preconditioned states, so neither could ever say so. The review of EV-5 caught it; the
+  # oracle is corrected to the kernel's rule and this duplicate goes. Rule 4, applied to the
+  # second row rather than only the first — which is what the first pass should have done, since
+  # the table that exposed the vacuity listed both.
 
   # The converse: an integrated ticket is B1's headline counterexample if it has no receipt.
   test "an integrated ticket always has a ref receipt behind it", %{states: states} do
@@ -207,9 +200,12 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
 
     bad = put_in(reachable, ["tickets", "T1", "cancel_requested"], false)
 
-    assert State.valid?(bad),
-           "the red control must be WELL-FORMED, or it proves nothing this validator " <>
-             "did not already prove"
+    # Weaker than the same line in the control above, and labelled so rather than left to read
+    # as if it were equivalent: `State.valid?/1` constrains `cancel_requested` only by
+    # `is_boolean` (`state.ex:148`), so `true -> false` could not have failed it. It is kept
+    # because a corrupted control that is malformed proves nothing, but the teeth of this test
+    # are the two assertions around it, not this one.
+    assert State.valid?(bad)
 
     assert Enum.any?(
              SemanticInvariants.violations(bad),
