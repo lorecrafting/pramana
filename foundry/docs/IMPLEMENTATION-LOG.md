@@ -3936,6 +3936,7 @@ Recorded because a single red gate is not a verdict and a single green one is no
 
 | run | result | detail |
 |---|---|---|
+| `dc9582b3` | **passed** | 949 passed / 13 skipped / 1 excluded, six commands, `dirty_paths: []`. The delta the first review was run against; recorded here because the briefing cited it and nothing in the tree sourced it, which the re-review caught |
 | 1 | **failed**, exit 2 | 948/949. `LegacyPersistenceContainmentTest` "legacy integration is suspended before Git or persistence effects". Every earlier command passed; tree clean |
 | isolation | passed 3/3 | `mix test test/pramana_foundry/legacy_persistence_containment_test.exs`, 10 tests each run |
 | 2 | **passed**, exit 0 | 949 passed / 13 skipped / 1 excluded, six commands, `dirty_paths: []` before and after |
@@ -3953,3 +3954,59 @@ rather than a dismissal.
 
 It deserves its own candidate. A gate that goes red on its own schedule teaches people to rerun until
 green, which is precisely the habit the rest of this evidence discipline exists to prevent.
+
+## The answer to the BLOCK was itself BLOCKED, for the same defect — 2026-09-22
+
+Re-review appended to [the findings](fr-08/fr08b-ev6-ev2-review-findings.md), delta
+`dc9582b3..f749c080`, 20-minute budget. It **accepted the substance and blocked the bookkeeping**,
+which is the fifth round on this branch to block on exactly that.
+
+**The two reclassifications were verified independently and both hold.** `R4.19.f1 → {:effect}`
+checked at `kernel.ex:835` and `:844`. `R4a.03.f2 → {:unguarded}` was not merely read but **run**:
+`objective_created` then `pm_launch_settled` with no `pm_launch_planned` is accepted, the PM ordinal
+goes 0→1, and `well_formed?/1` and `invariant?/1` both return true. It is a live defect and it is
+correctly recorded. All three `{:input}` moves hold, and holding `R4.07.f1` is right.
+
+One wording correction taken: the new `R4.19.f1` entry says the fall-through "changes nothing", but
+`close_execution/4` has already run in the `with`. The first review's "changes nothing *else*" was
+the precise form. The disposition is unaffected.
+
+### What it blocked on, and why it is the same defect
+
+**Answering a block about stale claims introduced three new stale claims.**
+
+- `r4_coverage_test.exs` still carried `# R4.19.f1 is held back, not classified` — 47 lines above
+  the entry that classifies it. Written in the previous commit, falsified by this one.
+- The ticket table paired delta `16fc73db..dc9582b3` with "67 of 72". At `dc9582b3` it was 63. That
+  is the *exact* shape of the first review's finding 1b, reproduced in the commit answering it.
+- The briefing was half-updated: current counts, a header calling itself "the record of what was
+  asked for". Neither record nor current.
+
+The fix is a rule the previous rounds kept circling and never stated: **a count that moves must not
+be pinned to a commit it was not true at.** The ticket cell now states the delta reviewed and the
+current count as two separate facts. The briefing is **frozen** at the review point with a banner
+saying so — half-updating a historical document is worse than leaving it alone, because a reader
+cannot tell which half is current.
+
+Also caught: the briefing claimed a green gate at `dc9582b3` that nothing in the tree sourced. It is
+now a row in the gate table above.
+
+### The floor was a dodge, and it is now a count
+
+The first review found `bin/refusal_sites.exs` could not see `ok_or(:unknown_entity_kind)` and asked
+for either a count of that spelling or a reason not to. The answer recorded "24 is a floor" and gave
+neither — a disclaimer where a measurement belonged. The re-review pointed out that `Event.validate/1`
+also refuses, in `kernel/event.ex`, which the script never read at all, so one file was a second
+unstated boundary on top of the first.
+
+The script now matches **two spellings** and reads **both files**: **74 refusal sites, 47 inside
+`require_*` definitions, 27 outside** — 9 inline in handlers, 18 in the pipeline, the state builders
+and `Event.validate/1`. Its red control pins one site of each spelling, so a regression in either
+turns it red rather than silently shrinking the count. A third spelling still needs a new alternation
+and a new pin; the script says that instead of saying "floor".
+
+**The pattern across five rounds is worth naming.** Not one round has blocked on wrong code. Every
+one has blocked on a claim left standing after the thing it described moved — and this round's was
+introduced by the commit fixing the last one. The mechanisms in this repository make the artifact
+checkable; nothing makes the prose about the artifact checkable, and prose is where every block has
+landed.

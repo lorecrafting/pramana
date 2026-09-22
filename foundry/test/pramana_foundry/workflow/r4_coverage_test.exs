@@ -584,8 +584,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.08.f3" =>
       {:guarded, [:exit_not_verified],
        "require_developer_stream_sealed/1, the same guard as f2's \"sealed stream\" half - one guard carrying two of this row's conjuncts"},
-
-    # R4.19.f1 is held back, not classified - see @from_unclassified.
     "R4.19.f2" =>
       {:guarded, [:stream_not_sealed],
        "reviewer_closed (kernel.ex:797) require_sealed/3 carries \"sealed stream\"; \"no valid verdict\" is the branch this row takes, the verdict being absent rather than refused"},

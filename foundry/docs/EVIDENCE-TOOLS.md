@@ -154,12 +154,20 @@ These are not style preferences. Each was bought with a review round.
   changed no contract text, and its header states the three things it does not prove.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
   other way is outside it. **Measured by `bin/refusal_sites.exs`, which prints this every run:
-  of 71 `{:error, :atom}` sites in `kernel.ex`, 47 are inside `require_*` definitions and 24 are
-  not — and 24 is a FLOOR.** The script matches `{:error, :atom}` literally, so it cannot see
-  `apply/2`'s `ok_or(:unknown_entity_kind)` at `kernel.ex:80`, where the tuple is built inside
-  `ok_or/2` from a variable. That is the same atom that hid from `declared_reasons/0` for three
-  reviews by being spelled a second way, hiding from a new instrument by being spelled a third.
-  An independent review found it; the script did not. For those 24 there is no `require_*(` call to neutralise, so no mutation trial exists
+  of 74 refusal sites across `kernel.ex` and `kernel/event.ex`, 47 are inside `require_*`
+  definitions and 27 are not** — 9 inline in `do_transition` clauses, 18 in the envelope pipeline,
+  the state builders and `Event.validate/1`. For those 27 there is no `require_*(` call to
+  neutralise, so no mutation trial exists and a clean sweep says nothing whatever about them.
+
+  This number has been wrong twice, each time from an unstated boundary, and each time an outside
+  reader found it. First it was "9 inline refusals across 7 handlers" — only the `do_transition`
+  clauses, because that is where the counting stopped. Then it was 24 with a disclaimer that it was
+  a floor, because the script matched `{:error, :atom}` and `apply/2` refuses with
+  `ok_or(:unknown_entity_kind)` at `kernel.ex:80`, where the tuple is built from a variable inside
+  `ok_or/2` — the same atom that hid from `declared_reasons/0` for three reviews by being spelled a
+  second way. **A disclaimer is not a measurement.** The script now matches both spellings, reads
+  both files, and its red control pins one site of each; a third spelling still needs a new
+  alternation and a new pin, and the script says so rather than saying "floor". For those 24 there is no `require_*(` call to neutralise, so no mutation trial exists
   and a clean sweep says nothing whatever about them. 9 are inline in `do_transition` clauses;
   the other **15** are in the envelope pipeline and the state builders — `resolve_entity/3`,
   `check_revision/2`, `check_sequence/2`, `check_state/1`, `check_entity_addressing/2`,
