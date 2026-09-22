@@ -4832,3 +4832,31 @@ The obvious objection first: an allowlist for superseded digests is a second pla
 which is the defect this proposal is about. It is smaller — an entry is added when a pin moves and
 never edited again — but it is not zero, and a reviewer should weigh that against leaving 24 unchecked
 claims in a security specification.
+
+## Correction: the prose hashes want deleting, not checking — 2026-09-22
+
+The proposal in the entry above is withdrawn, an hour old, on the operator's question: what is the
+purpose of validating prose?
+
+It does not survive the question. The entry proposed a `bin/check_docs.exs` rule to verify 24
+digests restated in `provisioning-specification.md`, and noted in its own last paragraph that the
+rule needs an allowlist for superseded references — a second place to keep in step, which is the
+defect the proposal exists to prevent. A mechanism whose stated cost is the problem it solves should
+not have been written down as the answer.
+
+The question skipped was whether the duplication should exist. It should not. The manifest carries
+the pins as data and `ci/validate_fr15aa.exs` holds the independent frozen profile; those two are
+cross-checked and enforced. The prose digests are decorative — no code reads the specification, so a
+stale one misleads a reader and cannot fail a run. **Replace each with its manifest id**
+(`current-process-group` rather than a 64-hex string) and nothing can drift, with no rule, no
+allowlist and no red control to maintain.
+
+This repository had already solved this class and the proposal ignored it: EVIDENCE-TOOLS.md and the
+tickets doc were changed to point at computed counts instead of restating them, after five review
+rounds spent on copied derived numbers. A digest restated in prose is the same shape as a count
+restated in prose, and the same remedy applies.
+
+Left to the operator rather than done here, because it edits an FR-15aA security specification's
+text: 23 pointer substitutions, plus the one deliberate "was ..." line, which becomes unnecessary
+once the live digest is no longer quoted beside it. The finding in the entry above stands — nothing
+reads the specification, and the near-miss at `a0c052a2` was real. Only the remedy changed.
