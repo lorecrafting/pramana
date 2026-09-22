@@ -126,12 +126,37 @@ defmodule PramanaFoundry.Test.R4Rows do
   """
   def parse(text) when is_binary(text) do
     text
+    |> parse_raw()
+    |> Enum.map(fn {from, outcome} -> {strip_ids(from), strip_ids(outcome)} end)
+  end
+
+  @doc "`parse/1` without stripping, so the annotated IDs are still readable."
+  def parse_raw(text) when is_binary(text) do
+    text
     |> String.split("\n")
     |> Enum.map(&cells/1)
     |> Enum.reduce({false, []}, &collect/2)
     |> elem(1)
     |> Enum.reverse()
   end
+
+  @doc """
+  The clause IDs annotated into this handle's from-state cell, in the order they appear.
+
+  EV-6: the from-cell's conjuncts are the half of every row no mechanism covers. An
+  unimplemented *outcome* clause shows up as uncited and is countable; an unimplemented
+  *precondition* showed up nowhere, because the from-cell was only ever a lookup key.
+  """
+  def from_ids(handle) do
+    from = declared_from(handle)
+
+    case Enum.find(parse_raw(File.read!(@contract)), fn {f, _} -> strip_ids(f) == from end) do
+      {raw, _} -> @id_marker |> Regex.scan(raw) |> Enum.map(&(&1 |> List.first() |> bare_id()))
+      nil -> []
+    end
+  end
+
+  defp bare_id(marker), do: marker |> String.trim() |> String.trim("{") |> String.trim("}")
 
   defp collect([header, _], {_inside, rows}) when header in [@r4_header, @r4a_header],
     do: {true, rows}
@@ -153,7 +178,7 @@ defmodule PramanaFoundry.Test.R4Rows do
       trimmed
       |> String.trim("|")
       |> String.split("|")
-      |> Enum.map(&(&1 |> strip_ids() |> String.trim()))
+      |> Enum.map(&String.trim/1)
     else
       [nil]
     end

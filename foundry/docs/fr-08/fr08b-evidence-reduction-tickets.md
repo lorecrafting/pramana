@@ -262,7 +262,7 @@ look corroborated.
 | — | ~~row :467 guard~~ | — | **Not a candidate.** It is B3's, outstanding and designed; subcommit 2 owns it |
 | — | ~~`apply/2` closure~~ | — | **Not a candidate here.** Found by EV-3's harness on its first run: **at least 20** `(type, key)` pairs in 14 event types produce a state `well_formed?/1` rejects, which bricks the log. A bound, not a count — `bin/closure_probe.exs` prints what it cannot see each run. Quarantined and measured in `IMPLEMENTATION-LOG.md`; needs its own candidate |
 | — | EV-3 invariant split | **done** | Landed at `7e8e3921`. Independently reviewed three times, blocked three times, all answered at `2afe053f`, `c4b3721c`, `323112d5`. Its harness found the `apply/2` closure defect on first run |
-| 2 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
+| 2 | EV-6 from-cell conjuncts | moderate | **Mechanism landed.** 72 from-cell IDs annotated into the contract, content preservation proved against `16fc73db`, every ID must carry a disposition. 3 of 72 classified; 69 are a recorded ratchet. Outcome-cell IDs are EV-2's half of the same edit |
 | 3 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
 
 EV-1 (coverage-guided sweep) is already designed and is sequenced by its own spike, not by

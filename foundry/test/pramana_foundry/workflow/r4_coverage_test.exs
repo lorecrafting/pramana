@@ -1,4 +1,9 @@
 Code.require_file("../../support/r4_rows.ex", __DIR__)
+Code.require_file("../../support/kernel_walk.ex", __DIR__)
+# For `KernelSearch.declared_reasons/0` only - the from-cell classification below pins
+# obligations to refusal atoms, and re-deriving that inventory here is how the declared-
+# reason scan came to miss one of its two spellings for three reviews.
+Code.require_file("../../support/kernel_search.ex", __DIR__)
 
 defmodule PramanaFoundry.Workflow.R4CoverageTest do
   @moduledoc """
@@ -17,7 +22,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   """
   use ExUnit.Case, async: true
 
-  alias PramanaFoundry.Test.R4Rows
+  alias PramanaFoundry.Test.{KernelSearch, R4Rows}
   alias PramanaFoundry.Test.Harness
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
@@ -343,6 +348,204 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       assert R4Rows.strip_ids("queued {R4.04.x1};") == "queued {R4.04.x1};"
     end
   end
+
+  # ── EV-6: the from-state half of every row ──────────────────────────────────────────
+  #
+  # `@clauses` and `@uncited` above count OUTCOME cells only. A from-cell was a verbatim
+  # lookup key and nothing more, so its conjuncts were never enumerated, never asserted and
+  # never recorded as uncited. An unimplemented outcome clause shows up as uncited and is
+  # countable; an unimplemented precondition showed up nowhere. Row :467 is the witness -
+  # "no pause/drain/cancel", consulted by no guard, violated two events from empty, and
+  # found by a person reading prose against code at the cost of a review round.
+  #
+  # The contract now carries an ID per from-cell obligation. Each must be classified:
+  #
+  #   {:guarded, atoms, why}  the reducer owns it and refuses; each atom must be one the
+  #                           kernel actually declares
+  #   {:protected, why}       a protected fact the kernel may not restate - eligibility,
+  #                           authenticated grants, "proved no ref change"
+  #   {:unguarded, why}       reducer-owned, nothing refuses it. A recorded defect
+  #
+  # WHAT THIS DOES NOT DO, so it is not rediscovered as a surprise:
+  #
+  #   * It proves an obligation HAS a guard, never that the named guard is the RIGHT one.
+  #     A plausible atom from the wrong handler passes. Only a person reading the row
+  #     against the handler catches that, which is the human step EVIDENCE-TOOLS names as
+  #     unmechanisable.
+  #   * It says nothing about whether a TEST exercises the guard. That is the mutation
+  #     sweep's question, at call-site granularity.
+  #   * `declared_reasons/0` reads `kernel.ex` with regexes, so a refusal spelled a third
+  #     way reads as absent. That direction is safe: a false gap, never a false clean.
+  @from_obligations %{
+    # Verified by reading `do_transition("launch_planned", ...)` at kernel.ex:425-435.
+    "R4.04.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "require_phase/2 at the head of the with chain. NOTE the guard admits ~w(queued developing) where the row says queued; the outcome cell's \"unless R4a retained a resumable developer attempt\" is the candidate licence for that widening, and nothing pins it"},
+    "R4.04.f2" =>
+      {:protected,
+       "dependencies/resources/profile/reservation eligibility is protected policy the kernel may not restate - the same category require_settlement_source/2 records at its own site"},
+    "R4.04.f3" =>
+      {:unguarded,
+       "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
+  }
+
+  # Every other from-cell obligation. Classifying one is a per-row reading pass against its
+  # handler, and doing 69 of them in a sitting is the shape that produced six of this
+  # subcommit's defects - "verify the property on item one, assert it of the list".
+  #
+  # The measurement that killed the shortcut: a blanket rule for the phase conjunct would
+  # have been WRONG for 20 of the kernel's 37 `do_transition` clauses. 17 call
+  # `require_phase/2` (:wrong_source_phase), 10 call `require_attempt_phase/2`
+  # (:wrong_attempt_phase), and the rest - `ticket_admitted`, `cancellation_requested`,
+  # `cancellation_finalized`, `attempt_settled` and `control_changed` among them - guard the
+  # phase some third way or not at all. That is rule 4's partial generalisation waiting to
+  # happen, so the list shrinks a row at a time and this test holds the ratchet.
+  @from_unclassified [
+    "R4.01.f1",
+    "R4.01.f2",
+    "R4.02.f1",
+    "R4.02.f2",
+    "R4.03.f1",
+    "R4.03.f2",
+    "R4.05.f1",
+    "R4.05.f2",
+    "R4.06.f1",
+    "R4.06.f2",
+    "R4.07.f1",
+    "R4.07.f2",
+    "R4.08.f1",
+    "R4.08.f2",
+    "R4.08.f3",
+    "R4.09.f1",
+    "R4.09.f2",
+    "R4.10.f1",
+    "R4.10.f2",
+    "R4.11.f1",
+    "R4.11.f2",
+    "R4.11.f3",
+    "R4.12.f1",
+    "R4.12.f2",
+    "R4.13.f1",
+    "R4.13.f2",
+    "R4.14.f1",
+    "R4.14.f2",
+    "R4.15.f1",
+    "R4.15.f2",
+    "R4.15.f3",
+    "R4.16.f1",
+    "R4.16.f2",
+    "R4.17.f1",
+    "R4.17.f2",
+    "R4.18.f1",
+    "R4.18.f2",
+    "R4.19.f1",
+    "R4.19.f2",
+    "R4.19.f3",
+    "R4.20.f1",
+    "R4.20.f2",
+    "R4.21.f1",
+    "R4.21.f2",
+    "R4.22.f1",
+    "R4.22.f2",
+    "R4.22.f3",
+    "R4.23.f1",
+    "R4.23.f2",
+    "R4.23.f3",
+    "R4.24.f1",
+    "R4.24.f2",
+    "R4.25.f1",
+    "R4.25.f2",
+    "R4.25.f3",
+    "R4.26.f1",
+    "R4.26.f2",
+    "R4.27.f1",
+    "R4.27.f2",
+    "R4.28.f1",
+    "R4.28.f2",
+    "R4.28.f3",
+    "R4a.01.f1",
+    "R4a.01.f2",
+    "R4a.02.f1",
+    "R4a.02.f2",
+    "R4a.03.f1",
+    "R4a.03.f2",
+    "R4a.04.f1"
+  ]
+
+  describe "every from-cell obligation is classified" do
+    test "the classification covers the contract's from-cell IDs exactly, and no more" do
+      found = check(contract_from_ids(), @from_obligations, @from_unclassified, MapSet.new())
+
+      assert found.unclassified_and_unrecorded == [],
+             "from-cell obligations the contract carries that nothing classifies: " <>
+               inspect(found.unclassified_and_unrecorded)
+
+      assert found.recorded_but_absent == [],
+             "classified IDs that no longer appear in the contract - a row was edited: " <>
+               inspect(found.recorded_but_absent)
+    end
+
+    test "every guarded obligation names a refusal the kernel declares" do
+      declared = KernelSearch.declared_reasons()
+      found = check(contract_from_ids(), @from_obligations, @from_unclassified, declared)
+
+      assert found.absent_guard == [],
+             "obligations pinned to a refusal the kernel never declares - either the guard " <>
+               "was never written, or it is spelled a way declared_reasons/0 cannot see:\n" <>
+               Enum.map_join(found.absent_guard, "\n", fn {id, a} -> "  #{id}: #{inspect(a)}" end)
+    end
+
+    test "every protected or unguarded obligation states why" do
+      for {id, disposition} <- @from_obligations do
+        why = reason(disposition)
+
+        assert is_binary(why) and String.length(why) > 20,
+               "#{id} is recorded as #{elem(disposition, 0)} with no reason worth the record"
+      end
+    end
+
+    # Red control per rule 1. Without it every assertion above is satisfied by a `check/4`
+    # that returns empty lists, which is how five mechanisms in this subcommit shipped
+    # confident, clean and entirely vacuous.
+    test "a conjunct no refusal pins is reported" do
+      declared = KernelSearch.declared_reasons()
+      bogus = Map.put(@from_obligations, "R4.04.f3", {:guarded, [:no_such_guard], "fixture"})
+
+      assert check(contract_from_ids(), bogus, @from_unclassified, declared).absent_guard ==
+               [{"R4.04.f3", :no_such_guard}]
+
+      dropped = Map.delete(@from_obligations, "R4.04.f1")
+      found = check(contract_from_ids(), dropped, @from_unclassified, declared)
+      assert found.unclassified_and_unrecorded == ["R4.04.f1"]
+
+      extra =
+        check(contract_from_ids(), @from_obligations, ["R4.99.f1" | @from_unclassified], declared)
+
+      assert extra.recorded_but_absent == ["R4.99.f1"]
+    end
+  end
+
+  defp contract_from_ids, do: Enum.flat_map(R4Rows.ids(), &R4Rows.from_ids/1)
+
+  defp check(ids, obligations, unclassified, declared) do
+    recorded = Map.keys(obligations) ++ unclassified
+
+    %{
+      unclassified_and_unrecorded: Enum.sort(ids -- recorded),
+      recorded_but_absent: Enum.sort(recorded -- ids),
+      absent_guard:
+        for(
+          {id, {:guarded, atoms, _}} <- obligations,
+          atom <- atoms,
+          not MapSet.member?(declared, atom),
+          do: {id, atom}
+        )
+    }
+  end
+
+  defp reason({:guarded, _atoms, why}), do: why
+  defp reason({:protected, why}), do: why
+  defp reason({:unguarded, why}), do: why
 
   describe "the row inventory tracks the contract" do
     # Compared as sorted lists, not sets. A set comparison passed when a duplicate

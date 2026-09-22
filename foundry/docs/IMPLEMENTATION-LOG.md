@@ -3460,3 +3460,68 @@ touching the contract. Obligation boundaries are a human judgement, hand-placed 
 judgement is recorded, and that is the same judgement EV-2 adds to outcome cells. "With EV-2, not
 before it" now holds for a measured reason instead of for the filing convenience originally given.
 **61 is a floor; the obligation count is unknown until the annotation is done.**
+
+## EV-6, commit 2 — the from-state half of every row is now enumerated — 2026-09-21
+
+**72 clause IDs annotated into the contract's two governing tables, and the annotation proved
+content-preserving against `16fc73db`** by `bin/contract_annotation_diff.exs` — 72 markers stripped,
+diff empty. `R4Rows.parse_raw/1` keeps the markers, `parse/1` strips them, so all 32 hand-copied
+`declared_from/1` keys still match the contract character for character and every `@clauses`
+substring assertion is untouched.
+
+**Where a marker goes is the judgement, and it is not punctuation.** `successful ref receipt {f2}
+and prior role/check workers closed {f3}` splits on "and" because each owes its own refusal;
+`success artifact validates and freezes {f2}` does not, because one refusal covers it. A splitter
+gets both wrong. That is the content the annotation adds over the semicolon count, and it is why
+EV-6 could not be bought by deriving conjuncts from the existing text.
+
+**Row :467 goes from 3 to 5 under the semicolon count and lands at 3 IDs**, because eligibility is
+one homogeneous protected list and splitting it into four buys no refusal. The rule that settled it:
+**split where the obligations have different dispositions or owe separate refusals; one ID may owe
+more than one atom.** That keeps the oracle's prose exactly as legible as it was — which matters,
+since contorting the contract to fit the marker convention would be the annotation changing content
+in spirit while passing a diff.
+
+### What the mechanism does, and the three things it does not
+
+Every from-cell ID must be `{:guarded, atoms, why}` — each atom checked against
+`KernelSearch.declared_reasons/0` — or `{:protected, why}`, or `{:unguarded, why}`, a recorded
+defect. The ID set is parsed from the contract at test time, so editing a row fails here instead of
+drifting.
+
+It proves an obligation **has** a guard. It does **not** prove the named guard is the right one — a
+plausible atom borrowed from the wrong handler passes, and only a person reading the row against the
+handler catches that. It says nothing about whether a **test** exercises the guard; that is the
+mutation sweep's question. And `declared_reasons/0` reads `kernel.ex` with regexes, so a refusal
+spelled a third way reads as absent — a false gap, never a false clean, which is the safe direction.
+
+### 3 of 72 classified, and the measurement that stopped it being 72
+
+Row :467's three: `queued` is `{:guarded, [:wrong_source_phase]}`, eligibility is `{:protected, ...}`,
+and `no pause/drain/cancel` is `{:unguarded, ...}` citing B3. The `{:unguarded}` entry is the point —
+B3 was found by a person reading prose against code, every gate mechanism was green for the defect's
+whole life, and it is now a line in a list that has to shrink.
+
+The other 69 are recorded, not classified. **A blanket rule for the phase conjunct would have been
+wrong for 20 of the kernel's 37 `do_transition` clauses**: 17 call `require_phase/2`
+(`:wrong_source_phase`), 10 call `require_attempt_phase/2` (`:wrong_attempt_phase`), and the rest —
+`ticket_admitted`, `cancellation_requested`, `cancellation_finalized`, `attempt_settled`,
+`control_changed` among them — guard the phase some third way or not at all. Classifying 69
+obligations in one sitting from a rule that is wrong for a third of the handlers is rule 4's partial
+generalisation, which is the single most repeated defect shape here at six occurrences. So the list
+shrinks a row at a time and the test holds the ratchet.
+
+**One thing the first classification already found.** `do_transition("launch_planned", ...)` guards
+`require_phase(ticket, ~w(queued developing))` while row :467's from-cell says `queued`. The outcome
+cell's "unless R4a retained a resumable developer attempt" is the candidate licence for admitting
+`developing`, and nothing pins it. Recorded in the obligation's own entry rather than acted on.
+
+### Rule 6, demonstrated on this mechanism rather than asserted
+
+| neutralisation | result |
+|---|---|
+| `check/4` raises | all three assertions red |
+| `check/4` returns empty lists for everything | **all three assertions pass**; only the red control fails |
+
+The second row is the whole argument for rule 1. A detector that reports nothing satisfies every
+assertion written against it, and five mechanisms in this subcommit shipped in exactly that state.
