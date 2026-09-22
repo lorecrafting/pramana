@@ -4771,3 +4771,27 @@ Verified — a corrupted pin reddens the gate at `source_preflight`, exit 2. The
 reachable only on a *committed* drift, which is exactly how the real one happened. Both paths are
 red; only the stage name differs. `validate_format_debt/1` has its own control at
 `ci_test.exs`, covering drifted, clean, empty and unreadable.
+
+## The identity-drift fix was in the module already — 2026-09-22
+
+`ProcessGroup` has had two comparisons all along: `same_process?/2` over
+`[:pid, :process_group_id, :started_at, :command]`, and a private `same_incarnation?/2` over the
+same list without `command`. `presence/2` — the function that answers "is this process alive and
+ours" — has always used the incarnation one. So the module had already decided `command` is not
+part of process identity; `Checks.Status.running?/1` was the outlier.
+
+`same_incarnation?/2` is now public and `running?/1` calls it. `signal/3` is unchanged and keeps
+`same_process?/2`: it is the destructive path, the strictest available check is right there, and a
+false refusal is backstopped by `terminate/3` writing the cancellation file first — measured, 6 of 6
+drifted launches still died.
+
+The probe's two buckets now read identically — `:running` and `:adopted` whether or not `command`
+drifted, where drifted previously gave `:uncertain` and, with a cancellation pending, `:cancelled`
+for a live process. Drift still occurs at roughly half of launches; classification is now
+indifferent to it, which is what the fix means and what the probe's header now says to look for.
+
+Pinned deterministically in `status_test.exs` rather than left to the probe, whose race lands about
+half the time and therefore guards nothing in a gate: one test that an exec'd process is still
+`:running` and not `:cancelled`, and one that a changed `started_at` or `process_group_id` is still
+`:uncertain` — so dropping `command` did not weaken what the classifier catches. A reused pid gets a
+new start time, which is what actually distinguishes an incarnation.

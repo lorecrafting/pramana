@@ -9,6 +9,14 @@
 #
 # Red control: the `stable` bucket. If a run reports 0 drifted, the probe measured nothing
 # and its numbers say nothing about the defect -- rerun rather than concluding it is fixed.
+#
+# SINCE THE FIX, the two buckets should read IDENTICALLY -- `:running` and `:adopted` in both.
+# That is what success looks like here, not an empty drifted bucket: the drift still happens at
+# roughly half of launches, and classification is now indifferent to it. A drifted bucket
+# showing `:uncertain` again means the incarnation comparison in `Checks.Status.running?/1`
+# has been reverted to `same_process?/2`. `signal(recorded)` still refusing with
+# `:stale_identity` is EXPECTED and deliberate -- the destructive path keeps the strictest
+# check, and `Runner.terminate/3` backstops it by writing the cancellation file first.
 
 alias PramanaFoundry.Checks.{Runner, Status, Adoption}
 alias PramanaFoundry.Effects.ProcessGroup

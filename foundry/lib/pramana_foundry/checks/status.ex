@@ -30,9 +30,11 @@ defmodule PramanaFoundry.Checks.Status do
   so a late clean exit is preserved as diagnostic evidence but never treated as a
   passing gate. `:timeout` beats any exit code, including a late zero, once the
   deadline has passed. Absent a completion record, `:running` requires the live
-  process to be the exact one recorded (pid, process group, start time, command);
-  anything else -- gone, or a different process now holding that pid -- is
-  `:uncertain` rather than assumed success or failure, and is never silently rerun.
+  process to be the same incarnation as the one recorded (pid, process group,
+  start time); anything else -- gone, or a different process now holding that pid --
+  is `:uncertain` rather than assumed success or failure, and is never silently rerun.
+  `command` is deliberately excluded: a process that exec's is the same process, and
+  comparing it made a live check read `:uncertain` in 5 of 12 measured launches.
   """
   @spec classify(state()) :: outcome()
   def classify(%{completion: nil} = state) do
@@ -54,8 +56,14 @@ defmodule PramanaFoundry.Checks.Status do
   defp running?(%{recorded_identity: nil}), do: false
   defp running?(%{recorded_identity: _recorded, live_identity: nil}), do: false
 
+  # Incarnation, not full identity: `same_process?/2` also compares `command`, which a live
+  # process changes by exec'ing without becoming a different process. Measured at 5 of 12
+  # launches through `Checks.Runner`, that made a running check classify `:uncertain` -- which
+  # this module's own doc says is never silently rerun -- and made `Checks.Adoption` refuse to
+  # adopt a check that had survived a restart, the one case it exists for. `presence/2` has
+  # always used the incarnation comparison for exactly this question.
   defp running?(%{recorded_identity: recorded, live_identity: live}),
-    do: ProcessGroup.same_process?(recorded, live)
+    do: ProcessGroup.same_incarnation?(recorded, live)
 
   defp deadline_exceeded?(%{deadline_epoch: nil}, _completion), do: false
 

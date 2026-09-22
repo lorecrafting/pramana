@@ -179,7 +179,24 @@ defmodule PramanaFoundry.Effects.ProcessGroup do
     end
   end
 
-  defp same_incarnation?(expected, actual) do
+  @doc """
+  True when `actual` is the same process *incarnation* as `expected` — pid, process group
+  and start time — regardless of what it is currently executing.
+
+  Distinct from `same_process?/2`, which also compares `command`. A live process may change
+  its `command` without becoming a different process: `/usr/bin/python3` re-execs into the
+  framework Python, and `sh -c "<one command>"` tail-call-execs into that command. Measured
+  through `Checks.Runner`, 5 of 12 launches read back a different `command` for the same pid,
+  process group and start time — see `docs/fr-04/identity-drift-probe.exs`.
+
+  So ask this when the question is "is the process I recorded still running", and
+  `same_process?/2` when the question is "may I signal this", where the strictest available
+  check is wanted and a false refusal is backstopped by the cancellation file.
+  """
+  @spec same_incarnation?(identity(), identity()) :: boolean()
+  def same_incarnation?(expected, actual) when is_map(expected) and is_map(actual) do
     Map.take(expected, @incarnation_fields) == Map.take(actual, @incarnation_fields)
   end
+
+  def same_incarnation?(_expected, _actual), do: false
 end
