@@ -195,7 +195,7 @@
       kind: "source_route",
       version: "base-f5067d9",
       path: "foundry/lib/pramana_foundry/effects/process_group.ex",
-      sha256: "1250c2bee6d43751ac5f483224c0506e3670bf25a8c7f85cd0848d106d8dce17",
+      sha256: "0c198191bbff8e31121086075782e458db6b4c52b0ddc8eede42247fa45c65ff",
       status: "legacy_blocked_route"
     },
     %{

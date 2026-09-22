@@ -124,9 +124,15 @@ The current route inventory is complete for the surfaces inspected at the frozen
    and currently overlays its supplied environment on the parent environment. Its hash is
    `22610624df6102f59579808048581e7e947eab19dfcc34cbaf3661d7255af8fc`;
    `Effects.ProcessGroup` is
-   `1250c2bee6d43751ac5f483224c0506e3670bf25a8c7f85cd0848d106d8dce17`.
+   `0c198191bbff8e31121086075782e458db6b4c52b0ddc8eede42247fa45c65ff`.
    Build hooks, child processes, inherited environment and background jobs therefore stay
    blocked until moved into the build/slot principals and complete cleanup protocol.
+   The `ProcessGroup` pin was re-attested on 2026-09-22 (was
+   `1250c2bee6d43751ac5f483224c0506e3670bf25a8c7f85cd0848d106d8dce17`): `same_incarnation?/2`
+   became public, which is a pure map comparison over pid, process group and start time. No
+   `def` that reaches the OS changed, no route was added, and the blocked status is unaffected.
+   This is the first movement of this pin outside dedicated FR-15aA work, so a reviewer should
+   check the claim rather than the hash.
 5. `CLI.RPC` (`617fb1dc018a70abb9ffd7f97bc7e886db6d217c16ae06ea15ef233d5829b11d`)
    transports a bounded command shape as inert data, but its own module documentation
    correctly says the release still exposes general evaluation. It is not an authority

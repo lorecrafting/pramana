@@ -310,7 +310,7 @@ defmodule PramanaFoundry.CI.FR15aAValidator do
     "current-launch-effect" => "b76aa1650acdfac03b35e2e498f5260c1f23081c682007f7a80b26fa89c9da22",
     "current-prompt-effect" => "f4e4c49c24498141495e02ce0d696788f276701151e6e1a22df686ffbd6961e9",
     "current-check-runner" => "22610624df6102f59579808048581e7e947eab19dfcc34cbaf3661d7255af8fc",
-    "current-process-group" => "1250c2bee6d43751ac5f483224c0506e3670bf25a8c7f85cd0848d106d8dce17",
+    "current-process-group" => "0c198191bbff8e31121086075782e458db6b4c52b0ddc8eede42247fa45c65ff",
     "current-cli-rpc" => "617fb1dc018a70abb9ffd7f97bc7e886db6d217c16ae06ea15ef233d5829b11d",
     "current-git-evidence" => "4f044446b3559e8635da488e2d9f9f1047c1b665f56f4c84cb8fad43394fc7ce",
     "checkpoint-f-probe" => "c9a91bad8417314ce3ba0080562de4574425211d4fe25d3e68447a535cd83eea",
