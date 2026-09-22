@@ -2961,3 +2961,46 @@ failure rather than hygiene, so it should not wait unrecorded behind a blocked t
   `cancel_requested` is set by the reducer at `:394` and read by it at `:1285` and `:1609`.
   Its own candidate, with that decision made explicitly.
 - Workflow suites **181 at seed 0**, from 182: one duplicate deleted. Predicted exactly.
+
+## FR-08B kernel — why a contract condition could go unimplemented through seven reviews — 2026-09-21
+
+Filed as **EV-6** after verifying the EV-5 review's largest finding. The defect it found is one
+row; this is why no mechanism could have found it, and that generalises.
+
+- **The clause coverage number measures the outcome half of every row.** `@clauses` are quoted
+  from a row's outcome cell and checked as substrings of `R4Rows.outcome(id)`; `@uncited` is
+  documented as "every clause of every **outcome cell** that no scenario asserts". The from-state
+  cell is the row's verbatim lookup **key** — drift-proof against contract edits, which is real
+  value — but its conjuncts are never enumerated, asserted, or recorded as uncited. Measured:
+  **32 rows, 61 from-cell conjuncts, 28 rows with more than one, 0 of the 61 in the number.**
+  "57 asserted / 57 uncited" is a count over half the contract.
+- **An unimplemented outcome clause is recorded; an unimplemented precondition is invisible.**
+  That asymmetry is the whole finding. All six mechanisms are blind in the same direction: guard
+  reachability keys on error atoms and an unwritten guard has none; the sweep neutralises guards
+  that exist; row coverage counts the row as driven because the scenario **satisfies** the
+  conjunct rather than testing its negation; clause coverage is outcome-only; `State.valid?/1` is
+  shapes; the oracle has no clause for controls. Review 3 asked "does each scenario drive the row
+  it is NAMED for, or something adjacent?" — the second form of that question is **a conjunctive
+  precondition needs a refusal test per conjunct, and nothing checks that it has one.**
+- **`paused` and `draining` are write-only state.** `control_changed` writes them
+  (`kernel.ex:977-984`) and **no transition in the kernel reads either one**. That is stronger
+  than "launch does not check them": the reducer stores two control flags that affect nothing.
+  `cancel_requested` is read, but only to *permit* `cancellation_finalized` (`:1285`, `:1313`,
+  `:1609`) — never to *refuse* new work.
+- Recorded in `EVIDENCE-TOOLS.md`'s known gaps as the first entry, because it is the one that
+  explains why the other five entries are not enough, and because the hand check it implies —
+  one refusal test per conjunct — is cheap for whoever next edits a row.
+- **The scope decision EV-6 has to encode**, and it is not "guard everything": several from-cell
+  conjuncts are protected facts the reducer may not restate — "dependencies/resources/profile/
+  reservation eligible", "authenticated reset grants eligible units", "proved no ref change" —
+  which `require_settlement_source` already records at its own site as allocation being protected
+  policy. The distinction is **reducer-owned state vs protected fact**. `paused`, `draining` and
+  `cancel_requested` are all reducer-owned, which is precisely why row :467's three conjuncts
+  have no defence and the other six do.
+- Sequenced: the row-:467 guard first as its own candidate, since it is a live defect and does
+  not need EV-6 to exist. EV-6 then prevents the next one, and it should ride with EV-2 rather
+  than after it — both edit the contract's governing tables, and doing from-cells in a second
+  pass means editing the oracle twice.
+- **Note for that candidate:** guarding row :467 will *shrink the reachable set*, so the depth-6
+  and depth-7 denominators recorded in this log and in `semantic_invariants.ex` move with it.
+  13,290 / 58,324 and the 1,002 are pre-guard numbers and must be re-measured, not carried.

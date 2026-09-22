@@ -233,8 +233,10 @@ look corroborated.
 |---|---|---|---|
 | — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
 | — | EV-5 relations test | **done** | Landed at `b3c110e3`, gate green, awaiting an independent review of the delta |
-| 1 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
-| 2 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
+| 1 | **row :467 guard** | small, but it moves the reachable set | Not an EV item — a live reachable defect, and EV-6's witness. First |
+| 2 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
+| 3 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
+| 4 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
 
 EV-1 (coverage-guided sweep) is already designed and is sequenced by its own spike, not by
 this table.
@@ -242,3 +244,70 @@ this table.
 Each of these is a mechanism, so rule 1 applies without exception: it ships with a red
 control or it does not ship. Five mechanisms in this subcommit produced confident, clean,
 entirely vacuous results on their first run.
+
+## EV-6 — the coverage number measures the outcome half of every row
+
+Found while verifying the EV-5 review's largest finding. Not one of Sol's proposals, and not a
+tidy-up: it is the reason a contract condition can go unimplemented through four green gates and
+seven independent reviews without any mechanism objecting.
+
+**What is wrong.** `r4_coverage_test.exs`'s clause bookkeeping is built entirely on **outcome
+cells**. `@clauses` are quoted from a row's outcome and a test asserts each is still a substring
+of `R4Rows.outcome(id)`; `@uncited` is documented as "every clause of every **outcome cell** that
+no scenario asserts". The **from-state cell** is used only as a verbatim lookup key — which makes
+it drift-proof against contract edits, and that is genuinely valuable — but its conjuncts are
+never enumerated, never asserted, and never recorded as uncited.
+
+Measured, not argued: **32 rows carry 61 from-cell conjuncts, 28 rows carry more than one, and 0
+of the 61 appear in the coverage number.** The "57 asserted / 57 uncited" figure is a count over
+half of the contract.
+
+**Why that is not merely incomplete.** An unimplemented *outcome* clause shows up as uncited —
+recorded, visible, countable. An unimplemented *precondition* shows up nowhere:
+
+| mechanism | why it cannot see a missing precondition guard |
+|---|---|
+| Clause coverage | counts outcome cells only; from-cell conjuncts are not in either list |
+| Row coverage | the row still drives — the scenario *satisfies* the conjunct instead of testing its negation |
+| Guard reachability | keyed by error atom, and a guard that was never written has no atom |
+| Mutation sweep | neutralises guards that exist; it cannot neutralise an absent one |
+| `State.valid?/1` | shapes |
+| `SemanticInvariants` | no clause about controls |
+
+All six blind in the same direction, which is why review 3's question — "does each scenario drive
+the row it is NAMED for, or something adjacent?" — has a second form nobody asked: **a
+conjunctive precondition needs a refusal test per conjunct, and nothing checks that it has one.**
+
+**The witness, and it is not subtle.** Row **:467** is "queued;
+dependencies/resources/profile/reservation eligible; **no pause/drain/cancel**".
+`do_transition("launch_planned", ...)` guards on `require_phase`, `require_no_open_developer` and
+`require_cleanup_complete`, and consults none of the three. Measured at depth 6:
+
+| condition | reachable states | accept a new `launch_planned` | shortest path |
+|---|---|---|---|
+| no cancel | 2,642 | **115** | 2 events |
+| no pause | 2,304 | **101** | 2 events |
+| no drain | 2,304 | **101** | 2 events |
+
+Two events from empty. Worse than "launch does not check them": `paused` and `draining` are
+written by `control_changed` (`kernel.ex:977-984`) and **read by no transition in the kernel**.
+The reducer stores two control flags that affect nothing.
+
+**Scope.** Enumerate from-cell conjuncts the way EV-2 proposes to enumerate outcome clauses, and
+require each to be either asserted by a refusal test pinned to an exact atom (rule 5) or recorded
+as deliberately outside the reducer with its reason. The second category is real and must stay
+expressible: eligibility, "authenticated reset grants", and "proved no ref change" are protected
+policy the kernel may not restate, which `require_settlement_source` already records at its own
+site. The distinction to encode is **reducer-owned state vs protected fact** — `paused`,
+`draining` and `cancel_requested` are all reducer-owned, which is exactly why row :467's three
+conjuncts have no defence.
+
+Red control per rule 1: a fixture row whose from-cell carries a conjunct no refusal test pins,
+which must fail.
+
+**Sequencing.** The row-:467 guard is its own candidate and comes first — it is a live reachable
+defect and does not need this mechanism to exist. EV-6 then prevents the next one. It subsumes
+part of EV-2: if clause IDs are being added to the contract's governing tables, from-cell
+conjuncts should get them in the same pass rather than in a second edit of the same file.
+
+**Cost.** Moderate, and it shrinks EV-2's if done with it.

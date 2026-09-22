@@ -106,6 +106,20 @@ These are not style preferences. Each was bought with a review round.
 
 ## Known gaps, so they are not rediscovered
 
+- **Every mechanism here can only see a guard that exists.** Nothing detects a contract
+  condition with no guard at all, and all six are blind in the same direction: guard
+  reachability is keyed by error atom and an unwritten guard has no atom; the sweep
+  neutralises guards that are present; row coverage still counts the row as driven because the
+  scenario *satisfies* the condition instead of testing its negation; clause coverage counts
+  **outcome cells only**, so a from-state conjunct is in neither `@clauses` nor `@uncited`;
+  `State.valid?/1` is shapes; `SemanticInvariants` has no clause for controls. Measured:
+  **32 rows carry 61 from-cell conjuncts and 0 of the 61 appear in the coverage number.** The
+  witness cost nothing to find once someone looked — row :467's "no pause/drain/cancel" is
+  unguarded on `launch_planned` and violated **two events from empty** in all three conjuncts,
+  with `paused` and `draining` written by `control_changed` and read by no transition at all.
+  So **a conjunctive precondition needs a refusal test per conjunct, and nothing checks that it
+  has one.** If you add or change a row, that is the check to do by hand until
+  [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) exists.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
   other way is outside it.
 - Nothing except the sweep checks that a test exercises the site it *claims* to. On
