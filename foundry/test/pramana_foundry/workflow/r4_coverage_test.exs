@@ -378,6 +378,17 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   #   {:input, why}           the conjunct names the event that selects the handler, not a
   #                           precondition on state. Discharged by dispatch and
   #                           `Event.validate/2`, and there is no guard to look for
+  #   {:effect, why}          implemented as a BRANCH INSIDE THE EFFECT: the event is
+  #                           accepted either way and the conjunct decides the outcome.
+  #                           No atom, no require_* site, and the row still drives, so no
+  #                           mechanism here can see it - its defence is the outcome-side
+  #                           clause of the same row, tracked by @clauses
+  #
+  # The last two categories were not in the first design. They were forced by reading, and
+  # both would otherwise have been recorded as :unguarded - a defect where the contract is
+  # in fact implemented. That is why this list shrinks a row at a time: classifying 69
+  # obligations in one sitting against a category set derived from one row would have
+  # produced a confident inventory of holes that are not there.
   #
   # WHAT THIS DOES NOT DO, so it is not rediscovered as a surprise:
   #
@@ -435,6 +446,71 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.28.f2" =>
       {:guarded, [:attempt_still_active, :executions_not_closed],
        "require_no_active_attempt/1 and require_all_executions_closed/1 at kernel.ex:404-405. NOTE require_all_executions_closed/1 and require_cleanup_complete/1 are the SAME predicate under two names and two atoms, so a test pinning either exercises identical logic"},
+    # R4.11. The handler guards MORE than the row states: `checks_started` requires ticket
+    # phase awaiting_review as well, which this row's cell does not name. Stronger than the
+    # contract is safe; the note exists because the reverse also occurs, at R4.04 and R4.20.
+    "R4.11.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "checks_started (kernel.ex:638) require_attempt_phase ~w(candidate_frozen). The row's cell names the ATTEMPT phase; the handler additionally requires ticket phase awaiting_review, which the row does not mention"},
+    "R4.11.f2" =>
+      {:guarded, [:developer_not_closed],
+       "checks_started (kernel.ex:639) require_developer_closed/1"},
+    "R4.11.f3" =>
+      {:protected,
+       "check capacity is allocation, which is protected policy the kernel may not restate - the same category as R4.04's eligibility conjunct"},
+
+    # R4.12.f2 is the first conjunct found to be implemented as a BRANCH IN THE EFFECT rather
+    # than as a guard. Nothing refuses it: `check_recorded` accepts, records the receipt, and
+    # `maybe_finish_checks/1` advances the attempt only when every status is passed. Calling
+    # it :unguarded would manufacture a defect where the contract is in fact implemented.
+    "R4.12.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "check_recorded (kernel.ex:693) require_attempt_phase ~w(checking)"},
+    "R4.12.f2" =>
+      {:effect,
+       "maybe_finish_checks/1 evaluates it inside the effect body and advances the attempt to awaiting_review only when it holds. There is no atom, no require_* site and the row still drives, so no mechanism in the evidence set can see it; its defence is the outcome-side clause of this same row, tracked by @clauses"},
+
+    # R4.15.
+    "R4.15.f1" =>
+      {:guarded, [:wrong_source_phase, :wrong_attempt_phase],
+       "review_planned (kernel.ex:712 and :714) requires both ticket and attempt phase awaiting_review"},
+    "R4.15.f2" =>
+      {:guarded, [:checks_not_passed], "review_planned (kernel.ex:715) require_checks_passed/1"},
+    "R4.15.f3" =>
+      {:protected, "reviewer capacity is allocation, protected policy the kernel may not restate"},
+
+    # R4.16-R4.18 share one handler, review_recorded, and one phase guard. The verdict value
+    # selects the branch, so for the correction and rejected rows the second conjunct is the
+    # input; only the approved row's conjunct carries guarded content of its own.
+    "R4.16.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "review_recorded (kernel.ex:768) require_attempt_phase ~w(reviewing)"},
+    "R4.16.f2" =>
+      {:guarded, [:invalid_verdict, :verdict_names_another_candidate],
+       "require_verdict/1 and require_review_candidate/2 at kernel.ex:770-771 carry \"valid\" and \"exact-candidate\"; \"approved\" itself selects the outcome branch and is the input"},
+    "R4.17.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "review_recorded (kernel.ex:768), shared with R4.16 and R4.18"},
+    "R4.17.f2" => {:input, "the verdict value selects this row's branch within review_recorded"},
+    "R4.18.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "review_recorded (kernel.ex:768), shared with R4.16 and R4.17"},
+    "R4.18.f2" => {:input, "the verdict value selects this row's branch within review_recorded"},
+
+    # R4.20's guard admits a phase the row does not name - the R4.04 shape again, and here
+    # the licence is explicit: R4.21's from-cell IS "ready_to_integrate/integrating", and the
+    # two rows share integration_planned.
+    "R4.20.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "integration_planned (kernel.ex:852) require_phase ~w(ready_to_integrate integrating). The row names only ready_to_integrate; the widening is licensed by R4.21, which shares this handler and names both"},
+
+    # R4.22.
+    "R4.22.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "integration_recorded (kernel.ex:891) require_phase ~w(integrating)"},
+    "R4.22.f3" =>
+      {:guarded, [:workers_not_closed],
+       "integration_recorded (kernel.ex:895) require_workers_closed/1"},
     "R4.04.f3" =>
       {:unguarded,
        "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
@@ -442,8 +518,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its
   # handler, and doing them in a sitting is the shape that produced six of this subcommit's
-  # defects - "verify the property on item one, assert it of the list". 12 of 72 are
-  # classified; this list holds the other 60 and can only shrink.
+  # defects - "verify the property on item one, assert it of the list". 29 of 72 are
+  # classified; this list holds the other 43 and can only shrink.
   #
   # Two are deliberately still here rather than guessed. R4.24.f2 is a disjunction whose
   # branches have different dispositions - "explicit resume" is the input, "recorded
@@ -474,34 +550,17 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.09.f2",
     "R4.10.f1",
     "R4.10.f2",
-    "R4.11.f1",
-    "R4.11.f2",
-    "R4.11.f3",
-    "R4.12.f1",
-    "R4.12.f2",
     "R4.13.f1",
     "R4.13.f2",
     "R4.14.f1",
     "R4.14.f2",
-    "R4.15.f1",
-    "R4.15.f2",
-    "R4.15.f3",
-    "R4.16.f1",
-    "R4.16.f2",
-    "R4.17.f1",
-    "R4.17.f2",
-    "R4.18.f1",
-    "R4.18.f2",
     "R4.19.f1",
     "R4.19.f2",
     "R4.19.f3",
-    "R4.20.f1",
     "R4.20.f2",
     "R4.21.f1",
     "R4.21.f2",
-    "R4.22.f1",
     "R4.22.f2",
-    "R4.22.f3",
     "R4.23.f1",
     "R4.23.f2",
     "R4.23.f3",
@@ -620,6 +679,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   defp reason({:protected, why}), do: why
   defp reason({:unguarded, why}), do: why
   defp reason({:input, why}), do: why
+  defp reason({:effect, why}), do: why
 
   describe "the row inventory tracks the contract" do
     # Compared as sorted lists, not sets. A set comparison passed when a duplicate

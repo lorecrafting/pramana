@@ -3679,3 +3679,53 @@ have different dispositions — "explicit resume" is the input, "recorded depend
 is a protected fact — and one ID cannot carry both. **R4.28.f3** "cleanup reconciled" is equated by
 the kernel with "every execution closed"; whether the contract's cleanup notion is wider needs a read
 of the contract, not of the kernel, and guessing is what the four stale `@uncited` entries were.
+
+## EV-6, commit 4 — the category set was wrong twice, and reading is what found it — 2026-09-21
+
+29 of 72 from-cell obligations classified, up from 12; 43 remain on the ratchet. Seventeen entries
+went in, and the finding is about the mechanism rather than about any of them.
+
+**The dispositions I shipped were `{:guarded}`, `{:protected}`, `{:unguarded}`. That set is wrong,
+and it is wrong in the expensive direction: both missing categories would have been recorded as
+`:unguarded` — a defect where the contract is in fact implemented.**
+
+| category | what it is | how many so far |
+|---|---|---|
+| `{:guarded, atoms}` | a refusal, atom checked against the kernel's declared set | 19 |
+| `{:protected}` | a fact the kernel may not restate — allocation, eligibility, grants | 3 |
+| `{:input}` | names the event that selects the handler, not a precondition | 5 |
+| `{:effect}` | **a branch inside the effect body** | 1 |
+| `{:unguarded}` | reducer-owned, nothing consults it. A recorded defect | 1 |
+
+`{:effect}` is the sharper discovery. R4.12's "all mandatory check receipts passed" is not guarded
+and is not meant to be: `check_recorded` accepts the receipt either way, and `maybe_finish_checks/1`
+advances the attempt to `awaiting_review` only when every status is `passed`. **Such a conjunct is
+invisible to every mechanism in the evidence set** — no error atom, so guard reachability cannot see
+it; no `require_*` site, so the sweep cannot; and the row still drives, so row coverage stays green.
+Its only defence is the outcome-side clause of the same row, which is exactly what EV-2's ID set now
+tracks. The from-cell conjunct and the outcome clause are one fact here.
+
+**This is the ratchet earning its cost.** Had the remaining 69 been classified in one sitting against
+a three-category set derived from row :467, the result would have been a confident inventory of holes
+that are not there, each with a plausible reason attached. That is "verify the property on item one,
+assert it of the list" — the shape behind six of this subcommit's defects — relocated from the code
+into the mechanism that measures it. Two of five categories were missing after reading one row; both
+appeared only after reading twenty more.
+
+### The row and its guard disagree in three rows, in both directions
+
+Worth recording because "the guard implements the row" is the assumption every one of these
+mechanisms rests on, and it is false as stated in three places found so far:
+
+- **R4.04** — guard admits `~w(queued developing)`, row says `queued`. Licence is the outcome cell's
+  "unless R4a retained a resumable developer attempt", and nothing pins it.
+- **R4.20** — guard admits `~w(ready_to_integrate integrating)`, row says `ready_to_integrate`.
+  Licensed, and explicitly: R4.21's from-cell is "ready_to_integrate/integrating" and the two rows
+  share `integration_planned`.
+- **R4.11** — the reverse. `checks_started` requires ticket phase `awaiting_review` in addition to the
+  attempt phase the row names. Stronger than the contract, which is safe, and worth the note only
+  because the other two run the other way.
+
+Three rows also share one handler and one phase guard — R4.16, R4.17 and R4.18 all route through
+`review_recorded`, where the verdict value selects the branch. So their second conjuncts are inputs,
+not preconditions, and their first conjunct is literally the same guard site counted three times.
