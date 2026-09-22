@@ -18,10 +18,11 @@
 # What this probe still cannot see, so the next person does not rediscover it the hard way:
 #   - Corruptions of more than one key at once.
 #   - Values nested inside a payload map, rather than a whole top-level value.
-#   - Any event type the proposer never proposes at the chosen depth. At depth 7, five types
-#     were never accepted uncorrupted from any seed -- integration_planned,
-#     integration_settled, integration_recorded, review_recorded, reviewer_closed -- hiding
-#     21 payload keys.
+#   - Any event type the proposer never proposes at the chosen depth, AND any type it proposes
+#     whose corruptions are never accepted. The second set is the one that actually bounds
+#     visibility and is much larger than the first -- at depth 5, 1 type is never proposed and
+#     14 more are proposed but never accepted, so 15 of 37 contribute nothing. Both sets are
+#     printed at the end of every run; do not quote a bound this script did not print.
 #   - Deep-walk seeds (KernelWalk.deep/3) are not used; only KernelSearch seeds.
 #
 # The float class is a control for the probe's WIRING only: Event.value?/2 refuses floats, so
@@ -80,40 +81,46 @@ proposals = fn state ->
 end
 
 depth = String.to_integer(System.get_env("DEPTH") || "5")
-seeds = [State.new() | (KernelSearch.search(depth) |> Enum.map(&elem(&1, 0)))]
+# `search/1` already returns the initial state as its first element, so prepending
+# `State.new()` double-counted the empty state's corruptions in `tried`/`accepted`. Found by
+# review comparing this script's seed count against the search's own.
+seeds = KernelSearch.search(depth) |> Enum.map(&elem(&1, 0))
 IO.puts("depth #{depth}, seeds: #{length(seeds)}")
 
 only = System.get_env("ONLY_TYPES")
 only = if only, do: MapSet.new(String.split(only, ",")), else: nil
 
-{tried, accepted, broken, proposed, float_accepted} =
-  Enum.reduce(seeds, {0, 0, %{}, MapSet.new(), 0}, fn state, acc ->
+{tried, accepted, broken, proposed, float_accepted, ever_accepted} =
+  Enum.reduce(seeds, {0, 0, %{}, MapSet.new(), 0, MapSet.new()}, fn state, acc ->
     sequence = (state["last_sequence"] || 0) + 1
 
     Enum.reduce(proposals.(state), acc, fn {type, entity_id, payload}, acc ->
       if only && not MapSet.member?(only, type) do
         acc
       else
-        {t, a, b, p, f} = acc
-        acc = {t, a, b, MapSet.put(p, type), f}
+        {t, a, b, p, f, e} = acc
+        acc = {t, a, b, MapSet.put(p, type), f, e}
 
         Enum.reduce(Map.keys(payload), acc, fn key, acc ->
-          Enum.reduce(classes, acc, fn value, {tried, accepted, broken, proposed, float_accepted} ->
+          Enum.reduce(classes, acc, fn value,
+                                       {tried, accepted, broken, proposed, float_accepted,
+                                        ever_accepted} ->
             corrupted = Map.put(payload, key, value)
             event = build.(state, type, entity_id, corrupted, sequence)
 
             case WorkflowKernel.apply(state, event) do
               {:ok, next} ->
                 float_accepted = if is_float(value), do: float_accepted + 1, else: float_accepted
+                ever_accepted = MapSet.put(ever_accepted, type)
 
                 if State.well_formed?(next),
-                  do: {tried + 1, accepted + 1, broken, proposed, float_accepted},
+                  do: {tried + 1, accepted + 1, broken, proposed, float_accepted, ever_accepted},
                   else:
                     {tried + 1, accepted + 1, Map.update(broken, {type, key}, 1, &(&1 + 1)),
-                     proposed, float_accepted}
+                     proposed, float_accepted, ever_accepted}
 
               {:error, _} ->
-                {tried + 1, accepted, broken, proposed, float_accepted}
+                {tried + 1, accepted, broken, proposed, float_accepted, ever_accepted}
             end
           end)
         end)
@@ -125,14 +132,45 @@ IO.puts("corruptions tried:   #{tried}")
 IO.puts("accepted by apply/2: #{accepted}")
 IO.puts("accepted-but-malformed: #{Enum.sum(Map.values(broken))}")
 IO.puts("distinct (type, key): #{map_size(broken)}")
-IO.puts("distinct event types: #{broken |> Map.keys() |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> length()}")
+
+IO.puts(
+  "distinct event types: #{broken |> Map.keys() |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> length()}"
+)
+
 IO.puts("PROBE CONTROL - float payloads accepted (must be 0): #{float_accepted}")
 
+# The bound, printed rather than asserted elsewhere. "Never proposed" understates it badly:
+# a type the proposer offers but the kernel never accepts a corruption of is equally invisible.
 never = MapSet.difference(MapSet.new(Event.types()), proposed)
-IO.puts("\ntypes the proposer never proposed at this depth: #{Enum.join(MapSet.to_list(never), ",")}")
+unaccepted = MapSet.difference(proposed, ever_accepted)
+blind = MapSet.union(never, unaccepted)
+
+IO.puts(
+  "\nBOUND -- types contributing nothing to the count above: #{MapSet.size(blind)} of #{length(Event.types())}"
+)
+
+IO.puts(
+  "  never proposed at this depth (#{MapSet.size(never)}): #{Enum.join(Enum.sort(never), ", ")}"
+)
+
+IO.puts(
+  "  proposed, no corruption accepted (#{MapSet.size(unaccepted)}): #{Enum.join(Enum.sort(unaccepted), ", ")}"
+)
+
+hidden_keys =
+  blind
+  |> Enum.map(fn t ->
+    {:ok, keys} = Event.payload_keys(t)
+    length(keys)
+  end)
+  |> Enum.sum()
+
+IO.puts("  payload keys hidden by those types: #{hidden_keys}")
 
 IO.puts("\n(type, key) pairs:")
 
 broken
 |> Enum.sort_by(fn {{t, k}, _} -> {t, k} end)
-|> Enum.each(fn {{type, key}, n} -> IO.puts("  #{String.pad_leading(to_string(n), 7)}  #{type}.#{key}") end)
+|> Enum.each(fn {{type, key}, n} ->
+  IO.puts("  #{String.pad_leading(to_string(n), 7)}  #{type}.#{key}")
+end)

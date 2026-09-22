@@ -97,11 +97,16 @@ These are not style preferences. Each was bought with a review round.
    drives — every witness it has comes from hand-driven tests, not from the search.
 
    The suite's own printed total is **judgements, not transitions**, and the distinction was
-   caught by review inside this very paragraph. `Harness` counts 2,351,003 calls, but three
-   test modules each run the depth-7 search from empty, so 54% of that is the same transition
-   judged again: **1,052,864 distinct transitions over 268,856 distinct states**. A repeated
-   judgement is not a witness. Quote the distinct figure, or say "judgements" and mean it. `terminal_custody` was deleted outright once measurement showed it could
-   fire only on states `well_formed?/1` already refuses — 0 of 6,716.
+   caught by review inside this very paragraph. `Harness` counts 2,351,004 calls, but two
+   modules run the depth-7 search from empty (`r4_exhaustive_test`,
+   `r4_guard_reachability_test`) and a third walks depth 4 under `identity_key`
+   (`r4_congruence_test`), so roughly half of that is the same transition judged again:
+   **1,052,864 distinct transitions over 268,856 distinct states**, with raw distinct
+   `(state, event)` at 1,086,897 as an upper bound consistent with it. A repeated judgement is
+   not a witness. Quote the distinct figure, or say "judgements" and mean it.
+
+   `terminal_custody` was deleted outright once measurement showed it could fire only on
+   states `well_formed?/1` already refuses — 0 of 6,716.
 
    Measuring the bound is what collapsed two standing reachability claims: at depth 8 over
    238,000 states the unseeded search reaches 45 states with an attempt in `reviewing` and

@@ -38,11 +38,12 @@ defmodule PramanaFoundry.Test.KernelSearch do
   # routed run alone reads as "+23 seconds", and that is how it was first written down here —
   # a one-sample difference recorded as a cost, which is the same mistake as the exemption it
   # was defending. Across both samples the cost is somewhere between noise and ~20%. What is
-  # NOT noisy is the coverage: 253,383 judgements to 2,351,003 — though those are judgements,
-  # not distinct transitions. Three test modules each run the depth-7 search from empty, so 54%
-  # of that figure is the same transition judged again; distinct transitions go from roughly
-  # 250,000 to 1,052,864, and distinct states judged to 268,856. Still a 4.2x gain, stated as
-  # what it is.
+  # NOT noisy is the coverage: 253,383 judgements to 2,351,004 — though those are judgements,
+  # not distinct transitions. Two modules run this search at depth 7 from empty
+  # (`r4_exhaustive_test`, `r4_guard_reachability_test`) and a third walks depth 4 under
+  # `identity_key` (`r4_congruence_test`), so roughly half of that figure is the same
+  # transition judged again; distinct transitions go from roughly 250,000 to 1,052,864, and
+  # distinct states judged to 268,856. Still a 4.2x gain, stated as what it is.
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
   @default_depth 6

@@ -3323,8 +3323,11 @@ string, zero, negative integer, list, nil, boolean — plus a float as the probe
 since `Event.value?/2` must refuse floats and any accepted float would mean the probe was not
 testing what it claimed (**0 accepted**, so it was):
 
-- depth 5, 2,737 seeds: **6,782,280 corruptions, 607,634 accepted, 292,597 accepted-but-malformed,
-  18 `(type, key)` pairs in 12 event types**.
+- depth 5, 2,736 seeds: **6,781,980 corruptions, 607,479 accepted, 292,473 accepted-but-malformed,
+  18 `(type, key)` pairs in 12 event types**. (The first figures quoted here were 2,737 /
+  6,782,280 / 607,634 / 292,597 — the script prepended `State.new()` to a search that already
+  returns the initial state first, so the empty state's corruptions counted twice. Found by
+  review comparing the seed count against the search's own.)
 - depth 7, scoped to `check_recorded` — the one type the proposer never reaches at depth 5:
   1,050 corruptions, 189 accepted, **147 malformed**, a 19th pair in a 13th type.
 
@@ -3356,11 +3359,16 @@ The probe's float class proves less than was claimed for it. `Event.value?/2` re
 so "0 accepted" shows the corrupted payload really reaches `Event.validate/2` — probe wiring.
 It says nothing about whether malformed-post-state detection works; that half has no control.
 
-**The count is now recorded as ≥20, not as a number.** No bound is established: 5 of 37
-`Event.types()` — `integration_planned`, `integration_settled`, `integration_recorded`,
-`review_recorded`, `reviewer_closed` — were never accepted uncorrupted from any seed used, so
-21 payload keys are invisible to every run so far. Nested map values and two-key corruption are
-untried. `bin/closure_probe.exs` now ships so the next person can check rather than trust a
+**The count is now recorded as ≥20, not as a number, and the probe prints its own bound.**
+The bound was first stated here as "5 of 37 types never accepted uncorrupted, 21 keys hidden"
+— a figure taken from a review's depth-7 run that the shipped script did not compute, which is
+the reproducibility rule this very entry claims to be applying, unmet for the number that
+justifies the word "unbounded". The probe now prints the bound every run, and the shape is
+worse than the number suggested: at depth 5, **15 of 37 event types contribute nothing** — 1
+never proposed, **14 proposed but with no corruption ever accepted** — hiding **51 payload
+keys**. `check_planned` is in that second set, which is precisely why its pair only appeared
+at depth 7. "Never proposed" alone understated the blind spot by fourteen types. Nested map
+values and two-key corruption remain untried. `bin/closure_probe.exs` now ships so the next person can check rather than trust a
 figure quoted from a script that was never in the tree — which is why four wrong counts went
 unchallenged this long.
 

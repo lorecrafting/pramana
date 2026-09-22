@@ -63,24 +63,27 @@ defmodule PramanaFoundry.Test.Harness do
   The other is the B1 totality probe, which drives deliberately malformed payloads. It exists
   because the harness found a real defect on its first full run, and that defect is not this
   change's to fix. `apply/2` is not **closed** over its own validator: starting from a valid
-  payload and corrupting exactly one key, **19 `(type, key)` pairs in 13 event types** produce
+  payload and corrupting exactly one key, **at least 20 `(type, key)` pairs in 14 event types**
+  produce
   a state `State.well_formed?/1` rejects — `ticket_admitted.{objective_id,reason,spec_revision_id,spec}`,
   `artifact_frozen.{candidate_id,sealed_generation}`, `pm_proposal_recorded.{proposal_id,operation}`,
   `ticket_amended.{spec_revision_id,spec}`, `objective_created.planning_owner_id`,
   `attempt_settled.reason_code`, `stream_sealed.last_accepted_sequence`,
-  `launch_planned.attempt_id`, `check_recorded.reason_code`, and `reason` on `ticket_blocked`,
+  `launch_planned.attempt_id`, `check_recorded.reason_code`, `check_planned.check_id`, and
+  `reason` on `ticket_blocked`,
   `ticket_parked`, `artifact_blocked` and `freeze_failed`. Each bricks the log: the next event
   sees a state its own validator refuses and returns `:invalid_state` forever.
 
-  That count took three tries — 2, then 16, then 19 — each wrong because the probe's own blind
+  That count took four tries — 2, 16, 19, then >=20 — each wrong because the probe's own blind
   spot went unenumerated: all payload values hostile at once, then a single hostile value class
-  (a map, which cannot break a field validated by `plain_map?`), then a single search depth
-  (`check_recorded` is not proposed below depth 7). `IMPLEMENTATION-LOG.md` carries the
-  measurement and its control.
+  (a map, which cannot break a field validated by `plain_map?`), then a single search depth,
+  then a depth-7 pass scoped to the one type the previous pass had missed, which could only
+  confirm what was already suspected. No bound is established; `bin/closure_probe.exs` ships so
+  the next count can be checked rather than trusted.
 
   `kernel.ex:17`'s property 2 is unaffected — `apply/2` still returns rather than raises.
   Closure is the half nothing asserted, which is why this was invisible until the harness
-  asserted it. Fixing 19 sites adds refusals to a gate-validated kernel, each owing a contract
+  asserted it. Fixing 20-odd sites adds refusals to a gate-validated kernel, each owing a contract
   citation, an error atom, a reachability entry and a sweep — that is a candidate with its own
   review, not a rider on this one.
 
