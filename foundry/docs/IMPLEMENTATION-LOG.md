@@ -2792,3 +2792,99 @@ failure rather than hygiene, so it should not wait unrecorded behind a blocked t
   and the question of whether `log_metrics/1` should be allowed to take down a cycle at all —
   a metrics snapshot failing is not a reason to abandon an improvement cycle, and the crash has
   been masking whatever else that cycle does.
+## FR-08B kernel — EV-5: the relations test could not fail, and 1,002 states said so — 2026-09-21
+
+- Taken as its own candidate (`b3c110e3`), test-only: `r4_exhaustive_test.exs`,
+  `test/support/semantic_invariants.ex`, one comment in `kernel_test.exs`. **No `lib` change**,
+  so no sweep site moved and `SWEEP_SITES` has nothing to scope — the same class the sweep
+  structurally cannot see, for the second candidate running.
+- **The one-word fix first, and red before anything else.** The lambda returned
+  `{:error, msg}` where `check/2` matched `{:violation, msg}`. Corrected alone it fails on
+  `ticket_admitted:queued` → `launch_planned` → `cancellation_requested` →
+  `attempt_settled:cancelled`, four events, "T1: ticket is developing with no active attempt".
+  That red IS the red control the mechanism never had, and seeing it was the point.
+- **Then all 1,002 classified, not the first one read.** Depth 7 from empty — the depth the
+  suite actually runs, not the depth 6 the review measured. Rule 2's three numbers, per family:
+
+  | family | states checked | holding the precondition | violating |
+  |---|---|---|---|
+  | `phase_agreement/nil` | 58,324 | 1,002 | **1,002** |
+  | `phase_agreement/attempt` | 58,324 | 17,059 | 0 |
+  | `resume_target` | 58,324 | 26,143 | 0 |
+  | `terminal_custody` | 58,324 | 18,216 | 0 |
+  | `candidate_custody` | 58,324 | 7,245 | 0 |
+  | `receipt_custody` | 58,324 | **0** | 0 |
+
+- **The clause was never once satisfied.** Violations equal preconditions exactly: 1,002 of
+  1,002. It is not a mostly-right invariant with exceptions; in the whole reachable set within
+  the bound it has never held. Every one has `cancel_requested` set and every attempt
+  terminal-cancelled; **0** have no pending cancel. So: **1,002 of 1,002 an oracle gap, 0 kernel
+  defects.** Depth 6 reproduced the review's numbers exactly first — 13,290 states, 190
+  violating — before going deeper.
+- **`receipt_custody` is vacuous at this bound and is recorded, not fixed.** Zero of 58,324
+  states hold its precondition, because a ref receipt sits ~12 events from empty and the suite
+  runs at 7. It is rule 1's vacuous mechanism with a number attached, which is what rule 2 is
+  for. It is not dead code — `r4_coverage_test.exs` drives receipts through hand-built
+  sequences — but nothing exhaustive judges it, and that is EV-3's argument restated with a
+  denominator.
+- **Warrant, and it settles the direction.** `WORKFLOW-CONTRACT.md:490` — "nonterminal ticket;
+  cancel requested | Set orthogonal control, cancel pending/unissued effects, request owned
+  interrupts; **hold phase/evidence while issued effects reconcile**". So `apply_terminal_phase`
+  returning the ticket unchanged for `cancelled` (`kernel.ex:1042-1043`) is the row being
+  obeyed, and the oracle was inventing an obligation the contract does not state.
+- **"A ticket nothing can move" was falsified by measurement, not by argument**, which is the
+  part worth keeping. Each of the 190 at depth 6 admits **at least 4** accepted successors; 0
+  are dead. Only **4** admit `cancellation_finalized` immediately — predicted 60–120, **missed
+  badly and recorded as a miss**. The gate on the other 186 is `:executions_not_closed` /
+  `:cleanup_incomplete`, measured from the refusal set, which is row **:491**'s "every owned
+  session AND non-session claim terminal, cleanup reconciled". Of the 35 that cannot reach a
+  terminal ticket phase within 3 further events, **35 of 35** do within 5. So the licence is
+  not just cited, the liveness it claims is exhibited.
+- **The sibling that already knew.** `receipt_custody/2` licenses `cancelled` as a terminal
+  disposition — the same exception — so the two halves of one oracle disagreed for as long as
+  both existed. A third encoding got it right too: the deleted test below carried the exception
+  AND the contract quotation, and its own comment records that an earlier exhaustive run had
+  produced the identical four-event counterexample and that the invariant, not the kernel, was
+  wrong. **That lesson was learned once and carried to one of three encodings.** Partial
+  generalisation, the shape this subcommit has now produced seven times, and this time it
+  survived because the encoding that was wrong was also the one nothing asserted.
+- **`check/2` is strict now, rather than the one drifted lambda being corrected.** Nine tests
+  route through it; an unrecognised return raises instead of being swallowed. That is the
+  root-cause edit — one clause at the point every caller passes through, versus auditing nine
+  lambdas and hoping the tenth remembers. Rule 6, reversed by exact string: restoring
+  `_ -> nil` turns **exactly one** of the eleven red, and it is the shape control, pinned to
+  `{:error, _}` specifically rather than to "some failure" (rule 5's reasoning applied to a
+  harness).
+- **The duplicate is deleted, and the reason is the finding.** "A ticket owning live work has
+  an attempt, or a cancel that can finish it" hand-wrote the same predicate over the same state
+  set with the exception the oracle lacked. Two encodings of one contract row: one correct and
+  dead, one incorrect and green. **The green one is what made the dead one look corroborated** —
+  had the relations test been the only encoding, its silence would have read as "nothing asserts
+  phase agreement" instead of "phase agreement holds". Rule 4: the rule exists once now, and
+  `@active_phases` went with it.
+- **Three red controls, because the oracle had one and the harness applying it had none.** That
+  asymmetry is the whole defect: a mechanism can be correct and still report nothing, and rule 1
+  was applied to the oracle and not to the thing that runs it. (1) `check/2` flunks on a reported
+  violation. (2) `check/2` raises on the exact shape that went dead. (3) the cancel exception
+  does not disarm the clause — one reachable state, `cancel_requested` flipped to false, must
+  violate; `State.valid?/1` still accepts it, so the control is well-formed and proves something
+  the shape validator does not.
+- **A standing claim was false and is corrected in place.** `kernel_test.exs:2072` said
+  `SemanticInvariants` "now asserts over every state the search reaches" and used it to argue
+  three `require_attempt_phase(~w(active))` sites redundant. The sentence stood while the test
+  was dead, so the redundancy argument rested on an oracle applied to nothing. It is true as of
+  this candidate and now says so. The `58,324 states at depth 7` in that same comment
+  independently reproduced exactly.
+- Workflow suites **182 at seed 0**, from 180: −1 deleted duplicate, +3 red controls. Predicted
+  exactly before running. `r4_exhaustive_test.exs` alone: 11 tests, 53.6s, against a predicted
+  55–70s — **outside the range, below it, recorded rather than widened**.
+- Gate on `b3c110e3`: **passes**, **917 passed / 13 skipped / 1 excluded**, suite **285.4s**,
+  provenance `result: passed`, `exit_code: 0`, `dirty_paths: []` before and after, bound to
+  commit `b3c110e3`. The count was predicted exactly before the run — 915 + 3 red controls − 1
+  deleted duplicate. The duration was predicted as 300–312s and came in at **285.4s**,
+  **outside the range, below it**, recorded rather than widened; the previous entry's 302.3s
+  was on an incremental build and this gate rebuilt from a clean deps fetch, which is a
+  difference the prediction did not account for. **Two other predictions missed and recorded:**
+  60–120 of the 190 were expected to admit `cancellation_finalized` immediately and **4** do;
+  the exhaustive file alone was predicted at 55–70s and ran 53.6s.
+- No independent review yet on this delta.

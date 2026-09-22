@@ -102,7 +102,13 @@ edit — rule 4). Then the scope decision:
 Red control per rule 1: a fixture post-state violating each invariant family, which must
 turn the harness red. Denominator per rule 2: report how many accepted transitions the
 suite drove and how many held each invariant's precondition — an invariant with zero
-preconditioned transitions is rule 1's vacuous mechanism with a number attached.
+preconditioned transitions is rule 1's vacuous mechanism with a number attached. **That is not
+hypothetical:** EV-5 measured the five families over the bounded search and `receipt_custody`
+came back 0 of 58,324, so one of the five invariants EV-3 proposes to promote is currently
+judged by nothing exhaustive. EV-3's denominators are the mechanism that would notice.
+
+EV-5 also removes the reason this was blocked: the oracle EV-3 promotes now carries the cancel
+exception, agrees with itself, and is asserted by a test that can fail.
 
 **Cost.** Moderate. One module move, one call-site rename over a small vocabulary, one
 harness hook, one red-control fixture.
@@ -186,14 +192,49 @@ disagreement into `lib` and assert it everywhere. Fix the oracle, then promote i
 
 **Cost.** The mismatch is one word. The classification is the ticket.
 
+**Resolved at `b3c110e3`.** The one word went in first and the test failed on the predicted
+four-event path, which is the red control it never had. Then all of it was classified rather
+than the first counterexample read. At the depth the suite actually runs — 7, not the 6 the
+review measured — **1,002 of 58,324 reachable states violate, and every one is the same
+clause**. Rule 2's three numbers per family:
+
+| family | states checked | holding the precondition | violating |
+|---|---|---|---|
+| `phase_agreement/nil` | 58,324 | 1,002 | **1,002** |
+| `phase_agreement/attempt` | 58,324 | 17,059 | 0 |
+| `resume_target` | 58,324 | 26,143 | 0 |
+| `terminal_custody` | 58,324 | 18,216 | 0 |
+| `candidate_custody` | 58,324 | 7,245 | 0 |
+| `receipt_custody` | 58,324 | **0** | 0 |
+
+Violations equal preconditions exactly, so the clause was **never once satisfied** — it is not
+a mostly-right invariant missing an exception. All 1,002 have `cancel_requested` set and every
+attempt terminal-cancelled; **0** have no pending cancel. Verdict: **1,002 of 1,002 an oracle
+gap, 0 kernel defects**, licensed by `WORKFLOW-CONTRACT.md:490`.
+
+"A ticket nothing can move" was falsified by measurement rather than conceded to the contract:
+**0** of the 190 at depth 6 are dead, each admits **at least 4** accepted successors, the gate
+on immediate finalisation is `:executions_not_closed` / `:cleanup_incomplete` — row **:491**'s
+cleanup condition, read out of the refusal set — and of the 35 that cannot reach a terminal
+ticket phase within 3 further events, **35 of 35** do within 5.
+
+Two things the classification produced that the ticket did not anticipate. **`receipt_custody`
+is vacuous at the suite's own bound** — 0 of 58,324 states hold its precondition, because a ref
+receipt sits roughly a dozen events from empty. Recorded, not fixed; it is EV-3's argument with
+a denominator. And **`check/2` is now strict** rather than the one drifted lambda being
+corrected: nine tests route through it and an unrecognised return raises, because fixing the
+lambda leaves the swallow in place for the other eight. The duplicate encoding of row :490 was
+deleted under rule 4 — it was correct and green, and that is exactly what made the dead test
+look corroborated.
+
 ## Order to take them
 
 | | Ticket | Cost | Gate |
 |---|---|---|---|
 | — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
-| 1 | EV-5 relations test | one word, then a classification | Before EV-3: the oracle EV-3 promotes is the broken one |
-| 2 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
-| 3 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
+| — | EV-5 relations test | **done** | Landed at `b3c110e3`, gate green, awaiting an independent review of the delta |
+| 1 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
+| 2 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
 
 EV-1 (coverage-guided sweep) is already designed and is sequenced by its own spike, not by
 this table.
