@@ -3576,3 +3576,51 @@ unanchored quotes is the same output a broken matcher produces.
 Citing pins the transcription to the contract's words, never the assertion to the clause. The four
 stale entries above were found by reading five scenarios, not by running the probe, and the same
 reading is owed for the other 53 cited clauses.
+
+## EV-2, commit 2 — the coverage number counts obligations, and the splitter is gone — 2026-09-21
+
+**124 outcome obligations annotated into the contract, proved content-preserving twice** — 124
+markers added against `d79b408a`, and 196 against `16fc73db`, the commit before any annotation
+existed. The contract's text is provably unchanged across the whole candidate.
+
+**Where the boundaries came from.** Not from punctuation, and not from fresh judgement either:
+`@clauses`, `@uncited` and `@partial` already held 118 human decisions about where an obligation
+sits, every one still anchored verbatim in its own cell. The markers were placed to respect those
+spans, so the migration preserves prior work rather than re-deriving it — and "every existing quote
+falls inside exactly one obligation" is a checkable property rather than a claim. The 7 orphans the
+probe found became obligations in their own right; the 7 double-claimed spans were resolved by
+reading the five scenarios, which is what showed four `@uncited` entries were stale.
+
+**The numbers moved in both directions, as predicted.** 57 asserted / 57 uncited over a punctuation
+unit becomes **124 obligations: 64 asserted, 60 recorded uncited**. Asserted rose because 7 cited
+quotes each spanned a `;` and were really two obligations, and because 4 stale uncited entries turned
+out to be asserted. Uncited rose because 7 obligations that shared a fragment with an asserted quote
+became visible for the first time.
+
+**What the mechanism now refuses.** An obligation in neither list fails — a contract edit cannot add
+an untested requirement quietly. An obligation in **both** fails, which is the double count the
+punctuation unit allowed and never reported. A citation naming an ID the contract no longer carries
+fails. And a quote is checked against **that obligation** rather than against the whole cell, so a
+citation drifting onto a neighbouring clause now fails where it used to read as clean.
+
+`String.split(~r/;|(?<=\.)\s+/)` is deleted. So is the `String.contains?/2` heuristic that let a
+fragment count as asserted because something else in it was.
+
+**The count is no longer carried by hand.** The comment this replaced said "54 clauses are asserted
+and 59 are not" while the lists held 57 and 57 — an eighth hand-carried count weaker than its own
+claim. `partition/3` computes the split from the lists and the suite prints it every run.
+
+**Rule 6.** `partition/3` returning empty lists for everything passes all three of its assertions and
+fails only the red control — the same result the from-cell mechanism gave, for the same reason, and
+the reason rule 1 exists.
+
+**`bin/clause_unit_probe.exs` is deleted in this commit**, one commit after it shipped. It said so in
+its own header: it measured `@clauses`/`@uncited` as quote lists, and those no longer exist. It had
+to ship to make the numbers that justified this change reproducible at the moment they were claimed;
+it has no second use, and leaving a probe that cannot run against the current structures is how a
+tool comes to be trusted for an answer it can no longer give. The findings live here and in the
+ticket; git holds the probe.
+
+**What is still not proven.** That a scenario's assertions actually discharge the clause it cites.
+Citing pins the transcription to the contract's words, never the assertion to the clause. Five
+scenarios were read closely for this commit; the same reading is owed for the other 59 citations.

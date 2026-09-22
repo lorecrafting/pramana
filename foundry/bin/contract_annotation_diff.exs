@@ -31,8 +31,12 @@ alias PramanaFoundry.Test.R4Rows
 
 contract = "docs/WORKFLOW-CONTRACT.md"
 
+# BOTH sides are stripped. The first version stripped only the new one, which was correct
+# exactly once - while the baseline carried no markers. The moment a second annotation pass
+# ran against an already-annotated baseline it reported every previously-annotated row as
+# changed. A tool that is right only on its first use is a tool that lies on its second.
 compare = fn old, new ->
-  old_lines = String.split(old, "\n")
+  old_lines = R4Rows.strip_ids(old) |> String.split("\n")
   new_lines = R4Rows.strip_ids(new) |> String.split("\n")
 
   Enum.zip(old_lines, new_lines)
@@ -78,10 +82,15 @@ rev = List.first(System.argv()) || "HEAD"
 {old, 0} = System.cmd("git", ["show", "#{rev}:#{Path.join("foundry", contract)}"])
 new = File.read!(contract)
 
-markers = length(Regex.scan(~r/\{R4a?\.\d{2}\.[fo]\d{1,2}\}/, new))
+count = fn text -> length(Regex.scan(~r/\{R4a?\.\d{2}\.[fo]\d{1,2}\}/, text)) end
+markers = count.(new)
+was = count.(old)
 
 IO.puts("baseline: #{String.trim(subject)}")
-IO.puts("markers stripped from the working tree: #{markers}")
+
+IO.puts(
+  "markers: #{was} at the baseline, #{markers} in the working tree (#{markers - was} added)"
+)
 
 if markers == 0 do
   IO.puts("\nNOTHING IS ANNOTATED. A clean result here proves the file is unchanged,")
@@ -91,7 +100,7 @@ end
 
 case compare.(old, new) do
   [] ->
-    IO.puts("\nCONTENT PRESERVED: #{markers} markers added, contract text identical.")
+    IO.puts("\nCONTENT PRESERVED: #{markers - was} markers added, contract text identical.")
 
   diffs ->
     IO.puts("\nCONTENT CHANGED at #{length(diffs)} line(s):\n")

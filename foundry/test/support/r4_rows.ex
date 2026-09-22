@@ -147,14 +147,53 @@ defmodule PramanaFoundry.Test.R4Rows do
   unimplemented *outcome* clause shows up as uncited and is countable; an unimplemented
   *precondition* showed up nowhere, because the from-cell was only ever a lookup key.
   """
-  def from_ids(handle) do
+  def from_ids(handle), do: handle |> obligations(:from) |> Enum.map(&elem(&1, 0))
+
+  @doc """
+  The clause IDs annotated into this handle's outcome cell, in the order they appear.
+
+  EV-2: the clause unit used to be `String.split(~r/;|(?<=\.)\s+/)` - punctuation, not
+  semantics - and a fragment counted as asserted when it merely *contained* a cited quote.
+  Measured before the change: 7 obligations were invisible because an asserted clause sat in
+  the same fragment, 7 spans were claimed by two entries at once, and 4 `@uncited` entries
+  recorded clauses their own scenario asserts.
+  """
+  def outcome_ids(handle), do: handle |> obligations(:outcome) |> Enum.map(&elem(&1, 0))
+
+  @doc """
+  This handle's cell as `{id, text}` obligations, in contract order.
+
+  An obligation runs from the marker before it to its own marker, so where a boundary falls
+  is the contract's judgement rather than a separator's. Text before the first marker
+  belongs to the first obligation, and a cell's last marker sits at its end. The separator
+  that ended the previous obligation is trimmed from the view; the contract text itself is
+  untouched, since this is a derived reading of it.
+  """
+  def obligations(handle, cell) when cell in [:from, :outcome] do
     from = declared_from(handle)
 
     case Enum.find(parse_raw(File.read!(@contract)), fn {f, _} -> strip_ids(f) == from end) do
-      {raw, _} -> @id_marker |> Regex.scan(raw) |> Enum.map(&(&1 |> List.first() |> bare_id()))
-      nil -> []
+      nil ->
+        []
+
+      {raw_from, raw_outcome} ->
+        split_obligations(if cell == :from, do: raw_from, else: raw_outcome)
     end
   end
+
+  defp split_obligations(raw) do
+    @id_marker
+    |> Regex.split(raw, include_captures: true)
+    |> Enum.chunk_every(2)
+    |> Enum.flat_map(fn
+      [text, marker] -> [{bare_id(marker), clause_text(text)}]
+      [trailing] -> if clause_text(trailing) == "", do: [], else: [{nil, clause_text(trailing)}]
+    end)
+  end
+
+  # The separator that ended the previous obligation belongs to neither, so it is trimmed
+  # from the view. The contract text itself is untouched - this is a derived reading of it.
+  defp clause_text(text), do: String.replace(text, ~r/^[\s;.,]+|\s+$/, "")
 
   defp bare_id(marker), do: marker |> String.trim() |> String.trim("{") |> String.trim("}")
 
