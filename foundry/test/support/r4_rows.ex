@@ -84,15 +84,48 @@ defmodule PramanaFoundry.Test.R4Rows do
   @r4_header "From-state / input / guard"
   @r4a_header "Domain owner when launch settles `non_started`"
 
+  # A clause identifier annotated into a contract cell: `{R4.04.f2}` is R4 row 4's second
+  # from-state conjunct, `{R4a.01.o1}` is R4a row 1's first outcome clause. EV-2 and EV-6
+  # add these; the parser strips them so every existing caller keeps seeing contract text.
+  #
+  # Convention: a marker FOLLOWS the obligation it names, preceded by exactly one space,
+  # and the obligation runs back to the previous marker or the start of the cell. Anything
+  # else is not wrong-but-tolerated, it is a diff — see `strip_ids/1`.
+  @id_marker ~r/ ?\{R4a?\.\d{2}\.[fo]\d{1,2}\}/
+
+  @doc """
+  Remove clause-ID markers, returning the contract text they were annotated onto.
+
+  Deliberately conservative: it removes a marker and at most ONE preceding space, and
+  normalises nothing else. Two spaces before a marker leave one behind, and that shows up
+  as a diff rather than being tidied away — which is the only reason
+  `bin/contract_annotation_diff.exs` can prove an annotation pass changed no content.
+
+  What it cannot see, so the next person does not have to rediscover it:
+
+    * Literal text in the shape of a marker would be deleted as one. No cell in either
+      governing table contains `{` today, which is why this shape was chosen.
+    * A marker with the wrong ID inside it strips identically to the right one. This
+      proves content preservation, never ID correctness — that is a separate check.
+  """
+  def strip_ids(text) when is_binary(text), do: String.replace(text, @id_marker, "")
+
   @doc """
   The rows actually present in the contract, as `{from, outcome}` pairs.
 
   Only R4's transition table and R4a's domain-owner table are read, located by their
   header cells so a table added elsewhere in the contract cannot silently join them.
   """
-  def contract_rows do
-    @contract
-    |> File.read!()
+  def contract_rows, do: parse(File.read!(@contract))
+
+  @doc """
+  `contract_rows/0` over supplied contract text, so the parser can be driven by a fixture.
+
+  Without this the annotated-table path would first run on the real contract, during the
+  one edit in this system that most needs a mechanism that has already been seen to fail.
+  """
+  def parse(text) when is_binary(text) do
+    text
     |> String.split("\n")
     |> Enum.map(&cells/1)
     |> Enum.reduce({false, []}, &collect/2)
@@ -117,7 +150,10 @@ defmodule PramanaFoundry.Test.R4Rows do
     trimmed = String.trim(line)
 
     if String.starts_with?(trimmed, "|") do
-      trimmed |> String.trim("|") |> String.split("|") |> Enum.map(&String.trim/1)
+      trimmed
+      |> String.trim("|")
+      |> String.split("|")
+      |> Enum.map(&(&1 |> strip_ids() |> String.trim()))
     else
       [nil]
     end

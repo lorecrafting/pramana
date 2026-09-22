@@ -258,10 +258,10 @@ look corroborated.
 | | Ticket | Cost | Gate |
 |---|---|---|---|
 | — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
-| — | EV-5 relations test | **done** | Landed at `b3c110e3`, gate green, awaiting an independent review of the delta |
+| — | EV-5 relations test | **done** | Landed at `b3c110e3`. Independently reviewed; the review blocked it on its own warrant text and found a larger defect, both answered — [log](../IMPLEMENTATION-LOG.md) |
 | — | ~~row :467 guard~~ | — | **Not a candidate.** It is B3's, outstanding and designed; subcommit 2 owns it |
-| — | ~~`apply/2` closure~~ | — | **Not a candidate here.** Found by EV-3's harness on its first run: 19 `(type, key)` pairs in 13 event types produce a state `well_formed?/1` rejects, which bricks the log. Quarantined and measured in `IMPLEMENTATION-LOG.md`; needs its own candidate |
-| — | EV-3 invariant split | **done** | Landed on this branch, gate green, awaiting an independent review of the delta |
+| — | ~~`apply/2` closure~~ | — | **Not a candidate here.** Found by EV-3's harness on its first run: **at least 20** `(type, key)` pairs in 14 event types produce a state `well_formed?/1` rejects, which bricks the log. A bound, not a count — `bin/closure_probe.exs` prints what it cannot see each run. Quarantined and measured in `IMPLEMENTATION-LOG.md`; needs its own candidate |
+| — | EV-3 invariant split | **done** | Landed at `7e8e3921`. Independently reviewed three times, blocked three times, all answered at `2afe053f`, `c4b3721c`, `323112d5`. Its harness found the `apply/2` closure defect on first run |
 | 2 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
 | 3 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
 
@@ -305,6 +305,30 @@ never enumerated, never asserted, and never recorded as uncited.
 Measured, not argued: **32 rows carry 61 from-cell conjuncts, 28 rows carry more than one, and 0
 of the 61 appear in the coverage number.** The "57 asserted / 57 uncited" figure is a count over
 half of the contract.
+
+**And 61 is a punctuation count, which is this ticket's own critique turned on its own number.**
+Reproduced: `R4Rows.contract_rows() |> Enum.flat_map(fn {f, _} -> String.split(f, ";") end)` gives
+exactly 61 across 32 rows, 28 with more than one. So the instrument is a semicolon, and EV-2's
+objection to `@clauses` — "punctuation, not semantics" — applies here unchanged. What it cannot
+see:
+
+* **7 of the 61 carry a comma or an explicit `AND`** and are therefore certainly under-split:
+  `developer closed, check capacity eligible`; `sealed stream has no valid candidate, verified
+  exit/timeout`; `proved no ref change, command infrastructure failed`; `every owned session AND
+  non-session claim terminal, cleanup reconciled`; and the three R4a rows, where the comma
+  separates the role from its condition.
+* **Slashes mean two different things and the split reads neither.** `queued/blocked` is a
+  disjunction of phases; `no pause/drain/cancel` is a conjunction of three prohibitions;
+  `dependencies/resources/profile/reservation eligible` is a conjunction of four.
+* **The witness contradicts the denominator inside this document.** Row :467 splits to 3, and
+  the measurement table below tests **5** — no cancel, no pause, no drain as separate rows.
+
+This is why EV-6 cannot be bought cheaply by deriving conjuncts from punctuation, which was the
+obvious way to do it without touching the contract. Obligation boundaries are a human judgement,
+and hand-placed IDs are how that judgement gets recorded — the same judgement EV-2 adds to
+outcome cells. The sequencing below ("with EV-2, not before it") holds for a measured reason
+rather than for the filing convenience originally given. **The true obligation count is unknown
+until the annotation pass is done; 61 is a floor.**
 
 **Why that is not merely incomplete.** An unimplemented *outcome* clause shows up as uncited —
 recorded, visible, countable. An unimplemented *precondition* shows up nowhere:

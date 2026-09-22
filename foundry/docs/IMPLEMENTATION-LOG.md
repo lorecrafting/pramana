@@ -3380,6 +3380,83 @@ reducer producing states the validator declares invalid.
 **Quarantined, not fixed, and the quarantine is counted.** `Harness.apply_unchecked/2` skips
 the assertions and the denominators, is used by exactly one test — the B1 totality probe,
 whose own property is unaffected — and `r4_no_direct_apply_test.exs` fails if a second call
-site appears. Sixteen new refusals on a gate-validated kernel, each owing a contract citation,
-an error atom, a reachability entry and a sweep, is a candidate with its own review rather
-than a rider on the change that found it.
+site appears. One refusal per broken pair, over at least twenty pairs, each owing a contract
+citation, an error atom, a reachability entry and a sweep, is a candidate with its own review
+rather than a rider on the change that found it. How many distinct refusals those pairs need
+is not enumerated — the earlier "sixteen" here was carried from the superseded 16-pair count
+and contradicted the ≥20 four paragraphs above it.
+
+## EV-6 + EV-2, commit 1 — the stripper that certifies the contract edit, before the edit — 2026-09-21
+
+EV-6 and EV-2 are one candidate and one contract edit, per the sequencing table. `WORKFLOW-CONTRACT.md`
+is the oracle: `R4Rows.declared_from/1` matches 32 from-cells character for character, every
+`@clauses` entry is a substring of an outcome cell, and `r4_coverage_test.exs` parses rows out of
+the file at test time. So the annotation pass has to be provably content-preserving, and the
+instrument that proves it ships first, on its own, with nothing annotated yet.
+
+**The marker shape.** `{R4.04.f2}` is R4 row 4's second from-state conjunct; `{R4a.01.o1}` is R4a
+row 1's first outcome clause. A marker follows the obligation it names, preceded by one space, and
+the obligation runs back to the previous marker or the cell start — so obligation boundaries need
+not line up with punctuation, which is the whole point. `{` appears **0 times** across both
+governing tables today, which is why that shape was chosen over `[` or `<`.
+
+**`R4Rows.strip_ids/1` is deliberately conservative.** It removes a marker and at most one
+preceding space and normalises nothing else, so `queued  {R4.04.f1};` strips to `queued ;` rather
+than being tidied to `queued;`. A stripper that cleaned up whitespace would report a sloppy edit as
+clean, which would make the proof worthless in exactly the case it exists for. A test pins that
+conservatism.
+
+**`R4Rows.parse/1`** takes contract text, and `contract_rows/0` is now `parse(File.read!(@contract))`.
+Without it the annotated-table path would first execute on the real contract, during the one edit in
+this system that most needs a mechanism which has already been seen to fail.
+
+**`bin/contract_annotation_diff.exs`** strips the markers back out of the working tree's contract and
+diffs against a git revision. It refuses to report on a file with **zero markers** — a clean result
+there proves the file is unchanged, which is not the claim it exists to support, and is precisely
+the vacuous first run rule 1 was bought with. Two red controls run at startup and halt the script if
+either verdict is wrong.
+
+**Rule 6, on this commit's own mechanism.** Four tests, each neutralised and watched go red:
+
+| neutralisation | tests that failed |
+|---|---|
+| `strip_ids/1` → identity | annotated-table parse; whitespace conservatism |
+| marker regex → `~r/ ?\{[^}]*\}/` | malformed-marker survival |
+
+The tampered-word test is a negative and cannot fail from under-stripping; its second assertion
+(`parse(@plain_table) != []`) is what keeps it from passing vacuously.
+
+**Also driven live, then reverted.** Row :467 was annotated in the real contract with five markers,
+`bin/contract_annotation_diff.exs` reported CONTENT PRESERVED, `r4_coverage_test.exs` passed 43/43
+with `declared_from/1` still matching, one word was then changed and the tool reported CONTENT
+CHANGED at line 467. That proof does not survive the revert, which is why `parse/1` and the fixture
+tests exist.
+
+### Four stale claims corrected in the files this candidate edits
+
+Found by reading the documents the work touches, which is the habit the third BLOCK bought.
+
+- The sequencing table said EV-3 and EV-5 were **awaiting an independent review of the delta**. EV-3
+  was reviewed three times and blocked three times, answered at `2afe053f`, `c4b3721c`, `323112d5`;
+  EV-5's review blocked it on its own warrant text and found a larger defect. Both rows refreshed.
+- The same table recorded the `apply/2` closure defect as **19 pairs in 13 event types**. It is at
+  least 20 in 14, and it is a bound rather than a count.
+- This log said **"sixteen new refusals"** four paragraphs below its own "≥20" — carried from the
+  superseded 16-pair count. How many distinct refusals those pairs need is not enumerated, and now
+  says so.
+
+### EV-6's headline number is a punctuation count
+
+`32 rows carry 61 from-cell conjuncts` is reproduced exactly by
+`R4Rows.contract_rows() |> Enum.flat_map(fn {f, _} -> String.split(f, ";") end)`. The instrument is
+a semicolon, so EV-2's objection to `@clauses` — "punctuation, not semantics" — lands on EV-6's own
+denominator. **7 of the 61** carry a comma or an explicit `AND`; slashes are conjunctive in
+`no pause/drain/cancel` and disjunctive in `queued/blocked` and the split reads neither; and row
+:467 splits to **3** where the ticket's own measurement table tests **5**. The witness contradicts
+the denominator inside one document.
+
+This is what kills the cheap version of EV-6 — deriving conjuncts from punctuation and never
+touching the contract. Obligation boundaries are a human judgement, hand-placed IDs are how that
+judgement is recorded, and that is the same judgement EV-2 adds to outcome cells. "With EV-2, not
+before it" now holds for a measured reason instead of for the filing convenience originally given.
+**61 is a floor; the obligation count is unknown until the annotation is done.**

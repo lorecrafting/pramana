@@ -286,6 +286,64 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ]
   }
 
+  # EV-2 and EV-6 annotate clause IDs into the contract's governing tables. That edit is the
+  # highest-consequence one in this system - 32 from-cells are matched character for
+  # character by `R4Rows.declared_from/1`, and every `@clauses` entry is a substring of an
+  # outcome cell - so the stripper that makes it provably content-preserving has to be a
+  # mechanism that has already been seen to fail before it certifies anything.
+  #
+  # These drive `parse/1` on fixture text rather than the real contract, because the real
+  # contract carries no markers yet: a stripper tested against it today passes by doing
+  # nothing, which is the vacuous first run rule 1 exists to catch.
+  describe "clause-ID markers strip back to contract text" do
+    @plain_table """
+    | From-state / input / guard | Domain outcome and owned actions |
+    |---|---|
+    | queued; no pause/drain/cancel | Create a fresh attempt |
+    | draft; valid PM create | queued or blocked with reason |
+    """
+
+    @annotated_table """
+    | From-state / input / guard | Domain outcome and owned actions |
+    |---|---|
+    | queued {R4.04.f1}; no pause {R4.04.f2}/drain {R4.04.f3}/cancel {R4.04.f4} | Create a fresh attempt {R4.04.o1} |
+    | draft {R4.02.f1}; valid PM create {R4.02.f2} | queued or blocked with reason {R4.02.o1} |
+    """
+
+    test "an annotated table parses to exactly the rows the plain table does" do
+      assert R4Rows.parse(@annotated_table) == R4Rows.parse(@plain_table)
+    end
+
+    # Red control per rule 1. Without it the test above is satisfied by a `parse/1` that
+    # returns [] for both, or by a stripper that deletes whole cells.
+    test "a word changed under the annotation is not absorbed by stripping" do
+      tampered = String.replace(@annotated_table, "fresh", "new")
+
+      refute R4Rows.parse(tampered) == R4Rows.parse(@plain_table)
+      assert R4Rows.parse(@plain_table) != []
+    end
+
+    # The stripper removes a marker and at most ONE preceding space. It must not tidy
+    # anything else: `bin/contract_annotation_diff.exs` proves an annotation changed no
+    # content by stripping and diffing, and a stripper that normalises whitespace would
+    # report a sloppy edit as clean. This pins the conservatism the proof rests on.
+    test "stripping normalises nothing beyond the marker and one space" do
+      assert R4Rows.strip_ids("queued {R4.04.f1};") == "queued;"
+      assert R4Rows.strip_ids("queued  {R4.04.f1};") == "queued ;"
+      assert R4Rows.strip_ids("queued{R4.04.f1};") == "queued;"
+      assert R4Rows.strip_ids("  spaced  ") == "  spaced  "
+    end
+
+    # An ID that does not match the marker shape survives stripping and therefore shows up
+    # as a diff. A typo that silently vanished would be a marker the coverage number never
+    # counts, in a file nothing else re-reads.
+    test "a malformed marker is left in place rather than silently removed" do
+      assert R4Rows.strip_ids("queued {R4.4.f1};") == "queued {R4.4.f1};"
+      assert R4Rows.strip_ids("queued {R5.04.f1};") == "queued {R5.04.f1};"
+      assert R4Rows.strip_ids("queued {R4.04.x1};") == "queued {R4.04.x1};"
+    end
+  end
+
   describe "the row inventory tracks the contract" do
     # Compared as sorted lists, not sets. A set comparison passed when a duplicate
     # from-cell with a contradictory outcome was appended to the contract, because the

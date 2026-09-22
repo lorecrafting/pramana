@@ -134,15 +134,19 @@ These are not style preferences. Each was bought with a review round.
   scenario *satisfies* the condition instead of testing its negation; clause coverage counts
   **outcome cells only**, so a from-state conjunct is in neither `@clauses` nor `@uncited`;
   `State.well_formed?/1` is shapes; `State.invariant?/1` has no clause for controls. Measured:
-  **32 rows carry 61 from-cell conjuncts and 0 of the 61 appear in the coverage number.** The
-  witness is row :467's "no pause/drain/cancel", unguarded on `launch_planned` and violated **two
-  events from empty** in all three conjuncts, with `paused` and `draining` written by
-  `control_changed` and read by no transition at all. It was found by the **first** pure-kernel
+  **32 rows carry 61 from-cell conjuncts and 0 of the 61 appear in the coverage number** — where 61
+  is what splitting each from-cell on `;` yields, so it is a floor and not an obligation count; 7 of
+  the 61 carry a comma or an explicit `AND`, and row :467 splits to 3 where its own measurement
+  tests 5. The witness is row :467's "no pause/drain/cancel", unguarded on `launch_planned` and
+  violated **two events from empty** in all three conjuncts, with `paused` and `draining` written
+  by `control_changed` and read by no transition at all. It was found by the **first** pure-kernel
   review, reading, and filed as **B3** — which is the cost this gap imposes rather than a
   counterexample to it: every mechanism here was green for the defect's whole life and still is.
   So **a conjunctive precondition needs a refusal test per conjunct, and nothing checks that it
   has one.** If you add or change a row, that is the check to do by hand until
-  [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) exists.
+  [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) exists. EV-6 and EV-2 both annotate clause
+  IDs into the governing tables; `bin/contract_annotation_diff.exs` is the proof that such a
+  pass changed no contract text, and its header states the three things it does not prove.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
   other way is outside it.
 - **`r4_no_direct_apply_test.exs` matches call-site TEXT, so five spellings reach the kernel
