@@ -25,8 +25,15 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
   # Refusals about malformed payloads and out-of-order envelopes. The proposer builds only
   # well-formed events in sequence, so these are exercised by the table tests instead, and
   # their absence here is by construction rather than a finding. `malformed_post_state` is
-  # the closure guard (kernel property 6): with well-formed payloads no accepted transition
-  # can produce a malformed state, so it fires only from the fixture in r4_exhaustive_test.
+  # the closure guard (kernel property 6). It is listed here so that a search that never
+  # provokes it is not reported as a dead guard - but unlike the rest of this list, its
+  # absence is NOT by construction: it is a property of every handler body preserving
+  # `well_formed?/1` given a well-formed payload, which is exactly what the closure defect
+  # showed was not true of handlers as written. So the search at depth 7 is required below
+  # to NOT provoke it (rule 3: bounded, not inductive). Before property 6 the harness's shape
+  # assertion would have raised loudly on such a path mid-search; after it the kernel refuses
+  # and the search prunes silently, so without that refute a handler bug on a reachable path
+  # would be excused by this list. Independent review of 253d9467 found this.
   @validation ~w(malformed_post_state invalid_admission_phase invalid_blocked_result invalid_cancellation_disposition
                  invalid_check_status invalid_control_entity invalid_control_fact
                  invalid_control_flag invalid_disposition invalid_execution_identity
@@ -119,6 +126,12 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
     assert resurrected == [],
            "guards recorded as unreachable that now fire: #{inspect(resurrected)}. " <>
              "Remove them from @unreachable - and check whether the reason given was ever true."
+
+    refute MapSet.member?(fired, :malformed_post_state),
+           "a well-formed payload on a reachable path produced a malformed post-state: a " <>
+             "handler body does not preserve well_formed?/1. The kernel refused it (property " <>
+             "6) and the search pruned the branch, so nothing else reports this. Find the path " <>
+             "with KernelSearch.search(#{@depth}) and the handler that wrote the bad value."
   end
 
   # The red control for the inventory itself. This test asserted a mechanical inventory of

@@ -16,8 +16,10 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
 
   ## Two validators, and why only one of them refuses
 
-  `well_formed?/1` is a **shape** validator and `apply/2` refuses any state it rejects.
-  `invariant?/1` is the **relational** oracle — whether the facts in an accepted state are
+  `well_formed?/1` is a **shape** validator and `apply/2` refuses any state it rejects - on
+  input as `:invalid_state`, and since 2026-09-22 on its own committed output as
+  `:malformed_post_state` (kernel property 6), so an accepted state is well-formed by
+  construction. `invariant?/1` is the **relational** oracle — whether the facts in an accepted state are
   mutually coherent — and `apply/2` does not call it. A test harness asserts it after every
   accepted transition instead (EV-3). Having the reducer refuse a violating post-state is a
   behaviour change on a gate-validated kernel and needs its own review; it is deferred until

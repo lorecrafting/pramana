@@ -5,6 +5,14 @@
 # In the tree because the number was quoted in a design decision, and a number from a scratch
 # script cannot be challenged. Run it rather than quoting it.
 #
+# What it measures NOW: the kernel it times already performs the post-check (property 6 landed
+# at 253d9467), so this times a SECOND well_formed?/1 over outputs against an apply/2 that has
+# already paid for the first. The ratio is the check's share of the post-property-6 kernel, not
+# what the change added to the kernel before it; the true before/after is the pre-change run
+# recorded in IMPLEMENTATION-LOG (348 / 2,053 ms, 17%), which this reproduces within noise
+# because the check is a small share either way. Independent review of 253d9467 asked for this
+# paragraph so the number is not quoted as the incremental cost forever.
+#
 #   cd foundry
 #   TMPDIR=/private/tmp mix run bin/closure_cost.exs
 Code.require_file("test/support/kernel_harness.ex")

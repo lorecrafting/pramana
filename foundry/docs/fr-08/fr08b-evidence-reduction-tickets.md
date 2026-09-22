@@ -115,7 +115,9 @@ harness hook, one red-control fixture.
 
 **Resolved.** `SemanticInvariants` is now `State.violations/1` / `invariant?/1`; `valid?/1`
 is `well_formed?/1` at all 15 sites; `Test.Harness.apply/2` is the single route from a test
-to the kernel and asserts both validators on every accepted post-state, with
+to the kernel and asserts both validators on every accepted post-state (since 2026-09-22 only
+the relational one: the kernel refuses a malformed post-state itself, property 6, and the
+harness's shape assertion was deleted as a tautology - see the closure row below), with
 `r4_no_direct_apply_test.exs` keeping that true as new tests arrive. Two of the ticket's
 instructions were **not** followed, and in both cases measurement rather than argument is
 the reason:

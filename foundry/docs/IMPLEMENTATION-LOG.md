@@ -4918,3 +4918,18 @@ every event already pays one on input. (5) Whether `next = commit(...)` inside t
 spelling the sweep's red control covers — it neutralises `require_well_formed(next)` to `:ok`, which
 compiles and leaves `next` bound.
 
+## Closure review: the deleted assertion did carry information — 2026-09-22
+
+Independent review of 253d9467 passed it with one FIX, recorded with dispositions in
+[fr08b-closure-review-2026-09-22.md](fr-08/fr08b-closure-review-2026-09-22.md). The entry above
+said the harness's deleted shape assertion and the kernel's new check were "the same function on
+the same value". True of the predicate, false of the consequence: the assertion raised inside the
+depth-7 search, the refusal prunes the branch silently, and `@validation` in the reachability test
+only excuses an atom from the dead-guard check — nothing asserted the search never provokes it.
+So a future handler body that stopped preserving `well_formed?/1` on a reachable path would have
+gone from a red suite to a green one. Fixed by one `refute` in the reachability test, and the
+comment now records the claim as bounded (rule 3), not by construction. The other four items —
+`state.ex` doc, the EV-3 record, the cost script's header — are pointers and wording, landed in
+the same commit. Gate at 253d9467: passed, six commands, 952 passed / 13 skipped / 1 excluded,
+pre- and post-source clean.
+
