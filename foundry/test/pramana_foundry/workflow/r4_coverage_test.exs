@@ -89,10 +89,16 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {"R4.09.o2", "close developer"},
       {"R4.09.o4", "Resume/rescope requires explicit command and fresh attempt"}
     ],
+    # R4.28.o3 was cited here and is now recorded as uncited. The scenario drives
+    # `cancellation_finalized` with disposition "cancelled" and no integration, so it
+    # asserts o1 - "if NO integration occurred" - and never exercises o3's branch at all.
+    # The over-citation predates the clause IDs: the same two quotes sit in @clauses at
+    # `16fc73db`, before any of this. The IDs preserved it and did not catch it, because a
+    # citation being anchored to real contract text says nothing about whether the scenario
+    # discharges it. That is this file's stated limit, now with a witness.
     cancel_finalized: [
       {"R4.28.o1",
-       "If no integration occurred: cancelled ticket and active attempt terminal cancelled"},
-      {"R4.28.o3", "If integration occurred: integrated and cancel_finalized(after_integration)"}
+       "If no integration occurred: cancelled ticket and active attempt terminal cancelled"}
     ],
     cancel_requested: [
       {"R4.27.o2", "hold phase/evidence while issued effects reconcile"}
@@ -276,6 +282,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     {"R4.27.o1",
      "Set orthogonal control, cancel pending/unissued effects, request owned interrupts"},
     {"R4.28.o2", "already terminal dispositions retained."},
+    {"R4.28.o3", "If integration occurred: integrated and cancel_finalized(after_integration)"},
     {"R4.28.o4", "suppress deployment"},
     {"R4a.01.o2", "and immutable base/spec/policy lineage"},
     {"R4a.01.o4", "Release launch resources."},
@@ -846,7 +853,12 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {~r/\*\*(\d+) of the 72 are classified so far\*\*/, [:classified]},
       {~r/\*\*Currently (\d+) of 72 classified, (\d+) held\*\*/, [:classified, :held]},
       {~r/\*\*(\d+) obligations: (\d+) asserted, (\d+) recorded uncited\*\*/,
-       [:obligations, :asserted, :uncited]}
+       [:obligations, :asserted, :uncited]},
+      # Added after the registry missed this phrasing: the ticket table states the same two
+      # numbers without the "N obligations:" prefix, so the first pattern did not cover it
+      # and the cell would have gone stale silently. A registry is only as good as its
+      # coverage, and nothing here tells you what it does not cover.
+      {~r/\*\*(\d+) asserted, (\d+) recorded uncited\*\*/, [:asserted, :uncited]}
     ]
   end
 

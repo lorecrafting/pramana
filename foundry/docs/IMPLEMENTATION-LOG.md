@@ -4050,3 +4050,53 @@ the cheap slice of the problem, not the answer to it.
 **A sixth stale claim, found before a reviewer found it.** The EV-2 row still read "Landed, awaiting
 independent review" after two reviews of the candidate that contains it. Corrected. It is not one
 the new mechanism would have caught, which is the honest measure of how narrow the slice is.
+
+## "A citation is not an assertion" gets its witness, on the fourth citation read — 2026-09-22
+
+The candidate's stated limit has been that citing a clause pins the transcription to the contract's
+words and says nothing about whether the scenario discharges it. Five scenarios had been read; 59
+citations had not. Reading resumed, ordered by a crude heuristic — assertions per cited obligation,
+lowest slack first — which is a reading order, not evidence.
+
+**Fourth row read, and it is real.** `cancel_finalized` cited both branches of R4.28:
+
+| | |
+|---|---|
+| `R4.28.o1` | "If **no** integration occurred: cancelled ticket and active attempt terminal cancelled" |
+| `R4.28.o3` | "If integration occurred: integrated and cancel_finalized(after_integration)" |
+
+The scenario drives `cancellation_finalized` with `disposition => "cancelled"` and no integration
+anywhere in its history. It asserts `phase == "cancelled"` and `disposition == "cancelled"` — which
+is **o1**, exactly. **o3's branch is never exercised.** One of two citations had nothing behind it.
+
+**It predates the clause IDs.** The same two quotes sit in `@clauses` at `16fc73db`, before any of
+this candidate. The ID migration preserved it faithfully and did not catch it, which is correct
+behaviour and also the point: an ID proves a citation is anchored to real contract text, never that
+the scenario discharges it. Nor would the new live-count check have caught it — the numbers were
+internally consistent, just describing an obligation nothing asserted.
+
+`R4.28.o3` is now recorded in `@uncited`, where "nothing asserts this" belongs. **124 obligations:
+63 asserted, 61 recorded uncited.**
+
+### Two things this cost, both worth recording
+
+**A correction to my own reading, made before it was published.** The first extraction script used a
+regex that matched only single-entry `@clauses` lists, so it reported `cancel_finalized` as citing
+*one* obligation — o3 alone — and the conclusion drawn was "the scenario cites the wrong branch".
+That was sharper than the evidence and wrong. It cites both, and one is unbacked. An unstated
+boundary in a throwaway script, producing a confident claim, one commit after shipping a mechanism
+whose whole purpose is to stop exactly that.
+
+**The new check proved itself in production rather than on a fixture.** Moving `o3` before touching
+any document failed the suite with `asserted: the document claims 64, the artifact has 63` and
+`uncited: the document claims 60, the artifact has 61`. That is the first time in five rounds that a
+stale claim was caught by a machine instead of by a reviewer.
+
+It also immediately exposed a gap in its own registry: the ticket table states the same two numbers
+without the `N obligations:` prefix the pattern required, so that cell would have gone stale
+silently. A second pattern now covers it. **A registry is only as good as its coverage, and nothing
+in it reports what it does not cover** — which is the same shape as every other boundary error in
+this subcommit, now living inside the mechanism built to catch them.
+
+**55 citations remain unread.** One unbacked citation in the first four is a finding about those 55,
+not a conclusion about them.
