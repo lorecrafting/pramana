@@ -62,20 +62,29 @@ loopback fixture:
   cross-assignment denial, descendant cleanup, subscription entitlement, quota/fallback
   behavior and hidden retries remain unproved.
 
-The installed pins are recorded without opening credential/configuration contents:
+The installed pins are recorded without opening credential/configuration contents.
 
-| Item | Version / identity | SHA-256 or limitation |
+**This document names manifest pin ids, never digests.** The digests themselves live in
+[provisioning-manifest.exs](provisioning-manifest.exs) as data and in `ci/validate_fr15aa.exs`
+as an independent frozen profile; those two are cross-checked against each other and against
+file bytes, and `fr15aa_provisioning_test.exs` fails if any disagree. A digest restated here
+would be a third copy that nothing checks — on 2026-09-22 the `current-process-group` pin moved
+and the two enforced copies went red while this text would have stayed silently stale. Quote the
+id and let the manifest carry the bytes. The one exception is the verification snippet below,
+where a literal digest is the operative value being compared and a pin id would not run:
+
+| Item | Version / identity | Manifest pin or limitation |
 |---|---|---|
-| governing OMP | `/Users/raymondluong/.local/bin/omp`, `omp/18.2.2` | `e0302a99643efefb62bf3d0601d5d84ebab6ed1f3ad105cc2874c8274af448a9` |
-| Pi candidate | `/opt/homebrew/bin/pi`, `0.85.1` | `e6d7fcf36a239cf3746e67ddf4222081ac01a601b85a3ee688bdfe9c161d754c` |
-| Pi package manifest | installed `package.json` | `f1738e4b42203e5f22bcb513f13fb2fb224f1e98d1f129ff042f87048665a94c` |
-| Pi production inventory | 186 offline `npm ls` manifests | `661ce1b6472d947977928059d6c6ae155dbd2941eee3affad2d922c29313f816`; inventory, not lock provenance |
-| Node / npm | Node `26.8.2`; npm `11.19.1` | Node `902b6a6984d5d825829ea9064ab73b734548df37bc0683990dca31c8dc2a9253`; npm digest not recorded at F |
-| Herdr presentation | `/opt/homebrew/bin/herdr`, `0.9.0` | `7257396b19a082193cbf39b4805341eaddabb489d4dbbecaccbba00164339b87` |
-| Foundry CI toolchain policy | Elixir `1.20.3`, OTP `29.0.5`, ERTS `17.0.5` | `foundry/ci/toolchain.exs` `06d9fbb6ea92206dff68d705b2cae885b44a08b21495c1c5db620b456aecacc1` |
-| Foundry packages | exact `mix.lock` at the frozen input | `bf2a61f815533a96b2abec87b1690ae49145bec56e60703a22b4db178c56e954` |
-| current legacy config | `config/config.exs` at the frozen input | `d38fca63c3463b4bbbb5c56afcd66a900d4f6e4d5c5434bf3ec0157f372a7b16`; not the provisioning config |
-| assignment schema | v1 at the frozen input | `3042a56aa668c2852a4fdcf21c35eb70bd36d350e210e05f151177b60449ba8f` |
+| governing OMP | `/Users/raymondluong/.local/bin/omp`, `omp/18.2.2` | `omp` |
+| Pi candidate | `/opt/homebrew/bin/pi`, `0.85.1` | `pi` |
+| Pi package manifest | installed `package.json` | `pi-package` |
+| Pi production inventory | 186 offline `npm ls` manifests | `pi-production-tree`; inventory, not lock provenance |
+| Node / npm | Node `26.8.2`; npm `11.19.1` | Node `node`; npm digest not recorded at F |
+| Herdr presentation | `/opt/homebrew/bin/herdr`, `0.9.0` | `herdr` |
+| Foundry CI toolchain policy | Elixir `1.20.3`, OTP `29.0.5`, ERTS `17.0.5` | `foundry/ci/toolchain.exs`, pinned as `elixir-ci` and `otp-ci` |
+| Foundry packages | exact `mix.lock` at the frozen input | `foundry-lock` |
+| current legacy config | `config/config.exs` at the frozen input | `foundry-config`; not the provisioning config |
+| assignment schema | v1 at the frozen input | `assignment-schema` |
 
 The manifest also pins the inspected host profile (macOS `26.6.2`, build `25G83`,
 `arm64`) and exact hashes for the shell, environment scrubber, Python, Git, process
@@ -111,39 +120,31 @@ The current route inventory is complete for the surfaces inspected at the frozen
    topology specified here.
 3. The configured execution/presentation path and its controlling source hashes are pinned
    in the machine manifest: Coordinator
-   `925c54dba022a06213f0d33eb26c6b352fbde53c713796e3587d96640e9db7e6`, Tick
-   `8df097027896c88bb55f03f50a6cb6f5592c64a8c201f41aa1bf186754143ee0`,
-   AgentServer `ec7e1ea88b26afc0f5b6ef3912479828334c32b16030ba6113aec1639aa360de`,
-   Herdr Adapter `404406087170a1e37fcaaa3a6bc0ea9528cc659a689260ac2664bf1e5e846189`,
-   Argv `e58e0d7c6f9701388ed1ce3c7d78e7984836677a027883f181a717bbbf303bfc`,
-   Runner `1df506bc0444df2326de7fd9328e72038d990e2bbc36f5c9e038abbbc0fa2650`,
-   Launch `b76aa1650acdfac03b35e2e498f5260c1f23081c682007f7a80b26fa89c9da22`
-   and PromptDelivery
-   `f4e4c49c24498141495e02ce0d696788f276701151e6e1a22df686ffbd6961e9`.
+   `current-coordinator`, Tick `current-tick`, AgentServer `current-agent-server`,
+   Herdr Adapter `current-herdr-adapter`, Argv `current-herdr-argv`,
+   Runner `current-herdr-runner`, Launch `current-launch-effect` and PromptDelivery
+   `current-prompt-effect`.
 4. `Checks.Runner` can launch arbitrary admitted check argv through a Python trampoline
-   and currently overlays its supplied environment on the parent environment. Its hash is
-   `22610624df6102f59579808048581e7e947eab19dfcc34cbaf3661d7255af8fc`;
-   `Effects.ProcessGroup` is
-   `0c198191bbff8e31121086075782e458db6b4c52b0ddc8eede42247fa45c65ff`.
+   and currently overlays its supplied environment on the parent environment. It is pinned as
+   `current-check-runner`; `Effects.ProcessGroup` as `current-process-group`.
    Build hooks, child processes, inherited environment and background jobs therefore stay
    blocked until moved into the build/slot principals and complete cleanup protocol.
-   The `ProcessGroup` pin was re-attested on 2026-09-22 (was
-   `1250c2bee6d43751ac5f483224c0506e3670bf25a8c7f85cd0848d106d8dce17`): `same_incarnation?/2`
+   The `current-process-group` digest was re-attested on 2026-09-22: `same_incarnation?/2`
    became public, which is a pure map comparison over pid, process group and start time. No
    `def` that reaches the OS changed, no route was added, and the blocked status is unaffected.
    This is the first movement of this pin outside dedicated FR-15aA work, so a reviewer should
    check the claim rather than the hash.
-5. `CLI.RPC` (`617fb1dc018a70abb9ffd7f97bc7e886db6d217c16ae06ea15ef233d5829b11d`)
+5. `CLI.RPC` (`current-cli-rpc`)
    transports a bounded command shape as inert data, but its own module documentation
    correctly says the release still exposes general evaluation. It is not an authority
    credential and must be replaced by the scoped Unix-socket protocol.
 6. Current Git evidence, relocation and status paths execute `git`; candidate worktrees
    lead to shared common metadata. The pinned `GitEvidence` path is
-   `4f044446b3559e8635da488e2d9f9f1047c1b665f56f4c84cb8fad43394fc7ce`.
+   `current-git-evidence`.
    The proposed disposable view/mediated Git boundary applies equally to shell, checks,
    build hooks, LSPs and subprocesses.
 7. Pi has no current Foundry production route. The accepted provider-free probe
-   (`c9a91bad8417314ce3ba0080562de4574425211d4fe25d3e68447a535cd83eea`)
+   (`checkpoint-f-probe`)
    directly starts pinned Pi/Node, activates a CLI-explicit extension, directs its
    synthetic model traffic at a loopback fixture and invokes Bash. It is evidence only;
    none of those direct edges becomes an accepted production edge.
