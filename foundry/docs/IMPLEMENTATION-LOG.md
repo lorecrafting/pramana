@@ -3863,3 +3863,69 @@ R4a.02.f1/f2 are a different problem entirely: the row says "frozen candidate aw
 the contract means is not answerable from the kernel. R4.24.f2 is a disjunction whose branches want
 different dispositions and one ID cannot carry both. R4.28.f3's answer is in the contract's cleanup
 notion, not in the reducer.
+
+## The clause-ID candidate was independently reviewed and BLOCKED, and both findings held — 2026-09-22
+
+Review at [findings](fr-08/fr08b-ev6-ev2-review-findings.md), against
+[the briefing](fr-08/fr08b-ev6-ev2-review-briefing.md), delta `16fc73db..dc9582b3`, inside its
+25-minute budget. **Everything numeric reproduced** — 196/72/124 markers with no duplicates, the
+63/40/16/5/1/1 disposition split, 71/47/24/9 refusal sites, `124 - 64 asserted, 60 uncited` printed
+green, both probes' red controls passing, 27 `kernel.ex:NNN` citations spot-checked correct, and the
+twin-predicate claim confirmed by reading both functions. The blocks were not about the numbers.
+
+### BLOCK 1 — three documents carried claims the tree contradicts
+
+The mechanism table in `EVIDENCE-TOOLS.md` still described the from-cell mechanism as three
+dispositions when the artifact had five and 17 of 63 entries used the two new ones. The ticket table
+cited delta `16fc73db..f0ae495e` in the same cell as "63 of 72" — at `f0ae495e` it was 12 of 72. The
+briefing's own header said seven commits and a gate two commits stale. All three corrected in one
+edit.
+
+This is the fourth round on this branch to block on exactly this, which is worth stating plainly
+rather than filing: **the recurring defect in this work is not wrong code, it is a claim left
+standing after the thing it described moved.** Each instance was written correctly and went stale
+within hours.
+
+### BLOCK 2 — "enforced by the absence of a transition" was wrong, and the error had a direction
+
+The previous commit claimed four witnesses for a structure no disposition expressed, held them
+rather than classify them, and named it the judgement most wanting an outside reading. The review
+gave one, and the category does not survive it:
+
+| held obligation | what the review found |
+|---|---|
+| R4.19.f1 | the crash branch **does** consult the phase — inline at `kernel.ex:835`, falling through to a silent no-op at `:844`. `{:effect}` by this candidate's own definition |
+| R4a.03.f2 | a real **`{:unguarded}`** — `pm_launch_planned` records nothing and `pm_launch_settled` guards nothing, so no state exists that could witness a planning execution |
+| R4.07.f2, R4a.03.f1 | plainly `{:input}`; not witnesses at all |
+| R4.07.f1 | holds |
+
+One witness, not four. **No sixth disposition is owed**, and the instinct to withhold it was right for
+the wrong reason.
+
+**The direction of the error is the finding.** Every one of the five mistaken holds came from
+stopping the search at `require_*` call sites — the identical boundary error corrected at `e81cdabe`
+for refusal sites, committed hours after writing that correction, by the same person who wrote it.
+Holding an obligation back is not a substitute for reading the whole handler; it moved four wrong
+answers out of the inventory and into a list, where they read as caution.
+
+R4a.03.f2 is the second `{:unguarded}` and needs its own candidate: either a planning execution
+becomes recorded state, or R4a's PM row is wrong about what the reducer owns. It is row :467
+inverted — there, state is written and read by nothing; here, the state that would carry the
+obligation is never written at all.
+
+### Observation taken: `bin/refusal_sites.exs` reports a floor
+
+The script matches `{:error, :atom}` literally, so it cannot see `apply/2`'s
+`ok_or(:unknown_entity_kind)` at `kernel.ex:80`, where the tuple is built from a variable inside
+`ok_or/2`. **That is the same atom which hid from `declared_reasons/0` for three reviews by being
+spelled a second way** — now hiding from a new instrument by being spelled a third, in a script whose
+header claims to enumerate what it cannot see. The header and the printed line now say floor, and
+the credit is the review's, not the script's.
+
+Not taken as defects, and recorded as the review left them: `terminal_rejection`'s assertion is on
+the pre-state after a refusal, which is tautological in a pure reducer but not wrong; `R4a.03.o6` is
+half-asserted. The four reclassified `@uncited` entries and `blocked_result`'s split were checked and
+all hold.
+
+**Final: 67 of 72 classified — 40 guarded, 18 input, 5 protected, 2 effect, 2 unguarded — and 5
+held.**

@@ -28,7 +28,7 @@ on every candidate whether or not the session knows they exist.
 |---|---|---|
 | **Row coverage** | `test/pramana_foundry/workflow/r4_coverage_test.exs` | Can the reducer express every row of the contract's governing tables? Rows are parsed out of `WORKFLOW-CONTRACT.md` at test time, never transcribed. Each scenario cites its clauses verbatim and a test checks the citations still exist, so editing the contract fails here. |
 | **Clause coverage** | same file | How many of the contract's obligations does anything assert? Every outcome obligation carries an ID in the contract and must be in `@clauses` or `@uncited`, never both and never neither. **124 obligations: 64 asserted, 60 recorded uncited**, printed from the lists each run. The punctuation splitter it replaced hid 7 obligations, double-counted 7 spans, and left 4 stale entries. |
-| **From-cell classification** | same file | Does every from-state obligation have a refusal behind it? IDs are annotated into the contract's governing tables and parsed out at test time; each must be `{:guarded, atoms}` with atoms the kernel declares, `{:protected, why}`, or `{:unguarded, why}` — a recorded defect. It proves a guard EXISTS, never that the named one is right, and never that a test exercises it. |
+| **From-cell classification** | same file | Does every from-state obligation have a refusal behind it? IDs are annotated into the contract's governing tables and parsed out at test time; each must be `{:guarded, atoms}` with atoms the kernel declares, `{:protected, why}`, `{:input, why}` (the conjunct names the event, not a precondition), `{:effect, why}` (a branch inside the effect body, accepted either way) or `{:unguarded, why}` — a recorded defect. **67 of 72 classified: 40 guarded, 18 input, 5 protected, 2 effect, 2 unguarded.** It proves a guard EXISTS, never that the named one is right, and never that a test exercises it. |
 | **Bounded exhaustive search** | `test/support/kernel_search.ex`, asserted in `r4_exhaustive_test.exs` | Every state reachable within a depth, with the exact event path to any violation. `:from` seeds it from a driven state, because depth is spent on the way in. |
 | **Semantic invariants** | `State.invariant?/1`, asserted by `Test.Harness` after every accepted transition and by `r4_exhaustive_test.exs` over the reachable set | Are the facts in an accepted state mutually coherent? Distinct from `State.well_formed?/1`, which checks shapes. This is the only mechanism that inspects an effect body's result rather than a guard's decision. It asserts; it does not refuse — `apply/2` never calls it. |
 | **Harness routing** | `test/pramana_foundry/workflow/r4_no_direct_apply_test.exs` | Does every test call site actually reach the kernel through the wrapper that asserts? A wrapper nothing is obliged to use decays into one nothing uses, and the claim it supports stays standing while becoming false. It scans for the module's last segment, not one spelling — the first version matched `WorkflowKernel` only and missed a fully-qualified call live in the same commit, which is the declared-reason inventory's one-of-two-spellings defect reproduced in a new mechanism. |
@@ -146,16 +146,20 @@ These are not style preferences. Each was bought with a review round.
   So **a conjunctive precondition needs a refusal test per conjunct, and nothing checks that it
   has one.** [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) now closes the enumeration half of
   this: all **72** from-cell obligations carry an ID in the contract and must each be classified,
-  and the ID set is parsed out at test time so a contract edit fails rather than drifts. **63 of the
+  and the ID set is parsed out at test time so a contract edit fails rather than drifts. **67 of the
   72 are classified so far** — row :467's, including its `{:unguarded, ...}` entry, which is what
-  makes B3 countable — and the remaining 9 are held deliberately, four of them on one open question, because classifying one is a
+  makes B3 countable — and the remaining 5 are held deliberately, because classifying one is a
   per-row reading pass against its handler. Until a row is classified, its conjuncts are still the
   check to do by hand. `bin/contract_annotation_diff.exs` is the proof that an annotation pass
   changed no contract text, and its header states the three things it does not prove.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
   other way is outside it. **Measured by `bin/refusal_sites.exs`, which prints this every run:
   of 71 `{:error, :atom}` sites in `kernel.ex`, 47 are inside `require_*` definitions and 24 are
-  not.** For those 24 there is no `require_*(` call to neutralise, so no mutation trial exists
+  not — and 24 is a FLOOR.** The script matches `{:error, :atom}` literally, so it cannot see
+  `apply/2`'s `ok_or(:unknown_entity_kind)` at `kernel.ex:80`, where the tuple is built inside
+  `ok_or/2` from a variable. That is the same atom that hid from `declared_reasons/0` for three
+  reviews by being spelled a second way, hiding from a new instrument by being spelled a third.
+  An independent review found it; the script did not. For those 24 there is no `require_*(` call to neutralise, so no mutation trial exists
   and a clean sweep says nothing whatever about them. 9 are inline in `do_transition` clauses;
   the other **15** are in the envelope pipeline and the state builders — `resolve_entity/3`,
   `check_revision/2`, `check_sequence/2`, `check_state/1`, `check_entity_addressing/2`,

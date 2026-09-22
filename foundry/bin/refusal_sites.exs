@@ -16,10 +16,14 @@
 #
 # What this cannot see, so it is not mistaken for the whole answer:
 #
-#   - A refusal that is not spelled `{:error, :atom}` on one line. A tuple built across
-#     lines, or returned from a helper that computes the atom, is invisible here. That is
-#     the same one-of-several-spellings blind spot that hid `:unknown_entity_kind` from the
-#     declared-reason inventory for three reviews.
+#   - A refusal that is not spelled `{:error, :atom}` on one line. **This is not
+#     hypothetical and the witness is the same atom as last time.** `apply/2` refuses with
+#     `Event.entity_kind(...) |> ok_or(:unknown_entity_kind)` at `kernel.ex:80`; the tuple is
+#     built inside `ok_or/2` as `{:error, reason}`, a variable, so neither the call site nor
+#     the definition matches. `:unknown_entity_kind` is exactly the atom that hid from
+#     `declared_reasons/0` for three reviews by being spelled a second way, and it hides from
+#     this script by being spelled a third. **So the count below is a FLOOR, not a count**,
+#     and an independent review found that, not this script.
 #   - Whether any site is REACHABLE. `r4_guard_reachability_test.exs` answers that, keyed
 #     by atom. A site counted here may be dead.
 #   - Whether a test exercises a site. Nothing but the sweep answers that, which is the
@@ -75,7 +79,10 @@ IO.puts("red control passed: both known refusal sites located\n")
 
 IO.puts("{:error, :atom} sites in #{kernel}: #{length(sites)}")
 IO.puts("  inside require_* definitions, so reachable by the sweep: #{length(in_guards)}")
-IO.puts("  outside, so NO mutation trial exists for them:           #{length(outside)}\n")
+
+IO.puts(
+  "  outside, so NO mutation trial exists for them:           #{length(outside)} (a FLOOR - see the header)\n"
+)
 
 outside
 |> Enum.group_by(fn {_, fun, _} -> fun end)

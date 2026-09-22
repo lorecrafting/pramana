@@ -627,6 +627,29 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4a.04.f1" =>
       {:input,
        "the worker kind is fixed by the event type; worker_closed guards only require_attempt/2, and the row's disjunction of worker kinds is a routing fact rather than a precondition"},
+    # Reclassified by the independent review. The held entry said reviewer_closed's phase
+    # guard "sits only in the approved branch" - true of its require_* calls, and irrelevant,
+    # because the crash branch consults the phase INLINE at kernel.ex:835 and falls through
+    # to a silent no-op at :844. Stopping the search at require_* sites is the same boundary
+    # error e81cdabe corrected for refusal sites, repeated hours after writing the correction.
+    "R4.19.f1" =>
+      {:effect,
+       "reviewer_closed's crash branch tests `is_nil(verdict) and attempt(...)[\"phase\"] == \"reviewing\"` inline at kernel.ex:835; a close in any other phase falls through to `true -> {:ok, ticket}` at :844 and changes nothing. The event is accepted either way and the conjunct decides the outcome, which is what {:effect} means"},
+    "R4.07.f2" =>
+      {:input, "a developer exit, timeout or abnormal exit is what execution_observed reports"},
+    "R4a.03.f1" =>
+      {:input,
+       "the role is fixed by the event type, exactly as for R4a.01.f1 and R4a.04.f1. Holding this one while classifying its two siblings was rule 4's partial generalisation in the inventory itself"},
+
+    # SECOND :unguarded, found by the review in an obligation this candidate had filed as
+    # "held". pm_launch_planned records NOTHING (`{:ok, objective}`, kernel.ex:248-250), so
+    # no state exists that could witness a planning execution; pm_launch_settled then
+    # consumes a PM ordinal with no guard at all (:255-256). Nothing anywhere refuses
+    # settling a launch that was never planned. Row :467 inverted: there, state is written
+    # and read by nothing; here, the state that would carry the obligation is never written.
+    "R4a.03.f2" =>
+      {:unguarded,
+       "pm_launch_planned records no execution and pm_launch_settled guards nothing, so \"planning execution\" has no witness in state and no refusal. Needs its own candidate - either the planning execution becomes recorded state, or the row is wrong about what the reducer owns"},
     "R4.04.f3" =>
       {:unguarded,
        "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
@@ -634,31 +657,32 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its
   # handler, and doing them in a sitting is the shape that produced six of this subcommit's
-  # defects - "verify the property on item one, assert it of the list". 63 of 72 are
-  # classified; this list holds the other 9 and can only shrink.
+  # defects - "verify the property on item one, assert it of the list". 67 of 72 are
+  # classified; this list holds the other 5 and can only shrink.
   #
-  # All nine are held deliberately rather than guessed, and four of them share one shape.
+  # Five are held. The independent review cut this list from nine and took the sixth
+  # disposition with it.
   #
-  # ENFORCED BY THE ABSENCE OF A TRANSITION, possibly. R4.07.f1/f2, R4.19.f1 and R4a.03.f1/f2
-  # each name a from-state that nothing on their own path refuses. `execution_observed` has
-  # no phase guard at all and its outcome - "cleanup observation only" - is phase-independent;
-  # `reviewer_closed` does hold require_attempt_phase ~w(reviewing), but only inside the
-  # `verdict == "approved"` branch, which the crash path R4.19 describes never reaches; and
-  # `pm_launch_settled` has no guards whatever, consuming an ordinal and returning. In each
-  # case the transitions the row FORBIDS are refused by other handlers - R4.07's scenario
-  # pins :wrong_attempt_phase on a forged settlement - so the obligation may be discharged by
-  # there being no transition to make, rather than by a refusal.
+  # THE "ENFORCED BY THE ABSENCE OF A TRANSITION" QUESTION IS CLOSED, and the answer was no.
+  # Four witnesses were claimed for it. Two were not witnesses at all - R4.07.f2 and
+  # R4a.03.f1 are plainly inputs, and holding R4a.03.f1 while classifying its identical
+  # siblings R4a.01.f1 and R4a.04.f1 as :input was rule 4's partial generalisation inside
+  # the inventory. A third, R4.19.f1, turned out to consult the phase inline and is
+  # {:effect}. The fourth, R4a.03.f2, is a real {:unguarded} - the second one this candidate
+  # has found. So one witness remains, R4.07.f1, and a category is not built on one.
   #
-  # None of the five dispositions expresses that, and a sixth is NOT being added here. There
-  # are now four witnesses rather than one, which is the threshold this file asked for - but
-  # `{:input}` and `{:effect}` each earned their place by appearing where a wrong
-  # classification would otherwise have been RECORDED, and a category that exists to explain
-  # why nine obligations need no defence is the shape an excuse takes. It wants an
-  # independent reading before it becomes a way to say "fine" nine times.
+  # The lesson is not "hold things back". Holding was right for four of these and wrong for
+  # the other five, and the error had a direction: every one of the five was held because
+  # the search stopped at `require_*` call sites, which is the same boundary error e81cdabe
+  # corrected for refusal sites, committed hours after that correction was written.
   #
-  # R4a.02.f1/f2 are a different problem: the row says "frozen candidate awaiting review" and
-  # `review_settled` guards require_phase ~w(reviewing). Those are not the same state, and
-  # which one the contract means is not answerable from the kernel.
+  # R4.07.f1 stays: `execution_observed` has no phase check of any kind, inline or otherwise,
+  # and its outcome is phase-independent. Whether that is a defect needs the contract read,
+  # not the kernel.
+  #
+  # R4a.02.f1/f2: the row says "frozen candidate awaiting review" and `review_settled` guards
+  # require_phase ~w(reviewing). Those are not the same state, and which one the contract
+  # means is not answerable from the kernel.
   #
   # R4.24.f2 is a disjunction whose branches want different dispositions - "explicit resume"
   # is the input, "recorded dependency/resource recovery" is a protected fact - and one ID
@@ -667,14 +691,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   # contract, not of the kernel.
   @from_unclassified [
     "R4.07.f1",
-    "R4.07.f2",
-    "R4.19.f1",
     "R4.24.f2",
     "R4.28.f3",
     "R4a.02.f1",
-    "R4a.02.f2",
-    "R4a.03.f1",
-    "R4a.03.f2"
+    "R4a.02.f2"
   ]
 
   describe "every from-cell obligation is classified" do

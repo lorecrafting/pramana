@@ -1,8 +1,10 @@
 # Review briefing: EV-6 and EV-2, the clause-ID candidate
 
-**Delta to review:** `16fc73db..ffff6f92`, seven commits, on `repair/fr08b-kernel`.
-**Gate:** green at `f2c73a63` — six commands, `dirty_paths: []` before and after,
+**Delta to review:** `16fc73db..dc9582b3`, eleven commits, on `repair/fr08b-kernel`.
+**Gate:** green at `dc9582b3` — six commands, `dirty_paths: []` before and after,
 949 passed / 13 skipped / 1 excluded.
+**Reviewed and BLOCKED** — see [findings](fr08b-ev6-ev2-review-findings.md). Both blocking
+findings are answered; this briefing is kept as the record of what was asked for.
 **Time budget: 25 minutes.** A previous unbounded brief ran 41 minutes and produced a worse
 review than a bounded one. Spend the budget on the enumerations named below, not on breadth.
 
@@ -17,7 +19,7 @@ can say about it.
    strips the markers from both sides and diffs against a revision.
 2. Every **from-cell** obligation must carry a disposition: `{:guarded, atoms, why}` with atoms the
    kernel declares, `{:protected, why}`, `{:unguarded, why}`, `{:input, why}` or `{:effect, why}`.
-   **63 of 72** are classified; 9 are held with stated reasons. The last two categories were added during
+   **67 of 72** are classified; 5 are held with stated reasons. The last two categories were added during
    the work, not designed in — see enumeration 6.
 3. Every **outcome** obligation is in `@clauses` or `@uncited`, never both and never neither.
    124 obligations: 64 asserted, 60 recorded uncited. The punctuation splitter is deleted.
@@ -52,7 +54,7 @@ whether any span mis-assigns text: specifically, whether a `@uncited` obligation
 text that an asserted clause covers, or the reverse. The property I relied on is "every existing
 quote falls inside exactly one obligation" — test it independently rather than taking it.
 
-**4. The 63 from-cell classifications.** Two are unusual and both are mine to have got wrong:
+**4. The 67 from-cell classifications.** Two are unusual and both are mine to have got wrong:
 `R4.02.f1` claims "draft" means *no ticket exists*, enforced by `resolve_entity/3` pre-dispatch and
 the `:absent` function head; `R4.27.f1` claims an inline `if` at `kernel.ex:392` guards "nonterminal
 ticket" with `:ticket_terminal`. Note also that R4.16.f1, R4.17.f1 and R4.18.f1 are the same guard
