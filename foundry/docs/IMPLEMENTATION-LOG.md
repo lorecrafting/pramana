@@ -4704,7 +4704,7 @@ rules — one rule over a vocabulary, which is rule 4's exact shape for the four
 
 ### Why it belongs at the boundary, and why that is cheap
 
-`Event`'s `@payload_keys` is already a per-`(type, key)` table. It names which keys each event type
+`Event`'s `@payloads` is already a per-`(type, key)` table. It names which keys each event type
 must carry — `"ticket_admitted" => ~w(ticket_id objective_id spec_revision_id spec phase reason)`.
 It does not say what any of them may contain. `value?/2` accepts any string, integer, boolean, nil,
 proper list or plain map for every key of every type (`event.ex:223-232`), so a handler that copies
@@ -4740,3 +4740,12 @@ against each handler's destination field, a contract citation is owed per rule r
 and picking a type too narrow is a live-breaking change that the gate catches only if a test drives
 that event. What changed is the size and the shape. It is a table, four predicates and one refusal
 site — not twenty of everything.
+
+Sized against the table itself: 37 event types, 133 `(type, key)` slots, 15 of them holding a bound
+protected fact that `TransitionPlan` already validates, leaving **118 slots — but only 31 distinct
+key names**, because `ticket_id` appears 32 times, `attempt_id` 24 and `execution_id` 11. The type
+is a property of the key name rather than the pair, so the table to write is ~31 rows with
+per-`(type, key)` overrides only where a name means two things. Written up as a candidate design at
+[fr-08/fr08b-closure-candidate-design.md](fr-08/fr08b-closure-candidate-design.md), with the
+enumerations a reviewer should attack. (The paragraph above first named the attribute
+`@payload_keys`; it is `@payloads`, corrected in place — a wrong pointer, not a changed claim.)
