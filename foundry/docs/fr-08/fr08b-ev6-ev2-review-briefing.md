@@ -48,7 +48,8 @@ named guard is the right one — so a plausible atom borrowed from the wrong han
 the hole to probe.
 
 **4. The measured gaps.** Two claims that will be quoted later, so they should be attacked now:
-"9 inline refusal sites across 7 handlers, and the sweep sees none of them", and
+"24 of the kernel's 71 refusal sites are outside the sweep's population" (`bin/refusal_sites.exs`,
+which corrects an earlier by-eye count of 9), and
 "`require_all_executions_closed/1` and `require_cleanup_complete/1` are the same predicate under two
 atoms". Both were derived by reading; neither ships with a runnable check.
 

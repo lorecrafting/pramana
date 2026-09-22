@@ -3645,7 +3645,7 @@ kernel refuses in **four** shapes:
 
 The seven handlers with inline refusals are `pm_proposal_recorded`, `ticket_admitted`,
 `ticket_unblocked`, `cancellation_requested`, `cancellation_finalized`, `freeze_failed` and
-`integration_recorded`. **Two of the nine are the entire phase guard for a contract row** — R4.02's
+`integration_recorded`. **Two are the entire phase guard for a contract row** — R4.02's
 "draft" and R4.27's "nonterminal ticket" — so a clean sweep says nothing whatever about either.
 
 ### Two guards, one predicate, two atoms
@@ -3729,3 +3729,44 @@ mechanisms rests on, and it is false as stated in three places found so far:
 Three rows also share one handler and one phase guard — R4.16, R4.17 and R4.18 all route through
 `review_recorded`, where the verdict value selects the branch. So their second conjuncts are inputs,
 not preconditions, and their first conjunct is literally the same guard site counted three times.
+
+## Correction — "9 inline refusal sites" was an undercount by 15 — 2026-09-21
+
+Recorded yesterday in this log and in `EVIDENCE-TOOLS.md`: the guard mutation sweep's population
+misses "**9 inline `if`/`case` refusals across 7 handlers**". That number is wrong. It counted the
+refusals inside `do_transition` clauses and stopped there, because that is where I was reading.
+
+`bin/refusal_sites.exs` now ships and prints the real figure every run. Of **71** `{:error, :atom}`
+sites in `kernel.ex`, **47** are inside `require_*` definitions and **24** are not. For those 24
+there is no `require_*(` call to neutralise, so no mutation trial exists and a clean sweep says
+nothing whatever about them.
+
+| where | sites |
+|---|---|
+| inline in `do_transition` clauses | 9 |
+| envelope pipeline and state builders | **15** |
+
+The 15: `resolve_entity/3`, `check_revision/2`, `check_entity_addressing/2`, `open_attempt/2`,
+`add_execution/3` (2 each), and `check_sequence/2`, `check_state/1`, `refuse_terminal_ticket/2`,
+`add_check/3`, `apply/2` (1 each). Function-head pattern matching is a further shape that raises no
+atom at all and so cannot appear in any of these counts.
+
+**How it was caught, and why that matters more than the number.** Classifying R4.26's "integrated/
+rejected/cancelled" sent me to find what produces `:ticket_terminal`, and there were two producers —
+an inline `if` in `cancellation_requested`, which I had counted, and `refuse_terminal_ticket/2` in
+the pipeline, which I had never looked at. The enumeration had a boundary (`do_transition` clauses)
+that was never stated, and an unstated boundary is the shape behind every wrong count in this
+subcommit: four counts of the `apply/2` closure defect, the `@partial` miscount, the "54 asserted
+and 59 are not" comment, and now this.
+
+**So the number ships with its instrument, which is the rule this candidate has been applying to
+everything except its own prose.** `bin/refusal_sites.exs` attributes every `{:error, :atom}` to its
+enclosing `defp` and prints the split. Its red control pins two known sites by line number — one
+inline, one in the pipeline — and halts if either goes unfound, because a scanner whose regex has
+drifted reports zero sites outside the population, which reads as "the sweep sees everything" and is
+the exact opposite of the truth.
+
+Its own stated blind spots: a refusal not spelled `{:error, :atom}` on one line is invisible to it;
+it says nothing about whether a site is reachable, which is guard reachability's question; and it
+cannot distinguish two sites sharing one atom — `:ticket_terminal` has exactly that shape, which is
+why the undercount survived at all.

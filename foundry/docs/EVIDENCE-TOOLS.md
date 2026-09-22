@@ -153,15 +153,21 @@ These are not style preferences. Each was bought with a review round.
   check to do by hand. `bin/contract_annotation_diff.exs` is the proof that an annotation pass
   changed no contract text, and its header states the three things it does not prove.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
-  other way is outside it. **Measured: this kernel refuses in four shapes, and only the first is
-  in the population.** `require_*` guards; **9 inline `if`/`case` refusals across 7 handlers**
-  (`pm_proposal_recorded`, `ticket_admitted`, `ticket_unblocked`, `cancellation_requested`,
-  `cancellation_finalized`, `freeze_failed`, `integration_recorded`); pre-dispatch checks in the
-  envelope pipeline (`resolve_entity/3` → `:entity_already_exists`, `check_sequence/2`,
-  `check_revision/2`, `check_state/1`); and function-head pattern matching, which is how
-  `ticket_admitted` requires a ticket to be absent. Two of the nine are the **entire** phase
-  guard for a contract row — R4.02's and R4.27's — so "no surviving mutation" says nothing
-  about either.
+  other way is outside it. **Measured by `bin/refusal_sites.exs`, which prints this every run:
+  of 71 `{:error, :atom}` sites in `kernel.ex`, 47 are inside `require_*` definitions and 24 are
+  not.** For those 24 there is no `require_*(` call to neutralise, so no mutation trial exists
+  and a clean sweep says nothing whatever about them. 9 are inline in `do_transition` clauses;
+  the other **15** are in the envelope pipeline and the state builders — `resolve_entity/3`,
+  `check_revision/2`, `check_sequence/2`, `check_state/1`, `check_entity_addressing/2`,
+  `refuse_terminal_ticket/2`, `open_attempt/2`, `add_execution/3`, `add_check/3` and `apply/2`
+  itself. Add function-head pattern matching, which is how `ticket_admitted` requires a ticket
+  to be absent and which raises no atom at all. Two of the 24 are the **entire** phase guard for
+  a contract row — R4.02's and R4.27's.
+
+  The first version of this paragraph said "9 inline refusals across 7 handlers", counted by
+  reading `do_transition` clauses and stopping there. It was an undercount by 15, found when a
+  classification pass hit `refuse_terminal_ticket/2` — a site the enumeration had never looked
+  at. Hence the script: this number is not to be counted by eye again.
 - **`r4_no_direct_apply_test.exs` matches call-site TEXT, so five spellings reach the kernel
   unseen**, each confirmed live in a scratch copy: a capture (`&Kernel.apply/2` then `f.(s, e)`),
   an alias rename (`alias ... as: K` then `K.apply(s, e)`), reflection
