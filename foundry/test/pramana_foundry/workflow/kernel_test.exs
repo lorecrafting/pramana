@@ -2069,7 +2069,11 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       #
       # They are therefore redundant with `require_phase(~w(developing))` above them GIVEN
       # the invariant `ticket.phase == developing => active attempt.phase == active`, which
-      # `SemanticInvariants` now asserts over every state the search reaches. They are NOT
+      # `SemanticInvariants` asserts over every state the search reaches — true only as of
+      # EV-5. This sentence stood here while `r4_exhaustive_test.exs`'s relations test could
+      # not fail, so the redundancy argument was resting on an oracle that was applied to
+      # nothing. The three sites kept their `@unreachable`-adjacent standing on a mechanism
+      # that had never once reported. They are NOT
       # recorded as unreachable: a bounded search is not a proof, and treating absence as
       # one is the habit this review told us to drop. Deleting them is the right end state
       # and is a decision for review, not a side effect of a defect fix.

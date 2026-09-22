@@ -25,12 +25,6 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
 
   @depth 7
 
-  # Phases in which R4 has the ticket owning live work. A ticket cannot be in one of these
-  # with no attempt to own it: that is the shape of the defect the third review found, where
-  # a blocked attempt's stale resume target returned the ticket to `developing` with nothing
-  # running and nothing able to run.
-  @active_phases ~w(developing awaiting_review reviewing ready_to_integrate integrating)
-
   setup_all do
     {:ok, states: KernelSearch.search(@depth)}
   end
@@ -43,28 +37,14 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
     end)
   end
 
-  # The cancel exception is R4's, not a weakening: "nonterminal ticket; cancel requested |
-  # ... **hold phase/evidence while issued effects reconcile**". A cancelled attempt leaves
-  # its ticket holding `developing` with nothing active until `cancellation_finalized`
-  # moves it to `cancelled`, and that is legal precisely because finalisation can still
-  # reach it. Without a pending cancel the same shape is the defect the third review found:
-  # a ticket owning live work that nothing can move.
-  #
-  # The first version of this invariant omitted the exception, and the exhaustive search
-  # produced the four-event counterexample that showed it was the invariant that was wrong,
-  # not the kernel. That is the search doing its job in both directions.
-  test "a ticket owning live work has an attempt, or a cancel that can finish it",
-       %{states: states} do
-    check(states, fn state ->
-      Enum.find_value(state["tickets"], :ok, fn {id, ticket} ->
-        if ticket["phase"] in @active_phases and is_nil(ticket["active_attempt_id"]) and
-             not ticket["cancel_requested"],
-           do:
-             {:violation,
-              "ticket #{id} is #{ticket["phase"]} with no active attempt and no pending cancel"}
-      end)
-    end)
-  end
+  # "A ticket owning live work has an attempt, or a cancel that can finish it" used to be a
+  # separate test here, with its own hand-written copy of the same predicate and the same
+  # cancel exception. It is deleted rather than kept, and the reason is the finding it was
+  # half of: `SemanticInvariants.phase_agreement/3` encodes that identical rule and had the
+  # exception MISSING, and the relations test that would have said so could not fail. So the
+  # suite held two encodings of one contract row, one correct and dead, one incorrect and
+  # green — and the green one is precisely what made the dead one look corroborated. The rule
+  # now exists once, in the oracle, asserted by the relations test below. Rule 4.
 
   # R4's resume row returns a blocked ticket "to stored resume_phase". A blocked ticket
   # without one can never be resumed by any event, which is a terminal state R4 does not
@@ -143,7 +123,7 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
     check(states, fn state ->
       case SemanticInvariants.violations(state) do
         [] -> :ok
-        violations -> {:error, Enum.join(violations, "; ")}
+        violations -> {:violation, Enum.join(violations, "; ")}
       end
     end)
   end
@@ -187,6 +167,58 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
              inspect(violations)
   end
 
+  # Red control for the WIRING, which is a different thing from the oracle and is the thing
+  # that was actually broken. The oracle above fired correctly for months while the test that
+  # applies it to the search could not fail. An oracle with a red control and a harness
+  # without one produces exactly the confident, clean, vacuous result rule 1 exists to stop.
+  test "check/2 fails the suite when an invariant reports a violation", %{states: states} do
+    assert_raise ExUnit.AssertionError, fn ->
+      check(states, fn _state -> {:violation, "a violation the harness must not swallow"} end)
+    end
+  end
+
+  # And the exact defect, pinned by its exact shape rather than by "some error": the relations
+  # test returned `{:error, msg}` where `check/2` matched only `{:violation, msg}`. Rule 5's
+  # reasoning applied to a harness — a control satisfied by any failure is satisfied by the
+  # wrong one.
+  test "check/2 refuses a return shape it does not understand", %{states: states} do
+    assert_raise ArgumentError, fn ->
+      check(states, fn _state -> {:error, "the shape that made this test file vacuous"} end)
+    end
+
+    assert_raise ArgumentError, fn -> check(states, fn _state -> nil end) end
+  end
+
+  # Red control for the cancel exception added to `phase_agreement/3`. An exception that
+  # swallows the whole clause is indistinguishable from deleting it, and this clause is the
+  # one that makes three `require_attempt_phase(~w(active))` sites redundant — so weakening
+  # it silently would cost those three sites their argument. One reachable state, one field
+  # flipped: with the cancel withdrawn, the same state must violate.
+  test "the cancel exception does not disarm phase agreement", %{states: states} do
+    {reachable, _path} =
+      Enum.find(states, fn {state, _path} ->
+        Enum.any?(state["tickets"] || %{}, fn {_id, t} ->
+          t["phase"] == "developing" and is_nil(t["active_attempt_id"]) and t["cancel_requested"]
+        end)
+      end) || flunk("the precondition state is gone; this control is testing nothing")
+
+    assert SemanticInvariants.violations(reachable) == [],
+           "a cancelled ticket holding its working phase is R4:490, not a violation"
+
+    bad = put_in(reachable, ["tickets", "T1", "cancel_requested"], false)
+
+    assert State.valid?(bad),
+           "the red control must be WELL-FORMED, or it proves nothing this validator " <>
+             "did not already prove"
+
+    assert Enum.any?(
+             SemanticInvariants.violations(bad),
+             &(&1 =~ "developing with no active attempt and no pending cancel")
+           ),
+           "withdrawing the cancel must expose a ticket nothing can move: " <>
+             inspect(SemanticInvariants.violations(bad))
+  end
+
   test "the search actually explored a meaningful space", %{states: states} do
     # Guards the guard: an invariant proved over three states proves nothing, and a broken
     # proposer would silently shrink the space rather than fail.
@@ -204,12 +236,18 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
     end
   end
 
+  # The `_ -> nil` clause this once ended with is how the relations test above spent its whole
+  # life unable to fail: its lambda returned `{:error, msg}`, nothing matched `{:violation,
+  # msg}`, and the catch-all swallowed 1,002 violations without a word. Nine tests route
+  # through here, so one strict clause closes the class for all of them rather than fixing the
+  # one lambda that happened to drift. An unrecognised return is now louder than a violation.
   defp check(states, invariant) do
     violation =
       Enum.find_value(states, fn {state, path} ->
         case invariant.(state) do
           {:violation, message} -> {message, path}
-          _ -> nil
+          :ok -> nil
+          other -> raise ArgumentError, unexpected_return(other)
         end
       end)
 
@@ -225,5 +263,11 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
         #{KernelSearch.render(path)}
         """)
     end
+  end
+
+  defp unexpected_return(other) do
+    "an invariant passed to check/2 returned #{inspect(other)}. It must return :ok or " <>
+      "{:violation, message} — any other shape is silently ignored, which is exactly how " <>
+      "the relations test above could not fail for as long as it existed."
   end
 end

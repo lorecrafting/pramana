@@ -86,10 +86,30 @@ defmodule PramanaFoundry.Test.SemanticInvariants do
     "integrating" => ~w(integrating)
   }
 
+  # A working phase with no active attempt is a ticket nothing can move — UNLESS a cancel is
+  # pending, which is R4's own exception and not a weakening of this invariant.
+  #
+  # `WORKFLOW-CONTRACT.md:490`: "nonterminal ticket; cancel requested | Set orthogonal
+  # control, cancel pending/unissued effects, request owned interrupts; **hold
+  # phase/evidence while issued effects reconcile**". So `apply_terminal_phase` returning the
+  # ticket unchanged for `cancelled` (`kernel.ex:1042-1043`) is the row being obeyed: the
+  # ticket holds its working phase until row :491's `cancellation_finalized` moves it.
+  #
+  # This clause shipped without the exception and was therefore wrong on every state it ever
+  # judged. Measured at depth 7 from empty: **1,002 of 58,324 reachable states** held its
+  # precondition and **all 1,002 violated it** — it was never once satisfied. All 1,002 have
+  # `cancel_requested` set and every attempt terminal-cancelled; 0 have no pending cancel.
+  # The claim "a ticket nothing can move" was falsified directly rather than argued: none of
+  # the 1,002 is stuck. Each admits at least 4 accepted successors, the reason the other 186
+  # of 190 at depth 6 cannot finalise immediately is `:executions_not_closed` /
+  # `:cleanup_incomplete` — row :491's "every owned session AND non-session claim terminal,
+  # cleanup reconciled" — and every one reaches a terminal ticket phase within 5 more events.
+  #
+  # `receipt_custody/2` below already encodes the same cancel exception (`cancelled` is a
+  # licensed terminal disposition there), so the two halves of this oracle disagreed until now.
   defp phase_agreement(id, ticket, nil) do
-    # A working phase with no active attempt is a ticket nothing can move.
-    if ticket["phase"] in Map.keys(@legal_pairs),
-      do: ["#{id}: ticket is #{ticket["phase"]} with no active attempt"],
+    if ticket["phase"] in Map.keys(@legal_pairs) and not ticket["cancel_requested"],
+      do: ["#{id}: ticket is #{ticket["phase"]} with no active attempt and no pending cancel"],
       else: []
   end
 
