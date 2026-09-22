@@ -4666,3 +4666,77 @@ has settled, or dropping `command` in favour of pid/group/start-time alone, is e
 question this repository requires an independent reader for. What is settled is that it is not
 hypothetical: 5 of 12, with the probe committed so the next reader gets their own number rather than
 this one.
+
+## The `apply/2` closure defect needs four refusals, not twenty — 2026-09-22
+
+The entry that recorded this defect ends: "How many distinct refusals those pairs need is not
+enumerated." This enumerates it. No code here — the point is what the candidate is, because
+"one refusal per broken pair, over at least twenty pairs, each owing a contract citation, an error
+atom, a reachability entry and a sweep" is a description of a candidate nobody would start, and it
+is not what the defect requires.
+
+### The probe reproduces, exactly
+
+`TMPDIR=/private/tmp mix run bin/closure_probe.exs`, depth 5: 2,736 seeds, 6,781,980 corruptions,
+607,479 accepted, 292,473 accepted-but-malformed, **18 `(type, key)` pairs in 12 event types**,
+float control 0, bound 15 of 37 types contributing nothing and hiding 51 payload keys. Every figure
+matches what the earlier entry recorded. The script being in the tree is what makes that checkable,
+which was the reason it was put there after four unverifiable counts.
+
+### Where each pair actually lands
+
+Every pair is a payload value copied into a field, and `State.well_formed?/1` applies exactly one
+predicate to each destination:
+
+| predicate | n | pairs |
+|---|---|---|
+| `optional_identifier?` | 11 | `ticket_admitted.objective_id`, `.reason`; `ticket_blocked.reason`; `ticket_parked.reason`; `artifact_blocked.reason`; `freeze_failed.reason`; `artifact_frozen.candidate_id`, `.sealed_generation`; `attempt_settled.reason_code`; `check_recorded.reason_code` (depth 7) |
+| `identifier?` | 6 | `ticket_admitted.spec_revision_id`; `ticket_amended.spec_revision_id`; `objective_created.planning_owner_id`; `pm_proposal_recorded.proposal_id`, `.operation`; plus the two collection-key cases below |
+| `plain_map?` | 2 | `ticket_admitted.spec`; `ticket_amended.spec` |
+| `optional_nonnegative_integer?` | 1 | `stream_sealed.last_accepted_sequence` → `execution["sealed_sequence"]` |
+
+`launch_planned.attempt_id` and `check_planned.check_id` are `identifier?` **and** collection keys,
+so they additionally owe `valid_collection?/3`'s key-agreement rule (`value[id_key] == key`). That
+is the only pair-specific obligation in the whole set.
+
+**Four predicates, all of them already defined and already applied by the validator.** Not twenty
+rules — one rule over a vocabulary, which is rule 4's exact shape for the fourth time on this branch.
+
+### Why it belongs at the boundary, and why that is cheap
+
+`Event`'s `@payload_keys` is already a per-`(type, key)` table. It names which keys each event type
+must carry — `"ticket_admitted" => ~w(ticket_id objective_id spec_revision_id spec phase reason)`.
+It does not say what any of them may contain. `value?/2` accepts any string, integer, boolean, nil,
+proper list or plain map for every key of every type (`event.ex:223-232`), so a handler that copies
+a payload value into state inherits "anything", and the closure property fails at whichever field
+the validator constrains more tightly than the payload does.
+
+So the defect is not twenty handlers each missing a guard. It is one table that carries key names
+and not key types. Giving it types converts twenty guards, twenty atoms, twenty reachability entries
+and twenty sweep sites into: one table gaining a type per key, one validation loop, and one refusal
+site. Rule 5 still wants a test pinned to an exact atom, which argues for one atom per predicate —
+**four** — rather than one generic atom that every pinned test would share.
+
+That also fixes keys the probe cannot see. The bound says 15 of 37 types contribute nothing and hide
+51 payload keys; a typed table covers those too, because it types every key rather than patching
+every pair someone found. A per-pair fix would have been bounded by the probe's visibility, which is
+the property that made four successive counts wrong.
+
+### The acceptance test already exists
+
+`bin/closure_probe.exs` prints `accepted-but-malformed`. The candidate's gate is that number at 0 for
+the same depth and seed count with the bound line unchanged — a measured criterion, shipping with the
+fix, with its denominator attached. Its float class is a wiring control only and stays that way.
+
+The probe going to 0 is necessary and not sufficient, for the reason above: it cannot see the 51
+hidden keys, nested values or two-key corruption. The control against over-tightening is the suite
+staying green — a type narrower than some legitimate event's real payload breaks a test that drives
+it. Both halves are needed and neither is new work.
+
+### Still not started, and still its own candidate
+
+Nothing above reduces the review surface to zero: typing ~37 event types' keys is a reading pass
+against each handler's destination field, a contract citation is owed per rule rather than per pair,
+and picking a type too narrow is a live-breaking change that the gate catches only if a test drives
+that event. What changed is the size and the shape. It is a table, four predicates and one refusal
+site — not twenty of everything.
