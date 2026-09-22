@@ -146,9 +146,9 @@ These are not style preferences. Each was bought with a review round.
   So **a conjunctive precondition needs a refusal test per conjunct, and nothing checks that it
   has one.** [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) now closes the enumeration half of
   this: all **72** from-cell obligations carry an ID in the contract and must each be classified,
-  and the ID set is parsed out at test time so a contract edit fails rather than drifts. **29 of the
+  and the ID set is parsed out at test time so a contract edit fails rather than drifts. **42 of the
   72 are classified so far** — row :467's, including its `{:unguarded, ...}` entry, which is what
-  makes B3 countable — and the remaining 43 are a recorded ratchet, because classifying one is a
+  makes B3 countable — and the remaining 30 are a recorded ratchet, because classifying one is a
   per-row reading pass against its handler. Until a row is classified, its conjuncts are still the
   check to do by hand. `bin/contract_annotation_diff.exs` is the proof that an annotation pass
   changed no contract text, and its header states the three things it does not prove.

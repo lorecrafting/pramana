@@ -17,7 +17,7 @@ can say about it.
    strips the markers from both sides and diffs against a revision.
 2. Every **from-cell** obligation must carry a disposition: `{:guarded, atoms, why}` with atoms the
    kernel declares, `{:protected, why}`, `{:unguarded, why}`, `{:input, why}` or `{:effect, why}`.
-   **29 of 72** are classified; 43 are a recorded ratchet. The last two categories were added during
+   **42 of 72** are classified; 30 are a recorded ratchet. The last two categories were added during
    the work, not designed in — see enumeration 6.
 3. Every **outcome** obligation is in `@clauses` or `@uncited`, never both and never neither.
    124 obligations: 64 asserted, 60 recorded uncited. The punctuation splitter is deleted.
@@ -39,7 +39,7 @@ whether any span mis-assigns text: specifically, whether a `@uncited` obligation
 text that an asserted clause covers, or the reverse. The property I relied on is "every existing
 quote falls inside exactly one obligation" — test it independently rather than taking it.
 
-**3. The 29 from-cell classifications.** Two are unusual and both are mine to have got wrong:
+**3. The 42 from-cell classifications.** Two are unusual and both are mine to have got wrong:
 `R4.02.f1` claims "draft" means *no ticket exists*, enforced by `resolve_entity/3` pre-dispatch and
 the `:absent` function head; `R4.27.f1` claims an inline `if` at `kernel.ex:392` guards "nonterminal
 ticket" with `:ticket_terminal`. Note also that R4.16.f1, R4.17.f1 and R4.18.f1 are the same guard

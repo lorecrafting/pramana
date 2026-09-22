@@ -3770,3 +3770,46 @@ Its own stated blind spots: a refusal not spelled `{:error, :atom}` on one line 
 it says nothing about whether a site is reachable, which is guard reachability's question; and it
 cannot distinguish two sites sharing one atom — `:ticket_terminal` has exactly that shape, which is
 why the undercount survived at all.
+
+## EV-6, commit 5 — 42 of 72, and the row a sixth category is not being invented for — 2026-09-21
+
+Thirteen more from-cell obligations classified: R4.05, R4.06, R4.09, R4.10, R4.13, R4.14 and R4.26.
+42 of 72 now carry a disposition — 29 guarded, 8 input, 3 protected, 1 effect, 1 unguarded — and 30
+remain on the ratchet.
+
+**Two derivations worth their own note, because neither site states the connection.**
+
+R4.06's "freeze/import infrastructure failure **before valid candidate**" has no guard naming
+candidates. It is carried by the attempt phase: `artifact_frozen` moves the attempt to
+`candidate_frozen` (`kernel.ex:469`), so `freeze_failed`'s `require_attempt_phase ~w(active)` at
+`:501` admits only an attempt that has not frozen one. Correct, and legible only by reading both
+handlers together.
+
+R4.26 is refused **before dispatch**, by `refuse_terminal_ticket/2` in the envelope pipeline rather
+than in any handler, and its "ordinary launch/result/completion command" is that same predicate's
+exclusions — `@terminal_cleanup_events` and `finalizing_integrated_cancel?/2` are admitted on a
+terminal ticket, everything else refused. This is the second producer of `:ticket_terminal`; guard
+reachability is keyed by atom and cannot tell it from R4.27's inline `if`, which is exactly how the
+refusal-site undercount survived.
+
+**R4.10's cell is a category, and the kernel spells it as an enumeration.** "Any open submission
+phase" is implemented as `require_phase ~w(developing reviewing)`. If a third submission phase is
+ever added, the row stays true and the guard silently stops implementing it. Nothing in the evidence
+set would notice — row coverage would still drive, the atom would still be reachable, the sweep
+would still find the site exercised.
+
+### R4.07 is the next likely `:unguarded`, and is deliberately not recorded as one
+
+`execution_observed` has **no phase guard at all**, so R4.07's from-state "candidate_frozen" is not
+gated there. That is the row :467 shape on its face. But the row's outcome is "Cleanup observation
+only; preserve frozen candidate", which is phase-independent — observing an execution changes no
+attempt in any phase — and the transitions the row *forbids* are refused by **other** handlers: its
+own scenario pins `{:error, :wrong_attempt_phase}` on a forged settlement.
+
+So the precondition may be enforced by **the absence of a transition** rather than by a guard, and
+none of the five dispositions expresses that. Inventing a sixth category on a single witness is
+precisely the mistake this ratchet exists to prevent — `{:input}` and `{:effect}` each earned their
+place by appearing where a wrong classification would otherwise have been recorded, not by being
+convenient. R4.07 needs a second example before it is a category rather than an excuse.
+
+That is now three obligations held back rather than guessed: R4.07.f1, R4.24.f2 and R4.28.f3.

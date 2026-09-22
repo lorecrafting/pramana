@@ -511,6 +511,57 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.22.f3" =>
       {:guarded, [:workers_not_closed],
        "integration_recorded (kernel.ex:895) require_workers_closed/1"},
+    "R4.05.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "artifact_frozen (kernel.ex:460) require_phase ~w(developing), the row's cell exactly"},
+
+    # R4.06.f2's "before valid candidate" is carried by the ATTEMPT phase, not by a guard
+    # naming candidates: `artifact_frozen` sets the attempt to candidate_frozen (kernel.ex:469),
+    # so require_attempt_phase ~w(active) at :501 admits only an attempt that has not frozen one.
+    # Nothing states that connection at either site; it was derived by reading both.
+    "R4.06.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "freeze_failed (kernel.ex:499) require_phase ~w(developing)"},
+    "R4.06.f2" =>
+      {:guarded, [:wrong_attempt_phase, :invalid_freeze_disposition],
+       "\"before valid candidate\" is require_attempt_phase ~w(active) at :501, which excludes an attempt artifact_frozen has already moved to candidate_frozen; the failure kind is the inline :invalid_freeze_disposition"},
+    "R4.09.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "artifact_blocked (kernel.ex:482) require_phase ~w(developing)"},
+    "R4.09.f2" =>
+      {:guarded, [:invalid_blocked_result],
+       "artifact_blocked (kernel.ex:485) require_blocked_result/1"},
+
+    # R4.10's cell is a category - "any open submission phase" - and the kernel spells it as
+    # an enumeration plus a stream check. If a third submission phase is ever added, the row
+    # stays true and the guard silently stops implementing it. Nothing here would notice.
+    "R4.10.f1" =>
+      {:guarded, [:wrong_source_phase, :submission_stream_sealed],
+       "submission_rejected (kernel.ex:537) require_phase ~w(developing reviewing) enumerates the open submission phases, and require_open_submission_stream/1 at :539 carries \"open\""},
+    "R4.10.f2" => {:input, "a malformed result is what this event type reports"},
+
+    # R4.12, R4.13 and R4.14 share check_recorded and its one phase guard, the way R4.16-R4.18
+    # share review_recorded. The status value selects the branch, so it is the input;
+    # require_check_status/1 only validates that it is one of the known statuses.
+    "R4.13.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "check_recorded (kernel.ex:693) require_attempt_phase ~w(checking)"},
+    "R4.13.f2" => {:input, "the recorded status selects this row's branch within check_recorded"},
+    "R4.14.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "check_recorded (kernel.ex:693), shared with R4.12 and R4.13"},
+    "R4.14.f2" => {:input, "the recorded status selects this row's branch within check_recorded"},
+
+    # R4.26 is refused pre-dispatch, not in a handler: refuse_terminal_ticket/2 runs in the
+    # envelope pipeline. One of the 24 sites outside the sweep's population, and the second
+    # producer of :ticket_terminal - which is why guard reachability, keyed by atom, cannot
+    # tell this site from R4.27's inline if.
+    "R4.26.f1" =>
+      {:guarded, [:ticket_terminal],
+       "refuse_terminal_ticket/2 (kernel.ex:212-219), a pre-dispatch check rather than a guard in any handler"},
+    "R4.26.f2" =>
+      {:guarded, [:ticket_terminal],
+       "\"ordinary\" is encoded as that same predicate's exclusions - @terminal_cleanup_events and finalizing_integrated_cancel?/2 are admitted on a terminal ticket, everything else is refused"},
     "R4.04.f3" =>
       {:unguarded,
        "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
@@ -518,14 +569,23 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its
   # handler, and doing them in a sitting is the shape that produced six of this subcommit's
-  # defects - "verify the property on item one, assert it of the list". 29 of 72 are
-  # classified; this list holds the other 43 and can only shrink.
+  # defects - "verify the property on item one, assert it of the list". 42 of 72 are
+  # classified; this list holds the other 30 and can only shrink.
   #
-  # Two are deliberately still here rather than guessed. R4.24.f2 is a disjunction whose
+  # Three are deliberately still here rather than guessed. R4.24.f2 is a disjunction whose
   # branches have different dispositions - "explicit resume" is the input, "recorded
   # dependency/resource recovery" is a protected fact. R4.28.f3 "cleanup reconciled" is
   # equated by the kernel with "every execution closed", which may be narrower than the
   # contract's cleanup notion; saying which needs a read of the contract, not of the kernel.
+  #
+  # R4.07.f1 "candidate_frozen" is the one that looks like a second :unguarded and is not
+  # being recorded as one yet. `execution_observed` has no phase guard at all, so the row's
+  # from-state is not gated there - but the row's outcome is "cleanup observation only", which
+  # is phase-independent, and the transitions the row FORBIDS are refused by other handlers
+  # (its scenario pins :wrong_attempt_phase on a forged settlement). So the precondition may be
+  # enforced by the absence of a transition rather than by a guard, which is a structure none
+  # of the five dispositions expresses. Inventing a sixth on one witness is the mistake this
+  # list exists to avoid; it needs a second example before it is a category.
   #
   # The measurement that killed the shortcut: a blanket rule for the phase conjunct would
   # have been WRONG for 20 of the kernel's 37 `do_transition` clauses. 17 call
@@ -537,23 +597,12 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   @from_unclassified [
     "R4.01.f1",
     "R4.01.f2",
-    "R4.05.f1",
     "R4.05.f2",
-    "R4.06.f1",
-    "R4.06.f2",
     "R4.07.f1",
     "R4.07.f2",
     "R4.08.f1",
     "R4.08.f2",
     "R4.08.f3",
-    "R4.09.f1",
-    "R4.09.f2",
-    "R4.10.f1",
-    "R4.10.f2",
-    "R4.13.f1",
-    "R4.13.f2",
-    "R4.14.f1",
-    "R4.14.f2",
     "R4.19.f1",
     "R4.19.f2",
     "R4.19.f3",
@@ -568,8 +617,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.25.f1",
     "R4.25.f2",
     "R4.25.f3",
-    "R4.26.f1",
-    "R4.26.f2",
     "R4.28.f3",
     "R4a.01.f1",
     "R4a.01.f2",
