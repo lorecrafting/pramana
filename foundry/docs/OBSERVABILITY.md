@@ -18,7 +18,9 @@ The Erlang `telemetry` package is present only transitively through current depe
 ## Authority path versus observation path
 
 The controller-neutral architecture in
-[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) makes one distinction mandatory:
+[Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md) restates a distinction the workflow
+contract already makes mandatory — the command transaction protocol (FR-06/FR-08) versus
+telemetry surfaces (FR-18):
 **authority-changing commands and high-volume observations are separate paths**.
 
 The authority path carries semantic commands whose durable disposition can change Foundry
@@ -194,7 +196,7 @@ model/profile, review topology and concurrency policy. Those are analysis dimens
 not new authority identities. A planning label cannot substitute for objective/ticket/
 execution/candidate lineage.
 
-Measure **reorientation tax** where the selected harness exposes enough data: handoff or
+I-F1 may measure **reorientation tax** where the selected harness exposes enough data: handoff or
 resume to first productive effect, model calls before that effect, tokens/context bytes
 spent reconstructing prior state, repeated reads after handoff, stale-context failures,
 and operator time spent reconstructing current state. This supports experiments with
@@ -329,7 +331,12 @@ correlation chain should support:
 
 `project/workflow revision → objective → ticket/work item → attempt → assignment → execution → request/tool/effect → candidate → review/check → accepted outcome`
 
-Every orchestrator observation should also preserve the controller source and mapping
+Only the `objective → … → accepted outcome` subset in *Canonical correlation model* above is
+FR-18A/18B scope. `project`, `workflow revision` and `assignment` are post-repair vocabulary
+from the orchestrator boundary, not workflow-contract identities, and FR-18B is not obliged to
+carry them.
+
+**Post-repair (O2):** every orchestrator observation should also preserve the controller source and mapping
 needed to reconstruct its relationship to Foundry without promoting controller-native IDs
 to authority. Where applicable record controller kind/version, adapter version,
 controller job/session ID, Foundry assignment/execution ID, wake reason and whether the

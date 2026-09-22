@@ -562,7 +562,7 @@ copy only Cloudflare's happy-path observation API.
 ## Candidate ObservationReceipt
 
 Do **not** add this to the protected ontology during the current repair merely because the
-idea is promising. But preserve a future seam capable of carrying something like:
+idea is promising. A later C0 decision may introduce something like:
 
 ~~~text
 ObservationReceipt {

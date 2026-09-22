@@ -221,7 +221,7 @@ acceptance and promotion.
 ### Cloudflare OS: capability/effect design comparator; runtime primitives are backend candidates
 
 The 2026-09-21 [focused review](CLOUDFLARE-OS.md) checked Cloudflare OS at
-`baa4f7cc4ab628c5d157c68054b315695de02fa1` plus the current Project Think execution
+`b09c64cb66c13eb106f5f825e8c5f71636f09eb8` plus the current Project Think execution
 ladder and Sandbox security documentation. Cloudflare OS is not simply another execution
 runtime: its own "kernel" owns users, workspaces, sharing, approvals, observations,
 credential mediation and effect journals. Integrating the whole product beneath Foundry

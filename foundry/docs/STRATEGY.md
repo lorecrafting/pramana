@@ -73,7 +73,8 @@ Keep two paths separate:
 - the **observation path** is high-volume and non-authoritative for model/tool/runtime
   activity, tokens, latency, controller waits, context and diagnostics.
 
-The CLI is an operator client of those semantics, not the required controller integration
+The CLI should become an operator client of those semantics — FR-15a owns the socket
+protocol this presupposes — not the required controller integration
 mechanism. Controllers should query/subscribe to facts and eligibility, then choose their
 own strategy; they should not receive a generic protected `advance()` primitive. Event-driven
 subscriptions should wake deterministic controller code on meaningful state changes rather
@@ -86,7 +87,7 @@ workflow contract remains authoritative for current identities and transitions.
 
 ### Ship a reference controller without making it the kernel
 
-Foundry should still work out of the box. The preferred distribution is **Foundry Core +
+Foundry should still work out of the box. The candidate post-repair distribution (ROADMAP I-F5) is **Foundry Core +
 an optional bundled Standard Controller**, with external controllers using the same Core
 protocol.
 
@@ -96,7 +97,8 @@ stay modest (sequence, bounded parallelism, gates, handoffs, correction, durable
 sub-workflows/escalation) and remain outside protected authority. Do not build a universal
 DAG/workflow platform before real portability evidence.
 
-Cloudflare OS should be the first materially different external-controller experiment once
+Cloudflare OS is the preferred first external-controller experiment, sequenced under
+I-F3/I-F5, once
 the semantic seam is available. Compare it against the Standard Controller under the same
 ProjectProfile, capability ceilings and acceptance profile. Generalize Foundry-owned
 workflow machinery only where repeated cross-workload evidence justifies it.
@@ -468,8 +470,8 @@ mechanisms. A small Rust/C helper is a reasonable implementation shape for the L
 syscalls, while Elixir remains the authority/control plane. Avoid a general shell-based
 "policy" launcher whose caller can smuggle extra mounts, sockets, environment or flags.
 
-This should remain backend-neutral. The same `Foundry.ExecutionSandbox` conformance
-suite should be runnable against an in-house Linux launcher, Dagger, direct OCI
+This should remain backend-neutral. The same `ExecutionBackend` conformance suite (earlier
+named `Foundry.ExecutionSandbox`) should be runnable against an in-house Linux launcher, Dagger, direct OCI
 containers or a future micro-VM backend. The in-house implementation wins only if it is
 simpler to audit and maintain while passing the same cases.
 

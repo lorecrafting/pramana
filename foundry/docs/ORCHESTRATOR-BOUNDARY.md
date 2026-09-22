@@ -101,7 +101,7 @@ boundary between them.
 
 Cloudflare OS and other controllers may run useful workflows that never enter Foundry.
 
-A deployment should distinguish at least three governance modes:
+A Cloudflare-side deployment would distinguish at least three governance modes:
 
 ~~~text
 NATIVE

@@ -140,7 +140,7 @@ Use two paths:
 
 Controllers consume facts/eligibility and propose what to do next. They do not receive a
 generic protected `advance()` operation and their own "completed"/"approved" states do not
-become Foundry facts automatically. Event subscriptions should let deterministic
+become Foundry facts automatically. A post-repair subscription surface (I-F5, O1/O2) would let deterministic
 controller code wait without repeatedly waking a model to poll child status.
 
 This makes Foundry a neutral referee for workflow experiments: keep authority and
