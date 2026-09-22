@@ -4479,3 +4479,54 @@ Not fixed here. Routing `format_debt` through `require_stage/2` alongside `:sour
 `:toolchain` and `:lockfile` is a one-line change that turns the gate red on the next run, and which
 red it should be — reformat the file and drop it from the debt list, or re-pin deliberately — is an
 operator decision, not a side effect of a flake measurement.
+
+## One predicate, two atoms: the rule-4 landmine is defused, the coverage inflation is not — 2026-09-22
+
+`require_all_executions_closed/1` (`:executions_not_closed`) and `require_cleanup_complete/1`
+(`:cleanup_incomplete`) were the same check written twice — every execution's lifecycle is
+`closed`, once as a nested `Enum.any?`, once as a comprehension. EVIDENCE-TOOLS.md has carried it
+as a known gap since it was found by reading both. They now share `open_executions/1`.
+
+What that buys is exactly one thing: rule 4 holds by construction. "A rule applied to a vocabulary
+is applied in one edit or not at all" is the repository's most repeated defect shape at six
+occurrences, and this was the seventh pre-loaded — change what counts as closed, update one site,
+leave the other. That is no longer expressible.
+
+What it does not buy is coverage. Rule 5 pins each refusal test to its exact atom, and there are
+still two atoms serving two contract rows, so two tests still read as covering two rules while
+exercising one predicate. The sweep agrees and that is the point: both call sites were `caught` on
+2026-09-21 and both are `caught` now, so a clean sweep counts the same logic twice in both worlds.
+The gap entry now says so rather than implying the merge closed it.
+
+### Evidence
+
+Scoped sweep, `SWEEP_SITES` on the two call sites, after the merge:
+
+```
+listed sites: 2 occurrences of 2 guards, of 116 total
+  sweep-w1 require_all_executions_closed(ticket) :405 — caught
+  sweep-w2 require_cleanup_complete(ticket) :430 — caught
+=== 0 call sites no test exercises ===
+elapsed: 209s
+repository target unchanged: true
+```
+
+116 total sites, unchanged from the 2026-09-21 full sweep — the merge touched definitions, not call
+sites, so `:405` and `:430` did not move and the sweep's population is the same one. The startup red
+control passed; had it not, the run would have halted rather than reported.
+
+**The 2026-09-21 sweep record's line numbers were already stale before this change.** Five commits
+have touched `kernel.ex` since it was written, and its survivor rows `:1557`, `:1574`, `:1586` and
+`:1595` now land on comments. The document is history and stays as written; the note is for whoever
+next treats it as the answer key it declares itself to be, which is what it is *at its own revision*
+and not at HEAD.
+
+### A sweep gotcha that cost a cycle
+
+`SWEEP_SITES` entries are the call text alone. Giving it the `<text> :<line>` form that the sweep's
+own output and records print is rejected — correctly, since sites are validated rather than trusted.
+But the rejection exits through `System.halt/1`, which does not run `System.at_exit` hooks, so the
+sentinel written at startup survives a run that swept nothing: the next launch refuses, and
+`bin/preflight.sh` fails until someone clears it. Recorded in EVIDENCE-TOOLS.md's gotcha list. The
+script's instruction for that state is right and was followed — hash the target against a known-good
+revision before deleting the sentinel, rather than assuming a halted run left the tree clean.

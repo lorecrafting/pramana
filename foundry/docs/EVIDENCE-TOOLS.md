@@ -78,6 +78,13 @@ Gotchas, each of which has cost real work:
   line and the loop deadlocks.
 - It does not write to the repository. If it reports the target changed, someone else
   edited it; nothing was overwritten, and no result from that run is trustworthy.
+- **A mistyped `SWEEP_SITES` entry leaks the sentinel.** The file is written before the site
+  list is validated, and the validation failure exits via `System.halt/1`, which does not run
+  `System.at_exit` hooks — so the next launch refuses with "a sweep is already running" and
+  `bin/preflight.sh` fails, after a run that swept nothing. Follow the script's own
+  instruction before deleting it: hash the target against a known-good revision first. Entries
+  are the call text ALONE, `require_cleanup_complete(ticket)` — the `:430` that the output and
+  the sweep records append for display is not part of the key.
 
 ## The rules that make any of this worth anything
 
@@ -198,10 +205,14 @@ These are not style preferences. Each was bought with a review round.
   shape needs a new fixture row.
 - **Two guards can be one predicate under two atoms.** `require_all_executions_closed/1`
   (`:executions_not_closed`) and `require_cleanup_complete/1` (`:cleanup_incomplete`) are the
-  same check — every execution's lifecycle is `closed` — written twice. Rule 5 pins a refusal
-  test to its exact atom, so tests of the two sites read as covering two rules while exercising
-  identical logic, and rule 4's partial generalisation is pre-loaded: change the rule and one
-  gets updated. Nothing here detects a duplicated predicate; it was found by reading both.
+  same check — every execution's lifecycle is `closed` — and were written twice. They now share
+  `open_executions/1`, so rule 4's partial generalisation is no longer pre-loaded: the rule
+  cannot be changed at one site and not the other. **The coverage inflation is not fixed and
+  cannot be.** Rule 5 pins a refusal test to its exact atom, and the two atoms are still two,
+  so tests of the two sites still read as covering two rules while exercising identical logic.
+  Both sites are `caught` by the sweep, before and after the merge — which is exactly the point:
+  a clean sweep counts them twice too. Nothing here detects a duplicated predicate; this one was
+  found by reading both, and the next one will be found the same way.
 - Guard reachability is keyed by **error atom**, so it cannot express "this guard cannot
   fire *at this call site*" when the same atom fires elsewhere. Two such sites exist and are
   recorded at the site in `kernel.ex`. Only the sweep can currently see that class.

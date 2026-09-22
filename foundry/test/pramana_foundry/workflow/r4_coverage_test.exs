@@ -455,7 +455,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "cancellation_finalized (kernel.ex:403) require_cancel_requested/1"},
     "R4.28.f2" =>
       {:guarded, [:attempt_still_active, :executions_not_closed],
-       "require_no_active_attempt/1 and require_all_executions_closed/1 at kernel.ex:404-405. NOTE require_all_executions_closed/1 and require_cleanup_complete/1 are the SAME predicate under two names and two atoms, so a test pinning either exercises identical logic"},
+       "require_no_active_attempt/1 and require_all_executions_closed/1 at kernel.ex:404-405. NOTE require_all_executions_closed/1 and require_cleanup_complete/1 are the SAME predicate under two atoms; they now share open_executions/1 so rule 4 holds, but a test pinning either atom still exercises identical logic and the two do not add up to two rules covered"},
     # R4.11. The handler guards MORE than the row states: `checks_started` requires ticket
     # phase awaiting_review as well, which this row's cell does not name. Stronger than the
     # contract is safe; the note exists because the reverse also occurs, at R4.04 and R4.20.

@@ -1301,14 +1301,20 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # R4: "every owned session AND non-session claim terminal, cleanup reconciled". Only
   # expressible now that an execution can be closed after its attempt settles.
   defp require_all_executions_closed(ticket) do
-    open? =
-      Elixir.Enum.any?(ticket["attempts"], fn {_id, attempt} ->
-        Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-          execution["lifecycle"] != "closed"
-        end)
-      end)
+    if open_executions(ticket) == [], do: :ok, else: {:error, :executions_not_closed}
+  end
 
-    if open?, do: {:error, :executions_not_closed}, else: :ok
+  # The one predicate behind both `:executions_not_closed` and `:cleanup_incomplete`. It was
+  # written twice, and EVIDENCE-TOOLS.md records the consequence: rule 5 pins each refusal
+  # test to its own atom, so two tests read as covering two rules while exercising identical
+  # logic, and rule 4's partial generalisation -- the most repeated defect shape here, at six
+  # occurrences -- was pre-loaded. The atoms stay distinct because the contract rows do; only
+  # the rule is shared, so it can no longer be changed in one place and not the other.
+  defp open_executions(ticket) do
+    for {_aid, attempt} <- ticket["attempts"],
+        {execution_id, execution} <- attempt["executions"] || %{},
+        execution["lifecycle"] != "closed",
+        do: execution_id
   end
 
   defp require_cancel_requested(ticket),
@@ -1744,13 +1750,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
   # `unknown` blocks too, per R4: "If cleanup is unknown, block affected work and retain
   # capacity". Only `closed` is cleanup.
   defp require_cleanup_complete(ticket) do
-    open =
-      for {_aid, attempt} <- ticket["attempts"],
-          {execution_id, execution} <- attempt["executions"] || %{},
-          execution["lifecycle"] != "closed",
-          do: execution_id
-
-    if open == [], do: :ok, else: {:error, :cleanup_incomplete}
+    if open_executions(ticket) == [], do: :ok, else: {:error, :cleanup_incomplete}
   end
 
   # R4's freeze row is "developing; success artifact validates and freezes" - a developer
