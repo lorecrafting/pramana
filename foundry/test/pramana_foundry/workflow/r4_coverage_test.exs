@@ -18,7 +18,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   use ExUnit.Case, async: true
 
   alias PramanaFoundry.Test.R4Rows
-  alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
+  alias PramanaFoundry.Test.Harness
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
   # Rows the kernel cannot drive today. Each entry names the review finding that reported
@@ -557,7 +557,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "settlement" => settlement()
       })
 
-    assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(frozen_state, forged),
+    assert {:error, :wrong_attempt_phase} = Harness.apply(frozen_state, forged),
            "an attempt was exhausted from candidate_frozen, which R4 gives no exhaustion row"
 
     :driven
@@ -618,7 +618,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "settlement" => settlement()
       })
 
-    assert {:error, :exit_not_verified} = WorkflowKernel.apply(sealed_only, forged)
+    assert {:error, :exit_not_verified} = Harness.apply(sealed_only, forged)
 
     # "after cleanup queue fresh bounded attempt" - the fresh attempt waits for cleanup.
     {settled, sequence} = {ticket, sequence} |> then(fn _ -> {state, 40} end)
@@ -630,7 +630,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("X2", "developer")
       })
 
-    assert {:ok, _} = WorkflowKernel.apply(settled, open_worker),
+    assert {:ok, _} = Harness.apply(settled, open_worker),
            "cleanup was complete, so a fresh attempt should launch"
 
     :driven
@@ -686,7 +686,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "settlement" => settlement()
       })
 
-    assert {:error, :no_blocked_result} = WorkflowKernel.apply(fresh, forged)
+    assert {:error, :no_blocked_result} = Harness.apply(fresh, forged)
     :driven
   end
 
@@ -736,7 +736,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "reason" => "malformed"
       })
 
-    assert {:error, :submission_stream_sealed} = WorkflowKernel.apply(sealed, forged)
+    assert {:error, :submission_stream_sealed} = Harness.apply(sealed, forged)
 
     # "exhaustion closes execution and exhausts ticket" - the budget is protected
     # allocation, so exhaustion arrives as a settlement rather than being derived here.
@@ -867,7 +867,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("R1", "reviewer")
       })
 
-    assert {:error, :wrong_attempt_phase} = WorkflowKernel.apply(failed, forged)
+    assert {:error, :wrong_attempt_phase} = Harness.apply(failed, forged)
     assert failed["tickets"]["T1"]["attempts"]["A1"]["phase"] == "checking"
     :driven
   end
@@ -911,7 +911,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "settlement" => settlement()
       })
 
-    assert {:error, :no_correction_evidence} = WorkflowKernel.apply(state, forged),
+    assert {:error, :no_correction_evidence} = Harness.apply(state, forged),
            "a timed-out check terminalised the attempt row 13 says to preserve"
 
     # "bounded new check-run reservation after cleanup": the worker closes, a new run is
@@ -968,7 +968,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("K2", "check")
       })
 
-    assert {:error, :check_already_exists} = WorkflowKernel.apply(failed, forged)
+    assert {:error, :check_already_exists} = Harness.apply(failed, forged)
 
     # "Unknown check retains lease and blocks retry."
     {unknown, sequence} =
@@ -998,7 +998,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("K2", "check")
       })
 
-    assert {:error, :check_already_exists} = WorkflowKernel.apply(unknown, forged)
+    assert {:error, :check_already_exists} = Harness.apply(unknown, forged)
 
     # "or blocked(check_infrastructure)/exhausted" - the row's other alternative, which
     # was deferred with the R4a at-limit clauses and is reachable for the same reason they
@@ -1206,7 +1206,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         ] do
       forged = event(type, "T1", revision, sequence + 1, payload)
 
-      assert {:error, :ref_receipt_recorded} = WorkflowKernel.apply(before_settle, forged),
+      assert {:error, :ref_receipt_recorded} = Harness.apply(before_settle, forged),
              "#{type} was accepted after a ref receipt was recorded"
     end
 
@@ -1346,7 +1346,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("X2", "developer")
       })
 
-    assert {:error, :ticket_terminal} = WorkflowKernel.apply(state, forged)
+    assert {:error, :ticket_terminal} = Harness.apply(state, forged)
     assert state["tickets"]["T1"]["attempts"]["A1"]["disposition"] == "rejected"
     :driven
   end
@@ -1438,7 +1438,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "settlement" => settlement()
       })
 
-    assert {:error, :wrong_execution_role} = WorkflowKernel.apply(state, forged)
+    assert {:error, :wrong_execution_role} = Harness.apply(state, forged)
 
     # "Below the infrastructure limit, queue a bounded developer retry" - and the retry has
     # to be launchable from where a resume actually puts the ticket. R4a stores
@@ -1478,7 +1478,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "authority" => authority("X3", "developer")
       })
 
-    assert {:error, :developer_already_running} = WorkflowKernel.apply(live, forged)
+    assert {:error, :developer_already_running} = Harness.apply(live, forged)
 
     # R4's freeze row is "developing; success artifact validates and freezes" - a developer
     # has to have been running to produce one. A ticket resumed to developing holds only
@@ -1504,7 +1504,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "sealed_generation" => "gen-x"
       })
 
-    assert {:error, :no_running_developer} = WorkflowKernel.apply(parked, forged)
+    assert {:error, :no_running_developer} = Harness.apply(parked, forged)
     :driven
   end
 
@@ -1799,9 +1799,9 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       sequence = sequence + 1
       built = event(type, entity_id, revision_of(state, type, entity_id), sequence, payload)
 
-      case WorkflowKernel.apply(state, built) do
+      case Harness.apply(state, built) do
         {:ok, next} ->
-          assert State.valid?(next), "#{type} produced a state its own validator rejects"
+          assert State.well_formed?(next), "#{type} produced a state its own validator rejects"
           {next, sequence}
 
         {:error, reason} ->

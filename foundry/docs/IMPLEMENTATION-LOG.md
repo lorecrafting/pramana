@@ -3159,3 +3159,152 @@ An independent review BLOCKed the candidate. The behaviour is correct; three sta
   handoff note carried that exact warning into this session and it did not prevent the
   recurrence. What caught it was an independent reviewer told explicitly to attack that
   enumeration, which is the only mechanism that has ever caught this class here.
+
+## EV-3 — the relational oracle moves to `lib` and judges every transition the suite drives
+
+`SemanticInvariants` is now `State.violations/1` and `State.invariant?/1`; `valid?/1` is
+`well_formed?/1` at all 15 sites in one edit (rule 4). `Test.Harness.apply/2` is the single
+route from a test to `Kernel.apply/2` — 93 call sites — and asserts both validators on every
+accepted post-state. It asserts and does not refuse: having `apply/2` reject a violating
+post-state is a behaviour change on a gate-validated kernel and stays deferred.
+
+**Why a wrapper rather than a hook in `drive/2`.** Four of those 93 sites route through a
+`drive` helper. Asserting inside `drive` would have covered a twenty-third of the suite
+while reporting a denominator that sounds like all of it — rule 2's failure mode wearing
+rule 2's clothes. `r4_no_direct_apply_test.exs` is what keeps the claim true as subcommits
+2–5 add tests: it scans `test/**` for `WorkflowKernel.apply(` and fails on any that is not
+the wrapper or the one exemption, with a red control that drives the same `File.read` and
+regex path over a fixture containing a direct call.
+
+**`kernel_search.ex` is the exemption, and it buys nothing to route it.** The oracle is a
+function of the successor state alone, so asserting per accepted transition and asserting
+over the deduped reachable set are the same set of judgements — and `r4_exhaustive_test.exs`
+already does the second. Routing it through the harness was tried first and cost the whole
+suite; it was reverted for adding zero coverage, not for being slow.
+
+### Two of the ticket's instructions were not followed, and measurement is why
+
+**`valid_attempt_order?/1`'s terminal conjunct stays in `well_formed?/1`.** EV-3 calls it
+relational sitting on the wrong side. It is relational. The first argument for keeping it
+was mine and was **false**: I claimed moving it would cost `kernel.ex:17`'s totality
+property, because `check_state` is input-only and `apply/2` ends in `rescue →
+:kernel_raised`. Dropped the conjunct and re-ran the bounded search from all 3,358 corrupted
+states: **0 of 243,643 proposals returned `:kernel_raised`**, over 22 distinct refusal atoms
+and 43,497 acceptances, so handlers were genuinely reached and the objection was simply
+wrong.
+
+What the same run found instead is the reason it stays. Of those acceptances, **753 produce
+a state `invariant?/1` calls clean** — every one an `attempt_settled` — and **406 of the 753
+overwrite a settled disposition**: 338 `exhausted`, 60 `blocked`, 4 `failed`, 4 `timed_out`,
+all to `cancelled`, against R4's "Attempt disposition | Set once on terminal". The oracle
+flags the corrupt state 3,358 of 3,358 and the laundered successor **0 of 753**. An
+assert-only oracle reports; only the validator refuses. So the split is decided by which
+side has to *refuse*, not by which side the predicate belongs to taxonomically.
+
+**`terminal_custody` is deleted rather than promoted, and this corrects a comment written
+earlier in the same change.** That comment called the duplication between it and
+`valid_attempt_order?/1` deliberate and claimed deleting either side would lose one of two
+checks. It would not. Both its halves fire only where `well_formed?/1` already refuses —
+"terminal with no disposition" by `valid_disposition?/1`, "terminal but still active" by
+`valid_attempt_order?/1`'s last conjunct. Enumerated over the 3,358 reachable terminal
+attempts, corrupted each way: the clause fired on all **6,716** and the validator accepted
+**0**; and 0 reachable states both violate it and pass the validator. It could never carry
+rule 1's failing fixture, and was reporting zero violations out of 6,716 preconditioned
+states by construction. That is a worse vacuity than `receipt_custody`'s, which at least has
+no witnesses to mislead anyone with. Five families remain, each with a red control.
+
+### The denominators are a mechanism, not a measurement
+
+`State.measure/1` returns each family's `{precondition_held?, violations}` from the same code
+that produces the violations, so a precondition cannot drift from its predicate the way the
+proposer and the reducer can. `violations/1` is derived from it rather than the reverse. The
+suite prints the table after every run via `ExUnit.after_suite/1`, and a family whose `held`
+column is zero is labelled vacuous in place.
+
+Over **253,383 accepted transitions** on the first green run:
+
+| family | held | violated |
+|---|---|---|
+| `phase_agreement_nil` | 7,883 | 0 |
+| `phase_agreement_attempt` | 41,269 | 0 |
+| `resume_target` | 116,605 | 1 |
+| `candidate_custody` | 236,501 | 0 |
+| `receipt_custody` | **8,411** | 0 |
+
+Two rows in that table are the ticket's whole argument. `receipt_custody` holds **0 of
+58,324** over the bounded search and **8,411** over the transitions the suite drives — the
+family EV-3 named as judged by nothing exhaustive turns out to be exercised thousands of
+times by tests that were already there, with nothing asserting it. And `resume_target`'s
+single violation is the harness's own red control firing: a `violated` column of all zeros
+would mean the counters never ran, which is the condition rule 1 exists to expose.
+
+The refactor that made this possible is the risky part of the change — it rewrote every
+predicate body. It was checked against the encoding at `HEAD` over 16,648 states (every state
+reachable at depth 6 plus the 3,358 corrupted ones): **0 disagreements**, with the oracle
+firing on 3,358 of them, so the comparison had witnesses rather than being two silent
+functions agreeing.
+
+### Controls
+
+One red control per family, each corrupting exactly one field of a state the search actually
+reached, and each asserting the corrupted state is still **well-formed** — the precedent
+being the first hand-written control in this file, which the shape validator rejected and
+which would have "passed" by tripping a different check. `receipt_custody`'s plants a
+receipt on a reachable terminal attempt, because 0 reachable states hold its precondition.
+A separate control pins the **harness wiring**, which is the half that was broken last time:
+the oracle fired correctly for months while the test applying it could not fail. It drives a
+`control_changed` through the harness from a well-formed violating state and asserts the
+failure message names the relation, not merely that something raised (rule 5).
+
+A seventh test asserts every family named by `invariant_families/0` has a control tagged for
+it in the file. Its own negative half was self-defeating on the first run — it searched the
+file for a literal that the search itself had written into the file — and now assembles the
+sentinel at runtime.
+
+### What the harness found on its first full run — `apply/2` is not closed over its validator
+
+Not EV-3's defect, and not EV-3's to fix. Recorded here because the mechanism found it the
+first time it ran, which is the only evidence EV-3's cost was worth paying.
+
+`kernel.ex:17`'s property 2 is **totality**: every state `well_formed?/1` accepts is one
+`apply/2` returns from rather than raises on. Nothing ever asserted the other half —
+**closure**: every state `apply/2` *produces* should be one it would accept as input. It is
+not. A handler that copies a payload value straight into state inherits whatever
+`Event.validate/2` allowed, and that is any string, integer, boolean, nil, list or map.
+
+The suite failed on `objective_created` from the B1 totality test. The first measurement said
+two event types, and that number was an artifact of the fixture rather than the defect's
+extent: every payload value was hostile at once, so `ticket_admitted` was refused by its own
+`phase` check before reaching the three fields it copies unchecked, and looked clean. This is
+the "verify the property on item one, assert it of the list" shape again, now in a
+measurement rather than in prose — caught this time by noticing the sibling handler copies
+the same fields.
+
+Enumerated properly — start from a payload the proposer calls valid, corrupt exactly one key,
+over 2,737 seed states: **678,228 corruptions tried, 66,906 accepted by `apply/2`, and 34,641
+of those produce a state `well_formed?/1` rejects**, across **16 `(type, key)` pairs** in 12
+event types:
+
+| event type | fields |
+|---|---|
+| `ticket_admitted` | `objective_id`, `reason`, `spec_revision_id` |
+| `artifact_frozen` | `candidate_id`, `sealed_generation` |
+| `pm_proposal_recorded` | `proposal_id`, `operation` |
+| `objective_created` | `planning_owner_id` |
+| `attempt_settled` | `reason_code` |
+| `stream_sealed` | `last_accepted_sequence` |
+| `launch_planned` | `attempt_id` |
+| `ticket_amended` | `spec_revision_id` |
+| `ticket_blocked`, `ticket_parked`, `artifact_blocked`, `freeze_failed` | `reason` |
+
+Each one bricks the log permanently: the state is written, and every subsequent event then
+fails `check_state` with `:invalid_state`. It is blocker B1's shape reflected — B1 was the
+decision function not being total over states the validator declared valid; this is the
+reducer producing states the validator declares invalid.
+
+**Quarantined, not fixed, and the quarantine is counted.** `Harness.apply_unchecked/2` skips
+the assertions and the denominators, is used by exactly one test — the B1 totality probe,
+whose own property is unaffected — and `r4_no_direct_apply_test.exs` fails if a second call
+site appears. Sixteen new refusals on a gate-validated kernel, each owing a contract citation,
+an error atom, a reachability entry and a sweep, is a candidate with its own review rather
+than a rider on the change that found it.

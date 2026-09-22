@@ -14,7 +14,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   1. **Closed vocabulary.** `Event.validate/2` accepts only the enumerated types, each with
      an exact payload key set. An unknown type never reaches a merge.
-  2. **Totality over the validator.** Every state `State.valid?/1` accepts is one `apply/2`
+  2. **Totality over the validator.** Every state `State.well_formed?/1` accepts is one `apply/2`
      returns from rather than raises on. The guard clauses read only fields that validator
      has already constrained, and the final `rescue` is a containment net, not the design.
   3. **Source-state guards.** Every event names the phase it may apply to. An event that
@@ -88,7 +88,8 @@ defmodule PramanaFoundry.Workflow.Kernel do
     _ -> {:error, :kernel_raised}
   end
 
-  defp check_state(state), do: if(State.valid?(state), do: :ok, else: {:error, :invalid_state})
+  defp check_state(state),
+    do: if(State.well_formed?(state), do: :ok, else: {:error, :invalid_state})
 
   # The control entity is a singleton, so its identifier is fixed rather than caller-chosen.
   # A per-command control identifier would let two commands each advance "the" control.

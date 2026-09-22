@@ -29,7 +29,8 @@ on every candidate whether or not the session knows they exist.
 | **Row coverage** | `test/pramana_foundry/workflow/r4_coverage_test.exs` | Can the reducer express every row of the contract's governing tables? Rows are parsed out of `WORKFLOW-CONTRACT.md` at test time, never transcribed. Each scenario cites its clauses verbatim and a test checks the citations still exist, so editing the contract fails here. |
 | **Clause coverage** | same file | How many of the contract's clauses does anything assert? A number that can only go down. |
 | **Bounded exhaustive search** | `test/support/kernel_search.ex`, asserted in `r4_exhaustive_test.exs` | Every state reachable within a depth, with the exact event path to any violation. `:from` seeds it from a driven state, because depth is spent on the way in. |
-| **Semantic invariants** | `test/support/semantic_invariants.ex`, asserted in `r4_exhaustive_test.exs` | Are the facts in an accepted state mutually coherent? Distinct from `State.valid?/1`, which checks shapes. This is the only mechanism that inspects an effect body's result rather than a guard's decision. |
+| **Semantic invariants** | `State.invariant?/1`, asserted by `Test.Harness` after every accepted transition and by `r4_exhaustive_test.exs` over the reachable set | Are the facts in an accepted state mutually coherent? Distinct from `State.well_formed?/1`, which checks shapes. This is the only mechanism that inspects an effect body's result rather than a guard's decision. It asserts; it does not refuse — `apply/2` never calls it. |
+| **Harness routing** | `test/pramana_foundry/workflow/r4_no_direct_apply_test.exs` | Does every test call site actually reach the kernel through the wrapper that asserts? A wrapper nothing is obliged to use decays into one nothing uses, and the claim it supports stays standing while becoming false. |
 | **Guard reachability** | `test/pramana_foundry/workflow/r4_guard_reachability_test.exs` | Which declared refusals can actually happen. A guard nothing can trip is dead code that reads as a safeguard. |
 
 If you add a guard or a transition and the gate stays green, **that is not evidence the
@@ -87,9 +88,18 @@ These are not style preferences. Each was bought with a review round.
    bug, a predicate matching `nil`, a regex matching 108 of 114 sites. Every one would have
    been caught by a red control. The sweep now runs one at startup and halts if it fails.
 2. **Every claim of absence reports its denominator.** "Zero violations" is meaningless
-   without "out of N witnesses". Measuring the bound is what collapsed two standing
-   reachability claims: at depth 8 over 238,000 states the unseeded search reaches 45
-   states with an attempt in `reviewing` and **zero** with a recorded verdict.
+   without "out of N witnesses". `State.measure/1` returns each invariant family's
+   `{precondition_held?, violations}` from the code that produces the violations, so the
+   denominator cannot drift from the predicate, and the suite prints the per-family table at
+   the end of every run. A family whose `held` column is zero is reporting nothing out of
+   nothing — and the table is equally how a family stops looking vacuous: `receipt_custody`
+   holds 0 of 58,324 over the bounded search and **8,411** over the 253,383 transitions the
+   suite drives. `terminal_custody` was deleted outright once measurement showed it could
+   fire only on states `well_formed?/1` already refuses — 0 of 6,716.
+
+   Measuring the bound is what collapsed two standing reachability claims: at depth 8 over
+   238,000 states the unseeded search reaches 45 states with an attempt in `reviewing` and
+   **zero** with a recorded verdict.
 3. **Absence is not proof.** "No counterexample within the bound" is not "impossible", and
    the search's transitions come from a hand-written proposer. Label such a guard
    *unwitnessed*. Then either prove the invariant inductively — true initially, preserved
@@ -112,7 +122,7 @@ These are not style preferences. Each was bought with a review round.
   neutralises guards that are present; row coverage still counts the row as driven because the
   scenario *satisfies* the condition instead of testing its negation; clause coverage counts
   **outcome cells only**, so a from-state conjunct is in neither `@clauses` nor `@uncited`;
-  `State.valid?/1` is shapes; `SemanticInvariants` has no clause for controls. Measured:
+  `State.well_formed?/1` is shapes; `State.invariant?/1` has no clause for controls. Measured:
   **32 rows carry 61 from-cell conjuncts and 0 of the 61 appear in the coverage number.** The
   witness is row :467's "no pause/drain/cancel", unguarded on `launch_planned` and violated **two
   events from empty** in all three conjuncts, with `paused` and `draining` written by

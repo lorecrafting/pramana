@@ -10,6 +10,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
   use ExUnit.Case, async: true
 
   alias PramanaFoundry.Test.KernelWalk
+  alias PramanaFoundry.Test.Harness
   alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
@@ -34,10 +35,10 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
         seed = "walk"
 
         Enum.reduce(walk.accepted, State.new(), fn event, state ->
-          {:ok, next} = WorkflowKernel.apply(state, event)
+          {:ok, next} = Harness.apply(state, event)
 
-          assert State.valid?(next),
-                 "seed #{seed}: #{event["type"]} produced a state valid?/1 rejects"
+          assert State.well_formed?(next),
+                 "seed #{seed}: #{event["type"]} produced a state well_formed?/1 rejects"
 
           next
         end)
@@ -55,7 +56,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
 
         stale_sequence = %{last | "sequence" => state["last_sequence"], "event_id" => "replayed"}
 
-        assert {:error, :out_of_order_event} = WorkflowKernel.apply(state, stale_sequence),
+        assert {:error, :out_of_order_event} = Harness.apply(state, stale_sequence),
                "the kernel accepted a sequence it had already passed"
 
         stale_revision = %{
@@ -66,7 +67,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
         }
 
         assert {:error, :stale_entity_revision} =
-                 WorkflowKernel.apply(state, stale_revision),
+                 Harness.apply(state, stale_revision),
                "the kernel accepted an entity revision it had already passed"
       end
     end
@@ -108,7 +109,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
       for walk <- walks do
         replayed =
           Enum.reduce(walk.accepted, State.new(), fn event, state ->
-            {:ok, next} = WorkflowKernel.apply(state, event)
+            {:ok, next} = Harness.apply(state, event)
             next
           end)
 
@@ -125,13 +126,13 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
         split = div(length(walk.accepted), 2)
         {before, rest} = Enum.split(walk.accepted, split)
 
-        mid = Enum.reduce(before, State.new(), fn e, s -> elem(WorkflowKernel.apply(s, e), 1) end)
+        mid = Enum.reduce(before, State.new(), fn e, s -> elem(Harness.apply(s, e), 1) end)
         restarted = mid |> JSON.encode!() |> JSON.decode!()
 
         assert restarted == mid, "state did not survive a JSON round trip"
 
         resumed =
-          Enum.reduce(rest, restarted, fn e, s -> elem(WorkflowKernel.apply(s, e), 1) end)
+          Enum.reduce(rest, restarted, fn e, s -> elem(Harness.apply(s, e), 1) end)
 
         assert resumed == walk.state
       end
@@ -152,7 +153,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
           count ->
             walk.accepted
             |> Enum.reduce({State.new(), count}, fn event, {state, count} ->
-              {:ok, next} = WorkflowKernel.apply(state, event)
+              {:ok, next} = Harness.apply(state, event)
 
               if event["type"] in settlements do
                 ticket = next["tickets"][event["payload"]["ticket_id"]]
@@ -205,8 +206,8 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     } do
       for walk <- walks do
         Enum.reduce(walk.accepted, State.new(), fn event, state ->
-          {:ok, next} = WorkflowKernel.apply(state, event)
-          assert {:ok, ^next} = WorkflowKernel.apply(next, event)
+          {:ok, next} = Harness.apply(state, event)
+          assert {:ok, ^next} = Harness.apply(next, event)
           next
         end)
       end
@@ -215,7 +216,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     test "apply/2 never raises and never returns an untagged value", %{walks: walks} do
       for walk <- walks do
         for event <- walk.accepted, mangled <- mangle(event) do
-          result = WorkflowKernel.apply(walk.state, mangled)
+          result = Harness.apply(walk.state, mangled)
 
           assert match?({:ok, _}, result) or match?({:error, _}, result),
                  "#{inspect(mangled["type"])} escaped as #{inspect(result)}"
@@ -320,7 +321,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
         |> Enum.flat_map(fn walk ->
           walk.accepted
           |> Enum.reduce({State.new(), []}, fn event, {state, seen} ->
-            {:ok, next} = WorkflowKernel.apply(state, event)
+            {:ok, next} = Harness.apply(state, event)
             {next, seen ++ Enum.map(next["tickets"], fn {_id, t} -> t["phase"] end)}
           end)
           |> elem(1)

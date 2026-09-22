@@ -22,6 +22,11 @@ defmodule PramanaFoundry.Test.KernelSearch do
   """
 
   alias PramanaFoundry.Test.KernelWalk
+  # Deliberately NOT routed through `Test.Harness`, which every other test call site uses.
+  # The oracle is a function of the successor state alone, and `r4_exhaustive_test.exs`
+  # already asserts it over every state this search reaches — so asserting per accepted
+  # transition instead of per deduped reachable state adds no coverage at all, while costing
+  # the most of anywhere in the suite. `r4_no_direct_apply_test.exs` records the exemption.
   alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 

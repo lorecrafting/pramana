@@ -113,6 +113,32 @@ exception, agrees with itself, and is asserted by a test that can fail.
 **Cost.** Moderate. One module move, one call-site rename over a small vocabulary, one
 harness hook, one red-control fixture.
 
+**Resolved.** `SemanticInvariants` is now `State.violations/1` / `invariant?/1`; `valid?/1`
+is `well_formed?/1` at all 15 sites; `Test.Harness.apply/2` is the single route from a test
+to the kernel and asserts both validators on every accepted post-state, with
+`r4_no_direct_apply_test.exs` keeping that true as new tests arrive. Two of the ticket's
+instructions were **not** followed, and in both cases measurement rather than argument is
+the reason:
+
+- **`valid_attempt_order?/1`'s terminal conjunct stays in `well_formed?/1`.** The ticket
+  calls it relational sitting on the wrong side, and it is relational. Dropped it and
+  re-ran the search from all 3,358 corrupted states: 0 of 243,643 proposals returned
+  `:kernel_raised`, so the totality objection to moving it was false — but 43,497
+  transitions were then accepted, 753 producing a state `invariant?/1` calls clean, of
+  which **406 overwrite a settled disposition** against R4's "set once on terminal". An
+  assert-only oracle reports; only the validator refuses.
+- **`terminal_custody` is deleted, not promoted.** Both its halves fire only on states
+  `well_formed?/1` already refuses: over 6,716 corruptions of reachable terminal attempts
+  the clause fired on all of them and the validator accepted **0**. It could never carry
+  rule 1's failing fixture, and was reporting 0 violations out of 6,716 preconditioned
+  states by construction. Five families remain, each with its own red control.
+
+The denominator the ticket asked for is not a one-off measurement: `State.measure/1`
+returns each family's `{precondition_held?, violations}` from the same code that produces
+the violations, and the suite prints the per-family table after every run. `receipt_custody`
+remains vacuous at the search's bound and is now visible as such on every run rather than
+in a document.
+
 **Sequencing.** Before subcommit 2. Subcommit 2 builds `decide/3` on this state shape, and a
 proposer is exactly the consumer that wants a relational judgement of the post-states it
 proposes. Moving the oracle afterwards means moving it under `decide/3`.
@@ -234,9 +260,10 @@ look corroborated.
 | — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
 | — | EV-5 relations test | **done** | Landed at `b3c110e3`, gate green, awaiting an independent review of the delta |
 | — | ~~row :467 guard~~ | — | **Not a candidate.** It is B3's, outstanding and designed; subcommit 2 owns it |
-| 2 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
-| 3 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
-| 4 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
+| — | ~~`apply/2` closure~~ | — | **Not a candidate here.** Found by EV-3's harness on its first run: 16 `(type, key)` pairs produce a state `well_formed?/1` rejects, which bricks the log. Quarantined and measured in `IMPLEMENTATION-LOG.md`; needs its own candidate |
+| — | EV-3 invariant split | **done** | Landed on this branch, gate green, awaiting an independent review of the delta |
+| 2 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
+| 3 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
 
 EV-1 (coverage-guided sweep) is already designed and is sequenced by its own spike, not by
 this table.

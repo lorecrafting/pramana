@@ -22,7 +22,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
   seed-pinned evidence model.
   """
 
-  alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
+  alias PramanaFoundry.Test.Harness
   alias PramanaFoundry.Workflow.Kernel.Event
 
   @default_tickets ~w(T1 T2 T3)
@@ -134,7 +134,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
     sequence = walk.sequence + 1
     event = build(walk, type, entity_id, payload, sequence)
 
-    case WorkflowKernel.apply(walk.state, event) do
+    case Harness.apply(walk.state, event) do
       {:ok, next} when next != walk.state ->
         {:ok,
          %{
