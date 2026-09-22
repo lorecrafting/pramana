@@ -4530,3 +4530,72 @@ sentinel written at startup survives a run that swept nothing: the next launch r
 `bin/preflight.sh` fails until someone clears it. Recorded in EVIDENCE-TOOLS.md's gotcha list. The
 script's instruction for that state is right and was followed — hash the target against a known-good
 revision before deleting the sentinel, rather than assuming a halted run left the tree clean.
+
+## R4a.03.f2: not a mis-annotation, the unguarded member of a guarded family — 2026-09-22
+
+The `{:unguarded}` entry offered two branches: record the planning execution, or the contract row
+is wrong about what the reducer owns. **The second branch is closed**, and the first has a named
+shape. No kernel change here — this is the reading that decides what the candidate is.
+
+### The three siblings
+
+Every other nonstart settle in the vocabulary guards phase, entity, **and the existence of the
+execution it settles**:
+
+| Row | Handler | Phase | Entity | Execution-exists |
+|---|---|---|---|---|
+| R4a.01 developer | `launch_settled` `:439` | `~w(developing)` | `require_active_attempt/2` | `close_execution(~w(developer))` |
+| R4a.02 reviewer | `review_settled` `:734` | `~w(reviewing)` | `require_active_attempt/2` | `require_reviewer_execution/3` |
+| R4a.04 integration | `integration_settled` `:866` | `~w(integrating)` | `require_active_attempt/2` | `close_execution(~w(integration))` |
+| **R4a.03 PM** | `pm_launch_settled` `:255` | **none** | **none** | **none** |
+
+Three of four, so the reducer plainly owns this obligation and the row is not wrong about
+ownership. `pm_launch_settled` is `{:ok, consume_infrastructure_ordinal(objective, "pm")}` and
+nothing else.
+
+### It is rule 4, and the kernel already says so twice
+
+`review_settled`'s own comment (`:744-745`) records that its `require_no_recorded_verdict/1` guard
+was "the same partial generalisation corrected after review three, one level further out" — the
+developer and integration siblings were guarded, the reviewer was not, and the correction was
+applied across the family. `require_execution_role/4`'s comment (`:1470-1474`) states the principle
+outright: "one rule over the vocabulary rather than a guard attached to whichever event a walk
+happened to reach."
+
+The PM is the member neither pass reached. It is also the only member whose entity cannot express
+the guard: a ticket carries `attempts → executions`, but an objective carries `objective_id`,
+`planning_owner_id`, `proposals` and `infrastructure` (`kernel.ex:226-231`) and has no execution
+register at all. **That is why it was missed twice** — every other member could be fixed with a
+`require_*` call, and this one cannot.
+
+### What it costs to leave
+
+`consume_infrastructure_ordinal/2` is `update_in(owner, ["infrastructure", "ordinals", role], &(&1 + 1))` —
+monotone and irreversible. The contract's own text above the table says the allowance is finite,
+that "Restart, new execution IDs, profile changes, attempt resumption and duplicate receipts do not
+reset the ordinal", and that changing it "requires operator policy". So each `pm_launch_settled` with
+no corresponding plan permanently burns an allowance unit toward
+`blocked(pm_launch_infrastructure)`, and no event can give it back. The envelope pipeline does not
+help: it refuses redelivery and out-of-order events, not distinct well-formed ones, and the ordinal
+bump advances the revision so each successive settle is legitimately next.
+
+Both events are live rather than theoretical — declared in `Event`'s vocabulary with payload schemas
+(`event.ex:31,74-75`), bound in the durable transition plan as `launch_authority_v1` and
+`nonstart_settlement_v1` (`transition_plan.ex:70,77-78`), listed in `record_codec`'s
+`@lifecycle_event_types`, and driven by the proposer at `kernel_walk.ex:342,348`.
+
+### The candidate this names
+
+`pm_launch_planned` records the planning execution on the objective; `pm_launch_settled` requires it
+and closes it, mirroring `require_reviewer_execution/3`. That is a state-shape change to the
+objective, so it owes a `State.well_formed?/1` clause, the `objective_created` builder, a new error
+atom, a guard-reachability entry, a refusal test pinned to the atom, and a scoped sweep — which is
+why the entry said "needs its own candidate" and still does. What changed is that it is no longer
+an either/or, and the fix has a sibling to copy.
+
+### Not done here
+
+`R4a.02.f1` and `R4a.02.f2` remain on `@from_unclassified`. Reading `review_settled` for this
+comparison is most of the work of classifying them, but classifying a row is a per-row pass against
+its handler and doing it as a by-product of a different question is how a citation gets recorded
+that the scenario does not assert — the defect the fourth citation read found. They stay held.

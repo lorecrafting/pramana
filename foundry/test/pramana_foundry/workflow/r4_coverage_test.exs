@@ -655,9 +655,29 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # consumes a PM ordinal with no guard at all (:255-256). Nothing anywhere refuses
     # settling a launch that was never planned. Row :467 inverted: there, state is written
     # and read by nothing; here, the state that would carry the obligation is never written.
+    #
+    # The entry first offered two branches - record the execution, or the row is wrong about
+    # what the reducer owns. The second branch is closed by its three siblings. Every other
+    # nonstart settle in the vocabulary guards phase, entity AND the existence of the
+    # execution it settles: launch_settled `~w(developing)` + require_active_attempt/2 +
+    # close_execution(~w(developer)) at :439-445; review_settled `~w(reviewing)` +
+    # require_active_attempt/2 + require_reviewer_execution/3 at :734-739;
+    # integration_settled `~w(integrating)` + require_active_attempt/2 +
+    # close_execution(~w(integration)) at :866-876. The reducer owns this obligation for
+    # three roles out of four, so the row is not wrong about ownership - the PM is the
+    # unguarded member of a guarded family.
+    #
+    # Which makes it rule 4 again, and the kernel says so itself twice. review_settled's own
+    # comment (:744-745) records that its guard was "the same partial generalisation
+    # corrected after review three, one level further out" - the developer and integration
+    # siblings were already guarded and the reviewer was not. require_execution_role/4's
+    # comment (:1470-1474) states the principle: "one rule over the vocabulary rather than a
+    # guard attached to whichever event a walk happened to reach." The PM is the member that
+    # correction did not reach, and it is the only one whose entity - the objective - has no
+    # execution register to guard against, which is why it was missed both times.
     "R4a.03.f2" =>
       {:unguarded,
-       "pm_launch_planned records no execution and pm_launch_settled guards nothing, so \"planning execution\" has no witness in state and no refusal. Needs its own candidate - either the planning execution becomes recorded state, or the row is wrong about what the reducer owns"},
+       "pm_launch_planned records no execution and pm_launch_settled guards nothing, so \"planning execution\" has no witness in state and no refusal. The fourth member of a family whose other three guard phase, entity and execution-exists; the objective carries proposals and infrastructure but no execution register, so the fix is state shape, not a missing require_* call. Needs its own candidate: pm_launch_planned records the planning execution, pm_launch_settled requires and closes it, mirroring require_reviewer_execution/3"},
     "R4.04.f3" =>
       {:unguarded,
        "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
