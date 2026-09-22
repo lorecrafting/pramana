@@ -4223,3 +4223,43 @@ rather than asserted.
 **14 of 64 citations read. Three defects: one unbacked citation, one half-satisfied obligation, one
 argument recorded as an assertion.** 50 remain, and three in fourteen is a rate worth continuing on,
 not a conclusion about the fifty.
+
+## The citation pass is complete: 32 of 32 rows read, five defects — 2026-09-22
+
+Every row's `@clauses` entries have now been read against its scenario's assertions. This is the
+question the clause IDs cannot answer and the briefing named as unproven: a citation pins the
+transcription to the contract's words, never the assertion to the clause.
+
+**124 obligations: 61 asserted, 63 recorded uncited.** The asserted count fell by three over the
+pass; every one of those was a clause recorded as asserted that nothing asserted.
+
+### The five, and they are five different mistakes
+
+| row | clause | what was wrong |
+|---|---|---|
+| `cancel_finalized` | R4.28.o3 | cites **both** branches of an if/else; the scenario drives one. Predates the IDs — the same quote pair sits in `@clauses` at `16fc73db` |
+| `launch` | R4.04.o2 | "create its launch intent **and** enter developing" — only the second half asserted. **Fixed by asserting it** |
+| `integration_success` | R4.22.o4 | held by a structural argument (`ref_receipt_id` has one write site) rather than by any assertion. Rule 3's distinction exactly |
+| `blocked_result` | R4.09.o4 | the row's one refusal assertion pins `:no_blocked_result`, which is its **from-cell** conjunct, not this outcome clause. The scenario's own comment says so |
+| `review_start` | R4.15.o1 | "independent reviewer launch with its own reservation" — the two phases asserted, the launch not. **Fixed by asserting it** |
+
+Two were fixed by adding the missing assertion, three by moving the clause to `@uncited` where
+nothing can assert it as written.
+
+**The five are not one defect wearing five hats.** One is a disjunction cited on both sides and
+driven on one; one is a conjunction half-satisfied; one is an inductive argument in an assertion's
+place; one is a refusal that belongs to the other half of the row; one is a compound clause whose
+second half needed a fixture that existed all along. No single mechanism catches that set, which is
+why the honest answer to "how do we stop this" was reading, and why it took reading all 32.
+
+**What the rest of the pass showed, which matters as much.** Twenty-seven rows discharge what they
+cite, several of them better than required: `check_infrastructure_failed` pins two distinct refusals
+by exact atom across four clauses; `freeze_success` asserts the sealed generation by name;
+`check_assertion_failed` proves "failed candidate never goes to approval" with a forged event and a
+pinned atom. The bookkeeping was mostly right, and the mostly is now measured instead of assumed.
+
+**Still open, recorded rather than fixed.** `nonstart_pm`'s R4a.03.o6, "Admit no ticket and create
+no objective allocation" — the first half is asserted (`state["tickets"] == %{}`), the second is
+not, and the `pm` infrastructure ordinal the scenario does assert is a different thing from an
+allocation. The first reviewer flagged this as an observation and it stays one: saying whether the
+kernel can express "objective allocation" at all needs the contract read, not the scenario.

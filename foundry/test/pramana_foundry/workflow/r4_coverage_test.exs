@@ -86,8 +86,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ],
     blocked_result: [
       {"R4.09.o1", "Terminal blocked attempt, blocked ticket"},
-      {"R4.09.o2", "close developer"},
-      {"R4.09.o4", "Resume/rescope requires explicit command and fresh attempt"}
+      {"R4.09.o2", "close developer"}
     ],
     # R4.28.o3 was cited here and is now recorded as uncited. The scenario drives
     # `cancellation_finalized` with disposition "cancelled" and no integration, so it
@@ -290,6 +289,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # worker_closed never touch it. That is an inductive argument, not an assertion, and rule 3
     # is precisely about not recording one as the other.
     {"R4.22.o4", "Exit notifications cannot overwrite this"},
+    # Cited by blocked_result until it was read. That scenario's one refusal assertion pins
+    # :no_blocked_result, which is the row's FROM-cell conjunct "valid blocked/partial result"
+    # - its own comment says so. Nothing there touches resume or rescope.
+    {"R4.09.o4", "Resume/rescope requires explicit command and fresh attempt"},
     {"R4.28.o4", "suppress deployment"},
     {"R4a.01.o2", "and immutable base/spec/policy lineage"},
     {"R4a.01.o4", "Release launch resources."},
@@ -1590,6 +1593,14 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["phase"] == "reviewing"
     assert ticket["attempts"]["A1"]["phase"] == "reviewing"
     assert ticket["attempts"]["A1"]["review"]["candidate_id"] == "cand-1"
+
+    # R4.15.o1 is "reviewing attempt/ticket, independent reviewer launch with its own
+    # reservation". The two phases were asserted and the launch was not - the same shape as
+    # R4.04.o2's unasserted launch intent, found two rows apart. A reviewer launch is an
+    # execution with its own id and role, and nothing checked one existed.
+    launch = ticket["attempts"]["A1"]["executions"]["R1"]
+    assert launch["role"] == "reviewer"
+    assert launch["lifecycle"] == "pending"
     :driven
   end
 
