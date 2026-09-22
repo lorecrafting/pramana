@@ -3172,9 +3172,10 @@ post-state is a behaviour change on a gate-validated kernel and stays deferred.
 `drive` helper. Asserting inside `drive` would have covered a twenty-third of the suite
 while reporting a denominator that sounds like all of it — rule 2's failure mode wearing
 rule 2's clothes. `r4_no_direct_apply_test.exs` is what keeps the claim true as subcommits
-2–5 add tests: it scans `test/**` for `WorkflowKernel.apply(` and fails on any that is not
-the wrapper or the one exemption, with a red control that drives the same `File.read` and
-regex path over a fixture containing a direct call.
+2–5 add tests: it scans `test/**` for the kernel module's last segment and fails on any call
+site that is not the wrapper, with a red control per spelling driving the same `File.read` and
+`String.contains?` path over a fixture. Nothing is exempt — see the correction below, which
+also records the spellings this scan still cannot see.
 
 **`kernel_search.ex` was exempted, and the exemption was wrong twice over.** The argument was
 that the oracle is a function of the successor state alone, so asserting per accepted
@@ -3239,7 +3240,7 @@ proposer and the reducer can. `violations/1` is derived from it rather than the 
 suite prints the table after every run via `ExUnit.after_suite/1`, and a family whose `held`
 column is zero is labelled vacuous in place.
 
-Over **2,351,003 accepted transitions** at the gate-green tip:
+Over **2,351,003 judgements** at the gate-green tip — judgements, not transitions; see the correction below:
 
 | family | held | violated |
 |---|---|---|
@@ -3327,7 +3328,7 @@ testing what it claimed (**0 accepted**, so it was):
 - depth 7, scoped to `check_recorded` — the one type the proposer never reaches at depth 5:
   1,050 corruptions, 189 accepted, **147 malformed**, a 19th pair in a 13th type.
 
-**19 `(type, key)` pairs in 13 event types:**
+**At least 20 `(type, key)` pairs in 14 event types, and the bound is not established:**
 
 | event type | fields |
 |---|---|
@@ -3340,13 +3341,28 @@ testing what it claimed (**0 accepted**, so it was):
 | `stream_sealed` | `last_accepted_sequence` |
 | `launch_planned` | `attempt_id` |
 | `check_recorded` | `reason_code` |
+| `check_planned` | `check_id` |
 | `ticket_blocked`, `ticket_parked`, `artifact_blocked`, `freeze_failed` | `reason` |
 
-**Three counts of one defect, each wrong in the same direction: 2, then 16, then 19.** Every
-time the number came out of a probe whose own blind spot had not been enumerated — all fields
-hostile at once, then one value class, then one depth. The arithmetic was never the problem.
-The probe now ships with a control for exactly this, which is the only reason the third number
-is worth more than the first two.
+**Four counts of one defect, each wrong in the same direction: 2, then 16, then 19, then
+≥20.** Every time the number came out of a probe whose own blind spot had not been enumerated
+— all fields hostile at once, then one value class, then one depth, then a depth-7 pass
+*scoped to the single type the previous pass had missed*, which could not see anything else.
+Review found `check_planned.check_id` there: `add_check/2` (`kernel.ex:651`) writes the raw
+payload value as a collection key, so a map or `""` yields a check collection
+`valid_collection?/3` rejects.
+
+The probe's float class proves less than was claimed for it. `Event.value?/2` refuses floats,
+so "0 accepted" shows the corrupted payload really reaches `Event.validate/2` — probe wiring.
+It says nothing about whether malformed-post-state detection works; that half has no control.
+
+**The count is now recorded as ≥20, not as a number.** No bound is established: 5 of 37
+`Event.types()` — `integration_planned`, `integration_settled`, `integration_recorded`,
+`review_recorded`, `reviewer_closed` — were never accepted uncorrupted from any seed used, so
+21 payload keys are invisible to every run so far. Nested map values and two-key corruption are
+untried. `bin/closure_probe.exs` now ships so the next person can check rather than trust a
+figure quoted from a script that was never in the tree — which is why four wrong counts went
+unchallenged this long.
 
 Each one bricks the log permanently: the state is written, and every subsequent event then
 fails `check_state` with `:invalid_state`. It is blocker B1's shape reflected — B1 was the

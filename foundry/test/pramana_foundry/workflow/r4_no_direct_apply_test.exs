@@ -17,8 +17,9 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   # `kernel_search.ex` was exempt on the argument that routing it added no coverage. That
   # argument was false — the search's final frontier expansion drives roughly 790,000 accepted
   # transitions it then discards — and the cost it traded against had never been measured.
-  # Measured: 23 seconds, for 9x the judged transitions. The exemption is gone rather than
-  # corrected, and this list is empty rather than merely shorter.
+  # Measured: cost between noise and ~20% across four single samples, for 4.2x the DISTINCT
+  # transitions judged. The exemption is gone rather than corrected, and this list is empty
+  # rather than merely shorter.
   @harness "test/support/kernel_harness.ex"
   @exempt []
 
@@ -106,6 +107,7 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
 
     assert callers == [
              "test/pramana_foundry/workflow/kernel_test.exs",
+             "test/pramana_foundry/workflow/r4_exhaustive_test.exs",
              "test/pramana_foundry/workflow/r4_exhaustive_test.exs"
            ]
   end

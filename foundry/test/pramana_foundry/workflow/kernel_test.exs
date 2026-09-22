@@ -1064,10 +1064,10 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           event(type, entity_id, 0, 1, payload)
         end
 
-      # The ONE call that skips the harness's assertions, and the only one in the suite.
-      # This test probes apply/2 with deliberately malformed payloads, and the harness's
-      # closure assertion fails on 16 (type, key) pairs that are a real defect but not this
-      # change's — see `Harness.apply_unchecked/2`. The totality property this test exists
+      # One of two calls that skip the harness's assertions; `r4_no_direct_apply_test.exs`
+      # pins the exact set. This test probes apply/2 with deliberately malformed payloads, and
+      # the harness's closure assertion fails on at least 20 (type, key) pairs — a real defect,
+      # but not this change's — see `Harness.apply_unchecked/2`. The totality property this test
       # for is unaffected and still asserted below.
       for state <- states, built <- events do
         result = Harness.apply_unchecked(state, built)

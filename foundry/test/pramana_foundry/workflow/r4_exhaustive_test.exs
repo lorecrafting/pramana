@@ -216,6 +216,49 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
              inspect(State.violations(bad))
   end
 
+  # Red control for the harness's OTHER assertion. `Harness.apply/2` asserts two things —
+  # shape and relations — and only the relational half was witnessed: independent review
+  # neutralised `assert State.well_formed?(next)` and the whole suite stayed 196/196 green.
+  # That is the assertion that found the closure defect in the first place, and by rule 6's
+  # own standard it was working on nobody's word but mine.
+  #
+  # It needs a state that is malformed but relationally clean, which `apply/2` will accept
+  # from — and the closure defect supplies exactly that, which is the one convenient thing
+  # about it: `ticket_admitted` copies `reason` into the ticket unchecked, and a map there
+  # fails `optional_identifier?/1` while breaking no relation.
+  test "the harness fails a test when an accepted transition produces a malformed state" do
+    event = %{
+      "schema_version" => 1,
+      "event_id" => "harness-shape",
+      "type" => "ticket_admitted",
+      "entity_kind" => "ticket",
+      "entity_id" => "T9",
+      "entity_revision" => 0,
+      "sequence" => 1,
+      "payload" => %{
+        "ticket_id" => "T9",
+        "objective_id" => nil,
+        "spec_revision_id" => "spec-1",
+        "spec" => %{},
+        "phase" => "queued",
+        "reason" => %{"not" => "an identifier"}
+      }
+    }
+
+    {:ok, next} = Harness.apply_unchecked(State.new(), event)
+
+    refute State.well_formed?(next),
+           "the fixture must be MALFORMED, or this controls nothing"
+
+    assert State.violations(next) == [],
+           "and relationally CLEAN, or it would fire the other assertion instead"
+
+    error = assert_raise ExUnit.AssertionError, fn -> Harness.apply(State.new(), event) end
+
+    assert error.message =~ "well_formed?/1 rejects",
+           "the harness failed for some other reason: #{error.message}"
+  end
+
   # ── One red control per invariant family (rule 1) ─────────────────────────────────
 
   # `invariant?/1` now judges every accepted transition the suite drives, not only the states

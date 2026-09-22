@@ -93,8 +93,14 @@ These are not style preferences. Each was bought with a review round.
    denominator cannot drift from the predicate, and the suite prints the per-family table at
    the end of every run. A family whose `held` column is zero is reporting nothing out of
    nothing — and the table is equally how a family stops looking vacuous: `receipt_custody`
-   holds 0 of 58,324 over the bounded search and **8,411** over the 2,351,003 transitions the
-   suite drives — every witness it has comes from hand-driven tests, not from the search. `terminal_custody` was deleted outright once measurement showed it could
+   holds 0 of 58,324 over the bounded search and **8,411** over the transitions the suite
+   drives — every witness it has comes from hand-driven tests, not from the search.
+
+   The suite's own printed total is **judgements, not transitions**, and the distinction was
+   caught by review inside this very paragraph. `Harness` counts 2,351,003 calls, but three
+   test modules each run the depth-7 search from empty, so 54% of that is the same transition
+   judged again: **1,052,864 distinct transitions over 268,856 distinct states**. A repeated
+   judgement is not a witness. Quote the distinct figure, or say "judgements" and mean it. `terminal_custody` was deleted outright once measurement showed it could
    fire only on states `well_formed?/1` already refuses — 0 of 6,716.
 
    Measuring the bound is what collapsed two standing reachability claims: at depth 8 over
@@ -134,6 +140,13 @@ These are not style preferences. Each was bought with a review round.
   [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) exists.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
   other way is outside it.
+- **`r4_no_direct_apply_test.exs` matches call-site TEXT, so five spellings reach the kernel
+  unseen**, each confirmed live in a scratch copy: a capture (`&Kernel.apply/2` then `f.(s, e)`),
+  an alias rename (`alias ... as: K` then `K.apply(s, e)`), reflection
+  (`apply(Mod, :apply, [s, e])`), and the parenless and space-before-paren call forms. The
+  alias-rename case is the same class as the defect the scanner was built after — one of several
+  spellings, matched by one. The same blind spots apply to its `apply_unchecked(` pin. A
+  compile-time check over the AST would close this; text matching cannot.
 - Nothing except the sweep checks that a test exercises the site it *claims* to. On
   2026-09-21 a row named `kernel.ex:1595` and exercised `:1585`; it passed, and the site it
   named stayed a survivor. A site-to-test map would close this, and is the by-product of the
