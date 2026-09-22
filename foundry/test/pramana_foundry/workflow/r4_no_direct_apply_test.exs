@@ -14,8 +14,8 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   spelling (`WorkflowKernel.apply(`), which missed a fully-qualified call live in the same
   commit; then the module's last segment, which still let five spellings through — a capture,
   an alias rename, reflection, and the parenless and space-before-paren call forms. Text has
-  as many spellings as the language allows; the AST has three shapes, and each is a red
-  control below. Comments and strings are not code, so this file no longer has to keep its
+  as many spellings as the language allows; the AST has fewer shapes, and each one the scan
+  reads is a red control below. The ones it does not read are listed above `@spellings`. Comments and strings are not code, so this file no longer has to keep its
   own needle out of its own haystack.
   """
   use ExUnit.Case, async: true
@@ -57,8 +57,12 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   #
   # Not covered, and not decidable statically: a module bound at runtime —
   # `mod = Kernel; mod.apply(s, e)`, a module passed as an argument, one read from config.
-  # The scan resolves aliases and module attributes, which are the two static bindings a
-  # module name can have; a variable is not one.
+  #
+  # Not covered, though static and compiling: `Function.capture(Kernel, :apply, 2)`,
+  # `__MODULE__.Kernel` inside `defmodule PramanaFoundry.Workflow`, and any macro that
+  # expands to a call (the scan reads unexpanded source). The scan resolves aliases and
+  # module attributes, and reads remote calls, captures, `apply/3` and `:erlang.apply/3`
+  # reflection, `import` and `defdelegate`; it is not "every spelling", and says which.
   @spellings [
     {"fully-qualified", "PramanaFoundry.Workflow.Kernel.apply(s, e)"},
     {"aliased", "alias PramanaFoundry.Workflow.Kernel\n Kernel.apply(s, e)"},
@@ -71,7 +75,23 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
     {"qualified reflection",
      "alias PramanaFoundry.Workflow.Kernel, as: K\n Kernel.apply(K, :apply, [s, e])"},
     {"module attribute", "@k PramanaFoundry.Workflow.Kernel\n @k.apply(s, e)"},
-    {"atom literal", ":\"Elixir.PramanaFoundry.Workflow.Kernel\".apply(s, e)"}
+    {"atom literal", ":\"Elixir.PramanaFoundry.Workflow.Kernel\".apply(s, e)"},
+    {"alias rebound by a later module",
+     "defmodule A do\n alias PramanaFoundry.Workflow.Kernel\n def f(s, e), do: Kernel.apply(s, e)\nend\n" <>
+       "defmodule B do\n alias PramanaFoundry.DurableStore.Kernel\nend"},
+    {"renamed alias rebound later",
+     "alias PramanaFoundry.Workflow.Kernel, as: K\n K.apply(s, e)\n alias PramanaFoundry.Test.Harness, as: K"},
+    {"as: then warn: false",
+     "alias PramanaFoundry.Workflow.Kernel, as: K, warn: false\n K.apply(s, e)"},
+    {"warn: false then as:",
+     "alias PramanaFoundry.Workflow.Kernel, warn: false, as: K\n K.apply(s, e)"},
+    {"multi-alias with warn: false",
+     "alias PramanaFoundry.Workflow.{Kernel, Other}, warn: false\n Kernel.apply(s, e)"},
+    {"import", "import PramanaFoundry.Workflow.Kernel\n apply(s, e)"},
+    {"import only:", "import PramanaFoundry.Workflow.Kernel, only: [apply: 2]\n apply(s, e)"},
+    {"defdelegate", "defdelegate go(s, e), to: PramanaFoundry.Workflow.Kernel, as: :apply"},
+    {"erlang reflection",
+     "alias PramanaFoundry.Workflow.Kernel, as: K\n :erlang.apply(K, :apply, [s, e])"}
   ]
 
   for {name, source} <- @spellings do
@@ -159,63 +179,81 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   end
 
   # `Mod.apply(...)`, `Mod.apply ...`, `&Mod.apply/2` — one node shape, any arity — and
-  # `Kernel.apply(Mod, :apply, args)`, Elixir's reflection spelled with its module.
+  # `Kernel.apply(Mod, :apply, args)` or `:erlang.apply(Mod, :apply, args)`, reflection
+  # spelled with its module.
   defp kernel_apply?({{:., _, [mod, :apply]}, _, args}, b),
-    do: resolve(mod, b) == @kernel or reflects?(mod, args, b)
+    do: kernel?(mod, b) or reflects?(mod, args, b)
 
   # `apply(Mod, :apply, args)`, the same reflection imported.
   defp kernel_apply?({:apply, _, args}, b), do: reflects?(Kernel, args, b)
+
+  # `import` of the kernel, reported at the import: the bare `apply(s, e)` it enables is
+  # indistinguishable from `Kernel.apply/2` without resolving imports, so the import is the
+  # site. With or without `only:`.
+  defp kernel_apply?({:import, _, [mod | _]}, b), do: kernel?(mod, b)
+
+  # `defdelegate f(s, e), to: Kernel` — a call site under another name, reported where declared.
+  defp kernel_apply?({:defdelegate, _, [_, opts]}, b) when is_list(opts),
+    do: kernel?(Keyword.get(opts, :to), b)
+
   defp kernel_apply?(_, _), do: false
 
-  defp reflects?(callee, [target, :apply | _], b),
-    do: resolve(callee, b) == Kernel and resolve(target, b) == @kernel
+  defp kernel?(mod, b), do: @kernel in resolve(mod, b)
+
+  defp reflects?(callee, [target, :apply | _], b) do
+    callees = resolve(callee, b)
+    (Kernel in callees or :erlang in callees) and kernel?(target, b)
+  end
 
   defp reflects?(_, _, _), do: false
 
-  # Static module bindings in the file: `alias A.B`, `alias A.B, as: C`, `alias A.{B, C}` and
-  # `@name A.B`. Collected file-wide rather than per lexical scope, which can only over-report.
+  # Static module bindings in the file: `alias A.B`, `alias A.B, as: C`, `alias A.{B, C}`,
+  # each with any further options (`warn: false`), and `@name A.B`. Collected file-wide rather
+  # than per lexical scope, and each name keeps EVERY module it is ever bound to, so a later
+  # alias in another module cannot hide an earlier one: a name resolves to the set, and the
+  # scan reports if the kernel is in it. That can over-report, never under-report.
   defp bindings(quoted) do
     quoted
     |> nodes()
     |> Enum.reduce(%{}, fn
-      {:alias, _, [{{:., _, [prefix, :{}]}, _, targets}]}, acc ->
-        Enum.reduce(targets, acc, fn {:__aliases__, _, segs}, acc ->
-          bind(acc, List.last(segs), Module.concat([resolve(prefix, acc) | segs]))
-        end)
+      {:alias, _, [{{:., _, [prefix, :{}]}, _, targets} | _]}, acc ->
+        for {:__aliases__, _, segs} <- targets,
+            base <- resolve(prefix, acc),
+            reduce: acc do
+          acc -> bind(acc, List.last(segs), Module.concat([base | segs]))
+        end
 
       {:alias, _, [{:__aliases__, _, segs} = target | opts]}, acc ->
         name =
-          case opts do
-            [[as: {:__aliases__, _, [as]}]] -> as
+          case Keyword.get(List.flatten(opts), :as) do
+            {:__aliases__, _, [as]} -> as
             _ -> List.last(segs)
           end
 
-        bind(acc, name, resolve(target, acc))
+        Enum.reduce(resolve(target, acc), acc, &bind(&2, name, &1))
 
       {:@, _, [{name, _, [value]}]}, acc ->
-        bind(acc, {:@, name}, resolve(value, acc))
+        Enum.reduce(resolve(value, acc), acc, &bind(&2, {:@, name}, &1))
 
       _, acc ->
         acc
     end)
   end
 
-  defp bind(acc, _name, nil), do: acc
-  defp bind(acc, name, module), do: Map.put(acc, name, module)
+  defp bind(acc, name, module), do: Map.update(acc, name, [module], &[module | &1])
 
+  # Every module the spelling can name. An aliased first segment also keeps its literal
+  # meaning, which is what it names above the alias.
   defp resolve({:__aliases__, _, [first | rest]}, bindings) when is_atom(first) do
-    case bindings do
-      %{^first => module} -> Module.concat([module | rest])
-      _ -> Module.concat([first | rest])
-    end
+    for base <- [first | Map.get(bindings, first, [])], do: Module.concat([base | rest])
   end
 
-  defp resolve({:@, _, [{name, _, nil}]}, bindings), do: bindings[{:@, name}]
-  defp resolve(module, _) when is_atom(module), do: module
-  defp resolve(_, _), do: nil
+  defp resolve({:@, _, [{name, _, nil}]}, bindings), do: Map.get(bindings, {:@, name}, [])
+  defp resolve(module, _) when is_atom(module), do: [module]
+  defp resolve(_, _), do: []
 
-  # A fixture under the test tree, gone when the test is, so a crash cannot leave the real
-  # scan a file to report.
+  # A fixture under the test tree, removed in `on_exit`. A VM killed mid-test skips `on_exit`
+  # and can leave one behind; the next run's real scan then reports it, loudly, by path.
   defp fixture(source) do
     path = "test/r4_direct_apply_fixture_#{:erlang.unique_integer([:positive])}.exs"
     File.write!(path, source <> "\n")

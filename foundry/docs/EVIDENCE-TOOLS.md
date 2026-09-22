@@ -31,7 +31,7 @@ on every candidate whether or not the session knows they exist.
 | **From-cell classification** | same file | Does every from-state obligation have a refusal behind it? IDs are annotated into the contract's governing tables and parsed out at test time; each must be `{:guarded, atoms}` with atoms the kernel declares, `{:protected, why}`, `{:input, why}` (the conjunct names the event, not a precondition), `{:effect, why}` (a branch inside the effect body, accepted either way) or `{:unguarded, why}` — a recorded defect. The classification split is in `@from_obligations` and `@from_unclassified` in that file, which is where it is computed; it is not restated here. It proves a guard EXISTS, never that the named one is right, and never that a test exercises it. |
 | **Bounded exhaustive search** | `test/support/kernel_search.ex`, asserted in `r4_exhaustive_test.exs` | Every state reachable within a depth, with the exact event path to any violation. `:from` seeds it from a driven state, because depth is spent on the way in. |
 | **Semantic invariants** | `State.invariant?/1`, asserted by `Test.Harness` after every accepted transition and by `r4_exhaustive_test.exs` over the reachable set | Are the facts in an accepted state mutually coherent? Distinct from `State.well_formed?/1`, which checks shapes. This is the only mechanism that inspects an effect body's result rather than a guard's decision. It asserts; it does not refuse — `apply/2` never calls it. |
-| **Harness routing** | `test/pramana_foundry/workflow/r4_no_direct_apply_test.exs` | Does every test call site actually reach the kernel through the wrapper that asserts? A wrapper nothing is obliged to use decays into one nothing uses, and the claim it supports stays standing while becoming false. It scans for the module's last segment, not one spelling — the first version matched `WorkflowKernel` only and missed a fully-qualified call live in the same commit, which is the declared-reason inventory's one-of-two-spellings defect reproduced in a new mechanism. **2026-09-22:** it now reads the AST rather than the text — aliases (plain, `as:`, multi-alias) and module attributes resolved per file, and a remote call, capture or `apply/3` reflection reported under any spelling, with a red-control fixture per spelling. A module bound at runtime (`mod = Kernel; mod.apply(s, e)`) is the one spelling it cannot see. |
+| **Harness routing** | `test/pramana_foundry/workflow/r4_no_direct_apply_test.exs` | Does every test call site actually reach the kernel through the wrapper that asserts? A wrapper nothing is obliged to use decays into one nothing uses, and the claim it supports stays standing while becoming false. It scans for the module's last segment, not one spelling — the first version matched `WorkflowKernel` only and missed a fully-qualified call live in the same commit, which is the declared-reason inventory's one-of-two-spellings defect reproduced in a new mechanism. **2026-09-22:** it now reads the AST rather than the text — aliases (plain, `as:`, multi-alias, with any options) and module attributes resolved per file, each name to every module it is ever bound to, and a remote call, capture, `apply/3` or `:erlang.apply/3` reflection, `import` or `defdelegate` of the kernel reported, with a red-control fixture per shape. Not covered: a module bound at runtime, `Function.capture/3`, `__MODULE__.Kernel`, and calls produced by macro expansion. |
 | **Guard reachability** | `test/pramana_foundry/workflow/r4_guard_reachability_test.exs` | Which declared refusals can actually happen. A guard nothing can trip is dead code that reads as a safeguard. |
 
 If you add a guard or a transition and the gate stays green, **that is not evidence the
@@ -198,15 +198,21 @@ These are not style preferences. Each was bought with a review round.
 
   **Closed 2026-09-22, except for one case.** The scan now parses every `test/**/*.{ex,exs}`
   with `Code.string_to_quoted/2`, resolves aliases (`alias A.B`, `alias A.B, as: C`,
-  `alias A.{B, C}`) and module attributes file-wide, and reports three AST shapes: a remote call
-  or capture of the kernel's `apply` under any resolved spelling (the plain, parenless and
-  space-before-paren forms are one node), and `apply/3` reflection — imported or spelled
-  `Kernel.apply` — whose module argument resolves to the kernel. Eleven red-control fixtures,
-  one per spelling, are each shown reported with a line number; a negative control with the
-  module in a comment, in a string and another module's `apply/2` is shown not reported. The
-  `apply_unchecked` pin is AST-based too and still names the same two sites. The text scan is
-  deleted, not kept alongside. **What remains:** a module bound at runtime — a variable, an
-  argument, a config value — is not decidable statically, and the scan does not claim it.
+  `alias A.{B, C}`, each with any further options such as `warn: false`) and module attributes
+  file-wide — a name resolves to *every* module it is bound to anywhere in the file, so a later
+  alias cannot hide an earlier one — and reports: a remote call or capture of the kernel's
+  `apply` (the plain, parenless and space-before-paren forms are one node); `apply/3` reflection
+  — imported, `Kernel.apply` or `:erlang.apply` — whose module argument resolves to the kernel;
+  and an `import` of the kernel or a `defdelegate ..., to:` it, each at its own line. Twenty
+  red-control fixtures, one per shape, are each shown reported with a line number; a negative
+  control with the module in a comment, in a string and another module's `apply/2` is shown not
+  reported. The `apply_unchecked` pin is AST-based too and still names the same two sites. The
+  text scan is deleted, not kept alongside. **What remains:** a module bound at runtime — a
+  variable, an argument, a config value — is not decidable statically; and three static shapes
+  compile but are not read: `Function.capture(K, :apply, 2)`, `__MODULE__.Kernel` inside
+  `defmodule PramanaFoundry.Workflow`, and a call a macro expands to. The first version of this
+  close claimed "any spelling" and missed shapes that review compiled against the kernel —
+  alias rebinding, `warn: false`, `import`, `defdelegate`, `:erlang.apply` among them.
 - Nothing except the sweep checks that a test exercises the site it *claims* to. On
   2026-09-21 a row named `kernel.ex:1595` and exercised `:1585`; it passed, and the site it
   named stayed a survivor. A site-to-test map would close this, and is the by-product of the

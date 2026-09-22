@@ -4940,13 +4940,14 @@ pre- and post-source clean.
 `EVIDENCE-TOOLS.md` recorded five spellings that reached the kernel unseen — a capture, an
 alias rename, reflection, and the parenless and space-before-paren call forms. The scan now
 parses every `test/**/*.{ex,exs}` with `Code.string_to_quoted/2`, resolves aliases (plain,
-`as:`, multi-alias) and module attributes per file, and reports three AST shapes: a remote call
-or capture of the kernel's `apply` under any resolved spelling, and `apply/3` reflection whose
-module argument resolves to the kernel.
+`as:`, multi-alias, each with any options) and module attributes per file — each name to every
+module it is ever bound to, so a later alias cannot hide an earlier one — and reports a remote
+call or capture of the kernel's `apply`, `apply/3` or `:erlang.apply/3` reflection whose module
+argument resolves to the kernel, and an `import` or `defdelegate` of the kernel at its own line.
 
-**Red controls (rule 1):** eleven fixtures, one per spelling — the five above, the
+**Red controls (rule 1):** twenty fixtures, one per shape — the five above, the
 fully-qualified call, the plain and multi-alias forms, `Kernel.apply/3` spelled with its
-module, a module attribute and an atom literal — each written under `test/` during the test,
+module, a module attribute, an atom literal, and nine added after review (below) — each written under `test/` during the test,
 removed in `on_exit`, and each reported with its line. A negative control names the module in
 a comment and a string and calls another module's `apply/2`; it is not reported. A planted
 parenless call under `test/` turned the live wildcard scan red at `test/r4_planted_probe.exs:2`
@@ -4958,6 +4959,17 @@ Everything the text scan matched the AST scan matches, and comments and strings 
 in the haystack. `K.apply (s, e)` with two arguments is a syntax error; the space-before-paren
 form that compiles is `K.apply (s), e`, and it is the same node as the plain call.
 
+**Review correction (same day, before push; this entry is amended in place rather than
+followed by a second one).** The first version said "any spelling" and missed shapes that
+compile against the kernel: `bindings/1` was last-alias-wins, so a later `alias` of the same
+name in another module (or a rebound `as: K`) hid a real call — an under-report its comment
+said could not happen; any alias with a second option (`as: K, warn: false`, `warn: false, as: K`,
+`alias A.{B, C}, warn: false`) bound nothing; and `import`, `defdelegate ..., to:` and
+`:erlang.apply/3` were not read. Bindings are now name => every module, and each of the nine
+cases has a red-control fixture that failed on the prior scanner (9 of 27 red) and passes now.
+
 **What remains:** a module bound at runtime (`mod = Kernel; mod.apply(s, e)`, an argument, a
-config value) is not decidable statically. The test says so; the gap bullet keeps its history
-and carries the dated close.
+config value) is not decidable statically; `Function.capture(K, :apply, 2)`,
+`__MODULE__.Kernel` inside `defmodule PramanaFoundry.Workflow`, and calls produced by macro
+expansion are static but not read. The test says so; the gap bullet keeps its history and
+carries the dated close.
