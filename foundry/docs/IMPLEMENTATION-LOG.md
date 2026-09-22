@@ -4100,3 +4100,39 @@ this subcommit, now living inside the mechanism built to catch them.
 
 **55 citations remain unread.** One unbacked citation in the first four is a finding about those 55,
 not a conclusion about them.
+
+## The live-count check is reverted — right problem, wrong thing, wrong place — 2026-09-22
+
+Two entries above describe a mechanism pinning documentation counts to the artifact, and one of them
+says it "proved itself in production". Both stand as the record of what was done; this corrects it.
+
+**Reverted at the operator's direction, and the direction was right.** The check was removed from
+`r4_coverage_test.exs` along with its registry and its row in the mechanism table. Kept: the
+`R4.28.o3` citation finding it was tangled up with, the `63 asserted / 61 recorded uncited` counts
+that finding produced, and the EV-2 ticket-row correction.
+
+**Three things were wrong with it, in increasing order of importance.**
+
+It was in the wrong file. A workflow-kernel coverage test failing because a sentence in
+`EVIDENCE-TOOLS.md` was reworded is two unrelated concerns sharing a suite.
+
+**A home for it already existed and was not looked for.** `bin/check_docs.exs` is the repo-root
+documentation check — routing, links, rule coverage, indexes, layout — and it carries
+`test/docs/hygiene_test.exs`. Documentation hygiene is an existing category in this repository. It
+had been run earlier the same day, green at 80 tests. The mechanism was written without asking
+whether the mechanism already had somewhere to live.
+
+**It was not in the candidate's scope and was added unreviewed**, immediately after two review rounds
+had blocked the same author for confident unilateral work. "Five rounds blocked on stale prose" is an
+argument for *a* mechanism. It is not an argument for *this* mechanism in *this* file, and those two
+were never separated before code was written.
+
+**On the evidence claimed for it.** It caught one drift: a count moved by the same author, minutes
+after writing the check, on a change already known to be coming. That is a smoke test. Recording it
+as "proved itself in production" overstated n=1 self-generated evidence, in a log whose whole subject
+is claims outrunning what supports them.
+
+**The problem it aimed at is real and is still open.** Five review rounds on this branch, none about
+wrong code, every one about a claim left standing after the thing it described moved. If it is worth
+solving it belongs in `bin/check_docs.exs`, scoped repo-wide, and — given the history above — proposed
+before it is built.
