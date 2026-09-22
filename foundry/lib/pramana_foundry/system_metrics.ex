@@ -40,7 +40,11 @@ defmodule PramanaFoundry.SystemMetrics do
       "process_limit" => unwrap_count(:erlang.system_info(:process_limit)),
       "run_queue_length" => if(is_list(run_queue), do: hd(run_queue), else: run_queue),
       "uptime_seconds" => elem(wall_clock, 0) |> div(1000),
-      "ets_table_count" => length(:erlang.system_info(:ets_data) |> elem(0))
+      # `:ets_data` is not a system info item, so this raised on every call and took the
+      # Improver's whole cycle with it. It was also malformed twice over: had the item
+      # existed, `length(elem(_, 0))` is not a table count. `:ets_count` returns it directly
+      # and goes through `unwrap_count/1` like every other system_info read above.
+      "ets_table_count" => unwrap_count(:erlang.system_info(:ets_count))
     }
   end
 

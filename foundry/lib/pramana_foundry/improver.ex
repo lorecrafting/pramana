@@ -494,7 +494,23 @@ defmodule PramanaFoundry.Improver do
     Path.join([root, "state", "current", "findings.jsonl"])
   end
 
+  # A metrics snapshot is diagnostic; proposing hardening tickets is the cycle's purpose. This
+  # call sits at :138, after the findings are computed and written and BEFORE the proposal step
+  # below, so when `SystemMetrics.system/0` raised it did not merely lose the snapshot — it
+  # discarded the proposals, the cycle counter and the generation pointer, every cycle, for as
+  # long as the defect existed. Nothing downstream of a failed snapshot is worth abandoning, so
+  # the snapshot fails alone and says so rather than taking the cycle with it.
   defp log_metrics(state) do
+    try do
+      record_metrics(state)
+    rescue
+      error ->
+        IO.puts("  metrics snapshot failed, continuing cycle: #{Exception.message(error)}")
+        state
+    end
+  end
+
+  defp record_metrics(state) do
     # Full system snapshot: VM stats + per-process + agent server metrics
     system = PramanaFoundry.SystemMetrics.system()
     per_proc = PramanaFoundry.SystemMetrics.per_process()
