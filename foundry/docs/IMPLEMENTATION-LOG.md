@@ -4308,3 +4308,53 @@ The general lesson is narrow and worth keeping: *"nothing asserts this, so recor
 the cheap half of rule 3. The rule's own instruction is to prove it inductively or delete it, and a
 third option — write the test — was available and unlooked-for. Recording a gap is not the same as
 closing one, and it reads almost the same in a log.
+
+## The gate has an unmeasured false-red rate, and the mechanism is a wall-clock budget — 2026-09-22
+
+`Checks.RunnerTest`, "a replacement-owner mismatch (same pid, wrong recorded start time) refuses to
+signal a live process", failed the gate twice at `b9a0daa4` and passed on the third run. Same commit,
+same tree, no edit between runs.
+
+| run | result |
+|---|---|
+| gate 1 at `b9a0daa4` | **failed**, 948/949 |
+| gate 2, same commit | **failed**, 948/949, same test |
+| isolation, 3 runs | passed 8/8 each |
+| `mix test` directly | passed, 950 (the gate excludes one test, hence 949) |
+| gate 3, same commit | **passed**, 949 |
+
+**The gate runs `seed: 0`.** Ordering is therefore fixed across all of these, so the variance is not
+test order — it is wall-clock. That matters, because "flaky test" usually means ordering and this one
+cannot be.
+
+**The mechanism.** `runner_test.exs:123-130` spawns a real OS process with `sh -c "sleep 2; true"`,
+takes an identity snapshot, and after asserting the forged-identity refusal takes a **second**
+snapshot and requires it to be unchanged. The whole sequence must complete inside the process's
+two-second lifetime. Under a loaded machine it does not, the process exits, and the second snapshot
+disagrees. Green alone, red under a full suite, and monotonically more likely as the suite grows.
+
+`LegacyPersistenceContainmentTest`'s "legacy integration is suspended..." — red once and green once
+earlier today, 3/3 in isolation — is very probably the same shape. **Two members make it a class,
+not a quirk**, which is a different diagnosis from the one the handoff carried ("nondeterministic;
+hypothesis in memory").
+
+### Two things this costs, and the second is the serious one
+
+**A caveat became the likely explanation.** Twice today the possibility was raised that this branch's
+added async tests shift timing, and twice it was left as an unfalsifiable aside. `b9a0daa4` added one
+more `Harness.apply` to an async test, and a marginally heavier suite is exactly what tips a
+two-second budget. The delta did not *cause* the defect — the budget is the defect — but it plausibly
+raised the rate, and the honest form of that is not "unrelated flake".
+
+**Every green gate on this branch is weaker evidence than it was reported as.** Roughly fifteen green
+runs were recorded today, several of them cited as the warrant for a commit. A suite with an
+unmeasured false-red rate also has an unmeasured relationship between "green" and "correct" —
+smaller, since a false green needs a defect the suite would otherwise catch, but not zero, and not
+measured. The rule that one red gate is not a verdict has a twin nobody wrote down: **one green gate
+is not a verdict either**, and this branch has been leaning on single green runs throughout.
+
+**Not fixed here, and deliberately.** The defect is in two tests that hold wall-clock budgets against
+real processes while running concurrently with everything else. Fixing them is its own candidate —
+raise the budget, or stop depending on liveness — and a branch about clause IDs has no business
+editing `Checks.RunnerTest`. What that candidate owes first is a **measured rate**: repeated full-suite
+runs at one fixed commit, which is the number nobody has and everybody has been assuming.
