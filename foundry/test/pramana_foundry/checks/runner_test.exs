@@ -127,7 +127,12 @@ defmodule PramanaFoundry.Checks.RunnerTest do
     forged = %{identity | started_at: "definitely not the real start time"}
 
     assert {:error, :stale_identity} = ProcessGroup.signal(forged, :sigterm)
-    assert {:ok, ^identity} = ProcessGroup.identity(pid)
+
+    # `same_process?/2`, not a whole-map pin: `identity/1` also carries the live `ps`
+    # state, which flips R -> S as the forked `sh` settles into `sleep` -- 2 failures in
+    # 200 runs of this file. Production identity equality is @identity_fields exactly.
+    assert {:ok, actual} = ProcessGroup.identity(pid)
+    assert ProcessGroup.same_process?(identity, actual)
     Runner.terminate(spec, identity, "test cleanup")
     _ = await_completion(spec, 3_000)
   end
@@ -155,6 +160,11 @@ defmodule PramanaFoundry.Checks.RunnerTest do
     assert {:error, :stale_identity} = Runner.terminate(spec, forged, "must not signal foreign")
     assert {:ok, actual} = ProcessGroup.identity(pid)
 
+    # NOT `same_process?/2` here, unlike the test above: `/usr/bin/python3` re-execs into
+    # the framework Python, so `command` differs between two reads of the same live pid
+    # (shim path, then Contents/MacOS/Python). `same_process?/2` compares `command`, so it
+    # reads this process as a replacement owner. That is a live production question, filed
+    # separately; this assertion pins the fields that are stable for a re-execing child.
     assert Map.take(actual, [:pid, :process_group_id, :started_at]) ==
              Map.take(identity, [:pid, :process_group_id, :started_at])
 

@@ -4358,3 +4358,124 @@ real processes while running concurrently with everything else. Fixing them is i
 raise the budget, or stop depending on liveness — and a branch about clause IDs has no business
 editing `Checks.RunnerTest`. What that candidate owes first is a **measured rate**: repeated full-suite
 runs at one fixed commit, which is the number nobody has and everybody has been assuming.
+
+## The gate's false-red is measured at 2 in 200, and it is not a wall-clock budget — 2026-09-22
+
+The entry above named the defect "two tests that hold wall-clock budgets against real processes
+while running concurrently with everything else", named `Checks.RunnerTest` and
+`LegacyPersistenceContainmentTest` as its two members, and asked the next candidate for a measured
+rate before anything else. The rate is now measured. **Every part of the diagnosis was wrong except
+the file name**, and the entry above stays as written — it is history, and this one supersedes it.
+
+### The measurement
+
+`mix test test/pramana_foundry/checks/runner_test.exs --seed 0`, 200 sequential runs at 9f15a5d0
+with nothing else touching the tree: **2 failures in 200**, runs 20 and 167, the same test both
+times — "a replacement-owner mismatch (same pid, wrong recorded start time) refuses to signal a live
+process", `runner_test.exs:117`.
+
+The measurement did not need the full suite. The entry above assumed a full-suite run was required
+because it assumed suite load was the cause; the file runs in 0.7 seconds, so 200 isolated runs cost
+less than one gate run and yield a per-test rate instead of a suite-wide one.
+
+### Three wrong things in the prior diagnosis
+
+**Not wall-clock.** Every `sleep 2` test in that file calls `Runner.terminate` before awaiting
+completion, so the 3,000 ms budgets cover a SIGTERM round trip, not a two-second sleep. The file
+finishes in 0.7 s; no budget in it is approached. The prior entry's "the whole sequence must complete
+inside the process's two-second lifetime" describes code that is not there.
+
+**Not concurrency.** `Checks.RunnerTest` is `async: false` (`runner_test.exs:7`), with a comment
+recording that `async: true` was already tried and reverted for this exact reason. ExUnit runs sync
+modules one at a time after the async phase drains, so these tests race nothing in the suite. The
+"marginally heavier suite tips a two-second budget" mechanism cannot operate.
+
+**Not two tests.** `LegacyPersistenceContainmentTest` is not a member and is not a wall-clock test at
+all. Its two `1_000` values (`:264`, `:305`) are the `budget` positional argument to
+`Tick.process_queue/13`. The file forks no OS process. "Two members make it a class, not a quirk" was
+built on a file nobody opened.
+
+### What it actually is
+
+`ProcessGroup.identity/1` returns the live `ps` `state` field alongside the identity proper. The test
+pinned the **whole map** across two reads:
+
+    assert {:ok, ^identity} = ProcessGroup.identity(pid)
+
+Both failures are `state: "RNs"` on the first read and `"SNs"` on the second — the forked
+`sh -c "sleep 2; true"` is briefly runnable, then sleeping. Nothing about timing budgets; a volatile
+field was pinned as if it were identity.
+
+Production never had this bug. `ProcessGroup.same_process?/2` compares
+`@identity_fields [:pid, :process_group_id, :started_at, :command]` — `state` and `parent_pid` are
+deliberately excluded, and `state` is read only by `presence/2` for the `Z`-prefix zombie check. The
+test hand-rolled a stricter notion of identity than the module exports, and the extra strictness was
+the defect.
+
+### The fix, and its red control
+
+One site: `runner_test.exs:130` now reads through the exported predicate.
+
+    assert {:ok, actual} = ProcessGroup.identity(pid)
+    assert ProcessGroup.same_process?(identity, actual)
+
+Neutralised (`%{identity | pid: identity.pid + 1}`), the file goes 7/8; reversed, 8/8. The
+predicate's own discrimination already has a red control at `process_group_test.exs:35`, which
+refutes a mismatch in each of the four fields in turn — so no new test was written.
+
+**0 failures in 200 post-fix runs, same command, same seed, same commit.** That number on its own
+would prove little: by the rule of three, 0/200 is consistent with any rate below about 1.5%, which
+is barely under the 1% just measured. It is corroboration. The proof is that the field that failed
+twice is now excluded from the comparison by construction, and the exclusion is the production
+definition rather than a second hand-rolled one.
+
+### A second defect, found by the fix, not fixed here
+
+Applying the same predicate to the sibling assertion at `:157` turned it red, and the reason is a
+live production question:
+
+    # 1  command: "/usr/bin/python3 -c import time; time.sleep(30) defunct-runner-caller"
+    # 2  command: ".../Python.app/Contents/MacOS/Python -c import time; time.sleep(30) ..."
+
+Same pid, same group, same start time, different `command` — `/usr/bin/python3` re-execs into the
+framework Python, so two `ps` reads of one live process disagree on argv[0]. `same_process?/2`
+compares `command`, so it reads that process as a **replacement owner**.
+
+That predicate is not test-only. `signal/3` (`process_group.ex:86`) refuses to signal when it
+returns false, and `Checks.Status.classify/1` (`status.ex:58`) compares a **recorded** identity
+against a **live** one. A recorded identity is captured at launch — the earliest read, most likely to
+catch the pre-exec argv — and every later cancellation re-reads and compares. So a check whose
+command is a re-execing shim can become **permanently uncancellable**, refused by the very guard
+written to prevent signalling the wrong process, and reported as `:stale_identity` for a process that
+is alive and ours.
+
+Unverified beyond the two `ps` reads above: whether `Checks.Runner` records identities early enough
+to hit it in practice, and whether any real launch profile uses a shim of this shape. That is the
+next thing to establish, and it belongs to FR-04 (owner of verified-owned-resource cleanup and the
+prior false-death correction), not to this branch. `runner_test.exs:157` keeps its three-field
+comparison with a comment naming why it is not the exported predicate, so the next reader does not
+repeat the substitution.
+
+### Why the format-debt error survived eighteen green gates
+
+Separately confirmed while reading the gate: `ci/format_debt.exs` pins
+`lib/pramana_foundry/system_metrics.ex` to a sha256 that no longer matches, and the current
+`ci-artifacts/provenance.json` carries `result: "passed"` beside
+`format_debt: {"error": "format-debt baseline changed"}`.
+
+The mechanism is one line. `formatted_paths/1` (`ci.ex:542`) strips every debt path out of
+`mix format --check-formatted`, so the exemption is live. `verify_format_debt/2` (`ci.ex:567`) exists
+precisely to prove the exemption still covers the bytes it was granted for, and raises when it does
+not. `safe_value/1` (`ci.ex:782`) rescues that raise into a map field, and no `require_stage/2` ever
+reads the field. An exemption went stale and the check built to notice logged its own failure into
+the manifest as data.
+
+The drift has a provenance: `63ee6cb6` ("let the Improver finish a cycle for the first time") edited
+`system_metrics.ex` — the live defect recorded against FR-23 — without refreshing the pin. So the
+file that was exempt from formatting because of its inherited state has since been rewritten, and
+has been unformatted-by-exemption ever since.
+
+Not fixed here. Routing `format_debt` through `require_stage/2` alongside `:source_preflight`,
+`:toolchain` and `:lockfile` is a one-line change that turns the gate red on the next run, and which
+red it should be — reformat the file and drop it from the debt list, or re-pin deliberately — is an
+operator decision, not a side effect of a flake measurement.
