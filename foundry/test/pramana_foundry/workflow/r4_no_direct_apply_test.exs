@@ -90,9 +90,11 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   # The harness's assertions can also be skipped from inside it, by `apply_unchecked/2`, and
   # an escape hatch nothing counts is one that spreads because it is convenient. Two call
   # sites, each named here so widening the set is a deliberate edit to this test: the B1
-  # totality probe, which drives malformed payloads past the closure defect that is
-  # quarantined rather than fixed, and the harness's own wiring control, which has to ask the
-  # kernel for its verdict before showing the harness rejecting the same event.
+  # totality probe, which drives hostile payloads and claims nothing about relations, and
+  # the harness's relational wiring control, which has to ask the kernel for its verdict
+  # before showing the harness rejecting the same event. A third site, the harness's shape
+  # wiring control, went when the kernel took over shape (property 6): it is now the
+  # kernel's own red control and routes through `Harness.apply/2` like everything else.
   test "the unchecked escape hatch has exactly the call sites it is allowed" do
     needle = "apply" <> "_unchecked("
 
@@ -107,7 +109,6 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
 
     assert callers == [
              "test/pramana_foundry/workflow/kernel_test.exs",
-             "test/pramana_foundry/workflow/r4_exhaustive_test.exs",
              "test/pramana_foundry/workflow/r4_exhaustive_test.exs"
            ]
   end

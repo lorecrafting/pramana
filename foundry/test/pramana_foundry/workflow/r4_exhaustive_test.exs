@@ -216,17 +216,17 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
              inspect(State.violations(bad))
   end
 
-  # Red control for the harness's OTHER assertion. `Harness.apply/2` asserts two things —
-  # shape and relations — and only the relational half was witnessed: independent review
-  # neutralised `assert State.well_formed?(next)` and the whole suite stayed 196/196 green.
-  # That is the assertion that found the closure defect in the first place, and by rule 6's
-  # own standard it was working on nobody's word but mine.
+  # Red control for the kernel's closure guard (property 6, `require_well_formed/1`). This
+  # fixture used to be the harness's: `ticket_admitted` copied `reason` into the ticket
+  # unchecked, so a map there produced an accepted state `well_formed?/1` rejected, and the
+  # test showed the harness catching it. The kernel now refuses that transition itself, so
+  # the harness's shape assertion was a tautology with no constructible red control and was
+  # deleted; this is the assertion that turns red when the sweep neutralises the guard.
   #
-  # It needs a state that is malformed but relationally clean, which `apply/2` will accept
-  # from — and the closure defect supplies exactly that, which is the one convenient thing
-  # about it: `ticket_admitted` copies `reason` into the ticket unchecked, and a map there
-  # fails `optional_identifier?/1` while breaking no relation.
-  test "the harness fails a test when an accepted transition produces a malformed state" do
+  # Pinned to its atom (rule 5): `:invalid_state` cannot be the refuser, because the same
+  # event with a well-formed `reason` is accepted from the same input state. The refusal is
+  # the value, not the event.
+  test "a transition whose post-state the validator rejects is refused, not written" do
     event = %{
       "schema_version" => 1,
       "event_id" => "harness-shape",
@@ -245,18 +245,10 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
       }
     }
 
-    {:ok, next} = Harness.apply_unchecked(State.new(), event)
+    assert {:error, :malformed_post_state} = Harness.apply(State.new(), event)
 
-    refute State.well_formed?(next),
-           "the fixture must be MALFORMED, or this controls nothing"
-
-    assert State.violations(next) == [],
-           "and relationally CLEAN, or it would fire the other assertion instead"
-
-    error = assert_raise ExUnit.AssertionError, fn -> Harness.apply(State.new(), event) end
-
-    assert error.message =~ "well_formed?/1 rejects",
-           "the harness failed for some other reason: #{error.message}"
+    assert {:ok, _} = Harness.apply(State.new(), put_in(event, ["payload", "reason"], nil)),
+           "the same event with a well-formed value must be accepted, or the refusal is not the guard's"
   end
 
   # ── One red control per invariant family (rule 1) ─────────────────────────────────

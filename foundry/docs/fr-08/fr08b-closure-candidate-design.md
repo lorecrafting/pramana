@@ -1,6 +1,20 @@
 # `apply/2` closure: candidate design
 
-**Status: design only. Nothing here is built, and this proposes no launch.** It exists because
+**Status: superseded on 2026-09-22 — closed, but not by the table below.** The candidate that
+landed is a post-condition, not a typed payload table: `advance/2` runs `State.well_formed?/1`
+over the committed post-state and refuses with `:malformed_post_state` (kernel property 6,
+`require_well_formed/1`). Three lines in one place, closing the 18 pairs the probe sees, the 2
+review found, the 51 keys hidden behind 15 types, nested values, two-key corruption, and every
+future handler — everything "Not in scope" below lists. The typed table is bounded by what
+someone typed; the post-condition is bounded by the validator, which is the definition of
+closure. Measured before choosing, over the same 2,736 depth-5 seeds (`bin/closure_cost.exs`):
+the extra `well_formed?/1` call on accepted outputs costs 17% of `apply/2`'s total, and the
+test harness already asserted this exact post-condition after every accepted transition with
+the suite green, so nothing legitimate is refused. The sizing below stands as the record of why
+the table would have been ~31 rows; it is not what was built. The IMPLEMENTATION-LOG entry of
+the same date has the measurements and what a reviewer should attack.
+
+**Original status: design only. Nothing here is built, and this proposes no launch.** It exists because
 the defect's own record ended "How many distinct refusals those pairs need is not enumerated",
 and because the answer changes what the candidate is by an order of magnitude. Read
 [EVIDENCE-TOOLS.md](../EVIDENCE-TOOLS.md) first; every rule there applies to this, rule 1 hardest.

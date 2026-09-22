@@ -24,8 +24,10 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
 
   # Refusals about malformed payloads and out-of-order envelopes. The proposer builds only
   # well-formed events in sequence, so these are exercised by the table tests instead, and
-  # their absence here is by construction rather than a finding.
-  @validation ~w(invalid_admission_phase invalid_blocked_result invalid_cancellation_disposition
+  # their absence here is by construction rather than a finding. `malformed_post_state` is
+  # the closure guard (kernel property 6): with well-formed payloads no accepted transition
+  # can produce a malformed state, so it fires only from the fixture in r4_exhaustive_test.
+  @validation ~w(malformed_post_state invalid_admission_phase invalid_blocked_result invalid_cancellation_disposition
                  invalid_check_status invalid_control_entity invalid_control_fact
                  invalid_control_flag invalid_disposition invalid_execution_identity
                  invalid_execution_lifecycle invalid_freeze_disposition

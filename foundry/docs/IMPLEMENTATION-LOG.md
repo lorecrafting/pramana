@@ -4860,3 +4860,61 @@ Left to the operator rather than done here, because it edits an FR-15aA security
 text: 23 pointer substitutions, plus the one deliberate "was ..." line, which becomes unnecessary
 once the live digest is no longer quoted beside it. The finding in the entry above stands — nothing
 reads the specification, and the near-miss at `a0c052a2` was real. Only the remedy changed.
+
+## `apply/2` closure: a post-condition, not a typed table — 2026-09-22
+
+Kernel property 6. `advance/2` now runs `State.well_formed?/1` over the committed post-state and
+refuses with `:malformed_post_state` instead of returning it (`require_well_formed/1`, spelled so
+the sweep can neutralise it). `check_state/1` and this guard are one predicate under two atoms, on
+purpose: `:invalid_state` tells a caller the log is already broken, `:malformed_post_state` tells it
+this event was refused and the log is fine.
+
+**Why not the table the design sized.** `fr08b-closure-candidate-design.md` sized a ~31-row
+name→predicate table over `Event`'s `@payloads` with four atoms. Its own argument for the table
+over per-pair fixes — a per-pair fix is bounded by the probe's visibility — applies one step
+further: a typed table is bounded by what someone typed, and the design listed nested values,
+two-key corruption and the 51 hidden keys as out of scope. Checking the output is bounded by the
+validator, which is what closure means. The test harness had asserted this exact post-condition
+after every accepted transition since EV-3 with the suite green, so the over-tightening control
+was already in hand before the edit.
+
+**Measured on this tree before the change, not quoted:**
+
+| measurement | result |
+|---|---|
+| `bin/closure_probe.exs`, depth 5 | 2,736 seeds; 6,781,980 corruptions; 292,473 accepted-but-malformed; 18 `(type, key)` pairs in 12 types; float control 0; bound 15 of 37, 51 hidden keys. Reproduces the design doc exactly. 77 s. |
+| `@payloads` | 133 slots, 35 distinct key names, 31 after the 4 protected names. Reproduces. |
+| `bin/closure_cost.exs` | 179,712 legitimate `apply/2` calls over the same seeds: 2,053 ms, 48,418 accepted. `well_formed?/1` on those outputs: 348 ms, **17%** of `apply/2`. States there hold at most 2 tickets. |
+
+**After:** the probe must report `accepted-but-malformed: 0` with the bound line unchanged; the
+probe header says so. That is necessary and not sufficient on its own — a validator that refused
+everything would read the same — which is why the suite and the red control below are the other
+two legs.
+
+**Deleted, per rule 1:** `Harness.apply/2`'s `assert State.well_formed?(next)`. Once the kernel
+refuses a malformed post-state, an accepted state is well-formed by construction and that
+assertion had no red control anyone could build — the fixture that used to turn it red is refused
+before it arrives. The relational assertion stays; the kernel does not check relations.
+
+**Red control:** the same fixture, `ticket_admitted` with a map in `reason`, now asserts
+`{:error, :malformed_post_state}` through `Harness.apply/2`, and asserts that the identical event
+with `reason: nil` is accepted from the same state — so `:invalid_state` cannot be the refuser and
+the refusal is the value, not the event. Neutralising `require_well_formed(next)` turns it red.
+One atom rather than four: rule 5 holds because no other guard in the chain can return it. What is
+lost is a refusal naming the bad key — debuggability, not evidence.
+
+**Bookkeeping:** `malformed_post_state` added to `r4_guard_reachability_test.exs`'s
+`@validation` (the proposer builds well-formed payloads, so the search cannot provoke it);
+`apply_unchecked/2` drops from three pinned call sites to two, the harness's shape wiring control
+having become the kernel's red control; docstrings on the hatch, the harness, the totality probe
+and the no-direct-apply pin superseded in place.
+
+**What a reviewer should attack.** (1) Whether any legitimate driven transition produces a state
+`well_formed?/1` rejects — the suite is the witness, and it was already asserting this. (2) Whether
+the harness's deleted shape assertion carried information the kernel's check does not; they are the
+same function on the same value. (3) Whether one atom is enough, given rule 5. (4) The 17% at depth
+5 against a real log's state size; the cost is one more `well_formed?/1` per *accepted* event, and
+every event already pays one on input. (5) Whether `next = commit(...)` inside the `with` is a
+spelling the sweep's red control covers — it neutralises `require_well_formed(next)` to `:ok`, which
+compiles and leaves `next` bound.
+

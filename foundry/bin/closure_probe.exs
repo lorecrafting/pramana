@@ -7,6 +7,10 @@
 # directory and only its output was quoted. A number nobody can reproduce is a number nobody
 # can challenge.
 #
+# Since 2026-09-22 this is a regression check, not a search: kernel property 6 validates every
+# post-state and refuses with :malformed_post_state, so accepted-but-malformed must read 0 with
+# the BOUND line unchanged (15 of 37 at depth 5). A 0 with a changed bound is a different probe.
+#
 #   cd foundry
 #   TMPDIR=/private/tmp mix run bin/closure_probe.exs                      # depth 5
 #   DEPTH=7 TMPDIR=/private/tmp mix run bin/closure_probe.exs              # slow, ~2.5h

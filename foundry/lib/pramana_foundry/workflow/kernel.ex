@@ -10,7 +10,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
   `apply/2` to be "an unrestricted snapshot installer, not a guarded event reducer": it
   accepted any nonempty event type and delegated to a generic `changes` merge, so an event
   could create an `integrated` ticket out of empty state and an older event applied after a
-  newer one moved a ticket backwards. Five properties replace that.
+  newer one moved a ticket backwards. Six properties replace that.
 
   1. **Closed vocabulary.** `Event.validate/2` accepts only the enumerated types, each with
      an exact payload key set. An unknown type never reaches a merge.
@@ -26,6 +26,15 @@ defmodule PramanaFoundry.Workflow.Kernel do
   5. **Ordering and duplicates.** Events apply in strictly increasing durable sequence
      against an exact entity revision. A redelivery of the event an entity last applied is
      an idempotent no-op; anything else out of order is rejected rather than applied.
+  6. **Closure over the validator.** Every state `apply/2` produces is one it would accept as
+     input: `advance/2` runs `State.well_formed?/1` over the committed post-state and refuses
+     with `:malformed_post_state` rather than return it. Property 2 alone let a handler copy
+     a payload value into state under whatever `Event.validate/2` allowed — any string,
+     integer, boolean, nil, list or map — and `bin/closure_probe.exs` found at least 20
+     `(type, key)` pairs that wrote a state `check_state/1` then refused forever. Checking
+     the output closes all of them, the pairs the probe cannot see, and every future handler,
+     without typing each payload key; the post-state validator is the same predicate every
+     input already passes, so nothing legitimate is refused that was not already broken.
 
   ### Why an event never carries a phase
 
@@ -91,6 +100,15 @@ defmodule PramanaFoundry.Workflow.Kernel do
   defp check_state(state),
     do: if(State.well_formed?(state), do: :ok, else: {:error, :invalid_state})
 
+  # Property 6. The same predicate as `check_state/1` under a second atom, deliberately: the
+  # two refusals mean opposite things to a caller. `:invalid_state` says the log is already
+  # broken and nothing will apply; `:malformed_post_state` says this event was refused and
+  # the log is fine. Spelled `require_*` so `bin/guard_mutation_sweep.exs` can neutralise it;
+  # the red control is the fixture in `r4_exhaustive_test.exs`, which goes red when the sweep
+  # neutralises this call (verified 2026-09-22: caught).
+  defp require_well_formed(state),
+    do: if(State.well_formed?(state), do: :ok, else: {:error, :malformed_post_state})
+
   # The control entity is a singleton, so its identifier is fixed rather than caller-chosen.
   # A per-command control identifier would let two commands each advance "the" control.
   defp check_entity_addressing(%{"entity_kind" => "control", "entity_id" => "control"}), do: :ok
@@ -131,8 +149,10 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- check_sequence(state, event),
          {:ok, entity} <- resolve_entity(state, event, kind),
          :ok <- check_revision(entity, event),
-         {:ok, updated} <- transition(entity, event, state) do
-      {:ok, commit(state, event, kind, updated)}
+         {:ok, updated} <- transition(entity, event, state),
+         next = commit(state, event, kind, updated),
+         :ok <- require_well_formed(next) do
+      {:ok, next}
     end
   end
 

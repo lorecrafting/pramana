@@ -1065,10 +1065,10 @@ defmodule PramanaFoundry.Workflow.KernelTest do
         end
 
       # One of two calls that skip the harness's assertions; `r4_no_direct_apply_test.exs`
-      # pins the exact set. This test probes apply/2 with deliberately malformed payloads, and
-      # the harness's closure assertion fails on at least 20 (type, key) pairs — a real defect,
-      # but not this change's — see `Harness.apply_unchecked/2`. The totality property this test
-      # for is unaffected and still asserted below.
+      # pins the exact set. This test probes apply/2 with deliberately hostile payloads and
+      # claims only totality: ok or error, never a raise. A hostile payload the kernel accepts
+      # is well-formed by construction now (property 6) but may still break a relation the
+      # harness asserts, and that would be a different claim — see `Harness.apply_unchecked/2`.
       for state <- states, built <- events do
         result = Harness.apply_unchecked(state, built)
 
