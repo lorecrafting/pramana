@@ -364,7 +364,11 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
       }
     }
 
-    assert {:ok, _} = PramanaFoundry.Workflow.Kernel.apply(bad, event),
+    # Through the harness's own escape hatch, not the kernel directly. Asking the kernel for
+    # its verdict here is legitimate — the point is that the harness, not the kernel, is what
+    # rejects — but spelling it as a direct call put a call site in the suite that
+    # `r4_no_direct_apply_test.exs` could not see, which independent review caught.
+    assert {:ok, _} = Harness.apply_unchecked(bad, event),
            "the kernel must ACCEPT this event, or the harness is never reached"
 
     error = assert_raise ExUnit.AssertionError, fn -> Harness.apply(bad, event) end

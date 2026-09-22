@@ -11,7 +11,6 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
 
   alias PramanaFoundry.Test.KernelWalk
   alias PramanaFoundry.Test.Harness
-  alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
   @seeds 1..40

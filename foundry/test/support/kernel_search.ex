@@ -21,12 +21,24 @@ defmodule PramanaFoundry.Test.KernelSearch do
   search would degenerate into a tree.
   """
 
-  alias PramanaFoundry.Test.KernelWalk
-  # Deliberately NOT routed through `Test.Harness`, which every other test call site uses.
-  # The oracle is a function of the successor state alone, and `r4_exhaustive_test.exs`
-  # already asserts it over every state this search reaches — so asserting per accepted
-  # transition instead of per deduped reachable state adds no coverage at all, while costing
-  # the most of anywhere in the suite. `r4_no_direct_apply_test.exs` records the exemption.
+  alias PramanaFoundry.Test.{Harness, KernelWalk}
+  # Routed through `Test.Harness` like every other call site, after an exemption for it was
+  # tried and withdrawn. The exemption's argument was that the oracle is a function of the
+  # successor state alone, so asserting per accepted transition and asserting over the deduped
+  # reachable set are the same judgements, which `r4_exhaustive_test.exs` already does.
+  #
+  # Independent review showed that argument false as stated: `explore/2` runs one more
+  # expansion of the deepest frontier and DISCARDS the successors, so at depth 7 some 790,000
+  # accepted transitions are driven and never reach the reachable set anything asserts over.
+  #
+  # And the cost it traded against was never measured — the run that justified it was the one
+  # with the harness recursing into itself, so what was observed was a loop, not a price.
+  #
+  # Measured: unrouted workflow suite 113.7s and 116.2s; routed 139.6s and 117.4s. The first
+  # routed run alone reads as "+23 seconds", and that is how it was first written down here —
+  # a one-sample difference recorded as a cost, which is the same mistake as the exemption it
+  # was defending. Across both samples the cost is somewhere between noise and ~20%. What is
+  # NOT noisy is the coverage: 253,383 judged transitions to **2,351,003**.
   alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
@@ -110,7 +122,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
       |> Enum.reduce(acc, fn proposal, {acc, seen, reasons} ->
         event = build(state, proposal, length(path) + 1 + Keyword.get(opts, :sequence_offset, 0))
 
-        case WorkflowKernel.apply(state, event) do
+        case Harness.apply(state, event) do
           {:ok, next} ->
             k = key_fun.(next)
 
@@ -197,7 +209,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
     state
     |> proposals(tickets)
     |> Enum.map(fn proposal ->
-      case WorkflowKernel.apply(state, build(state, proposal, sequence)) do
+      case Harness.apply(state, build(state, proposal, sequence)) do
         {:ok, next} -> {proposal, :accepted, key(next)}
         {:error, reason} -> {proposal, :refused, unwrap(reason)}
       end

@@ -3176,11 +3176,29 @@ rule 2's clothes. `r4_no_direct_apply_test.exs` is what keeps the claim true as 
 the wrapper or the one exemption, with a red control that drives the same `File.read` and
 regex path over a fixture containing a direct call.
 
-**`kernel_search.ex` is the exemption, and it buys nothing to route it.** The oracle is a
-function of the successor state alone, so asserting per accepted transition and asserting
-over the deduped reachable set are the same set of judgements — and `r4_exhaustive_test.exs`
-already does the second. Routing it through the harness was tried first and cost the whole
-suite; it was reverted for adding zero coverage, not for being slow.
+**`kernel_search.ex` was exempted, and the exemption was wrong twice over.** The argument was
+that the oracle is a function of the successor state alone, so asserting per accepted
+transition and asserting over the deduped reachable set are the same judgements, with
+`r4_exhaustive_test.exs` already doing the second. Independent review falsified it: `explore/2`
+runs one further expansion of the deepest frontier and discards the successors, so at depth 7
+roughly 790,000 accepted transitions are driven and never enter the set anything asserts over.
+(Measured clean — 0 malformed, 0 violations — so nothing was hiding there, but the argument
+was false as stated.)
+
+The second error is worse, because it is the one that made the first one comfortable: the cost
+the exemption traded against **was never measured**. The run that justified it was the run in
+which the harness recursed into itself, so what was actually observed was an infinite loop, not
+a price. Measured, routing the search takes the oracle from 253,383 judged transitions to
+**2,351,003**. The exemption is deleted rather than reworded, and `@exempt` is now empty with a
+test asserting it stays that way.
+
+The cost figure needed correcting too, and the correction is the same mistake a fourth time.
+The first routed run took 139.6s against a 116.2s baseline, and "+23 seconds" went into the
+code comment and this log as the price. A second routed run came in at 117.4s, against an
+earlier baseline of 113.7s. One sample each way, and the difference between them was written
+down as a measurement. Honestly stated: unrouted 113.7s / 116.2s, routed 139.6s / 117.4s — the
+cost is between noise and about 20%, and the number worth quoting is the coverage one, which
+does not move between runs.
 
 ### Two of the ticket's instructions were not followed, and measurement is why
 
@@ -3287,22 +3305,43 @@ the "verify the property on item one, assert it of the list" shape again, now in
 measurement rather than in prose — caught this time by noticing the sibling handler copies
 the same fields.
 
-Enumerated properly — start from a payload the proposer calls valid, corrupt exactly one key,
-over 2,737 seed states: **678,228 corruptions tried, 66,906 accepted by `apply/2`, and 34,641
-of those produce a state `well_formed?/1` rejects**, across **16 `(type, key)` pairs** in 12
-event types:
+Enumerated properly — start from a payload the proposer calls valid, corrupt exactly one
+key — the count was **still wrong**, and an independent review caught it. That probe used a
+single hostile value, a map, so any field whose validator *requires* a map could not be
+broken by it; and it seeded from depth 5, where the proposer never proposes `check_recorded`
+at all. Two blind spots, neither enumerated before the number was recorded as "enumerated
+properly".
+
+Re-measured with every value class `Event.value?/2` admits — map, empty map, empty string,
+string, zero, negative integer, list, nil, boolean — plus a float as the probe's own control,
+since `Event.value?/2` must refuse floats and any accepted float would mean the probe was not
+testing what it claimed (**0 accepted**, so it was):
+
+- depth 5, 2,737 seeds: **6,782,280 corruptions, 607,634 accepted, 292,597 accepted-but-malformed,
+  18 `(type, key)` pairs in 12 event types**.
+- depth 7, scoped to `check_recorded` — the one type the proposer never reaches at depth 5:
+  1,050 corruptions, 189 accepted, **147 malformed**, a 19th pair in a 13th type.
+
+**19 `(type, key)` pairs in 13 event types:**
 
 | event type | fields |
 |---|---|
-| `ticket_admitted` | `objective_id`, `reason`, `spec_revision_id` |
+| `ticket_admitted` | `objective_id`, `reason`, `spec_revision_id`, `spec` |
 | `artifact_frozen` | `candidate_id`, `sealed_generation` |
 | `pm_proposal_recorded` | `proposal_id`, `operation` |
+| `ticket_amended` | `spec_revision_id`, `spec` |
 | `objective_created` | `planning_owner_id` |
 | `attempt_settled` | `reason_code` |
 | `stream_sealed` | `last_accepted_sequence` |
 | `launch_planned` | `attempt_id` |
-| `ticket_amended` | `spec_revision_id` |
+| `check_recorded` | `reason_code` |
 | `ticket_blocked`, `ticket_parked`, `artifact_blocked`, `freeze_failed` | `reason` |
+
+**Three counts of one defect, each wrong in the same direction: 2, then 16, then 19.** Every
+time the number came out of a probe whose own blind spot had not been enumerated — all fields
+hostile at once, then one value class, then one depth. The arithmetic was never the problem.
+The probe now ships with a control for exactly this, which is the only reason the third number
+is worth more than the first two.
 
 Each one bricks the log permanently: the state is written, and every subsequent event then
 fails `check_state` with `:invalid_state`. It is blocker B1's shape reflected — B1 was the

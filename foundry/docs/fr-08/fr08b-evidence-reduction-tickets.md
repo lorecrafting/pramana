@@ -260,7 +260,7 @@ look corroborated.
 | — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
 | — | EV-5 relations test | **done** | Landed at `b3c110e3`, gate green, awaiting an independent review of the delta |
 | — | ~~row :467 guard~~ | — | **Not a candidate.** It is B3's, outstanding and designed; subcommit 2 owns it |
-| — | ~~`apply/2` closure~~ | — | **Not a candidate here.** Found by EV-3's harness on its first run: 16 `(type, key)` pairs produce a state `well_formed?/1` rejects, which bricks the log. Quarantined and measured in `IMPLEMENTATION-LOG.md`; needs its own candidate |
+| — | ~~`apply/2` closure~~ | — | **Not a candidate here.** Found by EV-3's harness on its first run: 19 `(type, key)` pairs in 13 event types produce a state `well_formed?/1` rejects, which bricks the log. Quarantined and measured in `IMPLEMENTATION-LOG.md`; needs its own candidate |
 | — | EV-3 invariant split | **done** | Landed on this branch, gate green, awaiting an independent review of the delta |
 | 2 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
 | 3 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
