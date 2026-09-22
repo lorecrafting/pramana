@@ -4181,3 +4181,45 @@ scheme, and it is now recorded with a witness.
 **Running total: 9 of 64 citations read. Two defects — one unbacked citation, one half-satisfied
 obligation.** 54 remain. A rate of two in nine is a reason to keep reading, not a conclusion about
 the other 54.
+
+## Citation pass, rows 10-14: a third defect, and an argument recorded as evidence — 2026-09-22
+
+`checks_start`, `freeze_failure`, `verdict_correction` and `freeze_success` all discharge what they
+cite, several of them tightly — `freeze_success` asserts the sealed generation by name, which is the
+whole of "seal productive capability/deadline generation".
+
+**`integration_success` cited R4.22.o4, "Exit notifications cannot overwrite this", and asserts
+something else.** The scenario forges `integration_recorded`, `integration_settled` and
+`integration_planned` against a state holding a ref receipt and requires each to be refused with
+`:ref_receipt_recorded`. That is a real guarantee and a useful test. It is not this clause. **No
+exit notification is forged anywhere in the scenario.**
+
+**The clause does hold, and how it holds is the point.** `ref_receipt_id` is written at exactly one
+site — `kernel.ex:906`, inside `integration_recorded`. `execution_observed` writes only into the
+execution's own subtree and `worker_closed` writes nothing of the kind. So an exit notification
+cannot overwrite the receipt because no exit-notification handler touches that field at all.
+
+That is a **structural argument, not an assertion**, and rule 3 exists for exactly this distinction:
+"no counterexample within the bound" is not "impossible", and neither is "no handler writes this
+field" a test. Recording o4 as asserted recorded an argument as evidence. It moves to `@uncited`
+with the argument written down, which is what rule 3 asks for — label it, then prove it inductively
+or delete it. **124 obligations: 62 asserted, 62 recorded uncited.**
+
+An attempt was made to settle this by experiment rather than by reading — forge a real exit
+notification against a post-receipt state and see what the kernel does. It was abandoned: building a
+valid event by hand fails `Event.validate/1` with `:invalid_semantic_event`, and the payload helpers
+that would fix that live inside the test module. Reading the single write site was cheaper and
+decisive. Recorded because the probe's failure is not evidence of anything and should not be mistaken
+for some.
+
+### The ticket table stops restating counts too
+
+Same deletion as `EVIDENCE-TOOLS.md`: the EV-2 row's "63 asserted, 61 recorded uncited" and the EV-6
+row's "Currently 67 of 72 classified, 5 held" are replaced by pointers to where those numbers are
+computed. **This change would otherwise have made both stale within the same commit** — the citation
+finding moved the outcome split to 62/62 — which is the argument for the deletion, demonstrated
+rather than asserted.
+
+**14 of 64 citations read. Three defects: one unbacked citation, one half-satisfied obligation, one
+argument recorded as an assertion.** 50 remain, and three in fourteen is a rate worth continuing on,
+not a conclusion about the fifty.

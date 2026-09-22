@@ -143,8 +143,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ],
     integration_success: [
       {"R4.22.o1", "integrated ticket"},
-      {"R4.22.o2", "terminal integrated attempt"},
-      {"R4.22.o4", "Exit notifications cannot overwrite this"}
+      {"R4.22.o2", "terminal integrated attempt"}
     ],
     launch: [
       {"R4.04.o2", "create its launch intent and enter developing"}
@@ -283,6 +282,14 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
      "Set orthogonal control, cancel pending/unissued effects, request owned interrupts"},
     {"R4.28.o2", "already terminal dispositions retained."},
     {"R4.28.o3", "If integration occurred: integrated and cancel_finalized(after_integration)"},
+    # Cited by integration_success until it was read. That scenario forges integration_recorded,
+    # integration_settled and integration_planned and asserts each is refused with
+    # :ref_receipt_recorded - a true guarantee, and a different one. No exit notification is
+    # forged anywhere. o4 does hold, but STRUCTURALLY: `ref_receipt_id` is written at exactly
+    # one site, kernel.ex:906 inside integration_recorded, and execution_observed and
+    # worker_closed never touch it. That is an inductive argument, not an assertion, and rule 3
+    # is precisely about not recording one as the other.
+    {"R4.22.o4", "Exit notifications cannot overwrite this"},
     {"R4.28.o4", "suppress deployment"},
     {"R4a.01.o2", "and immutable base/spec/policy lineage"},
     {"R4a.01.o4", "Release launch resources."},
