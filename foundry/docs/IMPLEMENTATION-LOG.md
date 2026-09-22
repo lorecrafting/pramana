@@ -3149,8 +3149,9 @@ An independent review BLOCKed the candidate. The behaviour is correct; three sta
   deleting it can only add refusals, and rule 3's instruction for an unwitnessed guard is prove
   it inductively or delete it.
 - **Two smaller miscounts, both mine.** The misplaced comment was at `kernel.ex:1637-1639`, not
-  `:1636-1638`. And "the single `require_` string in the diff is inside a comment" was five
-  added strings across the kernel comment and the log hunk — the load-bearing claim, that no
+  `:1636-1638`. And "the single `require_` string in the diff is inside a comment" was six
+  added lines carrying one across the kernel comment and the log hunk — the re-review caught
+  that the correction itself said five — the load-bearing claim, that no
   `require_*(` **call site** changed and no sweep is owed, holds.
 - **The shape, third occurrence this session.** Both earlier ones were a rule applied to the
   first item of a list just generated; this is the same move with the list held one step
