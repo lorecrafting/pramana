@@ -1036,6 +1036,14 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ticket = state["tickets"]["T1"]
     assert ticket["phase"] == "developing"
     assert ticket["attempts"]["A1"]["phase"] == "active"
+
+    # R4.04.o2 is "create its launch intent AND enter developing". Only the second half was
+    # asserted: the launch intent is a developer execution, and nothing checked one existed.
+    # The citation was true of the contract's words and untrue of what the scenario proved,
+    # which is the gap an ID cannot close. Asserting it is cheaper than recording it.
+    intent = ticket["attempts"]["A1"]["executions"]["X1"]
+    assert intent["role"] == "developer"
+    assert intent["lifecycle"] == "pending"
     :driven
   end
 

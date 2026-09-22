@@ -4136,3 +4136,48 @@ is claims outrunning what supports them.
 wrong code, every one about a claim left standing after the thing it described moved. If it is worth
 solving it belongs in `bin/check_docs.exs`, scoped repo-wide, and — given the history above — proposed
 before it is built.
+
+## Citation pass, rows 5-9, and the first structural fix to a derived-count site — 2026-09-22
+
+### The mechanism table stops restating what the suite prints
+
+Three derived counts came out of `EVIDENCE-TOOLS.md`: the outcome split, the classification split,
+and the "N of the 72" figure. All three are computed by the suite or by the test module's own
+attributes, all three had been edited in five separate commits on this branch, and two of them had
+been wrong at some point in that sequence.
+
+They are replaced by the command that prints them and by a pointer to the attributes that hold them.
+This is the first of the three deletions proposed for the five-rounds problem: **the cheapest fix
+for a stale claim is for the claim not to exist.** A checker would have left the copies in place and
+nagged about them; five rounds of evidence say the copies are the defect.
+
+The `{:unguarded}` entries are still named in prose — row :467's and R4a.03's — because *which*
+obligations are unguarded is a fact about the kernel, not a count that moves with every batch.
+
+### Five more citations read, four sound, one partial
+
+`integration_failure`, `integration_start`, `verdict_approved` and `verdict_rejected` all discharge
+what they cite, and tightly: each asserts both halves of its clause, including both sides of a slash
+("integrating ticket/attempt", "Terminal rejected attempt/ticket").
+
+**`launch` did not.** R4.04.o2 is "create its launch intent **and** enter developing". The scenario
+asserted `phase == "developing"` and the attempt being active — the second half — and nothing
+checked that a launch intent existed at all. The intent is a developer execution created by
+`add_execution/3`; the attempt being active does not imply one.
+
+Fixed by **asserting it rather than recording it**: the scenario now checks the execution's role and
+lifecycle. Neutralised to confirm it can fail — changing the expected lifecycle turns the row red —
+then reversed.
+
+**Why this one is worth more than its size.** The obligation boundary came from the pre-existing
+quote, and that quote bundled two obligations into one ID. The annotation pass split on "and"
+wherever each half owed its own refusal — R4.22's "successful ref receipt {f2} and prior role/check
+workers closed {f3}" is the same shape, split — but here the boundary was inherited rather than
+judged, because the migration's rule was to respect the quotes already in the file. So **the ID
+scheme's granularity is only as good as the quotes it was derived from**, and a bundled quote makes
+a bundled obligation that a scenario can half-satisfy. That is a limit of the migration, not of the
+scheme, and it is now recorded with a witness.
+
+**Running total: 9 of 64 citations read. Two defects — one unbacked citation, one half-satisfied
+obligation.** 54 remain. A rate of two in nine is a reason to keep reading, not a conclusion about
+the other 54.
