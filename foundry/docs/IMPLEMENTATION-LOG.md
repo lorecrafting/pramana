@@ -2701,6 +2701,9 @@ what was being asserted unchecked as it does about the tools.
   `integration_planned`, and this remediation routes blocked tickets onto exactly that path.
   A "newest integration execution is pending" predicate would be phase-independent and correct
   on both cases. Recorded, not fixed: it is a separate defect and wants its own candidate.
+  **Corrected when that candidate was taken, same day:** "newest" is not expressible — an
+  execution record carries no sequence, timestamp or ordering field — and the predicate that
+  landed keys on the in-flight lifecycles instead. See the entry at the end of this file.
 - **The regression control was oracle-dependent.** The review showed that deleting one line
   from `@legal_pairs` — `"ready_to_integrate" => ~w(ready_to_integrate)` — turned the new test
   green with the defect present, and nothing else in the suite pins that pair. The test now
@@ -3036,3 +3039,77 @@ gates had failed to catch. **The second half is false, and I did not grep before
   mechanism in the gate was green for the defect's entire life and still is, and that is exactly
   the economics `EVIDENCE-TOOLS.md` opens with — a reading-check that should be a running-check.
   The claim to make is "no mechanism covers preconditions", not "nobody noticed".
+
+## FR-08B kernel — `integration_issued?` asked about history, not the current effect — 2026-09-21
+
+The sixth review's entry above recorded a second defect and proposed the wrong remedy for it.
+Both halves are corrected here.
+
+- **The defect, as recorded and confirmed.** `integration_issued?` scanned for **any**
+  integration execution whose lifecycle was not `pending`. That is a question about the
+  attempt's history. After the bounded retry R4 requires — "Same phase with bounded
+  integration-effect retry **after old issuer termination**" — the attempt holds I1 `closed`
+  beside I2 `pending`, and `attempt_settled(superseded_base)` was refused
+  `:integration_already_issued` although the current effect is unissued. R4's
+  "accepted base moved **before issuance**" row was therefore unexpressible for a retried
+  integration. Reachable by `no_ref_change` → `worker_closed` → `integration_planned`, with
+  none of that entry's resume-target delta.
+- **The remedy that entry proposed does not exist.** It named "a *newest* integration
+  execution is pending predicate". An execution record is
+  `execution_id role lifecycle result sealed_sequence` (`State.@execution_keys`) and carries
+  no sequence, timestamp or ordering field, so "newest" is not expressible without a
+  state-shape change that subcommit 2 would then build `decide/3` on. The entry was written as
+  though the shape already supported it; it does not.
+- **What landed instead: an in-flight lifecycle predicate.**
+  `@issued_lifecycles ~w(starting running closing unknown)`, and an integration execution
+  counts as issued exactly while it is in one of them. Phase-independent and correct on both
+  cases the entry named — the retry (I1 closed, I2 pending → not issued) and the legitimate
+  `ready_to_integrate` after `integration_settled` closes the execution (→ not issued).
+- **Why `closed` is safely on the unissued side, enumerated rather than assumed.** An
+  integration execution reaches `closed` through exactly two call sites: `integration_settled`
+  (the non-start settlement) and `worker_closed` on the `no_ref_change` retry path.
+  `require_no_ref_receipt` refuses both once a receipt exists, so a closed integration
+  execution never carries an effect that landed. `require_issuer_terminated` further means at
+  most one integration execution is ever non-closed, so "in flight" is unambiguous.
+- **`unknown` is deliberately on the issued side**, and it is the member that had to be argued
+  rather than read off: R1's ledger holds `issued_unknown` "unavailable for reuse"
+  (WORKFLOW-CONTRACT.md:573-576) and R4's integration row says "unknown blocks reconciliation".
+  An effect whose outcome cannot be established is not an effect that was never issued.
+- **The `attempt["phase"] == "integrating"` qualifier is deleted, and the deletion is
+  unwitnessed.** Under the in-flight predicate it is redundant, not merely false: attempt phase
+  `ready_to_integrate` has two writers — `reviewer_closed` on an approved verdict, where no
+  integration execution exists, and `integration_settled`, which closes the execution on the
+  way — so no reachable state distinguishes the two forms. Rule 6 was run on it and it is
+  **green**: restoring the qualifier turns no test red, and cannot until such a state is
+  reachable. Recorded as unwitnessed per rule 3 rather than described as a fix. It is deleted
+  anyway because a false premise left in place is what the next handler builds on, which is
+  precisely how the resume-target defect above was introduced.
+- **Rule 6, six reversals, each applied and undone by exact string.** Baseline 115 passed in
+  `kernel_test.exs`.
+
+  | Neutralisation | Result |
+  |---|---|
+  | predicate → the old any-non-pending scan | **red**, 114/115 |
+  | drop `starting` from `@issued_lifecycles` | **red**, 114/115 |
+  | drop `running` | **red**, 114/115 |
+  | drop `closing` | **red**, 114/115 |
+  | drop `unknown` | **red**, 114/115 |
+  | restore the deleted phase premise | green, 115 — the unwitnessed deletion above |
+
+- **The control is driven over the whole vocabulary, not its first member.** The existing
+  review-bought refusal test drove `running` alone. The guard is a membership test against a
+  four-value list, and a control witnessing one member is the partial generalisation this repo
+  keeps producing — `starting`, `closing` and `unknown` would each have gone unwitnessed. The
+  test now loops the four, and the per-member reversals above are what that bought. One new
+  test drives the retry case from the other side and pins I1 `closed` / I2 `pending` directly
+  as well as through the settlement, so a fixture that stopped producing that pair would stop
+  exercising the defect instead of quietly passing.
+- **No mutation sweep is owed.** The sweep's population is every non-definition `require_*(`
+  call. `integration_issued?` is not one, and the diff changes no `require_*` call site — the
+  single `require_` string in it is inside a comment. This is the recorded gap "a refusal
+  expressed any other way is outside it", not a skipped step. Guard reachability is also
+  unaffected: `integration_already_issued` stays classified deeper-than-the-bound, not
+  genuinely unreachable.
+- **Also fixed in passing:** the comment block at `kernel.ex:1636-1638` described
+  `failed_check?` while sitting on `integration_issued?`. It was recorded as noticed-not-fixed
+  in the entry above; it is now on `failed_check?`, where blame says it was authored.

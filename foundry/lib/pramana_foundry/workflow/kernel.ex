@@ -1565,15 +1565,22 @@ defmodule PramanaFoundry.Workflow.Kernel do
       "integrated" ->
         require_attempt_phase(ticket, ~w(integrating))
 
-      # R4: "ready_to_integrate/integrating; accepted base moved **before issuance**". From
-      # ready_to_integrate no integration effect exists yet, so the clause is satisfied by
-      # the phase. From `integrating` one does, and the clause is only satisfied while it
-      # has not been issued - which in this state is an execution still `pending`. R1 owns
-      # the real issuance boundary; `pending` is the kernel's faithful proxy for it, and is
-      # recorded as an interpretation rather than presented as the contract's own words.
+      # R4: "ready_to_integrate/integrating; accepted base moved **before issuance**". The
+      # clause is about issuance, so the guard asks about issuance and nothing else. It used
+      # to be qualified by `attempt["phase"] == "integrating"`, on the stated premise that
+      # "from ready_to_integrate no integration effect exists yet" - a premise an attempt
+      # parked at `ready_to_integrate` while holding a live integration execution falsifies,
+      # and the trap the `infrastructure_failed` resume target had to be steered around.
+      # Under the in-flight predicate below the qualifier is redundant rather than merely
+      # false: attempt phase `ready_to_integrate` has two writers, `reviewer_closed` on an
+      # approved verdict (no integration execution exists yet) and `integration_settled`
+      # (which closes the execution on the way), so no reachable state distinguishes the two
+      # forms. It is deleted rather than kept, because a false premise left in place is what
+      # the next handler builds on. Unwitnessed by construction per rule 3: the deletion has
+      # no red control, and cannot have one until such a state is reachable.
       "superseded_base" ->
         with :ok <- require_attempt_phase(ticket, ~w(ready_to_integrate integrating)) do
-          if attempt["phase"] == "integrating" and integration_issued?(attempt),
+          if integration_issued?(attempt),
             do: {:error, :integration_already_issued},
             else: :ok
         end
@@ -1634,15 +1641,42 @@ defmodule PramanaFoundry.Workflow.Kernel do
       else: :ok
   end
 
-  # R4 row 12 is "checking; **actual check assertion fails**", and its outcome is terminal.
-  # Counting a timeout as an assertion failure terminalised an attempt row 13 says to
-  # preserve, which is the row this kernel was misreading as that one.
+  # R4 row :484 asks whether the attempt holds an issued integration effect *now*, not
+  # whether it has ever held one. Scanning for any execution whose lifecycle was not
+  # `pending` answered the second question, and was already wrong before any phase change:
+  # after a bounded retry - I1 `closed`, I2 `pending`, reachable by `no_ref_change` →
+  # `worker_closed` → `integration_planned` - it refused `:integration_already_issued`
+  # although the current effect is unissued, which made the row unexpressible for a retried
+  # integration.
+  #
+  # "Newest execution is pending" was the remedy the log first proposed and is not
+  # buildable: an execution record is `execution_id role lifecycle result sealed_sequence`
+  # (`State.@execution_keys`) with no sequence, timestamp or ordering field, so "newest" is
+  # not expressible without a state-shape change subcommit 2 would then inherit. The
+  # lifecycle answers it directly and phase-independently.
+  #
+  # `pending` is claimed but not issued. `closed` requires "verified process/session
+  # termination or proved non-start" (contract :390), and an integration execution reaches
+  # it only through `integration_settled` (the non-start settlement) or `worker_closed` on
+  # the `no_ref_change` retry path - `require_no_ref_receipt` refuses both once a receipt
+  # exists, so a closed integration execution never carries an effect that landed.
+  # `unknown` is deliberately on the issued side: R1's ledger holds `issued_unknown`
+  # "unavailable for reuse" (contract :573-576) and R4's integration row says "unknown
+  # blocks reconciliation". R1 still owns the real issuance boundary; this is the kernel's
+  # proxy for it, recorded as an interpretation rather than as the contract's own words.
+  @issued_lifecycles ~w(starting running closing unknown)
+
   defp integration_issued?(attempt),
     do:
       Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "integration" and execution["lifecycle"] != "pending"
+        execution["role"] == "integration" and execution["lifecycle"] in @issued_lifecycles
       end)
 
+  # R4 row 12 is "checking; **actual check assertion fails**", and its outcome is terminal.
+  # Counting a timeout as an assertion failure terminalised an attempt row 13 says to
+  # preserve, which is the row this kernel was misreading as that one. (This comment sat on
+  # `integration_issued?` above until now; blame shows it was authored over `failed_check?`
+  # and `integration_issued?` was later inserted between the two.)
   defp failed_check?(attempt),
     do:
       Elixir.Enum.any?(attempt["checks"] || %{}, fn {_id, check} ->

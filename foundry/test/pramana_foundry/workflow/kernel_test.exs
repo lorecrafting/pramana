@@ -1954,8 +1954,74 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # post-settle state, and `:integration_already_issued` sits in the guard-reachability
     # `@unreachable` list, so no ratchet had a witness to lose. Found by an independent
     # review, which is the argument for this test existing rather than the invariant alone.
-    test "a running integration effect still refuses a superseded_base settlement" do
-      {blocked, sequence} =
+    #
+    # Driven over the whole in-flight vocabulary rather than `running` alone. The guard is
+    # a membership test against a four-value list, and a control that witnesses one member
+    # is the partial generalisation this repo keeps producing: `starting`, `closing` and
+    # `unknown` would each have gone unwitnessed. `unknown` is the one that has to be
+    # argued rather than read off - it is on the issued side because R1's ledger holds
+    # `issued_unknown` "unavailable for reuse" and R4's integration row says "unknown
+    # blocks reconciliation", so an effect whose outcome cannot be established is not an
+    # effect that was never issued.
+    test "every in-flight integration lifecycle refuses a superseded_base settlement" do
+      for lifecycle <- ~w(starting running closing unknown) do
+        {blocked, sequence} =
+          drive(approved_and_closed(), [
+            {"execution_observed", "T1",
+             %{
+               "ticket_id" => "T1",
+               "attempt_id" => "A1",
+               "execution_id" => "I1",
+               "observation" => lifecycle,
+               "lifecycle" => lifecycle
+             }},
+            {"integration_recorded", "T1",
+             %{
+               "ticket_id" => "T1",
+               "attempt_id" => "A1",
+               "execution_id" => "I1",
+               "outcome" => "infrastructure_failed",
+               "ref_receipt_id" => nil
+             }}
+          ])
+
+        supersede = fn state, sequence ->
+          WorkflowKernel.apply(
+            state,
+            event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+              "ticket_id" => "T1",
+              "attempt_id" => "A1",
+              "disposition" => "superseded_base",
+              "reason_code" => nil,
+              "settlement" => %{"schema_version" => 1}
+            })
+          )
+        end
+
+        assert {:error, :integration_already_issued} = supersede.(blocked, sequence),
+               "#{lifecycle}: the effect is in flight; the block does not un-issue it"
+
+        {resumed, sequence} =
+          drive({blocked, sequence}, [
+            {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "integrating"}}
+          ])
+
+        assert {:error, :integration_already_issued} = supersede.(resumed, sequence),
+               "#{lifecycle}: resuming must not launder an issued effect into a settleable one"
+      end
+    end
+
+    # The same guard from the other side, and the defect the row above only pointed at.
+    # `integration_issued?` used to read "any integration execution is not `pending`",
+    # which is a question about the attempt's history rather than about its current
+    # effect. After the bounded retry R4 requires - "Same phase with bounded
+    # integration-effect retry **after old issuer termination**" - the closed first issuer
+    # made the unissued second one unsettleable, so R4's
+    # "accepted base moved **before issuance**" row was unexpressible for a retried
+    # integration. Reachable with none of the resume-target delta above, which is why it
+    # is a defect of its own rather than a consequence of that one.
+    test "a retried integration settles superseded_base while its new effect is unissued" do
+      {retrying, sequence} =
         drive(approved_and_closed(), [
           {"execution_observed", "T1",
            %{
@@ -1970,34 +2036,41 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "ticket_id" => "T1",
              "attempt_id" => "A1",
              "execution_id" => "I1",
-             "outcome" => "infrastructure_failed",
+             "outcome" => "no_ref_change",
              "ref_receipt_id" => nil
+           }},
+          {"worker_closed", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "I1"}},
+          {"integration_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "authority" => authority("I2", "integration")
            }}
         ])
 
-      supersede = fn state, sequence ->
-        WorkflowKernel.apply(
-          state,
-          event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
-            "ticket_id" => "T1",
-            "attempt_id" => "A1",
-            "disposition" => "superseded_base",
-            "reason_code" => nil,
-            "settlement" => %{"schema_version" => 1}
-          })
-        )
-      end
+      executions = get_in(retrying, ["tickets", "T1", "attempts", "A1", "executions"])
 
-      assert {:error, :integration_already_issued} = supersede.(blocked, sequence),
-             "the effect was issued and is running; the block does not un-issue it"
+      # Pinned directly, not only through the settlement: if the fixture stopped producing
+      # a closed issuer beside a pending one it would stop exercising the defect and still
+      # pass.
+      assert executions["I1"]["lifecycle"] == "closed"
+      assert executions["I2"]["lifecycle"] == "pending"
 
-      {resumed, sequence} =
-        drive({blocked, sequence}, [
-          {"ticket_unblocked", "T1", %{"ticket_id" => "T1", "phase" => "integrating"}}
-        ])
+      settle =
+        event("attempt_settled", "T1", retrying["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "superseded_base",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
 
-      assert {:error, :integration_already_issued} = supersede.(resumed, sequence),
-             "resuming must not launder an issued effect into a settleable one"
+      assert {:ok, settled} = WorkflowKernel.apply(retrying, settle),
+             "the current effect is still pending, which is what the row means by before issuance"
+
+      assert get_in(settled, ["tickets", "T1", "attempts", "A1", "disposition"]) ==
+               "superseded_base"
     end
   end
 
