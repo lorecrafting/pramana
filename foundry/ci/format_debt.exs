@@ -16,10 +16,6 @@
     sha256: "6077293e31cf1699fb9738da02275d742879e194c8b6d1adba72fc00048c411a"
   },
   %{
-    path: "lib/pramana_foundry/system_metrics.ex",
-    sha256: "10c60177c35507f485629f67f0d0eb98d499cb19547eb6e6ce12dccd202d6e4c"
-  },
-  %{
     path: "test/pramana_foundry/cli_test.exs",
     sha256: "fb4039d5793c85e818a50d9a003e1b8580d19de736d937274a57f28bce396d17"
   },

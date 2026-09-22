@@ -4749,3 +4749,25 @@ per-`(type, key)` overrides only where a name means two things. Written up as a 
 [fr-08/fr08b-closure-candidate-design.md](fr-08/fr08b-closure-candidate-design.md), with the
 enumerations a reviewer should attack. (The paragraph above first named the attribute
 `@payload_keys`; it is `@payloads`, corrected in place — a wrong pointer, not a changed claim.)
+
+## The gate stops swallowing its format-debt error — 2026-09-22
+
+`verify_format_debt/2` raised on a drifted baseline, `safe_value/1` rescued the raise into a
+manifest field, and no stage read it. The gate reported `passed` while carrying
+`format_debt: {error: "format-debt baseline changed"}` through eighteen runs and three reviews.
+
+Fixed at the swallowing, not the pin, per the handoff. `verify_format_debt/2` no longer raises —
+its entries already carry `matched` — and `validate_format_debt/1` is a `require_stage` in the
+chain. The manifest now shows per-file `matched` flags instead of an opaque string, so a failure
+names the file, which the rescued message could not.
+
+The pin itself was obsolete: `63ee6cb6` rewrote `system_metrics.ex` while fixing FR-23's Improver
+defect, and the rewrite is already formatted, so the exemption bought nothing. Entry deleted rather
+than re-pinned. The other six are genuinely unformatted and stay.
+
+**Ordering, so it is not mistaken for a gap.** An uncommitted drift never reaches this stage:
+editing a pinned file or the baseline dirties the tree and `:source_preflight` refuses first.
+Verified — a corrupted pin reddens the gate at `source_preflight`, exit 2. The format-debt stage is
+reachable only on a *committed* drift, which is exactly how the real one happened. Both paths are
+red; only the stage name differs. `validate_format_debt/1` has its own control at
+`ci_test.exs`, covering drifted, clean, empty and unreadable.

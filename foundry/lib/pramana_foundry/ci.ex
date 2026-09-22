@@ -175,6 +175,7 @@ defmodule PramanaFoundry.CI do
              validate_toolchain(manifest.toolchain.actual, manifest.toolchain.expected),
              :toolchain
            ),
+         :ok <- require_stage(validate_format_debt(manifest.format_debt), :format_debt),
          :ok <- require_stage(manifest.dependencies, :lockfile),
          :ok <-
            require_stage(
@@ -577,9 +578,24 @@ defmodule PramanaFoundry.CI do
         }
       end)
 
-    unless Enum.all?(entries, & &1.matched), do: raise("format-debt baseline changed")
     entries
   end
+
+  # The baseline exempts each listed path from `mix format --check-formatted`, so the
+  # exemption is only honest while the file is the one it was granted for. This used to
+  # raise, and `safe_value/1` rescued the raise into a manifest field no stage read: the
+  # gate reported `passed` while carrying `format_debt: {error: ...}` for eighteen runs and
+  # three reviews. Returning the drifted paths instead of raising also names which file,
+  # which the rescued message could not.
+  @spec validate_format_debt(term()) :: :ok | {:error, term()}
+  def validate_format_debt(entries) when is_list(entries) do
+    case entries |> Enum.reject(& &1.matched) |> Enum.map(& &1.path) do
+      [] -> :ok
+      drifted -> {:error, {:format_debt_drifted, drifted}}
+    end
+  end
+
+  def validate_format_debt(other), do: {:error, {:format_debt_unavailable, other[:error]}}
 
   defp artifact_provenance(run_root, output_dir, root) do
     source = Path.join(run_root, "artifacts/pramana_foundry")

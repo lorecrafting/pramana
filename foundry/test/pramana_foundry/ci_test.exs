@@ -102,6 +102,26 @@ defmodule PramanaFoundry.CITest do
              CI.validate_source(%{available: false, error: :git_missing, dirty_paths: []})
   end
 
+  # The baseline exempts each listed path from `mix format --check-formatted`. Before this
+  # stage existed the mismatch raised and `safe_value/1` rescued it into a manifest field
+  # nothing read, so the gate reported `passed` while carrying the error through eighteen
+  # runs and three reviews. This is the control that the stage can actually refuse.
+  test "a drifted format-debt baseline is rejected and names the file" do
+    matched = %{path: "lib/a.ex", expected_sha256: "aa", actual_sha256: "aa", matched: true}
+    drifted = %{path: "lib/b.ex", expected_sha256: "bb", actual_sha256: "cc", matched: false}
+
+    assert :ok = CI.validate_format_debt([])
+    assert :ok = CI.validate_format_debt([matched])
+
+    assert {:error, {:format_debt_drifted, ["lib/b.ex"]}} =
+             CI.validate_format_debt([matched, drifted])
+
+    # A path that cannot be read at all reports as unavailable rather than as clean --
+    # `safe_value/1` still wraps the sha pass, and an unreadable baseline must not pass.
+    assert {:error, {:format_debt_unavailable, "boom"}} =
+             CI.validate_format_debt(%{error: "boom"})
+  end
+
   test "exact Elixir OTP and ERTS versions must all match" do
     expected = %{elixir: "1.20.3", otp: "29.0.5", erts: "17.0.5"}
     assert :ok = CI.validate_toolchain(expected, expected)
