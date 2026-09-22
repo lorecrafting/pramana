@@ -3239,10 +3239,17 @@ single violation is the harness's own red control firing: a `violated` column of
 would mean the counters never ran, which is the condition rule 1 exists to expose.
 
 The refactor that made this possible is the risky part of the change — it rewrote every
-predicate body. It was checked against the encoding at `HEAD` over 16,648 states (every state
-reachable at depth 6 plus the 3,358 corrupted ones): **0 disagreements**, with the oracle
-firing on 3,358 of them, so the comparison had witnesses rather than being two silent
-functions agreeing.
+predicate body — so it was checked against the encoding at `HEAD` rather than against the
+suite. The first run of that check reported 0 disagreements over 16,648 states and **was not
+good enough**, which its own denominators said and its verdict did not: it ran before
+`terminal_custody` was deleted, so it compared an encoding that no longer exists, and
+`receipt_custody` held its precondition **0 times** in that state set — the one family the
+ticket singled out as vacuous was the one family the comparison could not have checked.
+
+Re-run over 23,364 states, with receipts planted on reachable terminal attempts so both
+branches of the clause are exercised: `receipt_custody` holds **6,716** and fires on 3,358;
+**3,358 disagreements, all of them exactly a deleted `terminal_custody` message, 0
+unexplained**. Every family is now covered by the comparison.
 
 ### Controls
 

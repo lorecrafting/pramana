@@ -242,6 +242,19 @@ defmodule PramanaFoundry.Workflow.R4ExhaustiveTest do
            "the scan matches anything, so it proves nothing"
   end
 
+  # `invariant_families/0` drives the harness's counter indices AND the red-control scan, but
+  # nothing tied it to the map `measure/1` actually returns. A family added to the list and
+  # not to the map would read as `held 0` on every run — which the report labels "vacuous",
+  # the one word that makes a missing family look like a known, accepted condition.
+  test "every declared family is one measure/1 actually returns", %{states: states} do
+    {state, _path} = Enum.random(states)
+
+    assert Enum.sort(Map.keys(State.measure(state))) == Enum.sort(State.invariant_families())
+
+    assert Enum.sort(Map.keys(State.measure(State.new()))) ==
+             Enum.sort(State.invariant_families())
+  end
+
   test "red control: resume_target", %{states: states} do
     {reachable, _path} =
       Enum.find(states, fn {state, _path} ->
