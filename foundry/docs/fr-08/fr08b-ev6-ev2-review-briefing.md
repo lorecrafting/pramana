@@ -1,7 +1,7 @@
 # Review briefing: EV-6 and EV-2, the clause-ID candidate
 
-**Delta to review:** `16fc73db..f0ae495e`, five commits, on `repair/fr08b-kernel`.
-**Gate:** green at `f0ae495e` — six commands, `dirty_paths: []` before and after,
+**Delta to review:** `16fc73db..ffff6f92`, seven commits, on `repair/fr08b-kernel`.
+**Gate:** green at `f2c73a63` — six commands, `dirty_paths: []` before and after,
 949 passed / 13 skipped / 1 excluded.
 **Time budget: 25 minutes.** A previous unbounded brief ran 41 minutes and produced a worse
 review than a bounded one. Spend the budget on the enumerations named below, not on breadth.
@@ -16,8 +16,9 @@ can say about it.
    outcome cells — and **the contract's text is unchanged**. `bin/contract_annotation_diff.exs`
    strips the markers from both sides and diffs against a revision.
 2. Every **from-cell** obligation must carry a disposition: `{:guarded, atoms, why}` with atoms the
-   kernel declares, `{:protected, why}`, `{:unguarded, why}`, or `{:input, why}`. 12 of 72 are
-   classified; 60 are a recorded ratchet.
+   kernel declares, `{:protected, why}`, `{:unguarded, why}`, `{:input, why}` or `{:effect, why}`.
+   **29 of 72** are classified; 43 are a recorded ratchet. The last two categories were added during
+   the work, not designed in — see enumeration 6.
 3. Every **outcome** obligation is in `@clauses` or `@uncited`, never both and never neither.
    124 obligations: 64 asserted, 60 recorded uncited. The punctuation splitter is deleted.
 
@@ -38,10 +39,11 @@ whether any span mis-assigns text: specifically, whether a `@uncited` obligation
 text that an asserted clause covers, or the reverse. The property I relied on is "every existing
 quote falls inside exactly one obligation" — test it independently rather than taking it.
 
-**3. The 12 from-cell classifications.** Two are unusual and both are mine to have got wrong:
+**3. The 29 from-cell classifications.** Two are unusual and both are mine to have got wrong:
 `R4.02.f1` claims "draft" means *no ticket exists*, enforced by `resolve_entity/3` pre-dispatch and
 the `:absent` function head; `R4.27.f1` claims an inline `if` at `kernel.ex:392` guards "nonterminal
-ticket" with `:ticket_terminal`. The mechanism only checks the atom is *declared*, never that the
+ticket" with `:ticket_terminal`. Note also that R4.16.f1, R4.17.f1 and R4.18.f1 are the same guard
+site counted three times, because those rows share `review_recorded`. The mechanism only checks the atom is *declared*, never that the
 named guard is the right one — so a plausible atom borrowed from the wrong handler passes. That is
 the hole to probe.
 
@@ -50,7 +52,15 @@ the hole to probe.
 "`require_all_executions_closed/1` and `require_cleanup_complete/1` are the same predicate under two
 atoms". Both were derived by reading; neither ships with a runnable check.
 
-**5. Vacuity.** `check/4` (from-cell) and `partition/3` (outcome) each return empty lists when
+**5. The two dispositions added mid-candidate.** `{:input}` and `{:effect}` were both forced by
+reading, and both exist to avoid recording `:unguarded` where the contract is implemented. That makes
+them the mechanism's softest spot: **either could be used to explain away a real hole.** Attack the
+six entries that use them — R4.02.f2, R4.03.f2, R4.27.f2, R4.17.f2, R4.18.f2 (`:input`) and R4.12.f2
+(`:effect`). For R4.12.f2 specifically, check `maybe_finish_checks/1` really does implement "all
+mandatory check receipts passed", including the `policy_empty_checks` branch, and that nothing is
+lost by there being no refusal.
+
+**6. Vacuity.** `check/4` (from-cell) and `partition/3` (outcome) each return empty lists when
 neutralised, and each is caught *only* by its red control. Verify that the red controls actually
 constrain — that they would fail for a detector that is subtly wrong rather than only for one that
 returns nothing.
@@ -62,6 +72,9 @@ returns nothing.
 - **The from-cell mechanism proves a guard exists, not that it is the right guard**, and not that
   any test exercises it. `declared_reasons/0` reads `kernel.ex` with regexes, so a refusal spelled a
   fourth way reads as a false gap — the safe direction, but still a wrong answer.
+- **Three rows' guards disagree with their from-cell**, recorded in the entries: R4.04 and R4.20
+  admit a phase the row does not name, R4.11 guards more than the row states. R4.20's widening is
+  licensed by R4.21 sharing the handler; R4.04's is not pinned by anything.
 - **`R4.24.f2` and `R4.28.f3` are deliberately unclassified.** A disjunction whose branches want
   different dispositions, and a clause whose answer is in the contract rather than the kernel.
 - **`bin/contract_annotation_diff.exs` was wrong once and is fixed.** It stripped only the new side,
