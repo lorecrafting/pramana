@@ -158,6 +158,49 @@ and 59 are not" — an eighth hand-carried count weaker than its claim, and the 
 possible demonstration of why derived counts must come from the executable artifact. (Sol
 caught the same shape on `@partial`: four keys, not the five the review prose claimed.)
 
+**Measured, before the annotation pass.** `bin/clause_unit_probe.exs` reads the two maps out of
+the test's own source and reports three numbers. The bookkeeping holds **118 entries** — 57 cited,
+57 uncited, 4 partial — every one of which still anchors verbatim in its own row's outcome cell,
+together reaching **5,500 of 5,932 outcome characters (93%)**. The remaining 7% is where the
+punctuation unit shows:
+
+**7 substantive obligations that no entry accounts for at all.** Each shares a
+punctuation-delimited fragment with an asserted quote, and the splitter marks a whole fragment
+covered if it *contains* any cited clause, so the obligation beside it is invisible:
+
+| row | the obligation | swallowed by the cited quote |
+|---|---|---|
+| `freeze_failure` | Git/scope validation failure is invalid submission | "never a frozen result" |
+| `malformed_submission` | and budget remains | "further submission allowed only while stream open" |
+| `checks_start` | schedule root-mandated check workers before reviewer | "retaining immutable candidate" |
+| `reset` | with newly bound checks/review | "queue a fresh developer attempt using retained evidence as context" |
+| `nonstart_developer` | and immutable base/spec/policy lineage | "Keep the **same nonterminal attempt**" |
+| `nonstart_reviewer` | immutable candidate/check receipts and reviewer ownership | "Keep attempt and ticket `awaiting_review`" |
+| `nonstart_worker` | A retry references the predecessor and | "consumes its finite role-specific infrastructure allowance" |
+
+This is the direction that flatters the number: coverage looks complete over text nothing asserts.
+
+**7 places where two entries claim the same text.** Five are one shape — a cited quote spans a `;`,
+covering two obligations, and the clause after the `;` is *separately* recorded as uncited, differing
+only by the trailing period that makes the substring test miss the contradiction. So the same clause
+is counted in both totals. One more has a `@partial` quote inside an `@uncited` one
+(`no_valid_candidate`), and one has identical text in `@clauses` and `@partial`
+(`nonstart_worker` — asserted and deferred at once).
+
+**Reading the five scenarios settles which record is right, and it is not the conservative guess.**
+Four of the five `@uncited` entries are stale — the scenario does assert the clause:
+`nonstart_pm` asserts `objective["proposals"] == %{}` for "infer no proposal";
+`developer_exit_after_freeze` asserts `candidate_id` and `phase == "candidate_frozen"` for "preserve
+frozen candidate"; `terminal_rejection` asserts `disposition == "rejected"` survives the refused
+event for "preserve terminal facts"; `nonstart_reviewer` asserts `ordinals["developer"] == 0` and
+`disposition == nil` for "never enter developer retry or correction". The fifth,
+`blocked_result`, is genuinely **two** obligations: "close developer" is asserted
+(`executions["X1"]["lifecycle"] == "closed"`), "no review" is not asserted by anything.
+
+So **"57 asserted / 57 uncited" is wrong in both directions at once** — at least 7 obligations
+invisible, at least 4 uncited entries stale, and 7 spans double-counted. Which is the ticket's
+thesis, no longer as an argument.
+
 **Why it is last on payoff and first on urgency.** It moves no correctness directly — it
 makes one coverage number mean something. But its cost grows monotonically: every subcommit
 adds contract rows, and every row adds fragments to transcribe into `@clauses` and

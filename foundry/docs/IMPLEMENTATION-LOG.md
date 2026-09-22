@@ -3525,3 +3525,54 @@ cell's "unless R4a retained a resumable developer attempt" is the candidate lice
 
 The second row is the whole argument for rule 1. A detector that reports nothing satisfies every
 assertion written against it, and five mechanisms in this subcommit shipped in exactly that state.
+
+## EV-2, commit 1 — what the coverage number actually counts, measured before it is replaced — 2026-09-21
+
+The annotation pass that replaces the punctuation splitter should start from numbers rather than
+from EV-2's argument, and the numbers turn out to be worse than the argument claimed.
+`bin/clause_unit_probe.exs` ships and reproduces all of them; it reads `@clauses`, `@uncited` and
+`@partial` out of the test's own source and evaluates them rather than transcribing, because a third
+hand-maintained copy of the contract is the defect being measured.
+
+**118 entries — 57 cited, 57 uncited, 4 partial — every one still anchored verbatim in its own row's
+outcome cell, together reaching 5,500 of 5,932 outcome characters (93%).** The anchoring is the
+existing mechanism working: the outcome side stopped being a hand transcription two reviews ago. The
+remaining 7% is where the punctuation unit shows.
+
+**7 substantive obligations no entry accounts for.** Each shares a punctuation-delimited fragment
+with an asserted quote, and the splitter marks a whole fragment covered when it *contains* any cited
+clause — so "Git/scope validation failure is invalid submission" is invisible because "never a
+frozen result" sits in the same fragment, and six more like it. This is the direction that flatters
+the number: coverage reads complete over text nothing asserts.
+
+**7 spans claimed by two entries at once.** Five are one shape: a cited quote spans a `;`, covering
+two obligations, and the clause after the `;` is separately recorded as uncited — differing only by
+the trailing period, which is exactly why `String.contains?/2` never reported the contradiction. The
+same clause is counted in both totals. One has a `@partial` quote nested in an `@uncited` one, and
+one has identical text in `@clauses` and `@partial` at once.
+
+**The conservative resolution would have been wrong, and reading the scenarios is what showed it.**
+The cautious move on a cited/uncited disagreement is to trust `@uncited`, the record claiming less.
+Four of the five are stale instead — the scenario does assert the clause: `nonstart_pm` asserts
+`objective["proposals"] == %{}`; `developer_exit_after_freeze` asserts `candidate_id` and
+`phase == "candidate_frozen"`; `terminal_rejection` asserts `disposition == "rejected"` survives the
+refused event; `nonstart_reviewer` asserts `ordinals["developer"] == 0` and `disposition == nil`.
+The fifth, `blocked_result`, is genuinely two obligations — "close developer" is asserted at
+`executions["X1"]["lifecycle"] == "closed"`, "no review" is asserted by nothing. Guessing would have
+recorded four clauses as unasserted that are asserted, and missed the one real gap.
+
+So **"57 asserted / 57 uncited" is wrong in both directions at once**: at least 7 obligations
+invisible, at least 4 uncited entries stale, 7 spans double-counted. That is EV-2's thesis with
+denominators, and it is the input to the annotation pass rather than a separate finding — the IDs
+are what make each of these unsayable, because an obligation is then in the asserted set or it is
+not, with no substring heuristic to be fooled by a trailing period.
+
+**The probe is temporary by construction** and says so in its header: once IDs land, none of its
+three questions can be asked. Its red control feeds the matcher a quote certainly absent from the
+contract and halts if that reports as anchored — without it, zero orphans, zero overlaps and zero
+unanchored quotes is the same output a broken matcher produces.
+
+**What it cannot see.** Whether a scenario's assertions actually discharge the clause it cites.
+Citing pins the transcription to the contract's words, never the assertion to the clause. The four
+stale entries above were found by reading five scenarios, not by running the probe, and the same
+reading is owed for the other 53 cited clauses.
