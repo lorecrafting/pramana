@@ -161,11 +161,13 @@ These are not style preferences. Each was bought with a review round.
   its conjuncts are still the check to do by hand. `bin/contract_annotation_diff.exs` is the proof that an annotation pass
   changed no contract text, and its header states the three things it does not prove.
 - The sweep's population is every non-definition `require_*(` call. A refusal expressed any
-  other way is outside it. **Measured by `bin/refusal_sites.exs`, which prints this every run:
-  of 74 refusal sites across `kernel.ex` and `kernel/event.ex`, 47 are inside `require_*`
-  definitions and 27 are not** — 9 inline in `do_transition` clauses, 18 in the envelope pipeline,
-  the state builders and `Event.validate/1`. For those 27 there is no `require_*(` call to
-  neutralise, so no mutation trial exists and a clean sweep says nothing whatever about them.
+  other way is outside it. **Run `elixir bin/refusal_sites.exs` for the split** — how many refusal
+  sites across `kernel.ex` and `kernel/event.ex` sit inside `require_*` definitions, and how many
+  are inline in `do_transition` clauses or in the envelope pipeline, the state builders and
+  `Event.validate/1`. The counts used to be restated here (74 / 47 / 27) and were stale within a
+  day of two kernel commits (2026-09-22); the script is where they are computed. For the sites
+  outside `require_*` there is no call to neutralise, so no mutation trial exists and a clean
+  sweep says nothing whatever about them.
 
   This number has been wrong twice, each time from an unstated boundary, and each time an outside
   reader found it. First it was "9 inline refusals across 7 handlers" — only the `do_transition`

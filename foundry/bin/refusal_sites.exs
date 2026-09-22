@@ -78,14 +78,20 @@ sites =
 
 # Red control, per rule 1. A scanner whose regex has drifted reports zero sites outside the
 # population — a clean, confident result meaning "the sweep sees everything", which is the
-# opposite of the truth. Two sites are known to exist by line number; require them.
+# opposite of the truth. Three sites are known to exist; require them. Keyed by enclosing
+# function and atom, NOT by line: the pins were line numbers until 253d9467 added nine lines to
+# kernel.ex's moduledoc and every pin silently pointed at a different line - this red control
+# went red on a correct scanner, and nothing noticed because this script is not in the gate.
 known = [
-  {393, "cancellation_requested inline if"},
-  {217, "refuse_terminal_ticket, pipeline"},
-  {80, "ok_or(:unknown_entity_kind), the second spelling"}
+  {"kernel.ex do_transition", "ticket_terminal", "cancellation_requested inline if"},
+  {"kernel.ex refuse_terminal_ticket", "ticket_terminal", "pipeline"},
+  {"kernel.ex apply", "unknown_entity_kind", "ok_or, the second spelling"}
 ]
 
-missing = Enum.reject(known, fn {line, _} -> Enum.any?(sites, fn {n, _, _} -> n == line end) end)
+missing =
+  Enum.reject(known, fn {fun, atom, _} ->
+    Enum.any?(sites, fn {_, f, a} -> f == fun and a == atom end)
+  end)
 
 if missing != [] do
   IO.puts(:stderr, "RED CONTROL FAILED: known refusal sites not found: #{inspect(missing)}")
