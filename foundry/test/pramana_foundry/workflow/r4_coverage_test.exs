@@ -562,6 +562,71 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4.26.f2" =>
       {:guarded, [:ticket_terminal],
        "\"ordinary\" is encoded as that same predicate's exclusions - @terminal_cleanup_events and finalizing_integrated_cancel?/2 are admitted on a terminal ticket, everything else is refused"},
+    "R4.01.f1" =>
+      {:guarded, [:entity_already_exists],
+       "an objective without an admitted spec is an objective that does not yet exist; resolve_entity/3 refuses a creating event naming an existing one, and do_transition(\"objective_created\", :absent, ...) matches only that case. The R4.02.f1 shape"},
+    "R4.01.f2" =>
+      {:input,
+       "broad steering is what pm_proposal_recorded carries; its only refusal is the inline :duplicate_proposal, which guards re-recording rather than the from-state"},
+    "R4.05.f2" =>
+      {:input,
+       "the success artifact is the event's content and the freeze is this row's outcome. artifact_frozen additionally requires a running developer (:no_running_developer at kernel.ex:463), which the row does not name"},
+
+    # R4.08, R4.21 and R4.25's siblings all route through require_settlement_source/2, a
+    # dispatch table keyed by disposition (kernel.ex:1561+). attempt_settled itself has no
+    # ticket-phase guard; the phase obligations are carried attempt-side inside that table.
+    "R4.08.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "DERIVED, and neither site says it: attempt_settled has no ticket-phase guard, and require_settlement_source/2's failed/timed_out branch requires attempt phase ~w(active), which is the attempt-side encoding of the ticket being developing"},
+    "R4.08.f2" =>
+      {:guarded, [:candidate_frozen, :exit_not_verified],
+       "require_no_candidate/1 carries \"has no valid candidate\" and require_developer_stream_sealed/1 carries \"sealed stream\", both in the failed/timed_out branch"},
+    "R4.08.f3" =>
+      {:guarded, [:exit_not_verified],
+       "require_developer_stream_sealed/1, the same guard as f2's \"sealed stream\" half - one guard carrying two of this row's conjuncts"},
+
+    # R4.19.f1 is held back, not classified - see @from_unclassified.
+    "R4.19.f2" =>
+      {:guarded, [:stream_not_sealed],
+       "reviewer_closed (kernel.ex:797) require_sealed/3 carries \"sealed stream\"; \"no valid verdict\" is the branch this row takes, the verdict being absent rather than refused"},
+    "R4.19.f3" => {:input, "a reviewer crash or timeout is what this event reports"},
+    "R4.20.f2" =>
+      {:protected,
+       "base, evidence and policy currency is protected policy the kernel may not restate; what integration_planned does check is narrower and is its own row's business - require_no_ref_receipt/1 and require_issuer_terminated/1"},
+
+    # R4.21's two conjuncts land on their guards exactly, which is rare enough to note: the
+    # phase set IS "ready_to_integrate/integrating" and the guard IS about issuance.
+    "R4.21.f1" =>
+      {:guarded, [:wrong_attempt_phase],
+       "require_settlement_source/2's superseded_base branch requires attempt phase ~w(ready_to_integrate integrating), the row's cell exactly"},
+    "R4.21.f2" =>
+      {:guarded, [:integration_already_issued],
+       "integration_issued?/1 in that same branch asks about issuance and nothing else, which is the clause's own wording; the qualifier that used to narrow it was deleted under rule 3 with the induction recorded at the site"},
+    "R4.22.f2" =>
+      {:input,
+       "the successful ref receipt is the event's content; require_no_ref_receipt/1 guards against a SECOND receipt rather than requiring this one"},
+    "R4.23.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "integration_settled (kernel.ex:867) require_phase ~w(integrating)"},
+    "R4.23.f2" =>
+      {:guarded, [:ref_receipt_recorded],
+       "require_no_ref_receipt/1 at :869 is as much of \"proved no ref change\" as the reducer can see; the PROOF is a protected fact the kernel may not restate, which is the same split require_settlement_source records at its own site"},
+    "R4.23.f3" => {:input, "the infrastructure failure is what this event reports"},
+    "R4.25.f1" =>
+      {:guarded, [:wrong_source_phase],
+       "ticket_reset (kernel.ex:365) require_phase ~w(exhausted), the row's cell exactly"},
+    "R4.25.f2" =>
+      {:protected,
+       "an authenticated reset grant and the units it makes eligible are allocation, which is protected policy the kernel may not restate"},
+    "R4.25.f3" => {:input, "the explicit resume is what ticket_reset carries"},
+    "R4a.01.f1" =>
+      {:input, "the role is fixed by the event type: launch_settled is the developer row"},
+    "R4a.01.f2" =>
+      {:guarded, [:wrong_source_phase, :not_the_active_attempt],
+       "launch_settled (kernel.ex:442-443) require_phase ~w(developing) and require_active_attempt/2 together carry \"active attempt\"; \"before any valid result\" is not separately guarded here"},
+    "R4a.04.f1" =>
+      {:input,
+       "the worker kind is fixed by the event type; worker_closed guards only require_attempt/2, and the row's disjunction of worker kinds is a routing fact rather than a precondition"},
     "R4.04.f3" =>
       {:unguarded,
        "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
@@ -569,62 +634,47 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its
   # handler, and doing them in a sitting is the shape that produced six of this subcommit's
-  # defects - "verify the property on item one, assert it of the list". 42 of 72 are
-  # classified; this list holds the other 30 and can only shrink.
+  # defects - "verify the property on item one, assert it of the list". 63 of 72 are
+  # classified; this list holds the other 9 and can only shrink.
   #
-  # Three are deliberately still here rather than guessed. R4.24.f2 is a disjunction whose
-  # branches have different dispositions - "explicit resume" is the input, "recorded
-  # dependency/resource recovery" is a protected fact. R4.28.f3 "cleanup reconciled" is
-  # equated by the kernel with "every execution closed", which may be narrower than the
-  # contract's cleanup notion; saying which needs a read of the contract, not of the kernel.
+  # All nine are held deliberately rather than guessed, and four of them share one shape.
   #
-  # R4.07.f1 "candidate_frozen" is the one that looks like a second :unguarded and is not
-  # being recorded as one yet. `execution_observed` has no phase guard at all, so the row's
-  # from-state is not gated there - but the row's outcome is "cleanup observation only", which
-  # is phase-independent, and the transitions the row FORBIDS are refused by other handlers
-  # (its scenario pins :wrong_attempt_phase on a forged settlement). So the precondition may be
-  # enforced by the absence of a transition rather than by a guard, which is a structure none
-  # of the five dispositions expresses. Inventing a sixth on one witness is the mistake this
-  # list exists to avoid; it needs a second example before it is a category.
+  # ENFORCED BY THE ABSENCE OF A TRANSITION, possibly. R4.07.f1/f2, R4.19.f1 and R4a.03.f1/f2
+  # each name a from-state that nothing on their own path refuses. `execution_observed` has
+  # no phase guard at all and its outcome - "cleanup observation only" - is phase-independent;
+  # `reviewer_closed` does hold require_attempt_phase ~w(reviewing), but only inside the
+  # `verdict == "approved"` branch, which the crash path R4.19 describes never reaches; and
+  # `pm_launch_settled` has no guards whatever, consuming an ordinal and returning. In each
+  # case the transitions the row FORBIDS are refused by other handlers - R4.07's scenario
+  # pins :wrong_attempt_phase on a forged settlement - so the obligation may be discharged by
+  # there being no transition to make, rather than by a refusal.
   #
-  # The measurement that killed the shortcut: a blanket rule for the phase conjunct would
-  # have been WRONG for 20 of the kernel's 37 `do_transition` clauses. 17 call
-  # `require_phase/2` (:wrong_source_phase), 10 call `require_attempt_phase/2`
-  # (:wrong_attempt_phase), and the rest - `ticket_admitted`, `cancellation_requested`,
-  # `cancellation_finalized`, `attempt_settled` and `control_changed` among them - guard the
-  # phase some third way or not at all. That is rule 4's partial generalisation waiting to
-  # happen, so the list shrinks a row at a time and this test holds the ratchet.
+  # None of the five dispositions expresses that, and a sixth is NOT being added here. There
+  # are now four witnesses rather than one, which is the threshold this file asked for - but
+  # `{:input}` and `{:effect}` each earned their place by appearing where a wrong
+  # classification would otherwise have been RECORDED, and a category that exists to explain
+  # why nine obligations need no defence is the shape an excuse takes. It wants an
+  # independent reading before it becomes a way to say "fine" nine times.
+  #
+  # R4a.02.f1/f2 are a different problem: the row says "frozen candidate awaiting review" and
+  # `review_settled` guards require_phase ~w(reviewing). Those are not the same state, and
+  # which one the contract means is not answerable from the kernel.
+  #
+  # R4.24.f2 is a disjunction whose branches want different dispositions - "explicit resume"
+  # is the input, "recorded dependency/resource recovery" is a protected fact - and one ID
+  # cannot carry both. R4.28.f3 "cleanup reconciled" is equated by the kernel with "every
+  # execution closed"; whether the contract's cleanup notion is wider needs a read of the
+  # contract, not of the kernel.
   @from_unclassified [
-    "R4.01.f1",
-    "R4.01.f2",
-    "R4.05.f2",
     "R4.07.f1",
     "R4.07.f2",
-    "R4.08.f1",
-    "R4.08.f2",
-    "R4.08.f3",
     "R4.19.f1",
-    "R4.19.f2",
-    "R4.19.f3",
-    "R4.20.f2",
-    "R4.21.f1",
-    "R4.21.f2",
-    "R4.22.f2",
-    "R4.23.f1",
-    "R4.23.f2",
-    "R4.23.f3",
     "R4.24.f2",
-    "R4.25.f1",
-    "R4.25.f2",
-    "R4.25.f3",
     "R4.28.f3",
-    "R4a.01.f1",
-    "R4a.01.f2",
     "R4a.02.f1",
     "R4a.02.f2",
     "R4a.03.f1",
-    "R4a.03.f2",
-    "R4a.04.f1"
+    "R4a.03.f2"
   ]
 
   describe "every from-cell obligation is classified" do

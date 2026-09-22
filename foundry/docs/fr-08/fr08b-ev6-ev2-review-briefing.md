@@ -17,7 +17,7 @@ can say about it.
    strips the markers from both sides and diffs against a revision.
 2. Every **from-cell** obligation must carry a disposition: `{:guarded, atoms, why}` with atoms the
    kernel declares, `{:protected, why}`, `{:unguarded, why}`, `{:input, why}` or `{:effect, why}`.
-   **42 of 72** are classified; 30 are a recorded ratchet. The last two categories were added during
+   **63 of 72** are classified; 9 are held with stated reasons. The last two categories were added during
    the work, not designed in — see enumeration 6.
 3. Every **outcome** obligation is in `@clauses` or `@uncited`, never both and never neither.
    124 obligations: 64 asserted, 60 recorded uncited. The punctuation splitter is deleted.
@@ -34,12 +34,25 @@ recorded as asserted — the coverage number lying in the flattering direction, 
 defect this candidate exists to remove. **Check all four against their scenarios.** The fifth,
 `blocked_result`, I split into "close developer" (asserted) and "no review" (not) — check that too.
 
-**2. The obligation boundaries.** 124 spans were placed to respect 118 pre-existing quotes. Ask
+**2. Is "enforced by the absence of a transition" a real category, or an excuse?** Four held
+obligations — R4.07.f1/f2, R4.19.f1 and R4a.03.f1/f2 — name a from-state that nothing on their own
+path refuses. `execution_observed` has no phase guard and its outcome is phase-independent;
+`reviewer_closed`'s `require_attempt_phase ~w(reviewing)` sits only in the `verdict == "approved"`
+branch, which R4.19's crash path never reaches; `pm_launch_settled` has no guards at all. In each
+case the transitions the row *forbids* appear to be refused by other handlers.
+
+If that reading is right, a sixth disposition is owed and these are not defects. If it is wrong,
+**some of these are row :467 again** — a reducer-owned precondition nothing consults — and this
+candidate has five of them recorded as "held" instead of as defects. I did not decide it alone,
+having just had to correct a refusal-site count I was equally confident about. **This is the
+judgement I most want overruled if it deserves overruling.**
+
+**3. The obligation boundaries.** 124 spans were placed to respect 118 pre-existing quotes. Ask
 whether any span mis-assigns text: specifically, whether a `@uncited` obligation's span absorbed
 text that an asserted clause covers, or the reverse. The property I relied on is "every existing
 quote falls inside exactly one obligation" — test it independently rather than taking it.
 
-**3. The 42 from-cell classifications.** Two are unusual and both are mine to have got wrong:
+**4. The 63 from-cell classifications.** Two are unusual and both are mine to have got wrong:
 `R4.02.f1` claims "draft" means *no ticket exists*, enforced by `resolve_entity/3` pre-dispatch and
 the `:absent` function head; `R4.27.f1` claims an inline `if` at `kernel.ex:392` guards "nonterminal
 ticket" with `:ticket_terminal`. Note also that R4.16.f1, R4.17.f1 and R4.18.f1 are the same guard
@@ -47,13 +60,13 @@ site counted three times, because those rows share `review_recorded`. The mechan
 named guard is the right one — so a plausible atom borrowed from the wrong handler passes. That is
 the hole to probe.
 
-**4. The measured gaps.** Two claims that will be quoted later, so they should be attacked now:
+**5. The measured gaps.** Two claims that will be quoted later, so they should be attacked now:
 "24 of the kernel's 71 refusal sites are outside the sweep's population" (`bin/refusal_sites.exs`,
 which corrects an earlier by-eye count of 9), and
 "`require_all_executions_closed/1` and `require_cleanup_complete/1` are the same predicate under two
 atoms". Both were derived by reading; neither ships with a runnable check.
 
-**5. The two dispositions added mid-candidate.** `{:input}` and `{:effect}` were both forced by
+**6. The two dispositions added mid-candidate.** `{:input}` and `{:effect}` were both forced by
 reading, and both exist to avoid recording `:unguarded` where the contract is implemented. That makes
 them the mechanism's softest spot: **either could be used to explain away a real hole.** Attack the
 six entries that use them — R4.02.f2, R4.03.f2, R4.27.f2, R4.17.f2, R4.18.f2 (`:input`) and R4.12.f2
@@ -61,7 +74,7 @@ six entries that use them — R4.02.f2, R4.03.f2, R4.27.f2, R4.17.f2, R4.18.f2 (
 mandatory check receipts passed", including the `policy_empty_checks` branch, and that nothing is
 lost by there being no refusal.
 
-**6. Vacuity.** `check/4` (from-cell) and `partition/3` (outcome) each return empty lists when
+**7. Vacuity.** `check/4` (from-cell) and `partition/3` (outcome) each return empty lists when
 neutralised, and each is caught *only* by its red control. Verify that the red controls actually
 constrain — that they would fail for a detector that is subtly wrong rather than only for one that
 returns nothing.

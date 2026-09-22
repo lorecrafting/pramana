@@ -3813,3 +3813,53 @@ place by appearing where a wrong classification would otherwise have been record
 convenient. R4.07 needs a second example before it is a category rather than an excuse.
 
 That is now three obligations held back rather than guessed: R4.07.f1, R4.24.f2 and R4.28.f3.
+
+## EV-6, commit 6 — 63 of 72, and the nine that are held rather than answered — 2026-09-21
+
+Twenty-one more obligations classified. **63 of 72 carry a disposition** — 40 guarded, 16 input,
+5 protected, 1 effect, 1 unguarded — and **9 are held with stated reasons**. That closes the
+from-cell pass as far as reading the kernel can take it.
+
+**`require_settlement_source/2` turned out to carry three rows' phase obligations.** It is a dispatch
+table keyed by disposition (`kernel.ex:1561+`), and `attempt_settled` itself has no ticket-phase
+guard at all. So R4.08's "developing" is carried attempt-side by that table's `failed/timed_out`
+branch requiring `~w(active)`; R4.21's "ready_to_integrate/integrating" is its `superseded_base`
+branch, matching the row's cell exactly; and R4.21's "before issuance" is `integration_issued?/1` in
+the same branch, asking about issuance and nothing else, which is the clause's own wording. Three
+rows whose guards are nowhere near the handler that bears their name.
+
+One guard also carries two conjuncts of one row: `require_developer_stream_sealed/1` is both R4.08's
+"sealed stream" and its "verified exit/timeout". The ID scheme allows that — an obligation may owe
+more than one atom, and an atom may discharge more than one obligation — which is why counting
+obligations and counting guards are different questions.
+
+### Four witnesses for a structure, and still no sixth disposition
+
+R4.07.f1/f2, R4.19.f1 and R4a.03.f1/f2 each name a from-state that **nothing on their own path
+refuses**. `execution_observed` has no phase guard and its outcome, "cleanup observation only", is
+phase-independent. `reviewer_closed` does hold `require_attempt_phase ~w(reviewing)` — but only
+inside the `verdict == "approved"` branch, which the crash path R4.19 describes never reaches.
+`pm_launch_settled` has no guards whatever: it consumes an ordinal and returns. In each case the
+transitions the row *forbids* appear to be refused by **other** handlers; R4.07's own scenario pins
+`{:error, :wrong_attempt_phase}` on a forged settlement.
+
+This file asked for a second witness before "enforced by the absence of a transition" became a
+category. There are now four. **It is still not being added**, and the reason is not caution for its
+own sake. `{:input}` and `{:effect}` each earned their place by turning up where a wrong
+classification would otherwise have been *recorded* — they made the inventory more accurate. A
+category whose effect is to explain why nine obligations need no defence makes it *less* falsifiable,
+and that is the shape an excuse takes. If the reading is right, a sixth disposition is owed and these
+are not defects. If it is wrong, **some of these are row :467 again**, and this candidate has five
+reducer-owned preconditions recorded as "held" rather than as defects.
+
+It is promoted to the second enumeration in the review briefing, and named there as the judgement I
+most want overruled if it deserves overruling. Deciding it alone, an hour after correcting a
+refusal-site count I was equally confident about, is not the move.
+
+### The other five
+
+R4a.02.f1/f2 are a different problem entirely: the row says "frozen candidate awaiting review" and
+`review_settled` guards `require_phase ~w(reviewing)`. Those are not the same state, and which one
+the contract means is not answerable from the kernel. R4.24.f2 is a disjunction whose branches want
+different dispositions and one ID cannot carry both. R4.28.f3's answer is in the contract's cleanup
+notion, not in the reducer.
