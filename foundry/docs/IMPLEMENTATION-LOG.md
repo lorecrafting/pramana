@@ -3004,3 +3004,35 @@ row; this is why no mechanism could have found it, and that generalises.
 - **Note for that candidate:** guarding row :467 will *shrink the reachable set*, so the depth-6
   and depth-7 denominators recorded in this log and in `semantic_invariants.ex` move with it.
   13,290 / 58,324 and the 1,002 are pre-guard numbers and must be re-measured, not carried.
+
+### Correction to the entry above, same day
+
+The EV-6 entry called row :467's unguarded conjuncts a defect that seven reviews and four green
+gates had failed to catch. **The second half is false, and I did not grep before asserting it.**
+
+- The **first** pure-kernel review caught it and filed it as **B3**: "The developer/reviewer
+  non-start decision ... never sees global pause/drain state and does not act on the ticket's
+  cancel control (`kernel.ex`, lines 744–773 and 840–881)". The correction design's B3 section
+  then specified the whole per-role control product — pause forbids issue until resume; drain
+  forbids developer and PM replacement launches while reviewer, mandatory-check and
+  already-admitted finalization retries stay eligible; cancel never retries; revocation and
+  generation change preserve phase and owner. The repair plan records **B3 as outstanding** and
+  subcommit 2 owns it.
+- So: not an undetected defect, and **not its own candidate**. Removed from the order table; it is
+  B3's work, already designed, and starting it here would be reimplementing a scoped design
+  outside the subcommit that owns it.
+- This is the same defect shape as the thing it was reporting. The standing rule is "grep before
+  asserting an enumeration"; I asserted a **novelty** claim — that nothing had found this — and a
+  novelty claim is an enumeration over prior art. `grep -n "B3" docs/fr-08/` would have settled it
+  in one call, and I ran that grep only after writing the entry, while checking whether
+  `launch_planned` from `developing` had a governing row.
+- **What survives is the structural half, and it is unaffected:** 32 rows, 61 from-cell conjuncts,
+  28 rows with more than one, **0 of the 61 in the coverage number**; `@uncited` is outcome-cell
+  only; `paused` and `draining` are written by `control_changed` (`:977-984`) and read by no
+  transition. And the depth-2 reachability — 115 of 2,642 cancel-pending, 101 of 2,304 paused,
+  101 of 2,304 draining accepting a fresh `launch_planned` — is genuinely new: B3 established the
+  gap by reading, and nobody had measured how shallow it is.
+- The correction strengthens EV-6 rather than weakening it. B3 cost a review round to find, every
+  mechanism in the gate was green for the defect's entire life and still is, and that is exactly
+  the economics `EVIDENCE-TOOLS.md` opens with — a reading-check that should be a running-check.
+  The claim to make is "no mechanism covers preconditions", not "nobody noticed".

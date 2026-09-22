@@ -233,7 +233,7 @@ look corroborated.
 |---|---|---|---|
 | — | EV-4 congruence | **done** | Landed at `96ad2f22`, independently reviewed and accepted |
 | — | EV-5 relations test | **done** | Landed at `b3c110e3`, gate green, awaiting an independent review of the delta |
-| 1 | **row :467 guard** | small, but it moves the reachable set | Not an EV item — a live reachable defect, and EV-6's witness. First |
+| — | ~~row :467 guard~~ | — | **Not a candidate.** It is B3's, outstanding and designed; subcommit 2 owns it |
 | 2 | EV-3 invariant split | moderate | Before subcommit 2 builds `decide/3` |
 | 3 | EV-6 from-cell conjuncts | moderate | With EV-2, not before it — same contract edit |
 | 4 | EV-2 clause IDs | largest | Between subcommits, before subcommit 3, no review outstanding |
@@ -248,8 +248,25 @@ entirely vacuous results on their first run.
 ## EV-6 — the coverage number measures the outcome half of every row
 
 Found while verifying the EV-5 review's largest finding. Not one of Sol's proposals, and not a
-tidy-up: it is the reason a contract condition can go unimplemented through four green gates and
-seven independent reviews without any mechanism objecting.
+tidy-up: it is the reason an unimplemented contract *precondition* is found only by a human
+reading prose against code.
+
+**Corrected before this ticket was acted on.** The first draft called row :467's unguarded
+conjuncts a defect no mechanism and no review had caught. The second half is false and the
+correction is the ticket's best evidence: the **first** pure-kernel review caught it and filed it
+as **B3** — "It never sees global pause/drain state and does not act on the ticket's cancel
+control (`kernel.ex`, lines 744–773 and 840–881)"
+([review](fr08b-pure-kernel-review.md#b3--r4a-dispositions-do-not-cross-current-controls-allocation-or-generations)) —
+and [the correction design](fr08b-kernel-correction-design.md#b3--r4a-control-crossing-at-the-specified-ordering-point)
+already specifies the full per-role control product. B3 is recorded as **outstanding** in the
+repair plan and belongs to subcommit 2. So this is not an undetected defect, and the row :467
+guard is not a separate candidate; it is B3's, already designed.
+
+What survives, and it is the point: **a reviewer had to find it by reading, and it cost a review
+round.** Every mechanism in the gate stayed green across the whole life of the defect, and still
+would. That is the same economics `EVIDENCE-TOOLS.md` opens with — "anything that converts a
+reading-check into a running-check is worth more than another reader" — applied to preconditions,
+which is the half no mechanism covers.
 
 **What is wrong.** `r4_coverage_test.exs`'s clause bookkeeping is built entirely on **outcome
 cells**. `@clauses` are quoted from a row's outcome and a test asserts each is still a substring

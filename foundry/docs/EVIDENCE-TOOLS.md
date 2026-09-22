@@ -114,9 +114,11 @@ These are not style preferences. Each was bought with a review round.
   **outcome cells only**, so a from-state conjunct is in neither `@clauses` nor `@uncited`;
   `State.valid?/1` is shapes; `SemanticInvariants` has no clause for controls. Measured:
   **32 rows carry 61 from-cell conjuncts and 0 of the 61 appear in the coverage number.** The
-  witness cost nothing to find once someone looked — row :467's "no pause/drain/cancel" is
-  unguarded on `launch_planned` and violated **two events from empty** in all three conjuncts,
-  with `paused` and `draining` written by `control_changed` and read by no transition at all.
+  witness is row :467's "no pause/drain/cancel", unguarded on `launch_planned` and violated **two
+  events from empty** in all three conjuncts, with `paused` and `draining` written by
+  `control_changed` and read by no transition at all. It was found by the **first** pure-kernel
+  review, reading, and filed as **B3** — which is the cost this gap imposes rather than a
+  counterexample to it: every mechanism here was green for the defect's whole life and still is.
   So **a conjunctive precondition needs a refusal test per conjunct, and nothing checks that it
   has one.** If you add or change a row, that is the check to do by hand until
   [EV-6](fr-08/fr08b-evidence-reduction-tickets.md) exists.
