@@ -4933,3 +4933,31 @@ comment now records the claim as bounded (rule 3), not by construction. The othe
 the same commit. Gate at 253d9467: passed, six commands, 952 passed / 13 skipped / 1 excluded,
 pre- and post-source clean.
 
+
+## The harness-routing scan reads the AST, not the text — 2026-09-22
+
+`r4_no_direct_apply_test.exs` matched call-site text, and the known-gap bullet in
+`EVIDENCE-TOOLS.md` recorded five spellings that reached the kernel unseen — a capture, an
+alias rename, reflection, and the parenless and space-before-paren call forms. The scan now
+parses every `test/**/*.{ex,exs}` with `Code.string_to_quoted/2`, resolves aliases (plain,
+`as:`, multi-alias) and module attributes per file, and reports three AST shapes: a remote call
+or capture of the kernel's `apply` under any resolved spelling, and `apply/3` reflection whose
+module argument resolves to the kernel.
+
+**Red controls (rule 1):** eleven fixtures, one per spelling — the five above, the
+fully-qualified call, the plain and multi-alias forms, `Kernel.apply/3` spelled with its
+module, a module attribute and an atom literal — each written under `test/` during the test,
+removed in `on_exit`, and each reported with its line. A negative control names the module in
+a comment and a string and calls another module's `apply/2`; it is not reported. A planted
+parenless call under `test/` turned the live wildcard scan red at `test/r4_planted_probe.exs:2`
+before this was committed (rule 6). The `apply_unchecked` pin is AST-based, has its own red
+control under a renamed alias, and still names the same two sites.
+
+**Deleted:** the text scan and the assembled needle it needed to keep out of its own file.
+Everything the text scan matched the AST scan matches, and comments and strings are no longer
+in the haystack. `K.apply (s, e)` with two arguments is a syntax error; the space-before-paren
+form that compiles is `K.apply (s), e`, and it is the same node as the plain call.
+
+**What remains:** a module bound at runtime (`mod = Kernel; mod.apply(s, e)`, an argument, a
+config value) is not decidable statically. The test says so; the gap bullet keeps its history
+and carries the dated close.
