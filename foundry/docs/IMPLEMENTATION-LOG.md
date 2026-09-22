@@ -4263,3 +4263,48 @@ no objective allocation" — the first half is asserted (`state["tickets"] == %{
 not, and the `pm` infrastructure ordinal the scenario does assert is a different thing from an
 allocation. The first reviewer flagged this as an observation and it stays one: saying whether the
 kernel can express "objective allocation" at all needs the contract read, not the scenario.
+
+## The citation pass was reviewed and ACCEPTED, and the review improved it anyway — 2026-09-22
+
+Third independent review, delta `dc9582b3..f3195112`, 20-minute budget, appended to
+[the findings](fr-08/fr08b-ev6-ev2-review-findings.md). **ACCEPT** — the first on this branch after
+two BLOCKs.
+
+**All three removals verified correct.** `cancel_finalized` never applies `integration_recorded`, so
+R4.28.o3's branch is never entered. `blocked_result`'s one pinned refusal is `:no_blocked_result`,
+the from-cell conjunct. `integration_success` forges only integration events. Each was checked
+against its scenario rather than taken.
+
+**The single-write-site claim was verified independently, and more thoroughly than it was made.**
+The reviewer checked for indirect writes as well: no variable-key writes, no `Map.merge` on attempts,
+`update_attempt`/`update_active_attempt` are plain `update_in` wrappers, no other `lib` file writes
+`"attempts"`, and `close_execution` and `stream_sealed` each touch exactly one execution-level key.
+Given that the same grep-and-read method produced a refusal-site undercount of 15 earlier the same
+day, the claim holding up is worth recording as much as a defect would have been.
+
+**`pending` turned out to be contract-derived, which was luck rather than method.** It was read off
+`add_execution/3`. The reviewer found the warrant: `WORKFLOW-CONTRACT.md:390` enumerates the
+execution lifecycle with `pending` first, R4.04.o3 places the intent before any start unit, and
+R4a's "proved non-start" implies an unstarted execution. It is also the right *strength* — asserting
+`!= "closed"` would accept an intent already running. Both test comments now cite `:390`, so the
+next reader sees a contract value rather than an implementation constant.
+
+### The observation worth more than the verdict
+
+**R4.22.o4 is asserted again, and the fixture for it was already in the file.** The clause had been
+moved to `@uncited` on the grounds that it was held by a structural argument rather than a test —
+correct under rule 3, and one step short of what rule 3 actually asks, which is *prove it or delete
+it*. The reviewer pointed out that `before_settle` already exists three lines above.
+
+The assertion that was missing is not a refusal. **An exit notification is accepted** — the clause is
+that it leaves the receipt alone, not that it is rejected. So: apply `execution_observed` to the
+integration execution after the receipt exists, require `{:ok, _}`, and require the receipt to
+survive. Neutralised to confirm it fails, then reversed. The structural argument is now a test, and
+the argument stays in the comment as the reason the test is the right one.
+
+**124 obligations: 62 asserted, 62 recorded uncited.**
+
+The general lesson is narrow and worth keeping: *"nothing asserts this, so record it as uncited"* was
+the cheap half of rule 3. The rule's own instruction is to prove it inductively or delete it, and a
+third option — write the test — was available and unlooked-for. Recording a gap is not the same as
+closing one, and it reads almost the same in a log.

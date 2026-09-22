@@ -142,7 +142,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ],
     integration_success: [
       {"R4.22.o1", "integrated ticket"},
-      {"R4.22.o2", "terminal integrated attempt"}
+      {"R4.22.o2", "terminal integrated attempt"},
+      {"R4.22.o4", "Exit notifications cannot overwrite this"}
     ],
     launch: [
       {"R4.04.o2", "create its launch intent and enter developing"}
@@ -281,14 +282,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
      "Set orthogonal control, cancel pending/unissued effects, request owned interrupts"},
     {"R4.28.o2", "already terminal dispositions retained."},
     {"R4.28.o3", "If integration occurred: integrated and cancel_finalized(after_integration)"},
-    # Cited by integration_success until it was read. That scenario forges integration_recorded,
-    # integration_settled and integration_planned and asserts each is refused with
-    # :ref_receipt_recorded - a true guarantee, and a different one. No exit notification is
-    # forged anywhere. o4 does hold, but STRUCTURALLY: `ref_receipt_id` is written at exactly
-    # one site, kernel.ex:906 inside integration_recorded, and execution_observed and
-    # worker_closed never touch it. That is an inductive argument, not an assertion, and rule 3
-    # is precisely about not recording one as the other.
-    {"R4.22.o4", "Exit notifications cannot overwrite this"},
     # Cited by blocked_result until it was read. That scenario's one refusal assertion pins
     # :no_blocked_result, which is the row's FROM-cell conjunct "valid blocked/partial result"
     # - its own comment says so. Nothing there touches resume or rescope.
@@ -1051,6 +1044,11 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # asserted: the launch intent is a developer execution, and nothing checked one existed.
     # The citation was true of the contract's words and untrue of what the scenario proved,
     # which is the gap an ID cannot close. Asserting it is cheaper than recording it.
+    #
+    # `pending` is the contract's value, not one read off `add_execution/3`:
+    # WORKFLOW-CONTRACT.md:390 enumerates the execution lifecycle with `pending` first, and
+    # R4.04.o3 places the intent before any start unit is consumed. Asserting `!= "closed"`
+    # would be weaker in the wrong direction - it would accept an intent already running.
     intent = ticket["attempts"]["A1"]["executions"]["X1"]
     assert intent["role"] == "developer"
     assert intent["lifecycle"] == "pending"
@@ -1597,7 +1595,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # R4.15.o1 is "reviewing attempt/ticket, independent reviewer launch with its own
     # reservation". The two phases were asserted and the launch was not - the same shape as
     # R4.04.o2's unasserted launch intent, found two rows apart. A reviewer launch is an
-    # execution with its own id and role, and nothing checked one existed.
+    # execution with its own id and role, and nothing checked one existed. `pending` is the
+    # contract's lifecycle value (WORKFLOW-CONTRACT.md:390), as for R4.04.o2.
     launch = ticket["attempts"]["A1"]["executions"]["R1"]
     assert launch["role"] == "reviewer"
     assert launch["lifecycle"] == "pending"
@@ -1783,6 +1782,24 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       assert {:error, :ref_receipt_recorded} = Harness.apply(before_settle, forged),
              "#{type} was accepted after a ref receipt was recorded"
     end
+
+    # R4.22.o4, "Exit notifications cannot overwrite this". The loop above proves INTEGRATION
+    # events are refused once a receipt exists, which is a different guarantee; this clause was
+    # recorded as uncited until an independent review pointed out the fixture for it was
+    # already here. An exit notification is not refused - it is accepted, and the clause is that
+    # it leaves the receipt alone. Asserting that is what rule 3 asks for: the structural
+    # argument (only `integration_recorded` writes `ref_receipt_id`) is now a test.
+    exit_notice =
+      event("execution_observed", "T1", revision, sequence + 1, %{
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "execution_id" => "I1",
+        "observation" => "closing",
+        "lifecycle" => "closing"
+      })
+
+    assert {:ok, after_exit} = Harness.apply(before_settle, exit_notice)
+    assert after_exit["tickets"]["T1"]["attempts"]["A1"]["ref_receipt_id"] == "ref-1"
 
     :driven
   end

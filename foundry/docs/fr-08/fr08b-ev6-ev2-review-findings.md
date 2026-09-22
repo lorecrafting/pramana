@@ -387,3 +387,131 @@ the scan or a sentence saying it is out of scope.
 Optional: 4 — one regex alternation and one red-control pin, and a sentence about `event.ex`.
 Nothing in questions 1 and 2 needs answering; the reclassifications stand, and R4a.03.f2 now has a
 running witness.
+
+## Review of the citation pass — 2026-09-22
+
+Independent, third reviewer. Delta `dc9582b3..f3195112`. Nothing before `dc9582b3` re-read.
+Twenty-minute budget, spent on the three questions in the commissioning prompt.
+
+### Verdict: ACCEPT.
+
+Three removals correct, the single-write-site claim verified including indirect paths, and the two
+added assertions pin a contract value, not an implementation constant. Three observations, none
+of which needs answering before merge.
+
+```
+git diff dc9582b3..f3195112 -- test/pramana_foundry/workflow/r4_coverage_test.exs
+sed -n 1205,1262p  test/pramana_foundry/workflow/r4_coverage_test.exs   # blocked_result
+sed -n 1707,1790p  test/pramana_foundry/workflow/r4_coverage_test.exs   # integration_success
+sed -n 1940,1970p  test/pramana_foundry/workflow/r4_coverage_test.exs   # cancel_finalized
+TMPDIR=/private/tmp mix test test/pramana_foundry/workflow/r4_coverage_test.exs   # 49 passed, exit 0
+```
+
+### Question 1 — the three removals. All three correct. No block.
+
+**Claimed:** `R4.28.o3`, `R4.22.o4`, `R4.09.o4` are asserted by nothing in their scenarios.
+
+**`R4.28.o3` (cancel_finalized, :1940).** The scenario drives `cancellation_requested` →
+`stream_sealed` → `developer_closed` → `attempt_settled(cancelled)` → `cancellation_finalized
+(disposition: "cancelled")` from `developing()`, and asserts `phase == "cancelled"` and
+`disposition == "cancelled"`. No `integration_recorded` is ever applied, so no receipt exists and
+the "if integration occurred" branch is never entered. That is o1 exactly and o3 not at all.
+Removal correct.
+
+**`R4.09.o4` (blocked_result, :1205).** Asserts `disposition == "blocked"`, `phase == "blocked"`,
+`X1.lifecycle == "closed"` (o1, o2), then forges `attempt_settled(blocked)` on a fresh
+`developing()` and pins `:no_blocked_result`. That last refusal is the FROM-cell conjunct
+`R4.09.f2` "valid blocked/partial result"; nothing drives a resume or rescope command, with or
+without a fresh attempt. Removal correct.
+
+**`R4.22.o4` (integration_success, :1707).** Asserts `phase == "integrated"`,
+`disposition == "integrated"`, `ref_receipt_id == "ref-1"` (o1, o2), then forges
+`integration_recorded` ×2, `integration_settled` and `integration_planned` after a receipt and pins
+`:ref_receipt_recorded` on each. Every forged event is an *integration* event. No
+`execution_observed`, `worker_closed`, `stream_sealed` or `developer_closed` is applied after the
+receipt. The scenario proves the receipt is write-once against its own family and proves nothing
+about exit notifications. Removal correct.
+
+*Observation 1a.* The fixture o4 needs is already built: `before_settle` holds a recorded receipt
+and open execution `I1`. Forging `execution_observed{I1, lifecycle: "closing"}` on it and asserting
+`ref_receipt_id == "ref-1"` afterward is three lines and would move o4 back to `@clauses` as an
+assertion rather than a structural argument. Not required; the uncited entry is honest as written.
+
+### Question 2 — the single-write-site claim. Verified, including indirect paths. No block.
+
+**Claimed:** `ref_receipt_id` is written at exactly one site, `kernel.ex:906`, and
+`execution_observed` / `worker_closed` never touch it.
+
+```
+grep -n 'ref_receipt_id' lib/pramana_foundry/workflow/kernel.ex
+  :906   Map.put(&1, "ref_receipt_id", payload["ref_receipt_id"])   # write — "ref_created" branch
+  :1103  "ref_receipt_id" => nil                                    # init of a FRESH attempt map
+  :1298 :1406 :1521 :1533                                           # reads
+grep -rn 'ref_receipt_id' lib | grep -v workflow/kernel.ex          # event.ex field list, state.ex validation/measure — no writes
+grep -nE 'Map\.put\([^,]+, [a-z_]+[,)]|put_in\([^,]+, \[[a-z_]+\]' lib/pramana_foundry/workflow/kernel.ex   # no variable-key writes
+grep -nE 'Map\.merge|Map\.replace|struct\(' lib/pramana_foundry/workflow/kernel.ex     # none on attempts
+grep -rnE '"attempts"' lib --include='*.ex' | grep -v workflow/kernel.ex | grep -v state.ex   # nothing
+sed -n 548,563p lib/pramana_foundry/workflow/kernel.ex     # execution_observed: put_in ["executions", id, "lifecycle"] only
+sed -n 614,632p lib/pramana_foundry/workflow/kernel.ex     # worker_closed → close_execution
+sed -n 1141,1157p lib/pramana_foundry/workflow/kernel.ex   # close_execution: put_in ["executions", id, "lifecycle"], "closed" only
+sed -n 1243,1254p lib/pramana_foundry/workflow/kernel.ex   # update_attempt / update_active_attempt are update_in wrappers; write nothing themselves
+sed -n 1085,1116p lib/pramana_foundry/workflow/kernel.ex   # open_attempt refuses an existing id before :1103 runs
+grep -n 'def apply' test/support/kernel_harness.ex          # Harness.apply → WorkflowKernel.apply; no test-side state writes
+```
+
+**Found.** The overwrite claim holds. `:906` is the only `Map.put` naming the key, sits inside the
+`"ref_created"` branch, and is preceded by `require_no_ref_receipt/1` in the same `with`, so the
+receipt is write-once at its one site. `execution_observed` writes exactly
+`["executions", id, "lifecycle"]`; `worker_closed`, `developer_closed`, `check_settled` and every
+`*_settled` route through `close_execution/4`, which writes the same path; `stream_sealed` writes
+`["executions", id, "sealed_sequence"]`. No helper merges a payload into an attempt, no write uses a
+variable key, and the two attempt-update helpers only pass the caller's function to `update_in`.
+`:1103` initialises the key to `nil` on a *new* attempt map, and `open_attempt/2` refuses
+`:attempt_already_exists` / `:retained_attempt_must_be_reused` before that line can run, so it
+cannot replace a recorded receipt.
+
+*Observation 2a.* "Exactly one site" is one *overwrite* site; there are two *writes* if `:1103`
+counts. Say "written after creation at exactly one site" and the sentence is exact. Minor.
+
+*Observation 2b.* The author's argument names `execution_observed` and `worker_closed`. The
+contract's "exit notifications" plausibly also covers the broker's on-exit seal and close
+(`WORKFLOW-CONTRACT.md:454`, `stream_sealed` / `developer_closed`). Both were checked above and
+neither touches the key, so the argument holds at the wider scope; the comment could name all four.
+
+### Question 3 — the two added assertions. Right assertion, weakly attributed. No block.
+
+**Claimed:** `launch` asserts `X1.role == "developer"` and `X1.lifecycle == "pending"`;
+`review_start` the same for `R1` / `"reviewer"`. The comment says nothing about where "pending"
+comes from; the prompt says it was read out of `add_execution/3`.
+
+```
+grep -n 'lifecycle' docs/WORKFLOW-CONTRACT.md | sed -n 1,3p
+  :390  | Execution lifecycle | pending, starting, running, closing, closed, unknown; closed requires verified process/session termination or proved non-start |
+grep -n '@execution_lifecycles' lib/pramana_foundry/workflow/kernel/state.ex   # :48 ~w(pending starting running closing closed unknown) — mirrors :390
+sed -n 467p docs/WORKFLOW-CONTRACT.md   # R4.04.o3 "Pre-intent denial remains queued and consumes no start unit"
+```
+
+**Found.** "pending" is a contract value, not an implementation constant. `WORKFLOW-CONTRACT.md:390`
+enumerates the execution lifecycle with `pending` first; `R4.04.o3` places the launch intent
+*before* any start unit is consumed; R4a's "proved non-start" closes an execution that never
+started. An execution that exists and has not started has exactly one legal lifecycle in that
+enumeration, and it is `pending`. So the assertion is derivable from the contract, and it is the
+*right* strength: `lifecycle != "closed"` would accept an intent already `running`, which is not
+"create its launch intent" but a start the row does not authorise. `role` is the other half of what
+distinguishes a launch intent from any other execution, and `R4.15.o1`'s "independent reviewer
+launch with its own reservation" is discharged by `R1` existing under `role: "reviewer"` — that is
+the execution the reservation belongs to.
+
+*Observation 3a.* The comment at `r4_coverage_test.exs:1049-1052` justifies asserting the intent but
+not the value. One clause — "`pending` per `WORKFLOW-CONTRACT.md:390`, the only lifecycle an
+unstarted execution can hold" — turns a value that looks read off `add_execution/3` into one read
+off the contract. Same for `:1596-1600`.
+
+### Counts
+
+`@clauses` lost three entries and `@uncited` gained the same three; 64 − 3 = 61 and 60 + 3 = 63
+match the stated 61 / 63. The file's own count assertions passed in the run above.
+
+### What must be answered before ACCEPT
+
+Nothing. Observations 1a, 2a, 2b and 3a are each a few lines and optional.
