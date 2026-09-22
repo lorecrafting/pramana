@@ -4795,3 +4795,40 @@ half the time and therefore guards nothing in a gate: one test that an exec'd pr
 `:running` and not `:cancelled`, and one that a changed `started_at` or `process_group_id` is still
 `:uncertain` — so dropping `command` did not weaken what the classifier catches. A reused pid gets a
 new start time, which is what actually distinguishes an incarnation.
+
+## The FR-15aA specification's prose hashes are checked by nothing — 2026-09-22
+
+Found while re-attesting the `ProcessGroup` pin at `a0c052a2`. Recorded, not fixed: the fix is a
+docs-claim mechanism, and the standing direction is that those belong in `bin/check_docs.exs`,
+repo-wide, **proposed before built**.
+
+`provisioning-specification.md` embeds **24** sha256 digests in its prose, restating pins that
+`provisioning-manifest.exs` carries as data and `ci/validate_fr15aa.exs` holds as an independent
+frozen profile. Those two are cross-checked against each other and against file bytes — that is the
+two-witness design, and it went red correctly when only one was updated. **Nothing reads the
+specification.** No `.ex` or `.exs` in the repository references it.
+
+Measured now: 23 of the 24 match the frozen profile, and the 24th is the superseded ProcessGroup
+digest deliberately left in an explicit "was ..." line. So nothing has drifted yet. The exposure is
+that nothing would say so if it did.
+
+**The near-miss is the evidence, not the hypothesis.** `a0c052a2` updated the manifest and the
+validator because the gate demanded both, and the prose only because it was noticed by hand. Had it
+not been, the specification would now assert a digest the validator contradicts, on a route whose
+whole purpose is recording that it is blocked — and every check in the repository would have stayed
+green.
+
+### Proposed, not built
+
+In `bin/check_docs.exs`, repo-wide rather than FR-15aA-specific: every 64-hex string in a tracked
+`.md` must either appear in a tracked non-markdown source, or sit on a short explicit list of
+superseded references. That covers this case, the same shape wherever else prose quotes a digest,
+and it is a string check with no knowledge of what any hash means.
+
+Its red control is the case above: reverting the prose line to
+`1250c2bee6d43751ac5f483224c0506e3670bf25a8c7f85cd0848d106d8dce17` alone must fail it.
+
+The obvious objection first: an allowlist for superseded digests is a second place to keep in step,
+which is the defect this proposal is about. It is smaller — an entry is added when a pin moves and
+never edited again — but it is not zero, and a reviewer should weigh that against leaving 24 unchecked
+claims in a security specification.
