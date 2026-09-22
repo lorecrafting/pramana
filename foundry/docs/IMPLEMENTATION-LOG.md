@@ -4010,3 +4010,43 @@ one has blocked on a claim left standing after the thing it described moved — 
 introduced by the commit fixing the last one. The mechanisms in this repository make the artifact
 checkable; nothing makes the prose about the artifact checkable, and prose is where every block has
 landed.
+
+## A mechanism for the thing five rounds blocked on — 2026-09-22
+
+Five independent review rounds on this branch, not one of them about wrong code. Every block was a
+claim left standing after the thing it described moved, and round five's were introduced by the
+commit fixing round four's. The six mechanisms in `EVIDENCE-TOOLS.md` make the **artifact**
+checkable. Nothing made the **prose about** the artifact checkable, which is the whole of where the
+cost has landed.
+
+So the prose gets a mechanism, the same way everything else here did once it had cost a round.
+
+**What it does.** Four registered sentences in the two current-state documents are pinned to counts
+computed from `@from_obligations`, `@clauses` and `@uncited` — the classification split, the
+"N of the 72" figure, the "Currently N of 72, M held" cell, and the outcome-obligation tally. Two
+failure modes, both fatal:
+
+- a claimed number the artifact contradicts;
+- a pattern that matches **nothing**, meaning the sentence was reworded or deleted and the check
+  went quiet. That second mode is the one that matters. A claims-checker catching only wrong numbers
+  decays into the defect it exists to prevent the first time someone rephrases a sentence.
+
+**Rule 6, on the live documents rather than on a fixture.** Changing `67 of 72` to `68` in
+`EVIDENCE-TOOLS.md` fails with `classified: the document claims 68, the artifact has 67`. Rewording
+the same sentence to `**Classified so far: 67 of 72.**` — a *correct* number — fails with
+`matches nothing`. Both were driven against the real file and reversed.
+
+**Historical documents are excluded and must stay excluded.** This log records what was true when it
+was written; the review briefing is frozen at the review point; the findings are a reviewer's own
+words. Checking those against today's artifact would demand they be falsified, which is the opposite
+of the point.
+
+**What it does not cover, stated so the next stale claim is not a surprise.** Only the counts
+registered, only in two documents, and nothing about commit references, prose descriptions of
+behaviour, or comments in code. **Two of round five's three stale claims would still get through** —
+the code comment contradicting an entry 47 lines below it, and the half-updated briefing. This is
+the cheap slice of the problem, not the answer to it.
+
+**A sixth stale claim, found before a reviewer found it.** The EV-2 row still read "Landed, awaiting
+independent review" after two reviews of the candidate that contains it. Corrected. It is not one
+the new mechanism would have caught, which is the honest measure of how narrow the slice is.
