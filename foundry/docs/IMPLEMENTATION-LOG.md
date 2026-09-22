@@ -3929,3 +3929,27 @@ all hold.
 
 **Final: 67 of 72 classified — 40 guarded, 18 input, 5 protected, 2 effect, 2 unguarded — and 5
 held.**
+
+### Gate at `36ac89b9`: one red, one green, same commit — 2026-09-22
+
+Recorded because a single red gate is not a verdict and a single green one is not either.
+
+| run | result | detail |
+|---|---|---|
+| 1 | **failed**, exit 2 | 948/949. `LegacyPersistenceContainmentTest` "legacy integration is suspended before Git or persistence effects". Every earlier command passed; tree clean |
+| isolation | passed 3/3 | `mix test test/pramana_foundry/legacy_persistence_containment_test.exs`, 10 tests each run |
+| 2 | **passed**, exit 0 | 949 passed / 13 skipped / 1 excluded, six commands, `dirty_paths: []` before and after |
+
+This is the second recorded fail/pass pair for this test at a single commit, and the isolation result
+reproduces exactly what was seen before: it passes alone, every time, and fails under the full suite
+some of the time.
+
+**What is not established.** That the delta is innocent. The subject matter is unrelated — this
+candidate touches the workflow contract, its annotation, and the tests that read it, not legacy
+persistence — but the delta does add four async tests to `r4_coverage_test.exs`, and more concurrency
+can move a timing-sensitive test's odds. There is no evidence for that and none against it. "Known
+flake" is the phrase that lets a real regression through, so it is written down as an open question
+rather than a dismissal.
+
+It deserves its own candidate. A gate that goes red on its own schedule teaches people to rerun until
+green, which is precisely the habit the rest of this evidence discipline exists to prevent.
