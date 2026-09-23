@@ -102,9 +102,7 @@ defmodule PramanaFoundry.DurableStore.SettleRestartProbeTest do
                run(ctx.gw, "R2-REUSE", settle("2", "receipt-1", "unknown"))
 
       assert state(ctx.gw, "2") == before
-      # No reopen here: the issuer_quiescent cancel above already leaves a store that
-      # fails the restart check ({:protected_corrupt, "root_ledgers", :transition}), a
-      # separate defect in cancel_effect, not in settle_claim.
+      reopen!(ctx)
     end
   end
 

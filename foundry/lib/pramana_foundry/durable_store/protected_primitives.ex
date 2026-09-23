@@ -1773,8 +1773,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     with {:ok, reservations} <- reservations_for_effect(conn, effect.effect_id),
          :ok <- release_many(conn, reservations),
          next <- %{effect | status: "cancelled", revision: effect.revision + 1},
-         :ok <- update_effect(conn, effect, next) do
-      {:ok, %{"effect" => public_effect(next), "outstanding_claim_ids" => []}}
+         :ok <- update_effect(conn, effect, next),
+         {:ok, ledgers} <- ledger_facts_for_reservations(conn, reservations) do
+      # The released hold moves each ledger; without its snapshot the restart check
+      # refuses the ledger ({:protected_corrupt, "root_ledgers", :transition}).
+      {:ok,
+       %{"effect" => public_effect(next), "ledgers" => ledgers, "outstanding_claim_ids" => []}}
     end
   end
 
@@ -1792,11 +1796,13 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          next_effect <- %{effect | status: "cancelled", revision: effect.revision + 1},
          :ok <- update_claim(conn, claim, next_claim),
          :ok <- update_effect(conn, effect, next_effect),
-         :ok <- settle_leases(conn, claim_id, "cancelled") do
+         :ok <- settle_leases(conn, claim_id, "cancelled"),
+         {:ok, ledgers} <- ledger_facts_for_reservations(conn, reservations) do
       {:ok,
        %{
          "effect" => public_effect(next_effect),
          "claim" => public_claim(next_claim),
+         "ledgers" => ledgers,
          "outstanding_claim_ids" => []
        }}
     end
@@ -7211,7 +7217,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
           %{"claim" => {:singular, :claim}, "effect" => {:singular, :effect}}
 
         "cancel_effect" ->
-          %{"claim" => {:singular, :claim}, "effect" => {:singular, :effect}}
+          %{
+            "claim" => {:singular, :claim},
+            "effect" => {:singular, :effect},
+            "ledgers" => {:plural, :ledger}
+          }
 
         "settle_claim" ->
           %{
