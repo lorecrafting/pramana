@@ -18,11 +18,22 @@
 > **Commit 1 landed** with the namespace table in `gateway.ex` (not `TransitionPlan`), so the
 > two copies are `Kernel.Plan` and Gateway (`domain_read_check_test.exs` asserts equality).
 > A mis-stated `expected_domain_revision` is refused as `:expected_domain_revision_mismatch`.
+> **Commits 2–6 landed:** `147451dc` (`Kernel.Plan`), `c6610489` (non-start settle),
+> `80b0a2e9` (successor launch), `ebd78c18` (cancel finalization), `356b3265` (R4a
+> citations). **Deviation:** the command states no `policy/`, `control/` or `ledger/` key.
+> At command level those keys read the legacy authority tables, not the root rows, so policy
+> and control are CAS-checked only through each staged operation's own `expected_revisions`.
+> **Built subcommit review** ([findings](subcommit2-review-findings-2026-09-23.md), Fable 5.1,
+> PASS WITH CHANGES): F1 found that the exhaustion plan's allocation read was not CAS-bound.
+> It now states `root_ledger/<base64url id>/<generation>`, a new Core key that reads
+> `root_ledgers`, so O2's "CAS-bound prestate read" holds for it.
+> **Open:** `kernel/software/developer.ex` hardcodes `"phase_generation" => 0` in the launch's
+> `create_effect` request. That breaks after a policy-reset generation. Not fixed yet.
 
 
-**Date:** 2026-09-23. **Type:** design proposal, **not approved**. No production code or
-tests change. Taken at `e608a2b0` (`repair/fr08b-kernel`). Line numbers are at that commit.
-Paths are relative to `foundry/`.
+**Date:** 2026-09-23. **Type:** design, approved and built (see the status above; where the
+build differs, the status wins). Taken at `e608a2b0` (`repair/fr08b-kernel`). Line numbers are
+at that commit. Paths are relative to `foundry/`.
 
 ## What this is
 
@@ -237,8 +248,10 @@ Read sets per command:
 
 | Command | Domain reads | Protected expected revisions |
 |---|---|---|
-| `launch_developer` | ticket (written), state (read only) | `policy/`, `control/`, `ledger/` |
-| `settle_developer_nonstart` | ticket | none. `settle_claim` carries its own per-operation reads (`atomic_bundle_test.exs:851-861`) |
+| `plan_launch`, launch branch | ticket (written), state (read only) | none at command level. `reserve`, `create_effect`, `claim_effect` and `issue_claim` state the ledger, policy and control in their own read sets |
+| `plan_launch`, drain branch | ticket (written), state (read only) | none |
+| `plan_launch`, exhaustion branch | ticket (written), state (read only) | `root_ledger/<id>/<generation>` (review F1). `close_attempt` reads no ledger |
+| `settle_nonstart` | ticket | none. `settle_claim` carries its own per-operation reads (`atomic_bundle_test.exs:851-861`) |
 | `finalize_cancellation` | ticket | none |
 
 ## Testing
