@@ -81,7 +81,7 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
       assert Enum.any?(errors, &String.contains?(&1, "hex"))
     end
 
-    test "accepts non-string commit" do
+    test "rejects non-string commit" do
       handoff = %{
         "outcome" => "completed",
         "summary" => "test",
