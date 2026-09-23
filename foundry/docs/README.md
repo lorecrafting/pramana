@@ -45,7 +45,6 @@ contract still govern implementation.
 | Understand historical architecture choices | [Migration design](MIGRATION.md), [migration tickets](MIGRATION-TICKETS.md), [event sourcing](EVENT_SOURCING.md) |
 | Plan FR-23 documentation retirement, or decide whether a Foundry document is evidence, current, superseded or retirable | [Documentation retirement inventory](DOC-RETIREMENT-INVENTORY-2026-09-22.md) — a classification of every file at `e374322b`, with grep evidence; it retired nothing and applied no banner |
 | Plan FR-23 dead-surface removal, or check whether a `lib/` identifier still dispatches | [Dead surface inventory](DEAD-SURFACE-INVENTORY-2026-09-22.md) — unused functions, list-literal members and modules at `6bc015ed`, each with its recorded search and owner; it removed nothing |
-
 | Decide whether to split FR-23, or pick up FR-23 hygiene before FR-10/11/12/19B land | [FR-23 split proposal](fr-23/FR-23-SPLIT-PROPOSAL-2026-09-22.md) — a proposal at `b46d3825`, not yet approved: FR-23a (hygiene, gated by which files it may touch) and FR-23b (decomposition and retirement, keeping FR-23's dependencies); the repair plan still governs |
 | Inspect implementation history | [Implementation log](IMPLEMENTATION-LOG.md); use its reading route and active-ticket headings rather than preloading the append-only history |
 | Review an agent assignment | The applicable [role documents](../../docs/README.md#foundry-role-contracts) and current workflow contract |
