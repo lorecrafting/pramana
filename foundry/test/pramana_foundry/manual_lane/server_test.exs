@@ -121,7 +121,7 @@ defmodule PramanaFoundry.ManualLane.ServerTest do
              Gateway.protected_query(ctx.gateway, ctx.capability, %{
                "schema_version" => 1,
                "type" => "ledger",
-               "ledger_id" => "manual-lane-developer",
+               "ledger_id" => "starts.developer",
                "generation" => 0
              })
 
@@ -129,7 +129,7 @@ defmodule PramanaFoundry.ManualLane.ServerTest do
              Gateway.protected_query(ctx.gateway, ctx.capability, %{
                "schema_version" => 1,
                "type" => "ledger",
-               "ledger_id" => "manual-lane-reviewer",
+               "ledger_id" => "starts.reviewer",
                "generation" => 0
              })
   end

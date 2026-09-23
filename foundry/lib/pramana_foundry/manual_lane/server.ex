@@ -19,12 +19,14 @@ defmodule PramanaFoundry.ManualLane.Server do
   use GenServer
 
   alias PramanaFoundry.DurableStore.Gateway
+  alias PramanaFoundry.ManualLane.Backend
   alias PramanaFoundry.RuntimeRoot
 
-  @policy_id "manual-lane"
-  @control_id "manual-lane"
-  @developer_ledger_id "manual-lane-developer"
-  @reviewer_ledger_id "manual-lane-reviewer"
+  # The Backend's ids, so the seed and the lane agree on what they name.
+  @policy_id Backend.ids().policy_id
+  @control_id Backend.ids().control_id
+  @developer_ledger_id Backend.ids().ledgers["developer"]
+  @reviewer_ledger_id Backend.ids().ledgers["reviewer"]
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
