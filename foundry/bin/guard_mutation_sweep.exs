@@ -5,7 +5,7 @@
 # shipped repeatedly, each time found by a reviewer reading code or by a hand sweep that
 # only covered the guards someone thought to check.
 #
-#   cd foundry && TMPDIR=/private/tmp elixir bin/guard_mutation_sweep.exs [path/to/module.ex]
+#   cd foundry && TMPDIR=/private/tmp elixir bin/guard_mutation_sweep.exs [path/to/module.ex ...]
 #   SWEEP_SINCE=<rev>   sweep only guards whose lines changed since <rev>
 #   SWEEP_SITES=<file>  sweep only the call sites listed in <file>, one per line
 #   SWEEP_WORKERS=<n>   parallel workers (default 4)
@@ -19,7 +19,20 @@
 # and sync failures; the workflow suites are pure computation. Each worker still gets its
 # own source tree and build path, because they mutate the same file.
 
-target = System.argv() |> List.first() || "lib/pramana_foundry/workflow/kernel.ex"
+# The reducer is kernel.ex plus one module per event family under kernel/ (split by family on
+# 2026-09-23), so the default is every one of those files. Event and State hold no guard calls.
+targets =
+  case System.argv() do
+    [] ->
+      dir = "lib/pramana_foundry/workflow"
+
+      [Path.join(dir, "kernel.ex") | Path.wildcard(Path.join(dir, "kernel/**/*.ex"))] --
+        [Path.join(dir, "kernel/event.ex"), Path.join(dir, "kernel/state.ex")]
+
+    given ->
+      given
+  end
+
 # Four rather than six: six oversubscribed the cores badly enough that per-task wall clock
 # was roughly three times its solo cost, and the measured speedup against serial was about
 # 2.5x rather than the 6x the worker count suggests.
@@ -53,10 +66,10 @@ if File.exists?(sentinel) do
   System.halt(2)
 end
 
-File.write!(sentinel, "#{System.pid()} #{DateTime.utc_now()} #{target}\n")
+File.write!(sentinel, "#{System.pid()} #{DateTime.utc_now()} #{Enum.join(targets, " ")}\n")
 System.at_exit(fn _ -> File.rm(sentinel) end)
 
-original = File.read!(target)
+originals = Map.new(targets, &{&1, File.read!(&1)})
 
 # Every `<- require_foo(...)` call, with balanced parentheses so nested calls survive.
 #
@@ -91,7 +104,8 @@ call_sites = fn source ->
         matches -> matches |> List.last() |> elem(0) |> Kernel.+(1)
       end
 
-    binary_part(source, line_start, start - line_start) |> String.trim() == "defp"
+    # `def` too: a guard the family modules share is public in the family that owns it.
+    String.trim(binary_part(source, line_start, start - line_start)) in ~w(def defp)
   end)
   |> Enum.map(fn [_, {start, len}] ->
     {depth, stop} =
@@ -109,11 +123,11 @@ call_sites = fn source ->
 end
 
 # The line a byte offset falls on, so a survivor can be opened rather than searched for.
-line_of = fn offset ->
-  original |> binary_part(0, offset) |> :binary.matches("\n") |> length() |> Kernel.+(1)
+line_of = fn file, offset ->
+  originals[file] |> binary_part(0, offset) |> :binary.matches("\n") |> length() |> Kernel.+(1)
 end
 
-label = fn {text, offset} -> "#{text} :#{line_of.(offset)}" end
+label = fn {text, offset, file} -> "#{text} #{Path.basename(file)}:#{line_of.(file, offset)}" end
 
 # Red control, run before anything else. Every shape a guard call takes in this kernel,
 # including the ones that were invisible for five runs. A scanner that quietly matches
@@ -121,6 +135,7 @@ label = fn {text, offset} -> "#{text} :#{line_of.(offset)}" end
 # this tool's single recurring failure. It now has to demonstrate it can see them first.
 red_control = """
 defp require_defined(x), do: :ok
+def require_public(x), do: :ok
 defp handler(t, e) do
   with :ok <- require_one(t),
        :ok <- require_two(t, e["payload"]["k"]),
@@ -164,7 +179,8 @@ if found_control != expected_control do
   System.halt(4)
 end
 
-all_sites = call_sites.(original)
+all_sites =
+  for file <- targets, {text, offset} <- call_sites.(originals[file]), do: {text, offset, file}
 all_texts = all_sites |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
 
 # Incremental mode: only the guards whose lines changed since a revision. A subcommit
@@ -186,20 +202,25 @@ sites =
     case Enum.reject(wanted, &(&1 in all_texts)) do
       [] -> :ok
       unknown ->
-        IO.puts("no such call site in #{target}:")
+        IO.puts("no such call site in #{Enum.join(targets, ", ")}:")
         Enum.each(unknown, &IO.puts("  #{&1}"))
         System.halt(2)
     end
 
     # Every occurrence of a listed text, not one of them.
-    listed = Enum.filter(all_sites, fn {text, _} -> text in wanted end)
+    listed = Enum.filter(all_sites, fn {text, _, _} -> text in wanted end)
     IO.puts("listed sites: #{length(listed)} occurrences of #{length(wanted)} guards, " <>
               "of #{length(all_sites)} total")
     listed
   else
     if since do
-      {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", target], stderr_to_stdout: true)
-      touched = Enum.filter(all_sites, fn {text, _} -> String.contains?(diff, text) end)
+      diffs =
+        Map.new(targets, fn file ->
+          {diff, 0} = System.cmd("git", ["diff", "-U0", since, "--", file], stderr_to_stdout: true)
+          {file, diff}
+        end)
+
+      touched = Enum.filter(all_sites, fn {text, _, file} -> String.contains?(diffs[file], text) end)
       IO.puts("incremental against #{since}: #{length(touched)} of #{length(all_sites)} guards")
       touched
     else
@@ -223,8 +244,11 @@ roots =
     {_, 0} =
       System.cmd("cp", ["-al", "lib", "test", "config", "docs", "mix.exs", "mix.lock", "deps", root])
 
-    File.rm!(Path.join(root, target))
-    File.write!(Path.join(root, target), original)
+    for {file, original} <- originals do
+      File.rm!(Path.join(root, file))
+      File.write!(Path.join(root, file), original)
+    end
+
     root
   end
 
@@ -249,8 +273,9 @@ end
 
 # Cheapest suites first, stopping as soon as anything catches the mutation. A mutation only
 # needs one test to notice it, so running the slow suites after a catch buys nothing.
-judge = fn root, {text, offset} ->
-  path = Path.join(root, target)
+judge = fn root, {text, offset, file} ->
+  path = Path.join(root, file)
+  original = originals[file]
   len = byte_size(text)
 
   mutated =
@@ -307,10 +332,12 @@ Enum.each(roots, &File.rm_rf!/1)
 # a silent clobber of anything legitimately written to it during the hour this runs, and
 # parallel sessions in this repository do write. The sweep now VERIFIES instead, and fails
 # loudly if the target moved under it.
-if File.read!(target) != original do
+moved = Enum.reject(targets, &(File.read!(&1) == originals[&1]))
+
+if moved != [] do
   IO.puts("""
 
-  FAIL: #{target} changed while the sweep ran.
+  FAIL: #{Enum.join(moved, ", ")} changed while the sweep ran.
 
   The sweep does not write to the repository, so this is someone else's edit - or a
   crashed worker. Nothing has been overwritten. Compare against the last known-good

@@ -39,8 +39,14 @@
 #   cd foundry && TMPDIR=/private/tmp elixir bin/coverage_guided_sweep.exs
 #   EV1_WORKERS=<n>     parallel trial workers (default 2)
 #   EV1_SITES=<file>    only these sites, one per line: a call text (same key as SWEEP_SITES)
-#                       selects every site with that text; a full label, `<text> :<line>`,
+#                       selects every site with that text; a full label, `<text> <file>:<line>`,
 #                       selects that one site. The two red-control sites always run.
+#
+# The kernel is kernel.ex plus one module per event family under kernel/ (split by family on
+# 2026-09-23). The sweep reads them as ONE source, the files joined by a boundary line no
+# splice can touch, so every offset, splice and probe below works on one binary exactly as it
+# did on one file; `write_kernel/2` splits it back into files. The answer key's revisions
+# predate the split and are single-file sources, which carry no boundary.
 #
 # Worker roots live under /private/tmp/ev1-*. They are not the old sweep's roots, and the lock
 # is this tool's own, /private/tmp/ev1-coverage-sweep.lock (see EV1.lock!/0). Stop a run with
@@ -48,7 +54,8 @@
 # Ctrl-C and SIGKILL leave both behind.
 
 defmodule EV1 do
-  @target "lib/pramana_foundry/workflow/kernel.ex"
+  @kernel "lib/pramana_foundry/workflow/kernel.ex"
+  @boundary "\n# EV1 file boundary: "
   @raw "docs/fr-08/fr08b-sweep-2026-09-21-raw.txt"
   @suites ~w(
     test/pramana_foundry/workflow/kernel_test.exs
@@ -66,7 +73,26 @@ defmodule EV1 do
   @probe "PramanaFoundry.EV1Probe"
   @probe_path "lib/pramana_foundry/ev1_probe.ex"
 
-  def target, do: @target
+  # Event and State hold no guard call and are not the reducer's; KernelSearch excludes them too.
+  def targets,
+    do:
+      [@kernel | Path.wildcard("lib/pramana_foundry/workflow/kernel/**/*.ex")] --
+        ~w(lib/pramana_foundry/workflow/kernel/event.ex lib/pramana_foundry/workflow/kernel/state.ex)
+
+  def read_kernel(root \\ "."),
+    do: Enum.map_join(targets(), &(@boundary <> &1 <> "\n" <> File.read!(Path.join(root, &1))))
+
+  # Writes only the files whose content differs, so a trial recompiles the one it mutated.
+  def write_kernel(root, source) do
+    for chunk <- String.split(source, @boundary, trim: true) do
+      [file, content] = String.split(chunk, "\n", parts: 2)
+      path = Path.join(root, file)
+      if File.read!(path) != content, do: File.write!(path, content)
+    end
+
+    :ok
+  end
+
   def suites, do: @suites
 
   # ── Lock and children ──
@@ -128,7 +154,8 @@ defmodule EV1 do
           matches -> matches |> List.last() |> elem(0) |> Kernel.+(1)
         end
 
-      binary_part(source, line_start, start - line_start) |> String.trim() == "defp"
+      # `def` too: a guard several families share is public in the family that owns it.
+      String.trim(binary_part(source, line_start, start - line_start)) in ~w(def defp)
     end)
     |> Enum.map(fn [_, {start, len}] ->
       {depth, stop} =
@@ -149,12 +176,28 @@ defmodule EV1 do
   def line_of(source, offset),
     do: source |> binary_part(0, offset) |> :binary.matches("\n") |> length() |> Kernel.+(1)
 
-  def label(source, {text, offset}), do: "#{text} :#{line_of(source, offset)}"
+  # `<text> <file>:<line>` in the joined kernel; `<text> :<line>` in a single-file source,
+  # which is the shape the 2026-09-21 answer key's labels were printed in.
+  def label(source, {text, offset}) do
+    before = binary_part(source, 0, offset)
+
+    case :binary.matches(before, @boundary) do
+      [] ->
+        "#{text} :#{line_of(source, offset)}"
+
+      matches ->
+        {at, len} = List.last(matches)
+        rest = binary_part(before, at + len, byte_size(before) - at - len)
+        [file, body] = String.split(rest, "\n", parts: 2)
+        "#{text} #{Path.basename(file)}:#{length(:binary.matches(body, "\n")) + 1}"
+    end
+  end
   # What the old sweep printed: the first 64 characters of the label.
   def label64(source, site), do: String.slice(label(source, site), 0, 64)
 
   @scanner_fixture """
   defp require_defined(x), do: :ok
+  def require_public(x), do: :ok
   defp handler(t, e) do
     with :ok <- require_one(t),
          :ok <- require_two(t, e["payload"]["k"]),
@@ -247,7 +290,7 @@ defmodule EV1 do
       do: {_, 0} = System.cmd("cp", ["-R", "_build/test", Path.join(root, "_build")])
 
     # Break the links on the files this tool rewrites, so writing them cannot reach the repo.
-    for rel <- [@target, "test/test_helper.exs" | @suites] do
+    for rel <- targets() ++ ["test/test_helper.exs" | @suites] do
       path = Path.join(root, rel)
       content = File.read!(path)
       File.rm!(path)
@@ -400,7 +443,7 @@ defmodule EV1 do
   def map_sites(root, original, sites) do
     log = Path.join(root, "ev1_hits.log")
     File.write!(Path.join(root, @probe_path), String.replace(@probe_source, "LOG_PATH", log))
-    File.write!(Path.join(root, @target), instrument(original, sites))
+    write_kernel(root, instrument(original, sites))
 
     helper = Path.join(root, "test/test_helper.exs")
     File.write!(helper, File.read!(helper) <> "\n#{@probe}.start()\n")
@@ -533,8 +576,7 @@ defmodule EV1 do
   # setup_all search run alone, and the three that each run a search only if nothing has
   # caught the mutation yet. The mutant is compiled once; the second invocation reuses it.
   def trial(root, original, site, tests) do
-    path = Path.join(root, @target)
-    File.write!(path, mutate(original, site))
+    write_kernel(root, mutate(original, site))
     started = System.monotonic_time(:millisecond)
 
     {cheap, searching} = Enum.split_with(tests, fn {file, _} -> file in @cheap_suites end)
@@ -545,7 +587,7 @@ defmodule EV1 do
         other -> other
       end
 
-    File.write!(path, original)
+    write_kernel(root, original)
     {verdict, length(tests), System.monotonic_time(:millisecond) - started}
   end
 
@@ -601,11 +643,11 @@ defmodule EV1 do
   # The revision the raw output was produced from is not written in it. Find it: the
   # kernel revision whose scanned labels reproduce every label the raw run 1 printed.
   def answer_key_revision(raw) do
-    {log, 0} = System.cmd("git", ["log", "--format=%h", "-20", "--", @target])
+    {log, 0} = System.cmd("git", ["log", "--format=%h", "-20", "--", @kernel])
     labels = Map.keys(raw) |> MapSet.new()
 
     Enum.find(String.split(log, "\n", trim: true), fn rev ->
-      case System.cmd("git", ["show", "#{rev}:./#{@target}"], stderr_to_stdout: true) do
+      case System.cmd("git", ["show", "#{rev}:./#{@kernel}"], stderr_to_stdout: true) do
         {source, 0} ->
           scanned = source |> call_sites() |> Enum.map(&label64(source, &1)) |> MapSet.new()
           MapSet.subset?(labels, scanned) and MapSet.subset?(scanned, labels)
@@ -618,6 +660,9 @@ defmodule EV1 do
 
   # old site -> verdict, then old -> new by (text, occurrence order). Line numbers moved
   # since 2026-09-21, occurrence order did not; a text whose count changed is reported.
+  # The 2026-09-23 family split DID move it for a text that now occurs in several family
+  # files (e.g. `require_phase(ticket, ~w(developing))`): such a pairing can be wrong, which
+  # surfaces as a disagreement, and every disagreement goes to the full-set arbiter below.
   def answer_key(new_source, new_sites) do
     raw = raw_verdicts()
     rev = answer_key_revision(raw)
@@ -627,7 +672,7 @@ defmodule EV1 do
       halt(4)
     end
 
-    {old_source, 0} = System.cmd("git", ["show", "#{rev}:./#{@target}"])
+    {old_source, 0} = System.cmd("git", ["show", "#{rev}:./#{@kernel}"])
     old_sites = call_sites(old_source)
 
     old_verdicts =
@@ -678,8 +723,7 @@ EV1.lock!()
 EV1.scanner_red_control!()
 EV1.summary_red_control!()
 
-target = EV1.target()
-original = File.read!(target)
+original = EV1.read_kernel()
 all_sites = EV1.call_sites(original)
 workers = String.to_integer(System.get_env("EV1_WORKERS") || "2")
 
@@ -894,8 +938,8 @@ results =
 Enum.each(roots, &File.rm_rf!/1)
 wall_s = div(System.monotonic_time(:millisecond) - started, 1000)
 
-if File.read!(target) != original do
-  IO.puts("\nFAIL: #{target} changed while the sweep ran; trust nothing above.")
+if EV1.read_kernel() != original do
+  IO.puts("\nFAIL: the kernel sources changed while the sweep ran; trust nothing above.")
   EV1.halt(3)
 end
 

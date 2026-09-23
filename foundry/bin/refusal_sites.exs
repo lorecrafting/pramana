@@ -9,7 +9,8 @@
 #   cd foundry
 #   elixir bin/refusal_sites.exs
 #
-# Every `{:error, :atom}` in `kernel.ex` is attributed to its enclosing `defp`. A site
+# Every `{:error, :atom}` in the reducer (`kernel.ex` and its event-family modules) is
+# attributed to its enclosing `defp`/`def`. A site
 # inside a `require_*` definition is reachable by the sweep, because the sweep neutralises
 # the CALLS to that definition. Every other site is not: there is no `require_*(` call to
 # neutralise, so no mutation trial exists for it and a clean sweep says nothing about it.
@@ -35,10 +36,12 @@
 # Both files that refuse. `Event.validate/1` refuses in kernel/event.ex, outside the sweep and
 # outside this script's original scope - counting one file and calling the answer "the kernel's
 # refusals" was the same unstated boundary as counting do_transition clauses and calling it all.
-sources = [
-  "lib/pramana_foundry/workflow/kernel.ex",
-  "lib/pramana_foundry/workflow/kernel/event.ex"
-]
+# Since 2026-09-23 the reducer is kernel.ex plus one module per event family under kernel/,
+# so the family modules are read too. State stays out, as it always did.
+sources =
+  ["lib/pramana_foundry/workflow/kernel.ex"
+   | Path.wildcard("lib/pramana_foundry/workflow/kernel/**/*.ex")] --
+    ["lib/pramana_foundry/workflow/kernel/state.ex"]
 
 lines =
   Enum.flat_map(sources, fn file ->
@@ -50,13 +53,19 @@ defs =
   |> Enum.with_index(1)
   |> Enum.flat_map(fn {{file, line}, n} ->
     case Regex.run(~r/^  defp? (\w+)/, line) do
-      [_, name] -> [{n, Path.basename(file) <> " " <> name}]
+      [_, name] -> [{n, file, Path.basename(file) <> " " <> name}]
       nil -> []
     end
   end)
 
-owner = fn n ->
-  defs |> Enum.take_while(fn {at, _} -> at <= n end) |> List.last() |> then(&(&1 && elem(&1, 1)))
+# The enclosing definition in the SAME file: with one module per family, a module header's
+# lines would otherwise be charged to the previous file's last function.
+owner = fn n, file ->
+  defs
+  |> Enum.take_while(fn {at, _, _} -> at <= n end)
+  |> Enum.filter(fn {_, f, _} -> f == file end)
+  |> List.last()
+  |> then(&(&1 && elem(&1, 2)))
 end
 
 # TWO spellings, not one. `{:error, :atom}` is the common form; `ok_or(:atom)` builds the tuple
@@ -70,9 +79,9 @@ spellings = [~r/\{:error,\s*:(\w+)\}/, ~r/\|>\s*ok_or\(:(\w+)\)/]
 sites =
   lines
   |> Enum.with_index(1)
-  |> Enum.flat_map(fn {{_file, line}, n} ->
+  |> Enum.flat_map(fn {{file, line}, n} ->
     Enum.flat_map(spellings, fn re ->
-      re |> Regex.scan(line) |> Enum.map(fn [_, atom] -> {n, owner.(n), atom} end)
+      re |> Regex.scan(line) |> Enum.map(fn [_, atom] -> {n, owner.(n, file), atom} end)
     end)
   end)
 
@@ -83,7 +92,7 @@ sites =
 # kernel.ex's moduledoc and every pin silently pointed at a different line - this red control
 # went red on a correct scanner, and nothing noticed because this script is not in the gate.
 known = [
-  {"kernel.ex do_transition", "ticket_terminal", "cancellation_requested inline if"},
+  {"cancellation.ex do_transition", "ticket_terminal", "cancellation_requested inline if"},
   {"kernel.ex refuse_terminal_ticket", "ticket_terminal", "pipeline"},
   {"kernel.ex apply", "unknown_entity_kind", "ok_or, the second spelling"}
 ]
@@ -125,7 +134,8 @@ outside
   )
 end)
 
-handlers = Enum.filter(outside, fn {_, fun, _} -> fun == "kernel.ex do_transition" end)
+handlers =
+  Enum.filter(outside, fn {_, fun, _} -> fun && String.ends_with?(fun, " do_transition") end)
 
 IO.puts(
   "\nof those, #{length(handlers)} are inline in do_transition clauses; " <>
