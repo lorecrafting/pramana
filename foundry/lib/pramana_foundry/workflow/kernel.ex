@@ -150,7 +150,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
     with :ok <- check_state(state),
          {:ok, _command} <- Plan.input(command?(command) and command, :invalid_command),
          {:ok, decider} <- Plan.input(decider(command), :unsupported_command) do
-      decider.decide(state, command, facts)
+      state |> decider.decide(command, facts) |> Plan.bind_allocation(facts)
     end
   end
 

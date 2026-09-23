@@ -281,24 +281,58 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
 
   @doc """
   A decider's result as `decide/3` returns it: the plan with its command, whose
-  `expected_revisions` are derived from the plan's domain reads plus `protected`, the
-  `root_ledger_key/2` revisions of any allocation the decision read.
+  `expected_revisions` are derived from the plan's domain reads. The allocation a decision
+  read is bound by `bind_allocation/2`, which `decide/3` applies to every decider's result,
+  so no decider states it and none can omit it.
 
-  A decision that read a root fact its staged operations do not re-check must state it
-  here, or a change committed before submit goes unseen. The exhaustion plan is one: its
-  `close_attempt` reads no ledger. Command-level `policy/`, `control/` and `ledger/` keys
-  read the legacy authority tables (`Authority.read/2`), not the root rows, so policy and
-  control are CAS-checked by the staged operations' own `expected_revisions` instead.
+  Command-level `policy/`, `control/` and `ledger/` keys read the legacy authority tables
+  (`Authority.read/2`), not the root rows, so policy and control are CAS-checked by the
+  staged operations' own `expected_revisions` instead.
   """
-  @spec decision(result(), map(), map()) :: {:ok, map()} | {:reject, atom()} | {:error, atom()}
-  def decision(result, command, protected \\ %{})
-
-  def decision({:ok, plan}, command, protected) do
-    with {:ok, command} <- command(command, plan, protected),
+  @spec decision(result(), map()) :: {:ok, map()} | {:reject, atom()} | {:error, atom()}
+  def decision({:ok, plan}, command) do
+    with {:ok, command} <- command(command, plan, %{}),
          do: {:ok, %{"command" => command, "plan" => plan}}
   end
 
-  def decision(other, _command, _protected), do: other
+  def decision(other, _command), do: other
+
+  @doc """
+  Binds the root ledger revision in `facts["allocation"]` to an accepted decision's command
+  as `root_ledger_key/2`, so a unit returned or reserved before submit fails CAS instead of
+  committing a decision made on a stale read (8c79ff03, 1a625549: twice omitted by hand).
+
+  Skipped only when the plan stages a `reserve` on that ledger generation, which re-checks
+  the allocation in Core. An allocation too malformed to bind is
+  `{:error, :allocation_read_unbound}`. Rejections and errors pass through.
+  """
+  @spec bind_allocation(term(), term()) :: term()
+  def bind_allocation({:ok, %{"command" => command, "plan" => plan}} = decision, %{
+        "allocation" => allocation
+      }) do
+    with %{"ledger_id" => id, "generation" => gen, "revision" => revision}
+         when is_binary(id) and is_integer(gen) and is_integer(revision) <- allocation do
+      if reserves?(plan, id, gen) do
+        decision
+      else
+        key = root_ledger_key(id, gen)
+
+        {:ok,
+         %{"command" => put_in(command, ["expected_revisions", key], revision), "plan" => plan}}
+      end
+    else
+      _ -> {:error, :allocation_read_unbound}
+    end
+  end
+
+  def bind_allocation(result, _facts), do: result
+
+  defp reserves?(plan, ledger_id, generation) do
+    Enum.any?(plan["protected_operations"], fn %{"input" => input} ->
+      input["type"] == "reserve" and input["ledger_id"] == ledger_id and
+        input["generation"] == generation
+    end)
+  end
 
   @doc """
   `{:ok, value}`, or `{:error, reason}` when `value` is nil or false: a `decide/3` input no

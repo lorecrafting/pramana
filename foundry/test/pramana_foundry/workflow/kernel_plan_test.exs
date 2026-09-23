@@ -374,4 +374,59 @@ defmodule PramanaFoundry.Workflow.KernelPlanTest do
       end
     end
   end
+
+  # ── bind_allocation ───────────────────────────────────────────────────────────────
+  #
+  # decide/3 binds every decider's allocation read here, so a decider that builds its
+  # decision without the root ledger key (8c79ff03, 1a625549) still carries it.
+  describe "bind_allocation/2" do
+    @allocation %{"ledger_id" => "ledger-1", "generation" => 0, "revision" => 3}
+    @command %{"command_id" => "C1", "expected_revisions" => %{}}
+
+    defp blocked_decision do
+      {state, _} = queued()
+
+      state
+      |> Plan.block("C1", %{
+        "ticket_id" => "T1",
+        "reason" => "draining",
+        "resume_phase" => "queued"
+      })
+      |> Plan.decision(@command)
+    end
+
+    test "a decision staging no reserve on the ledger it read is bound to its revision" do
+      assert {:ok, %{"command" => %{"expected_revisions" => bare}}} = blocked_decision()
+      refute Map.has_key?(bare, Plan.root_ledger_key("ledger-1", 0))
+
+      assert {:ok, %{"command" => %{"expected_revisions" => revisions}}} =
+               Plan.bind_allocation(blocked_decision(), %{"allocation" => @allocation})
+
+      assert revisions == Map.put(bare, Plan.root_ledger_key("ledger-1", 0), 3)
+    end
+
+    test "a reserve on that ledger generation re-checks it in Core, so nothing is added" do
+      {state, _} = queued()
+      decision = state |> Plan.launch("C1", launch_spec()) |> Plan.decision(@command)
+
+      assert ^decision = Plan.bind_allocation(decision, %{"allocation" => @allocation})
+
+      other = %{@allocation | "generation" => 1}
+
+      assert {:ok, %{"command" => %{"expected_revisions" => revisions}}} =
+               Plan.bind_allocation(decision, %{"allocation" => other})
+
+      assert revisions[Plan.root_ledger_key("ledger-1", 1)] == 3
+    end
+
+    test "an allocation that cannot be bound is refused; no allocation or no plan passes" do
+      for allocation <- [nil, %{}, Map.delete(@allocation, "revision")] do
+        assert {:error, :allocation_read_unbound} =
+                 Plan.bind_allocation(blocked_decision(), %{"allocation" => allocation})
+      end
+
+      assert blocked_decision() == Plan.bind_allocation(blocked_decision(), %{})
+      assert {:reject, :x} = Plan.bind_allocation({:reject, :x}, %{"allocation" => @allocation})
+    end
+  end
 end

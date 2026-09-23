@@ -81,7 +81,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
          :ok <- rejected(require_no_pending_cancel(ticket)),
          :ok <- rejected(require_not_paused(control)),
          :ok <- drain(require_not_draining(control), state, command, ticket),
-         :ok <- allocation(require_allocation(facts), state, command, ticket, facts) do
+         :ok <- allocation(require_allocation(facts), state, command, ticket) do
       launch(state, command, ticket, facts)
     end
   end
@@ -116,14 +116,11 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   end
 
   # R4a.01.o9: "Exhaustion of current developer allocation instead makes the attempt
-  # terminal `exhausted` and ticket `exhausted`". `close_attempt` reads no ledger, so the
-  # allocation this chose on is a declared command-level read: units returned before
-  # submit fail CAS instead of committing a terminal outcome on a stale read.
-  defp allocation(:ok, _state, _command, _ticket, _facts), do: :ok
+  # terminal `exhausted` and ticket `exhausted`". `close_attempt` reads no ledger;
+  # `Plan.bind_allocation/2` binds the allocation this chose on, in decide/3.
+  defp allocation(:ok, _state, _command, _ticket), do: :ok
 
-  defp allocation({:reject, _reason} = rejection, state, command, ticket, facts) do
-    ledger = facts["allocation"]
-
+  defp allocation({:reject, _reason} = rejection, state, command, ticket) do
     if retained?(ticket) do
       state
       |> Plan.close_attempt(command["command_id"], %{
@@ -133,9 +130,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
         "reason_code" => "developer_budget",
         "reads" => [{"control", "control"}]
       })
-      |> Plan.decision(command, %{
-        Plan.root_ledger_key(ledger["ledger_id"], ledger["generation"]) => ledger["revision"]
-      })
+      |> Plan.decision(command)
     else
       rejection
     end
