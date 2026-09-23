@@ -132,7 +132,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
     with {:ok, facts} <- Plan.launch_facts(facts),
          :ok <- rejected(require_no_pending_cancel(ticket)),
          :ok <- rejected(require_not_paused(state["control"])),
-         :ok <- allocation(require_allocation(facts), state, command, ticket) do
+         :ok <- allocation(require_allocation(facts), state, command, ticket, facts) do
       launch(state, command, ticket, facts)
     end
   end
@@ -146,10 +146,19 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   #     resumable. The kernel cannot read which the policy prefers, so it takes the
   #     recoverable one.
   #   - none: nothing spent, so R4.15.f3's pre-intent denial.
-  defp allocation(:ok, _state, _command, _ticket), do: :ok
+  #
+  # Neither plan stages an operation that reads the ledger, so the allocation this chose on
+  # is a declared command-level read (as the developer's exhaustion): units returned before
+  # submit fail CAS instead of committing on a stale read.
+  defp allocation(:ok, _state, _command, _ticket, _facts), do: :ok
 
-  defp allocation({:reject, _reason} = rejection, state, command, ticket) do
+  defp allocation({:reject, _reason} = rejection, state, command, ticket, facts) do
     reads = [{"control", "control"}]
+    ledger = facts["allocation"]
+
+    protected = %{
+      Plan.root_ledger_key(ledger["ledger_id"], ledger["generation"]) => ledger["revision"]
+    }
 
     cond do
       Enum.any?(reviewers(ticket), &is_integer(&1.sealed_sequence)) ->
@@ -161,7 +170,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
           "reason_code" => "reviewer_budget",
           "reads" => reads
         })
-        |> Plan.decision(command)
+        |> Plan.decision(command, protected)
 
       reviewers(ticket) != [] ->
         state
@@ -171,7 +180,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
           "resume_phase" => "awaiting_review",
           "reads" => reads
         })
-        |> Plan.decision(command)
+        |> Plan.decision(command, protected)
 
       true ->
         rejection

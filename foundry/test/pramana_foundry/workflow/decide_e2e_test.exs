@@ -654,6 +654,18 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     Map.take(ledger, ~w(available held consumed))
   end
 
+  # Returns one unit from the drained reviewer ledger's child, after a decision was taken.
+  defp return_reviewer_unit!(ctx) do
+    root!(ctx, %{
+      "type" => "return_allocation",
+      "child_ledger_id" => "ledger-r-other",
+      "child_generation" => 0,
+      "units" => 1
+    })
+
+    assert ledger(ctx, "ledger-r")["available"] == 1
+  end
+
   describe "plan_launch, reviewer (R4.15, D1)" do
     # R4.15.o1: "reviewing attempt/ticket, independent reviewer launch with its own
     # reservation".
@@ -750,7 +762,12 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
       assert {:ok, %{"disposition" => "rejected"} = result, _} =
                submit(ctx, decision, "operator")
 
-      assert inspect(result) =~ "principal_not_independent"
+      assert result["reason_code"] == "principal_not_independent"
+
+      assert %{"execution_status" => "rolled_back", "result" => %{"reason_code" => reason}} =
+               Enum.find(result["operations"], &(&1["operation_type"] == "create_effect"))
+
+      assert reason == "principal_not_independent"
       assert {:error, :not_found} = query(ctx, %{"type" => "effect", "effect_id" => "V1/effect"})
       assert ticket(ctx)["phase"] == "awaiting_review"
       assert ledger(ctx, "ledger-r")["held"] == 0
@@ -857,6 +874,28 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
       attempt = ticket["attempts"]["L1/attempt"]
       assert {attempt["phase"], attempt["candidate_id"]} == {"awaiting_review", "cand-1"}
       assert attempt["review"] == nil
+    end
+
+    # Review S1b (Fable 5.1): the blocked(reviewer_budget) plan stages nothing that reads
+    # the ledger, so the allocation it chose on is a declared read.
+    test "allocation returned after the reviewer_budget decision refuses it", ctx do
+      seed!(ctx, 3, 2)
+      review_nonstart!(ctx)
+      drain_ledger!(ctx, "ledger-r", "starts.reviewer")
+
+      assert {:ok, decision} =
+               decide(
+                 ctx,
+                 command("V2", "plan_launch", @reviewer),
+                 review_facts(ctx, "V1/effect")
+               )
+
+      assert decision["plan"]["protected_operations"] == []
+      return_reviewer_unit!(ctx)
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} = submit(ctx, decision)
+      assert result["reason_code"] == "revision_conflict", inspect(result)
+      assert ticket(ctx)["phase"] == "awaiting_review"
     end
 
     test "a settle with no reviewer bound is refused by the reducer, not planned", ctx do
@@ -1036,6 +1075,30 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
       ticket = ticket(ctx)
       assert ticket["phase"] == "exhausted"
       assert ticket["attempts"]["L1/attempt"]["disposition"] == "exhausted"
+    end
+
+    # Review S1 (Fable 5.1): the reviewer exhaustion stages only close_attempt, as the
+    # developer's does, so the allocation it chose on is a declared command-level read.
+    test "allocation returned after the reviewer exhaustion decision refuses it", ctx do
+      seed!(ctx, 3, 2)
+      crashed!(ctx)
+      delivered!(ctx, "L1", "succeeded")
+      drain_ledger!(ctx, "ledger-r", "starts.reviewer")
+
+      assert {:ok, decision} =
+               decide(
+                 ctx,
+                 command("V2", "plan_launch", @reviewer),
+                 review_facts(ctx, "V1/effect")
+               )
+
+      assert Enum.map(decision["plan"]["protected_operations"], & &1["type"]) == ["close_attempt"]
+      return_reviewer_unit!(ctx)
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} = submit(ctx, decision)
+      assert result["reason_code"] == "revision_conflict", inspect(result)
+      assert ticket(ctx)["phase"] == "awaiting_review"
+      assert ticket(ctx)["attempts"]["L1/attempt"]["disposition"] == nil
     end
   end
 
