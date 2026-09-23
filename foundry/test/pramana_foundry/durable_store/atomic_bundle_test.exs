@@ -1135,8 +1135,12 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     defp plan_alternative(id, phase, with_marker?) do
       event_id = "event-#{id}"
 
+      # The settled execution the seeded launch issued; B3 item 4 binds the settlement to it.
       payload =
         %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "execution_id" => "execution-1",
           "projection" => %{
             "namespace" => "atomic-v2",
             "entity_id" => id,
@@ -1290,6 +1294,35 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
       assert result["disposition"] == "accepted"
       assert result["selected_discriminator"] == "below_infrastructure_limit"
+    end
+
+    # B3 item 4 at the commit path: the settlement is for execution-1, so an event naming
+    # execution-2 cannot carry it, and nothing commits.
+    test "a settlement cannot close an execution other than the one it settled", ctx do
+      seed_issued_launch!(ctx)
+
+      bundle =
+        update_in(
+          nonstart_plan_bundle("PLANX")["plan"]["alternatives"],
+          fn alternatives ->
+            Enum.map(alternatives, fn alternative ->
+              put_in(
+                alternative,
+                ["proposal", "events", Access.at(0), "payload", "execution_id"],
+                "execution-2"
+              )
+            end)
+          end
+        )
+
+      assert {:ok, result, _} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", bundle)
+
+      refute result["disposition"] == "accepted"
+      assert inspect(result) =~ "settlement_execution_mismatch"
+
+      assert {:error, :not_found} =
+               fact(ctx, "infrastructure_settlement", "effect_id", "effect-1")
     end
 
     test "an envelope carrying both a plan and a proposal is refused", ctx do

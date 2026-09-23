@@ -132,7 +132,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
          :ok <- markers_occupy_declared_slots(plan["bindings"], alternative["proposal"]),
          substituted <- substitute(alternative["proposal"], outputs),
          {:ok, proposal} <- RecordCodec.normalize_bundle(substituted),
-         :ok <- bound_carriers_agree(plan["bindings"], outputs, proposal) do
+         :ok <- bound_carriers_agree(plan["bindings"], outputs, proposal, operation_results) do
       {:ok, proposal}
     else
       {:error, _reason} = error -> error
@@ -522,7 +522,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
 
   # After normalization the bound fact must be present, unchanged, in the event it was
   # declared for, and identical in the paired projection when that projection carries it.
-  defp bound_carriers_agree(bindings, outputs, proposal) do
+  defp bound_carriers_agree(bindings, outputs, proposal, operation_results) do
     Enum.reduce_while(bindings, :ok, fn binding, :ok ->
       name = binding["name"]
       {type, field, _kind} = Map.fetch!(@slots, binding["destination_slot"])
@@ -546,12 +546,42 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
               end
             end)
 
-          if agreed?, do: {:cont, :ok}, else: {:halt, {:error, :bound_carriers_disagree}}
+          cond do
+            not agreed? ->
+              {:halt, {:error, :bound_carriers_disagree}}
+
+            not closes_named_execution?(binding, expected, event, operation_results) ->
+              {:halt, {:error, :settlement_execution_mismatch}}
+
+            true ->
+              {:cont, :ok}
+          end
 
         _ ->
           {:halt, {:error, :bound_fact_missing}}
       end
     end)
+  end
+
+  # B3 item 4: a settlement must belong to the execution its event names. The settlement
+  # fact carries effect_id but not execution_id, so the comparison uses the effect that the
+  # same settle_claim result carries. Identity only: which role the execution has is the
+  # kernel's check, so no role name enters here. An event that names no execution, such as
+  # pm_launch_settled, fails closed rather than skipping the check.
+  defp closes_named_execution?(binding, settlement, event, operation_results) do
+    if binding["output_kind"] == "nonstart_settlement_v1" do
+      with {:ok, result} <- staged_result(operation_results, binding["operation_ordinal"]),
+           effect when is_map(effect) <- get_in(result, ["result", "facts", "effect"]),
+           true <- effect["effect_id"] == settlement["effect_id"] do
+        Enum.all?(~w(ticket_id attempt_id execution_id), fn key ->
+          identifier?(effect[key]) and get_in(event, ["payload", key]) == effect[key]
+        end)
+      else
+        _ -> false
+      end
+    else
+      true
+    end
   end
 
   # --- shared predicates ------------------------------------------------------------

@@ -20,6 +20,16 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     }
   end
 
+  # The effect the same settle_claim result carries; B3 item 4 binds the settlement to it.
+  defp settled_effect do
+    %{
+      "effect_id" => "effect-1",
+      "ticket_id" => "ticket-1",
+      "attempt_id" => "attempt-1",
+      "execution_id" => "execution-1"
+    }
+  end
+
   defp event(type, payload, event_id \\ "event-1") do
     %{"schema_version" => 1, "event_id" => event_id, "type" => type, "payload" => payload}
   end
@@ -52,6 +62,9 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     proposal(
       [
         event("launch_settled", %{
+          "ticket_id" => "ticket-1",
+          "attempt_id" => "attempt-1",
+          "execution_id" => "execution-1",
           "settlement" => marker,
           "projection" => %{
             "namespace" => "atomic-v2",
@@ -416,6 +429,29 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
       refute inspect(proposal) =~ ~s("binding")
     end
 
+    # B3 item 4: a settlement for one execution cannot close another.
+    test "a settlement offered to a different execution's event is refused" do
+      other =
+        staged(%{
+          "result" => %{
+            "facts" => %{
+              "infrastructure_settlement" => settlement(),
+              "effect" => Map.put(settled_effect(), "execution_id", "execution-2")
+            }
+          }
+        })
+
+      assert {:error, :settlement_execution_mismatch} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [other])
+    end
+
+    test "a settlement whose result carries no effect is refused" do
+      bare = staged(%{"result" => %{"facts" => %{"infrastructure_settlement" => settlement()}}})
+
+      assert {:error, :settlement_execution_mismatch} =
+               TransitionPlan.bind(plan(), "below_infrastructure_limit", [bare])
+    end
+
     test "binding is refused when no staged result is present" do
       assert {:error, :staged_operation_absent} =
                TransitionPlan.bind(plan(), "below_infrastructure_limit", [])
@@ -502,7 +538,12 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
           "operation_type" => "settle_claim",
           "execution_status" => "committed",
           "request" => %{},
-          "result" => %{"facts" => %{"infrastructure_settlement" => settlement()}}
+          "result" => %{
+            "facts" => %{
+              "infrastructure_settlement" => settlement(),
+              "effect" => settled_effect()
+            }
+          }
         },
         overrides
       )
