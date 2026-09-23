@@ -5,6 +5,42 @@ operator 2026-09-23, as recommended.** P1 (subcommit 2's developer `decide/3`) i
 and comes first. No production code changes. Taken at `7514c930` (`repair/fr08b-kernel`); line
 numbers are at that commit.
 
+## Outcome (2026-09-23, implemented on `repair/fr08b-kernel` after `8596c04a`)
+
+The reviewer half is implemented; the section "Proposed commit sequence" below is the plan it
+followed. Awaiting the batch review with subcommit 4.
+
+- **Commit 1** had already landed as `aed6561e` (`check_settled` binds its check's execution,
+  `:not_the_check_execution`, with the probe as its red control). Its other half —
+  `check_recorded` and `worker_closed` requiring the bound execution — needs vocabulary:
+  `check_recorded` carries no `execution_id`, `worker_closed` no `check_id`, and a re-planned
+  check's old run is legitimately closed by `worker_closed` with no check bound to it. Left
+  for subcommit 4's workers.
+- **D1 as built.** Cancel and pause gate the reviewer launch before intent. Drain does not: the
+  contract's drain sentence lists "developer and PM replacement launches" and says "reviewer
+  ... retries remain eligible", so D1's "control gates every successor" is read as "control is
+  evaluated", with drain evaluating to eligible for the reviewer.
+- **Allocation.** Short reviewer allocation is a pre-intent rejection for a first review
+  (R4.15.f3), `blocked(reviewer_budget)` after a reviewer non-start (R4a.02.o10, the
+  recoverable one of its two outcomes, since the kernel cannot read which protected policy
+  prefers), and `exhausted` after a reviewer crash (R4.19.o3).
+- **Verdicts** use Core's existing `submit_review` command type (RecordCodec refuses a new
+  one). Approved records only; the verified close is evidence. Correction and rejection
+  terminalise through `close_attempt` in the same plan (`Plan.close_attempt` gained `before`
+  events).
+- **Not done here.** R4.17.o3's `blocked(drain)` after a correction: the developer successor is
+  decided on its own `plan_launch`, which rejects a fresh launch under drain (subcommit 2's
+  approved shape). Reviewer independence (a Core lineage predicate, in progress in
+  `durable_store/`): a TODO in `review.ex` and a skipped `:pending_independence` test in
+  `decide_e2e_test.exs` mark where it lands.
+
+**D2, recorded as the PM deferral.** PM is out of subcommit 3 and deferred to the PM lifecycle
+(FR-15). R4.01.o1 and R4a.03.o3–o5 stay in `@uncited` and R4a.03.f2 stays `:unguarded` in
+`r4_coverage_test.exs`, each annotated with this decision; no PM `decide/3` exists. Reopening
+it needs the two gaps in Q2 closed first: a PM execution success-path close with an
+execution-naming `pm_launch_settled` (vocabulary, protected maintenance), and Core admitting an
+objective-scoped effect (O0 U9).
+
 ## What subcommit 3 is
 
 The subcommit plan defines it as "Reviewer and PM roles against the same contract"

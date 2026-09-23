@@ -254,6 +254,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   # @partial as their rows gain the mechanism. They are listed rather than excused because
   # "a later subcommit owns it" is a claim, and claims in this repair have needed checking.
   @uncited [
+    # Deferred to the PM lifecycle by D2; see R4a.03.o3 below.
     {"R4.01.o1", "Durable objective and bounded PM reservation"},
     {"R4.02.o1", "Common admission validates full assignment/policy/budget allocation"},
     {"R4.02.o3", "malformed spec rejected"},
@@ -309,6 +310,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # against the ledger, which this reducer-level suite cannot see.
     {"R4a.02.o5", "Release reviewer launch resources"},
     {"R4a.02.o6", "retain candidate custody and candidate/check leases."},
+    # Deferred to the PM lifecycle (FR-15), with R4.01.o1 and R4a.03.f2, by the operator's
+    # D2 (FR08B-SUBCOMMIT3-DESIGN-2026-09-23.md, Q2): a PM execution has no success-path
+    # close and pm_launch_settled cannot name its execution (a vocabulary change), and an
+    # objective-scoped effect is inadmissible to Core (O0 U9). No decide/3 is built for PM.
     {"R4a.03.o3", "Release launch-only resources."},
     {"R4a.03.o4", "Below the PM limit, return to its PM queue"},
     {"R4a.03.o5",
@@ -683,6 +688,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # guard attached to whichever event a walk happened to reach." The PM is the member that
     # correction did not reach, and it is the only one whose entity - the objective - has no
     # execution register to guard against, which is why it was missed both times.
+    #
+    # Stays :unguarded by decision, not oversight: the operator's D2 (2026-09-23,
+    # FR08B-SUBCOMMIT3-DESIGN) takes PM out of subcommit 3 and defers this candidate to the
+    # PM lifecycle (FR-15), because the fix is vocabulary plus a Core schema change (O0 U9).
     "R4a.03.f2" =>
       {:unguarded,
        "pm_launch_planned records no execution and pm_launch_settled guards nothing, so \"planning execution\" has no witness in state and no refusal. The fourth member of a family whose other three guard phase, entity and execution-exists; the objective carries proposals and infrastructure but no execution register, so the fix is state shape, not a missing require_* call. Needs its own candidate: pm_launch_planned records the planning execution, pm_launch_settled requires and closes it, mirroring require_reviewer_execution/3"},
