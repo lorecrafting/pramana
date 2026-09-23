@@ -1514,6 +1514,11 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          {:ok, request_receipts} <- receipts_for_request(conn, operation["request_id"]),
          {:ok, observation_receipts} <- receipts_for_id(conn, operation["receipt_id"]) do
       cond do
+        # A claim that was never issued has no observation to conflict with; quarantining
+        # it commits a state the restart check refuses (ledger finding 1).
+        claim.status in ["claimed", "cancelled"] ->
+          {:reject, :claim_settlement_not_permitted, %{}}
+
         observation_conflict?(observation_receipts, operation, digest, claim) ->
           quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
 
