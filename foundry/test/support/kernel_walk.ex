@@ -152,7 +152,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
       # wrote a state `well_formed?/1` rejects: a missing or neutralised guard. Before kernel
       # property 6 the harness's shape assertion failed the test here; after it the kernel
       # refuses and a walk would record it as an ordinary rejection. That is how neutralising
-      # kernel.ex:968 went unnoticed by every walk (sweep, 2026-09-22). Fail loudly instead.
+      # `attempt_settled` in `kernel/software/dispositions.ex` went unnoticed by every walk (sweep, 2026-09-22). Fail loudly instead.
       {:error, :malformed_post_state} ->
         raise "#{type} produced a malformed post-state from a well-formed proposal"
 

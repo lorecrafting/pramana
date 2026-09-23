@@ -775,7 +775,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
         "authorized" => 1
       }
 
-    # kernel.ex's `attempt_settled` `require_active_attempt`. Survived the 2026-09-22
+    # `attempt_settled` (`kernel/software/dispositions.ex`) `require_active_attempt` (`kernel/shared.ex`). Survived the 2026-09-22
     # coverage-guided sweep: no test sent a settlement naming anything but the active
     # attempt. `require_settlement_source` judges the ACTIVE attempt, so without this guard
     # a disposition valid for A2 is written onto the prior, already-terminal A1 - the
@@ -2797,8 +2797,8 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # verdict. That denominator is why these are not `State.invariant?/1` relations - such a
     # check would run over 58,324 states none of which can trip it.
     #
-    # So the question was put where it lives, which is what kernel.ex's `reviewer_closed`
-    # comment already does for the same shape. Seeded from `integrating_with_receipt` and
+    # So the question was put where it lives, which is what `reviewer_closed`'s comment in
+    # `kernel/software/review.ex` already does for the same shape. Seeded from `integrating_with_receipt` and
     # from a rejected verdict, at depth 6:
     #
     #   ref receipt   => integrating:  29,109 states, 20,488 hold the precondition, 0 violate

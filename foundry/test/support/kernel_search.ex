@@ -138,7 +138,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
           # wrote a state `well_formed?/1` rejects: a missing or neutralised guard. Before kernel
           # property 6 the harness's shape assertion failed the test here; after it the kernel
           # refuses and the search would record it as an ordinary rejection. That is how neutralising
-          # kernel.ex:968 went unnoticed by every walk and search (sweep, 2026-09-22). Fail loudly instead.
+          # `attempt_settled` in `kernel/software/dispositions.ex` went unnoticed by every walk and search (sweep, 2026-09-22). Fail loudly instead.
           {:error, :malformed_post_state} ->
             raise "#{event["type"]} produced a malformed post-state from a well-formed proposal"
 
@@ -245,8 +245,8 @@ defmodule PramanaFoundry.Test.KernelSearch do
   end
 
   # Two spellings declare a refusal, and scanning for only the first is how this claimed to
-  # inventory the declared set for three reviews while missing `:unknown_entity_kind` at
-  # kernel.ex:80 entirely.
+  # inventory the declared set for three reviews while missing `:unknown_entity_kind` in
+  # `apply/2` (`kernel.ex`) entirely.
   @reason_spellings [
     # Returned directly.
     ~r/\{:error, :([a-z_]+)\}/,

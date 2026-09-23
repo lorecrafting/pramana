@@ -399,7 +399,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   # `WORKFLOW-CONTRACT.md:490`: "nonterminal ticket; cancel requested | Set orthogonal
   # control, cancel pending/unissued effects, request owned interrupts; **hold
   # phase/evidence while issued effects reconcile**". So `apply_terminal_phase` returning the
-  # ticket unchanged for `cancelled` (`kernel.ex:1042-1043`) is the row being obeyed: the
+  # ticket unchanged for `cancelled` (`apply_terminal_phase/2` in `kernel/software/dispositions.ex`) is the row being obeyed: the
   # ticket holds its working phase until row :491's `cancellation_finalized` moves it.
   #
   # This clause shipped without the exception and was therefore wrong on every state it ever
@@ -410,7 +410,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   # denominators below are stated per set because they were measured over different ones.
   # Over the **190 at depth 6**: 0 are stuck, each admits at least 4 accepted successors, only
   # 4 admit `cancellation_finalized` immediately, the atom refusing it on the other 186 is
-  # `:executions_not_closed` (`require_all_executions_closed/1`, `kernel.ex:1302`) — row :491's
+  # `:executions_not_closed` (`require_all_executions_closed/1` in `kernel/cancellation.ex`) — row :491's
   # "every owned session AND non-session claim terminal" — and of the 35 that cannot reach a
   # terminal ticket phase within 3 further events, 35 do within 5. Over the **1,002 at depth 7**:
   # 0 are stuck and each admits at least 4 accepted successors. The within-5 result is NOT
@@ -418,7 +418,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   #
   # `:cleanup_incomplete` is not part of this: EV-5's first pass read it out of the union of
   # every refusal from these states and attributed it to finalisation, but it comes from
-  # `launch_planned` (`require_cleanup_complete/1`, `kernel.ex:1691`). Corrected by review.
+  # `launch_planned` (`require_cleanup_complete/1` in `kernel/executions.ex`). Corrected by review.
   #
   # The precondition is a working phase with no active attempt. The cancel is part of the
   # PROPERTY, not the precondition, which is why EV-5's 1,002-of-1,002 and this clause's
@@ -497,7 +497,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   # the disposition, so an attempt holding one may not be terminal as anything else.
   #
   # `cancelled` was licensed here and should not have been, which the review of EV-5 caught:
-  # `require_receipt_for_integration/2` (`kernel.ex:1531-1535`) refuses **every** non-integrated
+  # `require_receipt_for_integration/2` (in `kernel/software/dispositions.ex`) refuses **every** non-integrated
   # settlement of a receipt-holding attempt with `:ref_receipt_admits_only_integrated`, and
   # `kernel_test.exs:841-855` pins that atom. Contract row :491 agrees — "If integration
   # occurred: integrated and `cancel_finalized(after_integration)`" — so a cancel that races an

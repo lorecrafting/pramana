@@ -82,18 +82,18 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
     end
   end
 
-  # R4: "any open submission phase; malformed result" — a durable rejected submission. It
-  # charges a validation action in the R5 ledger, which is not the kernel's to write, and
-  # it moves no phase.
   # R4: "any open submission phase; malformed result | **Durable rejected submission, charge
   # one validation action**; further submission allowed only while **stream open** and
-  # budget remains; exhaustion closes execution and exhausts ticket."
+  # budget remains; exhaustion closes execution and exhausts ticket." The validation action
+  # itself is charged in the R5 ledger, which is not the kernel's to write; the event moves
+  # no ticket phase.
   #
-  # This accepted the event and changed nothing, so there was no durable record to charge
-  # against and the row was unimplementable - the enumeration created the event for exactly
-  # this reason and then the reducer dropped it. The charge is recorded on the attempt; the
-  # budget it is charged against is protected allocation, so exhaustion arrives as
-  # attempt_settled(exhausted) rather than being derived here.
+  # This once accepted the event and changed nothing, so there was no durable record to
+  # charge against and the row was unimplementable - the enumeration created the event for
+  # exactly this reason and then the reducer dropped it. The charge is recorded on the
+  # attempt (`rejected_submissions`); the budget it is charged against is protected
+  # allocation, so exhaustion arrives as attempt_settled(exhausted) rather than being derived
+  # here.
   def do_transition("submission_rejected", ticket, event, _state) do
     payload = event["payload"]
 

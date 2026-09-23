@@ -97,7 +97,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
         "be in its domain cannot return `:error`. The decisive half is event.ex:192, which " <>
         "performs the identical lookup - `event[\"entity_kind\"] == @entity_kind_of[type]` - " <>
         "after :191 has required the kind be one of @entity_kinds, so a missing key yields " <>
-        "nil and validate refuses before kernel.ex:80 runs at all. Unlike the " <>
+        "nil and validate refuses before `apply/2` (`kernel.ex`) runs at all. Unlike the " <>
         "`reviewer_closed` argument that a looser predicate falsified with 3,612 witnesses, " <>
         "this one is local to a single `with` over an immutable event and a compile-time " <>
         "map built from one attribute; there is no state to evolve. Surfaced only in this " <>
@@ -139,7 +139,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
 
   # The red control for the inventory itself. This test asserted a mechanical inventory of
   # the declared error set for three reviews while scanning for one of the two spellings a
-  # refusal is written in, so it could not see `:unknown_entity_kind` at kernel.ex:80 and
+  # refusal is written in, so it could not see `:unknown_entity_kind` in `apply/2` (`kernel.ex`) and
   # said nothing. A fixture carrying every shape - both declaration spellings, and the
   # `ok_or/2` definition clause that must not be read as a declaration - fails if the
   # extractor narrows again.

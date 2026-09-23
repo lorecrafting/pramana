@@ -70,7 +70,7 @@ defmodule PramanaFoundry.Test.Harness do
   This hatch used to quarantine the closure defect: `apply/2` was not **closed** over its own
   validator, and a handler copying a payload value into state produced, for at least 20
   `(type, key)` pairs, a state `State.well_formed?/1` rejected and `:invalid_state` then refused
-  forever. Closed by property 6 in `kernel.ex` — the post-state is validated and refused with
+  forever. Closed by property 6, `require_well_formed/1` in `kernel.ex` — the post-state is validated and refused with
   `:malformed_post_state`. `bin/closure_probe.exs` is the regression: it must report
   `accepted-but-malformed: 0` with its bound line unchanged, and the four counts that preceded
   it (2, 16, 19, >=20 — each wrong in the same direction) are recorded in

@@ -757,7 +757,8 @@ IO.puts("guard call sites: #{length(all_sites)} (sweeping #{length(sites)})")
 # Soundness hole, measured rather than assumed. The design's argument ("a test that never
 # evaluates S cannot see S's mutant") holds for tests that observe the kernel by running it.
 # It is false for a test that observes the kernel by READING it: `KernelSearch.declared_
-# reasons/0` regex-scans kernel.ex, and r4_coverage/r4_guard_reachability assert on it. A
+# reasons/0` regex-scans kernel.ex and the family modules under kernel/, and
+# r4_coverage/r4_guard_reachability assert on it. A
 # mutant whose splice changes that scan can turn such a test red without the test evaluating
 # S, so the map would not select it. Every site's mutant is scanned here with the suite's own
 # `reasons_in/1`; a site that changes it is reported, and its verdict is not a verdict.
