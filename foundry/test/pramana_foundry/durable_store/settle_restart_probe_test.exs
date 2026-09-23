@@ -4,6 +4,8 @@ defmodule PramanaFoundry.DurableStore.SettleRestartProbeTest do
   #
   # L1 (foundry/spec/ledger/README.md, finding 1): a settle_claim reusing another claim's
   #   receipt_id quarantined a claimed-but-never-issued (or cancelled) claim.
+  # B (foundry/spec/fr10/README.md, finding B): a late `unknown` receipt moved an already
+  #   settled effect to reconciliation_required, stranding its retry.
   #
   # Each test drives the real gateway, checks the operation's outcome, then reopens the store.
   use ExUnit.Case, async: false
@@ -103,6 +105,42 @@ defmodule PramanaFoundry.DurableStore.SettleRestartProbeTest do
       # No reopen here: the issuer_quiescent cancel above already leaves a store that
       # fails the restart check ({:protected_corrupt, "root_ledgers", :transition}), a
       # separate defect in cancel_effect, not in settle_claim.
+    end
+  end
+
+  describe "B: a late unknown receipt after a known outcome" do
+    setup %{gw: gw} do
+      claimed!(gw, "1")
+      assert %{"disposition" => "accepted"} = run(gw, "ISSUE-1", issue("1"))
+      assert %{"disposition" => "accepted"} = run(gw, "R1", settle("1", "receipt-1", "failed"))
+      :ok
+    end
+
+    test "is stored and leaves the settled claim and effect unchanged", ctx do
+      before = state(ctx.gw, "1")
+      assert %{claim: "failed", effect: "failed", reservation: "consumed"} = before
+
+      assert %{"disposition" => "accepted", "facts" => facts} =
+               run(ctx.gw, "R0-LATE", settle("1", "receipt-0", "unknown"))
+
+      assert %{"receipt_id" => "receipt-0", "outcome" => "unknown"} = facts["receipt"]
+      assert state(ctx.gw, "1") == before
+
+      # An exact replay of the stale receipt is idempotent.
+      assert %{"disposition" => "accepted"} =
+               run(ctx.gw, "R0-LATE-AGAIN", settle("1", "receipt-0", "unknown"))
+
+      assert state(ctx.gw, "1") == before
+      ctx = reopen!(ctx)
+      assert state(ctx.gw, "1") == before
+    end
+
+    test "a conflicting known outcome still quarantines", ctx do
+      assert %{"disposition" => "rejected", "reason_code" => "conflicting_receipt"} =
+               run(ctx.gw, "R2-CONFLICT", settle("1", "receipt-2", "succeeded"))
+
+      assert %{claim: "reconciliation_required"} = state(ctx.gw, "1")
+      reopen!(ctx)
     end
   end
 

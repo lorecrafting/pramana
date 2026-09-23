@@ -1912,9 +1912,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       claim.status == "reconciliation_required" ->
         quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
 
+      # An unknown receipt carries less information than any stored receipt, never
+      # conflicting information: store it and leave the status alone (FR-10 finding B). A
+      # late timeout must not re-quarantine an effect already settled from its outcome.
+      receipts != [] and operation["outcome"] == "unknown" ->
+        stale_unknown_receipt(conn, operation, digest, claim, effect)
+
       receipts != [] ->
-        if operation["outcome"] != "unknown" and
-             Enum.all?(receipts, &(&1.outcome == "unknown")) do
+        if Enum.all?(receipts, &(&1.outcome == "unknown")) do
           reconciled_settlement(conn, operation, digest, claim, effect)
         else
           quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
@@ -1922,6 +1927,23 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
       true ->
         first_settlement(conn, operation, digest, claim, effect)
+    end
+  end
+
+  defp stale_unknown_receipt(conn, operation, digest, claim, effect) do
+    receipt = receipt(operation, digest, claim.claim_id)
+
+    with :ok <- settlement_proof("unknown", operation["proof"]),
+         :ok <- insert_receipt(conn, receipt) do
+      {:ok,
+       %{
+         "claim" => public_claim(claim),
+         "effect" => public_effect(effect),
+         "receipt" => public_receipt(receipt)
+       }}
+    else
+      {:error, :invalid_receipt_proof} -> {:reject, :invalid_receipt_proof, %{}}
+      {:error, _reason} = error -> error
     end
   end
 
@@ -6835,19 +6857,25 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       else
         replay = put_in(replay, [:receipts, receipt_key], op["outcome"])
 
-        if op["outcome"] == "unknown" do
-          {:ok,
-           replay
-           |> put_in([:claims, claim.claim_id], replay_status(claim, "unknown"))
-           |> put_in([:effects, effect.effect_id], replay_status(effect, "unknown"))}
-        else
-          with {:ok, replay} <-
-                 replay_settle_reservations(replay, effect.reservation_ids, op["outcome"]) do
+        cond do
+          # stale_unknown_receipt: a later unknown is stored and changes no status.
+          op["outcome"] == "unknown" and claim.status != "issued" ->
+            {:ok, replay}
+
+          op["outcome"] == "unknown" ->
             {:ok,
              replay
-             |> put_in([:claims, claim.claim_id], replay_status(claim, op["outcome"]))
-             |> put_in([:effects, effect.effect_id], replay_status(effect, op["outcome"]))}
-          end
+             |> put_in([:claims, claim.claim_id], replay_status(claim, "unknown"))
+             |> put_in([:effects, effect.effect_id], replay_status(effect, "unknown"))}
+
+          true ->
+            with {:ok, replay} <-
+                   replay_settle_reservations(replay, effect.reservation_ids, op["outcome"]) do
+              {:ok,
+               replay
+               |> put_in([:claims, claim.claim_id], replay_status(claim, op["outcome"]))
+               |> put_in([:effects, effect.effect_id], replay_status(effect, op["outcome"]))}
+            end
         end
       end
     end
