@@ -1,7 +1,8 @@
 defmodule PramanaFoundry.ManualLane.CLI do
   @moduledoc """
   T5, the manual-lane CLI (`docs/batch-d/THIN-LANE-DESIGN-2026-09-23.md` §4):
-  `bin/pramana lane admit|packet|submit|review|settle|status`, routed here by `CLI.RPC`.
+  `bin/pramana lane admit|packet|submit|review|settle|status|recover`, routed here by
+  `CLI.RPC`.
 
   It runs in the daemon's BEAM against the flag-started `ManualLane.Server`, and only
   translates arguments into `ManualLane.Backend` calls. Output is human-readable, or one
@@ -15,7 +16,7 @@ defmodule PramanaFoundry.ManualLane.CLI do
   alias PramanaFoundry.WorkPacket
   alias PramanaFoundry.Workflow.Kernel.Execution
 
-  # Per command: its option switches and whether the ticket id is required.
+  # Per command: its option switches and whether the ticket id is required, optional or none.
   @commands %{
     "admit" =>
       {[base_ref: :string, title: :string, scope: :string, acceptance: :keep], :required},
@@ -33,7 +34,8 @@ defmodule PramanaFoundry.ManualLane.CLI do
          issuer_gone: :boolean,
          channel_quiet: :boolean
        ], :required},
-    "status" => {[], :optional}
+    "status" => {[], :optional},
+    "recover" => {[evidence: :string], :none}
   }
 
   @required %{
@@ -42,7 +44,8 @@ defmodule PramanaFoundry.ManualLane.CLI do
     "submit" => [:principal, :candidate, :checkout],
     "review" => [:principal, :verdict, :candidate, :notes],
     "settle" => [:principal, :role, :outcome, :attest],
-    "status" => []
+    "status" => [],
+    "recover" => [:evidence]
   }
 
   @roles ~w(developer reviewer)
@@ -79,8 +82,8 @@ defmodule PramanaFoundry.ManualLane.CLI do
 
         cond do
           Enum.any?(repeated, &(&1 != :acceptance)) -> {:error, :unknown_command_shape}
-          match?([_], args) -> {:ok, command, hd(args), opts}
-          args == [] and id_rule == :optional -> {:ok, command, nil, opts}
+          match?([_], args) and id_rule != :none -> {:ok, command, hd(args), opts}
+          args == [] and id_rule != :required -> {:ok, command, nil, opts}
           true -> {:error, :unknown_command_shape}
         end
 
@@ -95,7 +98,7 @@ defmodule PramanaFoundry.ManualLane.CLI do
   def run(argv) do
     with {:ok, command, id, opts} <- parse(argv) |> refusal(),
          :ok <- required(command, opts),
-         {:ok, ctx} <- context() do
+         {:ok, ctx} <- context(command) do
       command(command, ctx, id, opts)
     end
   end
@@ -194,6 +197,15 @@ defmodule PramanaFoundry.ManualLane.CLI do
          "outcome" => opts[:outcome],
          "selected_discriminator" => result["selected_discriminator"]
        }}
+    end
+  end
+
+  # The one command that runs while the Gateway is in recovery; see `Server.recover/1`.
+  defp command("recover", nil, nil, opts) do
+    with {:ok, %{mode: mode, reason: reason}} <- Server.recover(opts[:evidence]) |> refusal() do
+      if mode == :ready,
+        do: {:ok, %{"mode" => "ready"}},
+        else: {:error, :gateway_recovery, recovery_detail(reason)}
     end
   end
 
@@ -328,18 +340,35 @@ defmodule PramanaFoundry.ManualLane.CLI do
     end
   end
 
-  defp context do
-    if Process.whereis(Server) do
-      ctx = Server.context()
+  defp context(command) do
+    cond do
+      !Process.whereis(Server) ->
+        {:error, :lane_disabled, nil}
 
-      case Gateway.status(ctx.gateway) do
-        %{mode: :ready} -> {:ok, Map.put(ctx, :path, ctx.store_path)}
-        %{reason: reason} -> {:error, :gateway_recovery, inspect(reason)}
-      end
-    else
-      {:error, :lane_disabled, nil}
+      command == "recover" ->
+        {:ok, nil}
+
+      true ->
+        ctx = Server.context()
+
+        case Gateway.status(ctx.gateway) do
+          %{mode: :ready} -> {:ok, Map.put(ctx, :path, ctx.store_path)}
+          %{reason: reason} -> {:error, :gateway_recovery, recovery_detail(reason)}
+        end
     end
   end
+
+  # Only an unclean previous owner is something `recover` can clear.
+  defp recovery_detail({:store_owner_unavailable, {:ambiguous_previous_owner, _, _}} = reason) do
+    %{
+      "reason" => inspect(reason),
+      "next" =>
+        "confirm no other lane process owns the store, then: bin/pramana lane recover " <>
+          "--evidence \"<what you checked>\""
+    }
+  end
+
+  defp recovery_detail(reason), do: %{"reason" => inspect(reason), "next" => "store repair"}
 
   defp rev_parse(repo, ref) do
     case System.cmd("git", ["-C", repo, "rev-parse", "--verify", "--quiet", ref <> "^{commit}"],

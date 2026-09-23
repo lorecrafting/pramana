@@ -11,7 +11,7 @@ defmodule PramanaFoundry.ManualLane.RestartDrillTest do
   """
   use ExUnit.Case, async: false
 
-  # The pinned recovery-mode refusal logs a GenServer crash on every kill.
+  # A killed Gateway logs its crash.
   @moduletag :capture_log
 
   import ExUnit.CaptureIO
@@ -359,37 +359,44 @@ defmodule PramanaFoundry.ManualLane.RestartDrillTest do
     end
 
     for ref <- refs, do: assert_receive({:DOWN, ^ref, :process, _, _}, 5_000)
-    if how == :kill, do: recover_owner!(c)
 
     start!(c)
+    if how == :kill, do: recover!()
     assert %{mode: :ready, reason: nil} = Gateway.status(Server.context().gateway)
     assert Backend.state(ctx()) == before
     law!()
   end
 
-  # FINDING (W5): after an unclean exit the Owner leaves `.owner.unclean`, and reopening
-  # needs `recovery_evidence`. `Server.init/1` never forwards it to `Gateway.start_link`,
-  # so the Server alone can never restart the lane: it stops with `:recovery_mode` (and the
-  # CLI's `:gateway_recovery` is unreachable). This pins that, then recovers the owner the
-  # way Core allows, with a one-off Gateway given the evidence and stopped cleanly.
-  defp recover_owner!(c) do
-    assert {:error, {{:recovery_mode, reason}, _}} =
-             start_supervised(Supervisor.child_spec({Server, c.opts}, restart: :temporary))
+  # After an unclean exit the Owner leaves `.owner.unclean`, and Core reopens only with
+  # `recovery_evidence`. The Server starts in a reported recovery state, every lane command
+  # refuses with `gateway_recovery` and the next step, and `lane recover` takes the
+  # operator's evidence. None is ever defaulted: without it, recovery is refused.
+  defp recover! do
+    assert {false, %{"error" => "gateway_recovery", "detail" => detail}} = lane(~w(status))
+    assert detail["reason"] =~ "ambiguous_previous_owner"
+    assert detail["next"] =~ "bin/pramana lane recover --evidence"
 
-    assert {:store_owner_unavailable, {:ambiguous_previous_owner, _, _}} = reason
+    assert {false, %{"error" => "gateway_recovery"}} =
+             lane(~w(packet ML-1 --role developer --principal #{@dev}))
 
-    gateway =
-      start_supervised!(
-        {Gateway,
-         path: Path.join(c.root, "state/manual-lane/authority.sqlite3"),
-         protected_capability: make_ref(),
-         writer_epoch: "drill-recovery",
-         recovery_evidence: "drill: Server and Gateway killed, BEAM monitors confirm both down"},
-        id: :owner_recovery
-      )
+    # Red controls: no evidence, blank evidence.
+    assert {false, %{"error" => "option_required", "detail" => ["--evidence"]}} =
+             lane(~w(recover))
 
-    assert %{mode: :ready} = Gateway.status(gateway)
-    stop_supervised!(:owner_recovery)
+    assert {false, %{"error" => "recovery_evidence_required"}} =
+             lane(["recover", "--evidence", "  "])
+
+    assert %{mode: :recovery} = Gateway.status(Server.context().gateway)
+
+    assert %{"mode" => "ready"} =
+             ok!(["recover", "--evidence", "drill: Server and Gateway killed, both DOWN"])
+
+    [archive] = Path.wildcard(Server.context().store_path <> ".owner.unclean.recovered.*")
+    assert File.read!(archive) =~ "operator_attestation: drill: Server and Gateway killed"
+
+    # Once only: a ready lane has nothing to recover.
+    assert {false, %{"error" => "lane_not_in_recovery"}} =
+             lane(["recover", "--evidence", "again"])
   end
 
   # The substitution law: the replayed ticket is the committed projection.

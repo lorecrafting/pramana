@@ -35,10 +35,51 @@ defmodule PramanaFoundry.ManualLane.Server do
   @doc "The gateway pid, capability, writer_epoch, repo and store_path. Same process tree only."
   def context, do: GenServer.call(__MODULE__, :context)
 
+  @doc """
+  Restarts a Gateway left in recovery by an unclean stop, once, with `evidence`: the
+  operator's attestation that no other lane process owns the store (A1). Core archives it
+  with the old owner marker. It is never defaulted, generated or kept for a later restart.
+  """
+  def recover(evidence), do: GenServer.call(__MODULE__, {:recover, evidence})
+
   @impl true
   def init(opts) do
     Process.flag(:trap_exit, true)
     config = Keyword.merge(Application.get_env(:pramana_foundry, :manual_lane, []), opts)
+
+    case open(config, nil) do
+      {:ok, state} -> {:ok, state}
+      {:error, reason} -> {:stop, reason}
+    end
+  end
+
+  @impl true
+  def handle_call(:context, _from, state) do
+    {:reply, Map.take(state, [:gateway, :capability, :writer_epoch, :repo, :store_path]), state}
+  end
+
+  def handle_call({:recover, evidence}, _from, state) do
+    cond do
+      not (is_binary(evidence) and String.trim(evidence) != "") ->
+        {:reply, {:error, :recovery_evidence_required}, state}
+
+      Gateway.status(state.gateway).mode != :recovery ->
+        {:reply, {:error, :lane_not_in_recovery}, state}
+
+      true ->
+        # Its `:EXIT` arrives after `state.gateway` names the new Gateway, so it is ignored.
+        GenServer.stop(state.gateway)
+
+        case open(state.config, "operator_attestation: " <> evidence) do
+          {:ok, next} -> {:reply, {:ok, Gateway.status(next.gateway)}, next}
+          {:error, reason} -> {:stop, reason, {:error, reason}, Map.delete(state, :gateway)}
+        end
+    end
+  end
+
+  # A Gateway in recovery (an unclean previous owner, say) is kept, unseeded, so every lane
+  # command reports it instead of the Server crash-looping.
+  defp open(config, evidence) do
     repo = Keyword.get(config, :repo)
     store_path = store_path(config)
 
@@ -50,25 +91,27 @@ defmodule PramanaFoundry.ManualLane.Server do
            Gateway.start_link(
              path: store_path,
              protected_capability: capability,
-             writer_epoch: writer_epoch
+             writer_epoch: writer_epoch,
+             recovery_evidence: evidence
            ),
-         :ok <- seed(gateway, capability, Keyword.get(config, :policy_path)) do
+         :ok <- seed_unless_recovering(gateway, capability, Keyword.get(config, :policy_path)) do
       {:ok,
        %{
          gateway: gateway,
          capability: capability,
          writer_epoch: writer_epoch,
          repo: repo,
-         store_path: store_path
+         store_path: store_path,
+         config: config
        }}
-    else
-      {:error, reason} -> {:stop, reason}
     end
   end
 
-  @impl true
-  def handle_call(:context, _from, state) do
-    {:reply, Map.take(state, [:gateway, :capability, :writer_epoch, :repo, :store_path]), state}
+  defp seed_unless_recovering(gateway, capability, policy_path) do
+    case Gateway.status(gateway) do
+      %{mode: :recovery} -> :ok
+      _ready -> seed(gateway, capability, policy_path)
+    end
   end
 
   @impl true
