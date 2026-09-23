@@ -919,6 +919,92 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
              Gateway.protected_query(other_source, capability, %{request | "cursor" => cursor})
   end
 
+  # O0 U9: the kernel counts PM ordinals per objective, the protected layer scopes every
+  # effect to a ticket. This pins the protected side: an objective-scoped effect is refused
+  # even when policy allows the scope, and the same effect scoped to a ticket is accepted.
+  test "an effect cannot be scoped to an objective, only to a ticket", %{
+    gateway: gateway,
+    capability: capability
+  } do
+    accept!(gateway, capability, "U9-POLICY", %{"policy/policy-1" => "absent"}, %{
+      "type" => "set_policy",
+      "policy_id" => "policy-1",
+      "value" => %{
+        "allowed_operations" => ["launch"],
+        "allowed_scopes" => ["objective:O1", "ticket:O1"],
+        "allowed_roles" => ["pm"]
+      }
+    })
+
+    accept!(gateway, capability, "U9-CONTROL", %{"control/control-1" => "absent"}, %{
+      "type" => "set_control",
+      "control_id" => "control-1",
+      "value" => %{"status" => "active"}
+    })
+
+    accept!(gateway, capability, "U9-LEDGER", %{"ledger/root/0" => "absent"}, %{
+      "type" => "grant_ledger",
+      "ledger_id" => "root",
+      "generation" => 0,
+      "dimension" => "starts.pm",
+      "units" => 1
+    })
+
+    accept!(
+      gateway,
+      capability,
+      "U9-RESERVATION",
+      %{"ledger/root/0" => 0, "reservation/reservation-u9" => "absent"},
+      %{
+        "type" => "reserve",
+        "reservation_id" => "reservation-u9",
+        "ledger_id" => "root",
+        "generation" => 0,
+        "owner_kind" => "effect",
+        "owner_id" => "effect-u9",
+        "units" => 1
+      }
+    )
+
+    create = fn command_id, scope ->
+      protected(
+        gateway,
+        capability,
+        command_id,
+        %{
+          "effect/effect-u9" => "absent",
+          "policy/policy-1" => 0,
+          "control/control-1" => 0,
+          "reservation/reservation-u9" => 0,
+          "ledger/root/0" => 0,
+          "lease/lease-u9" => "absent"
+        },
+        %{
+          "type" => "create_effect",
+          "effect_id" => "effect-u9",
+          "request" => %{"request_id" => "request-u9", "role" => "pm"},
+          "operation" => "launch",
+          "scope" => scope,
+          "ticket_id" => "O1",
+          "attempt_id" => "planning-1",
+          "execution_id" => "execution-u9",
+          "policy_id" => "policy-1",
+          "policy_revision" => 0,
+          "control_id" => "control-1",
+          "control_revision" => 0,
+          "reservation_ids" => ["reservation-u9"],
+          "leases" => [%{"lease_id" => "lease-u9", "resource_id" => "slot-u9"}]
+        }
+      )
+    end
+
+    assert {:ok, %{"disposition" => "rejected", "reason_code" => "effect_not_allowed"},
+            :committed} = create.("U9-OBJECTIVE", "objective:O1")
+
+    assert {:ok, %{"disposition" => "accepted"}, :committed} =
+             create.("U9-TICKET", "ticket:O1")
+  end
+
   defp seed_policy_and_control(gateway, capability) do
     assert {:ok, _, :committed} =
              protected(
