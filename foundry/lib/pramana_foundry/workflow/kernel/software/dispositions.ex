@@ -19,6 +19,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Dispositions do
     payload = event["payload"]
 
     with :ok <- require_active_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_terminal_settlement(payload),
          :ok <- require_disposition(payload["disposition"]),
          :ok <- require_receipt_for_integration(ticket, payload["disposition"]),
          :ok <- require_settlement_source(ticket, payload["disposition"]) do
@@ -296,4 +297,18 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Dispositions do
 
   defp require_disposition(disposition),
     do: if(disposition in State.dispositions(), do: :ok, else: {:error, :invalid_disposition})
+
+  # The bound terminal_settlement_v1 fact is the protected close_attempt's statement that
+  # every effect under this attempt is settled. It must be for this ticket and attempt;
+  # which disposition to record stays the kernel's decision.
+  defp require_terminal_settlement(%{"settlement" => settlement} = payload) do
+    if is_map(settlement) and not is_struct(settlement) and settlement["schema_version"] == 1 and
+         settlement["ticket_id"] == payload["ticket_id"] and
+         settlement["attempt_id"] == payload["attempt_id"] and
+         is_list(settlement["effect_ids"]),
+       do: :ok,
+       else: {:error, :invalid_terminal_settlement}
+  end
+
+  defp require_terminal_settlement(_payload), do: {:error, :invalid_terminal_settlement}
 end

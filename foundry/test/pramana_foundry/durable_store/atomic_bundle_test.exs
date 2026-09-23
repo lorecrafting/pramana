@@ -240,6 +240,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
         %{
           "schema_version" => 1,
           "expected_revisions" => %{
+            closure_key("dependent", "attempt") => "absent",
             "effect/dependent-effect" => "absent",
             "policy/dependent-policy" => 0,
             "control/dependent-control" => 0,
@@ -531,6 +532,46 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert %{mode: :ready} = Gateway.status(reopened)
   end
 
+  # FR-08B protected items, item 1: a v2 store gains root_attempt_closures additively.
+  test "an atomic-v2 store migrates to v3 by adding the attempt closure table", ctx do
+    stop_supervised!(Gateway)
+    assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
+    assert :ok = Sqlite3.execute(raw, "DROP TABLE root_attempt_closures")
+
+    assert :ok =
+             Database.execute(
+               raw,
+               "UPDATE metadata SET value = '2' WHERE key = 'protected_schema_version'"
+             )
+
+    assert :ok =
+             Database.execute(
+               raw,
+               "DELETE FROM metadata WHERE key = 'migration_attempt_closure_v3'"
+             )
+
+    assert :ok = Sqlite3.close(raw)
+
+    assert :ok = Gateway.migrate(ctx.path)
+    assert :ok = Gateway.migrate(ctx.path)
+
+    assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+    assert {:ok, [["3"]]} =
+             Database.query(
+               raw,
+               "SELECT value FROM metadata WHERE key = 'protected_schema_version'"
+             )
+
+    assert {:ok, [[1]]} =
+             Database.query(
+               raw,
+               "SELECT count(*) FROM sqlite_master WHERE name = 'root_attempt_closures'"
+             )
+
+    assert :ok = Sqlite3.close(raw)
+  end
+
   test "protected v1 history migrates to typed singleton operations and reruns safely", ctx do
     accept_current!(ctx, %{
       "type" => "set_policy",
@@ -547,7 +588,8 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readwrite)
     assert :ok = Sqlite3.execute(raw, "PRAGMA foreign_keys = OFF")
 
-    for table <- ~w(root_infrastructure_settlements durable_operations atomic_bundles) do
+    for table <-
+          ~w(root_attempt_closures root_infrastructure_settlements durable_operations atomic_bundles) do
       assert :ok = Sqlite3.execute(raw, "DROP TABLE #{table}")
     end
 
@@ -560,7 +602,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
     assert :ok =
              Database.execute(
                raw,
-               "DELETE FROM metadata WHERE key = 'migration_atomic_bundle_v2'"
+               "DELETE FROM metadata WHERE key IN ('migration_atomic_bundle_v2', 'migration_attempt_closure_v3')"
              )
 
     assert :ok = Sqlite3.close(raw)
@@ -1814,5 +1856,12 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       assert {:ok, _} = Gateway.backup(ctx.gateway, ctx.path <> ".rev4-backup")
       assert %{mode: :ready} = reopen_status(ctx)
     end
+  end
+
+  # create_effect reads its attempt's closure (FR-08B protected items, item 1).
+  defp closure_key(ticket_id, attempt_id) do
+    "closure/" <>
+      Base.url_encode64(ticket_id, padding: false) <>
+      "/" <> Base.url_encode64(attempt_id, padding: false)
   end
 end

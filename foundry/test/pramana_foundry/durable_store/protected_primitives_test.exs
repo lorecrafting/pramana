@@ -322,6 +322,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
                capability,
                "E-CREATE",
                %{
+                 closure_key("T1", "A1") => "absent",
                  "effect/effect-1" => "absent",
                  "policy/policy-1" => 0,
                  "control/control-1" => 0,
@@ -539,14 +540,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     assert :ok = Sqlite3.execute(raw, "PRAGMA foreign_keys = OFF")
 
     for table <-
-          ~w(root_infrastructure_settlements durable_operations atomic_bundles root_leases root_receipts root_reservations root_claims root_effects root_ledgers root_control_history root_controls root_policy_history root_policies authenticated_inbox_items authenticated_inboxes root_pointers root_commands) do
+          ~w(root_attempt_closures root_infrastructure_settlements durable_operations atomic_bundles root_leases root_receipts root_reservations root_claims root_effects root_ledgers root_control_history root_controls root_policy_history root_policies authenticated_inbox_items authenticated_inboxes root_pointers root_commands) do
       assert :ok = Sqlite3.execute(raw, "DROP TABLE #{table}")
     end
 
     assert :ok =
              Database.execute(
                raw,
-               "DELETE FROM metadata WHERE key IN ('protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2')"
+               "DELETE FROM metadata WHERE key IN ('protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2', 'migration_attempt_closure_v3')"
              )
 
     assert :ok = Sqlite3.close(raw)
@@ -567,7 +568,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
       )
 
     assert {:ok, snapshot} = Gateway.protected_snapshot(migrated, capability)
-    assert snapshot["protected_schema_version"] == "2"
+    assert snapshot["protected_schema_version"] == "3"
     assert snapshot["pointers"]["accepted_source"]["producer_status"] == "absent"
   end
 
@@ -641,6 +642,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
       capability,
       "R-EFFECT",
       %{
+        closure_key("T1", "RESET-A1") => "absent",
         "effect/reset-effect" => "absent",
         "policy/policy-1" => 0,
         "control/control-1" => 0,
@@ -972,6 +974,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
         capability,
         command_id,
         %{
+          closure_key("O1", "planning-1") => "absent",
           "effect/effect-u9" => "absent",
           "policy/policy-1" => 0,
           "control/control-1" => 0,
@@ -1004,6 +1007,186 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
     assert {:ok, %{"disposition" => "accepted"}, :committed} =
              create.("U9-TICKET", "ticket:O1")
   end
+
+  # FR-08B protected items, item 1: close_attempt produces terminal_settlement_v1 only once
+  # every effect under the attempt is settled, and a closed attempt accepts no new effect.
+  test "an attempt closes only when settled, and a closed attempt takes no new effect", %{
+    gateway: gateway,
+    capability: capability,
+    path: path
+  } do
+    seed_observation_effect!(gateway, capability, "T9", claim?: false)
+
+    close = %{
+      "type" => "close_attempt",
+      "scope" => "ticket:T9",
+      "ticket_id" => "T9",
+      "attempt_id" => "attempt-observation"
+    }
+
+    assert %{"disposition" => "rejected", "reason_code" => "attempt_not_settled"} =
+             current!(gateway, capability, "CLOSE-LIVE", close)
+
+    assert %{"disposition" => "accepted"} =
+             current!(gateway, capability, "CANCEL", %{
+               "type" => "cancel_effect",
+               "effect_id" => "effect-observation",
+               "proof" => "unissued"
+             })
+
+    assert %{"disposition" => "accepted", "facts" => %{"attempt_settlement" => fact}} =
+             current!(gateway, capability, "CLOSE", close)
+
+    assert %{
+             "ticket_id" => "T9",
+             "attempt_id" => "attempt-observation",
+             "effect_ids" => ["effect-observation"]
+           } = fact
+
+    assert %{"disposition" => "rejected", "reason_code" => "attempt_closed"} =
+             current!(gateway, capability, "CLOSE-AGAIN", close)
+
+    accept_current(gateway, capability, "LATE-RES", %{
+      "type" => "reserve",
+      "reservation_id" => "reservation-late",
+      "ledger_id" => "root",
+      "generation" => 0,
+      "owner_kind" => "effect",
+      "owner_id" => "effect-late",
+      "units" => 1
+    })
+
+    assert %{"disposition" => "rejected", "reason_code" => "attempt_closed"} =
+             current!(gateway, capability, "LATE-EFFECT", %{
+               "type" => "create_effect",
+               "effect_id" => "effect-late",
+               "request" => %{
+                 "request_id" => "request-late",
+                 "role" => "developer",
+                 "profile" => "sol"
+               },
+               "operation" => "launch",
+               "scope" => "ticket:T9",
+               "ticket_id" => "T9",
+               "attempt_id" => "attempt-observation",
+               "execution_id" => "execution-late",
+               "policy_id" => "policy-1",
+               "policy_revision" => 0,
+               "control_id" => "control-1",
+               "control_revision" => 0,
+               "reservation_ids" => ["reservation-late"],
+               "leases" => [%{"lease_id" => "lease-late", "resource_id" => "slot-late"}]
+             })
+
+    # Reopening replays the typed history and checks the closure table against it.
+    stop_supervised!(Gateway)
+
+    reopened =
+      start_supervised!(
+        {Gateway,
+         path: path, protected_capability: capability, writer_epoch: "writer-epoch-fr08a"}
+      )
+
+    assert {:ok, %{"disposition" => "accepted"}} =
+             Gateway.protected_query(
+               reopened,
+               capability,
+               query("command", "command_id", "CLOSE")
+             )
+  end
+
+  # The effect check on its own: an effect holding no reservation leaves the reservation
+  # check nothing to refuse, so only the effect's own status can keep the attempt open.
+  test "an unsettled effect with no reservations still keeps its attempt open", %{
+    gateway: gateway,
+    capability: capability
+  } do
+    seed_observation_effect!(gateway, capability, "T8", claim?: false)
+
+    assert %{"disposition" => "accepted"} =
+             current!(gateway, capability, "BARE", %{
+               "type" => "create_effect",
+               "effect_id" => "effect-bare",
+               "request" => %{
+                 "request_id" => "request-bare",
+                 "role" => "developer",
+                 "profile" => "sol"
+               },
+               "operation" => "launch",
+               "scope" => "ticket:T8",
+               "ticket_id" => "T8",
+               "attempt_id" => "attempt-bare",
+               "execution_id" => "execution-bare",
+               "policy_id" => "policy-1",
+               "policy_revision" => 0,
+               "control_id" => "control-1",
+               "control_revision" => 0,
+               "reservation_ids" => [],
+               "leases" => []
+             })
+
+    assert %{"disposition" => "rejected", "reason_code" => "attempt_not_settled"} =
+             current!(gateway, capability, "CLOSE-BARE", %{
+               "type" => "close_attempt",
+               "scope" => "ticket:T8",
+               "ticket_id" => "T8",
+               "attempt_id" => "attempt-bare"
+             })
+  end
+
+  test "a closure row no command produced is refused as corrupt on reopen", %{
+    capability: capability,
+    path: path
+  } do
+    stop_supervised!(Gateway)
+    assert {:ok, raw} = Sqlite3.open(path, mode: :readwrite)
+
+    state =
+      :json.encode(%{
+        "schema_version" => 1,
+        "scope" => "ticket:T1",
+        "ticket_id" => "T1",
+        "attempt_id" => "A1"
+      })
+
+    assert :ok =
+             Database.execute(
+               raw,
+               "INSERT INTO root_attempt_closures(ticket_id, attempt_id, scope, state) VALUES ('T1', 'A1', 'ticket:T1', ?)",
+               [{:blob, IO.iodata_to_binary(state)}]
+             )
+
+    assert :ok = Sqlite3.close(raw)
+
+    reopened =
+      start_supervised!(
+        {Gateway,
+         path: path, protected_capability: capability, writer_epoch: "writer-epoch-fr08a"}
+      )
+
+    assert {:error, {:recovery_mode, reason}} =
+             Gateway.protected_query(reopened, capability, query("command", "command_id", "X"))
+
+    assert inspect(reason) =~ "root_attempt_closures"
+  end
+
+  # Submits with an empty read set, then again with the revisions the store says it needs.
+  defp current!(gateway, capability, id, operation) do
+    assert {:ok, first, :committed} =
+             protected(gateway, capability, id <> "-PROBE", %{}, operation)
+
+    if first["reason_code"] == "incomplete_read_set" do
+      assert {:ok, result, :committed} =
+               protected(gateway, capability, id, first["facts"]["required_revisions"], operation)
+
+      result
+    else
+      first
+    end
+  end
+
+  defp accept_current(gateway, capability, id, operation),
+    do: assert(%{"disposition" => "accepted"} = current!(gateway, capability, id, operation))
 
   defp seed_policy_and_control(gateway, capability) do
     assert {:ok, _, :committed} =
@@ -1081,6 +1264,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
       capability,
       "OBS-EFFECT",
       %{
+        closure_key(ticket_id, "attempt-observation") => "absent",
         "effect/effect-observation" => "absent",
         "policy/policy-1" => 0,
         "control/control-1" => 0,
@@ -1173,5 +1357,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitivesTest do
 
   defp canonical_tmp do
     if File.dir?("/private/tmp"), do: "/private/tmp", else: System.tmp_dir!()
+  end
+
+  # create_effect reads its attempt's closure (FR-08B protected items, item 1).
+  defp closure_key(ticket_id, attempt_id) do
+    "closure/" <>
+      Base.url_encode64(ticket_id, padding: false) <>
+      "/" <> Base.url_encode64(attempt_id, padding: false)
   end
 end

@@ -38,7 +38,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   # and was missing, which made all six admission slots unbindable once
   # plan_describes_operations/2 made this list load-bearing. A test enforces both
   # directions so the vocabularies cannot drift apart again.
-  @operation_types ~w(set_control reserve create_effect issue_claim settle_claim reset_generation)
+  @operation_types ~w(set_control reserve create_effect issue_claim settle_claim reset_generation close_attempt)
   @read_kinds ~w(state ticket objective pm)
   @dispositions ~w(accepted rejected blocked)
   @terminal_dispositions ~w(rejected blocked)
@@ -53,7 +53,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     "nonstart_settlement_v1" => {"settle_claim", "infrastructure_settlement"},
     "control_fact_v1" => {"set_control", "root_control"},
     "launch_authority_v1" => {"issue_claim", "effect"},
-    "reset_fact_v1" => {"reset_generation", "new_generation"}
+    "reset_fact_v1" => {"reset_generation", "new_generation"},
+    "terminal_settlement_v1" => {"close_attempt", "attempt_settlement"}
   }
 
   # A list slot carries one bound fact per binding, as a list in the payload field. R4's reset
@@ -89,7 +90,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     "pm_launch_settled.settlement" =>
       {"pm_launch_settled", "settlement", "nonstart_settlement_v1"},
     "control_changed.control" => {"control_changed", "control", "control_fact_v1"},
-    "ticket_reset.generation" => {"ticket_reset", "generation", "reset_fact_v1"}
+    "ticket_reset.generation" => {"ticket_reset", "generation", "reset_fact_v1"},
+    "attempt_settled.settlement" => {"attempt_settled", "settlement", "terminal_settlement_v1"}
   }
 
   @doc """
@@ -251,6 +253,12 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     else
       _ -> {:error, :invalid_authoritative_fact}
     end
+  end
+
+  defp project("terminal_settlement_v1", fact) do
+    if valid_output?("terminal_settlement_v1", fact),
+      do: {:ok, fact},
+      else: {:error, :invalid_authoritative_fact}
   end
 
   defp project("reset_fact_v1", fact) do
@@ -441,8 +449,18 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
       else: {:error, :invalid_binding_outputs}
   end
 
-  defp valid_output?(kind, value) when kind in ~w(nonstart_settlement_v1 terminal_settlement_v1),
-    do: settlement_shape?(value)
+  defp valid_output?("nonstart_settlement_v1", value), do: settlement_shape?(value)
+
+  defp valid_output?("terminal_settlement_v1", value) do
+    plain_map?(value) and
+      exact_keys?(
+        value,
+        ~w(schema_version scope ticket_id attempt_id effect_ids settled_units)
+      ) and value["schema_version"] == 1 and
+      Enum.all?(~w(scope ticket_id attempt_id), &identifier?(value[&1])) and
+      is_list(value["effect_ids"]) and Enum.all?(value["effect_ids"], &identifier?/1) and
+      plain_map?(value["settled_units"])
+  end
 
   defp valid_output?("launch_authority_v1", value), do: authority_shape?(value)
 

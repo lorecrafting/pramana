@@ -4,7 +4,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   alias PramanaFoundry.DurableStore.{Database, Encoding, TransitionPlan}
 
   @dimensions ~w(starts.pm starts.developer starts.reviewer starts.check starts.build operations.integration operations.activation model_requests validations)
-  @operation_types ~w(set_policy set_control append_inbox seal_inbox grant_ledger delegate_allocation return_allocation reserve release_reservation close_generation reset_generation create_effect claim_effect reclaim_claim issue_claim cancel_effect settle_claim)
+  @operation_types ~w(set_policy set_control append_inbox seal_inbox grant_ledger delegate_allocation return_allocation reserve release_reservation close_generation reset_generation create_effect claim_effect reclaim_claim issue_claim cancel_effect settle_claim close_attempt)
+  @closed_effect_statuses ~w(succeeded failed non_started cancelled)
+  @closed_reservation_statuses ~w(consumed released retired)
   @effect_observation_sections ~w(claims receipts reservations leases)
   @effect_observation_max_items 50
   @effect_observation_max_offset 1_000_000
@@ -484,6 +486,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
         "settle_claim" ->
           ~w(claim_id receipt_id request_id outcome proof)
+
+        "close_attempt" ->
+          ~w(scope ticket_id attempt_id)
       end
 
     with true <- plain_map?(operation),
@@ -676,6 +681,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- validate_blob_rows(conn, "root_leases", "state"),
          :ok <- validate_blob_rows(conn, "root_pointers", "state"),
          :ok <- validate_blob_rows(conn, "root_infrastructure_settlements", "state"),
+         :ok <- validate_blob_rows(conn, "root_attempt_closures", "state"),
+         :ok <- validate_attempt_closures(conn),
          :ok <- validate_atomic_bundle_rows(conn),
          :ok <- validate_root_commands(conn),
          :ok <- validate_simple_history(conn),
@@ -1219,6 +1226,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          operation_ordinal when is_integer(operation_ordinal) and operation_ordinal >= 0 <-
            Map.get(operation["request"], "operation_ordinal", 0),
          predecessor_effect_id <- operation["request"]["predecessor_effect_id"],
+         :ok <- attempt_open(conn, operation["ticket_id"], operation["attempt_id"]),
          :ok <- semantic_effect_available(conn, operation),
          :ok <-
            predecessor_guard(
@@ -1314,7 +1322,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              :operation_dimension_mismatch,
              :nonstart_allowance_exhausted,
              :predecessor_not_terminal,
-             :predecessor_identity_mismatch
+             :predecessor_identity_mismatch,
+             :attempt_closed
            ] ->
         {:reject, reason, %{}}
 
@@ -1538,6 +1547,38 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       {:error, :not_found} -> {:reject, :effect_not_found, %{}}
       {:error, _reason} = error -> error
       _ -> {:reject, :invalid_cancellation, %{}}
+    end
+  end
+
+  # FR-08B protected items, item 1: the terminal_settlement_v1 producer. Closes a
+  # (ticket, attempt) only when every effect under it is settled and every reservation it
+  # activated is consumed, released or retired. The row makes the closure terminal:
+  # create_effect refuses work under a closed attempt. Keyed on scope and attempt, never
+  # on a role. A later conflicting receipt may still quarantine a closed attempt's effect
+  # (R5); that moves no units, so the fact stays true as a statement about the ledger.
+  defp apply_operation(conn, %{"type" => "close_attempt"} = operation) do
+    with :ok <- exact_keys(operation, ~w(type scope ticket_id attempt_id)),
+         :ok <- identities(operation, ~w(scope ticket_id attempt_id)),
+         true <- operation["scope"] == "ticket:" <> operation["ticket_id"],
+         :ok <- attempt_open(conn, operation["ticket_id"], operation["attempt_id"]),
+         {:ok, effects} <- attempt_effects(conn, operation["ticket_id"], operation["attempt_id"]),
+         true <- Enum.all?(effects, &(&1.status in @closed_effect_statuses)),
+         {:ok, reservations} <- attempt_reservations(conn, effects),
+         true <- Enum.all?(reservations, &(&1.status in @closed_reservation_statuses)),
+         fact <- attempt_settlement(operation, effects, reservations),
+         {:ok, bytes} <- encode(fact),
+         :ok <-
+           Database.execute(
+             conn,
+             "INSERT INTO root_attempt_closures(ticket_id, attempt_id, scope, state) VALUES (?, ?, ?, ?)",
+             [operation["ticket_id"], operation["attempt_id"], operation["scope"], {:blob, bytes}]
+           ) do
+      {:ok, %{"attempt_settlement" => fact}}
+    else
+      {:error, :attempt_closed} -> {:reject, :attempt_closed, %{}}
+      {:error, _reason} = error -> error
+      false -> {:reject, :attempt_not_settled, %{}}
+      _ -> {:reject, :invalid_attempt_closure, %{}}
     end
   end
 
@@ -2121,8 +2162,21 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
+  defp operation_read_keys(conn, "close_attempt", op) do
+    with {:ok, effects} <-
+           attempt_effects(conn, to_string(op["ticket_id"]), to_string(op["attempt_id"])) do
+      {:ok,
+       [closure_key(op["ticket_id"], op["attempt_id"])] ++
+         Enum.map(effects, &("effect/" <> &1.effect_id)) ++
+         Enum.flat_map(effects, fn effect ->
+           Enum.map(Map.get(effect, :reservation_ids, []), &("reservation/" <> &1))
+         end)}
+    end
+  end
+
   defp operation_read_keys(conn, "create_effect", op) do
     base = [
+      closure_key(op["ticket_id"], op["attempt_id"]),
       "effect/" <> to_string(op["effect_id"]),
       "policy/" <> to_string(op["policy_id"]),
       "control/" <> to_string(op["control_id"])
@@ -2392,7 +2446,33 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
+  defp current_revision(conn, "closure/" <> encoded) do
+    with [ticket64, attempt64] <- String.split(encoded, "/", parts: 2),
+         {:ok, ticket_id} <- Base.url_decode64(ticket64, padding: false),
+         {:ok, attempt_id} <- Base.url_decode64(attempt64, padding: false),
+         {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT 1 FROM root_attempt_closures WHERE ticket_id = ? AND attempt_id = ?",
+             [ticket_id, attempt_id]
+           ) do
+      case rows do
+        [] -> {:ok, "absent"}
+        [[1]] -> {:ok, 0}
+        _ -> {:error, :duplicate_protected_identity}
+      end
+    else
+      _ -> {:error, :invalid_read_set_key}
+    end
+  end
+
   defp current_revision(_conn, _key), do: {:error, :invalid_read_set_key}
+
+  defp closure_key(ticket_id, attempt_id) do
+    "closure/" <>
+      Base.url_encode64(to_string(ticket_id), padding: false) <>
+      "/" <> Base.url_encode64(to_string(attempt_id), padding: false)
+  end
 
   defp infrastructure_lineage_key(effect) do
     encoded_infrastructure_lineage_key(
@@ -3216,6 +3296,67 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         {:error, _reason} = error -> {:halt, error}
       end
     end)
+  end
+
+  defp attempt_open(conn, ticket_id, attempt_id) do
+    case Database.query(
+           conn,
+           "SELECT 1 FROM root_attempt_closures WHERE ticket_id = ? AND attempt_id = ?",
+           [ticket_id, attempt_id]
+         ) do
+      {:ok, []} -> :ok
+      {:ok, _} -> {:error, :attempt_closed}
+      {:error, _reason} = error -> error
+    end
+  end
+
+  defp attempt_effects(conn, ticket_id, attempt_id) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT effect_id FROM root_effects WHERE ticket_id = ? AND attempt_id = ? ORDER BY effect_id",
+             [ticket_id, attempt_id]
+           ) do
+      Enum.reduce_while(rows, {:ok, []}, fn [id], {:ok, acc} ->
+        case load_effect(conn, id) do
+          {:ok, effect} -> {:cont, {:ok, acc ++ [effect]}}
+          error -> {:halt, error}
+        end
+      end)
+    end
+  end
+
+  # The activated set, not every reservation naming the effect as owner: a stray proposed
+  # reservation holds no units and must not block the close (review F3).
+  defp attempt_reservations(conn, effects) do
+    effects
+    |> Enum.flat_map(&Map.get(&1, :reservation_ids, []))
+    |> Enum.reduce_while({:ok, []}, fn id, {:ok, acc} ->
+      case load_reservation(conn, id) do
+        {:ok, reservation} -> {:cont, {:ok, acc ++ [reservation]}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp attempt_settlement(operation, effects, reservations) do
+    units =
+      Enum.reduce(reservations, %{}, fn reservation, acc ->
+        update_in(
+          acc,
+          [Access.key(reservation.status, %{}), Access.key(reservation.dimension, 0)],
+          &(&1 + reservation.units)
+        )
+      end)
+
+    %{
+      "schema_version" => 1,
+      "scope" => operation["scope"],
+      "ticket_id" => operation["ticket_id"],
+      "attempt_id" => operation["attempt_id"],
+      "effect_ids" => Enum.map(effects, & &1.effect_id),
+      "settled_units" => units
+    }
   end
 
   defp semantic_effect_available(conn, operation) do
@@ -5061,6 +5202,31 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
+  # A closure row's columns must agree with the fact it stores.
+  defp validate_attempt_closures(conn) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT ticket_id, attempt_id, scope, state FROM root_attempt_closures"
+           ) do
+      Enum.reduce_while(rows, :ok, fn [ticket_id, attempt_id, scope, bytes], :ok ->
+        case decode(bytes) do
+          {:ok,
+           %{
+             "ticket_id" => ^ticket_id,
+             "attempt_id" => ^attempt_id,
+             "scope" => ^scope,
+             "schema_version" => 1
+           }} ->
+            {:cont, :ok}
+
+          _ ->
+            {:halt, {:error, {:protected_corrupt, "root_attempt_closures", ticket_id}}}
+        end
+      end)
+    end
+  end
+
   defp validate_bundles(conn, rows) do
     Enum.reduce_while(rows, :ok, fn
       [
@@ -6196,13 +6362,21 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- validate_replay_ledgers(conn, replay.ledgers),
          :ok <- validate_replay_effects(conn, replay.effects),
          :ok <- validate_replay_claims(conn, replay.claims),
-         :ok <- validate_replay_reservations(conn, replay.reservations) do
+         :ok <- validate_replay_reservations(conn, replay.reservations),
+         :ok <- validate_replay_closures(conn, replay.closures) do
       :ok
     end
   end
 
   defp replay_transition_rows(rows) do
-    initial = %{ledgers: %{}, effects: %{}, claims: %{}, reservations: %{}, receipts: %{}}
+    initial = %{
+      ledgers: %{},
+      effects: %{},
+      claims: %{},
+      reservations: %{},
+      receipts: %{},
+      closures: MapSet.new()
+    }
 
     Enum.reduce_while(rows, {:ok, initial}, fn
       [type, disposition, reason, request_bytes], {:ok, replay} ->
@@ -6330,11 +6504,28 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        ),
        do: replay_release_reservations(replay, [id])
 
+  defp replay_transition_operation(replay, %{"type" => "close_attempt"} = op, "accepted", _) do
+    key = {op["ticket_id"], op["attempt_id"]}
+
+    settled? =
+      replay.effects
+      |> Map.values()
+      |> Enum.filter(&({&1.ticket_id, &1.attempt_id} == key))
+      |> Enum.all?(&(&1.status in @closed_effect_statuses))
+
+    if settled? and not MapSet.member?(replay.closures, key),
+      do: {:ok, %{replay | closures: MapSet.put(replay.closures, key)}},
+      else: {:error, :invalid_attempt_closure_replay}
+  end
+
   defp replay_transition_operation(replay, %{"type" => "create_effect"} = op, "accepted", _) do
     with false <- Map.has_key?(replay.effects, op["effect_id"]),
+         false <- MapSet.member?(replay.closures, {op["ticket_id"], op["attempt_id"]}),
          {:ok, replay} <- replay_activate_reservations(replay, op["reservation_ids"]) do
       effect = %{
         effect_id: op["effect_id"],
+        ticket_id: op["ticket_id"],
+        attempt_id: op["attempt_id"],
         control_id: op["control_id"],
         reservation_ids: op["reservation_ids"],
         status: "pending",
@@ -6778,6 +6969,15 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
           do: {:error, {:protected_corrupt, "root_effects", :missing_typed_transition}},
           else: result
       end)
+    end
+  end
+
+  defp validate_replay_closures(conn, closures) do
+    with {:ok, rows} <-
+           Database.query(conn, "SELECT ticket_id, attempt_id FROM root_attempt_closures") do
+      if MapSet.new(rows, fn [ticket_id, attempt_id] -> {ticket_id, attempt_id} end) == closures,
+        do: :ok,
+        else: {:error, {:protected_corrupt, "root_attempt_closures", :typed_transition_replay}}
     end
   end
 

@@ -479,7 +479,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
          "attempt_id" => id,
          "disposition" => disposition,
          "reason_code" => nil,
-         "settlement" => settlement()
+         "settlement" => terminal_settlement(tid, id)
        }}
     end
   end
@@ -784,7 +784,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
                "attempt_id" => ref,
                "disposition" => "failed",
                "reason_code" => nil,
-               "settlement" => settlement()
+               "settlement" => terminal_settlement(tid, ref)
              }},
             {"launch_planned",
              %{
@@ -875,4 +875,16 @@ defmodule PramanaFoundry.Test.KernelWalk do
         "authorized" => 1
       }
     ]
+
+  # A terminal_settlement_v1 fact as close_attempt produces it (FR-08B protected items, item 1).
+  defp terminal_settlement(ticket_id, attempt_id) do
+    %{
+      "schema_version" => 1,
+      "scope" => "ticket:" <> ticket_id,
+      "ticket_id" => ticket_id,
+      "attempt_id" => attempt_id,
+      "effect_ids" => [],
+      "settled_units" => %{}
+    }
+  end
 end

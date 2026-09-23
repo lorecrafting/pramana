@@ -184,7 +184,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "attempt_id" => "A1",
          "disposition" => "needs_correction",
          "reason_code" => nil,
-         "settlement" => %{"schema_version" => 1}
+         "settlement" => terminal_settlement("T1", "A1")
        }}
     ])
   end
@@ -723,10 +723,38 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "shipped",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :invalid_disposition} = Harness.apply(state, forged)
+    end
+
+    # dispositions.ex `require_terminal_settlement`: the bound close_attempt fact must be for
+    # this ticket and attempt (FR-08B protected items, item 1).
+    test "an attempt settlement carrying another attempt's closure, or none, is refused" do
+      {state, sequence} = developing()
+      revision = state["tickets"]["T1"]["revision"]
+
+      settle =
+        &event("attempt_settled", "T1", revision, sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "disposition" => "exhausted",
+          "reason_code" => nil,
+          "settlement" => &1
+        })
+
+      for settlement <- [
+            nil,
+            %{"schema_version" => 1},
+            terminal_settlement("T1", "A0"),
+            terminal_settlement("T2", "A1")
+          ] do
+        assert {:error, :invalid_terminal_settlement} = Harness.apply(state, settle.(settlement)),
+               "accepted #{inspect(settlement)}"
+      end
+
+      assert {:ok, _} = Harness.apply(state, settle.(terminal_settlement("T1", "A1")))
     end
 
     # tickets.ex `require_reset_facts`: the bound generation is a non-empty list of
@@ -740,7 +768,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "attempt_id" => "A1",
              "disposition" => "exhausted",
              "reason_code" => nil,
-             "settlement" => %{"schema_version" => 1}
+             "settlement" => terminal_settlement("T1", "A1")
            }}
         ])
 
@@ -789,7 +817,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "attempt_id" => "A1",
              "disposition" => "exhausted",
              "reason_code" => nil,
-             "settlement" => %{"schema_version" => 1}
+             "settlement" => terminal_settlement("T1", "A1")
            }},
           {"stream_sealed", "T1",
            %{
@@ -815,7 +843,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => attempt_id,
           "disposition" => "exhausted",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", attempt_id)
         })
       end
 
@@ -836,7 +864,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "superseded_base",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :wrong_attempt_phase} = Harness.apply(state, forged)
@@ -873,7 +901,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "rejected",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :no_rejected_verdict} = Harness.apply(state, forged)
@@ -888,7 +916,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "cancelled",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :cancel_not_requested} = Harness.apply(state, forged)
@@ -907,7 +935,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "timed_out",
           "reason_code" => "reviewer_timeout",
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :wrong_attempt_phase} = Harness.apply(state, forged)
@@ -939,7 +967,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "failed",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :ref_receipt_admits_only_integrated} = Harness.apply(state, forged)
@@ -1493,7 +1521,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
            "attempt_id" => "A1",
            "disposition" => "integrated",
            "reason_code" => nil,
-           "settlement" => %{"schema_version" => 1}
+           "settlement" => terminal_settlement("T1", "A1")
          }},
         # Closure after settlement, which the active-attempt addressing made impossible.
         {"worker_closed", "T1",
@@ -1772,7 +1800,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "attempt_id" => "A1",
          "disposition" => "integrated",
          "reason_code" => nil,
-         "settlement" => %{"schema_version" => 1}
+         "settlement" => terminal_settlement("T1", "A1")
        }}
     ])
   end
@@ -2092,7 +2120,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
               "attempt_id" => "A1",
               "disposition" => "superseded_base",
               "reason_code" => nil,
-              "settlement" => %{"schema_version" => 1}
+              "settlement" => terminal_settlement("T1", "A1")
             })
           )
         end
@@ -2162,7 +2190,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "superseded_base",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:ok, settled} = Harness.apply(retrying, settle),
@@ -2206,7 +2234,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
           "attempt_id" => "A1",
           "disposition" => "superseded_base",
           "reason_code" => nil,
-          "settlement" => %{"schema_version" => 1}
+          "settlement" => terminal_settlement("T1", "A1")
         })
 
       assert {:error, :ref_receipt_admits_only_integrated} =
@@ -2360,7 +2388,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
              "attempt_id" => "A1",
              "disposition" => "cancelled",
              "reason_code" => nil,
-             "settlement" => %{"schema_version" => 1}
+             "settlement" => terminal_settlement("T1", "A1")
            }},
           {"cancellation_finalized", "T1", %{"ticket_id" => "T1", "disposition" => "cancelled"}}
         ])
@@ -2774,7 +2802,14 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "attempt_id" => "A1",
          "disposition" => "blocked",
          "reason_code" => "dependency",
-         "settlement" => %{"schema_version" => 1}
+         "settlement" => %{
+           "schema_version" => 1,
+           "scope" => "ticket:T1",
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "effect_ids" => [],
+           "settled_units" => %{}
+         }
        }, :wrong_attempt_phase}
     ]
 
@@ -2924,5 +2959,17 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          "authority" => authority("K1", "check")
        }}
     ])
+  end
+
+  # A terminal_settlement_v1 fact as close_attempt produces it (FR-08B protected items, item 1).
+  defp terminal_settlement(ticket_id, attempt_id) do
+    %{
+      "schema_version" => 1,
+      "scope" => "ticket:" <> ticket_id,
+      "ticket_id" => ticket_id,
+      "attempt_id" => attempt_id,
+      "effect_ids" => [],
+      "settled_units" => %{}
+    }
   end
 end

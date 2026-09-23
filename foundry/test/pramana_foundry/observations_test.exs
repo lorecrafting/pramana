@@ -916,7 +916,7 @@ defmodule PramanaFoundry.ObservationsTest do
         "last_protected_command_sequence" => 4,
         "last_domain_event_sequence" => 7,
         "sql_schema_version" => "1",
-        "protected_schema_version" => "2",
+        "protected_schema_version" => "3",
         "protocol_version" => "1",
         "event_version" => "1",
         "projection_version" => "1",
@@ -1089,6 +1089,7 @@ defmodule PramanaFoundry.ObservationsTest do
       capability,
       "effect-command",
       %{
+        closure_key(ticket_id, "attempt-1") => "absent",
         "effect/effect-1" => "absent",
         "policy/policy-1" => 0,
         "control/control-1" => 0,
@@ -1179,7 +1180,7 @@ defmodule PramanaFoundry.ObservationsTest do
     root =
       Path.join(
         if(File.dir?("/private/tmp"), do: "/private/tmp", else: System.tmp_dir!()),
-        "fr18a-#{label}-#{System.unique_integer([:positive, :monotonic])}"
+        "fr18a-#{label}-#{System.unique_integer([:positive, :monotonic])}-#{Base.url_encode64(:crypto.strong_rand_bytes(6), padding: false)}"
       )
 
     File.mkdir_p!(root)
@@ -1257,5 +1258,12 @@ defmodule PramanaFoundry.ObservationsTest do
     assert summary["status"] == "sealed_without_result_or_exit"
     assert summary["sealed_sequence"] == 1
     refute Map.has_key?(summary, "sequence")
+  end
+
+  # create_effect reads its attempt's closure (FR-08B protected items, item 1).
+  defp closure_key(ticket_id, attempt_id) do
+    "closure/" <>
+      Base.url_encode64(ticket_id, padding: false) <>
+      "/" <> Base.url_encode64(attempt_id, padding: false)
   end
 end

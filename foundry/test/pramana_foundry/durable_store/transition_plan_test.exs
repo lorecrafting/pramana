@@ -673,20 +673,23 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                ])
     end
 
-    test "fails closed on an output kind with no specified producer" do
-      # launch_authority_v1 and reset_fact_v1 gained producers when their slots were made
-      # bindable; terminal_settlement_v1 remains declarable but unproducible until
-      # close_attempt exists, and must still refuse rather than default to a caller copy.
+    test "every output kind has a producer, and only its producer's result binds" do
+      # All five kinds are derivable since close_attempt produced terminal_settlement_v1.
+      # A kind pointed at another operation's result must still refuse rather than
+      # default to whatever fact that result happens to carry.
+      assert Enum.sort(Enum.map(TransitionPlan.producer_operations(), &elem(&1, 0))) ==
+               Enum.sort(TransitionPlan.output_kinds())
+
       bindings = [
         %{
-          "name" => "authority",
+          "name" => "terminal",
           "operation_ordinal" => 0,
           "output_kind" => "terminal_settlement_v1",
-          "destination_slot" => "launch_settled.settlement"
+          "destination_slot" => "attempt_settled.settlement"
         }
       ]
 
-      assert {:error, :unsupported_output_kind} =
+      assert {:error, :unbindable_operation_result} =
                TransitionPlan.derive_outputs(bindings, [staged()])
     end
   end

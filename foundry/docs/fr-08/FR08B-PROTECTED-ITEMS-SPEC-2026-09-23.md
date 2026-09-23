@@ -67,6 +67,15 @@ fact proves the ledger closed, not that the work was accepted.
 the effect's own column, so when an objective scope becomes admissible (U9, deferred with the
 PM lifecycle) PM planning attempts close through the same operation unchanged.
 
+**Built 2026-09-23, two departures from the reviewed text.** (1) The closure table needs a
+protected schema **v3 migration**: adding it to the current table set would make every v2 store
+read as partial state and refuse to open, so v2 stores gain it additively on open
+(`migration_attempt_closure_v3`), with a direct v2→v3 test. (2) A second close of a closed
+attempt is **refused** (`attempt_closed`) rather than idempotent on an identical fact; command
+idempotency already covers a retried command, and refusing is the stricter reading. Replay
+records ticket and attempt on each effect, replays closures, refuses a replayed
+`create_effect` under a closed attempt, and requires the table to equal the replayed set.
+
 ## Item 2 — `reset_fact_v1` producer
 
 `"reset_fact_v1" => {"reset_generation", "new_generation"}`. `reset_generation`

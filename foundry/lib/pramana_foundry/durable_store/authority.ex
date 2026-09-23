@@ -69,6 +69,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
      ~w(owner_kind owner_id ordinal operation_kind operation_type request result)},
     {"root_infrastructure_settlements", "effect_id",
      ~w(effect_id claim_id receipt_id role work_owner infrastructure_generation predecessor_effect_id failure_class ordinal state)},
+    {"root_attempt_closures", "ticket_id, attempt_id", ~w(ticket_id attempt_id scope state)},
     {"sqlite_sequence", "name", ~w(name seq)}
   ]
 
@@ -240,7 +241,8 @@ defmodule PramanaFoundry.DurableStore.Authority do
     allowed =
       MapSet.new(
         ~w(schema_version protocol_version event_version projection_version installation_id repository_id migration_v1) ++
-          ~w(protected_schema_version migration_fr08a_v1 migration_atomic_bundle_v2)
+          ~w(protected_schema_version migration_fr08a_v1 migration_atomic_bundle_v2) ++
+          ~w(migration_attempt_closure_v3)
       )
 
     values = Map.new(rows, fn [key, value] -> {key, value} end)
@@ -265,7 +267,7 @@ defmodule PramanaFoundry.DurableStore.Authority do
       Map.has_key?(values, "migration_v1") and values["migration_v1"] != "complete" ->
         corrupt("metadata", "migration_v1", :invalid_migration_state)
 
-      values["protected_schema_version"] != "2" ->
+      values["protected_schema_version"] != "3" ->
         corrupt("metadata", "protected_schema_version", :unsupported_version)
 
       values["migration_fr08a_v1"] != "complete" ->
@@ -273,6 +275,9 @@ defmodule PramanaFoundry.DurableStore.Authority do
 
       values["migration_atomic_bundle_v2"] != "complete" ->
         corrupt("metadata", "migration_atomic_bundle_v2", :invalid_migration_state)
+
+      values["migration_attempt_closure_v3"] != "complete" ->
+        corrupt("metadata", "migration_attempt_closure_v3", :invalid_migration_state)
 
       true ->
         :ok

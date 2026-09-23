@@ -20,7 +20,7 @@ defmodule PramanaFoundry.Observations do
   @version_fields ~w(sql_schema_version protected_schema_version protocol_version event_version projection_version)
   @supported_versions %{
     "sql_schema_version" => "1",
-    "protected_schema_version" => "2",
+    "protected_schema_version" => "3",
     "protocol_version" => "1",
     "event_version" => "1",
     "projection_version" => "1"

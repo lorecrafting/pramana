@@ -1140,7 +1140,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "attempt_id" => "A1",
         "disposition" => "exhausted",
         "reason_code" => "developer_allocation",
-        "settlement" => settlement()
+        "settlement" => terminal_settlement("T1", "A1")
       })
 
     assert {:error, :wrong_attempt_phase} = Harness.apply(frozen_state, forged),
@@ -1170,7 +1170,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "failed",
            "reason_code" => "no_valid_candidate",
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1201,7 +1201,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "attempt_id" => "A1",
         "disposition" => "failed",
         "reason_code" => "no_valid_candidate",
-        "settlement" => settlement()
+        "settlement" => terminal_settlement("T1", "A1")
       })
 
     assert {:error, :exit_not_verified} = Harness.apply(sealed_only, forged)
@@ -1248,7 +1248,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "blocked",
            "reason_code" => "needs_decision",
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1269,7 +1269,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "attempt_id" => "A1",
         "disposition" => "blocked",
         "reason_code" => nil,
-        "settlement" => settlement()
+        "settlement" => terminal_settlement("T1", "A1")
       })
 
     assert {:error, :no_blocked_result} = Harness.apply(fresh, forged)
@@ -1334,7 +1334,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "exhausted",
            "reason_code" => "validation_budget",
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }},
         {"developer_closed", "T1",
          %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}}
@@ -1405,7 +1405,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "needs_correction",
            "reason_code" => "assertion_failed",
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1494,7 +1494,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
         "attempt_id" => "A1",
         "disposition" => "needs_correction",
         "reason_code" => "timed_out",
-        "settlement" => settlement()
+        "settlement" => terminal_settlement("T1", "A1")
       })
 
     assert {:error, :no_correction_evidence} = Harness.apply(state, forged),
@@ -1643,7 +1643,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "needs_correction",
            "reason_code" => nil,
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }},
         {"reviewer_closed", "T1",
          %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "R1"}}
@@ -1666,7 +1666,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "rejected",
            "reason_code" => nil,
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1742,7 +1742,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "integrated",
            "reason_code" => nil,
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1854,7 +1854,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "superseded_base",
            "reason_code" => "base_moved",
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1901,7 +1901,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "exhausted",
            "reason_code" => "developer_allocation",
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -1960,7 +1960,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "rejected",
            "reason_code" => nil,
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }}
       ])
 
@@ -2007,7 +2007,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
            "attempt_id" => "A1",
            "disposition" => "cancelled",
            "reason_code" => nil,
-           "settlement" => settlement()
+           "settlement" => terminal_settlement("T1", "A1")
          }},
         {"cancellation_finalized", "T1", %{"ticket_id" => "T1", "disposition" => "cancelled"}}
       ])
@@ -2443,5 +2443,17 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       "objective" -> get_in(state, ["objectives", entity_id, "revision"]) || 0
       "ticket" -> get_in(state, ["tickets", entity_id, "revision"]) || 0
     end
+  end
+
+  # A terminal_settlement_v1 fact as close_attempt produces it (FR-08B protected items, item 1).
+  defp terminal_settlement(ticket_id, attempt_id) do
+    %{
+      "schema_version" => 1,
+      "scope" => "ticket:" <> ticket_id,
+      "ticket_id" => ticket_id,
+      "attempt_id" => attempt_id,
+      "effect_ids" => [],
+      "settled_units" => %{}
+    }
   end
 end

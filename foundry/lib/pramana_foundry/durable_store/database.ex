@@ -9,9 +9,22 @@ defmodule PramanaFoundry.DurableStore.Database do
   # FR-08A evolves the protected authority schema independently from the v1 domain
   # command/event protocol.  The migration is additive so accepted FR-07 history is
   # never rewritten merely to gain protected lifecycle primitives.
-  @protected_schema_version 2
+  @protected_schema_version 3
   @protected_v1_tables ~w(authenticated_inbox_items authenticated_inboxes root_claims root_commands root_control_history root_controls root_effects root_leases root_ledgers root_pointers root_policies root_policy_history root_receipts root_reservations)
   @atomic_v2_tables ~w(atomic_bundles durable_operations root_infrastructure_settlements)
+  @closure_v3_tables ~w(root_attempt_closures)
+
+  # FR-08B protected items, item 1: one row per closed (ticket, attempt). Its presence is
+  # what makes the closure terminal: create_effect refuses work under a closed attempt.
+  @attempt_closure_schema """
+  CREATE TABLE IF NOT EXISTS root_attempt_closures (
+    ticket_id TEXT NOT NULL,
+    attempt_id TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    state BLOB NOT NULL,
+    PRIMARY KEY(ticket_id, attempt_id)
+  ) STRICT;
+  """
 
   @atomic_bundle_schema """
   CREATE TABLE IF NOT EXISTS atomic_bundles (
@@ -209,6 +222,7 @@ defmodule PramanaFoundry.DurableStore.Database do
   CREATE INDEX IF NOT EXISTS authenticated_inbox_items_order_idx
     ON authenticated_inbox_items(execution_id, sequence);
   #{@atomic_bundle_schema}
+  #{@attempt_closure_schema}
   """
 
   @schema """
@@ -569,10 +583,34 @@ defmodule PramanaFoundry.DurableStore.Database do
     with {:ok, _checked} <- Authority.read(conn, :all), do: :ok
   end
 
+  defp apply_protected_migration(conn, :atomic_v2) do
+    with {:ok, :ok} <-
+           transaction(conn, fn ->
+             with :ok <- Sqlite3.execute(conn, @attempt_closure_schema),
+                  :ok <-
+                    execute(
+                      conn,
+                      "UPDATE metadata SET value = ? WHERE key = 'protected_schema_version'",
+                      [Integer.to_string(@protected_schema_version)]
+                    ),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('migration_attempt_closure_v3', 'complete')"
+                    ),
+                  {:ok, _checked} <- Authority.read(conn, :all) do
+               :ok
+             end
+           end) do
+      :ok
+    end
+  end
+
   defp apply_protected_migration(conn, :protected_v1) do
     with {:ok, :ok} <-
            transaction(conn, fn ->
              with :ok <- Sqlite3.execute(conn, @atomic_bundle_schema),
+                  :ok <- Sqlite3.execute(conn, @attempt_closure_schema),
                   :ok <- backfill_v1_operations(conn),
                   :ok <-
                     execute(
@@ -584,6 +622,11 @@ defmodule PramanaFoundry.DurableStore.Database do
                     execute(
                       conn,
                       "INSERT INTO metadata(key, value) VALUES ('migration_atomic_bundle_v2', 'complete')"
+                    ),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('migration_attempt_closure_v3', 'complete')"
                     ),
                   {:ok, _checked} <- Authority.read(conn, :all) do
                :ok
@@ -615,6 +658,11 @@ defmodule PramanaFoundry.DurableStore.Database do
                       conn,
                       "INSERT INTO metadata(key, value) VALUES ('migration_atomic_bundle_v2', 'complete')"
                     ),
+                  :ok <-
+                    execute(
+                      conn,
+                      "INSERT INTO metadata(key, value) VALUES ('migration_attempt_closure_v3', 'complete')"
+                    ),
                   {:ok, _checked} <- Authority.read(conn, :all) do
                :ok
              end
@@ -630,7 +678,7 @@ defmodule PramanaFoundry.DurableStore.Database do
     with {:ok, metadata_rows} <-
            query(
              conn,
-             "SELECT key, value FROM metadata WHERE key IN ('schema_version', 'protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2')"
+             "SELECT key, value FROM metadata WHERE key IN ('schema_version', 'protected_schema_version', 'migration_fr08a_v1', 'migration_atomic_bundle_v2', 'migration_attempt_closure_v3')"
            ),
          metadata <- Map.new(metadata_rows, fn [key, value] -> {key, value} end),
          {:ok, table_rows} <-
@@ -641,24 +689,34 @@ defmodule PramanaFoundry.DurableStore.Database do
          tables <- Enum.map(table_rows, &hd/1),
          table_set <- MapSet.new(tables),
          protected_v1_set <- MapSet.new(@protected_v1_tables),
-         current_set <- MapSet.union(protected_v1_set, MapSet.new(@atomic_v2_tables)) do
+         atomic_v2_set <- MapSet.union(protected_v1_set, MapSet.new(@atomic_v2_tables)),
+         current_set <- MapSet.union(atomic_v2_set, MapSet.new(@closure_v3_tables)) do
       cond do
         metadata["schema_version"] != Integer.to_string(@schema_version) ->
           {:ok, {:unsupported, :outer_schema_version}}
 
         metadata["protected_schema_version"] == Integer.to_string(@protected_schema_version) and
           metadata["migration_fr08a_v1"] == "complete" and
-          metadata["migration_atomic_bundle_v2"] == "complete" and table_set == current_set ->
+          metadata["migration_atomic_bundle_v2"] == "complete" and
+          metadata["migration_attempt_closure_v3"] == "complete" and table_set == current_set ->
           {:ok, :current}
+
+        metadata["protected_schema_version"] == "2" and
+          metadata["migration_fr08a_v1"] == "complete" and
+          metadata["migration_atomic_bundle_v2"] == "complete" and
+          is_nil(metadata["migration_attempt_closure_v3"]) and table_set == atomic_v2_set ->
+          {:ok, :atomic_v2}
 
         metadata["protected_schema_version"] == "1" and
           metadata["migration_fr08a_v1"] == "complete" and
-          is_nil(metadata["migration_atomic_bundle_v2"]) and table_set == protected_v1_set ->
+          is_nil(metadata["migration_atomic_bundle_v2"]) and
+          is_nil(metadata["migration_attempt_closure_v3"]) and table_set == protected_v1_set ->
           {:ok, :protected_v1}
 
         is_nil(metadata["protected_schema_version"]) and
           is_nil(metadata["migration_fr08a_v1"]) and
-          is_nil(metadata["migration_atomic_bundle_v2"]) and table_set == MapSet.new() ->
+          is_nil(metadata["migration_atomic_bundle_v2"]) and
+          is_nil(metadata["migration_attempt_closure_v3"]) and table_set == MapSet.new() ->
           {:ok, :accepted_v1_without_protected}
 
         true ->
@@ -747,6 +805,11 @@ defmodule PramanaFoundry.DurableStore.Database do
                   :ok <-
                     execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
                       "migration_atomic_bundle_v2",
+                      "complete"
+                    ]),
+                  :ok <-
+                    execute(conn, "INSERT INTO metadata(key, value) VALUES (?, ?)", [
+                      "migration_attempt_closure_v3",
                       "complete"
                     ]),
                   :ok <-
