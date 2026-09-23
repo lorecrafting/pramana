@@ -1,11 +1,18 @@
 defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
   use ExUnit.Case, async: false
 
+  @padded_commit_timeout_ms 30_000
+
   alias Exqlite.Sqlite3
   alias PramanaFoundry.DurableStore.{Database, Encoding, Gateway, Maintenance}
 
   setup do
-    root = Path.join(canonical_tmp(), "fr19a-storage-#{System.unique_integer([:positive])}")
+    root =
+      Path.join(
+        canonical_tmp(),
+        "fr19a-storage-#{System.pid()}-#{System.unique_integer([:positive])}"
+      )
+
     File.mkdir!(root)
     on_exit(fn -> File.rm_rf!(root) end)
     %{root: root, path: Path.join(root, "authority.sqlite3")}
@@ -252,6 +259,9 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     assert %{mode: :ready, reason: nil} = Gateway.status(gateway)
   end
 
+  # CPU-bound: ~44 s alone (eight 4 MB commits, verified backups), 73% of the
+  # 60 s default, so a concurrent suite's CPU contention exceeded it.
+  @tag timeout: 180_000
   test "engine interruption during checkpoint and backup fences later effects and retains authority",
        ctx do
     for operation <- [:checkpoint, :backup] do
@@ -670,14 +680,16 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
   defp commit_protected(gateway, id, capability \\ nil, padding_bytes \\ 0) do
     capability = capability || :sys.get_state(gateway).protected_capability
 
+    # Gateway.transact_verified/6 is GenServer.call/2 with the 5 s default. A
+    # 4 MB padded commit spends ~0.64 s/MB of CPU in canonical encoding (measured
+    # 2.0-2.9 s at load 3-7 on 8 cores), so CPU contention from a concurrent
+    # suite pushed it past 5 s. The explicit bound keeps a stuck owner failing.
     assert {:ok, _result, :committed} =
-             Gateway.transact_verified(
+             GenServer.call(
                gateway,
-               capability,
-               "operator",
-               command(id, padding_bytes),
-               bundle(id),
-               protected(id)
+               {:transact_verified, capability, "operator", command(id, padding_bytes),
+                bundle(id), protected(id)},
+               @padded_commit_timeout_ms
              )
   end
 

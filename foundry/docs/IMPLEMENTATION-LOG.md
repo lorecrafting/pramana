@@ -5329,3 +5329,61 @@ Red control: with only line 968's `require_active_attempt(ticket, payload["attem
 the five workflow suites give 199 passed. The lesson is the review's own: a deleted assertion
 carried information, and the first fix patched the one consumer that was named.
 
+## `OperationalStorageTest` failed under load because it is CPU-bound, not because of I/O — 2026-09-22
+
+- Two tests in `test/pramana_foundry/durable_store/operational_storage_test.exs` failed three
+  times in the CI gate on 2026-09-22 while other `mix test` runs or mutation sweeps shared the
+  machine. On a quiet machine they passed. The failures were "engine interruption during
+  checkpoint and backup…", which hit the 60 s ExUnit timeout, and "an owned full filesystem
+  produces real ENOSPC…", where `commit_protected/4` exceeded the 5 s `GenServer.call` default.
+  The ENOSPC one timed out on its setup commit, before any disk image existed.
+- **Cause.** Both tests use `commit_protected/4` with 4 MB of padding.
+  `Gateway.transact_verified/6` is `GenServer.call/2`, which has the 5 s default. Most of each
+  commit's time goes on CPU, not I/O or waiting. Measured on this 8-core machine:
+  - Commit cost grows linearly with padding: 0.5 MB took 371 ms, 1 MB 702 ms, 2 MB 1348 ms and
+    4 MB 2576 ms. An 8 MB commit hit the 5 s timeout even at load around 4.
+  - An eprof run of one 1 MB commit spent 55% of its time in `Encoding.encode_string/1` and 40%
+    in `String.valid_utf8?/1`. All Exqlite NIF calls together took about 0.3%.
+  - `/usr/bin/time` on the interruption test alone gave real 44.9 s, user 37.0 s, sys 8.7 s.
+    The test keeps one core busy from start to finish.
+
+  Because the work is CPU-bound, wall time grows with any CPU contention on the machine. The
+  interruption test took 44 to 56 s at load 3 to 7, which is 73% to 93% of its 60 s limit. Each
+  4 MB commit took 2.0 to 2.9 s, which is 40% to 58% of its 5 s limit. This matches case (a): the
+  timeouts were too tight for honest CPU work. It is not a timer race. It is not
+  suite-internal concurrency either: the module is `async: false`, and `ci.ex` excludes only
+  provider tags.
+- **Fix.** The changes are in the test only.
+  - `commit_protected/4` now calls `GenServer.call` directly with the same message and
+    `@padded_commit_timeout_ms 30_000`, about ten times the measured cost of a 4 MB commit.
+  - The interruption test has `@tag timeout: 180_000`, about four times its measured time.
+
+  No assertion changed. The public `Gateway.transact_verified/6` is still exercised: these
+  tests call it directly to check the `:recovery_mode` refusals.
+- **Second defect, also fixed.** The setup directory was named `fr19a-storage-<unique_integer>`.
+  That integer is unique only within one VM, and a fresh VM hands out small values
+  deterministically. A stale `/private/tmp/fr19a-storage-2`, left by a killed run on
+  2026-09-19, made setup's `File.mkdir!` fail after 1 ms on a single-test run. Two concurrent
+  runs could also collide, and one run's `on_exit` `rm_rf!` could then delete the other's live
+  store. The name now includes `System.pid()`.
+- **Lib finding, not changed.** `Encoding.encode_string/1` in
+  `lib/pramana_foundry/durable_store/encoding.ex:63` allocates one binary per codepoint. One
+  commit also visits each padding byte about 8 times in the encoder and about 23 times in
+  `valid_utf8?`, going by eprof call counts at 1 MB. The product therefore spends about 0.64 s
+  of CPU per MB of command payload inside the Gateway's single-process owner, and every call to
+  that owner waits behind it. The production calls `protected_command/4`, `atomic_bundle/4` and
+  `transact/4` all use the 5 s default, so a payload of roughly 8 MB, or less under load, times
+  out the caller while the owner keeps working. This is FR-19A/FR-10 behaviour, recorded here
+  for its owner.
+- The fault tests' earlier note that they are "not safe to run concurrently" (FR-18A B5 entry)
+  fits this cause. Whether those spurious failures were the same two tests was not recorded.
+- **Other tests with the same shape.** "checkpoint on an owned full filesystem…" commits 2 MB
+  through the same helper and so gets the same timeout. It took about 1.3 s per commit and
+  4.2 s in total. "the production-default stalled probe…" waits on the fixed 5 s capacity-probe
+  timer by design and took 5.1 s, well inside its limit. Nothing else in the file uses padding.
+- **Evidence.** With the fix, runs by line at load 2.5 to 5.4 gave the interruption test
+  45.6 s, 45.5 s and 51.2 s, and the ENOSPC test 6.7 s, 6.7 s and 8.3 s. The whole file ran once
+  at load 5.2 and passed 16 of 16, with the interruption test at 56.0 s.
+  `mix format --check-formatted` passes. There was no quiet machine available: a heavy compile
+  kept the load average at 2.5 to 8.3 throughout, so no quiet timings exist. Not run:
+  `ci/run.exs`, the full suite, sweeps and `sync_fault_test.exs`.
