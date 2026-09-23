@@ -13,22 +13,22 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   alias PramanaFoundry.DurableStore.{Gateway, LegacyImport}
   alias PramanaFoundry.Repair.FR08HandoffGate
 
-  @subject_revision "43bc466acbb482a64d2eff14aea108cd94b620db"
-  @subject_tree "6a8c2e8d744c908daa3ff15d841e7a7d7c7a2649"
+  @subject_revision "125af58283f902be905e68c0b37e2c55d5d1c9dc"
+  @subject_tree "6608a164e89ff53ab6ea07987df7e5804b34f9f4"
   @api_identity [
     {PramanaFoundry.DurableStore.Authority, "lib/pramana_foundry/durable_store/authority.ex",
-     "c32088a5246c22cbbef465f3d496123d98683b6f67e22ba9787f70a5c26153db",
-     "c671cf8a271c9d67ca499b2dde21666c"},
+     "0ef697e4640aef64f6001abb1be688774d7cac7602c61be77c9e2415f667d26b",
+     "32f609a086f85defe2e8403471304a37"},
     {PramanaFoundry.DurableStore.Database, "lib/pramana_foundry/durable_store/database.ex",
-     "ae81f4021a052ab935403591eeb5d72ea33e184896cfe016a74ca027c9a99015",
-     "fe6458dee10d27b0c75545ae71cf197a"},
+     "a584d7ef6c3e8109ef280b14eaa404cae5f22ee2798ed81c3813078960171d6a",
+     "346a68d8c70ab79a777c69dd227f995f"},
     {PramanaFoundry.DurableStore.Gateway, "lib/pramana_foundry/durable_store/gateway.ex",
      "fba1d9dd3ec8edec1ba0ce59bbcfecd63ec9e2fb427905c04965d8d3ac51d0bf",
      "2b4045c04864d6f1cc41257698e46f39"},
     {PramanaFoundry.DurableStore.ProtectedPrimitives,
      "lib/pramana_foundry/durable_store/protected_primitives.ex",
-     "1a0884e81f5ddcfd87c0a9d21fef77a699dd6c68099bbe000d76b57179ab89f1",
-     "928ca82c2e1f18a772b66729c4fbcb53"},
+     "85fbcd73c0d265e22061df4859d5bbcd77161538f00b31b8f1bcc60d9d64be5d",
+     "4f0a31a7c29fe797efc7a9c728e48fb1"},
     {PramanaFoundry.DurableStore.Kernel, "lib/pramana_foundry/durable_store/kernel.ex",
      "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac",
      "e43949e9a2658ebbd12afabdf2f30086"},
@@ -403,7 +403,13 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   defp effect_request do
     command(
       "EFFECT",
-      Map.put(incomplete_effect_reads(), "ledger/ticket-T1/0", 0),
+      # create_effect also reads its attempt's closure (FR-08B protected items, item 1).
+      Map.merge(incomplete_effect_reads(), %{
+        "ledger/ticket-T1/0" => 0,
+        ("closure/" <>
+           Base.url_encode64("T1", padding: false) <>
+           "/" <> Base.url_encode64("A1", padding: false)) => "absent"
+      }),
       effect_operation()
     )
   end
