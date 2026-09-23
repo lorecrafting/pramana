@@ -322,7 +322,6 @@ defmodule PramanaFoundry.Workflow.KernelPlanTest do
     end
 
     # Commit 0 admits claim_effect to TransitionPlan's operation types.
-    @tag :needs_commit0
     test "the launch plan validates" do
       {state, _} = queued()
       assert {:ok, plan} = Plan.launch(state, "C1", launch_spec())
