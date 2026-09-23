@@ -110,7 +110,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Tickets do
 
   # R4: "exhausted; authenticated reset grants eligible units and explicitly resumes".
   # The old attempt stays terminal, so a reset with work still active is refused.
-  def do_transition("ticket_reset", ticket, _event, _state) do
+  def do_transition("ticket_reset", ticket, event, _state) do
     # The second guard here cannot fire, unlike its twins in `ticket_amended` and
     # `cancellation_finalized`, which both can. `attempt_settled(exhausted)` is the only
     # route into the exhausted phase and it clears the active slot in the same step, so an
@@ -123,7 +123,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Tickets do
     # SITE — `:attempt_still_active` is reachable, just not from here — so that ratchet
     # cannot hold this fact and only the per-occurrence mutation sweep can see it.
     with :ok <- require_phase(ticket, ~w(exhausted)),
-         :ok <- require_no_active_attempt(ticket) do
+         :ok <- require_no_active_attempt(ticket),
+         :ok <- require_reset_facts(event["payload"]["generation"]) do
       {:ok,
        ticket
        |> Map.put("phase", "queued")
@@ -207,4 +208,27 @@ defmodule PramanaFoundry.Workflow.Kernel.Tickets do
 
   defp require_resume_phase(phase),
     do: if(phase in @resume_phases, do: :ok, else: {:error, :invalid_resume_phase})
+
+  # R4's reset row is one ticket transition; R5 resets one ledger generation per dimension.
+  # So the bound `generation` is a non-empty list of reset_fact_v1 facts, one per dimension,
+  # which TransitionPlan fills from the protected reset_generation results. The kernel holds
+  # no ledger ids, so it checks shape and that no dimension is reset twice, nothing more.
+  defp require_reset_facts([_ | _] = facts) do
+    shaped? =
+      Enum.all?(facts, fn fact ->
+        is_map(fact) and not is_struct(fact) and fact["schema_version"] == 1 and
+          is_binary(fact["ledger_id"]) and fact["ledger_id"] != "" and
+          is_binary(fact["dimension"]) and fact["dimension"] != "" and
+          is_integer(fact["generation"]) and fact["generation"] >= 0 and
+          is_integer(fact["authorized"]) and fact["authorized"] >= 0
+      end)
+
+    dimensions = Enum.map(facts, & &1["dimension"])
+
+    if shaped? and dimensions == Enum.uniq(dimensions),
+      do: :ok,
+      else: {:error, :invalid_reset_facts}
+  end
+
+  defp require_reset_facts(_facts), do: {:error, :invalid_reset_facts}
 end

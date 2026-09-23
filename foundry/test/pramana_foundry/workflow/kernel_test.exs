@@ -729,6 +729,52 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert {:error, :invalid_disposition} = Harness.apply(state, forged)
     end
 
+    # tickets.ex `require_reset_facts`: the bound generation is a non-empty list of
+    # reset_fact_v1 facts, one per dimension (FR-08B protected items spec, item 2).
+    test "a reset carrying no reset facts, a malformed one, or one dimension twice is refused" do
+      {state, sequence} =
+        drive(developing(), [
+          {"attempt_settled", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "disposition" => "exhausted",
+             "reason_code" => nil,
+             "settlement" => %{"schema_version" => 1}
+           }}
+        ])
+
+      revision = state["tickets"]["T1"]["revision"]
+
+      reset =
+        &event("ticket_reset", "T1", revision, sequence + 1, %{
+          "ticket_id" => "T1",
+          "generation" => &1
+        })
+
+      for generation <- [
+            nil,
+            [],
+            %{"schema_version" => 1},
+            [Map.delete(reset_fact(), "ledger_id")],
+            [reset_fact(), reset_fact()]
+          ] do
+        assert {:error, :invalid_reset_facts} = Harness.apply(state, reset.(generation)),
+               "accepted generation #{inspect(generation)}"
+      end
+
+      assert {:ok, _} = Harness.apply(state, reset.([reset_fact()]))
+    end
+
+    defp reset_fact,
+      do: %{
+        "schema_version" => 1,
+        "ledger_id" => "ticket-T1",
+        "dimension" => "starts.developer",
+        "generation" => 1,
+        "authorized" => 1
+      }
+
     # kernel.ex's `attempt_settled` `require_active_attempt`. Survived the 2026-09-22
     # coverage-guided sweep: no test sent a settlement naming anything but the active
     # attempt. `require_settlement_source` judges the ACTIVE attempt, so without this guard
@@ -754,7 +800,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
            }},
           {"developer_closed", "T1",
            %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}},
-          {"ticket_reset", "T1", %{"ticket_id" => "T1", "generation" => 1}},
+          {"ticket_reset", "T1", %{"ticket_id" => "T1", "generation" => [reset_fact()]}},
           {"launch_planned", "T1",
            %{
              "ticket_id" => "T1",

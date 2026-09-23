@@ -1906,7 +1906,19 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
     {state, _} =
       drive({exhausted, sequence}, [
-        {"ticket_reset", "T1", %{"ticket_id" => "T1", "generation" => %{"schema_version" => 1}}}
+        {"ticket_reset", "T1",
+         %{
+           "ticket_id" => "T1",
+           "generation" => [
+             %{
+               "schema_version" => 1,
+               "ledger_id" => "ticket-T1",
+               "dimension" => "starts.developer",
+               "generation" => 1,
+               "authorized" => 1
+             }
+           ]
+         }}
       ])
 
     ticket = state["tickets"]["T1"]

@@ -864,5 +864,15 @@ defmodule PramanaFoundry.Test.KernelWalk do
   end
 
   defp settlement, do: %{"schema_version" => 1}
-  defp reset_fact, do: %{"schema_version" => 1}
+
+  defp reset_fact,
+    do: [
+      %{
+        "schema_version" => 1,
+        "ledger_id" => "ticket-ledger",
+        "dimension" => "starts.developer",
+        "generation" => 1,
+        "authorized" => 1
+      }
+    ]
 end
