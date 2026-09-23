@@ -45,7 +45,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
     with :ok <- require_attempt_phase(ticket, ~w(checking)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_no_pending_cancel(ticket),
-         {:ok, ticket} <- add_check(ticket, payload["check_id"]),
+         {:ok, ticket} <-
+           add_check(ticket, payload["check_id"], payload["authority"]["execution_id"]),
          {:ok, ticket} <- add_execution(ticket, payload, "check") do
       {:ok, ticket}
     end
@@ -63,7 +64,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
          # recorded `passed` let the attempt reach awaiting_review with a mandatory check
          # simply absent - which `require_checks_passed` cannot see, since it folds over
          # the checks that are still there.
-         :ok <- require_check_unsettled(ticket, payload["check_id"]) do
+         :ok <- require_check_unsettled(ticket, payload["check_id"]),
+         :ok <- require_check_execution(ticket, payload["check_id"], payload["execution_id"]) do
       with {:ok, ticket} <-
              close_execution(ticket, payload["attempt_id"], payload["execution_id"], ~w(check)) do
         {:ok,
@@ -149,11 +151,14 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
   # distinction is the controller's reason_code, which R4 makes load-bearing: "A check
   # failure uses its controller exit/receipt reason_code (assertion_failed,
   # infrastructure_failed or timed_out), not an agent's assertion."
-  defp add_check(ticket, check_id) do
+  defp add_check(ticket, check_id, execution_id) do
     case active_attempt(ticket)["checks"][check_id] do
       nil ->
         {:ok,
-         update_active_attempt(ticket, &put_in(&1, ["checks", check_id], fresh_check(check_id)))}
+         update_active_attempt(
+           ticket,
+           &put_in(&1, ["checks", check_id], fresh_check(check_id, execution_id))
+         )}
 
       check ->
         if retryable_check?(check),
@@ -161,14 +166,20 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
             {:ok,
              update_active_attempt(
                ticket,
-               &put_in(&1, ["checks", check_id], fresh_check(check_id))
+               &put_in(&1, ["checks", check_id], fresh_check(check_id, execution_id))
              )},
           else: {:error, :check_already_exists}
     end
   end
 
-  defp fresh_check(check_id),
-    do: %{"check_id" => check_id, "status" => "pending", "reason_code" => nil}
+  # A re-plan rebinds the check to its new run's execution.
+  defp fresh_check(check_id, execution_id),
+    do: %{
+      "check_id" => check_id,
+      "execution_id" => execution_id,
+      "status" => "pending",
+      "reason_code" => nil
+    }
 
   defp retryable_check?(%{"status" => "timed_out"}), do: true
 
@@ -210,6 +221,15 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
     if active_attempt(ticket)["checks"][check_id]["status"] in @terminal_check_statuses,
       do: {:error, :check_already_settled},
       else: :ok
+  end
+
+  # A settlement closes the execution it names and deletes the check it names, so the two
+  # must be one run. Checked independently, check_settled{C2, K1} closed C1's run as a
+  # non-start and dropped C2's record while C2's worker was still live.
+  defp require_check_execution(ticket, check_id, execution_id) do
+    if active_attempt(ticket)["checks"][check_id]["execution_id"] == execution_id,
+      do: :ok,
+      else: {:error, :not_the_check_execution}
   end
 
   defp require_check_status(status),

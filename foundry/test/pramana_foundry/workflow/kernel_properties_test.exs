@@ -309,10 +309,12 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     #
     # Review fix, same day: an all-clear control proposal now keeps walks from sitting paused
     # or draining, and the walks reach `integration_recorded:infrastructure_failed` again, so
-    # it leaves this list. superseded_base stays; its driven witness is unchanged.
-    @known_unreached_variants [
-      "attempt_settled:superseded_base"
-    ]
+    # it leaves this list. superseded_base stayed; its driven witness is unchanged.
+    #
+    # 2026-09-23: binding check_settled to its check's execution (:not_the_check_execution)
+    # shifts the seeded trajectories, and the walks reach superseded_base again -
+    # trajectory luck in the other direction. Its driven witness still stands.
+    @known_unreached_variants []
 
     test "every variant the contract distinguishes is reachable by some walk", %{all: walks} do
       reached =

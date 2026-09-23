@@ -41,7 +41,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
                  invalid_integration_outcome invalid_reset_facts invalid_terminal_settlement invalid_resume_phase invalid_state
                  invalid_stop_status invalid_verdict kernel_raised out_of_order_event
                  stale_entity_revision entity_id_disagrees_with_payload unknown_entity
-                 duplicate_proposal)a
+                 duplicate_proposal not_the_check_execution)a
 
   # Guards that cannot fire within this bound, each with the reason. Two kinds only:
   #

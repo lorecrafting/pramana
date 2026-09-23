@@ -77,7 +77,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
                    ref_receipt_id executions checks review policy_empty_checks
                    rejected_submissions)
   @execution_keys ~w(execution_id role lifecycle result sealed_sequence)
-  @check_keys ~w(check_id status reason_code)
+  @check_keys ~w(check_id execution_id status reason_code)
   @review_keys ~w(candidate_id verdict execution_id)
 
   def ticket_phases, do: @ticket_phases
@@ -246,6 +246,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
 
   defp valid_check?(check) do
     exact_keys?(check, @check_keys) and identifier?(check["check_id"]) and
+      identifier?(check["execution_id"]) and
       check["status"] in @check_statuses and optional_identifier?(check["reason_code"])
   end
 

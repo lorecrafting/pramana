@@ -1876,6 +1876,46 @@ defmodule PramanaFoundry.Workflow.KernelTest do
 
       assert {:error, :check_already_settled} = Harness.apply(state, forged)
     end
+
+    # FR08B-SUBCOMMIT3-DESIGN probe: with C1/K1 and C2/K2 planned, check_settled{C2, K1}
+    # was accepted - C1's run closed as a non-start, C2's record deleted, K2 still live.
+    test "a check settlement binds only the execution its check planned" do
+      {state, sequence} =
+        drive(checking(), [
+          {"check_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "check_id" => "C1",
+             "authority" => authority("K1", "check")
+           }},
+          {"check_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "check_id" => "C2",
+             "authority" => authority("K2", "check")
+           }}
+        ])
+
+      settle = fn execution_id ->
+        event("check_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "check_id" => "C2",
+          "execution_id" => execution_id,
+          "settlement" => %{"schema_version" => 1}
+        })
+      end
+
+      assert {:error, :not_the_check_execution} = Harness.apply(state, settle.("K1"))
+
+      assert {:ok, settled} = Harness.apply(state, settle.("K2"))
+      attempt = settled["tickets"]["T1"]["attempts"]["A1"]
+      assert Map.keys(attempt["checks"]) == ["C1"]
+      assert attempt["executions"]["K1"]["lifecycle"] == "pending"
+      assert attempt["executions"]["K2"]["lifecycle"] == "closed"
+    end
   end
 
   describe "review 4 — an advancing transition retires its resume target" do
