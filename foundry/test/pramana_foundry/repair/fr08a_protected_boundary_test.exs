@@ -7,8 +7,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     report = FR08AProtectedBoundary.report()
 
     assert report.identity.implementation_binding == "verified:source-sha256+beam-md5/v1"
-    assert report.identity.subject_revision == "969dcaf431bcf22325371933b193ac084edb7a57"
-    assert report.identity.subject_tree == "066e60d0007542de6557cbcb36d61382659134c8"
+    assert report.identity.subject_revision == "69614867fb4afe6a65c670952bc68d64ddc44735"
+    assert report.identity.subject_tree == "00d608c22b32e836456e2d4cc6a796645314ffae"
     assert length(report.identity.exercised_api) == 9
     assert FR08HandoffGate.ready?(report.gate)
     assert report.gate.passed_count == 7
@@ -43,7 +43,7 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundaryTest do
     assert first =~ "implementation_binding=verified:source-sha256+beam-md5/v1\n"
 
     assert first =~
-             "protected_primitives.ex|sha256:4831e9626da2d048c3dc652c3d142a10e989f204b802655cfbb30ea50eb6d160|beam_md5:2f9a3ecfee982bd03a2f760d69aa16c1"
+             "protected_primitives.ex|sha256:e2b36dee88c21c727f6913ea14e60a7a2f997158cb6ffc3fe0db7f1df4ca25d5|beam_md5:06bdf1a3f73b86f9404c7ee6944cf928"
 
     assert first =~
              "gateway.ex|sha256:fba1d9dd3ec8edec1ba0ce59bbcfecd63ec9e2fb427905c04965d8d3ac51d0bf|beam_md5:2b4045c04864d6f1cc41257698e46f39"
