@@ -1380,6 +1380,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          true <- Enum.all?(reservations, &(&1.status == "reserved" and is_nil(&1.claim_id))),
          :ok <- reservations_open?(conn, reservations),
          :ok <- lease_specs_available(conn, effect.lease_specs),
+         # root_claims is keyed on claim_id: a reused id is a refusal, not a storage error
+         # (live_refusal_probe_test.exs, L2).
+         {:ok, []} <-
+           Database.query(conn, "SELECT claim_id FROM root_claims WHERE claim_id = ?", [
+             operation["claim_id"]
+           ]),
          claim <- %{
            claim_id: operation["claim_id"],
            effect_id: effect.effect_id,
@@ -1400,6 +1406,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     else
       {:error, :not_found} ->
         {:reject, :effect_not_found, %{}}
+
+      {:ok, [_ | _]} ->
+        {:reject, :claim_id_in_use, %{}}
 
       {:error, reason}
       when reason in [

@@ -93,6 +93,19 @@ defmodule PramanaFoundry.DurableStore.LiveRefusalProbeTest do
     end
   end
 
+  test "L2: claim_effect reusing another effect's claim_id is refused", ctx do
+    claimed!(ctx.gw, "1")
+    pending!(ctx.gw, "2")
+
+    assert %{"disposition" => "rejected", "reason_code" => "claim_id_in_use"} =
+             run(ctx.gw, "CLAIM-2", claim("2", "1"))
+
+    ready!(ctx.gw)
+    assert fact(ctx.gw, "effect", "effect-2")["status"] == "pending"
+    assert fact(ctx.gw, "claim", "claim-1")["effect_id"] == "effect-1"
+    reopen!(ctx)
+  end
+
   defp released!(gw, n) do
     assert %{"disposition" => "accepted"} = run(gw, "RELEASE-" <> n, release(n))
     ready!(gw)
