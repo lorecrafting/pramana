@@ -13,8 +13,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   alias PramanaFoundry.DurableStore.{Gateway, LegacyImport}
   alias PramanaFoundry.Repair.FR08HandoffGate
 
-  @subject_revision "b0e3d7e8d5c024fe03c10c1b19c75e727f37100d"
-  @subject_tree "d1744fb5120427156aae36247e27f2cada7e8cdb"
+  @subject_revision "74a18590a0d4696fe0420ea50e060685ef829668"
+  @subject_tree "14b27e6241d87bee91eee6b8450c233f98c52ae3"
   @api_identity [
     {PramanaFoundry.DurableStore.Authority, "lib/pramana_foundry/durable_store/authority.ex",
      "0ef697e4640aef64f6001abb1be688774d7cac7602c61be77c9e2415f667d26b",
@@ -23,12 +23,12 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
      "a584d7ef6c3e8109ef280b14eaa404cae5f22ee2798ed81c3813078960171d6a",
      "346a68d8c70ab79a777c69dd227f995f"},
     {PramanaFoundry.DurableStore.Gateway, "lib/pramana_foundry/durable_store/gateway.ex",
-     "fba1d9dd3ec8edec1ba0ce59bbcfecd63ec9e2fb427905c04965d8d3ac51d0bf",
-     "2b4045c04864d6f1cc41257698e46f39"},
+     "e2ed0e49c71c46449f8c3da16a630aa3f7e5dd3b3be0742313624846c765f524",
+     "3482b1e7bef6a04794e2a17a0c91355f"},
     {PramanaFoundry.DurableStore.ProtectedPrimitives,
      "lib/pramana_foundry/durable_store/protected_primitives.ex",
-     "c2c21ab5d4504f96c04666835d7132c7a08676acb4ba289419e64f37895afb3d",
-     "4fdbd95f6adc06b26ac0b428a5737c97"},
+     "ac55a01b3a5d08f226498e2cf1b551a0327fd377bdba6a7a8935fc523181c2ea",
+     "cc5227598c3739df54340df6b510c10c"},
     {PramanaFoundry.DurableStore.Kernel, "lib/pramana_foundry/durable_store/kernel.ex",
      "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac",
      "e43949e9a2658ebbd12afabdf2f30086"},
@@ -49,8 +49,8 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
     # the non-start discriminator rule, settlement identity, and predicate derivation.
     {PramanaFoundry.DurableStore.TransitionPlan,
      "lib/pramana_foundry/durable_store/transition_plan.ex",
-     "e244727a2d9d660b5d45727f8d1b65c51bff11328e0e91248bbc49bcfd5f148f",
-     "be496a3223b05a8a3a16571bd3652a5e"},
+     "0cdaf83ef2f83225416277f23dfe0785153af77574c4c092d055f0d894266e3e",
+     "19406ba8717b2c8d9c3ddf19cc3b73d1"},
     {PramanaFoundry.DurableStore.ProtectedVerifier,
      "lib/pramana_foundry/durable_store/protected_verifier.ex",
      "1e999ca8c310ec479973e310392fba23d0a68e07686e99d7b13d50d92d8fd7b8",
