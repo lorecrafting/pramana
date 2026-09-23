@@ -66,6 +66,41 @@ defmodule PramanaFoundry.DurableStore.DomainReadCheckTest do
     assert {:error, :expected_domain_revision_mismatch} = submit(ctx, bundle)
   end
 
+  # Two declared reads written leave no single target entity, so no stated
+  # expected_domain_revision can match (gateway.ex `expected_domain_revision/1`).
+  test "a plan writing two declared reads has no expected_domain_revision", ctx do
+    other = "DR7-other"
+
+    bundle =
+      bundle("DR7")
+      |> put_in(["command", "expected_revisions", key("projection/", @ticket, other)], "absent")
+      |> update_in(["plan", "domain_reads"], fn reads ->
+        reads ++ [%{"kind" => "ticket", "entity_id" => other, "revision" => "absent"}]
+      end)
+      |> update_in(["plan", "alternatives", Access.at(0), "proposal"], fn proposal ->
+        [event] = proposal["events"]
+        [projection] = proposal["projections"]
+        event_id = "event-" <> other
+
+        proposal
+        |> Map.put("events", [
+          event,
+          event
+          |> Map.put("event_id", event_id)
+          |> put_in(["payload", "projection", "entity_id"], other)
+        ])
+        |> Map.put("projections", [
+          projection,
+          %{projection | "entity_id" => other, "last_event_id" => event_id}
+        ])
+      end)
+
+    for revision <- [0, 1] do
+      assert {:error, :expected_domain_revision_mismatch} =
+               submit(ctx, put_in(bundle, ["plan", "expected_domain_revision"], revision))
+    end
+  end
+
   defp submit(ctx, bundle),
     do: Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", bundle)
 

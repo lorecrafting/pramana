@@ -43,6 +43,10 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
                  stale_entity_revision entity_id_disagrees_with_payload unknown_entity
                  duplicate_proposal not_the_check_execution)a
 
+  # `decide/3`'s input refusals (`kernel.ex`, `Plan.input/2`): malformed commands, which no
+  # event proposal can trip. `decide_e2e_test` pins both.
+  @decide ~w(invalid_command unsupported_command)a
+
   # Guards that cannot fire within this bound, each with the reason. Two kinds only:
   #
   #   * "deeper than the bound" - the integration family sits roughly a dozen events in,
@@ -116,6 +120,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
       KernelSearch.declared_reasons()
       |> MapSet.difference(fired)
       |> MapSet.difference(MapSet.new(@validation))
+      |> MapSet.difference(MapSet.new(@decide))
 
     recorded = MapSet.new(Map.keys(@unreachable))
 
@@ -148,7 +153,8 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
     def apply(state, event) do
       with :ok <- check_state(state),
            {:ok, kind} <- Event.entity_kind(event["type"]) |> ok_or(:piped_spelling),
-           {:ok, x} <- ok_or(lookup(event), :argument_spelling) do
+           {:ok, x} <- ok_or(lookup(event), :argument_spelling),
+           {:ok, y} <- Plan.input(decider(x), :input_spelling) do
         {:ok, state}
       end
     end
@@ -163,6 +169,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
     assert MapSet.member?(found, :literal_spelling)
     assert MapSet.member?(found, :piped_spelling)
     assert MapSet.member?(found, :argument_spelling)
+    assert MapSet.member?(found, :input_spelling)
 
     refute MapSet.member?(found, :error),
            "the ok_or/2 definition clause is being read as a declaration of `:error`"

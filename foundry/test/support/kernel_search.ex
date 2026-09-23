@@ -246,7 +246,7 @@ defmodule PramanaFoundry.Test.KernelSearch do
       Enum.map(~w(event.ex state.ex plan.ex), &Path.join([dir, "kernel", &1]))
   end
 
-  # Two spellings declare a refusal, and scanning for only the first is how this claimed to
+  # Three spellings declare a refusal, and scanning for only the first is how this claimed to
   # inventory the declared set for three reviews while missing `:unknown_entity_kind` in
   # `apply/2` (`kernel.ex`) entirely.
   @reason_spellings [
@@ -256,12 +256,15 @@ defmodule PramanaFoundry.Test.KernelSearch do
     # be the last thing before the closing paren, which is what keeps the definition
     # clauses - `ok_or({:ok, value}, _reason)` and `ok_or(:error, reason)` - out: they
     # mention no reason, they receive one.
-    ~r/ok_or\(.*:([a-z_]+)\)/
+    ~r/ok_or\(.*:([a-z_]+)\)/,
+    # `decide/3`'s input refusals in `kernel.ex` (`Plan.input(value, :reason)`), the same
+    # shape as `ok_or/2`; plan.ex's own definition names no atom.
+    ~r/Plan\.input\(.*:([a-z_]+)\)/
   ]
 
   # Separate from the file read so a fixture can be fed to it; the red control lives in
   # r4_guard_reachability_test.
-  @doc "Every error atom declared in `source`, in either spelling."
+  @doc "Every error atom declared in `source`, in any spelling."
   def reasons_in(source) do
     @reason_spellings
     |> Enum.flat_map(&(&1 |> Regex.scan(source) |> Enum.map(fn [_, atom] -> atom end)))
