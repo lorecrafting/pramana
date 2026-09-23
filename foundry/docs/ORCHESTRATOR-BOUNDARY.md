@@ -928,6 +928,8 @@ Do not interrupt the active repair to implement this abstraction.
 
 ### O1 — local reference adapter
 
+**Timing, 2026-09-22 (operator-approved):** begin O1 only after FR-08B lands. The [O0 inventory](orchestrator/O0-AUTHORITY-INVENTORY-2026-09-22.md) found the FR-08B kernel has no production caller yet and the live coordinator bypasses the protected store, so an adapter built now would wrap code FR-08B is about to rewire.
+
 - implement an OrchestratorAdapter for the default Foundry workflow kernel;
 - make the CLI use the same semantic client library where practical;
 - prove no authority changed.
