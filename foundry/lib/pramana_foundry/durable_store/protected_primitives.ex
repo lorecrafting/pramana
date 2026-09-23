@@ -1274,7 +1274,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            ),
          :ok <- nonstart_allowance(conn, policy.value, operation),
          {:ok, reservations} <- load_effect_reservations(conn, operation),
-         :ok <- all_proposed_listed(conn, operation["effect_id"], reservations),
+         :ok <- all_owned_listed(conn, operation["effect_id"], reservations),
          :ok <- reservation_dimensions(operation, reservations),
          {:ok, lease_specs} <- normalize_lease_specs(operation["leases"]),
          :ok <- lease_specs_available(conn, lease_specs),
@@ -1340,7 +1340,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              :duplicate_request_identity,
              :operation_dimension_mismatch,
              :reservation_ledger_mismatch,
-             :unlisted_proposed_reservation,
+             :unlisted_owned_reservation,
              :nonstart_allowance_exhausted,
              :predecessor_not_terminal,
              :predecessor_identity_mismatch,
@@ -3478,19 +3478,21 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
-  # Same check, from the effect's side: it must activate every proposed reservation it owns.
-  defp all_proposed_listed(conn, effect_id, reservations) do
+  # Same check, from the effect's side: the restart check requires an effect to list every
+  # reservation it owns, in any status. Only proposed ones can be activated, so an owner with
+  # an earlier released reservation can never be created (reopen property F2).
+  defp all_owned_listed(conn, effect_id, reservations) do
     listed = MapSet.new(reservations, & &1.reservation_id)
 
     case Database.query(
            conn,
-           "SELECT reservation_id FROM root_reservations WHERE owner_id = ? AND status = 'proposed'",
+           "SELECT reservation_id FROM root_reservations WHERE owner_id = ?",
            [effect_id]
          ) do
       {:ok, rows} ->
         if Enum.all?(rows, fn [id] -> MapSet.member?(listed, id) end),
           do: :ok,
-          else: {:error, :unlisted_proposed_reservation}
+          else: {:error, :unlisted_owned_reservation}
 
       error ->
         error

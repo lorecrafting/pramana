@@ -83,7 +83,7 @@ defmodule PramanaFoundry.DurableStore.LedgerRestartProbeTest do
     result = run(gw, "E1", effect("e1", ["r1"]))
     assert_reopens(path)
 
-    assert %{"disposition" => "rejected", "reason_code" => "unlisted_proposed_reservation"} =
+    assert %{"disposition" => "rejected", "reason_code" => "unlisted_owned_reservation"} =
              result
   end
 
@@ -117,6 +117,25 @@ defmodule PramanaFoundry.DurableStore.LedgerRestartProbeTest do
 
     assert_reopens(path)
     assert [{"leaf", 0, "closed"}, {"mid", 0, "closed"}] = closed(facts)
+  end
+
+  # Reopen property F2 (seed 56): a released reservation still names its owner, so the
+  # effect would have to list it; no longer proposed, it cannot be listed, and the id is spent.
+  test "create_effect refuses an owner with a released reservation", %{gw: gw, path: path} do
+    assert %{"disposition" => "accepted"} = run(gw, "R1", reserve("r1", "root-a", "e1"))
+
+    assert %{"disposition" => "accepted"} =
+             run(gw, "REL1", %{
+               "type" => "release_reservation",
+               "reservation_id" => "r1",
+               "proof" => "unissued"
+             })
+
+    assert %{"disposition" => "accepted"} = run(gw, "R2", reserve("r2", "root-a", "e1"))
+
+    result = run(gw, "E1", effect("e1", ["r2"]))
+    assert_reopens(path)
+    assert %{"disposition" => "rejected", "reason_code" => "unlisted_owned_reservation"} = result
   end
 
   defp closed(facts),

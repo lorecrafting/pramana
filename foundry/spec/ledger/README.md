@@ -96,12 +96,31 @@ the real API to the refused operation, then reopens the database.
   cancellation, and the refusal needs no such argument.
 - **Finding 3 (5b701a57).** The restart check allows `proposed` only while the owner
   effect does not exist. Two operations broke that, so both are guarded: `create_effect`
-  refuses with `unlisted_proposed_reservation` unless it lists every proposed reservation
-  the effect owns, and `reserve` refuses with `reservation_owner_exists` when the owner
-  effect already exists.
+  refuses unless it lists every proposed reservation the effect owns, and `reserve`
+  refuses with `reservation_owner_exists` when the owner effect already exists.
 - **Red controls.** Neutralising each guard in turn fails its probe on reopen:
   `{:protected_corrupt, "root_reservations", :transition}` for finding 2 and
   `{:protected_corrupt, "root_effects", "e1"}` for each half of finding 3.
+
+The reopen property (`reopen_property_test.exs`) then found two more refused states, F1
+and F2. Both have probes in the same file and fail them on reopen when their fix is
+removed; afterwards `FOUNDRY_REOPEN_RUNS=2000` passes.
+
+- **F1, reset of a delegating ledger (ff526eae).** `reset_generation` closes the old
+  generation's delegated subtree, as the contract's R5 requires, but its result carried
+  only the reset ledger. The closed descendant had no snapshot, so restart refused it
+  (`{:protected_corrupt, "root_ledgers", :transition}`). Refusing the reset while units are
+  delegated would contradict R5, so both reset variants now return every closed subtree
+  ledger under `ledgers`, as `close_generation` does, and the restart check declares that
+  carrier. The child reset had the same omission.
+- **F2, a released reservation's owner.** The restart check requires an effect to list
+  every reservation it owns in any status, but `create_effect` checked only proposed ones.
+  A reservation reserved and then released before its owner existed was left out, and
+  restart refused the effect (`{:protected_corrupt, "root_effects", "e1"}`). `create_effect`
+  now refuses with `unlisted_owned_reservation` (renamed from
+  `unlisted_proposed_reservation`) unless it lists every owned reservation. A released one
+  cannot be activated, so that effect id can never be created: fail-closed, and the
+  operator question is whether a released reservation should free its owner id.
 
 ## Where the code and the contract disagree
 
