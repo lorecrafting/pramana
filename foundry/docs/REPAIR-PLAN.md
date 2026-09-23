@@ -192,6 +192,13 @@ FR-08–FR-22 change:
   throughout the reducer. No definition format; see
   [the O1 sequencing decision](orchestrator/O1-SEQUENCING-PROPOSAL-2026-09-23.md).
 
+  **Decided 2026-09-23 (operator):** `lib/pramana_foundry/workflow/kernel/software/*` is the
+  reference Standard Controller's software workflow — replaceable, and deletable once another
+  controller covers it. The R4 exhaustive search and mutation-sweep tooling is scoped to that
+  reference controller as a conformance oracle, not a bar every controller must meet. See
+  [the orchestrator boundary](ORCHESTRATOR-BOUNDARY.md#default-foundry-workflow-kernel-remains-useful)
+  and the contract's [enforcement matrix](WORKFLOW-CONTRACT.md#enforcement-matrix).
+
   **Split by family, not by kind.** Admission, evidence and settlement each keep their
   transitions *and* their guards together. Splitting into `guards.ex` and `transitions.ex`
   would optimise the line count and make the sibling defect harder to see, since a guard
@@ -231,6 +238,27 @@ FR-08–FR-22 change:
   surface can be observed instead of guessed.
 - **Batch D:** establish the supervised dogfood lane using manual work packets and durable
   review receipts. It must not silently enable an unproved autonomous provider path.
+
+  <a id="reviewer-independence-amendment"></a>
+  **Amended 2026-09-23 (operator, from the Fable strategy review): reviewer independence
+  moves ahead of the full lane.** The independence predicate is a Core check over durable
+  principal and candidate lineage: a review counts only if its reviewer execution shares no
+  principal or authority lineage with the developer execution that produced the exact
+  candidate, since a role label, session or model does not create independence
+  ([strategy](STRATEGY.md)). It was carried by FR-13 (F04; FR-13's "reviewer execution
+  identity cannot be substituted with the developer's"), so it waited on FR-13's
+  dependencies. It is now carried by **FR-08B**, as a protected item landing with subcommit 3
+  (reviewer `decide/3`, the dogfood lane's T2), or, if subcommit 3 is already frozen for
+  review, as FR-08B's next protected item before Batch D closes.
+  - **Before:** predicate in FR-13, behind FR-02, FR-05, FR-10, FR-12 and FR-15aB.
+  - **After:** predicate in FR-08B, behind FR-08A (complete) and R3 operator maintenance
+    authorization for the protected change, as for FR-08B's other protected items.
+  - **Unchanged:** every ticket status and every dependency edge in the table. FR-13 keeps
+    candidate scope, artifact and check receipts, and consumes the predicate at acceptance.
+    FR-15aB still owns proving that the principals the predicate compares are actually
+    isolated. Until then the predicate compares recorded principals, so on the manual lane it
+    proves two distinct authenticated principals were recorded, not that they are
+    OS-isolated. F04's owners gain FR-08B for this predicate only.
 - **Batch E:** complete isolation/harness conformance, artifact and Git custody, activation,
   and final lifecycle work in the dependency inventory's order.
 
@@ -548,7 +576,7 @@ full repair/acceptance obligation and the ticket acceptance text remain binding.
 | F01 | FR-01, FR-09, FR-15a, FR-16 | Every autonomous role, explicit subscription eligibility, quota/unknown/cooldown/restart; no paid fallback |
 | F02 | FR-03, FR-07 | Failed writes cannot acknowledge or launch; corrupt/torn/oversize/versioned history never resets; atomic recovery |
 | F03 | FR-02, FR-05, FR-13 | Real wrapper preserves raw identity; stale/wrong-role/candidate and fabricated checks rejected |
-| F04 | FR-05, FR-12, FR-13, FR-15a | Common admission, protected mandatory gates, actual ancestry/full diff, isolated independent reviewer |
+| F04 | FR-05, FR-08B (independence predicate only, [amendment](#reviewer-independence-amendment)), FR-12, FR-13, FR-15a | Common admission, protected mandatory gates, actual ancestry/full diff, isolated independent reviewer |
 | F05 | FR-04, FR-10 | Foreign/recycled/unknown identities preserved, verified owned cleanup |
 | F06 | FR-02, FR-15a | Literal actual-wrapper transport; no general evaluation authority for agents |
 | F07 | FR-08, FR-11, FR-17 | All controls/verdicts/PM mutations replay identically; artifacts/budgets retained; stale completion harmless |
@@ -1040,6 +1068,8 @@ candidate, with controller-verified scope and ancestry.
 Validate real Git ancestry and diff against admitted scope. Run required checks in an
 owned worker and store controller-generated receipts bound to tree, command, environment
 and result. Reviewer execution identity cannot be substituted with the developer's.
+The lineage independence predicate itself is carried by FR-08B since 2026-09-23
+([amendment](#reviewer-independence-amendment)); FR-13 consumes it at acceptance.
 
 **Acceptance:** Actual wrapper-to-controller tests reject stale artifacts, wrong role,
 nonexistent checkout, unrelated one-commit history, hidden out-of-scope changes, altered

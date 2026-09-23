@@ -142,7 +142,10 @@ subcommit 4's check workers for this lane.
   quarantine exit yet (`FR10-DESIGN…:3-6`). The ticket is abandoned and a new one admitted.
   FR-10 commits 2 and 4 would remove this (`:212-214`). They are optional for thin dogfood.
 - **A3. Reviewer independence is attested,** by a fresh agent (per the Fable memory note), not
-  proved by principal lineage (O0 U6).
+  proved by principal lineage (O0 U6). **Amended 2026-09-23:** the lineage predicate now
+  lands with FR-08B subcommit 3, ahead of FR-10/11/12
+  ([plan amendment](REPAIR-PLAN.md#reviewer-independence-amendment)); until FR-15aB, the
+  principals it compares are recorded, not proved isolated.
 - **A4. No candidate-scope or artifact verification** (FR-13). The reviewer checks the diff
   against the packet's scope by hand.
 - **A5. Integration is manual Git outside Foundry.** The lane ends at an approved review.

@@ -23,6 +23,10 @@ No production code, running daemon, credentials or host permissions changed here
 > [alignment audit](ALIGNMENT-AUDIT-2026-09-19.md) and the historical
 > [FR-08 investigation](fr-08/investigation.md). This route changes no R1–R5 decision,
 > runtime, policy, provider or activation permission.
+>
+> **Enforcement matrix (2026-09-23):** the [enforcement matrix](#enforcement-matrix) was added
+> on operator approval. It records where each guarantee is enforced and changes no R1–R5
+> decision, so the revision number is unchanged.
 
 ## Decisions and evidence
 
@@ -152,6 +156,49 @@ lifecycle reducer back into the operator-only root, reopen R3: the concrete choi
 operator to approve an explicit permanent exclusion listing the affected repairs. V2
 selects (a); (b) is not authorized or silently adopted. No new operator product decision
 is required by the selected design; actual enforcement remains to be proved.
+
+<a id="enforcement-matrix"></a>
+
+### Enforcement matrix — what Core re-checks and what rests on the controller
+
+**Status:** added 2026-09-23 on operator approval, from the Fable strategy review. It records
+where each guarantee is enforced at `c3b65161`; it changes no R1–R5 decision. Sources:
+review C3 in the [subcommit 2 `decide/3` design](fr-08/FR08B-SUBCOMMIT2-DECIDE-DESIGN-2026-09-23.md)
+and the [protected items spec](fr-08/FR08B-PROTECTED-ITEMS-SPEC-2026-09-23.md). Paths are
+under `foundry/lib/pramana_foundry/`; tests under `foundry/test/pramana_foundry/`.
+
+**Rule:** every new protected operation or plan slot adds a row here in the same commit.
+
+Core rows hold against any controller, including the kernel, because the protected layer
+re-checks them at commit.
+
+| Guarantee | Owner | Enforcement point | Evidence |
+|---|---|---|---|
+| CAS on every read revision | Core | `durable_store/gateway.ex` `check_expected_revisions/4` (`revision_conflict`); protected read sets in `durable_store/protected_primitives.ex` `complete_read_set/3` (`stale_read_set`) | `durable_store/review_corrections_test.exs` "read preconditions are authoritative and rejected decisions cannot mutate" |
+| Control status is `active` for effect, claim and issue | Core | `protected_primitives.ex` `allowed_effect?/3` in `create_effect`, and `control_active?/1` in `claim_effect`, `issue_claim` and `reclaim_claim` (`control_not_active`) | `durable_store/fr08a_critical_corrections_test.exs` "control cancellation revokes claimed descendants and preserves no implicit credit" (issue refused); no `create_effect` refusal test found |
+| Allocation at `reserve`: open ledger, units within `available` | Core | `protected_primitives.ex` `apply_operation(%{"type" => "reserve"})` (`reservation_not_permitted`) | `durable_store/protected_primitives_test.exs` "parent-funded ledger, claims, leases and settlement conserve authority"; no over-allocation refusal test found |
+| Predecessor currency: successor names the latest terminal effect in its lineage | Core | `protected_primitives.ex` `predecessor_guard/5` in `create_effect`; `predecessor_current?/2` in `claim_effect` and `issue_claim` (`predecessor_not_terminal`, `predecessor_identity_mismatch`) | `durable_store/atomic_bundle_test.exs` "the retry a below-limit non-start selects is admitted by create_effect" (admit only; no refusal test found) |
+| Non-start allowance, per role from `infrastructure_attempt_limits` | Core | `protected_primitives.ex` `nonstart_allowance/3` in `create_effect` (`nonstart_allowance_exhausted`) | `atomic_bundle_test.exs` "the retry a below-limit non-start selects is admitted by create_effect" (admit only) |
+| Attempt closure; no effect under a closed attempt | Core | `protected_primitives.ex` `apply_operation(%{"type" => "close_attempt"})` (`attempt_not_settled`); `attempt_open/3` in `create_effect` (`attempt_closed`) | `protected_primitives_test.exs` "an attempt closes only when settled, and a closed attempt takes no new effect"; "an unsettled effect with no reservations still keeps its attempt open" |
+| Infrastructure-limit branch is derived, not chosen | Core | `gateway.ex` `protected_discriminator/3` → `ProtectedPrimitives.infrastructure_discriminator_at_revision/3`, reading the effect's own policy revision | `atomic_bundle_test.exs` "a policy revised after the effect was created still decides from the effect's revision"; "a non-start still settles after a policy revision drops the role's limit" |
+| A non-start binding requires `infrastructure_limit_v1` | Core | `durable_store/transition_plan.ex` `validate_binding_discriminator/1` (`nonstart_requires_infrastructure_discriminator`) | `durable_store/transition_plan_test.exs` "a non-start settlement cannot be bound by an unconditional plan" |
+| Settlement closes the execution it settled | Core | `transition_plan.ex` `closes_named_execution?/4` via `bound_carriers_agree/4` (`settlement_execution_mismatch`) | `transition_plan_test.exs` "a settlement offered to a different execution's event is refused"; `atomic_bundle_test.exs` "a settlement cannot close an execution other than the one it settled" |
+| A quarantined claim is not settled by an ordinary receipt | Core | `protected_primitives.ex` `settle_with_receipts/6` (`reconciliation_required` → `quarantine_conflicting_receipt/5`) | `durable_store/quarantine_exit_probe_test.exs` "fresh receipts of every outcome re-quarantine and leave the claim quarantined" |
+| Reset facts: list-slot elements from distinct operations, each a well-formed `reset_fact_v1` | Core | `transition_plan.ex` `validate_binding_discriminator/1` (`list_slot_operation_repeated`); `valid_output?("reset_fact_v1", _)` | `transition_plan_test.exs` "two list-slot bindings from one operation are refused"; `atomic_bundle_test.exs` "an unconditional plan commits a ticket reset bound to its new ledger generation" |
+
+Controller rows rest on `decide/3` alone, under the approved Q1/D1 and O2 readings. The
+reference kernel enforces them; **an adversarial controller can violate them, and Core does
+not claim them.** A controller that skips one can plan work the contract forbids, but it
+still cannot pass a Core row above.
+
+| Guarantee | Owner | Enforcement point | Evidence |
+|---|---|---|---|
+| No launch under pause | Controller | `workflow/kernel/control.ex` `require_not_paused/1`, called from `workflow/kernel/executions.ex` `do_transition("launch_planned", …)` | `workflow/kernel_test.exs` "launch_planned under pause refuses with control_paused" |
+| No launch under drain | Controller | `kernel/control.ex` `require_not_draining/1`, same call site | `kernel_test.exs` "launch_planned under drain refuses with control_draining" |
+| No launch under a pending cancel | Controller | `kernel/control.ex` `require_no_pending_cancel/1`, same call site | `kernel_test.exs` "#{type} under a pending cancel refuses with cancel_pending" |
+| A retained attempt is reused, not replaced | Controller | `kernel/executions.ex` `open_attempt/2` (`retained_attempt_must_be_reused`) | `workflow/r4_guard_reachability_test.exs` "the forged-reference guards are exercised" |
+| Phase guards on every transition | Controller | `workflow/kernel/shared.ex` `require_phase/2`, `require_attempt_phase/2` (`wrong_source_phase`) | `kernel_test.exs`, e.g. "a reset is refused unless the ticket is exhausted" |
+| Exhaustion choice (which terminal disposition) | Controller | `workflow/kernel/software/dispositions.ex` `do_transition("attempt_settled", …)`; Core's `attempt_settlement` fact carries no disposition | `workflow/kernel_plan_test.exs` "close_attempt, attempt_settled, then cancellation_finalized" (plan shape only) |
 
 <a id="r2"></a>
 
