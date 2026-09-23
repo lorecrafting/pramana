@@ -3,7 +3,9 @@ alias PramanaFoundry.Assessor.UniqueJSON
 
 max_input_bytes = 4_194_304
 
-case System.argv() do
+# `mix run` passes a literal `--` through to argv, so the documented `-- INPUT.json` form
+# failed with the usage message (found by the 2026-09-22 bin script health check).
+case System.argv() -- ["--"] do
   [input_path] ->
     with {:ok, bytes} <-
            File.open(input_path, [:read, :binary], fn io ->
