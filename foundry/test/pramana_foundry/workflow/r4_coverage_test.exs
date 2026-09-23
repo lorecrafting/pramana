@@ -24,6 +24,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
   alias PramanaFoundry.Test.{KernelSearch, R4Rows}
   alias PramanaFoundry.Test.Harness
+  alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
   # Rows the kernel cannot drive today. Each entry names the review finding that reported
@@ -145,8 +146,13 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {"R4.22.o2", "terminal integrated attempt"},
       {"R4.22.o4", "Exit notifications cannot overwrite this"}
     ],
+    # o1 and o3 are decide/3's: which attempt a launch plan opens, and the pre-intent
+    # denial that plans nothing. The reducer alone cannot tell a fresh launch from a denied one.
     launch: [
-      {"R4.04.o2", "create its launch intent and enter developing"}
+      {"R4.04.o1", "Create a fresh attempt unless R4a retained a resumable developer attempt"},
+      {"R4.04.o2", "create its launch intent and enter developing"},
+      {"R4.04.o3",
+       "Pre-intent denial remains queued and consumes no start unit or infrastructure ordinal"}
     ],
     malformed_submission: [
       {"R4.10.o1", "Durable rejected submission, charge one validation action"},
@@ -162,7 +168,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "return ticket `developing → queued` with `resume_phase: developing` and reason `developer_launch_non_started`"},
       {"R4a.01.o7", "Below the infrastructure limit, queue a bounded developer retry"},
       {"R4a.01.o8",
-       "At the limit, ticket becomes `blocked(developer_launch_infrastructure)` while the attempt remains active and resumable"}
+       "At the limit, ticket becomes `blocked(developer_launch_infrastructure)` while the attempt remains active and resumable"},
+      # decide/3 chooses exhaustion on the retained attempt's next launch.
+      {"R4a.01.o9",
+       "Exhaustion of current developer allocation instead makes the attempt terminal `exhausted` and ticket `exhausted`"}
     ],
     nonstart_pm: [
       {"R4a.03.o1", "Keep the same objective/spec-planning owner"},
@@ -240,9 +249,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     {"R4.02.o3", "malformed spec rejected"},
     {"R4.03.o2", "active assignments never edited"},
     {"R4.03.o3", "amendment does not reset budgets"},
-    {"R4.04.o1", "Create a fresh attempt unless R4a retained a resumable developer attempt"},
-    {"R4.04.o3",
-     "Pre-intent denial remains queued and consumes no start unit or infrastructure ordinal"},
     {"R4.05.o4", "kernel requests developer close through broker immediately"},
     {"R4.06.o1", "Retain submitted bytes"},
     {"R4.06.o2", "bounded starts.check retry after owned worker closure"},
@@ -292,8 +298,6 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     {"R4a.01.o5",
      "Release its checkout/conflict lease only after proving the checkout was never exposed or mutated, then reacquire/revalidate it before retry"},
     {"R4a.01.o6", "otherwise retain the lease and block affected work."},
-    {"R4a.01.o9",
-     "Exhaustion of current developer allocation instead makes the attempt terminal `exhausted` and ticket `exhausted`"},
     {"R4a.02.o2", "immutable candidate/check receipts and reviewer ownership"},
     {"R4a.02.o5", "Release reviewer launch resources"},
     {"R4a.02.o6", "retain candidate custody and candidate/check leases."},
@@ -1074,6 +1078,20 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     intent = ticket["attempts"]["A1"]["executions"]["X1"]
     assert intent.role == "developer"
     assert intent.lifecycle == "pending"
+
+    # R4.04.o1: a fresh attempt from a ticket with none; the retained one after R4a.
+    {queued, _} = admitted()
+    assert planned_attempt(decide(queued, "plan_launch", launch_facts(1))) == "C1/attempt"
+    {retained, _} = nonstart()
+    assert planned_attempt(decide(retained, "plan_launch", launch_facts(1))) == "A1"
+
+    # R4.04.o3: short allocation on a fresh launch plans nothing - no reservation, no
+    # intent, no ordinal - so the ticket stays queued exactly as it was.
+    assert {:reject, :allocation_unavailable} =
+             decide(queued, "plan_launch", launch_facts(0))
+
+    assert queued["tickets"]["T1"]["phase"] == "queued"
+    assert queued["tickets"]["T1"]["infrastructure"]["ordinals"]["developer"] == 0
     :driven
   end
 
@@ -2130,6 +2148,26 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       })
 
     assert {:error, :no_running_developer} = Harness.apply(parked, forged)
+
+    # R4a.01.o9: the retained attempt's next launch, with current allocation short, plans
+    # attempt_settled(exhausted), and applying it exhausts attempt and ticket.
+    {retained, sequence} = nonstart()
+    assert {:ok, %{"plan" => plan}} = decide(retained, "plan_launch", launch_facts(0))
+    [%{"proposal" => %{"events" => [settled]}}] = plan["alternatives"]
+    assert settled["type"] == "attempt_settled"
+
+    {exhausted, _} =
+      drive({retained, sequence}, [
+        {"attempt_settled", "T1",
+         settled["payload"]
+         |> Map.delete("projection")
+         |> Map.put("settlement", terminal_settlement("T1", "A1"))}
+      ])
+
+    ticket = exhausted["tickets"]["T1"]
+    assert ticket["phase"] == "exhausted"
+    assert ticket["attempts"]["A1"]["phase"] == "terminal"
+    assert ticket["attempts"]["A1"]["disposition"] == "exhausted"
     :driven
   end
 
@@ -2418,6 +2456,37 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   end
 
   defp settlement, do: %{"schema_version" => 1}
+
+  defp decide(state, type, facts) do
+    command = %{
+      "command_id" => "C1",
+      "type" => type,
+      "target_ids" => %{"ticket_id" => "T1"},
+      "payload" => %{"role" => "developer"}
+    }
+
+    WorkflowKernel.decide(state, command, facts)
+  end
+
+  defp launch_facts(available) do
+    %{
+      "policy" => %{"policy_id" => "pol-1", "revision" => 0},
+      "control" => %{"control_id" => "ctl-1", "revision" => 0},
+      "allocation" => %{
+        "ledger_id" => "led-1",
+        "generation" => 0,
+        "revision" => 0,
+        "available" => available
+      },
+      "writer_epoch" => "epoch-A",
+      "predecessor_effect_id" => nil
+    }
+  end
+
+  defp planned_attempt({:ok, %{"plan" => plan}}) do
+    [%{"proposal" => %{"events" => [planned]}}] = plan["alternatives"]
+    planned["payload"]["attempt_id"]
+  end
 
   defp drive({state, sequence}, specs) do
     Enum.reduce(specs, {state, sequence}, fn {type, entity_id, payload}, {state, sequence} ->
