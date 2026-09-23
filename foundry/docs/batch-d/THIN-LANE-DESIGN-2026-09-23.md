@@ -370,6 +370,13 @@ Each file has one owner. No item touches FR-08B's files (readiness §6).
 
 ## Open questions
 
+> **Resolved by the operator, 2026-09-23 (as recommended):** Q1 accept `Plan.unconditional`
+> from a closed table, replaced by deciders as subcommits 4–5 land. Q2 read-only SQLite for
+> the thin lane; no new Gateway read. Q3 as proposed: seed from the JSON file, refusing one
+> whose pairing omits the developer. Q4 two commits, with the split covered by T7. Q5 settled
+> by W2's first test, falling back to an `execution_observed` ingress. Q6 a `spec.supersedes`
+> field is enough for the thin lane. Q7 one configured repository; packets name no worktree.
+
 - **Q1. Ingress without a decider.** Admission, freeze, seal, close and `checks_started` go
   through `Plan.unconditional/3` from a closed table, as the e2e test does. Is that
   acceptable as this lane's slice of subcommit 5's public ingress, or must the lane wait for
