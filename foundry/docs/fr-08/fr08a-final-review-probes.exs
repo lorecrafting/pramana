@@ -8,6 +8,9 @@ defmodule FR08AFinalReview do
   setup do
     path = Path.join(System.tmp_dir!(), "hostile-#{System.pid()}-#{uid()}.sqlite3")
     :ok = Gateway.initialize(path)
+    # Without this every run left its store behind, and once an OS pid was reused the next
+    # run collided with it (:already_initialized). 63,709 had accumulated by 2026-09-23.
+    on_exit(fn -> Enum.each(Path.wildcard(path <> "*"), &File.rm_rf/1) end)
     cap = make_ref()
 
     g =
