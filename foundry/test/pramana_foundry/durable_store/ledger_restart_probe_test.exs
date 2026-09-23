@@ -96,6 +96,57 @@ defmodule PramanaFoundry.DurableStore.LedgerRestartProbeTest do
     assert %{"disposition" => "rejected", "reason_code" => "reservation_owner_exists"} = result
   end
 
+  # Reopen property F1 (seed 49): reset closes the old generation's delegated subtree, and
+  # each closed descendant needs its snapshot in the result or restart refuses the ledger.
+  test "a root reset records every closed descendant", %{gw: gw, path: path} do
+    assert %{"disposition" => "accepted"} = run(gw, "D1", delegate("root-a", 0, "child-a", 1))
+
+    assert %{"disposition" => "accepted", "facts" => facts} =
+             run(gw, "RESET", reset("root-a", nil, nil))
+
+    assert_reopens(path)
+    assert [{"child-a", 0, "closed"}, {"root-a", 0, "closed"}] = closed(facts)
+  end
+
+  test "a child reset records every closed descendant", %{gw: gw, path: path} do
+    assert %{"disposition" => "accepted"} = run(gw, "D1", delegate("root-a", 0, "mid", 1))
+    assert %{"disposition" => "accepted"} = run(gw, "D2", delegate("mid", 0, "leaf", 1))
+
+    assert %{"disposition" => "accepted", "facts" => facts} =
+             run(gw, "RESET", reset("mid", "root-a", 0))
+
+    assert_reopens(path)
+    assert [{"leaf", 0, "closed"}, {"mid", 0, "closed"}] = closed(facts)
+  end
+
+  defp closed(facts),
+    do:
+      facts["ledgers"]
+      |> Enum.map(&{&1["ledger_id"], &1["generation"], &1["status"]})
+      |> Enum.sort()
+
+  defp delegate(parent, parent_generation, child, units),
+    do: %{
+      "type" => "delegate_allocation",
+      "parent_ledger_id" => parent,
+      "parent_generation" => parent_generation,
+      "child_ledger_id" => child,
+      "child_generation" => 0,
+      "dimension" => "starts.developer",
+      "units" => units
+    }
+
+  defp reset(ledger_id, parent, parent_generation),
+    do: %{
+      "type" => "reset_generation",
+      "ledger_id" => ledger_id,
+      "old_generation" => 0,
+      "new_generation" => 1,
+      "parent_ledger_id" => parent,
+      "parent_generation" => parent_generation,
+      "units" => 1
+    }
+
   defp assert_reopens(path) do
     stop_supervised!(Gateway)
     assert {:ok, conn} = Database.open(path)

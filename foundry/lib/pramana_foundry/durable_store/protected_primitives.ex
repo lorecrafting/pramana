@@ -1120,6 +1120,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            load_ledger(conn, operation["ledger_id"], operation["new_generation"]),
          {:ok, subtree} <- subtree_ledgers(conn, old.ledger_id, old.generation),
          :ok <- close_subtree(conn, subtree),
+         {:ok, closed_subtree} <- subtree_ledgers(conn, old.ledger_id, old.generation),
          {:ok, closed} <- load_existing_ledger(conn, old.ledger_id, old.generation),
          fresh <- %{
            ledger_id: old.ledger_id,
@@ -1141,6 +1142,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        %{
          "closed_generation" => public_ledger(closed),
          "new_generation" => public_ledger(fresh),
+         "ledgers" => Enum.map(closed_subtree, &public_ledger/1),
          "transfer_kind" => "explicit_root_reset_unused_authority"
        }}
     else
@@ -1174,6 +1176,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            load_ledger(conn, operation["ledger_id"], operation["new_generation"]),
          {:ok, subtree} <- subtree_ledgers(conn, old.ledger_id, old.generation),
          :ok <- close_subtree(conn, subtree),
+         {:ok, closed_subtree} <- subtree_ledgers(conn, old.ledger_id, old.generation),
          {:ok, closed} <- load_existing_ledger(conn, old.ledger_id, old.generation),
          next_parent <- %{
            parent
@@ -1202,7 +1205,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        %{
          "closed_generation" => public_ledger(closed),
          "new_generation" => public_ledger(fresh),
-         "parent_ledger" => public_ledger(next_parent)
+         "parent_ledger" => public_ledger(next_parent),
+         "ledgers" => Enum.map(closed_subtree, &public_ledger/1)
        }}
     else
       {:ok, _existing} -> {:reject, :new_generation_exists, %{}}
@@ -7359,7 +7363,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
           %{
             "closed_generation" => {:singular, :ledger},
             "new_generation" => {:singular, :ledger},
-            "parent_ledger" => {:singular, :ledger}
+            "parent_ledger" => {:singular, :ledger},
+            # Reset closes the old generation's whole delegated subtree, like close_generation.
+            "ledgers" => {:plural, :ledger}
           }
 
         "create_effect" ->
