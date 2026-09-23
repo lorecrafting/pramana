@@ -223,6 +223,36 @@ defmodule PramanaFoundry.Test.R4Rows do
     end
   end
 
+  @doc """
+  Returns `id` if the contract still holds that row, and raises naming it if not.
+
+  The reachability prober calls this before proposing a row's input events, so a row
+  deleted or edited in the contract stops the walks and the search loudly instead of
+  leaving the prober offering events for a row that no longer exists. Cached per VM: the
+  prober asks millions of times per suite and the contract does not change mid-run.
+  """
+  def present!(id) do
+    present =
+      case :persistent_term.get({__MODULE__, :present}, nil) do
+        nil ->
+          froms = Enum.map(contract_rows(), &elem(&1, 0))
+          found = MapSet.new(Enum.filter(ids(), &(declared_from(&1) in froms)))
+          :persistent_term.put({__MODULE__, :present}, found)
+          found
+
+        found ->
+          found
+      end
+
+    if MapSet.member?(present, id),
+      do: id,
+      else:
+        raise(
+          "R4 row #{inspect(id)} (#{inspect(declared_from(id))}) is not in the contract, " <>
+            "but the reachability prober proposes from it"
+        )
+  end
+
   @doc "The outcome cell the contract states for this handle, or nil if the row is gone."
   def outcome(id) do
     from = declared_from(id)

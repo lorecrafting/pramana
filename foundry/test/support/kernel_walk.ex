@@ -1,3 +1,5 @@
+Code.require_file("r4_rows.ex", __DIR__)
+
 defmodule PramanaFoundry.Test.KernelWalk do
   alias PramanaFoundry.Workflow.Kernel.State
 
@@ -22,7 +24,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
   seed-pinned evidence model.
   """
 
-  alias PramanaFoundry.Test.Harness
+  alias PramanaFoundry.Test.{Harness, R4Rows}
   alias PramanaFoundry.Workflow.Kernel.Event
 
   @default_tickets ~w(T1 T2 T3)
@@ -258,6 +260,206 @@ defmodule PramanaFoundry.Test.KernelWalk do
   defp revision(state, "ticket", id), do: get_in(state, ["tickets", id, "revision"]) || 0
   defp revision(state, "objective", id), do: get_in(state, ["objectives", id, "revision"]) || 0
 
+  # ── Proposals driven from the contract's row table ──────────────────────────────
+  #
+  # Each handle below is a row `R4Rows` parses out of WORKFLOW-CONTRACT.md, and `input/2`
+  # is the input event that row names - part 2 of a row's "precondition, input event,
+  # outcome" shape (docs/fr-08/fr08b-row-driven-coverage.md). The row table decides WHICH
+  # rows are proposed: every proposal here passes through `R4Rows.present!/1`, so a row
+  # deleted or edited in the contract raises in every walk and search instead of leaving
+  # the prober offering events for a row that no longer exists.
+  #
+  # What the table cannot yet supply is the payload: an input cell is English, so the
+  # payload shapes are still written here, one clause per row. That is the known ceiling.
+  # Which rows are row-driven and which the hand-written families further down still
+  # propose is `row_driven/0` and `hand_written/0`; r4_guard_reachability_test requires the
+  # two to cover the contract's rows exactly, and pins the rows in both - a row split
+  # between the two encodings is declared, with the half still hand-written named.
+  # `control/1` and `adversarial/2` are outside both on purpose: control is orthogonal
+  # state the rows read (R4.04.f3), and adversarial proposals are guard probes that name
+  # the wrong thing by construction, not any row's input.
+
+  # Order is the pre-migration proposal order, kept so walks replay identically under the
+  # same seeds; it is not a claim about the contract's order.
+  @ticket_rows ~w(amend_or_park nonstart_developer check_infrastructure_failed resume reset
+                  cancel_requested cancel_finalized launch)a
+
+  @row_driven [:objective_steering, :nonstart_pm, :admission | @ticket_rows]
+
+  # The migration checklist: rows still proposed by a hand-written family below, keyed to
+  # the function that proposes them. Moving a row means adding an `input/2` clause, moving
+  # the handle to `@row_driven`, and deleting its proposals from that function. A row whose
+  # events are only partly moved stays here too, its entry beginning "split:".
+  @hand_written %{
+    freeze_success: "artifacts/3 (artifact_frozen)",
+    freeze_failure: "artifacts/3 (freeze_failed)",
+    developer_exit_after_freeze: "per_execution/3 (developer_closed, execution_observed)",
+    no_valid_candidate: "settle/2 (attempt_settled failed/timed_out)",
+    blocked_result: "artifacts/3 (artifact_blocked)",
+    malformed_submission: "artifacts/3 (submission_rejected)",
+    checks_start: "checkwork/4 (checks_started, check_planned)",
+    checks_passed: "per_check/3 (check_recorded passed)",
+    check_assertion_failed: "per_check/3 (check_recorded failed)",
+    check_infrastructure_failed:
+      "split: ticket_blocked is row-driven; per_check/3 still proposes check_recorded",
+    review_start: "reviewwork/4 (review_planned)",
+    verdict_approved: "reviewwork/4 (review_recorded approved)",
+    verdict_correction: "reviewwork/4 (review_recorded correction)",
+    verdict_rejected: "reviewwork/4 (review_recorded rejected)",
+    reviewer_crash: "reviewwork/4 (review_settled), per_execution/3 (reviewer_closed)",
+    integration_start: "integration/3 (integration_planned)",
+    base_moved: "settle/2 (attempt_settled superseded_base)",
+    integration_success: "integration/3 (integration_recorded ref_created)",
+    integration_failure:
+      "integration/3 (integration_recorded no_ref_change, infrastructure_failed)",
+    terminal_rejection: "no event of its own: every family's proposals on a terminal ticket",
+    nonstart_developer:
+      "split: ticket_blocked is row-driven; per_execution/3 still proposes launch_settled",
+    nonstart_reviewer: "reviewwork/4 (review_settled)",
+    nonstart_worker:
+      "checkwork/4 (check_settled, build_settled), integration/3 (integration_settled)"
+  }
+
+  @doc "Row handles whose proposals are generated from the contract's row table."
+  def row_driven, do: @row_driven
+
+  @doc "Row handles still proposed by a hand-written family, with the function that does it."
+  def hand_written, do: @hand_written
+
+  defp propose(row, args), do: row |> R4Rows.present!() |> input(args)
+
+  # R4.01: a durable objective, a PM proposal as evidence, a bounded PM reservation.
+  defp input(:objective_steering, state) do
+    created =
+      {"objective_created", @objective,
+       %{"objective_id" => @objective, "planning_owner_id" => "pm-1"}}
+
+    case state["objectives"][@objective] do
+      nil ->
+        [created]
+
+      objective ->
+        [
+          created,
+          {"pm_proposal_recorded", @objective,
+           %{
+             "proposal_id" => "prop-#{map_size(objective["proposals"])}",
+             "objective_id" => @objective,
+             "operation" => "create"
+           }},
+          {"pm_launch_planned", @objective,
+           %{
+             "objective_id" => @objective,
+             "planning_owner_id" => "pm-1",
+             "authority" => authority(@objective, "PM1", "pm")
+           }}
+        ]
+    end
+  end
+
+  # R4a.03: the PM planning execution's launch settles.
+  defp input(:nonstart_pm, state) do
+    if state["objectives"][@objective],
+      do: [
+        {"pm_launch_settled", @objective,
+         %{"objective_id" => @objective, "settlement" => settlement()}}
+      ],
+      else: []
+  end
+
+  # R4.02: "queued or blocked with reason".
+  defp input(:admission, {tid, nil}) do
+    for phase <- ~w(queued blocked) do
+      {"ticket_admitted", tid,
+       %{
+         "ticket_id" => tid,
+         "objective_id" => nil,
+         "spec_revision_id" => "spec-1",
+         "spec" => %{},
+         "phase" => phase,
+         "reason" => nil
+       }}
+    end
+  end
+
+  # R4.03: PM amend or park.
+  defp input(:amend_or_park, {tid, _ticket}) do
+    [
+      {"ticket_amended", tid,
+       %{"ticket_id" => tid, "spec_revision_id" => "spec-2", "spec" => %{}}},
+      # Proposals come from R4, never from the state the kernel happens to be in. Deriving
+      # this from the ticket's current phase was the confirmed circularity: the kernel's
+      # require_honest_resume_target then accepted whatever the prober offered, and the two
+      # agreed on `resume_phase: blocked` - a ticket blocked with no reason and no target,
+      # which R4's resume row ("return to stored resume_phase") forbids. R4's park row
+      # blocks queued or blocked work, and the phase it promises to return to is a phase
+      # work can actually resume at.
+      {"ticket_parked", tid,
+       %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "queued"}},
+      {"ticket_parked", tid,
+       %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "developing"}}
+    ]
+  end
+
+  # R4a.01.o8: at the launch-infrastructure limit the ticket becomes
+  # `blocked(developer_launch_infrastructure)`. An infrastructure block is a different row
+  # from the PM park above and applies from wherever the work stands, so it is proposed
+  # with the ticket's own phase as its resume target.
+  defp input(:nonstart_developer, {tid, ticket}) do
+    [
+      {"ticket_blocked", tid,
+       %{
+         "ticket_id" => tid,
+         "reason" => "developer_launch_infrastructure",
+         "resume_phase" => ticket["phase"]
+       }}
+    ]
+  end
+
+  # R4.14.o3: `blocked(check_infrastructure)`, proposed with the stored target - the other
+  # honest resume target.
+  defp input(:check_infrastructure_failed, {tid, ticket}) do
+    [
+      {"ticket_blocked", tid,
+       %{
+         "ticket_id" => tid,
+         "reason" => "check_infrastructure",
+         "resume_phase" => ticket["resume_phase"] || ticket["phase"]
+       }}
+    ]
+  end
+
+  # R4.24: "return to stored resume_phase".
+  defp input(:resume, {tid, ticket}),
+    do: [{"ticket_unblocked", tid, %{"ticket_id" => tid, "phase" => ticket["resume_phase"]}}]
+
+  defp input(:reset, {tid, _ticket}),
+    do: [{"ticket_reset", tid, %{"ticket_id" => tid, "generation" => reset_fact()}}]
+
+  defp input(:cancel_requested, {tid, _ticket}),
+    do: [{"cancellation_requested", tid, %{"ticket_id" => tid}}]
+
+  # R4.28 is a conditional and both branches are proposed. The after_integration branch was
+  # once never proposed; the kernel accepted it from an empty ticket and produced an
+  # integrated ticket with no attempt at all - blocker B1's headline counterexample,
+  # invisible to a walk that only ever offered the first branch.
+  defp input(:cancel_finalized, {tid, _ticket}) do
+    for disposition <- ~w(cancelled after_integration) do
+      {"cancellation_finalized", tid, %{"ticket_id" => tid, "disposition" => disposition}}
+    end
+  end
+
+  defp input(:launch, {tid, ticket}) do
+    [
+      {"launch_planned", tid,
+       %{
+         "ticket_id" => tid,
+         "attempt_id" => next_attempt(tid, ticket),
+         "authority" => authority(tid, "X#{map_size(ticket["attempts"])}", "developer")
+       }}
+    ]
+  end
+
   # ── Proposals, one group per R4 row family ─────────────────────────────────────────
 
   @doc "Every event R4 makes conceivable from this state, regardless of kernel guards."
@@ -346,97 +548,13 @@ defmodule PramanaFoundry.Test.KernelWalk do
     ]
   end
 
-  defp objective(state) do
-    base = [
-      {"objective_created", @objective,
-       %{"objective_id" => @objective, "planning_owner_id" => "pm-1"}}
-    ]
+  defp objective(state),
+    do: propose(:objective_steering, state) ++ propose(:nonstart_pm, state)
 
-    if state["objectives"][@objective] do
-      base ++
-        [
-          {"pm_proposal_recorded", @objective,
-           %{
-             "proposal_id" => "prop-#{map_size(state["objectives"][@objective]["proposals"])}",
-             "objective_id" => @objective,
-             "operation" => "create"
-           }},
-          {"pm_launch_planned", @objective,
-           %{
-             "objective_id" => @objective,
-             "planning_owner_id" => "pm-1",
-             "authority" => authority(@objective, "PM1", "pm")
-           }},
-          {"pm_launch_settled", @objective,
-           %{"objective_id" => @objective, "settlement" => settlement()}}
-        ]
-    else
-      base
-    end
-  end
+  defp ticket_level(tid, nil), do: propose(:admission, {tid, nil})
 
-  defp ticket_level(tid, nil) do
-    for phase <- ~w(queued blocked) do
-      {"ticket_admitted", tid,
-       %{
-         "ticket_id" => tid,
-         "objective_id" => nil,
-         "spec_revision_id" => "spec-1",
-         "spec" => %{},
-         "phase" => phase,
-         "reason" => nil
-       }}
-    end
-  end
-
-  defp ticket_level(tid, ticket) do
-    [
-      {"ticket_amended", tid,
-       %{"ticket_id" => tid, "spec_revision_id" => "spec-2", "spec" => %{}}},
-      # Proposals come from R4, never from the state the kernel happens to be in. Deriving
-      # this from the ticket's current phase was the confirmed circularity: the kernel's
-      # require_honest_resume_target then accepted whatever the prober offered, and the two
-      # agreed on `resume_phase: blocked` - a ticket blocked with no reason and no target,
-      # which R4's resume row ("return to stored resume_phase") forbids. R4's park row
-      # blocks queued or blocked work, and the phase it promises to return to is a phase
-      # work can actually resume at.
-      {"ticket_parked", tid,
-       %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "queued"}},
-      {"ticket_parked", tid,
-       %{"ticket_id" => tid, "reason" => "dependency", "resume_phase" => "developing"}},
-      # R4a's infrastructure block, which is a different row from the PM park above and
-      # applies from wherever the work stands. Proposed with the ticket's own phase and
-      # with its stored target, since those are the two honest resume targets.
-      {"ticket_blocked", tid,
-       %{
-         "ticket_id" => tid,
-         "reason" => "developer_launch_infrastructure",
-         "resume_phase" => ticket["phase"]
-       }},
-      {"ticket_blocked", tid,
-       %{
-         "ticket_id" => tid,
-         "reason" => "check_infrastructure",
-         "resume_phase" => ticket["resume_phase"] || ticket["phase"]
-       }},
-      {"ticket_unblocked", tid, %{"ticket_id" => tid, "phase" => ticket["resume_phase"]}},
-      {"ticket_reset", tid, %{"ticket_id" => tid, "generation" => reset_fact()}},
-      {"cancellation_requested", tid, %{"ticket_id" => tid}},
-      {"cancellation_finalized", tid, %{"ticket_id" => tid, "disposition" => "cancelled"}},
-      # Never proposed before. R4's cancel row is a conditional and this is its other
-      # branch; the kernel accepted it from an empty ticket and produced an integrated
-      # ticket with no attempt at all - blocker B1's headline counterexample, invisible to
-      # a walk that only ever offered the first branch.
-      {"cancellation_finalized", tid,
-       %{"ticket_id" => tid, "disposition" => "after_integration"}},
-      {"launch_planned", tid,
-       %{
-         "ticket_id" => tid,
-         "attempt_id" => next_attempt(tid, ticket),
-         "authority" => authority(tid, "X#{map_size(ticket["attempts"])}", "developer")
-       }}
-    ]
-  end
+  defp ticket_level(tid, ticket),
+    do: Enum.flat_map(@ticket_rows, &propose(&1, {tid, ticket}))
 
   # Everything that names an attempt. The lifecycle rows are proposed against the active
   # attempt, because R4 writes them about the attempt that owns the work - but cleanup is

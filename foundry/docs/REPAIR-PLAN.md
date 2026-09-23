@@ -144,6 +144,12 @@ FR-08–FR-22 change:
 
   1. Drive the reachability prober's proposals from the row table instead of from
      `KernelWalk.candidates/1`, a separate hand-written encoding of the same rows.
+     **Started 2026-09-23:** the objective, admission and ticket-level rows (amend/park,
+     block, resume, reset, cancel, launch) now propose through `R4Rows.present!/1`, so a
+     row deleted from the contract fails every walk and search. The rows still proposed by
+     hand are `KernelWalk.hand_written/0`, the migration checklist; two rows are split
+     across both and pinned as such in `r4_guard_reachability_test`. Payload shapes are
+     still written per row: the table supplies which rows, not their payloads.
   2. Derive each row scenario's **precondition state by search** rather than by a
      hand-built fixture. `KernelSearch` already enumerates every reachable state, so a row
      can state its precondition declaratively and have the path found, instead of a

@@ -18,7 +18,7 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
   """
   use ExUnit.Case, async: true
 
-  alias PramanaFoundry.Test.KernelSearch
+  alias PramanaFoundry.Test.{KernelSearch, KernelWalk, R4Rows}
 
   @depth 7
 
@@ -180,6 +180,27 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
              "#{guard} never fires: the proposer stopped offering the control change or " <>
                "cancel that trips it"
     end
+  end
+
+  # Batch C item 1: the prober's proposals come from the contract's row table, one family
+  # at a time. Every contract row is either proposed from the table or on the hand-written
+  # checklist, and a row split between the two is pinned here so that a second encoding of
+  # the same row cannot appear, or linger, without this test naming it.
+  test "every contract row is proposed from the row table or on the hand-written checklist" do
+    driven = MapSet.new(KernelWalk.row_driven())
+    hand = MapSet.new(Map.keys(KernelWalk.hand_written()))
+
+    assert Enum.sort(MapSet.to_list(MapSet.union(driven, hand))) == Enum.sort(R4Rows.ids())
+
+    split = for {row, "split:" <> _} <- KernelWalk.hand_written(), do: row
+
+    assert Enum.sort(MapSet.to_list(MapSet.intersection(driven, hand))) == Enum.sort(split),
+           "a row is both row-driven and hand-written without a `split:` checklist entry"
+
+    assert Enum.sort(split) == ~w(check_infrastructure_failed nonstart_developer)a
+
+    # Every row-driven handle is checked against the live contract, not the declared list.
+    for row <- driven, do: assert(R4Rows.present!(row) == row)
   end
 
   test "the forged-reference guards are exercised", %{fired: fired} do
