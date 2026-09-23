@@ -5563,3 +5563,14 @@ the tool's known-caught and known-survived controls). Raw output, unedited:
 [ev1-rejudge-968-2026-09-22-raw.txt](fr-08/ev1-rejudge-968-2026-09-22-raw.txt). EV-1 lands as an audit
 tool, not a gate step; the committed script still owes one complete full run.
 
+## B3 contract readings approved — 2026-09-22
+
+The operator accepted all seven recommended readings in
+[the B3 contract readings proposal](fr-08/FR08B-B3-CONTRACT-READINGS-PROPOSAL-2026-09-22.md) as the
+interpretation B3 is built against; the contract text is unchanged. B3's kernel scope is therefore:
+`launch_planned` refuses under pause, drain or the ticket's pending cancel (R4.04.f3); every
+ticket-scoped `*_planned` handler refuses while the ticket's cancel is pending; and tests that a
+non-start can settle and then finalize cancellation per role. The two protected-code items
+(settlement-to-execution/role check at bind time; a proved non-start still settles after a policy
+revision) are scheduled separately because they touch attestation-pinned files.
+
