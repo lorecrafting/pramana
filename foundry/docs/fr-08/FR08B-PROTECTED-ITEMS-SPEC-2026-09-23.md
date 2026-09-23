@@ -87,7 +87,7 @@ fact and is role-free.
 R5's reset is per ledger generation (contract:595-602) while R4.25 is one ticket transition
 granting "eligible units" (contract:488). So `ticket_reset.generation` binds a **non-empty list**
 of `new_generation` facts, one per `reset_generation` in the bundle. The kernel holds no ledger
-ids, so its check is ticket-agnostic: every fact's `generation` equals the payload's. Naming
+ids, so it checks shape and that no dimension repeats; the payload's `generation` is the list itself. Naming
 which ledgers belong to a ticket would need a Core convention that does not exist, and is not
 added here.
 
@@ -100,6 +100,12 @@ it. Fixed with `unconditional_v1`: exactly one alternative, named `"unconditiona
 Gateway without derivation and reconstructed as itself on revalidation. Item 1's
 `attempt_settled` plans use it too. Built at the commit that follows this note, with an
 end-to-end ticket reset through Gateway.
+
+**Implementation review 2026-09-23 (Fable): BLOCK, fixed.** `unconditional_v1` could bind a
+non-start settlement, letting a controller commit the below-limit branch past the limit;
+`validate/1` now refuses a non-start binding unless the plan uses `infrastructure_limit_v1`.
+Also fixed: list-slot bindings must name distinct operations; `close_attempt` filters its
+effects by scope as well as ticket and attempt.
 
 ## Item 3 — settlement binds the execution it closes (B3 item 4)
 

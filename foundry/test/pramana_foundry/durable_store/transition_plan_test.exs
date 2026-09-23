@@ -775,6 +775,35 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
                })
     end
 
+    # Review of 03aff5db, blocker: an unconditional plan binding a non-start settlement let
+    # the controller pick the below-limit branch past the limit.
+    test "a non-start settlement cannot be bound by an unconditional plan" do
+      [below | _] = plan()["alternatives"]
+
+      bypass =
+        plan(%{
+          "discriminator_kind" => "unconditional_v1",
+          "alternatives" => [%{below | "discriminator" => "unconditional"}]
+        })
+
+      assert {:error, :nonstart_requires_infrastructure_discriminator} =
+               TransitionPlan.validate(bypass)
+
+      assert {:error, :nonstart_requires_infrastructure_discriminator} =
+               TransitionPlan.bind(bypass, "unconditional", [staged()])
+    end
+
+    test "two list-slot bindings from one operation are refused" do
+      plan = reset_plan(fn m -> [m.("starts"), m.("requests")] end)
+
+      plan =
+        update_in(plan["bindings"], fn bs ->
+          Enum.map(bs, &Map.put(&1, "operation_ordinal", 0))
+        end)
+
+      assert {:error, :list_slot_operation_repeated} = TransitionPlan.validate(plan)
+    end
+
     test "both dimensions' reset facts land in the one ticket_reset" do
       plan = reset_plan(fn m -> [m.("starts"), m.("requests")] end)
 

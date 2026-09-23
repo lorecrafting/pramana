@@ -1561,7 +1561,13 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- identities(operation, ~w(scope ticket_id attempt_id)),
          true <- operation["scope"] == "ticket:" <> operation["ticket_id"],
          :ok <- attempt_open(conn, operation["ticket_id"], operation["attempt_id"]),
-         {:ok, effects} <- attempt_effects(conn, operation["ticket_id"], operation["attempt_id"]),
+         {:ok, effects} <-
+           attempt_effects(
+             conn,
+             operation["scope"],
+             operation["ticket_id"],
+             operation["attempt_id"]
+           ),
          true <- Enum.all?(effects, &(&1.status in @closed_effect_statuses)),
          {:ok, reservations} <- attempt_reservations(conn, effects),
          true <- Enum.all?(reservations, &(&1.status in @closed_reservation_statuses)),
@@ -2164,7 +2170,12 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp operation_read_keys(conn, "close_attempt", op) do
     with {:ok, effects} <-
-           attempt_effects(conn, to_string(op["ticket_id"]), to_string(op["attempt_id"])) do
+           attempt_effects(
+             conn,
+             to_string(op["scope"]),
+             to_string(op["ticket_id"]),
+             to_string(op["attempt_id"])
+           ) do
       {:ok,
        [closure_key(op["ticket_id"], op["attempt_id"])] ++
          Enum.map(effects, &("effect/" <> &1.effect_id)) ++
@@ -3310,12 +3321,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
-  defp attempt_effects(conn, ticket_id, attempt_id) do
+  # Filtered by scope as well, so if an objective scope becomes admissible (O0 U9) a
+  # ticket closure cannot silently widen over it (review of 03aff5db).
+  defp attempt_effects(conn, scope, ticket_id, attempt_id) do
     with {:ok, rows} <-
            Database.query(
              conn,
-             "SELECT effect_id FROM root_effects WHERE ticket_id = ? AND attempt_id = ? ORDER BY effect_id",
-             [ticket_id, attempt_id]
+             "SELECT effect_id FROM root_effects WHERE scope = ? AND ticket_id = ? AND attempt_id = ? ORDER BY effect_id",
+             [scope, ticket_id, attempt_id]
            ) do
       Enum.reduce_while(rows, {:ok, []}, fn [id], {:ok, acc} ->
         case load_effect(conn, id) do

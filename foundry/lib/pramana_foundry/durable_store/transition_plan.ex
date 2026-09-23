@@ -114,6 +114,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
          :ok <- validate_domain_reads(plan["domain_reads"]),
          :ok <- validate_operations(plan["protected_operations"]),
          :ok <- validate_bindings(plan["bindings"], plan["protected_operations"]),
+         :ok <- validate_binding_discriminator(plan),
          :ok <- validate_alternatives(plan) do
       {:ok, plan}
     else
@@ -360,6 +361,35 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   end
 
   defp validate_bindings(_bindings, _operations), do: {:error, :invalid_plan_bindings}
+
+  # A non-start settlement's branch is Core's choice (R4a's bounded retry), so a plan that
+  # binds one must let the protected layer derive it. Without this, unconditional_v1 let a
+  # controller commit the below-limit branch past the limit (review of 03aff5db).
+  # A list slot's elements must come from distinct operations, or one fact is bound twice.
+  defp validate_binding_discriminator(%{"disposition" => disposition})
+       when disposition != "accepted",
+       do: :ok
+
+  defp validate_binding_discriminator(plan) do
+    kinds = Enum.map(plan["bindings"], & &1["output_kind"])
+
+    list_ordinals =
+      for binding <- plan["bindings"],
+          binding["destination_slot"] in @list_slots,
+          do: {binding["destination_slot"], binding["operation_ordinal"]}
+
+    cond do
+      "nonstart_settlement_v1" in kinds and
+          plan["discriminator_kind"] != "infrastructure_limit_v1" ->
+        {:error, :nonstart_requires_infrastructure_discriminator}
+
+      not unique?(list_ordinals) ->
+        {:error, :list_slot_operation_repeated}
+
+      true ->
+        :ok
+    end
+  end
 
   defp slot_accepts?(name, output_kind) do
     case Map.fetch(@slots, name) do
