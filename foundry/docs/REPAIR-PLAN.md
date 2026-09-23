@@ -129,6 +129,18 @@ acceptance paragraph or F01–F24 obligation; it states which finish line is cur
 worked toward. Reaching it means Batch C and then Batch D below. The second finish line
 remains the only one that can close the backlog.
 
+<a id="dogfood-gate-amendment"></a>
+**Amended 2026-09-23 (operator, decisions M1–M5 of
+[dogfood readiness](DOGFOOD-READINESS-2026-09-23.md#decisions-for-the-operator)):**
+- **M1.** The dogfood alpha requires FR-08B subcommits 2 and 3 (reviewer only) plus Batch D's
+  thin manual lane (T3–T7), not all of Batch C. Batch C stays required for the full finish line.
+- **M2.** FR-10's dependency on FR-09, and FR-09's on FR-15aB, apply to the full lane only. The
+  manual lane launches nothing, so it needs neither.
+- **M3.** Subcommit 3 (reviewer) is reviewed without waiting for subcommit 4.
+- **M4.** Risks A1–A6 are accepted for the thin lane as named there. A3 is narrowed by the Core
+  reviewer-independence check over recorded principals (FR-08B, 2026-09-23).
+- **M5.** Dogfooding Foundry on Foundry is not a ROADMAP G0 product build.
+
 Use coherent batches to reach those milestones without creating one unreviewable
 FR-08–FR-22 change:
 

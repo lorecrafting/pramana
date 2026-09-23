@@ -1,6 +1,12 @@
 # Dogfood readiness and the shortest safe path
 
-**Date:** 2026-09-23. **Type:** PROPOSAL, not approved. It changes no ticket, dependency,
+> **Status, later on 2026-09-23:** M1–M5 **approved by the operator**, recorded as a
+> [plan amendment](REPAIR-PLAN.md#dogfood-gate-amendment). T1 (subcommit 2) and T2
+> (subcommit 3, reviewer, with Core reviewer independence) have landed and passed Fable
+> review with their fixes applied (gate green at `8ed8d233`). §0's "no code has landed" is
+> superseded. Next: Batch D (T3–T7).
+
+**Date:** 2026-09-23. **Type:** PROPOSAL; its decisions M1–M5 are now approved. It changes no ticket, dependency,
 contract or code. **Taken at `33395c92`** (`repair/fr08b-kernel`). Line numbers are at that
 commit and will drift. Paths under `lib/` are relative to `foundry/lib/pramana_foundry/`.
 
