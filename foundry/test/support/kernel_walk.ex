@@ -308,7 +308,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
   defp open_execution?(ticket) do
     Enum.any?(ticket["attempts"], fn {_id, attempt} ->
       Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-        execution["lifecycle"] != "closed"
+        execution.lifecycle != "closed"
       end)
     end)
   end
@@ -690,7 +690,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
     # coverage assertion reported as a missing contract row rather than a weak prober.
     integration_id =
       executions
-      |> Enum.find(fn {_id, execution} -> execution["role"] == "integration" end)
+      |> Enum.find(fn {_id, execution} -> execution.role == "integration" end)
       |> case do
         {found, _execution} -> found
         nil -> "I0"
@@ -729,7 +729,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
     for {attempt_id, attempt} <- ticket["attempts"],
         attempt_id != ticket["active_attempt_id"],
         {execution_id, execution} <- attempt["executions"] || %{},
-        execution["lifecycle"] != "closed",
+        execution.lifecycle != "closed",
         {type, payload} <-
           [
             {"worker_closed",
@@ -855,7 +855,7 @@ defmodule PramanaFoundry.Test.KernelWalk do
   defp role_execution(attempt, role) do
     attempt["executions"]
     |> Enum.find(fn {_id, execution} ->
-      execution["role"] == role and execution["lifecycle"] != "closed"
+      execution.role == role and execution.lifecycle != "closed"
     end)
     |> case do
       {id, _execution} -> id

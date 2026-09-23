@@ -5,12 +5,13 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Dispositions do
   """
 
   import PramanaFoundry.Workflow.Kernel.Cancellation, only: [require_cancel_requested: 1]
+  import PramanaFoundry.Workflow.Kernel.Executions, only: [executions: 1]
 
   import PramanaFoundry.Workflow.Kernel.Shared,
     only: [active_attempt: 1, require_active_attempt: 2, require_attempt_phase: 2]
 
   import PramanaFoundry.Workflow.Kernel.Software.Developer, only: [seal_developer_result: 3]
-  alias PramanaFoundry.Workflow.Kernel.State
+  alias PramanaFoundry.Workflow.Kernel.{Execution, State}
 
   # R4: "Attempt disposition | Set once on terminal". The single terminalising event: it
   # seals the active attempt, moves it to prior_attempt_ids so its executions, candidate
@@ -249,8 +250,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Dispositions do
 
   defp integration_issued?(attempt),
     do:
-      Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "integration" and execution["lifecycle"] in @issued_lifecycles
+      Elixir.Enum.any?(executions(attempt), fn {_id, %Execution{} = execution} ->
+        execution.role == "integration" and execution.lifecycle in @issued_lifecycles
       end)
 
   # R4 row 12 is "checking; **actual check assertion fails**", and its outcome is terminal.
@@ -266,8 +267,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Dispositions do
 
   defp require_developer_result(attempt, results) do
     sealed? =
-      Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "developer" and execution["result"] in results
+      Elixir.Enum.any?(executions(attempt), fn {_id, %Execution{} = execution} ->
+        execution.role == "developer" and execution.result in results
       end)
 
     if sealed?, do: :ok, else: {:error, :no_blocked_result}
@@ -287,9 +288,9 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Dispositions do
   # non-start path, broken on the ordinary path.
   defp require_developer_stream_sealed(attempt) do
     exited? =
-      Elixir.Enum.any?(attempt["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "developer" and is_integer(execution["sealed_sequence"]) and
-          execution["lifecycle"] == "closed"
+      Elixir.Enum.any?(executions(attempt), fn {_id, %Execution{} = execution} ->
+        execution.role == "developer" and is_integer(execution.sealed_sequence) and
+          execution.lifecycle == "closed"
       end)
 
     if exited?, do: :ok, else: {:error, :exit_not_verified}

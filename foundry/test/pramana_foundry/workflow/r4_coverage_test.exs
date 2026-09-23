@@ -1072,8 +1072,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # R4.04.o3 places the intent before any start unit is consumed. Asserting `!= "closed"`
     # would be weaker in the wrong direction - it would accept an intent already running.
     intent = ticket["attempts"]["A1"]["executions"]["X1"]
-    assert intent["role"] == "developer"
-    assert intent["lifecycle"] == "pending"
+    assert intent.role == "developer"
+    assert intent.lifecycle == "pending"
     :driven
   end
 
@@ -1125,7 +1125,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # attempt failure."
     assert attempt["candidate_id"] == "cand-1"
     assert attempt["phase"] == "candidate_frozen"
-    assert attempt["executions"]["X1"]["lifecycle"] == "closing"
+    assert attempt["executions"]["X1"].lifecycle == "closing"
 
     # "No new developer and **no attempt failure**". R4 gives candidate_frozen only this
     # cleanup row, so exhaustion has no source here - and exhaustion is the one disposition
@@ -1179,7 +1179,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["attempts"]["A1"]["disposition"] == "failed"
     assert ticket["phase"] == "queued"
     # R4's "Execution result" entity state: a sealed stream with no candidate is `none`.
-    assert ticket["attempts"]["A1"]["executions"]["X1"]["result"] == "none"
+    assert ticket["attempts"]["A1"]["executions"]["X1"].result == "none"
 
     # "verified exit/timeout", stated as the refusal. A sealed stream alone is not a
     # verified exit, and settling on one synthesizes a failure for a developer that may
@@ -1256,7 +1256,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # "Terminal blocked attempt, blocked ticket; close developer, no review."
     assert ticket["attempts"]["A1"]["disposition"] == "blocked"
     assert ticket["phase"] == "blocked"
-    assert ticket["attempts"]["A1"]["executions"]["X1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["X1"].lifecycle == "closed"
 
     # The row is "valid blocked/partial **result**". Without one there is no blocked
     # attempt to seal, and settling anyway left the ticket developing with no active
@@ -1342,7 +1342,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
     ticket = exhausted["tickets"]["T1"]
     assert ticket["phase"] == "exhausted"
-    assert ticket["attempts"]["A1"]["executions"]["X1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["X1"].lifecycle == "closed"
     :driven
   end
 
@@ -1414,7 +1414,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # close ... failed candidate never goes to approval."
     assert ticket["attempts"]["A1"]["disposition"] == "needs_correction"
     assert ticket["phase"] == "queued"
-    assert ticket["attempts"]["A1"]["executions"]["K1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["K1"].lifecycle == "closed"
 
     # "failed candidate never goes to approval" - stated as a refusal, since that is what
     # the clause is.
@@ -1620,8 +1620,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # execution with its own id and role, and nothing checked one existed. `pending` is the
     # contract's lifecycle value (WORKFLOW-CONTRACT.md:390), as for R4.04.o2.
     launch = ticket["attempts"]["A1"]["executions"]["R1"]
-    assert launch["role"] == "reviewer"
-    assert launch["lifecycle"] == "pending"
+    assert launch.role == "reviewer"
+    assert launch.lifecycle == "pending"
     :driven
   end
 
@@ -1630,7 +1630,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ticket = state["tickets"]["T1"]
     # "Close/seal reviewer; after verified close ready_to_integrate."
     assert ticket["phase"] == "ready_to_integrate"
-    assert ticket["attempts"]["A1"]["executions"]["R1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["R1"].lifecycle == "closed"
     :driven
   end
 
@@ -1652,7 +1652,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ticket = state["tickets"]["T1"]
     # "Terminal needs_correction attempt; close/seal reviewer, then queued fresh developer."
     assert ticket["attempts"]["A1"]["disposition"] == "needs_correction"
-    assert ticket["attempts"]["A1"]["executions"]["R1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["R1"].lifecycle == "closed"
     assert ticket["phase"] == "queued"
     :driven
   end
@@ -1693,7 +1693,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ticket = state["tickets"]["T1"]
     # "Preserve candidate, close reviewer then bounded new reviewer execution."
     assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
-    assert ticket["attempts"]["A1"]["executions"]["R1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["R1"].lifecycle == "closed"
     assert ticket["phase"] == "awaiting_review"
     assert ticket["attempts"]["A1"]["phase"] == "awaiting_review"
     # The attempt is preserved, not terminalised.
@@ -2038,7 +2038,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["reason"] == "developer_launch_non_started"
     assert ticket["active_attempt_id"] == "A1"
     assert ticket["attempts"]["A1"]["phase"] != "terminal"
-    assert ticket["attempts"]["A1"]["executions"]["X1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["X1"].lifecycle == "closed"
     assert ticket["infrastructure"]["ordinals"]["developer"] == 1
 
     # R4a: a proved non-start "closes **that** execution". A settlement naming another
@@ -2088,9 +2088,9 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
     attempt = resumed["tickets"]["T1"]["attempts"]["A1"]
     assert resumed["tickets"]["T1"]["phase"] == "developing"
-    assert attempt["executions"]["X2"]["lifecycle"] == "pending"
+    assert attempt["executions"]["X2"].lifecycle == "pending"
     # The retained attempt is reused, not replaced, and the old non-start is retained.
-    assert attempt["executions"]["X1"]["lifecycle"] == "closed"
+    assert attempt["executions"]["X1"].lifecycle == "closed"
     assert map_size(resumed["tickets"]["T1"]["attempts"]) == 1
 
     # A second developer may not be launched beside a live one.
@@ -2153,7 +2153,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert ticket["attempts"]["A1"]["phase"] == "awaiting_review"
     assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
     assert ticket["attempts"]["A1"]["checks"]["C1"]["status"] == "passed"
-    assert ticket["attempts"]["A1"]["executions"]["R1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["R1"].lifecycle == "closed"
     assert ticket["attempts"]["A1"]["disposition"] == nil
 
     # "never enter developer retry": the developer's allowance is untouched.
@@ -2216,7 +2216,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # existing infrastructure retry/block row ... infer no successful check receipt."
     assert ticket["attempts"]["A1"]["phase"] == "checking"
     assert ticket["attempts"]["A1"]["candidate_id"] == "cand-1"
-    assert ticket["attempts"]["A1"]["executions"]["K1"]["lifecycle"] == "closed"
+    assert ticket["attempts"]["A1"]["executions"]["K1"].lifecycle == "closed"
     refute Map.has_key?(ticket["attempts"]["A1"]["checks"], "C1")
 
     # "consumes its finite role-specific infrastructure allowance".

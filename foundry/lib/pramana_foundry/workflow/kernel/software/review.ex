@@ -10,6 +10,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
       add_execution: 3,
       close_execution: 4,
       consume_infrastructure_ordinal: 2,
+      execution: 2,
       require_execution: 3,
       require_sealed: 3
     ]
@@ -25,7 +26,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
       update_active_attempt: 2
     ]
 
-  alias PramanaFoundry.Workflow.Kernel.State
+  alias PramanaFoundry.Workflow.Kernel.{Execution, State}
 
   # R4: "awaiting_review; check receipts valid and reviewer capacity available".
   def do_transition("review_planned", ticket, event, _state) do
@@ -185,9 +186,12 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
     attempt = active_attempt(ticket)
     execution_id = attempt["review"]["execution_id"]
 
-    if is_integer(attempt["executions"][execution_id]["sealed_sequence"]),
-      do: :ok,
-      else: {:error, :reviewer_stream_not_sealed}
+    if match?(
+         %Execution{sealed_sequence: sequence} when is_integer(sequence),
+         execution(attempt, execution_id)
+       ),
+       do: :ok,
+       else: {:error, :reviewer_stream_not_sealed}
   end
 
   defp require_review_candidate(ticket, candidate_id) do
@@ -224,11 +228,13 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   # kept because the rule is right, not because it is doing work today.
   defp require_reviewer_open(ticket) do
     review = active_attempt(ticket)["review"] || %{}
-    execution = active_attempt(ticket)["executions"][review["execution_id"]] || %{}
 
-    if execution["lifecycle"] == "closed",
-      do: {:error, :reviewer_already_closed},
-      else: :ok
+    if match?(
+         %Execution{lifecycle: "closed"},
+         execution(active_attempt(ticket), review["execution_id"])
+       ),
+       do: {:error, :reviewer_already_closed},
+       else: :ok
   end
 
   defp require_reviewer_execution(ticket, attempt_id, execution_id) do

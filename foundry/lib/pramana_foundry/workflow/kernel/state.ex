@@ -40,6 +40,8 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   this the sole check on the class rather than one of two.
   """
 
+  alias PramanaFoundry.Workflow.Kernel.Execution
+
   # R4 "Entity | States / terminal boundary".
   @ticket_phases ~w(draft queued developing awaiting_review reviewing ready_to_integrate
                     integrating integrated blocked exhausted rejected cancelled)
@@ -76,7 +78,6 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
   @attempt_keys ~w(attempt_id phase disposition reason_code candidate_id sealed_generation
                    ref_receipt_id executions checks review policy_empty_checks
                    rejected_submissions)
-  @execution_keys ~w(execution_id role lifecycle result sealed_sequence)
   @check_keys ~w(check_id execution_id status reason_code)
   @review_keys ~w(candidate_id verdict execution_id)
 
@@ -115,6 +116,31 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
       "last_sequence" => nil,
       "last_event_id" => nil
     }
+  end
+
+  @doc """
+  The state a JSON round trip of `state` decodes to, rebuilt: every execution back to its
+  `%Execution{}` struct. Everything else in the state is already JSON-shaped, so
+  `state |> JSON.encode!() |> JSON.decode!() |> from_json()` is `state`.
+  """
+  @spec from_json(map()) :: map()
+  def from_json(state) do
+    Map.update!(state, "tickets", fn tickets ->
+      Map.new(tickets, fn {ticket_id, ticket} ->
+        {ticket_id,
+         Map.update!(
+           ticket,
+           "attempts",
+           &Map.new(&1, fn {id, a} -> {id, executions_from_json(a)} end)
+         )}
+      end)
+    end)
+  end
+
+  defp executions_from_json(attempt) do
+    Map.update!(attempt, "executions", fn executions ->
+      Map.new(executions, fn {id, execution} -> {id, Execution.from_map(execution)} end)
+    end)
   end
 
   @spec well_formed?(term()) :: boolean()
@@ -221,7 +247,7 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
       optional_identifier?(attempt["candidate_id"]) and
       optional_identifier?(attempt["sealed_generation"]) and
       optional_identifier?(attempt["ref_receipt_id"]) and
-      valid_collection?(attempt["executions"], "execution_id", &valid_execution?/1) and
+      valid_executions?(attempt["executions"]) and
       valid_collection?(attempt["checks"], "check_id", &valid_check?/1) and
       is_boolean(attempt["policy_empty_checks"]) and
       nonnegative_integer?(attempt["rejected_submissions"]) and
@@ -236,12 +262,20 @@ defmodule PramanaFoundry.Workflow.Kernel.State do
 
   defp valid_disposition?(attempt), do: is_nil(attempt["disposition"])
 
-  defp valid_execution?(execution) do
-    exact_keys?(execution, @execution_keys) and identifier?(execution["execution_id"]) and
-      execution["role"] in @roles and
-      execution["lifecycle"] in @execution_lifecycles and
-      (is_nil(execution["result"]) or execution["result"] in @execution_results) and
-      optional_nonnegative_integer?(execution["sealed_sequence"])
+  defp valid_executions?(executions) do
+    plain_map?(executions) and
+      Enum.all?(executions, fn
+        {key, %Execution{execution_id: key} = e} -> valid_execution?(e)
+        _ -> false
+      end)
+  end
+
+  defp valid_execution?(%Execution{} = execution) do
+    identifier?(execution.execution_id) and
+      execution.role in @roles and
+      execution.lifecycle in @execution_lifecycles and
+      (is_nil(execution.result) or execution.result in @execution_results) and
+      optional_nonnegative_integer?(execution.sealed_sequence)
   end
 
   defp valid_check?(check) do

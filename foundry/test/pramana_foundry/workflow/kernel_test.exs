@@ -1009,7 +1009,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert {:ok, next} = Harness.apply(state, closed)
       assert State.well_formed?(next)
 
-      assert next["tickets"]["T1"]["attempts"]["A1"]["executions"]["R1"]["lifecycle"] ==
+      assert next["tickets"]["T1"]["attempts"]["A1"]["executions"]["R1"].lifecycle ==
                "closed"
     end
 
@@ -1575,7 +1575,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert ticket["active_attempt_id"] == "A1"
       assert ticket["attempts"]["A1"]["phase"] == "active"
       assert ticket["infrastructure"]["ordinals"]["developer"] == 1
-      assert ticket["attempts"]["A1"]["executions"]["X1"]["lifecycle"] == "closed"
+      assert ticket["attempts"]["A1"]["executions"]["X1"].lifecycle == "closed"
     end
 
     test "a reviewer non-start returns the same frozen candidate to awaiting_review" do
@@ -1913,8 +1913,8 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert {:ok, settled} = Harness.apply(state, settle.("K2"))
       attempt = settled["tickets"]["T1"]["attempts"]["A1"]
       assert Map.keys(attempt["checks"]) == ["C1"]
-      assert attempt["executions"]["K1"]["lifecycle"] == "pending"
-      assert attempt["executions"]["K2"]["lifecycle"] == "closed"
+      assert attempt["executions"]["K1"].lifecycle == "pending"
+      assert attempt["executions"]["K2"].lifecycle == "closed"
     end
   end
 
@@ -2221,8 +2221,8 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       # Pinned directly, not only through the settlement: if the fixture stopped producing
       # a closed issuer beside a pending one it would stop exercising the defect and still
       # pass.
-      assert executions["I1"]["lifecycle"] == "closed"
-      assert executions["I2"]["lifecycle"] == "pending"
+      assert executions["I1"].lifecycle == "closed"
+      assert executions["I2"].lifecycle == "pending"
 
       settle =
         event("attempt_settled", "T1", retrying["tickets"]["T1"]["revision"], sequence + 1, %{
@@ -2264,7 +2264,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
 
       attempt = get_in(closed, ["tickets", "T1", "attempts", "A1"])
 
-      assert attempt["executions"]["I1"]["lifecycle"] == "closed"
+      assert attempt["executions"]["I1"].lifecycle == "closed"
       assert attempt["ref_receipt_id"] == "ref-1"
       assert attempt["phase"] == "integrating"
 

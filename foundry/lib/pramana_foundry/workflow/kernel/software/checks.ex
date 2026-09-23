@@ -7,7 +7,12 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
     only: [require_boolean: 1, require_no_pending_cancel: 1]
 
   import PramanaFoundry.Workflow.Kernel.Executions,
-    only: [add_execution: 3, close_execution: 4, consume_infrastructure_ordinal: 2]
+    only: [
+      add_execution: 3,
+      close_execution: 4,
+      consume_infrastructure_ordinal: 2,
+      executions: 1
+    ]
 
   import PramanaFoundry.Workflow.Kernel.Shared,
     only: [
@@ -18,7 +23,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
       update_active_attempt: 2
     ]
 
-  alias PramanaFoundry.Workflow.Kernel.State
+  alias PramanaFoundry.Workflow.Kernel.{Execution, State}
 
   # R4: "candidate_frozen; developer closed, check capacity eligible" — checking attempt,
   # awaiting_review ticket, immutable candidate retained. Requiring developer closure is
@@ -198,13 +203,17 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Checks do
   # R4 row 11 requires developer closure before checks. "Closed" means the execution
   # lifecycle says so, not that an observation mentioned an exit.
   defp require_developer_closed(ticket) do
-    executions = active_attempt(ticket)["executions"] || %{}
+    executions = executions(active_attempt(ticket))
 
     developer =
-      Elixir.Enum.filter(executions, fn {_id, execution} -> execution["role"] == "developer" end)
+      Elixir.Enum.filter(executions, fn {_id, %Execution{} = execution} ->
+        execution.role == "developer"
+      end)
 
     if developer != [] and
-         Elixir.Enum.all?(developer, fn {_id, execution} -> execution["lifecycle"] == "closed" end),
+         Elixir.Enum.all?(developer, fn {_id, %Execution{} = execution} ->
+           execution.lifecycle == "closed"
+         end),
        do: :ok,
        else: {:error, :developer_not_closed}
   end

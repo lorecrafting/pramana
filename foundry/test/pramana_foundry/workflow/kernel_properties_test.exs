@@ -11,7 +11,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
 
   alias PramanaFoundry.Test.KernelWalk
   alias PramanaFoundry.Test.Harness
-  alias PramanaFoundry.Workflow.Kernel.{Event, State}
+  alias PramanaFoundry.Workflow.Kernel.{Event, Execution, State}
 
   @seeds 1..40
   @steps 600
@@ -126,7 +126,7 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
         {before, rest} = Enum.split(walk.accepted, split)
 
         mid = Enum.reduce(before, State.new(), fn e, s -> elem(Harness.apply(s, e), 1) end)
-        restarted = mid |> JSON.encode!() |> JSON.decode!()
+        restarted = mid |> JSON.encode!() |> JSON.decode!() |> State.from_json()
 
         assert restarted == mid, "state did not survive a JSON round trip"
 
@@ -134,6 +134,41 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
           Enum.reduce(rest, restarted, fn e, s -> elem(Harness.apply(s, e), 1) end)
 
         assert resumed == walk.state
+      end
+    end
+
+    # The execution is a struct in memory and the only non-JSON value in the state, so its
+    # conversion is stated here rather than trusted to the round trip above: the wire form
+    # is the string-keyed map the struct replaced, a decode that skips `from_json/1` is not
+    # a state the kernel accepts, and a decoded execution with any other key set raises.
+    test "an execution serialises under its canonical string keys", %{walks: walks} do
+      {decoded, executions} =
+        walks
+        |> Enum.map(fn walk ->
+          decoded = walk.state |> JSON.encode!() |> JSON.decode!()
+
+          executions =
+            for {_tid, ticket} <- decoded["tickets"],
+                {_aid, attempt} <- ticket["attempts"],
+                {_eid, execution} <- attempt["executions"],
+                do: execution
+
+          {decoded, executions}
+        end)
+        |> Enum.find(fn {_decoded, executions} -> executions != [] end)
+
+      for execution <- executions,
+          do:
+            assert(
+              Map.keys(execution) ==
+                Enum.sort(~w(execution_id role lifecycle result sealed_sequence))
+            )
+
+      refute State.well_formed?(decoded)
+      assert State.well_formed?(State.from_json(decoded))
+
+      assert_raise FunctionClauseError, fn ->
+        Execution.from_map(Map.put(hd(executions), "lifecyle", "closed"))
       end
     end
 
@@ -159,8 +194,8 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
                 attempt = ticket["attempts"][event["payload"]["attempt_id"]]
                 execution = attempt["executions"][event["payload"]["execution_id"]]
 
-                assert execution["lifecycle"] == "closed",
-                       "#{event["type"]} left its execution #{execution["lifecycle"]}"
+                assert execution.lifecycle == "closed",
+                       "#{event["type"]} left its execution #{execution.lifecycle}"
 
                 assert ticket["phase"] not in ~w(integrated rejected cancelled),
                        "#{event["type"]} left the ticket terminal at #{ticket["phase"]}"

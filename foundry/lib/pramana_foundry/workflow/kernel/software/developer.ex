@@ -4,6 +4,10 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   result, freeze failure, rejected submission - and its write-once sealed result.
   """
 
+  alias PramanaFoundry.Workflow.Kernel.Execution
+
+  import PramanaFoundry.Workflow.Kernel.Executions, only: [executions: 1]
+
   import PramanaFoundry.Workflow.Kernel.Shared,
     only: [
       active_attempt: 1,
@@ -111,16 +115,16 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   # unproduced output kinds, one level up. Each submission-evidence row seals the
   # developer execution's result, and the seal is write-once because R4 says so.
   def seal_developer_result(ticket, attempt_id, result) do
-    executions = attempt(ticket, attempt_id)["executions"] || %{}
+    executions = executions(attempt(ticket, attempt_id))
 
-    case Elixir.Enum.find(executions, fn {_id, execution} ->
-           execution["role"] == "developer" and is_nil(execution["result"])
+    case Elixir.Enum.find(executions, fn {_id, %Execution{} = execution} ->
+           execution.role == "developer" and is_nil(execution.result)
          end) do
       {execution_id, _execution} ->
         update_attempt(
           ticket,
           attempt_id,
-          &put_in(&1, ["executions", execution_id, "result"], result)
+          fn a -> update_in(a, ["executions", execution_id], &%{&1 | result: result}) end
         )
 
       nil ->
@@ -134,9 +138,9 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   # either.
   defp require_open_submission_stream(ticket) do
     open? =
-      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] in ~w(developer reviewer) and is_nil(execution["sealed_sequence"]) and
-          execution["lifecycle"] != "closed"
+      Elixir.Enum.any?(executions(active_attempt(ticket)), fn {_id, %Execution{} = execution} ->
+        execution.role in ~w(developer reviewer) and is_nil(execution.sealed_sequence) and
+          execution.lifecycle != "closed"
       end)
 
     if open?, do: :ok, else: {:error, :submission_stream_sealed}
@@ -147,8 +151,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   # developing could freeze a candidate with no developer execution open at all.
   defp require_running_developer(ticket) do
     running? =
-      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "developer" and execution["lifecycle"] != "closed"
+      Elixir.Enum.any?(executions(active_attempt(ticket)), fn {_id, %Execution{} = execution} ->
+        execution.role == "developer" and execution.lifecycle != "closed"
       end)
 
     if running?, do: :ok, else: {:error, :no_running_developer}

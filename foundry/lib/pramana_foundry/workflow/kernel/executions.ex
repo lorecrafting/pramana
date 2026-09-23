@@ -18,7 +18,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
       update_attempt: 3
     ]
 
-  alias PramanaFoundry.Workflow.Kernel.State
+  alias PramanaFoundry.Workflow.Kernel.{Execution, State}
 
   # R4: "queued; dependencies/resources/profile/reservation eligible; no pause/drain/cancel"
   # — a fresh attempt unless R4a retained a resumable one, then its launch intent, then
@@ -69,11 +69,9 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
          :ok <- require_open_lifecycle(payload["lifecycle"]) do
       {:ok,
        update_attempt(ticket, payload["attempt_id"], fn attempt ->
-         put_in(
-           attempt,
-           ["executions", payload["execution_id"], "lifecycle"],
-           payload["lifecycle"]
-         )
+         update_in(attempt, ["executions", payload["execution_id"]], fn %Execution{} = e ->
+           %{e | lifecycle: payload["lifecycle"]}
+         end)
        end)}
     end
   end
@@ -88,11 +86,9 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
          :ok <- require_unsealed(ticket, payload["attempt_id"], payload["execution_id"]) do
       {:ok,
        update_attempt(ticket, payload["attempt_id"], fn attempt ->
-         put_in(
-           attempt,
-           ["executions", payload["execution_id"], "sealed_sequence"],
-           payload["last_accepted_sequence"]
-         )
+         update_in(attempt, ["executions", payload["execution_id"]], fn %Execution{} = e ->
+           %{e | sealed_sequence: payload["last_accepted_sequence"]}
+         end)
        end)}
     end
   end
@@ -197,12 +193,12 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
         {:error, :execution_already_exists}
 
       true ->
-        execution = %{
-          "execution_id" => execution_id,
-          "role" => role,
-          "lifecycle" => "pending",
-          "result" => nil,
-          "sealed_sequence" => nil
+        execution = %Execution{
+          execution_id: execution_id,
+          role: role,
+          lifecycle: "pending",
+          result: nil,
+          sealed_sequence: nil
         }
 
         {:ok, update_active_attempt(ticket, &put_in(&1, ["executions", execution_id], execution))}
@@ -222,7 +218,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
        update_attempt(
          ticket,
          attempt_id,
-         &put_in(&1, ["executions", execution_id, "lifecycle"], "closed")
+         fn a -> update_in(a, ["executions", execution_id], &%{&1 | lifecycle: "closed"}) end
        )}
     end
   end
@@ -243,28 +239,43 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
   # the rule is shared, so it can no longer be changed in one place and not the other.
   def open_executions(ticket) do
     for {_aid, attempt} <- ticket["attempts"],
-        {execution_id, execution} <- attempt["executions"] || %{},
-        execution["lifecycle"] != "closed",
+        {execution_id, %Execution{} = execution} <- executions(attempt),
+        execution.lifecycle != "closed",
         do: execution_id
   end
 
+  @doc "An attempt's executions, keyed by execution id. Empty for an absent attempt."
+  @spec executions(map()) :: %{optional(String.t()) => Execution.t()}
+  def executions(attempt), do: attempt["executions"] || %{}
+
+  @doc "One execution of an attempt, or nil. Bind the result as `%Execution{}` to read it."
+  @spec execution(map(), term()) :: Execution.t() | nil
+  def execution(attempt, execution_id), do: executions(attempt)[execution_id]
+
   def require_execution(ticket, attempt_id, execution_id),
     do:
-      if(Map.has_key?(attempt(ticket, attempt_id)["executions"] || %{}, execution_id),
+      if(Map.has_key?(executions(attempt(ticket, attempt_id)), execution_id),
         do: :ok,
         else: {:error, :unknown_execution}
       )
 
   def require_sealed(ticket, attempt_id, execution_id) do
-    if is_integer(attempt(ticket, attempt_id)["executions"][execution_id]["sealed_sequence"]),
-      do: :ok,
-      else: {:error, :stream_not_sealed}
+    if match?(
+         %Execution{sealed_sequence: sequence} when is_integer(sequence),
+         execution(attempt(ticket, attempt_id), execution_id)
+       ),
+       do: :ok,
+       else: {:error, :stream_not_sealed}
   end
 
   defp require_unsealed(ticket, attempt_id, execution_id) do
-    if is_nil(attempt(ticket, attempt_id)["executions"][execution_id]["sealed_sequence"]),
-      do: :ok,
-      else: {:error, :stream_already_sealed}
+    case execution(attempt(ticket, attempt_id), execution_id) do
+      %Execution{sealed_sequence: sequence} when not is_nil(sequence) ->
+        {:error, :stream_already_sealed}
+
+      _absent_or_unsealed ->
+        :ok
+    end
   end
 
   # R4a binds every settlement and closure to the execution it names: "Close **only the
@@ -273,9 +284,13 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
   # leak the reviewer's. The binding is therefore one rule over the vocabulary rather than
   # a guard attached to whichever event a walk happened to reach.
   defp require_execution_role(ticket, attempt_id, execution_id, roles) do
-    if attempt(ticket, attempt_id)["executions"][execution_id]["role"] in roles,
-      do: :ok,
-      else: {:error, :wrong_execution_role}
+    role =
+      case execution(attempt(ticket, attempt_id), execution_id) do
+        %Execution{role: role} -> role
+        nil -> nil
+      end
+
+    if role in roles, do: :ok, else: {:error, :wrong_execution_role}
   end
 
   # R4a returns a developer non-start to `queued` with `resume_phase: developing` and keeps
@@ -287,8 +302,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
   # stops a second developer being launched beside a live one.
   defp require_no_open_developer(ticket) do
     open? =
-      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "developer" and execution["lifecycle"] != "closed"
+      Elixir.Enum.any?(executions(active_attempt(ticket)), fn {_id, %Execution{} = execution} ->
+        execution.role == "developer" and execution.lifecycle != "closed"
       end)
 
     if open?, do: {:error, :developer_already_running}, else: :ok
@@ -314,9 +329,12 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
   # be falsified after the fact. Found by a seeded reachability walk, which kept arriving
   # at `integrating` with a developer and reviewer execution back in `running`.
   defp require_not_closed(ticket, attempt_id, execution_id) do
-    if attempt(ticket, attempt_id)["executions"][execution_id]["lifecycle"] == "closed",
-      do: {:error, :execution_already_closed},
-      else: :ok
+    if match?(
+         %Execution{lifecycle: "closed"},
+         execution(attempt(ticket, attempt_id), execution_id)
+       ),
+       do: {:error, :execution_already_closed},
+       else: :ok
   end
 
   # R4: "closed requires verified process/session termination or proved non-start". An

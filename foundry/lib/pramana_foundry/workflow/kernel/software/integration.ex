@@ -3,6 +3,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Integration do
   Software workflow: integration planning, non-start settlement and ref receipt.
   """
 
+  alias PramanaFoundry.Workflow.Kernel.Execution
+
   import PramanaFoundry.Workflow.Kernel.Control, only: [require_no_pending_cancel: 1]
 
   import PramanaFoundry.Workflow.Kernel.Executions,
@@ -10,6 +12,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Integration do
       add_execution: 3,
       close_execution: 4,
       consume_infrastructure_ordinal: 2,
+      executions: 1,
       require_execution: 3
     ]
 
@@ -134,8 +137,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Integration do
   # is closed; from ready_to_integrate there is no previous issuer to terminate.
   defp require_issuer_terminated(ticket) do
     open? =
-      Elixir.Enum.any?(active_attempt(ticket)["executions"] || %{}, fn {_id, execution} ->
-        execution["role"] == "integration" and execution["lifecycle"] != "closed"
+      Elixir.Enum.any?(executions(active_attempt(ticket)), fn {_id, %Execution{} = execution} ->
+        execution.role == "integration" and execution.lifecycle != "closed"
       end)
 
     if open?, do: {:error, :issuer_not_terminated}, else: :ok
@@ -143,11 +146,11 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Integration do
 
   # R4: "successful ref receipt and prior role/check workers closed".
   defp require_workers_closed(ticket) do
-    executions = active_attempt(ticket)["executions"] || %{}
+    executions = executions(active_attempt(ticket))
 
     closed? =
-      Elixir.Enum.all?(executions, fn {_id, execution} ->
-        execution["role"] == "integration" or execution["lifecycle"] == "closed"
+      Elixir.Enum.all?(executions, fn {_id, %Execution{} = execution} ->
+        execution.role == "integration" or execution.lifecycle == "closed"
       end)
 
     if closed?, do: :ok, else: {:error, :workers_not_closed}
