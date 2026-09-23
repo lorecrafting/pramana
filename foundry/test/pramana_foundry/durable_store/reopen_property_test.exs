@@ -6,8 +6,8 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
   #
   # FOUNDRY_REOPEN_RUNS (default 150) sets the number of sequences, FOUNDRY_REOPEN_SEED (default 1)
   # the base seed; sequence i uses seed base + i, so a printed seed replays alone with RUNS=1.
-  # FOUNDRY_REOPEN_STATS=1 prints outcomes per operation type; FOUNDRY_REOPEN_LIVE=1 also fails
-  # a refused command that drops the live gateway into recovery.
+  # FOUNDRY_REOPEN_STATS=1 prints outcomes per operation type. A command that drops the live
+  # gateway into recovery also fails the sequence.
   #
   # Red at d0cc0037 on two unfixed findings (seeds 49 and 56): reset_generation of a root ledger
   # that has delegated to a child, and create_effect after an owned proposed reservation was
@@ -393,8 +393,8 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
     end
   end
 
-  # Accepted or refused does not matter; only the next reopen's verdict does.
-  defp run(gw, path, capability, op, i) do
+  # Accepted or refused does not matter while the gateway stays live; the next reopen decides.
+  defp run(gw, _path, capability, op, i) do
     op = resolve(gw, capability, op)
 
     result =
@@ -408,19 +408,11 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
 
     tally(op["type"], result)
 
-    cond do
-      not match?({:error, {:storage_unavailable, _}}, result) ->
-        {:cont, {:ok, gw}}
-
-      # FOUNDRY_REOPEN_LIVE=1 also fails when a refused command drops the live gateway into
-      # recovery; three such refusals were found on 2026-09-23.
-      System.get_env("FOUNDRY_REOPEN_LIVE") == "1" ->
-        {:halt, {:live_recovery_at, i, result}}
-
-      # Otherwise reopen, so the sequence keeps exploring past it.
-      true ->
-        reopen(gw, path, capability, i)
-    end
+    # A command that drops the live gateway into recovery fails the sequence; four such
+    # refusals were fixed on 2026-09-23 (live_refusal_probe_test.exs).
+    if match?({:error, {:storage_unavailable, _}}, result),
+      do: {:halt, {:live_recovery_at, i, result}},
+      else: {:cont, {:ok, gw}}
   catch
     :exit, reason -> {:halt, {:gateway_exit_at, i, reason}}
   end
