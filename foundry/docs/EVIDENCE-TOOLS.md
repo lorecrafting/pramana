@@ -72,9 +72,13 @@ ran once in full; the committed version has not completed a full run. See the IM
 entry of that date for which run used which version, its verdicts and its answer-key diff.
 It is **still an audit, not a gate step**: every site is evaluated inside a `setup_all` search, so
 any trial the cheap suites cannot decide still pays for whole searches, and the one full run took
-3,434 s on 2 workers. It uses its own roots under `/private/tmp/ev1-*` and no sentinel, since it
-never writes the repository — but it still writes mutants to disk, and killing it orphans its
-`mix test` children.
+3,434 s on 2 workers. It uses its own roots under `/private/tmp/ev1-*` and never writes the
+repository. It holds its own lock, `/private/tmp/ev1-coverage-sweep.lock` (not the old sweep's sentinel; `bin/preflight.sh` does
+not read it), so a second run refuses instead of deleting the first one's roots. Every exit it
+controls releases the lock, including a mistyped `EV1_SITES`. Stop it with SIGTERM (`kill <pid>`):
+that also kills its running `mix test` children. Ctrl-C and SIGKILL cannot be trapped and leave both
+the lock and the children behind; the refusal message says what to check before deleting the lock.
+`EV1_SITES` takes a call text (every site with it) or a full label, `<text> :<line>` (that one site).
 
 Gotchas, each of which has cost real work:
 

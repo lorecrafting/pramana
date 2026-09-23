@@ -4,8 +4,8 @@
 # the tests per trial. Two phases, per docs/COVERAGE-GUIDED-SWEEP.md:
 #
 #   1. MAP. One instrumented run of the workflow suites. Every `require_*(` call site is
-#      wrapped in `PramanaFoundry.EV1Probe.hit(site, <call>)`, which records the site in an
-#      ETS table; an injected `setup` snapshots the table around every test. Result: site ->
+#      prefixed with `(PramanaFoundry.EV1Probe.hit(site); <call>)`, which records the site in
+#      an ETS table BEFORE the call runs, so a call that raises is still attributed; an injected `setup` snapshots the table around every test. Result: site ->
 #      the tests that evaluated it. Hits that land between tests belong to a `setup_all`
 #      and go to every test of the module that owns it.
 #   2. TRIAL. Each site is neutralised (`:ok` spliced over the call, exactly as the old
@@ -38,10 +38,14 @@
 #
 #   cd foundry && TMPDIR=/private/tmp elixir bin/coverage_guided_sweep.exs
 #   EV1_WORKERS=<n>     parallel trial workers (default 2)
-#   EV1_SITES=<file>    only these call texts, one per line (same key as SWEEP_SITES)
+#   EV1_SITES=<file>    only these sites, one per line: a call text (same key as SWEEP_SITES)
+#                       selects every site with that text; a full label, `<text> :<line>`,
+#                       selects that one site. The two red-control sites always run.
 #
-# Worker roots live under /private/tmp/ev1-*. They are not the old sweep's roots and there is
-# no shared sentinel, because nothing here touches the repository's files.
+# Worker roots live under /private/tmp/ev1-*. They are not the old sweep's roots, and the lock
+# is this tool's own, /private/tmp/ev1-coverage-sweep.lock (see EV1.lock!/0). Stop a run with
+# SIGTERM (`kill <pid>`), which releases the lock and kills the running `mix test` children;
+# Ctrl-C and SIGKILL leave both behind.
 
 defmodule EV1 do
   @target "lib/pramana_foundry/workflow/kernel.ex"
@@ -64,6 +68,54 @@ defmodule EV1 do
 
   def target, do: @target
   def suites, do: @suites
+
+  # ── Lock and children ──
+  #
+  # One run at a time: make_root/1 rm_rf's /private/tmp/ev1-*, so a second run would delete
+  # the first one's roots mid-trial. The lock is this tool's own, not the old sweep's
+  # sentinel, and bin/preflight.sh does not read it. It is taken before anything is touched
+  # and released by every exit this script controls: halt/1 (never a bare System.halt,
+  # which skips at_exit and is how the old sweep leaked its sentinel), a crash or normal end
+  # (at_exit), and SIGTERM (the trap below, which also kills the running `mix test`
+  # children). Ctrl-C and SIGKILL cannot be trapped: they leave the lock and the children.
+  @lock "/private/tmp/ev1-coverage-sweep.lock"
+  @children :ev1_children
+
+  def lock! do
+    case File.open(@lock, [:write, :exclusive]) do
+      {:ok, io} ->
+        IO.write(io, "#{System.pid()}\n")
+        File.close(io)
+
+      {:error, :eexist} ->
+        IO.puts(
+          "another coverage-guided sweep holds #{@lock} (pid #{String.trim(File.read!(@lock))}). " <>
+            "If `ps -p <pid>` shows no such process it was stopped by Ctrl-C or SIGKILL: " <>
+            "kill any orphaned `mix test` under /private/tmp/ev1-*, then delete the lock."
+        )
+
+        System.halt(5)
+    end
+
+    :ets.new(@children, [:named_table, :public, :set])
+    System.at_exit(fn _ -> release() end)
+    {:ok, _} = System.trap_signal(:sigterm, fn -> release() end)
+    :ok
+  end
+
+  def release do
+    if :ets.whereis(@children) != :undefined do
+      for {pid} <- :ets.tab2list(@children), do: System.cmd("kill", ["-TERM", "#{pid}"])
+    end
+
+    File.rm(@lock)
+    :ok
+  end
+
+  def halt(status) do
+    release()
+    System.halt(status)
+  end
 
   # ── Scanner: verbatim from bin/guard_mutation_sweep.exs, including its red control ──
 
@@ -140,7 +192,7 @@ defmodule EV1 do
         "RED CONTROL FAILED - scanner: expected #{inspect(expected)}, found #{inspect(found)}"
       )
 
-      System.halt(4)
+      halt(4)
     end
 
     IO.puts("red control (scanner sees every guard shape): ok")
@@ -157,13 +209,15 @@ defmodule EV1 do
   def mutate(source, site), do: splice(source, site, ":ok")
 
   # Probes are inserted last-offset first so earlier offsets stay valid. No newline is
-  # added, so kernel line numbers are unchanged in the instrumented copy.
+  # added, so kernel line numbers are unchanged in the instrumented copy. The hit is recorded
+  # before the call is evaluated: `hit(i, call)` evaluated the call first, so a guard that
+  # raised (apply/2 rescues it as :kernel_raised) was never attributed to its test.
   def instrument(source, sites) do
     sites
     |> Enum.with_index()
     |> Enum.sort_by(fn {{_, offset}, _} -> -offset end)
     |> Enum.reduce(source, fn {{text, _} = site, index}, acc ->
-      splice(acc, site, "#{@probe}.hit(#{index}, #{text})")
+      splice(acc, site, "(#{@probe}.hit(#{index}); #{text})")
     end)
   end
 
@@ -203,15 +257,33 @@ defmodule EV1 do
     root
   end
 
+  # A port rather than System.cmd, for the child's OS pid: release/0 kills it on SIGTERM.
   def mix_test(root, args) do
-    {out, _} =
-      System.cmd("mix", ["test" | args] ++ ["--seed", "0"],
+    port =
+      Port.open({:spawn_executable, System.find_executable("mix")}, [
+        :binary,
+        :exit_status,
+        :stderr_to_stdout,
+        args: ["test" | args] ++ ["--seed", "0"],
         cd: root,
-        env: [{"TMPDIR", "/private/tmp"}, {"MIX_BUILD_PATH", Path.join(root, "_build")}],
-        stderr_to_stdout: true
-      )
+        env: [
+          {~c"TMPDIR", ~c"/private/tmp"},
+          {~c"MIX_BUILD_PATH", String.to_charlist(Path.join(root, "_build"))}
+        ]
+      ])
 
+    {:os_pid, pid} = Port.info(port, :os_pid)
+    :ets.insert(@children, {pid})
+    out = collect(port, [])
+    :ets.delete(@children, pid)
     out
+  end
+
+  defp collect(port, acc) do
+    receive do
+      {^port, {:data, data}} -> collect(port, [acc | data])
+      {^port, {:exit_status, _}} -> IO.iodata_to_binary(acc)
+    end
   end
 
   # This repository's formatter prints one `Result:` line, in one of these shapes:
@@ -264,6 +336,9 @@ defmodule EV1 do
       {"Result: 85 passed, 113 excluded", {:ok, 85, 0}},
       {"Result: 3/4 passed", {:ok, 4, 1}},
       {"Result: 0/36 passed, 1 invalid", {:ok, 36, 37}},
+      # ExUnit 1.20 counts an invalid test in neither tests nor failures: a failing setup_all
+      # beside passing tests prints this, and it is a catch.
+      {"Result: 36 passed, 1 invalid", {:ok, 36, 1}},
       {"Result: 0 tests, 1 invalid", {:ok, 0, 1}},
       {"Result: 0 tests, 1 invalid, 197 excluded", {:ok, 0, 1}},
       {"== Compilation error in file lib/x.ex ==", {:error, :no_result_line}}
@@ -271,7 +346,7 @@ defmodule EV1 do
 
     for {out, want} <- cases, summary("noise\n" <> out <> "\nmore") != want do
       IO.puts("RED CONTROL FAILED - summary(#{inspect(out)}) is not #{inspect(want)}")
-      System.halt(4)
+      halt(4)
     end
 
     IO.puts("red control (result parser, #{length(cases)} shapes): ok")
@@ -290,9 +365,9 @@ defmodule EV1 do
       File.write!(@log, "")
     end
 
-    def hit(site, result) do
+    def hit(site) do
       if :ets.whereis(@table) != :undefined, do: :ets.insert(@table, {site})
-      result
+      :ok
     end
 
     # Runs in the test process before every test. Whatever is in the table now was
@@ -338,7 +413,7 @@ defmodule EV1 do
 
         unless Regex.match?(marker, source) do
           IO.puts("cannot inject the probe window into #{suite}: no `use ExUnit.Case` line")
-          System.halt(4)
+          halt(4)
         end
 
         File.write!(
@@ -365,7 +440,7 @@ defmodule EV1 do
 
         {:error, why} ->
           IO.puts("mapping run produced no test summary (#{why}); output:\n#{out}")
-          System.halt(4)
+          halt(4)
       end
 
     if failures != 0 do
@@ -373,7 +448,7 @@ defmodule EV1 do
         "mapping run is red (#{failures} failures) on unmutated source; nothing measured:\n#{out}"
       )
 
-      System.halt(4)
+      halt(4)
     end
 
     rows =
@@ -398,7 +473,7 @@ defmodule EV1 do
         "RED CONTROL FAILED - #{tests_ran} tests ran but #{windows} test windows were recorded"
       )
 
-      System.halt(4)
+      halt(4)
     end
 
     tests_of_module =
@@ -549,7 +624,7 @@ defmodule EV1 do
 
     if rev == nil do
       IO.puts("no kernel revision in the last 20 reproduces the raw answer key's labels")
-      System.halt(4)
+      halt(4)
     end
 
     {old_source, 0} = System.cmd("git", ["show", "#{rev}:./#{@target}"])
@@ -599,6 +674,7 @@ end
 
 # ── main ──
 
+EV1.lock!()
 EV1.scanner_red_control!()
 EV1.summary_red_control!()
 
@@ -614,18 +690,22 @@ sites =
 
     file ->
       wanted = file |> File.read!() |> String.split("\n", trim: true) |> Enum.map(&String.trim/1)
-      texts = all_sites |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
 
-      case Enum.reject(wanted, &(&1 in texts)) do
+      keys =
+        Enum.flat_map(all_sites, fn {text, _} = site -> [text, EV1.label(original, site)] end)
+
+      case Enum.reject(wanted, &(&1 in keys)) do
         [] ->
           :ok
 
         unknown ->
           IO.puts("no such call site: #{inspect(unknown)}")
-          System.halt(2)
+          EV1.halt(2)
       end
 
-      Enum.filter(all_sites, fn {text, _} -> text in wanted end)
+      Enum.filter(all_sites, fn {text, _} = site ->
+        text in wanted or EV1.label(original, site) in wanted
+      end)
   end
 
 IO.puts("guard call sites: #{length(all_sites)} (sweeping #{length(sites)})")
@@ -647,7 +727,7 @@ fixture = "with :ok <- require_x(t, {:error, :sweep_control}), do: :ok"
 
 if reasons.(EV1.mutate(fixture, hd(EV1.call_sites(fixture)))) == reasons.(fixture) do
   IO.puts("RED CONTROL FAILED - a call site carrying an error atom did not change the scan")
-  System.halt(4)
+  EV1.halt(4)
 end
 
 declared = reasons.(original)
@@ -660,7 +740,10 @@ IO.puts(
     "site mutants change what declared_reasons/0 reads"
 )
 
-Enum.each(source_dependent, &IO.puts("  UNSOUND for this site: #{EV1.label(original, &1)}"))
+Enum.each(
+  source_dependent,
+  &IO.puts("  UNSOUND for this site, reported as not a verdict: #{EV1.label(original, &1)}")
+)
 
 key = EV1.answer_key(original, all_sites)
 
@@ -703,7 +786,7 @@ if unmapped_caught != [] do
   )
 
   Enum.each(unmapped_caught, fn {site, _} -> IO.puts("  #{EV1.label(original, site)}") end)
-  System.halt(4)
+  EV1.halt(4)
 end
 
 IO.puts(
@@ -715,7 +798,7 @@ IO.puts(
 
 if control_verdict != :no_tests do
   IO.puts("RED CONTROL FAILED - an empty mapping produced #{inspect(control_verdict)}")
-  System.halt(4)
+  EV1.halt(4)
 end
 
 IO.puts("red control (empty mapping reports no_tests): ok")
@@ -752,7 +835,7 @@ controls =
     |> case do
       nil ->
         IO.puts("RED CONTROL FAILED - no mapped site the answer key calls #{want}")
-        System.halt(4)
+        EV1.halt(4)
 
       {site, tests} ->
         {verdict, ran, ms} = EV1.trial(hd(roots), original, site, tests)
@@ -764,7 +847,7 @@ controls =
 
         if verdict != want do
           IO.puts("RED CONTROL FAILED - the answer key says #{want}")
-          System.halt(4)
+          EV1.halt(4)
         end
 
         {site, {site, verdict, ran, ms}}
@@ -787,7 +870,7 @@ results =
         {verdict, ran, ms} = EV1.trial(root, original, site, tests)
 
         IO.puts(
-          "  #{Path.basename(root)} #{EV1.label64(original, site)} — #{inspect(verdict)} " <>
+          "  #{Path.basename(root)} #{EV1.label(original, site)} — #{inspect(verdict)} " <>
             "(#{ran}/#{map.tests_total} tests, #{div(ms, 1000)}s)"
         )
 
@@ -800,13 +883,20 @@ results =
   )
   |> Enum.flat_map(fn {:ok, r} -> r end)
   |> Kernel.++(Map.values(controls))
+  # The map cannot judge a site whose mutant changes what a test READS; its trial result is
+  # kept for display but is not a verdict, and the arbiter below judges it on the full set.
+  |> Enum.map(fn {site, verdict, ran, ms} = result ->
+    if site in source_dependent,
+      do: {site, {:source_dependent, verdict}, ran, ms},
+      else: result
+  end)
 
 Enum.each(roots, &File.rm_rf!/1)
 wall_s = div(System.monotonic_time(:millisecond) - started, 1000)
 
 if File.read!(target) != original do
   IO.puts("\nFAIL: #{target} changed while the sweep ran; trust nothing above.")
-  System.halt(3)
+  EV1.halt(3)
 end
 
 # ── Report ──
