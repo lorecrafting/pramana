@@ -194,6 +194,65 @@ defmodule PramanaFoundry.ManualLane.RestartDrillTest do
     assert %{"phase" => "ready_to_integrate"} = review!(c, "approved")
   end
 
+  # Review A1: the rerun after a split must attest what the receipt does. A different
+  # candidate is refused, nothing freezes, and the same argv still completes.
+  test "split: a rerun naming another candidate is receipt_mismatch, not frozen on it", c do
+    admit!(c)
+    ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+
+    receipt = %{
+      "evidence_kind" => "operator_attestation",
+      "attested_by" => @dev,
+      "statement" => "delivered candidate #{c.candidate}",
+      "candidate_id" => c.candidate
+    }
+
+    assert {:ok, _} = Backend.deliver(ctx(), "ML-1", "developer", @dev, receipt)
+    restart!(c, :kill)
+
+    other = Path.join(c.root, "other")
+    {_, 0} = System.cmd("git", ["clone", "-q", c.repo, other])
+    b = commit!(other, "c.txt", "other candidate")
+    events = event_count()
+
+    assert {false, %{"error" => "receipt_mismatch"}} =
+             lane(~w(submit ML-1 --principal #{@dev} --candidate #{b} --checkout #{other}))
+
+    assert event_count() == events
+    assert ticket()["phase"] == "developing"
+
+    assert %{"phase" => "awaiting_review", "candidate_id" => cand} = submit!(c)
+    assert cand == c.candidate
+    assert deliver_commands() == 1
+  end
+
+  test "split: a review rerun with another verdict is receipt_mismatch, not recorded", c do
+    admit!(c)
+    ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+    submit!(c)
+    ok!(~w(packet ML-1 --role reviewer --principal #{@rev}))
+
+    # `review`'s first commit alone, its receipt byte-for-byte as the CLI builds it.
+    receipt = %{
+      "evidence_kind" => "operator_attestation",
+      "attested_by" => @rev,
+      "statement" => "review verdict approved on candidate #{c.candidate}",
+      "verdict" => "approved",
+      "notes_sha256" => :crypto.hash(:sha256, File.read!(c.notes)) |> Base.encode16(case: :lower)
+    }
+
+    assert {:ok, _} = Backend.deliver(ctx(), "ML-1", "reviewer", @rev, receipt)
+    restart!(c, :kill)
+    events = event_count()
+
+    assert {false, %{"error" => "receipt_mismatch"}} = lane(review_argv(c, "rejected"))
+    assert event_count() == events
+    assert ticket()["phase"] == "reviewing"
+
+    assert %{"phase" => "ready_to_integrate", "verdict" => "approved"} =
+             review_again(c, "approved")
+  end
+
   # ── Stop after review ────────────────────────────────────────────────────────────
 
   for {verdict, phase} <- [

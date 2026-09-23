@@ -167,8 +167,11 @@ defmodule PramanaFoundry.ManualLane.CLI do
            attestation(principal, "delivered candidate #{candidate}")
            |> Map.put("candidate_id", candidate)
            |> Map.merge(if opts[:blocked], do: %{"blocked" => opts[:blocked]}, else: %{}),
-         {:ok, _} <- Backend.deliver(ctx, id, "developer", principal, receipt) |> refusal(),
-         {:ok, _} <- freeze(ctx, id, principal, candidate, opts[:blocked]) do
+         {:ok, %{"receipt" => %{"payload" => attested}}} <-
+           Backend.deliver(ctx, id, "developer", principal, receipt) |> refusal(),
+         # The freeze records what the receipt attests, never this run's argv.
+         {:ok, _} <-
+           freeze(ctx, id, principal, attested["candidate_id"], attested["blocked"]) do
       t = ticket(ctx, id)
       {:ok, %{"phase" => t["phase"], "candidate_id" => candidate}}
     end

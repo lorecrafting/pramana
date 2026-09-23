@@ -340,14 +340,25 @@ defmodule PramanaFoundry.ManualLane.Backend do
     end
   end
 
-  # The claim's settlement as a root command; the kernel has no event for it (§3).
+  # The claim's settlement as a root command; the kernel has no event for it (§3). A rerun
+  # of a committed one is idempotent only when it attests what the stored receipt does, and
+  # returns that receipt, so a later step reads what was attested, never the rerun's argv.
   defp settle_root(ctx, ticket_id, step, effect, principal, settlement) do
     id = "#{ticket_id}/#{step}/#{effect["execution_id"]}"
     [claim] = effect["claims"]
+    receipt_id = Plan.id(launch_id(effect["execution_id"]), "receipt")
 
     cond do
       Replay.committed?(ctx, id) ->
-        {:ok, %{"command_id" => id, "idempotent" => true}}
+        case Replay.query(ctx, %{"type" => "receipt", "receipt_id" => receipt_id}) do
+          {:ok, receipt} ->
+            if Map.take(receipt, Map.keys(settlement)) == settlement,
+              do: {:ok, %{"command_id" => id, "idempotent" => true, "receipt" => receipt}},
+              else: {:reject, :receipt_mismatch}
+
+          _ ->
+            {:reject, :receipt_mismatch}
+        end
 
       effect["status"] != "issued" ->
         {:reject, :effect_already_settled}
@@ -357,11 +368,12 @@ defmodule PramanaFoundry.ManualLane.Backend do
           Map.merge(settlement, %{
             "type" => "settle_claim",
             "claim_id" => claim["claim_id"],
-            "receipt_id" => Plan.id(launch_id(effect["execution_id"]), "receipt"),
+            "receipt_id" => receipt_id,
             "request_id" => effect["request_id"]
           })
 
-        outcome(Replay.root(ctx, principal, id, operation))
+        with {:ok, result} <- outcome(Replay.root(ctx, principal, id, operation)),
+             do: {:ok, Map.put(result, "receipt", result["facts"]["receipt"])}
     end
   end
 
