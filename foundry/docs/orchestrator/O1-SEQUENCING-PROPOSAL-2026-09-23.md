@@ -52,6 +52,8 @@ no new role-named protected vocabulary.** O1 (the adapter itself) still starts a
 | 4 | Non-start settles after a policy revision (B3 item 5, Q5) | Refuse the retry at the claim, not the settlement; no role branch |
 | 5 | Probe U9 before 1–4 — **done 2026-09-23: inadmissible**, see O0 U9. Items 1–4 therefore key on `execution_id` and leave the ticket-scoped work owner as is | Build an objective-scoped `create_effect` against the protected layer and record whether it is admissible. Answers whether PM executions can be generic at all, and costs one test |
 
+Items 1–4 are specified in [the protected items spec](../fr-08/FR08B-PROTECTED-ITEMS-SPEC-2026-09-23.md).
+
 **Explicitly not in scope:** renaming existing role-named slots or budget dimensions (a Core refactor
 with attestation churn and no current consumer; that is O4 territory after a second controller
 exists), the adapter, the CLI client, and any kernel event rename.
