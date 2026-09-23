@@ -162,50 +162,15 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
         e.role == "developer"
       end)
 
-    operations = [
-      %{
-        "type" => "reserve",
-        "reservation_id" => id.("reservation"),
-        "ledger_id" => facts["allocation"]["ledger_id"],
-        "generation" => facts["allocation"]["generation"],
-        "owner_kind" => "effect",
-        "owner_id" => id.("effect"),
-        "units" => @launch_units
-      },
-      %{
-        "type" => "create_effect",
-        "effect_id" => id.("effect"),
-        "operation" => "launch",
-        "scope" => "ticket:" <> to_string(ticket_id),
+    operations =
+      Plan.launch_operations(command["command_id"], %{
         "ticket_id" => ticket_id,
         "attempt_id" => attempt_id,
-        "execution_id" => id.("execution"),
-        "policy_id" => facts["policy"]["policy_id"],
-        "policy_revision" => facts["policy"]["revision"],
-        "control_id" => facts["control"]["control_id"],
-        "control_revision" => facts["control"]["revision"],
-        "request" => %{
-          "request_id" => id.("request"),
-          "role" => "developer",
-          "phase_generation" => 0,
-          "operation_ordinal" => ordinal,
-          "predecessor_effect_id" => facts["predecessor_effect_id"]
-        },
-        "reservation_ids" => [id.("reservation")],
-        "leases" => []
-      },
-      %{
-        "type" => "claim_effect",
-        "effect_id" => id.("effect"),
-        "claim_id" => id.("claim"),
-        "writer_epoch" => facts["writer_epoch"]
-      },
-      %{
-        "type" => "issue_claim",
-        "claim_id" => id.("claim"),
-        "writer_epoch" => facts["writer_epoch"]
-      }
-    ]
+        "role" => "developer",
+        "ordinal" => ordinal,
+        "units" => @launch_units,
+        "facts" => facts
+      })
 
     state
     |> Plan.launch(command["command_id"], %{

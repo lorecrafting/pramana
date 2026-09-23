@@ -95,6 +95,65 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   end
 
   @doc """
+  The four operations `launch/3` stages, for one role's launch.
+
+  `spec`: `ticket_id`, `attempt_id`, `role`, `ordinal` (the role's launches on this attempt
+  so far, one past the adapter's `predecessor_effect_id`, as `create_effect`'s predecessor
+  guard requires), `units`, and the `facts` `launch_facts/1` accepted. Every identifier
+  derives from `command_id`.
+  """
+  @spec launch_operations(String.t(), map()) :: [map()]
+  def launch_operations(command_id, spec) do
+    id = &id(command_id, &1)
+    facts = spec["facts"]
+
+    [
+      %{
+        "type" => "reserve",
+        "reservation_id" => id.("reservation"),
+        "ledger_id" => facts["allocation"]["ledger_id"],
+        "generation" => facts["allocation"]["generation"],
+        "owner_kind" => "effect",
+        "owner_id" => id.("effect"),
+        "units" => spec["units"]
+      },
+      %{
+        "type" => "create_effect",
+        "effect_id" => id.("effect"),
+        "operation" => "launch",
+        "scope" => "ticket:" <> to_string(spec["ticket_id"]),
+        "ticket_id" => spec["ticket_id"],
+        "attempt_id" => spec["attempt_id"],
+        "execution_id" => id.("execution"),
+        "policy_id" => facts["policy"]["policy_id"],
+        "policy_revision" => facts["policy"]["revision"],
+        "control_id" => facts["control"]["control_id"],
+        "control_revision" => facts["control"]["revision"],
+        "request" => %{
+          "request_id" => id.("request"),
+          "role" => spec["role"],
+          "phase_generation" => 0,
+          "operation_ordinal" => spec["ordinal"],
+          "predecessor_effect_id" => facts["predecessor_effect_id"]
+        },
+        "reservation_ids" => [id.("reservation")],
+        "leases" => []
+      },
+      %{
+        "type" => "claim_effect",
+        "effect_id" => id.("effect"),
+        "claim_id" => id.("claim"),
+        "writer_epoch" => facts["writer_epoch"]
+      },
+      %{
+        "type" => "issue_claim",
+        "claim_id" => id.("claim"),
+        "writer_epoch" => facts["writer_epoch"]
+      }
+    ]
+  end
+
+  @doc """
   A proved non-start: `settle_claim`, selected by the protected infrastructure limit.
   Below the limit the `settled` event alone; at the limit it and `ticket_blocked`.
 

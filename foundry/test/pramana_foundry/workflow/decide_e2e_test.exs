@@ -38,15 +38,25 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
   # ── The adapter ────────────────────────────────────────────────────────────────────
 
-  defp seed!(ctx, limit, units) do
+  # `reviewer` is the reviewer's `{infrastructure limit, units}` on its own ledger,
+  # `ledger-r`, so a reviewer launch never draws on the developer's.
+  defp seed!(ctx, limit, units, {reviewer_limit, reviewer_units} \\ {3, 2}) do
     root!(ctx, %{
       "type" => "set_policy",
       "policy_id" => "policy-1",
       "value" => %{
         "allowed_operations" => ["launch"],
         "allowed_scopes" => ["ticket:T1"],
-        "infrastructure_attempt_limits" => %{"developer" => limit}
+        "infrastructure_attempt_limits" => %{"developer" => limit, "reviewer" => reviewer_limit}
       }
+    })
+
+    root!(ctx, %{
+      "type" => "grant_ledger",
+      "ledger_id" => "ledger-r",
+      "generation" => 0,
+      "dimension" => "starts.reviewer",
+      "units" => reviewer_units
     })
 
     root!(ctx, %{
@@ -139,12 +149,12 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     }
   end
 
-  defp launch_facts(ctx, predecessor \\ nil) do
+  defp launch_facts(ctx, predecessor \\ nil, ledger_id \\ "ledger-1") do
     {:ok, policy} = query(ctx, %{"type" => "policy", "policy_id" => "policy-1"})
     {:ok, control} = query(ctx, %{"type" => "control", "control_id" => "control-1"})
 
     {:ok, ledger} =
-      query(ctx, %{"type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
+      query(ctx, %{"type" => "ledger", "ledger_id" => ledger_id, "generation" => 0})
 
     %{
       "policy" => policy,
@@ -329,22 +339,22 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
   # Delegates the ledger's remaining units away, so current allocation is genuinely short.
   # (A bare reserve would not do: a reservation holds nothing until its effect activates it.)
-  defp drain_ledger!(ctx) do
+  defp drain_ledger!(ctx, ledger_id \\ "ledger-1", dimension \\ "starts.developer") do
     {:ok, %{"available" => available}} =
-      query(ctx, %{"type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
+      query(ctx, %{"type" => "ledger", "ledger_id" => ledger_id, "generation" => 0})
 
     root!(ctx, %{
       "type" => "delegate_allocation",
-      "parent_ledger_id" => "ledger-1",
+      "parent_ledger_id" => ledger_id,
       "parent_generation" => 0,
-      "child_ledger_id" => "ledger-other",
+      "child_ledger_id" => ledger_id <> "-other",
       "child_generation" => 0,
-      "dimension" => "starts.developer",
+      "dimension" => dimension,
       "units" => available
     })
 
     assert {:ok, %{"available" => 0}} =
-             query(ctx, %{"type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
+             query(ctx, %{"type" => "ledger", "ledger_id" => ledger_id, "generation" => 0})
   end
 
   # ── Scenarios ──────────────────────────────────────────────────────────────────────
@@ -585,6 +595,150 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     test "malformed facts are an error" do
       assert {:error, :invalid_facts} =
                WorkflowKernel.decide(State.new(), command("L1", "plan_launch"), %{})
+    end
+  end
+
+  # ── Reviewer (subcommit 3) ─────────────────────────────────────────────────────────
+
+  @reviewer %{"role" => "reviewer"}
+
+  # The developer's launch through decide/3, then its frozen candidate, sealed and closed
+  # developer and a policy-empty check set, which leaves ticket and attempt awaiting_review.
+  # Freeze and checks are subcommit 4's workers; their events carry no slot, so the test
+  # commits them through the generic builder.
+  defp awaiting_review!(ctx) do
+    commit!(ctx, launch_decision(ctx, "L1"))
+    base = %{"ticket_id" => "T1", "attempt_id" => "L1/attempt"}
+
+    ingress!(ctx, "FROZEN", %{
+      "events" => [
+        {"artifact_frozen", "T1",
+         Map.merge(base, %{
+           "candidate_id" => "cand-1",
+           "observation_id" => "obs-1",
+           "sealed_generation" => "gen-1"
+         })},
+        {"stream_sealed", "T1",
+         Map.merge(base, %{"execution_id" => "L1/execution", "last_accepted_sequence" => 7})},
+        {"developer_closed", "T1", Map.put(base, "execution_id", "L1/execution")},
+        {"checks_started", "T1", Map.put(base, "policy_empty", true)}
+      ]
+    })
+
+    ticket = ticket(ctx)
+
+    assert {ticket["phase"], ticket["attempts"]["L1/attempt"]["phase"]} ==
+             {"awaiting_review", "awaiting_review"}
+  end
+
+  defp review_decision(ctx, id, predecessor \\ nil) do
+    assert {:ok, decision} =
+             decide(ctx, command(id, "plan_launch", @reviewer), review_facts(ctx, predecessor))
+
+    decision
+  end
+
+  defp review_facts(ctx, predecessor \\ nil), do: launch_facts(ctx, predecessor, "ledger-r")
+
+  defp ledger(ctx, id) do
+    {:ok, ledger} = query(ctx, %{"type" => "ledger", "ledger_id" => id, "generation" => 0})
+    Map.take(ledger, ~w(available held consumed))
+  end
+
+  describe "plan_launch, reviewer (R4.15, D1)" do
+    # R4.15.o1: "reviewing attempt/ticket, independent reviewer launch with its own
+    # reservation".
+    test "plans the reviewer launch on its own ledger; the ticket enters reviewing", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      developer_ledger = ledger(ctx, "ledger-1")
+      commit!(ctx, review_decision(ctx, "V1"))
+
+      ticket = ticket(ctx)
+      attempt = ticket["attempts"]["L1/attempt"]
+      assert {ticket["phase"], attempt["phase"]} == {"reviewing", "reviewing"}
+      assert attempt["review"]["execution_id"] == "V1/execution"
+      assert attempt["review"]["candidate_id"] == "cand-1"
+
+      assert {attempt["executions"]["V1/execution"].role,
+              attempt["executions"]["V1/execution"].lifecycle} ==
+               {"reviewer", "pending"}
+
+      assert {:ok, effect} = query(ctx, %{"type" => "effect", "effect_id" => "V1/effect"})
+
+      assert {effect["role"], effect["attempt_id"], effect["operation_ordinal"]} ==
+               {"reviewer", "L1/attempt", 0}
+
+      assert ledger(ctx, "ledger-r")["held"] == 1
+      assert ledger(ctx, "ledger-1") == developer_ledger
+    end
+
+    # R4a: "Drain forbids developer and PM replacement launches ...; reviewer ... retries
+    # remain eligible under the existing drain rule."
+    test "drain does not gate the reviewer", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      control!(ctx, %{"draining" => true})
+      commit!(ctx, review_decision(ctx, "V1"))
+      assert ticket(ctx)["phase"] == "reviewing"
+    end
+
+    # D1: pause "forbids issue until resume" for every role, the reviewer's included.
+    test "pause rejects before intent; the ticket stays awaiting_review", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      control!(ctx, %{"paused" => true})
+
+      assert {:reject, :control_paused} =
+               decide(ctx, command("V1", "plan_launch", @reviewer), review_facts(ctx))
+
+      assert ticket(ctx)["phase"] == "awaiting_review"
+    end
+
+    test "pending cancel rejects, and is decided before pause", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      control!(ctx, %{"paused" => true})
+      cancel!(ctx)
+
+      assert {:reject, :cancel_pending} =
+               decide(ctx, command("V1", "plan_launch", @reviewer), review_facts(ctx))
+    end
+
+    # R4.15.f3 "reviewer capacity available", and R4a's pre-intent denial: "creates no
+    # execution, claim or reservation: the ... review ... stays in its scheduling phase".
+    test "short reviewer allocation is a pre-intent denial", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      drain_ledger!(ctx, "ledger-r", "starts.reviewer")
+      facts = review_facts(ctx)
+
+      assert {:reject, :allocation_unavailable} =
+               decide(ctx, command("V1", "plan_launch", @reviewer), facts)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "awaiting_review"
+      assert ticket["infrastructure"]["ordinals"]["reviewer"] == 0
+      assert review_facts(ctx) == facts
+    end
+
+    test "eligibility is the reducer's: a developing ticket is refused, not planned", ctx do
+      seed!(ctx, 3, 2)
+      commit!(ctx, launch_decision(ctx, "L1"))
+
+      assert {:reject, :wrong_source_phase} =
+               decide(ctx, command("V1", "plan_launch", @reviewer), review_facts(ctx))
+    end
+
+    test "a pause committed after the decision refuses the reviewer launch", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      decision = review_decision(ctx, "V1")
+      control!(ctx, %{"paused" => true})
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} = submit(ctx, decision)
+      assert inspect(result) =~ "revision_conflict"
+      assert {:error, :not_found} = query(ctx, %{"type" => "effect", "effect_id" => "V1/effect"})
     end
   end
 

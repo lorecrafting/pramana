@@ -3,7 +3,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   Software workflow: reviewer planning, non-start settlement, verdict and close.
   """
 
-  import PramanaFoundry.Workflow.Kernel.Control, only: [require_no_pending_cancel: 1]
+  import PramanaFoundry.Workflow.Kernel.Control,
+    only: [require_no_pending_cancel: 1, require_not_paused: 1]
 
   import PramanaFoundry.Workflow.Kernel.Executions,
     only: [
@@ -11,6 +12,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
       close_execution: 4,
       consume_infrastructure_ordinal: 2,
       execution: 2,
+      executions: 1,
       require_execution: 3,
       require_sealed: 3
     ]
@@ -26,7 +28,82 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
       update_active_attempt: 2
     ]
 
-  alias PramanaFoundry.Workflow.Kernel.{Execution, State}
+  alias PramanaFoundry.Workflow.Kernel.{Execution, Plan, State}
+
+  # ── decide/3 ────────────────────────────────────────────────────────────────────
+  #
+  # The reviewer's commands: the role-free command types the developer claims, with role
+  # `reviewer` in the payload (FR08B-SUBCOMMIT3-DESIGN-2026-09-23.md).
+
+  def decides?(%{"type" => type, "payload" => %{"role" => "reviewer"}})
+      when type in ~w(plan_launch),
+      do: true
+
+  def decides?(_command), do: false
+
+  # R4.15 and R4a's control sentences, under D1: control is evaluated before any successor
+  # launch, the reviewer's included. The steps run in order and the first that decides ends
+  # it:
+  #
+  #   1. pending cancel - reject; cancel "never retries".
+  #   2. pause - reject; pause "forbids issue until resume", for every role.
+  #   3. drain - not a step. The contract's drain list is "developer and PM replacement
+  #      launches"; "reviewer ... retries remain eligible under the existing drain rule".
+  #   4. allocation - R4.15.f3 "reviewer capacity available": short current allocation is a
+  #      pre-intent denial and the ticket stays awaiting_review.
+  #   5. otherwise the launch plan on the active attempt.
+  #
+  # Eligibility (awaiting_review, check receipts valid) is the reducer's, and comes out of
+  # the dry run as a rejection. The control singleton is a declared read of the plan.
+  def decide(state, %{"type" => "plan_launch"} = command, facts) do
+    ticket = state["tickets"][command["target_ids"]["ticket_id"]]
+
+    with {:ok, facts} <- Plan.launch_facts(facts),
+         :ok <- rejected(require_no_pending_cancel(ticket)),
+         :ok <- rejected(require_not_paused(state["control"])),
+         :ok <- require_allocation(facts) do
+      launch(state, command, ticket, facts)
+    end
+  end
+
+  @launch_units 1
+
+  defp rejected(:ok), do: :ok
+  defp rejected({:error, reason}), do: {:reject, reason}
+
+  defp require_allocation(facts) do
+    if facts["allocation"]["available"] >= @launch_units,
+      do: :ok,
+      else: {:reject, :allocation_unavailable}
+  end
+
+  # The ordinal is the attempt's reviewer launches so far, each of which opened one
+  # reviewer execution; the predecessor is the adapter's.
+  defp launch(state, command, ticket, facts) do
+    attempt_id = (ticket || %{})["active_attempt_id"]
+
+    ordinal =
+      Enum.count(executions(attempt(ticket || %{}, attempt_id)), fn {_id, %Execution{} = e} ->
+        e.role == "reviewer"
+      end)
+
+    operations =
+      Plan.launch_operations(command["command_id"], %{
+        "ticket_id" => command["target_ids"]["ticket_id"],
+        "attempt_id" => attempt_id,
+        "role" => "reviewer",
+        "ordinal" => ordinal,
+        "units" => @launch_units,
+        "facts" => facts
+      })
+
+    state
+    |> Plan.launch(command["command_id"], %{
+      "planned" => "review_planned",
+      "operations" => operations
+    })
+    |> Plan.decision(command)
+  end
 
   # R4: "awaiting_review; check receipts valid and reviewer capacity available".
   def do_transition("review_planned", ticket, event, _state) do
