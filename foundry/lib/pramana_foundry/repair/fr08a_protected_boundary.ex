@@ -13,12 +13,12 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
   alias PramanaFoundry.DurableStore.{Gateway, LegacyImport}
   alias PramanaFoundry.Repair.FR08HandoffGate
 
-  @subject_revision "74a18590a0d4696fe0420ea50e060685ef829668"
-  @subject_tree "14b27e6241d87bee91eee6b8450c233f98c52ae3"
+  @subject_revision "eb89562b5c971a92a4d518170b9e57bfcc1fba05"
+  @subject_tree "078bd84e1be4dbc090cd67277d580d293247c7b0"
   @api_identity [
     {PramanaFoundry.DurableStore.Authority, "lib/pramana_foundry/durable_store/authority.ex",
-     "0ef697e4640aef64f6001abb1be688774d7cac7602c61be77c9e2415f667d26b",
-     "32f609a086f85defe2e8403471304a37"},
+     "0654ba8794260d1b8e6abd7d798aa5b58b0d6c8674c84c9d4fb00d8ee9120ffd",
+     "76ca2f38fe8df04214622c0583367a35"},
     {PramanaFoundry.DurableStore.Database, "lib/pramana_foundry/durable_store/database.ex",
      "a584d7ef6c3e8109ef280b14eaa404cae5f22ee2798ed81c3813078960171d6a",
      "346a68d8c70ab79a777c69dd227f995f"},
@@ -27,14 +27,14 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
      "3482b1e7bef6a04794e2a17a0c91355f"},
     {PramanaFoundry.DurableStore.ProtectedPrimitives,
      "lib/pramana_foundry/durable_store/protected_primitives.ex",
-     "ac55a01b3a5d08f226498e2cf1b551a0327fd377bdba6a7a8935fc523181c2ea",
-     "cc5227598c3739df54340df6b510c10c"},
+     "7be38560143de114c759ce133fe8a045b5e11ae7874614056bd785358674f4b0",
+     "78050fbf3a4b700bb20db15e0a5c1f44"},
     {PramanaFoundry.DurableStore.Kernel, "lib/pramana_foundry/durable_store/kernel.ex",
      "918e7efbfbaaf6f2943b1b1ce403cf08615c330b300d6e0c9e1b7b192a6406ac",
      "e43949e9a2658ebbd12afabdf2f30086"},
     {PramanaFoundry.DurableStore.RecordCodec, "lib/pramana_foundry/durable_store/record_codec.ex",
-     "dc63747f671f3cc568e5f4720d6e294f0d66c8c59832241fae3f818fc56c1882",
-     "f82254f1c94be0bd1282c0292a87d2ce"},
+     "75a65a232092187edc18afbf6e8a0532e9b00518b474a29def8c0fad17353b66",
+     "05cf8ca82957f84f737e8038f284eb4b"},
     {PramanaFoundry.DurableStore.Encoding, "lib/pramana_foundry/durable_store/encoding.ex",
      "140730a723527d3e7c9f71f0e54c209f14ce4a8b74004e553f12f14ce7c987ba",
      "5f1bff0562b0fed9407a8af02bc84241"},
