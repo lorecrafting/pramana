@@ -5,7 +5,7 @@
 # shipped repeatedly, each time found by a reviewer reading code or by a hand sweep that
 # only covered the guards someone thought to check.
 #
-#   cd foundry && bin/guard_mutation_sweep.exs [path/to/module.ex]
+#   cd foundry && TMPDIR=/private/tmp elixir bin/guard_mutation_sweep.exs [path/to/module.ex]
 #   SWEEP_SINCE=<rev>   sweep only guards whose lines changed since <rev>
 #   SWEEP_SITES=<file>  sweep only the call sites listed in <file>, one per line
 #   SWEEP_WORKERS=<n>   parallel workers (default 4)
