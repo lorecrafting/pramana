@@ -171,6 +171,8 @@ subcommit 4's check workers for this lane.
 
 The manual backend must never call `Adapter` or Herdr. A test should prove that from the module graph.
 
+**Design:** [Batch D thin lane design](batch-d/THIN-LANE-DESIGN-2026-09-23.md) specifies T3–T7 at `8ed8d233`.
+
 ### Verdict
 
 **Not safely before T1 and T2 land and pass review.** Before then, the only paths are the
