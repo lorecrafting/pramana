@@ -171,6 +171,17 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
            "the ok_or/2 success clause is being read as a declaration"
   end
 
+  # B3. `:control_draining` fires only because the proposer offers a drain-only control
+  # change: its first proposal sets pause and drain together whenever its counter is 0, which
+  # in the search is always, so the pause guard ahead of it would shadow it.
+  test "the control-crossing guards are exercised", %{fired: fired} do
+    for guard <- ~w(control_paused control_draining cancel_pending)a do
+      assert MapSet.member?(fired, guard),
+             "#{guard} never fires: the proposer stopped offering the control change or " <>
+               "cancel that trips it"
+    end
+  end
+
   test "the forged-reference guards are exercised", %{fired: fired} do
     for guard <- ~w(not_the_active_attempt unknown_attempt retained_attempt_must_be_reused
                     check_already_exists resume_phase_disagrees)a do

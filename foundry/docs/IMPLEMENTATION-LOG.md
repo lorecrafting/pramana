@@ -5574,3 +5574,102 @@ non-start can settle and then finalize cancellation per role. The two protected-
 (settlement-to-execution/role check at bind time; a proved non-start still settles after a policy
 revision) are scheduled separately because they touch attestation-pinned files.
 
+
+## B3 kernel scope: control crossing at the issue point — 2026-09-22
+
+Built against the approved [B3 contract readings](fr-08/FR08B-B3-CONTRACT-READINGS-PROPOSAL-2026-09-22.md),
+"if approved" items 1–3. Base `937f6b54`. No protected code and nothing under `durable_store/` changed.
+
+**Guards.** Three new `require_*` functions in `kernel.ex`, spelled `{:error, :atom}` so
+`KernelSearch.declared_reasons/0` and the guard sweep see them. No existing atom had these meanings.
+
+- `require_not_paused/1` → `:control_paused` and `require_not_draining/1` → `:control_draining`,
+  called from `launch_planned` only (R4.04.f3; Q2 keeps pause and drain off every other role in the
+  reducer).
+- `require_no_pending_cancel/1` → `:cancel_pending`, the one shared rule (rule 4) called from every
+  ticket-scoped `*_planned` handler: `launch_planned`, `check_planned`, `build_planned`,
+  `review_planned`, `integration_planned`. No handler is exempt: settlement, closure and
+  `cancellation_finalized` are not planning events. `pm_launch_planned` is objective-scoped and an
+  objective has no cancel. The handler set is not remembered: a test in `kernel_test.exs` derives it
+  from `Event.types/0` and fails if a ticket-scoped `*_planned` has no case.
+
+The new calls sit after each handler's existing `require_*` guards and before the effect builders
+(`open_attempt`, `add_check`, `add_execution`). That keeps every earlier atom firing from the states
+where it fired before.
+
+**Rule 6, per call site.** Each call was replaced with `:ok` on its own line, and seven B3 tests
+were run (the pause, drain and five cancel refusal tests, plus the four settle-then-finalize tests).
+Then the exact string was put back. After each reversal, `git diff lib/` matched the intended diff
+byte for byte (`cmp`).
+
+| Handler | Neutralised call | Atom | Red (tests that failed) | Reversed |
+|---|---|---|---|---|
+| `launch_planned` | `require_not_paused(state["control"])` | `:control_paused` | 10/11: "launch_planned under pause refuses with control_paused" | 11 passed |
+| `launch_planned` | `require_not_draining(state["control"])` | `:control_draining` | 10/11: "launch_planned under drain refuses with control_draining" | 11 passed |
+| `launch_planned` | `require_no_pending_cancel(ticket)` | `:cancel_pending` | 9/11: "launch_planned under a pending cancel …", settle-then-finalize "developer" | 11 passed |
+| `check_planned` | `require_no_pending_cancel(ticket)` | `:cancel_pending` | 9/11: "check_planned under a pending cancel …", "check" | 11 passed |
+| `review_planned` | `require_no_pending_cancel(ticket)` | `:cancel_pending` | 9/11: "review_planned under a pending cancel …", "reviewer" | 11 passed |
+| `integration_planned` | `require_no_pending_cancel(ticket)` | `:cancel_pending` | 9/11: "integration_planned under a pending cancel …", "integration" | 11 passed |
+| `build_planned` | `require_no_pending_cancel(ticket)` | `:cancel_pending` | 10/11: "build_planned under a pending cancel …" | 11 passed |
+
+Each refusal test is pinned to its atom and has a control. The control applies the same event to
+the same lifecycle with the condition withdrawn, and asserts `{:ok, _}`. For pause and drain it is
+`control_changed(false, false)` in place of the flag. For cancel it is the fixture without
+`cancellation_requested`. Everything is driven through `drive/2` and `Harness.apply/2`.
+
+**The first run of this table was invalid.** After listing the test lines, I added two comment lines
+above the tests. The script then ran `file:line` targets that pointed at the wrong tests, and the
+drain site looked like a survivor. The rerun above found targets by test name at run time.
+
+**Item 3: settle, then finalize.** For developer, reviewer, check and integration, a proved
+non-start settles after `cancellation_requested`. A retry of that role's `*_planned` is then
+refused with `:cancel_pending`, `attempt_settled(cancelled)` and `cancellation_finalized(cancelled)`
+are accepted, and the ticket is `cancelled` with the role's ordinal consumed. The reviewer needs
+`worker_closed` for its check execution before finalizing, because `require_all_executions_closed`
+reads the whole ticket. No behaviour was added. Every step except the retry refusal was accepted
+before B3.
+
+**Reachability.** `:control_paused`, `:control_draining` and `:cancel_pending` all fire in the
+depth-7 search, so nothing was added to `@unreachable`. A named test now asserts all three.
+`:control_draining` needed a proposer change. `KernelWalk.control/1` sets pause and drain together
+whenever its counter is 0, and in the search the counter is always 0, so the pause guard shadowed
+the drain guard. A second proposal is the same change with pause cleared.
+
+The search space grew with it. Measured by
+[`search_states.exs`](fr-08/b3-measurements-2026-09-22/search_states.exs) at this commit (no test
+prints it): depth 6 went from 13,290 to 15,591 states, and depth 7 from 58,324 to
+69,234. Comments elsewhere that quote 58,324 describe the pre-B3 bound.
+
+**Coverage.** `R4.04.f3` moves from `{:unguarded, …}` to
+`{:guarded, [:control_paused, :control_draining, :cancel_pending], …}`. No other from-cell
+names a control conjunct: I grepped the contract's from-cells for pause, drain, cancel and control,
+and the others are R4.26.f1, R4.27.f2 and R4.28.f1, already classified. `R4a.02.f1/f2` were not
+touched. EVIDENCE-TOOLS' "two are recorded unguarded" sentence is corrected.
+
+**Ratchet moved.** `@known_unreached_variants` gains `attempt_settled:superseded_base`, and the
+guards are the cause. The walks spend long stretches paused or draining, so fewer developer
+attempts start and fewer reach `ready_to_integrate`. I counted walk-accepted labels over the 40
+broad and 25 deep walks from `kernel_properties_test`'s `setup_all`, using
+[`walk_labels.exs`](fr-08/b3-measurements-2026-09-22/walk_labels.exs). For the first two rows the
+guard bodies were neutralised and restored, and the proposer was toggled and restored.
+
+| Configuration | `launch_planned` | `review_planned` | `integration_planned` | `superseded_base` | `ref_created` |
+|---|---|---|---|---|---|
+| Guards off, old proposer (= base) | 512 | 115 | 11 | 3 | 6 |
+| Guards on, old proposer | 195 | 43 | 4 | 2 | 1 |
+| Guards on, new proposer (committed) | 144 | 36 | 4 | 0 | 2 |
+
+The ratchet entry cites its driven witness: "a retried integration settles superseded_base while
+its new effect is unissued" in `kernel_test.exs`. The walks also produce fewer witnesses for the
+relational oracle; the `receipt_custody` row of the suite's printed table fell. That is a real
+loss of sampled evidence, not a defect. Making the walks clear controls more often would recover
+it, and was not done here.
+
+**Declined, per the readings:** pause and drain for any role other than the developer; PM drain
+(`pm_launch_planned`, deferred with every PM cell); the build lifecycle (Q4); choosing the successor
+after a settle (Q1); and the two protected items (4–5).
+
+**Checks.** Run together: `kernel_test`, `r4_coverage_test`, `r4_exhaustive_test`,
+`r4_guard_reachability_test`, `kernel_properties_test`. Result: 212 passed, exit 0.
+`mix format --check-formatted` exit 0. Not run: `ci/run.exs`, the full suite, and either sweep
+script. So no sweep has judged these sites; the table above is the only neutralisation evidence.

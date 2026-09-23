@@ -296,7 +296,20 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     #
     # An entry here must cite a driven witness. Without that rule this list is just a place
     # to put variants nothing reaches, which is the ratchet resting on a defect again.
-    @known_unreached_variants ["integration_recorded:infrastructure_failed"]
+    #
+    # `attempt_settled:superseded_base` joined it with B3 (2026-09-22), and the cause is the
+    # guards, not a defect. R4.04.f3 refuses a developer launch while `paused` or `draining`,
+    # and the walk's `control_changed` leaves either flag set for long stretches, so fewer
+    # attempts start and fewer reach `ready_to_integrate`; the drain-only proposal the search
+    # needed to witness `:control_draining` shifts the seeded trajectories further. The walks'
+    # handful of superseded_base settlements went to zero - trajectory luck, the same as the
+    # entry above. The IMPLEMENTATION-LOG entry for B3 has the counts and how they were taken.
+    # Driven witness: "a retried integration settles superseded_base while its new effect is
+    # unissued" in kernel_test.exs, which asserts the settlement is accepted.
+    @known_unreached_variants [
+      "attempt_settled:superseded_base",
+      "integration_recorded:infrastructure_failed"
+    ]
 
     test "every variant the contract distinguishes is reachable by some walk", %{all: walks} do
       reached =

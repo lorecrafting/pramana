@@ -676,9 +676,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     "R4a.03.f2" =>
       {:unguarded,
        "pm_launch_planned records no execution and pm_launch_settled guards nothing, so \"planning execution\" has no witness in state and no refusal. The fourth member of a family whose other three guard phase, entity and execution-exists; the objective carries proposals and infrastructure but no execution register, so the fix is state shape, not a missing require_* call. Needs its own candidate: pm_launch_planned records the planning execution, pm_launch_settled requires and closes it, mirroring require_reviewer_execution/3"},
+    # Was the first {:unguarded} entry, and the witness EVIDENCE-TOOLS' known gap 1 is built on.
     "R4.04.f3" =>
-      {:unguarded,
-       "B3. paused and draining are written by control_changed (kernel.ex) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
+      {:guarded, [:control_paused, :control_draining, :cancel_pending],
+       "launch_planned (kernel.ex) require_not_paused/1, require_not_draining/1 and require_no_pending_cancel/1, one guard and one atom per conjunct, each pinned by its own refusal test in kernel_test.exs's B3 describes. require_no_pending_cancel/1 is the shared per-ticket cancel rule every ticket-scoped *_planned calls; only the developer handler reads pause and drain, per the approved B3 readings (Q2)"}
   }
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its

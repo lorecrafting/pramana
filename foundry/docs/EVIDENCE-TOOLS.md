@@ -115,7 +115,9 @@ These are not style preferences. Each was bought with a review round.
    the end of every run. A family whose `held` column is zero is reporting nothing out of
    nothing — and the table is equally how a family stops looking vacuous: `receipt_custody`
    holds 0 of 58,324 over the bounded search and **8,411** over the transitions the suite
-   drives — every witness it has comes from hand-driven tests, not from the search.
+   drives — every witness it has comes from hand-driven tests, not from the search. (Both
+   figures predate B3, whose guards and proposer change moved them; the table the suite prints
+   is the current value.)
 
    The suite's own printed total is **judgements, not transitions**, and the distinction was
    caught by review inside this very paragraph. `Harness` counts 2,351,004 calls, but two
@@ -168,8 +170,9 @@ These are not style preferences. Each was bought with a review round.
   this: all **72** from-cell obligations carry an ID in the contract and must each be classified,
   and the ID set is parsed out at test time so a contract edit fails rather than drifts. How many are
   classified, and the split across dispositions, is in `@from_obligations` and `@from_unclassified`
-  in that file rather than restated here. Two are recorded `{:unguarded, ...}` — row :467's, which
-  is what makes B3 countable, and R4a.03's planning execution — and a few are held deliberately,
+  in that file rather than restated here. Row :467's `{:unguarded, ...}` entry, which made B3
+  countable, became `{:guarded, ...}` when B3 landed (IMPLEMENTATION-LOG, 2026-09-22), one atom
+  per conjunct; R4a.03's planning execution is still recorded unguarded, and a few are held deliberately,
   because classifying one is a per-row reading pass against its handler. Until a row is classified,
   its conjuncts are still the check to do by hand. `bin/contract_annotation_diff.exs` is the proof that an annotation pass
   changed no contract text, and its header states the three things it does not prove.

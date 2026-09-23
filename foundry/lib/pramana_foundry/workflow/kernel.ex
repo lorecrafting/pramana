@@ -440,14 +440,19 @@ defmodule PramanaFoundry.Workflow.Kernel do
     end
   end
 
-  # R4: "queued; dependencies/resources/profile/reservation eligible" — a fresh attempt
-  # unless R4a retained a resumable one, then its launch intent, then developing.
-  defp do_transition("launch_planned", ticket, event, _state) do
+  # R4: "queued; dependencies/resources/profile/reservation eligible; no pause/drain/cancel"
+  # — a fresh attempt unless R4a retained a resumable one, then its launch intent, then
+  # developing. The three control conjuncts (R4.04.f3) are one guard each, so each refusal
+  # is pinned to its own atom.
+  defp do_transition("launch_planned", ticket, event, state) do
     payload = event["payload"]
 
     with :ok <- require_phase(ticket, ~w(queued developing)),
          :ok <- require_no_open_developer(ticket),
          :ok <- require_cleanup_complete(ticket),
+         :ok <- require_not_paused(state["control"]),
+         :ok <- require_not_draining(state["control"]),
+         :ok <- require_no_pending_cancel(ticket),
          {:ok, ticket} <- open_attempt(ticket, payload["attempt_id"]),
          {:ok, ticket} <- add_execution(ticket, payload, "developer") do
       {:ok, Map.put(ticket, "phase", "developing")}
@@ -673,6 +678,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
     with :ok <- require_attempt_phase(ticket, ~w(checking)),
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
+         :ok <- require_no_pending_cancel(ticket),
          {:ok, ticket} <- add_check(ticket, payload["check_id"]),
          {:ok, ticket} <- add_execution(ticket, payload, "check") do
       {:ok, ticket}
@@ -733,6 +739,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
          :ok <- require_active_attempt(ticket, payload["attempt_id"]),
          :ok <- require_attempt_phase(ticket, ~w(awaiting_review)),
          :ok <- require_checks_passed(ticket),
+         :ok <- require_no_pending_cancel(ticket),
          {:ok, ticket} <- add_execution(ticket, payload, "reviewer") do
       {:ok,
        ticket
@@ -873,6 +880,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
          :ok <- require_no_ref_receipt(ticket),
          :ok <- require_issuer_terminated(ticket),
          :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
+         :ok <- require_no_pending_cancel(ticket),
          {:ok, ticket} <- add_execution(ticket, event["payload"], "integration") do
       {:ok,
        ticket
@@ -1011,6 +1019,7 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   defp do_transition("build_planned", ticket, event, _state) do
     with :ok <- require_active_attempt(ticket, event["payload"]["attempt_id"]),
+         :ok <- require_no_pending_cancel(ticket),
          {:ok, ticket} <- add_execution(ticket, event["payload"], "build") do
       {:ok, ticket}
     end
@@ -1339,6 +1348,27 @@ defmodule PramanaFoundry.Workflow.Kernel do
 
   defp require_cancel_requested(ticket),
     do: if(ticket["cancel_requested"], do: :ok, else: {:error, :cancel_not_requested})
+
+  # R4.27.o1: "cancel pending/unissued effects", and R4a: cancel "never retries". One rule
+  # for every ticket-scoped `*_planned` - launch, check, build, review, integration - called
+  # from each handler rather than copied into it (EVIDENCE-TOOLS rule 4). No `*_planned`
+  # handler is exempt: settling, closing and finalising a cancelled ticket are all
+  # `*_settled`/`*_closed`/`cancellation_finalized`, none of which plans an effect.
+  # `pm_launch_planned` is objective-scoped and an objective carries no cancel.
+  # `kernel_test.exs` derives the handler set from `Event.types/0` and fails on one this
+  # misses.
+  defp require_no_pending_cancel(ticket),
+    do: if(ticket["cancel_requested"], do: {:error, :cancel_pending}, else: :ok)
+
+  # R4.04.f3 "no pause/drain". Developer issue only: under the approved B3 readings (Q2) pause
+  # binds no other role in the reducer, and drain's closed list is "developer and PM
+  # replacement launches"; PM is deferred. The flags are the reducer-owned control entity's -
+  # the protected layer has no pause or drain.
+  defp require_not_paused(control),
+    do: if(control["paused"], do: {:error, :control_paused}, else: :ok)
+
+  defp require_not_draining(control),
+    do: if(control["draining"], do: {:error, :control_draining}, else: :ok)
 
   defp require_execution(ticket, attempt_id, execution_id),
     do:

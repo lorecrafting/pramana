@@ -2169,6 +2169,241 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     end
   end
 
+  # ── B3: control crossing at the issue point ────────────────────────────────────────
+
+  # Builds the next event against `state`'s own bookkeeping and applies it, so a refusal
+  # and its control are the same event from two states that differ only in the condition.
+  # `authority/2` as compile-time data, for the tables below; `@auth` further down is the
+  # same map without the per-execution keys.
+  @b3_auth %{
+    "schema_version" => 1,
+    "effect_id" => "eff-X1",
+    "role" => "developer",
+    "work_owner" => "own-1",
+    "ticket_id" => "T1",
+    "attempt_id" => "A1",
+    "execution_id" => "X1",
+    "policy_id" => "pol-1",
+    "policy_revision" => 0,
+    "control_id" => "ctl-1",
+    "control_revision" => 0,
+    "predecessor_effect_id" => nil,
+    "infrastructure_generation" => 0
+  }
+
+  defp plan({state, sequence}, type, payload) do
+    Harness.apply(
+      state,
+      event(type, "T1", revision_of(state, type, "T1"), sequence + 1, payload)
+    )
+  end
+
+  defp with_control({state, sequence}, paused, draining) do
+    drive({state, sequence}, [
+      {"control_changed", "control",
+       %{
+         "control" => control_fact(),
+         "paused" => paused,
+         "draining" => draining,
+         "stop_status" => "running"
+       }}
+    ])
+  end
+
+  defp with_cancel(fixture),
+    do: drive(fixture, [{"cancellation_requested", "T1", %{"ticket_id" => "T1"}}])
+
+  describe "B3 — R4.04.f3: no developer issue under pause or drain" do
+    # R4: "queued; dependencies/resources/profile/reservation eligible; no pause/drain/cancel
+    # | ... create its launch intent and enter developing". One test per conjunct, each with
+    # the same event accepted from the same lifecycle with only that conjunct withdrawn. The
+    # cancel conjunct is the launch_planned row of the shared cancel table below.
+    @launch %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => @b3_auth}
+
+    test "launch_planned under pause refuses with control_paused" do
+      assert {:error, :control_paused} =
+               plan(with_control(admitted(), true, false), "launch_planned", @launch)
+
+      assert {:ok, _} = plan(with_control(admitted(), false, false), "launch_planned", @launch)
+    end
+
+    test "launch_planned under drain refuses with control_draining" do
+      assert {:error, :control_draining} =
+               plan(with_control(admitted(), false, true), "launch_planned", @launch)
+
+      assert {:ok, _} = plan(with_control(admitted(), false, false), "launch_planned", @launch)
+    end
+  end
+
+  describe "B3 — a pending cancel refuses every ticket-scoped *_planned" do
+    # R4.27.o1 "cancel pending/unissued effects" and R4a's cancel "never retries". One shared
+    # guard, `require_no_pending_cancel/1`, called from each handler; one test per handler.
+    # The handler set is derived from the vocabulary, so a sixth ticket-scoped planning event
+    # fails here until it has a case - rule 4 enforced rather than remembered.
+    @cancel_cases %{
+      "launch_planned" =>
+        {:admitted, %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => @b3_auth}},
+      "check_planned" =>
+        {:checking,
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "check_id" => "C1",
+           "authority" => Map.merge(@b3_auth, %{"execution_id" => "K1", "role" => "check"})
+         }},
+      "build_planned" =>
+        {:checking,
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "build_id" => "B1",
+           "authority" => Map.merge(@b3_auth, %{"execution_id" => "B1", "role" => "build"})
+         }},
+      "review_planned" =>
+        {:checked_passed,
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "authority" => Map.merge(@b3_auth, %{"execution_id" => "R1", "role" => "reviewer"})
+         }},
+      "integration_planned" =>
+        {:ready_to_integrate,
+         %{
+           "ticket_id" => "T1",
+           "attempt_id" => "A1",
+           "authority" => Map.merge(@b3_auth, %{"execution_id" => "I1", "role" => "integration"})
+         }}
+    }
+
+    test "the cases cover exactly the ticket-scoped planning events the vocabulary declares" do
+      planning =
+        for type <- Event.types(),
+            String.ends_with?(type, "_planned"),
+            Event.entity_kind(type) == {:ok, "ticket"},
+            do: type
+
+      assert Enum.sort(planning) == Enum.sort(Map.keys(@cancel_cases))
+    end
+
+    for {type, {fixture, payload}} <- @cancel_cases do
+      test "#{type} under a pending cancel refuses with cancel_pending" do
+        fixture = b3_fixture(unquote(fixture))
+        payload = unquote(Macro.escape(payload))
+
+        assert {:error, :cancel_pending} = plan(with_cancel(fixture), unquote(type), payload)
+        assert {:ok, _} = plan(fixture, unquote(type), payload)
+      end
+    end
+  end
+
+  describe "B3 — a proved non-start settles under cancel, then cancellation finalizes" do
+    # R4a: "Cancel settles the proved non-start/refund and finalizes cancellation when no
+    # other issued work remains; it never retries." Tests only: every step below was
+    # already accepted before B3, and none of it is new behaviour. The retry refusal in each
+    # is the cancel guard seen from the state the settlement leaves behind.
+    defp settle_and_finalize(fixture, settle_specs, retry_type, retry_payload) do
+      settled = drive(with_cancel(fixture), settle_specs)
+
+      assert {:error, :cancel_pending} = plan(settled, retry_type, retry_payload)
+
+      {state, _} =
+        drive(settled, [
+          {"attempt_settled", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "disposition" => "cancelled",
+             "reason_code" => nil,
+             "settlement" => %{"schema_version" => 1}
+           }},
+          {"cancellation_finalized", "T1", %{"ticket_id" => "T1", "disposition" => "cancelled"}}
+        ])
+
+      ticket = state["tickets"]["T1"]
+      assert ticket["phase"] == "cancelled"
+      assert ticket["attempts"]["A1"]["disposition"] == "cancelled"
+      ticket
+    end
+
+    defp nonstart(type, execution_id, extra \\ %{}),
+      do:
+        {type, "T1",
+         Map.merge(
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => execution_id,
+             "settlement" => %{"schema_version" => 1}
+           },
+           extra
+         )}
+
+    test "developer" do
+      ticket =
+        settle_and_finalize(developing(), [nonstart("launch_settled", "X1")], "launch_planned", %{
+          "ticket_id" => "T1",
+          "attempt_id" => "A1",
+          "authority" => authority("X2")
+        })
+
+      assert ticket["infrastructure"]["ordinals"]["developer"] == 1
+    end
+
+    test "reviewer" do
+      ticket =
+        settle_and_finalize(
+          reviewing(),
+          [
+            nonstart("review_settled", "R1"),
+            {"worker_closed", "T1",
+             %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "K1"}}
+          ],
+          "review_planned",
+          %{"ticket_id" => "T1", "attempt_id" => "A1", "authority" => authority("R2", "reviewer")}
+        )
+
+      assert ticket["infrastructure"]["ordinals"]["reviewer"] == 1
+    end
+
+    test "check" do
+      ticket =
+        settle_and_finalize(
+          checking_with_check(),
+          [nonstart("check_settled", "K1", %{"check_id" => "C1"})],
+          "check_planned",
+          %{
+            "ticket_id" => "T1",
+            "attempt_id" => "A1",
+            "check_id" => "C1",
+            "authority" => authority("K2", "check")
+          }
+        )
+
+      assert ticket["infrastructure"]["ordinals"]["check"] == 1
+    end
+
+    test "integration" do
+      ticket =
+        settle_and_finalize(
+          approved_and_closed(),
+          [nonstart("integration_settled", "I1")],
+          "integration_planned",
+          %{
+            "ticket_id" => "T1",
+            "attempt_id" => "A1",
+            "authority" => authority("I2", "integration")
+          }
+        )
+
+      assert ticket["infrastructure"]["ordinals"]["integration"] == 1
+    end
+  end
+
+  defp b3_fixture(:admitted), do: admitted()
+  defp b3_fixture(:checking), do: checking()
+  defp b3_fixture(:checked_passed), do: checked("passed")
+  defp b3_fixture(:ready_to_integrate), do: ready_to_integrate()
+
   describe "each guard call site, not each guard" do
     # The sweep used to neutralise by global string replacement, so identical call-site
     # text was mutated in every handler holding it and one red test anywhere cleared the
