@@ -80,6 +80,29 @@ The restart check is `ProtectedPrimitives.validate`, which runs when the databas
 (`database.ex:467`), not after each command. Each state above commits, and then the store
 refuses to reopen. None of the three findings breaks numeric conservation.
 
+### Fixes (2026-09-23)
+
+Both fixes refuse the operation; neither moves units. The model still describes the code
+at `df1ac5f8`, so `HeldOwnerLive` and `RestartValid` still report findings 2 and 3 until
+it is updated to match. The probes are in
+`foundry/test/pramana_foundry/durable_store/ledger_restart_probe_test.exs`: each drives
+the real API to the refused operation, then reopens the database.
+
+- **Finding 2 (22d0f2ba).** `create_effect` refuses reservations on more than one
+  `(ledger_id, generation)` with `reservation_ledger_mismatch`, next to the existing
+  one-dimension check in `reservation_dimensions`. The other option, releasing the effect's
+  other holds when `close_generation` cancels it, would add a held→available path on a
+  ledger that was never closed; the contract allows that only on a proved unissued
+  cancellation, and the refusal needs no such argument.
+- **Finding 3 (ac62384d).** The restart check allows `proposed` only while the owner
+  effect does not exist. Two operations broke that, so both are guarded: `create_effect`
+  refuses with `unlisted_proposed_reservation` unless it lists every proposed reservation
+  the effect owns, and `reserve` refuses with `reservation_owner_exists` when the owner
+  effect already exists.
+- **Red controls.** Neutralising each guard in turn fails its probe on reopen:
+  `{:protected_corrupt, "root_reservations", :transition}` for finding 2 and
+  `{:protected_corrupt, "root_effects", "e1"}` for each half of finding 3.
+
 ## Where the code and the contract disagree
 
 - `reserve` moves no units. The contract moves available → held at reservation time; the
@@ -89,13 +112,18 @@ refuses to reopen. None of the three findings breaks numeric conservation.
   `NoUnitsCreated` still holds.
 - `return_allocation` also requires the child to have nothing held and nothing delegated.
 
+## Red control
+
+`SEEDED_BUG = true` in `ledger.qnt` makes a root reset refund the old generation's held
+units to the new generation. Run 2026-09-23 on a scratch copy with the command in "How to
+run" restricted to `--invariant=NoUnitsCreated` (30 steps, 200,000 samples, seed 7):
+**violated**, reproducible with `--seed=0x2f40093 --backend=rust`. With `SEEDED_BUG = false`
+the same invariant holds (table above), so the check is not vacuous.
+
 ## Not completed
 
 The session ended before these ran:
 
-- The required red control has not been run. `SEEDED_BUG = true` in `ledger.qnt` makes a
-  root reset refund the old generation's held units to the new generation. It is expected
-  to fail `NoUnitsCreated`, but no run has shown that.
 - `HeldOwnerLive` and `RestartValidActivated` were run with 20,000 samples and 25 steps,
   and each stopped at its first counterexample. `RestartValid` ran with 1,000 samples. No
   run was repeated with a larger bound after the invariants were refined.
