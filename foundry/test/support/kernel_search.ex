@@ -236,12 +236,14 @@ defmodule PramanaFoundry.Test.KernelSearch do
   @doc """
   The reducer's source: `kernel.ex` and the event-family modules under `kernel/`. Event and
   State refuse too, but outside this set, which is what `declared_reasons/0` always read.
+  `plan.ex` is the planner, not the reducer: its refusals are `decide/3` input errors that no
+  event can trip, and its own tests pin them.
   """
   def kernel_sources do
     dir = __ENV__.file |> Path.join("../../../lib/pramana_foundry/workflow") |> Path.expand()
 
     [Path.join(dir, "kernel.ex") | Path.wildcard(Path.join(dir, "kernel/**/*.ex"))] --
-      Enum.map(~w(event.ex state.ex), &Path.join([dir, "kernel", &1]))
+      Enum.map(~w(event.ex state.ex plan.ex), &Path.join([dir, "kernel", &1]))
   end
 
   # Two spellings declare a refusal, and scanning for only the first is how this claimed to
