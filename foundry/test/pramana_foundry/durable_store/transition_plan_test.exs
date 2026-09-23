@@ -674,9 +674,9 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     end
 
     test "fails closed on an output kind with no specified producer" do
-      # launch_authority_v1 gained a producer when the admission slots were made
-      # bindable; terminal_settlement_v1 and reset_fact_v1 remain declarable but
-      # unproducible, and must still refuse rather than default to a caller copy.
+      # launch_authority_v1 and reset_fact_v1 gained producers when their slots were made
+      # bindable; terminal_settlement_v1 remains declarable but unproducible until
+      # close_attempt exists, and must still refuse rather than default to a caller copy.
       bindings = [
         %{
           "name" => "authority",
@@ -688,6 +688,133 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
 
       assert {:error, :unsupported_output_kind} =
                TransitionPlan.derive_outputs(bindings, [staged()])
+    end
+  end
+
+  # Item 2 of the FR-08B protected items spec: one ticket reset binds one reset_generation
+  # fact per dimension, as a list in ticket_reset.generation.
+  describe "reset facts bind as a list" do
+    defp reset_staged(ordinal, dimension) do
+      %{
+        "ordinal" => ordinal,
+        "operation_kind" => "protected",
+        "operation_type" => "reset_generation",
+        "execution_status" => "committed",
+        "request" => %{},
+        "result" => %{
+          "facts" => %{
+            "new_generation" => %{
+              "schema_version" => 1,
+              "ledger_id" => "ledger-#{dimension}",
+              "dimension" => dimension,
+              "generation" => 1,
+              "authorized" => 2,
+              "available" => 2,
+              "status" => "open"
+            }
+          }
+        }
+      }
+    end
+
+    defp reset_plan(generation_field) do
+      marker = fn name -> %{"binding" => name} end
+
+      plan(%{
+        "protected_operations" => [
+          %{"schema_version" => 1, "ordinal" => 0, "type" => "reset_generation", "input" => %{}},
+          %{"schema_version" => 1, "ordinal" => 1, "type" => "reset_generation", "input" => %{}}
+        ],
+        "bindings" =>
+          for {name, ordinal} <- [{"starts", 0}, {"requests", 1}] do
+            %{
+              "name" => name,
+              "operation_ordinal" => ordinal,
+              "output_kind" => "reset_fact_v1",
+              "destination_slot" => "ticket_reset.generation"
+            }
+          end,
+        "discriminator_kind" => "unconditional_v1",
+        "alternatives" => [
+          %{
+            "discriminator" => "unconditional",
+            "proposal" =>
+              proposal(
+                [
+                  event("ticket_reset", %{
+                    "ticket_id" => "ticket-1",
+                    "generation" => generation_field.(marker)
+                  })
+                ],
+                []
+              )
+          }
+        ]
+      })
+    end
+
+    test "an unconditional plan has exactly one alternative, named unconditional" do
+      plan = reset_plan(fn m -> [m.("starts"), m.("requests")] end)
+      [only] = plan["alternatives"]
+
+      assert {:ok, _} = TransitionPlan.validate(plan)
+
+      assert {:error, :invalid_plan_alternatives} =
+               TransitionPlan.validate(%{
+                 plan
+                 | "alternatives" => [only, %{only | "discriminator" => "other"}]
+               })
+
+      assert {:error, :invalid_plan_alternatives} =
+               TransitionPlan.validate(%{
+                 plan
+                 | "alternatives" => [%{only | "discriminator" => "other"}]
+               })
+    end
+
+    test "both dimensions' reset facts land in the one ticket_reset" do
+      plan = reset_plan(fn m -> [m.("starts"), m.("requests")] end)
+
+      assert {:ok, proposal} =
+               TransitionPlan.bind(plan, "unconditional", [
+                 reset_staged(0, "starts.developer"),
+                 reset_staged(1, "model_requests")
+               ])
+
+      assert [event] = proposal["events"]
+
+      assert [%{"dimension" => "starts.developer"}, %{"dimension" => "model_requests"}] =
+               event["payload"]["generation"]
+
+      assert Enum.all?(event["payload"]["generation"], &(&1["generation"] == 1))
+    end
+
+    test "a literal element beside the bound facts is refused" do
+      forged = %{
+        "schema_version" => 1,
+        "ledger_id" => "x",
+        "dimension" => "d",
+        "generation" => 9,
+        "authorized" => 99
+      }
+
+      plan = reset_plan(fn m -> [m.("starts"), m.("requests"), forged] end)
+
+      assert {:error, :list_slot_element_unbound} =
+               TransitionPlan.bind(plan, "unconditional", [
+                 reset_staged(0, "starts.developer"),
+                 reset_staged(1, "model_requests")
+               ])
+    end
+
+    test "a single marker where the list slot expects a list is refused" do
+      plan = reset_plan(fn m -> m.("starts") end)
+
+      assert {:error, :binding_slot_absent} =
+               TransitionPlan.bind(plan, "unconditional", [
+                 reset_staged(0, "starts.developer"),
+                 reset_staged(1, "model_requests")
+               ])
     end
   end
 

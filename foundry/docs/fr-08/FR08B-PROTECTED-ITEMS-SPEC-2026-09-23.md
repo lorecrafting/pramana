@@ -82,6 +82,16 @@ ids, so its check is ticket-agnostic: every fact's `generation` equals the paylo
 which ledgers belong to a ticket would need a Core convention that does not exist, and is not
 added here.
 
+**Found while building it (2026-09-23): no accepted plan could reach any slot but a
+settlement.** `validate/1` requires an accepted plan to name a discriminator, and the only kind
+was `infrastructure_limit_v1`, which needs a non-start settlement. So `ticket_reset`, every
+`*_planned.authority` and `control_changed.control` were producible but undeliverable; the
+coverage test for admission slots called `derive_outputs/2`, never `bind/3`, and could not see
+it. Fixed with `unconditional_v1`: exactly one alternative, named `"unconditional"`, selected by
+Gateway without derivation and reconstructed as itself on revalidation. Item 1's
+`attempt_settled` plans use it too. Built at the commit that follows this note, with an
+end-to-end ticket reset through Gateway.
+
 ## Item 3 — settlement binds the execution it closes (B3 item 4)
 
 `bind/3` fills `*_settled.settlement` from `settle_claim`'s `infrastructure_settlement`, whose

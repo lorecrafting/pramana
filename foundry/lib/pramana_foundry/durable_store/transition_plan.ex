@@ -22,7 +22,11 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   # Names the protected derivation that selects among a plan's alternatives. Closed, so
   # a candidate cannot nominate arbitrary code to run inside the transaction; Gateway maps
   # each name to one fixed protected function. A terminal plan carries nil.
-  @discriminator_kinds ~w(infrastructure_limit_v1)
+  # unconditional_v1 is for an accepted transition with nothing to choose, such as a ticket
+  # reset or an admission: exactly one alternative, named "unconditional". Without it every
+  # slot other than a non-start settlement was producible but unreachable, because an
+  # accepted plan must name a discriminator.
+  @discriminator_kinds ~w(infrastructure_limit_v1 unconditional_v1)
   @operation ~w(schema_version ordinal type input)
   @binding ~w(name operation_ordinal output_kind destination_slot)
   @alternative ~w(discriminator proposal)
@@ -48,8 +52,16 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @producers %{
     "nonstart_settlement_v1" => {"settle_claim", "infrastructure_settlement"},
     "control_fact_v1" => {"set_control", "root_control"},
-    "launch_authority_v1" => {"issue_claim", "effect"}
+    "launch_authority_v1" => {"issue_claim", "effect"},
+    "reset_fact_v1" => {"reset_generation", "new_generation"}
   }
+
+  # A list slot carries one bound fact per binding, as a list in the payload field. R4's reset
+  # row is one ticket transition, while R5 resets one ledger generation per dimension, so one
+  # ticket_reset binds a reset_generation fact for each dimension it resets. Every element of
+  # the list must be a declared binding for that slot: a literal element would be a
+  # caller-supplied fact.
+  @list_slots ~w(ticket_reset.generation)
 
   @settlement_fields ~w(effect_id claim_id receipt_id role work_owner infrastructure_generation predecessor_effect_id failure_class ordinal)
 
@@ -241,6 +253,20 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     end
   end
 
+  defp project("reset_fact_v1", fact) do
+    candidate = %{
+      "schema_version" => 1,
+      "ledger_id" => fact["ledger_id"],
+      "dimension" => fact["dimension"],
+      "generation" => fact["generation"],
+      "authorized" => fact["authorized"]
+    }
+
+    if valid_output?("reset_fact_v1", candidate),
+      do: {:ok, candidate},
+      else: {:error, :invalid_authoritative_fact}
+  end
+
   @doc """
   The closed set of output kinds a binding may name.
   """
@@ -348,6 +374,18 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
        when disposition in @terminal_dispositions,
        do: {:error, :invalid_terminal_plan}
 
+  defp validate_alternatives(%{"discriminator_kind" => "unconditional_v1"} = plan) do
+    case plan["alternatives"] do
+      [%{"discriminator" => "unconditional"} = alternative] ->
+        if exact_keys?(alternative, @alternative) and plain_map?(alternative["proposal"]),
+          do: :ok,
+          else: {:error, :invalid_plan_alternatives}
+
+      _ ->
+        {:error, :invalid_plan_alternatives}
+    end
+  end
+
   defp validate_alternatives(%{"alternatives" => alternatives}) when is_list(alternatives) do
     valid? =
       alternatives != [] and
@@ -414,6 +452,14 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
       nonnegative_integer?(value["control_revision"])
   end
 
+  defp valid_output?("reset_fact_v1", value) do
+    plain_map?(value) and
+      exact_keys?(value, ~w(schema_version ledger_id dimension generation authorized)) and
+      value["schema_version"] == 1 and identifier?(value["ledger_id"]) and
+      identifier?(value["dimension"]) and nonnegative_integer?(value["generation"]) and
+      nonnegative_integer?(value["authorized"])
+  end
+
   defp valid_output?(_kind, _value), do: false
 
   defp authority_shape?(value) do
@@ -457,27 +503,47 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
       {type, field, _kind} = Map.fetch!(@slots, binding["destination_slot"])
       declared = for {event, index} <- Enum.with_index(events), event["type"] == type, do: index
 
+      marker = %{"binding" => name}
+      list_slot? = binding["destination_slot"] in @list_slots
+
       carrying =
         Enum.filter(declared, fn index ->
-          events |> Enum.at(index) |> get_in(["payload", field]) == %{"binding" => name}
+          value = events |> Enum.at(index) |> get_in(["payload", field])
+
+          if list_slot?,
+            do: is_list(value) and Enum.count(value, &(&1 == marker)) == 1,
+            else: value == marker
         end)
 
       case carrying do
         [index] ->
           event = Enum.at(events, index)
+          # For a list slot the marker sits at its element's position within the field.
+          suffix =
+            if list_slot?,
+              do: [field, Enum.find_index(event["payload"][field], &(&1 == marker))],
+              else: [field]
 
           permitted =
             [
-              ["events", index, "payload", field],
-              ["events", index, "payload", "projection", "value", field]
+              ["events", index, "payload" | suffix],
+              ["events", index, "payload", "projection", "value" | suffix]
             ] ++
               for {projection, position} <- Enum.with_index(projections),
                   projection["last_event_id"] == event["event_id"],
-                  do: ["projections", position, "value", field]
+                  do: ["projections", position, "value" | suffix]
 
-          if marker_positions(proposal, name, []) -- permitted == [],
-            do: {:cont, :ok},
-            else: {:halt, {:error, :binding_outside_declared_slot}}
+          cond do
+            marker_positions(proposal, name, []) -- permitted != [] ->
+              {:halt, {:error, :binding_outside_declared_slot}}
+
+            list_slot? and
+                not only_slot_markers?(event["payload"][field], bindings, binding) ->
+              {:halt, {:error, :list_slot_element_unbound}}
+
+            true ->
+              {:cont, :ok}
+          end
 
         [] ->
           {:halt, {:error, :binding_slot_absent}}
@@ -485,6 +551,18 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
         _ ->
           {:halt, {:error, :binding_slot_not_unique}}
       end
+    end)
+  end
+
+  defp only_slot_markers?(list, bindings, binding) do
+    names =
+      for other <- bindings,
+          other["destination_slot"] == binding["destination_slot"],
+          do: other["name"]
+
+    Enum.all?(list, fn
+      %{"binding" => name} = element when map_size(element) == 1 -> name in names
+      _ -> false
     end)
   end
 
@@ -528,21 +606,29 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
       {type, field, _kind} = Map.fetch!(@slots, binding["destination_slot"])
       expected = Map.fetch!(outputs, name)
 
+      list_slot? = binding["destination_slot"] in @list_slots
+
+      carries? = fn value ->
+        if list_slot?, do: is_list(value) and expected in value, else: value == expected
+      end
+
       carriers =
         for event <- List.wrap(proposal["events"]),
             event["type"] == type,
-            get_in(event, ["payload", field]) == expected,
+            carries?.(get_in(event, ["payload", field])),
             do: event
 
       case carriers do
         [event] ->
+          carried = get_in(event, ["payload", field])
+
           agreed? =
             List.wrap(proposal["projections"])
             |> Enum.filter(&(&1["last_event_id"] == event["event_id"]))
             |> Enum.all?(fn projection ->
               case get_in(projection, ["value", field]) do
                 nil -> true
-                value -> value == expected
+                value -> value == carried
               end
             end)
 

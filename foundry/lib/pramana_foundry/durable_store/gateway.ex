@@ -1325,6 +1325,9 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     end
   end
 
+  defp protected_discriminator(_conn, %{"discriminator_kind" => "unconditional_v1"}, _results),
+    do: {:ok, "unconditional"}
+
   defp protected_discriminator(_conn, _plan, _results),
     do: {:error, :unsupported_discriminator_kind}
 

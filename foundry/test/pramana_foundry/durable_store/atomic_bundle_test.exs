@@ -1325,6 +1325,141 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
                fact(ctx, "infrastructure_settlement", "effect_id", "effect-1")
     end
 
+    # Item 2 of the FR-08B protected items spec, end to end: an unconditional plan commits a
+    # ticket_reset whose generation list holds the reset_generation fact the same bundle made.
+    test "an unconditional plan commits a ticket reset bound to its new ledger generation",
+         ctx do
+      accept_current!(ctx, %{
+        "type" => "grant_ledger",
+        "ledger_id" => "objective",
+        "generation" => 0,
+        "dimension" => "starts.developer",
+        "units" => 5
+      })
+
+      accept_current!(ctx, %{
+        "type" => "delegate_allocation",
+        "parent_ledger_id" => "objective",
+        "parent_generation" => 0,
+        "child_ledger_id" => "ticket-reset",
+        "child_generation" => 0,
+        "dimension" => "starts.developer",
+        "units" => 3
+      })
+
+      reset = %{
+        "type" => "reset_generation",
+        "ledger_id" => "ticket-reset",
+        "old_generation" => 0,
+        "new_generation" => 1,
+        "parent_ledger_id" => "objective",
+        "parent_generation" => 0,
+        "units" => 1
+      }
+
+      assert {:ok, %{"reason_code" => "incomplete_read_set"} = probe, :committed} =
+               Gateway.protected_command(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 root_command(unique_id(), %{}, reset)
+               )
+
+      event_id = "event-RESET1"
+
+      bundle =
+        domain_envelope("RESET1")
+        |> Map.delete("proposal")
+        |> Map.put("operations", [
+          %{
+            "schema_version" => 1,
+            "expected_revisions" => probe["facts"]["required_revisions"],
+            "operation" => reset
+          }
+        ])
+        |> Map.put("plan", %{
+          "schema_version" => 1,
+          "command_id" => "RESET1",
+          "disposition" => "accepted",
+          "reason_code" => nil,
+          "expected_domain_revision" => 0,
+          "domain_reads" => [],
+          "protected_operations" => [
+            %{"schema_version" => 1, "ordinal" => 0, "type" => "reset_generation", "input" => %{}}
+          ],
+          "bindings" => [
+            %{
+              "name" => "starts",
+              "operation_ordinal" => 0,
+              "output_kind" => "reset_fact_v1",
+              "destination_slot" => "ticket_reset.generation"
+            }
+          ],
+          "discriminator_kind" => "unconditional_v1",
+          "alternatives" => [
+            %{
+              "discriminator" => "unconditional",
+              "proposal" => %{
+                "schema_version" => 1,
+                "result" => %{"schema_version" => 1, "disposition" => "accepted"},
+                "events" => [
+                  %{
+                    "schema_version" => 1,
+                    "event_id" => event_id,
+                    "type" => "ticket_reset",
+                    "payload" => %{
+                      "ticket_id" => "T1",
+                      "generation" => [%{"binding" => "starts"}],
+                      "projection" => %{
+                        "namespace" => "atomic-v2",
+                        "entity_id" => "RESET1",
+                        "revision" => 0,
+                        "value" => %{"phase" => "queued"}
+                      }
+                    }
+                  }
+                ],
+                "projections" => [
+                  %{
+                    "schema_version" => 1,
+                    "namespace" => "atomic-v2",
+                    "entity_id" => "RESET1",
+                    "expected_revision" => -1,
+                    "revision" => 0,
+                    "last_event_id" => event_id,
+                    "value" => %{"phase" => "queued"}
+                  }
+                ],
+                "intents" => []
+              }
+            }
+          ]
+        })
+
+      assert {:ok, result, :committed} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", bundle)
+
+      assert result["disposition"] == "accepted", inspect(result)
+      assert result["selected_discriminator"] == "unconditional"
+
+      assert {:ok, raw} = Sqlite3.open(ctx.path, mode: :readonly)
+
+      assert {:ok, [[bytes]]} =
+               Database.query(raw, "SELECT event FROM events WHERE command_id = ?", ["RESET1"])
+
+      assert :ok = Sqlite3.close(raw)
+      committed = bytes |> :json.decode() |> normalize_json()
+
+      assert [
+               %{
+                 "ledger_id" => "ticket-reset",
+                 "dimension" => "starts.developer",
+                 "generation" => 1,
+                 "authorized" => 1
+               }
+             ] = committed["payload"]["generation"]
+    end
+
     test "an envelope carrying both a plan and a proposal is refused", ctx do
       seed_issued_launch!(ctx)
 

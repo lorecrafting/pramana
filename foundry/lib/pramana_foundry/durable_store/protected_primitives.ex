@@ -5188,6 +5188,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
+  # An unconditional plan has one alternative and derives nothing, so the only value that
+  # reconstructs is "unconditional" itself.
+  defp recorded_discriminator_reconstructs?(
+         _conn,
+         %{"discriminator_kind" => "unconditional_v1"},
+         _staged,
+         recorded
+       ) do
+    if recorded == "unconditional",
+      do: :ok,
+      else: {:error, :discriminator_does_not_reconstruct}
+  end
+
   defp recorded_discriminator_reconstructs?(conn, plan, staged, recorded) do
     with {:ok, settlement} <- bound_settlement_fact(plan, staged),
          {:ok, ^recorded} <-
