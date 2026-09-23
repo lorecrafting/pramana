@@ -1291,8 +1291,8 @@ Neither step is on the supervised dogfood alpha path, so this assignment closes 
 gap; it starts nothing and moves no ticket out of Blocked.
 
 **Proposed amendment to steps 6 and 7 ([#48](https://github.com/lorecrafting/pramana/issues/48) slice A0).**
-*Status 2026-09-23: PROPOSAL awaiting operator approval; not reviewed. The 2026-09-20
-assignment above governs until the operator approves this text.* It narrows that
+*Status 2026-09-23: APPROVED by the operator (#48 A0); it supersedes the 2026-09-20
+assignment above where they differ.* It narrows that
 assignment to what each ticket's acceptance already requires, and changes no dependency,
 status or acceptance obligation:
 
@@ -1482,7 +1482,7 @@ needs a baseline, fixed acceptance gates, bounded experiment and ordinary admiss
 activation; telemetry cannot weaken authority or auto-promote its own recommendation.
 
 **Observability steps 6 and 7 (proposed, [#48](https://github.com/lorecrafting/pramana/issues/48) slice A0).**
-*Status 2026-09-23: PROPOSAL awaiting operator approval; not reviewed.* This is the pointer
+*Status 2026-09-23: APPROVED by the operator (#48 A0).* This is the pointer
 the [FR-18B section](#fr-18b--complete-status-and-telemetry-chain) requires. Under the
 proposal FR-20 owns moving the Improver's classifiers, findings and proposals onto
 canonical observations (route step 6, Improver half) and the efficiency validation above

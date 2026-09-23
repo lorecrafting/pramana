@@ -5724,7 +5724,7 @@ test supports the same direction and keeps composition post-repair.
 
 ## #48 A0: FR-18B/FR-20 observability ownership proposed — 2026-09-23
 
-*Status: PROPOSAL awaiting operator approval; not reviewed.* Documentation only. Proposal
+*Status: APPROVED by the operator 2026-09-23.* Documentation only. Proposal
 blocks were added to the FR-18B and FR-20 sections of [the repair plan](REPAIR-PLAN.md)
 and to the staged convergence route in [OBSERVABILITY.md](OBSERVABILITY.md). Board/status
 consumption moves to FR-18B, because FR-18B's acceptance already requires board/status

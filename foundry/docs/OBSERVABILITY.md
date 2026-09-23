@@ -284,7 +284,7 @@ this route.** The repair plan assigned them on 2026-09-20 in
 governs; this route did not carry that assignment.
 
 **Proposed owners ([#48](https://github.com/lorecrafting/pramana/issues/48) slice A0).**
-*Status 2026-09-23: PROPOSAL awaiting operator approval; not reviewed. It matches the
+*Status 2026-09-23: APPROVED by the operator (#48 A0). It matches the
 proposal blocks in the FR-18B and
 [FR-20](REPAIR-PLAN.md#fr-20--reconnect-constrained-improvement-proposals) sections.*
 
