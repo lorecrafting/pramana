@@ -119,6 +119,35 @@ defmodule PramanaFoundry.DurableStore.LiveRefusalProbeTest do
     reopen!(ctx)
   end
 
+  # Found by the class grep, not the generator: create_effect checked each lease spec against
+  # root_leases but not against the other specs, so the claim's insert failed.
+  describe "L4: an effect naming one lease or resource twice is refused" do
+    for {name, leases} <- [
+          {"lease_id",
+           [
+             %{"lease_id" => "lease-1", "resource_id" => "slot-a"},
+             %{"lease_id" => "lease-1", "resource_id" => "slot-b"}
+           ]},
+          {"resource_id",
+           [
+             %{"lease_id" => "lease-a", "resource_id" => "slot-1"},
+             %{"lease_id" => "lease-b", "resource_id" => "slot-1"}
+           ]}
+        ] do
+      @leases leases
+      test "a repeated #{name}", ctx do
+        assert %{"disposition" => "accepted"} = run(ctx.gw, "RESERVE-1", reserve("1"))
+        op = Map.put(effect_op("1"), "leases", @leases)
+
+        assert %{"disposition" => "rejected", "reason_code" => "lease_conflict"} =
+                 run(ctx.gw, "EFFECT-1", op)
+
+        ready!(ctx.gw)
+        reopen!(ctx)
+      end
+    end
+  end
+
   defp released!(gw, n) do
     assert %{"disposition" => "accepted"} = run(gw, "RELEASE-" <> n, release(n))
     ready!(gw)

@@ -3577,7 +3577,18 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end)
   end
 
+  # A list naming one lease or resource twice passes the per-spec query below, then fails
+  # root_leases' unique keys as a storage error when the claim materializes it
+  # (live_refusal_probe_test.exs, L4). Checked here, not in normalize_lease_specs, so the
+  # restart check still accepts an effect created before this guard.
   defp lease_specs_available(conn, specs) do
+    if Enum.uniq_by(specs, & &1["lease_id"]) == specs and
+         Enum.uniq_by(specs, & &1["resource_id"]) == specs,
+       do: leases_unheld(conn, specs),
+       else: {:error, :lease_conflict}
+  end
+
+  defp leases_unheld(conn, specs) do
     Enum.reduce_while(specs, :ok, fn spec, :ok ->
       case Database.query(
              conn,
