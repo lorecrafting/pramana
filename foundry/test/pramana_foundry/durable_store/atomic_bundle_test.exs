@@ -1036,7 +1036,11 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       assert settlement["ordinal"] == 1
 
       assert {:ok, "below_infrastructure_limit"} =
-               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", settlement)
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(
+                 conn,
+                 "effect-1",
+                 settlement
+               )
     end
 
     # The seeded policy allows three developer attempts. The comparison itself is
@@ -1047,7 +1051,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       conn = discriminator_conn(ctx)
 
       assert {:ok, "infrastructure_limit_reached"} =
-               ProtectedPrimitives.infrastructure_discriminator(
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(
                  conn,
                  "effect-1",
                  Map.put(settlement, "ordinal", 3)
@@ -1059,7 +1063,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       conn = discriminator_conn(ctx)
 
       assert {:error, :infrastructure_limit_undecidable} =
-               ProtectedPrimitives.infrastructure_discriminator(
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(
                  conn,
                  "effect-1",
                  Map.put(settlement, "role", "reviewer")
@@ -1071,7 +1075,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       conn = discriminator_conn(ctx)
 
       assert {:error, :infrastructure_limit_undecidable} =
-               ProtectedPrimitives.infrastructure_discriminator(
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(
                  conn,
                  "effect-1",
                  Map.put(settlement, "ordinal", 0)
@@ -1083,7 +1087,11 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       conn = discriminator_conn(ctx)
 
       assert {:error, :infrastructure_limit_undecidable} =
-               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-absent", settlement)
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(
+                 conn,
+                 "effect-absent",
+                 settlement
+               )
     end
 
     test "a settlement that is not a map fails closed", ctx do
@@ -1091,10 +1099,15 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       conn = discriminator_conn(ctx)
 
       assert {:error, :infrastructure_limit_undecidable} =
-               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", nil)
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(conn, "effect-1", nil)
     end
 
-    test "a policy revised after the effect was created fails closed", ctx do
+    # Contract reading Q5: a proved non-start still settles after a policy revision. The
+    # revision here drops the developer limit entirely, which is the case that stranded the
+    # non-start when the discriminator read the policy head. The limit in force at the
+    # effect's own revision (3) still decides it.
+    test "a policy revised after the effect was created still decides from the effect's revision",
+         ctx do
       settlement = settled_effect!(ctx)
 
       accept_current!(ctx, %{
@@ -1103,14 +1116,18 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
         "value" => %{
           "allowed_operations" => ["launch"],
           "allowed_scopes" => ["ticket:T1"],
-          "infrastructure_attempt_limits" => %{"developer" => 9}
+          "infrastructure_attempt_limits" => %{}
         }
       })
 
       conn = discriminator_conn(ctx)
 
-      assert {:error, :infrastructure_limit_undecidable} =
-               ProtectedPrimitives.infrastructure_discriminator(conn, "effect-1", settlement)
+      assert {:ok, "below_infrastructure_limit"} =
+               ProtectedPrimitives.infrastructure_discriminator_at_revision(
+                 conn,
+                 "effect-1",
+                 settlement
+               )
     end
   end
 
@@ -1240,6 +1257,39 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
       assert :ok = Sqlite3.close(raw)
       assert %{"value" => %{"phase" => "queued"}} = bytes |> :json.decode() |> normalize_json()
+    end
+
+    # Contract reading Q5 at the commit path: a revision that drops the role's limit after
+    # the launch was issued must not strand the proved non-start. The effect's own revision
+    # (limit 3) decides it, so it settles below the limit and queues.
+    test "a non-start still settles after a policy revision drops the role's limit", ctx do
+      seed_issued_launch!(ctx)
+
+      accept_current!(ctx, %{
+        "type" => "set_policy",
+        "policy_id" => "policy-1",
+        "value" => %{
+          "allowed_operations" => ["launch"],
+          "allowed_scopes" => ["ticket:T1"],
+          "infrastructure_attempt_limits" => %{}
+        }
+      })
+
+      assert {:ok, result, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 "PLANQ5"
+                 |> nonstart_plan_bundle()
+                 |> put_in(
+                   ["operations", Access.at(0), "expected_revisions", "policy/policy-1"],
+                   1
+                 )
+               )
+
+      assert result["disposition"] == "accepted"
+      assert result["selected_discriminator"] == "below_infrastructure_limit"
     end
 
     test "an envelope carrying both a plan and a proposal is refused", ctx do

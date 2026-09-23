@@ -315,10 +315,10 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   @doc """
   Re-derives the discriminator for a past settlement from retained policy history.
 
-  Revalidation must not trust the recorded value, and must not use
-  `infrastructure_discriminator/3` either: that reads the current policy head row and
-  fails closed once policy is revised, which would report a valid historical commit as
-  corrupt. `root_policy_history` retains every revision under `PRIMARY KEY(policy_id,
+  Both the commit path and revalidation use this function. Reading the current policy head
+  instead failed closed once policy was revised, which stranded a proved non-start at commit
+  time (contract reading Q5: it must still settle) and would report a valid historical
+  commit as corrupt on revalidation. `root_policy_history` retains every revision under `PRIMARY KEY(policy_id,
   revision)` with a chain constraint, and its lineage is validated on open, so the limit
   in force at the effect's recorded `policy_revision` is recoverable and integrity-checked.
 
@@ -350,42 +350,6 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   end
 
   def infrastructure_discriminator_at_revision(_conn, _effect_id, _settlement),
-    do: {:error, :infrastructure_limit_undecidable}
-
-  @doc """
-  Derives the closed infrastructure-limit discriminator for a settled non-start.
-
-  This is a protected safety observation used to select a kernel-authored alternative in
-  a transition plan. It authorizes no effect: later dispatch still obtains a fresh claim
-  and passes current root admission.
-
-  The comparison is between the authoritative settlement ordinal and the effect's policy
-  `infrastructure_attempt_limits` entry for its role. Every uncertain input fails closed
-  with `:infrastructure_limit_undecidable` rather than selecting the permissive branch: a
-  missing or stale policy, a policy carrying no limits map, a missing, non-integer or
-  non-positive limit for the role, a settlement whose role disagrees with the effect, and
-  a non-positive ordinal.
-  """
-  @spec infrastructure_discriminator(term(), String.t(), map()) ::
-          {:ok, String.t()} | {:error, atom()}
-  def infrastructure_discriminator(conn, effect_id, settlement) when is_map(settlement) do
-    with {:ok, effect} <- load_effect(conn, effect_id),
-         {:ok, policy} <- load_simple(conn, "root_policies", "policy_id", effect.policy_id),
-         true <- policy.revision == effect.policy_revision,
-         true <- effect.role == settlement["role"],
-         limits when is_map(limits) <- policy.value["infrastructure_attempt_limits"],
-         limit when is_integer(limit) and limit > 0 <- Map.get(limits, effect.role),
-         ordinal when is_integer(ordinal) and ordinal > 0 <- settlement["ordinal"] do
-      if ordinal < limit,
-        do: {:ok, "below_infrastructure_limit"},
-        else: {:ok, "infrastructure_limit_reached"}
-    else
-      {:error, _reason} -> {:error, :infrastructure_limit_undecidable}
-      _ -> {:error, :infrastructure_limit_undecidable}
-    end
-  end
-
-  def infrastructure_discriminator(_conn, _effect_id, _settlement),
     do: {:error, :infrastructure_limit_undecidable}
 
   defp execute_new(conn, actor_id, request, writer_epoch, digest, fault) do

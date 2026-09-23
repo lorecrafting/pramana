@@ -1215,10 +1215,8 @@ defmodule PramanaFoundry.DurableStore.Gateway do
   defp atomic_result(command_id, disposition, reason, operation_results, domain_result),
     do: atomic_result(command_id, disposition, reason, operation_results, domain_result, nil)
 
-  # The selected discriminator is recorded because it cannot be recomputed later.
-  # infrastructure_discriminator/3 derives from the *current* policy row and fails closed
-  # once that policy is revised, so a value not written down at commit time is
-  # unrecoverable in principle rather than merely inconvenient.
+  # The selected discriminator is recorded so a reader need not recompute it. Revalidation
+  # does recompute it, from the policy at the effect's own revision, and must agree.
   defp atomic_result(
          command_id,
          disposition,
@@ -1319,7 +1317,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          results
        ) do
     with {:ok, settlement} <- staged_settlement_fact(plan, results) do
-      ProtectedPrimitives.infrastructure_discriminator(
+      ProtectedPrimitives.infrastructure_discriminator_at_revision(
         conn,
         settlement["effect_id"],
         settlement
