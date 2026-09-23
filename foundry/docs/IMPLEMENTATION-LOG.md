@@ -5488,3 +5488,67 @@ under a labelled hand-written header:
 
 Still open: a full run under the committed script; the cause of `:968`'s survival; `:325`'s verdict
 under full labels (run 3's `:3` lines are only inferred to include it).
+
+## FR-23a: three FREE dead functions removed; three refusal-audit test findings closed — 2026-09-22
+
+Base `4aa7ef30`. Four commits, one per task. The file rule was checked for every touched
+file: `board.ex`, `assessor/result.ex` and the three test files are in neither
+`repair/fr08a_protected_boundary.ex` nor `repair/h0_accepted_fr07_boundary.ex`, and in no
+FR-08B/10/11/12/19B rewrite-set path. No `lib/` file changed except the two removals.
+
+- **Dead surface (`9a3760e7`).** `Board.inspection/0,1`, `Board.inspection_status/0,1` and
+  `Assessor.Result.statuses/0` were removed, together with the `Board.Inspection` alias that
+  only they used. `--warnings-as-errors` reported it; nothing else became unused. Before the
+  removal, the searches were run again on this tree: `mix xref callers` on both modules, an
+  `Xref.calls/0` filter for the three callees (it returned `[]`), `rg -nw` for each name across
+  `lib test bin ci config mix.exs docs` and the repo-root `bin`, and a call-shape search over the
+  whole repository. The only hits outside the defs were prose, local variables, an unrelated
+  umbrella `statuses/0` and the inventory itself. The commit message quotes each result.
+  `Handoff.max_blocked_bytes/0` was kept on purpose, because its file is on the FR-08B/FR-11
+  handoff path. The inventory has a dated note under its FREE table.
+- **`gateway_test` (`707a1cbc`).** The test the previous audit found never reaches SQLite is
+  now named for what it checks: "RecordCodec refuses a missing projection event and a duplicate
+  event before SQL, committing nothing". No test proved that the schema's UNIQUE or FK
+  constraints roll back a partial write. No test asserted a SQLite constraint error, and the
+  one raw FK insert (`review_corrections_test`) turns `foreign_keys` off first. The new test,
+  "SQLite UNIQUE and FK violations roll back the whole transaction", writes through
+  `Database.transaction/2` and bypasses the codec. Each case writes a valid row, then the
+  violating row. The errors are pinned to `"UNIQUE constraint failed: events.event_id"` and
+  `"FOREIGN KEY constraint failed"`, and the reopened Gateway is `:ready` with every counted
+  table at 0.
+- **`stress_test` (`6cfb91c5`).** Each schema-invalid record is now rebuilt on its own after
+  the valid record, and the valid record is asserted to rebuild on its own. The reasons are
+  pinned to what a sentinel run returned: `{:missing_fields, ["event"]}`,
+  `{:invalid_type, "event"}` and `{:unknown_fields, ["unknown_top_level"]}`.
+- **`cli_test` (`7e7ad457`).** "accepts non-string commit" is renamed "rejects non-string
+  commit". The rejection is intended: `Validators.validate_commit_sha/1` has a dedicated
+  non-binary clause (`cli/validators.ex:97-98`), and no document says otherwise.
+
+### Rule 6: neutralisations
+
+`database.ex` is pinned by `FR08AProtectedBoundary`, so the schema constraints were not removed.
+The `gateway_test` controls were applied in the test instead. Every change was reversed by
+replacing the exact string, and `git diff --stat foundry/lib` was empty afterwards.
+
+| Neutralisation | Test | Red | Reversed |
+|---|---|---|---|
+| Event insert → `INSERT OR IGNORE` (the UNIQUE conflict no longer aborts) | `gateway_test.exs:283` | 0/1, `right: {:ok, :ok}` (unique case) | 19 passed |
+| `PRAGMA foreign_keys = OFF` on the writing connection | `gateway_test.exs:283` | 0/1, `right: {:ok, :ok}` (fk case) | 19 passed |
+| `Database.transaction` replaced by a bare fn (no rollback) | `gateway_test.exs:283` | 0/1 at `Gateway.counts`, `{:recovery_mode, {:authority_corrupt, "command_results", "command-1", :required_relation_missing}}` | 19 passed |
+| `schema.ex` canonical `"event"` type check → `fn _ -> true end` | `stress_test.exs` | 16/17, `:unknown_event_type` instead of `{:invalid_type, "event"}` | 17 passed |
+| `schema.ex` `exact_fields` unknown branch → `false and …` | `stress_test.exs` | 16/17, `right: {:ok, …}` | 17 passed |
+
+The old single-list stress test would have stayed green under both `schema.ex` swaps, because
+it judged only the first record.
+
+**Build-path trap, recorded for whoever reruns this.** When `MIX_BUILD_PATH` is set, `dev` and
+`test` share one build directory. After a `mix compile --warnings-as-errors --force` there,
+`mix test` ran the dev-compiled `GitEvidence`, which refuses `skip_git_checks` outside
+`Mix.env() == :test`. It failed `board_test` "complete fault isolation…" at both the base and
+the candidate. Tests passed once they ran from a separate `MIX_BUILD_PATH`.
+
+Run one file at a time: `board_test` 15/15, `board/inspection_test` 5/5,
+`assessor/context_selector_test` 9/9, `evaluator_test` 4/4, `jev_test` 13/13,
+`durable_store/gateway_test` 19/19, `stress_test` 17/17, `cli_test` 45/45.
+`mix compile --warnings-as-errors --force` and `mix format --check-formatted` pass. Not run:
+`ci/run.exs`, the full suite, the sweep.
