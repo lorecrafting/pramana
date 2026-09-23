@@ -404,9 +404,9 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
 
     test "rejects a marker carried by an event of another type" do
       wrong =
-        proposal([event("control_changed", %{"settlement" => %{"binding" => "settled"}})], [])
+        proposal([event("check_recorded", %{"settlement" => %{"binding" => "settled"}})], [])
 
-      assert {:error, :slot_value_unbound} =
+      assert {:error, :binding_slot_absent} =
                TransitionPlan.bind(
                  plan(%{
                    "alternatives" => [

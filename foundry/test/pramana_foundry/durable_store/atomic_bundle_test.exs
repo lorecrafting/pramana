@@ -1753,6 +1753,26 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
                Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", incoherent)
     end
 
+    # Fable review of the F1 fix: with no binding the plan chose the branch itself under
+    # unconditional_v1 and recorded no settlement, though Core had settled the claim.
+    test "a staged non-start must bind its settlement", ctx do
+      seed_issued_launch!(ctx)
+      plain = domain_envelope("PLAN14")["proposal"]
+
+      unbound =
+        nonstart_plan_bundle("PLAN14")
+        |> put_in(["plan", "bindings"], [])
+        |> put_in(["plan", "discriminator_kind"], "unconditional_v1")
+        |> put_in(["plan", "alternatives"], [
+          %{"discriminator" => "unconditional", "proposal" => plain}
+        ])
+
+      assert {:error, :nonstart_settlement_unbound} =
+               Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unbound)
+
+      assert {:ok, %{"status" => "issued"}} = fact(ctx, "claim", "claim_id", "claim-1")
+    end
+
     test "the discriminator needs the settlement its own plan binds", ctx do
       seed_issued_launch!(ctx)
 
@@ -1769,10 +1789,9 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
           Enum.map(alternatives, &Map.put(&1, "proposal", plain))
         end)
 
-      assert {:ok, %{"disposition" => "rejected", "reason_code" => reason}, _} =
+      # Refused at ingress now: the staged non-start has no settlement binding at all.
+      assert {:error, :nonstart_settlement_unbound} =
                Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unbound)
-
-      assert reason == "discriminator_settlement_unavailable"
     end
 
     defp commit_plan!(ctx, id) do

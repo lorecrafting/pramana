@@ -1398,7 +1398,29 @@ defmodule PramanaFoundry.DurableStore.Gateway do
       |> Enum.with_index()
       |> Enum.map(fn {entry, index} -> {index, entry["operation"]["type"]} end)
 
-    if declared == staged, do: :ok, else: {:error, :plan_operations_mismatch}
+    cond do
+      declared != staged -> {:error, :plan_operations_mismatch}
+      not nonstarts_bound?(plan, operations) -> {:error, :nonstart_settlement_unbound}
+      true -> :ok
+    end
+  end
+
+  # A staged non-start produces a settlement whose branch only Core may derive. Unbound, the
+  # plan could pick the branch itself under unconditional_v1 and record no settlement at all
+  # (Fable review of the core_boundary F1 fix). The outcome is in the staged operation, not
+  # the plan, so this is checked here rather than in TransitionPlan.validate/1.
+  defp nonstarts_bound?(plan, operations) do
+    bound =
+      for binding <- plan["bindings"],
+          binding["output_kind"] == "nonstart_settlement_v1",
+          do: binding["operation_ordinal"]
+
+    operations
+    |> Enum.with_index()
+    |> Enum.all?(fn {entry, index} ->
+      entry["operation"]["type"] != "settle_claim" or
+        entry["operation"]["outcome"] != "non_started" or index in bound
+    end)
   end
 
   # One fixed namespace per domain read kind; `state` is the global singleton `control`.

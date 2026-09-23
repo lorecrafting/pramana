@@ -12,6 +12,11 @@ protected items spec.
 
 ## Result
 
+> **Fixed 2026-09-23** (`c82e2076`, then the review changes): every slot-typed event must fill
+> its slot from a declared binding, no proposal carrier may carry one, and a staged non-start
+> must bind its settlement. The probe now prints `GAP CLOSED`. Independent review:
+> [findings](../../docs/fr-08/core-boundary-f1f2-review-findings-2026-09-23.md).
+
 **As built, an adversarial controller breaks two Core guarantees: the infrastructure-limit
 branch and settlement-to-execution identity.** It also forges two slot facts,
 `attempt_settled.settlement` and `launch_planned.authority`. Every other Core guarantee
