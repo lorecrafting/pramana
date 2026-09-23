@@ -71,3 +71,5 @@ plan's review rules, plus the contract-row walk for the R4/R4a rows the producer
    modules; developer/review/integration phases in software-specific ones. No definition format or
    DSL; full mechanism/definition extraction waits for a second workflow, per
    [the seam note](../fr-08/workflow-definition-seam.md) and PR #49.
+
+**Adversarial check (2026-09-23):** [the Core boundary Quint model](../../spec/core_boundary/README.md) checks that a guarantee Core owns holds against a controller that submits any bundle; it finds two that do not (literal slot facts).
