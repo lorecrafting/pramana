@@ -79,9 +79,17 @@ defmodule PramanaFoundry.StressTest do
         "evidence" => %{}
       }
 
-      assert {:error,
-              %{reason: %{reason: {:missing_fields, ["event"]}}, evidence: ^missing_event_field}} =
-               Transition.rebuild([valid, missing_event_field, wrong_type, unknown_fields])
+      # Rebuild stops at the first invalid record, so each one is judged on its own.
+      assert {:ok, _} = Transition.rebuild([valid])
+
+      for {invalid, reason} <- [
+            {missing_event_field, {:missing_fields, ["event"]}},
+            {wrong_type, {:invalid_type, "event"}},
+            {unknown_fields, {:unknown_fields, ["unknown_top_level"]}}
+          ] do
+        assert {:error, %{reason: %{reason: ^reason}, evidence: ^invalid}} =
+                 Transition.rebuild([valid, invalid])
+      end
     end
 
     test "garbage binary records fail closed" do
