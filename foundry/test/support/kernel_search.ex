@@ -230,11 +230,18 @@ defmodule PramanaFoundry.Test.KernelSearch do
 
   @doc "Every error atom the kernel module can return, read from its source."
   def declared_reasons do
-    __ENV__.file
-    |> Path.join("../../../lib/pramana_foundry/workflow/kernel.ex")
-    |> Path.expand()
-    |> File.read!()
-    |> reasons_in()
+    kernel_sources() |> Enum.map_join("\n", &File.read!/1) |> reasons_in()
+  end
+
+  @doc """
+  The reducer's source: `kernel.ex` and the event-family modules under `kernel/`. Event and
+  State refuse too, but outside this set, which is what `declared_reasons/0` always read.
+  """
+  def kernel_sources do
+    dir = __ENV__.file |> Path.join("../../../lib/pramana_foundry/workflow") |> Path.expand()
+
+    [Path.join(dir, "kernel.ex") | Path.wildcard(Path.join(dir, "kernel/**/*.ex"))] --
+      Enum.map(~w(event.ex state.ex), &Path.join([dir, "kernel", &1]))
   end
 
   # Two spellings declare a refusal, and scanning for only the first is how this claimed to
