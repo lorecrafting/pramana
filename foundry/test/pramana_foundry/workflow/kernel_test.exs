@@ -729,6 +729,54 @@ defmodule PramanaFoundry.Workflow.KernelTest do
       assert {:error, :invalid_disposition} = Harness.apply(state, forged)
     end
 
+    # kernel.ex's `attempt_settled` `require_active_attempt`. Survived the 2026-09-22
+    # coverage-guided sweep: no test sent a settlement naming anything but the active
+    # attempt. `require_settlement_source` judges the ACTIVE attempt, so without this guard
+    # a disposition valid for A2 is written onto the prior, already-terminal A1 - the
+    # retained-evidence custody `prior_attempt_ids` exists for.
+    test "a settlement naming a prior attempt is refused; the same event for the active one is not" do
+      {state, sequence} =
+        drive(developing(), [
+          {"attempt_settled", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "disposition" => "exhausted",
+             "reason_code" => nil,
+             "settlement" => %{"schema_version" => 1}
+           }},
+          {"stream_sealed", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A1",
+             "execution_id" => "X1",
+             "last_accepted_sequence" => 7
+           }},
+          {"developer_closed", "T1",
+           %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "X1"}},
+          {"ticket_reset", "T1", %{"ticket_id" => "T1", "generation" => 1}},
+          {"launch_planned", "T1",
+           %{
+             "ticket_id" => "T1",
+             "attempt_id" => "A2",
+             "authority" => Map.put(authority("X2"), "attempt_id", "A2")
+           }}
+        ])
+
+      settle = fn attempt_id ->
+        event("attempt_settled", "T1", state["tickets"]["T1"]["revision"], sequence + 1, %{
+          "ticket_id" => "T1",
+          "attempt_id" => attempt_id,
+          "disposition" => "exhausted",
+          "reason_code" => nil,
+          "settlement" => %{"schema_version" => 1}
+        })
+      end
+
+      assert {:error, :not_the_active_attempt} = Harness.apply(state, settle.("A1"))
+      assert {:ok, _} = Harness.apply(state, settle.("A2"))
+    end
+
     # R4: "ready_to_integrate/integrating; accepted base moved **before issuance**". From
     # `developing` no base has been accepted, so there is nothing for a move to supersede
     # — without the guard the attempt terminalises `superseded_base` from a phase the row

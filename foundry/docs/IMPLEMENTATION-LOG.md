@@ -5248,3 +5248,62 @@ only by line (:199 and :398). Not run: the rest of `operational_storage_test.exs
 `sync_fault_test.exs`, the sweep, `ci/run.exs`, the full suite. `mix format --check-formatted`
 passes.
 
+
+## Twelve sweep survivors in kernel.ex classified; one test added — 2026-09-22
+
+The 2026-09-22 coverage-guided sweep (kernel.ex unchanged since; line numbers checked at
+`bae9b1d0`) reported twelve `require_*` call sites where replacing the call with `:ok` turned no
+test red. Each is classified below. U = its atom is in `@unreachable`, and the recorded reason was
+checked at this site; S = shadowed at this site although the atom fires elsewhere; T = reachable
+and untested, now tested. No guard was deleted: rule 3 says prove or delete, and deleting one is a
+kernel change for the coordinator to decide.
+
+| Site | Guard | Class | Evidence |
+|---|---|---|---|
+| :735 | `require_checks_passed` in `review_planned` | U, holds | The attempt must be in `awaiting_review` (:734). The inductive argument: `maybe_finish_checks` writes that phase only when every check has passed (or when the policy-empty set is empty). The other two writers, `review_settled` and `reviewer_closed`'s no-verdict branch (:772, :859), both return from `reviewing`, and `reviewing` is reachable only through this same guard. Checks are written only in `checking`. **The recorded reason's premise is literally false.** It says `maybe_finish_checks` "is the only thing that puts it there". The conclusion still holds, because the two extra writers can only return from a state that already passed the guard. |
+| :793 | `require_reviewer_open` in `review_recorded` | U, holds | A reviewer execution closes only through `review_settled` or `reviewer_closed`. `review_settled` moves the attempt to `awaiting_review`, so :788 refuses with `:wrong_attempt_phase`. `reviewer_closed` does one of three things: the same move (no verdict), a move to `ready_to_integrate` (approved), or it leaves the attempt in `reviewing` with a verdict recorded, which `require_no_recorded_verdict` (:792) refuses first. |
+| :839 | `require_attempt_phase(~w(reviewing))` in `reviewer_closed`, approved branch | S | The atom fires elsewhere. Only this branch moves an approved attempt off `reviewing`, and it closes the reviewer execution on the way, so `close_execution`'s `require_not_closed` refuses any second arrival with `:execution_already_closed`. Sequence: the `ready_to_integrate()` fixture, then `reviewer_closed(A1, R1)` again. `review_settled` cannot move the attempt (`require_no_recorded_verdict`). `attempt_settled` clears the active slot, so the cond's first clause answers instead. This matches the seeded measurement already in the comment above the branch. |
+| :968 | `require_active_attempt` in `attempt_settled` | **T** | Test added (below). |
+| :1593 | `require_attempt_phase(~w(integrating))`, `integrated` disposition | S | Shadowed by `require_receipt_for_integration` (:970), which runs earlier in the chain: `attempt_settled(integrated)` from `ready_to_integrate()` answers `:no_ref_receipt`. The inductive argument and the seeded count (29,109 states, 20,488 holding the precondition, 0 violations) are already recorded in `kernel_test.exs` beside the `@sites` table. |
+| :1634 | `require_no_candidate`, failed/timed_out | U, holds | The guard sits behind `require_attempt_phase(~w(active))` (:1633). `candidate_id` is written at one site (:490, `artifact_frozen`), which moves the attempt to `candidate_frozen` in the same step. `"active"` is written only by `open_attempt`, for a new attempt with `candidate_id: nil`, and `open_attempt`'s reuse branch returns the attempt unchanged. No transition returns an attempt to `active`. |
+| :358 | `require_resume_target` in `ticket_unblocked` | U, holds | Every writer of `phase: blocked` stores a non-nil target from `State.ticket_phases/0`: admission (`queued`); `ticket_blocked` and `ticket_parked` (the payload is checked against `@resume_phases`, and from `blocked` only the stored target is honest); `artifact_blocked` and `freeze_failed` (`developing`); `integration_recorded` infrastructure_failed (`integrating`); and `attempt_settled(blocked)` (`queued`). The three writers of `resume_phase: nil` (:364, :391, :1092) all leave `blocked` in the same step. |
+| :386 | `require_no_active_attempt` in `ticket_reset` | S | The atom fires at :311 and :424, both pinned in the `@sites` table. Here `require_phase(~w(exhausted))` answers first. The inductive argument: only `apply_terminal_phase` writes `exhausted`, after `attempt_settled` has cleared the active slot. `exhausted` is not an admission phase and is in neither `@blockable_phases` nor `@resume_phases`, and attempts open only from `queued` or `developing`. This matches the comment and the 10,024-state measurement already at :375. |
+| :482, :504, :521 | `require_attempt_phase(~w(active))` in `artifact_frozen`, `artifact_blocked`, `freeze_failed` | S | Each follows `require_phase(~w(developing))`. The invariant `developing => active` is `@legal_pairs` in `kernel/state.ex`, which also states its inductive argument: only `launch_planned` sets `developing`, and it leaves the attempt `active`; every transition that moves the attempt off `active` also moves the ticket off `developing`; and `ticket_unblocked` can only restore a target the honesty guard admitted. `kernel_test.exs` records these sites beside the `@sites` table as redundant and deliberately not in `@unreachable`. |
+| :1622 | `require_attempt_phase(~w(reviewing))`, `rejected` disposition | S | Shadowed by the verdict check on the line above: `attempt_settled(rejected)` from `developing()` answers `:no_rejected_verdict` (`kernel_test.exs`, "a developing attempt cannot settle rejected"). Only `review_recorded` writes a verdict, it does so under `require_attempt_phase(~w(reviewing))`, and a recorded verdict cannot be overwritten. The argument and the seeded count (79,163 / 39,024 / 0) are already recorded beside the `@sites` table. |
+
+**The test.** `kernel_test.exs` has a new test, "a settlement naming a prior attempt is refused;
+the same event for the active one is not". It exhausts A1, seals and closes A1's developer,
+resets the ticket and launches A2. `attempt_settled(exhausted)` naming A1 is then refused with
+`:not_the_active_attempt`, and the identical event naming A2 is accepted. Rule 6: only line 968
+was neutralised, to `with :ok <- :ok,`, and the test went red:
+
+    match (=) failed
+    left:  {:error, :not_the_active_attempt}
+    right: {:error, :malformed_post_state}
+    Result: 0/1 passed
+
+The edit was reversed by exact string. `git diff lib/` is empty, and the test gives
+`Result: 1 passed`.
+
+**Why :968 stopped being caught.** With the guard neutralised, the kernel refuses the forged
+settlement with `:malformed_post_state`. `require_settlement_source` judges the ACTIVE attempt,
+so the disposition passes, and the post-state then writes over the prior attempt A1 and lists it
+twice in `prior_attempt_ids`. Before `253d9467` (property 6) the kernel had no post-condition:
+`apply/2` returned `{:ok, malformed}`, and `Harness.apply/2`'s `assert State.well_formed?(next)`
+failed. `KernelWalk.adversarial/2` proposes this kind of event (`attempt_settled(failed)` naming
+`someone_elses`), and the deep walks in `kernel_properties_test.exs` reach states that hold a
+prior attempt. `253d9467` deleted that harness assertion as a tautology, and the walks record every
+refusal as a rejection. The event became an ordinary refusal, and nothing checked which guard had
+refused it. This cause is inferred from the diff and from the neutralised result above; the tree
+before `253d9467` was not rebuilt to replay it. `r4_guard_reachability_test.exs`'s
+`refute :malformed_post_state` cannot see the event either: the state needs about nine events and
+the search bound is seven.
+
+**Also found, not changed.** In `r4_coverage_test.exs`, R4.15.f2 classifies the guard as
+`{:guarded, [:checks_not_passed], "... (kernel.ex:715)"}`. That guard cannot fire (it is in
+`@unreachable`), and it is now at line 735, not 715.
+
+Run: `kernel_test.exs:737` red, then green, as shown above. The five workflow suites were run once
+(`kernel_test`, `r4_coverage_test`, `r4_exhaustive_test`, `r4_guard_reachability_test`,
+`kernel_properties_test`): 199 passed, exit 0. `mix format --check-formatted` passes. Not run:
+either sweep, `ci/run.exs`, the full suite.
