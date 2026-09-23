@@ -60,8 +60,7 @@ run alongside it. **Dependency:** G1.
 
 Use the existing reader/MCP. Deliver scope selection, source inspection, honest
 verification states and reusable evidence export. Add narrow synthesis only after
-claim/evidence handling is tested.
-An externally shareable packet must respect
+claim/evidence handling is tested. An externally shareable packet must respect
 rights and privacy; do not promise exact historical replay before its retention
 and identity design is exercised.
 
