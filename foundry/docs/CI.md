@@ -19,7 +19,7 @@ rechecks the exact clean commit/tree afterward.
 2. inspect the complete selected Mix dependency graph and reject non-Hex, unlocked,
    lock-mismatched or nonisolated sources;
 3. force-compile with warnings as errors;
-4. check every formatter-owned file except the explicitly pinned baseline debt;
+4. check every formatter-owned file except any explicitly pinned baseline debt (currently none);
 5. run the model-free suite while excluding explicitly inventoried external tests;
 6. inventory the resolved dependency tree; and
 7. build a fresh escript from the checked source.
@@ -63,10 +63,10 @@ returns exit 70 on stderr.
 ## Formatting policy
 
 Seven pre-existing files were unformatted when FR-21 established CI on 2026-09-13. Their
-paths and SHA-256 values are isolated in `ci/format_debt.exs`; all other formatter-owned
-files must pass immediately. A debt file cannot change unnoticed: CI fails if its bytes no
-longer match the baseline. The ticket that next changes one must format it and remove its
-entry. This records debt without reformatting unrelated source inside FR-21.
+paths and SHA-256 values were isolated in `ci/format_debt.exs`. The baseline has been empty
+since 2026-09-22 (FR-23 general hygiene): every formatter-owned file must pass. The
+mechanism stays, because `ci_test.exs` pins its drift control; a future entry would still
+be pinned by SHA-256 and CI would fail if its bytes changed.
 
 ## Explicitly absent evidence
 

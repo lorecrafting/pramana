@@ -4991,3 +4991,17 @@ coverage. A guard that refuses a legitimate trajectory looks identical, to guard
 a guard that refuses an illegitimate one. Only a reviewer asking "what closes this on success?"
 found it.
 
+
+## FR-23 general hygiene: formatter baseline emptied — 2026-09-22
+
+The six files still pinned in `ci/format_debt.exs` (`assignments/correction.ex`, `board/view.ex`,
+`cli/validators.ex`, `log_store.ex`, `cli_test.exs`, `agent_server_fake_runner.ex`) were already
+formatted under the pinned toolchain (Elixir 1.20.3): `mix format` on them changed no bytes, and
+`Code.format_string!/1` round-trips each one exactly. The claim in `d311a03d` that they were
+"genuinely unformatted" was stale; the exemption bought nothing. The baseline is now `[]` and
+`mix format --check-formatted` passes over the whole tree with nothing exempt. No source file
+changed, so no attestation needed rebinding; the only live pins of their bytes were the baseline
+entries. The 2026-09-12 audit inventory records older hashes of these paths and is dated
+evidence, left as is. The mechanism (`load_format_debt!`, `validate_format_debt/1`, the
+`:format_debt` stage) is kept: `ci_test.exs` pins its drift red control, and removing it would
+delete a test.
