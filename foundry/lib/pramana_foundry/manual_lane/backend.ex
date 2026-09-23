@@ -73,13 +73,19 @@ defmodule PramanaFoundry.ManualLane.Backend do
     ticket = state["tickets"][ticket_id]
 
     case open_execution(ticket, role) do
-      nil -> issue(ctx, state, ticket_id, role, principal)
+      nil -> issue(ctx, state, ticket_id, role, principal, 0)
       execution_id -> packet(ctx, ticket_id, Plan.id(launch_id(execution_id), "effect"))
     end
   end
 
-  defp issue(ctx, state, ticket_id, role, principal) do
-    id = "#{ticket_id}/#{role}/#{role_launches(state["tickets"][ticket_id], role)}/#{principal}"
+  # `retry` counts launch ids already burned. Core records a refused bundle (a lost CAS race)
+  # under its id, and any changed resubmission of that id is an `idempotency_conflict`. So a
+  # conflict means a racer's launch won (rebuild its packet) or the id is burned (take the
+  # next). Ids stay store-derived, and retry 0 carries no suffix.
+  defp issue(ctx, state, ticket_id, role, principal, retry) do
+    id =
+      "#{ticket_id}/#{role}/#{role_launches(state["tickets"][ticket_id], role)}/#{principal}" <>
+        if(retry == 0, do: "", else: "/retry-#{retry}")
 
     command = %{
       "schema_version" => 1,
@@ -98,11 +104,27 @@ defmodule PramanaFoundry.ManualLane.Backend do
              @ids.ledgers[role],
              predecessor(ctx, state["tickets"][ticket_id], role)
            ),
-         {:ok, decision} <- WorkflowKernel.decide(state, command, facts),
-         {:ok, _result} <- outcome(Replay.submit(ctx, decision, principal)) do
-      if Enum.any?(decision["plan"]["protected_operations"], &(&1["type"] == "create_effect")),
-        do: packet(ctx, ticket_id, Plan.id(id, "effect")),
-        else: {:ok, %{"ticket" => Replay.state(ctx)["tickets"][ticket_id]}}
+         {:ok, decision} <- WorkflowKernel.decide(state, command, facts) do
+      case outcome(Replay.submit(ctx, decision, principal)) do
+        {:ok, _result} ->
+          if Enum.any?(
+               decision["plan"]["protected_operations"],
+               &(&1["type"] == "create_effect")
+             ),
+             do: packet(ctx, ticket_id, Plan.id(id, "effect")),
+             else: {:ok, %{"ticket" => Replay.state(ctx)["tickets"][ticket_id]}}
+
+        {:error, :idempotency_conflict} ->
+          state = Replay.state(ctx)
+
+          case open_execution(state["tickets"][ticket_id], role) do
+            nil -> issue(ctx, state, ticket_id, role, principal, retry + 1)
+            execution_id -> packet(ctx, ticket_id, Plan.id(launch_id(execution_id), "effect"))
+          end
+
+        refused ->
+          refused
+      end
     end
   end
 
@@ -357,9 +379,28 @@ defmodule PramanaFoundry.ManualLane.Backend do
     with {:ok, effect} <- Replay.query(ctx, %{"type" => "effect", "effect_id" => effect_id}),
          {:ok, policy} <- Replay.query(ctx, %{"type" => "policy", "policy_id" => @ids.policy_id}) do
       builder = Map.get(ctx, :work_packet, PramanaFoundry.WorkPacket)
-      builder.build(Replay.state(ctx)["tickets"][ticket_id], effect, policy)
+      ticket = Replay.state(ctx)["tickets"][ticket_id]
+
+      with {:ok, packet} <- builder.build(ticket, effect, policy),
+           do: {:ok, excluding_developers(ctx, ticket, packet)}
     end
   end
+
+  # A reviewer packet names the attempt's developer issuers, which build/3 cannot see (the
+  # kernel ticket carries no principal). Informational: Core enforces independence itself.
+  defp excluding_developers(ctx, ticket, %{"role" => "reviewer", "independence" => %{}} = packet) do
+    issuers =
+      for execution_id <- role_executions(ticket, "developer", [ticket["active_attempt_id"]]),
+          effect_id = Plan.id(launch_id(execution_id), "effect"),
+          {:ok, %{"issuer" => issuer}} <-
+            [Replay.query(ctx, %{"type" => "effect", "effect_id" => effect_id})],
+          uniq: true,
+          do: issuer
+
+    put_in(packet, ["independence", "excluded_principals"], Enum.sort(issuers))
+  end
+
+  defp excluding_developers(_ctx, _ticket, packet), do: packet
 
   defp launch_id(execution_id), do: String.replace_suffix(execution_id, "/execution", "")
 

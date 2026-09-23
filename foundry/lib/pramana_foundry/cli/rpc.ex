@@ -7,6 +7,8 @@ defmodule PramanaFoundry.CLI.RPC do
   sent by `bin/pramana` are data rather than generated Elixir source.
   """
 
+  alias PramanaFoundry.ManualLane
+
   @max_payload_bytes 65_536
   @max_encoded_bytes 87_382
   @token_regex ~r/\A[A-Za-z0-9_-]+\z/
@@ -28,6 +30,7 @@ defmodule PramanaFoundry.CLI.RPC do
   @spec run(binary()) :: term()
   def run(encoded) do
     case decode(encoded) do
+      {:ok, ["lane" | argv]} -> ManualLane.CLI.main(argv)
       {:ok, argv} -> PramanaFoundry.CLI.main(argv)
       {:error, reason} -> raise ArgumentError, "invalid RPC payload: #{reason}"
     end
@@ -144,6 +147,14 @@ defmodule PramanaFoundry.CLI.RPC do
        ])
        when priority in ["P0", "P1", "P2", "P3"] do
     validate_ticket_create_options(options, MapSet.new())
+  end
+
+  # One shape per lane command, owned by the lane's own parser (THIN-LANE-DESIGN §4).
+  defp validate_command_shape(["lane" | argv]) do
+    case ManualLane.CLI.parse(argv) do
+      {:ok, _command, _ticket_id, _opts} -> :ok
+      {:error, _reason} -> {:error, :unknown_command_shape}
+    end
   end
 
   defp validate_command_shape(["ticket", "status", _task_id]), do: :ok

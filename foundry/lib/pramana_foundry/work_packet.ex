@@ -234,11 +234,10 @@ defmodule PramanaFoundry.WorkPacket do
            "policy_id" => policy["policy_id"],
            "policy_revision" => policy["revision"],
            "independent_of_roles" => independent_of_roles,
-           # ponytail: excluded_principals needs the issuers of the attempt's other
-           # developer effects, which build/3's (ticket, effect, policy) inputs cannot
-           # reach (the kernel ticket carries no principal). Left empty until the caller
-           # (W2) threads producer-effect facts through; independence is enforced by Core
-           # regardless (protected_primitives.ex:1344), so this is display data only.
+           # The attempt's developer issuers, which build/3's inputs cannot reach (the
+           # kernel ticket carries no principal): `ManualLane.Backend` fills them from the
+           # effect facts. Core enforces independence regardless
+           # (protected_primitives.ex:1344), so this is display data only.
            "excluded_principals" => []
          }}
     end
