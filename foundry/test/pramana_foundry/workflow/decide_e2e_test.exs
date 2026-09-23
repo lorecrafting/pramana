@@ -835,6 +835,187 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     end
   end
 
+  # A delivered receipt for a launch's claim: the protected outcome the adapter reconciles
+  # for an execution that ran. close_attempt needs every effect of the attempt settled.
+  defp delivered!(ctx, launch_id, outcome) do
+    root!(ctx, %{
+      "type" => "settle_claim",
+      "claim_id" => Plan.id(launch_id, "claim"),
+      "receipt_id" => Plan.id(launch_id, "receipt"),
+      "request_id" => Plan.id(launch_id, "request"),
+      "outcome" => outcome,
+      "proof" => "delivered",
+      "payload" => %{}
+    })
+  end
+
+  defp reviewer_evidence!(ctx, id, type, execution_id) do
+    base = %{"ticket_id" => "T1", "attempt_id" => "L1/attempt", "execution_id" => execution_id}
+
+    payload =
+      if type == "stream_sealed", do: Map.put(base, "last_accepted_sequence", 3), else: base
+
+    ingress!(ctx, id, %{"events" => [{type, "T1", payload}]})
+  end
+
+  # Awaiting review, a reviewer launched, its stream sealed and both launches delivered.
+  defp sealed_review!(ctx) do
+    awaiting_review!(ctx)
+    commit!(ctx, review_decision(ctx, "V1"))
+    reviewer_evidence!(ctx, "SEAL-V1", "stream_sealed", "V1/execution")
+    delivered!(ctx, "L1", "succeeded")
+    delivered!(ctx, "V1", "succeeded")
+  end
+
+  defp verdict(ctx, verdict, candidate \\ "cand-1") do
+    decide(
+      ctx,
+      command(
+        "D1",
+        "submit_review",
+        Map.merge(@reviewer, %{"verdict" => verdict, "candidate_id" => candidate})
+      ),
+      %{}
+    )
+  end
+
+  describe "submit_review, reviewer (R4.16-R4.18)" do
+    # R4.16: the approval is recorded; the verified close then makes it ready_to_integrate.
+    test "approved records the verdict; the verified close advances", ctx do
+      seed!(ctx, 3, 2)
+      sealed_review!(ctx)
+      assert {:ok, decision} = verdict(ctx, "approved")
+      assert decision["plan"]["protected_operations"] == []
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "reviewing"
+      assert ticket["attempts"]["L1/attempt"]["review"]["verdict"] == "approved"
+
+      reviewer_evidence!(ctx, "CLOSE-V1", "reviewer_closed", "V1/execution")
+      assert ticket(ctx)["phase"] == "ready_to_integrate"
+    end
+
+    # R4.17: terminal needs_correction through close_attempt; the reviewer closes after;
+    # then a fresh developer attempt.
+    test "correction terminalises the attempt; a fresh developer follows the close", ctx do
+      seed!(ctx, 3, 2)
+      sealed_review!(ctx)
+      assert {:ok, decision} = verdict(ctx, "correction")
+      assert Enum.map(decision["plan"]["protected_operations"], & &1["type"]) == ["close_attempt"]
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      attempt = ticket["attempts"]["L1/attempt"]
+      assert {ticket["phase"], ticket["active_attempt_id"]} == {"queued", nil}
+
+      assert {attempt["disposition"], attempt["review"]["verdict"]} ==
+               {"needs_correction", "correction"}
+
+      # The reviewer is still open, so no successor launches until its close.
+      assert {:reject, :cleanup_incomplete} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx))
+
+      reviewer_evidence!(ctx, "CLOSE-V1", "reviewer_closed", "V1/execution")
+      commit!(ctx, launch_decision(ctx, "L2"))
+      assert ticket(ctx)["active_attempt_id"] == "L2/attempt"
+    end
+
+    # R4.18.
+    test "rejected terminalises attempt and ticket", ctx do
+      seed!(ctx, 3, 2)
+      sealed_review!(ctx)
+      assert {:ok, decision} = verdict(ctx, "rejected")
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "rejected"
+      assert ticket["attempts"]["L1/attempt"]["disposition"] == "rejected"
+    end
+
+    test "close_attempt refuses while an effect of the attempt is unsettled", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+      commit!(ctx, review_decision(ctx, "V1"))
+      reviewer_evidence!(ctx, "SEAL-V1", "stream_sealed", "V1/execution")
+      assert {:ok, decision} = verdict(ctx, "rejected")
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} = submit(ctx, decision)
+      assert inspect(result) =~ "attempt_not_settled"
+      assert ticket(ctx)["phase"] == "reviewing"
+    end
+
+    test "a verdict naming another candidate is refused by the reducer", ctx do
+      seed!(ctx, 3, 2)
+      sealed_review!(ctx)
+      assert {:reject, :verdict_names_another_candidate} = verdict(ctx, "correction", "cand-2")
+    end
+
+    @tag :pending_independence
+    @tag skip: "reviewer independence is a Core lineage predicate, in progress in durable_store/"
+    test "a verdict from a reviewer sharing the developer's lineage is refused", ctx do
+      seed!(ctx, 3, 2)
+      sealed_review!(ctx)
+      # Once Core refuses a reviewer launch or verdict whose lineage is the developer's,
+      # drive that shape here and pin the refusal atom Core declares.
+      flunk("pending Core's reviewer independence predicate")
+    end
+  end
+
+  # A reviewer that ran, sealed its stream with no verdict and closed.
+  defp crashed!(ctx) do
+    awaiting_review!(ctx)
+    commit!(ctx, review_decision(ctx, "V1"))
+    reviewer_evidence!(ctx, "SEAL-V1", "stream_sealed", "V1/execution")
+    reviewer_evidence!(ctx, "CLOSE-V1", "reviewer_closed", "V1/execution")
+    delivered!(ctx, "V1", "failed")
+  end
+
+  describe "reviewer crash (R4.19)" do
+    test "the candidate survives and a bounded new reviewer launches", ctx do
+      seed!(ctx, 3, 2)
+      crashed!(ctx)
+      developer_ledger = ledger(ctx, "ledger-1")
+
+      ticket = ticket(ctx)
+
+      assert {ticket["phase"], ticket["attempts"]["L1/attempt"]["candidate_id"]} ==
+               {"awaiting_review", "cand-1"}
+
+      commit!(ctx, review_decision(ctx, "V2", "V1/effect"))
+      assert ticket(ctx)["attempts"]["L1/attempt"]["review"]["execution_id"] == "V2/execution"
+
+      assert {:ok, %{"operation_ordinal" => 1, "predecessor_effect_id" => "V1/effect"}} =
+               query(ctx, %{"type" => "effect", "effect_id" => "V2/effect"})
+
+      # R4.19.o2: the developer ledger untouched.
+      assert ledger(ctx, "ledger-1") == developer_ledger
+      assert ticket(ctx)["infrastructure"]["ordinals"]["developer"] == 0
+    end
+
+    # R4.19.o3: "exhaust if unavailable".
+    test "short reviewer allocation after a crash exhausts attempt and ticket", ctx do
+      seed!(ctx, 3, 2)
+      crashed!(ctx)
+      delivered!(ctx, "L1", "succeeded")
+      drain_ledger!(ctx, "ledger-r", "starts.reviewer")
+
+      assert {:ok, decision} =
+               decide(
+                 ctx,
+                 command("V2", "plan_launch", @reviewer),
+                 review_facts(ctx, "V1/effect")
+               )
+
+      assert Enum.map(decision["plan"]["protected_operations"], & &1["type"]) == ["close_attempt"]
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "exhausted"
+      assert ticket["attempts"]["L1/attempt"]["disposition"] == "exhausted"
+    end
+  end
+
   describe "finalize_cancellation (R4.28)" do
     # R4.28.o1: "If no integration occurred: cancelled ticket and active attempt terminal
     # cancelled".

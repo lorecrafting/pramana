@@ -36,10 +36,58 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   # `reviewer` in the payload (FR08B-SUBCOMMIT3-DESIGN-2026-09-23.md).
 
   def decides?(%{"type" => type, "payload" => %{"role" => "reviewer"}})
-      when type in ~w(plan_launch settle_nonstart),
+      when type in ~w(plan_launch settle_nonstart submit_review),
       do: true
 
   def decides?(_command), do: false
+
+  # R4.16-R4.18: the verdict the adapter validated from the reviewer's sealed stream.
+  # `approved` records it and nothing more: R4.16 makes ready_to_integrate follow the
+  # *verified close*, which is `reviewer_closed` evidence, not a decision. `correction` and
+  # `rejected` terminalise the attempt through the protected close_attempt in the same
+  # plan, review_recorded first, so attempt_settled carries a bound terminal_settlement_v1.
+  # The reviewer's own close stays separate cleanup evidence ("cleanup pending
+  # separately"), and the developer successor after a correction is the developer's next
+  # plan_launch, which requires that cleanup first. Every source condition - reviewing,
+  # sealed stream, exact candidate, write-once verdict - is the reducer's.
+  #
+  # TODO(reviewer independence): R4.15.o1's "independent reviewer" is a Core lineage
+  # predicate being built in durable_store/. This decision neither checks nor restates it;
+  # the pending test "a verdict from a reviewer sharing the developer's lineage" in
+  # decide_e2e_test.exs is where it lands.
+  @terminal_verdicts %{
+    "correction" => {"needs_correction", "correction_verdict"},
+    "rejected" => {"rejected", "rejected_verdict"}
+  }
+
+  def decide(state, %{"type" => "submit_review"} = command, _facts) do
+    ticket_id = command["target_ids"]["ticket_id"]
+    attempt_id = (state["tickets"][ticket_id] || %{})["active_attempt_id"]
+
+    recorded = %{
+      "ticket_id" => ticket_id,
+      "attempt_id" => attempt_id,
+      "candidate_id" => command["payload"]["candidate_id"],
+      "verdict" => command["payload"]["verdict"]
+    }
+
+    case @terminal_verdicts[command["payload"]["verdict"]] do
+      {disposition, reason_code} ->
+        Plan.close_attempt(state, command["command_id"], %{
+          "ticket_id" => ticket_id,
+          "attempt_id" => attempt_id,
+          "disposition" => disposition,
+          "reason_code" => reason_code,
+          "before" => [{"review_recorded", recorded}]
+        })
+
+      nil ->
+        Plan.unconditional(state, command["command_id"], %{
+          "events" => [{"review_recorded", ticket_id, recorded}]
+        })
+    end
+    |> Plan.decision(command)
+  end
 
   # R4a.02: a proved reviewer non-start settles the claim and closes the reviewer execution
   # the review is bound to; the protected infrastructure limit selects between the reviewer
@@ -88,32 +136,50 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
     end
   end
 
-  # R4a.02.o10: "Missing current reviewer allocation yields `blocked(reviewer_budget)` or
-  # `exhausted` under protected policy, without discarding or approving the candidate". A
-  # review that has already spent a reviewer launch on this attempt is blocked with its
-  # candidate resumable; a first review has spent nothing, so it is R4.15.f3's pre-intent
-  # denial instead.
+  # Short current reviewer allocation, by what this attempt's reviewers already did:
+  #
+  #   - one ran and ended with no verdict (its stream was sealed): R4.19.o3 "exhaust if
+  #     unavailable" - attempt and ticket exhausted through close_attempt.
+  #   - one never started: R4a.02.o10 "blocked(reviewer_budget) or exhausted under protected
+  #     policy, without discarding or approving the candidate" - blocked, candidate
+  #     resumable. The kernel cannot read which the policy prefers, so it takes the
+  #     recoverable one.
+  #   - none: nothing spent, so R4.15.f3's pre-intent denial.
   defp allocation(:ok, _state, _command, _ticket), do: :ok
 
   defp allocation({:reject, _reason} = rejection, state, command, ticket) do
-    if reviewer_launches(ticket) > 0 do
-      state
-      |> Plan.block(command["command_id"], %{
-        "ticket_id" => ticket["ticket_id"],
-        "reason" => "reviewer_budget",
-        "resume_phase" => "awaiting_review",
-        "reads" => [{"control", "control"}]
-      })
-      |> Plan.decision(command)
-    else
-      rejection
+    reads = [{"control", "control"}]
+
+    cond do
+      Enum.any?(reviewers(ticket), &is_integer(&1.sealed_sequence)) ->
+        state
+        |> Plan.close_attempt(command["command_id"], %{
+          "ticket_id" => ticket["ticket_id"],
+          "attempt_id" => ticket["active_attempt_id"],
+          "disposition" => "exhausted",
+          "reason_code" => "reviewer_budget",
+          "reads" => reads
+        })
+        |> Plan.decision(command)
+
+      reviewers(ticket) != [] ->
+        state
+        |> Plan.block(command["command_id"], %{
+          "ticket_id" => ticket["ticket_id"],
+          "reason" => "reviewer_budget",
+          "resume_phase" => "awaiting_review",
+          "reads" => reads
+        })
+        |> Plan.decision(command)
+
+      true ->
+        rejection
     end
   end
 
-  defp reviewer_launches(ticket) do
-    Enum.count(executions(active_attempt(ticket || %{})), fn {_id, %Execution{} = e} ->
-      e.role == "reviewer"
-    end)
+  defp reviewers(ticket) do
+    for {_id, %Execution{role: "reviewer"} = e} <- executions(active_attempt(ticket || %{})),
+        do: e
   end
 
   @launch_units 1
@@ -135,7 +201,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
         "ticket_id" => command["target_ids"]["ticket_id"],
         "attempt_id" => (ticket || %{})["active_attempt_id"],
         "role" => "reviewer",
-        "ordinal" => reviewer_launches(ticket),
+        "ordinal" => length(reviewers(ticket)),
         "units" => @launch_units,
         "facts" => facts
       })

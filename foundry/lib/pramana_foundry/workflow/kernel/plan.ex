@@ -194,10 +194,11 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   @doc """
   Terminates the active attempt: `close_attempt`, then `attempt_settled` carrying the
   protected terminal settlement, then any `then` events (as `{type, payload}`) on the same
-  ticket, such as `cancellation_finalized`.
+  ticket, such as `cancellation_finalized`. Optional `before` events come first, such as
+  the `review_recorded` a verdict terminalises on.
 
-  `spec`: `ticket_id`, `attempt_id`, `disposition`, `reason_code`, optional `then` and
-  `reads` (as for `block/3`).
+  `spec`: `ticket_id`, `attempt_id`, `disposition`, `reason_code`, optional `before`,
+  `then` and `reads` (as for `block/3`).
   """
   @spec close_attempt(map(), String.t(), map()) :: result()
   def close_attempt(state, command_id, spec) do
@@ -215,6 +216,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
          "settlement" => marker("settlement")
        }}
 
+    before = for {type, payload} <- Map.get(spec, "before", []), do: {type, ticket_id, payload}
     then = for {type, payload} <- Map.get(spec, "then", []), do: {type, ticket_id, payload}
 
     build(state, command_id, %{
@@ -238,7 +240,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
         }
       },
       discriminator_kind: "unconditional_v1",
-      alternatives: [{"unconditional", [settled | then]}],
+      alternatives: [{"unconditional", before ++ [settled | then]}],
       reads: Map.get(spec, "reads", [])
     })
   end
