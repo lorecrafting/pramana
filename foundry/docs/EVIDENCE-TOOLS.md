@@ -177,13 +177,13 @@ These are not style preferences. Each was bought with a review round.
   `ok_or/2` — the same atom that hid from `declared_reasons/0` for three reviews by being spelled a
   second way. **A disclaimer is not a measurement.** The script now matches both spellings, reads
   both files, and its red control pins one site of each; a third spelling still needs a new
-  alternation and a new pin, and the script says so rather than saying "floor". For those 24 there is no `require_*(` call to neutralise, so no mutation trial exists
-  and a clean sweep says nothing whatever about them. 9 are inline in `do_transition` clauses;
-  the other **15** are in the envelope pipeline and the state builders — `resolve_entity/3`,
-  `check_revision/2`, `check_sequence/2`, `check_state/1`, `check_entity_addressing/2`,
-  `refuse_terminal_ticket/2`, `open_attempt/2`, `add_execution/3`, `add_check/3` and `apply/2`
-  itself. Add function-head pattern matching, which is how `ticket_admitted` requires a ticket
-  to be absent and which raises no atom at all. Two of the 24 are the **entire** phase guard for
+  alternation and a new pin, and the script says so rather than saying "floor". For those sites there is no `require_*(` call to neutralise, so no mutation trial exists
+  and a clean sweep says nothing whatever about them. The script prints them grouped by enclosing
+  function — inline in `do_transition` clauses, or in the envelope pipeline, the state builders and
+  `Event.validate/1`. (This sentence restated 24 as 9 / 15 with a list of functions; on 2026-09-22
+  the script printed 27 as 9 / 18, so read the script, not this.) Add function-head pattern
+  matching, which is how `ticket_admitted` requires a ticket
+  to be absent and which raises no atom at all. Two of them are the **entire** phase guard for
   a contract row — R4.02's and R4.27's.
 
   The first version of this paragraph said "9 inline refusals across 7 handlers", counted by

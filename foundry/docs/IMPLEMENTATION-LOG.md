@@ -5060,3 +5060,28 @@ so reaching `propose_findings/1` exits the Improver. The test asserts a precondi
 produced findings (one did), then that the Improver survives and proposed nothing. With the default
 flipped to `true` it fails (0/1); reversed, it passes.
 
+
+## Bin script health check: no self-check had drifted — 2026-09-22
+
+`a47613e7` found `bin/refusal_sites.exs`'s red control pinned to absolute `kernel.ex` line
+numbers, red on a correct scanner and unnoticed because the script is not in the gate. Every file
+in `foundry/bin/` and root `bin/` was checked for the same shape at `6bc015ed`; the table is
+[BIN-SCRIPT-HEALTH-2026-09-22.md](BIN-SCRIPT-HEALTH-2026-09-22.md).
+
+- **No self-check had drifted; no script was changed.** `refusal_sites.exs` (red control also
+  shown to fire on a copy with `ok_or` renamed: exit 1), `contract_annotation_diff.exs`,
+  `preflight.sh`, `test_daemon_recovery.sh` and the root `check_*` validators pass.
+  `closure_probe.exs` at depth 5 reads `accepted-but-malformed: 0` with BOUND `15 of 37`, matching
+  its header, but exits 0 whatever it reads. `guard_mutation_sweep.exs`, `freeze-evidence.sh` and
+  the daemon CLI were not run (global sentinel / full suite / live daemon).
+- **Drift outside self-checks, recorded and not changed:** `assessor_eval.exs`'s documented
+  `mix run bin/assessor_eval.exs -- INPUT.json` exits 2 with its usage message (`mix run` passes
+  `--` into argv); `guard_mutation_sweep.exs`'s header says `SWEEP_WORKERS` defaults to 6 (code: 4)
+  and runs it as an executable (mode 644, no shebang); `tickets_from_review.sh` is mode 644;
+  `closure_cost.exs` printed 14.7% against its header's recorded pre-change 17%.
+- **Stale restated counts replaced with a pointer to `bin/refusal_sites.exs`:** EVIDENCE-TOOLS'
+  "For those 24 … 9 … the other 15" and `r4_coverage_test.exs`'s "One of 24"; the script prints 27
+  outside `require_*` (9 / 18). The same paragraph's `kernel.ex:80` pin (now `:89`) is recorded,
+  not changed.
+- `foundry/ci/run.exs` invokes no `foundry/bin/` script. Nothing was added to the gate; the
+  candidates are listed in the health-check file.

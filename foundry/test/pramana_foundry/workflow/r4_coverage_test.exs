@@ -443,7 +443,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
     # R4.27 is guarded by an inline `if` rather than a require_* call, so the guard mutation
     # sweep cannot neutralise it: its population is every non-definition require_*( site.
-    # One of 24 refusal sites outside that population; `bin/refusal_sites.exs` prints them.
+    # One of the refusal sites outside that population; `bin/refusal_sites.exs` prints them.
     "R4.27.f1" =>
       {:guarded, [:ticket_terminal],
        "cancellation_requested (kernel.ex:392) refuses a terminal phase with an inline if, OUTSIDE the mutation sweep's population - the guard is real, and nothing at call-site granularity can check that a test exercises it"},
