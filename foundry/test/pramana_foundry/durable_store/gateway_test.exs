@@ -243,9 +243,10 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
     assert {:error, :idempotency_conflict} = EventLog.append(destination, changed)
   end
 
-  test "invalid projection references and uniqueness failures never partially commit", %{
-    path: path
-  } do
+  # Neither case reaches SQLite: RecordCodec refuses both before SQL. The SQLite UNIQUE and
+  # FK constraints themselves are exercised by the next test.
+  test "RecordCodec refuses a missing projection event and a duplicate event before SQL, committing nothing",
+       %{path: path} do
     cases = [
       {"FK", put_in(bundle("FK")[:projections], [projection("FK", "missing-event")]),
        {:error, :projection_event_missing}},
@@ -270,6 +271,55 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
           assert ^exact = result
       end
 
+      assert {:ok, counts} = Gateway.counts(gateway)
+      assert Enum.all?(counts, fn {_table, count} -> count == 0 end)
+      assert %{mode: :ready} = Gateway.status(gateway)
+    end)
+  end
+
+  # Bypasses RecordCodec by writing through Database directly, so the refusal can only
+  # come from the schema. Each transaction first writes a valid row, so a constraint that
+  # failed without rolling back would leave it behind.
+  test "SQLite UNIQUE and FK violations roll back the whole transaction", %{path: path} do
+    input =
+      {"INSERT INTO inputs VALUES ('input-1', 'operator', 'digest-1', ?, 1)",
+       [{:blob, "request"}]}
+
+    command =
+      {"INSERT INTO commands VALUES ('command-1', 'input-1', 'operator', 'digest-1', 'request_effect', 1)",
+       []}
+
+    event =
+      {"INSERT INTO events(event_id, command_id, schema_version, event_type, event) VALUES ('event-1', 'command-1', 1, 'effect_requested', ?)",
+       [{:blob, "{}"}]}
+
+    orphan_projection =
+      {"INSERT INTO projections VALUES ('kernel-v1', 'ticket-1', 1, 0, 'missing-event', ?)",
+       [{:blob, "{}"}]}
+
+    cases = [
+      {"unique", [input, command, event, event], "UNIQUE constraint failed: events.event_id"},
+      {"fk", [input, orphan_projection], "FOREIGN KEY constraint failed"}
+    ]
+
+    Enum.each(cases, fn {id, statements, expected} ->
+      case_path = Path.join(Path.dirname(path), "sqlite-#{id}.sqlite3")
+      assert :ok = Gateway.initialize(case_path)
+      {:ok, conn} = Database.open(case_path)
+
+      assert {:error, ^expected} =
+               Database.transaction(conn, fn ->
+                 Enum.reduce_while(statements, :ok, fn {sql, params}, :ok ->
+                   case Database.execute(conn, sql, params) do
+                     :ok -> {:cont, :ok}
+                     error -> {:halt, error}
+                   end
+                 end)
+               end)
+
+      assert :ok = Database.close(conn)
+      _ = stop_supervised(Gateway)
+      gateway = start_supervised!({Gateway, path: case_path})
       assert {:ok, counts} = Gateway.counts(gateway)
       assert Enum.all?(counts, fn {_table, count} -> count == 0 end)
       assert %{mode: :ready} = Gateway.status(gateway)
