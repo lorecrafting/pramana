@@ -134,6 +134,14 @@ defmodule PramanaFoundry.Test.KernelSearch do
               do: {acc, seen, reasons},
               else: {[{next, path ++ [event]} | acc], MapSet.put(seen, k), reasons}
 
+          # The search proposes only well-formed payloads, so this refusal always means a handler
+          # wrote a state `well_formed?/1` rejects: a missing or neutralised guard. Before kernel
+          # property 6 the harness's shape assertion failed the test here; after it the kernel
+          # refuses and the search would record it as an ordinary rejection. That is how neutralising
+          # kernel.ex:968 went unnoticed by every walk and search (sweep, 2026-09-22). Fail loudly instead.
+          {:error, :malformed_post_state} ->
+            raise "#{event["type"]} produced a malformed post-state from a well-formed proposal"
+
           {:error, reason} ->
             {acc, seen, MapSet.put(reasons, unwrap(reason))}
         end

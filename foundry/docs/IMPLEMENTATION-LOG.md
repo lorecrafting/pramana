@@ -5307,3 +5307,25 @@ Run: `kernel_test.exs:737` red, then green, as shown above. The five workflow su
 (`kernel_test`, `r4_coverage_test`, `r4_exhaustive_test`, `r4_guard_reachability_test`,
 `kernel_properties_test`): 199 passed, exit 0. `mix format --check-formatted` passes. Not run:
 either sweep, `ci/run.exs`, the full suite.
+
+## Walks and the search fail on :malformed_post_state again — 2026-09-22
+
+The entry above traced `kernel.ex:968` surviving the sweep to `253d9467` (kernel property 6), and the
+cause is wider than that one site. Property 6 made the kernel refuse a malformed post-state, and the
+same commit deleted the harness's shape assertion. Every walk and the bounded search then recorded
+that refusal as an ordinary rejection, so ANY guard whose removal lets a handler write a malformed
+state became invisible to them. The closure review's `refute` covered only the depth-7 reachability
+search; the deep walks in `kernel_properties_test` were still blind, which is where 968 hid.
+
+Fixed where both routes decide what a refusal means: `KernelWalk.advance/2` and
+`KernelSearch`'s expansion now raise on `{:error, :malformed_post_state}`. Both propose only
+well-formed payloads, so that atom there always means a handler wrote a bad state. The harness itself
+cannot do this, because the kernel's own red control deliberately provokes the atom with a malformed
+payload through it.
+
+Red control: with only line 968's `require_active_attempt(ticket, payload["attempt_id"])` replaced by
+`:ok`, `kernel_properties_test` + `r4_exhaustive_test` give `17 passed, 13 invalid`, raising
+"attempt_settled produced a malformed post-state from a well-formed proposal"; restored byte-identical,
+the five workflow suites give 199 passed. The lesson is the review's own: a deleted assertion
+carried information, and the first fix patched the one consumer that was named.
+
