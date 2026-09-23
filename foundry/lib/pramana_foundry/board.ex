@@ -11,7 +11,6 @@ defmodule PramanaFoundry.Board do
 
   use GenServer
 
-  alias PramanaFoundry.Board.Inspection
   alias PramanaFoundry.Board.FindingsPanel
   alias PramanaFoundry.Board.View
   alias PramanaFoundry.Board.ViewState
@@ -110,20 +109,6 @@ defmodule PramanaFoundry.Board do
   """
   def close(board \\ __MODULE__) do
     GenServer.stop(board, :normal)
-  end
-
-  @doc """
-  Returns formatted sanitized BEAM inspection status and attach instructions.
-  """
-  def inspection(opts \\ []) do
-    Inspection.format(opts)
-  end
-
-  @doc """
-  Returns raw sanitized BEAM inspection status map.
-  """
-  def inspection_status(opts \\ []) do
-    Inspection.status(opts)
   end
 
   @doc """

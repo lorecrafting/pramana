@@ -90,6 +90,13 @@ defined under `lib/`.
 | `lib/pramana_foundry/board.ex:118` | `Board.inspection/0,1` (one def with a default) | xref edges: none. `rg -nwF inspection …` finds prose, test names and this def. `rg -n 'Board\.inspection'` over the whole repo, docs included, finds nothing | The CLI and `bin/pramana` RPC table don't dispatch it. It is reachable only by a hand-typed remote-shell call, and none is documented. Not a GenServer message | FREE |
 | `lib/pramana_foundry/board.ex:125` | `Board.inspection_status/0,1` | xref edges: none. `rg -nwF inspection_status …` gives 1 hit, the def | Same as the row above | FREE |
 
+**Removed 2026-09-22 (FR-23a).** `Board.inspection/0,1`, `Board.inspection_status/0,1`
+and `Assessor.Result.statuses/0` were removed at `4aa7ef30`, together with the
+`Board.Inspection` alias that only they used. The searches were re-run on that tree first
+and are quoted in the commit message: no xref edge, and no call shape anywhere in the
+repository, docs included, outside this inventory. `Assignments.Handoff.max_blocked_bytes/0`
+stays; its file is on the handoff path FR-08B and FR-11 rewrite.
+
 What removing these rows leaves behind: `Board.Inspection.format/1` and `status/1` become
 test-only (see [test-only callers](#test-only-callers--not-candidates)). Those tests would
 then be the only evidence that attach instructions still work.

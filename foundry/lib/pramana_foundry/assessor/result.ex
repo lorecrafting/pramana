@@ -85,9 +85,6 @@ defmodule PramanaFoundry.Assessor.Result do
       result.model == request.model
   end
 
-  @spec statuses() :: [atom()]
-  def statuses, do: @statuses
-
   defp base(%Request{} = request, status, reason, opts) when status in @statuses do
     %__MODULE__{
       status: status,
