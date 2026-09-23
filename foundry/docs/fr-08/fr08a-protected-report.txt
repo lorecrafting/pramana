@@ -1,7 +1,7 @@
 schema=pramana-foundry-fr08a-protected-boundary/v1
 provider=Elixir.PramanaFoundry.Repair.FR08AProtectedBoundary
-subject_revision=d5253b5636553c45b5e182aeb2c7aa7a9beaf952
-subject_tree=2adfbff86643116b6fc565c047f6691b88dcf454
+subject_revision=b0e3d7e8d5c024fe03c10c1b19c75e727f37100d
+subject_tree=d1744fb5120427156aae36247e27f2cada7e8cdb
 implementation_binding=verified:source-sha256+beam-md5/v1
 gate_schema=pramana-foundry-fr07-fr08-handoff/v1
 gate_status=ready
