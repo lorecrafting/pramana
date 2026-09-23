@@ -106,6 +106,19 @@ defmodule PramanaFoundry.DurableStore.LiveRefusalProbeTest do
     reopen!(ctx)
   end
 
+  test "L3: the same unknown observation under a second receipt_id is refused", ctx do
+    claimed!(ctx.gw, "1")
+    assert %{"disposition" => "accepted"} = run(ctx.gw, "ISSUE-1", issue("1"))
+    assert %{"disposition" => "accepted"} = run(ctx.gw, "R-A", unknown("1", "receipt-a"))
+
+    assert %{"disposition" => "rejected", "reason_code" => "duplicate_receipt_observation"} =
+             run(ctx.gw, "R-B", unknown("1", "receipt-b"))
+
+    ready!(ctx.gw)
+    assert fact(ctx.gw, "claim", "claim-1")["status"] == "unknown"
+    reopen!(ctx)
+  end
+
   defp released!(gw, n) do
     assert %{"disposition" => "accepted"} = run(gw, "RELEASE-" <> n, release(n))
     ready!(gw)
@@ -221,6 +234,24 @@ defmodule PramanaFoundry.DurableStore.LiveRefusalProbeTest do
       "effect_id" => "effect-" <> effect,
       "claim_id" => "claim-" <> claim,
       "writer_epoch" => "writer-epoch-fr08a"
+    }
+
+  defp issue(n),
+    do: %{
+      "type" => "issue_claim",
+      "claim_id" => "claim-" <> n,
+      "writer_epoch" => "writer-epoch-fr08a"
+    }
+
+  defp unknown(n, receipt_id),
+    do: %{
+      "type" => "settle_claim",
+      "claim_id" => "claim-" <> n,
+      "receipt_id" => receipt_id,
+      "request_id" => "request-" <> n,
+      "outcome" => "unknown",
+      "proof" => "outcome_unknown",
+      "payload" => %{"provider" => "synthetic-fixture"}
     }
 
   defp fact({gateway, capability}, type, id) do

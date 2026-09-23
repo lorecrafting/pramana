@@ -1979,6 +1979,13 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       claim.status == "reconciliation_required" ->
         quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
 
+      # The same observation under another receipt_id. root_receipts is unique on
+      # (claim_id, receipt_digest) and the digest omits receipt_id, so storing it failed as a
+      # storage error once FR-10 finding B began storing late unknown receipts
+      # (live_refusal_probe_test.exs, L3).
+      Enum.any?(receipts, &(&1.receipt_digest == digest)) ->
+        {:reject, :duplicate_receipt_observation, %{}}
+
       # An unknown receipt carries less information than any stored receipt, never
       # conflicting information: store it and leave the status alone (FR-10 finding B). A
       # late timeout must not re-quarantine an effect already settled from its outcome.
