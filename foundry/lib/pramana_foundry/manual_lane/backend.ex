@@ -172,25 +172,41 @@ defmodule PramanaFoundry.ManualLane.Backend do
   @doc """
   The reviewer's verdict on `candidate_id`: its receipt, its stream sealed, the verdict
   through `decide/3`, then its close. Each step already committed is skipped.
+
+  A rerun of a committed review is idempotent even after its verdict moved the active
+  attempt; any other review of a reviewed attempt or candidate is `review_already_recorded`.
   """
   def review(ctx, ticket_id, principal, verdict, candidate_id, receipt_payload) do
     ticket = Replay.state(ctx)["tickets"][ticket_id] || %{}
-    attempt_id = ticket["active_attempt_id"]
-    execution_id = get_in(ticket, ["attempts", attempt_id, "review", "execution_id"])
-    base = %{"ticket_id" => ticket_id, "attempt_id" => attempt_id, "execution_id" => execution_id}
-    step = &"#{ticket_id}/#{&1}/#{execution_id}"
 
-    command = %{
-      "schema_version" => 1,
-      "command_id" => step.("submit_review"),
-      "type" => "submit_review",
-      "target_ids" => %{"ticket_id" => ticket_id},
-      "payload" => %{"role" => "reviewer", "verdict" => verdict, "candidate_id" => candidate_id},
-      "expected_revisions" => %{}
-    }
-
-    with true <- is_binary(execution_id) || {:reject, :no_issued_claim},
-         {:ok, _} <- deliver(ctx, ticket_id, "reviewer", principal, receipt_payload),
+    # A committed review's receipt is committed too, and its effect may no longer be current.
+    with {:ok, attempt_id, committed?} <-
+           review_attempt(ctx, ticket_id, ticket, principal, verdict, candidate_id),
+         execution_id = get_in(ticket, ["attempts", attempt_id, "review", "execution_id"]),
+         base = %{
+           "ticket_id" => ticket_id,
+           "attempt_id" => attempt_id,
+           "execution_id" => execution_id
+         },
+         step = &"#{ticket_id}/#{&1}/#{execution_id}",
+         command = %{
+           "schema_version" => 1,
+           "command_id" => step.("submit_review"),
+           "type" => "submit_review",
+           "target_ids" => %{"ticket_id" => ticket_id},
+           "payload" => %{
+             "role" => "reviewer",
+             "verdict" => verdict,
+             "candidate_id" => candidate_id
+           },
+           "expected_revisions" => %{}
+         },
+         true <- is_binary(execution_id) || {:reject, :no_issued_claim},
+         {:ok, _} <-
+           if(committed?,
+             do: {:ok, :committed},
+             else: deliver(ctx, ticket_id, "reviewer", principal, receipt_payload)
+           ),
          {:ok, _} <-
            ingress(
              ctx,
@@ -211,6 +227,52 @@ defmodule PramanaFoundry.ManualLane.Backend do
              principal
            ) do
       {:ok, %{"ticket" => Replay.state(ctx)["tickets"][ticket_id]}}
+    end
+  end
+
+  # The attempt a review acts on, and whether its verdict is committed. An open review on
+  # the active attempt comes first, so an identical review of a later attempt is never taken
+  # for a rerun. Then the committed review this one repeats: its `submit_review` command id,
+  # which the Gateway dedupes, on any attempt. A committed review it does not repeat, on the
+  # active attempt or the same candidate, refuses it. Otherwise the active attempt, whose
+  # frozen candidate must be the one named, checked before the receipt, which is a write.
+  defp review_attempt(ctx, ticket_id, ticket, principal, verdict, candidate_id) do
+    active = ticket["active_attempt_id"]
+
+    reviews =
+      for {id, %{"review" => %{"execution_id" => e} = review}} <- ticket["attempts"] || %{},
+          is_binary(e),
+          do: {id, review, Replay.committed?(ctx, "#{ticket_id}/submit_review/#{e}")}
+
+    same = fn {_id, review, committed?} ->
+      committed? and review["verdict"] == verdict and review["candidate_id"] == candidate_id and
+        reviewer(ctx, review) == principal
+    end
+
+    conflicting = fn {id, review, committed?} ->
+      committed? and (id == active or review["candidate_id"] == candidate_id)
+    end
+
+    cond do
+      Enum.any?(reviews, &match?({^active, _, false}, &1)) -> frozen(ticket, active, candidate_id)
+      rerun = Enum.find(reviews, same) -> {:ok, elem(rerun, 0), true}
+      Enum.any?(reviews, conflicting) -> {:reject, :review_already_recorded}
+      true -> frozen(ticket, active, candidate_id)
+    end
+  end
+
+  defp frozen(ticket, attempt_id, candidate_id) do
+    if get_in(ticket, ["attempts", attempt_id, "candidate_id"]) == candidate_id,
+      do: {:ok, attempt_id, false},
+      else: {:reject, :candidate_mismatch}
+  end
+
+  defp reviewer(ctx, review) do
+    effect_id = Plan.id(launch_id(review["execution_id"]), "effect")
+
+    case Replay.query(ctx, %{"type" => "effect", "effect_id" => effect_id}) do
+      {:ok, effect} -> effect["issuer"]
+      _ -> nil
     end
   end
 

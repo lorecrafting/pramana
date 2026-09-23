@@ -161,11 +161,8 @@ defmodule PramanaFoundry.ManualLane.CLI do
     principal = opts[:principal]
     verdict = opts[:verdict]
     candidate = opts[:candidate]
-    ticket = ticket(ctx, id) || %{}
-    frozen = get_in(ticket, ["attempts", ticket["active_attempt_id"], "candidate_id"])
 
     with :ok <- one_of(verdict, @verdicts, :invalid_verdict),
-         :ok <- if(frozen == candidate, do: :ok, else: {:error, :candidate_mismatch, frozen}),
          {:ok, notes} <- read_notes(opts[:notes]),
          receipt =
            attestation(principal, "review verdict #{verdict} on candidate #{candidate}")

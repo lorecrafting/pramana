@@ -221,20 +221,34 @@ defmodule PramanaFoundry.ManualLane.RestartDrillTest do
       assert Enum.map(effects, & &1["issuer"]) |> Enum.sort() == Enum.sort([@dev, @rev])
       refute Enum.any?(effects, &(&1["status"] == "issued"))
 
-      if unquote(verdict) == "approved" do
-        assert review_again(c, unquote(verdict)) == reviewed
-      else
-        # FINDING (W5): the rerun is refused, not reported. `lane review` reads the frozen
-        # candidate from the *active* attempt, which a correction or rejection has moved
-        # off the reviewed one. It writes nothing, but it is not idempotent.
-        events = event_count()
+      # The rerun reports the committed review, though its verdict moved the active attempt.
+      events = event_count()
+      assert review_again(c, unquote(verdict)) == reviewed
+      assert event_count() == events
 
-        assert {false, %{"error" => "candidate_mismatch"}} =
-                 lane(review_argv(c, unquote(verdict)))
+      # Red control: a different verdict on the reviewed candidate is refused, not reported.
+      other = Enum.find(~w(approved correction rejected), &(&1 != unquote(verdict)))
 
-        assert event_count() == events
-      end
+      assert {false, %{"error" => "review_already_recorded"}} = lane(review_argv(c, other))
+      assert event_count() == events
     end
+  end
+
+  # The same argv after a correction and a resubmission of the same candidate is the next
+  # attempt's review, not a rerun of the committed one.
+  test "an open review on the next attempt is reviewed, not reported as the earlier one", c do
+    admit!(c)
+    ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+    submit!(c)
+    review!(c, "correction")
+    restart!(c, :stop)
+
+    ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+    submit!(c)
+    assert %{"phase" => "queued"} = review!(c, "correction")
+
+    verdicts = for {_, a} <- ticket()["attempts"], do: a["review"]["verdict"]
+    assert verdicts == ["correction", "correction"]
   end
 
   # ── A2: an unknown hold survives a restart ───────────────────────────────────────
