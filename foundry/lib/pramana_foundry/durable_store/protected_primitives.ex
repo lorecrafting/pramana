@@ -1899,6 +1899,14 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            "receipt" => public_receipt(exact)
          }}
 
+      # A quarantined claim is not reconciled by an ordinary receipt. Quarantine does not
+      # store the conflicting receipt, so the earlier unknown-only history below would read a
+      # later known outcome as a reconciliation and settle it with no recovery record
+      # (FR-10 Q3 probe, quarantine_exit_probe_test.exs). Leaving quarantine needs an explicit
+      # recovery operation, which FR-10 owns; until then it fails closed.
+      claim.status == "reconciliation_required" ->
+        quarantine_conflicting_receipt(conn, operation, digest, claim, effect)
+
       receipts != [] ->
         if operation["outcome"] != "unknown" and
              Enum.all?(receipts, &(&1.outcome == "unknown")) do

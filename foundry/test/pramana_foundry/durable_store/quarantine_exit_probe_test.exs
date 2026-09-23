@@ -84,32 +84,22 @@ defmodule PramanaFoundry.DurableStore.QuarantineExitProbeTest do
       assert %{claim: "reconciliation_required", reservation: "issued_unknown"} = state(gw)
     end
 
-    test "a fresh succeeded receipt settles it and consumes the reservation", %{gw: gw} do
-      assert %{"disposition" => "accepted"} =
-               run(gw, "R3-SUCCEEDED", settle("receipt-3", "succeeded"))
+    # Fixed 2026-09-23: these three used to settle the quarantined claim with no recovery
+    # record. A quarantined claim now re-quarantines on any receipt but an exact replay.
+    for outcome <- ~w(succeeded failed non_started) do
+      @outcome outcome
+      test "a fresh #{outcome} receipt re-quarantines and moves no units", %{gw: gw} do
+        assert %{"disposition" => "rejected", "reason_code" => "conflicting_receipt"} =
+                 run(gw, "R3-" <> @outcome, settle("receipt-3", @outcome))
 
-      assert %{claim: "succeeded", effect: "succeeded", reservation: "consumed", ledger: ledger} =
-               state(gw)
+        assert %{claim: "reconciliation_required", reservation: "issued_unknown", ledger: l} =
+                 state(gw)
 
-      assert %{"held" => 0, "consumed" => 1} = ledger
+        assert %{"held" => 1, "consumed" => 0} = l
+      end
     end
 
-    test "a fresh failed receipt settles it and consumes the reservation", %{gw: gw} do
-      assert %{"disposition" => "accepted"} = run(gw, "R3-FAILED", settle("receipt-3", "failed"))
-      assert %{claim: "failed", effect: "failed", reservation: "consumed"} = state(gw)
-    end
-
-    test "a fresh non_started receipt settles it and releases the reservation", %{gw: gw} do
-      assert %{"disposition" => "accepted"} =
-               run(gw, "R3-NON-STARTED", settle("receipt-3", "non_started"))
-
-      assert %{claim: "non_started", effect: "non_started", reservation: "released", ledger: l} =
-               state(gw)
-
-      assert %{"held" => 0, "available" => 1, "consumed" => 0} = l
-    end
-
-    test "control cancel and generation close leave it quarantined; a fresh receipt still settles it",
+    test "control cancel and generation close leave it quarantined, and so does a later receipt",
          %{gw: gw} do
       assert %{"disposition" => "accepted", "facts" => facts} =
                run(gw, "CONTROL-CANCEL", %{
@@ -132,11 +122,10 @@ defmodule PramanaFoundry.DurableStore.QuarantineExitProbeTest do
 
       assert %{"status" => "closed", "held" => 1} = l
 
-      assert %{"disposition" => "accepted"} =
+      assert %{"disposition" => "rejected", "reason_code" => "conflicting_receipt"} =
                run(gw, "R3-AFTER-CLOSE", settle("receipt-3", "succeeded"))
 
-      assert %{claim: "succeeded", reservation: "consumed", ledger: %{"consumed" => 1}} =
-               state(gw)
+      assert %{claim: "reconciliation_required", reservation: "issued_unknown"} = state(gw)
     end
   end
 
