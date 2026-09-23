@@ -30,3 +30,14 @@ subcommit 2 fixes and subcommit 3.
 
 This record was written by the agent that resolved I1 to I3. It gives the detail of those
 three only. The kernel fix commit's message and diff carry the detail of the others.
+
+## Re-check at `8ed8d233`
+
+**Fable 5.1 (`claude-fable-5-1`): PASS.** I1, S1, S1b and the docs findings are closed. The
+reviewer's A1/A2/A4 and B1/B2 probes now refuse, and eight new escape probes were all refused
+with `principal_not_independent`: a cancelled producer still pins its policy; a pairing added
+mid-attempt in either direction; a stale policy revision; an inbox under a pairing-free second
+policy; the producer under a pairing-free policy; an inbox actor recorded before the drop. A
+legitimate flow is preserved: after the operator drops the pairing, a new attempt admits one
+principal in both roles, while the old attempt stays bound. The attempt relabel (I2) still
+admits, as documented; FR-13 re-checks attempt identity at acceptance.
