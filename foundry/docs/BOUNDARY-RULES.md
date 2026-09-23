@@ -22,8 +22,7 @@ kernel is `lib/pramana_foundry/workflow/`; `kernel/software/` is the reference c
 7. **A guarantee Core owns never depends on a controller checking it**
    ([O1](orchestrator/O1-SEQUENCING-PROPOSAL-2026-09-23.md)). Enforced through rule 8.
 8. **Every protected operation has a row in the Core re-check vs controller-only
-   enforcement matrix** ([workflow contract](WORKFLOW-CONTRACT.md), section Enforcement
-   matrix); a new protected operation adds its row. Review-enforced.
+   enforcement matrix** ([workflow contract](WORKFLOW-CONTRACT.md#enforcement-matrix)); a new protected operation adds its row. Review-enforced.
 9. **Observation is not authority** ([workflow contract, R3](WORKFLOW-CONTRACT.md#r3-autonomously-repairable-kernel-protected-verifier)).
    Prose only.
 10. **No controller-specific state in the protected schema**
