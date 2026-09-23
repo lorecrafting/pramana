@@ -75,6 +75,27 @@ defmodule PramanaFoundry.DurableStore.LedgerRestartProbeTest do
              result
   end
 
+  test "finding 3: create_effect must activate every proposed reservation it owns",
+       %{gw: gw, path: path} do
+    assert %{"disposition" => "accepted"} = run(gw, "R1", reserve("r1", "root-a", "e1"))
+    assert %{"disposition" => "accepted"} = run(gw, "R2", reserve("r2", "root-a", "e1"))
+
+    result = run(gw, "E1", effect("e1", ["r1"]))
+    assert_reopens(path)
+
+    assert %{"disposition" => "rejected", "reason_code" => "unlisted_proposed_reservation"} =
+             result
+  end
+
+  test "finding 3: reserve refuses an owner effect that already exists", %{gw: gw, path: path} do
+    assert %{"disposition" => "accepted"} = run(gw, "R1", reserve("r1", "root-a", "e1"))
+    assert %{"disposition" => "accepted"} = run(gw, "E1", effect("e1", ["r1"]))
+
+    result = run(gw, "R2", reserve("r2", "root-a", "e1"))
+    assert_reopens(path)
+    assert %{"disposition" => "rejected", "reason_code" => "reservation_owner_exists"} = result
+  end
+
   defp assert_reopens(path) do
     stop_supervised!(Gateway)
     assert {:ok, conn} = Database.open(path)

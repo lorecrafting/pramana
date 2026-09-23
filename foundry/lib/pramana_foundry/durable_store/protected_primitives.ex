@@ -1011,6 +1011,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              "SELECT reservation_id FROM root_reservations WHERE reservation_id = ?",
              [operation["reservation_id"]]
            ),
+         :ok <- owner_not_created(conn, operation["owner_id"]),
          reservation <- %{
            reservation_id: operation["reservation_id"],
            ledger_id: ledger.ledger_id,
@@ -1031,6 +1032,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
        }}
     else
       {:error, :not_found} -> {:reject, :ledger_not_found, %{}}
+      {:error, :reservation_owner_exists} -> {:reject, :reservation_owner_exists, %{}}
       {:error, _reason} = error -> error
       _ -> {:reject, :reservation_not_permitted, %{}}
     end
@@ -1256,6 +1258,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          :ok <- allowed_effect?(policy.value, control.value, operation),
          :ok <- nonstart_allowance(conn, policy.value, operation),
          {:ok, reservations} <- load_effect_reservations(conn, operation),
+         :ok <- all_proposed_listed(conn, operation["effect_id"], reservations),
          :ok <- reservation_dimensions(operation, reservations),
          {:ok, lease_specs} <- normalize_lease_specs(operation["leases"]),
          :ok <- lease_specs_available(conn, lease_specs),
@@ -1321,6 +1324,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              :duplicate_request_identity,
              :operation_dimension_mismatch,
              :reservation_ledger_mismatch,
+             :unlisted_proposed_reservation,
              :nonstart_allowance_exhausted,
              :predecessor_not_terminal,
              :predecessor_identity_mismatch,
@@ -3288,6 +3292,37 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       {:ok, values} -> {:ok, Enum.reverse(values)}
       error -> error
     end)
+  end
+
+  # The restart check allows a proposed reservation only while its owner effect does not
+  # exist, and create_effect is the only activation (spec/ledger finding 3).
+  defp owner_not_created(conn, owner_id) do
+    case Database.query(conn, "SELECT effect_id FROM root_effects WHERE effect_id = ?", [
+           owner_id
+         ]) do
+      {:ok, []} -> :ok
+      {:ok, _rows} -> {:error, :reservation_owner_exists}
+      error -> error
+    end
+  end
+
+  # Same check, from the effect's side: it must activate every proposed reservation it owns.
+  defp all_proposed_listed(conn, effect_id, reservations) do
+    listed = MapSet.new(reservations, & &1.reservation_id)
+
+    case Database.query(
+           conn,
+           "SELECT reservation_id FROM root_reservations WHERE owner_id = ? AND status = 'proposed'",
+           [effect_id]
+         ) do
+      {:ok, rows} ->
+        if Enum.all?(rows, fn [id] -> MapSet.member?(listed, id) end),
+          do: :ok,
+          else: {:error, :unlisted_proposed_reservation}
+
+      error ->
+        error
+    end
   end
 
   defp activate_reservations(conn, reservations) do
