@@ -515,7 +515,7 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
       root!(ctx, %{
         "type" => "return_allocation",
-        "child_ledger_id" => "ledger-other",
+        "child_ledger_id" => "ledger-1-other",
         "child_generation" => 0,
         "units" => 1
       })
