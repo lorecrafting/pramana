@@ -66,8 +66,11 @@ defmodule PramanaFoundry.Workflow.R4GuardReachabilityTest do
     # Genuinely unreachable, and each says why.
     checks_not_passed:
       "shadowed by the attempt-phase guard directly above it. `review_planned` requires " <>
-        "the attempt in `awaiting_review`, and `maybe_finish_checks` is the only thing " <>
-        "that puts it there - which it does exactly when every check has passed. No " <>
+        "the attempt in `awaiting_review`. `maybe_finish_checks` puts it there exactly " <>
+        "when every check has passed; `review_settled` and `reviewer_closed` without a " <>
+        "verdict also do, but both start from `reviewing`, which is reachable only " <>
+        "through this same guard. (Corrected 2026-09-22: this used to say " <>
+        "`maybe_finish_checks` was the only route, which was false.) No " <>
         "event can add or relabel a check afterwards, since check_planned, " <>
         "check_recorded and check_settled all require the `checking` phase. Recorded " <>
         "here after pinning r4_coverage_test's `{:error, _}` to its atom showed the " <>

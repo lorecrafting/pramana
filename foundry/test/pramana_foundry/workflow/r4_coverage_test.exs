@@ -411,7 +411,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
   #   * `declared_reasons/0` reads `kernel.ex` with regexes, so a refusal spelled a third
   #     way reads as absent. That direction is safe: a false gap, never a false clean.
   @from_obligations %{
-    # Verified by reading `do_transition("launch_planned", ...)` at kernel.ex:425-435.
+    # Verified by reading `do_transition("launch_planned", ...)` at kernel.ex.
     "R4.04.f1" =>
       {:guarded, [:wrong_source_phase],
        "require_phase/2 at the head of the with chain. NOTE the guard admits ~w(queued developing) where the row says queued; the outcome cell's \"unless R4a retained a resumable developer attempt\" is the candidate licence for that widening, and nothing pins it"},
@@ -419,8 +419,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {:protected,
        "dependencies/resources/profile/reservation eligibility is protected policy the kernel may not restate - the same category require_settlement_source/2 records at its own site"},
     # R4.02 "draft". The kernel encodes "draft" as the ABSENCE of a ticket and enforces it
-    # before dispatch: `resolve_entity/3` (kernel.ex:144-153) refuses a creating event that
-    # names an existing entity, and `do_transition("ticket_admitted", :absent, ...)` (:259)
+    # before dispatch: `resolve_entity/3` (kernel.ex) refuses a creating event that
+    # names an existing entity, and `do_transition("ticket_admitted", :absent, ...)`
     # matches only that case. No require_* guard is involved, which is the point - see the
     # four refusal shapes recorded in EVIDENCE-TOOLS.
     "R4.02.f1" =>
@@ -434,37 +434,36 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # row exactly - unlike R4.04, where the guard admits one the row does not name.
     "R4.03.f1" =>
       {:guarded, [:wrong_source_phase],
-       "ticket_amended (kernel.ex:290) and ticket_parked (:303) both require_phase ~w(queued blocked), which is the row's cell exactly"},
+       "ticket_amended (kernel.ex) and ticket_parked both require_phase ~w(queued blocked), which is the row's cell exactly"},
     "R4.03.f2" =>
       {:input, "PM amend/park is the row's input, carried by two event types rather than one"},
     "R4.24.f1" =>
       {:guarded, [:wrong_source_phase],
-       "ticket_unblocked (kernel.ex:337) require_phase ~w(blocked), which is the row's cell exactly"},
+       "ticket_unblocked (kernel.ex) require_phase ~w(blocked), which is the row's cell exactly"},
 
     # R4.27 is guarded by an inline `if` rather than a require_* call, so the guard mutation
     # sweep cannot neutralise it: its population is every non-definition require_*( site.
     # One of the refusal sites outside that population; `bin/refusal_sites.exs` prints them.
     "R4.27.f1" =>
       {:guarded, [:ticket_terminal],
-       "cancellation_requested (kernel.ex:392) refuses a terminal phase with an inline if, OUTSIDE the mutation sweep's population - the guard is real, and nothing at call-site granularity can check that a test exercises it"},
+       "cancellation_requested (kernel.ex) refuses a terminal phase with an inline if, OUTSIDE the mutation sweep's population - the guard is real, and nothing at call-site granularity can check that a test exercises it"},
     "R4.27.f2" =>
       {:input,
        "cancel requested is the row's input; the control flag it sets is this row's outcome, not its precondition"},
     "R4.28.f1" =>
       {:guarded, [:cancel_not_requested],
-       "cancellation_finalized (kernel.ex:403) require_cancel_requested/1"},
+       "cancellation_finalized (kernel.ex) require_cancel_requested/1"},
     "R4.28.f2" =>
       {:guarded, [:attempt_still_active, :executions_not_closed],
-       "require_no_active_attempt/1 and require_all_executions_closed/1 at kernel.ex:404-405. NOTE require_all_executions_closed/1 and require_cleanup_complete/1 are the SAME predicate under two atoms; they now share open_executions/1 so rule 4 holds, but a test pinning either atom still exercises identical logic and the two do not add up to two rules covered"},
+       "require_no_active_attempt/1 and require_all_executions_closed/1 at kernel.ex. NOTE require_all_executions_closed/1 and require_cleanup_complete/1 are the SAME predicate under two atoms; they now share open_executions/1 so rule 4 holds, but a test pinning either atom still exercises identical logic and the two do not add up to two rules covered"},
     # R4.11. The handler guards MORE than the row states: `checks_started` requires ticket
     # phase awaiting_review as well, which this row's cell does not name. Stronger than the
     # contract is safe; the note exists because the reverse also occurs, at R4.04 and R4.20.
     "R4.11.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "checks_started (kernel.ex:638) require_attempt_phase ~w(candidate_frozen). The row's cell names the ATTEMPT phase; the handler additionally requires ticket phase awaiting_review, which the row does not mention"},
+       "checks_started (kernel.ex) require_attempt_phase ~w(candidate_frozen). The row's cell names the ATTEMPT phase; the handler additionally requires ticket phase awaiting_review, which the row does not mention"},
     "R4.11.f2" =>
-      {:guarded, [:developer_not_closed],
-       "checks_started (kernel.ex:639) require_developer_closed/1"},
+      {:guarded, [:developer_not_closed], "checks_started (kernel.ex) require_developer_closed/1"},
     "R4.11.f3" =>
       {:protected,
        "check capacity is allocation, which is protected policy the kernel may not restate - the same category as R4.04's eligibility conjunct"},
@@ -475,7 +474,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # it :unguarded would manufacture a defect where the contract is in fact implemented.
     "R4.12.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "check_recorded (kernel.ex:693) require_attempt_phase ~w(checking)"},
+       "check_recorded (kernel.ex) require_attempt_phase ~w(checking)"},
     "R4.12.f2" =>
       {:effect,
        "maybe_finish_checks/1 evaluates it inside the effect body and advances the attempt to awaiting_review only when it holds. There is no atom, no require_* site and the row still drives, so no mechanism in the evidence set can see it; its defence is the outcome-side clause of this same row, tracked by @clauses"},
@@ -483,9 +482,9 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # R4.15.
     "R4.15.f1" =>
       {:guarded, [:wrong_source_phase, :wrong_attempt_phase],
-       "review_planned (kernel.ex:712 and :714) requires both ticket and attempt phase awaiting_review"},
+       "review_planned (kernel.ex) requires both ticket and attempt phase awaiting_review"},
     "R4.15.f2" =>
-      {:guarded, [:checks_not_passed], "review_planned (kernel.ex:715) require_checks_passed/1"},
+      {:guarded, [:checks_not_passed], "review_planned (kernel.ex) require_checks_passed/1"},
     "R4.15.f3" =>
       {:protected, "reviewer capacity is allocation, protected policy the kernel may not restate"},
 
@@ -494,17 +493,17 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # input; only the approved row's conjunct carries guarded content of its own.
     "R4.16.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "review_recorded (kernel.ex:768) require_attempt_phase ~w(reviewing)"},
+       "review_recorded (kernel.ex) require_attempt_phase ~w(reviewing)"},
     "R4.16.f2" =>
       {:guarded, [:invalid_verdict, :verdict_names_another_candidate],
-       "require_verdict/1 and require_review_candidate/2 at kernel.ex:770-771 carry \"valid\" and \"exact-candidate\"; \"approved\" itself selects the outcome branch and is the input"},
+       "require_verdict/1 and require_review_candidate/2 at kernel.ex carry \"valid\" and \"exact-candidate\"; \"approved\" itself selects the outcome branch and is the input"},
     "R4.17.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "review_recorded (kernel.ex:768), shared with R4.16 and R4.18"},
+       "review_recorded (kernel.ex), shared with R4.16 and R4.18"},
     "R4.17.f2" => {:input, "the verdict value selects this row's branch within review_recorded"},
     "R4.18.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "review_recorded (kernel.ex:768), shared with R4.16 and R4.17"},
+       "review_recorded (kernel.ex), shared with R4.16 and R4.17"},
     "R4.18.f2" => {:input, "the verdict value selects this row's branch within review_recorded"},
 
     # R4.20's guard admits a phase the row does not name - the R4.04 shape again, and here
@@ -512,42 +511,41 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # two rows share integration_planned.
     "R4.20.f1" =>
       {:guarded, [:wrong_source_phase],
-       "integration_planned (kernel.ex:852) require_phase ~w(ready_to_integrate integrating). The row names only ready_to_integrate; the widening is licensed by R4.21, which shares this handler and names both"},
+       "integration_planned (kernel.ex) require_phase ~w(ready_to_integrate integrating). The row names only ready_to_integrate; the widening is licensed by R4.21, which shares this handler and names both"},
 
     # R4.22.
     "R4.22.f1" =>
       {:guarded, [:wrong_source_phase],
-       "integration_recorded (kernel.ex:891) require_phase ~w(integrating)"},
+       "integration_recorded (kernel.ex) require_phase ~w(integrating)"},
     "R4.22.f3" =>
       {:guarded, [:workers_not_closed],
-       "integration_recorded (kernel.ex:895) require_workers_closed/1"},
+       "integration_recorded (kernel.ex) require_workers_closed/1"},
     "R4.05.f1" =>
       {:guarded, [:wrong_source_phase],
-       "artifact_frozen (kernel.ex:460) require_phase ~w(developing), the row's cell exactly"},
+       "artifact_frozen (kernel.ex) require_phase ~w(developing), the row's cell exactly"},
 
     # R4.06.f2's "before valid candidate" is carried by the ATTEMPT phase, not by a guard
-    # naming candidates: `artifact_frozen` sets the attempt to candidate_frozen (kernel.ex:469),
-    # so require_attempt_phase ~w(active) at :501 admits only an attempt that has not frozen one.
+    # naming candidates: `artifact_frozen` sets the attempt to candidate_frozen (kernel.ex),
+    # so require_attempt_phase ~w(active) admits only an attempt that has not frozen one.
     # Nothing states that connection at either site; it was derived by reading both.
     "R4.06.f1" =>
-      {:guarded, [:wrong_source_phase],
-       "freeze_failed (kernel.ex:499) require_phase ~w(developing)"},
+      {:guarded, [:wrong_source_phase], "freeze_failed (kernel.ex) require_phase ~w(developing)"},
     "R4.06.f2" =>
       {:guarded, [:wrong_attempt_phase, :invalid_freeze_disposition],
-       "\"before valid candidate\" is require_attempt_phase ~w(active) at :501, which excludes an attempt artifact_frozen has already moved to candidate_frozen; the failure kind is the inline :invalid_freeze_disposition"},
+       "\"before valid candidate\" is require_attempt_phase ~w(active), which excludes an attempt artifact_frozen has already moved to candidate_frozen; the failure kind is the inline :invalid_freeze_disposition"},
     "R4.09.f1" =>
       {:guarded, [:wrong_source_phase],
-       "artifact_blocked (kernel.ex:482) require_phase ~w(developing)"},
+       "artifact_blocked (kernel.ex) require_phase ~w(developing)"},
     "R4.09.f2" =>
       {:guarded, [:invalid_blocked_result],
-       "artifact_blocked (kernel.ex:485) require_blocked_result/1"},
+       "artifact_blocked (kernel.ex) require_blocked_result/1"},
 
     # R4.10's cell is a category - "any open submission phase" - and the kernel spells it as
     # an enumeration plus a stream check. If a third submission phase is ever added, the row
     # stays true and the guard silently stops implementing it. Nothing here would notice.
     "R4.10.f1" =>
       {:guarded, [:wrong_source_phase, :submission_stream_sealed],
-       "submission_rejected (kernel.ex:537) require_phase ~w(developing reviewing) enumerates the open submission phases, and require_open_submission_stream/1 at :539 carries \"open\""},
+       "submission_rejected (kernel.ex) require_phase ~w(developing reviewing) enumerates the open submission phases, and require_open_submission_stream/1 carries \"open\""},
     "R4.10.f2" => {:input, "a malformed result is what this event type reports"},
 
     # R4.12, R4.13 and R4.14 share check_recorded and its one phase guard, the way R4.16-R4.18
@@ -555,11 +553,11 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # require_check_status/1 only validates that it is one of the known statuses.
     "R4.13.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "check_recorded (kernel.ex:693) require_attempt_phase ~w(checking)"},
+       "check_recorded (kernel.ex) require_attempt_phase ~w(checking)"},
     "R4.13.f2" => {:input, "the recorded status selects this row's branch within check_recorded"},
     "R4.14.f1" =>
       {:guarded, [:wrong_attempt_phase],
-       "check_recorded (kernel.ex:693), shared with R4.12 and R4.13"},
+       "check_recorded (kernel.ex), shared with R4.12 and R4.13"},
     "R4.14.f2" => {:input, "the recorded status selects this row's branch within check_recorded"},
 
     # R4.26 is refused pre-dispatch, not in a handler: refuse_terminal_ticket/2 runs in the
@@ -568,7 +566,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # tell this site from R4.27's inline if.
     "R4.26.f1" =>
       {:guarded, [:ticket_terminal],
-       "refuse_terminal_ticket/2 (kernel.ex:212-219), a pre-dispatch check rather than a guard in any handler"},
+       "refuse_terminal_ticket/2 (kernel.ex), a pre-dispatch check rather than a guard in any handler"},
     "R4.26.f2" =>
       {:guarded, [:ticket_terminal],
        "\"ordinary\" is encoded as that same predicate's exclusions - @terminal_cleanup_events and finalizing_integrated_cancel?/2 are admitted on a terminal ticket, everything else is refused"},
@@ -580,10 +578,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "broad steering is what pm_proposal_recorded carries; its only refusal is the inline :duplicate_proposal, which guards re-recording rather than the from-state"},
     "R4.05.f2" =>
       {:input,
-       "the success artifact is the event's content and the freeze is this row's outcome. artifact_frozen additionally requires a running developer (:no_running_developer at kernel.ex:463), which the row does not name"},
+       "the success artifact is the event's content and the freeze is this row's outcome. artifact_frozen additionally requires a running developer (:no_running_developer at kernel.ex), which the row does not name"},
 
     # R4.08, R4.21 and R4.25's siblings all route through require_settlement_source/2, a
-    # dispatch table keyed by disposition (kernel.ex:1561+). attempt_settled itself has no
+    # dispatch table keyed by disposition (kernel.ex+). attempt_settled itself has no
     # ticket-phase guard; the phase obligations are carried attempt-side inside that table.
     "R4.08.f1" =>
       {:guarded, [:wrong_attempt_phase],
@@ -596,7 +594,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "require_developer_stream_sealed/1, the same guard as f2's \"sealed stream\" half - one guard carrying two of this row's conjuncts"},
     "R4.19.f2" =>
       {:guarded, [:stream_not_sealed],
-       "reviewer_closed (kernel.ex:797) require_sealed/3 carries \"sealed stream\"; \"no valid verdict\" is the branch this row takes, the verdict being absent rather than refused"},
+       "reviewer_closed (kernel.ex) require_sealed/3 carries \"sealed stream\"; \"no valid verdict\" is the branch this row takes, the verdict being absent rather than refused"},
     "R4.19.f3" => {:input, "a reviewer crash or timeout is what this event reports"},
     "R4.20.f2" =>
       {:protected,
@@ -615,14 +613,14 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "the successful ref receipt is the event's content; require_no_ref_receipt/1 guards against a SECOND receipt rather than requiring this one"},
     "R4.23.f1" =>
       {:guarded, [:wrong_source_phase],
-       "integration_settled (kernel.ex:867) require_phase ~w(integrating)"},
+       "integration_settled (kernel.ex) require_phase ~w(integrating)"},
     "R4.23.f2" =>
       {:guarded, [:ref_receipt_recorded],
-       "require_no_ref_receipt/1 at :869 is as much of \"proved no ref change\" as the reducer can see; the PROOF is a protected fact the kernel may not restate, which is the same split require_settlement_source records at its own site"},
+       "require_no_ref_receipt/1 is as much of \"proved no ref change\" as the reducer can see; the PROOF is a protected fact the kernel may not restate, which is the same split require_settlement_source records at its own site"},
     "R4.23.f3" => {:input, "the infrastructure failure is what this event reports"},
     "R4.25.f1" =>
       {:guarded, [:wrong_source_phase],
-       "ticket_reset (kernel.ex:365) require_phase ~w(exhausted), the row's cell exactly"},
+       "ticket_reset (kernel.ex) require_phase ~w(exhausted), the row's cell exactly"},
     "R4.25.f2" =>
       {:protected,
        "an authenticated reset grant and the units it makes eligible are allocation, which is protected policy the kernel may not restate"},
@@ -631,18 +629,18 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {:input, "the role is fixed by the event type: launch_settled is the developer row"},
     "R4a.01.f2" =>
       {:guarded, [:wrong_source_phase, :not_the_active_attempt],
-       "launch_settled (kernel.ex:442-443) require_phase ~w(developing) and require_active_attempt/2 together carry \"active attempt\"; \"before any valid result\" is not separately guarded here"},
+       "launch_settled (kernel.ex) require_phase ~w(developing) and require_active_attempt/2 together carry \"active attempt\"; \"before any valid result\" is not separately guarded here"},
     "R4a.04.f1" =>
       {:input,
        "the worker kind is fixed by the event type; worker_closed guards only require_attempt/2, and the row's disjunction of worker kinds is a routing fact rather than a precondition"},
     # Reclassified by the independent review. The held entry said reviewer_closed's phase
     # guard "sits only in the approved branch" - true of its require_* calls, and irrelevant,
-    # because the crash branch consults the phase INLINE at kernel.ex:835 and falls through
-    # to a silent no-op at :844. Stopping the search at require_* sites is the same boundary
+    # because the crash branch consults the phase INLINE at kernel.ex and falls through
+    # to a silent no-op. Stopping the search at require_* sites is the same boundary
     # error e81cdabe corrected for refusal sites, repeated hours after writing the correction.
     "R4.19.f1" =>
       {:effect,
-       "reviewer_closed's crash branch tests `is_nil(verdict) and attempt(...)[\"phase\"] == \"reviewing\"` inline at kernel.ex:835; a close in any other phase falls through to `true -> {:ok, ticket}` at :844 and changes nothing. The event is accepted either way and the conjunct decides the outcome, which is what {:effect} means"},
+       "reviewer_closed's crash branch tests `is_nil(verdict) and attempt(...)[\"phase\"] == \"reviewing\"` inline at kernel.ex; a close in any other phase falls through to `true -> {:ok, ticket}` and changes nothing. The event is accepted either way and the conjunct decides the outcome, which is what {:effect} means"},
     "R4.07.f2" =>
       {:input, "a developer exit, timeout or abnormal exit is what execution_observed reports"},
     "R4a.03.f1" =>
@@ -650,9 +648,9 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "the role is fixed by the event type, exactly as for R4a.01.f1 and R4a.04.f1. Holding this one while classifying its two siblings was rule 4's partial generalisation in the inventory itself"},
 
     # SECOND :unguarded, found by the review in an obligation this candidate had filed as
-    # "held". pm_launch_planned records NOTHING (`{:ok, objective}`, kernel.ex:248-250), so
+    # "held". pm_launch_planned records NOTHING (`{:ok, objective}`, kernel.ex), so
     # no state exists that could witness a planning execution; pm_launch_settled then
-    # consumes a PM ordinal with no guard at all (:255-256). Nothing anywhere refuses
+    # consumes a PM ordinal with no guard at all. Nothing anywhere refuses
     # settling a launch that was never planned. Row :467 inverted: there, state is written
     # and read by nothing; here, the state that would carry the obligation is never written.
     #
@@ -660,18 +658,18 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # what the reducer owns. The second branch is closed by its three siblings. Every other
     # nonstart settle in the vocabulary guards phase, entity AND the existence of the
     # execution it settles: launch_settled `~w(developing)` + require_active_attempt/2 +
-    # close_execution(~w(developer)) at :439-445; review_settled `~w(reviewing)` +
-    # require_active_attempt/2 + require_reviewer_execution/3 at :734-739;
+    # close_execution(~w(developer))-445; review_settled `~w(reviewing)` +
+    # require_active_attempt/2 + require_reviewer_execution/3-739;
     # integration_settled `~w(integrating)` + require_active_attempt/2 +
-    # close_execution(~w(integration)) at :866-876. The reducer owns this obligation for
+    # close_execution(~w(integration))-876. The reducer owns this obligation for
     # three roles out of four, so the row is not wrong about ownership - the PM is the
     # unguarded member of a guarded family.
     #
     # Which makes it rule 4 again, and the kernel says so itself twice. review_settled's own
-    # comment (:744-745) records that its guard was "the same partial generalisation
+    # comment records that its guard was "the same partial generalisation
     # corrected after review three, one level further out" - the developer and integration
     # siblings were already guarded and the reviewer was not. require_execution_role/4's
-    # comment (:1470-1474) states the principle: "one rule over the vocabulary rather than a
+    # comment states the principle: "one rule over the vocabulary rather than a
     # guard attached to whichever event a walk happened to reach." The PM is the member that
     # correction did not reach, and it is the only one whose entity - the objective - has no
     # execution register to guard against, which is why it was missed both times.
@@ -680,7 +678,7 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
        "pm_launch_planned records no execution and pm_launch_settled guards nothing, so \"planning execution\" has no witness in state and no refusal. The fourth member of a family whose other three guard phase, entity and execution-exists; the objective carries proposals and infrastructure but no execution register, so the fix is state shape, not a missing require_* call. Needs its own candidate: pm_launch_planned records the planning execution, pm_launch_settled requires and closes it, mirroring require_reviewer_execution/3"},
     "R4.04.f3" =>
       {:unguarded,
-       "B3. paused and draining are written by control_changed (kernel.ex:977-984) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
+       "B3. paused and draining are written by control_changed (kernel.ex) and read by no transition in the kernel; cancel_requested is not consulted here either. Outstanding and designed - subcommit 2 owns the fix, and this entry is what makes it countable until then"}
   }
 
   # Every other from-cell obligation. Classifying one is a per-row reading pass against its
