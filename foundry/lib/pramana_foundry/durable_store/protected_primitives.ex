@@ -756,6 +756,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       {:ok, Map.merge(facts, %{"outstanding_claim_ids" => outstanding, "ledgers" => ledgers})}
     else
       {:error, :invalid_control_state} -> {:reject, :invalid_control_state, %{}}
+      # A cascaded cancel's refusal refuses the whole command (live_refusal_probe_test.exs).
+      {:reject, _reason, _facts} = reject -> reject
       {:error, _reason} = error -> error
     end
   end
@@ -1913,24 +1915,33 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     effect_authority_keys(conn, effect_id) ++ reservation_keys ++ claim_keys
   end
 
+  # A cancel releases its effect's holds. A hold an accepted release_reservation already
+  # returned is skipped: nothing was issued, so the cancel's premise holds, and releasing it
+  # again would count its units twice. Any other status is a refusal, not a storage error:
+  # an error here flipped the live Gateway into recovery (live_refusal_probe_test.exs, L1).
+  # replay_release_reservations skips the same holds.
   defp release_many(conn, reservations) do
-    Enum.reduce_while(reservations, :ok, fn reservation, :ok ->
-      with true <- reservation.status == "reserved",
-           {:ok, ledger} <-
-             load_existing_ledger(conn, reservation.ledger_id, reservation.generation),
-           next_reservation <- %{
-             reservation
-             | status: if(ledger.status == "open", do: "released", else: "retired"),
-               revision: reservation.revision + 1
-           },
-           next_ledger <- release_hold(ledger, reservation.units),
-           :ok <- update_reservation(conn, reservation, next_reservation),
-           :ok <- update_ledger(conn, ledger, next_ledger) do
+    Enum.reduce_while(reservations, :ok, fn
+      %{status: status}, :ok when status in ["released", "retired"] ->
         {:cont, :ok}
-      else
-        {:error, _reason} = error -> {:halt, error}
-        _ -> {:halt, {:error, :reservation_release_not_permitted}}
-      end
+
+      reservation, :ok ->
+        with true <- reservation.status == "reserved",
+             {:ok, ledger} <-
+               load_existing_ledger(conn, reservation.ledger_id, reservation.generation),
+             next_reservation <- %{
+               reservation
+               | status: if(ledger.status == "open", do: "released", else: "retired"),
+                 revision: reservation.revision + 1
+             },
+             next_ledger <- release_hold(ledger, reservation.units),
+             :ok <- update_reservation(conn, reservation, next_reservation),
+             :ok <- update_ledger(conn, ledger, next_ledger) do
+          {:cont, :ok}
+        else
+          {:error, _reason} = error -> {:halt, error}
+          _ -> {:halt, {:reject, :reservation_release_not_permitted, %{}}}
+        end
     end)
   end
 
@@ -7019,7 +7030,10 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   end
 
   defp replay_release_reservations(replay, ids) do
-    Enum.reduce_while(ids, {:ok, replay}, fn id, {:ok, acc} ->
+    # Skips holds already released, as release_many does.
+    ids
+    |> Enum.reject(&(get_in(replay, [:reservations, &1, :status]) in ["released", "retired"]))
+    |> Enum.reduce_while({:ok, replay}, fn id, {:ok, acc} ->
       with {:ok, reservation} <- replay_get(acc.reservations, id),
            key <- {reservation.ledger_id, reservation.generation},
            {:ok, ledger} <- replay_get(acc.ledgers, key) do
