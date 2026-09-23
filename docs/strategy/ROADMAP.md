@@ -204,6 +204,15 @@ Use [Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md)
 post-repair design target and [Validation](VALIDATION.md#foundry-cross-workflow-portability-validation)
 for falsification cases.
 
+**Tracked follow-on:** [#47 — LLM-proposed workflows, progressive admission and safe
+replanning](https://github.com/lorecrafting/pramana/issues/47). After the software baseline,
+prove both next-step and composed work through the same bounded semantic interface, then
+a separately authorized typed-content workflow. The model supplies planning intelligence;
+a catalog, structured diagnostics/lab, semantic diffs and safe amendments make its
+commitments usable and testable. A complete upfront graph or universal workflow DSL is
+not required. Claimed hard bounds need actual protected enforcement and evidence.
+Detailed design is in [Planning strategies](../../foundry/docs/PLANNING-STRATEGIES.md#31-llm-first-planning-and-progressive-commitment).
+
 **Dependencies:** G0, a bounded allocation and separate project/workflow authorization
 under the governing contract. **Excludes:** multi-tenancy, self-granted capabilities,
 a general workflow platform before evidence, or assumed demand from one successful demo.
@@ -227,6 +236,23 @@ names, plus the conformance list that ladder declares. **Dependencies:** G0, the
 baseline. **Excludes:** refactoring protected authority out of the kernel before FR-22; more
 than one ladder active at once; treating any "first experiment" claim in the positioning
 documents as a commitment.
+
+**Tracked workflow learning loop:** [#48 — workflow analytics and governed
+optimization](https://github.com/lorecrafting/pramana/issues/48), consuming #47's automatic
+instrumentation and amendment contract. Start with reproducible, scoped read-only queries
+and exact contributing runs; then observed critical-path/outcome analysis and one bounded
+workflow experiment with fixed acceptance requirements. Support dynamic execution history
+without a universal prospective DAG. Compare whole accepted-outcome cost, quality and
+operator effort, including failed/unfinished work and measurement overhead; preserve
+unknowns and distinguish observations from causal claims.
+
+Both issues are post-repair delivery tracks, not new FR tickets or parallel active ladders.
+Their runtime work requires the accepted FR-18/FR-20 and relevant controller interfaces;
+no current FR ticket depends on these implementations. #48's documentation-only A0 slice
+separately tracks the coordinated FR-18B/FR-20 ownership amendment for observability
+convergence steps 6/7. It may be prepared during repair but is not deemed applied by this
+roadmap. See [tracked delivery and handoff](../../foundry/docs/PLANNING-STRATEGIES.md#tracked-delivery-and-handoff).
+Merging a planning PR closes neither implementation issue and enables no execution.
 
 ## Prioritization and formal-roadmap handoff
 
