@@ -74,7 +74,8 @@ defmodule PramanaFoundry.Herdr.AdapterTest do
       FakeRunner.json(%{"result" => %{"agent" => "not-an-object"}})
     end)
 
-    assert {:error, {:not_an_object, _label}} = Adapter.inspect_agent(adapter, "dev-1")
+    assert {:error, {:not_an_object, "Herdr agent identity"}} =
+             Adapter.inspect_agent(adapter, "dev-1")
   end
 
   test "argv is passed as an array; the prompt text is never concatenated into a shell string", %{

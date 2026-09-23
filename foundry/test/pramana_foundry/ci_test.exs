@@ -157,8 +157,11 @@ defmodule PramanaFoundry.CITest do
           {:destination_isolated, false}
         ] do
       [dependency] = valid.resolved
-      invalid = %{valid | resolved: [Map.put(dependency, field, value)]}
-      assert {:error, {:prohibited_dependencies, [_]}} = CI.validate_dependency_inventory(invalid)
+      invalid_dependency = Map.put(dependency, field, value)
+      invalid = %{valid | resolved: [invalid_dependency]}
+
+      assert {:error, {:prohibited_dependencies, [^invalid_dependency]}} =
+               CI.validate_dependency_inventory(invalid)
     end
 
     assert {:error, {:tracked_dependency_sources, ["deps/owl/lib/owl.ex"]}} =

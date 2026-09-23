@@ -266,7 +266,13 @@ defmodule PramanaFoundry.DurableStore.FR08AFR19AIntegrationTest do
           :backup -> Gateway.backup(gateway, Path.join(root, "failed-target.sqlite3"))
         end
 
-      assert {:error, {:storage_unavailable, _reason}} = result
+      injected_reason =
+        case operation do
+          :checkpoint -> {:injected_maintenance, :before_checkpoint}
+          :backup -> {:backup_failed, :injected_backup_failure}
+        end
+
+      assert {:error, {:storage_unavailable, ^injected_reason}} = result
       assert %{mode: :recovery} = Gateway.status(gateway)
       assert {:ok, ^baseline} = Authority.read(conn, :all)
       assert :ok = GenServer.stop(gateway)

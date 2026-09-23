@@ -573,6 +573,12 @@ defmodule PramanaFoundry.CoordinatorTest do
 
     assert Coordinator.state()["assignments"]["T-REVIEW-RETRY-1"]["status"] == "handoff_received"
 
+    # The ticket has no checkout, so no reviewer is launched. Issue the reviewer run_id
+    # directly so the review reaches the run_id comparison, not the unissued refusal.
+    :sys.replace_state(Coordinator, fn data ->
+      put_in(data, [:state, "assignments", "T-REVIEW-RETRY-1", "reviewer_run_id"], "review-rr-1")
+    end)
+
     # Submit a malformed review with mismatched run_id
     bad_review = %{
       "schema_version" => 1,
@@ -585,7 +591,7 @@ defmodule PramanaFoundry.CoordinatorTest do
       "checks" => [%{"command" => @check, "exit_code" => 0}]
     }
 
-    assert {:error, _reason} =
+    assert {:error, "review run_id mismatch: expected review-rr-1, got wrong-run-id"} =
              Coordinator.receive_review("T-REVIEW-RETRY-1", bad_review, skip_git_checks: true)
 
     # Verify retry: task returns to handoff_received, not parked
@@ -641,13 +647,22 @@ defmodule PramanaFoundry.CoordinatorTest do
     # Exhaust retry budget with low max_review_retries
     opts = [skip_git_checks: true, max_review_retries: 1]
 
-    # First malformed review → retry (#1/2, under limit)
-    assert {:error, _} = Coordinator.receive_review("T-REVIEW-RETRY-2", bad_review, opts)
+    # First malformed review → retry (#1/2, under limit). No checkout, so no reviewer has
+    # been launched and no reviewer run_id issued: refused before the run_id comparison.
+    assert {:error, "review requires an independently issued reviewer run_id"} =
+             Coordinator.receive_review("T-REVIEW-RETRY-2", bad_review, opts)
+
     assert Coordinator.state()["assignments"]["T-REVIEW-RETRY-2"]["status"] == "handoff_received"
     assert Coordinator.state()["assignments"]["T-REVIEW-RETRY-2"]["review_retries"] == 1
 
-    # Second malformed review → retry #2/2 → now exceeds limit → parked
-    assert {:error, _} = Coordinator.receive_review("T-REVIEW-RETRY-2", bad_review, opts)
+    :sys.replace_state(Coordinator, fn data ->
+      put_in(data, [:state, "assignments", "T-REVIEW-RETRY-2", "reviewer_run_id"], "review-rr-2")
+    end)
+
+    # Second malformed review, now a run_id mismatch → retry #2/2 → exceeds limit → parked
+    assert {:error, "review run_id mismatch: expected review-rr-2, got wrong-run-id"} =
+             Coordinator.receive_review("T-REVIEW-RETRY-2", bad_review, opts)
+
     assignment = Coordinator.state()["assignments"]["T-REVIEW-RETRY-2"]
     assert assignment["status"] == "parked"
     assert assignment["review_retries"] == 2

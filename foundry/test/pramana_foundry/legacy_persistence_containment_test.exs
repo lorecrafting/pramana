@@ -41,7 +41,7 @@ defmodule PramanaFoundry.LegacyPersistenceContainmentTest do
       }
     end)
 
-    assert {:error, {:recovery_required, _reason}} = Coordinator.enqueue_ticket(ticket())
+    assert {:error, {:recovery_required, :eisdir}} = Coordinator.enqueue_ticket(ticket())
     state = Coordinator.state()
     assert state["status"] == "recovery_required"
     assert state["assignments"] == %{}

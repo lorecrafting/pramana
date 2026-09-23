@@ -75,7 +75,8 @@ defmodule PramanaFoundry.Relocation.WorktreeTest do
     File.mkdir_p!(dest)
     File.write!(Path.join(dest, "existing.txt"), "already here")
 
-    assert {:error, {:destination_collision, _}} = Worktree.move(worktree_path, dest)
+    expanded_dest = Path.expand(dest)
+    assert {:error, {:destination_collision, ^expanded_dest}} = Worktree.move(worktree_path, dest)
   end
 
   test "moves worktree via git worktree move while preserving original checkout intact", %{

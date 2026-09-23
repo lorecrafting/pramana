@@ -5169,3 +5169,82 @@ those swaps, and that is the rule-5 defect. The fourth removes a guard outright.
 Not run: `operational_storage_test.exs` (not touched), the sweep, `ci/run.exs`, the full suite.
 `mix format --check-formatted` passes.
 
+## Half-pinned refusal assertions, and the coordinator review retry tests — 2026-09-22
+
+Continues the loose-refusal audit above (`b46d3825`). Population: an assertion that pins the outer
+error tag but wildcards the cause, such as `{:error, {:recovery_mode, _reason}}`. Rerun from
+`foundry/` (`-P`, because `git grep -E` has no `\b`):
+
+```sh
+git grep -nP '\{:error, \{:[a-z_]+,[^=]*\b_[a-z_]*' b46d3825 -- test | wc -l   # before: 31
+git grep -nP '\{:error, \{:[a-z_]+,[^=]*\b_[a-z_]*' -- test | wc -l            # after: 8
+```
+
+The pattern was checked for missed shapes: multi-line `assert {:error,` heads (the only wildcard
+one, `sync_fault_test` :52–54, is already caught on its third line), `{:reply, …}` and `match?`
+wrappers (none), and map causes (none). Causes bound to a named variable and then inspected, such
+as `{:launch_blocked, reason}`, are not in the population.
+
+Classification of the 31 (line numbers at `b46d3825`):
+
+| Class | Count | Sites |
+|---|---|---|
+| pinnable, pinned | 23 | `authority_test` :41 :111 :169 :553 :556 :592 :621 :626 :780; `legacy_import_test` :155 (`"database is locked"`) and :215 (both digests, computed in the test); `operational_storage_test` :212 (`"database is locked"`), :414 and :416 (`"database disk image is malformed"`); `fr08a_fr19a_integration_test` :269 (the injected fault, per operation); `atomic_bundle_test` :299 (the injected fault, per fault); `review_corrections_test` :267 (`:malformed_json` / `:unsupported_version`, per mode, and the status assertion below it pinned to the same cause); `gateway_test` :264 (`:projection_transition_bijection`, finding 2); `unified_contract_test` :125; `herdr/adapter_test` :77 (`"Herdr agent identity"`); `relocation/worktree_test` :78 (the expanded destination); `ci_test` :161 (the one mutated dependency); `legacy_persistence_containment_test` :44 (`:eisdir`, as `effects/launch_test` was pinned in the entry above) |
+| legitimate-loose | 8 | `coordinator_test` :520 and `legacy_persistence_containment_test` :238 (one unconditional emitter, `coordinator.ex:564`, whose cause is a prose note); `operational_storage_test` :357 :367 :545, `sync_fault_test` :54 :77, `support/fr19a_linux_sync_eio_fixture.exs` :280 (the cause is the engine or OS storage error, which each test already constrains where it first appears: `=~ "interrupt"`, `=~ "full"`, SQLite code 1034, `:eio`/`:erofs`; the later assertion's claim is the fence). Not probed: `operational_storage_test` is load-sensitive and `sync_fault_test` needs its native extension |
+| unclear | 0 | |
+
+Every pinned value was read from a failing run against a sentinel, not guessed. `authority_test`
+:592 pins `"commands", "A"`, which holds for both the projection and the ledger family.
+
+### Coordinator review retry tests (finding 1 of the previous entry)
+
+`coordinator_test` "review validation failure triggers retry budget instead of parking" now issues
+a reviewer run_id (`:sys.replace_state`, as the lifecycle test in the same file does) before
+submitting `"wrong-run-id"`, and pins
+`"review run_id mismatch: expected review-rr-1, got wrong-run-id"` (`reviews/artifact.ex:34`).
+"review retry budget exhaustion parks the task" keeps its first refusal on the unissued path,
+pinned to `"review requires an independently issued reviewer run_id"` (`artifact.ex:31`). No other
+test pins that message through the coordinator: `reviews/reviews_test.exs:151` calls
+`Artifact.validate/4` directly. The test then issues a reviewer run_id, and its second refusal, the
+one that parks the task, is pinned to the mismatch message. Both refusal kinds now count against
+the same budget in one test. The previous entry's bare-wildcard grep: 18 → 15.
+
+### Findings
+
+1. **Without the mismatch check, a review carrying the wrong run_id is accepted.** With
+   `artifact.ex:34` neutralised, both fixed coordinator tests got `{:ok, assignment}` from
+   `receive_review/3`. The old fixtures could not have shown this: they were refused at
+   `artifact.ex:31` first.
+2. **`gateway_test` "invalid projection references and uniqueness failures never partially
+   commit" never reaches SQLite.** The duplicated event is refused before SQL by the event_id
+   `unique?` conjunct of `RecordCodec.projection_plan/2`, as
+   `{:bundle_rejected, :projection_transition_bijection}`. The FK case is refused by
+   `transition_count/2` as `:projection_event_missing`, also before SQL. No SQLite UNIQUE or FK
+   constraint is exercised by this test. Pinned and commented. The atom is the shared fallback of
+   three conjuncts, so the pin names the family, not the conjunct; the last neutralisation below
+   shows that the event_id conjunct is the one that fires.
+
+### Rule 6: neutralisations
+
+Each change was made in `lib/`, run against only the named file, and reversed by replacing the
+exact string. `git diff --stat lib/` was empty after every reversal.
+
+| Neutralisation | Test file | Red | Reversed |
+|---|---|---|---|
+| `reviews/artifact.ex` mismatch condition → `false and …` | `coordinator_test.exs` | 12/14, both retry tests, `right: {:ok, %{…}}` | 14 passed |
+| `reviews/artifact.ex` unissued condition → `false and …` | `coordinator_test.exs` | 13/14, "review retry budget exhaustion parks the task" | 14 passed |
+| `authority.ex` `:incomplete_projection_history` → `:neutralised` | `durable_store/authority_test.exs` | 28/29, `right: {…, {"kernel-v1", "ticket-A"}, :neutralised}` | 29 passed |
+| `gateway.ex` `inject(:after_domain, …)` returns `:injected_after_protected` | `durable_store/atomic_bundle_test.exs` | 36/37, `right: {:error, {:storage_unavailable, :injected_after_protected}}` | 37 passed |
+| `record_codec.ex` `supported_version/1` fallback → `:neutralised` | `durable_store/review_corrections_test.exs` | 13/15, including "ordinary and protected idempotent corruption both fence" | 15 passed |
+| `record_codec.ex` event_id `unique?` conjunct → `true or …` | `durable_store/gateway_test.exs` | 17/18, `right: {:error, :projection_write_missing}` | 18 passed |
+
+The third, fourth and fifth swap a cause under an unchanged outer tag. The half-pinned forms they
+replaced would have stayed green under each. The last would have been red under the old form too,
+because `:projection_write_missing` is not wrapped in `:bundle_rejected`; it is recorded for
+finding 2.
+
+Run one file at a time: the thirteen touched test files, with `operational_storage_test.exs` run
+only by line (:199 and :398). Not run: the rest of `operational_storage_test.exs`,
+`sync_fault_test.exs`, the sweep, `ci/run.exs`, the full suite. `mix format --check-formatted`
+passes.
+

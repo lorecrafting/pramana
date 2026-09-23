@@ -249,6 +249,8 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
     cases = [
       {"FK", put_in(bundle("FK")[:projections], [projection("FK", "missing-event")]),
        {:error, :projection_event_missing}},
+      # The duplicate event is refused before SQL by the event_id uniqueness conjunct of
+      # RecordCodec.projection_plan/2, not by the SQLite UNIQUE constraint.
       {"UNIQUE", update_in(bundle("UNIQUE")[:events], fn [event] -> [event, event] end),
        :bundle_rejected}
     ]
@@ -261,8 +263,11 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
       result = Gateway.transact(gateway, "operator", command(id), invalid_bundle)
 
       case expected do
-        :bundle_rejected -> assert {:error, {:bundle_rejected, _reason}} = result
-        exact -> assert ^exact = result
+        :bundle_rejected ->
+          assert {:error, {:bundle_rejected, :projection_transition_bijection}} = result
+
+        exact ->
+          assert ^exact = result
       end
 
       assert {:ok, counts} = Gateway.counts(gateway)

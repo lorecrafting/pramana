@@ -122,7 +122,10 @@ defmodule PramanaFoundry.DurableStore.UnifiedContractTest do
                {:authority_corrupt, "ledger_generations", "child", :unsupported_ledger_generation}
            } = Gateway.status(gateway)
 
-    assert {:error, {:recovery_mode, _reason}} = Gateway.counts(gateway)
+    assert {:error,
+            {:recovery_mode,
+             {:authority_corrupt, "ledger_generations", "child", :unsupported_ledger_generation}}} =
+             Gateway.counts(gateway)
   end
 
   test "canonical command body and relational command columns cannot diverge", ctx do

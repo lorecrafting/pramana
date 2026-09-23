@@ -244,6 +244,7 @@ defmodule PramanaFoundry.DurableStore.ReviewCorrectionsTest do
 
       conn = :sys.get_state(gateway).conn
       damaged = if mode == :ordinary, do: "not-json", else: ~s({"schema_version":99})
+      cause = if mode == :ordinary, do: :malformed_json, else: :unsupported_version
 
       assert :ok =
                Database.execute(conn, "UPDATE command_results SET result = ?", [{:blob, damaged}])
@@ -264,9 +265,9 @@ defmodule PramanaFoundry.DurableStore.ReviewCorrectionsTest do
             )
         end
 
-      assert {:error, {:authority_corrupt, "command_results", ^id, _reason}} = result
+      assert {:error, {:authority_corrupt, "command_results", ^id, ^cause}} = result
 
-      assert %{mode: :recovery, reason: {:authority_corrupt, "command_results", ^id, _}} =
+      assert %{mode: :recovery, reason: {:authority_corrupt, "command_results", ^id, ^cause}} =
                Gateway.status(gateway)
 
       assert :ok = stop_supervised(mode)

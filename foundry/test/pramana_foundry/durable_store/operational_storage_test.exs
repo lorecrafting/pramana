@@ -209,7 +209,9 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
               reconstruction: %{sha256: replay_digest, projection_count: 1}
             }} = Gateway.backup(gateway, backup)
 
-    assert {:error, {:store_owner_unavailable, _reason}} = Maintenance.verify(ctx.path)
+    assert {:error, {:store_owner_unavailable, "database is locked"}} =
+             Maintenance.verify(ctx.path)
+
     assert :ok = stop_supervised(Gateway)
 
     assert {:ok,
@@ -411,9 +413,11 @@ defmodule PramanaFoundry.DurableStore.OperationalStorageTest do
     assert %{mode: :recovery, reason: reason} = Gateway.status(corrupt)
     refute is_nil(reason)
     assert file_digest(ctx.path) == damaged_digest
-    assert {:error, {:recovery_mode, _reason}} = Gateway.checkpoint(corrupt)
 
-    assert {:error, {:recovery_mode, _reason}} =
+    assert {:error, {:recovery_mode, "database disk image is malformed"}} =
+             Gateway.checkpoint(corrupt)
+
+    assert {:error, {:recovery_mode, "database disk image is malformed"}} =
              Gateway.backup(corrupt, Path.join(ctx.root, "bad.sqlite3"))
 
     assert :ok = stop_supervised(Gateway)

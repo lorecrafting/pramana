@@ -283,7 +283,11 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
   test "protected, domain and pre-commit failures roll back the complete bundle", ctx do
     stop_supervised!(Gateway)
 
-    for fault <- [:after_protected, :after_domain, :before_commit] do
+    for {fault, injected} <- [
+          after_protected: :injected_after_protected,
+          after_domain: :injected_after_domain,
+          before_commit: :injected_crash_before_commit
+        ] do
       path = Path.join(Path.dirname(ctx.path), "#{fault}.sqlite3")
       assert :ok = Gateway.initialize(path)
 
@@ -296,7 +300,7 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
 
       envelope = policy_bundle("fault-#{fault}", "policy-#{fault}")
 
-      assert {:error, {:storage_unavailable, _reason}} =
+      assert {:error, {:storage_unavailable, ^injected}} =
                Gateway.atomic_bundle(gateway, ctx.capability, "operator", envelope)
 
       stop_supervised!({:fault_gateway, fault})

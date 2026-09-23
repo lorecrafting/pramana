@@ -152,7 +152,7 @@ defmodule PramanaFoundry.DurableStore.LegacyImportTest do
     File.write!(source, original)
     gateway = start_supervised!({Gateway, path: ctx.path})
 
-    assert {:error, {:store_owner_unavailable, _reason}} =
+    assert {:error, {:store_owner_unavailable, "database is locked"}} =
              LegacyImport.run(ctx.path, source, ctx.archive)
 
     assert :ok = stop_supervised(Gateway)
@@ -212,7 +212,11 @@ defmodule PramanaFoundry.DurableStore.LegacyImportTest do
       :ok
     end
 
-    assert {:error, {:archive_digest_mismatch, _actual, _expected}} =
+    digest = &Base.encode16(:crypto.hash(:sha256, &1), case: :lower)
+    mutated_digest = digest.(original <> "foreign")
+    original_digest = digest.(original)
+
+    assert {:error, {:archive_digest_mismatch, ^mutated_digest, ^original_digest}} =
              LegacyImport.run(ctx.path, source, ctx.archive, after_import_lines: mutate)
 
     {:ok, conn} = Database.open(ctx.path)

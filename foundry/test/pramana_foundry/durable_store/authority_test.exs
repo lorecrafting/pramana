@@ -38,7 +38,8 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
             {:recovery_mode, {:authority_corrupt, "commands", "A", :required_relation_missing}}} =
              Gateway.command(gateway, "A")
 
-    assert {:error, {:recovery_mode, _reason}} =
+    assert {:error,
+            {:recovery_mode, {:authority_corrupt, "commands", "A", :required_relation_missing}}} =
              Gateway.transact(gateway, "actor", command("B"), bundle("B"))
 
     assert :ok = stop_supervised(Gateway)
@@ -108,7 +109,9 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
                [{:blob, bytes}]
              )
 
-    assert {:error, {:recovery_mode, {:authority_corrupt, "command_results", "A", _reason}}} =
+    assert {:error,
+            {:recovery_mode,
+             {:authority_corrupt, "command_results", "A", :invalid_sequence_or_disposition}}} =
              Gateway.command(reopened, "A")
   end
 
@@ -166,7 +169,10 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
                {:blob, damaged_bytes}
              ])
 
-    assert {:error, {:recovery_mode, {:authority_corrupt, "projections", _identity, _reason}}} =
+    assert {:error,
+            {:recovery_mode,
+             {:authority_corrupt, "projections", {"kernel-v1", "ticket-A"},
+              :projection_revision_sequence}}} =
              Gateway.command(gateway, "A")
   end
 
@@ -550,10 +556,15 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
                [{:blob, historic}]
              )
 
-    assert {:error, {:authority_corrupt, "projections", _identity, _reason}} =
+    assert {:error,
+            {:authority_corrupt, "projections", {"kernel-v1", "ticket-A"},
+             :incomplete_projection_history}} =
              Authority.read(conn, {:revision, {:projection, "kernel-v1", "ticket-A"}})
 
-    assert {:error, {:recovery_mode, {:authority_corrupt, "projections", _identity, _reason}}} =
+    assert {:error,
+            {:recovery_mode,
+             {:authority_corrupt, "projections", {"kernel-v1", "ticket-A"},
+              :incomplete_projection_history}}} =
              Gateway.command(gateway, "B")
   end
 
@@ -589,7 +600,7 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
 
       dependent = put_in(command("B")["expected_revisions"], %{key => 0})
 
-      assert {:error, {:authority_corrupt, _table, _identity, :required_relation_missing}} =
+      assert {:error, {:authority_corrupt, "commands", "A", :required_relation_missing}} =
                Gateway.transact(gateway, "actor", dependent, %{
                  schema_version: 1,
                  result: %{schema_version: 1, disposition: "accepted"}
@@ -618,12 +629,12 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
     assert :ok = Database.execute(conn, "UPDATE effects SET command_id='missing'")
     assert :ok = Database.execute(conn, "PRAGMA foreign_keys=ON")
 
-    assert {:error, {:authority_corrupt, "sqlite", "physical", _rows}} =
+    assert {:error, {:authority_corrupt, "sqlite", "physical", [["effects", 1, "commands", 0]]}} =
              Authority.read(conn, :all)
 
     backup = Path.join(ctx.root, "orphan-backup.sqlite3")
 
-    assert {:error, {:authority_corrupt, "sqlite", "physical", _rows}} =
+    assert {:error, {:authority_corrupt, "sqlite", "physical", [["effects", 1, "commands", 0]]}} =
              Gateway.backup(gateway, backup)
 
     refute File.exists?(backup)
@@ -777,7 +788,7 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
 
     assert {:ok, %{"disposition" => "accepted"}} = Gateway.command(gateway, "A")
 
-    assert {:error, {:authority_corrupt, "events", "event-B", _reason}} =
+    assert {:error, {:authority_corrupt, "events", "event-B", :malformed_json}} =
              Authority.read(conn, :all)
   end
 
