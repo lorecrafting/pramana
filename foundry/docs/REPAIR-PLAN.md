@@ -178,6 +178,7 @@ FR-08–FR-22 change:
   Measure first: convert the execution entity, count what the checker reports, then decide.
   Measured, with subcommit 3's scope and the collapse question, in
   [the subcommit 3 design proposal](fr-08/FR08B-SUBCOMMIT3-DESIGN-2026-09-23.md).
+  Subcommit 2's developer `decide/3`: [design proposal](fr-08/FR08B-SUBCOMMIT2-DECIDE-DESIGN-2026-09-23.md).
 
   **Decided 2026-09-23:** the families fall on the generic/software line — execution
   lifecycle, settlement, control and cancel in generic modules; developer, review and
