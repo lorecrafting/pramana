@@ -30,8 +30,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   alias PramanaFoundry.Workflow.Kernel.Event
 
   # One fixed namespace per domain read kind. The control singleton is read kind `state`
-  # with entity id `control`. TransitionPlan keeps its own copy (commit 1); a test asserts
-  # the two agree once it exists.
+  # with entity id `control`. Gateway keeps the authoritative copy
+  # (`Gateway.domain_read_namespaces/0`); domain_read_check_test asserts the two agree.
   @namespaces %{
     "ticket" => "foundry.ticket.v1",
     "objective" => "foundry.objective.v1",

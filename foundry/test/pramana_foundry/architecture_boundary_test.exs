@@ -280,7 +280,14 @@ defmodule PramanaFoundry.ArchitectureBoundaryTest do
   defp def_name({name, _, _}), do: name
 
   defp fixture(source) do
-    path = "test/architecture_boundary_fixture_#{:erlang.unique_integer([:positive])}.exs"
+    # Outside test/: r4_no_direct_apply_test globs test/**, and a fixture deleted between its
+    # glob and its read failed that test with File.Error.
+    path =
+      Path.join(
+        System.tmp_dir!(),
+        "architecture_boundary_fixture_#{:erlang.unique_integer([:positive])}.exs"
+      )
+
     File.write!(path, source <> "\n")
     on_exit(fn -> File.rm(path) end)
     path
