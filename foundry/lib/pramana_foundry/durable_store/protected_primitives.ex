@@ -779,6 +779,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
            }),
          {:ok, current} <- load_inbox(conn, operation["execution_id"]),
          {:ok, disposition} <- inbox_append_guard(current, sequence),
+         :ok <- inbox_independence(conn, current, operation),
          {:ok, item_bytes} <-
            encode(%{
              "schema_version" => 1,
@@ -816,7 +817,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       false ->
         {:reject, :invalid_inbox_item, %{}}
 
-      {:error, reason} when reason in [:inbox_sequence_conflict, :inbox_actor_conflict] ->
+      {:error, reason}
+      when reason in [:inbox_sequence_conflict, :inbox_actor_conflict, :principal_not_independent] ->
         {:reject, reason, %{}}
 
       {:error, _reason} = error ->
@@ -1256,6 +1258,16 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
          true <- policy.revision == operation["policy_revision"],
          true <- control.revision == operation["control_revision"],
          :ok <- allowed_effect?(policy.value, control.value, operation),
+         {:ok, own_inbox} <- load_inbox(conn, operation["execution_id"]),
+         :ok <-
+           principal_independence(
+             conn,
+             policy.value,
+             operation["ticket_id"],
+             operation["attempt_id"],
+             operation["request"]["role"],
+             [operation["authenticated_actor"] | inbox_principals(own_inbox)]
+           ),
          :ok <- nonstart_allowance(conn, policy.value, operation),
          {:ok, reservations} <- load_effect_reservations(conn, operation),
          :ok <- all_proposed_listed(conn, operation["effect_id"], reservations),
@@ -1328,7 +1340,8 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              :nonstart_allowance_exhausted,
              :predecessor_not_terminal,
              :predecessor_identity_mismatch,
-             :attempt_closed
+             :attempt_closed,
+             :principal_not_independent
            ] ->
         {:reject, reason, %{}}
 
@@ -3284,6 +3297,103 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
       _ -> {:error, :nonstart_allowance_exhausted}
     end
   end
+
+  # Reviewer independence (REPAIR-PLAN.md#reviewer-independence-amendment). The operator
+  # policy's `independent_of_roles` maps a role to the roles it must share no recorded
+  # principal with inside one ticket attempt; role names are policy data, not Core's. A
+  # side's principals are the issuer and inbox actor of every effect of its roles in the
+  # attempt, so a retry inherits its whole predecessor chain. Checked in both directions
+  # against every such effect: the controller names nothing and so can skip nothing.
+  # Until FR-15aB these are recorded principals, not proved-isolated ones.
+  defp principal_independence(conn, policy, ticket_id, attempt_id, role, principals) do
+    with {:ok, related} <- related_roles(Map.get(policy, "independent_of_roles", %{}), role),
+         {:ok, effects} <- independence_effects(conn, ticket_id, attempt_id, related),
+         {:ok, own} <- side_principals(conn, effects, [role]),
+         {:ok, other} <- side_principals(conn, effects, related),
+         true <- MapSet.disjoint?(MapSet.union(own, MapSet.new(principals)), other) do
+      :ok
+    else
+      _ -> {:error, :principal_not_independent}
+    end
+  end
+
+  defp related_roles(pairs, role) when is_map(pairs) do
+    if Enum.all?(pairs, fn {from, to} ->
+         is_binary(from) and is_list(to) and Enum.all?(to, &is_binary/1)
+       end),
+       do:
+         {:ok,
+          Enum.uniq(Map.get(pairs, role, []) ++ for({from, to} <- pairs, role in to, do: from))},
+       else: :error
+  end
+
+  defp related_roles(_pairs, _role), do: :error
+
+  defp independence_effects(_conn, _ticket_id, _attempt_id, []), do: {:ok, []}
+
+  defp independence_effects(conn, ticket_id, attempt_id, _related) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT state FROM root_effects WHERE ticket_id = ? AND attempt_id = ? ORDER BY effect_id",
+             [ticket_id, attempt_id]
+           ) do
+      Enum.reduce_while(rows, {:ok, []}, fn [bytes], {:ok, acc} ->
+        case decode(bytes) do
+          {:ok, state} -> {:cont, {:ok, [state | acc]}}
+          _ -> {:halt, :error}
+        end
+      end)
+    end
+  end
+
+  defp side_principals(conn, effects, roles) do
+    effects
+    |> Enum.filter(&(&1["role"] in roles))
+    |> Enum.reduce_while({:ok, MapSet.new()}, fn effect, {:ok, acc} ->
+      case load_inbox(conn, effect["execution_id"]) do
+        {:ok, inbox} ->
+          {:cont,
+           {:ok, MapSet.new([effect["issuer"] | inbox_principals(inbox)]) |> MapSet.union(acc)}}
+
+        error ->
+          {:halt, error}
+      end
+    end)
+  end
+
+  defp inbox_principals(%{actor_id: actor}), do: [actor]
+  defp inbox_principals(:absent), do: []
+
+  # The first append pins the execution's inbox actor; later appends must match it.
+  defp inbox_independence(conn, :absent, operation) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT policy_id, ticket_id, attempt_id, state FROM root_effects WHERE execution_id = ? ORDER BY effect_id",
+             [operation["execution_id"]]
+           ) do
+      Enum.reduce_while(rows, :ok, fn [policy_id, ticket_id, attempt_id, bytes], :ok ->
+        with {:ok, effect} <- decode(bytes),
+             {:ok, policy} <- load_simple(conn, "root_policies", "policy_id", policy_id),
+             :ok <-
+               principal_independence(
+                 conn,
+                 policy.value,
+                 ticket_id,
+                 attempt_id,
+                 effect["role"],
+                 [operation["authenticated_actor"]]
+               ) do
+          {:cont, :ok}
+        else
+          _ -> {:halt, {:error, :principal_not_independent}}
+        end
+      end)
+    end
+  end
+
+  defp inbox_independence(_conn, _inbox, _operation), do: :ok
 
   defp control_active?(%{"status" => "active"}), do: :ok
   defp control_active?(_control), do: {:error, :control_not_active}
