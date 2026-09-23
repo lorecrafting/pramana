@@ -5462,3 +5462,29 @@ anything but literals and the contract.
 
 **Not done in this entry.** A full run under the committed script. Killing the script orphaned its
 `mix test` children, which had to be killed by hand. Not a gate step.
+
+**Review fixes and re-judge, 2026-09-22 (`14d0b236`).** The review's findings, fixed in the script:
+a parser fixture for `Result: 36 passed, 1 invalid` (read as 1 failure, so caught; red against a
+parser that ignores `invalid` on that shape); the probe now records a hit *before* the guard runs, so a
+guard that raises is still attributed; a site the source-read check flags is reported as not a
+verdict and sent to the arbiter; an own lock, `/private/tmp/ev1-coverage-sweep.lock`, released on
+every exit the script controls and on SIGTERM, which also kills the running `mix test` children (red:
+with the kill removed, the child outlived a SIGTERM); `EV1_SITES` takes a full label to select one
+site; trial lines print full labels.
+
+The 12 run-1 survivors and `:911` were re-judged under that commit. Raw output, captured verbatim
+under a labelled hand-written header:
+[fr-08/ev1-rejudge-2026-09-22-raw.txt](fr-08/ev1-rejudge-2026-09-22-raw.txt). It printed:
+
+- every red control ok, including "result parser, 7 shapes" and "0 of 117 site mutants change what
+  declared_reasons/0 reads"; "mapped 117 of 117 sites to tests" with the probe that records before
+  the call; mapping run 307 s.
+- `=== verdicts === caught: 2  survived: 12`. The two caught are the known-caught control (`:889`)
+  and `require_phase(ticket, ~w(integrating)) :911 — :caught (51/198 tests, 118s)`. All 12 run-1
+  survivors printed `:survived`, `:1622` as the known-survived control.
+- "1 disagreements over 14 keyed trials": `:968`, old `:caught`, new `:survived`; the arbiter printed
+  `scoped :survived, full set :survived (153s)`.
+- 643 of 2772 tests selected; trial cpu-seconds 2414 s; wall 1615 s on 2 workers.
+
+Still open: a full run under the committed script; the cause of `:968`'s survival; `:325`'s verdict
+under full labels (run 3's `:3` lines are only inferred to include it).
