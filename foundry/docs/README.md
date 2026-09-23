@@ -44,6 +44,7 @@ contract still govern implementation.
 | Evaluate the optional semantic assessor | [Assessor Stage A](ASSESSOR.md), issue #26 and the governing repair boundaries |
 | Understand historical architecture choices | [Migration design](MIGRATION.md), [migration tickets](MIGRATION-TICKETS.md), [event sourcing](EVENT_SOURCING.md) |
 | Plan FR-23 documentation retirement, or decide whether a Foundry document is evidence, current, superseded or retirable | [Documentation retirement inventory](DOC-RETIREMENT-INVENTORY-2026-09-22.md) — a classification of every file at `e374322b`, with grep evidence; it retired nothing and applied no banner |
+| Plan FR-23 dead-surface removal, or check whether a `lib/` identifier still dispatches | [Dead surface inventory](DEAD-SURFACE-INVENTORY-2026-09-22.md) — unused functions, list-literal members and modules at `6bc015ed`, each with its recorded search and owner; it removed nothing |
 | Inspect implementation history | [Implementation log](IMPLEMENTATION-LOG.md); use its reading route and active-ticket headings rather than preloading the append-only history |
 | Review an agent assignment | The applicable [role documents](../../docs/README.md#foundry-role-contracts) and current workflow contract |
 
