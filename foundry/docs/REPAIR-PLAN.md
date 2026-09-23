@@ -171,6 +171,12 @@ FR-08–FR-22 change:
   in view, missed its relatives", which is what keyhole traversal produces and what
   reviewers then find by reading the whole file.
 
+  **Proposed 2026-09-23 (operator: stay in Elixir):** at subcommit 3, try kernel *state*
+  entities as structs so Elixir 1.20's set-theoretic checker, which already runs under the
+  gate's `--warnings-as-errors` compile, can see field names and shapes it cannot see in
+  string-keyed maps. Durable events, facts and plans stay maps with runtime validators.
+  Measure first: convert the execution entity, count what the checker reports, then decide.
+
   **Decided 2026-09-23:** the families fall on the generic/software line — execution
   lifecycle, settlement, control and cancel in generic modules; developer, review and
   integration phases in software-specific ones — so roles sit in named files rather than
