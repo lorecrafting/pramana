@@ -11,6 +11,7 @@ Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
 |---|---|
 | Pramāṇa: corpus, retrieval, MCP, reader | [Pramāṇa invariants](pramana/docs/INVARIANTS.md), then the relevant topic in [the Pramāṇa index](pramana/docs/README.md) |
 | Foundry: agent coordination and lifecycle | [Foundry documentation](foundry/docs/README.md); use its repair plan and current ticket evidence before touching execution paths |
+| Foundry: any code change | [Foundry boundary rules](foundry/docs/BOUNDARY-RULES.md) first — twelve rules, most enforced by the gate |
 | Foundry: adding or changing a guard, transition or refusal test | [Evidence tools](foundry/docs/EVIDENCE-TOOLS.md) first — four checks run in the gate automatically, one you must run yourself, and six rules that decide whether any green result means anything |
 | Documentation or repository orientation | [Documentation index](docs/README.md), [repository map](docs/REPO_MAP.md), [documentation maintenance](docs/MAINTAINING_DOCS.md) |
 

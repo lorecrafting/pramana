@@ -1,3 +1,5 @@
+Code.require_file("../../support/ast_modules.ex", __DIR__)
+
 defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   @moduledoc """
   The harness only judges what routes through it, and nothing obliges a new test to.
@@ -19,6 +21,8 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   own needle out of its own haystack.
   """
   use ExUnit.Case, async: true
+
+  import PramanaFoundry.Test.AstModules, only: [nodes: 1, bindings: 1, resolve: 2]
 
   # The wrapper itself, which must call the kernel. Nothing else is exempt.
   #
@@ -173,11 +177,6 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
 
   defp ast(path), do: path |> File.read!() |> Code.string_to_quoted!(file: path)
 
-  defp nodes(quoted) do
-    {_, acc} = Macro.prewalk(quoted, [], fn node, acc -> {node, [node | acc]} end)
-    Enum.reverse(acc)
-  end
-
   # `Mod.apply(...)`, `Mod.apply ...`, `&Mod.apply/2` — one node shape, any arity — and
   # `Kernel.apply(Mod, :apply, args)` or `:erlang.apply(Mod, :apply, args)`, reflection
   # spelled with its module.
@@ -206,51 +205,6 @@ defmodule PramanaFoundry.Workflow.R4NoDirectApplyTest do
   end
 
   defp reflects?(_, _, _), do: false
-
-  # Static module bindings in the file: `alias A.B`, `alias A.B, as: C`, `alias A.{B, C}`,
-  # each with any further options (`warn: false`), and `@name A.B`. Collected file-wide rather
-  # than per lexical scope, and each name keeps EVERY module it is ever bound to, so a later
-  # alias in another module cannot hide an earlier one: a name resolves to the set, and the
-  # scan reports if the kernel is in it. That can over-report, never under-report.
-  defp bindings(quoted) do
-    quoted
-    |> nodes()
-    |> Enum.reduce(%{}, fn
-      {:alias, _, [{{:., _, [prefix, :{}]}, _, targets} | _]}, acc ->
-        for {:__aliases__, _, segs} <- targets,
-            base <- resolve(prefix, acc),
-            reduce: acc do
-          acc -> bind(acc, List.last(segs), Module.concat([base | segs]))
-        end
-
-      {:alias, _, [{:__aliases__, _, segs} = target | opts]}, acc ->
-        name =
-          case Keyword.get(List.flatten(opts), :as) do
-            {:__aliases__, _, [as]} -> as
-            _ -> List.last(segs)
-          end
-
-        Enum.reduce(resolve(target, acc), acc, &bind(&2, name, &1))
-
-      {:@, _, [{name, _, [value]}]}, acc ->
-        Enum.reduce(resolve(value, acc), acc, &bind(&2, {:@, name}, &1))
-
-      _, acc ->
-        acc
-    end)
-  end
-
-  defp bind(acc, name, module), do: Map.update(acc, name, [module], &[module | &1])
-
-  # Every module the spelling can name. An aliased first segment also keeps its literal
-  # meaning, which is what it names above the alias.
-  defp resolve({:__aliases__, _, [first | rest]}, bindings) when is_atom(first) do
-    for base <- [first | Map.get(bindings, first, [])], do: Module.concat([base | rest])
-  end
-
-  defp resolve({:@, _, [{name, _, nil}]}, bindings), do: Map.get(bindings, {:@, name}, [])
-  defp resolve(module, _) when is_atom(module), do: [module]
-  defp resolve(_, _), do: []
 
   # A fixture under the test tree, removed in `on_exit`. A VM killed mid-test skips `on_exit`
   # and can leave one behind; the next run's real scan then reports it, loudly, by path.

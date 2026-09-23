@@ -14,6 +14,7 @@ contract still govern implementation.
 
 | Task | Read |
 |---|---|
+| Change any Foundry code | [Boundary rules](BOUNDARY-RULES.md) first — twelve decoupling rules, each naming the test or review that enforces it |
 | Understand investment priorities or evaluate architecture/tooling | [Foundry strategy brief](STRATEGY.md), then the relevant governing repair contract |
 | Understand Foundry's ecosystem position, what the kernel must own, and what should remain substitutable | [Ecosystem boundary and positioning](ECOSYSTEM-BOUNDARY.md), then [Foundry strategy](STRATEGY.md) and the governing workflow/repair contracts |
 | Understand how Cloudflare/AX/Pi/Claude/Codex or another controller should drive Foundry without becoming authority | [Orchestrator boundary](ORCHESTRATOR-BOUNDARY.md), then [Project workflow profiles](PROJECT-WORKFLOW-PROFILES.md), [Observability](OBSERVABILITY.md) and the governing workflow contract |
