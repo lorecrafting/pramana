@@ -178,11 +178,18 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {"R4a.03.o2", "infer no proposal"},
       {"R4a.03.o6", "Admit no ticket and create no objective allocation"}
     ],
+    # o2, o7, o8 and o10 are decide/3's, asserted from the searched precondition.
     nonstart_reviewer: [
       {"R4a.02.o1", "Keep attempt and ticket `awaiting_review`"},
+      {"R4a.02.o2", "immutable candidate/check receipts and reviewer ownership"},
       {"R4a.02.o3", "Close only the failed reviewer execution"},
       {"R4a.02.o4", "never enter developer retry or correction"},
-      {"R4a.02.o9", "the same attempt/candidate remain resumable"}
+      {"R4a.02.o7", "Below the limit, return to the durable reviewer queue."},
+      {"R4a.02.o8",
+       "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)` with `resume_phase: awaiting_review`"},
+      {"R4a.02.o9", "the same attempt/candidate remain resumable"},
+      {"R4a.02.o10",
+       "Missing current reviewer allocation yields `blocked(reviewer_budget)` or `exhausted` under protected policy, without discarding or approving the candidate"}
     ],
     nonstart_worker: [
       {"R4a.04.o1", "Preserve its candidate/deployment phase and verified inputs"},
@@ -201,11 +208,13 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ],
     review_start: [
       {"R4.15.o1",
-       "reviewing attempt/ticket, independent reviewer launch with its own reservation"}
+       "reviewing attempt/ticket, independent reviewer launch with its own reservation"},
+      {"R4.15.o2", "R4a returns a proved non-start to this same candidate/role queue"}
     ],
     reviewer_crash: [
       {"R4.19.o1", "Preserve candidate, close reviewer then bounded new reviewer execution"},
-      {"R4.19.o2", "developer ledger untouched"}
+      {"R4.19.o2", "developer ledger untouched"},
+      {"R4.19.o3", "exhaust if unavailable"}
     ],
     terminal_rejection: [
       {"R4.26.o1", "Reject transition"},
@@ -219,7 +228,8 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       {"R4.17.o2", "close/seal reviewer, then queued fresh developer"}
     ],
     verdict_rejected: [
-      {"R4.18.o1", "Terminal rejected attempt/ticket"}
+      {"R4.18.o1", "Terminal rejected attempt/ticket"},
+      {"R4.18.o2", "cleanup pending separately"}
     ]
   }
 
@@ -261,13 +271,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     {"R4.11.o2", "schedule root-mandated check workers before reviewer"},
     {"R4.12.o2", "queue independent reviewer"},
     {"R4.12.o3", "checks with explicit policy-empty set follow same guarded transition"},
-    {"R4.15.o2", "R4a returns a proved non-start to this same candidate/role queue"},
     {"R4.16.o1", "Close/seal reviewer"},
     {"R4.16.o3", "no Git success inferred"},
     {"R4.17.o3", "or blocked(drain)/exhausted; never re-prompt old developer"},
-    {"R4.18.o2", "cleanup pending separately"},
     {"R4.18.o3", "later work needs explicitly admitted revision"},
-    {"R4.19.o3", "exhaust if unavailable"},
     {"R4.20.o2", "root integration intent, then R1 claim/issue"},
     {"R4.21.o2", "fresh bounded rebase developer plus renewed checks/review"},
     {"R4.21.o3", "blocked under drain or budget exhaustion"},
@@ -298,14 +305,10 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     {"R4a.01.o5",
      "Release its checkout/conflict lease only after proving the checkout was never exposed or mutated, then reacquire/revalidate it before retry"},
     {"R4a.01.o6", "otherwise retain the lease and block affected work."},
-    {"R4a.02.o2", "immutable candidate/check receipts and reviewer ownership"},
+    # Resource release and lease custody are Core's; decide_e2e_test asserts o5's release
+    # against the ledger, which this reducer-level suite cannot see.
     {"R4a.02.o5", "Release reviewer launch resources"},
     {"R4a.02.o6", "retain candidate custody and candidate/check leases."},
-    {"R4a.02.o7", "Below the limit, return to the durable reviewer queue."},
-    {"R4a.02.o8",
-     "At the limit, ticket becomes `blocked(reviewer_launch_infrastructure)` with `resume_phase: awaiting_review`"},
-    {"R4a.02.o10",
-     "Missing current reviewer allocation yields `blocked(reviewer_budget)` or `exhausted` under protected policy, without discarding or approving the candidate"},
     {"R4a.03.o3", "Release launch-only resources."},
     {"R4a.03.o4", "Below the PM limit, return to its PM queue"},
     {"R4a.03.o5",
@@ -1640,6 +1643,23 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     launch = ticket["attempts"]["A1"]["executions"]["R1"]
     assert launch.role == "reviewer"
     assert launch.lifecycle == "pending"
+
+    # R4.15.o2: "R4a returns a proved non-start to this same candidate/role queue". From
+    # the searched precondition, decide/3's launch, its non-start below the limit, then
+    # decide/3's next reviewer launch: same attempt, same candidate, reviewer role, ordinal 1.
+    launched = reviewer_launched()
+    settle = review_decide(launched, "settle_nonstart", "W1", %{"settle_claim" => settle_claim()})
+    queued = follow(launched, settle, "below_infrastructure_limit")
+    assert {:ok, %{"plan" => plan}} = review_decide(queued, "plan_launch", "V2", launch_facts(1))
+    effect = Enum.find(plan["protected_operations"], &(&1["type"] == "create_effect"))["input"]
+
+    assert {effect["attempt_id"], effect["request"]["role"],
+            effect["request"]["operation_ordinal"]} ==
+             {"A1", "reviewer", 1}
+
+    {relaunched, _} = follow(queued, {:ok, %{"plan" => plan}})
+    review = relaunched["tickets"]["T1"]["attempts"]["A1"]["review"]
+    assert {review["candidate_id"], review["execution_id"]} == {"cand-1", "V2/execution"}
     :driven
   end
 
@@ -1691,6 +1711,21 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     ticket = state["tickets"]["T1"]
     assert ticket["attempts"]["A1"]["disposition"] == "rejected"
     assert ticket["phase"] == "rejected"
+
+    # R4.18.o2: "cleanup pending separately". decide/3's rejection plan terminalises the
+    # attempt and closes nothing: the reviewer stays open until its own close evidence.
+    sealed = reviewer_launched() |> reviewer_evidence("V1/execution", ["stream_sealed"])
+
+    decision =
+      review_decide(sealed, "submit_review", "D1", %{}, %{
+        "verdict" => "rejected",
+        "candidate_id" => "cand-1"
+      })
+
+    {rejected, _} = follow(sealed, decision)
+    ticket = rejected["tickets"]["T1"]
+    assert {ticket["phase"], ticket["attempts"]["A1"]["disposition"]} == {"rejected", "rejected"}
+    assert ticket["attempts"]["A1"]["executions"]["V1/execution"].lifecycle != "closed"
     :driven
   end
 
@@ -1733,6 +1768,20 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     # "developer ledger untouched": the reviewer's crash consumed no developer allowance.
     assert state["tickets"]["T1"]["infrastructure"]["ordinals"]["developer"] == 0
     assert state["tickets"]["T1"]["infrastructure"]["ordinals"]["reviewer"] == 0
+
+    # R4.19.o3: "exhaust if unavailable". After a crash from the searched precondition,
+    # decide/3's next reviewer launch with allocation short plans the terminal exhaustion.
+    crashed =
+      reviewer_launched() |> reviewer_evidence("V1/execution", ~w(stream_sealed reviewer_closed))
+
+    {exhausted, _} =
+      follow(crashed, review_decide(crashed, "plan_launch", "V2", launch_facts(0)))
+
+    ticket = exhausted["tickets"]["T1"]
+
+    assert {ticket["phase"], ticket["attempts"]["A1"]["disposition"]} ==
+             {"exhausted", "exhausted"}
+
     :driven
   end
 
@@ -2226,6 +2275,42 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
     assert at_limit["active_attempt_id"] == "A1"
     assert at_limit["attempts"]["A1"]["candidate_id"] == "cand-1"
     assert at_limit["attempts"]["A1"]["checks"]["C1"]["status"] == "passed"
+
+    # The same row through decide/3, from the searched precondition.
+    launched = reviewer_launched()
+    settle = review_decide(launched, "settle_nonstart", "W1", %{"settle_claim" => settle_claim()})
+
+    # o7 "Below the limit, return to the durable reviewer queue." and o2 "immutable
+    # candidate/check receipts and reviewer ownership": awaiting_review on the same
+    # candidate and receipts, and the next launch decide/3 plans is the reviewer's.
+    {below, _} = queued = follow(launched, settle, "below_infrastructure_limit")
+    before = launched |> elem(0) |> get_in(["tickets", "T1", "attempts", "A1"])
+    attempt = below["tickets"]["T1"]["attempts"]["A1"]
+
+    assert {below["tickets"]["T1"]["phase"], attempt["phase"]} ==
+             {"awaiting_review", "awaiting_review"}
+
+    assert Map.take(attempt, ~w(candidate_id checks)) == Map.take(before, ~w(candidate_id checks))
+
+    assert {:ok, %{"plan" => plan}} = review_decide(queued, "plan_launch", "V2", launch_facts(1))
+    [%{"proposal" => %{"events" => [planned]}}] = plan["alternatives"]
+    assert {planned["type"], planned["payload"]["attempt_id"]} == {"review_planned", "A1"}
+
+    # o8: the at-limit alternative decide/3 planned for the same settle.
+    {limit, _} = follow(launched, settle, "infrastructure_limit_reached")
+    ticket = limit["tickets"]["T1"]
+
+    assert {ticket["phase"], ticket["reason"], ticket["resume_phase"]} ==
+             {"blocked", "reviewer_launch_infrastructure", "awaiting_review"}
+
+    # o10: current reviewer allocation missing after the non-start - blocked, the candidate
+    # neither discarded nor approved.
+    {budget, _} = follow(queued, review_decide(queued, "plan_launch", "V2", launch_facts(0)))
+    ticket = budget["tickets"]["T1"]
+    assert {ticket["phase"], ticket["reason"]} == {"blocked", "reviewer_budget"}
+    attempt = ticket["attempts"]["A1"]
+    assert {attempt["phase"], attempt["candidate_id"]} == {"awaiting_review", "cand-1"}
+    assert attempt["disposition"] == nil
     :driven
   end
 
@@ -2457,6 +2542,19 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
 
   defp settlement, do: %{"schema_version" => 1}
 
+  # The staged operation a proved non-start plans; its outcome is Core's to check.
+  defp settle_claim do
+    %{
+      "type" => "settle_claim",
+      "claim_id" => "V1/claim",
+      "receipt_id" => "V1/receipt",
+      "request_id" => "V1/request",
+      "outcome" => "non_started",
+      "proof" => "issuer_quiescent",
+      "payload" => %{}
+    }
+  end
+
   defp decide(state, type, facts) do
     command = %{
       "command_id" => "C1",
@@ -2481,6 +2579,106 @@ defmodule PramanaFoundry.Workflow.R4CoverageTest do
       "writer_epoch" => "epoch-A",
       "predecessor_effect_id" => nil
     }
+  end
+
+  # ── Reviewer rows by searched precondition (REPAIR-PLAN P8 item 2) ──────────────────
+  #
+  # The reviewer rows share one precondition: ticket and attempt awaiting_review on the
+  # frozen candidate, every check receipt passed, nothing running, no reviewer yet. It is
+  # stated as a predicate and found by `KernelSearch` from the frozen candidate rather than
+  # driven by hand, so it fails loudly if it stops being reachable. The bound is a cost
+  # choice: 3 events from `frozen/0` is ~450 states; from `developing/0` the same predicate
+  # costs ~30,000 states at depth 5. Everything after the precondition is decide/3's plans
+  # applied through the reducer (`follow/3`), plus the broker's seal and close evidence.
+  @review_depth 3
+
+  defp awaiting_review_searched do
+    {seed, _} = frozen()
+
+    case Enum.find(KernelSearch.search(@review_depth, from: seed), fn {state, _path} ->
+           awaiting_review?(state["tickets"]["T1"])
+         end) do
+      {state, _path} ->
+        {state, state["last_sequence"]}
+
+      nil ->
+        flunk("no state within #{@review_depth} events of frozen/0 awaits review")
+    end
+  end
+
+  defp awaiting_review?(ticket) do
+    attempt = ticket["attempts"][ticket["active_attempt_id"]] || %{}
+
+    ticket["phase"] == "awaiting_review" and attempt["phase"] == "awaiting_review" and
+      attempt["candidate_id"] == "cand-1" and attempt["review"] == nil and
+      Enum.all?(attempt["checks"], fn {_id, check} -> check["status"] == "passed" end) and
+      Enum.all?(attempt["executions"], fn {_id, e} -> e.lifecycle == "closed" end)
+  end
+
+  defp review_decide({state, _sequence}, type, id, facts, payload \\ %{}) do
+    command = %{
+      "command_id" => id,
+      "type" => type,
+      "target_ids" => %{"ticket_id" => "T1"},
+      "payload" => Map.put(payload, "role", "reviewer")
+    }
+
+    WorkflowKernel.decide(state, command, facts)
+  end
+
+  # Applies the selected alternative of an accepted plan, each binding marker replaced by
+  # a fact of the kind its binding declares.
+  defp follow(driven, {:ok, %{"plan" => plan}}, discriminator \\ "unconditional") do
+    %{"proposal" => %{"events" => events}} =
+      Enum.find(plan["alternatives"], &(&1["discriminator"] == discriminator))
+
+    kinds = Map.new(plan["bindings"], &{&1["name"], &1["output_kind"]})
+
+    execution =
+      Enum.find_value(plan["protected_operations"], fn op ->
+        op["type"] == "create_effect" && op["input"]["execution_id"]
+      end)
+
+    drive(
+      driven,
+      for event <- events do
+        payload =
+          event["payload"]
+          |> Map.delete("projection")
+          |> Map.new(fn
+            {key, %{"binding" => name}} -> {key, bound(kinds[name], event["payload"], execution)}
+            pair -> pair
+          end)
+
+        {event["type"], "T1", payload}
+      end
+    )
+  end
+
+  defp bound("launch_authority_v1", _payload, execution), do: authority(execution, "reviewer")
+  defp bound("nonstart_settlement_v1", _payload, _execution), do: settlement()
+
+  defp bound("terminal_settlement_v1", payload, _execution),
+    do: terminal_settlement(payload["ticket_id"], payload["attempt_id"])
+
+  defp reviewer_evidence(driven, execution_id, types) do
+    base = %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => execution_id}
+
+    drive(
+      driven,
+      for type <- types do
+        payload =
+          if type == "stream_sealed", do: Map.put(base, "last_accepted_sequence", 30), else: base
+
+        {type, "T1", payload}
+      end
+    )
+  end
+
+  # The searched precondition, then the reviewer launch decide/3 plans.
+  defp reviewer_launched do
+    driven = awaiting_review_searched()
+    follow(driven, review_decide(driven, "plan_launch", "V1", launch_facts(1)))
   end
 
   defp planned_attempt({:ok, %{"plan" => plan}}) do
