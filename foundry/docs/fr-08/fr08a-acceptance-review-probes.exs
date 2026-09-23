@@ -4,7 +4,7 @@ base = File.read!("docs/fr-08/fr08a-final-review-probes.exs")
 base = Regex.replace(~r/\nend\s*\z/, base, "\n")
 extra = ~S"""
   defp chain(ctx, depth) do
-    accept(ctx, policy() |> Map.put("policy_id", "chain") |> put_in(["value", "launch_non_start_limit"], depth + 2))
+    accept(ctx, policy() |> Map.put("policy_id", "chain") |> put_in(["value", "infrastructure_attempt_limits"], %{"developer" => depth + 2}))
     for i <- 0..depth do
       id = "chain-#{i}"
       prepare(ctx, id, fn op ->

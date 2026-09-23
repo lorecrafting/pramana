@@ -16,7 +16,11 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
   @legacy_record ~w(schema_version source_digest line_number byte_start byte_end record_digest valid error raw_record_digest)
   @command_request ~w(domain schema_version actor_id command)
   @command ~w(schema_version command_id expected_revisions type target_ids payload)
-  @command_types ~w(legacy_event_append enqueue steer pause resume cancel reset propose submit_artifact submit_review request_effect record_receipt)
+  # Legacy command names, then the kernel's decide/3 commands (FR-08B subcommit 2; review
+  # C1). The kernel names are role-free: the role travels in the payload, so a new role or
+  # workflow needs no Core vocabulary.
+  @command_types ~w(legacy_event_append enqueue steer pause resume cancel reset propose submit_artifact submit_review request_effect record_receipt) ++
+                   ~w(plan_launch settle_nonstart finalize_cancellation)
   @manifest ~w(schema_version source_path archived_path source_digest source_bytes byte_range line_count valid_count invalid_count errors)
   @manifest_error ~w(line byte_start byte_end record_digest error)
   # Two disjoint vocabularies share one flat namespace. A name identifies exactly one
@@ -31,7 +35,8 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
   # transition-plan destination slots require, rather than the full R4 seed, so every
   # name here is justified by a concrete binding. FR-08B adds the remainder as its
   # reduction is written; additions are cheap, redefinition is forbidden.
-  @lifecycle_event_types ~w(launch_planned launch_settled check_planned check_settled build_planned build_settled review_planned review_settled integration_planned integration_settled pm_launch_planned pm_launch_settled control_changed ticket_reset)
+  @lifecycle_event_types ~w(launch_planned launch_settled check_planned check_settled build_planned build_settled review_planned review_settled integration_planned integration_settled pm_launch_planned pm_launch_settled control_changed ticket_reset) ++
+                           ~w(objective_created ticket_admitted ticket_amended ticket_parked ticket_blocked ticket_unblocked cancellation_requested cancellation_finalized pm_proposal_recorded artifact_frozen artifact_blocked freeze_failed submission_rejected execution_observed stream_sealed developer_closed worker_closed checks_started check_recorded review_recorded reviewer_closed integration_recorded attempt_settled)
 
   @event_types @legacy_event_types ++ @lifecycle_event_types
 

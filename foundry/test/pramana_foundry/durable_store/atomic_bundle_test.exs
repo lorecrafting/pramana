@@ -1502,6 +1502,55 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
              ] = committed["payload"]["generation"]
     end
 
+    # decide/3 design review C2: the discriminator and create_effect's allowance read one
+    # per-role limit. With only infrastructure_attempt_limits set (as seeded), the retry the
+    # discriminator selects below the limit used to be refused :nonstart_allowance_exhausted.
+    test "the retry a below-limit non-start selects is admitted by create_effect", ctx do
+      seed_issued_launch!(ctx)
+
+      assert {:ok, %{"selected_discriminator" => "below_infrastructure_limit"}, :committed} =
+               Gateway.atomic_bundle(
+                 ctx.gateway,
+                 ctx.capability,
+                 "operator",
+                 nonstart_plan_bundle("PLANRETRY")
+               )
+
+      accept_current!(ctx, %{
+        "type" => "reserve",
+        "reservation_id" => "reservation-retry",
+        "ledger_id" => "ledger-1",
+        "generation" => 0,
+        "owner_kind" => "effect",
+        "owner_id" => "effect-retry",
+        "units" => 1
+      })
+
+      accept_current!(ctx, %{
+        "type" => "create_effect",
+        "effect_id" => "effect-retry",
+        "request" => %{
+          "request_id" => "request-retry",
+          "role" => "developer",
+          "profile" => "sol",
+          "phase_generation" => 0,
+          "operation_ordinal" => 1,
+          "predecessor_effect_id" => "effect-1"
+        },
+        "operation" => "launch",
+        "scope" => "ticket:T1",
+        "ticket_id" => "T1",
+        "attempt_id" => "A1",
+        "execution_id" => "execution-retry",
+        "policy_id" => "policy-1",
+        "policy_revision" => 0,
+        "control_id" => "control-1",
+        "control_revision" => 0,
+        "reservation_ids" => ["reservation-retry"],
+        "leases" => []
+      })
+    end
+
     test "an envelope carrying both a plan and a proposal is refused", ctx do
       seed_issued_launch!(ctx)
 

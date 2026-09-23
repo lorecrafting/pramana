@@ -40,7 +40,7 @@ defmodule FR08ARereview do
         "allowed_scopes" => ["ticket:T"],
         "allowed_roles" => ["developer"],
         "allowed_profiles" => ["sol"],
-        "launch_non_start_limit" => 1
+        "infrastructure_attempt_limits" => %{"developer" => 1}
       }
     }
 
@@ -359,7 +359,7 @@ defmodule FR08ARereview do
   test "late conflicting terminal observation prevents owner successor issue", ctx do
     accept(
       ctx,
-      policy() |> Map.put("policy_id", "p2") |> put_in(["value", "launch_non_start_limit"], 3)
+      policy() |> Map.put("policy_id", "p2") |> put_in(["value", "infrastructure_attempt_limits"], %{"developer" => 3})
     )
 
     prepare(ctx, "e", &Map.put(&1, "policy_id", "p2"))

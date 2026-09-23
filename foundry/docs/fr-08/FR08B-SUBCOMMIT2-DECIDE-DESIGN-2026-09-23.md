@@ -12,6 +12,9 @@
 > `reserve`, predecessor currency, the non-start allowance, attempt closure, the limit branch and
 > settlement identity. Notes adopted: key `facts` by protected query identity; the expected
 > domain revision is the read whose entity the projections write, not `domain_reads[0]`.
+> **Built with one rename:** the command types are role-free — `plan_launch`, `settle_nonstart`,
+> `finalize_cancellation` — with the role in the payload, so Core's codec gains no role names and
+> subcommit 3's reviewer reuses the same commands.
 
 
 **Date:** 2026-09-23. **Type:** design proposal, **not approved**. No production code or

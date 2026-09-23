@@ -3194,8 +3194,18 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
+  # One per-role limit, the same one the infrastructure discriminator reads. Reading the
+  # policy-wide scalar `launch_non_start_limit` (default 0) here stranded every retry the
+  # discriminator had just selected: the non-start settled below the limit, and the retry's
+  # create_effect was refused (decide/3 design review, C2). The contract names the limit
+  # `launch_non_start_limit` "per role and work owner"; the protected key that holds it per
+  # role is `infrastructure_attempt_limits`.
   defp nonstart_allowance(conn, policy, operation) do
-    limit = Map.get(policy, "launch_non_start_limit", 0)
+    limit =
+      case policy["infrastructure_attempt_limits"] do
+        limits when is_map(limits) -> Map.get(limits, operation["request"]["role"], 0)
+        _ -> 0
+      end
 
     with true <- is_integer(limit) and limit >= 0,
          {:ok, rows} <-

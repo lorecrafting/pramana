@@ -38,7 +38,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   # and was missing, which made all six admission slots unbindable once
   # plan_describes_operations/2 made this list load-bearing. A test enforces both
   # directions so the vocabularies cannot drift apart again.
-  @operation_types ~w(set_control reserve create_effect issue_claim settle_claim reset_generation close_attempt)
+  @operation_types ~w(set_control reserve create_effect claim_effect issue_claim settle_claim reset_generation close_attempt)
   @read_kinds ~w(state ticket objective pm)
   @dispositions ~w(accepted rejected blocked)
   @terminal_dispositions ~w(rejected blocked)

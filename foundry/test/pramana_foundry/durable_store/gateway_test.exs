@@ -506,6 +506,15 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
   end
 
   describe "lifecycle event vocabulary" do
+    # decide/3 design, commit 0: every event the kernel reducer can emit must be committable,
+    # or a plan the kernel accepts fails in Gateway. The kernel may lag Core, never lead it.
+    test "every kernel event type is a durable lifecycle event type" do
+      kernel = PramanaFoundry.Workflow.Kernel.Event.types()
+
+      assert kernel -- RecordCodec.lifecycle_event_types() == [],
+             "kernel event types the codec refuses: #{inspect(kernel -- RecordCodec.lifecycle_event_types())}"
+    end
+
     test "the legacy and lifecycle vocabularies are disjoint" do
       legacy = RecordCodec.legacy_event_types()
       lifecycle = RecordCodec.lifecycle_event_types()
