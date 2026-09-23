@@ -67,6 +67,15 @@ evaluate it, and each trial then runs only those tests instead of the whole suit
 mutation, same verdicts, a fraction of the work. Read it before optimising this script or
 rebuilding it as pure instrumentation, which is unsound for a reason recorded there.
 
+**2026-09-22:** that design is built as `bin/coverage_guided_sweep.exs`. An earlier version of it
+ran once in full; the committed version has not completed a full run. See the IMPLEMENTATION-LOG
+entry of that date for which run used which version, its verdicts and its answer-key diff.
+It is **still an audit, not a gate step**: every site is evaluated inside a `setup_all` search, so
+any trial the cheap suites cannot decide still pays for whole searches, and the one full run took
+3,434 s on 2 workers. It uses its own roots under `/private/tmp/ev1-*` and no sentinel, since it
+never writes the repository — but it still writes mutants to disk, and killing it orphans its
+`mix test` children.
+
 Gotchas, each of which has cost real work:
 
 - It writes a sentinel at `/private/tmp/guard-mutation-sweep.running`, and

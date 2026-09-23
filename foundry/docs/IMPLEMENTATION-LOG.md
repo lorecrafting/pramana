@@ -5387,3 +5387,78 @@ carried information, and the first fix patched the one consumer that was named.
   `mix format --check-formatted` passes. There was no quiet machine available: a heavy compile
   kept the load average at 2.5 to 8.3 throughout, so no quiet timings exist. Not run:
   `ci/run.exs`, the full suite, sweeps and `sync_fault_test.exs`.
+
+
+## EV-1: the coverage-guided sweep, built; three runs, none complete under the committed script — 2026-09-22
+
+*Corrected before push after independent review.* The first text of this entry said the sweep had
+"run once in full" under the committed script, that every red control passed "in every run", and
+quoted numbers nothing printed. Run 1, the only complete run, used an earlier script; the committed
+script has never completed a full run. The text below states which run used which version and quotes
+only what [fr-08/ev1-sweep-2026-09-22-raw.txt](fr-08/ev1-sweep-2026-09-22-raw.txt) prints. That file's
+`=== run N` headers and the `#` lines under them are hand-written; every other line is captured
+output.
+
+`bin/coverage_guided_sweep.exs`, per [COVERAGE-GUIDED-SWEEP.md](COVERAGE-GUIDED-SWEEP.md). Phase 1
+instruments every `require_*(` call site in `kernel.ex` (same scanner, same red control as the old
+sweep) with a probe, runs the five workflow suites serially, and records each site against the tests
+that evaluated it; hits outside a test window are a `setup_all`'s and are charged to every test of
+that module. Phase 2 splices `:ok` over each site exactly as the old sweep does and runs only the
+mapped tests, cheap suites first.
+
+**Which script each run used.** The versions differ in three mechanisms, and each run's output shows
+which it had:
+
+| Run | Scope | Result-parser control | Source-read check | Arbiter | Outcome |
+|---|---|---|---|---|---|
+| 1 | all 117 sites | absent (first parser) | absent | absent — 4 disagreements, no arbiter section | complete |
+| 2 | 4 disputed texts, 17 sites | absent (first parser) | present | present | complete |
+| 3 | all 117 sites | present, 6 shapes | present | not reached | stopped by SIGTERM after 22 trial lines and the 2 control trials |
+
+Only run 3's printed controls match the committed script. Every run printed the scanner control,
+"every answer-key caught site is mapped: ok, 105 caught sites", the empty-mapping control, and the
+known-caught (`require_no_ref_receipt(ticket) :889`) and known-survived
+(`require_attempt_phase(ticket, ~w(reviewing)) :1622`) trials, all ok.
+
+**Run 1 (earlier script, full, 117 sites):** `build_error: 3  caught: 102  survived: 12`; mapped 117 of
+117 sites. Keyed against `028b4965`, 4 disagreements over 116 keyed trials:
+
+- `require_honest_resume_target(...) :325`, `require_phase(ticket, ~w(blocked)) :357`,
+  `require_phase(ticket, ~w(integrating)) :911` came back `{:build_error, :no_result_line}`. Run 2's
+  kept output tails show why: each printed `Result: 0 tests, 1 invalid`, a shape the first parser did
+  not know — the tool's parser, not the mutants. The parser was fixed and pinned. Under it, run 3
+  printed `require_phase(ticket, ~w(blocked)) :357 — :caught`. For `:325` run 3 printed two lines
+  truncated to `require_honest_resume_target(ticket, payload["resume_phase"]) :3`, both `:caught`;
+  that one of them is `:325` (the other is `:345`) is inferred, not printed. `:911` was not re-run
+  under the fixed parser in runs 1–3.
+- `require_active_attempt(ticket, payload["attempt_id"]) :968`: key caught, run 1 survived. Run 2's
+  arbiter — the whole workflow set against the same mutant, the old sweep's judgement — printed
+  `scoped :survived, full set :survived`. Cause not bisected.
+- `require_well_formed(next) :154` has no key (the site count changed since `028b4965`); caught.
+
+The other 11 run-1 survivors are not among the disagreements, so they agree with the key.
+
+**Denominators, run 1:** "tests selected across all trials: 7083 of 23166 the full workflow set per
+trial would be"; mapping 330 s; trial cpu-seconds 5,846; wall 3,434 s on 2 workers; the 2026-09-21
+full sweep's 5,047 s on 4 workers is printed for comparison. Machine load was not recorded, so this
+is not a controlled comparison.
+
+**Why it is not "far less time":** every one of the 117 sites is reached from a `setup_all` search
+(printed: `KernelPropertiesTest` 117 sites, `R4ExhaustiveTest` 105, `R4GuardReachabilityTest` 105),
+so every site maps to all tests of those modules. A trial the cheap suites cannot decide — every
+survivor, and the caught sites only a search catches — pays for whole searches. Counted from run 1's
+trial lines (not printed as a total; `sed -n '/=== run 1/,/=== run 2/p' <raw> | grep '^  ev1-w'`):
+25 of the 115 non-control trials took 127–457 s each, the other 90 took 1–18 s. Test granularity
+cannot scope a search; attributing hits to search *states* would be the next step.
+
+**Soundness.** The design's property is false for a test that observes the kernel by reading its
+source: `KernelSearch.declared_reasons/0` regex-scans `kernel.ex`, so a mutant whose splice removed a
+`{:error, :x}` could turn such a test red without the test evaluating the site, and the map would not
+select it. Checked in runs 2 and 3 with the suite's own `reasons_in/1`: "0 of 117 site mutants change
+what declared_reasons/0 reads". Found in passing: that regex is `[a-z_]+`, so an atom with a digit is
+invisible to it; whether the kernel has one is not measured by this tool. Not checked: a test whose
+existence depends on kernel output at compile time; none of the five suites generates tests from
+anything but literals and the contract.
+
+**Not done in this entry.** A full run under the committed script. Killing the script orphaned its
+`mix test` children, which had to be killed by hand. Not a gate step.

@@ -1,5 +1,10 @@
 # Making the guard mutation sweep a gate step
 
+**Status 2026-09-22:** implemented as `bin/coverage_guided_sweep.exs`, not yet a gate step; results
+and the one soundness hole found are in the IMPLEMENTATION-LOG entry of that date. The "Not
+implemented" in the next paragraph was true when this note was written and is kept as written; this
+status line supersedes it.
+
 Design note. Not implemented. Written after the 2026-09-21 full sweep, whose
 [verdict table](fr-08/fr08b-subcommit1-sweep-2026-09-21.md) is the answer key any
 replacement must reproduce.
