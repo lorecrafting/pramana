@@ -928,6 +928,8 @@ blocked with the required adapter change; do not copy credentials or replace OMP
 
 **Recorded input, 2026-09-22 (operator-approved routing):** protected commits are CPU-bound in `durable_store/encoding.ex` `encode_string/1`, which builds one binary per character (about 0.64 s of CPU per MB, ~8 passes per commit), and `Gateway.transact/4`, `protected_command/4` and `atomic_bundle/4` keep `GenServer.call`'s 5 s default, so a payload near 8 MB (less under load) times out its caller while the store keeps working. Owned here because FR-10 rewrites the gateway; the fix is the encoder's cost, not a longer timeout. Measurements: the IMPLEMENTATION-LOG entry for `OperationalStorageTest`'s padded-commit timeouts, 2026-09-22.
 
+**Design-ahead proposal, 2026-09-23 (not approved):** [FR-10 design](fr-10/FR10-DESIGN-2026-09-23.md).
+
 **Outcome:** Restart reconciles prior work before deciding whether another launch is safe.
 
 **Scope:** Persist effect IDs/intents/receipts and separate developer, reviewer and PM
