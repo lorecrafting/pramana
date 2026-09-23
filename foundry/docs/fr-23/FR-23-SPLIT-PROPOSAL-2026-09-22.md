@@ -136,6 +136,16 @@ FR-23's rules apply unchanged:
 - The retirement inventory's RETIRE sections, which are file splits of
   [MIGRATION.md](../MIGRATION.md) and [MIGRATION-TICKETS.md](../MIGRATION-TICKETS.md).
 - The OWNED-ELSEWHERE rows, once their owners finish.
+- **Rename the namespace away from Pramāṇa** (operator request, 2026-09-23): OTP app
+  `:pramana_foundry` → `:foundry`, modules `PramanaFoundry.*` → `Foundry.*`,
+  `lib/pramana_foundry/` and `test/pramana_foundry/` → `lib/foundry/` and `test/foundry/`.
+  Foundry is to move to its own repository; `pramana/` already uses none of its code (only
+  docs, `.gitignore` and `.github/workflows/fr19a-sync-eio.yml` name it). Measured
+  2026-09-23: 2,472 occurrences in 406 tracked files under `foundry/`. It is FR-23b's, not
+  FR-23a's, because it touches every attestation-pinned file and every file FR-08B/10/11/12
+  rewrite. Do it as one mechanical commit when no candidate is under review, then one
+  `bin/rebind_fr08a.exs` rebind and one gate. Dated docs cite old paths as history; only
+  links the doc check follows need rewriting.
 
 **Dependencies:** FR-23's current set, FR-08B, FR-12 and FR-19B, each still for a reason:
 
