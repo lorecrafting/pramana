@@ -1,5 +1,19 @@
 # FR-08B subcommit 2: the developer `decide/3`
 
+> **Status 2026-09-23:** independently reviewed (Fable), **PASS WITH CHANGES**, and **approved by
+> the operator with O1–O4 as recommended**. Changes folded into the build: **C1** commit 0 also
+> admits the kernel's *command* types to `RecordCodec` (its `@command_types` held only the 12
+> legacy names, so every kernel command failed as `:invalid_command`); **C2** one per-role
+> non-start limit, `infrastructure_attempt_limits[role]`, read by both `create_effect`'s
+> allowance and the discriminator (the scalar `launch_non_start_limit`, default 0, stranded every
+> retry); **C3** the guarantees that rest on `decide/3` alone (pause, drain, pending cancel,
+> retained-attempt reuse, phase guards, and the exhaustion choice) are controller-side under the
+> approved Q1/D1 and O2 readings, and Core re-checks only revisions, control status, allocation at
+> `reserve`, predecessor currency, the non-start allowance, attempt closure, the limit branch and
+> settlement identity. Notes adopted: key `facts` by protected query identity; the expected
+> domain revision is the read whose entity the projections write, not `domain_reads[0]`.
+
+
 **Date:** 2026-09-23. **Type:** design proposal, **not approved**. No production code or
 tests change. Taken at `e608a2b0` (`repair/fr08b-kernel`). Line numbers are at that commit.
 Paths are relative to `foundry/`.
