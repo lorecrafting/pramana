@@ -333,15 +333,21 @@ defmodule PramanaFoundry.ManualLane.CLI do
                |> Map.merge(%{"candidate_id" => candidate, "sealed_generation" => candidate})}
             ]
 
-        closing =
-          [
-            {"stream_sealed", Map.put(exec, "last_accepted_sequence", 0)},
-            {"developer_closed", exec}
-          ] ++
-            if(blocked, do: [], else: [{"checks_started", Map.put(base, "policy_empty", true)}])
+        closing = [
+          {"stream_sealed", Map.put(exec, "last_accepted_sequence", 0)},
+          {"developer_closed", exec}
+        ]
 
-        Backend.ingress(ctx, "#{id}/freeze/#{execution_id}", id, result ++ closing, principal)
-        |> refusal()
+        with {:ok, checks} <- checks_started(ctx, base, blocked) do
+          Backend.ingress(
+            ctx,
+            "#{id}/freeze/#{execution_id}",
+            id,
+            result ++ closing ++ checks,
+            principal
+          )
+          |> refusal()
+        end
 
       # Already frozen and closed: a rerun of a completed submit.
       [] when is_binary(attempt_id) ->
@@ -351,6 +357,20 @@ defmodule PramanaFoundry.ManualLane.CLI do
 
       _ ->
         {:error, :no_issued_claim, nil}
+    end
+  end
+
+  # A5: `policy_empty` is the policy's check set at submit, not a literal. The lane runs no
+  # checks, so a non-empty set is refused here as `WorkPacket` refuses it at launch.
+  defp checks_started(_ctx, _base, blocked) when is_binary(blocked), do: {:ok, []}
+
+  defp checks_started(ctx, base, nil) do
+    case Replay.query(ctx, %{"type" => "policy", "policy_id" => Backend.ids().policy_id}) do
+      {:ok, %{"value" => %{"check_set" => []}}} ->
+        {:ok, [{"checks_started", Map.put(base, "policy_empty", true)}]}
+
+      _ ->
+        {:error, :check_set_not_empty, nil}
     end
   end
 

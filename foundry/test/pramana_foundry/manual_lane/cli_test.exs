@@ -465,6 +465,81 @@ defmodule PramanaFoundry.ManualLane.CLITest do
     assert offenders == []
   end
 
+  # ── Review findings A2, A4, A5 (Fable 5.1) ───────────────────────────────────────
+
+  test "A2: the seeded policy allows only the unspecified profile", c do
+    start!(c)
+    admit!(c)
+    ctx = ctx()
+
+    assert {:ok, %{"value" => %{"allowed_profiles" => ["unspecified"]}}} =
+             Replay.query(ctx, %{"type" => "policy", "policy_id" => "manual-lane"})
+
+    {:ok, facts} =
+      Replay.launch_facts(ctx, "manual-lane", "manual-lane", "starts.developer", nil)
+
+    command = %{
+      "schema_version" => 1,
+      "command_id" => "ML-1/developer/0/#{@dev}",
+      "type" => "plan_launch",
+      "target_ids" => %{"ticket_id" => "ML-1"},
+      "payload" => %{"role" => "developer"},
+      "expected_revisions" => %{}
+    }
+
+    {:ok, decision} = WorkflowKernel.decide(Backend.state(ctx), command, facts)
+
+    # No lane path names a profile; a launch that did is refused by the policy.
+    gpu =
+      update_in(decision, ["plan", "protected_operations"], fn ops ->
+        for op <- ops do
+          if op["type"] == "create_effect",
+            do: put_in(op, ["input", "request", "profile"], "gpu"),
+            else: op
+        end
+      end)
+
+    assert {:ok, %{"reason_code" => "effect_not_allowed"}, _} = Replay.submit(ctx, gpu, @dev)
+  end
+
+  test "A4: a packet for an open execution is refused to another principal", c do
+    start!(c)
+    admit!(c)
+    first = ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+
+    refused!(
+      ~w(packet ML-1 --role developer --principal human:other),
+      "execution_owned_by_other_principal"
+    )
+
+    assert ok!(~w(packet ML-1 --role developer --principal #{@dev})) == first
+  end
+
+  test "A5: submit derives policy_empty from the policy and refuses a non-empty check set",
+       c do
+    start!(c)
+    admit!(c)
+    ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+    ctx = ctx()
+
+    {:ok, %{"value" => value}} =
+      Replay.query(ctx, %{"type" => "policy", "policy_id" => "manual-lane"})
+
+    {:ok, %{"disposition" => "accepted"}, _} =
+      Replay.root(ctx, "operator", "test/check-set", %{
+        "type" => "set_policy",
+        "policy_id" => "manual-lane",
+        "value" => Map.put(value, "check_set", ["unit"])
+      })
+
+    refused!(
+      ~w(submit ML-1 --principal #{@dev} --candidate #{c.candidate} --checkout #{c.repo}),
+      "check_set_not_empty"
+    )
+
+    assert Backend.state(ctx)["tickets"]["ML-1"]["phase"] == "developing"
+  end
+
   # ── RPC shapes ───────────────────────────────────────────────────────────────────
 
   test "RPC.decode accepts each lane shape and refuses unknown ones" do

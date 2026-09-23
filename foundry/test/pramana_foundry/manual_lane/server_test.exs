@@ -88,6 +88,35 @@ defmodule PramanaFoundry.ManualLane.ServerTest do
       assert_seeded(ctx2)
     end
 
+    # Review A3: a seed interrupted after the policy left no control or ledgers, forever.
+    test "a seed interrupted after the policy is completed by the next start", ctx do
+      path = Path.join(ctx.root, "state/manual-lane/authority.sqlite3")
+      File.mkdir_p!(Path.dirname(path))
+      :ok = Gateway.initialize(path)
+      capability = make_ref()
+
+      {:ok, gateway} =
+        Gateway.start_link(path: path, protected_capability: capability, writer_epoch: "e0")
+
+      lane = %{gateway: gateway, capability: capability, path: path}
+
+      assert {:ok, %{"disposition" => "accepted"}, _} =
+               PramanaFoundry.ManualLane.Replay.root(lane, "manual-lane-seed", "interrupted", %{
+                 "type" => "set_policy",
+                 "policy_id" => "manual-lane",
+                 "value" => Map.put(@valid_seed["policy"], "check_set", [])
+               })
+
+      GenServer.stop(gateway)
+
+      start_supervised!(
+        {Server, runtime_root: ctx.root, repo: ctx.root, policy_path: ctx.seed_path}
+      )
+
+      assert %{mode: :ready} = Gateway.status(Server.context().gateway)
+      assert_seeded(Server.context())
+    end
+
     test "red control: a seed whose independence pairing omits \"developer\" is refused", ctx do
       bad_path = write_seed!(ctx.root, @non_independent_seed)
 

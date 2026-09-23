@@ -9,8 +9,8 @@ defmodule PramanaFoundry.ManualLane.Server do
   its control and its `starts.developer`/`starts.reviewer` ledgers from a JSON file at
   `:manual_lane, :policy_path` (Q3). The seed is refused when the policy's
   `independent_of_roles.reviewer` omits `"developer"`: a missing key would impose no
-  independence at all. Seeding is otherwise a no-op once the policy exists, so a restart
-  never re-seeds.
+  independence at all. Each of the four is seeded only while it is missing, so a restart
+  completes an interrupted seed and never re-seeds a present one.
 
   The gateway's protected capability never leaves this process tree: `context/0` hands the
   gateway pid, capability and writer_epoch to modules in the same supervision tree (the
@@ -29,6 +29,7 @@ defmodule PramanaFoundry.ManualLane.Server do
   @control_id Backend.ids().control_id
   @developer_ledger_id Backend.ids().ledgers["developer"]
   @reviewer_ledger_id Backend.ids().ledgers["reviewer"]
+  @not_found [:not_found, :policy_not_found, :control_not_found, :ledger_not_found]
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -164,24 +165,40 @@ defmodule PramanaFoundry.ManualLane.Server do
 
   # ── Seeding (Q3) ─────────────────────────────────────────────────────────────────────
 
-  defp seed(gateway, capability, policy_path) do
-    query = %{"schema_version" => 1, "type" => "policy", "policy_id" => @policy_id}
+  @seed_queries [
+    policy: %{"type" => "policy", "policy_id" => @policy_id},
+    control: %{"type" => "control", "control_id" => @control_id},
+    developer: %{"type" => "ledger", "ledger_id" => @developer_ledger_id, "generation" => 0},
+    reviewer: %{"type" => "ledger", "ledger_id" => @reviewer_ledger_id, "generation" => 0}
+  ]
 
-    case Gateway.protected_query(gateway, capability, query) do
-      {:ok, _fact} -> :ok
-      {:error, :policy_not_found} -> seed_from_file(gateway, capability, policy_path)
-      {:error, reason} -> {:error, reason}
+  # Each seed op runs while its object is missing, so a seed interrupted between ops is
+  # completed by the next start (review A3). A fully seeded store never reads the file.
+  defp seed(gateway, capability, policy_path) do
+    missing =
+      Enum.reduce_while(@seed_queries, {:ok, []}, fn {name, query}, {:ok, acc} ->
+        case Gateway.protected_query(gateway, capability, Map.put(query, "schema_version", 1)) do
+          {:ok, _fact} -> {:cont, {:ok, acc}}
+          {:error, reason} when reason in @not_found -> {:cont, {:ok, acc ++ [name]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+
+    case missing do
+      {:ok, []} -> :ok
+      {:ok, names} -> seed_from_file(gateway, capability, policy_path, names)
+      error -> error
     end
   end
 
-  defp seed_from_file(_gateway, _capability, nil),
+  defp seed_from_file(_gateway, _capability, nil, _names),
     do: {:error, :manual_lane_policy_path_missing}
 
-  defp seed_from_file(gateway, capability, policy_path) do
+  defp seed_from_file(gateway, capability, policy_path, names) do
     with {:ok, contents} <- File.read(policy_path),
          seed <- :json.decode(contents),
          :ok <- validate_independence(seed) do
-      apply_seed(gateway, capability, seed)
+      apply_seed(gateway, capability, seed, names)
     end
   rescue
     error -> {:error, {:manual_lane_seed_invalid, error}}
@@ -201,41 +218,49 @@ defmodule PramanaFoundry.ManualLane.Server do
     end
   end
 
-  defp apply_seed(gateway, capability, seed) do
-    policy = seed |> Map.fetch!("policy") |> Map.put("check_set", [])
+  # `allowed_profiles` is pinned: unset, Core allows whatever profile a request names (A2).
+  defp apply_seed(gateway, capability, seed, names) do
+    policy =
+      seed
+      |> Map.fetch!("policy")
+      |> Map.merge(%{"check_set" => [], "allowed_profiles" => ["unspecified"]})
+
     control = Map.get(seed, "control", %{"status" => "active"})
     starts = Map.fetch!(seed, "starts")
 
-    with {:ok, _} <-
-           run_seed_op(gateway, capability, "manual-lane-seed-policy", %{
-             "type" => "set_policy",
-             "policy_id" => @policy_id,
-             "value" => policy
-           }),
-         {:ok, _} <-
-           run_seed_op(gateway, capability, "manual-lane-seed-control", %{
-             "type" => "set_control",
-             "control_id" => @control_id,
-             "value" => control
-           }),
-         {:ok, _} <-
-           run_seed_op(gateway, capability, "manual-lane-seed-ledger-developer", %{
-             "type" => "grant_ledger",
-             "ledger_id" => @developer_ledger_id,
-             "generation" => 0,
-             "dimension" => "starts.developer",
-             "units" => Map.fetch!(starts, "developer")
-           }),
-         {:ok, _} <-
-           run_seed_op(gateway, capability, "manual-lane-seed-ledger-reviewer", %{
-             "type" => "grant_ledger",
-             "ledger_id" => @reviewer_ledger_id,
-             "generation" => 0,
-             "dimension" => "starts.reviewer",
-             "units" => Map.fetch!(starts, "reviewer")
-           }) do
-      :ok
-    end
+    ops = [
+      policy:
+        {"manual-lane-seed-policy",
+         %{"type" => "set_policy", "policy_id" => @policy_id, "value" => policy}},
+      control:
+        {"manual-lane-seed-control",
+         %{"type" => "set_control", "control_id" => @control_id, "value" => control}},
+      developer:
+        {"manual-lane-seed-ledger-developer",
+         %{
+           "type" => "grant_ledger",
+           "ledger_id" => @developer_ledger_id,
+           "generation" => 0,
+           "dimension" => "starts.developer",
+           "units" => Map.fetch!(starts, "developer")
+         }},
+      reviewer:
+        {"manual-lane-seed-ledger-reviewer",
+         %{
+           "type" => "grant_ledger",
+           "ledger_id" => @reviewer_ledger_id,
+           "generation" => 0,
+           "dimension" => "starts.reviewer",
+           "units" => Map.fetch!(starts, "reviewer")
+         }}
+    ]
+
+    Enum.reduce_while(Keyword.take(ops, names), :ok, fn {_name, {id, operation}}, :ok ->
+      case run_seed_op(gateway, capability, id, operation) do
+        {:ok, _} -> {:cont, :ok}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp run_seed_op(gateway, capability, id, operation) do
@@ -250,7 +275,10 @@ defmodule PramanaFoundry.ManualLane.Server do
     end
   end
 
-  defp normalize({:ok, %{"disposition" => "accepted"} = result, :committed}), do: {:ok, result}
+  # A replayed accepted op is as good as a fresh one (A3).
+  defp normalize({:ok, %{"disposition" => "accepted"} = result, status})
+       when status in [:committed, :idempotent],
+       do: {:ok, result}
 
   defp normalize({:ok, result, _status}),
     do: {:error, {:manual_lane_seed_rejected, result}}

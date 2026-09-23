@@ -65,7 +65,8 @@ defmodule PramanaFoundry.ManualLane.Backend do
 
   @doc """
   Issues one effect for `role` under `principal` and returns its work packet. An open
-  execution of the role already issued is rebuilt from the store instead: no relaunch.
+  execution of the role already issued is rebuilt from the store for its issuer instead: no
+  relaunch, and any other principal is refused.
   A committed plan that issued nothing (a block or exhaustion) returns the ticket.
   """
   def launch(ctx, ticket_id, role, principal) do
@@ -74,7 +75,19 @@ defmodule PramanaFoundry.ManualLane.Backend do
 
     case open_execution(ticket, role) do
       nil -> issue(ctx, state, ticket_id, role, principal, 0)
-      execution_id -> packet(ctx, ticket_id, Plan.id(launch_id(execution_id), "effect"))
+      execution_id -> open_packet(ctx, ticket_id, execution_id, principal)
+    end
+  end
+
+  # An open execution's packet goes only to its issuer (review A4): another principal is
+  # refused rather than handed the owner's packet.
+  defp open_packet(ctx, ticket_id, execution_id, principal) do
+    effect_id = Plan.id(launch_id(execution_id), "effect")
+
+    case Replay.query(ctx, %{"type" => "effect", "effect_id" => effect_id}) do
+      {:ok, %{"issuer" => ^principal}} -> packet(ctx, ticket_id, effect_id)
+      {:ok, _other} -> {:reject, :execution_owned_by_other_principal}
+      error -> error
     end
   end
 
@@ -119,7 +132,7 @@ defmodule PramanaFoundry.ManualLane.Backend do
 
           case open_execution(state["tickets"][ticket_id], role) do
             nil -> issue(ctx, state, ticket_id, role, principal, retry + 1)
-            execution_id -> packet(ctx, ticket_id, Plan.id(launch_id(execution_id), "effect"))
+            execution_id -> open_packet(ctx, ticket_id, execution_id, principal)
           end
 
         refused ->
