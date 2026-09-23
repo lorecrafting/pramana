@@ -22,6 +22,8 @@ defmodule PramanaFoundry.ManualLane.Server do
   alias PramanaFoundry.ManualLane.Backend
   alias PramanaFoundry.RuntimeRoot
 
+  require Logger
+
   # The Backend's ids, so the seed and the lane agree on what they name.
   @policy_id Backend.ids().policy_id
   @control_id Backend.ids().control_id
@@ -71,8 +73,13 @@ defmodule PramanaFoundry.ManualLane.Server do
         GenServer.stop(state.gateway)
 
         case open(state.config, "operator_attestation: " <> evidence) do
-          {:ok, next} -> {:reply, {:ok, Gateway.status(next.gateway)}, next}
-          {:error, reason} -> {:stop, reason, {:error, reason}, Map.delete(state, :gateway)}
+          {:ok, next} ->
+            status = Gateway.status(next.gateway)
+            if status.mode == :ready, do: Logger.info("manual lane left recovery")
+            {:reply, {:ok, status}, next}
+
+          {:error, reason} ->
+            {:stop, reason, {:error, reason}, Map.delete(state, :gateway)}
         end
     end
   end
@@ -109,8 +116,15 @@ defmodule PramanaFoundry.ManualLane.Server do
 
   defp seed_unless_recovering(gateway, capability, policy_path) do
     case Gateway.status(gateway) do
-      %{mode: :recovery} -> :ok
-      _ready -> seed(gateway, capability, policy_path)
+      %{mode: :recovery, reason: reason} ->
+        Logger.warning("manual lane entered recovery: #{inspect(reason)}",
+          lane_recovery_reason: inspect(reason)
+        )
+
+        :ok
+
+      _ready ->
+        seed(gateway, capability, policy_path)
     end
   end
 

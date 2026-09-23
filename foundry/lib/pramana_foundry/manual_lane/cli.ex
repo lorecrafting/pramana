@@ -1,8 +1,11 @@
 defmodule PramanaFoundry.ManualLane.CLI do
   @moduledoc """
   T5, the manual-lane CLI (`docs/batch-d/THIN-LANE-DESIGN-2026-09-23.md` §4):
-  `bin/pramana lane admit|packet|submit|review|settle|status|recover`, routed here by
+  `bin/pramana lane admit|packet|submit|review|settle|status|log|recover`, routed here by
   `CLI.RPC`.
+
+  Every command appends one line to the operator log and logs its start and finish
+  (`ManualLane.Log`): observation only, never read back to decide.
 
   It runs in the daemon's BEAM against the flag-started `ManualLane.Server`, and only
   translates arguments into `ManualLane.Backend` calls. Output is human-readable, or one
@@ -12,9 +15,11 @@ defmodule PramanaFoundry.ManualLane.CLI do
 
   alias PramanaFoundry.DurableStore.Gateway
   alias PramanaFoundry.GitEvidence
-  alias PramanaFoundry.ManualLane.{Backend, Replay, Server}
+  alias PramanaFoundry.ManualLane.{Backend, Log, Replay, Server}
   alias PramanaFoundry.WorkPacket
   alias PramanaFoundry.Workflow.Kernel.Execution
+
+  require Logger
 
   # Per command: its option switches and whether the ticket id is required, optional or none.
   @commands %{
@@ -35,6 +40,7 @@ defmodule PramanaFoundry.ManualLane.CLI do
          channel_quiet: :boolean
        ], :required},
     "status" => {[], :optional},
+    "log" => {[], :optional},
     "recover" => {[evidence: :string], :none}
   }
 
@@ -45,6 +51,7 @@ defmodule PramanaFoundry.ManualLane.CLI do
     "review" => [:principal, :verdict, :candidate, :notes],
     "settle" => [:principal, :role, :outcome, :attest],
     "status" => [],
+    "log" => [],
     "recover" => [:evidence]
   }
 
@@ -56,8 +63,15 @@ defmodule PramanaFoundry.ManualLane.CLI do
   @doc "Runs one lane command (argv after `lane`), prints its result, raises on refusal."
   def main(argv) do
     json? = "--json" in argv
+    command = List.first(argv)
+    store = store_path()
+    started = System.monotonic_time(:millisecond)
+    Logger.info("lane #{command} started", lane_command: command)
+    outcome = run(argv)
+    duration = System.monotonic_time(:millisecond) - started
+    observe(store, argv, outcome, duration)
 
-    case run(argv) do
+    case outcome do
       {:ok, result} ->
         IO.write(render(Map.put(result, "ok", true), json?))
 
@@ -197,6 +211,23 @@ defmodule PramanaFoundry.ManualLane.CLI do
          "outcome" => opts[:outcome],
          "selected_discriminator" => result["selected_discriminator"]
        }}
+    end
+  end
+
+  # Read-only, so it also runs in recovery while the store can be read (`Log.trail/2`).
+  defp command("log", ctx, id, _opts) do
+    case Log.trail(ctx.path, id) do
+      {:ok, %{^id => %{"events" => []}}} ->
+        {:error, :ticket_not_found, nil}
+
+      {:ok, trail} ->
+        {:ok, %{"mode" => to_string(ctx.mode), "trail" => trail}}
+
+      {:error, _reason} when ctx.mode == :recovery ->
+        {:error, :gateway_recovery, recovery_detail(ctx.recovery_reason)}
+
+      {:error, reason} ->
+        {:error, :store_unreadable, inspect(reason)}
     end
   end
 
@@ -351,9 +382,16 @@ defmodule PramanaFoundry.ManualLane.CLI do
       true ->
         ctx = Server.context()
 
-        case Gateway.status(ctx.gateway) do
-          %{mode: :ready} -> {:ok, Map.put(ctx, :path, ctx.store_path)}
-          %{reason: reason} -> {:error, :gateway_recovery, recovery_detail(reason)}
+        case {command, Gateway.status(ctx.gateway)} do
+          {_, %{mode: :ready}} ->
+            {:ok, Map.merge(ctx, %{path: ctx.store_path, mode: :ready})}
+
+          {"log", %{reason: reason}} ->
+            {:ok,
+             Map.merge(ctx, %{path: ctx.store_path, mode: :recovery, recovery_reason: reason})}
+
+          {_, %{reason: reason}} ->
+            {:error, :gateway_recovery, recovery_detail(reason)}
         end
     end
   end
@@ -396,6 +434,46 @@ defmodule PramanaFoundry.ManualLane.CLI do
   defp one_of(value, allowed, reason),
     do: if(value in allowed, do: :ok, else: {:error, reason, value})
 
+  # ── Observation ───────────────────────────────────────────────────────────────
+
+  # The store the operator log sits beside; nil when no lane runs (nothing to sit beside).
+  defp store_path do
+    if Process.whereis(Server), do: Server.context().store_path
+  catch
+    :exit, _ -> nil
+  end
+
+  # Lane argv carries no secret-bearing option: attestations and paths are recorded as given.
+  defp observe(store, argv, outcome, duration) do
+    {result, summary} =
+      case outcome do
+        {:ok, r} -> {"ok", r}
+        {:error, reason, _detail} -> {to_string(reason), %{}}
+      end
+
+    {id, principal} =
+      case parse(argv) do
+        {:ok, _command, id, opts} -> {id, opts[:principal]}
+        _ -> {nil, nil}
+      end
+
+    Logger.info("lane #{List.first(argv)} finished: #{result} in #{duration}ms",
+      lane_command: List.first(argv),
+      lane_result: result,
+      duration_ms: duration
+    )
+
+    Log.operator(store, %{
+      "ts" => DateTime.to_iso8601(DateTime.utc_now()),
+      "argv" => argv,
+      "principal" => principal,
+      "result" => result,
+      "ticket_id" => id,
+      "phase" => summary["phase"],
+      "duration_ms" => duration
+    })
+  end
+
   # ── Helpers ───────────────────────────────────────────────────────────────────
 
   defp ticket(ctx, id), do: Backend.state(ctx)["tickets"][id]
@@ -421,6 +499,7 @@ defmodule PramanaFoundry.ManualLane.CLI do
   # ── Output ────────────────────────────────────────────────────────────────────
 
   defp render(result, true), do: JSON.encode!(result) <> "\n"
+  defp render(%{"ok" => true, "trail" => _} = result, false), do: Log.text(result)
 
   defp render(result, false) do
     result

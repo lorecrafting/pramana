@@ -339,6 +339,132 @@ defmodule PramanaFoundry.ManualLane.CLITest do
     assert_ready!()
   end
 
+  # ── Observation: lane log, the operator log, Logger ─────────────────────────────
+
+  defp operator_log(c),
+    do: Path.join(c.root, "state/manual-lane/operator.log.jsonl")
+
+  defp operator_lines(c),
+    do:
+      operator_log(c)
+      |> File.read!()
+      |> String.split("\n", trim: true)
+      |> Enum.map(&JSON.decode!/1)
+
+  test "lane log shows the full trail, a refused same-principal review included", c do
+    start!(c)
+    admit!(c)
+    ok!(~w(packet ML-1 --role developer --principal #{@dev}))
+    submit!(c)
+    refused!(~w(packet ML-1 --role reviewer --principal #{@dev}), "principal_not_independent")
+    ok!(~w(packet ML-1 --role reviewer --principal #{@rev}))
+
+    ok!(~w(review ML-1 --principal #{@rev} --verdict approved
+           --candidate #{c.candidate} --notes #{c.notes}))
+
+    %{"mode" => "ready", "trail" => %{"ML-1" => t} = all} = ok!(~w(log ML-1))
+    assert Map.keys(all) == ["ML-1"]
+
+    # The whole durable trail, in commit order.
+    assert Enum.map(t["events"], &{&1["seq"], &1["type"]}) == [
+             {1, "ticket_admitted"},
+             {2, "launch_planned"},
+             {3, "artifact_frozen"},
+             {4, "stream_sealed"},
+             {5, "developer_closed"},
+             {6, "checks_started"},
+             {7, "review_planned"},
+             {8, "stream_sealed"},
+             {9, "review_recorded"},
+             {10, "reviewer_closed"}
+           ]
+
+    assert %{"verdict" => "approved", "candidate_id" => cand} = Enum.at(t["events"], 8)
+    assert cand == c.candidate
+
+    assert t["refusals"] == [
+             %{
+               "command_id" => "ML-1/reviewer/0/#{@dev}",
+               "actor" => @dev,
+               "reason_code" => "principal_not_independent"
+             }
+           ]
+
+    assert [dev, rev] = t["effects"]
+    assert dev["principals"] == %{"issuer" => @dev, "inbox" => nil}
+    assert rev["principals"] == %{"issuer" => @rev, "inbox" => nil}
+
+    for page <- [dev, rev] do
+      assert %{"status" => "succeeded", "receipt_history" => "complete"} = page["settlement"]
+
+      assert ~w(claim receipt reservation) == Enum.map(page["relations"], & &1["kind"])
+    end
+
+    # Every lane ticket without an id; an unknown id is refused; text is the default.
+    assert %{"trail" => %{"ML-1" => ^t}} = ok!(~w(log))
+    refused!(~w(log ML-9), "ticket_not_found")
+
+    text = capture_io(fn -> RPC.run(encode(~w(lane log ML-1))) end)
+    assert text =~ "principal_not_independent ML-1/reviewer/"
+    assert text =~ "issuer=#{@rev}"
+    # One operator line per command, refusals included; no line is read back.
+    lines = operator_lines(c)
+    assert length(lines) == 10
+
+    assert %{"result" => "principal_not_independent", "principal" => @dev, "ticket_id" => "ML-1"} =
+             Enum.at(lines, 3)
+
+    assert %{"result" => "ok", "phase" => "ready_to_integrate", "principal" => @rev} =
+             Enum.at(lines, 5)
+
+    assert Enum.all?(lines, &(is_integer(&1["duration_ms"]) and &1["ts"] =~ ~r/Z$/))
+    assert Enum.at(lines, 0)["argv"] |> hd() == "admit"
+  end
+
+  test "an operator log write failure warns and leaves the outcome unchanged", c do
+    start!(c)
+    File.mkdir_p!(operator_log(c))
+
+    stderr =
+      capture_io(:stderr, fn ->
+        admit!(c)
+        refused!(~w(packet ML-1 --role developer), "principal_required")
+      end)
+
+    assert stderr =~ "warning: operator log not written"
+    assert %{"tickets" => %{"ML-1" => %{"phase" => "queued"}}} = ok!(~w(status ML-1))
+  end
+
+  test "lane log reads the store in recovery; status still refuses", c do
+    start_supervised!(Supervisor.child_spec({Server, c.opts}, restart: :temporary))
+    admit!(c)
+    %{gateway: gateway} = Server.context()
+    refs = Enum.map([gateway, Process.whereis(Server)], &Process.monitor/1)
+    Process.exit(gateway, :kill)
+    Process.exit(Process.whereis(Server), :kill)
+    for ref <- refs, do: assert_receive({:DOWN, ^ref, :process, _, _}, 5_000)
+    start_supervised!(Supervisor.child_spec({Server, c.opts}, restart: :temporary))
+
+    refused!(~w(status), "gateway_recovery")
+    assert %{"mode" => "recovery", "trail" => %{"ML-1" => t}} = ok!(~w(log ML-1))
+    assert [%{"type" => "ticket_admitted"}] = t["events"]
+
+    # Unreadable data prints gateway_recovery, as every other command does.
+    File.rm!(Server.context().store_path)
+    File.write!(Server.context().store_path, "not sqlite")
+    assert %{"detail" => %{"next" => _}} = refused!(~w(log ML-1), "gateway_recovery")
+  end
+
+  test "no Logger in Core or the workflow kernel" do
+    offenders =
+      for dir <- ~w(durable_store workflow),
+          file <- Path.wildcard("lib/pramana_foundry/#{dir}/**/*.ex"),
+          File.read!(file) =~ ~r/\bLogger\b/,
+          do: file
+
+    assert offenders == []
+  end
+
   # ── RPC shapes ───────────────────────────────────────────────────────────────────
 
   test "RPC.decode accepts each lane shape and refuses unknown ones" do
@@ -351,6 +477,8 @@ defmodule PramanaFoundry.ManualLane.CLITest do
          --issuer-gone --channel-quiet),
       ~w(lane status),
       ~w(lane status ML-1 --json),
+      ~w(lane log),
+      ~w(lane log ML-1 --json),
       ~w(lane packet ML-1)
     ]
 
@@ -358,6 +486,7 @@ defmodule PramanaFoundry.ManualLane.CLITest do
       ~w(lane),
       ~w(lane launch ML-1),
       ~w(lane status ML-1 ML-2),
+      ~w(lane log ML-1 --principal p),
       ~w(lane packet),
       ~w(lane packet ML-1 --role developer --role reviewer),
       ~w(lane packet ML-1 --verdict approved),
