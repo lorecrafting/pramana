@@ -27,8 +27,9 @@
 > PASS WITH CHANGES): F1 found that the exhaustion plan's allocation read was not CAS-bound.
 > It now states `root_ledger/<base64url id>/<generation>`, a new Core key that reads
 > `root_ledgers`, so O2's "CAS-bound prestate read" holds for it.
-> **Open:** `kernel/software/developer.ex` hardcodes `"phase_generation" => 0` in the launch's
-> `create_effect` request. That breaks after a policy-reset generation. Not fixed yet.
+> **Open:** `Plan.launch_operations/2` (`kernel/plan.ex`, the `create_effect` request) hardcodes
+> `"phase_generation" => 0`. That breaks after a policy-reset generation. Since subcommit 3 the
+> reviewer launches through the same function, so it affects the reviewer too. Not fixed yet.
 
 
 **Date:** 2026-09-23. **Type:** design, approved and built (see the status above; where the

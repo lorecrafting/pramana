@@ -23,16 +23,25 @@ followed. Awaiting the batch review with subcommit 4.
 - **Allocation.** Short reviewer allocation is a pre-intent rejection for a first review
   (R4.15.f3), `blocked(reviewer_budget)` after a reviewer non-start (R4a.02.o10, the
   recoverable one of its two outcomes, since the kernel cannot read which protected policy
-  prefers), and `exhausted` after a reviewer crash (R4.19.o3).
+  prefers), and `exhausted` after a reviewer crash (R4.19.o3). Neither of the last two stages
+  an operation that reads the ledger, so each states its `root_ledger/` revision, as the
+  developer's exhaustion does (`8c79ff03`); `decide_e2e_test.exs` returns a unit after each
+  decision and requires `revision_conflict` (review S1/S1b, Fable 5.1).
 - **Verdicts** use Core's existing `submit_review` command type (RecordCodec refuses a new
   one). Approved records only; the verified close is evidence. Correction and rejection
   terminalise through `close_attempt` in the same plan (`Plan.close_attempt` gained `before`
   events).
+- **Reviewer independence** (R4.15.o1) is enforced in Core (`3ca453e5`: `create_effect`
+  refuses a reviewer sharing a recorded principal with its developer,
+  `principal_not_independent`) and exercised end to end through `decide/3` (`0aa68060`).
+  Pinning it in protected policy is a follow-up in progress.
 - **Not done here.** R4.17.o3's `blocked(drain)` after a correction: the developer successor is
   decided on its own `plan_launch`, which rejects a fresh launch under drain (subcommit 2's
-  approved shape). Reviewer independence (a Core lineage predicate, in progress in
-  `durable_store/`): a TODO in `review.ex` and a skipped `:pending_independence` test in
-  `decide_e2e_test.exs` mark where it lands.
+  approved shape). This contradicts `WORKFLOW-CONTRACT.md` ("Corrections/rebases during drain
+  become blocked with resume_phase=queued and reason=draining"): a correction under drain
+  stays queued instead. Subcommit 2's fresh-launch shape leaves the check-failure correction
+  (R4.13.o2, "queue fresh developer ... or blocked(drain)") departing from the same sentence,
+  so the two are one deferral, not two.
 
 **D2, recorded as the PM deferral.** PM is out of subcommit 3 and deferred to the PM lifecycle
 (FR-15). R4.01.o1 and R4a.03.o3–o5 stay in `@uncited` and R4a.03.f2 stays `:unguarded` in
