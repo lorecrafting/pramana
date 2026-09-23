@@ -94,6 +94,12 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
     "attempt_settled.settlement" => {"attempt_settled", "settlement", "terminal_settlement_v1"}
   }
 
+  # Every event of a slot-owning type carries an authoritative fact in its slot field, so
+  # only a declared binding may fill it. A literal there is a caller-written settlement,
+  # authority or control fact (Quint core_boundary F1: an unbound non-start under
+  # unconditional_v1 committed a forged settlement for another execution).
+  @slot_events Map.new(@slots, fn {slot, {type, field, _kind}} -> {type, {field, slot}} end)
+
   @doc """
   Validates the closed unresolved plan schema.
 
@@ -115,7 +121,8 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
          :ok <- validate_operations(plan["protected_operations"]),
          :ok <- validate_bindings(plan["bindings"], plan["protected_operations"]),
          :ok <- validate_binding_discriminator(plan),
-         :ok <- validate_alternatives(plan) do
+         :ok <- validate_alternatives(plan),
+         :ok <- slot_events_bound(plan) do
       {:ok, plan}
     else
       {:error, _reason} = error -> error
@@ -293,6 +300,13 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
   @spec producer_operations() :: [{String.t(), String.t()}]
   def producer_operations, do: Enum.map(@producers, fn {kind, {type, _fact}} -> {kind, type} end)
 
+  @doc """
+  Event types whose slot only a binding may fill. A proposal carrier never commits one,
+  because nothing binds its slot (Quint core_boundary F2).
+  """
+  @spec slot_event_types() :: [String.t()]
+  def slot_event_types, do: Map.keys(@slot_events)
+
   @doc "The closed set of protected operations a plan may declare."
   @spec operation_types() :: [String.t()]
   def operation_types, do: @operation_types
@@ -438,6 +452,42 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
 
   defp validate_alternatives(_plan), do: {:error, :invalid_plan_alternatives}
 
+  # Checked over every alternative, not only the one selected, so an unbound slot is refused
+  # at ingress whichever branch the protected discriminator would later pick.
+  # markers_occupy_declared_slots/2 then requires each binding to be carried exactly once.
+  defp slot_events_bound(plan) do
+    bound? =
+      Enum.all?(plan["alternatives"], fn alternative ->
+        alternative["proposal"]["events"]
+        |> List.wrap()
+        |> Enum.all?(&slot_filled_by_binding?(&1, plan["bindings"]))
+      end)
+
+    if bound?, do: :ok, else: {:error, :slot_value_unbound}
+  end
+
+  defp slot_filled_by_binding?(%{"type" => type} = event, bindings) do
+    case Map.fetch(@slot_events, type) do
+      {:ok, {field, slot}} ->
+        markers =
+          for binding <- bindings,
+              binding["destination_slot"] == slot,
+              do: %{"binding" => binding["name"]}
+
+        value = if plain_map?(event["payload"]), do: event["payload"][field]
+
+        if slot in @list_slots,
+          do: is_list(value) and value != [] and Enum.all?(value, &(&1 in markers)),
+          else: value in markers
+
+      :error ->
+        true
+    end
+  end
+
+  # Not an event the codec accepts; normalization refuses it after substitution.
+  defp slot_filled_by_binding?(_event, _bindings), do: true
+
   # --- selection and substitution ---------------------------------------------------
 
   defp select(alternatives, discriminator) do
@@ -581,17 +631,10 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
                   projection["last_event_id"] == event["event_id"],
                   do: ["projections", position, "value" | suffix]
 
-          cond do
-            marker_positions(proposal, name, []) -- permitted != [] ->
-              {:halt, {:error, :binding_outside_declared_slot}}
-
-            list_slot? and
-                not only_slot_markers?(event["payload"][field], bindings, binding) ->
-              {:halt, {:error, :list_slot_element_unbound}}
-
-            true ->
-              {:cont, :ok}
-          end
+          # validate/1's slot_events_bound/1 already refused a literal list element.
+          if marker_positions(proposal, name, []) -- permitted == [],
+            do: {:cont, :ok},
+            else: {:halt, {:error, :binding_outside_declared_slot}}
 
         [] ->
           {:halt, {:error, :binding_slot_absent}}
@@ -599,18 +642,6 @@ defmodule PramanaFoundry.DurableStore.TransitionPlan do
         _ ->
           {:halt, {:error, :binding_slot_not_unique}}
       end
-    end)
-  end
-
-  defp only_slot_markers?(list, bindings, binding) do
-    names =
-      for other <- bindings,
-          other["destination_slot"] == binding["destination_slot"],
-          do: other["name"]
-
-    Enum.all?(list, fn
-      %{"binding" => name} = element when map_size(element) == 1 -> name in names
-      _ -> false
     end)
   end
 

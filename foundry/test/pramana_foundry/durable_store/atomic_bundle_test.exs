@@ -108,6 +108,35 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
              })
   end
 
+  # Quint core_boundary F2: the proposal carrier committed events as written beside the
+  # staged operations, so a controller could commit launch_settled with a settlement it wrote
+  # for another execution. It is refused, and the staged settle_claim rolls back with it.
+  test "a proposal carrier may not commit a slot-typed event beside staged operations", ctx do
+    seed_issued_launch!(ctx)
+
+    forged =
+      nonstart_bundle("atomic-forged")
+      |> update_in(["proposal", "events"], fn [event] ->
+        [
+          event
+          |> Map.put("type", "launch_settled")
+          |> update_in(["payload"], fn payload ->
+            Map.merge(payload, %{
+              "ticket_id" => "atomic-forged",
+              "attempt_id" => "attempt-1",
+              "execution_id" => "execution-other",
+              "settlement" => %{"effect_id" => "effect-FORGED"}
+            })
+          end)
+        ]
+      end)
+
+    assert {:error, :bound_event_requires_plan} =
+             Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", forged)
+
+    assert {:ok, %{"status" => "issued"}} = fact(ctx, "claim", "claim_id", "claim-1")
+  end
+
   test "developer, reviewer and PM non-start settlements survive reopen", ctx do
     for {role, suffix} <- [{"developer", "dev"}, {"reviewer", "review"}, {"pm", "pm"}] do
       seed_issued_launch!(ctx, role, suffix)
@@ -1730,16 +1759,15 @@ defmodule PramanaFoundry.DurableStore.AtomicBundleTest do
       # A plan that binds no settlement cannot supply the infrastructure discriminator,
       # even though the envelope stages a settle_claim whose settlement a global scan
       # would have found and silently used.
+      # Its alternatives carry no slot-typed event, or validate/1 would refuse the plan first.
+      plain = domain_envelope("PLAN13")["proposal"]
+
       unbound =
         nonstart_plan_bundle("PLAN13")
-        |> put_in(["plan", "bindings"], [
-          %{
-            "name" => "settled",
-            "operation_ordinal" => 0,
-            "output_kind" => "control_fact_v1",
-            "destination_slot" => "control_changed.control"
-          }
-        ])
+        |> put_in(["plan", "bindings"], [])
+        |> update_in(["plan", "alternatives"], fn alternatives ->
+          Enum.map(alternatives, &Map.put(&1, "proposal", plain))
+        end)
 
       assert {:ok, %{"disposition" => "rejected", "reason_code" => reason}, _} =
                Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", unbound)

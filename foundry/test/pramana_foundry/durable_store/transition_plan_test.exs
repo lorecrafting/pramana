@@ -277,6 +277,83 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     end
   end
 
+  # Quint core_boundary F1: a slot-typed event's slot is an authoritative fact, so only a
+  # declared binding may fill it. Before the fix this plan validated and bound, committing a
+  # settlement the controller wrote for an execution the staged settle_claim never touched.
+  describe "a slot-typed event without a binding is refused (core_boundary F1)" do
+    test "an unbound non-start under unconditional_v1 carrying a literal settlement" do
+      forged = %{settlement() | "effect_id" => "effect-FORGED"}
+
+      literal =
+        proposal(
+          [
+            event("launch_settled", %{
+              "ticket_id" => "ticket-1",
+              "attempt_id" => "attempt-1",
+              "execution_id" => "execution-B",
+              "settlement" => forged,
+              "projection" => %{
+                "namespace" => "atomic-v2",
+                "entity_id" => "ticket-1",
+                "revision" => 0,
+                "value" => %{"phase" => "queued", "settlement" => forged}
+              }
+            })
+          ],
+          [projection(%{"phase" => "queued", "settlement" => forged})]
+        )
+
+      forged_plan =
+        plan(%{
+          "bindings" => [],
+          "discriminator_kind" => "unconditional_v1",
+          "alternatives" => [%{"discriminator" => "unconditional", "proposal" => literal}]
+        })
+
+      assert {:error, :slot_value_unbound} = TransitionPlan.validate(forged_plan)
+      assert {:error, :slot_value_unbound} = TransitionPlan.bind(forged_plan, "unconditional", [])
+    end
+
+    test "every slot-owning event type refuses a literal slot value" do
+      for type <- TransitionPlan.slot_event_types() do
+        literal = proposal([event(type, %{"authority" => %{}, "settlement" => %{}})], [])
+
+        assert {:error, :slot_value_unbound} =
+                 TransitionPlan.validate(
+                   plan(%{
+                     "bindings" => [],
+                     "discriminator_kind" => "unconditional_v1",
+                     "alternatives" => [
+                       %{"discriminator" => "unconditional", "proposal" => literal}
+                     ]
+                   })
+                 ),
+               type
+      end
+    end
+
+    test "an unselected alternative with a literal slot is refused at ingress" do
+      literal = proposal([event("launch_settled", %{"settlement" => settlement()})], [])
+
+      assert {:error, :slot_value_unbound} =
+               TransitionPlan.validate(
+                 plan(%{
+                   "alternatives" => [
+                     %{
+                       "discriminator" => "below_infrastructure_limit",
+                       "proposal" => settled_proposal()
+                     },
+                     %{"discriminator" => "infrastructure_limit_reached", "proposal" => literal}
+                   ]
+                 })
+               )
+    end
+
+    test "the bound form of the same plan still validates" do
+      assert {:ok, _plan} = TransitionPlan.validate(plan())
+    end
+  end
+
   describe "bind/3 selection" do
     test "rejects an unknown discriminator" do
       assert {:error, :unknown_discriminator} =
@@ -311,7 +388,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
 
   describe "bind/3 enforces the declared destination slot" do
     test "rejects a plan whose alternative never carries the declared marker" do
-      bare = proposal([event("launch_settled", %{"settlement" => "literal"})], [])
+      bare = proposal([], [])
 
       assert {:error, :binding_slot_absent} =
                TransitionPlan.bind(
@@ -329,7 +406,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
       wrong =
         proposal([event("control_changed", %{"settlement" => %{"binding" => "settled"}})], [])
 
-      assert {:error, :binding_slot_absent} =
+      assert {:error, :slot_value_unbound} =
                TransitionPlan.bind(
                  plan(%{
                    "alternatives" => [
@@ -832,7 +909,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
 
       plan = reset_plan(fn m -> [m.("starts"), m.("requests"), forged] end)
 
-      assert {:error, :list_slot_element_unbound} =
+      assert {:error, :slot_value_unbound} =
                TransitionPlan.bind(plan, "unconditional", [
                  reset_staged(0, "starts.developer"),
                  reset_staged(1, "model_requests")
@@ -842,7 +919,7 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
     test "a single marker where the list slot expects a list is refused" do
       plan = reset_plan(fn m -> m.("starts") end)
 
-      assert {:error, :binding_slot_absent} =
+      assert {:error, :slot_value_unbound} =
                TransitionPlan.bind(plan, "unconditional", [
                  reset_staged(0, "starts.developer"),
                  reset_staged(1, "model_requests")
@@ -945,9 +1022,17 @@ defmodule PramanaFoundry.DurableStore.TransitionPlanTest do
         }
       ]
 
+      planned =
+        proposal([event("launch_planned", %{"authority" => %{"binding" => "authority"}})], [])
+
       assert {:error, :invalid_authoritative_fact} =
                TransitionPlan.bind(
-                 plan(%{"bindings" => bindings}),
+                 plan(%{
+                   "bindings" => bindings,
+                   "alternatives" => [
+                     %{"discriminator" => "below_infrastructure_limit", "proposal" => planned}
+                   ]
+                 }),
                  "below_infrastructure_limit",
                  [
                    %{

@@ -1,7 +1,7 @@
 defmodule PramanaFoundry.DurableStore.GatewayTest do
   use ExUnit.Case, async: false
 
-  alias PramanaFoundry.DurableStore.{Database, Gateway, RecordCodec}
+  alias PramanaFoundry.DurableStore.{Database, Gateway, RecordCodec, TransitionPlan}
   alias PramanaFoundry.EventLog
 
   setup do
@@ -532,14 +532,14 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
 
       lifecycle =
         bundle(id)
-        |> Map.update!(:events, fn [event] -> [%{event | type: "launch_settled"}] end)
+        |> Map.update!(:events, fn [event] -> [%{event | type: "check_recorded"}] end)
 
       assert {:ok, %{"disposition" => "accepted"}, :committed} =
                Gateway.transact(gateway, "operator", command(id), lifecycle)
 
       # Reads back with its type intact, through the real read path.
       assert {:ok, events} = Gateway.recent_events(gateway, 10)
-      assert Enum.any?(events, &(&1.event_type == "launch_settled"))
+      assert Enum.any?(events, &(&1.event_type == "check_recorded"))
 
       # A verified backup reconstructs from the durable events and refuses to publish
       # unless that reconstruction matches live authority, so a successful backup is the
@@ -548,7 +548,7 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
       # Note what each half of this test proves. The reconstruction is built from
       # event["payload"]["projection"] and is agnostic to the type string, so the
       # reconstruction-equality assertions alone would not establish that the name
-      # "launch_settled" survived storage — only that some event with that projection
+      # "check_recorded" survived storage — only that some event with that projection
       # payload did. The recent_events assertions are what prove the type string itself
       # round-trips, which is the property this test exists for. Both halves are needed.
       assert {:ok, %{reconstruction: reconstruction}} =
@@ -565,7 +565,27 @@ defmodule PramanaFoundry.DurableStore.GatewayTest do
                Gateway.backup(reopened, path <> ".lifecycle-backup-2")
 
       assert {:ok, after_reopen} = Gateway.recent_events(reopened, 10)
-      assert Enum.any?(after_reopen, &(&1.event_type == "launch_settled"))
+      assert Enum.any?(after_reopen, &(&1.event_type == "check_recorded"))
+    end
+
+    # Quint core_boundary F2: a slot-typed event carries a bound fact, and a proposal carrier
+    # has no binding to fill it, so every proposal route refuses one before anything commits.
+    test "a proposal carrying a slot-typed event is refused and commits nothing",
+         %{path: path} do
+      gateway = ready_gateway(path)
+
+      for type <- TransitionPlan.slot_event_types() do
+        id = "SLOT-#{type}"
+
+        forged =
+          bundle(id)
+          |> Map.update!(:events, fn [event] -> [%{event | type: type}] end)
+
+        assert {:error, :bound_event_requires_plan} =
+                 Gateway.transact(gateway, "operator", command(id), forged)
+      end
+
+      assert {:ok, []} = Gateway.recent_events(gateway, 10)
     end
 
     test "the legacy vocabulary still commits unchanged", %{path: path} do

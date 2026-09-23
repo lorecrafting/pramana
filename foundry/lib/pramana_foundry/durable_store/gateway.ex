@@ -1400,8 +1400,18 @@ defmodule PramanaFoundry.DurableStore.Gateway do
     if declared == staged, do: :ok, else: {:error, :plan_operations_mismatch}
   end
 
+  # Every proposal carrier routes through here: plain, verified and atomic. A slot-typed
+  # event carries a bound fact that only a plan's binding may supply, so a carrier that
+  # holds one is committing a fact it wrote itself (Quint core_boundary F2).
   defp normalize_candidate(proposal) do
     case Kernel.normalize_bundle(proposal) do
+      {:ok, normalized} ->
+        slot_types = TransitionPlan.slot_event_types()
+
+        if Enum.any?(normalized["events"], &(&1["type"] in slot_types)),
+          do: {:error, :bound_event_requires_plan},
+          else: {:ok, normalized}
+
       {:error, :projection_transition_bijection} ->
         {:error, {:bundle_rejected, :projection_transition_bijection}}
 

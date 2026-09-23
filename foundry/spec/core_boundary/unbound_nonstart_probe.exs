@@ -1,7 +1,7 @@
 # Probe for finding F1 in README.md: a plan-bearing bundle that stages a non-start
 # settle_claim but declares NO binding passes TransitionPlan.validate/1 and bind/3 under
 # unconditional_v1, committing a caller-written (forged) settlement for another execution.
-# Run from foundry/: MIX_ENV=test mix run --no-start spec/core_boundary/unbound_nonstart_probe.exs
+# Before the fix this printed GAP REPRODUCED. Run from foundry/: MIX_ENV=test mix run --no-start spec/core_boundary/unbound_nonstart_probe.exs
 alias PramanaFoundry.DurableStore.TransitionPlan
 
 forged = %{
@@ -92,9 +92,15 @@ staged = [
   }
 ]
 
-{:ok, _} = TransitionPlan.validate(plan)
-{:ok, bound} = TransitionPlan.bind(plan, "unconditional", staged)
-[event] = bound["events"]
-true = event["payload"]["execution_id"] == "execution-B"
-true = event["payload"]["settlement"]["effect_id"] == "effect-FORGED"
-IO.puts("GAP REPRODUCED: an unbound non-start under unconditional_v1 binds a forged settlement")
+# Fixed: every slot-typed event's slot must be filled by a declared binding.
+case TransitionPlan.validate(plan) do
+  {:error, :slot_value_unbound} ->
+    IO.puts("GAP CLOSED: validate/1 refuses the unbound non-start (:slot_value_unbound)")
+
+  {:ok, _} ->
+    {:ok, bound} = TransitionPlan.bind(plan, "unconditional", staged)
+    [event] = bound["events"]
+    true = event["payload"]["execution_id"] == "execution-B"
+    true = event["payload"]["settlement"]["effect_id"] == "effect-FORGED"
+    IO.puts("GAP REPRODUCED: an unbound non-start under unconditional_v1 binds a forged settlement")
+end
