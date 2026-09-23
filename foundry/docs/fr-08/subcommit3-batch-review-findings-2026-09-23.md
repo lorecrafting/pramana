@@ -20,12 +20,12 @@ subcommit 2 fixes and subcommit 3.
 | I1 | Medium, required | Core read `independent_of_roles` only from the policy the new operation names, at its current revision. It never read the revisions the attempt's existing effects pinned. Three escapes were admitted. **A1:** dev-1 by principal-A under the pairing, then `set_policy` without the key (rev 1), then rev-1 by principal-A at `policy_revision` 1. **A2:** rev-1 under a second `policy_id` that has no key. **A4:** dev-1 and rev-1 admitted, the policy dropped, then principal-A's first `append_inbox` to execution-rev-1. | Fixed in `49485dc3`. The pairings are now the union over the new operation's policy and every pinned `(policy_id, policy_revision)` in the attempt, read from `root_policy_history`. A1, A2 and A4 are probe tests in `review_independence_test.exs`, and each is refused with `principal_not_independent`. Red control: with `related_roles([policy], role)`, all three fail. |
 | I2 | Recorded | The scope is the controller-supplied `(ticket_id, attempt_id)`. `attempt_open` refuses only closed attempts, so Core admits a reviewer relabelled into another attempt. | Recorded as a limit in the design doc and in the enforcement-matrix row. "Exact candidate" rests on the kernel's `require_active_attempt` in `review_planned`. FR-13 must re-check attempt identity at acceptance. |
 | I3 | Recorded | The declared read sets of `append_inbox` and `create_effect` omit the sibling effects, inboxes and policy history they now read. | Recorded as a limit in the design doc and in the matrix row. The reads happen inside the commit transaction, so none is stale. The gap is one of read-set honesty. |
-| I4 | — | Not restated here. | No resolution was assigned in this batch. Open. |
-| I5 | — | Not restated here. | By the kernel fix commit "reviewer allocation decisions CAS-bind the ledger". |
-| S1 | Blocker | Not restated here. | By the kernel fix commit "reviewer allocation decisions CAS-bind the ledger". |
-| S1b | — | Not restated here. | By the same kernel fix commit. |
-| S5 | — | Not restated here. | By the same kernel fix commit. |
-| S8 | — | Not restated here. | By the same kernel fix commit. |
+| I4 | None | Rule 3: `independent_of_roles` holds no role token; the gate scans literals only. | Correct by construction; no change. |
+| I5 | Low | The e2e independence test matched `inspect(result)` for the refusal atom. | Asserts the operation result's reason code (kernel fix commit "reviewer allocation decisions CAS-bind the ledger"). |
+| S1 | Blocker | The reviewer exhaustion decision (`review.ex:145-153`) stated no `root_ledger/` key: allocation returned between decide and submit still committed `exhausted`. The developer F1 recurring. | Kernel fix commit "reviewer allocation decisions CAS-bind the ledger", with an e2e CAS test and red control. |
+| S1b | Medium | Same gap in the `blocked(reviewer_budget)` branch (`review.ex:155-163`). | Same kernel fix commit. |
+| S5 | Deferral | R4.17.o3 (`blocked(drain)` after a correction) is not built; the Outcome must name the contradicted sentence (`WORKFLOW-CONTRACT.md` ~:557-558). | Recorded in the subcommit 3 design Outcome (docs commit alongside the kernel fix). |
+| S8 | Docs | The subcommit 3 Outcome still called independence in progress. | Updated in the same docs commit. |
 | sc2-doc SHAs | Documentation | Commit SHAs cited in the subcommit 2 documentation. | By the same kernel fix commit. |
 
 This record was written by the agent that resolved I1 to I3. It gives the detail of those
