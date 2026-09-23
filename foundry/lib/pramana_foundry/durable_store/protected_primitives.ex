@@ -751,9 +751,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              operation["control_id"],
              operation
            ),
-         {:ok, outstanding} <-
+         {:ok, {outstanding, ledgers}} <-
            fence_control_descendants(conn, operation["control_id"], operation["value"]) do
-      {:ok, Map.put(facts, "outstanding_claim_ids", outstanding)}
+      {:ok, Map.merge(facts, %{"outstanding_claim_ids" => outstanding, "ledgers" => ledgers})}
     else
       {:error, :invalid_control_state} -> {:reject, :invalid_control_state, %{}}
       {:error, _reason} = error -> error
@@ -1810,8 +1810,13 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
   defp cancel_effect(_conn, _effect, _proof), do: {:reject, :cancellation_not_permitted, %{}}
 
-  defp fence_control_descendants(_conn, _control_id, %{"status" => "active"}), do: {:ok, []}
+  defp fence_control_descendants(_conn, _control_id, %{"status" => "active"}),
+    do: {:ok, {[], []}}
 
+  # Returns the outstanding claims and the snapshots of every ledger a cascaded cancel
+  # released a hold on; the restart check needs those snapshots exactly as it does for a
+  # direct cancel_effect (Fable review of d67eeac2). A ledger two cancels touched keeps
+  # its last snapshot, which is its current state.
   defp fence_control_descendants(conn, control_id, %{"status" => "cancel_requested"}) do
     with {:ok, rows} <-
            Database.query(
@@ -1819,18 +1824,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              "SELECT effect_id FROM root_effects WHERE control_id = ? AND status IN ('pending', 'claimed', 'issued', 'unknown', 'reconciliation_required') ORDER BY effect_id",
              [control_id]
            ) do
-      Enum.reduce_while(rows, {:ok, []}, fn [effect_id], {:ok, outstanding} ->
+      rows
+      |> Enum.reduce_while({:ok, {[], []}}, fn [effect_id], {:ok, {outstanding, ledgers}} ->
         with {:ok, effect} <- load_effect(conn, effect_id) do
           case effect.status do
             "pending" ->
               case cancel_effect(conn, effect, "unissued") do
-                {:ok, _facts} -> {:cont, {:ok, outstanding}}
+                {:ok, facts} -> {:cont, {:ok, {outstanding, ledgers ++ facts["ledgers"]}}}
                 error -> {:halt, error}
               end
 
             "claimed" ->
               case cancel_effect(conn, effect, "issuer_quiescent") do
-                {:ok, _facts} -> {:cont, {:ok, outstanding}}
+                {:ok, facts} -> {:cont, {:ok, {outstanding, ledgers ++ facts["ledgers"]}}}
                 error -> {:halt, error}
               end
 
@@ -1841,7 +1847,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
                      [effect_id]
                    ) do
                 {:ok, claims} ->
-                  {:cont, {:ok, outstanding ++ Enum.map(claims, &hd/1)}}
+                  {:cont, {:ok, {outstanding ++ Enum.map(claims, &hd/1), ledgers}}}
 
                 error ->
                   {:halt, error}
@@ -1850,6 +1856,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
         else
           error -> {:halt, error}
         end
+      end)
+      |> then(fn
+        {:ok, {outstanding, ledgers}} ->
+          latest =
+            ledgers
+            |> Enum.reverse()
+            |> Enum.uniq_by(&{&1["ledger_id"], &1["generation"]})
+            |> Enum.reverse()
+
+          {:ok, {outstanding, latest}}
+
+        error ->
+          error
       end)
     end
   end
@@ -7215,6 +7234,9 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
         "issue_claim" ->
           %{"claim" => {:singular, :claim}, "effect" => {:singular, :effect}}
+
+        "set_control" ->
+          %{"ledgers" => {:plural, :ledger}}
 
         "cancel_effect" ->
           %{

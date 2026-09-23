@@ -88,13 +88,13 @@ it is updated to match. The probes are in
 `foundry/test/pramana_foundry/durable_store/ledger_restart_probe_test.exs`: each drives
 the real API to the refused operation, then reopens the database.
 
-- **Finding 2 (22d0f2ba).** `create_effect` refuses reservations on more than one
+- **Finding 2 (5f021010).** `create_effect` refuses reservations on more than one
   `(ledger_id, generation)` with `reservation_ledger_mismatch`, next to the existing
   one-dimension check in `reservation_dimensions`. The other option, releasing the effect's
   other holds when `close_generation` cancels it, would add a held→available path on a
   ledger that was never closed; the contract allows that only on a proved unissued
   cancellation, and the refusal needs no such argument.
-- **Finding 3 (ac62384d).** The restart check allows `proposed` only while the owner
+- **Finding 3 (5b701a57).** The restart check allows `proposed` only while the owner
   effect does not exist. Two operations broke that, so both are guarded: `create_effect`
   refuses with `unlisted_proposed_reservation` unless it lists every proposed reservation
   the effect owns, and `reserve` refuses with `reservation_owner_exists` when the owner
@@ -128,3 +128,5 @@ The session ended before these ran:
   and each stopped at its first counterexample. `RestartValid` ran with 1,000 samples. No
   run was repeated with a larger bound after the invariants were refined.
 - Apalache `verify` was not run because Java is not installed.
+
+Independent review of the fixes for findings 1–3 and FR-10 B, including a sibling of the cancel fix: [findings](../../docs/fr-08/ledger-fr10b-review-findings-2026-09-23.md).
