@@ -279,52 +279,72 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
   defp decode(bytes), do: bytes |> JSON.decode!()
 
-  # The launch decide/3 does not plan yet: the four operations built here, the plan by
-  # the generic builder.
-  defp launch_decision(ctx, id) do
-    facts = launch_facts(ctx)
-
-    operations = [
-      %{
-        "type" => "reserve",
-        "reservation_id" => Plan.id(id, "reservation"),
-        "ledger_id" => "ledger-1",
-        "generation" => 0,
-        "owner_kind" => "effect",
-        "owner_id" => Plan.id(id, "effect"),
-        "units" => 1
-      },
-      %{
-        "type" => "create_effect",
-        "effect_id" => Plan.id(id, "effect"),
-        "operation" => "launch",
-        "scope" => "ticket:T1",
-        "ticket_id" => "T1",
-        "attempt_id" => Plan.id(id, "attempt"),
-        "execution_id" => Plan.id(id, "execution"),
-        "policy_id" => "policy-1",
-        "policy_revision" => facts["policy"]["revision"],
-        "control_id" => "control-1",
-        "control_revision" => facts["control"]["revision"],
-        "request" => %{"request_id" => Plan.id(id, "request"), "role" => "developer"},
-        "reservation_ids" => [Plan.id(id, "reservation")],
-        "leases" => []
-      },
-      %{
-        "type" => "claim_effect",
-        "effect_id" => Plan.id(id, "effect"),
-        "claim_id" => Plan.id(id, "claim"),
-        "writer_epoch" => "epoch-A"
-      },
-      %{"type" => "issue_claim", "claim_id" => Plan.id(id, "claim"), "writer_epoch" => "epoch-A"}
-    ]
-
-    spec = %{"planned" => "launch_planned", "operations" => operations}
-
+  defp launch_decision(ctx, id, predecessor \\ nil) do
     assert {:ok, decision} =
-             Plan.decision(Plan.launch(replay(ctx), id, spec), command(id, "plan_launch"))
+             decide(ctx, command(id, "plan_launch"), launch_facts(ctx, predecessor))
 
     decision
+  end
+
+  # Control and cancel ingress are subcommit 5's. The control change binds the fact a
+  # set_control on a second root control produces, so the launch's own control-1 and the
+  # operations' read sets are untouched and only the kernel's control entity moves.
+  defp control!(ctx, flags) do
+    ingress!(ctx, "CONTROL", %{
+      "operations" => [
+        %{
+          "type" => "set_control",
+          "control_id" => "control-2",
+          "value" => %{"status" => "active"}
+        }
+      ],
+      "bindings" => [{"control", 0, "control_fact_v1", "control_changed.control"}],
+      "stand_ins" => %{
+        "control" => %{
+          "schema_version" => 1,
+          "control_id" => "control-2",
+          "control_revision" => 0
+        }
+      },
+      "events" => [
+        {"control_changed", "control",
+         Map.merge(
+           %{
+             "control" => %{"binding" => "control"},
+             "paused" => false,
+             "draining" => false,
+             "stop_status" => "running"
+           },
+           flags
+         )}
+      ]
+    })
+  end
+
+  defp cancel!(ctx) do
+    ingress!(ctx, "CANCEL", %{
+      "events" => [{"cancellation_requested", "T1", %{"ticket_id" => "T1"}}]
+    })
+  end
+
+  # Delegates the ledger's remaining units away, so current allocation is genuinely short.
+  # (A bare reserve would not do: a reservation holds nothing until its effect activates it.)
+  defp drain_ledger!(ctx) do
+    {:ok, %{"available" => available}} =
+      query(ctx, %{"type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
+
+    root!(ctx, %{
+      "type" => "delegate_allocation",
+      "parent_ledger_id" => "ledger-1",
+      "parent_generation" => 0,
+      "child_ledger_id" => "ledger-other",
+      "child_generation" => 0,
+      "dimension" => "starts.developer",
+      "units" => available
+    })
+
+    assert {:ok, %{"available" => 0}} =
+             query(ctx, %{"type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
   end
 
   # ── Scenarios ──────────────────────────────────────────────────────────────────────
@@ -378,6 +398,164 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
       assert {:reject, :wrong_source_phase} =
                decide(ctx, command("S0", "settle_nonstart"), settle_facts("L0"))
+    end
+  end
+
+  describe "plan_launch (R4.04, R4a controls)" do
+    test "a fresh launch creates the attempt and its pending developer intent", ctx do
+      seed!(ctx, 3, 2)
+      commit!(ctx, launch_decision(ctx, "L1"))
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "developing"
+      assert ticket["active_attempt_id"] == "L1/attempt"
+      [{"L1/execution", intent}] = Map.to_list(ticket["attempts"]["L1/attempt"]["executions"])
+      assert {intent.role, intent.lifecycle} == {"developer", "pending"}
+
+      assert {:ok, %{"status" => "issued", "operation_ordinal" => 0}} =
+               query(ctx, %{"type" => "effect", "effect_id" => "L1/effect"})
+    end
+
+    # R4.04.o1: "Create a fresh attempt unless R4a retained a resumable developer attempt".
+    test "the retry after a non-start reuses the retained attempt and names its predecessor",
+         ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      commit!(ctx, launch_decision(ctx, "L2", "L1/effect"))
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "developing"
+      assert Map.keys(ticket["attempts"]) == ["L1/attempt"]
+
+      assert Map.keys(ticket["attempts"]["L1/attempt"]["executions"]) ==
+               ["L1/execution", "L2/execution"]
+
+      assert {:ok, effect} = query(ctx, %{"type" => "effect", "effect_id" => "L2/effect"})
+      assert {effect["attempt_id"], effect["operation_ordinal"]} == {"L1/attempt", 1}
+      assert effect["predecessor_effect_id"] == "L1/effect"
+    end
+
+    test "drain blocks the retained attempt with its resume phase", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      control!(ctx, %{"draining" => true})
+
+      assert {:ok, decision} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx, "L1/effect"))
+
+      assert decision["plan"]["protected_operations"] == []
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert {ticket["phase"], ticket["reason"]} == {"blocked", "draining"}
+      assert ticket["resume_phase"] == "developing"
+      assert ticket["attempts"]["L1/attempt"]["phase"] == "active"
+      assert ticket["infrastructure"]["ordinals"]["developer"] == 1
+    end
+
+    test "drain rejects a fresh launch, which stays queued", ctx do
+      seed!(ctx, 3, 2)
+      control!(ctx, %{"draining" => true})
+
+      assert {:reject, :control_draining} =
+               decide(ctx, command("L1", "plan_launch"), launch_facts(ctx))
+
+      assert ticket(ctx)["phase"] == "queued"
+    end
+
+    # R4a.01.o9.
+    test "short allocation exhausts the retained attempt and the ticket", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      drain_ledger!(ctx)
+
+      assert {:ok, decision} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx, "L1/effect"))
+
+      assert Enum.map(decision["plan"]["protected_operations"], & &1["type"]) == ["close_attempt"]
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "exhausted"
+      assert ticket["active_attempt_id"] == nil
+      assert ticket["attempts"]["L1/attempt"]["disposition"] == "exhausted"
+    end
+
+    # R4.04.o3: "Pre-intent denial remains queued and consumes no start unit or
+    # infrastructure ordinal".
+    test "short allocation is a pre-intent denial for a fresh launch", ctx do
+      seed!(ctx, 3, 2)
+      drain_ledger!(ctx)
+      facts = launch_facts(ctx)
+
+      assert {:reject, :allocation_unavailable} = decide(ctx, command("L1", "plan_launch"), facts)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "queued"
+      assert ticket["attempts"] == %{}
+      assert ticket["infrastructure"]["ordinals"]["developer"] == 0
+      # No start unit held: the protected facts read back unchanged.
+      assert launch_facts(ctx) == facts
+    end
+
+    test "pause is decided before drain, and pending cancel before both", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      control!(ctx, %{"paused" => true, "draining" => true})
+      facts = launch_facts(ctx, "L1/effect")
+
+      assert {:reject, :control_paused} = decide(ctx, command("L2", "plan_launch"), facts)
+
+      cancel!(ctx)
+      assert {:reject, :cancel_pending} = decide(ctx, command("L2", "plan_launch"), facts)
+    end
+
+    test "cancel pending is decided before drain would block", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      control!(ctx, %{"draining" => true})
+      cancel!(ctx)
+
+      assert {:reject, :cancel_pending} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx, "L1/effect"))
+    end
+
+    test "cancel pending is decided before allocation would exhaust", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      drain_ledger!(ctx)
+      cancel!(ctx)
+
+      assert {:reject, :cancel_pending} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx, "L1/effect"))
+    end
+
+    test "pause is decided before allocation would exhaust", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      drain_ledger!(ctx)
+      control!(ctx, %{"paused" => true})
+
+      assert {:reject, :control_paused} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx, "L1/effect"))
+    end
+
+    # The control singleton is a declared read: a pause committed between decide/3 and
+    # submit fails the launch's CAS, and nothing it staged survives.
+    test "a pause committed after the decision refuses the launch", ctx do
+      seed!(ctx, 3, 2)
+      decision = launch_decision(ctx, "L1")
+      control!(ctx, %{"paused" => true})
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} = submit(ctx, decision)
+      assert inspect(result) =~ "revision_conflict"
+      assert {:error, :not_found} = query(ctx, %{"type" => "effect", "effect_id" => "L1/effect"})
+      assert ticket(ctx)["phase"] == "queued"
+    end
+
+    test "malformed facts are an error" do
+      assert {:error, :invalid_facts} =
+               WorkflowKernel.decide(State.new(), command("L1", "plan_launch"), %{})
     end
   end
 

@@ -6,8 +6,11 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
 
   alias PramanaFoundry.Workflow.Kernel.{Execution, Plan}
 
+  import PramanaFoundry.Workflow.Kernel.Control,
+    only: [require_no_pending_cancel: 1, require_not_draining: 1, require_not_paused: 1]
+
   import PramanaFoundry.Workflow.Kernel.Executions,
-    only: [executions: 1, open_role_executions: 2]
+    only: [executions: 1, open_executions: 1, open_role_executions: 2]
 
   import PramanaFoundry.Workflow.Kernel.Shared,
     only: [
@@ -26,7 +29,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   # so subcommit 3's reviewer claims the same types with its own role.
 
   def decides?(%{"type" => type, "payload" => %{"role" => "developer"}})
-      when type in ~w(settle_nonstart),
+      when type in ~w(plan_launch settle_nonstart),
       do: true
 
   def decides?(_command), do: false
@@ -51,6 +54,157 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
       "execution_id" => List.first(open_role_executions(ticket, "developer")),
       "reason" => "developer_launch_infrastructure",
       "resume_phase" => "developing"
+    })
+    |> Plan.decision(command)
+  end
+
+  # R4.04 and R4a's control sentences: the developer successor, decided on the launch
+  # command because under Q1 the successor is the next issue, not the settle. The steps run
+  # in the design's order and the first that decides ends it:
+  #
+  #   1. pending cancel - reject; cancel "never retries" and is finalized by its own command.
+  #   2. pause - reject; pause "retains the recoverable phase but forbids issue".
+  #   3. drain - a retained attempt becomes blocked(draining) with its resume phase; a fresh
+  #      launch is rejected and stays queued.
+  #   4. allocation - short current allocation exhausts a retained attempt (R4a.01.o9); for
+  #      a fresh launch it is R4.04.o3's pre-intent denial.
+  #   5. otherwise the launch plan, reusing a retained attempt (R4.04.o1).
+  #
+  # Steps 1-4 are controller-side under C3; the reducer re-checks 1-3 in `launch_planned`
+  # and Core re-checks allocation at `reserve`. The control singleton is a declared read of
+  # every plan here, so a control change committed before submit fails CAS.
+  def decide(state, %{"type" => "plan_launch"} = command, facts) do
+    ticket = state["tickets"][command["target_ids"]["ticket_id"]]
+    control = state["control"]
+
+    with {:ok, facts} <- Plan.launch_facts(facts),
+         :ok <- rejected(require_no_pending_cancel(ticket)),
+         :ok <- rejected(require_not_paused(control)),
+         :ok <- drain(require_not_draining(control), state, command, ticket),
+         :ok <- allocation(require_allocation(facts), state, command, ticket) do
+      launch(state, command, ticket, facts)
+    end
+  end
+
+  @launch_units 1
+
+  defp rejected(:ok), do: :ok
+  defp rejected({:error, reason}), do: {:reject, reason}
+
+  defp require_allocation(facts) do
+    if facts["allocation"]["available"] >= @launch_units,
+      do: :ok,
+      else: {:reject, :allocation_unavailable}
+  end
+
+  # "Replacement launches become blocked(draining) with the same resume phase and ordinal."
+  defp drain(:ok, _state, _command, _ticket), do: :ok
+
+  defp drain({:error, reason}, state, command, ticket) do
+    if retained?(ticket) do
+      state
+      |> Plan.block(command["command_id"], %{
+        "ticket_id" => ticket["ticket_id"],
+        "reason" => "draining",
+        "resume_phase" => "developing",
+        "reads" => [{"control", "control"}]
+      })
+      |> Plan.decision(command)
+    else
+      {:reject, reason}
+    end
+  end
+
+  # R4a.01.o9: "Exhaustion of current developer allocation instead makes the attempt
+  # terminal `exhausted` and ticket `exhausted`".
+  defp allocation(:ok, _state, _command, _ticket), do: :ok
+
+  defp allocation({:reject, _reason} = rejection, state, command, ticket) do
+    if retained?(ticket) do
+      state
+      |> Plan.close_attempt(command["command_id"], %{
+        "ticket_id" => ticket["ticket_id"],
+        "attempt_id" => ticket["active_attempt_id"],
+        "disposition" => "exhausted",
+        "reason_code" => "developer_budget",
+        "reads" => [{"control", "control"}]
+      })
+      |> Plan.decision(command)
+    else
+      rejection
+    end
+  end
+
+  # An attempt R4a kept after a proved non-start: active, nothing of it running, and the
+  # ticket where a successor may launch from (queued with resume_phase developing, or
+  # developing after the at-limit block was resumed).
+  defp retained?(ticket) do
+    is_map(ticket) and is_binary(ticket["active_attempt_id"]) and
+      ticket["phase"] in ~w(queued developing) and open_executions(ticket) == []
+  end
+
+  # Identifiers derive from the command. The semantic operation ordinal is the attempt's
+  # developer launches so far - each one opened exactly one developer execution - and the
+  # predecessor is the adapter's, since the kernel keeps no effect ids.
+  defp launch(state, command, ticket, facts) do
+    id = &Plan.id(command["command_id"], &1)
+    ticket_id = command["target_ids"]["ticket_id"]
+    attempt_id = (ticket || %{})["active_attempt_id"] || id.("attempt")
+
+    ordinal =
+      Enum.count(executions(attempt(ticket || %{}, attempt_id)), fn {_id, %Execution{} = e} ->
+        e.role == "developer"
+      end)
+
+    operations = [
+      %{
+        "type" => "reserve",
+        "reservation_id" => id.("reservation"),
+        "ledger_id" => facts["allocation"]["ledger_id"],
+        "generation" => facts["allocation"]["generation"],
+        "owner_kind" => "effect",
+        "owner_id" => id.("effect"),
+        "units" => @launch_units
+      },
+      %{
+        "type" => "create_effect",
+        "effect_id" => id.("effect"),
+        "operation" => "launch",
+        "scope" => "ticket:" <> to_string(ticket_id),
+        "ticket_id" => ticket_id,
+        "attempt_id" => attempt_id,
+        "execution_id" => id.("execution"),
+        "policy_id" => facts["policy"]["policy_id"],
+        "policy_revision" => facts["policy"]["revision"],
+        "control_id" => facts["control"]["control_id"],
+        "control_revision" => facts["control"]["revision"],
+        "request" => %{
+          "request_id" => id.("request"),
+          "role" => "developer",
+          "phase_generation" => 0,
+          "operation_ordinal" => ordinal,
+          "predecessor_effect_id" => facts["predecessor_effect_id"]
+        },
+        "reservation_ids" => [id.("reservation")],
+        "leases" => []
+      },
+      %{
+        "type" => "claim_effect",
+        "effect_id" => id.("effect"),
+        "claim_id" => id.("claim"),
+        "writer_epoch" => facts["writer_epoch"]
+      },
+      %{
+        "type" => "issue_claim",
+        "claim_id" => id.("claim"),
+        "writer_epoch" => facts["writer_epoch"]
+      }
+    ]
+
+    state
+    |> Plan.launch(command["command_id"], %{
+      "planned" => "launch_planned",
+      "operations" => operations
     })
     |> Plan.decision(command)
   end

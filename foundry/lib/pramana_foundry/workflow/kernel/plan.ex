@@ -136,7 +136,8 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   protected terminal settlement, then any `then` events (as `{type, payload}`) on the same
   ticket, such as `cancellation_finalized`.
 
-  `spec`: `ticket_id`, `attempt_id`, `disposition`, `reason_code`, optional `then`.
+  `spec`: `ticket_id`, `attempt_id`, `disposition`, `reason_code`, optional `then` and
+  `reads` (as for `block/3`).
   """
   @spec close_attempt(map(), String.t(), map()) :: result()
   def close_attempt(state, command_id, spec) do
@@ -178,7 +179,7 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
       },
       discriminator_kind: "unconditional_v1",
       alternatives: [{"unconditional", [settled | then]}],
-      reads: []
+      reads: Map.get(spec, "reads", [])
     })
   end
 
@@ -242,6 +243,30 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   @spec input(term(), atom()) :: {:ok, term()} | {:error, atom()}
   def input(value, reason) when value in [nil, false], do: {:error, reason}
   def input(value, _reason), do: {:ok, value}
+
+  @doc """
+  The protected facts a launch decision reads, each as the adapter queried it: `policy`
+  and `control` (identity and `revision`), `allocation` (the start dimension's ledger
+  generation and its `available` units), `writer_epoch`, and `predecessor_effect_id`
+  (nil for a first launch).
+  """
+  @spec launch_facts(term()) :: {:ok, map()} | {:error, atom()}
+  def launch_facts(facts) do
+    input(
+      is_map(facts) and fact?(facts["policy"], "policy_id") and
+        fact?(facts["control"], "control_id") and fact?(facts["allocation"], "ledger_id") and
+        is_integer(facts["allocation"]["generation"]) and
+        is_integer(facts["allocation"]["available"]) and identifier?(facts["writer_epoch"]) and
+        (is_nil(facts["predecessor_effect_id"]) or identifier?(facts["predecessor_effect_id"])) and
+        facts,
+      :invalid_facts
+    )
+  end
+
+  defp fact?(fact, id_key),
+    do: is_map(fact) and identifier?(fact[id_key]) and is_integer(fact["revision"])
+
+  defp identifier?(value), do: is_binary(value) and value != ""
 
   @doc """
   The command's `expected_revisions`, derived from the plan rather than supplied beside it.
