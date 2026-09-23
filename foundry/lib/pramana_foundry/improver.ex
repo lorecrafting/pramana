@@ -38,6 +38,13 @@ defmodule PramanaFoundry.Improver do
     interval_ms = Keyword.get(opts, :interval_ms, @default_interval_ms)
     enable_loop = Keyword.get(opts, :enable_loop, true)
 
+    # Proposing tickets is FR-20's to reconnect ("Reconnect constrained improvement proposals",
+    # blocked). Until 2026-09-21 the path was closed only by accident: SystemMetrics.system/0
+    # raised every cycle before the proposal step. Fixing that opened it, with fixed IDs,
+    # stale scopes and a hard-coded profile - exactly what FR-20 replaces. So it is off unless
+    # asked for; findings and metrics still run and are still written.
+    propose = Keyword.get(opts, :propose, false)
+
     IO.puts("Improver init: interval=#{interval_ms}ms")
 
     timer_ref = if enable_loop, do: Process.send_after(self(), :analyze, interval_ms), else: nil
@@ -47,6 +54,7 @@ defmodule PramanaFoundry.Improver do
     {:ok,
      %{
        interval_ms: interval_ms,
+       propose: propose,
        findings_path: findings_path,
        timer_ref: timer_ref,
        last_findings: [],
@@ -147,24 +155,31 @@ defmodule PramanaFoundry.Improver do
         last_generation: current_gen
     }
 
-    if new_findings == [] do
-      IO.puts("  no new actionable findings")
-      updated_state
-    else
-      IO.puts("  proposing #{length(new_findings)} hardening ticket(s)")
-      gen = get_coordinator_generation()
+    cond do
+      new_findings == [] ->
+        IO.puts("  no new actionable findings")
+        updated_state
 
-      LogStore.append(fp, %{
-        "event" => "proposal",
-        "source" => "improver",
-        "cycle" => cycle,
-        "finding_count" => length(new_findings),
-        "generation" => gen,
-        "fingerprints" => Enum.map(new_findings, & &1.fingerprint)
-      })
+      not state.propose ->
+        # Fingerprints are not marked proposed, so enabling proposals later still sees them.
+        IO.puts("  #{length(new_findings)} new finding(s); proposals disabled until FR-20")
+        updated_state
 
-      propose_findings(new_findings)
-      %{updated_state | proposed_fingerprints: updated_fingerprints}
+      true ->
+        IO.puts("  proposing #{length(new_findings)} hardening ticket(s)")
+        gen = get_coordinator_generation()
+
+        LogStore.append(fp, %{
+          "event" => "proposal",
+          "source" => "improver",
+          "cycle" => cycle,
+          "finding_count" => length(new_findings),
+          "generation" => gen,
+          "fingerprints" => Enum.map(new_findings, & &1.fingerprint)
+        })
+
+        propose_findings(new_findings)
+        %{updated_state | proposed_fingerprints: updated_fingerprints}
     end
   end
 

@@ -5042,3 +5042,21 @@ nothing in `lib`.
   the loop. This entry does not check whether queued `IMPRV-*` tickets can launch. That depends on
   the launch policy and the FR-05 containment.
 
+## The Improver's proposal step is off until FR-20 — 2026-09-22
+
+The entry above found that fixing `SystemMetrics.system/0` opened the Improver's path to
+`propose_findings/1`, which queues up to three `IMPRV-*` tickets with fixed IDs, stale scopes and a
+hard-coded profile — the behaviour FR-20 exists to replace. The running release (built 2026-09-12)
+predates the fix and still crashes before that step, so nothing was exposed; any release built from
+this branch would have been.
+
+`Improver` now takes `propose:` (default `false`). With it off a cycle still classifies, writes
+findings and metrics, and advances its counters; it skips the proposal log event and the call, and
+does not mark fingerprints proposed, so enabling it later still sees them. Nothing in the tree passes
+`propose: true`; FR-20 owns turning it on.
+
+Red control, `test/pramana_foundry/improver_proposal_gate_test.exs`: no Coordinator runs in the test,
+so reaching `propose_findings/1` exits the Improver. The test asserts a precondition that the cycle
+produced findings (one did), then that the Improver survives and proposed nothing. With the default
+flipped to `true` it fails (0/1); reversed, it passes.
+
