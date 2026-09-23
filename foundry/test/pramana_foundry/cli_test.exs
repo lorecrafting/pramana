@@ -53,8 +53,10 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
     end
 
     test "rejects non-map input" do
-      assert {:error, _} = Validators.validate_handoff("not a map")
-      assert {:error, _} = Validators.validate_handoff(nil)
+      assert {:error, ["Handoff must be a JSON object" <> _]} =
+               Validators.validate_handoff("not a map")
+
+      assert {:error, ["Handoff must be a JSON object" <> _]} = Validators.validate_handoff(nil)
     end
 
     test "rejects invalid commit SHA" do
@@ -86,7 +88,8 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
         "commit" => 12345
       }
 
-      assert {:error, _} = Validators.validate_handoff(handoff)
+      assert {:error, ["Field 'commit' must be a string" <> _]} =
+               Validators.validate_handoff(handoff)
     end
 
     test "rejects non-list changed_files" do
@@ -206,8 +209,10 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
     end
 
     test "rejects non-map input" do
-      assert {:error, _} = Validators.validate_review([])
-      assert {:error, _} = Validators.validate_review("review text")
+      assert {:error, ["Review must be a JSON object" <> _]} = Validators.validate_review([])
+
+      assert {:error, ["Review must be a JSON object" <> _]} =
+               Validators.validate_review("review text")
     end
   end
 
@@ -267,7 +272,7 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
     end
 
     test "rejects non-hex chars" do
-      assert {:error, _} =
+      assert {:error, "Field 'commit' must be a 40-character hex SHA" <> _} =
                Validators.validate_commit_sha("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz")
     end
 
@@ -283,19 +288,19 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
     end
 
     test "rejects empty string" do
-      assert {:error, _} = Validators.validate_task_id("")
+      assert {:error, "Task ID '" <> _} = Validators.validate_task_id("")
     end
 
     test "rejects whitespace-only" do
-      assert {:error, _} = Validators.validate_task_id("   ")
+      assert {:error, "Task ID '" <> _} = Validators.validate_task_id("   ")
     end
 
     test "rejects IDs with spaces" do
-      assert {:error, _} = Validators.validate_task_id("FIX 42")
+      assert {:error, "Task ID '" <> _} = Validators.validate_task_id("FIX 42")
     end
 
     test "rejects non-string" do
-      assert {:error, _} = Validators.validate_task_id(nil)
+      assert {:error, "Task ID must be a string" <> _} = Validators.validate_task_id(nil)
     end
   end
 
@@ -306,7 +311,8 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
     end
 
     test "rejects non-existent directory" do
-      assert {:error, _} = Validators.validate_directory("/nonexistent/path/xyzzy")
+      assert {:error, "Directory '/nonexistent/path/xyzzy' does not exist" <> _} =
+               Validators.validate_directory("/nonexistent/path/xyzzy")
     end
   end
 
@@ -336,7 +342,8 @@ defmodule PramanaFoundry.CLI.ValidatorsTest do
 
     test "rejects JSON string" do
       path = write_tmp_json!("just a string")
-      assert {:error, _} = Validators.validate_json_file(path)
+      assert {:error, msg} = Validators.validate_json_file(path)
+      assert String.contains?(msg, "must contain a JSON object")
     end
   end
 

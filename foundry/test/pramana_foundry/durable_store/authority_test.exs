@@ -373,9 +373,24 @@ defmodule PramanaFoundry.DurableStore.AuthorityTest do
   test "the complete store namespace and prospective backup sidecars are reserved", ctx do
     gateway = start_supervised!({Gateway, path: ctx.path})
 
-    for target <- PramanaFoundry.DurableStore.PathIdentity.store_namespace(ctx.path) do
+    namespace = PramanaFoundry.DurableStore.PathIdentity.store_namespace(ctx.path)
+    # The pinned branch below is vacuous unless some namespace path is absent.
+    assert Enum.any?(namespace, &(not File.exists?(&1)))
+
+    for target <- namespace do
       existed = File.exists?(target)
-      assert {:error, _reason} = Gateway.backup(gateway, target)
+      result = Gateway.backup(gateway, target)
+
+      # 2026-09-22 refusal audit: only an ABSENT namespace path reaches the namespace
+      # guard. An existing one is refused earlier by `validate_new_database/1` as
+      # `:backup_exists`, so the reservation is not what protects it; that branch is
+      # left loose rather than pinned to the guard that is not the one named.
+      if existed do
+        assert {:error, _reason} = result
+      else
+        assert {:error, :store_path_collision} = result
+      end
+
       assert File.exists?(target) == existed
       assert %{mode: :ready} = Gateway.status(gateway)
     end

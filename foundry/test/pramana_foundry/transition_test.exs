@@ -594,7 +594,8 @@ defmodule PramanaFoundry.TransitionTest do
         "evidence" => %{}
       }
 
-      assert {:error, _reason} = Transition.rebuild([incomplete])
+      assert {:error, %{reason: %{reason: :missing_authority_identity}}} =
+               Transition.rebuild([incomplete])
     end
   end
 end

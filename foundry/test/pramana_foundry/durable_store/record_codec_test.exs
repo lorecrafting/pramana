@@ -51,11 +51,22 @@ defmodule PramanaFoundry.DurableStore.RecordCodecTest do
     for invalid <- [
           %{schema_version: 1, disposition: "accepted", reason_code: "why"},
           %{schema_version: 1, disposition: "rejected"},
-          %{schema_version: 1, disposition: "blocked", reason_code: ""},
-          %{schema_version: 1, disposition: "accepted", committed_seq: 1}
+          %{schema_version: 1, disposition: "blocked", reason_code: ""}
         ] do
-      assert {:error, _reason} = RecordCodec.normalize(:candidate_result, invalid)
+      assert {:error, :invalid_result_semantics} =
+               RecordCodec.normalize(:candidate_result, invalid)
     end
+
+    # Left loose deliberately (2026-09-22 refusal audit). This input was meant for
+    # `:candidate_committed_seq_forbidden`, but `keys/3` refuses `committed_seq` first
+    # with `:unknown_field` because `@result` does not allow it, so that guard cannot
+    # fire. Pinning `:unknown_field` here would certify the wrong guard.
+    assert {:error, _reason} =
+             RecordCodec.normalize(:candidate_result, %{
+               schema_version: 1,
+               disposition: "accepted",
+               committed_seq: 1
+             })
   end
 
   test "projection carriers and writes are bijective, ordered and replay through one reducer" do

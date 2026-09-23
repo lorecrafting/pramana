@@ -5085,3 +5085,87 @@ in `foundry/bin/` and root `bin/` was checked for the same shape at `6bc015ed`; 
   not changed.
 - `foundry/ci/run.exs` invokes no `foundry/bin/` script. Nothing was added to the gate; the
   candidates are listed in the health-check file.
+
+## Loose refusal assertions outside the kernel: audit and pins — 2026-09-22
+
+Rule 5 of [EVIDENCE-TOOLS.md](EVIDENCE-TOOLS.md) applied to all of `test/`, not only
+`test/pramana_foundry/workflow/`, which was already audited. Population: a refusal assertion whose
+error term is a bare wildcard — `assert {:error, _}`, `assert {:error, _reason}`,
+`assert {:reply, {:error, _reason}, _}`, `match?({:error, _}, ...)`. Rerun from `foundry/`:
+
+```sh
+git grep -nE 'assert (\{:reply, )?\{:error, _[a-z_]*\}|match\?\(\{:error, _[a-z_]*\}' 6bc015ed -- test | wc -l   # before: 36
+grep -rnE 'assert (\{:reply, )?\{:error, _[a-z_]*\}|match\?\(\{:error, _[a-z_]*\}' test | wc -l                 # after: 18
+```
+
+Not in the population: a `{:error, _reason} ->` branch inside a fixture (`assessor/jev_test.exs`),
+comments, and **31** assertions that pin the outer tag but wildcard the cause, such as
+`{:error, {:recovery_mode, _reason}}`
+(`grep -rnE '\{:error, \{:[a-z_]+,[^=]*\b_[a-z_]*' test | wc -l`). Those deserve the same pass and
+did not get one here.
+
+Classification of the 36 (line numbers at `6bc015ed`):
+
+| Class | Count | Sites |
+|---|---|---|
+| (a) legitimate-loose | 13 | `autonomous_launch_test` :152 :155 :158 :168 (totality probes) and :258 :421 :599 :895 (an invalid review is only the trigger; the claim is the reviewer-launch blocker afterwards); `authority_test` :194 :212 :630 (named "total" / "without crashing"); `workflow/kernel_properties_test` :220 and `workflow/kernel_test` :1075 (ok-or-error totality) |
+| (b) pinnable, pinned | 18 | `cli_test` :56 :57 :89 :209 :210 :270 :286 :290 :294 :298 :309 :339; `transition_test` :597 (`:missing_authority_identity`); `stress_test` :82 (`{:missing_fields, ["event"]}`) and :104 (`:not_an_object`); `effects/launch_test` :147 and `effects/prompt_delivery_test` :172 (`:eisdir` from the checkpoint path); `durable_store/review_corrections_test` :28 (per input: `:invalid_intent` ×5, `:invalid_event`) |
+| (b) pinnable, pinned in part, finding recorded | 2 | `durable_store/record_codec_test` :57 (3 of 4 inputs pinned to `:invalid_result_semantics`); `durable_store/authority_test` :378 (absent namespace paths pinned to `:store_path_collision`) |
+| (b) pinnable, left loose, finding recorded | 3 | `coordinator_test` :588 :645 :650 |
+| (c) unclear | 0 | |
+
+The 18 remaining after-grep hits are the 13 of (a), the 3 left loose and the residue of the 2 pinned
+in part. The CLI validators return messages, not atoms, so those are pinned to the message prefix of
+the branch that refuses.
+
+### Findings: assertions that passed on a guard other than the one named
+
+1. **`coordinator_test` :588, :645, :650.** The comment says "a malformed review with mismatched
+   run_id" and the fixture sets `"run_id" => "wrong-run-id"`. The refusal is
+   `"review requires an independently issued reviewer run_id"` (`reviews/artifact.ex:31`): the
+   fixture has no checkout, so no reviewer is launched and `reviewer_run_id` is never set. The
+   run_id-mismatch guard (`artifact.ex:34`) never runs in these tests. It is exercised elsewhere
+   (`reviews/reviews_test.exs:167`, `fr05_containment_test.exs:181`). Left loose. The claim under
+   test is the retry budget, so any validation refusal would do, but the comment names the wrong
+   guard. The same fixture shape feeds `autonomous_launch_test`'s `invalid_review/1`.
+2. **`record_codec.ex:89/94`, `:candidate_committed_seq_forbidden`, cannot fire.** `keys/3` runs
+   first with `@result`, which does not allow `committed_seq`, so any such input is refused as
+   `:unknown_field`. The `committed_seq: 1` input in `record_codec_test` was passing on that. It is
+   split out and left loose, with a comment.
+3. **The intent operation-type guard is unwitnessed.** `record_codec.ex:149`,
+   `operation when operation in @intent_types`. The `"update_ref"` input in
+   `review_corrections_test` also invalidates `request_digest`, which is computed over the
+   operation, so the digest conjunct refuses it anyway. Neutralised to `_operation <- ...`,
+   `review_corrections_test.exs` and `record_codec_test.exs` stayed green (15/15, 3/3), and no
+   other test names an unknown operation. Pinning cannot catch this because `:invalid_intent` is
+   the shared fallback of every conjunct in `normalize(:intent, _)`. That list also has a duplicate
+   entry: the `String.duplicate("b", 64)` digest mutation appears twice.
+4. **Only 4 of 9 store-namespace paths reach the namespace guard.** In `authority_test` "the
+   complete store namespace ... reserved", every path that already exists is refused by
+   `validate_new_database/1` as `:backup_exists` (`gateway.ex:2247`), before
+   `validate_publication/2`. The absent paths are now pinned to `:store_path_collision`, with a
+   precondition that at least one path is absent. The existing-path branch stays loose.
+
+Also recorded: `stress_test` "fails closed on schema-invalid events" puts three malformed records in
+one list, so only the first (missing `event`) is ever judged. The wrong-type and unknown-field
+records are dead in that test. `cli_test` "accepts non-string commit" asserts a rejection.
+
+### Rule 6: neutralisations
+
+Each change was made in `lib/`, run against only the named file, and reversed by replacing the exact
+string. `git diff --stat lib/` was empty after every reversal.
+
+| Neutralisation | Test file | Red | Reversed |
+|---|---|---|---|
+| `path_identity.ex` `true -> {:error, :store_path_collision}` → `:neutralised` | `durable_store/authority_test.exs:373` | 0/1, `left: {:error, :store_path_collision}` `right: {:error, :neutralised}` | 1 passed |
+| `transition.ex` `projection_error(:missing_authority_identity, …)` → `:neutralised` | `transition_test.exs` | 13/14, "rebuild rejects known authority events with missing identity" | 14 passed |
+| `record_codec.ex` `{:error, :invalid_result_semantics}` → `:neutralised` | `durable_store/record_codec_test.exs` | 2/3, `left: {:error, :invalid_result_semantics}` | 3 passed |
+| `cli/validators.ex` dropped the `not String.contains?(id, " ")` conjunct | `cli_test.exs` | 44/45, "rejects IDs with spaces", `right: :ok` | 45 passed |
+| `record_codec.ex` intent operation guard → `_operation <- …` | `durable_store/review_corrections_test.exs` | **stayed green**: finding 3 | clean |
+
+The first three swap an atom. The loose forms they replaced would have stayed green under each of
+those swaps, and that is the rule-5 defect. The fourth removes a guard outright.
+
+Not run: `operational_storage_test.exs` (not touched), the sweep, `ci/run.exs`, the full suite.
+`mix format --check-formatted` passes.
+

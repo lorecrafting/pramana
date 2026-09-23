@@ -17,15 +17,23 @@ defmodule PramanaFoundry.DurableStore.ReviewCorrectionsTest do
   } do
     gateway = start_supervised!({Gateway, path: path})
 
-    for mutation <- [
-          &put_in(&1, [:intents, Access.at(0), :status], "issued"),
-          &put_in(&1, [:intents, Access.at(0), :request_digest], "not-a-digest"),
-          &put_in(&1, [:intents, Access.at(0), :request_digest], String.duplicate("b", 64)),
-          &put_in(&1, [:intents, Access.at(0), :request_digest], String.duplicate("b", 64)),
-          &put_in(&1, [:intents, Access.at(0), :value, "operation"], "update_ref"),
-          &put_in(&1, [:events, Access.at(0), :type], "arbitrary_authority")
+    # `:invalid_intent` is the shared fallback of every clause in
+    # `RecordCodec.normalize(:intent, _)`, so the atom pins the record kind, not the
+    # conjunct. See the 2026-09-22 refusal-audit log entry for which conjunct each
+    # input actually reaches.
+    for {mutation, reason} <- [
+          {&put_in(&1, [:intents, Access.at(0), :status], "issued"), :invalid_intent},
+          {&put_in(&1, [:intents, Access.at(0), :request_digest], "not-a-digest"),
+           :invalid_intent},
+          {&put_in(&1, [:intents, Access.at(0), :request_digest], String.duplicate("b", 64)),
+           :invalid_intent},
+          {&put_in(&1, [:intents, Access.at(0), :request_digest], String.duplicate("b", 64)),
+           :invalid_intent},
+          {&put_in(&1, [:intents, Access.at(0), :value, "operation"], "update_ref"),
+           :invalid_intent},
+          {&put_in(&1, [:events, Access.at(0), :type], "arbitrary_authority"), :invalid_event}
         ] do
-      assert {:error, _reason} =
+      assert {:error, ^reason} =
                Gateway.transact(gateway, "actor", command("R1"), mutation.(bundle("R1")))
     end
 

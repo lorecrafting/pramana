@@ -79,7 +79,8 @@ defmodule PramanaFoundry.StressTest do
         "evidence" => %{}
       }
 
-      assert {:error, _reason} =
+      assert {:error,
+              %{reason: %{reason: {:missing_fields, ["event"]}}, evidence: ^missing_event_field}} =
                Transition.rebuild([valid, missing_event_field, wrong_type, unknown_fields])
     end
 
@@ -101,7 +102,8 @@ defmodule PramanaFoundry.StressTest do
 
       e2 = %{base2 | "task_id" => "T-GARBAGE-2"}
 
-      assert {:error, _reason} = Transition.rebuild([e1, garbage_not_a_map, e2])
+      assert {:error, %{reason: %{reason: :not_an_object}, evidence: "this is not a map"}} =
+               Transition.rebuild([e1, garbage_not_a_map, e2])
     end
   end
 

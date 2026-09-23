@@ -144,7 +144,9 @@ defmodule PramanaFoundry.Effects.LaunchTest do
       flunk("effect before durable intent: #{inspect(command)}")
     end)
 
-    assert {:error, _} = Launch.launch(log_path, "T1", "R1", "developer", adapter, @request)
+    assert {:error, %{reason: :eisdir, source_path: ^log_path}} =
+             Launch.launch(log_path, "T1", "R1", "developer", adapter, @request)
+
     assert FakeRunner.calls() == []
   end
 end

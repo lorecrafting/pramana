@@ -169,7 +169,7 @@ defmodule PramanaFoundry.Effects.PromptDeliveryTest do
       flunk("effect before durable intent: #{inspect(command)}")
     end)
 
-    assert {:error, _} =
+    assert {:error, %{reason: :eisdir, source_path: ^log_path}} =
              PromptDelivery.deliver(
                log_path,
                "T1",
