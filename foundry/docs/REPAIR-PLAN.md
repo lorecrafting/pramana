@@ -171,6 +171,12 @@ FR-08–FR-22 change:
   in view, missed its relatives", which is what keyhole traversal produces and what
   reviewers then find by reading the whole file.
 
+  **Decided 2026-09-23:** the families fall on the generic/software line — execution
+  lifecycle, settlement, control and cancel in generic modules; developer, review and
+  integration phases in software-specific ones — so roles sit in named files rather than
+  throughout the reducer. No definition format; see
+  [the O1 sequencing decision](orchestrator/O1-SEQUENCING-PROPOSAL-2026-09-23.md).
+
   **Split by family, not by kind.** Admission, evidence and settlement each keep their
   transitions *and* their guards together. Splitting into `guards.ex` and `transitions.ex`
   would optimise the line count and make the sibling defect harder to see, since a guard

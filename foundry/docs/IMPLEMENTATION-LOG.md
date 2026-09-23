@@ -5711,3 +5711,13 @@ Two review notes recorded, not changed:
   "No new deployment starts" under drain likewise depends on Q4, which was read as build being
   outside the ticket lifecycle.
 
+## Option 2 read as role-agnostic protected items; O1 timing kept — 2026-09-23
+
+The operator chose the orchestrator-boundary direction and approved
+[the sequencing proposal](orchestrator/O1-SEQUENCING-PROPOSAL-2026-09-23.md): O1 stays after
+FR-08B; FR-08B's four remaining protected items (`terminal_settlement_v1` and `reset_fact_v1`
+producers, B3's settlement-to-execution binding and non-start-after-policy-revision) are authorized
+as operator maintenance and are written against execution identity, not role names; the U9 probe
+(is an objective-scoped effect admissible?) goes first; the planned `kernel.ex` family split cuts
+along the generic/software line. `origin/main` merged for PR #49, whose planning-strategies design
+test supports the same direction and keeps composition post-repair.

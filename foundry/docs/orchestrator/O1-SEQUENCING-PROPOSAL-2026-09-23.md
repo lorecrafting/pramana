@@ -1,7 +1,7 @@
 # Option 2 without reopening O1's timing: build FR-08B's protected items role-agnostic
 
-**Date:** 2026-09-23. **Type:** proposal, **awaiting operator approval**. Taken at `57e41229`
-(`repair/fr08b-kernel`). Changes no code, no contract text and no earlier decision until approved.
+**Date:** 2026-09-23. **Type:** proposal, **approved by the operator 2026-09-23** (all three decisions below, as
+recommended). Taken at `57e41229` (`repair/fr08b-kernel`). Changes no contract text.
 
 ## What was asked, and the conflict in it
 
@@ -17,6 +17,13 @@ This proposal keeps that timing and reads option 2 as the part of the boundary w
 wait for FR-08B.
 
 ## The reading
+
+[PR #49](https://github.com/lorecrafting/pramana/pull/49) ([planning strategies §2, §3.1, §11](../PLANNING-STRATEGIES.md))
+merged the same morning and points the same way: composable workflow primitives, LLM-proposed
+work and replaceable methodologies are post-repair (issues #47/#48, roadmap I-F3/I-F5), and its
+design test is "if replacing the planning methodology requires invasive changes to the authority
+ledger, the boundary is probably too coupled". Role names in Core fail that test; the items below
+stop adding to the failure without refactoring what exists.
 
 1. **The kernel is already the Standard Controller's layer.** R3 puts the workflow kernel under
    "autonomous exact-candidate repair", above the protected verifier; the boundary doc's
@@ -52,9 +59,13 @@ exists), the adapter, the CLI client, and any kernel event rename.
 **Review:** one independent Fable review of the candidate, briefed on the delta per the repair
 plan's review rules, plus the contract-row walk for the R4/R4a rows the producers bind.
 
-## Decisions requested
+## Decisions (approved 2026-09-23)
 
-1. Accept this reading of option 2, keeping O1 after FR-08B? (Recommended.) The alternative, starting
-   O1 now, reverses the 2026-09-22 timing and needs its own justification against O0 §6 seam 5.
-2. Authorize items 1–5 as operator maintenance on protected files (`transition_plan.ex`, `gateway.ex`,
-   `protected_primitives.ex` as needed), with re-attestation.
+1. This reading of option 2 is accepted: O1 stays after FR-08B.
+2. Items 1–5 are authorized as operator maintenance on protected files (`transition_plan.ex`,
+   `gateway.ex`, `protected_primitives.ex` as needed), with re-attestation. U9 (item 5) goes first.
+3. The planned `kernel.ex` split by event family (repair plan, Batch C) cuts along the
+   generic/software line: execution lifecycle, settlement, control and cancel families in generic
+   modules; developer/review/integration phases in software-specific ones. No definition format or
+   DSL; full mechanism/definition extraction waits for a second workflow, per
+   [the seam note](../fr-08/workflow-definition-seam.md) and PR #49.
