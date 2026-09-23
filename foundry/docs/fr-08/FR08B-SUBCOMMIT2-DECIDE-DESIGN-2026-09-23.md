@@ -15,6 +15,9 @@
 > **Built with one rename:** the command types are role-free — `plan_launch`, `settle_nonstart`,
 > `finalize_cancellation` — with the role in the payload, so Core's codec gains no role names and
 > subcommit 3's reviewer reuses the same commands.
+> **Commit 1 landed** with the namespace table in `gateway.ex` (not `TransitionPlan`), so the
+> two copies are `Kernel.Plan` and Gateway (`domain_read_check_test.exs` asserts equality).
+> A mis-stated `expected_domain_revision` is refused as `:expected_domain_revision_mismatch`.
 
 
 **Date:** 2026-09-23. **Type:** design proposal, **not approved**. No production code or

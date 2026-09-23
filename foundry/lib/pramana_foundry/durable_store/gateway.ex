@@ -597,6 +597,7 @@ defmodule PramanaFoundry.DurableStore.Gateway do
          {:ok, operations} <- normalize_atomic_operations(normalized_input["operations"]),
          {:ok, carried} <-
            normalize_atomic_carrier(carrier, normalized_input[carrier], operations),
+         :ok <- plan_domain_reads_checked(carrier, carried, command),
          normalized <- %{
            "schema_version" => 2,
            "actor_id" => actor_id,
@@ -1399,6 +1400,70 @@ defmodule PramanaFoundry.DurableStore.Gateway do
 
     if declared == staged, do: :ok, else: {:error, :plan_operations_mismatch}
   end
+
+  # One fixed namespace per domain read kind; `state` is the global singleton `control`.
+  # Kernel.Plan keeps the candidate-side copy and a test asserts the two agree. `pm` has
+  # no namespace yet, so a plan declaring a pm read is refused as unchecked.
+  @domain_read_namespaces %{
+    "ticket" => "foundry.ticket.v1",
+    "objective" => "foundry.objective.v1",
+    "state" => "foundry.state.v1"
+  }
+
+  @doc false
+  def domain_read_namespaces, do: @domain_read_namespaces
+
+  defp plan_domain_reads_checked("plan", plan, command) do
+    written = plan_written_entities(plan)
+    expected = command["expected_revisions"]
+
+    checked =
+      Enum.map(plan["domain_reads"], fn read ->
+        namespace = @domain_read_namespaces[read["kind"]]
+        {namespace, read, {namespace, read["entity_id"]} in written}
+      end)
+
+    cond do
+      not Enum.all?(checked, fn {namespace, read, written?} ->
+        is_binary(namespace) and
+            Map.fetch(expected, domain_read_key(namespace, read["entity_id"], written?)) ==
+              {:ok, read["revision"]}
+      end) ->
+        {:error, :domain_read_not_checked}
+
+      plan["expected_domain_revision"] != expected_domain_revision(checked) ->
+        {:error, :expected_domain_revision_mismatch}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp plan_domain_reads_checked(_carrier, _carried, _command), do: :ok
+
+  # The kernel revision of the entity the projections write: durable revision + 1, with
+  # absent as 0. A plan that writes no declared read targets revision 0.
+  defp expected_domain_revision(checked) do
+    case for({_namespace, read, true} <- checked, do: read["revision"]) do
+      [] -> 0
+      ["absent"] -> 0
+      [revision] -> revision + 1
+      _several -> :ambiguous
+    end
+  end
+
+  defp plan_written_entities(plan) do
+    for %{"proposal" => %{"projections" => projections}} <- plan["alternatives"],
+        is_list(projections),
+        %{"namespace" => namespace, "entity_id" => entity_id} <- projections,
+        into: MapSet.new(),
+        do: {namespace, entity_id}
+  end
+
+  defp domain_read_key(namespace, entity_id, true), do: projection_key(namespace, entity_id)
+
+  defp domain_read_key(namespace, entity_id, false),
+    do: "dependency/" <> encode_key(namespace) <> "/" <> encode_key(entity_id)
 
   # Every proposal carrier routes through here: plain, verified and atomic. A slot-typed
   # event carries a bound fact that only a plan's binding may supply, so a carrier that
