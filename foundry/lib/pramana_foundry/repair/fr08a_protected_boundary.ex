@@ -44,7 +44,17 @@ defmodule PramanaFoundry.Repair.FR08AProtectedBoundary do
      "c91b85e002244d83b85410de3c2f666b"},
     {PramanaFoundry.Repair.FR08HandoffGate, "lib/pramana_foundry/repair/fr08_handoff_gate.ex",
      "710f42d0467e97f58540342ba1c566959d995f1d561242c275f88eab2017228b",
-     "e1eef77b648eb850b9a643629982d091"}
+     "e1eef77b648eb850b9a643629982d091"},
+    # Pinned 2026-09-23 (strategy review): Core guarantees live here too — plan binding,
+    # the non-start discriminator rule, settlement identity, and predicate derivation.
+    {PramanaFoundry.DurableStore.TransitionPlan,
+     "lib/pramana_foundry/durable_store/transition_plan.ex",
+     "e244727a2d9d660b5d45727f8d1b65c51bff11328e0e91248bbc49bcfd5f148f",
+     "be496a3223b05a8a3a16571bd3652a5e"},
+    {PramanaFoundry.DurableStore.ProtectedVerifier,
+     "lib/pramana_foundry/durable_store/protected_verifier.ex",
+     "1e999ca8c310ec479973e310392fba23d0a68e07686e99d7b13d50d92d8fd7b8",
+     "39d2ac29cab68d281656f2350432f340"}
   ]
 
   def identity do
