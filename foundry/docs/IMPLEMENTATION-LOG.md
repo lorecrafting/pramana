@@ -5673,3 +5673,41 @@ after a settle (Q1); and the two protected items (4–5).
 `r4_guard_reachability_test`, `kernel_properties_test`. Result: 212 passed, exit 0.
 `mix format --check-formatted` exit 0. Not run: `ci/run.exs`, the full suite, and either sweep
 script. So no sweep has judged these sites; the table above is the only neutralisation evidence.
+
+## B3 review: the walks lost evidence; an all-clear control proposal recovers most of it — 2026-09-22
+
+Independent review of B3 (`a626b8fd`) passed the guards and blocked on evidence. Once
+`launch_planned` read pause and drain, the walks' `control_changed` proposals left one flag or the
+other set for most of each walk (53% of accepted steps draining, 17% paused), and three invariant
+families lost most of their witnesses. The entry above reported only that `receipt_custody` "fell".
+Rule 2 wants the denominators, so here they are. Each column is the "held" figure the
+`kernel_properties_test` report prints at the end of every run (252,000 judged transitions each):
+
+| family | before B3 (`937f6b54`) | B3 as built (`a626b8fd`) | with the fix |
+|---|---|---|---|
+| phase_agreement_nil | 7,881 | 2,111 | 3,552 |
+| phase_agreement_attempt | 40,184 | 11,144 | 19,286 |
+| resume_target | 116,572 | 96,094 | 98,767 |
+| candidate_custody | 235,586 | 148,735 | 167,050 |
+| receipt_custody | 8,400 | 3,360 | 7,744 |
+
+The first two columns are the reviewer's runs; the third is this session's. The fix, which the
+reviewer proposed and measured, is a third `control_changed` proposal in `KernelWalk.control/1`
+that clears both flags. The search is unaffected, since it runs at counter 0 and still sees the
+first two proposals, and all three atoms still fire there. The walks reach
+`integration_recorded:infrastructure_failed` again, so it leaves `@known_unreached_variants`;
+`attempt_settled:superseded_base` stays, with its driven witness. The remaining loss is not
+recovered and is accepted: some of it is paths the contract now forbids, such as launching under
+pause, drain or a pending cancel. The reviewer showed this by neutralising only the pause and drain
+guards, which left `receipt_custody` at about half. Five workflow suites: 212 passed.
+
+Two review notes recorded, not changed:
+- `:cancel_pending` at `integration_planned` never fires in the depth-7 search; the driven test in
+  `kernel_test.exs` is its only witness, confirmed by the reviewer's neutralisation. Guard
+  reachability is keyed by atom, so it passes on `build_planned`'s firings. This is the known
+  per-site gap.
+- R4 Controls' "drain blocks new tickets" is not guarded: `ticket_admitted` has no drain check.
+  It is outside B3's approved scope, and is recorded here as declined rather than left silent.
+  "No new deployment starts" under drain likewise depends on Q4, which was read as build being
+  outside the ticket lifecycle.
+

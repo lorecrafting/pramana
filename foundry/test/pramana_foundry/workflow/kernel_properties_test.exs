@@ -306,9 +306,12 @@ defmodule PramanaFoundry.Workflow.KernelPropertiesTest do
     # entry above. The IMPLEMENTATION-LOG entry for B3 has the counts and how they were taken.
     # Driven witness: "a retried integration settles superseded_base while its new effect is
     # unissued" in kernel_test.exs, which asserts the settlement is accepted.
+    #
+    # Review fix, same day: an all-clear control proposal now keeps walks from sitting paused
+    # or draining, and the walks reach `integration_recorded:infrastructure_failed` again, so
+    # it leaves this list. superseded_base stays; its driven witness is unchanged.
     @known_unreached_variants [
-      "attempt_settled:superseded_base",
-      "integration_recorded:infrastructure_failed"
+      "attempt_settled:superseded_base"
     ]
 
     test "every variant the contract distinguishes is reachable by some walk", %{all: walks} do

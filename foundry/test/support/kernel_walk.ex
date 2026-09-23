@@ -316,15 +316,19 @@ defmodule PramanaFoundry.Test.KernelWalk do
   # R4's pause and drain are orthogonal flags, and R4.04.f3 refuses a developer launch under
   # each separately. The first proposal sets both whenever `n` is 0 - always, in the bounded
   # search - so only whichever guard runs first could ever fire. The second is the same
-  # proposal with pause cleared, which lets the drain guard be tripped on its own.
+  # proposal with pause cleared, which lets the drain guard be tripped on its own. The third
+  # clears both. Without it, once the guards read these flags, walks spent 53% of steps draining
+  # and 17% paused, and three invariant families lost 60-73% of their witnesses (independent
+  # review of B3, 2026-09-22). The search is unaffected: it runs at counter 0 and still gets
+  # the first two proposals.
   defp control(walk) do
     n = walk.counter
 
-    change = fn paused ->
+    change = fn paused, draining ->
       {"control_changed", "control",
        %{
          "paused" => paused,
-         "draining" => rem(n, 5) == 0,
+         "draining" => draining,
          "stop_status" =>
            Enum.at(~w(running stop_requested stop_blocked stop_completed), rem(n, 4)),
          "control" => %{
@@ -335,7 +339,11 @@ defmodule PramanaFoundry.Test.KernelWalk do
        }}
     end
 
-    [change.(rem(n, 3) == 0), change.(false)]
+    [
+      change.(rem(n, 3) == 0, rem(n, 5) == 0),
+      change.(false, rem(n, 5) == 0),
+      change.(false, false)
+    ]
   end
 
   defp objective(state) do
