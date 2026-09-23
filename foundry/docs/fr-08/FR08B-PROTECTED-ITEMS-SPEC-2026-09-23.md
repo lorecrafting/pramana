@@ -1,6 +1,7 @@
 # FR-08B protected items: attempt close, reset fact, settlement binding
 
-**Date:** 2026-09-23. **Type:** design spec, **awaiting independent review** before any code.
+**Date:** 2026-09-23. **Type:** design spec. **Independently reviewed 2026-09-23 (Fable): PASS WITH
+CHANGES**; the four changes (F1–F4) are folded in below and marked.
 Taken at `33e6b95b` (`repair/fr08b-kernel`, gate green, 989 passed). Authorized as operator
 maintenance by [the O1 sequencing decision](../orchestrator/O1-SEQUENCING-PROPOSAL-2026-09-23.md),
 items 1–4. Line numbers are at `33e6b95b`.
@@ -32,13 +33,24 @@ omits one would terminate the attempt with a live reservation. That fails the ru
 - Loads every `root_effects` row with that `(ticket_id, attempt_id)`. Refuses
   `attempt_not_settled` if any has status outside `succeeded failed non_started cancelled`
   (so `unknown` and `reconciliation_required` block, per R4's "unknown ... blocks
-  reconciliation"), or any of their reservations has status outside
-  `consumed released retired`.
+  reconciliation"), or any reservation in an effect's **activated** set
+  (`effect.reservation_ids`, `protected_primitives.ex:1322`) has status outside
+  `consumed released retired`. **(F3)** Enumerating by the activated set, not by owner, means a
+  stray `proposed` reservation, which holds no units, cannot block the close forever.
 - Writes one `root_attempt_closures` row keyed `(ticket_id, attempt_id)`; a second close is
   idempotent on an identical fact and refused otherwise.
 - **`create_effect` refuses** `attempt_closed` for a closed `(ticket_id, attempt_id)`. Without
   this the closure is not terminal: a later effect would reopen R5 accounting under a settled
-  attempt.
+  attempt. The review checked every other path (`reclaim_claim`, `issue_claim`,
+  `first_settlement`, predecessor chains, `reset_generation`); none creates work under a closed
+  attempt once `create_effect` refuses.
+- **(F2) The closure is a ledger fact, not a claim that no receipt can ever arrive.** R5 requires
+  a conflicting late receipt to quarantine its owner (`quarantine_conflicting_receipt`,
+  `:1982-1997`), which can move a closed attempt's `succeeded` effect to
+  `reconciliation_required`. That must still happen; refusing the receipt would break R5. It
+  moves no units, so `attempt_settlement`'s totals stay true. The fact therefore means "the
+  attempt's ledger was closed at this sequence", and quarantine after close is reconciliation
+  work, not a reopened attempt.
 - Result fact `attempt_settlement`: `schema_version scope ticket_id attempt_id effect_ids`
   (sorted) and per-dimension `consumed`/`released` totals. No role, no disposition.
 
@@ -59,13 +71,16 @@ PM lifecycle) PM planning attempts close through the same operation unchanged.
 
 `"reset_fact_v1" => {"reset_generation", "new_generation"}`. `reset_generation`
 (`protected_primitives.ex:1179`) already returns `new_generation` as the fresh ledger's public
-fact and is role-free. Kernel `ticket_reset` checks the fact's `ledger_id` names the ticket's
-ledger and its `generation` is the payload's.
+fact and is role-free.
 
-**Open question for review:** ledgers are keyed `(ledger_id, generation, dimension)`. If one
-ticket reset spans several dimensions it is several `reset_generation` operations, and a single
-slot binds one. Either the slot binds a list, or R4's reset row is per-dimension. The reviewer
-should say which the contract reads.
+**(F4) Settled by review: one ticket reset spans several ledgers.** Ledgers are keyed
+`(ledger_id, generation)` with `dimension` a column, and a ticket has one ledger per dimension.
+R5's reset is per ledger generation (contract:595-602) while R4.25 is one ticket transition
+granting "eligible units" (contract:488). So `ticket_reset.generation` binds a **non-empty list**
+of `new_generation` facts, one per `reset_generation` in the bundle. The kernel holds no ledger
+ids, so its check is ticket-agnostic: every fact's `generation` equals the payload's. Naming
+which ledgers belong to a ticket would need a Core convention that does not exist, and is not
+added here.
 
 ## Item 3 — settlement binds the execution it closes (B3 item 4)
 
@@ -79,15 +94,28 @@ names, so a settlement for execution A can close execution B.
 `settlement.effect_id == effect.effect_id` and `effect.execution_id ==` the event payload's
 `execution_id` (and `ticket_id`/`attempt_id` likewise). Refuse `settlement_execution_mismatch`.
 Identity only: which *role* an execution has stays a kernel check (`close_execution`'s allowed
-roles), so no role name enters Core. To verify in implementation: that `public_effect/1`
-includes `execution_id`; if not, add it to the public fact rather than to the settlement.
+roles), so no role name enters Core. Verified by review: every `settle_claim` branch returns
+`public_effect`, which carries `execution_id` (`:3495`), and `markers_occupy_declared_slots`
+already locates the carrying event. Scope: `nonstart_settlement_v1` slots only;
+`attempt_settled.settlement` has no `execution_id`. **`pm_launch_settled`** (payload
+`objective_id settlement`, no `execution_id`) is unreachable today (U9) and **fails closed**
+rather than skipping the check.
 
 ## Item 4 — non-start after a policy revision (B3 item 5, Q5)
 
 Per the approved Q5 reading: a proved non-start still settles after a policy revision, and the
-**retry** is refused at the claim. Today the fail-closed check sits on the settlement path, which
-strands the non-start. Move the policy-revision comparison from settlement to
-`claim_effect`/`issue_claim` for effects created under the superseded revision. Role-free.
+**retry** is refused at the claim.
+
+**(F1) Corrected by review.** There is no policy check on the settle path to move, and
+`claim_effect` (`:1377`) and `issue_claim` (`:1435`) already compare revisions. The strand is in
+`infrastructure_discriminator/3` (`:374`, `policy.revision == effect.policy_revision`). The
+change: **drop that head-revision compare, and read the limit from the effect's own revision
+via the existing `infrastructure_discriminator_at_revision/3` (`:330`, reads
+`root_policy_history`)**. Reading the head instead would strand again whenever a revision drops
+the role's limit (`:infrastructure_limit_undecidable`), and `gateway.ex:1218-1221` says the value
+cannot be recomputed later. No retry path opens: a retry is a new `create_effect`, which checks
+current policy (`:1282`), and `nonstart_allowance` counts prior non-starts regardless of revision
+(`:3140-3146`). The test that flips is `atomic_bundle_test.exs:1097`. Role-free.
 
 ## Evidence each item ships with
 
@@ -97,7 +125,7 @@ Each guard gets a red control (remove the guard, the named test fails), per
 `create_effect` refused after close. Item 3: a settlement from execution A offered to execution
 B's slot is refused. Re-attestation of the protected files follows the gate.
 
-## Questions for the reviewer
+## Questions put to the reviewer (answered above)
 
 1. Is `close_attempt` the right Core shape for "every owned claim terminal", or does the
    contract place this fact elsewhere?
