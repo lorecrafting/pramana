@@ -18,6 +18,8 @@ defmodule PramanaFoundry.Application do
       System.get_env("COORDINATOR_TICK") == "1" ||
         Application.get_env(:pramana_foundry, :enable_tick, false)
 
+    enable_manual_lane = manual_lane_enabled?()
+
     IO.puts("PramanaFoundry starting: tick=#{enable_tick} herdr=#{herdr_cmd} poll=#{poll_ms}ms")
 
     runtime_children =
@@ -57,7 +59,7 @@ defmodule PramanaFoundry.Application do
              interval_ms: 300_000
            ]},
           {PramanaFoundry.HardeningPM, [interval_ms: 600_000]}
-        ]
+        ] ++ if(enable_manual_lane, do: [PramanaFoundry.ManualLane.Server], else: [])
       end
 
     children =
@@ -83,6 +85,13 @@ defmodule PramanaFoundry.Application do
       "client" -> :client
       _ -> if(args == [], do: :daemon, else: :client)
     end
+  end
+
+  @doc false
+  @spec manual_lane_enabled?() :: boolean()
+  def manual_lane_enabled? do
+    System.get_env("PRAMANA_MANUAL_LANE") == "1" ||
+      Keyword.get(Application.get_env(:pramana_foundry, :manual_lane, []), :enabled, false)
   end
 
   defp mix_env do
