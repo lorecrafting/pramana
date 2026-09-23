@@ -223,7 +223,7 @@ failing. So:
 
 Neither `ci.ex` nor `ci/run.exs` is among the paths the `repair/` attestation modules pin.
 
-## Proposed plan edit (not applied)
+## Proposed plan edit (applied 2026-09-22 on operator approval)
 
 - Replace the FR-23 row with FR-23a (no ticket dependency, under the file rule above) and
   FR-23b (FR-08B, FR-12, FR-19B).

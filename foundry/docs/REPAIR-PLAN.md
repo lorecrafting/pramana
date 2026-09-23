@@ -456,15 +456,16 @@ not mean a repair has been made. **Blocked** means wait for listed dependencies.
 | FR-19B | Bound diagnostics and repair or retire offline relocation | FR-19A, FR-18B | Blocked | F20, F21 |
 | FR-20 | Reconnect constrained improvement proposals | FR-15, FR-18B, FR-17 | Blocked | F19 |
 | FR-21 | Establish independent Foundry CI and build provenance | FR-01, FR-04, FR-05 | **Complete: reviewed and integration-attested** | F23, F24 |
-| FR-23 | Retire legacy surfaces, decompose god modules and restore code hygiene | FR-08B, FR-12, FR-19B | **Blocked. Carries one recorded live defect: `SystemMetrics.system/0` raises on every call, so the Improver has never completed a cycle — see the implementation log for 2026-09-21**. 2026-09-22: `63ee6cb6` had already fixed the raise (confirmed again: 2/7 → 7/7), but finishing a cycle now reaches `Coordinator.apply_pm_proposals/1`, which is FR-20's gated proposal path. That path is live and unreverted, pending an operator decision; see the implementation log for 2026-09-22 | F23, F24 |
-| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21, FR-23 | Blocked | F01–F24 |
+| FR-23a | Hygiene that no other ticket rewrites: docs, bin scripts, tests, formatter baseline, Git refs, gate | — (file rule: touches no file FR-08B/10/11/12/19B rewrites and no attestation-pinned file; see the [split proposal](fr-23/FR-23-SPLIT-PROPOSAL-2026-09-22.md)) | **In progress, split approved 2026-09-22.** Done: formatter baseline, doc and dead-surface inventories, bin script health, closure probe exit code, design status notes. The `SystemMetrics` defect was already fixed at `63ee6cb6`; the Improver proposal path it reopened is closed by `propose: false` until FR-20 (`91dc324c`) | F23, F24 |
+| FR-23b | Decompose god modules and retire legacy surfaces | FR-08B, FR-12, FR-19B | Blocked | F23, F24 |
+| FR-22 | Prove full lifecycle and reconcile operating docs | FR-11, FR-12, FR-13, FR-14, FR-15aA, FR-15aB, FR-15, FR-16, FR-17, FR-18A, FR-18B, FR-19A, FR-19B, FR-20, FR-21, FR-23a, FR-23b | Blocked | F01–F24 |
 
 There are **24 ticket nodes: FR-01 through FR-23, plus child ticket FR-15a**. H0 and F
 are bounded evidence checkpoints, and the A/B labels are slices of their existing parent
 tickets. **FR-23 is a ticket; F23 and F24 are audit findings** routed to existing owners in
 the checksum below. The similar names are unrelated: findings use the `F` prefix and
 tickets the `FR` prefix. FR-23 was added on 2026-09-20 by operator direction after repair
-work accumulated concrete hygiene evidence; it creates no FR-24. Every parent outcome, scope, acceptance paragraph and
+work accumulated concrete hygiene evidence; it creates no FR-24. On 2026-09-22 the operator approved splitting it into slices FR-23a (hygiene, gated by a file rule instead of a ticket dependency) and FR-23b (decomposition and retirement, keeping FR-23's dependencies); the node count is unchanged. Every parent outcome, scope, acceptance paragraph and
 exclusion remains binding across its slices.
 
 Removing FR-15 as a direct FR-13 dependency is valid only because FR-08A/B and FR-15aB
@@ -1452,6 +1453,8 @@ bounded and separately reported. Publish excluded coverage rather than implying 
 subsequent ticket as new lifecycle tests land.
 
 ### FR-23 — Retire legacy surfaces, decompose god modules and restore code hygiene
+
+**Split 2026-09-22 (operator-approved):** FR-23a and FR-23b are slices of this ticket; everything below binds both. The split, its file rule and its dependency argument are in [the split proposal](fr-23/FR-23-SPLIT-PROPOSAL-2026-09-22.md).
 
 **Outcome:** The repaired system is left in a state a maintainer can safely change, with
 no dead vocabulary, no module too large to review as a unit, and no legacy surface still
