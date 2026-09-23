@@ -3305,8 +3305,15 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
   # attempt, so a retry inherits its whole predecessor chain. Checked in both directions
   # against every such effect: the controller names nothing and so can skip nothing.
   # Until FR-15aB these are recorded principals, not proved-isolated ones.
+  #
+  # The pairings are the union of the caller's policy and the revision each effect already
+  # in the attempt pinned, read from root_policy_history as
+  # infrastructure_discriminator_at_revision does. Once any effect of the attempt was
+  # created under a pairing, it binds the rest of the attempt, whatever the policy says
+  # later and whichever policy_id a later operation names.
   defp principal_independence(conn, policy, ticket_id, attempt_id, role, principals) do
-    with {:ok, related} <- related_roles(Map.get(policy, "independent_of_roles", %{}), role),
+    with {:ok, pinned} <- pinned_policies(conn, ticket_id, attempt_id),
+         {:ok, related} <- related_roles([policy | pinned], role),
          {:ok, effects} <- independence_effects(conn, ticket_id, attempt_id, related),
          {:ok, own} <- side_principals(conn, effects, [role]),
          {:ok, other} <- side_principals(conn, effects, related),
@@ -3317,17 +3324,43 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
     end
   end
 
-  defp related_roles(pairs, role) when is_map(pairs) do
-    if Enum.all?(pairs, fn {from, to} ->
-         is_binary(from) and is_list(to) and Enum.all?(to, &is_binary/1)
-       end),
-       do:
-         {:ok,
-          Enum.uniq(Map.get(pairs, role, []) ++ for({from, to} <- pairs, role in to, do: from))},
-       else: :error
+  defp pinned_policies(conn, ticket_id, attempt_id) do
+    with {:ok, rows} <-
+           Database.query(
+             conn,
+             "SELECT DISTINCT policy_id, policy_revision FROM root_effects WHERE ticket_id = ? AND attempt_id = ?",
+             [ticket_id, attempt_id]
+           ) do
+      Enum.reduce_while(rows, {:ok, []}, fn [policy_id, revision], {:ok, acc} ->
+        with {:ok, [[bytes]]} <-
+               Database.query(
+                 conn,
+                 "SELECT state FROM root_policy_history WHERE policy_id = ? AND revision = ?",
+                 [policy_id, revision]
+               ),
+             {:ok, %{"value" => value}} when is_map(value) <- decode(bytes) do
+          {:cont, {:ok, [value | acc]}}
+        else
+          _ -> {:halt, :error}
+        end
+      end)
+    end
   end
 
-  defp related_roles(_pairs, _role), do: :error
+  defp related_roles(policies, role) do
+    Enum.reduce_while(policies, {:ok, []}, fn policy, {:ok, acc} ->
+      with pairs when is_map(pairs) <- Map.get(policy, "independent_of_roles", %{}),
+           true <-
+             Enum.all?(pairs, fn {from, to} ->
+               is_binary(from) and is_list(to) and Enum.all?(to, &is_binary/1)
+             end) do
+        related = Map.get(pairs, role, []) ++ for({from, to} <- pairs, role in to, do: from)
+        {:cont, {:ok, Enum.uniq(acc ++ related)}}
+      else
+        _ -> {:halt, :error}
+      end
+    end)
+  end
 
   defp independence_effects(_conn, _ticket_id, _attempt_id, []), do: {:ok, []}
 

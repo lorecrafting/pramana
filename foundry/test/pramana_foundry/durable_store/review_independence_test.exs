@@ -172,6 +172,62 @@ defmodule PramanaFoundry.DurableStore.ReviewIndependenceTest do
              )
   end
 
+  # Review finding I1: the pairing an attempt's effects pinned binds the rest of the attempt.
+  test "a pairing dropped from the policy after the producer still binds the attempt", ctx do
+    seed!(ctx, @independence)
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-A", effect("dev-1", "developer"))
+
+    assert %{"disposition" => "accepted"} = current!(ctx, "operator", set_policy(%{}))
+
+    assert %{"disposition" => "rejected", "reason_code" => "principal_not_independent"} =
+             current!(ctx, "principal-A", effect("rev-1", "reviewer", policy_revision: 1))
+
+    assert {:error, :not_found} = fact(ctx, "effect", "effect_id", "rev-1")
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-B", effect("rev-1", "reviewer", policy_revision: 1))
+  end
+
+  test "a review under a second policy without the pairing is still bound", ctx do
+    seed!(ctx, @independence)
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-A", effect("dev-1", "developer"))
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "operator", set_policy(%{}, "policy-2"))
+
+    assert %{"disposition" => "rejected", "reason_code" => "principal_not_independent"} =
+             current!(ctx, "principal-A", effect("rev-1", "reviewer", policy_id: "policy-2"))
+
+    assert {:error, :not_found} = fact(ctx, "effect", "effect_id", "rev-1")
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-B", effect("rev-1", "reviewer", policy_id: "policy-2"))
+  end
+
+  test "a first inbox append after the pairing is dropped is still bound", ctx do
+    seed!(ctx, @independence)
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-A", effect("dev-1", "developer"))
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-B", effect("rev-1", "reviewer"))
+
+    assert %{"disposition" => "accepted"} = current!(ctx, "operator", set_policy(%{}))
+
+    assert %{"disposition" => "rejected", "reason_code" => "principal_not_independent"} =
+             current!(ctx, "principal-A", append("execution-rev-1"))
+
+    assert {:error, _} = fact(ctx, "inbox", "execution_id", "execution-rev-1")
+
+    assert %{"disposition" => "accepted"} =
+             current!(ctx, "principal-C", append("execution-rev-1"))
+  end
+
   defp seed!(ctx, independence) do
     assert %{"disposition" => "accepted"} = current!(ctx, "operator", set_policy(independence))
 
@@ -183,10 +239,10 @@ defmodule PramanaFoundry.DurableStore.ReviewIndependenceTest do
              })
   end
 
-  defp set_policy(independence) do
+  defp set_policy(independence, policy_id \\ "policy-1") do
     %{
       "type" => "set_policy",
-      "policy_id" => "policy-1",
+      "policy_id" => policy_id,
       "value" => %{
         "allowed_operations" => ["launch"],
         "allowed_scopes" => ["ticket:T1"],
@@ -229,7 +285,7 @@ defmodule PramanaFoundry.DurableStore.ReviewIndependenceTest do
       "ticket_id" => "T1",
       "attempt_id" => Keyword.get(opts, :attempt_id, "A1"),
       "execution_id" => Keyword.get(opts, :execution_id, "execution-#{id}"),
-      "policy_id" => "policy-1",
+      "policy_id" => Keyword.get(opts, :policy_id, "policy-1"),
       "policy_revision" => Keyword.get(opts, :policy_revision, 0),
       "control_id" => "control-1",
       "control_revision" => 0,
