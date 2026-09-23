@@ -5005,3 +5005,40 @@ entries. The 2026-09-12 audit inventory records older hashes of these paths and 
 evidence, left as is. The mechanism (`load_format_debt!`, `validate_format_debt/1`, the
 `:format_debt` stage) is kept: `ci_test.exs` pins its drift red control, and removing it would
 delete a test.
+
+## FR-23's live defect was already fixed; the fix switched on FR-20's proposal path — 2026-09-22
+
+This was picked up as "fix `SystemMetrics.system/0`" from the FR-23 row. The row was stale, not the code:
+`63ee6cb6` ("let the Improver finish a cycle for the first time", 2026-09-21) already replaced
+`:ets_data` with `unwrap_count(:erlang.system_info(:ets_count))` and added
+`test/pramana_foundry/system_metrics_test.exs`, 110 commits before `e374322b`. This entry changes
+nothing in `lib`.
+
+- **Checked again rather than taken on trust.** `:erlang.system_info(:ets_data)` still raises
+  `ArgumentError` "invalid system info item" (OTP 29 / Elixir 1.20.3). With the original expression
+  restored by exact string, the test file goes **2 of 7 passed**: the five `system/0` tests fail with
+  that `ArgumentError`, and `per_process/0` and `agent_servers/0` pass as they should. With the fix
+  restored, **7 of 7** pass. `CLI.main(["metrics"])` prints a full System block (`mix run --no-start`). The other
+  caller is `Improver.record_metrics/1`. `improver.ex` has no test file, so its cycle was read from
+  source, not run.
+- **`63ee6cb6` fixed it in two places: at the root, and with a rescue in the caller.** `log_metrics/1`
+  now rescues any raise from the snapshot. The commit records this, and records that the rescue
+  has no red control. Now that the root is fixed, the only raise the rescue can still catch is the
+  `agent_servers/0` race with a dying child, which the commit names.
+- **The fix changed runtime behaviour beyond "stops crashing", and the new behaviour is FR-20's.**
+  Before `63ee6cb6`, every cycle raised at `improver.ex:138`, before the proposal step. Now any
+  cycle with new findings reaches `propose_findings/1` → `Coordinator.apply_pm_proposals/1` →
+  `PM.Proposal.apply_batch/3`. That call queues up to three `create` tickets and persists
+  `pm_proposal_created`. The tickets have fixed IDs `IMPRV-000..002`, stale
+  `workflow/lib/pramana_foundry/**` scopes and `cd workflow` checks, and a hard-coded
+  `omp_gemini_developer` profile. They pass the only admission checks there are: `base_revision`
+  is read from the Coordinator's own state, and there is no `auto_approve`. The Improver loop is
+  on by default (`enable_loop: true`, every 300 s) and is a runtime child in every non-client
+  mode. FR-20's scope says to replace fixed ticket IDs and stale paths and to persist admission
+  outcomes separately. FR-20 is Blocked. The crash had been the only thing keeping this path
+  closed, since the code was written.
+- **Not reverted here.** Whether to close the path again is an operator decision, not a side
+  effect of a hygiene fix. The options are to gate `propose_findings/1` behind FR-20 or to disable
+  the loop. This entry does not check whether queued `IMPRV-*` tickets can launch. That depends on
+  the launch policy and the FR-05 containment.
+
