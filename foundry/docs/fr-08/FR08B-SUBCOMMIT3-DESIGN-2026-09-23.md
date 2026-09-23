@@ -146,6 +146,11 @@ This starts after P1 (subcommit 2, reviewed) lands. P2 must land before commit 5
 
 Then comes one batch review with subcommit 4 (`REPAIR-PLAN.md:269-272`), plus the contract-row walk.
 
+The reviewer-independence predicate lands with this subcommit as a protected Core item
+([amendment](../REPAIR-PLAN.md#reviewer-independence-amendment)). Its design, and what
+commit 3's reviewer launch must do to satisfy it, is in
+[the reviewer-independence design](FR08B-REVIEWER-INDEPENDENCE-DESIGN-2026-09-23.md).
+
 ## Decisions requested
 
 - **D1 (Q1):** control gates every successor launch in `decide/3`, the reviewer's included.
