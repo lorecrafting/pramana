@@ -559,6 +559,43 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     end
   end
 
+  describe "finalize_cancellation (R4.28)" do
+    # R4.28.o1: "If no integration occurred: cancelled ticket and active attempt terminal
+    # cancelled".
+    test "the retained attempt settles cancelled through close_attempt, then finalizes", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      cancel!(ctx)
+
+      assert {:ok, decision} = decide(ctx, command("F1", "finalize_cancellation", %{}), %{})
+      assert Enum.map(decision["plan"]["protected_operations"], & &1["type"]) == ["close_attempt"]
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert ticket["phase"] == "cancelled"
+      assert ticket["active_attempt_id"] == nil
+      assert ticket["attempts"]["L1/attempt"]["disposition"] == "cancelled"
+    end
+
+    test "with no attempt there is nothing to close: finalization alone", ctx do
+      seed!(ctx, 3, 2)
+      cancel!(ctx)
+
+      assert {:ok, decision} = decide(ctx, command("F1", "finalize_cancellation", %{}), %{})
+      assert decision["plan"]["protected_operations"] == []
+      commit!(ctx, decision)
+      assert ticket(ctx)["phase"] == "cancelled"
+    end
+
+    test "an uncancelled ticket is refused by the reducer, not planned", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+
+      assert {:reject, :cancel_not_requested} =
+               decide(ctx, command("F1", "finalize_cancellation", %{}), %{})
+    end
+  end
+
   # Why `Plan.decision/2` derives no protected key: at command level `policy/<id>` reads
   # the legacy authority table, so the root policy at revision 0 reads "absent" and a
   # launch that states the truth is refused. When this goes green-for-the-wrong-reason

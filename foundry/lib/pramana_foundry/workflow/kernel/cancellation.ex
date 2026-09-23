@@ -7,6 +7,52 @@ defmodule PramanaFoundry.Workflow.Kernel.Cancellation do
 
   import PramanaFoundry.Workflow.Kernel.Executions, only: [open_executions: 1]
 
+  alias PramanaFoundry.Workflow.Kernel.Plan
+
+  # ── decide/3 ────────────────────────────────────────────────────────────────────
+  #
+  # R4.28 and R4a's cancel sentence, for any role: finalize_cancellation settles the active
+  # attempt `cancelled` through the protected close_attempt, then finalizes. With no active
+  # attempt - it already settled, `integrated` if a ref landed - there is nothing to close
+  # and only the finalization is planned, `after_integration` when integration occurred.
+  # Every source condition (cancel requested, executions closed, no receipt on a cancelled
+  # attempt) is the reducer's, and comes out of the dry run as a rejection.
+
+  def decides?(%{"type" => "finalize_cancellation"}), do: true
+  def decides?(_command), do: false
+
+  def decide(state, command, _facts) do
+    ticket_id = command["target_ids"]["ticket_id"]
+    ticket = state["tickets"][ticket_id]
+
+    planned =
+      if is_binary((ticket || %{})["active_attempt_id"]) do
+        Plan.close_attempt(state, command["command_id"], %{
+          "ticket_id" => ticket_id,
+          "attempt_id" => ticket["active_attempt_id"],
+          "disposition" => "cancelled",
+          "reason_code" => "cancel_requested",
+          "then" => [
+            {"cancellation_finalized", %{"ticket_id" => ticket_id, "disposition" => "cancelled"}}
+          ]
+        })
+      else
+        disposition =
+          if is_map(ticket) and integration_occurred?(ticket),
+            do: "after_integration",
+            else: "cancelled"
+
+        Plan.unconditional(state, command["command_id"], %{
+          "events" => [
+            {"cancellation_finalized", ticket_id,
+             %{"ticket_id" => ticket_id, "disposition" => disposition}}
+          ]
+        })
+      end
+
+    Plan.decision(planned, command)
+  end
+
   import PramanaFoundry.Workflow.Kernel.Shared,
     only: [require_no_active_attempt: 1, terminal_ticket_phases: 0]
 

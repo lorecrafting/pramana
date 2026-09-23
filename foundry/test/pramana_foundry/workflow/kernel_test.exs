@@ -10,6 +10,7 @@ defmodule PramanaFoundry.Workflow.KernelTest do
 
   alias PramanaFoundry.Test.Harness
   alias PramanaFoundry.DurableStore.RecordCodec
+  alias PramanaFoundry.Workflow.Kernel, as: WorkflowKernel
   alias PramanaFoundry.Workflow.Kernel.{Event, State}
 
   # ── Builders ───────────────────────────────────────────────────────────────────────
@@ -1444,8 +1445,8 @@ defmodule PramanaFoundry.Workflow.KernelTest do
     # the distinction checkable rather than asserted - the previous ratchet entry claimed a
     # depth limit for three other rows and independent review measured the claim false.
     # The lifecycle both tests need, up to and including the finalisation.
-    defp cancel_racing_integration do
-      drive({State.new(), 0}, [
+    defp cancel_racing_integration(finalized? \\ true) do
+      events = [
         {"ticket_admitted", "T1",
          %{
            "ticket_id" => "T1",
@@ -1528,7 +1529,31 @@ defmodule PramanaFoundry.Workflow.KernelTest do
          %{"ticket_id" => "T1", "attempt_id" => "A1", "execution_id" => "I1"}},
         {"cancellation_finalized", "T1",
          %{"ticket_id" => "T1", "disposition" => "after_integration"}}
-      ])
+      ]
+
+      drive({State.new(), 0}, if(finalized?, do: events, else: Enum.drop(events, -1)))
+    end
+
+    # decide/3 plans this branch itself: nothing to close, the attempt already settled
+    # `integrated`, so the plan stages no operation and finalizes after_integration.
+    test "decide/3 finalizes a cancel that raced integration as after_integration" do
+      {state, _} = cancel_racing_integration(false)
+
+      command = %{
+        "command_id" => "F1",
+        "type" => "finalize_cancellation",
+        "target_ids" => %{"ticket_id" => "T1"},
+        "payload" => %{}
+      }
+
+      assert {:ok, %{"plan" => plan}} = WorkflowKernel.decide(state, command, %{})
+      assert plan["protected_operations"] == []
+
+      [%{"proposal" => %{"events" => [event], "projections" => [projection]}}] =
+        plan["alternatives"]
+
+      assert event["payload"]["disposition"] == "after_integration"
+      assert projection["value"]["phase"] == "integrated"
     end
 
     test "a cancel that races a successful integration finalizes as after_integration" do
