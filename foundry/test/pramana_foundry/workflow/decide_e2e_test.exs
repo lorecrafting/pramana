@@ -742,6 +742,99 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     end
   end
 
+  # A reviewer launch, then its proved non-start, through decide/3.
+  defp review_nonstart!(ctx) do
+    awaiting_review!(ctx)
+    commit!(ctx, review_decision(ctx, "V1"))
+
+    assert {:ok, settle} =
+             decide(ctx, command("W1", "settle_nonstart", @reviewer), settle_facts("V1"))
+
+    commit!(ctx, settle)
+  end
+
+  describe "settle_nonstart, reviewer (R4a.02)" do
+    test "below the limit: back to awaiting_review with the same candidate", ctx do
+      seed!(ctx, 3, 2)
+      result = review_nonstart!(ctx)
+      assert result["selected_discriminator"] == "below_infrastructure_limit"
+
+      ticket = ticket(ctx)
+      attempt = ticket["attempts"]["L1/attempt"]
+      # o1, o2: attempt and ticket awaiting_review, the same candidate, no disposition.
+      assert {ticket["phase"], attempt["phase"]} == {"awaiting_review", "awaiting_review"}
+      assert {attempt["candidate_id"], attempt["disposition"]} == {"cand-1", nil}
+      # o3, o4: only the reviewer closed; the developer's allowance untouched.
+      assert attempt["executions"]["V1/execution"].lifecycle == "closed"
+
+      assert ticket["infrastructure"]["ordinals"] |> Map.take(~w(developer reviewer)) ==
+               %{"developer" => 0, "reviewer" => 1}
+
+      assert Executions.open_executions(ticket) == []
+      # o5: the reviewer launch unit is released, not consumed.
+      assert ledger(ctx, "ledger-r") == %{"available" => 2, "held" => 0, "consumed" => 0}
+
+      assert {:ok, %{"role" => "reviewer", "ordinal" => 1}} =
+               query(ctx, %{"type" => "infrastructure_settlement", "effect_id" => "V1/effect"})
+
+      # o7: "return to the durable reviewer queue" - the next reviewer launch plans on the
+      # same attempt, ordinal 1, naming its predecessor.
+      commit!(ctx, review_decision(ctx, "V2", "V1/effect"))
+      assert ticket(ctx)["attempts"]["L1/attempt"]["review"]["execution_id"] == "V2/execution"
+
+      assert {:ok, %{"operation_ordinal" => 1, "predecessor_effect_id" => "V1/effect"}} =
+               query(ctx, %{"type" => "effect", "effect_id" => "V2/effect"})
+    end
+
+    # o8, o9.
+    test "at the limit: blocked(reviewer_launch_infrastructure), resuming awaiting_review",
+         ctx do
+      seed!(ctx, 3, 2, {1, 2})
+      result = review_nonstart!(ctx)
+      assert result["selected_discriminator"] == "infrastructure_limit_reached"
+
+      ticket = ticket(ctx)
+      assert {ticket["phase"], ticket["reason"]} == {"blocked", "reviewer_launch_infrastructure"}
+      assert ticket["resume_phase"] == "awaiting_review"
+      assert ticket["active_attempt_id"] == "L1/attempt"
+      assert ticket["attempts"]["L1/attempt"]["phase"] == "awaiting_review"
+      assert ticket["attempts"]["L1/attempt"]["candidate_id"] == "cand-1"
+    end
+
+    # o10: missing current reviewer allocation blocks, without discarding or approving the
+    # candidate.
+    test "short allocation after a non-start blocks(reviewer_budget)", ctx do
+      seed!(ctx, 3, 2)
+      review_nonstart!(ctx)
+      drain_ledger!(ctx, "ledger-r", "starts.reviewer")
+
+      assert {:ok, decision} =
+               decide(
+                 ctx,
+                 command("V2", "plan_launch", @reviewer),
+                 review_facts(ctx, "V1/effect")
+               )
+
+      assert decision["plan"]["protected_operations"] == []
+      commit!(ctx, decision)
+
+      ticket = ticket(ctx)
+      assert {ticket["phase"], ticket["reason"]} == {"blocked", "reviewer_budget"}
+      assert ticket["resume_phase"] == "awaiting_review"
+      attempt = ticket["attempts"]["L1/attempt"]
+      assert {attempt["phase"], attempt["candidate_id"]} == {"awaiting_review", "cand-1"}
+      assert attempt["review"] == nil
+    end
+
+    test "a settle with no reviewer bound is refused by the reducer, not planned", ctx do
+      seed!(ctx, 3, 2)
+      awaiting_review!(ctx)
+
+      assert {:reject, :wrong_source_phase} =
+               decide(ctx, command("W1", "settle_nonstart", @reviewer), settle_facts("V1"))
+    end
+  end
+
   describe "finalize_cancellation (R4.28)" do
     # R4.28.o1: "If no integration occurred: cancelled ticket and active attempt terminal
     # cancelled".

@@ -36,10 +36,32 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   # `reviewer` in the payload (FR08B-SUBCOMMIT3-DESIGN-2026-09-23.md).
 
   def decides?(%{"type" => type, "payload" => %{"role" => "reviewer"}})
-      when type in ~w(plan_launch),
+      when type in ~w(plan_launch settle_nonstart),
       do: true
 
   def decides?(_command), do: false
+
+  # R4a.02: a proved reviewer non-start settles the claim and closes the reviewer execution
+  # the review is bound to; the protected infrastructure limit selects between the reviewer
+  # queue (awaiting_review, same attempt and candidate) and
+  # `blocked(reviewer_launch_infrastructure)` resuming to awaiting_review. Unconditional
+  # with respect to control, as the developer's is: control is decided on the next launch.
+  def decide(state, %{"type" => "settle_nonstart"} = command, facts) do
+    ticket_id = command["target_ids"]["ticket_id"]
+    ticket = state["tickets"][ticket_id] || %{}
+
+    state
+    |> Plan.nonstart(command["command_id"], %{
+      "settled" => "review_settled",
+      "operation" => is_map(facts) && facts["settle_claim"],
+      "ticket_id" => ticket_id,
+      "attempt_id" => ticket["active_attempt_id"],
+      "execution_id" => (active_attempt(ticket)["review"] || %{})["execution_id"],
+      "reason" => "reviewer_launch_infrastructure",
+      "resume_phase" => "awaiting_review"
+    })
+    |> Plan.decision(command)
+  end
 
   # R4.15 and R4a's control sentences, under D1: control is evaluated before any successor
   # launch, the reviewer's included. The steps run in order and the first that decides ends
@@ -61,9 +83,37 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
     with {:ok, facts} <- Plan.launch_facts(facts),
          :ok <- rejected(require_no_pending_cancel(ticket)),
          :ok <- rejected(require_not_paused(state["control"])),
-         :ok <- require_allocation(facts) do
+         :ok <- allocation(require_allocation(facts), state, command, ticket) do
       launch(state, command, ticket, facts)
     end
+  end
+
+  # R4a.02.o10: "Missing current reviewer allocation yields `blocked(reviewer_budget)` or
+  # `exhausted` under protected policy, without discarding or approving the candidate". A
+  # review that has already spent a reviewer launch on this attempt is blocked with its
+  # candidate resumable; a first review has spent nothing, so it is R4.15.f3's pre-intent
+  # denial instead.
+  defp allocation(:ok, _state, _command, _ticket), do: :ok
+
+  defp allocation({:reject, _reason} = rejection, state, command, ticket) do
+    if reviewer_launches(ticket) > 0 do
+      state
+      |> Plan.block(command["command_id"], %{
+        "ticket_id" => ticket["ticket_id"],
+        "reason" => "reviewer_budget",
+        "resume_phase" => "awaiting_review",
+        "reads" => [{"control", "control"}]
+      })
+      |> Plan.decision(command)
+    else
+      rejection
+    end
+  end
+
+  defp reviewer_launches(ticket) do
+    Enum.count(executions(active_attempt(ticket || %{})), fn {_id, %Execution{} = e} ->
+      e.role == "reviewer"
+    end)
   end
 
   @launch_units 1
@@ -80,19 +130,12 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   # The ordinal is the attempt's reviewer launches so far, each of which opened one
   # reviewer execution; the predecessor is the adapter's.
   defp launch(state, command, ticket, facts) do
-    attempt_id = (ticket || %{})["active_attempt_id"]
-
-    ordinal =
-      Enum.count(executions(attempt(ticket || %{}, attempt_id)), fn {_id, %Execution{} = e} ->
-        e.role == "reviewer"
-      end)
-
     operations =
       Plan.launch_operations(command["command_id"], %{
         "ticket_id" => command["target_ids"]["ticket_id"],
-        "attempt_id" => attempt_id,
+        "attempt_id" => (ticket || %{})["active_attempt_id"],
         "role" => "reviewer",
-        "ordinal" => ordinal,
+        "ordinal" => reviewer_launches(ticket),
         "units" => @launch_units,
         "facts" => facts
       })
