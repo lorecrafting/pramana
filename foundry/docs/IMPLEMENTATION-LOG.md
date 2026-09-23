@@ -5552,3 +5552,14 @@ Run one file at a time: `board_test` 15/15, `board/inspection_test` 5/5,
 `durable_store/gateway_test` 19/19, `stress_test` 17/17, `cli_test` 45/45.
 `mix compile --warnings-as-errors --force` and `mix format --check-formatted` pass. Not run:
 `ci/run.exs`, the full suite, the sweep.
+
+## EV-1: kernel.ex:968 is caught on the current tree — 2026-09-22
+
+EV-1's re-judge (run on its branch, based on `253d9467`) still reported `:968` survived. That branch
+predates `96fa4569` (walks and the search raise on `:malformed_post_state`) and the direct test pinning
+`:not_the_active_attempt`. Re-judged on this branch with the committed script, `EV1_SITES` set to that
+one site: `:caught (65/199 tests, 1s)`, `0 disagreements over 3 keyed trials` (the other two trials are
+the tool's known-caught and known-survived controls). Raw output, unedited:
+[ev1-rejudge-968-2026-09-22-raw.txt](fr-08/ev1-rejudge-968-2026-09-22-raw.txt). EV-1 lands as an audit
+tool, not a gate step; the committed script still owes one complete full run.
+
