@@ -176,6 +176,8 @@ FR-08–FR-22 change:
   gate's `--warnings-as-errors` compile, can see field names and shapes it cannot see in
   string-keyed maps. Durable events, facts and plans stay maps with runtime validators.
   Measure first: convert the execution entity, count what the checker reports, then decide.
+  Measured, with subcommit 3's scope and the collapse question, in
+  [the subcommit 3 design proposal](fr-08/FR08B-SUBCOMMIT3-DESIGN-2026-09-23.md).
 
   **Decided 2026-09-23:** the families fall on the generic/software line — execution
   lifecycle, settlement, control and cancel in generic modules; developer, review and
