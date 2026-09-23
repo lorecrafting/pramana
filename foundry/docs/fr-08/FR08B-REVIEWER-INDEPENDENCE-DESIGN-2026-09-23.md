@@ -27,6 +27,15 @@ named roles in the attempt, so there is no field for a controller to omit or to 
 harmless effect. The relation is checked in both directions, so a producing effect created
 after the review is refused too.
 
+The pairings Core applies are the union of the new operation's policy and the policy at
+every `(policy_id, policy_revision)` an effect already in the attempt pinned, read from
+`root_policy_history` as `infrastructure_discriminator_at_revision` reads it. Once any
+effect of the attempt was created under a pairing, the pairing binds the rest of the attempt.
+Dropping it from the policy later, or naming a second `policy_id`, does not release it. A
+missing history row or a malformed pairing at any pinned revision is refused. The first
+version read only the new operation's policy at its current revision. The
+[batch review](subcommit3-batch-review-findings-2026-09-23.md) found this as I1.
+
 **(c) Authority lineage, concretely.** A side's principal set is the `issuer` of every
 effect in the attempt that holds one of that side's roles, plus the inbox `actor_id` of each
 such effect's execution. A predecessor chain stays inside one assignment
@@ -56,6 +65,16 @@ check fails closed.
   FR-15aB's job.
 - The scope is one attempt. A correction attempt's fresh producer is compared only with its
   own attempt's reviewer.
+- **The attempt is whatever the controller names (I2).** The scope is the
+  controller-supplied `(ticket_id, attempt_id)`. `attempt_open` refuses only closed
+  attempts, so Core admits a reviewer relabelled into another open attempt. That the review
+  covers the *exact candidate* rests on the kernel's `require_active_attempt` in
+  `review_planned`, which is a controller check. FR-13 must re-check attempt identity at
+  acceptance.
+- **Read sets under-declare (I3).** The declared read sets of `create_effect` and
+  `append_inbox` omit the sibling effects, inboxes and policy history this check reads. The
+  reads happen inside the commit transaction, so no read is stale. The gap is one of
+  read-set honesty.
 
 ## What the kernel's reviewer `decide/3` must do
 
