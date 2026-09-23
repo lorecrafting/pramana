@@ -4,9 +4,10 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
   result, freeze failure, rejected submission - and its write-once sealed result.
   """
 
-  alias PramanaFoundry.Workflow.Kernel.Execution
+  alias PramanaFoundry.Workflow.Kernel.{Execution, Plan}
 
-  import PramanaFoundry.Workflow.Kernel.Executions, only: [executions: 1]
+  import PramanaFoundry.Workflow.Kernel.Executions,
+    only: [executions: 1, open_role_executions: 2]
 
   import PramanaFoundry.Workflow.Kernel.Shared,
     only: [
@@ -18,6 +19,41 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Developer do
       update_active_attempt: 2,
       update_attempt: 3
     ]
+
+  # ── decide/3 ────────────────────────────────────────────────────────────────────
+  #
+  # The developer's commands. The role travels in the payload of a role-free command type,
+  # so subcommit 3's reviewer claims the same types with its own role.
+
+  def decides?(%{"type" => type, "payload" => %{"role" => "developer"}})
+      when type in ~w(settle_nonstart),
+      do: true
+
+  def decides?(_command), do: false
+
+  # R4a.01: a proved non-start settles the claim and closes the execution it names, and the
+  # protected infrastructure limit - never read here - selects between a bounded retry
+  # (queued, attempt retained) and `blocked(developer_launch_infrastructure)`. Unconditional
+  # with respect to control: under Q1 the successor is the next launch, not this settle, so
+  # pause, drain and cancel are decided there. The settled execution is the active attempt's
+  # open developer, the only one `launch_planned` lets exist; with none, the reducer's
+  # refusal comes out of the dry run.
+  def decide(state, %{"type" => "settle_nonstart"} = command, facts) do
+    ticket_id = command["target_ids"]["ticket_id"]
+    ticket = state["tickets"][ticket_id]
+
+    state
+    |> Plan.nonstart(command["command_id"], %{
+      "settled" => "launch_settled",
+      "operation" => is_map(facts) && facts["settle_claim"],
+      "ticket_id" => ticket_id,
+      "attempt_id" => ticket["active_attempt_id"],
+      "execution_id" => List.first(open_role_executions(ticket, "developer")),
+      "reason" => "developer_launch_infrastructure",
+      "resume_phase" => "developing"
+    })
+    |> Plan.decision(command)
+  end
 
   # R4: "developing; success artifact validates and freezes" — attempt candidate_frozen,
   # ticket awaiting_review, productive generation sealed.

@@ -49,16 +49,25 @@ defmodule PramanaFoundry.Workflow.Kernel do
   R4a's developer row has three outcomes below, at and beyond the infrastructure limit, but
   `launch_settled` has one fixed effect: close the execution, consume one infrastructure
   ordinal, and return the ticket to `queued` retaining the same nonterminal attempt. The
-  other two outcomes are expressed by emitting a second event in the same bundle —
-  `ticket_parked` at the limit, `attempt_settled` on exhaustion — which the protected
-  discriminator selects between as plan alternatives. Keeping each event's effect fixed is
+  other two outcomes are expressed by emitting a second event — `ticket_blocked` at the
+  limit, which the protected discriminator selects as a plan alternative of the same bundle,
+  and `attempt_settled(exhausted)`, which `decide/3` plans on the next launch when current
+  allocation is short. Keeping each event's effect fixed is
   what lets a bound projection equal the result of applying its bound event, and it is why
   the discriminator selects among alternatives rather than among payload values.
   """
 
   import Kernel, except: [apply: 2]
 
-  alias PramanaFoundry.Workflow.Kernel.{Cancellation, Control, Event, Executions, State, Tickets}
+  alias PramanaFoundry.Workflow.Kernel.{
+    Cancellation,
+    Control,
+    Event,
+    Executions,
+    Plan,
+    State,
+    Tickets
+  }
 
   alias PramanaFoundry.Workflow.Kernel.Software.{
     Checks,
@@ -124,6 +133,43 @@ defmodule PramanaFoundry.Workflow.Kernel do
     end
   rescue
     _ -> {:error, :kernel_raised}
+  end
+
+  @doc """
+  Plans one command as a closed transition plan (FR-08B subcommit 2,
+  `docs/fr-08/FR08B-SUBCOMMIT2-DECIDE-DESIGN-2026-09-23.md`).
+
+  Pure like `apply/2`: `facts` are the protected facts the adapter already queried, and
+  nothing here reads the store. `{:ok, %{"command" => ..., "plan" => ...}}` is an accepted
+  plan whose command carries the `expected_revisions` it derives; `{:reject, reason}` is a
+  decision to plan nothing, which creates no event; `{:error, reason}` is malformed input.
+  """
+  @spec decide(term(), term(), term()) ::
+          {:ok, %{String.t() => map()}} | {:reject, atom()} | {:error, atom()}
+  def decide(state, command, facts) do
+    with :ok <- check_state(state),
+         {:ok, _command} <- Plan.input(command?(command) and command, :invalid_command),
+         {:ok, decider} <- Plan.input(decider(command), :unsupported_command) do
+      decider.decide(state, command, facts)
+    end
+  end
+
+  defp command?(command) do
+    is_map(command) and not is_struct(command) and is_binary(command["command_id"]) and
+      command["command_id"] != "" and is_map(command["target_ids"]) and
+      is_map(command["payload"])
+  end
+
+  # Deciders are found through `@families`, the one table rule 4 lets this module name a
+  # `kernel/software` module in, so the dispatcher gains no second site: a family module
+  # decides the commands its `decides?/1` claims. A role-free command type carries its role
+  # in the payload, so the claim is on the command rather than on its type alone.
+  defp decider(command) do
+    for({family, _types} <- @families, uniq: true, do: family)
+    |> Enum.find(fn family ->
+      Code.ensure_loaded?(family) and function_exported?(family, :decides?, 1) and
+        family.decides?(command)
+    end)
   end
 
   defp check_state(state),

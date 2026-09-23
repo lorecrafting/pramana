@@ -190,17 +190,58 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   """
   @spec block(map(), String.t(), map()) :: result()
   def block(state, command_id, spec) do
+    unconditional(state, command_id, %{
+      "events" => [blocked(spec["ticket_id"], spec["reason"], spec["resume_phase"])],
+      "reads" => Map.get(spec, "reads", [])
+    })
+  end
+
+  @doc """
+  One `unconditional` alternative of `{type, entity_id, payload}` events on one entity.
+
+  `spec`: `events`, and optionally `operations` (staged, in order), `bindings`
+  (`{name, ordinal, output_kind, slot}`), `stand_ins` (a dry-run value per binding) and
+  `reads`. With none of the optional keys it stages nothing, as a cancellation finalized
+  after its attempt already settled does.
+  """
+  @spec unconditional(map(), String.t(), map()) :: result()
+  def unconditional(state, command_id, spec) do
     build(state, command_id, %{
-      operations: [],
-      bindings: [],
-      stand_ins: %{},
+      operations: Map.get(spec, "operations", []),
+      bindings: Map.get(spec, "bindings", []),
+      stand_ins: Map.get(spec, "stand_ins", %{}),
       discriminator_kind: "unconditional_v1",
-      alternatives: [
-        {"unconditional", [blocked(spec["ticket_id"], spec["reason"], spec["resume_phase"])]}
-      ],
+      alternatives: [{"unconditional", spec["events"]}],
       reads: Map.get(spec, "reads", [])
     })
   end
+
+  @doc """
+  A decider's result as `decide/3` returns it: the plan with its command, whose
+  `expected_revisions` are derived from the plan's domain reads.
+
+  No protected fact is added to them. A command-level `policy/`, `control/` or `ledger/` key
+  reads the legacy authority tables (`Authority.read/2`), never the root rows a launch
+  stages against, so it would CAS nothing. The root facts are CAS-checked where they are
+  used: each staged operation's own `expected_revisions`, which Gateway requires to equal
+  the prestate exactly.
+  """
+  @spec decision(result(), map()) :: {:ok, map()} | {:reject, atom()} | {:error, atom()}
+  def decision({:ok, plan}, command) do
+    with {:ok, command} <- command(command, plan, %{}),
+         do: {:ok, %{"command" => command, "plan" => plan}}
+  end
+
+  def decision(other, _command), do: other
+
+  @doc """
+  `{:ok, value}`, or `{:error, reason}` when `value` is nil or false: a `decide/3` input no
+  decider can read, which is the caller's bug. Declared here with the planner's other input
+  errors, which no event can trip, rather than in a reducer module.
+  """
+  @spec input(term(), atom()) :: {:ok, term()} | {:error, atom()}
+  def input(value, reason) when value in [nil, false], do: {:error, reason}
+  def input(value, _reason), do: {:ok, value}
 
   @doc """
   The command's `expected_revisions`, derived from the plan rather than supplied beside it.

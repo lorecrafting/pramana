@@ -301,12 +301,18 @@ defmodule PramanaFoundry.Workflow.Kernel.Executions do
   # developer is already running: that is what "bounded developer retry" needs, and what
   # stops a second developer being launched beside a live one.
   defp require_no_open_developer(ticket) do
-    open? =
-      Elixir.Enum.any?(executions(active_attempt(ticket)), fn {_id, %Execution{} = execution} ->
-        execution.role == "developer" and execution.lifecycle != "closed"
-      end)
+    if open_role_executions(ticket, "developer") == [],
+      do: :ok,
+      else: {:error, :developer_already_running}
+  end
 
-    if open?, do: {:error, :developer_already_running}, else: :ok
+  @doc "The ids of the active attempt's executions of `role` that are not closed."
+  @spec open_role_executions(map() | nil, String.t()) :: [String.t()]
+  def open_role_executions(ticket, role) do
+    for {execution_id, %Execution{role: ^role} = execution} <-
+          executions(active_attempt(ticket || %{})),
+        execution.lifecycle != "closed",
+        do: execution_id
   end
 
   # Three R4 rows order a fresh developer after cleanup, in three phrasings of one rule:
