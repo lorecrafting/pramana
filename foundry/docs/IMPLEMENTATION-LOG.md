@@ -5721,3 +5721,16 @@ as operator maintenance and are written against execution identity, not role nam
 (is an objective-scoped effect admissible?) goes first; the planned `kernel.ex` family split cuts
 along the generic/software line. `origin/main` merged for PR #49, whose planning-strategies design
 test supports the same direction and keeps composition post-repair.
+
+## #48 A0: FR-18B/FR-20 observability ownership proposed — 2026-09-23
+
+*Status: PROPOSAL awaiting operator approval; not reviewed.* Documentation only. Proposal
+blocks were added to the FR-18B and FR-20 sections of [the repair plan](REPAIR-PLAN.md)
+and to the staged convergence route in [OBSERVABILITY.md](OBSERVABILITY.md). Board/status
+consumption moves to FR-18B, because FR-18B's acceptance already requires board/status
+agreement. The Improver's canonical consumption and step 7 efficiency validation go to
+FR-20. FR-19B keeps retention, and export stays optional. The 2026-09-20 assignment in
+FR-18B's section gave status to FR-20 and said FR-20 would make Improver and status
+"emit" into the contract. That conflicts with FR-18B's acceptance and is recorded as the
+text being replaced, not silently overwritten. It governs until approval. No FR status,
+dependency, table row or acceptance obligation changed.

@@ -1282,6 +1282,40 @@ assignment before either started.
 Neither step is on the supervised dogfood alpha path, so this assignment closes a recorded
 gap; it starts nothing and moves no ticket out of Blocked.
 
+**Proposed amendment to steps 6 and 7 ([#48](https://github.com/lorecrafting/pramana/issues/48) slice A0).**
+*Status 2026-09-23: PROPOSAL awaiting operator approval; not reviewed. The 2026-09-20
+assignment above governs until the operator approves this text.* It narrows that
+assignment to what each ticket's acceptance already requires, and changes no dependency,
+status or acceptance obligation:
+
+- **Step 6 splits by consumer, not by producer.** FR-18B owns canonical producer, validator
+  and store alignment and the **board/status** move onto canonical observations, because
+  FR-18B's acceptance already requires "board/status/log agreement with authoritative
+  state" through real producers. **FR-20** owns canonical observation consumption by the
+  Improver's classifiers, findings and proposals, which its scope ("align classifiers with
+  emitted schemas") and F19 already require. This replaces the 2026-09-20 wording that gave
+  FR-20 "making Improver and status actually emit into it": status is already FR-18B
+  acceptance, and the Improver consumes observations rather than emitting them. FR-18B
+  declares canonical observations, not `ConsolidatedLog`, the long-term analytics contract,
+  but may not remove `ConsolidatedLog` while the Improver still reads it; FR-20 moves the
+  Improver off it. The `classifier` in FR-18B's table row is read as the producer-to-store
+  data path that classifiers consume, not as classifier consumption itself.
+- **Step 7 stays FR-20's**, as the bounded model/context/tool efficiency validation its
+  2026-09-19 efficiency refinement already describes. It is an FR-20 acceptance
+  obligation, not new scope and not an FR-18B one.
+- **Data dependencies replace route order.** Route step numbers are an order of work, not
+  an execution gate, so "steps 6 and 7 follow it" above is read as sequence, not a gate. Step 6 needs the canonical envelope and repaired producers (steps 1
+  and 2). Step 7 needs those plus usage/outcome correlation, numeric retention and the
+  harness bridge (steps 1 to 4). **Neither needs step 5**: OpenTelemetry export stays an
+  optional sink, and neither a canonical consumer nor local optimisation may depend on an
+  exporter. FR-20 already depends on FR-18B, so no cycle is added.
+- **FR-19B** keeps retention, rotation and bounded query behaviour for `telemetry.jsonl`;
+  no observation store replaces protected authority.
+- General workflow step/revision analytics, conversational queries and workflow reshaping
+  stay post-repair in #48 and are not a prerequisite of any FR ticket.
+
+FR-20 carries the matching pointer back to this block.
+
 **The four JSONL surfaces need named owners.** The observability route documents
 fragmentation across `coordinator.jsonl`, `telemetry.jsonl`, `events.jsonl` and
 `findings.jsonl`. Assigning them so none is retired by assumption:
@@ -1438,6 +1472,15 @@ quality and operator effort rather than optimize raw token count or provider cos
 Unknown usage yields insufficient evidence, not a zero-cost win. Every optimization still
 needs a baseline, fixed acceptance gates, bounded experiment and ordinary admission/review/
 activation; telemetry cannot weaken authority or auto-promote its own recommendation.
+
+**Observability steps 6 and 7 (proposed, [#48](https://github.com/lorecrafting/pramana/issues/48) slice A0).**
+*Status 2026-09-23: PROPOSAL awaiting operator approval; not reviewed.* This is the pointer
+the [FR-18B section](#fr-18b--complete-status-and-telemetry-chain) requires. Under the
+proposal FR-20 owns moving the Improver's classifiers, findings and proposals onto
+canonical observations (route step 6, Improver half) and the efficiency validation above
+(route step 7). Board/status stays FR-18B's. Both need FR-18B's canonical envelope,
+producers and correlation, which FR-20 already depends on; neither needs OpenTelemetry
+export. Until approval, the 2026-09-20 assignment in FR-18B's section governs.
 
 **Excludes:** Open-ended recurring PM calls or self-generating management hierarchies.
 

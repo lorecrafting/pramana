@@ -278,10 +278,26 @@ corrupt from empty healthy state — and it has delivered that. What remains of 
 FR-18B's: reconciling the `command`, `llm_phase` and lifecycle telemetry schemas *to*
 that vocabulary rather than re-freezing it, which is why FR-18B depends on FR-18A.
 
-Steps 2 through 5 are FR-18B's without qualification. **Steps 6 and 7 have no owner
-recorded here.** Step 6 touches the Improver, which FR-20 owns and which depends on
-FR-18B; step 7 reads like the efficiency refinement. Assign them explicitly before either
-is started rather than inferring an owner from adjacency.
+Steps 2 through 5 are FR-18B's without qualification. **Steps 6 and 7 were unowned in
+this route.** The repair plan assigned them on 2026-09-20 in
+[FR-18B's section](REPAIR-PLAN.md#fr-18b--complete-status-and-telemetry-chain), which
+governs; this route did not carry that assignment.
+
+**Proposed owners ([#48](https://github.com/lorecrafting/pramana/issues/48) slice A0).**
+*Status 2026-09-23: PROPOSAL awaiting operator approval; not reviewed. It matches the
+proposal blocks in the FR-18B and
+[FR-20](REPAIR-PLAN.md#fr-20--reconnect-constrained-improvement-proposals) sections.*
+
+- Step 6, board/status half: **FR-18B**, with producer/validator/store alignment, as its
+  acceptance already requires. Step 6, Improver half: **FR-20** (classifier, finding and
+  proposal consumption).
+- Step 7: **FR-20**, as its existing efficiency refinement.
+- Retention, rotation and bounded queries: **FR-19B**. No observation store replaces
+  protected authority.
+- The numbers below are an order of work, not a gate. Step 6 needs steps 1 and 2; step 7
+  needs steps 1 to 4. Neither needs step 5: export stays an optional sink.
+- General workflow analytics, conversational queries and workflow reshaping stay
+  post-repair in #48.
 
 Do not perform a flag-day logging rewrite. Route the work through the owning FR-18B
 requirements:
