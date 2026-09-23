@@ -40,15 +40,23 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
   # `reviewer` is the reviewer's `{infrastructure limit, units}` on its own ledger,
   # `ledger-r`, so a reviewer launch never draws on the developer's.
-  defp seed!(ctx, limit, units, {reviewer_limit, reviewer_units} \\ {3, 2}) do
+  # `extra` is merged into the policy value.
+  defp seed!(ctx, limit, units, {reviewer_limit, reviewer_units} \\ {3, 2}, extra \\ %{}) do
     root!(ctx, %{
       "type" => "set_policy",
       "policy_id" => "policy-1",
-      "value" => %{
-        "allowed_operations" => ["launch"],
-        "allowed_scopes" => ["ticket:T1"],
-        "infrastructure_attempt_limits" => %{"developer" => limit, "reviewer" => reviewer_limit}
-      }
+      "value" =>
+        Map.merge(
+          %{
+            "allowed_operations" => ["launch"],
+            "allowed_scopes" => ["ticket:T1"],
+            "infrastructure_attempt_limits" => %{
+              "developer" => limit,
+              "reviewer" => reviewer_limit
+            }
+          },
+          extra
+        )
     })
 
     root!(ctx, %{
@@ -187,8 +195,9 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
   defp decide(ctx, command, facts), do: WorkflowKernel.decide(replay(ctx), command, facts)
 
-  # Each staged operation carries the prestate reads Gateway requires it to state.
-  defp submit(ctx, %{"command" => command, "plan" => plan}) do
+  # Each staged operation carries the prestate reads Gateway requires it to state. `actor`
+  # is the authenticated principal Core records as the effect issuer.
+  defp submit(ctx, %{"command" => command, "plan" => plan}, actor \\ "operator") do
     conn = open(ctx)
 
     {operations, _prior} =
@@ -205,9 +214,9 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
 
     assert :ok = Sqlite3.close(conn)
 
-    Gateway.atomic_bundle(ctx.gateway, ctx.capability, "operator", %{
+    Gateway.atomic_bundle(ctx.gateway, ctx.capability, actor, %{
       "schema_version" => 2,
-      "actor_id" => "operator",
+      "actor_id" => actor,
       "inputs" => %{
         "recorded_at" => "2026-09-23T00:00:00Z",
         "transition_id" => command["command_id"]
@@ -218,8 +227,8 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
     })
   end
 
-  defp commit!(ctx, decision) do
-    assert {:ok, result, :committed} = submit(ctx, decision)
+  defp commit!(ctx, decision, actor \\ "operator") do
+    assert {:ok, result, :committed} = submit(ctx, decision, actor)
     assert result["disposition"] == "accepted", inspect(result)
     assert_substitution_law(ctx)
     result
@@ -730,6 +739,30 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
                decide(ctx, command("V1", "plan_launch", @reviewer), review_facts(ctx))
     end
 
+    # R4.15.o1 "independent reviewer": Core refuses the reviewer effect when its issuer is
+    # the developer's principal (FR08B-REVIEWER-INDEPENDENCE-DESIGN-2026-09-23.md); decide/3
+    # plans it identically either way, so the refusal is a pre-intent denial.
+    test "a reviewer launched under the developer's principal is refused by Core", ctx do
+      seed!(ctx, 3, 2, {3, 2}, %{"independent_of_roles" => %{"reviewer" => ["developer"]}})
+      awaiting_review!(ctx)
+      decision = review_decision(ctx, "V1")
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} =
+               submit(ctx, decision, "operator")
+
+      assert inspect(result) =~ "principal_not_independent"
+      assert {:error, :not_found} = query(ctx, %{"type" => "effect", "effect_id" => "V1/effect"})
+      assert ticket(ctx)["phase"] == "awaiting_review"
+      assert ledger(ctx, "ledger-r")["held"] == 0
+
+      # Neighbour: a fresh command under a distinct principal is admitted.
+      commit!(ctx, review_decision(ctx, "V2"), "reviewer-principal")
+      assert ticket(ctx)["phase"] == "reviewing"
+
+      assert {:ok, %{"issuer" => "reviewer-principal"}} =
+               query(ctx, %{"type" => "effect", "effect_id" => "V2/effect"})
+    end
+
     test "a pause committed after the decision refuses the reviewer launch", ctx do
       seed!(ctx, 3, 2)
       awaiting_review!(ctx)
@@ -949,16 +982,6 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
       seed!(ctx, 3, 2)
       sealed_review!(ctx)
       assert {:reject, :verdict_names_another_candidate} = verdict(ctx, "correction", "cand-2")
-    end
-
-    @tag :pending_independence
-    @tag skip: "reviewer independence is a Core lineage predicate, in progress in durable_store/"
-    test "a verdict from a reviewer sharing the developer's lineage is refused", ctx do
-      seed!(ctx, 3, 2)
-      sealed_review!(ctx)
-      # Once Core refuses a reviewer launch or verdict whose lineage is the developer's,
-      # drive that shape here and pin the refusal atom Core declares.
-      flunk("pending Core's reviewer independence predicate")
     end
   end
 

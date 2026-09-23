@@ -51,10 +51,11 @@ defmodule PramanaFoundry.Workflow.Kernel.Software.Review do
   # plan_launch, which requires that cleanup first. Every source condition - reviewing,
   # sealed stream, exact candidate, write-once verdict - is the reducer's.
   #
-  # TODO(reviewer independence): R4.15.o1's "independent reviewer" is a Core lineage
-  # predicate being built in durable_store/. This decision neither checks nor restates it;
-  # the pending test "a verdict from a reviewer sharing the developer's lineage" in
-  # decide_e2e_test.exs is where it lands.
+  # R4.15.o1's "independent reviewer" is enforced by Core, not here
+  # (docs/fr-08/FR08B-REVIEWER-INDEPENDENCE-DESIGN-2026-09-23.md): the policy's
+  # `independent_of_roles` makes create_effect refuse a reviewer whose principal the
+  # attempt's developer holds. The adapter must launch the reviewer under a distinct
+  # principal and treat `principal_not_independent` as a pre-intent denial (R4a).
   @terminal_verdicts %{
     "correction" => {"needs_correction", "correction_verdict"},
     "rejected" => {"rejected", "rejected_verdict"}
