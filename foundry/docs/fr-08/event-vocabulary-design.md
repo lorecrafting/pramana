@@ -4,6 +4,8 @@ Date: 2026-09-20
 
 Status: **design note; no implementation, no acceptance, no accepted vocabulary**
 
+> **Current status, 2026-09-22.** Implemented since this was written: the flat disjoint vocabulary is live in `durable_store/record_codec.ex` (`@legacy_event_types ++ @lifecycle_event_types`) and `workflow/kernel/event.ex`. The body below is the dated design record and is not updated.
+
 Author: Claude Opus 5. Revision 1 was reviewed and returned **BLOCKER**; this revision
 replaces its mechanism outright. The prior mechanism is described below under "what
 revision 1 got wrong" rather than deleted, because the mistake is instructive.

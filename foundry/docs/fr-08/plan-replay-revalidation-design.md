@@ -4,6 +4,8 @@ Date: 2026-09-20
 
 Status: **design note; no implementation, no acceptance**
 
+> **Current status, 2026-09-22.** Integrated since this was written as part of FR-08A; see the FR-08A row of [the repair plan](../REPAIR-PLAN.md). The body below is the dated design record and is not updated.
+
 Author: Claude Opus 5. Completes the [plan-binding specification](plan-binding-specification.md).
 
 ## Exact base

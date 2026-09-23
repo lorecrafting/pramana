@@ -4,6 +4,8 @@ Date: 2026-09-20
 
 Status: **implementation specification; no acceptance, no integrated behavior**
 
+> **Current status, 2026-09-22.** Integrated since this was written: `durable_store/transition_plan.ex` implements it, and the FR-08A row of [the repair plan](../REPAIR-PLAN.md) records FR-08A complete. The body below is the dated design record and is not updated.
+
 Author: Claude Opus 5, implementation owner for this correction.
 
 Governing design: [the root-fact composition diagnosis](fr08b-root-fact-composition-diagnosis.md),

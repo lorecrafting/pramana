@@ -4,6 +4,8 @@ Date: 2026-09-20
 
 Status: **specification; first deliverable of subcommit 1. No implementation, no acceptance.**
 
+> **Current status, 2026-09-22.** Implemented since this was written: `workflow/kernel/event.ex` carries the enumerated types. The body below is the dated design record and is not updated.
+
 Author: Claude Opus 5.
 
 The [kernel correction design](fr08b-kernel-correction-design.md) makes this enumeration
