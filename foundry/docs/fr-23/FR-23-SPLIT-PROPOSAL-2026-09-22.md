@@ -66,18 +66,42 @@ The user decides whether either is credited to FR-23a.
 
 ### Remaining
 
-- **Worktrees and branches.** The log has no entry recording a cleanup tonight. Per FR-23,
-  enumerate them from Git (`git worktree list`, `git branch`) rather than keep a list.
+- **Worktrees and branches — done, this commit.** Enumerated from Git
+  (`git worktree list`, `git branch --format`) rather than kept as a list, per FR-23. See the
+  [worktree inventory](WORKTREE-INVENTORY-2026-09-23.md): 31 worktrees and 9 branchless local
+  branches, each with HEAD, merge status against `origin/repair/fr08b-kernel` and `origin/main`,
+  lock state, working-tree cleanliness, and a proposed disposition. Nothing was removed or
+  pruned; no worktree currently scores `safe to remove` under the stated rule (every merged HEAD
+  is either the primary checkout or a locked worktree). 4 branches score `safe to remove`.
 - **Bin-script drift the health check recorded and nobody changed:**
-  - `assessor_eval.exs`: the documented `-- INPUT.json` invocation, both in the script and in
-    [ASSESSOR.md](../ASSESSOR.md).
-  - `guard_mutation_sweep.exs`: its usage line, which runs a mode-644 file that has no
-    shebang, and its `cp -al … deps` step in a checkout without `foundry/deps`.
-  - `tickets_from_review.sh`: mode 644.
-  - `closure_cost.exs`: its header figure.
+  - `assessor_eval.exs` — **done before this commit** (`bd7d2053`, already on this branch before
+    FR-23a started). The script now accepts the documented `-- INPUT.json` form; ASSESSOR.md's
+    line already matches. Verified this commit by running
+    `mix run bin/assessor_eval.exs -- INPUT.json` against a hand-built tiny fixture matching
+    `Evaluator.compare/2`'s shape (no such fixture file exists in the repo): exit 0, expected
+    JSON. No further edit needed.
+  - `guard_mutation_sweep.exs` — **done before this commit** (`3c8230c9`, already on this branch
+    before FR-23a started). Its usage line already reads
+    `cd foundry && TMPDIR=/private/tmp elixir bin/guard_mutation_sweep.exs [...]`, which works
+    against the mode-644, shebang-less file without a chmod (`elixir bin/…` doesn't need the
+    executable bit), and the `SWEEP_WORKERS` doc already says "default 4", matching the code. Its
+    `cp -al … deps` step is unchanged, as instructed, and confirmed still wrong for this
+    checkout: this worktree has no `deps/` directory (a fresh worktree's normal state), so a
+    sweep run here would fail at that `cp`. Not fixed, per instruction; the sweep must be run
+    from a checkout that has `foundry/deps`, such as the main checkout.
+  - `tickets_from_review.sh` — **done, this commit.** Was mode 644 despite having a
+    `#!/usr/bin/env bash` shebang and being meant to run as `bin/tickets_from_review.sh` (the
+    health check's own invocation column). Set executable via
+    `git update-index --chmod=+x bin/tickets_from_review.sh`. No content change; its FR-05
+    refusal behaviour (exit 78) is untouched.
+  - `closure_cost.exs` — **done, this commit.** Re-ran it (`mix run bin/closure_cost.exs`, ~8s,
+    under the 2-minute budget): 498 / 3,322 ms, 15.0% on this tree, against the header's
+    348 / 2,053 ms, 17% pre-change figure. Added a dated re-measurement line rather than
+    replacing the pre-change figure, since the two are different quantities (pre- and
+    post-property-6) and the file's own paragraph already explains that gap; both are now
+    marked as dated readings rather than a pinned constant.
 
-  Each is a usage or documentation fix. Changing the sweep's `cp -al` behaviour would be a
-  script behaviour change and needs its own justification.
+  Each is a usage or documentation fix; no script behaviour changed except the file mode above.
 - **Gate additions** from the health check. See [the gate section](#gate-recommendations-from-the-bin-health-check).
 - **Dead identifiers whose every site is outside the rewrite set.** Which ones these are
   waits on the forthcoming inventory. Every identifier FR-23 itself names at `9dd30c3` sits
