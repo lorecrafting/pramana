@@ -8,7 +8,7 @@
 #   cd foundry && bin/guard_mutation_sweep.exs [path/to/module.ex]
 #   SWEEP_SINCE=<rev>   sweep only guards whose lines changed since <rev>
 #   SWEEP_SITES=<file>  sweep only the call sites listed in <file>, one per line
-#   SWEEP_WORKERS=<n>   parallel workers (default 6)
+#   SWEEP_WORKERS=<n>   parallel workers (default 4)
 #
 # Guards are neutralised at their CALL SITE, never at their definition. Renaming a
 # definition breaks the build and measures nothing — a lesson from the first hand sweep.

@@ -178,3 +178,11 @@ broken
 |> Enum.each(fn {{type, key}, n} ->
   IO.puts("  #{String.pad_leading(to_string(n), 7)}  #{type}.#{key}")
 end)
+
+# A regression check has to fail loudly: this used to print the count and exit 0 whatever it
+# was, so a closure regression would have read as a clean run to anything checking the exit
+# code (found by the 2026-09-22 bin script health check).
+if map_size(broken) > 0 or float_accepted > 0 do
+  IO.puts(:stderr, "FAIL: accepted-but-malformed pairs or float control nonzero")
+  System.halt(1)
+end
