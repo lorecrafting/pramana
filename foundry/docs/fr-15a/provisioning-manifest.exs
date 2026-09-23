@@ -203,7 +203,9 @@
       kind: "source_route",
       version: "base-f5067d9",
       path: "foundry/lib/pramana_foundry/cli/rpc.ex",
-      sha256: "617fb1dc018a70abb9ffd7f97bc7e886db6d217c16ae06ea15ef233d5829b11d",
+      # Re-pinned 2026-09-23: Batch D W4 added routing of `lane …` argv to the manual-lane
+      # CLI (ManualLane.CLI). Routing only; the transport stays inert and grants no authority.
+      sha256: "5062c5e59a9e01415764edf61837b251609abd4bdd53fedf2bd25fa3a940e1a1",
       status: "temporary_inert_transport_not_authority"
     },
     %{

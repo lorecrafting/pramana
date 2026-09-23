@@ -311,7 +311,7 @@ defmodule PramanaFoundry.CI.FR15aAValidator do
     "current-prompt-effect" => "f4e4c49c24498141495e02ce0d696788f276701151e6e1a22df686ffbd6961e9",
     "current-check-runner" => "22610624df6102f59579808048581e7e947eab19dfcc34cbaf3661d7255af8fc",
     "current-process-group" => "0c198191bbff8e31121086075782e458db6b4c52b0ddc8eede42247fa45c65ff",
-    "current-cli-rpc" => "617fb1dc018a70abb9ffd7f97bc7e886db6d217c16ae06ea15ef233d5829b11d",
+    "current-cli-rpc" => "5062c5e59a9e01415764edf61837b251609abd4bdd53fedf2bd25fa3a940e1a1",
     "current-git-evidence" => "4f044446b3559e8635da488e2d9f9f1047c1b665f56f4c84cb8fad43394fc7ce",
     "checkpoint-f-probe" => "c9a91bad8417314ce3ba0080562de4574425211d4fe25d3e68447a535cd83eea",
     "workflow-kernel" => "unimplemented",
