@@ -343,22 +343,17 @@ defmodule PramanaFoundry.Workflow.KernelPlanTest do
   # ── expected_revisions ─────────────────────────────────────────────────────────────
 
   describe "expected_revisions/2" do
-    test "a written read is projection/, a read-only one dependency/, facts add their own" do
+    test "a written read is projection/, a read-only one dependency/, a root ledger its own" do
       {state, _} = queued()
       assert {:ok, plan} = Plan.launch(state, "C1", launch_spec())
+      protected = %{Plan.root_ledger_key("ledger-1", 0) => 3}
 
-      facts = %{
-        Plan.protected_key("policy", "pol-1") => %{"revision" => 4},
-        Plan.protected_key("control", "ctl-1") => %{"revision" => 2}
-      }
-
-      assert {:ok, revisions} = Plan.expected_revisions(plan, facts)
+      assert {:ok, revisions} = Plan.expected_revisions(plan, protected)
 
       assert revisions == %{
                key("projection/", "foundry.ticket.v1", "T1") => 0,
                key("dependency/", "foundry.state.v1", "control") => "absent",
-               ("policy/" <> Base.url_encode64("pol-1", padding: false)) => 4,
-               ("control/" <> Base.url_encode64("ctl-1", padding: false)) => 2
+               ("root_ledger/" <> Base.url_encode64("ledger-1", padding: false) <> "/0") => 3
              }
 
       assert {:ok, ^revisions} = RecordCodec.normalize_revision_reads(revisions)
@@ -366,15 +361,17 @@ defmodule PramanaFoundry.Workflow.KernelPlanTest do
       command = %{"command_id" => "C1", "expected_revisions" => %{}}
 
       assert {:ok, %{"expected_revisions" => ^revisions}} =
-               Plan.command(command, plan, facts)
+               Plan.command(command, plan, protected)
     end
 
-    test "a fact not keyed by a protected query identity is refused" do
+    # A command-level `ledger/` or `policy/` key reads the legacy tables, not the root rows.
+    test "a protected key other than a root ledger's is refused" do
       {state, _} = queued()
       assert {:ok, plan} = Plan.launch(state, "C1", launch_spec())
 
-      assert {:error, :invalid_fact_key} =
-               Plan.expected_revisions(plan, %{"allocation" => %{"revision" => 0}})
+      for key <- ["allocation", "ledger/" <> Base.url_encode64("ledger-1", padding: false)] do
+        assert {:error, :invalid_fact_key} = Plan.expected_revisions(plan, %{key => 0})
+      end
     end
   end
 end

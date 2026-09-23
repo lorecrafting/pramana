@@ -481,6 +481,35 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
       assert ticket["attempts"]["L1/attempt"]["disposition"] == "exhausted"
     end
 
+    # F1 of the subcommit 2 review: the exhaustion plan stages only close_attempt, whose
+    # read set holds no ledger, so the allocation it chose on is a declared command-level
+    # read. Units returned between decide/3 and submit must fail CAS, not commit exhausted.
+    test "allocation returned after the exhaustion decision refuses it", ctx do
+      seed!(ctx, 3, 2)
+      launch_and_nonstart!(ctx)
+      drain_ledger!(ctx)
+
+      assert {:ok, decision} =
+               decide(ctx, command("L2", "plan_launch"), launch_facts(ctx, "L1/effect"))
+
+      assert Enum.map(decision["plan"]["protected_operations"], & &1["type"]) == ["close_attempt"]
+
+      root!(ctx, %{
+        "type" => "return_allocation",
+        "child_ledger_id" => "ledger-other",
+        "child_generation" => 0,
+        "units" => 1
+      })
+
+      assert {:ok, %{"available" => 1}} =
+               query(ctx, %{"type" => "ledger", "ledger_id" => "ledger-1", "generation" => 0})
+
+      assert {:ok, %{"disposition" => "rejected"} = result, _} = submit(ctx, decision)
+      assert result["reason_code"] == "revision_conflict", inspect(result)
+      assert ticket(ctx)["phase"] == "queued"
+      assert ticket(ctx)["attempts"]["L1/attempt"]["phase"] == "active"
+    end
+
     # R4.04.o3: "Pre-intent denial remains queued and consumes no start unit or
     # infrastructure ordinal".
     test "short allocation is a pre-intent denial for a fresh launch", ctx do
@@ -603,7 +632,7 @@ defmodule PramanaFoundry.Workflow.DecideE2ETest do
   test "a command-level protected key does not read the root policy", ctx do
     seed!(ctx, 3, 2)
     decision = launch_decision(ctx, "L1")
-    key = Plan.protected_key("policy", "policy-1")
+    key = "policy/" <> Base.url_encode64("policy-1", padding: false)
 
     assert {:ok, %{"reason_code" => "revision_conflict"}, _} =
              submit(ctx, put_in(decision, ["command", "expected_revisions", key], 0))

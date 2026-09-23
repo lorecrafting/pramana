@@ -117,6 +117,21 @@ defmodule PramanaFoundry.DurableStore.Authority do
   def read(conn, {:revision, {:ledger, generation_id}}),
     do: read_ledger(conn, generation_id)
 
+  def read(conn, {:revision, {:root_ledger, ledger_id, generation}}) do
+    with {:ok, rows} <-
+           query(
+             conn,
+             "SELECT revision FROM root_ledgers WHERE ledger_id = ? AND generation = ?",
+             [ledger_id, generation]
+           ) do
+      case rows do
+        [] -> {:ok, :absent}
+        [[revision]] -> {:ok, %{revision: revision}}
+        _ -> corrupt("root_ledgers", ledger_id, :duplicate_identity)
+      end
+    end
+  end
+
   def read(conn, {:revision, {kind, id}}) when kind in [:policy, :control] do
     {table, column} =
       if kind == :policy,

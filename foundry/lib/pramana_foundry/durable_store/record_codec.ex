@@ -361,6 +361,16 @@ defmodule PramanaFoundry.DurableStore.RecordCodec do
       ["ledger", encoded_id] ->
         decode_single_key(:ledger, encoded_id)
 
+      # The root ledger generation (`root_ledgers`), for a command whose decision read
+      # allocation. `ledger/` stays the legacy `ledger_generations` key.
+      ["root_ledger", encoded_id, generation] ->
+        with {:ok, id} <- decode_identity(encoded_id),
+             {generation, ""} when generation >= 0 <- Integer.parse(generation) do
+          {:ok, {:root_ledger, id, generation}}
+        else
+          _ -> {:error, :invalid_revision_key}
+        end
+
       _other ->
         {:error, :unsupported_revision_key}
     end

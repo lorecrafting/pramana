@@ -38,7 +38,6 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
     "state" => "foundry.state.v1"
   }
   @read_kind_of %{"ticket" => "ticket", "objective" => "objective", "control" => "state"}
-  @protected_kinds ~w(policy control ledger)
 
   @launch_operations ~w(reserve create_effect claim_effect issue_claim)
 
@@ -53,11 +52,13 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   def id(command_id, tag), do: command_id <> "/" <> tag
 
   @doc """
-  The `expected_revisions` key of a protected fact: `policy/`, `control/` or `ledger/`
-  followed by the base64url identity the adapter queried it by.
+  The command-level `expected_revisions` key of a root ledger generation:
+  `root_ledger/<base64url ledger_id>/<generation>`. Gateway reads it from `root_ledgers`;
+  the legacy `ledger/` key reads `ledger_generations` instead.
   """
-  @spec protected_key(String.t(), String.t()) :: String.t()
-  def protected_key(kind, id) when kind in @protected_kinds, do: kind <> "/" <> encode(id)
+  @spec root_ledger_key(String.t(), non_neg_integer()) :: String.t()
+  def root_ledger_key(ledger_id, generation),
+    do: "root_ledger/" <> encode(ledger_id) <> "/" <> Integer.to_string(generation)
 
   @doc """
   A launch: `reserve`, `create_effect`, `claim_effect`, `issue_claim`, and one
@@ -219,21 +220,24 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
 
   @doc """
   A decider's result as `decide/3` returns it: the plan with its command, whose
-  `expected_revisions` are derived from the plan's domain reads.
+  `expected_revisions` are derived from the plan's domain reads plus `protected`, the
+  `root_ledger_key/2` revisions of any allocation the decision read.
 
-  No protected fact is added to them. A command-level `policy/`, `control/` or `ledger/` key
-  reads the legacy authority tables (`Authority.read/2`), never the root rows a launch
-  stages against, so it would CAS nothing. The root facts are CAS-checked where they are
-  used: each staged operation's own `expected_revisions`, which Gateway requires to equal
-  the prestate exactly.
+  A decision that read a root fact its staged operations do not re-check must state it
+  here, or a change committed before submit goes unseen. The exhaustion plan is one: its
+  `close_attempt` reads no ledger. Command-level `policy/`, `control/` and `ledger/` keys
+  read the legacy authority tables (`Authority.read/2`), not the root rows, so policy and
+  control are CAS-checked by the staged operations' own `expected_revisions` instead.
   """
-  @spec decision(result(), map()) :: {:ok, map()} | {:reject, atom()} | {:error, atom()}
-  def decision({:ok, plan}, command) do
-    with {:ok, command} <- command(command, plan, %{}),
+  @spec decision(result(), map(), map()) :: {:ok, map()} | {:reject, atom()} | {:error, atom()}
+  def decision(result, command, protected \\ %{})
+
+  def decision({:ok, plan}, command, protected) do
+    with {:ok, command} <- command(command, plan, protected),
          do: {:ok, %{"command" => command, "plan" => plan}}
   end
 
-  def decision(other, _command), do: other
+  def decision(other, _command, _protected), do: other
 
   @doc """
   `{:ok, value}`, or `{:error, reason}` when `value` is nil or false: a `decide/3` input no
@@ -272,12 +276,12 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   The command's `expected_revisions`, derived from the plan rather than supplied beside it.
 
   Each domain read becomes `projection/` when some alternative writes that entity and
-  `dependency/` when it is only read, at the read's durable revision. Each protected fact,
-  keyed by `protected_key/2`, adds its own revision.
+  `dependency/` when it is only read, at the read's durable revision. `protected` adds
+  `root_ledger_key/2` revisions as given.
   """
   @spec expected_revisions(map(), map()) :: {:ok, map()} | {:error, atom()}
-  def expected_revisions(plan, facts) do
-    if Enum.all?(Map.keys(facts), &protected_key?/1) do
+  def expected_revisions(plan, protected) do
+    if Enum.all?(Map.keys(protected), &String.starts_with?(&1, "root_ledger/")) do
       written = written_keys(plan)
 
       reads =
@@ -287,16 +291,16 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
           {prefix <> encode(ns) <> "/" <> encode(id), read["revision"]}
         end)
 
-      {:ok, Map.merge(reads, Map.new(facts, fn {key, fact} -> {key, fact["revision"]} end))}
+      {:ok, Map.merge(reads, protected)}
     else
       {:error, :invalid_fact_key}
     end
   end
 
-  @doc "`command` with its `expected_revisions` derived from `plan` and `facts`."
+  @doc "`command` with its `expected_revisions` derived from `plan` and `protected`."
   @spec command(map(), map(), map()) :: {:ok, map()} | {:error, atom()}
-  def command(command, plan, facts) do
-    with {:ok, revisions} <- expected_revisions(plan, facts),
+  def command(command, plan, protected) do
+    with {:ok, revisions} <- expected_revisions(plan, protected),
          do: {:ok, Map.put(command, "expected_revisions", revisions)}
   end
 
@@ -489,13 +493,5 @@ defmodule PramanaFoundry.Workflow.Kernel.Plan do
   defp durable_revision(0), do: "absent"
   defp durable_revision(revision), do: revision - 1
 
-  defp protected_key?(key) do
-    case String.split(key, "/", parts: 2) do
-      [kind, encoded] when kind in @protected_kinds -> match?({:ok, _}, decode(encoded))
-      _ -> false
-    end
-  end
-
   defp encode(value), do: Base.url_encode64(value, padding: false)
-  defp decode(value), do: Base.url_decode64(value, padding: false)
 end
