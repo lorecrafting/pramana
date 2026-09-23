@@ -4973,3 +4973,21 @@ config value) is not decidable statically; `Function.capture(K, :apply, 2)`,
 `__MODULE__.Kernel` inside `defmodule PramanaFoundry.Workflow`, and calls produced by macro
 expansion are static but not read. The test says so; the gap bullet keeps its history and
 carries the dated close.
+
+## R4a.03.f2 candidate blocked and withdrawn before push — 2026-09-22
+
+The candidate that gave the objective an execution register (agent branch
+`worktree-agent-aa15dae5a6f550c33`, `3e80e87e` / `479fe476`) passed the gate when integrated and was
+blocked by independent review: the PM role has no success-path close, so its new
+`:planning_already_open` guard would stop every objective after its first real PM run, and
+`pm_launch_settled` cannot name the execution it settles. Removed from the branch before push; the
+commits remain on the agent branch. Findings and what a correct candidate needs are in
+[fr08b-r4a03f2-review-2026-09-22.md](fr-08/fr08b-r4a03f2-review-2026-09-22.md). The fix is a
+vocabulary change (a PM close and an execution-naming settle), not a guard, and is not being built
+now. R4a.03.f2 stays `{:unguarded}`.
+
+What the gate could not see: every new refusal fired in the bounded search and was counted as
+coverage. A guard that refuses a legitimate trajectory looks identical, to guard reachability, to
+a guard that refuses an illegitimate one. Only a reviewer asking "what closes this on success?"
+found it.
+
