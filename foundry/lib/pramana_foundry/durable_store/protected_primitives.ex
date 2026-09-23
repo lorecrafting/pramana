@@ -1320,6 +1320,7 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
              :duplicate_semantic_operation,
              :duplicate_request_identity,
              :operation_dimension_mismatch,
+             :reservation_ledger_mismatch,
              :nonstart_allowance_exhausted,
              :predecessor_not_terminal,
              :predecessor_identity_mismatch,
@@ -3527,9 +3528,19 @@ defmodule PramanaFoundry.DurableStore.ProtectedPrimitives do
 
     with {:ok, required} <- required_dimension(operation["operation"], role),
          true <- Enum.all?(reservations, &(&1.dimension == required)) do
-      :ok
+      single_ledger(reservations)
     else
       _ -> {:error, :operation_dimension_mismatch}
+    end
+  end
+
+  # One ledger generation per effect: close_generation releases only its own ledger's
+  # holds and cancels the owner, so a second ledger's hold would be stranded under a
+  # cancelled effect, which the restart check rejects (spec/ledger finding 2).
+  defp single_ledger(reservations) do
+    case Enum.uniq_by(reservations, &{&1.ledger_id, &1.generation}) do
+      [_, _ | _] -> {:error, :reservation_ledger_mismatch}
+      _ -> :ok
     end
   end
 
