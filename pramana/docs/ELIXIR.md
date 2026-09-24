@@ -1,8 +1,7 @@
 # Language and runtime boundaries
 
 [The repository map](../../docs/REPO_MAP.md) owns the overall layout. The umbrella uses Elixir
-for corpus/domain logic and Phoenix for the reader/MCP transport. Foundry is a
-separate OTP project in [lorecrafting/foundry](https://github.com/lorecrafting/foundry).
+for corpus/domain logic and Phoenix for the reader/MCP transport.
 
 ## Elixir owns the corpus
 
@@ -29,10 +28,6 @@ Dense query serving uses the implemented Elixir embedding path. The old
 The withdrawn `botok`/Python tokenization proposal is not a current dependency.
 A model's supported heads or a recognized reading scheme do not establish that every
 representation or dictionary is implemented and populated here.
-
-Foundry orchestration must remain independent of these corpus companions. A future
-shared component requires an explicit cross-repository decision, not accidental inclusion of
-Foundry in the umbrella or inference helpers in its model-free checks.
 
 [Historical language/tooling assessment](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/language-and-runtime-design.md)
 retains the spikes, rejected alternatives and earlier interface sketches.

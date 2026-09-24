@@ -3,7 +3,7 @@
 Run from the Git root: python3 test/xref_collector_test.py
 Requires Bash, Git and the pinned Elixir/Mix; only Python's standard library is used.
 Every build is a dependency-free synthetic Mix project in a temporary directory.
-The production checkout, application runtime, corpus and Foundry are never started.
+The production checkout, application runtime and corpus are never started.
 """
 from __future__ import annotations
 

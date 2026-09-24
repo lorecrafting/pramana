@@ -58,7 +58,6 @@ A committed count is a recorded database snapshot, not proof of the current loca
 
 [Umbrella CI](../.github/workflows/ci.yml) checks source/build/test concerns with a
 Postgres service; it does not acquire and certify the research corpus.
-Foundry CI now runs in [lorecrafting/foundry](https://github.com/lorecrafting/foundry).
 [Documentation CI](../.github/workflows/docs.yml) checks only documentation structure.
 A read-only API, successful compilation or green test run does not by itself prove
 licensing clearance, production hardening, account isolation or safe activation.

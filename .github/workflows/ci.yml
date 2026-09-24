@@ -16,7 +16,7 @@
 #   on a machine  mix pramana.gate                      verify, integrity, evals, lockfile
 #                 with the bake
 #
-# `docs/CHECKS.md` is the full gate. This is the part a pull request can prove.
+# `pramana/docs/CHECKS.md` is the full gate. This is the part a pull request can prove.
 
 name: CI
 
