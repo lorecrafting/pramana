@@ -43,7 +43,11 @@ case "${1:-}" in
     # A release boots with plain args ["--no-halt"], which Application reads as a client.
     PRAMANA_STARTUP_MODE=daemon "$PRAMANA_RELEASE" daemon
     for _ in $(seq 30); do
-      if "$PRAMANA_RELEASE" pid >/dev/null 2>&1; then exec "$FOUNDRY_DIR/bin/pramana" lane status; fi
+      if "$PRAMANA_RELEASE" pid >/dev/null 2>&1; then
+        # Up is up: a refused status (gateway_recovery, say) is reported, not a failed start.
+        "$FOUNDRY_DIR/bin/pramana" lane status || echo "lane daemon is up but not ready; see LANE-RUNBOOK.md" >&2
+        exit 0
+      fi
       sleep 1
     done
     echo "lane daemon did not come up; see $FOUNDRY_LANE_BUILD/rel/pramana_foundry/tmp/log" >&2
