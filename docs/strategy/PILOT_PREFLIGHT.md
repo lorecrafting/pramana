@@ -3,7 +3,7 @@
 **Status:** design/preflight only; no pilot execution or provider call is authorized.
 **Decision update:** 2026-09-17, superseding the initial four-Nikāya D2 pilot choice.
 **Base:** `6887cc15457a0bcb555914874173b6a35488da3f`
-**Depends on:** [pilot charter](PILOT_CHARTER.md), Foundry G0/FR-22 ([lorecrafting/foundry](https://github.com/lorecrafting/foundry), see [where Foundry lives](FOUNDRY.md#where-foundry-lives)), reviewed source/lexicon
+**Depends on:** [pilot charter](PILOT_CHARTER.md), Foundry G0/FR-22 ([lorecrafting/foundry](https://github.com/lorecrafting/foundry), see [where Foundry lives](../PRODUCT_STRATEGY.md#dependency-on-foundry)), reviewed source/lexicon
 rights, evaluator availability and separately authorized inference.
 
 ## Why the pilot is now Chinese-first

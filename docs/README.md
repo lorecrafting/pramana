@@ -37,7 +37,7 @@ For model-assisted changes, [AGENTS.md](../AGENTS.md) routes every provider thro
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23; its
 [index](https://github.com/lorecrafting/foundry/blob/main/docs/README.md), [repair plan](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md), workflow contract,
 roles and CI live there. Pramāṇa's product strategy still depends on its repair
-acceptance (the `foundry_g0` pilot gate); see [Foundry strategy](strategy/FOUNDRY.md#where-foundry-lives).
+acceptance (the `foundry_g0` pilot gate); see [Foundry strategy](PRODUCT_STRATEGY.md#dependency-on-foundry).
 
 ## Plans, research and historical evidence
 

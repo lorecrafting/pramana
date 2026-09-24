@@ -11,12 +11,6 @@ handles; they are **not tickets**. Dates, staffing, estimates and budget grants 
 intentionally uncommitted. Before implementation, reconcile each candidate against
 current PLAN, repair evidence, open PRs and source.
 
-For Foundry initiatives, **compose before build**. Before adding substantial custom
-orchestration, durable-execution, policy or sandbox infrastructure, perform a bounded
-substitution check against the strongest current external candidate and the exact
-Foundry authority/evidence contract. A candidate that satisfies the contract with lower
-total burden should be reused; existing custom code is not a reason to reject it.
-
 ## H0 / G0 — clear the repair boundary
 
 **Owner:** the existing repair owner/operator. **Entry:** current repair process.
@@ -161,98 +155,10 @@ review attribution, private-input protections and repeat collaborative use.
 **Dependencies:** G3, privacy controls and explicit partner requirements.
 **Excludes:** assuming 84000 or any institution is a partner or endorses the system.
 
-### I-F1 — task context and compact evidence
+### I-F1 – I-F5 — Foundry initiatives
 
-**Outcome:** agents resume and finish bounded work with less operator intervention.
-**Evidence:** context-reset/restart cases, evidence rehydration, changed-file cache
-invalidation, honest idle states and matched-task effort comparison.
-Reorientation-tax measures per
-[OBSERVABILITY](https://github.com/lorecrafting/foundry/blob/main/docs/OBSERVABILITY.md) belong here. **Dependencies:** G0 and accepted state/receipt interfaces. **Excludes:** another
-state store, giant mandatory prompt or a fixed tiny context cap that drops constraints.
-
-### I-F2 — one tooling/quality improvement at a time
-
-**Outcome:** reduce an observed class of rework, preferably by composing a proven
-external mechanism when it satisfies the contract. **Evidence:** representative tasks,
-false-positive and maintenance cost, full diffs, failure/no-op cases, rollback and a
-documented substitution comparison when overlapping mature infrastructure exists.
-**Dependencies:** G0 plus a measured bottleneck. **Excludes:** bulk adoption of AST,
-lint, replay, gateway and orchestration packages as one “ecosystem upgrade,” or custom
-infrastructure justified only by ownership.
-
-### I-F3 — project and workflow portability
-
-**Outcome:** Foundry works on another approved project without Pramāṇa dependencies,
-then demonstrates that project/workflow roles and tool/evidence surfaces are not baked
-into the protected kernel.
-
-**Evidence:** first prove an accepted software change with separate setup/commands,
-recovery, operator effort/support burden and comparison with the best practical
-off-the-shelf software-factory alternative. Then, under separately authorized scope,
-prove a materially different typed-content workflow such as Loka:
-
-- world/quest builder receives only its ProjectProfile-declared Builder/Lab surface;
-- engine-source/shell operations are denied;
-- MISSING_CAPABILITY escalates to a separate engine-capability assignment rather than
-  expanding the builder's grant;
-- mandatory content certification cannot be removed by the project/model plan;
-- reviewer independence is checked by durable principal/candidate lineage;
-- context/evidence routing changes by RoleSpec while protected authority semantics remain
-  invariant.
-
-Use [Project workflow profiles](https://github.com/lorecrafting/foundry/blob/main/docs/PROJECT-WORKFLOW-PROFILES.md) as the
-post-repair design target and [Validation](VALIDATION.md#foundry-cross-workflow-portability-validation)
-for falsification cases.
-
-**Tracked follow-on:** [#47 — LLM-proposed workflows, progressive admission and safe
-replanning](https://github.com/lorecrafting/pramana/issues/47). After the software baseline,
-prove both next-step and composed work through the same bounded semantic interface, then
-a separately authorized typed-content workflow. The model supplies planning intelligence;
-a catalog, structured diagnostics/lab, semantic diffs and safe amendments make its
-commitments usable and testable. A complete upfront graph or universal workflow DSL is
-not required. Claimed hard bounds need actual protected enforcement and evidence.
-Detailed design is in [Planning strategies](https://github.com/lorecrafting/foundry/blob/main/docs/PLANNING-STRATEGIES.md#31-llm-first-planning-and-progressive-commitment).
-
-**Dependencies:** G0, a bounded allocation and separate project/workflow authorization
-under the governing contract. **Excludes:** multi-tenancy, self-granted capabilities,
-a general workflow platform before evidence, or assumed demand from one successful demo.
-
-### I-F4 — future session-backend conformance
-
-**Outcome:** evaluate a reversible Superlogical integration when a usable interface
-exists. **Evidence:** installed backend tests against [the Foundry requirements](FOUNDRY.md#portability-and-the-superlogical-option),
-including headless behavior and rollback. **Dependencies:** G0, actual availability
-and approved interface/security scope. **Excludes:** treating roadmap promises as
-Herdr parity or making Pramāṇa delivery depend on the migration.
-
-### I-F5 — Core/Standard Controller split and substitution experiments
-
-**Outcome:** the O0–O4 ([orchestrator boundary](https://github.com/lorecrafting/foundry/blob/main/docs/ORCHESTRATOR-BOUNDARY.md)),
-A0–A4 ([AX substrate](https://github.com/lorecrafting/foundry/blob/main/docs/AX-SUBSTRATE.md)) and C0–C3
-([Cloudflare OS](https://github.com/lorecrafting/foundry/blob/main/docs/CLOUDFLARE-OS.md)) ladders run **one at a time** under
-FOUNDRY's one-bounded-improvement rule, so the Core/Standard Controller distribution is tested
-rather than assumed. **Evidence:** per ladder, a bounded workflow run against the seam it
-names, plus the conformance list that ladder declares. **Dependencies:** G0, the I-F3 software
-baseline. **Excludes:** refactoring protected authority out of the kernel before FR-22; more
-than one ladder active at once; treating any "first experiment" claim in the positioning
-documents as a commitment.
-
-**Tracked workflow learning loop:** [#48 — workflow analytics and governed
-optimization](https://github.com/lorecrafting/pramana/issues/48), consuming #47's automatic
-instrumentation and amendment contract. Start with reproducible, scoped read-only queries
-and exact contributing runs; then observed critical-path/outcome analysis and one bounded
-workflow experiment with fixed acceptance requirements. Support dynamic execution history
-without a universal prospective DAG. Compare whole accepted-outcome cost, quality and
-operator effort, including failed/unfinished work and measurement overhead; preserve
-unknowns and distinguish observations from causal claims.
-
-Both issues are post-repair delivery tracks, not new FR tickets or parallel active ladders.
-Their runtime work requires the accepted FR-18/FR-20 and relevant controller interfaces;
-no current FR ticket depends on these implementations. #48's documentation-only A0 slice
-separately tracks the coordinated FR-18B/FR-20 ownership amendment for observability
-convergence steps 6/7. It may be prepared during repair but is not deemed applied by this
-roadmap. See [tracked delivery and handoff](https://github.com/lorecrafting/foundry/blob/main/docs/PLANNING-STRATEGIES.md#tracked-delivery-and-handoff).
-Merging a planning PR closes neither implementation issue and enables no execution.
+Foundry's initiatives, and its "compose before build" rule, moved with it to
+[its product strategy](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md#candidate-initiatives). Their IDs are unchanged.
 
 ## Prioritization and formal-roadmap handoff
 

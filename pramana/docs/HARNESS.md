@@ -1,6 +1,6 @@
 # Harness Engineering — Planning
 
-Design and research material, not an execution queue. In particular, Foundry repair work is owned by its repair plan, not by proposals here.
+Design and research material, not an execution queue. Foundry's own meta-harness (chapter 10) moved to lorecrafting/foundry.
 
 [Documentation](../../docs/README.md) · [Current architecture](ARCHITECTURE.md) · [Testing](../../docs/TESTING.md)
 
@@ -9,7 +9,7 @@ Design and research material, not an execution queue. In particular, Foundry rep
 - [1. Verifiers as the Moat: a Feedback Loop from Guard Verdicts](harness/01-1-verifiers-as-the-moat-a-feedback-loop-from-guard-verdicts.md)
 - [What is missing](harness/02-what-is-missing.md)
 - [Acceptance](harness/03-acceptance.md)
-- [10. Parallel Track: the Self-Improving Supervisor (Foundry's Own Meta-Harness)](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md)
+- [10. Parallel Track: the Self-Improving Supervisor (Foundry's Own Meta-Harness), now in lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md)
 - [References](harness/05-references.md)
 
 ## Original topic links
@@ -71,13 +71,13 @@ These anchors preserve existing bookmarks. Follow the link to read the topic.
 | <a id="tier-l6--meta-meta-harness"></a>[Tier L6 — Meta-Meta-Harness](harness/03-acceptance.md#tier-l6--meta-meta-harness) |
 | <a id="the-progression-table"></a>[The Progression Table](harness/03-acceptance.md#the-progression-table) |
 | <a id="the-event-sourcing-architectures-role-at-each-tier"></a>[The Event Sourcing Architecture's Role at Each Tier](harness/03-acceptance.md#the-event-sourcing-architectures-role-at-each-tier) |
-| <a id="10-parallel-track-the-self-improving-supervisor-foundrys-own-meta-harness"></a>[10. Parallel Track: the Self-Improving Supervisor (Foundry's Own Meta-Harness)](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#10-parallel-track-the-self-improving-supervisor-foundrys-own-meta-harness) |
-| <a id="fl0--current-state"></a>[FL0 — Current state](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl0--current-state) |
-| <a id="fl1--orchestration-parameter-search"></a>[FL1 — Orchestration parameter search](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl1--orchestration-parameter-search) |
-| <a id="fl2--classifier-evolution"></a>[FL2 — Classifier evolution](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl2--classifier-evolution) |
-| <a id="fl3--agent-dispatch-strategy-search"></a>[FL3 — Agent dispatch strategy search](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl3--agent-dispatch-strategy-search) |
-| <a id="fl4--workflow-architecture-search"></a>[FL4 — Workflow architecture search](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl4--workflow-architecture-search) |
-| <a id="fl5--online-self-healing"></a>[FL5 — Online self-healing](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl5--online-self-healing) |
-| <a id="fl6--meta-foundry"></a>[FL6 — Meta-Foundry](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#fl6--meta-foundry) |
-| <a id="relationship-to-the-product-meta-harness"></a>[Relationship to the Product Meta-Harness](harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md#relationship-to-the-product-meta-harness) |
+| <a id="10-parallel-track-the-self-improving-supervisor-foundrys-own-meta-harness"></a>[10. Parallel Track: the Self-Improving Supervisor (Foundry's Own Meta-Harness)](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#10-parallel-track-the-self-improving-supervisor-foundrys-own-meta-harness) |
+| <a id="fl0--current-state"></a>[FL0 — Current state](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl0--current-state) |
+| <a id="fl1--orchestration-parameter-search"></a>[FL1 — Orchestration parameter search](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl1--orchestration-parameter-search) |
+| <a id="fl2--classifier-evolution"></a>[FL2 — Classifier evolution](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl2--classifier-evolution) |
+| <a id="fl3--agent-dispatch-strategy-search"></a>[FL3 — Agent dispatch strategy search](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl3--agent-dispatch-strategy-search) |
+| <a id="fl4--workflow-architecture-search"></a>[FL4 — Workflow architecture search](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl4--workflow-architecture-search) |
+| <a id="fl5--online-self-healing"></a>[FL5 — Online self-healing](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl5--online-self-healing) |
+| <a id="fl6--meta-foundry"></a>[FL6 — Meta-Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#fl6--meta-foundry) |
+| <a id="relationship-to-the-product-meta-harness"></a>[Relationship to the Product Meta-Harness](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md#relationship-to-the-product-meta-harness) |
 | <a id="references"></a>[References](harness/05-references.md#references) |
