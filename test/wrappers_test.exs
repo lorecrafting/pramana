@@ -7,11 +7,10 @@ defmodule Repository.WrappersTest do
   setup do
     root = Path.join(System.tmp_dir!(), "layout space #{System.unique_integer([:positive])}")
     File.mkdir_p!(Path.join(root, "bin"))
-    File.mkdir_p!(Path.join(root, "pramana/bin"))
     File.mkdir_p!(Path.join(root, "fake-bin"))
     File.mkdir_p!(Path.join(root, "elsewhere"))
 
-    for file <- ~w(pramana-mix pramana-mcp) do
+    for file <- ~w(pramana-mcp pramana-modal) do
       copy_executable(Path.join(@root, "bin/#{file}"), Path.join(root, "bin/#{file}"))
     end
 
@@ -19,45 +18,7 @@ defmodule Repository.WrappersTest do
     {:ok, root: root}
   end
 
-  test "Mix wrapper changes only the intended working directory and preserves arguments and exit",
-       %{root: root} do
-    fake = Path.join(root, "fake-bin/mix")
-    write_executable(fake, "#!/bin/sh\nprintf '%s\\n' \"$PWD\" \"$@\"\nexit 37\n")
-    env = [{"PATH", Path.join(root, "fake-bin") <> ":" <> System.get_env("PATH")}]
-    args = ["test", "a file.exs", "$(never-execute)", ";literal", ""]
-
-    {out, 37} =
-      System.cmd(Path.join(root, "bin/pramana-mix"), args,
-        cd: Path.join(root, "elsewhere"),
-        env: env
-      )
-
-    assert out == Enum.join([Path.join(root, "pramana") | args], "\n") <> "\n"
-    refute File.exists?(Path.join(root, "never-execute"))
-  end
-
-  test "the root MCP launcher forwards inert arguments without producing extra stdout", %{
-    root: root
-  } do
-    write_executable(
-      Path.join(root, "pramana/bin/pramana-mcp"),
-      "#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 23\n"
-    )
-
-    args = ["space here", "$(not-a-command)", "--flag", ""]
-
-    {out, 23} =
-      System.cmd(Path.join(root, "bin/pramana-mcp"), args, cd: Path.join(root, "elsewhere"))
-
-    assert out == Enum.join(args, "\n") <> "\n"
-  end
-
   test "MCP implementation compiles to stderr then preserves the protocol stream", %{root: root} do
-    copy_executable(
-      Path.join(@root, "pramana/bin/pramana-mcp"),
-      Path.join(root, "pramana/bin/pramana-mcp")
-    )
-
     write_executable(Path.join(root, "fake-bin/mise"), "#!/bin/sh\nexit 0\n")
 
     write_executable(Path.join(root, "fake-bin/mix"), """
@@ -82,11 +43,6 @@ defmodule Repository.WrappersTest do
   end
 
   test "MCP compile failure stops before protocol startup", %{root: root} do
-    copy_executable(
-      Path.join(@root, "pramana/bin/pramana-mcp"),
-      Path.join(root, "pramana/bin/pramana-mcp")
-    )
-
     write_executable(Path.join(root, "fake-bin/mise"), "#!/bin/sh\nexit 0\n")
 
     write_executable(
@@ -99,12 +55,7 @@ defmodule Repository.WrappersTest do
   end
 
   test "Modal uses the project venv and cwd without interpreting arguments", %{root: root} do
-    copy_executable(
-      Path.join(@root, "pramana/bin/pramana-modal"),
-      Path.join(root, "pramana/bin/pramana-modal")
-    )
-
-    venv = Path.join(root, "pramana/priv/embed/.venv/bin")
+    venv = Path.join(root, "priv/embed/.venv/bin")
     File.mkdir_p!(venv)
 
     write_executable(
@@ -115,11 +66,9 @@ defmodule Repository.WrappersTest do
     args = ["run", "priv/embed/a file.py", "--input-name", "$(literal)"]
 
     {out, 29} =
-      System.cmd(Path.join(root, "pramana/bin/pramana-modal"), args,
-        cd: Path.join(root, "elsewhere")
-      )
+      System.cmd(Path.join(root, "bin/pramana-modal"), args, cd: Path.join(root, "elsewhere"))
 
-    assert out == Enum.join([Path.join(root, "pramana") | args], "\n") <> "\n"
+    assert out == Enum.join([root | args], "\n") <> "\n"
   end
 
   defp copy_executable(from, to) do

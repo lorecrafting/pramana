@@ -67,7 +67,6 @@ graph.
 
 Generation requires an explicit expected release ID:
 
-    cd pramana
     mix pramana.pilot.scope \
       --release-id <exact-selected-release-id> \
       --out /tmp/pramana-pilot-scope.json
@@ -168,9 +167,8 @@ Validate any saved artifact without a live database:
 
     elixir bin/check_pilot_scope.exs --validate /tmp/pramana-pilot-scope.json
 
-or from the umbrella:
+or from the repository root:
 
-    cd pramana
     mix pramana.pilot.scope --validate /tmp/pramana-pilot-scope.json
 
 Structural validation proves only the file's internal contract. It also cross-checks the

@@ -1,6 +1,6 @@
 # Rule triggers
 
-Open the relevant numbered rules in [the rule index](../../pramana/docs/RULES.md) before that activity.
+Open the relevant numbered rules in [the rule index](../RULES.md) before that activity.
 The table is checked against the stable rule IDs; it is not a request to load every rule.
 
 | about to… | read |

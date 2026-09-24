@@ -59,7 +59,7 @@ selection is contingent on operation-specific CBETA/lexicon/model-processing rig
 qualified Buddhist-Chinese evaluation. If those prerequisites cannot be satisfied, D2
 reopens explicitly; there is no automatic Pāli/Tibetan/broader-Chinese fallback.
 
-[STATUS](../../pramana/docs/STATUS.md) is a dated snapshot, not the live database. The
+[STATUS](../STATUS.md) is a dated snapshot, not the live database. The
 pilot must rematerialize its exact seed IDs and relations from the accepted release rather
 than treating historical ranking prose as an immutable list.
 
@@ -70,8 +70,8 @@ not a deletion of existing APIs or a new promise that every comparison works.
 ## One complete workflow
 
 **Scope → find → inspect → assess → reuse.** Reuse the existing search, passage,
-work and check surfaces. The [reader reference](../../pramana/docs/READER.md) and [MCP reference](../../pramana/docs/MCP.md)
-own implemented routes; the [architecture](../../pramana/docs/ARCHITECTURE.md) owns their limits.
+work and check surfaces. The [reader reference](../READER.md) and [MCP reference](../MCP.md)
+own implemented routes; the [architecture](../ARCHITECTURE.md) owns their limits.
 
 1. **Scope and find.** Accept a question, terms or a quotation. Display active
    collections, retrieval mode and meaningful coverage gaps. A zero result means
@@ -105,7 +105,7 @@ must not receive a verified badge; buffer checked units or label them pending.
 
 The existing guard does **not** solve all five questions. An existence-only check
 is not a verified quotation. An output with no recognized citations is not wholly
-verified. [Architecture](../../pramana/docs/ARCHITECTURE.md#citation-verification-precisely) describes
+verified. [Architecture](../ARCHITECTURE.md#citation-verification-precisely) describes
 current checking; I-P2 supplies the proposed presentation and acceptance contract.
 
 Replace “85% canonical” and “unattested/spurious” scores with precise states such
@@ -122,7 +122,7 @@ human renderings, machine aids and user notes separate in both display and stora
 A generated search gloss may help discovery without becoming publishable scripture
 or an approved reading translation. Initial partner deployments should be able to
 operate without generated reading aids; any later opt-in needs explicit labeling
-and the partner's rules. [Translation](../../pramana/docs/TRANSLATION.md) distinguishes implemented
+and the partner's rules. [Translation](../TRANSLATION.md) distinguishes implemented
 behavior from proposed purpose-based controls.
 
 Source licensing, display, export, model processing and hosting permissions must

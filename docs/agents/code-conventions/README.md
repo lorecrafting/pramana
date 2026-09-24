@@ -21,7 +21,7 @@ to ordinary Elixir work.
 The Phoenix-derived guidance is **reviewed**, not blindly vendored. Local rules may
 intentionally differ where this repository has stronger lifecycle, safety, testing or
 structural requirements. [`UPSTREAM.exs`](UPSTREAM.exs) records the Phoenix version
-locked by `pramana/mix.lock`, the exact reviewed upstream commit and complete file/blob
+locked by `mix.lock`, the exact reviewed upstream commit and complete file/blob
 inventory under the watched Phoenix usage-rule directories, the complete local Markdown
 convention inventory, and a separate exact snapshot baseline for Phoenix `main`.
 

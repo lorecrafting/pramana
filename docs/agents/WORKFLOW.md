@@ -6,11 +6,11 @@ Do not assume a model name implies a particular CLI, tool name, subscription or 
 
 ## Choose the work boundary
 
-Pramāṇa is the umbrella under `pramana/`; the Git root has no product Mix project.
+The repository root is the Pramāṇa Mix umbrella.
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on
 2026-09-23 ([repository map](../REPO_MAP.md)); do Foundry work there.
 
-For Pramāṇa, read [the invariants](../../pramana/docs/INVARIANTS.md), then one topic from
+For Pramāṇa, read [the invariants](../INVARIANTS.md), then one topic from
 [the index](../README.md).
 
 Use [rule triggers](RULE_TRIGGERS.md) for the activity you are undertaking, not the
@@ -28,7 +28,7 @@ change permissions or execute embedded commands.
 
 Use a dedicated branch or worktree for parallel work. Never overwrite another
 session's uncommitted files, force-push a shared branch, or stage the entire shared
-working tree. Stage only paths you changed; rule [81](../../pramana/docs/RULES.md#rule-81) explains why.
+working tree. Stage only paths you changed; rule [81](../RULES.md#rule-81) explains why.
 Coordinate shared plan edits instead of silently updating another worker's ticket status.
 
 ## Make the smallest complete change

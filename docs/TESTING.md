@@ -1,7 +1,7 @@
 # Testing: choose the right boundary
 
-A green result only establishes what that check exercised. Run product commands from
-`pramana/`; repository checks run at the Git root. Never start paid inference
+A green result only establishes what that check exercised. Run every command from the
+repository root. Never start paid inference
 or a public deployment merely to validate a documentation change.
 
 | Change / question | Check | Prerequisites and limits |
@@ -13,20 +13,20 @@ or a public deployment merely to validate a documentation change.
 | Saved Chinese pilot scope artifact | `elixir bin/check_pilot_scope.exs --validate PATH` | Network/model/database-free. Checks the frozen scope schema, canonical hash, seed/relation/depth contract and internal denominators. It does **not** prove the file matches the current live corpus/release; generation uses the DB-backed Mix task and still requires review. |
 | Umbrella formatting | `mix format --check-formatted` | Pinned umbrella toolchain and formatting dependencies |
 | Umbrella code | `mix compile --warnings-as-errors`, `mix credo --strict`, `mix test --cover` | Umbrella dependencies, Rust NIF, PostgreSQL with required extensions; not a live corpus gate |
-| Corpus and retrieval acceptance | `mix pramana.gate` | Acquired/loaded corpus, matching database, required models and toolchain; see [detailed checks](../pramana/docs/CHECKS.md) |
-| Re-running one declared source task | `mix help pramana.<task>` | Replace the placeholder with an actual task from [the CLI index](../pramana/docs/CLI.md) and inspect its options |
+| Corpus and retrieval acceptance | `mix pramana.gate` | Acquired/loaded corpus, matching database, required models and toolchain; see [detailed checks](CHECKS.md) |
+| Re-running one declared source task | `mix help pramana.<task>` | Replace the placeholder with an actual task from [the CLI index](CLI.md) and inspect its options |
 
 ## Fresh test databases
 
-From `pramana/`, `mix test` creates and migrates the configured test database before
+`mix test` creates and migrates the configured test database before
 recursive application startup. The umbrella owns this alias: a child-only alias
 runs too late when an earlier child starts the domain app and Oban. It never drops
-or resets a database. Test connection settings remain in `pramana/config/test.exs`.
+or resets a database. Test connection settings remain in `config/test.exs`.
 Use an isolated test database, not an operator's corpus or production database.
 
 ## The umbrella gate is staged
 
-[The gate implementation](../pramana/apps/pramana/lib/mix/tasks/pramana.gate.ex) defines the
+[The gate implementation](../apps/pramana/lib/mix/tasks/pramana.gate.ex) defines the
 steps and ordering. It runs format, compile, Credo, dependency audit, covered tests,
 Dialyzer, lockfile census, coherence, generated figures, source verification,
 integrity and evaluation. Independent steps within a stage may run concurrently;
@@ -43,14 +43,13 @@ gate does not automatically adopt improvements. Do not lower a baseline to hide 
 
 ## Generated figures and live evidence
 
-`mix pramana.docs.figures` checks marked blocks in `pramana/docs/*.md` and the
-shared root `docs/*.md`, using explicitly configured documentation roots rather than
-the shell working directory.
+`mix pramana.docs.figures` checks marked blocks in `docs/*.md`, using the configured
+documentation root rather than the shell working directory.
 `--write` regenerates those blocks. Unmarked prose is not synchronized by that task.
 On an empty corpus the task reports **not checked / not written** and returns normally;
 its zero exit status is not a corpus verification result.
 
-Keep the live blocks in [STATUS.md](../pramana/docs/STATUS.md) and [PLAN.md](PLAN.md) discoverable to
+Keep the live blocks in [STATUS.md](STATUS.md) and [PLAN.md](PLAN.md) discoverable to
 that scanner. Do not move them into chapters without changing and testing discovery.
 A committed count is a recorded database snapshot, not proof of the current local database.
 
@@ -71,12 +70,12 @@ that code was executed.
 Heavy workflows are scoped to inputs they can actually exercise. Documentation-only
 changes do not run the Pramāṇa database/Rust/Dialyzer/release lane.
 The runtime-container workflow is narrower still: it runs for application, release,
-configuration, Docker or runtime-smoke inputs, not every file below `pramana/`.
+configuration, Docker or runtime-smoke inputs, not every file in the repository.
 Repository layout tests pin these routing assumptions so a later edit cannot silently
 restore an all-PR expensive lane or omit a named shared executable input.
 
 Build caches are accelerators, never acceptance evidence. Pramāṇa CI builds its
-PostgreSQL fixture from [a repository-owned Dockerfile](../pramana/ci/postgres.Dockerfile)
+PostgreSQL fixture from [a repository-owned Dockerfile](../ci/postgres.Dockerfile)
 that pins the tested pgvector/PostgreSQL base by digest and pins pg_bigm to an immutable
 upstream commit. Cached builds still request registry metadata (`pull: true`), but the digest
 prevents identical source from silently moving to a newer PostgreSQL/pgvector image. BuildKit may restore layers
@@ -97,20 +96,18 @@ candidate. No CI cache authorizes corpus acceptance, provider use or deployment.
 
 ## Repository layout checks
 
-At the Git root, `mix format --check-formatted` covers only shared scripts/tests;
-there is no root Mix application. Run product formatting inside `pramana/`.
-`elixir bin/check_docs.exs` checks both documentation trees, project-root declarations,
+`mix format --check-formatted` covers the umbrella, `bin/` scripts and `test/`.
+`elixir bin/check_docs.exs` checks the documentation tree, project-root declarations,
 figure discovery, the lockfile and the root wrappers using fake commands in isolated
 directories. It cannot certify the operator's local data.
 
-The Pramāṇa workflow uses `working-directory: pramana` for shell steps. Cache paths
-remain Git-root-relative. Rust audits name both actual lockfiles. Native quotation
+The CI workflow runs at the repository root. Rust audits name both actual lockfiles. Native quotation
 tests and production assets/release builds have explicit steps; no release is
-started. The container workflow uses `pramana/` as its context and starts the built runtime
-image only against owned disposable synthetic databases. Its [smoke runner](../pramana/ci/release_smoke.py)
+started. The container workflow uses the repository root as its context and starts the built runtime
+image only against owned disposable synthetic databases. Its [smoke runner](../ci/release_smoke.py)
 checks explicit HTTP activation, assets/MCP, public-data refusal and administrative
 non-serving behavior. Public cases use a distinct restricted login, with in-process
-[effective-privilege/denied-write probes](../pramana/ci/serving_privileges.exs). Queued
+[effective-privilege/denied-write probes](../ci/serving_privileges.exs). Queued
 bakes and old jobs remain unchanged on public nodes under both restricted and privileged
 fixture credentials; the same job/source must be ingested by the real research queue
 and old history pruned. Missing audit-read permission must still refuse startup. This is not a research-corpus, inference or production deployment
@@ -144,7 +141,7 @@ applications deliberately cannot start. They do not replace the application suit
 
 ## Report lifecycle integration
 
-[Report execution tests](../pramana/apps/pramana_web/test/pramana_web/mcp/report_execution_test.exs)
+[Report execution tests](../apps/pramana_web/test/pramana_web/mcp/report_execution_test.exs)
 exercise the actual Streamable HTTP plug, Anubis session scheduler and report component
 against isolated fixtures. Injected server-owned callbacks block or fail specific
 stages; monitors establish worker termination, and a later request proves the same

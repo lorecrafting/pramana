@@ -167,7 +167,7 @@ defmodule Docs.RoutingTest do
 
   defp rule_numbers do
     @root
-    |> Path.join("pramana/docs/rules/*.md")
+    |> Path.join("docs/rules/*.md")
     |> Path.wildcard()
     |> Enum.flat_map(fn path ->
       ~r/^(\d+)\. \*\*/m
@@ -237,7 +237,7 @@ defmodule Docs.RoutingTest do
   end
 
   test "rule links retain stable IDs" do
-    index = anchors(read!("pramana/docs/RULES.md"))
+    index = anchors(read!("docs/RULES.md"))
     for number <- rule_numbers(), do: assert(MapSet.member?(index, "rule-#{number}"))
   end
 
@@ -245,13 +245,13 @@ defmodule Docs.RoutingTest do
     [_, current] =
       Regex.run(
         ~r/@pipeline_version\s+"(\d+)"/,
-        read!("pramana/apps/pramana/lib/pramana/bake.ex")
+        read!("apps/pramana/lib/pramana/bake.ex")
       )
 
     pattern = ~r/pipeline[_ ]?version[^0-9\n]{0,16}(\d+)|pipeline \| \*{0,2}v(\d+)/i
 
     wrong =
-      ["docs/*.md", "pramana/docs/*.md"]
+      ["docs/*.md"]
       |> Enum.flat_map(&Path.wildcard(Path.join(@root, &1)))
       |> Enum.reject(&(Path.basename(&1) in ["HISTORY.md", "PROXIES.md", "PRODUCT_STRATEGY.md"]))
       |> Enum.flat_map(fn path ->

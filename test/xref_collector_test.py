@@ -45,7 +45,7 @@ class XrefCollectorTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.work = Path(temporary.name)
         self.root = self.work / "checkout"
-        self.project = self.root / "pramana"
+        self.project = self.root
         self.app = self.project / "apps/demo"
         self.report = self.work / "report"
         # Do not inherit a Git worktree/index or alternate Mix build location.
@@ -127,7 +127,7 @@ end
         inventory = (self.report / "source-files.paths0").read_bytes().split(b"\0")
         hashes = (self.report / "source-files.sha256").read_text(encoding="utf-8")
         for source in graph:
-            relative = f"pramana/apps/demo/{source}"
+            relative = f"apps/demo/{source}"
             self.assertIn(relative.encode(), inventory)
             digest = hashlib.sha256((self.root / relative).read_bytes()).hexdigest()
             self.assertIn(f"{digest}  {relative}\n", hashes)
@@ -164,7 +164,7 @@ end
         self.assertFalse((self.report / "metadata.json").exists())
 
     def test_external_source_is_rejected_even_when_tracked(self) -> None:
-        self.fixture(paths='["lib", Path.expand("../../../outside", __DIR__)]')
+        self.fixture(paths='["lib", Path.expand("../../outside", __DIR__)]')
         self.put(self.root / "outside/external.ex",
                  "defmodule Fixture.External do\n  def run, do: Pramana.Release.current_id()\nend\n")
         self.compile()

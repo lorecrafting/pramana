@@ -4,7 +4,7 @@ defmodule Pramana.AgentConventionSync do
   @root Path.expand("..", __DIR__)
   @conventions_dir Path.join(@root, "docs/agents/code-conventions")
   @manifest_path Path.join(@conventions_dir, "UPSTREAM.exs")
-  @lock_path Path.join(@root, "pramana/mix.lock")
+  @lock_path Path.join(@root, "mix.lock")
   @repo_api "https://api.github.com/repos/phoenixframework/phoenix"
   @contents_base "#{@repo_api}/contents"
   @commits_base "#{@repo_api}/commits"

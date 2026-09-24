@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "pramana": {
-      "command": "./bin/pramana-mcp",
-      "args": [],
-      "env": {}
-    }
-  }
-}

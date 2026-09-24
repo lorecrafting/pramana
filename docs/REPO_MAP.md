@@ -1,45 +1,33 @@
 # Repository map
 
-One product, Pramāṇa, under `pramana/`. The Git root holds repository tooling and
-shared docs; it is **not** a Mix project. [Documentation](README.md).
-
-## Pramāṇa: umbrella project
-
-Work in `pramana/` or use `bin/pramana-mix` from the Git root.
+The repository root is the Pramāṇa Mix umbrella. Run Mix, asset, native and corpus
+commands here. [Documentation](README.md).
 
 | Location | Role |
 |---|---|
-| `pramana/mix.exs`, `mix.lock`, `config/`, `rel/` | Pramāṇa build/dependency/configuration/release root |
-| `pramana/apps/pramana/` | Corpus domain, acquisition, citation, provenance, retrieval and evaluation |
-| `pramana/apps/pramana_web/` | Phoenix reader and read-only MCP; depends on the domain |
-| `pramana/apps/pramana_native/` | Rustler NIF for CJK segmentation |
-| `pramana/native/quotations/` | Separate Rust quotation scanner; separate Cargo manifest |
-| `pramana/priv/` | Native/model companions and project data assets; not the app's `priv/` |
-| `pramana/sources/`, `sources.lock.json`, `evals/` | Provenance metadata and active evaluation inputs |
-| `pramana/bin/`, `docs/`, `Dockerfile` | Product tooling, references and image build |
+| `mix.exs`, `mix.lock`, `config/`, `rel/` | Umbrella build, dependencies, configuration and release |
+| `apps/pramana/` | Corpus domain, acquisition, citation, provenance, retrieval and evaluation |
+| `apps/pramana_web/` | Phoenix reader and read-only MCP; depends on the domain |
+| `apps/pramana_native/` | Rustler NIF for CJK segmentation |
+| `native/quotations/` | Separate Rust quotation scanner; separate Cargo manifest |
+| `priv/` | Native/model companions and project data assets; not an app's `priv/` |
+| `sources/`, `sources.lock.json`, `evals/` | Provenance metadata and active evaluation inputs |
+| `bin/` | `pramana-mcp` (used by `.mcp.json`), Modal/tranche wrappers and dependency-free repository checks |
+| `ci/`, `Dockerfile`, `.github/workflows/` | CI fixtures, runtime image and workflows |
+| `docs/`, `test/` | Documentation and repository-level checks run by `bin/check_docs.exs` |
 
-The three child Mix projects keep relative `../../` links to this umbrella.
-[Application overview](../pramana/README.md).
+The three child Mix projects use relative `../../` build, config, deps and lockfile paths.
+[Architecture](ARCHITECTURE.md).
 
 ## Foundry: moved out
 
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23, history included. Its
 pre-split history stays in this repository; the last commit with `foundry/` is
-`e1e4b3bf`.
-
-## Shared repository files
-
-Root `README.md`, `AGENTS.md`, provider shims, `mise.toml`, `.github/workflows/`,
-`docs/` and `test/` are repository-level. Root `bin/` holds the dependency-free checks,
-`bin/pramana-mix` and the `bin/pramana-mcp` launcher used by `.mcp.json`; product scripts
-live in `pramana/bin/`. `pramana/AGENTS.md` routes back to the shared instructions.
-
-The [plan](PLAN.md), [phase record](ROADMAP.md) and [product strategy](PRODUCT_STRATEGY.md)
-are in `docs/`; Pramāṇa topic references are under `pramana/docs/`.
+`e1e4b3bf`. Until 2026-09-24 Pramāṇa itself lived in a `pramana/` subdirectory.
 
 ## Generated and local-only material
 
-Build output, dependencies, coverage, native targets, the corpus (`raw/`), model
-weights, PLTs, the Python virtualenv and local source text all live under `pramana/`
-and are ignored by `pramana/.gitignore`. Databases and credentials live outside the
-repository. [Retired files](RETIRED_FILES.md) indexes removed tracked files.
+Build output, dependencies, coverage, native targets, the corpus (`raw/`), model weights,
+PLTs, the Python virtualenv and local source text are ignored by `.gitignore`. Databases
+and credentials live outside the repository. [Retired files](RETIRED_FILES.md) indexes
+removed tracked files.

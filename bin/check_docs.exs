@@ -1,11 +1,11 @@
 # Repository checks: no Mix deps, database or models.
 root = Path.expand("..", __DIR__)
 ExUnit.start()
-Code.require_file(Path.join(root, "pramana/apps/pramana/lib/pramana/docs/sync.ex"))
+Code.require_file(Path.join(root, "apps/pramana/lib/pramana/docs/sync.ex"))
 Code.require_file(Path.join(root, "bin/pilot_preflight.exs"))
 Code.require_file(Path.join(root, "bin/pilot_acceptance.exs"))
 Code.require_file(Path.join(root, "bin/pilot_participants.exs"))
-Code.require_file(Path.join(root, "pramana/apps/pramana/lib/pramana/pilot/scope_artifact.ex"))
+Code.require_file(Path.join(root, "apps/pramana/lib/pramana/pilot/scope_artifact.ex"))
 
 for relative <- [
       "test/docs/routing_test.exs",
@@ -17,8 +17,8 @@ for relative <- [
       "test/pilot_participants_test.exs",
       "test/pilot_scope_artifact_test.exs",
       "test/wrappers_test.exs",
-      "pramana/apps/pramana/test/docs/sync_test.exs",
-      "pramana/apps/pramana_web/test/pramana_web/mcp/documented_test.exs"
+      "apps/pramana/test/docs/sync_test.exs",
+      "apps/pramana_web/test/pramana_web/mcp/documented_test.exs"
     ] do
   Code.require_file(Path.join(root, relative))
 end

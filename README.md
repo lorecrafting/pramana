@@ -1,40 +1,58 @@
 # Pramāṇa
 
-Citation-grounded retrieval over Buddhist canonical texts: original-language passages
-with provenance and checkable addresses, a source reader and a read-only MCP server.
-Start with the [product overview](pramana/README.md).
+An English-first, citation-grounded research substrate for Buddhist texts. It retrieves
+original-language passages with provenance and checkable addresses, keeps renderings
+distinct from source text, and provides deterministic citation checks. A valid quotation
+does not by itself prove an interpretation or exhaustive corpus coverage.
 
 Foundry, which shared this repository until 2026-09-23, now lives in
 [lorecrafting/foundry](https://github.com/lorecrafting/foundry). Its pre-split history remains here.
 
-## Layout
+## Start here
 
-| Path | Contents |
+| Reader | Entry point |
 |---|---|
-| `pramana/` | The Mix umbrella: apps, config, native code, source manifests, evals and product docs. Run product commands here. |
-| `docs/` | Plan, strategy, testing, agent workflow and repository docs |
-| `bin/`, `test/` | Repository checks that need no Mix dependencies, plus `bin/pramana-mix` and the MCP launcher |
-| `.github/workflows/` | CI |
+| Understand the repository | [Documentation index](docs/README.md) and [repository map](docs/REPO_MAP.md) |
+| Learn Pramāṇa from the ground up | [Chaptered primer](docs/PRIMER.md) |
+| Set up a checkout | [Development environment](docs/DEV_ENV.md) |
+| Use research tools or the reader | [MCP](docs/MCP.md) and [reader](docs/READER.md) |
+| Contribute with any model provider | [AGENTS.md](AGENTS.md), the shared routing entry point |
 
 ## Development entry points
 
 ```bash
 mise install
-(cd pramana && mise exec -- mix deps.get)
-(cd pramana && mise exec -- mix test)       # needs PostgreSQL + extensions and Rust
-mise exec -- elixir bin/check_docs.exs      # repository checks; no corpus/provider
+mix deps.get
+mix test                                  # needs PostgreSQL + extensions and Rust
+elixir bin/check_docs.exs                 # repository checks; no Mix deps, corpus or provider
+docker build -t pramana:local .
 ```
 
-`bin/pramana-mix` runs Mix in `pramana/` from any working directory. Database setup is an
-explicit operation; follow [setup](pramana/docs/DEV_ENV.md). The corpus (`pramana/raw/`),
-model weights, virtualenv and local source text are ignored and never committed. Do not
-run `git clean -fdx`: it deletes them.
+Database setup is an explicit operation; follow [setup](docs/DEV_ENV.md). The corpus
+(`raw/`), model weights, virtualenv and local source text are ignored and never committed.
+Do not run `git clean -fdx`: it deletes them.
 
-```bash
-docker build -f pramana/Dockerfile -t pramana:local pramana
-```
+## What it is
 
-## Orientation
+An Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF, standalone Rust
+text-reuse scanner and Python inference/training helpers. The MCP surface is read-only;
+ingestion and other corpus mutations are CLI operations. The reader has search, inventory,
+survey, passage, work and report-checking screens. See the source-backed
+[architecture](docs/ARCHITECTURE.md), [CLI index](docs/CLI.md) and
+[testing guide](docs/TESTING.md) rather than duplicate tool/version counts here.
 
-[Agent router](AGENTS.md) · [Documentation](docs/README.md) · [Repository map](docs/REPO_MAP.md) ·
-[Testing](docs/TESTING.md) · [Plan](docs/PLAN.md) · [Product strategy](docs/PRODUCT_STRATEGY.md)
+Source records cover Chinese, Pāli and Tibetan material, but neither corpus nor index
+coverage is complete. [STATUS.md](docs/STATUS.md) contains generated figures from the
+recorded database snapshot. `mix pramana.doctor` and the corpus checks report the state
+of the database actually connected.
+
+`bake_id` identifies declared source inputs and `release_id` the stored renderings and
+vectors; see [identity and replay](docs/ARCHITECTURE.md#identity-and-replay). Neither is
+an immutable snapshot or a guarantee of identical search replay.
+
+## Data and publication
+
+**Publish the pipeline, not an assumed right to redistribute every ingested source.**
+Sources and translations have distinct license metadata. `raw/` and live runtime state
+are not tracked. A public deployment needs the intended dataset, verified permissions
+and the [public deployment checks](docs/DEPLOY.md).
