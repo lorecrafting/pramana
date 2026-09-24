@@ -1,6 +1,5 @@
 # Development setup
 
-This covers Pramāṇa only; Foundry lives in [lorecrafting/foundry](https://github.com/lorecrafting/foundry).
 These are repository-derived instructions, not evidence that setup ran in this audit.
 
 ## Pramāṇa prerequisites

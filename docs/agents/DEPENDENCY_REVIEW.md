@@ -194,9 +194,7 @@ This runbook does not launch subagents or choose paid models.
 
 ## Scope and deciding whether this helps
 
-The CI reports analyze only the Pramāṇa child applications. Foundry is a separate
-Mix project and remains outside this implementation; its repairs, active worktrees
-and execution policies are untouched. Rust NIF bodies, the separate quotation
+The CI reports analyze only the Pramāṇa child applications. Rust NIF bodies, the separate quotation
 scanner, Python helpers, runtime message routes and corpus relationships are not
 represented as a complete graph by `xref`.
 

@@ -1,2 +1,2 @@
-# Repository-only scripts and tests. Each product formats in its own project.
+# Repository-only scripts and tests. Pramāṇa formats in pramana/.
 [inputs: ["bin/*.exs", "test/**/*.exs"]]

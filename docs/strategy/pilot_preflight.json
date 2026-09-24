@@ -8,7 +8,7 @@
       "state": "blocked",
       "reason": "FR-22 lifecycle acceptance in lorecrafting/foundry (docs/REPAIR-PLAN.md) is not complete.",
       "evidence": [
-        "docs/strategy/FOUNDRY.md#where-foundry-lives"
+        "docs/PRODUCT_STRATEGY.md#dependency-on-foundry"
       ]
     },
     {

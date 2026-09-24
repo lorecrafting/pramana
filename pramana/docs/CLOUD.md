@@ -1,4 +1,4 @@
-# Choosing compute without coupling the systems
+# Choosing compute
 
 Separate corpus batch work, application/database hosting, and model-provider usage.
 They have different workloads, costs and trust boundaries. The repository does not
@@ -9,7 +9,6 @@ require choosing the same vendor for all three.
 | Embedding / translation batches | Current row/token counts, model/artifact compatibility, measured throughput, source-data transfer rights, storage and egress, spend limit, timeout and cleanup |
 | Research app and database | Dataset size, memory and connection budget, durable storage, extensions, backups/restore, networking and permitted data exposure |
 | Model-backed research | Harness/tool compatibility, data handling, quality measured on the task, token/subscription billing terms |
-| Foundry execution | Its explicit account/billing/launch policy and backend conformance; see [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/README.md) |
 
 Pramāṇa can serve lexical queries without GPU inference. Semantic query embedding
 has a CPU-serving path; whether it meets a deployment's latency and memory targets is

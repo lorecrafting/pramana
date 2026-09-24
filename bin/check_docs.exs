@@ -16,7 +16,6 @@ for relative <- [
       "test/pilot_acceptance_test.exs",
       "test/pilot_participants_test.exs",
       "test/pilot_scope_artifact_test.exs",
-      "test/local_layout_test.exs",
       "test/wrappers_test.exs",
       "pramana/apps/pramana/test/docs/sync_test.exs",
       "pramana/apps/pramana_web/test/pramana_web/mcp/documented_test.exs"

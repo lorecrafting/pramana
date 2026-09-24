@@ -20,4 +20,4 @@ and corpus checks.
 
 `CLAUDE.md` and `GEMINI.md` are compatibility entry points to this file, not separate
 policy. Other harnesses should be given this file explicitly when they do not load it.
-Provider choice does not change repository rules or authorize a Foundry launch.
+Provider choice does not change repository rules.

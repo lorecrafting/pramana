@@ -22,7 +22,7 @@ the provenance model or the eval harness.
 
 Rechecked at `e5d0bfc2b61018d5b2f202baa4f9841ac7531882`. These are implementation
 states, not a new live corpus audit or approval of the proposed pilot. See
-[PLAN's current disposition](PLAN.md#current-engineering-disposition--post-17-2026-09-16)
+[PLAN's current disposition](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#current-engineering-disposition--post-17-2026-09-16)
 for the active task, human dependencies and unchanged Foundry ownership.
 
 | Phase | Current disposition |
@@ -44,18 +44,18 @@ translation/vector content. Report verification compares supplied identities and
 receipts; it does not freeze code/defaults, retain historical rows or restore snapshots.
 PR #16's dependency advisory fixes and both Hex audit commands are also already integrated.
 PR #19 subsequently completed the per-page asynchronous `/check` lifecycle. The
-[post-#19 argument-validation follow-up](PLAN.md#replay-argument-validation--post-19-2026-09-16)
+[post-#19 argument-validation follow-up](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#replay-argument-validation--post-19-2026-09-16)
 rejects unsupported or wrongly typed replay arguments before tool invocation; it does not
 expand release identity, retrieval policy, or public-hosting acceptance.
 
-After PR #21, [release startup admission](PLAN.md#release-startup-admission--post-21-2026-09-17)
+After PR #21, [release startup admission](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#release-startup-admission--post-21-2026-09-17)
 adds explicit serving and synchronous public-data refusal, with isolated runtime-image
 acceptance. This does not constitute a production deployment or new publishing policy.
-The [post-#22 serving-isolation follow-up](PLAN.md#public-serving-isolation--post-22-2026-09-17)
+The [post-#22 serving-isolation follow-up](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#public-serving-isolation--post-22-2026-09-17)
 omits background Oban writers on public nodes and exercises restricted serving credentials
 with a real ingestion positive control. It does not change the publishing policy or grant
 production database privileges automatically.
-The [post-#23 MCP execution follow-up](PLAN.md#mcp-report-execution--post-23-2026-09-17)
+The [post-#23 MCP execution follow-up](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#mcp-report-execution--post-23-2026-09-17)
 adds a shared verification/repair deadline and retains completed verification when repair
 fails. The reader policy is unchanged. This bounds component work, not transport queueing,
 all response overhead, cross-session admission or already-dispatched database/native work.

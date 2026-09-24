@@ -25,17 +25,15 @@ erl_crash.dump
 # Temporary files, for example, from tests.
 /tmp/
 
-
-
 # --- Pramana ---
 # Corpus data is NEVER committed. We publish the pipeline, not the corpus.
-# See CLAUDE.md "Licensing posture".
-/raw/
-/bake/out/
+# See README.md "Data and publication".
+/raw
+/bake/out
 sources.lock.local.json
 
 # Python embed sidecar
-/priv/embed/.venv/
+/priv/embed/.venv
 /priv/embed/__pycache__/
 /priv/embed/models/
 
@@ -43,7 +41,7 @@ sources.lock.local.json
 /apps/pramana_native/native/**/target/
 
 # Dialyzer
-/priv/plts/
+/priv/plts
 
 # Rust build artifacts (path differs from the pattern added earlier)
 /apps/pramana_native/native/pramana_native/target/
@@ -56,13 +54,13 @@ sources.lock.local.json
 # Manifests ARE committed: they are bibliographic metadata, they are what makes a bake
 # reproducible for someone who has their own copy of the text, and they contain no
 # licensed content.
-sources/local/*/text/
-sources/local/*/raw/
+sources/local/*/text
+sources/local/*/raw
 native/quotations/target/
 
 # Fine-tuned embedding weights: 2.2 GB of tensors, reproducible from the LoRA adapter
 # and the pinned base model. See docs/GPU_RUNBOOK.md and mix pramana.embed.fetch_model.
-priv/models/
+priv/models
 
 # Derived on every `mix pramana.public.bake` from sources.lock.json, which IS committed.
 # Committing it too would be a second copy of the same facts, free to drift.
@@ -78,13 +76,3 @@ sources.public.lock.json
 __pycache__/
 *.pyc
 *.pyo
-
-# The operator may bridge legacy data with symlinks during layout cutover.
-# Match the path itself as well as directories; never track private path bridges.
-/raw
-/bake/out
-/priv/models
-/priv/plts
-/priv/embed/.venv
-/sources/local/*/text
-/sources/local/*/raw

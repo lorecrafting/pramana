@@ -1,27 +1,24 @@
-# Product strategy: Pramāṇa and Foundry
+# Product strategy
 
 **Status:** proposed strategic baseline for operator review, 2026-09-15.
 **Horizon:** product work after the Foundry repair backlog is accepted.
-**Foundry repository:** [lorecrafting/foundry](https://github.com/lorecrafting/foundry) (moved out 2026-09-23).
 **Source baseline:** `713e8522e7028b767535695ffd6d1c4be1c89e29`.
 
 This replaces the appended research notebook with a decision-oriented strategy. It
 proposes direction, not shipped capabilities, budgets, implementation tickets or
-permission to launch agents. The [repair plan](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md) and
-[workflow contract](https://github.com/lorecrafting/foundry/blob/main/docs/WORKFLOW-CONTRACT.md) retain execution authority.
+permission to launch agents.
 [PLAN](PLAN.md) owns active work; [ROADMAP](ROADMAP.md) retains its existing phase
-record. [PLAN's post-#17 reconciliation](PLAN.md#current-engineering-disposition--post-17-2026-09-16)
+record. [PLAN's post-#17 reconciliation](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#current-engineering-disposition--post-17-2026-09-16)
 now checks the existing engineering baseline; it does not approve the pilot choices or
 admit these strategic initiatives. V2 content identity is implemented, not immutable replay.
 
 ## The strategy in one page
 
-**Build two independent products around evidence, not one universal agent platform.**
+**Build around evidence, not a universal agent platform.**
 Pramāṇa helps people find, inspect and responsibly reuse Buddhist textual evidence.
-Foundry is a trusted execution and governance kernel that lets models direct bounded
-work while preserving authority, evidence, acceptance and recovery. Software
-engineering is its first demanding workload and Pramāṇa its first application, not
-a permanent role model, dependency or its only possible market.
+This strategy was written jointly with Foundry's, which now lives in
+[lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md); the
+[dependency below](#dependency-on-foundry) is the part Pramāṇa still relies on.
 
 The scarce resource is trustworthy progress per unit of human attention. More
 corpus rows, agents, generated code or architectural layers are not progress unless
@@ -33,8 +30,6 @@ they improve a real research or engineering outcome.
 | Initial product scope | One selected canon/collection per pilot workflow, with explicit scope selection | Keep existing multi-corpus infrastructure; defer automatic cross-canon synthesis |
 | First complete experience | Question or quotation → scoped evidence → context and rendering → reusable citation | Improve the existing reader and MCP instead of rebuilding them around a chatbot |
 | Trust promise | Show what was checked, against which source, and what remains uncertain | Byte matching is not doctrinal truth, interpretation, translation fidelity or exhaustive search |
-| Foundry investment | Complete repair acceptance, then measure delivery, run a substitution check and improve only the demonstrated gap | Compose mature infrastructure where it passes Foundry's contract; do not rebuild generic agent/workflow/sandbox layers for ownership's sake |
-| Long-term Foundry option | Portable model-directed execution/governance kernel, proved first on a second repository and later on a materially different authorized workflow | Preserve independence now; keep roles/workflows configurable outside the protected authority core; delay multi-tenant platform work until demand is demonstrated |
 | Research and dependencies | Borrow tested mechanisms; adopt packages only after bounded evaluation | No blanket adoption of a vendor's stack or benchmark claims |
 
 The initial strategy rewrite left canon, participants and pilot controls open. Those
@@ -57,14 +52,6 @@ archives, translators and model builders are potential complements, not inferior
 systems to dismiss. Demand and advantage must be tested against the user's actual
 archive-plus-search or model-assisted workflow. [Pramāṇa strategy](strategy/PRAMANA.md)
 owns the customer, scope and trust contract.
-
-Foundry's proposed advantage is controlled delivery with understandable failure and
-recovery, across permitted providers, without requiring the operator to babysit
-ordinary work. A multiplexer, model gateway, coding agent or generic durable workflow
-runtime alone is not that product. Foundry should compose those systems when they
-satisfy its contracts and should stop building any layer an external product can do
-better without weakening authority or evidence. [Foundry strategy](strategy/FOUNDRY.md)
-owns the boundary and investment logic.
 
 Both can accumulate useful assets: regression cases, source corrections, reviewed
 rules and reliable workflows. This is a **compounding hypothesis**, not evidence
@@ -99,12 +86,21 @@ tool count. Existing verified functionality is not removed just to narrow a pilo
 | Need | Owner |
 |---|---|
 | Users, initial scope, UX, source and translation policy | [Pramāṇa](strategy/PRAMANA.md) |
-| Repair handoff, autonomy, memory, providers and portability | [Foundry](strategy/FOUNDRY.md) |
+| Repair handoff, autonomy, memory, providers and portability | [Foundry product strategy](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) (lorecrafting/foundry) |
 | Horizons, dependencies, candidate initiatives and expansion gates | [Roadmap](strategy/ROADMAP.md) |
 | Metrics, pilot design, experiment standards and sustainability | [Validation](strategy/VALIDATION.md) |
 | Open choices and conversion into formal plans and tickets | [Decision and planning process](strategy/DECISIONS.md) |
 | External sources, adoption policy and verification limits | [Research register](strategy/RESEARCH.md) |
 | Where every original section went; contradictions resolved | [Reconciliation](strategy/RECONCILIATION.md) |
+
+## Dependency on Foundry
+
+Pramāṇa's pilot implementation waits on Foundry's G0: acceptance of
+[FR-22](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md#fr-22--prove-full-lifecycle-and-reconcile-operating-docs)
+in [lorecrafting/foundry](https://github.com/lorecrafting/foundry). That is the `foundry_g0` gate in the
+[pilot preflight](strategy/PILOT_PREFLIGHT.md). Check its status in that repository;
+this one does not mirror it. Pramāṇa must still build and run without Foundry, and
+Foundry's authority store must never become Pramāṇa's database.
 
 ## How this becomes an execution plan
 
@@ -127,17 +123,17 @@ historical claims are mapped in the reconciliation rather than copied into this 
 | <a id="3-the-progressive-disclosure-ux-model"></a>3. The Progressive Disclosure UX Model | [Pramana](strategy/PRAMANA.md) |
 | <a id="4-key-feature-specifications"></a>4. Key Feature Specifications | [Pramana](strategy/PRAMANA.md) |
 | <a id="5-architectural-alignment-with-pramāṇa-umbrella"></a>5. Architectural Alignment with Pramāṇa Umbrella | [Pramana](strategy/PRAMANA.md) |
-| <a id="6-systems-architecture-harness-graph-and-loop-engineering"></a>6. Systems Architecture: Harness, Graph, and Loop Engineering | [Foundry](strategy/FOUNDRY.md) |
-| <a id="7-implementation-mechanism-the-composable-agent-middleware-pipeline-plug-for-agents"></a>7. Implementation Mechanism: The Composable Agent Middleware Pipeline ("Plug for Agents") | [Foundry](strategy/FOUNDRY.md) |
-| <a id="8-the-4-layer-compounding-system-self-improving-agent-roadmap"></a>8. The 4-Layer Compounding System: Self-Improving Agent Roadmap | [Foundry](strategy/FOUNDRY.md) |
+| <a id="6-systems-architecture-harness-graph-and-loop-engineering"></a>6. Systems Architecture: Harness, Graph, and Loop Engineering | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
+| <a id="7-implementation-mechanism-the-composable-agent-middleware-pipeline-plug-for-agents"></a>7. Implementation Mechanism: The Composable Agent Middleware Pipeline ("Plug for Agents") | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
+| <a id="8-the-4-layer-compounding-system-self-improving-agent-roadmap"></a>8. The 4-Layer Compounding System: Self-Improving Agent Roadmap | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
 | <a id="9-the-elixir-vibe-ecosystem-beam-native-verification-anti-slop-linting--replay"></a>9. The Elixir Vibe Ecosystem: BEAM-Native Verification, Anti-Slop Linting & Replay | [Research](strategy/RESEARCH.md) |
-| <a id="10-the-six-layer-agent-operating-system-harness-engineering-for-production-reliability"></a>10. The Six-Layer Agent Operating System: Harness Engineering for Production Reliability | [Foundry](strategy/FOUNDRY.md) |
-| <a id="11-agent--scholar-memory-architecture-the-4-level-beam-memory-hierarchy"></a>11. Agent & Scholar Memory Architecture: The 4-Level BEAM Memory Hierarchy | [Foundry](strategy/FOUNDRY.md) |
+| <a id="10-the-six-layer-agent-operating-system-harness-engineering-for-production-reliability"></a>10. The Six-Layer Agent Operating System: Harness Engineering for Production Reliability | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
+| <a id="11-agent--scholar-memory-architecture-the-4-level-beam-memory-hierarchy"></a>11. Agent & Scholar Memory Architecture: The 4-Level BEAM Memory Hierarchy | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
 | <a id="12-the-canonical-citation--exegetical-lineage-graph-subcommentaries-commentaries-and-root-sūtras"></a>12. The Canonical Citation & Exegetical Lineage Graph: Subcommentaries, Commentaries, and Root Sūtras | [Pramana](strategy/PRAMANA.md) |
 | <a id="13-deep-analysis-of-mem0--native-tri-signal-memory-fusion-for-beam--postgresql-18"></a>13. Deep Analysis of Mem0 & Native Tri-Signal Memory Fusion for BEAM / PostgreSQL 18 | [Research](strategy/RESEARCH.md) |
-| <a id="14-two-brains-two-architectures-the-decoupled-memory-divide"></a>14. Two Brains, Two Architectures: The Decoupled Memory Divide | [Foundry](strategy/FOUNDRY.md) |
-| <a id="15-memory-is-the-wrong-abstraction-event-sourcing-read-time-compilation-and-context-asymmetry"></a>15. "Memory is the Wrong Abstraction": Event Sourcing, Read-Time Compilation, and Context Asymmetry | [Foundry](strategy/FOUNDRY.md) |
+| <a id="14-two-brains-two-architectures-the-decoupled-memory-divide"></a>14. Two Brains, Two Architectures: The Decoupled Memory Divide | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
+| <a id="15-memory-is-the-wrong-abstraction-event-sourcing-read-time-compilation-and-context-asymmetry"></a>15. "Memory is the Wrong Abstraction": Event Sourcing, Read-Time Compilation, and Context Asymmetry | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
 | <a id="16-ecosystem-positioning--integration-strategy-the-trusted-verification-consumer"></a>16. Ecosystem Positioning & Integration Strategy: The Trusted Verification Consumer | [Research](strategy/RESEARCH.md) |
 | <a id="17-multiplayer-agent-harnesses--scoped-security-postures-lessons-from-ycs-qm"></a>17. Multiplayer Agent Harnesses & Scoped Security Postures: Lessons from YC's QM | [Research](strategy/RESEARCH.md) |
-| <a id="18-empirical-loop-failure-modes--proactive-bounds-lessons-from-ial-scan--36000-repositories"></a>18. Empirical Loop Failure Modes & Proactive Bounds: Lessons from IAL-Scan & 36,000 Repositories | [Foundry](strategy/FOUNDRY.md) |
+| <a id="18-empirical-loop-failure-modes--proactive-bounds-lessons-from-ial-scan--36000-repositories"></a>18. Empirical Loop Failure Modes & Proactive Bounds: Lessons from IAL-Scan & 36,000 Repositories | [Foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
 | <a id="19-prompt-for-multi-model-review"></a>19. Prompt for Multi-Model Review | [Decisions](strategy/DECISIONS.md) |

@@ -1,8 +1,7 @@
 # Repository map
 
-Two independent products in sibling directories; there is **no repository-wide
-Mix umbrella**. [Structure decision](REPOSITORY_STRUCTURE.md) ·
-[Cutover/rollback](LAYOUT_MIGRATION.md) · [Documentation](README.md).
+One product, Pramāṇa, under `pramana/`. The Git root holds repository tooling and
+shared docs; it is **not** a Mix project. [Documentation](README.md).
 
 ## Pramāṇa: umbrella project
 
@@ -19,33 +18,28 @@ Work in `pramana/` or use `bin/pramana-mix` from the Git root.
 | `pramana/sources/`, `sources.lock.json`, `evals/` | Provenance metadata and active evaluation inputs |
 | `pramana/bin/`, `docs/`, `Dockerfile` | Product tooling, references and image build |
 
-The three child Mix projects keep their relative `../../` links to this umbrella.
-Their app names, source lockfile bytes and dependency locks did not change in the
-migration. [Application overview](../pramana/README.md).
+The three child Mix projects keep relative `../../` links to this umbrella.
+[Application overview](../pramana/README.md).
 
 ## Foundry: moved out
 
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23, history included. Its
 pre-split history stays in this repository; the last commit with `foundry/` is
-`e1e4b3bf`. Foundry's operator state now lives in its own checkout; an old `foundry/`
-directory left in a Pramāṇa checkout holds only stale build output and can be deleted.
+`e1e4b3bf`.
 
 ## Shared repository files
 
 Root `README.md`, `AGENTS.md`, provider shims, `mise.toml`, `.github/workflows/`,
-`docs/` and `test/` are repository-level concerns. Root `bin/` contains shared checks
-and deliberately retained compatibility wrappers, not a second copy of product logic.
-`pramana/AGENTS.md` routes back to the shared instructions.
+`docs/` and `test/` are repository-level. Root `bin/` holds the dependency-free checks,
+`bin/pramana-mix` and the `bin/pramana-mcp` launcher used by `.mcp.json`; product scripts
+live in `pramana/bin/`. `pramana/AGENTS.md` routes back to the shared instructions.
 
-[Product strategy](PRODUCT_STRATEGY.md), the still-active [plan](PLAN.md) and
-[phase record](ROADMAP.md) remain shared. Pramāṇa topic references are under
-`pramana/docs/`.
+The [plan](PLAN.md), [phase record](ROADMAP.md) and [product strategy](PRODUCT_STRATEGY.md)
+are in `docs/`; Pramāṇa topic references are under `pramana/docs/`.
 
 ## Generated and local-only material
 
-Pramāṇa owns its `_build/`, `deps/`, coverage and native outputs under `pramana/`.
-Pramāṇa's product ignore file protects the new locations. Legacy root ignore
-patterns remain to protect pre-migration data until an explicit operator cutover.
-Databases, raw corpora, credentials and active worktrees
-are not moved by Git source renames. [Retired-file recovery](RETIRED_FILES.md) is a
-separate cleanup record, not an instruction to delete these local artifacts.
+Build output, dependencies, coverage, native targets, the corpus (`raw/`), model
+weights, PLTs, the Python virtualenv and local source text all live under `pramana/`
+and are ignored by `pramana/.gitignore`. Databases and credentials live outside the
+repository. [Retired files](RETIRED_FILES.md) indexes removed tracked files.

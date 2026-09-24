@@ -3,7 +3,7 @@
 [Pramāṇa index](README.md) · [MCP](MCP.md) · [Reader](READER.md) · [Testing](../../docs/TESTING.md)
 
 This change follows the merged behavior-first test cleanup. It changes production
-semantics; it does not reopen Foundry repair or certify the live corpus.
+semantics; it does not certify the live corpus.
 
 ## Occurrence-safe repair
 

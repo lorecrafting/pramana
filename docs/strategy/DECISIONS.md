@@ -1,7 +1,7 @@
 # Decision register and planning handoff
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Candidate initiatives](ROADMAP.md)
-**Status:** D1–D7 and D11–D13 are resolved for the initial pilot; D8–D10 remain open. D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md), D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md), and D12 by the frozen [pilot acceptance contract](PILOT_ACCEPTANCE.md). No implementation ticket is admitted before G0.
+**Status:** D1–D7 and D11–D13 are resolved for the initial pilot; D8 remains open. Foundry's D9–D10 moved to [its strategy](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md#open-decisions). D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md), D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md), and D12 by the frozen [pilot acceptance contract](PILOT_ACCEPTANCE.md). No implementation ticket is admitted before G0.
 
 ## Authority and decision types
 
@@ -27,8 +27,6 @@ repair merely because some untrusted code needs a protected verifier.
 | D6 | **Resolved:** before G0 only non-operational discovery; after G0 one Pramāṇa product slice plus at most one bounded Foundry improvement; no second-repository pilot during the first user pilot | Operator | H1 execution |
 | D7 | **Resolved:** no exact historical replay promise for the first pilot; carry source/release identity and report explicit drift/unavailability | Product owner and architecture reviewer | I-P2/I-P3 export contract |
 | D8 | Decide which distribution/sustainability option deserves a real pilot; no prices or revenue assumptions are locked | Product owner/operator | Hosting or commercialization |
-| D9 | Select a second repository, success criteria and explicitly authorized project scope for the first Foundry portability proof; any later materially different workflow receives its own explicit scope/capability authorization | Operator and that repository's owner | I-F3 |
-| D10 | Decide a session-backend cutover only after actual conformance; Superlogical remains a future candidate | Operator and protected-boundary reviewer | I-F4 activation |
 | D11 | **Resolved:** pilot data authorization is exact-resource × operation and fail-closed. `permission required` and `unclear / unresolved` do not authorize execution; an external route additionally requires provider-terms, inference-authority and execution-bounds clearance; a local-only route is allowed only for resources whose local-model operation is itself cleared; no failed source silently falls back to another corpus or dictionary | Product owner with rights/source reviewer | Any Chinese-pilot source/model/provider data flow |
 | D12 | **Resolved:** Chinese-pilot execution ceilings, bilingual evaluation rubric, critical-failure taxonomy and R01–R16 rehearsal contract are frozen before implementation; known critical failures override averages, hidden retries are forbidden, external-provider calls/capacity remain unauthorized even at $0 cash, frozen retrieval floors must clear, the actual authorized inference route must pass source-bound translation quality, and rehearsal cases never count toward participant outcomes | Product owner with qualified evaluator/reviewer | Pilot implementation and rehearsal |
 | D13 | **Resolved:** measured participant tasks require explicit study consent; direct identity is separated from pseudonymous task/evaluator/consent records; pilot v1 is adult-only by 18+ attestation; external transfer of participant question/task content requires route-specific conditional consent; task content is excluded from ordinary operational logs; full individual records are deleted by the earlier of 30 days after the pilot decision or 90 days after collection, with deletion requests honored while records remain; current-alternative intake is structured/minimal; small public aggregate cells (<3 distinct participants) are suppressed/merged; individual public examples require separate opt-in consent; task eligibility/exclusion cannot be manipulated based on system success | Product owner with study/evaluation owner | Participant recruitment and pilot execution |
@@ -92,7 +90,6 @@ instructing an unattended model to ignore it.
 | Generated text or source reuse violates partner expectations | D4/D5 review before processing, display or sharing; do not claim endorsement |
 | Cross-canon comparison collapses real differences | Defer automatic synthesis; explicit scope, source roles and independent evaluation |
 | A dependency promises savings but adds maintenance or authority risk | One-mechanism experiment, known owner, fixed budget and reversal path |
-| Self-improvement corrupts rules or evidence | Accepted protected verifier, scoped promotion and traceable supersession |
 | Repeat use or willingness to support never appears | Do not expand hosting/features solely to justify sunk costs |
 | Another session changes the implementation baseline | Reconcile at ticket elaboration and before merging shared plans |
 

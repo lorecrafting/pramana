@@ -9,8 +9,9 @@
 | Current public research API | [MCP](../pramana/docs/MCP.md), registered tools, tool schemas and tests |
 | Operating checks | [Testing](TESTING.md), then the implementation of each check |
 | Corpus counts | Generated blocks in [STATUS](../pramana/docs/STATUS.md) / [PLAN](PLAN.md), from a named database |
-| Next work | [PLAN](PLAN.md); Foundry repair ordering belongs to [REPAIR-PLAN](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md) |
-| Foundry investment direction and cross-project lessons (in lorecrafting/foundry) | [Foundry strategy brief](https://github.com/lorecrafting/foundry/blob/main/docs/STRATEGY.md); not ticket status or execution authority |
+| Next work | [PLAN](PLAN.md) |
+| Foundry anything | [lorecrafting/foundry](https://github.com/lorecrafting/foundry) |
+| Removed files | [Retired files](RETIRED_FILES.md), with pinned recovery links |
 | Historical observations | [History](../pramana/docs/HISTORY.md), [proxy studies](../pramana/docs/PROXIES.md), dated review evidence |
 | Product choices under discussion | [PRODUCT_STRATEGY](PRODUCT_STRATEGY.md); not a shipped-feature inventory |
 
@@ -31,8 +32,8 @@ before use; old tables are not current recommendations.
 Prefer an index plus focused chapters to a long mixed-purpose file. Aim for roughly
 100–300 lines per reference chapter, but keep a coherent contract or evidence record
 intact when splitting would obscure it. The root agent router has a stricter tested
-budget. During concurrent repair work, preserve the shared plan and repair evidence;
-provide an index instead of reorganizing another worker's authority files.
+budget. When another session owns a document, coordinate before reorganizing it.
+Retire a finished record by deleting it and adding a pinned link to [retired files](RETIRED_FILES.md).
 
 ## Editing checklist
 
@@ -46,7 +47,7 @@ fragments, entry-point budgets, rule triggers, and registered task/tool document
 They do not prove scientific truth, prose accuracy, external URL availability or
 runtime guarantees. Historical exceptions must name a specific link and reason.
 
-The figure generator scans only top-level `docs/*.md` and rewrites only its marked
+The figure generator scans only top-level `docs/*.md` and `pramana/docs/*.md` and rewrites only its marked
 blocks. It does not update arbitrary prose or regenerate framework conventions.
 **There is no `pramana.docs.framework` task.** Framework guidance is maintained by
 hand against the code and upstream documentation.
@@ -60,4 +61,4 @@ operating command to its task source or [the CLI index](../pramana/docs/CLI.md).
 An audit should name its baseline commit, coverage and exclusions, source evidence,
 verified corrections, unresolved risks and actual checks run. A file inventory proves
 coverage of the inventory, not verification of every statement inside every file.
-See [the 2026-09-15 audit](audits/2026-09-15/README.md).
+The [2026-09-15 audit](RETIRED_FILES.md#retired-2026-09-24-the-single-product-cleanup) is an example.
