@@ -1,4 +1,4 @@
-# Repository checks: no Mix deps, database, models or live Foundry state.
+# Repository checks: no Mix deps, database or models.
 root = Path.expand("..", __DIR__)
 ExUnit.start()
 Code.require_file(Path.join(root, "pramana/apps/pramana/lib/pramana/docs/sync.ex"))

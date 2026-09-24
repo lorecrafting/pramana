@@ -27,7 +27,9 @@ migration. [Application overview](../pramana/README.md).
 
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23, history included. Its
 pre-split history stays in this repository; the last commit with `foundry/` is
-`e1e4b3bf`.
+`e1e4b3bf`. Existing checkouts may still hold ignored Foundry state under `foundry/`
+(`local/`, `handoffs/`, `ci-artifacts/`, builds); Foundry's legacy configuration reads
+`foundry/local/`, so leave it until the operator relocates it. Git ignores the whole directory.
 
 ## Shared repository files
 
@@ -42,9 +44,9 @@ and deliberately retained compatibility wrappers, not a second copy of product l
 
 ## Generated and local-only material
 
-Each product owns its own `_build/`, `deps/`, coverage and native outputs.
+Pramāṇa owns its `_build/`, `deps/`, coverage and native outputs under `pramana/`.
 Pramāṇa's product ignore file protects the new locations. Legacy root ignore
 patterns remain to protect pre-migration data until an explicit operator cutover.
-Databases, raw corpora, credentials, active worktrees and accepted Foundry builds
+Databases, raw corpora, credentials and active worktrees
 are not moved by Git source renames. [Retired-file recovery](RETIRED_FILES.md) is a
 separate cleanup record, not an instruction to delete these local artifacts.

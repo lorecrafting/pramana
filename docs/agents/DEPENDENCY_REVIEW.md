@@ -3,7 +3,7 @@
 **Executable runbook for Pramāṇa engineering.** Use native `mix xref` as a source
 navigation aid before changing shared modules, interfaces, macros or file ownership,
 and again when reviewing the candidate. This is not a new graph service, runtime
-MCP tool, Foundry repair gate, architectural score or automatic test selector.
+MCP tool, repair gate, architectural score or automatic test selector.
 
 [Shared workflow](WORKFLOW.md) · [Repository map](../REPO_MAP.md) · [Testing](../TESTING.md)
 
@@ -111,7 +111,7 @@ To explain a dependency at source locations, deliberately recompile that file:
 `trace` executes compilation even if `--no-compile` is supplied; the flag only
 suppresses the preliminary project compilation. The example therefore omits it.
 `--include-siblings` on this trace includes declared `in_umbrella` dependencies,
-not Foundry or every project in the Git repository.
+not every Mix project a machine may have checked out.
 
 ## CI reports and optional local export
 
@@ -190,7 +190,7 @@ Use findings to add inspections and meaningful regressions, never to skip suites
 certify deletion, approve a candidate or bypass review. No evidence means unknown,
 not no impact. Do not attach an entire graph to every agent prompt. Start with the
 target module and expand only as needed; retain access to full source and raw output.
-This runbook does not launch subagents, choose paid models or change Foundry roles.
+This runbook does not launch subagents or choose paid models.
 
 ## Scope and deciding whether this helps
 

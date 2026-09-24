@@ -6,6 +6,10 @@ that cleanup until it merges. This is not an instruction to merge or activate it
 [Current map](REPO_MAP.md) · [Original structure review](REPOSITORY_STRUCTURE.md) ·
 [Testing](TESTING.md).
 
+**Superseded for Foundry 2026-09-23:** Foundry moved to
+[lorecrafting/foundry](https://github.com/lorecrafting/foundry); `foundry/` rows below describe the pre-split layout.
+The Pramāṇa cutover and rollback guidance still applies.
+
 ## What changes
 
 | Before, relative to Git root | After |

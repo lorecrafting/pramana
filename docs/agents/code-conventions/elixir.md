@@ -1,6 +1,6 @@
 # Elixir, Mix and ExUnit conventions
 
-Applies to Elixir changes in both Pramāṇa and Foundry. These rules are adapted from
+Applies to Elixir changes in Pramāṇa. These rules are adapted from
 the Phoenix usage rules recorded in [`UPSTREAM.exs`](UPSTREAM.exs), with repository
 exceptions retained deliberately.
 

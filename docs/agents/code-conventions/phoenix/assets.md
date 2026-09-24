@@ -1,7 +1,7 @@
 # Phoenix asset conventions
 
 Applies to Pramāṇa's Phoenix JS, CSS and Tailwind asset pipeline. These are project
-defaults derived from the Phoenix generator, not generic requirements for Foundry.
+defaults derived from the Phoenix generator, not generic Elixir requirements.
 
 - Use Tailwind classes and custom CSS for the existing Phoenix asset stack.
 - For this Tailwind v4 project, retain the `source(none)` import structure in

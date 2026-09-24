@@ -75,7 +75,7 @@ remove the CSS/JS vendor assets, favicon, robots file or reader functionality.
 ## Retained deliberately
 
 All existing Foundry files, roles, tests, migration/repair records, implementation
-log and review evidence are unchanged. So are the active PLAN, formal ROADMAP,
+log and review evidence are unchanged (they moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23). So are the active PLAN, formal ROADMAP,
 new product strategy, source/translation manifests, lockfiles, gold cases, evaluation
 baseline, native code and regression tests. History, proxy studies and stable rules
 remain locally available. Small matching fixture/configuration files are not
@@ -94,8 +94,8 @@ removal or Actions-artifact deletion was performed.
 
 ## Keep future cleanup conservative
 
-Use dedicated ignored scratch/output directories. The cleanup adds missing Foundry
-coverage/ExDoc output ignores and Python bytecode-cache ignores; it does not add a
+Use dedicated ignored scratch/output directories. The cleanup added missing Foundry
+coverage/ExDoc output ignores (since folded into one `/foundry/` ignore) and Python bytecode-cache ignores; it does not add a
 blanket JSON, JSONL, log or experiment-file ban. A reproducible test fixture or
 accepted evidence record is allowed to be tracked with an explicit owner.
 

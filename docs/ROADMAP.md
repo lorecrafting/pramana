@@ -1,6 +1,6 @@
 # Roadmap
 
-> Phase-planning record, not runtime acceptance evidence. For current code contracts use the documentation index; for active work use PLAN and Foundry REPAIR-PLAN. Corpus counts and historical completion claims require their original evidence.
+> Phase-planning record, not runtime acceptance evidence. For current code contracts use the documentation index; for active work use PLAN and, for Foundry, [lorecrafting/foundry](https://github.com/lorecrafting/foundry). Corpus counts and historical completion claims require their original evidence.
 
 Original phase-planning choices (not a new pilot commitment): open-source self-hosted ·
 all four traditions in v1 ·

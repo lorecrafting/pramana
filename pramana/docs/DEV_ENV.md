@@ -1,7 +1,6 @@
 # Development setup
 
-Choose the system first. [Foundry](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/CI.md) has an isolated model-free
-build; it does not need the Pramāṇa database or inference environment below.
+This covers Pramāṇa only; Foundry lives in [lorecrafting/foundry](https://github.com/lorecrafting/foundry).
 These are repository-derived instructions, not evidence that setup ran in this audit.
 
 ## Pramāṇa prerequisites
@@ -60,12 +59,12 @@ to lexical and reports which retrievers actually ran. Loading a model is not evi
 that every source has been indexed. [Embedding](EMBEDDING.md) covers the artifact path.
 
 Python is needed for the relevant batch inference/training helpers under `priv/embed/`,
-including translation—not for every database command or Foundry model-free check.
+including translation—not for every database command.
 No standalone HTTP `/embed` daemon is configured by this setup guide.
 
 ## Checks and troubleshooting
 
-Use [testing](../../docs/TESTING.md) for documentation-only, umbrella, Foundry and corpus checks.
+Use [testing](../../docs/TESTING.md) for documentation-only, umbrella and corpus checks.
 For a loaded research database, `mix pramana.doctor` reports source and retrieval-state
 facts; read its warnings rather than treating command completion as a health attestation.
 

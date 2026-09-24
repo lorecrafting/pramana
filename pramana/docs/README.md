@@ -1,8 +1,8 @@
 # Pramāṇa documentation
 
 Pramāṇa is the umbrella in `pramana/`. Commands and backticked project paths in these
-guides are relative to that directory unless stated otherwise. For shared workflow,
-Foundry or product strategy use [the repository index](../../docs/README.md).
+guides are relative to that directory unless stated otherwise. For shared workflow
+or product strategy use [the repository index](../../docs/README.md).
 
 | Task | Read |
 |---|---|

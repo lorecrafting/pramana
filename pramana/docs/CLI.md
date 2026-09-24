@@ -3,8 +3,8 @@
 Commands are derived from task modules at the audit baseline, not from a design wish list.
 Use `mix help TASK` for current flags and prerequisites. These are **not all read-only**:
 ingestion, imports, acquisition, stamping, indexing and acceptance can mutate state or
-use paid services. Read the task before executing it. Foundry uses its separate
-[CLI and workflow contracts](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md).
+use paid services. Read the task before executing it. Foundry, in its own repository, has separate
+[CLI and workflow contracts](https://github.com/lorecrafting/foundry/blob/main/docs/README.md).
 
 | Task | Source summary |
 |---|---|

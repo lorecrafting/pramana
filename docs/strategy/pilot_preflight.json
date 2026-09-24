@@ -6,9 +6,9 @@
     {
       "id": "foundry_g0",
       "state": "blocked",
-      "reason": "FR-22 lifecycle acceptance is not complete; Foundry's repair plan now lives in lorecrafting/foundry.",
+      "reason": "FR-22 lifecycle acceptance in lorecrafting/foundry (docs/REPAIR-PLAN.md) is not complete.",
       "evidence": [
-        "docs/REPO_MAP.md#foundry-moved-out"
+        "docs/strategy/FOUNDRY.md#where-foundry-lives"
       ]
     },
     {

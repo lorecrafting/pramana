@@ -12,20 +12,16 @@ defmodule Docs.HygieneTest do
 
   test "generated outputs are ignored without hiding ordinary evidence inputs" do
     ignored = [
-      "foundry/cover/index.html",
+      "foundry/local/state.json",
       "pramana/raw",
       "pramana/priv/models",
       "pramana/sources/local/example/text",
       "pramana/_build/test/a.beam",
       "raw/legacy.xml",
-      "foundry/doc/index.html",
-      "pramana/priv/embed/__pycache__/probe.cpython-313.pyc",
-      "foundry/docs/investigation/__pycache__/probe.pyc"
+      "pramana/priv/embed/__pycache__/probe.cpython-313.pyc"
     ]
 
     visible = [
-      "foundry/docs/investigation/manifest.json",
-      "foundry/test/fixtures/telemetry/records-v1.jsonl",
       "pramana/evals/gold/retrieval_translation.jsonl",
       "pramana/evals/baseline.json",
       "pramana/sources.lock.json"
@@ -42,7 +38,7 @@ defmodule Docs.HygieneTest do
     end
   end
 
-  test "the Pramana Docker context explicitly excludes the independent system and Git" do
+  test "the Pramana Docker context explicitly excludes Git and native build outputs" do
     patterns =
       @root
       |> Path.join("pramana/.dockerignore")
@@ -51,7 +47,6 @@ defmodule Docs.HygieneTest do
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
 
-    assert "foundry/" in patterns
     assert ".git/" in patterns
     assert "apps/pramana_native/native/**/target/" in patterns
     assert "native/quotations/target/" in patterns

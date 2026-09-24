@@ -259,7 +259,7 @@ jobs:
             limitations: ["Only inventoried tracked regular source files inside each app are supported",
               "Per-app file dependencies only; cross-app edges are not included",
               "Not a complete function, dynamic-dispatch, message or test-coverage graph",
-              "No Foundry, Rust-body, Python, corpus or live-runtime analysis",
+              "No Rust-body, Python, corpus or live-runtime analysis",
               "Generation success is not architectural approval or test acceptance"]
           }
           File.write!(Path.join(root, "metadata.json"), JSON.encode!(metadata) <> "\n")
