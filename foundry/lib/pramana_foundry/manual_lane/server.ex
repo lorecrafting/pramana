@@ -1,13 +1,13 @@
 defmodule PramanaFoundry.ManualLane.Server do
   @moduledoc """
-  Starts and owns the manual lane's own `Gateway`, behind the `PRAMANA_MANUAL_LANE` flag
+  Starts and owns the manual lane's own `Gateway`, behind the `FOUNDRY_MANUAL_LANE` flag
   (`docs/batch-d/THIN-LANE-DESIGN-2026-09-23.md` §5). The store lives at its own path and is
   disjoint from the legacy `state/current/{events,coordinator,telemetry}.jsonl` files:
   nothing here reads or writes them.
 
   On first start against a store with no root policy `"manual-lane"`, it seeds the policy,
   its control and its `starts.developer`/`starts.reviewer` ledgers from a JSON file at
-  `:manual_lane, :policy_path` (Q3). The seed is refused when the policy's
+  `:manual_lane, :policy_path` or `FOUNDRY_MANUAL_LANE_POLICY` (Q3). The seed is refused when the policy's
   `independent_of_roles.reviewer` omits `"developer"`: a missing key would impose no
   independence at all. Each of the four is seeded only while it is missing, so a restart
   completes an interrupted seed and never re-seeds a present one.
@@ -48,7 +48,12 @@ defmodule PramanaFoundry.ManualLane.Server do
   @impl true
   def init(opts) do
     Process.flag(:trap_exit, true)
-    config = Keyword.merge(Application.get_env(:pramana_foundry, :manual_lane, []), opts)
+
+    config =
+      :pramana_foundry
+      |> Application.get_env(:manual_lane, [])
+      |> Keyword.merge(env_config())
+      |> Keyword.merge(opts)
 
     case open(config, nil) do
       {:ok, state} -> {:ok, state}
@@ -140,6 +145,21 @@ defmodule PramanaFoundry.ManualLane.Server do
   end
 
   def terminate(_reason, _state), do: :ok
+
+  # A release has no config/runtime.exs, so the launcher (`bin/foundry-lane`) sets these at
+  # start. They override compile-time config; an empty variable counts as unset.
+  @env_vars [
+    repo: "FOUNDRY_MANUAL_LANE_REPO",
+    policy_path: "FOUNDRY_MANUAL_LANE_POLICY",
+    store_path: "FOUNDRY_MANUAL_LANE_STORE"
+  ]
+
+  defp env_config do
+    for {key, var} <- @env_vars,
+        value <- [System.get_env(var)],
+        value not in [nil, ""],
+        do: {key, value}
+  end
 
   defp require_repo(nil), do: {:error, :manual_lane_repo_missing}
   defp require_repo(_repo), do: :ok

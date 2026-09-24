@@ -5,7 +5,7 @@ defmodule PramanaFoundry.ManualLane.ServerTest do
   Positive-path tests give the Server its own temporary `runtime_root:`, disjoint from the
   suite's shared root, so nothing here interferes with the real application's own children.
   The flag-gating tests instead read the real, already-booted application: the suite runs
-  with `PRAMANA_MANUAL_LANE` unset, so the flag-off assertions hold for free.
+  with `FOUNDRY_MANUAL_LANE` unset, so the flag-off assertions hold for free.
   """
   use ExUnit.Case, async: false
 
@@ -36,14 +36,14 @@ defmodule PramanaFoundry.ManualLane.ServerTest do
     end
 
     test "on: enables the child" do
-      System.put_env("PRAMANA_MANUAL_LANE", "1")
-      on_exit(fn -> System.delete_env("PRAMANA_MANUAL_LANE") end)
+      System.put_env("FOUNDRY_MANUAL_LANE", "1")
+      on_exit(fn -> System.delete_env("FOUNDRY_MANUAL_LANE") end)
       assert App.manual_lane_enabled?()
     end
 
     test "red control: \"0\" starts nothing" do
-      System.put_env("PRAMANA_MANUAL_LANE", "0")
-      on_exit(fn -> System.delete_env("PRAMANA_MANUAL_LANE") end)
+      System.put_env("FOUNDRY_MANUAL_LANE", "0")
+      on_exit(fn -> System.delete_env("FOUNDRY_MANUAL_LANE") end)
       refute App.manual_lane_enabled?()
     end
   end

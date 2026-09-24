@@ -283,7 +283,7 @@ four of its own: `:lane_disabled`; `:gateway_recovery`; `:git_ref_unresolved`; t
 
 ## 5. T6: flagged Gateway start
 
-**Flag.** `PRAMANA_MANUAL_LANE=1`, or `config :pramana_foundry, :manual_lane, enabled: true`.
+**Flag.** `FOUNDRY_MANUAL_LANE=1`, or `config :pramana_foundry, :manual_lane, enabled: true`.
 It is read the same way as `COORDINATOR_TICK` (`application.ex:17-19`). The default is off.
 
 **Store.** The store is `Path.join(runtime_root, "state/manual-lane/authority.sqlite3")`,

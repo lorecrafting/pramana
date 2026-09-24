@@ -23,6 +23,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FOUNDRY_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$FOUNDRY_DIR")"
 
+# `lane` commands go to the lane daemon that bin/foundry-lane starts (its own release and
+# node name), never to a legacy daemon. Explicit PRAMANA_RELEASE and RELEASE_NODE still win.
+if [ "${1:-}" = "lane" ]; then
+  eval "$("$SCRIPT_DIR/foundry-lane" env)"
+fi
+
 # 1. Try relative to script (main repo case)
 RELEASE_BIN="$FOUNDRY_DIR/_build/prod/rel/pramana_foundry/bin/pramana_foundry"
 
