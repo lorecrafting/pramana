@@ -9,7 +9,7 @@ require choosing the same vendor for all three.
 | Embedding / translation batches | Current row/token counts, model/artifact compatibility, measured throughput, source-data transfer rights, storage and egress, spend limit, timeout and cleanup |
 | Research app and database | Dataset size, memory and connection budget, durable storage, extensions, backups/restore, networking and permitted data exposure |
 | Model-backed research | Harness/tool compatibility, data handling, quality measured on the task, token/subscription billing terms |
-| Foundry execution | Its explicit account/billing/launch policy and backend conformance; see [Foundry](../../foundry/docs/README.md) |
+| Foundry execution | Its explicit account/billing/launch policy and backend conformance; see [Foundry](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md) |
 
 Pramāṇa can serve lexical queries without GPU inference. Semantic query embedding
 has a CPU-serving path; whether it meets a deployment's latency and memory targets is

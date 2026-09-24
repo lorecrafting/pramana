@@ -1,6 +1,6 @@
 # Development setup
 
-Choose the system first. [Foundry](../../foundry/docs/CI.md) has an isolated model-free
+Choose the system first. [Foundry](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/CI.md) has an isolated model-free
 build; it does not need the Pramāṇa database or inference environment below.
 These are repository-derived instructions, not evidence that setup ran in this audit.
 

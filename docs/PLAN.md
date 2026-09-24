@@ -220,11 +220,11 @@ catalogue/database when taking up that work; code inspection cannot supply its v
 
 **Foundry boundary (superseding the stale snapshot formerly here):** FR-07's exact v9
 foundation is independently accepted and locally integrated, not deployed. The
-[2026-09-19 independent alignment audit](../foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md),
+[2026-09-19 independent alignment audit](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md),
 SHA-256 `c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`,
 inspected source at `2f603675e3feb1a65f0ce57a3bd69aa93deec29d` but not the loaded release.
 It therefore distinguishes source/containment from unknown live deployment truth. The
-[repair plan](../foundry/docs/REPAIR-PLAN.md) remains the sole backlog: H0 inventories the
+[repair plan](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md) remains the sole backlog: H0 inventories the
 accepted public store boundary honestly, FR-08A supplies missing protected lifecycle
 primitives/full handoff proof, and FR-08B performs all-ingress live/replay migration.
 Automatic execution, deployment and activation remain disabled/unproved; no source,
@@ -235,7 +235,7 @@ bullet must be reconciled with this disposition and current code before dispatch
 
 ## Foundry audit follow-up — 2026-09-12
 
-The [Foundry audit](../foundry/docs/AUDIT-2026-09-12.md) is complete as an audit;
+The [Foundry audit](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/AUDIT-2026-09-12.md) is complete as an audit;
 its repair backlog is in progress. It assesses the current working tree against the
 single-operator, Pramāṇa-only autonomous workflow contract, including autonomous
 self-update within operator-controlled spending and acceptance policy.
@@ -244,7 +244,7 @@ The central finding is that live orchestration bypasses existing scheduling, fen
 checkpointed effects and check-recovery primitives, while runtime and replay disagree.
 The report includes isolated reproductions, coverage limits and an ordered repair plan.
 
-The executable backlog is now [Foundry repair tickets](../foundry/docs/REPAIR-PLAN.md),
+The executable backlog is now [Foundry repair tickets](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md),
 maintained outside Foundry. FR-01's independently reviewed static containment and
 FR-02's inert Elixir wrapper transport, FR-03's independently reviewed startup/
 persistence containment, FR-04's verified-owned cleanup containment, and FR-05's
@@ -254,26 +254,26 @@ subscription route. The dependency inventory identifies ready
 containment work and the design decisions required before downstream implementation.
 It includes acceptance evidence, model/context guidance and a fresh-session handoff.
 The remaining production repair tickets are not complete. FR-06's
-[independent design review v1](../foundry/docs/FR-06-DESIGN-REVIEW.md) found R1–R5 and
-returned **not ready**. The [v2 workflow contract](../foundry/docs/WORKFLOW-CONTRACT.md)
-and [versioned response](../foundry/docs/fr-06/review-response-v2.md) now specify durable
+[independent design review v1](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/FR-06-DESIGN-REVIEW.md) found R1–R5 and
+returned **not ready**. The [v2 workflow contract](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/WORKFLOW-CONTRACT.md)
+and [versioned response](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/fr-06/review-response-v2.md) now specify durable
 claim/issue ordering, authentication separated from arbitrary tools, autonomous kernel
 repairs behind a protected verifier, legal result/exit/cleanup transitions, and conserved
-budget generations. The [independent v2 re-review](../foundry/docs/FR-06-DESIGN-REVIEW-V2.md)
+budget generations. The [independent v2 re-review](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/FR-06-DESIGN-REVIEW-V2.md)
 returns **ready after specified corrections**: R1/R2/R3/R5 are resolved at design level;
 the residual R4a identified missing launch-non-start domain recovery. The
-[v3 response](../foundry/docs/fr-06/review-response-v3.md) now proposes that bounded
+[v3 response](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/fr-06/review-response-v3.md) now proposes that bounded
 correction: developer non-start retains its attempt, reviewer non-start preserves the
 frozen candidate and role, and a separate finite infrastructure allowance bounds retries
 without charging a process start that provably never occurred. Pre-intent waiting and
 unknown possible start remain distinct. A fresh Astra-high
-[focused independent review](../foundry/docs/fr-06/r4a-focused-review.md) verified the
+[focused independent review](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/fr-06/r4a-focused-review.md) verified the
 exact v3 manifest and returned **PASS**. FR-06's design gate is complete; no
 implementation finding is closed. FR-03 and FR-06 now provide the recorded dependency
 evidence required to begin FR-07's durable-store implementation. FR-07's recovered v6 and
 bounded v7–v9 correction chain are retained as review history. The exact v9 candidate
 `8d7223b79cb237d3406f156c7d1a06a8bcb48d81` received an independent Astra-high
-[PASS](../foundry/docs/fr-07/review-v9.md): all 56 manifest hashes matched, 92 focused tests
+[PASS](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/fr-07/review-v9.md): all 56 manifest hashes matched, 92 focused tests
 and the carrier/closure/full-row recovery probes passed. The reviewed source and evidence
 were integrated at `c4816b2e1ef5ae41943c98591246851b2672561f`, then merged with current
 GitHub `origin/main` `4c91bf7ef917e67c73574eb0246d8d57cc28806d`. No reviewed durable-store

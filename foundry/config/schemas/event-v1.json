@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "pramana-workflow/event-v1",
-  "type": "object",
-  "description": "The Python v1 append-only event envelope. Additional event fields are preserved as non-authority evidence by the importer.",
-  "additionalProperties": true,
-  "required": ["event", "at"],
-  "properties": {"event": {"type": "string", "minLength": 1}, "at": {"type": "string", "minLength": 1}, "task_id": {"type": "string", "minLength": 1}, "run_id": {"type": "string", "minLength": 1}, "role": {"enum": ["developer", "reviewer", "pm"]}}
-}

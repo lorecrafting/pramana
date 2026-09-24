@@ -23,7 +23,7 @@ total burden should be reused; existing custom code is not a reason to reject it
 **Exit:** FR-22's exact lifecycle and closure evidence, with mandatory obligations
 met and remaining unsupported scope explicit. Any waiver requires the governing
 process, not this strategy. A component test, design approval or “all green” board
-cannot substitute. [FR-22](../../foundry/docs/REPAIR-PLAN.md#fr-22--prove-full-lifecycle-and-reconcile-operating-docs)
+cannot substitute. [FR-22](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md#fr-22--prove-full-lifecycle-and-reconcile-operating-docs)
 owns the scenario details.
 
 Strategy writing and non-operational discovery may proceed now. Do not use these
@@ -167,7 +167,7 @@ review attribution, private-input protections and repeat collaborative use.
 **Evidence:** context-reset/restart cases, evidence rehydration, changed-file cache
 invalidation, honest idle states and matched-task effort comparison.
 Reorientation-tax measures per
-[OBSERVABILITY](../../foundry/docs/OBSERVABILITY.md) belong here. **Dependencies:** G0 and accepted state/receipt interfaces. **Excludes:** another
+[OBSERVABILITY](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/OBSERVABILITY.md) belong here. **Dependencies:** G0 and accepted state/receipt interfaces. **Excludes:** another
 state store, giant mandatory prompt or a fixed tiny context cap that drops constraints.
 
 ### I-F2 — one tooling/quality improvement at a time
@@ -200,7 +200,7 @@ prove a materially different typed-content workflow such as Loka:
 - context/evidence routing changes by RoleSpec while protected authority semantics remain
   invariant.
 
-Use [Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md) as the
+Use [Project workflow profiles](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PROJECT-WORKFLOW-PROFILES.md) as the
 post-repair design target and [Validation](VALIDATION.md#foundry-cross-workflow-portability-validation)
 for falsification cases.
 
@@ -211,7 +211,7 @@ a separately authorized typed-content workflow. The model supplies planning inte
 a catalog, structured diagnostics/lab, semantic diffs and safe amendments make its
 commitments usable and testable. A complete upfront graph or universal workflow DSL is
 not required. Claimed hard bounds need actual protected enforcement and evidence.
-Detailed design is in [Planning strategies](../../foundry/docs/PLANNING-STRATEGIES.md#31-llm-first-planning-and-progressive-commitment).
+Detailed design is in [Planning strategies](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PLANNING-STRATEGIES.md#31-llm-first-planning-and-progressive-commitment).
 
 **Dependencies:** G0, a bounded allocation and separate project/workflow authorization
 under the governing contract. **Excludes:** multi-tenancy, self-granted capabilities,
@@ -227,9 +227,9 @@ Herdr parity or making Pramāṇa delivery depend on the migration.
 
 ### I-F5 — Core/Standard Controller split and substitution experiments
 
-**Outcome:** the O0–O4 ([orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md)),
-A0–A4 ([AX substrate](../../foundry/docs/AX-SUBSTRATE.md)) and C0–C3
-([Cloudflare OS](../../foundry/docs/CLOUDFLARE-OS.md)) ladders run **one at a time** under
+**Outcome:** the O0–O4 ([orchestrator boundary](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ORCHESTRATOR-BOUNDARY.md)),
+A0–A4 ([AX substrate](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/AX-SUBSTRATE.md)) and C0–C3
+([Cloudflare OS](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/CLOUDFLARE-OS.md)) ladders run **one at a time** under
 FOUNDRY's one-bounded-improvement rule, so the Core/Standard Controller distribution is tested
 rather than assumed. **Evidence:** per ladder, a bounded workflow run against the seam it
 names, plus the conformance list that ladder declares. **Dependencies:** G0, the I-F3 software
@@ -251,7 +251,7 @@ Their runtime work requires the accepted FR-18/FR-20 and relevant controller int
 no current FR ticket depends on these implementations. #48's documentation-only A0 slice
 separately tracks the coordinated FR-18B/FR-20 ownership amendment for observability
 convergence steps 6/7. It may be prepared during repair but is not deemed applied by this
-roadmap. See [tracked delivery and handoff](../../foundry/docs/PLANNING-STRATEGIES.md#tracked-delivery-and-handoff).
+roadmap. See [tracked delivery and handoff](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PLANNING-STRATEGIES.md#tracked-delivery-and-handoff).
 Merging a planning PR closes neither implementation issue and enables no execution.
 
 ## Prioritization and formal-roadmap handoff

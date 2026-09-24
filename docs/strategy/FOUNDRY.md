@@ -4,9 +4,9 @@
 **Status:** post-repair investment proposal under the existing authority contract.
 
 For the operator's Foundry-first investment direction, architecture boundaries and
-lessons from FirstMate/Pi/OMP, read the [Foundry strategy brief](../../foundry/docs/STRATEGY.md).
+lessons from FirstMate/Pi/OMP, read the [Foundry strategy brief](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/STRATEGY.md).
 For the controller-neutral authority/observation split, read the
-[orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md). These guide
+[orchestrator boundary](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ORCHESTRATOR-BOUNDARY.md). These guide
 post-repair investment; neither replaces the repair plan or workflow contract.
 
 ## Mission and boundary
@@ -32,8 +32,8 @@ isolated environment; Foundry's own authority store must not become Pramāṇa's
 
 ## Repair acceptance is the entry gate, not another initiative
 
-[REPAIR-PLAN](../../foundry/docs/REPAIR-PLAN.md) and
-[WORKFLOW-CONTRACT](../../foundry/docs/WORKFLOW-CONTRACT.md) govern. The former owns
+[REPAIR-PLAN](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md) and
+[WORKFLOW-CONTRACT](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/WORKFLOW-CONTRACT.md) govern. The former owns
 status and ordering; do not copy its mutable ticket states into this strategy.
 FR-22 owns end-to-end closure and unresolved limits, including a real autonomous
 kernel repair under unchanged protected-root policy. Green component CI alone is
@@ -146,7 +146,7 @@ controller code wait without repeatedly waking a model to poll child status.
 This makes Foundry a neutral referee for workflow experiments: keep authority and
 acceptance fixed, swap controllers, and compare accepted-outcome correctness, token/cost
 usage, latency, correction tax and operator effort. See
-[Orchestrator boundary](../../foundry/docs/ORCHESTRATOR-BOUNDARY.md).
+[Orchestrator boundary](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ORCHESTRATOR-BOUNDARY.md).
 
 ## Positioning: own the contract, not commodity infrastructure
 
@@ -165,8 +165,8 @@ may read or affect without gaining ambient credentials. The controller seam may 
 Cloudflare OS, AX, Pi or future orchestrators. Execution may use a local Linux worker,
 AX/Agent Substrate, Cloudflare Dynamic Workers/Sandbox or future runtimes. Resource
 mediation may use provider-specific Gatekeeper-like brokers. None may create Foundry
-grants, settle budgets from self-reported counters or accept its own output. The [AX/Substrate](../../foundry/docs/AX-SUBSTRATE.md) and
-[Cloudflare OS](../../foundry/docs/CLOUDFLARE-OS.md) reviews record the current evidence
+grants, settle budgets from self-reported counters or accept its own output. The [AX/Substrate](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/AX-SUBSTRATE.md) and
+[Cloudflare OS](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/CLOUDFLARE-OS.md) reviews record the current evidence
 and non-authority constraints.
 
 Before post-repair work adds or substantially extends one of those implementation layers,
@@ -281,7 +281,7 @@ and a replaceable provider boundary because Jev is currently early access.
 
 The long-term product should not encode Pramāṇa's current `developer → reviewer`
 workflow as the protected ontology. The detailed direction is recorded in
-[Project workflow profiles](../../foundry/docs/PROJECT-WORKFLOW-PROFILES.md).
+[Project workflow profiles](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PROJECT-WORKFLOW-PROFILES.md).
 
 Projects may describe versioned RoleSpecs and request scoped tool/API surfaces, context,
 evidence adapters and workflow shapes. Foundry's protected kernel admits an exact
@@ -322,7 +322,7 @@ propose bounded tickets, but a future goal graph, blackboard, dynamic DAG or rep
 next-best-action planner should be able to use the same admission boundary. Human work
 views and compact continuity capsules should remain replaceable projections over durable
 state and evidence. The detailed boundary is in
-[Replaceable planning strategies](../../foundry/docs/PLANNING-STRATEGIES.md).
+[Replaceable planning strategies](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PLANNING-STRATEGIES.md).
 
 ## First post-repair investment: useful context and honest feedback
 
@@ -337,7 +337,7 @@ full artifact reference. A successful command that performed no expected work mu
 not count as productive completion. An empty queue can be healthy and idle; distinguish
 **service health**, **eligible work**, **work attempted** and **accepted outcomes**.
 
-Use [Foundry observability](../../foundry/docs/OBSERVABILITY.md) to measure the complete
+Use [Foundry observability](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/OBSERVABILITY.md) to measure the complete
 resource path from task/attempt/execution through model requests, tools, corrections,
 review and final acceptance. Preserve source-qualified token/cache/cost/context data when
 the selected harness exposes it, plus human steering/review/recovery effort. Converge

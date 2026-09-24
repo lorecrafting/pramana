@@ -34,21 +34,21 @@ For model-assisted changes, [AGENTS.md](../AGENTS.md) routes every provider thro
 
 ## Foundry: execution and repair
 
-Use [the Foundry index](../foundry/docs/README.md), not Pramāṇa's corpus commands.
-[Foundry README](../foundry/README.md) states containment limits;
-[REPAIR-PLAN](../foundry/docs/REPAIR-PLAN.md) and
-[WORKFLOW-CONTRACT](../foundry/docs/WORKFLOW-CONTRACT.md) route current work.
-[The 2026-09-19 independent alignment audit](../foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md)
+Use [the Foundry index](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md), not Pramāṇa's corpus commands.
+[Foundry README](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/README.md) states containment limits;
+[REPAIR-PLAN](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md) and
+[WORKFLOW-CONTRACT](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/WORKFLOW-CONTRACT.md) route current work.
+[The 2026-09-19 independent alignment audit](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md)
 records current-source gaps and the accepted FR-07/FR-08 sequencing disposition without
 becoming another backlog.
-[CI](../foundry/docs/CI.md) is independent and model-free. Historical migration and
+[CI](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/CI.md) is independent and model-free. Historical migration and
 review records remain evidence for their named candidates, not proof of current activation.
 
 ### Foundry role contracts
 
-[Developer](../foundry/roles/developer.md) · [Reviewer](../foundry/roles/reviewer.md) ·
-[PM](../foundry/roles/pm.md) · [Hardening PM](../foundry/roles/hardening_pm.md) ·
-[Steerer](../foundry/roles/steerer.md)
+[Developer](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/developer.md) · [Reviewer](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/reviewer.md) ·
+[PM](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/pm.md) · [Hardening PM](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/hardening_pm.md) ·
+[Steerer](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/steerer.md)
 
 These roles and existing Foundry documents were not changed by the documentation PR.
 Repository provider-neutrality does not rewrite their launch/billing or repair contracts.

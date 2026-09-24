@@ -1,7 +1,7 @@
 # Testing: choose the right boundary
 
 A green result only establishes what that check exercised. Run commands from the
-selected project root (`pramana/` or `foundry/`); repository checks run at the Git root. Never start paid inference, active
+selected project root (`pramana/`); repository checks run at the Git root. Never start paid inference, active
 Foundry dispatch or a public deployment merely to validate a documentation change.
 
 | Change / question | Check | Prerequisites and limits |
@@ -13,7 +13,6 @@ Foundry dispatch or a public deployment merely to validate a documentation chang
 | Saved Chinese pilot scope artifact | `elixir bin/check_pilot_scope.exs --validate PATH` | Network/model/database-free. Checks the frozen scope schema, canonical hash, seed/relation/depth contract and internal denominators. It does **not** prove the file matches the current live corpus/release; generation uses the DB-backed Mix task and still requires review. |
 | Umbrella formatting | `mix format --check-formatted` | Pinned umbrella toolchain and formatting dependencies |
 | Umbrella code | `mix compile --warnings-as-errors`, `mix credo --strict`, `mix test --cover` | Umbrella dependencies, Rust NIF, PostgreSQL with required extensions; not a live corpus gate |
-| Foundry code or contract work | From `foundry/`: `elixir ci/run.exs --output /tmp/foundry-ci-artifacts` | Isolated model-free runner; see [Foundry CI](../foundry/docs/CI.md). Does not prove real-provider execution or activation. |
 | Corpus and retrieval acceptance | `mix pramana.gate` | Acquired/loaded corpus, matching database, required models and toolchain; see [detailed checks](../pramana/docs/CHECKS.md) |
 | Re-running one declared source task | `mix help pramana.<task>` | Replace the placeholder with an actual task from [the CLI index](../pramana/docs/CLI.md) and inspect its options |
 
@@ -59,7 +58,7 @@ A committed count is a recorded database snapshot, not proof of the current loca
 
 [Umbrella CI](../.github/workflows/ci.yml) checks source/build/test concerns with a
 Postgres service; it does not acquire and certify the research corpus.
-[Foundry CI](../.github/workflows/foundry-ci.yml) is independently model-free.
+Foundry CI now runs in [lorecrafting/foundry](https://github.com/lorecrafting/foundry).
 [Documentation CI](../.github/workflows/docs.yml) checks only documentation structure.
 A read-only API, successful compilation or green test run does not by itself prove
 licensing clearance, production hardening, account isolation or safe activation.

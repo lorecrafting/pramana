@@ -23,26 +23,22 @@ The three child Mix projects keep their relative `../../` links to this umbrella
 Their app names, source lockfile bytes and dependency locks did not change in the
 migration. [Application overview](../pramana/README.md).
 
-## Foundry: standalone project
+## Foundry: moved out
 
-Work in `foundry/`. Its [Mix file](../foundry/mix.exs), [runtime configuration](../foundry/config/config.exs),
-[roles](../foundry/roles) and [CI runner](../foundry/ci/run.exs) are independent of
-Pramāṇa. No shared application configuration, database, release or dependency lock
-is introduced. The existing operator runtime root is unchanged.
-
-[Repair authority](../foundry/docs/REPAIR-PLAN.md) owns execution acceptance and
-remaining defects. A new folder layout neither repairs them nor authorizes activation.
+Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23, history included. Its
+pre-split history stays in this repository; the last commit with `foundry/` is
+`e1e4b3bf`.
 
 ## Shared repository files
 
 Root `README.md`, `AGENTS.md`, provider shims, `mise.toml`, `.github/workflows/`,
 `docs/` and `test/` are repository-level concerns. Root `bin/` contains shared checks
 and deliberately retained compatibility wrappers, not a second copy of product logic.
-`pramana/AGENTS.md` and `foundry/AGENTS.md` route back to the shared instructions.
+`pramana/AGENTS.md` routes back to the shared instructions.
 
 [Product strategy](PRODUCT_STRATEGY.md), the still-active [plan](PLAN.md) and
 [phase record](ROADMAP.md) remain shared. Pramāṇa topic references are under
-`pramana/docs/`; Foundry operational references remain under `foundry/docs/`.
+`pramana/docs/`.
 
 ## Generated and local-only material
 

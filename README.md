@@ -1,16 +1,14 @@
-# Pramāṇa and Foundry
+# Pramāṇa
 
-Two independent Elixir projects share this Git repository. Choose the product before
-running a command; the repository root is **not** a Mix umbrella for both.
+Foundry, which shared this repository until 2026-09-23, now lives in
+[lorecrafting/foundry](https://github.com/lorecrafting/foundry) with its full history. Its pre-split history remains here.
 
 | Product | Purpose | Start here |
 |---|---|---|
 | **Pramāṇa** | Citation-grounded Buddhist textual retrieval and a source reader | [Product overview](pramana/README.md), [setup](pramana/docs/DEV_ENV.md), [reference index](pramana/docs/README.md) |
-| **Foundry** | Independent agent-workflow coordination, evidence and recovery | [Overview and containment](foundry/README.md), [current repair authority](foundry/docs/REPAIR-PLAN.md), [current alignment audit](foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md), [independent CI](foundry/docs/CI.md) |
+| **Foundry** | Independent agent-workflow coordination, evidence and recovery | [lorecrafting/foundry](https://github.com/lorecrafting/foundry) |
 
-Pramāṇa retains its three-app umbrella under `pramana/apps/`. Foundry retains its
-own dependencies, configuration, release and tests under `foundry/`. Neither is a
-child of the other, and their lockfiles remain separate.
+Pramāṇa keeps its three-app umbrella under `pramana/apps/`.
 
 ## Development entry points
 
@@ -18,7 +16,6 @@ child of the other, and their lockfiles remain separate.
 mise install
 (cd pramana && mise exec -- mix deps.get)
 (cd pramana && mise exec -- mix test)       # needs PostgreSQL + extensions and Rust
-(cd foundry && mise exec -- elixir ci/run.exs --output /tmp/foundry-ci-artifacts)
 mise exec -- elixir bin/check_docs.exs      # repository checks; no corpus/provider
 ```
 
