@@ -21,7 +21,7 @@ From the Git root, record the context and compile before reusing manifests:
 ```sh
 git rev-parse HEAD
 git status --short
-(cd pramana && MIX_ENV=test mix compile --force --warnings-as-errors)
+MIX_ENV=test mix compile --force --warnings-as-errors
 ```
 
 Proceed only if compilation succeeds. `MIX_ENV=test` matches CI; record a different
@@ -48,10 +48,10 @@ ambiguous file paths. Example from the Git root, after the successful compile ab
 (
   set -eu
   found=0
-  for app in pramana/apps/*; do
+  for app in apps/*; do
     test -f "$app/mix.exs" || continue
     found=1
-    manifest="pramana/_build/test/lib/$(basename "$app")/.mix/compile.elixir"
+    manifest="_build/test/lib/$(basename "$app")/.mix/compile.elixir"
     if ! test -s "$manifest"; then
       printf 'Compiler evidence unavailable for %s: missing %s; recompile first\n' "$app" "$manifest" >&2
       exit 1
@@ -87,7 +87,7 @@ Example from the Git root, using application-local paths:
 ```sh
 (
   set -eu
-  cd pramana/apps/pramana
+  cd apps/pramana
   MIX_ENV=test mix xref graph --no-compile --sink lib/pramana/release.ex --only-nodes
   MIX_ENV=test mix xref graph --no-compile --source lib/pramana/release.ex
   MIX_ENV=test mix xref graph --no-compile --format stats
@@ -105,7 +105,7 @@ Compile-connected cycles are investigation targets, not an automatic refactor or
 To explain a dependency at source locations, deliberately recompile that file:
 
 ```sh
-(cd pramana/apps/pramana_web && MIX_ENV=test mix xref trace lib/pramana_web/mcp/reply.ex --include-siblings)
+(cd apps/pramana_web && MIX_ENV=test mix xref trace lib/pramana_web/mcp/reply.ex --include-siblings)
 ```
 
 `trace` executes compilation even if `--no-compile` is supplied; the flag only
@@ -160,7 +160,7 @@ For a local export, create a new directory outside the checkout after compilatio
 (
   set -eu
   report_dir="$(mktemp -d "${TMPDIR:-/tmp}/pramana-xref.XXXXXX")"
-  cd pramana/apps/pramana
+  cd apps/pramana
   MIX_ENV=test mix xref graph --no-compile --format json --output "$report_dir/graph.json"
   printf 'Local app-only graph: %s\n' "$report_dir/graph.json"
 )

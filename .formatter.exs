@@ -1,2 +1,5 @@
-# Repository-only scripts and tests. Pramāṇa formats in pramana/.
-[inputs: ["bin/*.exs", "test/**/*.exs"]]
+[
+  plugins: [Phoenix.LiveView.HTMLFormatter],
+  inputs: ["mix.exs", "config/*.exs", "ci/*.exs", "bin/*.exs", "test/**/*.exs"],
+  subdirectories: ["apps/*"]
+]

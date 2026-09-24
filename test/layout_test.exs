@@ -1,27 +1,29 @@
 defmodule Repository.LayoutTest do
-  @moduledoc "Model-free regression checks for the Pramāṇa project root."
+  @moduledoc "Model-free regression checks for the repository layout."
   use ExUnit.Case, async: true
 
+  alias Pramana.Docs.Sync
+
   @root Path.expand("..", __DIR__)
-  @project Path.join(@root, "pramana")
 
-  test "the Git root is neutral and Foundry has moved out" do
-    refute File.exists?(Path.join(@root, "mix.exs"))
-    refute File.exists?(Path.join(@root, "mix.lock"))
-
+  test "the repository root is the Pramāṇa umbrella and Foundry has moved out" do
     for file <- ["mix.exs", "mix.lock", "config/config.exs"] do
-      assert File.regular?(Path.join(@project, file))
+      assert File.regular?(Path.join(@root, file))
     end
 
-    umbrella = File.read!(Path.join(@project, "mix.exs"))
+    umbrella = File.read!(Path.join(@root, "mix.exs"))
     assert umbrella =~ ~s(apps_path: "apps")
-    assert {"", 0} == System.cmd("git", ["ls-files", "--", "foundry"], cd: @root)
-    refute File.exists?(Path.join(@project, "apps/foundry"))
+
+    for dir <- ["foundry", "pramana"] do
+      assert {"", 0} == System.cmd("git", ["ls-files", "--", dir], cd: @root)
+    end
+
+    refute File.exists?(Path.join(@root, "apps/foundry"))
   end
 
   test "each Pramana child resolves its build configuration within its own product" do
     for app <- ~w(pramana pramana_web pramana_native) do
-      child = Path.join([@project, "apps", app])
+      child = Path.join([@root, "apps", app])
       text = File.read!(Path.join(child, "mix.exs"))
 
       for {key, relative} <- [
@@ -33,8 +35,8 @@ defmodule Repository.LayoutTest do
         assert text =~ ~s(#{key}: "#{relative}")
         resolved = Path.expand(relative, child)
 
-        assert Path.dirname(resolved) == @project or
-                 resolved == Path.join(@project, "config/config.exs")
+        assert Path.dirname(resolved) == @root or
+                 resolved == Path.join(@root, "config/config.exs")
       end
     end
   end
@@ -48,31 +50,30 @@ defmodule Repository.LayoutTest do
           "native/quotations/Cargo.toml",
           "native/quotations/Cargo.lock"
         ] do
-      assert File.regular?(Path.join(@project, file))
+      assert File.regular?(Path.join(@root, file))
     end
 
-    assert Path.wildcard(Path.join(@project, "evals/gold/*.jsonl")) != []
-    assert Path.wildcard(Path.join(@project, "priv/embed/*.py")) != []
+    assert Path.wildcard(Path.join(@root, "evals/gold/*.jsonl")) != []
+    assert Path.wildcard(Path.join(@root, "priv/embed/*.py")) != []
   end
 
-  test "figure discovery covers project status and the shared plan without scanning arbitrary parents" do
-    paths = Pramana.Docs.Sync.documents([@project, @root])
-    assert Path.join(@project, "docs/STATUS.md") in paths
+  test "figure discovery covers status and the plan without scanning arbitrary parents" do
+    paths = Sync.documents(@root)
+    assert Path.join(@root, "docs/STATUS.md") in paths
     assert Path.join(@root, "docs/PLAN.md") in paths
-    assert length(paths) == length(Enum.uniq(paths))
-    refute Path.join(@root, "docs/PLAN.md") in Pramana.Docs.Sync.documents(@project)
-    assert Pramana.Docs.Sync.documents([@project, @root, @project]) == paths
+    assert Sync.documents([@root, @root]) == paths
+    assert Sync.documents(Path.join(@root, "apps")) == []
   end
 
-  test "Git root stays the same from the product directory" do
-    for dir <- [@root, @project] do
+  test "Git root stays the same from an application directory" do
+    for dir <- [@root, Path.join(@root, "apps/pramana")] do
       {out, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"], cd: dir)
       assert String.trim(out) == @root
     end
   end
 
   test "umbrella test entry prepares the database before recursive application startup" do
-    text = File.read!(Path.join(@project, "mix.exs"))
+    text = File.read!(Path.join(@root, "mix.exs"))
     ast = Code.string_to_quoted!(text)
 
     {_ast, test_aliases} =
@@ -88,11 +89,10 @@ defmodule Repository.LayoutTest do
     assert text =~ "preferred_envs: [test: :test"
   end
 
-  test "CI uses product working directories and independently addressed native manifests" do
+  test "CI runs at the repository root with independently addressed native manifests" do
     ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
-    assert ci =~ "working-directory: pramana"
-    assert ci =~ "pramana/deps"
-    assert ci =~ "pramana/_build"
+    refute ci =~ "working-directory: pramana"
+    assert ci =~ "\n            deps\n            _build\n"
     assert ci =~ "cargo audit --file native/quotations/Cargo.lock"
     assert ci =~ "cargo audit --file apps/pramana_native/native/pramana_native/Cargo.lock"
     refute File.exists?(Path.join(@root, ".github/workflows/foundry-ci.yml"))
@@ -101,15 +101,14 @@ defmodule Repository.LayoutTest do
   test "heavy CI is path-scoped and reusable caches do not replace exact candidate builds" do
     ci = File.read!(Path.join(@root, ".github/workflows/ci.yml"))
     container = File.read!(Path.join(@root, ".github/workflows/pramana-container.yml"))
-    postgres = File.read!(Path.join(@project, "ci/postgres.Dockerfile"))
+    postgres = File.read!(Path.join(@root, "ci/postgres.Dockerfile"))
 
-    assert ci =~ ~s(- "pramana/**")
-    assert ci =~ ~s(- "!pramana/docs/**")
-    assert ci =~ ~s(- "test/**")
-    assert ci =~ ~s(- "bin/**")
+    assert ci =~ ~s(- "**")
+    assert ci =~ ~s(- "!docs/**")
+    assert ci =~ ~s(- "!**/*.md")
     refute ci =~ "services:\n      postgres:"
     refute ci =~ "Install pg_bigm"
-    assert ci =~ "pramana/ci/postgres.Dockerfile"
+    assert ci =~ "file: ci/postgres.Dockerfile"
     assert ci =~ "Build cached PostgreSQL fixture (PR restore only)"
     assert ci =~ "Build cached PostgreSQL fixture (trusted cache writer)"
     assert ci =~ "cache-from: type=gha,scope=pramana-postgres-pg18-pgbigm"
@@ -123,11 +122,11 @@ defmodule Repository.LayoutTest do
     assert ci =~ "mix test"
     assert ci =~ "mix release --overwrite"
 
-    refute container =~ ~s(- "pramana/**")
-    assert container =~ ~s(- "pramana/apps/**")
-    assert container =~ ~s(- "pramana/ci/release_smoke.py")
-    assert container =~ ~s(- "pramana/ci/serving_privileges.exs")
-    refute container =~ ~s(- "pramana/ci/**")
+    refute container =~ ~s(- "**")
+    assert container =~ ~s(- "apps/**")
+    assert container =~ ~s(- "ci/release_smoke.py")
+    assert container =~ ~s(- "ci/serving_privileges.exs")
+    refute container =~ ~s(- "ci/**")
     assert container =~ "Build exact Pramana runtime image (PR restore only)"
     assert container =~ "Build exact Pramana runtime image (trusted cache writer)"
     assert container =~ "cache-from: type=gha,scope=pramana-runtime-image"

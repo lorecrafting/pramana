@@ -12,17 +12,17 @@ defmodule Docs.HygieneTest do
 
   test "generated outputs are ignored without hiding ordinary evidence inputs" do
     ignored = [
-      "pramana/raw",
-      "pramana/priv/models",
-      "pramana/sources/local/example/text",
-      "pramana/_build/test/a.beam",
-      "pramana/priv/embed/__pycache__/probe.cpython-313.pyc"
+      "raw",
+      "priv/models",
+      "sources/local/example/text",
+      "_build/test/a.beam",
+      "priv/embed/__pycache__/probe.cpython-313.pyc"
     ]
 
     visible = [
-      "pramana/evals/gold/retrieval_translation.jsonl",
-      "pramana/evals/baseline.json",
-      "pramana/sources.lock.json"
+      "evals/gold/retrieval_translation.jsonl",
+      "evals/baseline.json",
+      "sources.lock.json"
     ]
 
     for {paths, expected} <- [{ignored, 0}, {visible, 1}], path <- paths do
@@ -39,7 +39,7 @@ defmodule Docs.HygieneTest do
   test "the Pramana Docker context explicitly excludes Git and native build outputs" do
     patterns =
       @root
-      |> Path.join("pramana/.dockerignore")
+      |> Path.join(".dockerignore")
       |> File.read!()
       |> String.split("\n")
       |> Enum.map(&String.trim/1)

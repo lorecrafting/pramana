@@ -26,7 +26,6 @@ jobs:
           elixir-version: "1.20.3-otp-29"
       - name: Check documentation without corpus, providers or dependencies
         run: |
-          mix format --check-formatted
           elixir bin/check_docs.exs
           elixir bin/check_pilot_preflight.exs --validate
           elixir bin/check_pilot_acceptance.exs --validate

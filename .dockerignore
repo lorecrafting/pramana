@@ -1,0 +1,45 @@
+# Pramāṇa .dockerignore
+#
+# Multi-GB local data that would bloat the build context and cache:
+raw/
+evals/
+sources.lock.json
+sources.public.lock.json
+
+# Toolchain caches that the builder installs fresh:
+deps/
+_build/
+apps/pramana_native/native/**/target/
+native/quotations/target/
+priv/plts/
+priv/models/
+priv/derge/
+
+# IDE junk, OS metadata:
+.elixir_ls/
+.idea/
+*.swp
+.DS_Store
+
+# Node.js (not used by the app, but present from asset pipelining):
+node_modules/
+# The build context is the repository root; only mix files, config, apps and rel are
+# copied. Keep everything else out of the context. Git ignores do not filter it.
+.git/
+.github/
+.claude/
+docs/
+test/
+bin/
+bench/
+
+# Local-only material must not become build input via COPY apps/config.
+**/.env
+**/.env.*
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+priv/embed/.venv/
+sources/local/*/text/
+sources/local/*/raw/
+apps/*/priv/native/

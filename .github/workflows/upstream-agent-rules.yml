@@ -6,7 +6,7 @@ on:
       - ".github/workflows/upstream-agent-rules.yml"
       - "bin/sync_agent_conventions.exs"
       - "docs/agents/code-conventions/UPSTREAM.exs"
-      - "pramana/mix.lock"
+      - "mix.lock"
   schedule:
     - cron: "23 17 1 * *"
   workflow_dispatch:

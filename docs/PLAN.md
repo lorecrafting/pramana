@@ -1,8 +1,8 @@
 # Plan
 
-**The living task list.** [History](../pramana/docs/HISTORY.md) records what happened and
-[rules](../pramana/docs/RULES.md) what was learned; this records what is *next* and why.
-Where they disagree, [STATUS](../pramana/docs/STATUS.md) is the evidence and this is the intent.
+**The living task list.** [History](HISTORY.md) records what happened and
+[rules](RULES.md) what was learned; this records what is *next* and why.
+Where they disagree, [STATUS](STATUS.md) is the evidence and this is the intent.
 
 > **KEEP THIS UPDATED.** Every session that finishes an item, learns something that
 > changes an estimate, or discovers new work edits this file in the same commit. An item
@@ -42,7 +42,7 @@ reconcile it with current code before dispatching work from it.
 - **`topical/chinese` and Tibetan recall.** [§ F](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#f-topicalchinese-is-still-0--now-measured-over-496-cases-rather-than-12) and
   [§ G](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#g-tibetan-recall--24-cases-unreachable); Tibetan misses are absent from 200 candidates, a recall problem.
 - **Public demo.** [§ E](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#e-public-demo--newly-unblocked); now bounded by the
-  [deployment boundary](../pramana/docs/DEPLOY.md).
+  [deployment boundary](DEPLOY.md).
 - **Hosting hardening deferred from #19–#23**: global/multi-session admission control and
   queue expiry. Reader translation defaults wait on strategy decision D4.
 - **The feedback loop** proposal, [§ A6](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#a6-the-feedback-loop--signals-limits-and-the-ways-it-degrades--proposed-2026-08-28), unstarted.
@@ -391,5 +391,5 @@ instantly.
 
 Completed work is not kept here. The post-#17 to post-#23 PR records, the 2026-09-04 "Start here",
 the numbered and audit queues, E1 and the landscape items, sections A–H and the backlog are in
-[the full plan at 2ad8ed91](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#plan). Findings that became rules live in [RULES](../pramana/docs/RULES.md);
-incidents and measurements in [HISTORY](../pramana/docs/HISTORY.md).
+[the full plan at 2ad8ed91](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#plan). Findings that became rules live in [RULES](RULES.md);
+incidents and measurements in [HISTORY](HISTORY.md).

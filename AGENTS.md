@@ -5,11 +5,12 @@ These instructions apply to every provider.
 
 ## Start here
 
-Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
+The repository root is the Pramāṇa Mix umbrella: run Mix, asset, native and corpus
+commands here. Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
 
 | Task | Read next |
 |---|---|
-| Pramāṇa: corpus, retrieval, MCP, reader | [Pramāṇa invariants](pramana/docs/INVARIANTS.md), then the relevant topic in [the Pramāṇa index](pramana/docs/README.md) |
+| Pramāṇa: corpus, retrieval, MCP, reader | [Pramāṇa invariants](docs/INVARIANTS.md), then the relevant topic in [the documentation index](docs/README.md) |
 | Foundry: agent coordination and lifecycle | Moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23; follow its `AGENTS.md`. The pre-split history stays here |
 | Documentation or repository orientation | [Documentation index](docs/README.md), [repository map](docs/REPO_MAP.md), [documentation maintenance](docs/MAINTAINING_DOCS.md) |
 

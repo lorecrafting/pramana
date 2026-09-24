@@ -16,7 +16,7 @@
 #   on a machine  mix pramana.gate                      verify, integrity, evals, lockfile
 #                 with the bake
 #
-# `pramana/docs/CHECKS.md` is the full gate. This is the part a pull request can prove.
+# `docs/CHECKS.md` is the full gate. This is the part a pull request can prove.
 
 name: CI
 
@@ -24,20 +24,14 @@ on:
   push:
     branches: [main]
     paths:
-      - "pramana/**"
-      - "!pramana/docs/**"
-      - "test/**"
-      - "bin/**"
-      - "mise.toml"
-      - ".github/workflows/ci.yml"
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
   pull_request:
     paths:
-      - "pramana/**"
-      - "!pramana/docs/**"
-      - "test/**"
-      - "bin/**"
-      - "mise.toml"
-      - ".github/workflows/ci.yml"
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
 
 permissions:
   contents: read
@@ -53,9 +47,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: pramana
 
     env:
       # Matches config/test.exs. Stated here rather than assumed, so a change to either
@@ -75,8 +66,8 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: pramana/ci
-          file: pramana/ci/postgres.Dockerfile
+          context: ci
+          file: ci/postgres.Dockerfile
           pull: true
           load: true
           tags: pramana-postgres-ci:${{ github.sha }}
@@ -86,8 +77,8 @@ jobs:
         if: github.event_name == 'push'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: pramana/ci
-          file: pramana/ci/postgres.Dockerfile
+          context: ci
+          file: ci/postgres.Dockerfile
           pull: true
           load: true
           tags: pramana-postgres-ci:${{ github.sha }}
@@ -112,7 +103,7 @@ jobs:
 
       # Real compiler fixtures; no project dependencies, runtime or database access.
       - name: Test xref evidence boundaries
-        run: python3 ../test/xref_collector_test.py
+        run: python3 test/xref_collector_test.py
 
       # The Rustler NIF (CJK segmentation via jieba-rs) is compiled from source.
       # Rust remains the existing floating stable selection. Pinning it is a
@@ -134,14 +125,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            pramana/deps
-            pramana/_build
-            pramana/priv/plts
+            deps
+            _build
+            priv/plts
             ~/.cargo
-            pramana/apps/pramana_native/native/pramana_native/target
-            pramana/native/quotations/target
-          key: ${{ runner.os }}-pramana-layout-v2-${{ hashFiles('pramana/mix.lock', 'pramana/**/Cargo.lock', 'mise.toml') }}
-          restore-keys: ${{ runner.os }}-pramana-layout-v2-
+            apps/pramana_native/native/pramana_native/target
+            native/quotations/target
+          key: ${{ runner.os }}-pramana-layout-v3-${{ hashFiles('mix.lock', '**/Cargo.lock', 'mise.toml') }}
+          restore-keys: ${{ runner.os }}-pramana-layout-v3-
 
       - run: mix deps.get
 
@@ -170,7 +161,7 @@ jobs:
           mkdir "$XREF_REPORT_DIR"
           (
             cd "$(git rev-parse --show-toplevel)"
-            git ls-files -z -- pramana mise.toml .github/workflows/ci.yml |
+            git ls-files -z -- apps config mix.exs mix.lock mise.toml .github/workflows/ci.yml |
               sort -z > "$XREF_REPORT_DIR/source-files.paths0"
             xargs -0 sha256sum < "$XREF_REPORT_DIR/source-files.paths0" > "$XREF_REPORT_DIR/source-files.sha256"
           )
@@ -207,7 +198,7 @@ jobs:
             unless is_binary(source) and Path.type(source) == :relative and
                      Path.relative_to(Path.expand(source, dir), Path.expand(dir)) == source,
               do: raise("Out-of-scope compiler source: #{inspect(source)}")
-            relative = Path.join(["pramana", dir, source])
+            relative = Path.join([dir, source])
             unless MapSet.member?(inventory, relative),
               do: raise("Uninventoried compiler source: #{relative}; ignored/generated inputs are unsupported")
             # Check every component: a tracked symlink is not tracked target bytes.
@@ -242,7 +233,7 @@ jobs:
               end)
             end)
             %{
-              app: name, source_root: "pramana/#{dir}", graph: "#{name}/graph.json",
+              app: name, source_root: dir, graph: "#{name}/graph.json",
               status: if(sources == [], do: "no_elixir_sources", else: "collected"),
               elixir_sources: "#{name}/elixir-sources.json",
               nodes: map_size(graph), edges: Enum.sum(Enum.map(graph, fn {_, sinks} -> map_size(sinks) end))
