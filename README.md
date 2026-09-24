@@ -29,9 +29,7 @@ wrappers; their implementations live in `pramana/bin/`.
 Read [the cutover and rollback guide](docs/LAYOUT_MIGRATION.md) **before changing
 an active checkout**. This migration moves tracked source, not ignored corpora,
 model weights, databases, credentials, accepted releases or running worktrees.
-Do not use `git clean -fdx` to resolve leftover directories: an existing checkout may
-still hold ignored Foundry state under `foundry/` (see [the repository map](docs/REPO_MAP.md#foundry-moved-out)).
-A merge is not live activation.
+Do not use `git clean -fdx` to resolve leftover directories. A merge is not live activation.
 
 The Pramāṇa image now uses its own context:
 

@@ -95,7 +95,7 @@ removal or Actions-artifact deletion was performed.
 ## Keep future cleanup conservative
 
 Use dedicated ignored scratch/output directories. The cleanup added missing Foundry
-coverage/ExDoc output ignores (since folded into one `/foundry/` ignore) and Python bytecode-cache ignores; it does not add a
+coverage/ExDoc output ignores (removed with Foundry on 2026-09-23) and Python bytecode-cache ignores; it does not add a
 blanket JSON, JSONL, log or experiment-file ban. A reproducible test fixture or
 accepted evidence record is allowed to be tracked with an explicit owner.
 

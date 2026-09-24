@@ -15,7 +15,6 @@ defmodule Repository.LayoutTest do
 
     umbrella = File.read!(Path.join(@project, "mix.exs"))
     assert umbrella =~ ~s(apps_path: "apps")
-    # Existing checkouts may keep ignored Foundry state in foundry/; only tracked files matter.
     assert {"", 0} == System.cmd("git", ["ls-files", "--", "foundry"], cd: @root)
     refute File.exists?(Path.join(@project, "apps/foundry"))
   end

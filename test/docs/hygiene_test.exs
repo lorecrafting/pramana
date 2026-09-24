@@ -12,7 +12,6 @@ defmodule Docs.HygieneTest do
 
   test "generated outputs are ignored without hiding ordinary evidence inputs" do
     ignored = [
-      "foundry/local/state.json",
       "pramana/raw",
       "pramana/priv/models",
       "pramana/sources/local/example/text",

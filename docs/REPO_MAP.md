@@ -27,9 +27,8 @@ migration. [Application overview](../pramana/README.md).
 
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23, history included. Its
 pre-split history stays in this repository; the last commit with `foundry/` is
-`e1e4b3bf`. Existing checkouts may still hold ignored Foundry state under `foundry/`
-(`local/`, `handoffs/`, `ci-artifacts/`, builds); Foundry's legacy configuration reads
-`foundry/local/`, so leave it until the operator relocates it. Git ignores the whole directory.
+`e1e4b3bf`. Foundry's operator state now lives in its own checkout; an old `foundry/`
+directory left in a Pramāṇa checkout holds only stale build output and can be deleted.
 
 ## Shared repository files
 
