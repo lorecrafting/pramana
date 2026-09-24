@@ -1,31 +1,41 @@
-# Retired files and cleanup policy
+# Retired files
 
-**Review baseline:** `21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f`, 2026-09-15.
-[Documentation](README.md) · [Repository structure](REPOSITORY_STRUCTURE.md)
+Documents, scripts and experiments removed from the working tree, with links to the last
+revision that held them. Every link opens that **pinned revision**, not the current branch:
+its commands, prices, results and proposed APIs are historical, not approved procedures.
+Git history keeps everything; nothing here was purged.
 
-## What this cleanup does
+[Documentation](README.md) · [Repository map](REPO_MAP.md)
 
-Retire **30 tracked files (190,035 bytes, 3,480 lines)** from the working tree:
-18 superseded guide snapshots, 11 old experiment scripts/results and one unused
-Phoenix logo. This is not a purge of Git history and does not promise a comparable
-reduction in a full clone's size. New navigation and review notes offset part of the
-working-tree reduction.
+## Retired 2026-09-24: the single-product cleanup
 
-The guide copies were explicitly archived during the documentation audit. Current
-source-backed guides have replaced their operating instructions. Keep their complete
-original evidence in Git rather than another searchable copy in the current checkout.
-The existing guide bookmarks now link directly to the retained revision; old claims
-and negative results have not been silently rewritten to agree with today's code.
+Foundry left on 2026-09-23. This pass removed the two-product layout machinery, finished
+the local-data cutover, cut the plan to its open work and retired one-off records.
 
-The experiment files have no exact filename/path consumers in the inspected tracked
-source, tests, workflows or remaining documentation. Broad references to the experiments
-and their lessons remain in history/rules/PLAN. Evaluation loading uses the selected
-`*.jsonl` directory (default `evals/gold`), not a recursive archive scan; the active
-ratchet uses `evals/baseline.json`. This cleanup does not change those active inputs
-or the evaluation implementation. Historical scripts contain dated corpus assumptions
-and, in some cases, original-operator paths; they are not maintained CLI commands.
+| Retired path | What it was | Now |
+|---|---|---|
+| [`docs/PLAN.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md) | Full plan before the 2026-09-24 cut | [Plan](PLAN.md) keeps the open work |
+| [`docs/PLAN_INDEX.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN_INDEX.md) | Navigation for the long plan | [Plan](PLAN.md); no longer long enough to need an index |
+| [`docs/REPOSITORY_STRUCTURE.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/REPOSITORY_STRUCTURE.md) | 2026-09-15 review proposing the two-product sibling layout | [Repository map](REPO_MAP.md); implemented, then Foundry moved out |
+| [`docs/LAYOUT_MIGRATION.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/LAYOUT_MIGRATION.md) | Cutover and rollback guide for the sibling-layout migration | Completed 2026-09-24; local data now lives under `pramana/` |
+| [`bin/check_local_layout.exs`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/bin/check_local_layout.exs) | Read-only preflight for legacy local-data paths | Retired with the completed cutover |
+| [`test/local_layout_test.exs`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/test/local_layout_test.exs) | Tests for that preflight | Retired with it |
+| [`bin/pramana-modal`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/bin/pramana-modal) | Root compatibility wrapper | Use `pramana/bin/pramana-modal` |
+| [`bin/pramana-tranche`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/bin/pramana-tranche) | Root compatibility wrapper | Use `pramana/bin/pramana-tranche` |
+| [`docs/TEST_AUDIT.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/TEST_AUDIT.md) | Behaviour-first test audit, 2026-09-15 | [Testing](TESTING.md) |
+| [`docs/audits/2026-09-15/README.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/audits/2026-09-15/README.md) | Documentation audit, 2026-09-15 | [Maintaining docs](MAINTAINING_DOCS.md) |
+| [`docs/audits/2026-09-15/INVENTORY.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/audits/2026-09-15/INVENTORY.md) | That audit's file inventory | Historical record |
+| [`docs/audits/2026-09-15/inventory.json`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/audits/2026-09-15/inventory.json) | Machine-readable inventory | Historical record |
+| [`docs/strategy/FOUNDRY.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/strategy/FOUNDRY.md) | Foundry product strategy | Moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) |
+| [`pramana/docs/harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md`](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/pramana/docs/harness/04-10-parallel-track-the-self-improving-supervisor-foundry-s-own-met.md) | Foundry's meta-harness chapter | Moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/META-HARNESS.md) |
 
-## Recover superseded guide snapshots
+## Retired 2026-09-15: documentation audit cleanup
+
+Pinned to `21f298bb`. The guide copies were archived during that audit after current
+source-backed guides replaced their operating instructions; the experiments had no
+tracked consumers.
+
+### Superseded guide snapshots
 
 Every link below opens the **pre-cleanup revision**, not the current branch. Old
 commands, prices, results and proposed APIs are historical, not approved procedures.
@@ -52,7 +62,7 @@ For nested chapters, the linked parent index resolves them within that same revi
 | [`docs/records/translation-design-and-experiments/01-the-reframe.md`](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/translation-design-and-experiments/01-the-reframe.md) | [Translation](../pramana/docs/TRANSLATION.md); old design/experiments retained in Git history |
 | [`docs/records/translation-design-and-experiments/02-the-promotion-pipeline.md`](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/translation-design-and-experiments/02-the-promotion-pipeline.md) | [Translation](../pramana/docs/TRANSLATION.md); old design/experiments retained in Git history |
 
-## Recover retired experiments and scaffolding
+### Experiments and scaffolding
 
 | Retired path | Reason |
 |---|---|

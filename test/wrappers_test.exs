@@ -1,5 +1,5 @@
 defmodule Repository.WrappersTest do
-  @moduledoc "Exercise forwarding without a database, model, provider or Foundry daemon."
+  @moduledoc "Exercise forwarding without a database, model or provider."
   use ExUnit.Case, async: true
 
   @root Path.expand("..", __DIR__)
@@ -11,7 +11,7 @@ defmodule Repository.WrappersTest do
     File.mkdir_p!(Path.join(root, "fake-bin"))
     File.mkdir_p!(Path.join(root, "elsewhere"))
 
-    for file <- ~w(pramana-mix pramana-mcp pramana-modal pramana-tranche) do
+    for file <- ~w(pramana-mix pramana-mcp) do
       copy_executable(Path.join(@root, "bin/#{file}"), Path.join(root, "bin/#{file}"))
     end
 
@@ -36,22 +36,20 @@ defmodule Repository.WrappersTest do
     refute File.exists?(Path.join(root, "never-execute"))
   end
 
-  test "compatibility wrappers forward inert arguments without producing extra stdout", %{
+  test "the root MCP launcher forwards inert arguments without producing extra stdout", %{
     root: root
   } do
-    for file <- ~w(pramana-mcp pramana-modal pramana-tranche) do
-      write_executable(
-        Path.join(root, "pramana/bin/#{file}"),
-        "#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 23\n"
-      )
+    write_executable(
+      Path.join(root, "pramana/bin/pramana-mcp"),
+      "#!/bin/sh\nprintf '%s\\n' \"$@\"\nexit 23\n"
+    )
 
-      args = ["space here", "$(not-a-command)", "--flag", ""]
+    args = ["space here", "$(not-a-command)", "--flag", ""]
 
-      {out, 23} =
-        System.cmd(Path.join(root, "bin/#{file}"), args, cd: Path.join(root, "elsewhere"))
+    {out, 23} =
+      System.cmd(Path.join(root, "bin/pramana-mcp"), args, cd: Path.join(root, "elsewhere"))
 
-      assert out == Enum.join(args, "\n") <> "\n"
-    end
+    assert out == Enum.join(args, "\n") <> "\n"
   end
 
   test "MCP implementation compiles to stderr then preserves the protocol stream", %{root: root} do
@@ -117,7 +115,9 @@ defmodule Repository.WrappersTest do
     args = ["run", "priv/embed/a file.py", "--input-name", "$(literal)"]
 
     {out, 29} =
-      System.cmd(Path.join(root, "bin/pramana-modal"), args, cd: Path.join(root, "elsewhere"))
+      System.cmd(Path.join(root, "pramana/bin/pramana-modal"), args,
+        cd: Path.join(root, "elsewhere")
+      )
 
     assert out == Enum.join([Path.join(root, "pramana") | args], "\n") <> "\n"
   end

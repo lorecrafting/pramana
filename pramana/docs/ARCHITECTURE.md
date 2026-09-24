@@ -121,7 +121,7 @@ A query-time translation cache/promotion service is not established by a propose
 policy is a design distinction, not an enforced column-level isolation guarantee.
 
 Use [testing](../../docs/TESTING.md) for evidence requirements, [status](STATUS.md) for the recorded
-corpus snapshot, and the appropriate [plan section](../../docs/PLAN_INDEX.md) for future work.
+corpus snapshot, and the appropriate [plan](../../docs/PLAN.md) for future work.
 
 ## Historical section bookmarks
 

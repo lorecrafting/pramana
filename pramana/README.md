@@ -1,16 +1,12 @@
 # Pramāṇa
 
 This is the Pramāṇa project root (`pramana/` in the Git repository). Run the
-commands below here. [Both products](../README.md) · [Topic index](docs/README.md).
+commands below here. [Repository](../README.md) · [Topic index](docs/README.md).
 
 Pramāṇa is an English-first, citation-grounded research substrate for Buddhist
 texts. It retrieves original-language passages with provenance and checkable addresses,
 keeps renderings distinct from source text, and provides deterministic citation checks.
 A valid quotation does not by itself prove an interpretation or exhaustive corpus coverage.
-
-Foundry is an independent product in [lorecrafting/foundry](https://github.com/lorecrafting/foundry). Its
-[overview and repair authority](https://github.com/lorecrafting/foundry/blob/main/docs/README.md) are separate from the
-research-product setup and commands here.
 
 ## Start here
 
@@ -20,7 +16,6 @@ research-product setup and commands here.
 | Learn Pramāṇa from the ground up | [Chaptered primer](docs/PRIMER.md) |
 | Set up Pramāṇa | [Development environment](docs/DEV_ENV.md) |
 | Use research tools or the reader | [MCP](docs/MCP.md) and [reader](docs/READER.md) |
-| Work on Foundry | [Foundry overview](https://github.com/lorecrafting/foundry/blob/main/README.md) and [documentation](https://github.com/lorecrafting/foundry/blob/main/docs/README.md) |
 | Contribute with any model provider | [AGENTS.md](../AGENTS.md), the shared routing entry point |
 
 ## Pramāṇa's boundary
@@ -49,4 +44,3 @@ Sources and translations have distinct license metadata. `raw/` and live runtime
 are not tracked. A public deployment needs the intended dataset, verified permissions
 and the [public deployment checks](docs/DEPLOY.md).
 
-[Documentation audit and limitations](../docs/audits/2026-09-15/README.md)

@@ -8,7 +8,7 @@ This replaces the appended research notebook with a decision-oriented strategy. 
 proposes direction, not shipped capabilities, budgets, implementation tickets or
 permission to launch agents.
 [PLAN](PLAN.md) owns active work; [ROADMAP](ROADMAP.md) retains its existing phase
-record. [PLAN's post-#17 reconciliation](PLAN.md#current-engineering-disposition--post-17-2026-09-16)
+record. [PLAN's post-#17 reconciliation](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#current-engineering-disposition--post-17-2026-09-16)
 now checks the existing engineering baseline; it does not approve the pilot choices or
 admit these strategic initiatives. V2 content identity is implemented, not immutable replay.
 

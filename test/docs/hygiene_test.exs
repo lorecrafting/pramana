@@ -16,7 +16,6 @@ defmodule Docs.HygieneTest do
       "pramana/priv/models",
       "pramana/sources/local/example/text",
       "pramana/_build/test/a.beam",
-      "raw/legacy.xml",
       "pramana/priv/embed/__pycache__/probe.cpython-313.pyc"
     ]
 

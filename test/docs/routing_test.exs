@@ -209,6 +209,13 @@ defmodule Docs.RoutingTest do
     assert MapSet.difference(docs, reached) == MapSet.new()
   end
 
+  test "the catalog lists exactly the tracked Markdown documents" do
+    listed =
+      ~r/^- \[`([^`]+)`\]/m |> Regex.scan(read!("docs/CATALOG.md")) |> Enum.map(&List.last/1)
+
+    assert MapSet.new(listed) == MapSet.new(documents())
+  end
+
   test "relative links and fragments resolve" do
     tracked = tracked_paths()
 

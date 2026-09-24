@@ -4,7 +4,7 @@ These generated blocks are retained from the audited source commit `75a56c13ebaf
 They were not regenerated against a live database in this documentation audit.
 Run the relevant [checks](../../docs/TESTING.md) against the intended database to establish its state.
 
-[Current architecture](ARCHITECTURE.md) · [Plan navigation](../../docs/PLAN_INDEX.md) · [Recorded details](status/DETAILS.md)
+[Current architecture](ARCHITECTURE.md) · [Plan](../../docs/PLAN.md) · [Recorded details](status/DETAILS.md)
 
 ## The corpus
 

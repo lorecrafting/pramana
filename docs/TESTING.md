@@ -1,7 +1,7 @@
 # Testing: choose the right boundary
 
-A green result only establishes what that check exercised. Run commands from the
-selected project root (`pramana/`); repository checks run at the Git root. Never start paid inference
+A green result only establishes what that check exercised. Run product commands from
+`pramana/`; repository checks run at the Git root. Never start paid inference
 or a public deployment merely to validate a documentation change.
 
 | Change / question | Check | Prerequisites and limits |
@@ -96,13 +96,13 @@ same synthetic-database release smoke. Reused Docker layers may contain unchange
 toolchain or dependency work; they do not substitute an older final image for the
 candidate. No CI cache authorizes corpus acceptance, provider use or deployment.
 
-## Sibling-layout validation
+## Repository layout checks
 
 At the Git root, `mix format --check-formatted` covers only shared scripts/tests;
-there is no root Mix application. Run product formatting inside the product.
+there is no root Mix application. Run product formatting inside `pramana/`.
 `elixir bin/check_docs.exs` checks both documentation trees, project-root declarations,
-figure discovery, independent lockfiles, and root compatibility wrappers using fake
-commands in isolated directories. It cannot certify the operator's external data.
+figure discovery, the lockfile and the root wrappers using fake commands in isolated
+directories. It cannot certify the operator's local data.
 
 The Pramāṇa workflow uses `working-directory: pramana` for shell steps. Cache paths
 remain Git-root-relative. Rust audits name both actual lockfiles. Native quotation
@@ -116,9 +116,6 @@ bakes and old jobs remain unchanged on public nodes under both restricted and pr
 fixture credentials; the same job/source must be ingested by the real research queue
 and old history pruned. Missing audit-read permission must still refuse startup. This is not a research-corpus, inference or production deployment
 check. It never pushes an image.
-
-[Cutover and rollback](LAYOUT_MIGRATION.md) describes checks for an existing corpus
-and task worktrees. Do not substitute model-free structure tests for those checks.
 
 ## Compiler dependency evidence
 
@@ -159,8 +156,7 @@ separate required regressions; none is replaced by a transport test.
 
 ## Behavior-first test maintenance
 
-See the [test audit implementation and execution boundaries](TEST_AUDIT.md) for
-finding dispositions, suite ownership, coverage exclusions, and preserved safety
-boundaries. Each changed test should name the plausible regression its fixtures
+The [2026-09-15 test audit](RETIRED_FILES.md#retired-2026-09-24-the-single-product-cleanup)
+recorded finding dispositions, suite ownership and coverage exclusions. Each changed test should name the plausible regression its fixtures
 can distinguish. A count, successful return, or empty observation alone is not
 proof of filtering, ordering, no-effect safety, or fresh-VM behavior.

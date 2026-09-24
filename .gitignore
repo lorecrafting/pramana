@@ -1,82 +1,13 @@
-# Shared ignores and legacy local-data protection.
-# Current Pramāṇa outputs are scoped by pramana/.gitignore. The old root patterns
-# below intentionally remain during cutover/rollback: ignored local data was not
-# relocated by the source migration. Never clean it with git clean -fdx.
-# The directory Mix used to write compiled artifacts to.
-/_build/
-
-# If you run "mix test --cover", coverage assets end up here. The leading slash
-# anchors to the repo root, which in an umbrella misses where the apps actually
-# write it, so both patterns are needed.
-/cover/
-apps/*/cover/
-
-# The directory Mix downloads your dependencies sources to.
-/deps/
-
-# Where 3rd-party dependencies like ExDoc output generated docs.
-/doc/
-
-# Ignore .fetch files in case you like to edit your project deps locally.
-/.fetch
-
-# If the VM crashes, it generates a dump, let's ignore it too.
-erl_crash.dump
-
-# Also ignore archive artifacts (built via "mix archive.build").
-*.ez
-
-# Temporary files, for example, from tests.
+# Repository-level ignores. Pramāṇa's build output, corpus, models and other local
+# data live under pramana/ and are ignored by pramana/.gitignore.
 /tmp/
-
-# --- Pramana ---
-# Corpus data is NEVER committed. We publish the pipeline, not the corpus.
-# See CLAUDE.md "Licensing posture".
-/raw/
-/bake/out/
-sources.lock.local.json
-
-# Python embed sidecar
-/priv/embed/.venv/
-/priv/embed/__pycache__/
-/priv/embed/models/
-
-# Rust
-/apps/pramana_native/native/**/target/
-
-# Dialyzer
-/priv/plts/
-
-# Rust build artifacts (path differs from the pattern added earlier)
-/apps/pramana_native/native/pramana_native/target/
-/apps/pramana_native/priv/native/
-
-# Locally-added source TEXT is never committed — same rule as raw/. Most texts added
-# this way are modern and in copyright (the default licence class is `restricted`), and
-# this project publishes the pipeline, not the corpus.
-#
-# Manifests ARE committed: they are bibliographic metadata, they are what makes a bake
-# reproducible for someone who has their own copy of the text, and they contain no
-# licensed content.
-sources/local/*/text/
-sources/local/*/raw/
-native/quotations/target/
-
-# Fine-tuned embedding weights: 2.2 GB of tensors, reproducible from the LoRA adapter
-# and the pinned base model. See docs/GPU_RUNBOOK.md and mix pramana.embed.fetch_model.
-priv/models/
-
-# Derived on every `mix pramana.public.bake` from sources.lock.json, which IS committed.
-# Committing it too would be a second copy of the same facts, free to drift.
-sources.public.lock.json
-
-# macOS finder metadata, committed once by accident
+erl_crash.dump
 .DS_Store
 
 # Temporary review artifacts
 *review*.json
 
-# Python bytecode caches can also be created by retained investigation scripts.
+# Python bytecode (test/xref_collector_test.py, pramana/priv/embed)
 __pycache__/
 *.pyc
 *.pyo
