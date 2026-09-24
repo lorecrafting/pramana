@@ -58,7 +58,7 @@ than permanent Foundry ontology. Comparisons should pin the relevant dimensions,
 matched task classes and keep the protected acceptance boundary comparable. Record enough
 lineage to attribute an accepted outcome and its corrections, failures and operator effort
 to the exact experimental arm. See
-[Replaceable planning strategies](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PLANNING-STRATEGIES.md).
+[Replaceable planning strategies](https://github.com/lorecrafting/foundry/blob/main/docs/PLANNING-STRATEGIES.md).
 
 ## Pilot protocol
 
@@ -105,7 +105,7 @@ provider behavior or platform availability.
 "Role-agnostic" must be demonstrated, not inferred from configurable model-profile names.
 
 After the active Foundry repair lifecycle is accepted, validate the proposed
-[project workflow profile](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/PROJECT-WORKFLOW-PROFILES.md) abstraction
+[project workflow profile](https://github.com/lorecrafting/foundry/blob/main/docs/PROJECT-WORKFLOW-PROFILES.md) abstraction
 with at least two materially different workloads under the same protected kernel.
 
 ### Arm A — software engineering

@@ -2,7 +2,7 @@
 
 Current implementation reference, checked against source at the documentation-audit
 baseline. It describes code, not the state of a running database. See
-[the repository map](../../docs/REPO_MAP.md) for the separate Foundry system and
+[the repository map](../../docs/REPO_MAP.md) for the repository layout and
 [the retained original design](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/architecture-design.md) for proposals and history.
 
 ## Pipeline and ownership

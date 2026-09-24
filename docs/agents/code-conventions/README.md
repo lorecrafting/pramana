@@ -12,8 +12,7 @@ the files that apply to the code being changed; do not preload the whole directo
 | LiveView pages, processes, streams, hooks or LiveView tests | [Elixir](elixir.md), [Phoenix core](phoenix/core.md), [Phoenix HTML](phoenix/html.md) and [LiveView](phoenix/liveview.md) |
 | Phoenix JS/CSS/Tailwind assets | [Assets](phoenix/assets.md) |
 
-Foundry normally needs only the shared Elixir file. Pramāṇa code should add a Phoenix
-file only when the touched code uses that framework surface. The shared Elixir file
+Pramāṇa code should add a Phoenix file only when the touched code uses that framework surface. The shared Elixir file
 contains a few explicitly marked Pramāṇa-only project defaults where they are relevant
 to ordinary Elixir work.
 

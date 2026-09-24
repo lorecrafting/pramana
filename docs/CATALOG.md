@@ -142,7 +142,10 @@ The [migration guide](LAYOUT_MIGRATION.md) maps the sibling layout and local cut
 - [`pramana/apps/pramana_native/README.md`](../pramana/apps/pramana_native/README.md)
 - [`pramana/apps/pramana_web/README.md`](../pramana/apps/pramana_web/README.md)
 
-## Foundry project and execution records
+## Foundry project and execution records (pre-split)
+
+Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23. These links pin
+the last copies in this repository (`e1e4b3bf`).
 
 - [`foundry/AGENTS.md`](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/AGENTS.md)
 - [`foundry/README.md`](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/README.md)

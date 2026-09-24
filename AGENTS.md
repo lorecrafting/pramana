@@ -15,8 +15,8 @@ Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
 
 Load only the topic needed for the task. Do not preload the full plan, history,
 rule book or tutorial. [Rule triggers](docs/agents/RULE_TRIGGERS.md) route to numbered
-rules when relevant; [testing](docs/TESTING.md) separates documentation, umbrella,
-Foundry and corpus checks.
+rules when relevant; [testing](docs/TESTING.md) separates documentation, umbrella
+and corpus checks.
 
 `CLAUDE.md` and `GEMINI.md` are compatibility entry points to this file, not separate
 policy. Other harnesses should be given this file explicitly when they do not load it.

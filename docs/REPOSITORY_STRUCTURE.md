@@ -12,6 +12,11 @@ repository root. See [the current map](REPO_MAP.md) and [cutover/rollback](LAYOU
 The review below records the pre-migration baseline and remains the rationale;
 it is not a claim that a live checkout, database or accepted release was relocated.
 
+**Superseded 2026-09-23:** Foundry moved to its own repository,
+[lorecrafting/foundry](https://github.com/lorecrafting/foundry), with its history. This repository now holds
+Pramāṇa only; `foundry/` references below describe the pre-split layout (last present
+at `e1e4b3bf`). See [the current map](REPO_MAP.md#foundry-moved-out).
+
 ## Decision: valid now, clearer as siblings later
 
 The current arrangement is technically sound: **a Pramāṇa umbrella at the repository

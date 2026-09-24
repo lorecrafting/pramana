@@ -34,24 +34,10 @@ For model-assisted changes, [AGENTS.md](../AGENTS.md) routes every provider thro
 
 ## Foundry: execution and repair
 
-Use [the Foundry index](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md), not Pramāṇa's corpus commands.
-[Foundry README](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/README.md) states containment limits;
-[REPAIR-PLAN](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md) and
-[WORKFLOW-CONTRACT](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/WORKFLOW-CONTRACT.md) route current work.
-[The 2026-09-19 independent alignment audit](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md)
-records current-source gaps and the accepted FR-07/FR-08 sequencing disposition without
-becoming another backlog.
-[CI](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/CI.md) is independent and model-free. Historical migration and
-review records remain evidence for their named candidates, not proof of current activation.
-
-### Foundry role contracts
-
-[Developer](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/developer.md) · [Reviewer](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/reviewer.md) ·
-[PM](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/pm.md) · [Hardening PM](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/hardening_pm.md) ·
-[Steerer](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/roles/steerer.md)
-
-These roles and existing Foundry documents were not changed by the documentation PR.
-Repository provider-neutrality does not rewrite their launch/billing or repair contracts.
+Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23; its
+[index](https://github.com/lorecrafting/foundry/blob/main/docs/README.md), [repair plan](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md), workflow contract,
+roles and CI live there. Pramāṇa's product strategy still depends on its repair
+acceptance (the `foundry_g0` pilot gate); see [Foundry strategy](strategy/FOUNDRY.md#where-foundry-lives).
 
 ## Plans, research and historical evidence
 

@@ -298,7 +298,7 @@ retrieve it.
 
 ## D6 — capacity allocation
 
-Until Foundry G0/FR-22 is complete:
+Until Foundry G0/FR-22 is complete (tracked in [lorecrafting/foundry](https://github.com/lorecrafting/foundry)):
 
 - Foundry repair work remains the engineering critical path;
 - Pramāṇa work is limited to discovery, chartering, rights/evaluator preparation and other

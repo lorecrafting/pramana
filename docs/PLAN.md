@@ -218,7 +218,9 @@ D1–D7 pilot/scope/rights/budget/retention decisions. The old 705-untitled figu
 later STATUS snapshot's 711 are not interchangeable live measurements. Use the actual
 catalogue/database when taking up that work; code inspection cannot supply its verdict.
 
-**Foundry boundary (superseding the stale snapshot formerly here):** FR-07's exact v9
+**Foundry boundary (superseding the stale snapshot formerly here):** Foundry moved to
+[lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23; its repair plan and ticket status
+are maintained there. The remainder of this paragraph is the pre-split disposition. FR-07's exact v9
 foundation is independently accepted and locally integrated, not deployed. The
 [2026-09-19 independent alignment audit](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/ALIGNMENT-AUDIT-2026-09-19.md),
 SHA-256 `c825b22bb857ccccd08171d79fae3b2d33ce76025fdf7dcb5db91ecc3ff63fe7`,
@@ -234,6 +236,10 @@ The sections below retain original dates and counterevidence. A still-open histo
 bullet must be reconciled with this disposition and current code before dispatch.
 
 ## Foundry audit follow-up — 2026-09-12
+
+> Pre-split record. Foundry, this audit and its repair backlog moved to
+> [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23; relative `foundry/` paths below
+> refer to that repository or to this repository at `e1e4b3bf`.
 
 The [Foundry audit](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/AUDIT-2026-09-12.md) is complete as an audit;
 its repair backlog is in progress. It assesses the current working tree against the

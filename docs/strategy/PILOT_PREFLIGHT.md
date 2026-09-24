@@ -3,7 +3,7 @@
 **Status:** design/preflight only; no pilot execution or provider call is authorized.
 **Decision update:** 2026-09-17, superseding the initial four-Nikāya D2 pilot choice.
 **Base:** `6887cc15457a0bcb555914874173b6a35488da3f`
-**Depends on:** [pilot charter](PILOT_CHARTER.md), Foundry G0/FR-22, reviewed source/lexicon
+**Depends on:** [pilot charter](PILOT_CHARTER.md), Foundry G0/FR-22 ([lorecrafting/foundry](https://github.com/lorecrafting/foundry), see [where Foundry lives](FOUNDRY.md#where-foundry-lives)), reviewed source/lexicon
 rights, evaluator availability and separately authorized inference.
 
 ## Why the pilot is now Chinese-first
@@ -402,7 +402,7 @@ Actual participant execution remains blocked by every other mandatory preflight 
 
 The pilot is not ready until every mandatory condition has explicit evidence:
 
-1. **Foundry G0 / FR-22 complete** for implementation execution.
+1. **Foundry G0 / FR-22 complete** in [lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md) for implementation execution.
 2. **Exact pilot release/scope pinned**, including seed work IDs and relation expansion.
 3. **CBETA rights matrix reviewed** for every intended operation.
 4. **Lexicon rights matrix reviewed** for each glossary used.

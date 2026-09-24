@@ -24,9 +24,8 @@ priv/derge/
 # Node.js (not used by the app, but present from asset pipelining):
 node_modules/
 # This is Pramāṇa's build context, not a build of the whole repository.
-# Neither path is a Dockerfile COPY input. Git ignores do not filter Docker context.
+# Not a Dockerfile COPY input. Git ignores do not filter Docker context.
 .git/
-foundry/
 
 # Local-only material must not become build input via COPY apps/config.
 **/.env

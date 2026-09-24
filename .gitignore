@@ -29,19 +29,6 @@ erl_crash.dump
 # Temporary files, for example, from tests.
 /tmp/
 
-
-
-# Foundry standalone Mix project build artifacts
-/foundry/_build/
-/foundry/deps/
-/foundry/pramana_foundry
-/foundry/ci-artifacts/
-
-# Foundry runtime state (coordinator logs, handoffs)
-/foundry/local/
-/foundry/handoffs/
-/foundry/_build/prod/rel/*/tmp/log/
-
 # --- Pramana ---
 # Corpus data is NEVER committed. We publish the pipeline, not the corpus.
 # See CLAUDE.md "Licensing posture".
@@ -88,10 +75,6 @@ sources.public.lock.json
 
 # Temporary review artifacts
 *review*.json
-
-# Generated outputs of the independent Foundry Mix project, not review evidence.
-/foundry/cover/
-/foundry/doc/
 
 # Python bytecode caches can also be created by retained investigation scripts.
 __pycache__/

@@ -1,8 +1,9 @@
 # Plan navigation
 
-The [shared plan](PLAN.md) is preserved in place because another session owns active
-Foundry repair work. This index is navigation, not a second execution queue or status source.
-For repairs, prefer [Foundry REPAIR-PLAN](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/REPAIR-PLAN.md).
+The [shared plan](PLAN.md) is preserved in place. Its Foundry sections are pre-split
+records; Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23.
+This index is navigation, not a second execution queue or status source.
+For Foundry repairs, use [Foundry REPAIR-PLAN](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md).
 Product strategy is intentionally outside this audit's substantive scope.
 
 | Section |

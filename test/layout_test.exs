@@ -15,7 +15,7 @@ defmodule Repository.LayoutTest do
 
     umbrella = File.read!(Path.join(@project, "mix.exs"))
     assert umbrella =~ ~s(apps_path: "apps")
-    refute File.exists?(Path.join(@root, "foundry"))
+    assert {"", 0} == System.cmd("git", ["ls-files", "--", "foundry"], cd: @root)
     refute File.exists?(Path.join(@project, "apps/foundry"))
   end
 

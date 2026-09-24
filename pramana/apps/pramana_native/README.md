@@ -1,7 +1,7 @@
 # Pramāṇa native
 
 Rustler NIF for CJK segmentation using jieba-rs. This is an umbrella dependency of
-the Pramāṇa core, not a dependency of the standalone Foundry project.
+the Pramāṇa core.
 
 [The Mix manifest](mix.exs) owns Rustler configuration. Source lives in
 [native/pramana_native](native/pramana_native). A successful NIF build does not

@@ -22,15 +22,14 @@ mise exec -- elixir bin/check_docs.exs      # repository checks; no corpus/provi
 Database setup is an explicit operation; follow the selected product's guide first.
 `bin/pramana-mix` forwards to Pramāṇa from any working directory. Existing root
 `bin/pramana-mcp`, `bin/pramana-modal` and `bin/pramana-tranche` paths are compatibility
-wrappers; their implementations live in `pramana/bin/`. They do not launch Foundry.
+wrappers; their implementations live in `pramana/bin/`.
 
 ## Existing checkouts
 
 Read [the cutover and rollback guide](docs/LAYOUT_MIGRATION.md) **before changing
 an active checkout**. This migration moves tracked source, not ignored corpora,
 model weights, databases, credentials, accepted releases or running worktrees.
-Do not use `git clean -fdx` to resolve leftover directories. Foundry's operator
-runtime root and all repair policy are unchanged. A merge is not live activation.
+Do not use `git clean -fdx` to resolve leftover directories. A merge is not live activation.
 
 The Pramāṇa image now uses its own context:
 

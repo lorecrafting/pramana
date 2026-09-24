@@ -1,8 +1,8 @@
 # Testing: choose the right boundary
 
 A green result only establishes what that check exercised. Run commands from the
-selected project root (`pramana/`); repository checks run at the Git root. Never start paid inference, active
-Foundry dispatch or a public deployment merely to validate a documentation change.
+selected project root (`pramana/`); repository checks run at the Git root. Never start paid inference
+or a public deployment merely to validate a documentation change.
 
 | Change / question | Check | Prerequisites and limits |
 |---|---|---|
@@ -69,8 +69,8 @@ that code was executed.
 
 ## CI routing and reusable build caches
 
-Heavy workflows are scoped to inputs they can actually exercise. Foundry-only and
-documentation-only changes do not run the Pramāṇa database/Rust/Dialyzer/release lane.
+Heavy workflows are scoped to inputs they can actually exercise. Documentation-only
+changes do not run the Pramāṇa database/Rust/Dialyzer/release lane.
 The runtime-container workflow is narrower still: it runs for application, release,
 configuration, Docker or runtime-smoke inputs, not every file below `pramana/`.
 Repository layout tests pin these routing assumptions so a later edit cannot silently
@@ -115,8 +115,7 @@ non-serving behavior. Public cases use a distinct restricted login, with in-proc
 bakes and old jobs remain unchanged on public nodes under both restricted and privileged
 fixture credentials; the same job/source must be ingested by the real research queue
 and old history pruned. Missing audit-read permission must still refuse startup. This is not a research-corpus, inference or production deployment
-check. It never pushes an image. Foundry's existing
-isolated runner executes independently, without Pramāṇa dependencies.
+check. It never pushes an image.
 
 [Cutover and rollback](LAYOUT_MIGRATION.md) describes checks for an existing corpus
 and task worktrees. Do not substitute model-free structure tests for those checks.
@@ -137,8 +136,7 @@ a PR merge checkout is not automatically a report for the head commit alone.
 Graph generation/schema failures remain visible CI failures, but there are no
 node-count, dependency-count or cycle-count acceptance thresholds. An uploaded
 artifact can coexist with failing tests elsewhere in the run. Graphs never select
-or exclude tests and do not replace the normal checks above. No Foundry job or
-repair acceptance behavior is changed.
+or exclude tests and do not replace the normal checks above.
 
 The maintained [collector regressions](../test/xref_collector_test.py) run with
 `python3 test/xref_collector_test.py` from the Git root. They require Bash, Git and
