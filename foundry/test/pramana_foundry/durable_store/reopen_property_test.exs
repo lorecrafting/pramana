@@ -25,6 +25,11 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
   @executions ~w(x0 x1)
   @attempts ~w(a0 a1 a2)
 
+  @operation_types ~w(append_inbox cancel_effect claim_effect close_attempt close_generation
+                      create_effect delegate_allocation grant_ledger issue_claim
+                      release_reservation reserve reset_generation return_allocation
+                      seal_inbox set_control set_policy settle_claim)
+
   @moduletag timeout: :infinity
 
   test "every committed state reopens :ready" do
@@ -45,6 +50,16 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
           label: "operation outcomes",
           limit: :infinity
         )
+
+    # A green run means little for an operation the store never accepted (review B1:
+    # set_control was unreachable and return_allocation never accepted). Checked on the
+    # default budget and above, where every type should occur.
+    if runs >= 150 do
+      tally = Process.get(:tally, %{})
+      accepted = for {{type, "accepted"}, _n} <- tally, into: MapSet.new(), do: type
+      never = Enum.reject(@operation_types, &(&1 in accepted))
+      assert never == [], "never accepted in #{runs} runs: #{inspect(never)}"
+    end
 
     if failures != [] do
       reports =
@@ -88,12 +103,13 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
   defp operation do
     case :rand.uniform(100) do
       n when n <= 3 -> :reopen
-      n when n <= 12 -> pipeline(pick(@effects))
-      n when n <= 13 -> set_policy(pick(~w(p0 p1)), :rand.uniform(4) > 1)
-      n when n <= 10 -> set_control(pick(@controls), pick(~w(active active cancel_requested)))
+      n when n <= 11 -> pipeline(pick(@effects))
+      n when n <= 12 -> set_policy(pick(~w(p0 p1)), :rand.uniform(4) > 1)
+      n when n <= 14 -> set_control(pick(@controls), pick(~w(active active cancel_requested)))
       n when n <= 15 -> grant(pick(@ledgers), gen(), :rand.uniform(3))
-      n when n <= 16 -> delegate()
-      n when n <= 19 -> return()
+      n when n <= 17 -> delegate()
+      n when n <= 18 -> return()
+      n when n <= 19 -> round_trip()
       n when n <= 30 -> reserve()
       n when n <= 36 -> release()
       n when n <= 46 -> create_effect()
@@ -190,6 +206,23 @@ defmodule PramanaFoundry.DurableStore.ReopenPropertyTest do
       "dimension" => "starts.developer",
       "units" => :rand.uniform(2)
     }
+  end
+
+  # A delegation followed by a return of what it delegated, so return_allocation is
+  # accepted: a random return almost never names a child that holds nothing and delegates
+  # nothing (review B1: 0 of 46 accepted before this).
+  defp round_trip do
+    delegation = %{delegate() | "units" => 1}
+
+    [
+      delegation,
+      %{
+        "type" => "return_allocation",
+        "child_ledger_id" => delegation["child_ledger_id"],
+        "child_generation" => delegation["child_generation"],
+        "units" => 1
+      }
+    ]
   end
 
   defp return,

@@ -370,6 +370,8 @@ Each file has one owner. No item touches FR-08B's files (readiness §6).
 
 ## Open questions
 
+Independent review of the built lane: [findings](thin-lane-review-findings-2026-09-23.md).
+
 > **Resolved by the operator, 2026-09-23 (as recommended):** Q1 accept `Plan.unconditional`
 > from a closed table, replaced by deciders as subcommits 4–5 land. Q2 read-only SQLite for
 > the thin lane; no new Gateway read. Q3 as proposed: seed from the JSON file, refusing one
