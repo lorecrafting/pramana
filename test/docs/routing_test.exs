@@ -10,8 +10,6 @@ defmodule Docs.RoutingTest do
 
   @root Path.expand("../..", __DIR__)
   @triggers "docs/agents/RULE_TRIGGERS.md"
-  @historical_exception {"foundry/docs/AUDIT-2026-09-12.md", "../pramana_diagnose.py#L116"}
-
   defp read!(path), do: @root |> Path.join(path) |> File.read!()
 
   defp tracked_files do
@@ -192,7 +190,7 @@ defmodule Docs.RoutingTest do
     assert length(String.split(text, "\n")) <= 60
     assert byte_size(text) <= 4000
     assert String.contains?(text, "docs/agents/WORKFLOW.md")
-    assert String.contains?(text, "foundry/docs/README.md")
+    assert String.contains?(text, "https://github.com/lorecrafting/foundry")
   end
 
   test "provider shims import only the shared router" do
@@ -211,7 +209,7 @@ defmodule Docs.RoutingTest do
     assert MapSet.difference(docs, reached) == MapSet.new()
   end
 
-  test "relative links and fragments resolve, with one named historical exception" do
+  test "relative links and fragments resolve" do
     tracked = tracked_paths()
 
     problems =
@@ -221,9 +219,7 @@ defmodule Docs.RoutingTest do
           problem != nil,
           do: problem
 
-    # This audit record intentionally points to a removed legacy diagnostic.
-    # Keep the exception narrow; remove it if the record acquires a valid historical link.
-    assert Enum.uniq(problems) == [@historical_exception]
+    assert Enum.uniq(problems) == []
   end
 
   test "numbered rules remain unique, contiguous and routed" do

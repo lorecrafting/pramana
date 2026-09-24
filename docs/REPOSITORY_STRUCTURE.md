@@ -51,9 +51,9 @@ to package independent projects; none is required merely because two projects sh
 | `docs/` | Currently mixed: shared navigation/strategy and Pramāṇa references; Foundry's detailed contracts remain under `foundry/docs/` |
 
 The [three child Mix files](../pramana/apps) point to the root build/config/deps/lock paths.
-[Foundry's Mix file](../foundry/mix.exs) does not. Its
-[boundary tests](../foundry/test/pramana_foundry/boundary_test.exs) and
-[CI workflow](../.github/workflows/foundry-ci.yml) explicitly support independence.
+[Foundry's Mix file](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/mix.exs) does not. Its
+[boundary tests](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/test/pramana_foundry/boundary_test.exs) and
+[CI workflow](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/.github/workflows/foundry-ci.yml) explicitly support independence.
 This is source evidence about organization, not a fresh live-system acceptance.
 
 ## Real rough edges, not just cosmetic asymmetry

@@ -1,7 +1,7 @@
 # Pramāṇa observability
 
 Current source reference. This is distinct from
-[Foundry observability](../../foundry/docs/OBSERVABILITY.md). The original audit's
+[Foundry observability](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/OBSERVABILITY.md). The original audit's
 "no domain telemetry" findings are [historical](https://github.com/lorecrafting/pramana/blob/21f298bb0913fe8aa93e7dd71e18d4106c1ffe6f/docs/records/observability-audit.md), not
 the current implementation.
 

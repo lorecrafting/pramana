@@ -6,13 +6,12 @@ Do not assume a model name implies a particular CLI, tool name, subscription or 
 
 ## Choose the work boundary
 
-Pramāṇa is the umbrella under `pramana/`. Foundry is a standalone Mix project
-under its sibling `foundry/`. The Git root has no product Mix project. Read [the repository map](../REPO_MAP.md) before crossing that boundary.
-Foundry-only work does not require starting Postgres, the corpus or model inference.
+Pramāṇa is the umbrella under `pramana/`; the Git root has no product Mix project.
+Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on
+2026-09-23 ([repository map](../REPO_MAP.md)); do Foundry work there.
 
 For Pramāṇa, read [the invariants](../../pramana/docs/INVARIANTS.md), then one topic from
-[the index](../README.md). For Foundry, start with [its index](../../foundry/docs/README.md),
-which distinguishes repair authority from historical migration material.
+[the index](../README.md).
 
 Use [rule triggers](RULE_TRIGGERS.md) for the activity you are undertaking, not the
 entire rule collection. When writing code, use the

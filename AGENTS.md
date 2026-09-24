@@ -1,7 +1,7 @@
 # Repository guide for agents
 
-This repository contains two independent systems. Choose the system before loading
-reference material or running commands. These instructions apply to every provider.
+This repository holds Pramāṇa. Foundry moved to its own repository on 2026-09-23.
+These instructions apply to every provider.
 
 ## Start here
 
@@ -10,9 +10,7 @@ Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
 | Task | Read next |
 |---|---|
 | Pramāṇa: corpus, retrieval, MCP, reader | [Pramāṇa invariants](pramana/docs/INVARIANTS.md), then the relevant topic in [the Pramāṇa index](pramana/docs/README.md) |
-| Foundry: agent coordination and lifecycle | [Foundry documentation](foundry/docs/README.md); use its repair plan and current ticket evidence before touching execution paths |
-| Foundry: any code change | [Foundry boundary rules](foundry/docs/BOUNDARY-RULES.md) first — twelve rules, most enforced by the gate |
-| Foundry: adding or changing a guard, transition or refusal test | [Evidence tools](foundry/docs/EVIDENCE-TOOLS.md) first — four checks run in the gate automatically, one you must run yourself, and six rules that decide whether any green result means anything |
+| Foundry: agent coordination and lifecycle | Moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on 2026-09-23; follow its `AGENTS.md`. The pre-split history stays here |
 | Documentation or repository orientation | [Documentation index](docs/README.md), [repository map](docs/REPO_MAP.md), [documentation maintenance](docs/MAINTAINING_DOCS.md) |
 
 Load only the topic needed for the task. Do not preload the full plan, history,

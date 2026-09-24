@@ -9,7 +9,7 @@ keeps renderings distinct from source text, and provides deterministic citation 
 A valid quotation does not by itself prove an interpretation or exhaustive corpus coverage.
 
 Foundry is an independent sibling product, not part of this umbrella. Its
-[overview and repair authority](../foundry/docs/README.md) are separate from the
+[overview and repair authority](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md) are separate from the
 research-product setup and commands here.
 
 ## Start here
@@ -20,7 +20,7 @@ research-product setup and commands here.
 | Learn Pramāṇa from the ground up | [Chaptered primer](docs/PRIMER.md) |
 | Set up Pramāṇa | [Development environment](docs/DEV_ENV.md) |
 | Use research tools or the reader | [MCP](docs/MCP.md) and [reader](docs/READER.md) |
-| Work on Foundry | [Foundry overview](../foundry/README.md) and [documentation](../foundry/docs/README.md) |
+| Work on Foundry | [Foundry overview](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/README.md) and [documentation](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md) |
 | Contribute with any model provider | [AGENTS.md](../AGENTS.md), the shared routing entry point |
 
 ## Pramāṇa's boundary

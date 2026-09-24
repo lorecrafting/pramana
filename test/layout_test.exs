@@ -1,23 +1,21 @@
 defmodule Repository.LayoutTest do
-  @moduledoc "Model-free regression checks for the two independent project roots."
+  @moduledoc "Model-free regression checks for the Pramāṇa project root."
   use ExUnit.Case, async: true
 
   @root Path.expand("..", __DIR__)
   @project Path.join(@root, "pramana")
 
-  test "the Git root is neutral and both projects retain independent manifests" do
+  test "the Git root is neutral and Foundry has moved out" do
     refute File.exists?(Path.join(@root, "mix.exs"))
     refute File.exists?(Path.join(@root, "mix.lock"))
 
-    for project <- ["pramana", "foundry"], file <- ["mix.exs", "mix.lock", "config/config.exs"] do
-      assert File.regular?(Path.join([@root, project, file]))
+    for file <- ["mix.exs", "mix.lock", "config/config.exs"] do
+      assert File.regular?(Path.join(@project, file))
     end
 
     umbrella = File.read!(Path.join(@project, "mix.exs"))
-    foundry = File.read!(Path.join(@root, "foundry/mix.exs"))
     assert umbrella =~ ~s(apps_path: "apps")
-    refute foundry =~ "in_umbrella: true"
-    refute foundry =~ "apps_path:"
+    refute File.exists?(Path.join(@root, "foundry"))
     refute File.exists?(Path.join(@project, "apps/foundry"))
   end
 
@@ -66,8 +64,8 @@ defmodule Repository.LayoutTest do
     assert Pramana.Docs.Sync.documents([@project, @root, @project]) == paths
   end
 
-  test "Git root stays the same from either product directory" do
-    for dir <- [@root, @project, Path.join(@root, "foundry")] do
+  test "Git root stays the same from the product directory" do
+    for dir <- [@root, @project] do
       {out, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"], cd: dir)
       assert String.trim(out) == @root
     end
@@ -97,9 +95,7 @@ defmodule Repository.LayoutTest do
     assert ci =~ "pramana/_build"
     assert ci =~ "cargo audit --file native/quotations/Cargo.lock"
     assert ci =~ "cargo audit --file apps/pramana_native/native/pramana_native/Cargo.lock"
-    foundry = File.read!(Path.join(@root, ".github/workflows/foundry-ci.yml"))
-    assert foundry =~ "working-directory: foundry"
-    assert foundry =~ "elixir ci/run.exs"
+    refute File.exists?(Path.join(@root, ".github/workflows/foundry-ci.yml"))
   end
 
   test "heavy CI is path-scoped and reusable caches do not replace exact candidate builds" do

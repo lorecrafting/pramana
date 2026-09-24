@@ -2,7 +2,7 @@
 
 These are engineering constraints, not an assertion that every input, inference or
 running deployment is correct. Foundry has separate execution contracts in
-[its documentation](../../foundry/docs/README.md). Stable numbers below preserve
+[its documentation](https://github.com/lorecrafting/pramana/blob/e1e4b3bf2c666f5d84652758afee446a0b21ebe1/foundry/docs/README.md). Stable numbers below preserve
 existing references in code, reviews and older documents.
 
 1. **No unattributed source text leaves the retrieval boundary.** Returned source
