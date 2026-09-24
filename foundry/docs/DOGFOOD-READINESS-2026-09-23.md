@@ -173,6 +173,8 @@ The manual backend must never call `Adapter` or Herdr. A test should prove that 
 
 **Design:** [Batch D thin lane design](batch-d/THIN-LANE-DESIGN-2026-09-23.md) specifies T3–T7 at `8ed8d233`.
 
+**Operating it:** [the lane runbook](batch-d/LANE-RUNBOOK.md) starts the lane-only daemon and walks one ticket through every phase.
+
 ### Verdict
 
 **Not safely before T1 and T2 land and pass review.** Before then, the only paths are the

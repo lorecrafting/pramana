@@ -6,6 +6,9 @@ changes no code. **Taken at `8ed8d233`** (`repair/fr08b-kernel`). Code paths are
 `foundry/lib/pramana_foundry/` and test paths are under `foundry/test/pramana_foundry/`. Line
 numbers are at that commit.
 
+**Runbook.** [LANE-RUNBOOK](LANE-RUNBOOK.md) is how an operator runs the built lane: the
+lane-only daemon (`bin/foundry-lane`) and each command with its flags and refusals.
+
 **Operator decisions, 2026-09-23.**
 
 - **M1.** The dogfood gate is FR-08B subcommits 2 and 3 (reviewer) plus this lane.
@@ -306,10 +309,12 @@ required when the flag is on. If it is unset, startup refuses with
 
 `Server.context/0` returns `ctx`. The capability never leaves this process tree.
 
-**`application.ex`.** The child is appended to `runtime_children` only when the flag is set
-and `mode != :client`: in production it runs under `RuntimeOwner` (`:72`), and in tests it
-runs directly (`:68-69`); with the flag off, the child list is byte-identical to today's;
-the Coordinator still starts with the tick off, and the lane never calls it.
+**`application.ex`.** *Superseded after the real start path was exercised:* the flag turns a
+daemon into a lane daemon (`startup_mode/1` returns `:lane`), whose only child is the Server,
+not under `RuntimeOwner`: the store's own owner lock and unclean marker fence it, and the
+runtime lease's marker is cleared only by the Coordinator, which lane mode does not start.
+With the flag off, the daemon's child list is unchanged. Repo, policy and store also come
+from `FOUNDRY_MANUAL_LANE_{REPO,POLICY,STORE}`; see [the runbook](LANE-RUNBOOK.md).
 
 **Tests** (`manual_lane/server_test.exs`):
 
