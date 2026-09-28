@@ -299,8 +299,8 @@ FROM pg_tables WHERE schemaname='public' AND tablename='users_tokens'
             if not self.state(name)["Running"]:
                 raise RuntimeError("private reviewer runtime exited before HTTP readiness")
             try:
-                status, _, body = self.request(port, "/login")
-                if status == 200 and "Reviewer sign in" in body:
+                status, _, body = self.request(port, "/users/log-in")
+                if status == 200 and 'id="login_form_magic"' in body:
                     break
             except (OSError, http.client.HTTPException):
                 pass
