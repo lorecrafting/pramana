@@ -10,9 +10,11 @@ Where they disagree, [STATUS](STATUS.md) is the evidence and this is the intent.
 > **finishing** an item (delete it; Git keeps it), **discovering** work (add it with its
 > evidence), and **invalidating** an assumption (correct it and say why).
 
-Last reviewed: **2026-09-27**, when the Chinese pilot's remaining human and execution gates
-were reconciled with the approved charter and completed scope tooling. The dated session
-logs, completed-PR records and closed queues were cut on **2026-09-24**. They remain
+Last reviewed: **2026-09-28**, after live verification exposed and repaired a local T0262
+stub and invalidated the previous candidate release. The Chinese pilot's remaining human
+and execution gates were reconciled with the approved charter and scope tooling on
+2026-09-27. The dated session logs, completed-PR records and closed queues were cut on
+**2026-09-24**. They remain
 readable in [the full plan as of 2026-09-24](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#plan)
 and in Git history. A pointer below into that copy is dated evidence, not a fresh instruction:
 reconcile it with current code before dispatching work from it.
@@ -43,6 +45,13 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
+- **Refresh the Chinese pilot candidate.** A 2026-09-28 full CBETA verification found
+  that local T0262 contained an eight-character stub despite its locked source XML.
+  A targeted bake restored its 92,287-character body; full verification of all 4,263
+  CBETA texts and 10,788,972 segments and corpus integrity over all 17,281 texts then
+  passed. The old release is stale; complete the current-bake derivation receipts,
+  stamp a new release and review its exact scope under [#63](https://github.com/lorecrafting/pramana/issues/63)
+  before any pilot-scope readiness claim.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
   hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live
   probe over 499 search gold cases found that suppressing semantic-only weak matches would
