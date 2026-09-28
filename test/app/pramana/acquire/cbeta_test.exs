@@ -143,5 +143,38 @@ defmodule Pramana.Acquire.CBETATest do
                  fetcher: fetcher
                )
     end
+
+    test "a partial new pin cannot change already locked raw bytes", %{root: root} do
+      first = "T/T01/T01n0001.xml"
+      second = "T/T01/T01n0002.xml"
+      paths = [first, second]
+      assert {:ok, _} = CBETA.fetch_paths("old", paths, fetcher: fn _ -> {:ok, "old"} end)
+
+      test = self()
+
+      fetcher = fn _ ->
+        send(test, :fetched)
+        {:ok, "new"}
+      end
+
+      assert {:error, {:pin_conflict, _, _}} = CBETA.fetch_paths("new", [first], fetcher: fetcher)
+      refute_received :fetched
+      assert File.read!(Path.join([root, "raw/cbeta", first])) == "old"
+      assert {:ok, 2} = Lockfile.verify("cbeta")
+    end
+
+    test "a failed full re-pin keeps every previously locked file", %{root: root} do
+      first = "T/T01/T01n0001.xml"
+      second = "T/T01/T01n0002.xml"
+      paths = [first, second]
+      assert {:ok, _} = CBETA.fetch_paths("old", paths, fetcher: fn _ -> {:ok, "old"} end)
+      fetcher = stub([{"n0001.xml", "new"}, {"n0002.xml", {:error, :timeout}}])
+
+      assert {:error, {:fetch_failed, ^second, :timeout}} =
+               CBETA.fetch_paths("new", paths, fetcher: fetcher)
+
+      assert File.read!(Path.join([root, "raw/cbeta", first])) == "old"
+      assert {:ok, 2} = Lockfile.verify("cbeta")
+    end
   end
 end

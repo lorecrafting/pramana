@@ -34,13 +34,27 @@ POLL="${PRAMANA_TRANCHE_POLL:-120}"
 MAX_RESTARTS="${PRAMANA_TRANCHE_MAX_RESTARTS:-12}"
 
 mkdir -p "$LOG_DIR"
+RUN_LOG_DIR="$(mktemp -d "$LOG_DIR/run.XXXXXXXX")"
 
 running() {
   # A running app is one Modal says is running. Whether our client is still attached says
   # nothing — that is the distinction this whole script exists for.
-  "$MODAL" app list --json 2>/dev/null \
-    | grep -q '"description": "pramana-translate"' && return 0
-  return 1
+  local apps
+  if ! apps="$("$MODAL" app list --json)"; then
+    echo "could not check Modal app state; refusing to launch" >&2
+    return 2
+  fi
+
+  printf '%s' "$apps" | python3 -c '
+import json, sys
+try:
+    apps = json.load(sys.stdin)
+    if not isinstance(apps, list) or any(not isinstance(app, dict) or "description" not in app or "state" not in app for app in apps):
+        raise ValueError("unexpected app list")
+except (ValueError, TypeError):
+    sys.exit(2)
+sys.exit(0 if any(app["description"] == "pramana-translate" and app["state"] not in ("stopped", "disabled") for app in apps) else 1)
+'
 }
 
 launch() {
@@ -62,21 +76,27 @@ while true; do
   if running; then
     sleep "$POLL"
     continue
+  else
+    state=$?
+    if [ "$state" -ne 1 ]; then
+      echo "could not verify Modal app state; refusing to launch" >&2
+      exit 2
+    fi
   fi
 
   # The run itself is the only thing that knows what it skipped, so it is what declares
   # completion. Checking the log beats re-counting the volume.
-  if grep -qa "nothing outstanding" "$LOG_DIR"/*.log 2>/dev/null; then
+  if grep -qa "nothing outstanding" "$RUN_LOG_DIR"/*.log 2>/dev/null; then
     echo "$(date +%H:%M:%S) tranche complete"
     exit 0
   fi
 
   if [ "$restarts" -ge "$MAX_RESTARTS" ]; then
-    echo "$(date +%H:%M:%S) gave up after $restarts restart(s) — check $LOG_DIR"
+    echo "$(date +%H:%M:%S) gave up after $restarts restart(s) — check $RUN_LOG_DIR"
     exit 1
   fi
 
-  launch "$LOG_DIR/${OUTPUT%.jsonl}-attempt-$restarts.log"
+  launch "$RUN_LOG_DIR/attempt-$restarts.log"
   restarts=$((restarts + 1))
 
   # Let the app register before polling again, or the next check races the launch and

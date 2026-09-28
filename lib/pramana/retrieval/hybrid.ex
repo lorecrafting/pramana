@@ -312,7 +312,7 @@ defmodule Pramana.Retrieval.Hybrid do
   # measurement of a smaller corpus and is no longer what a caller pays.
   defp coverage(opts) do
     if Keyword.get(opts, :coverage, true) do
-      Semantic.coverage(Keyword.take(opts, [:origin, :role, :division, :work_id]))
+      Semantic.coverage(opts)
     else
       :not_computed
     end

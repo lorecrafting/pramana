@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Pramana.Embed.Import do
 
   **If this crashes between the drop and the rebuild, the index is gone.** That failure
   is safe rather than silent: semantic search still returns correct results, by
-  sequential scan, and the latency makes it obvious. Recreate with `mix ecto.migrate`.
+  sequential scan, and the latency makes it obvious. Recreate with `mix pramana.embed.index`.
   """
 
   use Mix.Task

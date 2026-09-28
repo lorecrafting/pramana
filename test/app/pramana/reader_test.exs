@@ -173,6 +173,45 @@ defmodule Pramana.ReaderTest do
       assert ref.verified == false
     end
 
+    test "keeps SuttaCentral's hyphenated segment id intact" do
+      ref =
+        Reader.reference("pramana:sc.ms:mn12@53-55.1", %{
+          source: "sc",
+          work_id: "mn12",
+          first_segment_urn: "pramana:sc.ms:mn12@53-55.1"
+        })
+
+      assert ref.anchor == "mn12:53-55.1"
+
+      range =
+        Reader.reference("pramana:sc.ms:mn12@53-55.1-53-55.2", %{
+          source: "sc",
+          work_id: "mn12",
+          first_segment_urn: "pramana:sc.ms:mn12@53-55.1"
+        })
+
+      assert range.anchor == "mn12:53-55.1"
+
+      irregular =
+        Reader.reference("pramana:sc.ms:dn10@1.12.1-1.27", %{
+          source: "sc",
+          first_segment_urn: "pramana:sc.ms:dn10@1.12.1-1.27"
+        })
+
+      assert irregular.anchor == "dn10:1.12.1-1.27"
+
+      ordinary =
+        Reader.reference("pramana:sc.ms:mn1@1.1-1.2", %{
+          source: "sc",
+          first_segment_urn: "pramana:sc.ms:mn1@1.1"
+        })
+
+      assert ordinary.anchor == "mn1:1.1"
+
+      unresolved = Reader.reference("pramana:sc.ms:mn1@1.1-1.2", %{source: "sc"})
+      assert unresolved.anchor == nil
+    end
+
     test "links a translation layer to the same sutta as its anchor" do
       ref =
         Reader.reference(

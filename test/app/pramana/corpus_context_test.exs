@@ -11,7 +11,11 @@ defmodule Pramana.CorpusContextTest do
   alias Pramana.Corpus
   alias Pramana.Corpus.Loader
   alias Pramana.Guard
+  alias Pramana.Normalize.Bilara
   alias Pramana.Normalize.CBETA
+  alias Pramana.Quotations
+  alias Pramana.Reader
+  alias Pramana.Segment.SegmentId
 
   @xml """
   <TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:cb="http://www.cbeta.org/ns/1.0">
@@ -197,6 +201,31 @@ defmodule Pramana.CorpusContextTest do
     test "a range whose endpoints do not exist is not_found" do
       assert {:error, :not_found} = Corpus.resolve("pramana:cbeta.T:T0262_001@p9999a01-p9999a09")
     end
+  end
+
+  test "hyphens inside SuttaCentral point locators still resolve with context" do
+    {:ok, ir} =
+      Bilara.normalize(
+        Jason.encode!(%{"mn12:53-55.1" => "first", "mn12:53-55.2" => "second"}),
+        work_id: "mn12"
+      )
+
+    assert {:ok, _} = Loader.load(ir, source: "sc", witness: "ms", segmenter: SegmentId)
+
+    point = "pramana:sc.ms:mn12@53-55.1"
+    range = "pramana:sc.ms:mn12@53-55.1-53-55.2"
+    assert {:ok, point_span} = Corpus.resolve(point)
+    assert point_span.content == "first"
+    assert Reader.reference(point, point_span.provenance).anchor == "mn12:53-55.1"
+    assert {:ok, %{focus: %{content: "first"}}} = Corpus.context(point, before: 0, after: 0)
+    assert {:ok, range_span} = Corpus.resolve(range)
+    assert range_span.content == "firstsecond"
+    assert Reader.reference(range, range_span.provenance).anchor == "mn12:53-55.1"
+
+    assert {:ok, %{focus: %{content: "firstsecond"}}} =
+             Corpus.context(range, before: 0, after: 0)
+
+    assert {:ok, %{total: 0}} = Quotations.quoting(range)
   end
 
   # `witness: "T"` and `witness: "N"` differ by one character. The texts behind them differ

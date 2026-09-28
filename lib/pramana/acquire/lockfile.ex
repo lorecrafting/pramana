@@ -138,23 +138,42 @@ defmodule Pramana.Acquire.Lockfile do
   """
   @spec merge_source(map()) :: :ok | {:error, {:pin_conflict, map(), map()}}
   def merge_source(entry) do
+    with :ok <- preflight_merge(entry["id"], entry["pin"], Enum.map(entry["files"], & &1["path"])) do
+      merge_preflighted(entry)
+    end
+  end
+
+  defp merge_preflighted(entry) do
     case get_source(entry["id"]) do
       {:error, :not_locked} ->
         put_source(entry)
 
       {:ok, existing} ->
-        cond do
-          existing["files"] in [nil, []] -> put_source(entry)
-          existing["pin"] == entry["pin"] -> put_source(merge_entries(existing, entry))
-          supersedes?(existing, entry) -> put_source(entry)
-          true -> {:error, {:pin_conflict, existing["pin"], entry["pin"]}}
-        end
+        if existing["pin"] == entry["pin"] and existing["files"] not in [nil, []],
+          do: put_source(merge_entries(existing, entry)),
+          else: put_source(entry)
     end
   end
 
-  defp supersedes?(existing, entry) do
+  @doc "Checks whether these paths can be acquired at the given pin before writing raw bytes."
+  @spec preflight_merge(String.t(), map(), [String.t()]) ::
+          :ok | {:error, {:pin_conflict, map(), map()}}
+  def preflight_merge(source_id, pin, paths) do
+    case get_source(source_id) do
+      {:error, :not_locked} ->
+        :ok
+
+      {:ok, existing} ->
+        if existing["files"] in [nil, []] or existing["pin"] == pin or
+             supersedes?(existing, paths),
+           do: :ok,
+           else: {:error, {:pin_conflict, existing["pin"], pin}}
+    end
+  end
+
+  defp supersedes?(existing, paths) do
     locked = MapSet.new(existing["files"], & &1["path"])
-    incoming = MapSet.new(entry["files"], & &1["path"])
+    incoming = MapSet.new(paths)
     MapSet.subset?(locked, incoming)
   end
 

@@ -193,6 +193,12 @@ defmodule PramanaWeb.MCP.Tools.Search do
       urn: r.span.urn,
       text: r.span.content,
       sha256: r.span.sha256,
+      offsets: %{
+        char_start: r.span.char_start,
+        char_end: r.span.char_end,
+        byte_start: r.span.byte_start,
+        byte_end: r.span.byte_end
+      },
       matched: Map.get(r, :matched_terms),
       score: Map.get(r, :score) || Map.get(r, :rrf_score),
       kind: r.span.kind,

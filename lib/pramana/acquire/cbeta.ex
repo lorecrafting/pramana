@@ -155,11 +155,32 @@ defmodule Pramana.Acquire.CBETA do
   # deleted the Taishō's 2,471 files from the lockfile, leaving a corpus that could not
   # be reproduced from `sources.lock.json`. See `Lockfile.merge_source/1`.
   defp download_and_lock(source, sha, paths, opts) do
-    with {:ok, files} <- download_all(source, sha, paths, opts),
-         entry = lock_entry(source, sha, files, opts),
-         :ok <- Lockfile.merge_source(entry) do
-      {:ok, %{pin: sha, files: files, refetched: true}}
+    with :ok <- Lockfile.preflight_merge(@source_id, %{"type" => "git", "commit" => sha}, paths) do
+      base = Path.join(Lockfile.raw_dir(), @source_id)
+      nonce = :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
+      stage = Path.join(base, ".acquire-#{nonce}")
+
+      try do
+        with {:ok, files} <- download_all(source, sha, paths, opts, stage),
+             :ok <- publish(files, stage, base),
+             entry = lock_entry(source, sha, files, opts),
+             :ok <- Lockfile.merge_source(entry) do
+          {:ok, %{pin: sha, files: files, refetched: true}}
+        end
+      after
+        File.rm_rf!(stage)
+      end
     end
+  end
+
+  defp publish(files, stage, base) do
+    Enum.each(files, fn %{path: path} ->
+      target = Path.join(base, path)
+      File.mkdir_p!(Path.dirname(target))
+      File.rename!(Path.join(stage, path), target)
+    end)
+
+    :ok
   end
 
   defp lock_entry(source, sha, files, opts) do
@@ -182,14 +203,13 @@ defmodule Pramana.Acquire.CBETA do
     end
   end
 
-  defp download_all(source, sha, paths, opts) do
+  defp download_all(source, sha, paths, opts, stage) do
     fetcher = fetcher(opts)
-    base = Path.join(Lockfile.raw_dir(), @source_id)
 
     Enum.reduce_while(paths, {:ok, []}, fn path, {:ok, acc} ->
       case fetcher.("#{@raw}/#{source.repo}/#{sha}/#{path}") do
         {:ok, body} ->
-          target = Path.join(base, path)
+          target = Path.join(stage, path)
           File.mkdir_p!(Path.dirname(target))
           File.write!(target, body)
 
