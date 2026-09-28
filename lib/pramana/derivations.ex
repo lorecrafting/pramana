@@ -23,6 +23,7 @@ defmodule Pramana.Derivations do
   alias Pramana.Quotations.Roots
   alias Pramana.Relations
   alias Pramana.Repo
+  alias Pramana.Reviewer.Disposition
 
   @kinds ~w(
     quotations_scan
@@ -34,7 +35,7 @@ defmodule Pramana.Derivations do
   @versions %{
     "quotations_scan" => "quotations_scan/v1",
     "relations_title" => "relations_title/v3",
-    "relations_shared_text" => "relations_shared_text/v3",
+    "relations_shared_text" => "relations_shared_text/v4",
     "commentary_align" => "commentary_align/v1"
   }
 
@@ -210,19 +211,7 @@ defmodule Pramana.Derivations do
       scope: scope,
       parameters: parameters,
       candidates: shared_text_candidates(min_passages, bake_id),
-      retained_for_review:
-        "shared_text"
-        |> relation_output_rows()
-        |> Enum.filter(&(&1.review_status == "needs_review"))
-        |> Enum.map(
-          &Map.take(&1, [
-            :source_work_id,
-            :target_work_id,
-            :relation,
-            :review_status,
-            :review_reason
-          ])
-        )
+      retained_after_review: retained_shared_text_rows()
     })
   end
 
@@ -269,16 +258,74 @@ defmodule Pramana.Derivations do
     {digest(rows), length(rows)}
   end
 
-  @doc "Count flagged shared-text assertions outside this run's current proposal set."
+  @doc "Count flagged or supported shared-text assertions outside current proposals."
   @spec shared_text_carryover_count([map()]) :: non_neg_integer()
   def shared_text_carryover_count(candidates) do
     current = MapSet.new(candidates, &{&1.work_id, &1.target_work_id})
 
-    "shared_text"
-    |> relation_output_rows()
+    retained_shared_text_rows()
     |> Enum.count(fn row ->
-      row.review_status == "needs_review" and
-        not MapSet.member?(current, {row.source_work_id, row.target_work_id})
+      not MapSet.member?(current, {row.relation.source_work_id, row.relation.target_work_id})
+    end)
+  end
+
+  defp retained_shared_text_rows do
+    rows =
+      Repo.all(
+        from r in WorkRelation,
+          where: r.method == "shared_text",
+          order_by: [r.source_work_id, r.target_work_id, r.id]
+      )
+
+    ids = for row <- rows, row.review_status == "unflagged", do: row.id
+
+    supported =
+      Repo.all(
+        from d in Disposition,
+          where: d.disposition == "supported" and d.assertion_id in ^ids,
+          order_by: [desc: d.inserted_at, desc: d.id]
+      )
+      |> Enum.reduce(%{}, fn disposition, acc ->
+        Map.put_new(acc, disposition.assertion_id, disposition)
+      end)
+
+    Enum.flat_map(rows, fn row ->
+      support = Map.get(supported, row.id)
+
+      if row.review_status == "needs_review" or support do
+        [
+          %{
+            relation:
+              Map.take(row, [
+                :id,
+                :source_work_id,
+                :target_work_id,
+                :target_work_ref,
+                :relation,
+                :method,
+                :confidence,
+                :scope,
+                :target_urn,
+                :evidence,
+                :review_status,
+                :review_reason
+              ]),
+            support:
+              support &&
+                Map.take(support, [
+                  :id,
+                  :assertion_fingerprint,
+                  :assertion_snapshot,
+                  :rationale,
+                  :source_references,
+                  :operator_id,
+                  :inserted_at
+                ])
+          }
+        ]
+      else
+        []
+      end
     end)
   end
 

@@ -57,8 +57,10 @@ reconcile it with current code before dispatching work from it.
   that local T0262 contained an eight-character stub despite its locked source XML.
   A targeted bake restored its 92,287-character body; full verification of all 4,263
   CBETA texts and 10,788,972 segments and corpus integrity over all 17,281 texts then
-  passed. The repaired bake now has clean quotation, title, shared-text and commentary
-  alignment receipts in the local candidate DB. A new retrieval release was stamped there,
+  passed. The repaired bake had clean quotation, title, shared-text v3 and commentary
+  alignment receipts in the local candidate DB. Operator adjudication changes the
+  shared-text producer to v4, so that receipt must be regenerated before a readiness
+  claim. A new retrieval release was stamped there,
   and its scope was materialized twice with identical content under
   [#63](https://github.com/lorecrafting/pramana/issues/63);
   the expanded works and rights still need review before any pilot-scope readiness claim.

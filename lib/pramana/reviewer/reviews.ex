@@ -172,7 +172,13 @@ defmodule Pramana.Reviewer.Reviews do
       join: s in Selection,
       on: s.id == 1,
       join: release in ReleaseSchema,
-      on: release.id == s.release_id and release.release_id == ^release_id
+      on: release.id == s.release_id and release.release_id == ^release_id,
+      where:
+        not exists(
+          from d in Disposition,
+            where: d.scope_sha256 == ^scope_sha256 and d.disposition == "supported",
+            select: 1
+        )
   end
 
   defp matching_relation(query, assertion_id, candidate) do
@@ -296,9 +302,10 @@ defmodule Pramana.Reviewer.Reviews do
   end
 
   defp permitted_scope(artifact, scopes) do
-    if artifact["scope_content_sha256"] in scopes,
-      do: :ok,
-      else: {:error, :unavailable_scope}
+    if artifact["scope_content_sha256"] in scopes and
+         not invalidated?(artifact["scope_content_sha256"]),
+       do: :ok,
+       else: {:error, :unavailable_scope}
   end
 
   defp invalidated?(scope_sha256) do

@@ -233,7 +233,10 @@ The CLI requires a current attributed judgment and records the original assertio
 operator rationale and source references. A supported decision clears only that link's
 flag, makes the earlier relation derivation receipt stale, and blocks the old private
 review scope. Recheck the new scope and rights before treating the link as an accepted
-pilot path.
+pilot path. A later change to that supported assertion's claim or evidence automatically
+restores `needs_review`; an unchanged reassertion retains the operator's decision.
+Regenerate the shared-text v4 receipt after adjudicating historical links, which remain
+explicitly counted as supported carryovers.
 
 Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
 on only the needed corpus and reviewer account, grant, judgment and disposition tables,
