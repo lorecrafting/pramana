@@ -32,32 +32,12 @@ defmodule Pramana.ReviewerAccess do
         credential_digest: digest(credential)
       })
 
-    if Regex.match?(@scope_pattern, scope_sha256) do
-      Repo.transaction(fn ->
-        case Repo.insert(account) do
-          {:ok, inserted} ->
-            grant =
-              Grant.changeset(%Grant{}, %{
-                account_id: inserted.id,
-                scope_sha256: scope_sha256,
-                granted_by: String.trim(granted_by)
-              })
-
-            case Repo.insert(grant) do
-              {:ok, _grant} -> inserted
-              {:error, reason} -> Repo.rollback(reason)
-            end
-
-          {:error, reason} ->
-            Repo.rollback(reason)
-        end
-      end)
-      |> case do
-        {:ok, inserted} -> {:ok, inserted, credential}
-        {:error, reason} -> {:error, reason}
-      end
+    with true <- Regex.match?(@scope_pattern, scope_sha256),
+         {:ok, inserted} <- insert_account_and_grant(account, scope_sha256, granted_by) do
+      {:ok, inserted, credential}
     else
-      {:error, :invalid_scope}
+      false -> {:error, :invalid_scope}
+      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -178,6 +158,24 @@ defmodule Pramana.ReviewerAccess do
 
   @doc "Maximum lifetime of a signed browser session, in seconds."
   def session_seconds, do: @session_seconds
+
+  defp insert_account_and_grant(account, scope_sha256, granted_by) do
+    Repo.transaction(fn ->
+      with {:ok, inserted} <- Repo.insert(account),
+           {:ok, _grant} <-
+             Repo.insert(
+               Grant.changeset(%Grant{}, %{
+                 account_id: inserted.id,
+                 scope_sha256: scope_sha256,
+                 granted_by: String.trim(granted_by)
+               })
+             ) do
+        inserted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
 
   defp active_scopes(account_id) do
     from(g in Grant,
