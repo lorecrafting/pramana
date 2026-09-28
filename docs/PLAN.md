@@ -51,7 +51,10 @@ reconcile it with current code before dispatching work from it.
   CBETA texts and 10,788,972 segments and corpus integrity over all 17,281 texts then
   passed. The old release is stale; complete the current-bake derivation receipts,
   stamp a new release and review its exact scope under [#63](https://github.com/lorecrafting/pramana/issues/63)
-  before any pilot-scope readiness claim.
+  before any pilot-scope readiness claim. The quotation receipt is clean, but the
+  shared-text receipt is partial (80 current proposals, 95 stored assertions).
+  Its 15 older rows include plausible source links; review them and the conflicting
+  current proposals before relation cleanup or commentary alignment.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
   hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live
   probe over 499 search gold cases found that suppressing semantic-only weak matches would
