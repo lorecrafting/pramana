@@ -44,7 +44,7 @@ defmodule Pramana.RelationsSharedTextTaskTest do
     capture_io(fn -> SharedText.run(["--write"]) end)
     first = Repo.one!(from r in DerivationRun, order_by: [desc: r.id], limit: 1)
     assert first.status == "partial"
-    assert first.stats["retained_for_review"] == 1
+    assert first.stats["retained_carryovers"] == 1
     assert first.stats["expected_output_count"] == 1
     assert first.stats["output_count"] == 2
 
@@ -55,7 +55,7 @@ defmodule Pramana.RelationsSharedTextTaskTest do
     capture_io(fn -> SharedText.run(["--write"]) end)
     second = Repo.one!(from r in DerivationRun, order_by: [desc: r.id], limit: 1)
     assert second.status == "complete"
-    assert second.stats["retained_for_review"] == 2
+    assert second.stats["retained_carryovers"] == 2
     assert second.stats["expected_output_count"] == 2
     assert second.stats["output_count"] == 2
   end

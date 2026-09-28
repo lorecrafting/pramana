@@ -118,13 +118,13 @@ defmodule Mix.Tasks.Pramana.Relations.SharedText do
     carryovers = Derivations.shared_text_carryover_count(assertable)
 
     Mix.shell().info(
-      "\n  wrote #{ok} relation(s), retained #{carryovers} flagged for review#{if failed > 0, do: ", #{failed} failed", else: ""}"
+      "\n  wrote #{ok} relation(s), retained #{carryovers} earlier assertion(s)#{if failed > 0, do: ", #{failed} failed", else: ""}"
     )
 
     %{
       "failures" => failed,
       "expected_output_count" => ok + carryovers,
-      "retained_for_review" => carryovers,
+      "retained_carryovers" => carryovers,
       "assertions_succeeded" => ok,
       "assertions_attempted" => ok + failed
     }
