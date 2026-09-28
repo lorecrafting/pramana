@@ -5,8 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="Pramana" suffix=" · Pramāṇa" phx-no-format>{assigns[:page_title]}</.live_title>
-    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
-    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    <link
+      phx-track-static
+      rel="stylesheet"
+      href={Phoenix.VerifiedRoutes.static_path(@conn, "/assets/css/app.css")}
+    />
+    <script
+      defer
+      phx-track-static
+      type="text/javascript"
+      src={Phoenix.VerifiedRoutes.static_path(@conn, "/assets/js/app.js")}
+    >
     </script>
     <script>
       (() => {
@@ -35,17 +44,17 @@
           {@current_scope.user.email}
         </li>
         <li>
-          <.link href={~p"/users/settings"}>Settings</.link>
+          <.link href="/users/settings">Settings</.link>
         </li>
         <li>
-          <.link href={~p"/users/log-out"} method="delete">Log out</.link>
+          <.link href="/users/log-out" method="delete">Log out</.link>
         </li>
       <% else %>
         <li :if={!assigns[:private_reviewer]}>
-          <.link href={~p"/users/register"}>Register</.link>
+          <.link href="/users/register">Register</.link>
         </li>
         <li>
-          <.link href={~p"/users/log-in"}>Log in</.link>
+          <.link href="/users/log-in">Log in</.link>
         </li>
       <% end %>
     </ul>

@@ -10,8 +10,27 @@ defmodule PramanaWeb.ReviewerEndpointTest do
   @scope String.duplicate("b", 64)
 
   setup do
-    start_supervised!(ReviewerEndpoint)
+    unless Process.whereis(ReviewerEndpoint), do: start_supervised!(ReviewerEndpoint)
     :ok
+  end
+
+  if Pramana.Runtime.reviewer?() do
+    test "private-only login renders assets without the public endpoint" do
+      refute Process.whereis(PramanaWeb.Endpoint)
+      login = request(:get, "/users/log-in")
+      assert login.status == 200
+      assert login.resp_body =~ ~s(href="/assets/css/app.css")
+      assert login.resp_body =~ ~s(src="/assets/js/app.js")
+      refute login.resp_body =~ ~s(href="/survey")
+
+      token = AccountsFixtures.user_fixture() |> Accounts.generate_user_session_token()
+
+      conn =
+        Plug.Test.conn(:get, "/users/settings")
+        |> Plug.Test.init_test_session(%{user_token: token})
+
+      assert ReviewerEndpoint.call(conn, []).status == 200
+    end
   end
 
   test "private endpoint exposes generated login but no reader, LiveView or MCP" do
