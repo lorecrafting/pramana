@@ -37,6 +37,23 @@ defmodule Pramana.Cbeta.BylineTest do
       assert Byline.provenance("日本 空海撰") == %{composition_origin: "japanese"}
       assert Byline.provenance("日本 源信述") == %{composition_origin: "japanese"}
     end
+
+    test "a later Japanese editorial credit does not replace Chinese composition" do
+      # CBETA X0407, X0650 and X0659 credit Chinese authors before a Japanese arranger.
+      assert Byline.provenance("隋 智顗說　宋 知禮述　日本 實觀分會") ==
+               %{composition_origin: "chinese"}
+
+      assert Byline.provenance("宋 本如述　處咸續解　日本 亮潤分會") ==
+               %{composition_origin: "chinese"}
+
+      assert Byline.provenance("隋 灌頂撰　唐 湛然再治　日本 本純分會") ==
+               %{composition_origin: "chinese"}
+    end
+
+    test "a Japanese question with Chinese answers has no single composition origin" do
+      # CBETA X0942 credits Japanese questioners and Chinese respondents.
+      assert Byline.provenance("日本 最澄．圓澄．義真．光定．德圓 問　唐 道邃．廣修．維蠲．宗頴 答") == %{}
+    end
   end
 
   describe "what it refuses to decide" do

@@ -41,13 +41,15 @@ reconcile it with current code before dispatching work from it.
   not relevance, and its cited work X0967 currently has no composition-origin label, so
   this does not establish safe refusal. Keep the warning; establish human-verified
   answerable and unanswerable near-misses under the same filters before a suppression rule.
-- **Review Japanese composition labels in CBETA X.** On 2026-09-27 `mix pramana.doctor`
-  reports 23 Japanese-composed works, while the older absence-case source says 145.
-  `Pramana.Cbeta.Byline.japanese?/1` matches any byline containing `日本`, so X0650's
-  Chinese-authored text with a Japanese arranger is labelled Japanese-composed. X0967
-  contains 唱題 but has `composition_origin` NULL, so `origin: japanese` excludes it.
-  Separate authors from editors using the edition's attribution before changing
-  classification, then revisit that gold case's premise.
+- **Re-derive CBETA X origin labels; review Taishō exceptions.** The byline rule now
+  distinguishes a sole Japanese credit from a trailing Japanese editorial credit and
+  leaves mixed authorship unknown. A read-only 2026-09-27 counterfactual over the 1,230
+  loaded X works found 14 stored labels that would change on re-derivation: 11 Japanese →
+  Chinese, three Japanese → unknown; nine Japanese labels remain. The local corpus has
+  **not** been rewritten. Separately, 27 Taishō bylines contain `日本` while their division
+  labels are Chinese; some credit editors, others authors. Review those work by work
+  before changing the Taishō table policy. X0967 contains 唱題 but its byline is only
+  `宋`, so its origin remains unknown and the historical `abs-002` source premise is false.
 - **`topical/chinese` and Tibetan recall.** [§ F](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#f-topicalchinese-is-still-0--now-measured-over-496-cases-rather-than-12) and
   [§ G](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#g-tibetan-recall--24-cases-unreachable); Tibetan misses are absent from 200 candidates, a recall problem.
 - **Public demo.** [§ E](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#e-public-demo--newly-unblocked); now bounded by the
