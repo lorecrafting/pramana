@@ -10,15 +10,19 @@ Foundry's former scorecard is historical and does not gate Pramāṇa's pilot.
 
 ### Pramāṇa
 
-Primary outcome: **successful source-backed research tasks / eligible attempted
-tasks**, reported by user job and source scope. A task succeeds when the user finds
+Primary product continuation signal: **better commentary understanding on supported
+commentary-eligible tasks**, under the charter's separate floor. Overall source-backed
+task success remains a mandatory feasibility gate, reported by user job and source scope.
+A task succeeds when the user finds
 adequate evidence, understands its source/rendering limitations and can correctly
-reuse it; qualified review checks a sample against a predefined rubric. A click,
+reuse it; a qualified source evaluator reviews every Chinese pilot task against the
+predefined rubric. A click,
 a generated answer or a green quotation badge alone does not count.
 
 | Measure | Definition and use |
 |---|---|
 | Task success and failure reasons | Include failed, abandoned and unsupported attempts; separate navigation, coverage, retrieval and interpretation failures |
+| Supported commentary understanding | Of supported commentary-eligible tasks, count useful source-backed answers where the participant reports clarification/correction and the qualified evaluator confirms faithful representation; report correct refusals separately |
 | Time to useful evidence / export | Median and tail for a fixed task class; record assistance and abandonment rather than timing only successes |
 | Trust errors | False verified badges, misattribution, source/translation conflation, unsupported interpretive claims and overclaimed absence reported separately |
 | Scope-aware retrieval | Relevant passages found for the chosen task, with available corpus/witness coverage and active retrieval arms |

@@ -93,7 +93,8 @@ fit from interviews, prototype enthusiasm or a corpus count.
 ### I-P2 — evidence and trust contract
 
 **Outcome:** readers can distinguish quotation match, source identity, rendering,
-interpretation and search coverage. **Evidence:** adversarial cases for missing or
+interpretation and search coverage, including the first pilot's required source,
+treatise, commentary and subcommentary roles. **Evidence:** adversarial cases for missing or
 altered citations, existence-only results, no recognized citations, wrong scope,
 wrong source role, generated renderings and state drift. **Dependencies:** G1 and
 current guard/release inspection. **Excludes:** using a hash as proof of truth or
@@ -101,16 +102,17 @@ claiming exact replay from a matching release stamp (including v2 content identi
 
 ### I-P3 — scoped find/inspect/export experience
 
-**Outcome:** one usable end-to-end workflow in the current reader and relevant API.
+**Outcome:** one usable end-to-end workflow in the current reader and relevant API,
+including typed commentary access and terminology needed for the first Chinese pilot.
 **Evidence:** observed task completion, keyboard/mobile/script readability checks,
 correct source context and permitted export round-trips. **Dependencies:** I-P2's
 contract, chosen source scope and G1. **Excludes:** a new reader framework, automatic
 three-canon agents or every citation style at launch.
 
-### I-P4 — commentary and terminology depth
+### I-P4 — commentary and terminology improvements after the pilot
 
-**Outcome:** the selected users can follow supported explanatory relationships and
-terminology without conflating source roles. **Evidence:** expert-reviewed edge
+**Outcome:** improve explanatory relationships and terminology beyond the first pilot's
+required core. **Evidence:** expert-reviewed edge
 fixtures, ambiguous/missing endpoints, directional uncertainty, cycle/depth bounds
 and observed benefit on the pilot tasks. **Dependencies:** G2 and adequate relation
 coverage. **Excludes:** a new graph database or role-based inference of historical influence.

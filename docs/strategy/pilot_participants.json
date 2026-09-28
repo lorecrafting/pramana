@@ -1,7 +1,8 @@
 {
   "schema": "pramana-pilot-participants/v1",
   "pilot_id": "chinese-commentary-v1",
-  "protocol_revision": 1,
+  "protocol_revision": 2,
+  "revision_note": "2026-09-27 before recruitment: record and count supported commentary understanding separately from correct refusals",
   "status": "frozen_pre_recruitment",
   "collection_mode": "consent_required_for_measured_participant_record",
   "identifiers": {
@@ -70,6 +71,9 @@
       "time_to_useful_evidence_ms",
       "commentary_eligible",
       "commentary_opened",
+      "scope_supported_by_qualified_review",
+      "participant_commentary_clarified_or_corrected",
+      "evaluator_commentary_faithful",
       "evidence_packet_trace_result",
       "comprehension_check",
       "consent_receipt_id"
@@ -192,6 +196,9 @@
     "minimum_eligible_tasks_after_exclusions": 24,
     "minimum_eligible_tasks_per_stratum_after_exclusions": 6,
     "minimum_commentary_eligible_tasks_after_exclusions": 6,
+    "minimum_supported_commentary_eligible_tasks_after_exclusions": 6,
+    "supported_commentary_denominator_includes_unopened_and_failed_attempts": true,
+    "correct_scoped_refusals_do_not_satisfy_commentary_floor": true,
     "replenish_after_withdrawal_or_exclusion": true,
     "participant_exclusion_may_be_initiated_by_participant": true,
     "operator_or_evaluator_may_not_prompt_exclusion_based_on_outcome": true,
