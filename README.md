@@ -34,7 +34,7 @@ Do not run `git clean -fdx`: it deletes them.
 
 ## What it is
 
-An Elixir/Phoenix umbrella with a PostgreSQL corpus, CJK Rust NIF, standalone Rust
+An Elixir/Phoenix app with a PostgreSQL corpus, CJK Rust NIF, standalone Rust
 text-reuse scanner and Python inference/training helpers. The MCP surface is read-only;
 ingestion and other corpus mutations are CLI operations. The reader has search, inventory,
 survey, passage, work and report-checking screens. See the source-backed

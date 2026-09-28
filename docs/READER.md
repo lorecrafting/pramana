@@ -239,7 +239,7 @@ not receive a fresh budget. This is a resource policy, not a retrieval-performan
 A trusted server setting can shorten, but cannot remove or extend, the ceiling:
 
 ```elixir
-config :pramana_web, PramanaWeb.CheckLive, timeout_ms: 30_000
+config :pramana, PramanaWeb.CheckLive, timeout_ms: 30_000
 ```
 
 The value must be an integer from 1 through 60,000; malformed configuration fails

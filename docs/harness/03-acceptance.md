@@ -133,7 +133,7 @@ this — without touching the weights.
 | property | value |
 |---|---|
 | **Search space** | Pipeline architecture: which retrievers exist, fusion strategy, chunking strategy, embedding model selection, reranker architecture, result window post-processing, cache strategy |
-| **What changes** | Source code in `apps/pramana/lib/pramana/retrieval/`. New modules, different query plans, different index structures. |
+| **What changes** | Source code in `lib/pramana/retrieval/`. New modules, different query plans, different index structures. |
 | **Trigger** | Periodic (every N weeks) or performance-triggered (sustained eval plateau, new model arm that changes the search space) |
 | **Search strategy** | A coding agent is given: current retrieval architecture, last N eval runs, recent guard failure diagnoses, recent query patterns. It proposes a concrete architectural change (add per-canon indices, replace RRF with learned fusion, change chunk boundary strategy). Scored by running `mix pramana.evals` in a checkout. |
 | **Who owns output** | PR review. **The changed code must pass the same invariant checks the current code does** — the meta-harness does not get to skip invariants #1–#8. |

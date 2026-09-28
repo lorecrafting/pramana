@@ -36,7 +36,7 @@ existing references in code, reviews and older documents.
 
 ## What citation verification establishes
 
-[The guard implementation](../apps/pramana/lib/pramana/guard.ex) re-resolves
+[The guard implementation](../lib/pramana/guard.ex) re-resolves
 recognized citations. Quote checking uses byte-substring containment after trimming
 the supplied quotation; it is not whole-passage equality. Some detected citations
 receive an existence-only check. Inspect verified-quote, existence-only and refusal

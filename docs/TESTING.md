@@ -19,22 +19,25 @@ records which LokaCore checks fit this repository and which already exist here.
 | Chinese pilot acceptance contract | `elixir bin/check_pilot_acceptance.exs --validate` | Network/model/database-free. Pins the frozen v1 bounds/rubric/critical/rehearsal identifiers and their preflight alignment; it does not prove runtime enforcement, rehearsal success or retrieval quality. |
 | Chinese pilot participant protocol | `elixir bin/check_pilot_participants.exs --validate` | Network/model/database-free. Pins consent, retention/deletion, withdrawal, evaluator separation, current-alternative intake and denominator rules plus preflight alignment; it does not establish that anyone has consented or been recruited. |
 | Saved Chinese pilot scope artifact | `elixir bin/check_pilot_scope.exs --validate PATH` | Network/model/database-free. Checks the frozen scope schema, canonical hash, seed/relation/depth contract and internal denominators. It does **not** prove the file matches the current live corpus/release; generation uses the DB-backed Mix task and still requires review. |
-| Umbrella formatting | `mix format --check-formatted` | Pinned umbrella toolchain and formatting dependencies |
-| Umbrella code | `mix compile --warnings-as-errors`, `mix credo --strict`, `mix test --cover` | Umbrella dependencies, Rust NIF, PostgreSQL with required extensions; not a live corpus gate |
+| Application formatting | `mix format --check-formatted` | Pinned toolchain and formatting dependencies |
+| Application code | `mix compile --warnings-as-errors`, `mix credo --strict`, `mix test --cover` | Application dependencies, Rust NIF, PostgreSQL with required extensions; not a live corpus gate |
 | Corpus and retrieval acceptance | `mix pramana.gate` | Acquired/loaded corpus, matching database, required models and toolchain; see [detailed checks](CHECKS.md) |
 | Re-running one declared source task | `mix help pramana.<task>` | Replace the placeholder with an actual task from [the CLI index](CLI.md) and inspect its options |
 
 ## Fresh test databases
 
+The single-app coverage threshold is 89%, set against 90.16% measured at conversion.
+It replaces the former per-app thresholds; module-level figures remain visible in the
+coverage report, and behavior tests remain the check for web-specific regressions.
+
 `mix test` creates and migrates the configured test database before
-recursive application startup. The umbrella owns this alias: a child-only alias
-runs too late when an earlier child starts the domain app and Oban. It never drops
+application startup. The root Mix project owns this alias. It never drops
 or resets a database. Test connection settings remain in `config/test.exs`.
 Use an isolated test database, not an operator's corpus or production database.
 
-## The umbrella gate is staged
+## The application gate is staged
 
-[The gate implementation](../apps/pramana/lib/mix/tasks/pramana.gate.ex) defines the
+[The gate implementation](../lib/mix/tasks/pramana.gate.ex) defines the
 steps and ordering. It runs format, compile, Credo, dependency audit, covered tests,
 Dialyzer, lockfile census, coherence, generated figures, source verification,
 integrity and evaluation. Independent steps within a stage may run concurrently;
@@ -63,7 +66,7 @@ A committed count is a recorded database snapshot, not proof of the current loca
 
 ## CI is not deployment acceptance
 
-[Umbrella CI](../.github/workflows/ci.yml) checks source/build/test concerns with a
+[Application CI](../.github/workflows/ci.yml) checks source/build/test concerns with a
 Postgres service; it does not acquire and certify the research corpus.
 [Documentation CI](../.github/workflows/docs.yml) checks only documentation structure.
 A read-only API, successful compilation or green test run does not by itself prove
@@ -96,7 +99,7 @@ cannot crowd out the default-branch cache. A merged `main` run is therefore the 
 future PRs can reuse.
 
 The ordinary Pramāṇa lane still performs a forced warnings-as-errors compile, full
-model-free umbrella tests, Dialyzer and a fresh release build from the checked source.
+model-free application tests, Dialyzer and a fresh release build from the checked source.
 The container lane still constructs the candidate's final runtime image and runs the
 same synthetic-database release smoke. Reused Docker layers may contain unchanged
 toolchain or dependency work; they do not substitute an older final image for the
@@ -104,7 +107,7 @@ candidate. No CI cache authorizes corpus acceptance, provider use or deployment.
 
 ## Repository layout checks
 
-`mix format --check-formatted` covers the umbrella, `bin/` scripts and `test/`.
+`mix format --check-formatted` covers the application, `bin/` scripts and `test/`.
 `elixir bin/check_docs.exs` checks the documentation tree, project-root declarations,
 figure discovery, the lockfile and the root wrappers using fake commands in isolated
 directories. It cannot certify the operator's local data.
@@ -126,9 +129,9 @@ check. It never pushes an image.
 [The dependency review runbook](agents/DEPENDENCY_REVIEW.md) owns local commands,
 application scope, interpretation and reviewer handoff. Pramāṇa CI exports native
 `xref` JSON, statistics and compile-connected cycle reports after successful forced
-compilation. It requires graph/configured Elixir sources to be app-local tracked
+compilation. It requires graph/configured Elixir sources to be root-relative tracked
 regular files in the checksum inventory, checks dependency labels and source stability,
-and records genuinely source-free apps as `no_elixir_sources` rather than failures.
+and records a genuinely source-free project as `no_elixir_sources` rather than a failure.
 Ignored/generated, symlinked and external sources are unsupported. It uploads a
 seven-day schema-v2 artifact stamped with
 the actual checkout SHA/tree, build environment and source hashes. A report from
@@ -149,7 +152,7 @@ applications deliberately cannot start. They do not replace the application suit
 
 ## Report lifecycle integration
 
-[Report execution tests](../apps/pramana_web/test/pramana_web/mcp/report_execution_test.exs)
+[Report execution tests](../test/app/pramana_web/mcp/report_execution_test.exs)
 exercise the actual Streamable HTTP plug, Anubis session scheduler and report component
 against isolated fixtures. Injected server-owned callbacks block or fail specific
 stages; monitors establish worker termination, and a later request proves the same

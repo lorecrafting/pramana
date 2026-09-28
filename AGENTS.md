@@ -6,7 +6,7 @@ These instructions apply to every provider.
 
 ## Start here
 
-The repository root is the Pramāṇa Mix umbrella: run Mix, asset, native and corpus
+The repository root is the Pramāṇa Mix app: run Mix, asset, native and corpus
 commands here. Read [the shared workflow](docs/agents/WORKFLOW.md), then follow one route:
 
 | Task | Read next |
@@ -17,7 +17,7 @@ commands here. Read [the shared workflow](docs/agents/WORKFLOW.md), then follow 
 
 Load only the topic needed for the task. Do not preload the full plan, history,
 rule book or tutorial. [Rule triggers](docs/agents/RULE_TRIGGERS.md) route to numbered
-rules when relevant; [testing](docs/TESTING.md) separates documentation, umbrella
+rules when relevant; [testing](docs/TESTING.md) separates documentation, application
 and corpus checks.
 
 `CLAUDE.md` and `GEMINI.md` are compatibility entry points to this file, not separate

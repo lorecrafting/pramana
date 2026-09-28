@@ -51,7 +51,7 @@ record useful evidence, but they do not satisfy the full-pilot requirement.
 
 ## Pilot acceptance
 
-Produce the four required receipts from the Pramāṇa umbrella with the frozen pilot shape:
+Produce the four required receipts from the Pramāṇa app with the frozen pilot shape:
 
 ```sh
 mix pramana.quotations.scan --source cbeta --witness T --min-length 20

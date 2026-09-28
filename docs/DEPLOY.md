@@ -8,7 +8,7 @@ publication requires checking the actual applicable rights and conditions.
 
 A public database must contain only data intended and permitted for that public surface.
 Do not rely on a search filter alone: direct URN resolution is a different route.
-The implemented [publishing guard](../apps/pramana/lib/pramana/publishing/guard.ex)
+The implemented [publishing guard](../lib/pramana/publishing/guard.ex)
 and public bake/check tasks support this boundary; inspect them before deployment.
 A successful metadata check is not independent legal clearance.
 

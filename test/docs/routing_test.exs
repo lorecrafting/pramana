@@ -245,7 +245,7 @@ defmodule Docs.RoutingTest do
     [_, current] =
       Regex.run(
         ~r/@pipeline_version\s+"(\d+)"/,
-        read!("apps/pramana/lib/pramana/bake.ex")
+        read!("lib/pramana/bake.ex")
       )
 
     pattern = ~r/pipeline[_ ]?version[^0-9\n]{0,16}(\d+)|pipeline \| \*{0,2}v(\d+)/i

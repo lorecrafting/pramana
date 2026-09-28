@@ -152,7 +152,7 @@ A **ratchet** is what turns that measurement into a standard. You record a minim
 
 ```elixir
 test_coverage: [
-  summary: [threshold: 83],
+  summary: [threshold: 89],
   ignore_modules: [~r/^Mix\.Tasks\./, ...]
 ]
 ```
@@ -161,9 +161,10 @@ Mix fails the run when coverage falls below it. The rule attached to it is one-d
 **raise it when coverage rises; never lower it to make a run pass.** That asymmetry is the
 whole mechanism. Coverage can only go up, one gate at a time, and no individual commit can
 buy itself an exception. `pramana_web` climbed 82 → 91 → 92 → 93 that way, one gate each.
+The single-app conversion began a new combined measure with its own 89% floor.
 
-`ignore_modules` matters as much as the number. 90% is Mix's default and this umbrella
-cannot honestly hold it: CLI shells over already-covered domain functions, OTP application
+`ignore_modules` matters as much as the number. The combined app currently holds an 89%
+threshold: CLI shells over already-covered domain functions, OTP application
 callbacks, and NIF stubs whose Elixir bodies are *replaced by Rust at load time* and can
 never execute. Excluding those and defending a real number beats a threshold nobody can
 meet — a standard people cannot reach is one they learn to route around.
@@ -234,8 +235,8 @@ You will see these repeatedly:
 | **Ecto** | the database layer: schemas, queries, migrations |
 | **Mix** | the build tool; `mix something` runs a task |
 | **Oban** | background job queue, backed by Postgres — used for the bake |
-| **umbrella app** | one repository holding several applications (`pramana`, `pramana_web`, `pramana_native`) |
+| **single Mix app** | one application containing the domain, web layer, and native NIF |
 
-An **umbrella** keeps the core domain logic (`pramana`) independent of the web layer
-(`pramana_web`) — so the corpus is usable without a web server, and the web layer cannot
-smuggle domain rules into itself.
+Pramāṇa keeps domain modules under `Pramana` and web modules under `PramanaWeb`. The web
+layer calls domain functions; the architecture checks guard against direct web database
+access.
