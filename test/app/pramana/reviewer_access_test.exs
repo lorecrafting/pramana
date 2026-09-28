@@ -1,56 +1,35 @@
 defmodule Pramana.ReviewerAccessTest do
   use Pramana.DataCase, async: true
 
-  alias Pramana.Reviewer.Account
+  alias Pramana.AccountsFixtures
   alias Pramana.ReviewerAccess
 
   @scope String.duplicate("a", 64)
 
-  test "individual credential and grant control access without storing the credential" do
-    assert {:ok, account, credential} =
-             ReviewerAccess.provision(" Reviewer.One ", "silent principal", @scope, "operator-1")
+  test "only a confirmed user receives an exact scope grant" do
+    unconfirmed = AccountsFixtures.unconfirmed_user_fixture()
 
-    stored = Repo.get!(Account, account.id)
-    assert stored.login_id == "reviewer.one"
-    assert stored.display_name == "silent principal"
-    refute stored.credential_digest == credential
-    assert {:ok, ^account} = ReviewerAccess.authenticate("reviewer.one", credential)
-    assert {:ok, ^account, [@scope]} = ReviewerAccess.session_account(account.id, 0)
+    assert {:error, :invalid_user_or_scope} =
+             ReviewerAccess.grant_scope(unconfirmed.email, @scope, "operator-1")
 
-    assert :ok = ReviewerAccess.revoke_scope("reviewer.one", @scope, "operator-1")
-    assert :error = ReviewerAccess.authenticate("reviewer.one", credential)
-    assert :error = ReviewerAccess.session_account(account.id, 0)
+    user = AccountsFixtures.user_fixture()
+    assert {:ok, grant} = ReviewerAccess.grant_scope(user.email, @scope, "operator-1")
+    assert grant.account_id == user.id
+    assert ReviewerAccess.active_scopes(user.id) == [@scope]
 
-    assert {:ok, _grant} = ReviewerAccess.grant_scope("reviewer.one", @scope, "operator-1")
-    assert {:ok, ^account, [@scope]} = ReviewerAccess.session_account(account.id, 0)
+    assert {:error, :invalid_user_or_scope} =
+             ReviewerAccess.grant_scope(user.email, "wrong", "operator-1")
   end
 
-  test "credential rotation and account disable invalidate earlier sessions" do
-    assert {:ok, account, credential} =
-             ReviewerAccess.provision("reviewer.two", "Reviewer Two", @scope, "operator-1")
+  test "revocation removes live access while retaining grant history" do
+    user = AccountsFixtures.user_fixture()
+    other_scope = String.duplicate("b", 64)
+    assert {:ok, _} = ReviewerAccess.grant_scope(user.email, @scope, "operator-1")
+    assert {:ok, _} = ReviewerAccess.grant_scope(user.email, other_scope, "operator-1")
 
-    assert {:ok, rotated, replacement} = ReviewerAccess.rotate_credential("reviewer.two")
-    assert rotated.session_epoch == 1
-    assert :error = ReviewerAccess.authenticate("reviewer.two", credential)
-    assert :error = ReviewerAccess.session_account(account.id, 0)
-    assert {:ok, ^rotated} = ReviewerAccess.authenticate("reviewer.two", replacement)
-
-    assert {:ok, twice_rotated, next_credential} =
-             ReviewerAccess.rotate_credential("reviewer.two")
-
-    assert twice_rotated.session_epoch == 2
-    assert :error = ReviewerAccess.session_account(account.id, 1)
-
-    assert {:ok, disabled} = ReviewerAccess.disable_account("reviewer.two")
-    refute disabled.active
-    assert :error = ReviewerAccess.authenticate("reviewer.two", next_credential)
-    assert :error = ReviewerAccess.session_account(account.id, 2)
-  end
-
-  test "failed first grant leaves no account behind" do
-    assert {:error, %Ecto.Changeset{}} =
-             ReviewerAccess.provision("reviewer.rollback", "Reviewer", @scope, " ")
-
-    refute Repo.get_by(Account, login_id: "reviewer.rollback")
+    assert :ok = ReviewerAccess.revoke_scope(user.email, @scope, "operator-1")
+    assert ReviewerAccess.active_scopes(user.id) == [other_scope]
+    assert :ok = ReviewerAccess.revoke_all(user.email, "operator-1")
+    assert ReviewerAccess.active_scopes(user.id) == []
   end
 end

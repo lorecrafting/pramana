@@ -12,6 +12,12 @@ defmodule PramanaWeb.ReviewerEndpoint do
     max_age: 8 * 60 * 60
   ]
 
+  plug Plug.Static,
+    at: "/",
+    from: :pramana,
+    gzip: not code_reloading?,
+    only: ["assets"]
+
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 

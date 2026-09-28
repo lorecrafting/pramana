@@ -1,5 +1,11 @@
 import Config
 
+# Only in tests, remove the complexity from the password hashing algorithm
+config :bcrypt_elixir, :log_rounds, 1
+config :pramana, Pramana.Mailer, adapter: Swoosh.Adapters.Test
+config :pramana, :mail_from, "pramana-test@example.local"
+config :pramana, :mail_delivery_ready, true
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used
@@ -22,6 +28,7 @@ config :pramana, PramanaWeb.Endpoint,
 
 config :pramana, PramanaWeb.ReviewerEndpoint,
   http: [ip: {127, 0, 0, 1}, port: 4003],
+  url: [host: "review.example", scheme: "https", port: 443],
   secret_key_base: "n9uPsLfqSbFJdv+Rb6ezmJHMIvwBHrILrUxJDYaWLOfef4czzrrivvKWQlGuJBbe",
   server: false
 

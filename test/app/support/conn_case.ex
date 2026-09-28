@@ -35,4 +35,26 @@ defmodule PramanaWeb.ConnCase do
     Pramana.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
+
+  def log_in_user(conn, user) do
+    token = Pramana.Accounts.generate_user_session_token(user)
+
+    conn
+    |> Plug.Test.init_test_session(%{})
+    |> Plug.Conn.put_session(:user_token, token)
+  end
+
+  def register_and_log_in_user(%{conn: conn} = context) do
+    user = Pramana.AccountsFixtures.user_fixture()
+    conn = log_in_user(conn, user)
+
+    if at = context[:token_authenticated_at] do
+      Pramana.AccountsFixtures.override_token_authenticated_at(
+        Plug.Conn.get_session(conn, :user_token),
+        at
+      )
+    end
+
+    %{conn: conn, user: user}
+  end
 end
