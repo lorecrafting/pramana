@@ -42,11 +42,14 @@ reconcile it with current code before dispatching work from it.
   this does not establish safe refusal. Keep the warning; establish human-verified
   answerable and unanswerable near-misses under the same filters before a suppression rule.
 - **Re-derive CBETA X origin labels; review Taishō exceptions.** The byline rule now
-  distinguishes a sole Japanese credit from a trailing Japanese editorial credit and
-  leaves mixed authorship unknown. A read-only 2026-09-27 counterfactual over the 1,230
-  loaded X works found 14 stored labels that would change on re-derivation: 11 Japanese →
-  Chinese, three Japanese → unknown; nine Japanese labels remain. The local corpus has
-  **not** been rewritten. Separately, 27 Taishō bylines contain `日本` while their division
+  distinguishes a sole Japanese credit from mixed credits, leaving the latter's work-level
+  origin unknown. Some Japanese editors wrote prefaces indexed with Chinese-authored body
+  text (X0407, X0932), so assigning either origin to the whole work would mislabel passages.
+  A read-only 2026-09-27 counterfactual over the 1,230 loaded X works found 14 Japanese →
+  unknown labels on re-derivation; nine Japanese labels remain. The local corpus has
+  **not** been rewritten. Sole-Japanese compiler credits can also conceal Chinese source
+  passages (X1651); X1655 remains a clear Japanese-authored positive. Separately, 27 Taishō
+  bylines contain `日本` while their division
   labels are Chinese; some credit editors, others authors. Review those work by work
   before changing the Taishō table policy. X0967 contains 唱題 but its byline is only
   `宋`, so its origin remains unknown and the historical `abs-002` source premise is false.

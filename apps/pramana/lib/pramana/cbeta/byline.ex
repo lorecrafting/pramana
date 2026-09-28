@@ -57,10 +57,6 @@ defmodule Pramana.Cbeta.Byline do
   # author did.
   @composed ~w(撰 述 著 集 錄 記 註 注 疏 解 選 編 修 造)
 
-  # A later Japanese editor does not change the origin of the credited composition.
-  # These endings occur in the mixed CBETA X bylines audited against their TEI headers.
-  @editorial ~w(分會 合會 改錄 會 合)
-
   @doc """
   Composition origin for a byline, as attributes ready to merge into a work.
 
@@ -95,37 +91,11 @@ defmodule Pramana.Cbeta.Byline do
 
   def verb(_), do: nil
 
-  # A single Japanese credit identifies a Japanese composition. Multiple credits can
-  # describe a Chinese author and a Japanese arranger, or contributors from both places.
-  # Only the observed editorial endings permit the former to inherit its source origin.
+  # A single Japanese credit identifies a Japanese work. Mixed credits can include
+  # editor-authored prefaces, so one work-level origin cannot describe every passage.
   defp japanese_byline(byline) do
     case String.split(byline, "　", trim: true) do
-      ["日本" <> _] ->
-        %{composition_origin: "japanese"}
-
-      ["日本" <> _ | _] ->
-        %{}
-
-      credits ->
-        editor = List.last(credits)
-
-        if String.starts_with?(editor, "日本") and ends_with_any?(editor, @editorial) do
-          original_origin(Enum.drop(credits, -1))
-        else
-          %{}
-        end
-    end
-  end
-
-  defp original_origin(credits) do
-    origins =
-      credits
-      |> Enum.map(&provenance(&1)[:composition_origin])
-      |> Enum.reject(&is_nil/1)
-      |> Enum.uniq()
-
-    case origins do
-      [origin] -> %{composition_origin: origin}
+      ["日本" <> _] -> %{composition_origin: "japanese"}
       _ -> %{}
     end
   end
