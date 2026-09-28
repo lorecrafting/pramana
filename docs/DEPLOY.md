@@ -141,7 +141,7 @@ extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` mem
 New tables after migrations require a reviewed grant update; do not solve a missing read
 privilege by granting ownership, ALL, sequence access or membership in an administrator.
 In particular, the public login must have **no SELECT** on `reviewer_accounts`,
-`reviewer_grants` or `reviewer_judgments`. Revoke any older blanket grants when adding
+`reviewer_grants`, `reviewer_judgments` or `reviewer_dispositions`. Revoke any older blanket grants when adding
 these tables.
 Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
 `has_any_column_privilege`, `has_sequence_privilege`, `pg_has_role`) plus real denied-write
@@ -213,13 +213,32 @@ the source context shows current-bake shared passages with their CBETA Taishō a
 exact character offsets and text hashes. Shared text alone does not prove which edition
 a commentary explains.
 A reviewer judgment remains separate from the relation and does not clear
-`needs_review`. The saved artifact's validation does not establish live scope
-currentness or rights acceptance;
+`needs_review`. A supported operator disposition invalidates that artifact for further
+reviewer submissions; rematerialize and review a new scope before granting access again.
+The saved artifact's validation does not establish live scope currentness or rights acceptance;
 [#63](https://github.com/lorecrafting/pramana/issues/63) remains the preflight gate.
 
+With separate operator credentials, inspect and decide a reviewed link using the same
+saved scope file:
+
+```sh
+mix pramana.reviews show --scope /path/to/accepted-scope.json --assertion-id ID
+mix pramana.reviews decide --scope /path/to/accepted-scope.json --assertion-id ID \
+  --fingerprint SHA256 --disposition supported --rationale TEXT \
+  --source-references TEXT --operator OPERATOR_ID
+```
+
+`disputed` and `unresolved` are also accepted dispositions; they retain `needs_review`.
+The CLI requires a current attributed judgment and records the original assertion,
+operator rationale and source references. A supported decision clears only that link's
+flag, makes the earlier relation derivation receipt stale, and blocks the old private
+review scope. Recheck the new scope and rights before treating the link as an accepted
+pilot path.
+
 Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
-on only the needed corpus and reviewer account, grant and judgment tables, and INSERT
-only on `reviewer_judgments`. Give it no UPDATE or DELETE there and no corpus, account
+on only the needed corpus and reviewer account, grant, judgment and disposition tables,
+and INSERT only on `reviewer_judgments`. Give it no UPDATE or DELETE there, no INSERT on
+`reviewer_dispositions`, and no corpus, account
 or grant DML, sequence, schema-create, role-switch or Oban privilege. Keep the operator
 credential out of the HTTP environment. Independently inspect the actual role's
 effective privileges before deployment; the container smoke test proves this boundary

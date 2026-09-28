@@ -18,6 +18,7 @@ defmodule PramanaWeb.ReviewerJudgmentController do
     else
       {:error, :scope_not_configured} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalid_scope_artifact} -> send_resp(conn, 503, "Review scope unavailable")
+      {:error, :invalidated_scope} -> send_resp(conn, 503, "Review scope unavailable")
       _ -> send_resp(conn, 404, "Review case unavailable")
     end
   end
@@ -30,6 +31,7 @@ defmodule PramanaWeb.ReviewerJudgmentController do
     else
       {:error, :scope_not_configured} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalid_scope_artifact} -> send_resp(conn, 503, "Review scope unavailable")
+      {:error, :invalidated_scope} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalid_submission} -> send_resp(conn, 400, "Invalid review submission")
       _ -> send_resp(conn, 409, "Review case changed or access expired")
     end

@@ -13,6 +13,7 @@ defmodule Pramana.Reviewer.Reviews do
   alias Pramana.Release.Selection
   alias Pramana.Repo
   alias Pramana.Reviewer.Account
+  alias Pramana.Reviewer.Disposition
   alias Pramana.Reviewer.Grant
   alias Pramana.Reviewer.Judgment
 
@@ -22,16 +23,27 @@ defmodule Pramana.Reviewer.Reviews do
   def configured_scope do
     case System.get_env("PRAMANA_REVIEW_SCOPE_PATH") do
       path when is_binary(path) and path != "" ->
-        with {:ok, bytes} <- File.read(path),
-             {:ok, artifact} <- decode(bytes),
-             :ok <- ScopeArtifact.validate(artifact) do
+        with {:ok, artifact} <- load_scope(path),
+             false <- invalidated?(artifact["scope_content_sha256"]) do
           {:ok, artifact}
         else
-          _ -> {:error, :invalid_scope_artifact}
+          true -> {:error, :invalidated_scope}
+          error -> error
         end
 
       _ ->
         {:error, :scope_not_configured}
+    end
+  end
+
+  @doc "Validates one saved scope for operator inspection, including past scopes."
+  def load_scope(path) when is_binary(path) do
+    with {:ok, bytes} <- File.read(path),
+         {:ok, artifact} <- decode(bytes),
+         :ok <- ScopeArtifact.validate(artifact) do
+      {:ok, artifact}
+    else
+      _ -> {:error, :invalid_scope_artifact}
     end
   end
 
@@ -55,14 +67,16 @@ defmodule Pramana.Reviewer.Reviews do
          :ok <- selected_release(artifact),
          {:ok, parsed_id} <- parse_id(id),
          %WorkRelation{} = row <- Repo.get(WorkRelation, parsed_id),
-         %{} = candidate <- Enum.find(candidates(artifact), &matches?(&1, row)),
+         {:ok, case_info} <- exact_candidate(artifact, row),
          %Work{} = source <- Repo.get(Work, row.source_work_id),
          %Work{} = target <- Repo.get(Work, row.target_work_id) do
+      candidate = case_info.candidate
+
       {:ok,
        %{
          row: row,
          candidate: candidate,
-         fingerprint: fingerprint(candidate),
+         fingerprint: case_info.fingerprint,
          scope_sha256: artifact["scope_content_sha256"],
          release_id: artifact["release"]["release_id"],
          source: source,
@@ -74,7 +88,7 @@ defmodule Pramana.Reviewer.Reviews do
              row.id,
              artifact["scope_content_sha256"],
              artifact["release"]["release_id"],
-             fingerprint(candidate)
+             case_info.fingerprint
            )
        }}
     else
@@ -104,13 +118,13 @@ defmodule Pramana.Reviewer.Reviews do
 
   defp append_checked(account, artifact, assertion_id, submitted_fingerprint, changeset) do
     with %WorkRelation{} = row <- Repo.get(WorkRelation, assertion_id),
-         %{} = candidate <- Enum.find(candidates(artifact), &matches?(&1, row)),
-         true <- fingerprint(candidate) == submitted_fingerprint do
+         {:ok, case_info} <- exact_candidate(artifact, row),
+         true <- case_info.fingerprint == submitted_fingerprint do
       attrs = Ecto.Changeset.apply_changes(changeset)
 
       case Repo.insert_all(
              Judgment,
-             authorized_insert(account, artifact, row.id, candidate, attrs),
+             authorized_insert(account, artifact, row.id, case_info.candidate, attrs),
              returning: true
            ) do
         {1, [judgment]} -> {:ok, judgment}
@@ -250,18 +264,48 @@ defmodule Pramana.Reviewer.Reviews do
   end
 
   defp fingerprint(candidate) do
-    ScopeArtifact.digest(%{
+    ScopeArtifact.digest(assertion_snapshot(candidate))
+  end
+
+  @doc "Returns the exact source/target assertion content bound to a review fingerprint."
+  def assertion_snapshot(candidate) do
+    %{
       "source_work_id" => candidate.source_work_id,
       "target_work_id" => candidate.target_work_id,
       "relation" => candidate.relation,
       "assertion" => candidate.assertion
-    })
+    }
+  end
+
+  @doc "Returns the current stored claim, even when it no longer matches a saved scope."
+  def live_snapshot(%WorkRelation{} = row) do
+    %{
+      "source_work_id" => row.source_work_id,
+      "target_work_id" => row.target_work_id,
+      "relation" => row.relation,
+      "assertion" => assertion_payload(row)
+    }
+  end
+
+  @doc "Matches a live relation to the exact assertion recorded in one scope artifact."
+  def exact_candidate(artifact, %WorkRelation{} = row) do
+    case Enum.find(candidates(artifact), &matches?(&1, row)) do
+      nil -> {:error, :unavailable_case}
+      candidate -> {:ok, %{candidate: candidate, fingerprint: fingerprint(candidate)}}
+    end
   end
 
   defp permitted_scope(artifact, scopes) do
     if artifact["scope_content_sha256"] in scopes,
       do: :ok,
       else: {:error, :unavailable_scope}
+  end
+
+  defp invalidated?(scope_sha256) do
+    Repo.exists?(
+      from d in Disposition,
+        where: d.scope_sha256 == ^scope_sha256 and d.disposition == "supported"
+    )
   end
 
   defp selected_release(artifact) do

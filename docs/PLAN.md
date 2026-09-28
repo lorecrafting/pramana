@@ -53,10 +53,6 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
-- **Operator adjudication [#76](https://github.com/lorecrafting/pramana/issues/76).**
-  Give the operator a CLI path to inspect attributed judgments and record a source-backed
-  disposition. Any relation change must invalidate or recompute affected derivation and
-  pilot-scope evidence; unresolved links stay visibly flagged.
 - **Refresh the Chinese pilot candidate.** A 2026-09-28 full CBETA verification found
   that local T0262 contained an eight-character stub despite its locked source XML.
   A targeted bake restored its 92,287-character body; full verification of all 4,263
