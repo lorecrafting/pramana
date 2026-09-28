@@ -19,6 +19,8 @@ defmodule Pramana.Acquire.ArchiveTest do
   use ExUnit.Case, async: false
 
   alias Pramana.Acquire.Archive
+  alias Pramana.Acquire.Lockfile
+  alias Pramana.Sources
 
   setup do
     root = Path.join(System.tmp_dir!(), "pramana-archive-#{System.unique_integer([:positive])}")
@@ -149,7 +151,7 @@ defmodule Pramana.Acquire.ArchiveTest do
       on_exit(fn -> File.rm(cache_path(sha)) end)
       whole = archive_bytes(sha)
 
-      assert {:ok, []} =
+      assert {:error, {:missing_files, ["absent/file.xml"]}} =
                Archive.fetch("cbeta", sha, ["absent/file.xml"],
                  repo: "cbeta-org/xml-p5",
                  downloader: fn _url, target ->
@@ -157,6 +159,33 @@ defmodule Pramana.Acquire.ArchiveTest do
                    :ok
                  end
                )
+    end
+
+    test "a partial new pin refuses before downloading" do
+      first = "N/N13/N13n0006.xml"
+      second = "N/N13/N13n0007.xml"
+      {:ok, source} = Sources.fetch("cbeta")
+
+      entry =
+        Lockfile.build_entry(source,
+          pin: %{"type" => "git", "commit" => "old"},
+          files: Enum.map([first, second], &%{path: &1, sha256: "old", bytes: 3})
+        )
+
+      :ok = Lockfile.put_source(entry)
+      test = self()
+
+      assert {:error, {:pin_conflict, _, _}} =
+               Archive.fetch("cbeta", "new", [first],
+                 repo: "cbeta-org/xml-p5",
+                 downloader: fn _url, target ->
+                   send(test, :downloaded)
+                   File.write!(target, archive_bytes("new"))
+                   :ok
+                 end
+               )
+
+      refute_received :downloaded
     end
   end
 end

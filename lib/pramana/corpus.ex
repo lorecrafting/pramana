@@ -53,10 +53,23 @@ defmodule Pramana.Corpus do
       # generated rendering quoted as scripture reaches the guard's invariant-#7 check
       # through the ordinary resolve path rather than a separate one someone has to
       # remember to call.
-      {:ok, %URN{rendering: r}} when not is_nil(r) -> Pramana.Translations.resolve(urn_string)
-      {:ok, %URN{locator_end: nil}} -> fetch_span(urn_string)
-      {:ok, %URN{} = urn} -> fetch_range(urn)
-      {:error, _} -> {:error, :bad_urn}
+      {:ok, %URN{rendering: r}} when not is_nil(r) ->
+        Pramana.Translations.resolve(urn_string)
+
+      {:ok, %URN{locator_end: nil}} ->
+        fetch_span(urn_string)
+
+      {:ok, %URN{source: "sc"} = urn} ->
+        case fetch_span(urn_string) do
+          {:ok, _} = point -> point
+          _ -> fetch_range(urn)
+        end
+
+      {:ok, %URN{} = urn} ->
+        fetch_range(urn)
+
+      {:error, _} ->
+        {:error, :bad_urn}
     end
   end
 
@@ -204,15 +217,9 @@ defmodule Pramana.Corpus do
   defp fetch_range(%URN{} = urn) do
     urn_string = URN.to_string(urn)
 
-    Enum.find_value(URN.splits("#{urn.locator}-#{urn.locator_end}"), fn {from, to} ->
-      with {:ok, first} <- fetch_segment(URN.to_string(%{urn | locator: from, locator_end: nil})),
-           {:ok, last} <- fetch_segment(URN.to_string(%{urn | locator: to, locator_end: nil})),
-           true <- first.text_id == last.text_id and first.ordinal <= last.ordinal do
-        between(urn_string, first.text_id, first.ordinal, last.ordinal)
-      else
-        _ -> nil
-      end
-    end) || stored_range(urn_string)
+    with {:ok, first, last} <- range_endpoints(urn_string, urn) do
+      between(urn_string, first.text_id, first.ordinal, last.ordinal)
+    end
   end
 
   # A range URN whose endpoints cannot be split back out of it is still a real address if
@@ -224,11 +231,36 @@ defmodule Pramana.Corpus do
   # citation was fine and the split was wrong.
   #
   # Chunks record the ordinals they span, so identity answers what arithmetic cannot.
-  defp stored_range(urn_string) do
+  defp stored_range_endpoints(urn_string) do
     case Repo.one(from c in Chunk, where: c.urn == ^urn_string) do
-      nil -> {:error, :not_found}
-      chunk -> between(urn_string, chunk.text_id, chunk.first_ordinal, chunk.last_ordinal)
+      nil ->
+        {:error, :not_found}
+
+      chunk ->
+        with {:ok, first} <- segment_at(chunk.text_id, chunk.first_ordinal),
+             {:ok, last} <- segment_at(chunk.text_id, chunk.last_ordinal) do
+          {:ok, first, last}
+        end
     end
+  end
+
+  defp segment_at(text_id, ordinal) do
+    case Repo.one(from s in Segment, where: s.text_id == ^text_id and s.ordinal == ^ordinal) do
+      nil -> {:error, :not_found}
+      segment -> {:ok, segment}
+    end
+  end
+
+  defp range_endpoints(urn_string, urn) do
+    Enum.find_value(URN.splits("#{urn.locator}-#{urn.locator_end}"), fn {from, to} ->
+      with {:ok, first} <- fetch_segment(endpoint(urn, from)),
+           {:ok, last} <- fetch_segment(endpoint(urn, to)),
+           true <- first.text_id == last.text_id and first.ordinal <= last.ordinal do
+        {:ok, first, last}
+      else
+        _ -> nil
+      end
+    end) || stored_range_endpoints(urn_string)
   end
 
   defp between(urn_string, text_id, first_ordinal, last_ordinal) do
@@ -281,11 +313,14 @@ defmodule Pramana.Corpus do
       {:ok, %URN{locator_end: nil}} ->
         with {:ok, segment} <- fetch_segment(urn_string), do: {:ok, segment, segment}
 
-      {:ok, %URN{} = urn} ->
-        with {:ok, first} <- fetch_segment(endpoint(urn, urn.locator)),
-             {:ok, last} <- fetch_segment(endpoint(urn, urn.locator_end)) do
-          {:ok, first, last}
+      {:ok, %URN{source: "sc"} = urn} ->
+        case fetch_segment(urn_string) do
+          {:ok, segment} -> {:ok, segment, segment}
+          _ -> range_endpoints(urn_string, urn)
         end
+
+      {:ok, %URN{} = urn} ->
+        range_endpoints(urn_string, urn)
 
       {:error, _} ->
         {:error, :bad_urn}
@@ -398,6 +433,9 @@ defmodule Pramana.Corpus do
       # carried real names since 2026-08-27; the payload simply never asked for one.
       witness_name: witness_name(text),
       source: text.source_id,
+      # A range's reader link needs the first *stored* anchor. Parsing the range string
+      # cannot distinguish its separator from a hyphen inside a SuttaCentral segment id.
+      first_segment_urn: segment.urn,
       license_class: text.source && text.source.license_class,
       volume: volume(segment, text),
       juan: segment.juan,

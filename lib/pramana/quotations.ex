@@ -144,19 +144,23 @@ defmodule Pramana.Quotations do
   end
 
   defp range_bounds(urn) do
-    with {:ok, %URN{locator_end: locator_end} = parsed} when not is_nil(locator_end) <-
-           URN.parse(urn),
-         first when not is_nil(first) <- segment_at(%{parsed | locator_end: nil}),
-         last when not is_nil(last) <-
-           segment_at(%{parsed | locator: locator_end, locator_end: nil}) do
-      {:ok,
-       %{
-         text_id: first.text_id,
-         char_start: min(first.char_start, last.char_start),
-         char_end: max(first.char_end, last.char_end)
-       }}
+    case URN.parse(urn) do
+      {:ok, %URN{locator_end: locator_end} = parsed} when not is_nil(locator_end) ->
+        URN.splits("#{parsed.locator}-#{locator_end}")
+        |> Enum.find_value(&candidate_bounds(parsed, &1)) || {:error, :not_found}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
+
+  defp candidate_bounds(parsed, {from, to}) do
+    with first when not is_nil(first) <- segment_at(%{parsed | locator: from, locator_end: nil}),
+         last when not is_nil(last) <- segment_at(%{parsed | locator: to, locator_end: nil}),
+         true <- first.text_id == last.text_id and first.char_start <= last.char_start do
+      {:ok, %{text_id: first.text_id, char_start: first.char_start, char_end: last.char_end}}
     else
-      _ -> {:error, :not_found}
+      _ -> nil
     end
   end
 

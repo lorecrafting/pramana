@@ -170,6 +170,14 @@ defmodule Pramana.Retrieval.PerTraditionTest do
                "reports nothing, which reads as a canon with nothing to say"
     end
 
+    test "per-tradition search keeps the requested source scope", %{probe: probe} do
+      %{results: results} =
+        Semantic.search_vector(probe, limit: 10, per_tradition: true, source_id: "cbeta")
+
+      assert results != []
+      assert sources_in(results) == ["cbeta"]
+    end
+
     test "groups come from the corpus, so a new source needs no code change", %{probe: probe} do
       second =
         load!("L0002", "local-second", ["眾生皆有佛性之義"], local_definition("second", nil))

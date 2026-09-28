@@ -10,7 +10,7 @@ defmodule Repository.WrappersTest do
     File.mkdir_p!(Path.join(root, "fake-bin"))
     File.mkdir_p!(Path.join(root, "elsewhere"))
 
-    for file <- ~w(pramana-mcp pramana-modal) do
+    for file <- ~w(pramana-mcp pramana-modal pramana-tranche) do
       copy_executable(Path.join(@root, "bin/#{file}"), Path.join(root, "bin/#{file}"))
     end
 
@@ -69,6 +69,48 @@ defmodule Repository.WrappersTest do
       System.cmd(Path.join(root, "bin/pramana-modal"), args, cd: Path.join(root, "elsewhere"))
 
     assert out == Enum.join([root | args], "\n") <> "\n"
+  end
+
+  test "tranche refuses to launch when Modal app state is unavailable", %{root: root} do
+    venv = Path.join(root, "priv/embed/.venv/bin")
+    File.mkdir_p!(venv)
+    marker = Path.join(root, "launched")
+
+    for response <- ["exit 7", "printf 'not json'"] do
+      write_executable(
+        Path.join(venv, "modal"),
+        "#!/bin/sh\nif [ \"$1\" = app ]; then #{response}; exit 0; fi\ntouch '#{marker}'\n"
+      )
+
+      {_, status} =
+        System.cmd(Path.join(root, "bin/pramana-tranche"), ["arm", "input.jsonl", "output.jsonl"],
+          env: [{"PRAMANA_TRANCHE_LOGS", Path.join(root, "logs")}],
+          stderr_to_stdout: true
+        )
+
+      assert status == 2
+      refute File.exists?(marker)
+    end
+  end
+
+  test "tranche ignores completion text from another invocation", %{root: root} do
+    venv = Path.join(root, "priv/embed/.venv/bin")
+    File.mkdir_p!(venv)
+    write_executable(Path.join(venv, "modal"), "#!/bin/sh\nprintf '[]'")
+    logs = Path.join(root, "logs")
+    File.mkdir_p!(logs)
+    File.write!(Path.join(logs, "old.log"), "nothing outstanding\n")
+
+    {_, status} =
+      System.cmd(Path.join(root, "bin/pramana-tranche"), ["arm", "input.jsonl", "output.jsonl"],
+        env: [
+          {"PRAMANA_TRANCHE_LOGS", logs},
+          {"PRAMANA_TRANCHE_MAX_RESTARTS", "0"}
+        ],
+        stderr_to_stdout: true
+      )
+
+    assert status == 1
   end
 
   defp copy_executable(from, to) do

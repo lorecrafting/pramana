@@ -241,8 +241,13 @@ defmodule Pramana.Retrieval.Semantic do
       tradition_groups()
       |> Map.values()
       |> Enum.map(fn sources ->
+        scoped =
+          if opts[:source_id],
+            do: Enum.filter(sources, &(&1 in List.wrap(opts[:source_id]))),
+            else: sources
+
         vector
-        |> single_search(Keyword.merge(opts, source_id: sources, limit: limit))
+        |> single_search(Keyword.merge(opts, source_id: scoped, limit: limit))
         |> Map.get(:results)
       end)
       |> Enum.reject(&(&1 == []))
@@ -572,10 +577,15 @@ defmodule Pramana.Retrieval.Semantic do
     # changes WITHOUT a re-bake, so `bake_id` is not even a sound key.
     qualifying_vectors =
       from(v in ChunkVector,
-        where: v.chunk_id == parent_as(:chunk).id and not is_nil(v.embedding)
+        where:
+          v.chunk_id == parent_as(:chunk).id and not is_nil(v.embedding) and
+            v.embedding_model == ^Embed.model()
       )
       |> filter_vector_kinds(opts[:vector_kinds])
       |> filter_vector_lang(opts[:vector_lang])
+      |> ablate_translations(RenderingScope.coverage_keep(opts))
+      |> filter_translators(RenderingScope.translators(opts))
+      |> restrict_translation_chunks(RenderingScope.chunks(opts))
 
     embedded =
       chunks
@@ -689,7 +699,16 @@ defmodule Pramana.Retrieval.Semantic do
     |> filter_witness(opts[:witness_id])
     |> filter_license(opts)
     |> filter_work(opts[:work_id])
+    |> filter_juan(opts[:juan])
     |> filter_dates(opts)
+  end
+
+  defp filter_juan(query, nil), do: query
+
+  defp filter_juan(query, juan) do
+    if has_named_binding?(query, :chunk),
+      do: where(query, [chunk: c], c.juan == ^juan),
+      else: query
   end
 
   # See `Pramana.Retrieval.Lexical.filter_dates/2` for the bound semantics. Added on both

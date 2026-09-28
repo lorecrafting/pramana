@@ -30,7 +30,8 @@ defmodule Pramana.Acquire.Archive do
     url = "#{@codeload}/#{repo}/tar.gz/#{sha}"
     tmp = Path.join(System.tmp_dir!(), "pramana-#{source_id}-#{sha}.tar.gz")
 
-    with :ok <- download(url, tmp, opts) do
+    with :ok <- Lockfile.preflight_merge(source_id, %{"type" => "git", "commit" => sha}, keep),
+         :ok <- download(url, tmp, opts) do
       result = extract(source_id, sha, tmp, keep, repo)
       File.rm(tmp)
       result
@@ -120,7 +121,6 @@ defmodule Pramana.Acquire.Archive do
   # pins. Otherwise every re-pin would rewrite every path.
   defp extract(source_id, sha, archive, keep, repo) do
     base = Path.join(Lockfile.raw_dir(), source_id)
-    File.mkdir_p!(base)
     prefix = "#{repo |> String.split("/") |> List.last()}-#{sha}/"
     wanted = MapSet.new(keep)
 
@@ -128,45 +128,39 @@ defmodule Pramana.Acquire.Archive do
 
     case :erl_tar.extract(archive, [:compressed, :memory]) do
       {:ok, files} ->
-        results =
+        selected =
           files
-          |> Enum.flat_map(&write_wanted(&1, prefix, wanted, base))
-          |> Enum.sort_by(& &1.path)
+          |> Enum.flat_map(&select_wanted(&1, prefix, wanted))
 
-        report_missing(wanted, results)
-        {:ok, results}
+        got = MapSet.new(selected, &elem(&1, 0))
+        missing = wanted |> MapSet.difference(got) |> MapSet.to_list() |> Enum.sort()
+
+        if missing == [] do
+          results = selected |> Enum.map(&write_wanted(&1, base)) |> Enum.sort_by(& &1.path)
+          {:ok, results}
+        else
+          {:error, {:missing_files, missing}}
+        end
 
       {:error, reason} ->
         {:error, {:extract_failed, reason}}
     end
   end
 
-  defp write_wanted({name, contents}, prefix, wanted, base) do
+  defp select_wanted({name, contents}, prefix, wanted) do
     path = name |> List.to_string() |> String.replace_prefix(prefix, "")
 
     if MapSet.member?(wanted, path) do
-      target = Path.join(base, path)
-      File.mkdir_p!(Path.dirname(target))
-      File.write!(target, contents)
-
-      [%{path: path, sha256: Lockfile.sha256(contents), bytes: byte_size(contents)}]
+      [{path, contents}]
     else
       []
     end
   end
 
-  # A requested file absent from the archive means the catalog and the archive
-  # disagree. Loud, because a quietly smaller corpus is the failure that shows up
-  # later as an unexplainable missing citation.
-  defp report_missing(wanted, results) do
-    got = MapSet.new(results, & &1.path)
-    missing = MapSet.difference(wanted, got)
-
-    if MapSet.size(missing) > 0 do
-      Logger.error(
-        "#{MapSet.size(missing)} catalogued file(s) absent from the archive: " <>
-          inspect(Enum.take(missing, 5))
-      )
-    end
+  defp write_wanted({path, contents}, base) do
+    target = Path.join(base, path)
+    File.mkdir_p!(Path.dirname(target))
+    File.write!(target, contents)
+    %{path: path, sha256: Lockfile.sha256(contents), bytes: byte_size(contents)}
   end
 end

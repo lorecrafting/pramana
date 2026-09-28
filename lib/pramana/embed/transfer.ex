@@ -102,10 +102,7 @@ defmodule Pramana.Embed.Transfer do
           apply_batch(batch, expected_hashes, dims, {model, window}, now, acc)
         end)
 
-      {:ok,
-       result
-       |> Map.update!(:hash_mismatch, &Enum.take(&1, 20))
-       |> Map.put(:max_length, window)}
+      {:ok, Map.put(result, :max_length, window)}
     end
   end
 

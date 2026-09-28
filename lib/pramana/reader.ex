@@ -121,7 +121,7 @@ defmodule Pramana.Reader do
         edition: "SuttaCentral",
         url: "#{@suttacentral_base}/#{urn.work}",
         granularity: "sutta",
-        anchor: segment_id(urn, provenance),
+        anchor: segment_id(urn_string, urn, provenance),
         anchor_label: "SuttaCentral segment ID",
         verified: false,
         note:
@@ -166,11 +166,24 @@ defmodule Pramana.Reader do
   # SuttaCentral writes a segment as `<uid>:<segment>` — `sn6.4:1.2` — which is the key
   # its own API returns and what its interface displays beside a line. Our locator is that
   # segment number verbatim, so the id only has to be reassembled, never invented.
-  defp segment_id(%Pramana.URN{work: work, locator: locator}, _provenance)
-       when is_binary(locator) and locator != "",
-       do: "#{work}:#{locator}"
+  defp segment_id(urn_string, %Pramana.URN{work: work, locator: locator}, provenance)
+       when is_binary(locator) and locator != "" do
+    anchor_urn = Map.get(provenance, :first_segment_urn, urn_string)
 
-  defp segment_id(_urn, _provenance), do: nil
+    raw_locator =
+      anchor_urn
+      |> String.split("@", parts: 2)
+      |> List.last()
+      |> String.split("#", parts: 2)
+      |> hd()
+
+    # Without a resolved segment, a hyphen may mean a native point or a range.
+    if Map.has_key?(provenance, :first_segment_urn) or not String.contains?(raw_locator, "-"),
+      do: "#{work}:#{raw_locator}",
+      else: nil
+  end
+
+  defp segment_id(_urn_string, _urn, _provenance), do: nil
 
   @doc """
   CBETA's own citation string for a line, e.g. `T09n0262_p0037a13`.

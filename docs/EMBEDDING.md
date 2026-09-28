@@ -31,10 +31,10 @@ release immutable.
 
 ## Source identity is not index identity
 
-`bake_id` does not pin all vectors. The implemented release stamp is a separate,
-**count-and-identity-based** record, with the limitations in
-[architecture](ARCHITECTURE.md#identity-and-replay). Re-embedding or same-count updates
-must not be presented as proven identical merely because a stored stamp matches.
+`bake_id` does not pin all vectors. The implemented v2 release stamp separately hashes
+rendering and vector content and identity; legacy stamps remain count-based. See the
+limitations in [architecture](ARCHITECTURE.md#identity-and-replay). A matching stamp
+does not prove that model weights or other external inference inputs are identical.
 
 Before a model, window or retrieval-default change, evaluate the exact candidate
 against the relevant gold cases and baseline. Report language coverage and actual

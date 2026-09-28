@@ -215,6 +215,10 @@ defmodule Pramana.Retrieval.SemanticTest do
     test "a filter matching nothing returns empty rather than erroring", %{probe: probe} do
       assert %{results: []} = Semantic.search_vector(probe, limit: 10, division: "律部")
     end
+
+    test "juan restricts semantic hits to the requested fascicle", %{probe: probe} do
+      assert %{results: []} = Semantic.search_vector(probe, limit: 10, juan: 999)
+    end
   end
 
   describe "chunks without a vector" do
@@ -251,6 +255,21 @@ defmodule Pramana.Retrieval.SemanticTest do
 
       # T0001 owns 2 of the 3 chunks, so clearing it leaves 1 of 3.
       assert %{total: 3, embedded: 1, percent: 33.3} = Semantic.coverage()
+    end
+
+    test "vectors from another model do not count as searchable" do
+      Repo.update_all(ChunkVector, set: [embedding_model: "other/model"])
+      assert %{total: 3, embedded: 0} = coverage = Semantic.coverage()
+      assert coverage.percent == 0.0
+    end
+
+    test "coverage excludes translation vectors removed by the requested translator scope", %{
+      probe: probe
+    } do
+      Repo.update_all(ChunkVector, set: [kind: "translation", translator_id: "excluded"])
+      opts = [vector_kinds: ["translation"], translators: []]
+      assert %{results: []} = Semantic.search_vector(probe, opts)
+      assert %{total: 3, embedded: 0} = Semantic.coverage(opts)
     end
 
     # The chunk-level ratio CANNOT see a text that was never chunked: it is absent from

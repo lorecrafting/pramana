@@ -138,6 +138,9 @@ defmodule PramanaWeb.MCP.ProvenanceShapeTest do
         assert hit["urn"]
         assert hit["sha256"]
 
+        assert Map.keys(hit["offsets"]) |> Enum.sort() ==
+                 ~w(byte_end byte_start char_end char_start)
+
         for axis <- ~w(composition_origin text_role division witness source addressing) do
           assert Map.has_key?(hit["provenance"], axis)
         end
