@@ -1,5 +1,9 @@
 import Config
 
+config :pramana, Pramana.Mailer, adapter: Swoosh.Adapters.Local
+config :pramana, :mail_from, "pramana-dev@example.local"
+config :pramana, :mail_delivery_ready, true
+
 # Configure your database
 config :pramana, Pramana.Repo,
   username: System.get_env("PGUSER") || System.get_env("USER"),
@@ -58,6 +62,7 @@ config :pramana, PramanaWeb.Endpoint,
 
 config :pramana, PramanaWeb.ReviewerEndpoint,
   http: [ip: {127, 0, 0, 1}],
+  url: [host: "localhost", scheme: "http", port: 4001],
   server: System.get_env("PHX_SERVER") in ["true", "1"],
   secret_key_base: "nzFEBTu6TE+zzsl/cxxm6k2soEGUnNTDQoysm2l9PpeUfXXva8wEk/qgjSSj3ksJ"
 

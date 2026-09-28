@@ -1,28 +1,26 @@
 defmodule Mix.Tasks.Pramana.Reviewer do
   use Mix.Task
 
+  alias Pramana.Accounts
+  alias Pramana.Mailer
   alias Pramana.Publishing.Guard
   alias Pramana.ReviewerAccess
   alias Pramana.Runtime
 
-  @shortdoc "Provision, grant, revoke or rotate a private reviewer account"
-
-  @switches [
-    login_id: :string,
-    display_name: :string,
-    scope_sha256: :string,
-    operator: :string
-  ]
+  @shortdoc "Provision, grant, or revoke private reviewer access"
+  @switches [email: :string, scope_sha256: :string, operator: :string]
 
   @moduledoc """
-  Operator-only reviewer account management. Run with administrative database credentials,
-  outside reviewer/public serving mode. Credentials are printed once; deliver them privately.
+  Operator-only reviewer account management. Run against the private review database
+  with administrative credentials, outside reviewer/public serving mode.
 
-      mix pramana.reviewer provision --login-id ID --display-name NAME --scope-sha256 HASH --operator ID
-      mix pramana.reviewer grant --login-id ID --scope-sha256 HASH --operator ID
-      mix pramana.reviewer revoke --login-id ID --scope-sha256 HASH --operator ID
-      mix pramana.reviewer revoke --login-id ID
-      mix pramana.reviewer rotate --login-id ID
+      mix pramana.reviewer provision --email EMAIL
+      mix pramana.reviewer grant --email EMAIL --scope-sha256 HASH --operator ID
+      mix pramana.reviewer revoke --email EMAIL --scope-sha256 HASH --operator ID
+      mix pramana.reviewer revoke --email EMAIL --operator ID
+
+  Provision sends a Phoenix magic link to the configured PRAMANA_REVIEWER_URL.
+  Grant only after the reviewer confirms that link. Provision never grants access.
   """
 
   @impl Mix.Task
@@ -36,9 +34,6 @@ defmodule Mix.Tasks.Pramana.Reviewer do
     Mix.Task.run("app.start")
 
     case perform(args, opts) do
-      {:ok, _account, credential} ->
-        Mix.shell().info("Credential (deliver privately): #{credential}")
-
       {:ok, _record} ->
         Mix.shell().info("Reviewer action completed")
 
@@ -46,46 +41,67 @@ defmodule Mix.Tasks.Pramana.Reviewer do
         Mix.shell().info("Reviewer action completed")
 
       {:error, _reason} ->
-        Mix.raise("Reviewer action failed; inspect the account, scope and grants")
+        Mix.raise("Reviewer action failed; inspect account, scope, mail and grants")
     end
   end
 
-  defp perform(["provision"], opts),
-    do:
-      ReviewerAccess.provision(
-        opts[:login_id],
-        opts[:display_name],
-        opts[:scope_sha256],
-        opts[:operator]
-      )
+  defp perform(["provision"], opts) do
+    if not Mailer.delivery_ready?(), do: Mix.raise("Account email delivery is unavailable")
+    base = reviewer_url!()
+
+    with {:ok, user} <- Accounts.register_user(%{email: opts[:email]}),
+         {:ok, _mail} <-
+           Accounts.deliver_login_instructions(user, &"#{base}/users/log-in/#{&1}") do
+      {:ok, user}
+    end
+  end
 
   defp perform(["grant"], opts),
-    do: ReviewerAccess.grant_scope(opts[:login_id], opts[:scope_sha256], opts[:operator])
+    do: ReviewerAccess.grant_scope(opts[:email], opts[:scope_sha256], opts[:operator])
 
   defp perform(["revoke"], opts) do
     if opts[:scope_sha256],
-      do: ReviewerAccess.revoke_scope(opts[:login_id], opts[:scope_sha256], opts[:operator]),
-      else: ReviewerAccess.disable_account(opts[:login_id])
+      do: ReviewerAccess.revoke_scope(opts[:email], opts[:scope_sha256], opts[:operator]),
+      else: ReviewerAccess.revoke_all(opts[:email], opts[:operator])
   end
 
-  defp perform(["rotate"], opts), do: ReviewerAccess.rotate_credential(opts[:login_id])
+  defp reviewer_url! do
+    case URI.parse(System.get_env("PRAMANA_REVIEWER_URL") || "") do
+      %URI{scheme: "https", host: host, path: path, userinfo: nil, query: nil, fragment: nil} =
+          uri
+      when is_binary(host) and path in [nil, "", "/"] ->
+        URI.to_string(uri) |> String.trim_trailing("/")
+
+      %URI{
+        scheme: "http",
+        host: "localhost",
+        path: path,
+        userinfo: nil,
+        query: nil,
+        fragment: nil
+      } = uri
+      when path in [nil, "", "/"] ->
+        URI.to_string(uri) |> String.trim_trailing("/")
+
+      _ ->
+        Mix.raise("PRAMANA_REVIEWER_URL must be the private HTTPS origin (localhost HTTP in dev)")
+    end
+  end
 
   defp validate_action!(args, opts) do
     required =
       case args do
         ["provision"] ->
-          [:login_id, :display_name, :scope_sha256, :operator]
+          [:email]
 
         ["grant"] ->
-          [:login_id, :scope_sha256, :operator]
+          [:email, :scope_sha256, :operator]
 
         ["revoke"] ->
-          if opts[:scope_sha256],
-            do: [:login_id, :scope_sha256, :operator],
-            else: [:login_id]
-
-        ["rotate"] ->
-          [:login_id]
+          if(opts[:scope_sha256],
+            do: [:email, :scope_sha256, :operator],
+            else: [:email, :operator]
+          )
 
         _ ->
           Mix.raise(@moduledoc)

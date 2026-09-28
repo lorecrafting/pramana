@@ -149,6 +149,9 @@ SELECT format('GRANT SELECT ON TABLE %I.%I TO {READER}', schemaname, tablename)
 FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename NOT LIKE 'reviewer_%' AND tablename <> 'schema_migrations'
 \\gexec
+GRANT INSERT ON users TO {READER};
+GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON users TO {READER};
+GRANT INSERT,DELETE ON users_tokens TO {READER};
 """)
         self.sql("forbidden", f"""
 GRANT CONNECT ON DATABASE forbidden TO {REVIEWER};
@@ -158,6 +161,8 @@ FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename <> 'schema_migrations'
 \\gexec
 GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
+GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON users TO {REVIEWER};
+GRANT INSERT,DELETE ON users_tokens TO {REVIEWER};
 """)
         self.sql("audit_denied", f"REVOKE SELECT ON sources FROM {READER};")
 
@@ -172,6 +177,7 @@ GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
                       "-e", "PORT=4000", "-e", "POOL_SIZE=2",
                       "-e", "PRAMANA_EMBEDDING=0", "-e", f"PRAMANA_PUBLIC={'1' if public else '0'}",
                       "-e", f"PRAMANA_REVIEWER={'1' if role == REVIEWER else '0'}",
+                      "-e", "PRAMANA_REVIEWER_URL=https://localhost",
                       "-e", f"PRAMANA_SMOKE_ROLE={role}",
                       "--mount", f"type=bind,source={self.raw},target=/app/raw,readonly"]
 

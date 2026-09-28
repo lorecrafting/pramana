@@ -1,6 +1,21 @@
 # Shared domain and web configuration for the Pramāṇa application.
 import Config
 
+config :swoosh, :api_client, Swoosh.ApiClient.Req
+
+config :pramana, :scopes,
+  user: [
+    default: true,
+    module: Pramana.Accounts.Scope,
+    assign_key: :current_scope,
+    access_path: [:user, :id],
+    schema_key: :user_id,
+    schema_type: :binary_id,
+    schema_table: :users,
+    test_data_fixture: Pramana.AccountsFixtures,
+    test_setup_helper: :register_and_log_in_user
+  ]
+
 # Configure Mix tasks and generators
 config :pramana,
   ecto_repos: [Pramana.Repo],

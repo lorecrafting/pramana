@@ -43,6 +43,7 @@ defmodule Pramana.CI.ServingPrivileges do
     expect_zero!("""
     SELECT count(*) FROM pg_class
     WHERE relnamespace = 'public'::regnamespace AND
+      relname NOT IN ('users', 'users_tokens') AND
       (current_user <> 'smoke_reviewer' OR relname <> 'reviewer_judgments') AND
       CASE WHEN relkind IN ('r','p','v','m','f') THEN
         (relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
@@ -76,7 +77,9 @@ defmodule Pramana.CI.ServingPrivileges do
           "SELECT * FROM oban_jobs LIMIT 0",
           "UPDATE reviewer_judgments SET rationale = rationale WHERE false",
           "DELETE FROM reviewer_judgments WHERE false",
-          "INSERT INTO reviewer_accounts (id) SELECT NULL::uuid WHERE false",
+          "DELETE FROM users WHERE false",
+          "UPDATE users_tokens SET token = token WHERE false",
+          "INSERT INTO reviewer_grants (id) SELECT NULL::uuid WHERE false",
           "SET ROLE postgres"
         ] do
       denied =
@@ -97,7 +100,7 @@ defmodule Pramana.CI.ServingPrivileges do
     end
 
     if expected_role == "smoke_reader" do
-      for table <- ["reviewer_accounts", "reviewer_grants", "reviewer_judgments"] do
+      for table <- ["reviewer_grants", "reviewer_judgments"] do
         denied = Ecto.Adapters.SQL.query(Repo, "SELECT * FROM #{table} LIMIT 0", [])
 
         expect!(
@@ -107,7 +110,7 @@ defmodule Pramana.CI.ServingPrivileges do
       end
     else
       expect!(
-        query!("SELECT count(*) FROM reviewer_accounts") == [[0]] and
+        query!("SELECT count(*) FROM users") == [[0]] and
           query!("SELECT count(*) FROM reviewer_grants") == [[0]] and
           query!("SELECT count(*) FROM reviewer_judgments") == [[0]],
         "private reviewer cannot read review identity/evidence records"
@@ -137,6 +140,43 @@ defmodule Pramana.CI.ServingPrivileges do
 
       query!("INSERT INTO reviewer_judgments (id) SELECT NULL::uuid WHERE false")
     end
+
+    expect!(
+      query!("SELECT has_table_privilege('users_tokens', 'INSERT')") == [[true]] and
+        query!("SELECT has_table_privilege('users_tokens', 'DELETE')") == [[true]],
+      "serving account cannot create and consume auth tokens"
+    )
+
+    expect_zero!("""
+    SELECT count(*) FROM pg_class
+    WHERE relname IN ('users', 'users_tokens') AND
+      relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+    """)
+
+    expect!(
+      query!(
+        "SELECT has_table_privilege('users_tokens', 'UPDATE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')"
+      ) == [[false]] and
+        query!("SELECT has_any_column_privilege('users_tokens', 'UPDATE,REFERENCES')") ==
+          [[false]] and
+        query!(
+          "SELECT has_table_privilege('users', 'DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')"
+        ) == [[false]],
+      "serving account can alter auth history or identity rows"
+    )
+
+    expect_zero!("""
+    SELECT count(*) FROM pg_attribute
+    WHERE attrelid = 'users'::regclass AND attnum > 0 AND NOT attisdropped
+      AND attname NOT IN ('email', 'hashed_password', 'confirmed_at', 'updated_at')
+      AND has_column_privilege('users', attname, 'UPDATE,REFERENCES')
+    """)
+
+    expect!(
+      query!("SELECT has_table_privilege('users', 'INSERT')") ==
+        [[expected_role == "smoke_reader"]],
+      "private reviewer can create users or public account cannot register"
+    )
 
     IO.puts("SERVING_PRIVILEGES_OK")
   end
