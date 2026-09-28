@@ -1,4 +1,8 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
   <div class="mx-auto max-w-sm">
     <div class="text-center">
       <.header>Welcome {@user.email}</.header>
@@ -8,7 +12,7 @@
       :if={!@user.confirmed_at}
       for={@form}
       id="confirmation_form"
-      action={~p"/users/log-in?_action=confirmed"}
+      action="/users/log-in?_action=confirmed"
       phx-mounted={JS.focus_first()}
     >
       <input type="hidden" name={@form[:token].name} value={@form[:token].value} />
@@ -32,7 +36,7 @@
       :if={@user.confirmed_at}
       for={@form}
       id="login_form"
-      action={~p"/users/log-in"}
+      action="/users/log-in"
       phx-mounted={JS.focus_first()}
     >
       <input type="hidden" name={@form[:token].name} value={@form[:token].value} />

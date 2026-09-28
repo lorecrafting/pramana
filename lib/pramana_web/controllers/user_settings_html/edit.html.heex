@@ -1,4 +1,8 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
   <div class="text-center">
     <.header>
       Account Settings
@@ -6,7 +10,7 @@
     </.header>
   </div>
 
-  <.form :let={f} for={@email_changeset} action={~p"/users/settings"} id="update_email">
+  <.form :let={f} for={@email_changeset} action="/users/settings" id="update_email">
     <input type="hidden" name="action" value="update_email" />
 
     <.input
@@ -23,7 +27,7 @@
 
   <div class="divider" />
 
-  <.form :let={f} for={@password_changeset} action={~p"/users/settings"} id="update_password">
+  <.form :let={f} for={@password_changeset} action="/users/settings" id="update_password">
     <input type="hidden" name="action" value="update_password" />
 
     <.input

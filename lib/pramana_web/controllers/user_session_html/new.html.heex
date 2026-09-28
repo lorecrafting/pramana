@@ -1,4 +1,8 @@
-<Layouts.app flash={@flash} current_scope={@current_scope}>
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
   <div class="mx-auto max-w-sm space-y-4">
     <div class="text-center">
       <.header>
@@ -11,7 +15,7 @@
               Reviewer accounts are provisioned by an operator.
             <% else %>
               Don't have an account? <.link
-                navigate={~p"/users/register"}
+                navigate="/users/register"
                 class="font-semibold text-brand hover:underline"
                 phx-no-format
               >Sign up</.link> for an account now.
@@ -31,7 +35,7 @@
       </div>
     </div>
 
-    <.form :let={f} for={@form} as={:user} id="login_form_magic" action={~p"/users/log-in"}>
+    <.form :let={f} for={@form} as={:user} id="login_form_magic" action="/users/log-in">
       <.input
         readonly={!!@current_scope}
         field={f[:email]}
@@ -49,7 +53,7 @@
 
     <div class="divider">or</div>
 
-    <.form :let={f} for={@form} as={:user} id="login_form_password" action={~p"/users/log-in"}>
+    <.form :let={f} for={@form} as={:user} id="login_form_password" action="/users/log-in">
       <.input
         readonly={!!@current_scope}
         field={f[:email]}

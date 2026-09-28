@@ -31,25 +31,30 @@ defmodule PramanaWeb.Layouts do
     default: nil,
     doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
 
+  attr :private_reviewer, :boolean, default: false
+
   slot :inner_block, required: true
 
   def app(assigns) do
     ~H"""
     <header class="navbar border-b border-base-300 px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
-        <a href={~p"/"} class="flex w-fit items-baseline gap-2">
+        <a
+          href={if @private_reviewer, do: "/users/log-in", else: "/"}
+          class="flex w-fit items-baseline gap-2"
+        >
           <span class="text-lg font-semibold tracking-tight">Pramāṇa</span>
           <span class="hidden text-xs text-base-content/60 sm:inline">
             प्रमाण · valid means of knowledge
           </span>
         </a>
       </div>
-      <div class="flex-none">
+      <div :if={!@private_reviewer} class="flex-none">
         <ul class="flex items-center gap-1 px-1">
-          <li><a href={~p"/"} class="btn btn-ghost btn-sm">Search</a></li>
-          <li><a href={~p"/survey"} class="btn btn-ghost btn-sm">Survey</a></li>
-          <li><a href={~p"/inventory"} class="btn btn-ghost btn-sm">What's here</a></li>
-          <li><a href={~p"/check"} class="btn btn-ghost btn-sm">Check a report</a></li>
+          <li><a href="/" class="btn btn-ghost btn-sm">Search</a></li>
+          <li><a href="/survey" class="btn btn-ghost btn-sm">Survey</a></li>
+          <li><a href="/inventory" class="btn btn-ghost btn-sm">What's here</a></li>
+          <li><a href="/check" class="btn btn-ghost btn-sm">Check a report</a></li>
           <li><.theme_toggle /></li>
         </ul>
       </div>

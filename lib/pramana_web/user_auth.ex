@@ -64,7 +64,7 @@ defmodule PramanaWeb.UserAuth do
     conn
     |> renew_session(nil)
     |> delete_resp_cookie(remember_me_cookie(conn), @remember_me_options)
-    |> redirect(to: ~p"/")
+    |> redirect(to: "/")
   end
 
   @doc """
@@ -203,7 +203,7 @@ defmodule PramanaWeb.UserAuth do
       conn
       |> put_flash(:error, "You must re-authenticate to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: "/users/log-in")
       |> halt()
     end
   end
@@ -221,7 +221,7 @@ defmodule PramanaWeb.UserAuth do
     end
   end
 
-  defp signed_in_path(_conn), do: ~p"/"
+  defp signed_in_path(_conn), do: "/"
 
   @doc """
   Plug for routes that require the user to be authenticated.
@@ -233,7 +233,7 @@ defmodule PramanaWeb.UserAuth do
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: "/users/log-in")
       |> halt()
     end
   end
