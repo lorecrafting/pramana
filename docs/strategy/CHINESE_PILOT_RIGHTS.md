@@ -115,7 +115,7 @@ or other editorial contribution in the public domain.
 
 These tables record the **copyright/licence evidence state**. Product-policy overrides
 follow immediately after them. A `permitted` cell is **necessary but not sufficient for
-execution**: `foundry_g0`, scope, inference authority, execution bounds, evaluation and
+execution**: scope, inference authority, execution bounds, evaluation and
 any other applicable preflight gate remain independent. "External source/rendering text"
 means source or rendering bytes supplied to a cloud/provider model; "external glossary
 text" means DILA entry/definition/equivalence bytes supplied in prompts, context, files or
@@ -198,7 +198,7 @@ copyright cell from being mistaken for runtime authority.
 | historical MITRA English | current model terms do not cure unresolved CBETA input/processing rights | historical existence is not approval | internal historical inspection only; no regeneration, expansion, reader promotion or export for the pilot until cleared |
 
 All other preflight gates still apply. In particular, this table does not admit product
-implementation while `foundry_g0` remains blocked.
+implementation without the remaining reviewed scope, inference and evaluator evidence.
 
 ## Stakeholder/project norms kept separate from copyright
 
@@ -350,8 +350,8 @@ authorize this pilot**:
 For this pilot, this document is the operation-level preflight authority and the source
 registry remains a conservative coarse gate. Do not weaken the registry to make the
 matrix fit. A future implementation may add structured per-resource rights metadata only
-after the pilot requirements are frozen; that is separate product work and remains gated
-behind Foundry G0.
+after the pilot requirements are frozen; that is separate product work under
+Pramāṇa's own preflight and review workflow.
 
 ## Preflight verdict
 

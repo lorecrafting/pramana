@@ -1,19 +1,18 @@
 # Decision register and planning handoff
 
 [Strategy overview](../PRODUCT_STRATEGY.md) · [Candidate initiatives](ROADMAP.md)
-**Status:** D1–D7 and D11–D13 are resolved for the initial pilot; D8 remains open. Foundry's D9–D10 moved to [its strategy](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md#open-decisions). D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md), D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md), and D12 by the frozen [pilot acceptance contract](PILOT_ACCEPTANCE.md). No implementation ticket is admitted before G0.
+**Status:** D1–D7 and D11–D13 are resolved for the initial pilot; D8 remains open. The former Foundry D9–D10 are historical and outside this product. D1–D7 are owned by [the pilot charter](PILOT_CHARTER.md), D11 by the reviewed [Chinese rights boundary](CHINESE_PILOT_RIGHTS.md), and D12 by the frozen [pilot acceptance contract](PILOT_ACCEPTANCE.md). Implementation admission follows G1 and relevant operation-level conditions; participant work requires full Pramāṇa preflight readiness.
 
 ## Authority and decision types
 
-**Constraints** come from the user, accepted repository invariants and Foundry's
-repair/workflow contract. **Recommendations** are this strategy's proposed choices.
+**Constraints** come from the user, accepted repository invariants and the shared
+[repository workflow](../agents/WORKFLOW.md). **Recommendations** are this strategy's proposed choices.
 **Hypotheses** need evidence. **Deferred options** are not commitments. A strategy PR
 approves documentation only; a task admission, spending grant, deployment or change
 to the protected root still requires its applicable authorization.
 
 Do not promote the original notebook's “adopted,” “active,” or “production standard”
-labels to acceptance evidence. Conversely, do not remove agreed autonomous kernel
-repair merely because some untrusted code needs a protected verifier.
+labels to acceptance evidence.
 
 ## Blocking and expansion decisions
 
@@ -24,7 +23,7 @@ repair merely because some untrusted code needs a protected verifier.
 | D3 | **Resolved:** 6–8 partner design, ≥24 eligible tasks with ≥6 per user stratum and ≥6 commentary-eligible tasks, at least two Buddhist-Chinese source evaluators, preregistered trust/task/time/reuse thresholds frozen at first participant task, 40 operator-hour iteration cap, and no new cash spend authorized by the charter | Operator and evaluation owner | Pilot execution |
 | D4 | **Resolved, revised for Chinese pilot:** Chinese witness is authoritative evidence; human English is attributed where available; bounded generated reading translations are allowed for readability but remain labelled, source-bound and non-citable as canonical evidence; answer synthesis is a separate layer | Product owner and rights/partner reviewer | User-facing rendering/provider processing |
 | D5 | **Resolved:** no persistent notebook required; minimal non-content telemetry by default, explicit opt-in study retention, local/user-controlled evidence export, and rights-aware excerpt handling | Product owner and implementation owner | Pilot implementation |
-| D6 | **Resolved:** before G0 only non-operational discovery; after G0 one Pramāṇa product slice plus at most one bounded Foundry improvement; no second-repository pilot during the first user pilot | Operator | H1 execution |
+| D6 | **Revised 2026-09-27:** one Pramāṇa product slice at a time; workflow improvements require a measured bottleneck and separate bounded review, and do not gate the pilot | Operator | H1 execution |
 | D7 | **Resolved:** no exact historical replay promise for the first pilot; carry source/release identity and report explicit drift/unavailability | Product owner and architecture reviewer | I-P2/I-P3 export contract |
 | D8 | Decide which distribution/sustainability option deserves a real pilot; no prices or revenue assumptions are locked | Product owner/operator | Hosting or commercialization |
 | D11 | **Resolved:** pilot data authorization is exact-resource × operation and fail-closed. `permission required` and `unclear / unresolved` do not authorize execution; an external route additionally requires provider-terms, inference-authority and execution-bounds clearance; a local-only route is allowed only for resources whose local-model operation is itself cleared; no failed source silently falls back to another corpus or dictionary | Product owner with rights/source reviewer | Any Chinese-pilot source/model/provider data flow |
@@ -43,9 +42,9 @@ steering, not merely D3 or adoption of provider-neutral docs.
 
 Use this sequence when product implementation becomes eligible:
 
-1. Confirm G0 and read the current repair closure/limitations. Reinspect relevant
-   source and pending work; strategy snapshots cannot prove the live state.
-2. Choose one initiative and state its user outcome. Search PLAN, the repair backlog,
+1. Reinspect the relevant source, pilot preflight and pending work; strategy
+   snapshots cannot prove the live state.
+2. Choose one initiative and state its user outcome. Search PLAN,
    existing PRs and rejected experiments for overlap. Reuse completed capability;
    create only the missing change. Do not renumber or reset the old engineering phases.
 3. Write a short initiative brief: hypothesis, baseline, scope/non-goals, dependencies,
@@ -83,7 +82,7 @@ instructing an unattended model to ignore it.
 
 | Risk | Response / evidence owner |
 |---|---|
-| Foundry consumes all product capacity | Operator enforces bounded improvement trials and reviews net effort saved |
+| Workflow changes consume product capacity | Operator tests them against measured delivery bottlenecks and reviews net effort saved |
 | Users trust a badge beyond what was checked | I-P2's evidence contract and evaluator's adversarial comprehension cases |
 | Narrow pilot lacks sufficient relevant material | D2 task/coverage review; change scope rather than hide missing results |
 | Existing archives or generic tools already satisfy the job | I-P1 comparative observation; stop or redefine differentiation |

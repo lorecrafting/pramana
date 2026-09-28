@@ -29,15 +29,16 @@ For model-assisted changes, [AGENTS.md](../AGENTS.md) routes every provider thro
 | Expose a public service | [Deployment boundary](DEPLOY.md) |
 | Change documentation | [Maintenance](MAINTAINING_DOCS.md) |
 
-## Plan, strategy and Foundry
+## Plan and strategy
 
 The [plan](PLAN.md) lists open work. The [phase record](ROADMAP.md) describes phases, not
-runtime guarantees. [Product strategy](PRODUCT_STRATEGY.md) proposes the post-repair
+runtime guarantees. [Product strategy](PRODUCT_STRATEGY.md) proposes the next product
 direction; its [strategic roadmap](strategy/ROADMAP.md), [decision register](strategy/DECISIONS.md),
 [research register](strategy/RESEARCH.md) and pilot documents inform planning but admit no tickets.
 
-Foundry lives in [lorecrafting/foundry](https://github.com/lorecrafting/foundry). Pramāṇa's one dependency on it, the
-`foundry_g0` pilot gate, is described in [the strategy](PRODUCT_STRATEGY.md#dependency-on-foundry).
+Foundry's earlier plan is historical. Pramāṇa's pilot and agent contribution process
+are independent; use [the preflight](strategy/PILOT_PREFLIGHT.md) and
+[shared workflow](agents/WORKFLOW.md).
 
 ## Research and historical evidence
 

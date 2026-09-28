@@ -29,8 +29,8 @@ reconcile it with current code before dispatching work from it.
 - **Tengyur works with no title** (3,864 of 4,575 named, per the generated figures below).
 - **The Chinese pilot's human gates**: rights clearance, qualified evaluators, participant
   recruitment and D8, per the [pilot charter](strategy/PILOT_CHARTER.md) and
-  [preflight](strategy/PILOT_PREFLIGHT.md). Implementation also waits on
-  [Foundry's G0](PRODUCT_STRATEGY.md#dependency-on-foundry).
+  [preflight](strategy/PILOT_PREFLIGHT.md). G1 and the relevant Pramāṇa conditions
+  govern implementation; the retired Foundry G0 gate no longer blocks it.
 
 ### Engineering
 

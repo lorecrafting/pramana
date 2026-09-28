@@ -515,5 +515,5 @@ pilot-scope materializer:
 accepted release → demand-weighted 14-work seed → typed commentary/subcommentary traversal
 → passage-alignment census → release-bound immutable scope artifact.
 
-That work can be built before G0, but `pilot_scope` must remain blocked until the
+That work can be built now, but `pilot_scope` must remain blocked until the
 materializer actually runs against the accepted live release and the result is reviewed.
