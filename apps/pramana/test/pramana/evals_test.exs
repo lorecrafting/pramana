@@ -510,7 +510,38 @@ defmodule Pramana.EvalsTest do
       assert detail.returned_forbidden != []
     end
 
-    test "an absence case is never stale, because it expects nothing to resolve" do
+    test "an origin filter cannot pass by returning no passages" do
+      kase =
+        gold(%{
+          id: "abs-origin-empty",
+          type: "absence",
+          query: @content,
+          expect_urns: [@urn],
+          quote: @content,
+          expect_origin: ["japanese"],
+          expect_nonempty: true,
+          search_opts: %{"origin" => ["japanese"], "lexical_only" => true}
+        })
+
+      scorecard = Evals.run([kase])
+
+      assert scorecard.overall.misses == 1
+      assert [%{outcome: {:miss, %{expected_nonempty: true, returned: 0}}}] = scorecard.failures
+    end
+
+    test "a missing positive anchor makes the filter case stale" do
+      kase =
+        gold(%{
+          id: "abs-origin-stale",
+          type: "absence",
+          expect_urns: ["pramana:cbeta.T:missing@p0001a01"],
+          expect_nonempty: true
+        })
+
+      assert Evals.run([kase]).overall.stale == 1
+    end
+
+    test "an empty expectation is never stale, because it expects nothing to resolve" do
       kase = gold(%{id: "abs-t3", type: "absence", query: "x", expect_empty: false})
 
       assert Evals.run([kase]).overall.stale == 0
