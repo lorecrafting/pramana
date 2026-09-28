@@ -28,6 +28,7 @@ defmodule PramanaWeb.ReviewerEndpointTest do
     {token, _stored} = AccountsFixtures.generate_user_magic_link_token(user)
     confirm = request(:get, "/users/log-in/#{token}")
     assert confirm.status == 200
+    refute confirm.resp_body =~ "remember_me"
 
     login =
       Plug.Test.conn(
@@ -35,6 +36,7 @@ defmodule PramanaWeb.ReviewerEndpointTest do
         "/users/log-in",
         URI.encode_query(%{
           "user[token]" => token,
+          "user[remember_me]" => "true",
           "_action" => "confirmed",
           "_csrf_token" => field(confirm.resp_body, "_csrf_token")
         })
@@ -44,6 +46,11 @@ defmodule PramanaWeb.ReviewerEndpointTest do
       |> ReviewerEndpoint.call([])
 
     assert login.status == 302
+    refute login.resp_cookies["_pramana_reviewer_user_remember_me"]
+
+    assert %{secure: true, same_site: "Strict", max_age: 28_800} =
+             login.resp_cookies["_pramana_reviewer"]
+
     assert request(:get, "/", login).status == 403
     confirmed = Accounts.get_user!(user.id)
     refute is_nil(confirmed.confirmed_at)
@@ -86,6 +93,22 @@ defmodule PramanaWeb.ReviewerEndpointTest do
     assert request(:get, "/", public_session).status == 302
   end
 
+  test "private endpoint ignores a legacy persistent reviewer bearer cookie" do
+    user = AccountsFixtures.user_fixture()
+    assert {:ok, _} = ReviewerAccess.grant_scope(user.email, @scope, "operator-1")
+    token = Accounts.generate_user_session_token(user)
+    cookie_name = "_pramana_reviewer_user_remember_me"
+
+    signed_cookie =
+      Plug.Test.conn(:get, "/")
+      |> Map.replace!(:secret_key_base, ReviewerEndpoint.config(:secret_key_base))
+      |> Plug.Conn.put_resp_cookie(cookie_name, token, sign: true)
+      |> then(& &1.resp_cookies[cookie_name].value)
+
+    conn = Plug.Test.conn(:get, "/") |> Plug.Test.put_req_cookie(cookie_name, signed_cookie)
+    assert ReviewerEndpoint.call(conn, []).status == 302
+  end
+
   test "private login sends a magic link back to the private origin" do
     user = AccountsFixtures.user_fixture()
     assert_email_sent()
@@ -109,6 +132,27 @@ defmodule PramanaWeb.ReviewerEndpointTest do
     assert_email_sent(fn email ->
       email.text_body =~ "https://review.example/users/log-in/"
     end)
+  end
+
+  test "malformed private magic link POST shows an invalid-link response" do
+    page = request(:get, "/users/log-in")
+    refute page.resp_body =~ "remember_me"
+
+    response =
+      Plug.Test.conn(
+        :post,
+        "/users/log-in",
+        URI.encode_query(%{
+          "user[token]" => "!!!",
+          "_csrf_token" => field(page.resp_body, "_csrf_token")
+        })
+      )
+      |> Plug.Conn.put_req_header("content-type", "application/x-www-form-urlencoded")
+      |> Plug.Test.recycle_cookies(page)
+      |> ReviewerEndpoint.call([])
+
+    assert response.status == 200
+    assert response.resp_body =~ "The link is invalid or it has expired."
   end
 
   defp request(method, path, cookies_or_params \\ nil) do

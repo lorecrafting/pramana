@@ -205,12 +205,10 @@ defmodule PramanaWeb.UserSessionControllerTest do
     end
 
     test "emits error message when magic link is invalid", %{conn: conn} do
-      conn =
-        post(conn, ~p"/users/log-in", %{
-          "user" => %{"token" => "invalid"}
-        })
-
-      assert html_response(conn, 200) =~ "The link is invalid or it has expired."
+      for token <- ["invalid", "!!!"] do
+        response = post(conn, ~p"/users/log-in", %{"user" => %{"token" => token}})
+        assert html_response(response, 200) =~ "The link is invalid or it has expired."
+      end
     end
   end
 

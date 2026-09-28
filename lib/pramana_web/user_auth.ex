@@ -84,6 +84,10 @@ defmodule PramanaWeb.UserAuth do
     end
   end
 
+  defp ensure_user_token(%{private: %{phoenix_endpoint: PramanaWeb.ReviewerEndpoint}} = conn) do
+    if token = get_session(conn, :user_token), do: {token, conn}
+  end
+
   defp ensure_user_token(conn) do
     if token = get_session(conn, :user_token) do
       {token, conn}
@@ -157,6 +161,14 @@ defmodule PramanaWeb.UserAuth do
     |> configure_session(renew: true)
     |> clear_session()
   end
+
+  defp maybe_write_remember_me_cookie(
+         %{private: %{phoenix_endpoint: PramanaWeb.ReviewerEndpoint}} = conn,
+         _token,
+         _params,
+         _remember_me
+       ),
+       do: conn
 
   defp maybe_write_remember_me_cookie(conn, token, %{"remember_me" => "true"}, _),
     do: write_remember_me_cookie(conn, token)

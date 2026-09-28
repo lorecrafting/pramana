@@ -149,9 +149,15 @@ SELECT format('GRANT SELECT ON TABLE %I.%I TO {READER}', schemaname, tablename)
 FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename NOT LIKE 'reviewer_%' AND tablename <> 'schema_migrations'
 \\gexec
-GRANT INSERT ON users TO {READER};
-GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON users TO {READER};
-GRANT INSERT,DELETE ON users_tokens TO {READER};
+SELECT format('GRANT INSERT ON %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users'
+\\gexec
+SELECT format('GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users'
+\\gexec
+SELECT format('GRANT INSERT,DELETE ON %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users_tokens'
+\\gexec
 """)
         self.sql("forbidden", f"""
 GRANT CONNECT ON DATABASE forbidden TO {REVIEWER};
@@ -161,8 +167,12 @@ FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename <> 'schema_migrations'
 \\gexec
 GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
-GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON users TO {REVIEWER};
-GRANT INSERT,DELETE ON users_tokens TO {REVIEWER};
+SELECT format('GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON %I.%I TO {REVIEWER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users'
+\\gexec
+SELECT format('GRANT INSERT,DELETE ON %I.%I TO {REVIEWER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users_tokens'
+\\gexec
 """)
         self.sql("audit_denied", f"REVOKE SELECT ON sources FROM {READER};")
 
