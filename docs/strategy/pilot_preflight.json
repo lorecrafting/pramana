@@ -6,8 +6,9 @@
     {
       "id": "pilot_scope",
       "state": "blocked",
-      "reason": "The deterministic scope materializer and append-only derivation receipt verifier are implemented, but no accepted live pilot release has yet produced reviewed clean/current full derivation receipts plus a reviewed stable scope artifact. Exact seed IDs, expanded work IDs, alignment coverage, release identity and denominators therefore remain unaccepted.",
+      "reason": "The local repaired CBETA candidate now has four clean/current full derivation receipts and two byte-identical scope materializations. Its 14 seeds, 40 expanded works, 26 admitted edges and three flagged review cases still need source-link, expanded-work and operation-level rights review. The release and scope remain unaccepted.",
       "evidence": [
+        "docs/PLAN.md",
         "docs/strategy/PILOT_SCOPE.md",
         "docs/strategy/PILOT_DERIVATIONS.md",
         "docs/strategy/PILOT_PREFLIGHT.md"
@@ -16,7 +17,7 @@
     {
       "id": "cbeta_rights",
       "state": "blocked",
-      "reason": "CBETA Category A/non-commercial baseline is recorded, but the complete live expanded pilot scope is not frozen and embedding, generated-translation, local-model and external-provider processing of CBETA bytes remain unresolved. Treat those operations as permission-required until exact clearance is recorded.",
+      "reason": "CBETA Category A/non-commercial baseline is recorded, but the stable local expanded scope has not been rights-reviewed or accepted, and embedding, generated-translation, local-model and external-provider processing of CBETA bytes remain unresolved. Treat those operations as permission-required until exact clearance is recorded.",
       "evidence": [
         "docs/strategy/CHINESE_PILOT_RIGHTS.md",
         "docs/strategy/PILOT_PREFLIGHT.md",
