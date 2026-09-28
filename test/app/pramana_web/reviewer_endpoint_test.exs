@@ -33,10 +33,10 @@ defmodule PramanaWeb.ReviewerEndpointTest do
     assert conn.status == 200
     assert conn.resp_body =~ "silent principal"
     assert conn.resp_body =~ @scope
+    assert request(:get, "/", %{session | "expires_at" => 0}).status == 302
 
     assert :ok = ReviewerAccess.revoke_scope("reviewer.web", @scope, "operator-1")
     assert request(:get, "/", session).status == 302
-    assert request(:get, "/", %{session | "expires_at" => 0}).status == 302
   end
 
   test "a provisioned credential opens a signed browser session" do

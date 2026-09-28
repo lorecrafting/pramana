@@ -9,7 +9,6 @@ defmodule Pramana.ReviewerAccess do
 
   import Ecto.Query
 
-  alias Ecto.Multi
   alias Pramana.Repo
   alias Pramana.Reviewer.Account
   alias Pramana.Reviewer.Grant
@@ -34,19 +33,28 @@ defmodule Pramana.ReviewerAccess do
       })
 
     if Regex.match?(@scope_pattern, scope_sha256) do
-      Multi.new()
-      |> Multi.insert(:account, account)
-      |> Multi.insert(:grant, fn %{account: inserted} ->
-        Grant.changeset(%Grant{}, %{
-          account_id: inserted.id,
-          scope_sha256: scope_sha256,
-          granted_by: String.trim(granted_by)
-        })
+      Repo.transaction(fn ->
+        case Repo.insert(account) do
+          {:ok, inserted} ->
+            grant =
+              Grant.changeset(%Grant{}, %{
+                account_id: inserted.id,
+                scope_sha256: scope_sha256,
+                granted_by: String.trim(granted_by)
+              })
+
+            case Repo.insert(grant) do
+              {:ok, _grant} -> inserted
+              {:error, reason} -> Repo.rollback(reason)
+            end
+
+          {:error, reason} ->
+            Repo.rollback(reason)
+        end
       end)
-      |> Repo.transaction()
       |> case do
-        {:ok, %{account: inserted}} -> {:ok, inserted, credential}
-        {:error, _step, changeset, _changes} -> {:error, changeset}
+        {:ok, inserted} -> {:ok, inserted, credential}
+        {:error, reason} -> {:error, reason}
       end
     else
       {:error, :invalid_scope}
@@ -101,14 +109,16 @@ defmodule Pramana.ReviewerAccess do
 
   @doc "Operator action: disable an account and invalidate every signed session."
   def disable_account(login_id) when is_binary(login_id) do
-    case Repo.get_by(Account, login_id: normalize_login(login_id)) do
-      %Account{} = account ->
-        account
-        |> Ecto.Changeset.change(active: false, session_epoch: account.session_epoch + 1)
-        |> Repo.update()
+    {count, accounts} =
+      from(a in Account, where: a.login_id == ^normalize_login(login_id), select: a)
+      |> Repo.update_all(
+        set: [active: false, updated_at: DateTime.utc_now()],
+        inc: [session_epoch: 1]
+      )
 
-      nil ->
-        {:error, :not_found}
+    case {count, accounts} do
+      {1, [account]} -> {:ok, account}
+      _ -> {:error, :not_found}
     end
   end
 
@@ -116,23 +126,21 @@ defmodule Pramana.ReviewerAccess do
 
   @doc "Operator action: replace a credential and invalidate earlier sessions."
   def rotate_credential(login_id) when is_binary(login_id) do
-    case Repo.get_by(Account, login_id: normalize_login(login_id)) do
-      %Account{active: true} = account ->
-        credential = new_credential()
+    credential = new_credential()
 
-        account
-        |> Ecto.Changeset.change(
-          credential_digest: digest(credential),
-          session_epoch: account.session_epoch + 1
-        )
-        |> Repo.update()
-        |> case do
-          {:ok, updated} -> {:ok, updated, credential}
-          error -> error
-        end
+    {count, accounts} =
+      from(a in Account,
+        where: a.login_id == ^normalize_login(login_id) and a.active,
+        select: a
+      )
+      |> Repo.update_all(
+        set: [credential_digest: digest(credential), updated_at: DateTime.utc_now()],
+        inc: [session_epoch: 1]
+      )
 
-      _ ->
-        {:error, :not_found}
+    case {count, accounts} do
+      {1, [account]} -> {:ok, account, credential}
+      _ -> {:error, :not_found}
     end
   end
 

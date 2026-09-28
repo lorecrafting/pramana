@@ -35,9 +35,15 @@ defmodule Pramana.ReviewerAccessTest do
     assert :error = ReviewerAccess.session_account(account.id, 0)
     assert {:ok, ^rotated} = ReviewerAccess.authenticate("reviewer.two", replacement)
 
+    assert {:ok, twice_rotated, _next_credential} =
+             ReviewerAccess.rotate_credential("reviewer.two")
+
+    assert twice_rotated.session_epoch == 2
+    assert :error = ReviewerAccess.session_account(account.id, 1)
+
     assert {:ok, disabled} = ReviewerAccess.disable_account("reviewer.two")
     refute disabled.active
     assert :error = ReviewerAccess.authenticate("reviewer.two", replacement)
-    assert :error = ReviewerAccess.session_account(account.id, 1)
+    assert :error = ReviewerAccess.session_account(account.id, 2)
   end
 end
