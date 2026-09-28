@@ -77,7 +77,7 @@ mandatory graph build for every task or permission to skip tests. CI publishes
 revision-labelled application reports; missing edges do not establish no impact.
 
 Use `ast-grep --lang elixir -p '<pattern>' --json` for syntax searches and native
-`mix xref callers <Module>` in each relevant app for compiler-resolved callers. Plain
+`mix xref callers <Module>` from the repository root for compiler-resolved callers. Plain
 text search remains appropriate for prose, literals and configuration.
 
 ## Validate and report

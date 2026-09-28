@@ -8,16 +8,17 @@ a live CI result. The [shared workflow](WORKFLOW.md) now uses LokaCore's role lo
 ## What exists here
 
 Pramāṇa CI already runs forced warnings-as-errors compilation, formatting, full
-Credo, tests and a release build. Its [xref collector](../../.github/workflows/ci.yml)
-exports revision-labelled graphs for each umbrella app; the
+Credo, tests and a release build. At the audited revision, its
+[xref collector](../../.github/workflows/ci.yml) exported revision-labelled graphs
+for each umbrella app; the
 [dependency review runbook](DEPENDENCY_REVIEW.md) uses `mix xref callers` and scoped
 graphs. [Documentation CI](../../.github/workflows/docs.yml) runs the dependency-free
 documentation, pilot-contract and convention checks. The
-[architecture tests](../../apps/pramana/test/architecture/boundaries_test.exs) guard
+[architecture tests](../../test/app/architecture/boundaries_test.exs) guard
 web database access and sidecar imports, among other project-specific behaviors.
 
 The local `MIX_ENV=test mix compile --force --warnings-as-errors` passed. A fresh
-per-app `mix xref graph --no-compile` then found:
+per-app `mix xref graph --no-compile` then found at that revision:
 
 | App | Cycles | Compile-connected edges |
 |---|---:|---:|
@@ -36,7 +37,7 @@ threshold after the relevant cycle or compile edge has been assessed and removed
 | LokaCore practice | Decision for Pramāṇa |
 |---|---|
 | PM brief, developer self-review, fresh independent reviewer, fix and scoped re-review | Adopted in [the shared workflow](WORKFLOW.md), without model-specific roles or mandatory review files. |
-| `mix xref callers` and graph inspection | Already present; explicitly routed from the workflow. Graphs are per app and do not prove runtime-selected dependencies. |
+| `mix xref callers` and graph inspection | Already present; explicitly routed from the workflow. The recorded per-app graphs do not prove runtime-selected dependencies. |
 | `ast-grep` syntax search and tested lint rules | Adopt syntax search in the workflow. Add a CI rule only for a new, specific invariant with a positive case and a red control. Current architecture tests already cover the obvious web/sidecar rules. |
 | `Boundary` strict compiler | Defer. The [app-level map](../REPO_MAP.md) already exists, and architecture tests check parts of it. A stricter public-module map needs a reviewed interface, not a declaration of every call made today. |
 | Sourceror | No LokaCore check uses it. It is an Elixir AST editing library, not a quality gate; no source rewrite here needs it. |
