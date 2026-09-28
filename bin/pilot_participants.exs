@@ -3,7 +3,8 @@ defmodule Pramana.PilotParticipants do
 
   @schema "pramana-pilot-participants/v1"
   @pilot_id "chinese-commentary-v1"
-  @revision 1
+  @revision 2
+  @revision_note "2026-09-27 before recruitment: record and count supported commentary understanding separately from correct refusals"
   @status "frozen_pre_recruitment"
 
   @required_disclosures ~w(
@@ -59,6 +60,9 @@ defmodule Pramana.PilotParticipants do
     time_to_useful_evidence_ms
     commentary_eligible
     commentary_opened
+    scope_supported_by_qualified_review
+    participant_commentary_clarified_or_corrected
+    evaluator_commentary_faithful
     evidence_packet_trace_result
     comprehension_check
     consent_receipt_id
@@ -98,6 +102,7 @@ defmodule Pramana.PilotParticipants do
     schema
     pilot_id
     protocol_revision
+    revision_note
     status
     collection_mode
     identifiers
@@ -198,6 +203,7 @@ defmodule Pramana.PilotParticipants do
       manifest["protocol_revision"] != @revision,
       "protocol_revision must be #{@revision}"
     )
+    |> add_if(manifest["revision_note"] != @revision_note, "revision note changed")
     |> add_if(manifest["status"] != @status, "status must be #{@status}")
     |> add_if(
       manifest["collection_mode"] != "consent_required_for_measured_participant_record",
@@ -501,6 +507,12 @@ defmodule Pramana.PilotParticipants do
       value["minimum_commentary_eligible_tasks_after_exclusions"] != 6,
       "commentary-eligible task floor must be 6"
     )
+    |> add_if(
+      value["minimum_supported_commentary_eligible_tasks_after_exclusions"] != 6,
+      "supported commentary-eligible task floor must be 6"
+    )
+    |> require_true(value, "supported_commentary_denominator_includes_unopened_and_failed_attempts")
+    |> require_true(value, "correct_scoped_refusals_do_not_satisfy_commentary_floor")
     |> require_true(value, "replenish_after_withdrawal_or_exclusion")
   end
 

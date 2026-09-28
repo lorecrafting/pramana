@@ -10,8 +10,10 @@ Where they disagree, [STATUS](STATUS.md) is the evidence and this is the intent.
 > **finishing** an item (delete it; Git keeps it), **discovering** work (add it with its
 > evidence), and **invalidating** an assumption (correct it and say why).
 
-Last reviewed: **2026-09-24**, when the dated session logs, completed-PR records and closed
-queues were cut from this file. They remain readable in [the full plan as of that date](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#plan)
+Last reviewed: **2026-09-27**, when the Chinese pilot's remaining human and execution gates
+were reconciled with the approved charter and completed scope tooling. The dated session
+logs, completed-PR records and closed queues were cut on **2026-09-24**. They remain
+readable in [the full plan as of 2026-09-24](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#plan)
 and in Git history. A pointer below into that copy is dated evidence, not a fresh instruction:
 reconcile it with current code before dispatching work from it.
 
@@ -27,10 +29,17 @@ reconcile it with current code before dispatching work from it.
   [Queue item 13](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#the-queue-in-order).
 - **SAT / Taishō 56–84.** Sent 2026-08-15; the follow-up is overdue. See [Blocked](#blocked).
 - **Tengyur works with no title** (3,864 of 4,575 named, per the generated figures below).
-- **The Chinese pilot's human gates**: rights clearance, qualified evaluators, participant
-  recruitment and D8, per the [pilot charter](strategy/PILOT_CHARTER.md) and
+- **The Chinese pilot's human gates**: live scope acceptance, rights clearance, two
+  qualified Buddhist-Chinese evaluators and participant recruitment, per the
+  [pilot charter](strategy/PILOT_CHARTER.md) and
   [preflight](strategy/PILOT_PREFLIGHT.md). G1 and the relevant Pramāṇa conditions
   govern implementation; the retired Foundry G0 gate no longer blocks it.
+- **Select the Chinese pilot inference route.** Compare a capable external route and a
+  local route on the same frozen source-bound reading sample, terminology and qualified
+  evaluator rubric; record fidelity by text role, latency, cost and exact processing
+  permissions, then select the pilot route before the reading/synthesis slice.
+  Comparison is planning, not
+  authorization to send source or participant content to an external provider.
 
 ### Engineering
 
@@ -57,8 +66,9 @@ reconcile it with current code before dispatching work from it.
   [§ G](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#g-tibetan-recall--24-cases-unreachable); Tibetan misses are absent from 200 candidates, a recall problem.
 - **Public demo.** [§ E](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#e-public-demo--newly-unblocked); now bounded by the
   [deployment boundary](DEPLOY.md).
-- **Hosting hardening deferred from #19–#23**: global/multi-session admission control and
-  queue expiry. Reader translation defaults wait on strategy decision D4.
+- **Hosting hardening deferred from #19–#23**: queue expiry and any admission controls
+  beyond the node-local report-check quota shipped in #27. D4 is resolved; pilot
+  translation behavior waits on the selected, authorized inference route.
 - **The feedback loop** proposal, [§ A6](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#a6-the-feedback-loop--signals-limits-and-the-ways-it-degrades--proposed-2026-08-28), unstarted.
 - **Surviving Sanskrit witnesses**, [S1](#s1-the-surviving-sanskrit-witnesses--scoped-2026-09-02-not-started) below.
 

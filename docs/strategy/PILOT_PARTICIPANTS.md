@@ -4,6 +4,10 @@
 **Decision date:** 2026-09-17
 **Pilot:** `chinese-commentary-v1`
 **Machine-readable companion:** [`pilot_participants.json`](pilot_participants.json)
+**Protocol revision 2 (2026-09-27, before recruitment):** the supported-commentary
+understanding floor now has explicit participant/evaluator observations and a denominator
+that retains unopened commentary and failed attempts. No participant record exists under
+revision 1.
 
 [Pilot charter](PILOT_CHARTER.md) · [pilot acceptance](PILOT_ACCEPTANCE.md) ·
 [pilot preflight](PILOT_PREFLIGHT.md) · [validation](VALIDATION.md)
@@ -171,6 +175,9 @@ Each retained measured task records:
 - outcome state and failure category;
 - time to useful evidence;
 - whether the task was commentary-eligible and whether commentary was opened;
+- whether qualified review found the question supported in the frozen scope;
+- whether the participant reported that commentary clarified or corrected understanding;
+- the qualified evaluator's separate commentary-faithfulness judgment;
 - evidence-packet traceability result;
 - comprehension-check result; and
 - the consent-receipt ID.
@@ -376,6 +383,13 @@ criteria for useful source-backed evidence, source-role honesty and comprehensio
 A retrieval miss on a question later confirmed to have adequate in-scope evidence is a
 failure. It may not be reclassified as "out of scope" after seeing the system fail.
 
+For the charter's commentary-understanding floor, count every eligible attempt later
+confirmed to be supported and commentary-eligible in the frozen scope. At least six such
+attempts are required after exclusions. Commentary left unopened, retrieval misses,
+technical failures and abandonment remain in that denominator. Count a success for this
+floor only when the participant reports clarification or correction and independent
+qualified review confirms faithful commentary representation.
+
 ### Success on a genuinely unsupported/out-of-scope question
 
 A natural unsupported question may count as a successful task **only** when qualified
@@ -509,11 +523,7 @@ No real participant data is needed to validate this protocol.
 
 ## Next independent handoff
 
-Once this protocol is accepted, the strongest next technical preparation remains the exact
-pilot-scope materializer:
-
-accepted release → demand-weighted 14-work seed → typed commentary/subcommentary traversal
-→ passage-alignment census → release-bound immutable scope artifact.
-
-That work can be built now, but `pilot_scope` must remain blocked until the
-materializer actually runs against the accepted live release and the result is reviewed.
+The scope materializer and derivation receipt checks have been implemented. The next
+handoff is to run them against the accepted live release, review the resulting scope and
+rights coverage, and record acceptance. `pilot_scope` remains blocked until that live
+artifact and its current receipts are accepted.

@@ -195,6 +195,9 @@ A qualified source evaluator reviews every pilot task for source identity/role e
 query-expansion errors, generated-reading-translation errors and substantive claim support;
 ordinary participants' comprehension is measured separately from evaluator agreement.
 
+The supported-commentary floor was added on 2026-09-27, before any participant task,
+to make improved commentary understanding the primary continuation signal. Its
+participant and evaluator observations are recorded separately in the task record.
 These numerical floors are preregistered feasibility choices, not established industry
 benchmarks. They may be revised while the pilot is still in planning, but once the first
 participant task begins, changing a threshold requires declaring the original pilot
@@ -210,6 +213,13 @@ For this feasibility pilot:
   commentary relation in the acceptance cases;
 - **task success:** at least 75% of eligible tasks overall and at least 60% in each of the
   three user strata;
+- **supported commentary value:** at least six eligible attempts must be confirmed
+  supported and commentary-eligible in the frozen scope; at least 80% of those attempts
+  (at least five of six at the minimum) produce a useful source-backed answer for which the
+  participant reports that commentary clarified or corrected their understanding and
+  a qualified evaluator confirms the commentary was represented faithfully. Correct
+  scoped refusals are reported separately and do not satisfy this floor. Commentary left
+  unopened, retrieval misses, technical failures and abandonment remain in its denominator;
 - **source comprehension:** at least 80% of participants can correctly distinguish, on a
   short post-task check, Chinese source text from generated/human translation, commentary
   from root/treatise, and generated synthesis from textual evidence;

@@ -8,7 +8,7 @@ defmodule Strategy.PilotParticipantsTest do
     manifest = Pramana.PilotParticipants.load_manifest!(@manifest)
 
     assert :ok = Pramana.PilotParticipants.validate(manifest, @root)
-    assert Pramana.PilotParticipants.revision(manifest) == 1
+    assert Pramana.PilotParticipants.revision(manifest) == 2
     assert Pramana.PilotParticipants.status(manifest) == "frozen_pre_recruitment"
   end
 
@@ -52,6 +52,15 @@ defmodule Strategy.PilotParticipantsTest do
     assert denominator["minimum_eligible_tasks_after_exclusions"] == 24
     assert denominator["minimum_eligible_tasks_per_stratum_after_exclusions"] == 6
     assert denominator["minimum_commentary_eligible_tasks_after_exclusions"] == 6
+    assert denominator["minimum_supported_commentary_eligible_tasks_after_exclusions"] == 6
+
+    missing_observation =
+      update_in(manifest, ["study_record", "required_fields"], fn fields ->
+        List.delete(fields, "participant_commentary_clarified_or_corrected")
+      end)
+
+    assert {:error, errors} = Pramana.PilotParticipants.validate(missing_observation, @root)
+    assert Enum.any?(errors, &String.contains?(&1, "study_record.required_fields"))
 
     for outcome <- ["failure_retrieval_miss", "failure_timeout", "failure_technical"] do
       assert outcome in denominator["included_outcomes"]
@@ -163,7 +172,7 @@ defmodule Strategy.PilotParticipantsTest do
       )
 
     assert validated =~
-             "pilot participant protocol valid; revision=1; status=frozen_pre_recruitment"
+             "pilot participant protocol valid; revision=2; status=frozen_pre_recruitment"
 
     {usage, 2} =
       System.cmd("elixir", ["bin/check_pilot_participants.exs"],

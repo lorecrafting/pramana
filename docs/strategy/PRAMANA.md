@@ -119,10 +119,11 @@ can be cited correctly while the speaker's claim remains contested.
 Prefer clearly attributed human renderings in the pilot. Human authorship alone
 does not imply peer review, agreement or flawless translation. Keep source text,
 human renderings, machine aids and user notes separate in both display and storage.
-A generated search gloss may help discovery without becoming publishable scripture
-or an approved reading translation. Initial partner deployments should be able to
-operate without generated reading aids; any later opt-in needs explicit labeling
-and the partner's rules. [Translation](../TRANSLATION.md) distinguishes implemented
+A generated search gloss may help discovery without becoming publishable scripture.
+For the Chinese pilot, bounded generated reading translation supplies readability where
+no cleared human English rendering exists, subject to rights, route-specific permission,
+source binding and visible labeling under D4. It is not canonical evidence.
+[Translation](../TRANSLATION.md) distinguishes implemented
 behavior from proposed purpose-based controls.
 
 Source licensing, display, export, model processing and hosting permissions must
