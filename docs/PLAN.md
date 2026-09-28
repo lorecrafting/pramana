@@ -34,11 +34,18 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
-- **Restamp the release.** `mix pramana.doctor` reports the selected release STALE
-  (`identity_version` v1/coarse → v2) on 2026-09-24, so responses name a release that is not
-  the loaded one. `mix pramana.release.stamp`, then re-run the doctor.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
-  hybrid returns semantic neighbours for a doctrine no text discusses.
+  hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live
+  probe over 499 search gold cases found that suppressing semantic-only weak matches would
+  affect `abs-001` and `abs-002`, but no retrieval or topical case. `abs-002` checks origin,
+  not relevance, and its cited work X0967 currently has no composition-origin label, so
+  this does not establish safe refusal. Keep the warning; establish human-verified
+  answerable and unanswerable near-misses under the same filters before a suppression rule.
+- **Review Japanese composition labels in CBETA X.** On 2026-09-27 `mix pramana.doctor`
+  reports 23 Japanese-composed works, while the older absence-case source says 145.
+  X0967 contains 唱題 but has `composition_origin` NULL, so `origin: japanese` excludes it.
+  Check the edition's attribution before changing classification, then revisit that gold
+  case's premise.
 - **`topical/chinese` and Tibetan recall.** [§ F](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#f-topicalchinese-is-still-0--now-measured-over-496-cases-rather-than-12) and
   [§ G](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#g-tibetan-recall--24-cases-unreachable); Tibetan misses are absent from 200 candidates, a recall problem.
 - **Public demo.** [§ E](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#e-public-demo--newly-unblocked); now bounded by the

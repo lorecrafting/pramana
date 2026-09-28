@@ -173,7 +173,8 @@ defmodule Pramana.Evals do
 
   # A case's premises: the URNs it expects must exist, and quoted text must really be
   # there. Checked against the corpus, not against the harness's memory of it.
-  defp stale_reason(%Case{type: :absence}), do: nil
+  # Only nonempty absence cases have a positive anchor to recheck below.
+  defp stale_reason(%Case{type: :absence, expect_nonempty: false}), do: nil
 
   # A topical case is stale when its locator term has left the corpus entirely — then it
   # is not a question this bake can be asked, and scoring it as a miss would blame the
@@ -364,6 +365,7 @@ defmodule Pramana.Evals do
     cond do
       forbidden != [] -> {:miss, %{returned_forbidden: Enum.map(forbidden, & &1.urn)}}
       leaked != [] -> {:miss, %{filter_leaked: Enum.take(leaked, 5)}}
+      kase.expect_nonempty and hits == [] -> {:miss, %{expected_nonempty: true, returned: 0}}
       kase.expect_empty and hits != [] -> {:miss, %{expected_empty: length(hits)}}
       true -> {:hit, %{returned: length(hits)}}
     end
