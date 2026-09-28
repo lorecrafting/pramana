@@ -4,9 +4,10 @@ A green result only establishes what that check exercised. Run every command fro
 repository root. Never start paid inference
 or a public deployment merely to validate a documentation change.
 
-For a fast local pass on code and documentation, run `mix format --check-formatted`,
+For a fast local pass on code changes, run `mix format --check-formatted`,
 `MIX_ENV=test mix compile --warnings-as-errors`, `MIX_ENV=test mix credo --strict`
-and `elixir bin/check_docs.exs`. These do not replace the database-backed tests or
+and `elixir bin/check_docs.exs`. Documentation-only changes need the documentation
+check in the table below. These do not replace the database-backed tests or
 corpus gate below. Use [the dependency review runbook](agents/DEPENDENCY_REVIEW.md)
 for targeted `mix xref` questions. The [2026-09-27 quality-check audit](agents/QUALITY_CHECK_AUDIT.md)
 records which LokaCore checks fit this repository and which already exist here.
