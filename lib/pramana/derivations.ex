@@ -34,7 +34,7 @@ defmodule Pramana.Derivations do
   @versions %{
     "quotations_scan" => "quotations_scan/v1",
     "relations_title" => "relations_title/v2",
-    "relations_shared_text" => "relations_shared_text/v1",
+    "relations_shared_text" => "relations_shared_text/v2",
     "commentary_align" => "commentary_align/v1"
   }
 
