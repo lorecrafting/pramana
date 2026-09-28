@@ -176,7 +176,9 @@ defmodule Pramana.Relations do
         target_urn: r.target_urn,
         confidence: r.confidence,
         method: r.method,
-        evidence: r.evidence
+        evidence: r.evidence,
+        review_status: r.review_status,
+        review_reason: r.review_reason
       }
     )
     |> Repo.all()
@@ -190,7 +192,7 @@ defmodule Pramana.Relations do
     from(r in WorkRelation,
       left_join: w in Work,
       on: w.id == r.target_work_id,
-      where: r.source_work_id == ^work_id,
+      where: r.source_work_id == ^work_id and r.relation in ^@upward,
       select: %{
         work_id: r.target_work_id,
         # A target outside the corpus keeps its manifest reference rather than vanishing.
@@ -200,7 +202,10 @@ defmodule Pramana.Relations do
         text_role: w.text_role,
         relation: r.relation,
         confidence: r.confidence,
-        method: r.method
+        method: r.method,
+        evidence: r.evidence,
+        review_status: r.review_status,
+        review_reason: r.review_reason
       }
     )
     |> Repo.all()

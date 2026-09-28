@@ -85,6 +85,13 @@ parallel we cannot show still tells a reader it exists.
 the person it resolves to: dates as the span of a life, sect, birthplace with its
 **historical** region (西域, not 新疆維吾爾自治區), and recorded teachers and students.
 
+**A work's page also lists commentary links in both directions.** Each assertion names
+its method and confidence. A `Needs review` badge and reason are shown for a link whose
+source or edition identity is still disputed. The link remains browsable; the badge is
+not a verdict that the relation is false, and absence of a badge is not verification.
+The passage page repeats the badge beside an affected gloss and links to the work page
+for the relation details.
+
 Two refusals carry over from `Pramana.Authority` and both are visible rather than
 documented:
 

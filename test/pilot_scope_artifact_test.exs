@@ -13,7 +13,7 @@ defmodule Strategy.PilotScopeArtifactTest do
     assert encoded == ScopeArtifact.encode(ScopeArtifact.decode!(encoded))
   end
 
-  test "v1 artifacts are not silently reinterpreted as the v2 contract" do
+  test "older artifacts are not silently reinterpreted as the v3 contract" do
     artifact =
       valid_artifact()
       |> Map.put("schema", "pramana-pilot-scope/v1")
@@ -23,7 +23,7 @@ defmodule Strategy.PilotScopeArtifactTest do
       Map.put(artifact, "scope_content_sha256", ScopeArtifact.digest(artifact))
 
     assert {:error, errors} = ScopeArtifact.validate(artifact)
-    assert "schema must be pramana-pilot-scope/v2" in errors
+    assert "schema must be pramana-pilot-scope/v3" in errors
   end
 
   test "content hash detects semantic drift" do
@@ -67,6 +67,22 @@ defmodule Strategy.PilotScopeArtifactTest do
 
     assert {:error, errors} = ScopeArtifact.validate(changed)
     assert "has_passage_alignment must match alignment_rows" in errors
+  end
+
+  test "a review warning cannot lose its reason while retaining a valid hash" do
+    artifact = valid_artifact()
+
+    changed =
+      put_in(
+        artifact,
+        ["relations", Access.at(0), "assertions", Access.at(0), "review_status"],
+        "needs_review"
+      )
+      |> Map.delete("scope_content_sha256")
+      |> ScopeArtifact.finalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(changed)
+    assert "scope relation review status/reason is invalid" in errors
   end
 
   test "rehashed artifact cannot lie about ranking, seed or ancestry relationships" do
@@ -233,7 +249,9 @@ defmodule Strategy.PilotScopeArtifactTest do
           "scope" => "whole_work",
           "target_urn" => nil,
           "evidence" => %{"fixture" => true},
-          "evidence_sha256" => ScopeArtifact.digest(%{"fixture" => true})
+          "evidence_sha256" => ScopeArtifact.digest(%{"fixture" => true}),
+          "review_status" => "unflagged",
+          "review_reason" => nil
         }
       ]
     }
@@ -286,6 +304,7 @@ defmodule Strategy.PilotScopeArtifactTest do
         "expanded_work_count" => 1,
         "relation_edge_count" => 1,
         "relation_assertion_count" => 1,
+        "needs_review_relation_assertion_count" => 0,
         "relation_edges_with_alignment" => 1,
         "alignment_rows" => 2,
         "works_by_text_role" => %{"commentary" => 1, "root" => 10},

@@ -9,7 +9,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   that boundary.
   """
 
-  @schema "pramana-pilot-scope/v2"
+  @schema "pramana-pilot-scope/v3"
   @pilot_id "chinese-commentary-v1"
   @agama_ids ~w(T0001 T0026 T0099 T0125)
   @relations ~w(comments_on subcommentary_of)
@@ -98,7 +98,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   end
 
   @doc """
-  Validates the saved artifact's closed v2 shape and arithmetic.
+  Validates the saved artifact's closed v3 shape and arithmetic.
 
   Live release/current-corpus verification is deliberately absent here. A structurally
   valid historical artifact is still historical evidence rather than proof of current
@@ -489,11 +489,23 @@ defmodule Pramana.Pilot.ScopeArtifact do
         end),
         "scope relation assertion evidence digest does not match evidence"
       )
+      |> add_if(
+        Enum.any?(assertions, &(not valid_review_state?(&1))),
+        "scope relation review status/reason is invalid"
+      )
     end)
   end
 
   defp check_relations(errors, _relations, _works, _seeds),
     do: ["relations must be an array" | errors]
+
+  defp valid_review_state?(%{"review_status" => "unflagged", "review_reason" => nil}),
+    do: true
+
+  defp valid_review_state?(%{"review_status" => "needs_review", "review_reason" => reason}),
+    do: nonempty?(reason)
+
+  defp valid_review_state?(_), do: false
 
   defp relation_ancestry_matches_target?(relation, works_by_id) do
     case Map.get(works_by_id, relation["target_work_id"]) do
@@ -574,6 +586,13 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> add_if(
         d["relation_assertion_count"] != assertion_count,
         "relation_assertion_count is wrong"
+      )
+      |> add_if(
+        d["needs_review_relation_assertion_count"] !=
+          relations
+          |> Enum.flat_map(&(&1["assertions"] || []))
+          |> Enum.count(&(&1["review_status"] == "needs_review")),
+        "needs_review_relation_assertion_count is wrong"
       )
       |> add_if(
         d["relation_edges_with_alignment"] !=
@@ -686,7 +705,9 @@ defmodule Pramana.Pilot.ScopeArtifact do
       assertion["confidence"] || "",
       assertion["scope"] || "",
       assertion["target_urn"] || "",
-      assertion["evidence_sha256"] || ""
+      assertion["evidence_sha256"] || "",
+      assertion["review_status"] || "",
+      assertion["review_reason"] || ""
     }
   end
 

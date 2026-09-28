@@ -33,8 +33,8 @@ defmodule Pramana.Derivations do
 
   @versions %{
     "quotations_scan" => "quotations_scan/v1",
-    "relations_title" => "relations_title/v2",
-    "relations_shared_text" => "relations_shared_text/v2",
+    "relations_title" => "relations_title/v3",
+    "relations_shared_text" => "relations_shared_text/v3",
     "commentary_align" => "commentary_align/v1"
   }
 
@@ -209,7 +209,20 @@ defmodule Pramana.Derivations do
       bake_id: bake_id,
       scope: scope,
       parameters: parameters,
-      candidates: shared_text_candidates(min_passages, bake_id)
+      candidates: shared_text_candidates(min_passages, bake_id),
+      retained_for_review:
+        "shared_text"
+        |> relation_output_rows()
+        |> Enum.filter(&(&1.review_status == "needs_review"))
+        |> Enum.map(
+          &Map.take(&1, [
+            :source_work_id,
+            :target_work_id,
+            :relation,
+            :review_status,
+            :review_reason
+          ])
+        )
     })
   end
 
@@ -254,6 +267,19 @@ defmodule Pramana.Derivations do
   def current_output_snapshot("commentary_align", bake_id, scope, _parameters) do
     rows = alignment_output_rows(bake_id, scope)
     {digest(rows), length(rows)}
+  end
+
+  @doc "Count flagged shared-text assertions outside this run's current proposal set."
+  @spec shared_text_carryover_count([map()]) :: non_neg_integer()
+  def shared_text_carryover_count(candidates) do
+    current = MapSet.new(candidates, &{&1.work_id, &1.target_work_id})
+
+    "shared_text"
+    |> relation_output_rows()
+    |> Enum.count(fn row ->
+      row.review_status == "needs_review" and
+        not MapSet.member?(current, {row.source_work_id, row.target_work_id})
+    end)
   end
 
   @doc """
@@ -494,7 +520,9 @@ defmodule Pramana.Derivations do
           target_urn: r.target_urn,
           confidence: r.confidence,
           method: r.method,
-          evidence: r.evidence
+          evidence: r.evidence,
+          review_status: r.review_status,
+          review_reason: r.review_reason
         }
     )
   end

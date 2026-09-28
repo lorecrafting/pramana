@@ -22,16 +22,19 @@ A receipt is `complete` only when all of these are true at the end of the run:
 
 The last condition is intentionally stricter than "the command exited successfully."
 Title/shared-text relations and commentary alignments use idempotent row/pair upserts, not
-whole-table replacement. A stale row from an older or narrower rule can therefore survive
-a successful run. Such a run records a `partial` receipt instead of certifying the stale
-output. The receipt mechanism deliberately does not delete that row automatically; stale
-derived evidence must be reviewed before cleanup rather than erased merely to make a gate pass.
+whole-table replacement. An unflagged stale row from an older or narrower rule therefore
+leaves a `partial` receipt. Shared-text rows explicitly marked `needs_review` may be retained
+as separate candidates: the producer counts them in its expected output, binds their
+identity and warning to the receipt, and reports the retained count. This records intentional
+inclusion, **not** that the current rule rediscovered or verified those links. Nothing is
+deleted just to make the receipt pass.
 
 Matching start/end input digests do not prove that no concurrent writer changed and restored
 an input mid-run. Pilot acceptance therefore retains its separate quiesced stable-state
 requirement.
 
-The output digest binds the receipt to the exact derived rows that were observed. For
+The output digest binds the receipt to the exact derived rows, including review status and
+reason, that were observed. For
 title relations it excludes the separate Tibetan stem/suffix producer, which also uses
 `title_match`; stale rows from the Chinese title producer still make its receipt partial.
 For commentary alignment this covers only the deterministic `lemma_match` rows owned by that
@@ -78,7 +81,8 @@ shape:
 
 Old implementation versions, changed inputs, changed outputs, output-count mismatches,
 partial runs and narrower scopes are refused. A passing result is derivation-completion
-evidence only; it does not make `pilot_scope` ready by itself.
+evidence only; it does not establish a retained link's scholarly correctness or make
+`pilot_scope` ready by itself.
 
 ## Non-goals
 

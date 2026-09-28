@@ -388,7 +388,9 @@ defmodule Pramana.Pilot.Scope do
           target_urn: r.target_urn,
           confidence: r.confidence,
           method: r.method,
-          evidence: r.evidence
+          evidence: r.evidence,
+          review_status: r.review_status,
+          review_reason: r.review_reason
         }
     )
   end
@@ -737,7 +739,9 @@ defmodule Pramana.Pilot.Scope do
       row.confidence || "",
       row.scope || "",
       row.target_urn || "",
-      ScopeArtifact.digest(row.evidence || %{})
+      ScopeArtifact.digest(row.evidence || %{}),
+      row.review_status || "unflagged",
+      row.review_reason || ""
     }
   end
 
@@ -779,7 +783,9 @@ defmodule Pramana.Pilot.Scope do
               "scope" => assertion.scope,
               "target_urn" => assertion.target_urn,
               "evidence" => assertion.evidence || %{},
-              "evidence_sha256" => ScopeArtifact.digest(assertion.evidence || %{})
+              "evidence_sha256" => ScopeArtifact.digest(assertion.evidence || %{}),
+              "review_status" => assertion.review_status || "unflagged",
+              "review_reason" => assertion.review_reason
             }
           end)
       }
@@ -950,6 +956,10 @@ defmodule Pramana.Pilot.Scope do
       "relation_edge_count" => length(relations),
       "relation_assertion_count" =>
         relations |> Enum.map(&length(&1["assertions"])) |> Enum.sum(),
+      "needs_review_relation_assertion_count" =>
+        relations
+        |> Enum.flat_map(& &1["assertions"])
+        |> Enum.count(&(&1["review_status"] == "needs_review")),
       "relation_edges_with_alignment" => Enum.count(alignments, & &1["has_passage_alignment"]),
       "alignment_rows" => alignments |> Enum.map(& &1["alignment_rows"]) |> Enum.sum(),
       "works_by_text_role" =>
@@ -1010,7 +1020,9 @@ defmodule Pramana.Pilot.Scope do
         target_urn: row.target_urn,
         confidence: row.confidence,
         method: row.method,
-        evidence: row.evidence
+        evidence: row.evidence,
+        review_status: row.review_status || "unflagged",
+        review_reason: row.review_reason
       }
     end)
     |> Enum.sort_by(fn row ->

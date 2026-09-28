@@ -115,6 +115,37 @@ defmodule PramanaWeb.ReaderWorkLiveTest do
 
       assert html =~ "Other works transmitting this material"
       assert html =~ "15 shared passages"
+      refute html =~ "Commentary links"
+    end
+
+    test "shows a needs-review commentary link from both works without hiding it", %{
+      conn: conn
+    } do
+      relation =
+        insert_work_relation!(
+          source_work_id: "T2187",
+          target_work_id: "T0262",
+          relation: "comments_on",
+          evidence: %{"shared_passages" => 3}
+        )
+
+      relation
+      |> Ecto.Changeset.change(
+        review_status: "needs_review",
+        review_reason: "The edition identity needs checking"
+      )
+      |> Repo.update!()
+
+      for {work_id, direction} <- [
+            {"T0262", "Explains this work"},
+            {"T2187", "This work explains"}
+          ] do
+        {:ok, _view, html} = live(conn, ~p"/works/#{work_id}")
+        assert html =~ direction
+        assert html =~ "Needs review"
+        assert html =~ "The edition identity needs checking"
+        assert html =~ "3 shared passages"
+      end
     end
   end
 

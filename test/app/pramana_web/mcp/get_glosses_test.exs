@@ -17,6 +17,7 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text
   alias Pramana.Normalize.CBETA
+  alias Pramana.Relations
   alias Pramana.Repo
   alias PramanaWeb.MCP.Tools.GetGlosses
 
@@ -194,6 +195,34 @@ defmodule PramanaWeb.MCP.GetGlossesTest do
     assert gloss["method"] == "lemma_match"
     assert gloss["confidence"] == "probable"
     assert json(%{urn: @root_urn})["method"] == "lemma_match"
+  end
+
+  test "a flagged work link warns on its matched gloss" do
+    {:ok, relation} =
+      Relations.assert(%{
+        source_work_id: "T1718",
+        target_work_id: "T0262",
+        relation: "comments_on",
+        method: "shared_text"
+      })
+
+    relation
+    |> Ecto.Changeset.change(
+      review_status: "needs_review",
+      review_reason: "Check the source edition"
+    )
+    |> Repo.update!()
+
+    [gloss] = json(%{urn: @root_urn})["glosses"]
+
+    assert gloss["review_warnings"] == [
+             %{
+               "relation" => "comments_on",
+               "method" => "shared_text",
+               "status" => "needs_review",
+               "reason" => "Check the source edition"
+             }
+           ]
   end
 
   test "a line nothing explains returns an empty list, not a nearby guess" do

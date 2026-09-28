@@ -35,6 +35,7 @@ defmodule PramanaWeb.WorkLive do
            page_title: outline.title || work_id
          )
          |> assign(relations: Relations.parallels_of(work_id))
+         |> assign(commentary_links: commentary_links(work_id))
          |> assign(person: person(outline))
          |> assign(apparatus: apparatus_summary(work_id))
          |> assign(edition_link: edition_link(outline))}
@@ -45,6 +46,7 @@ defmodule PramanaWeb.WorkLive do
            work_id: work_id,
            outline: nil,
            relations: [],
+           commentary_links: [],
            apparatus: nil,
            edition_link: nil,
            error: reason,
@@ -94,6 +96,20 @@ defmodule PramanaWeb.WorkLive do
       0 -> nil
       count -> %{segments: count}
     end
+  end
+
+  defp commentary_links(work_id) do
+    incoming =
+      work_id
+      |> Relations.commentaries_on()
+      |> Enum.map(&Map.put(&1, :direction, "Explains this work"))
+
+    outgoing =
+      work_id
+      |> Relations.explains()
+      |> Enum.map(&Map.put(&1, :direction, "This work explains"))
+
+    incoming ++ outgoing
   end
 
   @impl true
@@ -199,6 +215,42 @@ defmodule PramanaWeb.WorkLive do
             <div class="text-xs text-base-content/60">lines with variants</div>
             <div class="font-medium">{@apparatus.segments}</div>
           </div>
+        </section>
+
+        <section :if={@commentary_links != []} class="space-y-2">
+          <h2 class="font-semibold">Commentary links</h2>
+          <p class="text-xs text-base-content/60">
+            These are assertions about which work explains which. Method and confidence
+            show the evidence; “Needs review” marks a link whose exact source or edition
+            is still being checked.
+          </p>
+          <ul class="space-y-3 text-sm">
+            <li :for={link <- @commentary_links} class="rounded-lg border border-base-300 p-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs text-base-content/60">{link.direction}</span>
+                <.link
+                  :if={link.work_id}
+                  navigate={~p"/works/#{link.work_id}"}
+                  class="link font-medium"
+                >
+                  {link.title || link.work_id}
+                </.link>
+                <span :if={is_nil(link.work_id)}>{link.work_ref}</span>
+                <span :if={link.review_status == "needs_review"} class="badge badge-sm badge-warning">
+                  Needs review
+                </span>
+              </div>
+              <p class="text-xs text-base-content/60">
+                {link.relation} · {link.method} · {link.confidence}
+                <span :if={link.evidence["shared_passages"]}>
+                  · {link.evidence["shared_passages"]} shared passages
+                </span>
+              </p>
+              <p :if={link.review_status == "needs_review"} class="text-xs text-warning">
+                {link.review_reason}
+              </p>
+            </li>
+          </ul>
         </section>
 
         <section :if={@relations != []} class="space-y-2">

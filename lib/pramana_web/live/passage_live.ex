@@ -150,7 +150,6 @@ defmodule PramanaWeb.PassageLive do
   defp shows_versions?(_), do: false
 
   defp page_title(%{provenance: %{work_id: work_id}}), do: work_id
-  defp page_title(_), do: "Passage"
 
   # The outline is fetched here rather than rendered from the passage, because a reader
   # who has landed mid-work from a search result needs to know where in the work they
@@ -224,6 +223,16 @@ defmodule PramanaWeb.PassageLive do
               <span :if={g.commentary_author} class="text-base-content/60">
                 · {g.commentary_author}
               </span>
+              <span :if={g.review_warnings != []} class="badge badge-sm badge-warning">
+                Needs review
+              </span>
+              <.link
+                :if={g.review_warnings != []}
+                navigate={~p"/works/#{g.commentary_work_id}"}
+                class="link text-xs"
+              >
+                Review link details
+              </.link>
               <div class="font-mono text-xs text-base-content/50">{g.commentary_urn}</div>
               <div class="text-base-content/70">
                 quotes <span class="font-medium">{g.lemma}</span>

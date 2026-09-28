@@ -54,6 +54,10 @@ response such as a person record is not a source span and need not invent a pass
 Provenance buckets make origin and role visible, but do not independently certify
 historical attribution. An unaligned commentary may paraphrase or lack accepted
 alignment evidence; absence of an alignment does not refute the work-level relation.
+`get_commentaries` carries each relation's review status and reason; its upward answer
+also retains all assertions for each visited work beside the navigational chain.
+`get_glosses` and `get_commentary_outline` carry `review_warnings` for flagged work
+relations supporting their alignments. An empty warning list is not a verification.
 
 ## Honesty fields and replay
 
