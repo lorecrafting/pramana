@@ -29,17 +29,17 @@ reconcile it with current code before dispatching work from it.
   [Queue item 13](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#the-queue-in-order).
 - **SAT / Taishō 56–84.** Sent 2026-08-15; the follow-up is overdue. See [Blocked](#blocked).
 - **Tengyur works with no title** (3,864 of 4,575 named, per the generated figures below).
-- **The Chinese pilot's human gates**: live scope acceptance, rights clearance, two
-  qualified Buddhist-Chinese evaluators and participant recruitment, per the
+- **The Chinese pilot's human gates**: [live scope and rights acceptance](https://github.com/lorecrafting/pramana/issues/63),
+  [two qualified Buddhist-Chinese evaluators and participant recruitment](https://github.com/lorecrafting/pramana/issues/64), per the
   [pilot charter](strategy/PILOT_CHARTER.md) and
   [preflight](strategy/PILOT_PREFLIGHT.md). G1 and the relevant Pramāṇa conditions
   govern implementation; the retired Foundry G0 gate no longer blocks it.
-- **Select the Chinese pilot inference route.** Compare a capable external route and a
+- **[Select the Chinese pilot inference route](https://github.com/lorecrafting/pramana/issues/65).** Compare a capable external route and a
   local route on the same frozen source-bound reading sample, terminology and qualified
   evaluator rubric; record fidelity by text role, latency, cost and exact processing
   permissions, then select the pilot route before the reading/synthesis slice.
-  Comparison is planning, not
-  authorization to send source or participant content to an external provider.
+  This comparison plan does not authorize sending source or participant content to an
+  external provider.
 
 ### Engineering
 
