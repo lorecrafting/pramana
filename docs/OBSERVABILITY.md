@@ -6,8 +6,8 @@ the current implementation.
 
 ## Implemented observations
 
-[Pramana.Telemetry](../apps/pramana/lib/pramana/telemetry.ex) emits domain events;
-[the web telemetry module](../apps/pramana_web/lib/pramana_web/telemetry.ex) defines
+[Pramana.Telemetry](../lib/pramana/telemetry.ex) emits domain events;
+[the web telemetry module](../lib/pramana_web/telemetry.ex) defines
 metrics for them alongside Phoenix, database and VM metrics.
 
 | Boundary | What is observed | Limit |

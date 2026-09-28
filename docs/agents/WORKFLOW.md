@@ -6,7 +6,7 @@ Do not assume a model name implies a particular CLI, tool name, subscription or 
 
 ## Choose the work boundary
 
-The repository root is the Pramāṇa Mix umbrella.
+The repository root is the Pramāṇa Mix app.
 Foundry moved to [lorecrafting/foundry](https://github.com/lorecrafting/foundry) on
 2026-09-23 ([repository map](../REPO_MAP.md)); do Foundry work there.
 
@@ -46,7 +46,7 @@ macro, use the [dependency review runbook](DEPENDENCY_REVIEW.md) to identify aff
 files. Record scope/revision and inspect the actual callers before implementing;
 reviewers recheck the candidate independently. This is targeted context, not a
 mandatory graph build for every task or permission to skip tests. CI publishes
-revision-labelled per-app reports; missing edges do not establish no impact.
+revision-labelled application reports; missing edges do not establish no impact.
 
 ## Validate and report
 

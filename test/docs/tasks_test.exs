@@ -8,7 +8,7 @@ defmodule Docs.TasksTest do
 
   defp tasks do
     @root
-    |> Path.join("apps/*/lib/mix/tasks/*.ex")
+    |> Path.join("lib/mix/tasks/*.ex")
     |> Path.wildcard()
     |> Enum.map(&Path.basename(&1, ".ex"))
     |> MapSet.new()

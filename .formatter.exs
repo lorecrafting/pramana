@@ -1,5 +1,6 @@
 [
+  import_deps: [:ecto, :ecto_sql, :phoenix],
   plugins: [Phoenix.LiveView.HTMLFormatter],
-  inputs: ["mix.exs", "config/*.exs", "ci/*.exs", "bin/*.exs", "test/**/*.exs"],
-  subdirectories: ["apps/*"]
+  inputs: ["*.{heex,ex,exs}", "{config,lib,test,ci,bin}/**/*.{heex,ex,exs}", "priv/*/seeds.exs"],
+  subdirectories: ["priv/*/migrations"]
 ]

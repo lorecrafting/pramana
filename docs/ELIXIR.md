@@ -1,17 +1,16 @@
 # Language and runtime boundaries
 
-[The repository map](REPO_MAP.md) owns the overall layout. The umbrella uses Elixir
+[The repository map](REPO_MAP.md) owns the overall layout. The application uses Elixir
 for corpus/domain logic and Phoenix for the reader/MCP transport.
 
 ## Elixir owns the corpus
 
 Acquisition policy, normalization, citation addressing, provenance, database writes,
 retrieval and verification belong in the core domain. Keep web rendering separate
-from these rules. Domain code uses Ecto/PostgreSQL; the core also uses Phoenix PubSub
-without depending on the Phoenix web application itself.
+from these rules. Domain code uses Ecto/PostgreSQL and Phoenix PubSub without
+depending on `PramanaWeb` modules.
 
-The [Mix manifests](../mix.exs), [core manifest](../apps/pramana/mix.exs),
-[web manifest](../apps/pramana_web/mix.exs) and [toolchain pin](../mise.toml)
+The [Mix manifest](../mix.exs) and [toolchain pin](../mise.toml)
 are the authoritative dependency/version records. Old spike results are not current
 library-support guarantees.
 
@@ -19,7 +18,7 @@ library-support guarantees.
 
 | Component | Current implementation | Boundary |
 |---|---|---|
-| CJK segmentation | Rustler NIF in `apps/pramana_native/` using jieba-rs | Runs in the BEAM; lexical strategies still need evaluation on Buddhist vocabulary |
+| CJK segmentation | Rustler NIF in `native/pramana_native/` using jieba-rs | Runs in the BEAM; lexical strategies still need evaluation on Buddhist vocabulary |
 | Verbatim text reuse | Standalone Rust executable in `native/quotations/` | Seed-and-extend, not a suffix-array implementation; JSONL input/output; no direct Postgres writes |
 | Inference/training helpers | Python scripts in `priv/embed/` | Tensor/model work and artifact handling, including embeddings and translation; no competing corpus database/domain layer |
 

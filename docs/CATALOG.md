@@ -133,7 +133,4 @@ Titles do not establish currentness: read each document's scope and evidence lim
 
 ## Code-adjacent references
 
-- [`apps/pramana/priv/variants/PROVENANCE.md`](../apps/pramana/priv/variants/PROVENANCE.md)
-- [`apps/pramana/README.md`](../apps/pramana/README.md)
-- [`apps/pramana_native/README.md`](../apps/pramana_native/README.md)
-- [`apps/pramana_web/README.md`](../apps/pramana_web/README.md)
+- [`priv/variants/PROVENANCE.md`](../priv/variants/PROVENANCE.md)

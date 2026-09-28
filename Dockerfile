@@ -36,13 +36,13 @@ ENV MIX_ENV=prod
 
 # Deps before source, so a code change does not refetch and rebuild the world.
 COPY mix.exs mix.lock ./
-COPY apps/pramana/mix.exs apps/pramana/
-COPY apps/pramana_web/mix.exs apps/pramana_web/
-COPY apps/pramana_native/mix.exs apps/pramana_native/
 COPY config config
 RUN mix deps.get --only prod && mix deps.compile
 
-COPY apps apps
+COPY lib lib
+COPY native/pramana_native native/pramana_native
+COPY priv priv
+COPY assets assets
 RUN mix compile
 
 # Digested assets, so the release serves them with cache headers and a content hash.

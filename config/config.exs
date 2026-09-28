@@ -1,20 +1,10 @@
-# This file is responsible for configuring your umbrella
-# and **all applications** and their dependencies with the
-# help of the Config module.
-#
-# Note that all applications in your umbrella share the
-# same configuration and dependencies, which is why they
-# all use the same configuration file. If you want different
-# configurations or dependencies per app, it is best to
-# move said applications out of the umbrella.
+# Shared domain and web configuration for the Pramāṇa application.
 import Config
 
 # Configure Mix tasks and generators
 config :pramana,
   ecto_repos: [Pramana.Repo],
-  # The umbrella root, resolved at compile time. `File.cwd!()` is unreliable here:
-  # in an umbrella, mix runs each child app from its own directory, so raw/ and
-  # sources.lock.json would resolve differently depending on how tests were invoked.
+  # The project root, independent of the caller's working directory.
   project_root: Path.expand("..", __DIR__),
   # Figure blocks live in project STATUS and the still-shared active PLAN. Keep the
   # roots explicit: ordinary source/data paths remain relative to the project only.
@@ -39,12 +29,10 @@ config :pramana, Oban,
   # bake is a few thousand of them, which is a trade worth making in one direction only.
   plugins: [{Oban.Plugins.Pruner, max_age: 60 * 60 * 24 * 7}]
 
-config :pramana_web,
-  ecto_repos: [Pramana.Repo],
-  generators: [context_app: :pramana]
+config :pramana, generators: [context_app: :pramana]
 
 # Configures the endpoint
-config :pramana_web, PramanaWeb.Endpoint,
+config :pramana, PramanaWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
@@ -60,7 +48,7 @@ config :esbuild,
   pramana_web: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
-    cd: Path.expand("../apps/pramana_web/assets", __DIR__),
+    cd: Path.expand("../assets", __DIR__),
     env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
   ]
 
@@ -72,7 +60,7 @@ config :tailwind,
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
     ),
-    cd: Path.expand("../apps/pramana_web", __DIR__)
+    cd: Path.expand("..", __DIR__)
   ]
 
 # Configure Elixir's Logger

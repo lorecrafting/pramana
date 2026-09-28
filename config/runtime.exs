@@ -7,7 +7,7 @@ import Config
 # any compile-time configuration in here, as it won't be applied.
 # The block below contains prod specific runtime configuration.
 
-config :pramana_web, PramanaWeb.Endpoint,
+config :pramana, PramanaWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
@@ -41,7 +41,7 @@ if config_env() == :prod do
       """
 
   # Serving is explicit: bin/server opts in; plain start/eval do not.
-  config :pramana_web, PramanaWeb.Endpoint,
+  config :pramana, PramanaWeb.Endpoint,
     server: System.get_env("PHX_SERVER") in ["true", "1"],
     url: [host: System.get_env("APP_HOST", "example.com")],
     http: [
@@ -62,7 +62,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :pramana_web, PramanaWeb.Endpoint,
+  #     config :pramana, PramanaWeb.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -84,7 +84,7 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :pramana_web, PramanaWeb.Endpoint,
+  #     config :pramana, PramanaWeb.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.

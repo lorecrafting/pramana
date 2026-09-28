@@ -29,7 +29,7 @@ mix pramana.embed.export --source cbeta --out /tmp/pramana_chunks.jsonl
 Chunks and vector rows are separate. An export with zero pending rows is not proof
 that the selected collection was fully chunked/vector-prepared. Read the counts and
 refusals. Do not force a re-chunk over valuable vectors without reviewing what will
-be invalidated. [Transfer implementation](../apps/pramana/lib/pramana/embed/transfer.ex)
+be invalidated. [Transfer implementation](../lib/pramana/embed/transfer.ex)
 owns the round-trip checks.
 
 ## 3. Run the selected inference helper
@@ -50,7 +50,7 @@ a matching filename alone is not a matching configuration.
 Count records, inspect the schema, check for missing/duplicate IDs and verify the
 model and source-content identities. Keep the original output and manifest for review.
 The importer accepts `--in`, `--model` and an optional `--rebuild-index`; read its
-[implementation](../apps/pramana/lib/mix/tasks/pramana.embed.import.ex) before use.
+[implementation](../lib/mix/tasks/pramana.embed.import.ex) before use.
 
 ```bash
 # Substitute the reviewed output file and exact compatible model identifier.
@@ -61,8 +61,8 @@ mix pramana.embed.import --in /tmp/pramana_vectors.jsonl --model YOUR_MODEL_ID
 faster: corpus size, batch size, memory and concurrent query load determine the tradeoff.
 Schedule index-affecting operations deliberately, not from an old timing threshold.
 
-Translation uses separate [export](../apps/pramana/lib/mix/tasks/pramana.translate.export.ex)
-and [import](../apps/pramana/lib/mix/tasks/pramana.translate.import.ex) tasks; embedding
+Translation uses separate [export](../lib/mix/tasks/pramana.translate.export.ex)
+and [import](../lib/mix/tasks/pramana.translate.import.ex) tasks; embedding
 output is not a translation artifact. [Translation](TRANSLATION.md) explains the distinction.
 
 ## 5. Record and verify

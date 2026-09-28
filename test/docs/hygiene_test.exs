@@ -46,7 +46,7 @@ defmodule Docs.HygieneTest do
       |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
 
     assert ".git/" in patterns
-    assert "apps/pramana_native/native/**/target/" in patterns
+    assert "native/pramana_native/target/" in patterns
     assert "native/quotations/target/" in patterns
   end
 end

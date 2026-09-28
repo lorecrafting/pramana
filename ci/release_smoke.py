@@ -79,7 +79,7 @@ class Smoke:
             if time.monotonic() >= deadline:
                 raise RuntimeError("disposable PostgreSQL did not become ready")
             time.sleep(0.25)
-        # Same extension/tag as the ordinary umbrella lane; needed by real migrations.
+        # Same extension/tag as the ordinary application lane; needed by real migrations.
         self.docker("exec", self.db, "bash", "-euc", """
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends build-essential postgresql-server-dev-18 wget ca-certificates
@@ -96,7 +96,7 @@ Application.load(:pramana)
 {:ok, _, _} = Ecto.Migrator.with_repo(Pramana.Repo, fn repo ->
   Ecto.Migrator.run(repo, :up, all: true)
 end)
-if Process.whereis(PramanaWeb.Endpoint), do: raise("migration started the web application")
+if Process.whereis(PramanaWeb.Endpoint), do: raise("migration started the web endpoint")
 IO.puts("EXPLICIT_MIGRATION_OK")
 """)
         sha = hashlib.sha256(TEXT.encode()).hexdigest()
@@ -388,7 +388,7 @@ rescue
   error in RuntimeError ->
     unless error.message == "PRE_ADMISSION_MODEL_BUILD", do: reraise(error, __STACKTRACE__)
 end
-result = Application.ensure_all_started(:pramana_web)
+result = Application.ensure_all_started(:pramana)
 unless match?({:error, _}, result) and inspect(result) =~ "public_corpus_forbidden",
   do: raise("wrong startup disposition: #{inspect(result)}")
 # Failed application startup may have unwound the Oban dependency itself.
@@ -423,7 +423,7 @@ end
 Application.load(:pramana)
 Application.put_env(:pramana, :startup_smoke_owner, self())
 System.put_env("PRAMANA_EMBEDDING", "1")
-{:ok, _} = Application.ensure_all_started(:pramana_web)
+{:ok, _} = Application.ensure_all_started(:pramana)
 receive do
   :constructed -> :ok
   after 5_000 -> raise("deferred serving never constructed")
@@ -443,7 +443,7 @@ IO.puts("ADMITTED_SERVING_OK")
         code = '''
 Application.load(:pramana)
 Application.delete_env(:pramana, Oban)
-{:ok, _} = Application.ensure_all_started(:pramana_web)
+{:ok, _} = Application.ensure_all_started(:pramana)
 if Oban.whereis(Oban), do: raise("public administration started Oban")
 unless PramanaWeb.Endpoint.config(:server) == false, do: raise("implicit server enabled")
 case :gen_tcp.connect({127, 0, 0, 1}, 4000, [:binary, active: false], 1000) do

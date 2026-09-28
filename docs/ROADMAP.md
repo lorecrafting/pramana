@@ -81,7 +81,7 @@ Prove the whole pipeline end-to-end on **one sūtra** before scaling anything.
 - **BGE-M3 through Bumblebee** — viable for dense: BGE-M3 declares
   `architectures: ["XLMRobertaModel"]`, which Bumblebee supports. Its sparse/ColBERT
   heads are two loose `.pt` linear layers, portable to Nx.
-- **Rustler** — `apps/pramana_native` builds `jieba-rs` on Rust 1.97.1, with FFI
+- **Rustler** — `native/pramana_native` builds `jieba-rs` on Rust 1.97.1, with FFI
   byte-preservation tests for Han variants and plane-2 glyphs.
 - **MCP** — `anubis_mcp` (the maintained fork; `hermes_mcp` is a year stale).
 

@@ -28,7 +28,7 @@ COLLECTOR = textwrap.dedent(
     )[0]
 )
 RUNBOOK = (ROOT / "docs/agents/DEPENDENCY_REVIEW.md").read_text(encoding="utf-8")
-CALLERS = RUNBOOK.split("## Find callers across the application boundary\n", 1)[1].split(
+CALLERS = RUNBOOK.split("## Find callers across the codebase\n", 1)[1].split(
     "```sh\n", 1
 )[1].split("```", 1)[0]
 
@@ -46,7 +46,7 @@ class XrefCollectorTest(unittest.TestCase):
         self.work = Path(temporary.name)
         self.root = self.work / "checkout"
         self.project = self.root
-        self.app = self.project / "apps/demo"
+        self.app = self.project
         self.report = self.work / "report"
         # Do not inherit a Git worktree/index or alternate Mix build location.
         self.env = {
@@ -72,16 +72,10 @@ class XrefCollectorTest(unittest.TestCase):
         return result
 
     def fixture(self, *, paths: str = '["lib"]', empty: bool = False) -> None:
-        self.put(self.project / "mix.exs", '''defmodule Fixture.Umbrella do
-  use Mix.Project
-  def project, do: [apps_path: "apps", version: "0.1.0"]
-end
-''')
         self.put(self.app / "mix.exs", f'''defmodule Fixture.Demo do
   use Mix.Project
   def project do
-    [app: :demo, version: "0.1.0", build_path: "../../_build",
-     deps_path: "../../deps", lockfile: "../../mix.lock", elixirc_paths: {paths}]
+    [app: :pramana, version: "0.1.0", elixirc_paths: {paths}]
   end
   # Undefined on purpose: accidental application startup fails the test.
   def application, do: [mod: {{Fixture.DoNotStart, []}}]
@@ -115,7 +109,7 @@ end
         return self.command(["bash", "-c", COLLECTOR], self.project, check=False)
 
     def graph(self) -> dict:
-        return json.loads((self.report / "demo/graph.json").read_text(encoding="utf-8"))
+        return json.loads((self.report / "pramana/graph.json").read_text(encoding="utf-8"))
 
     def test_tracked_sources_have_real_edges_and_hash_coverage(self) -> None:
         self.fixture()
@@ -127,7 +121,7 @@ end
         inventory = (self.report / "source-files.paths0").read_bytes().split(b"\0")
         hashes = (self.report / "source-files.sha256").read_text(encoding="utf-8")
         for source in graph:
-            relative = f"apps/demo/{source}"
+            relative = source
             self.assertIn(relative.encode(), inventory)
             digest = hashlib.sha256((self.root / relative).read_bytes()).hexdigest()
             self.assertIn(f"{digest}  {relative}\n", hashes)
@@ -164,8 +158,8 @@ end
         self.assertFalse((self.report / "metadata.json").exists())
 
     def test_external_source_is_rejected_even_when_tracked(self) -> None:
-        self.fixture(paths='["lib", Path.expand("../../outside", __DIR__)]')
-        self.put(self.root / "outside/external.ex",
+        self.fixture(paths='["lib", Path.expand("../outside", __DIR__)]')
+        self.put(self.work / "outside/external.ex",
                  "defmodule Fixture.External do\n  def run, do: Pramana.Release.current_id()\nend\n")
         self.compile()
         result = self.collect()
@@ -199,7 +193,7 @@ end
         self.compile()
         before = self.command(["bash", "-c", CALLERS], self.root)
         self.assertIn("lib/caller.ex (runtime)", before.stdout)
-        (self.project / "_build/test/lib/demo/.mix/compile.elixir").unlink()
+        (self.project / "_build/test/lib/pramana/.mix/compile.elixir").unlink()
         for result in (self.collect(), self.command(["bash", "-c", CALLERS], self.root, check=False)):
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("Compiler evidence unavailable", result.stdout)
